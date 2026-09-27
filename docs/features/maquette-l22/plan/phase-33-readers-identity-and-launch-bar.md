@@ -1,4 +1,4 @@
-# Phase 31 — Readers re-aimed: the page's identity and the launch bar
+# Phase 33 — Readers re-aimed: the page's identity and the launch bar
 
 **Opening measure (2026-09-26, on `94a369879`):**
 
@@ -25,7 +25,7 @@
   | `queued_by_hand.py` (R185) | 3 | onto the path a hand still has: a maintenance command holds the lock, then a season is asked — the `season/queued` pastille (DESIGN § 6.1). Written RED against that path before it is moved; B-371's « no `__go` between the hand and the pastille » holds for the season path only |
   | `locks.py` (R-L20-g) | 2 | its start and stop walk loses the bar's buttons; the walk keeps Système's lock reading and reaches a held lock by the maintenance path, said in the report |
   | `page_host.py` (R77) | 11 | its delegation block (`:706-770`, `:908`) proves that a page migrated to React still has its document-level handler write — here, on the bar's two buttons. Hold by hold, each is RE-AIMED onto another migrated page's delegated act, or reported as dying with its subject (the two acts); the report names which, for each of the eleven sites |
-  | `arrivals.py` (R66) | 6 | NOT edited here: it dies with the page in phase 33, and the phase-25 report says where each of its holds went |
+  | `arrivals.py` (R66) | 6 | NOT edited here: it dies with the page in phase 35, and the phase-25 report says where each of its holds went |
 
   B-371's shape holds for the SEASON path only, by the operator's acceptance of the cost.
 - **Points ≈ 15.** `back.py`, `common.py`, `sweep.py`, `url_state.py`, `locks.py` (the tab reference and the start/stop
@@ -36,7 +36,7 @@
 
 `arrivals.py` (R66) is NOT edited here: its pilot's-bar half dies with the bar, its « says what really happened » half
 read the operator's live databases and dies with the page, its stuck-cards half is R-L22-g's and R-L22-h's. **The
-phase's report says, hold by hold, where each of R66's holds went** (phase 33 removes the file) — a rule is never deleted
+phase's report says, hold by hold, where each of R66's holds went** (phase 35 removes the file) — a rule is never deleted
 without saying where its subject lives (DESIGN § 6.3).
 
 ## Red today

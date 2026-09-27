@@ -1,4 +1,4 @@
-# Phase 23 — The Plex match waits on a disagreement, and each answer does what it says
+# Phase 25 — The Plex match waits on a disagreement, and each answer does what it says
 
 **Born 2026-09-27 from the coherence triage's F3** (review-archive `coherence-2026-09-27.md` § F3), a new integer phase
 after the paused follows' fold and before the menu button's badge. It repairs what L22a's phase 10 drew against

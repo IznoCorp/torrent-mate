@@ -43,7 +43,7 @@ card `aside` and a card `waiting` are NOT in it and ARE in « En cours » with t
 1. `todo-tab.tsx` draws the two sections; each card's foot is « Résoudre → » (to resolve) or « Relancer » (`requeueJourney`,
    on a tunnel error). **« Abandonner » is not drawn here** (phase 11) and neither is the Plex-match section (phase 10): a
    card is never drawn with a foot that does nothing.
-2. `now-tab.tsx` loses its `blocked` section. **Its cross-reference (`data-go="arr"`) stays until phase 29**: it still
+2. `now-tab.tsx` loses its `blocked` section. **Its cross-reference (`data-go="arr"`) stays until phase 31**: it still
    counts what is stuck, which is true.
 3. The named state `acq-todo-loaded`; `acq-now-idle` and `acq-now-loaded` lose the `blocked` section.
 

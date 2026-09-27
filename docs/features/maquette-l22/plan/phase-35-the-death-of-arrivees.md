@@ -1,6 +1,6 @@
-# Phase 33 — The death of Arrivées
+# Phase 35 — The death of Arrivées
 
-**Numbered 33 on 2026-09-27** (was 25; the triage's F51). **Carried at its opening, from the coherence triage (`review-archive/coherence-2026-09-27-triage.md` § B; texts in `coherence-2026-09-27.md`)**: F8 — the bar reads at
+**Numbered 33, then 35, on 2026-09-27** (was 25; the triage's F51). **Carried at its opening, from the coherence triage (`review-archive/coherence-2026-09-27-triage.md` § B; texts in `coherence-2026-09-27.md`)**: F8 — the bar reads at
 THREE after Arrivées dies (Acquisition · Médiathèque · Découvrir; 19-bis-a put Découvrir in the bar), not two, and this
 phase's mutation is re-written so it can fall; a new RULINGS entry records it.
 
@@ -56,12 +56,12 @@ falls; put `inBar: true` on a third row → R-L22-s's tiling hold falls.
 
 ## Register
 
-B-515 and B-531 die with the page; B-037 and B-038 die with `arrivals.py`. Their entries are amended by phase 35, not here
+B-515 and B-531 die with the page; B-037 and B-038 die with `arrivals.py`. Their entries are amended by phase 37, not here
 (`BUGS.md` is named, not edited, by this design; the lot edits it at its close).
 
 ## Oracle: states that diverge, declared by name
 
-**None** (a dead page's code goes). The six `arr-*` records leave the reference in phase 34. Any divergence on a state that
+**None** (a dead page's code goes). The six `arr-*` records leave the reference in phase 36. Any divergence on a state that
 still exists is STOP A.
 
 ## Gate

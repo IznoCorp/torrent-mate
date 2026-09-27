@@ -1,7 +1,7 @@
-# Phase 21 — « Supprimer » deletes a set-aside folder for real
+# Phase 23 — « Supprimer » deletes a set-aside folder for real
 
 **Born 2026-09-27 as « 15b »** (the cut of phase 15 at its opening; the operator's round 8, question 16 = B),
-**numbered 21 by the triage's F51**. It carries **M2** (the auditor's decision-coherence round, 2026-09-27) and **F40**
+**numbered 21 by the triage's F51, then 23** (B-556 and B-557 took 21 and 22). It carries **M2** (the auditor's decision-coherence round, 2026-09-27) and **F40**
 (it edits the contract).
 
 **Opening measure (estimate — RE-MEASURED at the opening; > 15 → cut, one message):**

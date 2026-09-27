@@ -4,18 +4,19 @@ You implement **L22b**, the second and last sub-lot of **L22 — Arrivées dans 
 (`docs/reference/frontend-architecture.md` § 4, entry `#### L22`, the CONTRACT). The lot's design is
 `docs/features/maquette-l22/DESIGN.md` (§ 7.3 carries the operator's rulings of 2026-09-26 evening) and its plan
 `docs/features/maquette-l22/plan/INDEX.md`, one file per phase — **they are the specification and this brief restates
-none of it**. L22b is the plan's **phases 15 to 35**, in that order (renumbered with integers on 2026-09-27, the triage's F51 —
+none of it**. L22b is the plan's **phases 15 to 37**, in that order (renumbered with integers on 2026-09-27, the triage's F51 —
 the phases built keep their names: 15a, 19-bis-a, 19-bis-b): « Laisser tel quel » means later (15 — **read
 ruling 16: « Mis de côté » is a FOLDED section at the END of « À traiter », outside its count and the bar's badge,
 where the operator sees, deletes with a confirmation like the Médiathèque's, deletes from disk, or handles each
 item**; the phase file carries it as a dated line — RE-MEASURE it at its opening, it grew), « Ce n'est pas un média »
 (16), « Suivre » proposed (17), a film's follow ends alone (18), Système leaves the bar (19 — the frame rule R-L22-s,
-the bar at 1/n, 2 to 4; then 19-bis-a/b, « Découvrir » a bar page), the `waiting` tone's text token (20), « Supprimer »
-deletes for real (21), paused follows fold (22), the Plex match waits on a disagreement (23), the menu button's badge (24,
-then the MIDPOINT), a direct-add card lived no rung before « arrivé » (25), the follow sheet searches and grabs (26),
-« Abandonner » on a follow's card (27), one-off acquisitions (28), the sentences that sent the reader to Arrivées (29), the
-readers re-aimed (30, 31 — the four rules that started a pass by finger re-aim OUT LOUD, OPEN 6 ruled A), the live
-rule Système was borrowing (32), the death of Arrivées (33), the records of a dead page (34), the close (35 — the
+the bar at 1/n, 2 to 4; then 19-bis-a/b, « Découvrir » a bar page), the `waiting` tone's text token (20), the pull on a card
+(21, B-556), the three tabs proved at 390 and 369 px (22, B-557), « Supprimer » deletes for real (23), paused follows fold
+(24), the Plex match waits on a disagreement (25), the menu button's badge (26, then the MIDPOINT), a direct-add card
+lived no rung before « arrivé » (27), the follow sheet searches and grabs (28), « Abandonner » on a follow's card (29),
+one-off acquisitions (30), the sentences that sent the reader to Arrivées (31), the readers re-aimed (32, 33 — the four
+rules that started a pass by finger re-aim OUT LOUD, OPEN 6 ruled A), the live rule Système was borrowing (34), the
+death of Arrivées (35), the records of a dead page (36), the close (37 — the
 lot's gesture: `docs/features/maquette-l22/` deleted WHOLE, every citation of it re-cited `path@<the merge sha>`).
 L22b is stacked on L22a's pull request head at its READY (measure 9); L22a's reader round and merge are never
 awaited — when the steward tells you L22a is squashed onto `main`, you MERGE `origin/main` in at your next unit
@@ -38,7 +39,7 @@ boundary (`git merge --no-edit <sha>`, never a rebase).
 
       git remote update origin >/dev/null && git log --oneline origin/main -3
       pwd && git branch --show-current && git status --short && git log --oneline -1
-      ls docs/features/maquette-l22/plan/ | grep -c "^phase-"      # 37 (since 2026-09-27)
+      ls docs/features/maquette-l22/plan/ | grep -c "^phase-"      # 39 (since 2026-09-27)
       python3 scripts/check-frontend-boundaries.py --arm size; echo "exit $?"
       python3 scripts/check-frame-domain.py; echo "exit $?"
       grep -n __version__ personalscraper/__init__.py               # bump at the PR only
@@ -85,9 +86,9 @@ boundary (`git merge --no-edit <sha>`, never a rebase).
 - **A phase's gate** = one wrapped `run.sh --contracts --oracle <named rules>` + the cheap guards it runs, logs
   POSTDATING the commit they measure; `tests/scripts/test_check_maquette_comments.py` alone under the test mutex
   before any push, `check-maquette-comments.py --record` INSIDE the commit when a maquette file moved.
-  **The FULL SUITE runs TWICE in L22b** (measure 20): at the MIDPOINT, after phase 24 and before phase 29 opens,
+  **The FULL SUITE runs TWICE in L22b** (measure 20): at the MIDPOINT, after phase 26 and before phase 31 opens,
   every fall re-read ALONE on a quiet machine before it is charged to the code or to load (the RESUME says which and
-  why, per rule), its real falls repaired by you before phase 29; and after phase 35, before the pull request, with
+  why, per rule), its real falls repaired by you before phase 31; and after phase 37, before the pull request, with
   `--a11y` (also on EVERY phase gate that draws — L22a's phases 5–7 skipped it once and the light ledger rose),
   `scripts/harness-hold-counts.py --compare frontend/maquette/hold-counts-baseline.json` (`failed` read FIRST),
   `python3 scripts/check-bug-register.py`, `python3 scripts/check-intent-map.py`, `python3
@@ -125,14 +126,14 @@ boundary (`git merge --no-edit <sha>`, never a rebase).
 
 One commit per phase (plus the commit-before-mutation where a phase says so), conventional, scoped `maquette-l22`
 (e.g. `feat(maquette-l22): …`), no attribution of any kind (`CLAUDE.md` § Commit Convention; `hooks/commit-msg`
-refuses it). Push at every stand-down and after phase 35 under the test mutex. After phase 35: merge `origin/main` in
+refuses it). Push at every stand-down and after phase 37 under the test mutex. After phase 37: merge `origin/main` in
 (`git merge --no-edit`, never a rebase), bump the version (patch) above whatever `main` reads then, the full gate,
 pull request READY titled `feat(maquette-l22b): Arrivées dans Acquisition — « Mis de côté », the bar without Système,
 and the death of Arrivées` — a BEHAVIOUR pull request, so it cites the constitution §§ each phase serves (§ 2, § 3,
 § 12, § 13, § 16, § 17, § 20). Body: the thirteen phases and what each moved, every rule written with its red run and
 its mutation (EXPRESSION and FAIL line), the oracle states accepted by name, the register rows closed, the midpoint
 suite's falls and repairs, the ledger's final count (0). **The lot's gesture is yours**: `docs/features/maquette-l22/` is deleted
-WHOLE at phase 35 (documentation-model.md § 4 — the folder is the LOT's and dies at its last sub-lot), every citation
+WHOLE at phase 37 (documentation-model.md § 4 — the folder is the LOT's and dies at its last sub-lot), every citation
 of it in the tree re-cited `path@<the last MAIN commit holding it>` — never a branch head. One reader round
 follows (measure 2); you stay available for its findings in a fresh session with a resume brief, not in this one.
 

@@ -1,4 +1,4 @@
-# Phase 26 — The follow sheet searches live, and grabs through the per-follow operation
+# Phase 28 — The follow sheet searches live, and grabs through the per-follow operation
 
 **Born 2026-09-27 from the coherence triage's F6 + F42**, one phase, **cut at its opening if above 15**.
 

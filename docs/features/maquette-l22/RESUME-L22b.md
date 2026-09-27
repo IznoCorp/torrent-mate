@@ -10,15 +10,16 @@ L22b appends from 13).
   [ac1af8]`. main has moved (#621, the references' gesture): merge `origin/main` at the next unit boundary — only the
   generated files conflict; regenerate them (oracle by an accept in one invocation + the script proof; ledgers re-read).
 - Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b`.
-- DONE: 15a, 16, 17, 18, 19, 19-bis-a, 19-bis-b, the merge of #619, the triage's docs commit (F4, F50, F51, F58, C8,
-  round 8 Q16/Q17/Q19/Q20, rounds 9–10 placements, RULINGS 21). NEXT, **renumbered with integers (F51)**: 20 the
-  `waiting` tone's text token (was 18-ter) → 21 « Supprimer » for real (was 15b; M2, F40; likely cut) → 22 paused
-  follows fold (was 18-bis, R233) → 23 the Plex match waits on a disagreement (F3; STOP D if Star Trek's seed costs § 13)
-  → 24 the menu button's badge (HELD: F1 + C2 and M3 at its opening, before its first commit) → [MIDPOINT full suite] →
-  25 direct-add card (F5) → 26 follow sheet search + grab (F6 + F42; likely cut) → 27 « Abandonner » on a follow's card
-  (M1) → 28 one-off acquisitions (round 10 Q1 + Q2; likely cut) → 29 sentences (F7, F54, F53) → 30 readers (F41) → 31
-  → 32 → 33 death of Arrivées (F8) → 34 → 35 close (F8, F52, F67, C9). Each re-measured at its opening; > 15 → cut, one
-  message. The plan: `plan/INDEX.md` (its last amendment); the rulings: DESIGN § 7.4.
+- DONE: 15a, 16, 17, 18, 19, 19-bis-a, 19-bis-b, the merges of #619 and #621, the triage's docs commit, **20** (the
+  waiting tone's text token; light ceiling 98 → 88). NEXT (integers; B-556/B-557 took 21/22, the rest +2): **21** a pull
+  begun on a card refreshes (B-556, R235) → 22 three tabs + lit badge at 390/369 px (B-557, proof only) → 23 « Supprimer »
+  for real (M2, F40; likely cut) → 24 paused follows fold (R233) → 25 the Plex match waits on a disagreement (F3; STOP D
+  if Star Trek's seed costs § 13) → 26 the menu button's badge (HELD: F1 + C2 and M3 at its opening) → [MIDPOINT full
+  suite + audit2.py ×10 kept output; the steward runs ×10 on main] → 27 direct-add card (F5) → 28 follow sheet search +
+  grab (F6 + F42; likely cut) → 29 « Abandonner » on a follow's card (M1) → 30 one-off acquisitions (round 10 Q1 + Q2;
+  likely cut) → 31 sentences (F7, F54, F53) → 32 readers (F41) → 33 → 34 → 35 death of Arrivées (F8) → 36 → 37 close
+  (F8, F52, F67, C9; product-intent-map.md:49 `acq-discover-posters` → `discover-posters`, the operator's ruling).
+  Each re-measured at its opening; > 15 → cut, one message. Plan: `plan/INDEX.md`; rulings: DESIGN § 7.4.
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (21) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (22) R233 ·
   R234 discover_page · next free R235. RULINGS: L22b writes 13–29 (13–21 used); L22a's repair round wrote 30–32.
@@ -126,4 +127,12 @@ L22b appends from 13).
   mine and not done: `frontend-architecture.md`'s L22 entry and `product-intent-map.md:49` (the steward's docs PR); the
   regions.json note of F58 (« the four tabs » → « the bottom bar: two to four buttons ») is left to the lot that edits
   regions.json.
+- 2026-09-27 phase 20: R230 re-aimed out loud onto the named state again, hold 4 (the chip's light text is the computed
+  --color-waiting-text). Red `20-red.log` (after two authoring fixes the guards caught: a class-token selector → the
+  chip read by `dataset.tone`; a phase reference in a comment) + `20-red-a11y.log` light 103. Commits 662989abc (feat),
+  e5411db6f (oracle by name, pin 125, light ceiling 98 → 88 by --record in the same invocation). Mutation
+  `20-mutation.log`: the variant reads the tone → R230 FAIL by hold 4. `20-final.log` no divergence, light 88/88.
+  audit2.py R11 fell ONCE (`20-green.log`, no detail — run.sh deletes per-rule logs), green on the three runs after;
+  NOT set aside: ×10 here at the midpoint with the output kept, ×10 on main by the steward (R11 also fell on #623's CI).
+- 2026-09-27 B-556 / B-557 filed (the operator's verbatim) and placed as phases 21 / 22; 21–35 → 23–37.
 

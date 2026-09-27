@@ -1,6 +1,6 @@
-# Phase 22 — Paused follows fold at the end of « Suivis »
+# Phase 24 — Paused follows fold at the end of « Suivis »
 
-**Born 2026-09-27 as « 18-bis »** (the operator's round 8, question 17 = A), **numbered 22 by the triage's F51**.
+**Born 2026-09-27 as « 18-bis »** (the operator's round 8, question 17 = A), **numbered 22 by the triage's F51, then 24** (B-556 and B-557 took 21 and 22).
 
 **Opening measure (estimate — RE-MEASURED at the opening):**
 

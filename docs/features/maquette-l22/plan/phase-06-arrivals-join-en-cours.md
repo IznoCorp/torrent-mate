@@ -23,7 +23,7 @@
 Ruling 2: an arrival is an acquisition card. The cards of phase 1's new family now DRAW: `moving` → « En vol » while it
 moves, `settled` → « Rangé aujourd'hui » (Arrivées called it « Arrivé dans les 24 h »), `stuck` → the `blocked`
 section, which still bears the name « À traiter » inside « En cours » until phase 9 gives it a tab of its own.
-**Arrivées still exists and still draws the same rows from `readStaging`**: one source, two readers, until phase 33.
+**Arrivées still exists and still draws the same rows from `readStaging`**: one source, two readers, until phase 35.
 
 ## Red today
 
