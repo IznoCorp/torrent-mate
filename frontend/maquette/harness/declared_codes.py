@@ -86,6 +86,9 @@ LATENCY_MILLISECONDS = 10
 # contract declares a non-200 success for is here, and the hold below refuses
 # the day that stops being true.
 ASKED_FOR = {
+    # A follow's claim answers 202 with the run it spawned, the backend's own
+    # « Récupérer maintenant »; the corpus hold fell until it was asked here.
+    "grabForFollow": ("POST", "/api/acquisition/followed/Silo/grab"),
     "grabSeasonForFollow": (
         "POST", "/api/acquisition/follows/Silo/seasons/1/grab"),
     "requeueJourney": ("POST", "/api/acquisition/journeys/Silo/requeue"),
