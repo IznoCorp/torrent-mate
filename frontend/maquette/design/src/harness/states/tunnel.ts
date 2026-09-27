@@ -7,6 +7,7 @@
 // so an entry pins only what its state means to show.
 import { applyState, type NamedState } from "../drive";
 import { openAbandonConfirm } from "../../features/acquisition/abandon-verb";
+import { openNotMediaChoice } from "../../features/acquisition/not-media-verb";
 
 // How long after « À traiter » is asked for its fold is opened: the read has to
 // answer and the tab draw before there is a fold to open.
@@ -99,14 +100,19 @@ export function tunnelStates(): NamedState[] {
     ],
     [
       "acq-resolution-not-media",
-      "Résolution — « Ce n'est pas un média », le choix des destinations",
+      "À traiter — « Ce n'est pas un média », le choix des destinations",
       () => {
         // THE OPERATOR'S OWN CASE: the game folder of the real stuck list.
         applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" });
-        window.__screens.resolution("Marvels.Spider-Man.2.v1.526.0.FRENCH-Mephisto");
-        window.setTimeout(() => {
-          document.querySelector<HTMLElement>("[data-not-media]")?.click();
-        }, OPEN_AFTER);
+        // THE CHOICE ALONE, OPENED AT ONCE and over the tab. ITS BACKDROP IS
+        // NOT THE PRODUCT'S: in the product the choice opens over the
+        // candidates screen, but that screen arrives through a view transition
+        // whose commit closes any panel opened with it, so drawing the two
+        // together here is a race whichever comes first. The product's path is
+        // walked by finger in R228. Its read is in flight when the state
+        // returns, so a measurement waits for the read, then for the panel's
+        // own animation.
+        openNotMediaChoice("Marvels.Spider-Man.2.v1.526.0.FRENCH-Mephisto");
       },
     ],
     [

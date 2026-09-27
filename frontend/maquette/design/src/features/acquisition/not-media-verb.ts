@@ -80,16 +80,24 @@ async function reclassify(folder: string, destination: string): Promise<void> {
 
 registerProducer("not-media", { produce: choicePanel });
 
-// The exit on the candidates screen: the destinations are read, then offered.
-// A read CANCELLED — the cache cleared under it — opens nothing and says
-// nothing; any other failure is left to surface.
-registerVerb("not-media", (folder) => {
+/**
+ * Reads the destinations, then offers them for one folder.
+ *
+ * A read CANCELLED — the cache cleared under it — opens nothing and says
+ * nothing; any other failure is left to surface.
+ *
+ * @param folder The folder.
+ */
+export function openNotMediaChoice(folder: string): void {
   void sharedQueryClient
     ?.fetchQuery({ queryKey: DESTINATION_READ, queryFn: () => read<Destination[]>(DESTINATION_READ[0]) })
     .then(() => panel.produce("not-media", folder), (failure: unknown) => {
       if (!(failure instanceof CancelledError)) throw failure;
     });
-});
+}
+
+// The exit on the candidates screen.
+registerVerb("not-media", (folder) => openNotMediaChoice(folder));
 
 // A destination chosen: ONE SETTLEMENT for the two entries the journey stacked
 // — the choice and the candidates screen — so the operator is back on
