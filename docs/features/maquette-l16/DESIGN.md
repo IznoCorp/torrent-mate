@@ -30,7 +30,7 @@ still in breach; the confirmation is owed whenever a RUNNING obligation would en
 files are deleted; an external removal's own trace — Système's history, L20's — reads « Libérée —
 retrait externe », a naming fact for that lot's own demand, not a Trackers-page state this lot
 draws), **M5** (a refused identifier is ONE unit in the badge, per tracker, never one per torrent it
-touches — a cross-seed failure's own contribution to the badge is L17's), and **round 10 Q3 = A**
+touches — a cross-seed failure's own contribution to the badge is L17's), and **round 10 Q3 = B**
 (« Libérer » is not a gesture of its own: the seed stops through « Retirer de qBittorrent » or a
 cross-seed cut, each already confirmed and each closing the obligation « libérée »; there is no
 separate release operation — **F15's finding is REPLACED, not merely corrected**: the first two
@@ -105,7 +105,7 @@ The rulings are the operator's and are not reopened here. « Organisation ruling
 | 2 and 7 (2026-09-15, through L22) | the page Arrivées dies; what stagnates reads on its card in « En cours » with its reason | § 4.6 — and F14 finds the first two readings' OWN reason source wrong, corrected there |
 | round 10 M4 (2026-09-27, rulings-coherence) | a removal or a cross-seed cut, confirmed in the app, always closes an obligation « libérée », never in breach; the confirmation is owed whenever a running obligation would end, not only when files are deleted | § 4.4 (broadened confirmation trigger, the always-released hold), § 4.8 (R-L16-c's new mutations) |
 | round 10 M5 (2026-09-27, rulings-coherence) | a refused identifier is one unit per tracker in the badge, never one per torrent; a cross-seed failure leaves the badge as a state change, L17's own rule | § 4.5 (the counting rule), § 4.8 (R-L16-d) |
-| round 10 Q3 = A (2026-09-27, rulings-coherence) | « Libérer » is not a gesture of its own: the seed stops through « Retirer de qBittorrent » or a cross-seed cut, each confirmed and each closing « libérée »; no separate release operation | confirms § 4.4 and § 2.3 item 5 as already drawn; **F15 is REPLACED**, not merely corrected |
+| round 10 Q3 = B (2026-09-27, rulings-coherence) | « Libérer » is not a gesture of its own: the seed stops through « Retirer de qBittorrent » or a cross-seed cut, each confirmed and each closing « libérée »; no separate release operation | confirms § 4.4 and § 2.3 item 5 as already drawn; **F15 is REPLACED**, not merely corrected |
 | round 10 Q4 = A (2026-09-27, rulings-coherence) | an obligation the engine broke, its torrent already gone from qBittorrent, reads on its tracker's own entry as « N obligations rompues », a list that unfolds, cleared row by row by a « vu » | § 4.2 (the new sub-surface), § 4.5 (the badge's fourth component), § 2.3 item 7 (the demand) |
 
 ---
@@ -228,7 +228,7 @@ it).
    for deleting the underlying files, checked by default — and answers which trackers still held a
    running obligation on what was removed, so the confirmation can name them WHENEVER one is running,
    whatever the file-deletion boolean reads (round 10 M4). **There is no separate release
-   operation** (round 10 Q3 = A): the write itself closes every running obligation it touches as
+   operation** (round 10 Q3 = B): the write itself closes every running obligation it touches as
    `released_at` set — never left reading `breached_at` alone — the SAME write a cross-seed cut
    (L17's) also calls for its own, narrower case. This REPLACES the first two readings' `POST
    .../obligations/{id}/release` OUTRIGHT, not merely corrects it (F15 is REPLACED): the gesture the
@@ -247,7 +247,7 @@ it).
    row itself (NE-DOIT-PAS-5: seen is not gone).
 
 **Dropped from the first two readings' list: the obligation's release verb**, REPLACED, not merely
-corrected, by item 5 above (ruling 18, round 10 Q3 = A) **and `GET /api/acquisition/stalled-grabs`**
+corrected, by item 5 above (ruling 18, round 10 Q3 = B) **and `GET /api/acquisition/stalled-grabs`**
 as this lot's operation (F14, § 2.5).
 
 ### 2.4 The mocks, and what each must MOVE (D7 — « a mock that answers without moving certifies nothing »)
@@ -747,7 +747,7 @@ readings. Neither is chosen: a STOP C at the phase that draws the page's shell.
 extended by this redraw's own demands (§ 2.3): the write already exists (`updateConfigurationFile`
 on the `economy` block) — only the alert threshold is a missing key, not a missing operation; a
 per-tracker health read (the refused identifier, round 9 Q1); the per-tracker, per-size ratio on
-each active entry; « Retirer de qBittorrent », REPLACING the release verb outright (round 10 Q3 = A,
+each active entry; « Retirer de qBittorrent », REPLACING the release verb outright (round 10 Q3 = B,
 **F15 REPLACED**) with its grouped, shared-files removal (round 9 Q7) and its always-released close
 (round 10 M4); the removal-reconciliation stream event; a « vu » write for a broken obligation (round
 10 Q4); the alert threshold's own push channel; the ranking's ratio-aware scoring field. **Nothing

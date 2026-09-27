@@ -1,7 +1,7 @@
 # Phase 6 — Retirer de qBittorrent
 
 « Retirer de qBittorrent » (ORGANISATION RULING 18), REPLACING the prior reading's obligation-release
-verb outright — confirmed round 10 Q3 = A, **F15 REPLACED, not merely corrected**: there is no
+verb outright — confirmed round 10 Q3 = B, **F15 REPLACED, not merely corrected**: there is no
 separate release operation. The operator's own gesture targets a TORRENT's entry, not an obligation
 id, with « Supprimer les fichiers » checked by default, decheckable, and it CLOSES any running
 obligation as `released_at` set, never left reading in breach (round 10 M4). **The removal operation
