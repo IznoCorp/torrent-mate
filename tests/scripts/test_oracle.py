@@ -351,7 +351,10 @@ def test_the_committed_reference_carries_a_platform():
     # 39 REGIONS SINCE L22b's 19-bis-a: `discover/body`, the « Découvrir » page's body — every
     # other state gained a null there and nothing else, save the eight re-aimed onto the page
     # and the three that pinned Acquisition's tab (RULINGS 20). Verified by name.
-    assert reference["counts"] == {"states": 124, "regions": 39}
+    # 125 SINCE L22b's phase 20: acq-follows-film-at-plex-check, a followed film one event away
+    # from « vérifié dans Plex » (a derivation from Wicker's real row), back with the waiting
+    # tone's text token — added, nothing else moved.
+    assert reference["counts"] == {"states": 125, "regions": 39}
 
 
 class TestItRefusesToWriteOverAForeignBuild:
