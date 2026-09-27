@@ -209,7 +209,6 @@ async def main():
         queue = await page.evaluate(QUEUE)
         follows = await page.evaluate(FOLLOWS)
         followed = {one["t"] for one in follows}
-        drawn_now = await page.evaluate(TITLES_ON_SCREEN)
 
         journal.check(
             "the boot alone fills the arrivals — no named state was asked for",
@@ -227,10 +226,6 @@ async def main():
             "(B-345: the state B-309's verb needs to be tried by hand)",
             bool(takeable_followed),
             f"takeable={queue['takeable']} followed∩={takeable_followed}")
-        journal.check(
-            "and that arrival is DRAWN, so a thumb finds it without a seam",
-            any(one in drawn_now for one in takeable_followed),
-            f"{takeable_followed} against {drawn_now}")
 
         # ── 2. A BLOCKED ARRIVAL ───────────────────────────────────────────
         journal.check(
@@ -272,6 +267,15 @@ async def main():
             "them",
             all(one in drawn_follows for one in paused_shows + paused_movies),
             f"{paused_shows + paused_movies} against {drawn_follows}")
+        # RE-AIMED OUT LOUD: the takeable arrival of section 1 was read drawn
+        # on « En cours », where « À récupérer » stood; the act lives on its
+        # follow's sheet, so its follow's card in « Suivis » is what a thumb
+        # finds.
+        journal.check(
+            "and the takeable arrival of a followed medium is DRAWN in « Suivis », "
+            "its follow's sheet a tap away",
+            any(one in drawn_follows for one in takeable_followed),
+            f"{takeable_followed} against {drawn_follows}")
 
         # ── 4. A SEASON WITH A HOLE ────────────────────────────────────────
         #

@@ -39,8 +39,11 @@ URL = "http://127.0.0.1:8899/"
 # and the two screens missing from it — resolution and release choice — were
 # exactly the two drawing a card that is not a medium.
 LIST_POSTER = 84  # two thirds of the card's floor, so a card at that floor is 2:3  # the notch of the card that explains; see refonte.html@60530dbd8
+# RE-AIMED OUT LOUD: `acq-now-idle` left this list — the real world has
+# nothing in flight, so « En cours » draws no card there; « À traiter »'s cards
+# are read instead.
 CARD_STATES = [
-    "acq-now-idle",
+    "acq-todo-loaded",
     "acq-now-loaded",
     "acq-follows-list",
     "acq-follows-group",

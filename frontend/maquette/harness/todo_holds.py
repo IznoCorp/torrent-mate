@@ -85,7 +85,10 @@ async def main():
             error is not None and error["requeue"] == TUNNEL_ERROR["title"]
             and not error["resolve"] and error["reason"] == TUNNEL_ERROR["reason"],
             str(error))
-        now = await tab(page, "now")
+        # RE-AIMED OUT LOUD: « En cours » is read in the loaded world, where
+        # something is in flight; the real world's holds nothing moving.
+        await go(page, journal, "acq-now-loaded")
+        now = await page.evaluate(CARDS)
         journal.check("« En cours » holds no blocked card",
                       bool(now) and not any("blocked" in card["states"] for card in now),
                       str([(card["title"], card["states"]) for card in now if "blocked" in card["states"]]))
