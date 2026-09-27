@@ -14,10 +14,10 @@ L22b appends from 13).
   « suivis stoppés » question; Q2 is ruled (both: the act removes the card; a folder deleted outside the app is absent
   after the re-read, an assertion in R227). Keep for 15b: ingest COPIES a seeding/seed-obligated torrent and MOVES any
   other (`ingest.py:549-561`, tracker `action: copied|moved`) — deleting a moved arrival deletes the only copy.
-- DONE: 15a, 16. NEXT: 17 « Suivre » proposed → 18 → 19 → 20 → [MIDPOINT full suite] → 21 … 27; 15b slots back in when
+- DONE: 15a, 16, 17. NEXT: 18 → 19 → 20 → [MIDPOINT full suite] → 21 … 27; 15b slots back in when
   ruled (at the next unit boundary after the word).
 - Rule numbers: L22's a..u = R202–R222; R223 #616's; R224 (v), R225 (w) L22a's. L22b: i = **R226**
-  (`set_aside_is_later.py`); 15b's rule = R227 (reserved); j = **R228** (`not_a_media.py`); next free R229.
+  (`set_aside_is_later.py`); 15b's rule = R227 (reserved); j = **R228** (`not_a_media.py`); l = **R229** (`follow_offered.py`); next free R230.
 - LOGS: `~/Library/Logs/tm-l22b/`. Mutex `sh scripts/heavy.sh --held`; own npm lock `/private/tmp/tm-heavy-l22b/holder`.
 - GATE FORM: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l22b frontend/maquette/harness/run.sh
   --contracts --oracle <full rule paths>`; `--a11y` on every gate that draws (the light ledger may only fall, 98 now).
@@ -31,6 +31,10 @@ L22b appends from 13).
 - Traps inherited from L22a: `--accept` rewrites the WHOLE reference (name every changed state); a closed `#dlg`
   keeps the last dialog's box (B-554); a rule green on the wrong subject (B-555); a gate's named rules include every
   reader of a surface the phase moves; `outbox.py` falls under a full suite's load and passes alone (B-546's mode).
+- New trap (17): `go()` commits through a view transition, and its commit closes any panel opened before it
+  (`leavePanel`) — a named state that opens a screen AND a panel races; `acq-resolution-not-media` opens its choice
+  alone over « À traiter » (its BACKDROP differs from the product's, said in its comment; R228 walks the product's
+  path by finger).
 - New trap (15a): the staging list is not read on the « À traiter » tab — a rule counting `__queue().stuck` there
   reads an empty list until a screen asks for it.
 
@@ -53,3 +57,14 @@ L22b appends from 13).
   `16-mutation.log`: EXPRESSION replaces the verb's `await send("POST", path, { destination })` by `undefined` → R228
   FAIL « the reclassification is answered, and the message says the destination » (and « the card is in neither »).
   Vocabulary gained « reclassify ».
+- 2026-09-27 phase 17: re-measured ≈ 10; the one real subject is « Les Zinzins de l'Espace » (dense « En vol »,
+  TVDB-identified, no follow); states declared at the opening: acq-now-loaded, acq-card-rungs, acq-card-waiting.
+  R229 red (`17-red.log`; its first draft read `[data-follow]` by presence, which made the markup guard treat
+  `data-follow` as a boolean — re-read by VALUE). Commits c67a904e9 (feat), d612e9323 (oracle, 3 states, script
+  proof). Mutations (`17-mutation-{1,2,3}.log`): arrivals create follows (staging.ts arrivalsOf pushes a follow) →
+  FAIL « a tap changes the follows list by exactly one » (14 → 26: the follows cache re-reads only at the tap);
+  `|| ids[SERIES_PROVIDER] == null` removed → FAIL « no film and no followed series carries it »; follows-tab rows
+  given a requester → FAIL « « Suivis » draws no card born of an arrival ». The gate then caught phase 16's state
+  measured mid-fade: fix 9f61747fd (the choice opened alone over « À traiter », BACKDROP ≠ product, steward
+  accepted) + 658c9b96b (oracle accepts its screen-resolution/body by name; a second pass read no divergence).
+  Final gate on 658c9b96b (`17-final.log`): 32 rules + 26 guards 0 failed, oracle 0; `17-final-a11y.log` 0 + light 98/98.
