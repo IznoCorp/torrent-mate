@@ -28,14 +28,18 @@ SEEDS = pathlib.Path(__file__).resolve().parents[1] / "design/src/mocks/seeds"
 TUNNEL_ERROR = next(row for row in json.loads((SEEDS / "stuck.json").read_text(encoding="utf-8"))
                     if row["title"].startswith("Top Chef"))
 
+# EVERY FOOT IS READ, never the first alone: a card of « À traiter » carries two
+# since its two feet stand side by side (ruling 10), and a « Résoudre » on the
+# second is the same broken promise as one on the first.
 CARDS = """() => [...document.querySelectorAll('#view [data-part="card"]')].map(card => {
-  const foot = card.querySelector('[data-part="card/foot"]');
+  const feet = [...card.querySelectorAll('[data-part="card/foot"]')];
+  const carried = (name) => feet.map(foot => foot.getAttribute(name)).find(value => value !== null) ?? null;
   return {
     title: card.querySelector('[data-part="card/title"]').textContent,
     states: [...card.querySelectorAll('[data-part="card/step"]')].map(cell => cell.dataset.state),
-    resolve: foot ? foot.getAttribute('data-resolution') !== null : false,
-    requeue: foot ? foot.getAttribute('data-journey-requeue') : null,
-    plex: foot ? foot.getAttribute('data-plex-confirm') !== null : false,
+    resolve: carried('data-resolution') !== null,
+    requeue: carried('data-journey-requeue'),
+    plex: carried('data-plex-confirm') !== null,
     reason: (card.querySelector('[data-part="card/reason"]') || {}).textContent || null,
   };
 })"""
