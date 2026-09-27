@@ -19,6 +19,7 @@ import { posterArtworkMarkup } from "../../ui/poster";
 import { posterFallback } from "../../ui/variants";
 import { posterArtwork } from "../../lib/engine-drawing";
 import { richTextMarkup } from "./rich-text";
+import { footRow } from "./variants";
 
 /** A medium as an acquisition list holds one, in the engine's field names. */
 export type MediumCard = {
@@ -162,5 +163,6 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot | Med
     foot: foot === undefined
       ? undefined
       : (Array.isArray(foot) ? foot : [foot]).map((one) => ({ label: one.label, solid: one.solid, attributes: one.attributes ?? {} })),
+     footRow: footRow(),
   });
 }

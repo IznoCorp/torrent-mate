@@ -71,6 +71,9 @@ export type CardMarkupContent = {
   strip?: StripCell[];
   /** The option a section offers at the card's foot — or several, in order. */
   foot?: CardFoot | CardFoot[];
+  /** The class several feet are laid on ONE line with, the caller's own; without
+   * it they stack. */
+  footRow?: string;
 };
 
 /**
@@ -130,6 +133,7 @@ export function cardMarkup(content: CardMarkupContent): string {
   const foot = options
     .map((one) => `<button class="${actionButton({ kind: "cardFoot", tone: one.solid ? "solid" : "plain" })}" data-part="card/foot"${one.solid ? ' data-solid=""' : ""}${attributesMarkup(one.attributes)}>${escapeMarkup(one.label)}</button>`)
     .join("");
+  const footLine = content.footRow && options.length > 1 ? `<div class="${content.footRow}">${foot}</div>` : foot;
   return `<div class="${card()}${content.fresh ? " fresh" : ""}" data-part="card"${attributesMarkup(content.attributes ?? {})}>
     ${sideMarkup(content.side)}
     <div class="${cardContent()}">
@@ -145,7 +149,7 @@ export function cardMarkup(content: CardMarkupContent): string {
       </button>
     </div>
     ${strip}
-    ${foot}
+    ${footLine}
     </div>
   </div>`;
 }

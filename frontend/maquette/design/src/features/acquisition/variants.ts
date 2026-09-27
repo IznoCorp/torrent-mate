@@ -232,3 +232,11 @@ export const fingerTab = cva("min-h-[44px]");
 
 /** The « ⋮ » beside those tabs, at the same floor, worn beside `moreButton()`. */
 export const fingerMore = cva("min-w-[44px] min-h-[44px]");
+
+/**
+ * Two feet on one line. A card of « À traiter » that offers two answers —
+ * confirm or correct a match, relaunch or abandon a step — lays them side by
+ * side: stacked, they made the card taller than its poster can follow. Each
+ * foot keeps the touch floor.
+ */
+export const footRow = cva("flex gap-4 [&>*]:flex-1 [&>*]:min-h-[44px]");

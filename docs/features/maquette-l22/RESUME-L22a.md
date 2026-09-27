@@ -66,3 +66,6 @@ Read after `docs/features/maquette-l22/BRIEF-L22a.md` (governs) and `RULINGS.md`
   cold link fell (the floor opened the remembered tab), repaired in phase 14 by `landingTab()`.
 - 2026-09-27 phase 14-bis exploration — paths_to_sheets.py « acq-add-results really draws rows — 0 » fell inside a
   35-rule run and passed ALONE on the clean tree (`14b-paths-alone.log`): load, not the phase.
+- 2026-09-27 phase 14-bis-a — R47 (cards.py) fell on the clean tree: phase 10's Plex-match card, two stacked feet,
+  poster cropped 51 % (bound 40 %); unshipped defect, repaired by RULINGS 10 (feet side by side). From now on
+  `cards.py` runs in every gate that touches a card.

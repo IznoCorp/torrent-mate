@@ -112,3 +112,16 @@ Trek poster understood); (3) **14-bis-b**, the move + R224 + the section readers
 audit2 R16/R12, seeds_at_rest R128), measured at its opening — above 15 is a STOP again. The move is kept as a patch
 file meanwhile, never a stash. Accepted: `acq-now-idle` has nothing in flight in the real world, so it reads « rien en
 cours »; `acq-card-waiting` diverges by name with the same « En cours » body.
+
+## 10 — two feet on one line in « À traiter » (steward, 2026-09-27; phase 14-bis-a, STOP A)
+
+**The STOP.** R47 (`cards.py`) fell on the tree before any removal: the « match Plex à confirmer » card (Star Trek:
+Strange New Worlds) carries its reason and two stacked feet, grows taller than its 2:3 poster can follow, and the
+poster loses 51 % of its artwork against a bound of 40 %. Phase 10's defect, never read: `cards.py` ran in no gate
+since the midpoint.
+
+**Ruled (proposal a), extended for coherence.** EVERY card of « À traiter » that carries two feet lays them side by
+side on one line — the Plex-match card (« Confirmer » / « Corriger ») and the tunnel-error card (« Relancer » /
+« Abandonner ») — one variant of the foot in Acquisition's catalogue, each foot keeping its 44 px floor. Phase 10's
+repair, landed in its own `fix` commit; (b) rewrites a ruled sentence, (c) re-opens R47's own defect. `cards.py`
+joins every gate that touches a card from now on.
