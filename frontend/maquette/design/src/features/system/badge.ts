@@ -52,9 +52,18 @@ const SWEEP_PENDING = "pending";
  *     nothing is wrong or nothing has answered yet.
  */
 export function systemBadge(): number {
-  const locks = sharedQueryClient?.getQueryData<Locks>(LOCKS_KEY);
-  const services = sharedQueryClient?.getQueryData<Fact[]>(SERVICES_KEY) ?? [];
-  const dependencies = sharedQueryClient?.getQueryData<Fact[]>(DEPENDENCIES_KEY) ?? [];
+  // WHAT IS NOT AN ANSWER COUNTS NOTHING. The frame reads these three on every
+  // page, and a cache entry may hold something other than the contract's shape
+  // — a marker written over a read still pending — which a page that draws the
+  // answer never meets, because it waits for the read first.
+  const held = sharedQueryClient?.getQueryData<Partial<Locks>>(LOCKS_KEY);
+  const locks = held?.pipelineLock && held.sweep ? (held as Locks) : undefined;
+  const listAt = (key: string[]): Fact[] => {
+    const answer = sharedQueryClient?.getQueryData<unknown>(key);
+    return Array.isArray(answer) ? (answer as Fact[]) : [];
+  };
+  const services = listAt(SERVICES_KEY);
+  const dependencies = listAt(DEPENDENCIES_KEY);
   const drawn = store.read().state.fault === true
     ? withOneRowDown(services, serviceDownWords((key) => i18next.t(key)))
     : services;

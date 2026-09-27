@@ -31,7 +31,7 @@ import { Drawer } from "../ui/drawer";
 import { Icon } from "../ui/icon";
 import { useServerStateVersion } from "../lib/query-client";
 import { servedIdentityLines } from "../lib/served-identity";
-import { useStoreContent, writeUiState, store } from "../lib/store-access";
+import { useStoreContent, useUiState, writeUiState, store } from "../lib/store-access";
 import {
   drawerEntry,
   drawerEntryCount,
@@ -66,6 +66,10 @@ export function NavigationDrawer(): ReactElement {
   // The badges are derived from server state, so this layer re-derives them
   // when any of it moves — the same subscription the tab bar takes.
   useServerStateVersion();
+  // AND TO THE STORE, because a badge function may read it too: a derivation
+  // the menu button redraws on a store write and this entry did not would be
+  // two readings of one count.
+  useUiState();
   const identity = servedIdentityLines();
   const appearance = currentAppearance();
   const closing = useRef(false);
