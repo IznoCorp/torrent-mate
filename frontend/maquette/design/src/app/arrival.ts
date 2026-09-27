@@ -123,10 +123,17 @@ export function installArrival(store: Store): void {
      or not. A panel that reopens pushes its OWN entry carrying its own address
      on top of this one; a panel that does NOT reopen was declined. Either way
      this entry is the page. */
+  /* AND A PAGE'S BARE ADDRESS SETTLES THE SAME WAY: a page named with no dial
+     opens on the dials its landing chose — the tab opened last, say — and the
+     address says the view it opened, or a copied link would open another. A
+     REPLACE, for the same reason as the root's. */
+  const typedSearch = addressSeam.withoutPanel(arrivalSearch);
+  const settled = addressSeam.compose(store.read().state);
+  const plain = !arrival.notFound && typedSearch === "" && settled.split("?")[0] === location.pathname;
   const arrivalAddress =
-    location.pathname === "/"
-      ? addressSeam.compose(store.read().state)
-      : location.pathname + addressSeam.withoutPanel(arrivalSearch);
+    location.pathname === "/" || plain
+      ? settled
+      : location.pathname + typedSearch;
   /* TWO WAYS AN ADDRESSED PANEL IS DROPPED BEFORE ANYTHING CAN DECLINE IT: an
      EMPTY value names no panel at all, and a panel asked for over the SIGN-IN
      screen is never read — the gate covers everything. A parameter that
