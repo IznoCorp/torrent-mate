@@ -11,8 +11,8 @@ L22b appends from 13).
   generated files conflict; regenerate them (oracle by an accept in one invocation + the script proof; ledgers re-read).
 - Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b`.
 - DONE: 15a–19-bis-b, merges of #619/#621/main(#617/#618/#622/#623/#624), the triage's docs commit, 20–30 (28 was CUT
-  at its opening ≈ 30 → 28/29/30, the rest +2). NEXT: **the MIDPOINT** — [full suite + audit2.py ×10 with its WHOLE
-  output kept per draw; the steward's ×10 on main read 0/10, logs ~/Library/Logs/tm-steward/o48-audit2/] → 31 direct-add card (F5) → 32 follow sheet search + grab (F6 +
+  at its opening ≈ 30 → 28/29/30, the rest +2), the MIDPOINT (suite: 1 real fall, R207, repaired; audit2 ×10: 0/10).
+  NEXT: **31** direct-add card (F5; states: Les Zinzins' family, acq-card-requester — name them at the opening) → 32 follow sheet search + grab (F6 +
   F42; likely cut) → 33 « Abandonner » on a follow's card (M1) → 34 one-off acquisitions (round 10 Q1 + Q2; likely
   cut) → 35 sentences (F7, F54, F53) → 36 readers (F41) → 37 → 38 (the dead `acq-follows-pause-empty` still sits in
   the a11y ledgers) → 39 death of Arrivées (F8) → 40 → 41 close (F8, F52, F67, C9; product-intent-map.md:49).
@@ -187,3 +187,15 @@ L22b appends from 13).
   proof, f37b9c460 (pin 131). `30-a11y.log` 0 + light 88/88. Mutations `30-mutation-{wiring,constant,maintenance,
   declaration}.log`, each FAIL by name (MenuBadge unmounted → « button None »; `return 1` → « server 2, button 1 »;
   `return maintenance` → « expected 3, button 2 »; Système's declaration dropped → « server 1, button None »).
+- 2026-09-27 MIDPOINT (the steward told before). Full suite on 9c5db252b (`midpoint-suite.log`, 171 rules, 3 at a time):
+  ONE fall, R207 one_ladder.py « the sheet's current rung is the card's » ×4; re-read ALONE on a quiet machine (load
+  4): same fall (`midpoint-one_ladder-alone.log`) → charged to the CODE, mine. Bisected: with BadgeReads unmounted it
+  still fell (`midpoint-bisect-observers.log`); with phase 28's engine-data.ts it PASSED (`midpoint-bisect-29.log`);
+  a read-order diagnostic (a temporary rule, deleted) showed why — R207 collects cards in two states and opened every
+  sheet in the second state's world; it agreed only because the boot list re-read the queue under the PREVIOUS state's
+  scenario at each reset. Not a product defect: R207 RE-AIMED OUT LOUD (each sheet opened in its card's state), and
+  BadgeReads redraws on cache moves (an observer kept a removed query after a reset's clear). Commit 76b54a3ec; gate
+  `midpoint-repair-gate.log` 69 rules (56 named) + 26 guards 0 failed, no divergence. The bisect on pre-27 staging.ts
+  did not build (`midpoint-bisect-27.log`, nothing measured). audit2.py ×10 in the steward's load shape (3 contract
+  partners, host from run.sh, never by hand): 0/10 fell, each draw « 0 violations · 13/13 », WHOLE output kept in
+  `midpoint-audit2/audit2-{1..10}.out` (main read 0/10) — the R11 fall of `20-green.log` is not reproduced.
