@@ -35,6 +35,7 @@ import { AccountPage } from "../features/account/page";
 import { AcquisitionPage } from "../features/acquisition/page";
 import { acquisitionBadge } from "../features/acquisition/queries";
 import { ArrivalsPage } from "../features/arrivals/page";
+import { DiscoverPage } from "../features/acquisition/discover-page";
 import { arrivalsBadge } from "../features/arrivals/queries";
 import { LibraryPage } from "../features/library/page";
 import { MaintenancePage } from "../features/maintenance/page";
@@ -138,6 +139,17 @@ export const NAVIGATION: readonly NavigationRow[] = [
     group: "supervision",
     inBar: true,
     badge: arrivalsBadge,
+  },
+  {
+    // « DÉCOUVRIR », A PAGE OF THE BAR: it left
+    // Acquisition's tabs. It draws its own body, as Acquisition does.
+    id: "discover",
+    path: PAGE_PATHS.discover,
+    Body: DiscoverPage,
+    labelKey: "navigation.pages.discover",
+    icon: icons.star,
+    group: "supervision",
+    inBar: true,
   },
   {
     id: "sys",

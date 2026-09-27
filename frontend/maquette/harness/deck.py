@@ -27,7 +27,8 @@ async def main():
     await pg.evaluate("()=>window.__measure(true)")
 
     async def deck():
-        await pg.evaluate('()=>{window.__reset(); applyState({page:"acq",acqTab:"discover",phase:"ready"}); window.__store.write({sugMode: "deck"}); window.__store.touch();}')
+        # RE-AIMED OUT LOUD: « Découvrir » is a page of the bar.
+        await pg.evaluate('()=>{window.__reset(); applyState({page:"discover",phase:"ready"}); window.__store.write({sugMode: "deck"}); window.__store.touch();}')
         await pg.wait_for_timeout(600)
 
     async def title():

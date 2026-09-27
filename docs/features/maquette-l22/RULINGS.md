@@ -213,3 +213,37 @@ finding (ruling 4's ratchet).
 no subject). `journey.py`'s page-switch walks are re-aimed onto the bar's own pages, out loud. R-L22-s holds the bar at
 its count — two buttons at 1/2 once Arrivées dies — and reads a count of ONE as « no bar at all » (the operator,
 2026-09-27, L18 OPEN 7), never as a full-width button.
+
+## 18 — 19-bis cut in two: the page is born, then the tab dies (steward, 2026-09-27; L22b phase 19-bis, STOP D)
+
+**The STOP.** « Découvrir » leaving Acquisition (the operator, 2026-09-27) measured ≈ 20 at its opening: a page (its
+address, route, navigation row, label and component), the tab removed, R206 re-aimed to three, eight `acq-discover*`
+state ids that would say « acq » falsely, five readers opening the tab by hand, a new rule.
+
+**Ruled (the implementer's cut).** **19-bis-a**: the page is born — the bar at four (Acquisition · Médiathèque ·
+Arrivées · Découvrir) until Arrivées dies at 25 — R234, the eight states and five readers re-aimed onto the page (ids
+kept), the tab still drawn so every gate is green. **19-bis-b**: the tab dies, R206 at three, R202's « discover »
+fallback, the eight ids renamed by `scripts/rename-identifiers.py` with the oracle outside it. The page's body is its
+own oracle region, `discover/body`, as every page's. The light-ledger entry that moves with the rename is re-keyed,
+never re-counted upward.
+
+## 19 — a bar page's navigation row and route raise the frame's domain ceiling (steward, 2026-09-27; L22b phase 19-bis-a)
+
+**The question.** `scripts/check-frame-domain.py` read `app/` at 141 against its ceiling of 132: the new page's row in
+`app/navigation.ts` and its route in `app/router-tree.tsx`.
+
+**Ruled.** ACCEPTED, 132 → 141: a new bar page's row and route are what invariant 10 blesses — « L16 and L20 add rows
+to the navigation table, which is the template working as designed » — +9 measured with and without the change; the
+baseline's reason names what raised it. On the phase's contaminated red (a source edited between the build and its
+reading): the assertions that carry the claim were red on a clean build — accepted; never edit a source between a
+build and its reading again.
+
+## 20 — three states pin Acquisition's tab (steward, 2026-09-27; L22b phase 19-bis-a, STOP A)
+
+**The STOP.** 19-bis-a's gate moved three undeclared states — `acq-add-empty`, `acq-add-results`, `drawer-navigation`
+— on `acquisition/body`, `acquisition/filters` and `shell/page`: they set the Acquisition page without its tab, the
+driver's reset leaves `acqTab`, so they drew the tab the state before left (« Découvrir » until it became a page).
+
+**Ruled (B).** The three FIX their tab — `acqTab: "follows"`, Acquisition's opening tab — and stop depending on run
+order, which is the real defect; they are accepted by name on those three regions with the script's proof, and B-554's
+row gains one line naming this third inheritance. (A) keeps the defect; (C), repairing the reset, is new apparatus.

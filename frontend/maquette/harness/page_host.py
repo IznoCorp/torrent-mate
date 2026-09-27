@@ -30,13 +30,15 @@ from playwright.async_api import async_playwright
 
 # The pages the shell owns today. A page absent here is one the fragment still
 # draws, and the rule holds that too — it is the other half of the law.
-SHELL_OWNED = ["sys", "maint", "cfg", "arr", "lib", "acq", "profile", "404"]
+# « discover » JOINED as a page of the bar, said out loud: « Découvrir » left
+# Acquisition's tabs.
+SHELL_OWNED = ["sys", "maint", "cfg", "arr", "lib", "acq", "discover", "profile", "404"]
 
 # What each page really emits, less a small margin. Measured, not guessed: one
 # floor for eight pages is either too high for the smallest or too low to notice
 # a page that lost half of itself.
 FLOORS = {"sys": 180, "maint": 50, "cfg": 40, "arr": 140, "lib": 150,
-          "acq": 55, "profile": 30, "404": 5}
+          "acq": 55, "discover": 40, "profile": 30, "404": 5}
 # EMPTY, and that is the point of this wave: no page is drawn by the fragment
 # any more. The hold below says so out loud rather than passing over an empty
 # list — a scope that silently empties is a rule that stopped measuring.
@@ -630,7 +632,8 @@ async def main():
             not refused and mode["mode"] == "grid" and mode["tiles"] > 0,
             str(mode) if not refused else f"data-fmode {refused}")
 
-        await page.evaluate("()=>window.__store.write({acqTab: 'discover',"
+        # RE-AIMED OUT LOUD: « Découvrir » is a page of the bar.
+        await page.evaluate("()=>window.__store.write({page: 'discover',"
                             " followMode: 'list', sugMode: 'list'})")
         await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(500)
@@ -648,10 +651,12 @@ async def main():
         # THE CONTAINERS ARE THE FRAGMENT'S TO FILL, and that seam is what this
         # wave chose deliberately — so it is held: React draws them, the
         # fragment fills them, and a re-render does not empty them.
+        # RE-AIMED OUT LOUD: the round trip comes back to « discover », the page
+        # the suggestions live on now.
         await page.evaluate("()=>window.__store.write({page: 'lib'})")
         await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(300)
-        await page.evaluate("()=>window.__store.write({page: 'acq'})")
+        await page.evaluate("()=>window.__store.write({page: 'discover'})")
         await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(600)
         # WHO FILLED IT, not merely whether it is full: « some children »

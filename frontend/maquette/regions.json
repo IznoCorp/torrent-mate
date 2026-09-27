@@ -191,6 +191,10 @@
       "selector": "[data-region=\"arrivals/body\"]",
       "note": "the run's health, drawn through the page host"
     },
+    "discover/body": {
+      "selector": "[data-region=\"discover/body\"]",
+      "note": "the « Découvrir » page: what is proposed to follow, as posters, a list or a deck"
+    },
     "system/body": {
       "selector": "[data-region=\"system/body\"]",
       "note": "services, schedulers, disks, index, dependencies, code errors"

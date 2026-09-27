@@ -13,7 +13,9 @@ export function drawerStates(): NamedState[] {
       "drawer-navigation",
       "Tiroir de navigation (hamburger)",
       () => {
-        applyState({ page: "acq", phase: "ready" });
+        // THE TAB IS PINNED: the driver's reset leaves `acqTab`, so an
+        // unpinned tab is whatever the state before left.
+        applyState({ page: "acq", acqTab: "follows", phase: "ready" });
         openDrawer();
       },
     ],

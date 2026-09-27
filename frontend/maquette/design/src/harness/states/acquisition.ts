@@ -115,11 +115,10 @@ export function acquisitionStates(): NamedState[] {
     ],
     [
       "acq-discover",
-      "Acquisition · Découvrir — réserve pleine",
+      "Découvrir — réserve pleine",
       () =>
         applyState({
-          page: "acq",
-          acqTab: "discover",
+          page: "discover",
           tmdb: true,
           phase: "ready",
           sugCount: 30,
@@ -129,7 +128,7 @@ export function acquisitionStates(): NamedState[] {
       "acq-discover-posters",
       "Découvrir · affiches",
       () => {
-        applyState({ page: "acq", acqTab: "discover", phase: "ready" });
+        applyState({ page: "discover", phase: "ready" });
         store.write({ sugMode: "poster" });
         redraw();
       },
@@ -138,29 +137,27 @@ export function acquisitionStates(): NamedState[] {
       "acq-discover-deck",
       "Découvrir · slide cards",
       () => {
-        applyState({ page: "acq", acqTab: "discover", phase: "ready" });
+        applyState({ page: "discover", phase: "ready" });
         store.write({ sugMode: "deck" });
         redraw();
       },
     ],
     [
       "acq-discover-degraded",
-      "Acquisition · Découvrir — sans compte TMDB",
+      "Découvrir — sans compte TMDB",
       () =>
         applyState({
-          page: "acq",
-          acqTab: "discover",
+          page: "discover",
           tmdb: false,
           phase: "ready",
         }),
     ],
     [
       "acq-discover-exhausted",
-      "Acquisition · Découvrir — réserve épuisée",
+      "Découvrir — réserve épuisée",
       () =>
         applyState({
-          page: "acq",
-          acqTab: "discover",
+          page: "discover",
           tmdb: true,
           phase: "ready",
           sugCount: 999,
@@ -168,15 +165,16 @@ export function acquisitionStates(): NamedState[] {
     ],
     [
       "acq-discover-loading",
-      "Acquisition · Découvrir — chargement",
+      "Découvrir — chargement",
       () =>
-        applyState({ page: "acq", acqTab: "discover", phase: "loading" }),
+        applyState({ page: "discover", phase: "loading" }),
     ],
     [
       "acq-add-empty",
       "Écran d'ajout — au repos",
       () => {
-        applyState({ page: "acq", phase: "ready" });
+        // THE TAB BENEATH IS PINNED: the driver's reset leaves `acqTab`.
+        applyState({ page: "acq", acqTab: "follows", phase: "ready" });
         window.__screens.add("");
       },
     ],
@@ -184,7 +182,8 @@ export function acquisitionStates(): NamedState[] {
       "acq-add-results",
       "Écran d'ajout — résultats réels",
       () => {
-        applyState({ page: "acq", phase: "ready" });
+        // THE TAB BENEATH IS PINNED: the driver's reset leaves `acqTab`.
+        applyState({ page: "acq", acqTab: "follows", phase: "ready" });
         window.__screens.add("star wars");
       },
     ],

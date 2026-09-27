@@ -10,7 +10,8 @@ from playwright.async_api import async_playwright
 # set of words for one set of screens. The SELECTOR beside it is an address and
 # is untouched.
 VIEWS = [("acq/now",'[data-page="acq"]'), ("acq/follows",'[data-acqtab="follows"]'),
-         ("acq/discover",'[data-acqtab="discover"]'), ("lib/categories",'[data-page="lib"]'),
+         # RE-AIMED OUT LOUD: « Découvrir » is a page of the bar.
+         ("discover",'#nav [data-page="discover"]'), ("lib/categories",'[data-page="lib"]'),
          ("lib/incomplete",'[data-lens="inc"]'), ("lib/recent",'[data-lens="rec"]'),
          ("arrivals",'[data-page="arr"]'),
          # RE-AIMED OUT LOUD: Système left the tab bar (ruling 15) — the menu, then its entry.

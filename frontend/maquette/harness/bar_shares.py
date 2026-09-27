@@ -1,9 +1,9 @@
 """R232 — the bottom bar draws only the buttons it has, each at 1/n of its width.
 
-A FRAME RULE (OPEN 2, ruled A): « la barre du bas s'adapte toujours au nombre de
+A FRAME RULE, the operator's words: « la barre du bas s'adapte toujours au nombre de
 boutons présents, chaque bouton prend toujours le même ratio » — 2 buttons at
 1/2, 3 at 1/3, 4 at 1/4; 4 at most, 2 at least, never an empty slot. And ONE
-page means NO bar at all (the operator, 2026-09-27, L18 OPEN 7): a count of one
+page means NO bar at all, the operator ruled: a count of one
 is read as the bar's absence, never as a button the bar's full width.
 
 On every state read, at the count the table gives it (its `inBar` rows, read off
