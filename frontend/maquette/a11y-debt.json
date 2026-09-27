@@ -59,7 +59,7 @@
         ]
       }
     ],
-    "acq-discover": [
+    "discover-full": [
       {
         "rule": "landmark-one-main",
         "impact": "moderate",
@@ -124,7 +124,7 @@
         ]
       }
     ],
-    "acq-discover-deck": [
+    "discover-deck": [
       {
         "rule": "landmark-one-main",
         "impact": "moderate",
@@ -160,7 +160,7 @@
         ]
       }
     ],
-    "acq-discover-degraded": [
+    "discover-degraded": [
       {
         "rule": "landmark-one-main",
         "impact": "moderate",
@@ -196,7 +196,7 @@
         ]
       }
     ],
-    "acq-discover-exhausted": [
+    "discover-exhausted": [
       {
         "rule": "landmark-one-main",
         "impact": "moderate",
@@ -232,7 +232,7 @@
         ]
       }
     ],
-    "acq-discover-loading": [
+    "discover-loading": [
       {
         "rule": "landmark-one-main",
         "impact": "moderate",
@@ -267,7 +267,7 @@
         ]
       }
     ],
-    "acq-discover-posters": [
+    "discover-posters": [
       {
         "rule": "landmark-one-main",
         "impact": "moderate",

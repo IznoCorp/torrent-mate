@@ -54,13 +54,13 @@ from playwright.async_api import async_playwright
 # renamed and nothing can then say whether the anchor or the drawing was at
 # fault (`check-markup-contracts` holds that at a hard zero).
 SURFACES = [
-    ("acq-discover-posters", '[data-part="tile"]', "the poster tile"),
+    ("discover-posters", '[data-part="tile"]', "the poster tile"),
     # THE CARD ON TOP, by its depth, and NOT the first in document order. The
     # pile draws three and reverses them, so `querySelector` answers the card
     # at the BOTTOM — covered by the two above it. Measured: hit-testing its
     # centre reported an `IMG` belonging to another card and the hold fell,
     # naming a defect in this rule rather than in the interface.
-    ("acq-discover-deck", '[data-part="deck/card"][data-depth="0"]',
+    ("discover-deck", '[data-part="deck/card"][data-depth="0"]',
      "the deck card"),
 ]
 

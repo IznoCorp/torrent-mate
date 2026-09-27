@@ -10,7 +10,6 @@
 import type { ReactElement } from "react";
 import { useStoreContent, useUiState } from "../../lib/store-access";
 import { AcquisitionTabs } from "./acquisition-tabs";
-import { DiscoverTab } from "./discover-tab";
 import { FollowsTab } from "./follows-tab";
 import { NowTab } from "./now-tab";
 import { TodoTab } from "./todo-tab";
@@ -41,18 +40,12 @@ export function AcquisitionPage(): ReactElement | null {
       </>
     );
   }
-  if (state.acqTab === "follows") {
-    return (
-      <>
-        <AcquisitionTabs />
-        <FollowsTab />
-      </>
-    );
-  }
+  // « Suivis », and whatever else the dial holds: a tab that is no longer one
+  // (« discover ») opens the first tab rather than an empty page.
   return (
     <>
       <AcquisitionTabs />
-      <DiscoverTab />
+      <FollowsTab />
     </>
   );
 }

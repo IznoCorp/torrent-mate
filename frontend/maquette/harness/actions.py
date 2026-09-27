@@ -89,7 +89,7 @@ async def main():
     b5=await pg.evaluate(cnt); print("\ndrop a follow        :", a["follows"], "→", b5["follows"])
     assert b5["follows"]==a["follows"]-1
 
-    await pg.evaluate("()=>window.__go('acq-discover')"); await pg.wait_for_timeout(350)
+    await pg.evaluate("()=>window.__go('discover-full')"); await pg.wait_for_timeout(350)
     a=await pg.evaluate(cnt)
     await pg.evaluate("()=>[...document.querySelectorAll('[data-panel]')].find(e=>e.dataset.panel.startsWith('sug:')).click()"); await pg.wait_for_timeout(400)
     await pg.evaluate("""()=>document.querySelector('#sheet [data-part="sheet/action"][data-tone="primary"]').click()"""); await pg.wait_for_timeout(450)

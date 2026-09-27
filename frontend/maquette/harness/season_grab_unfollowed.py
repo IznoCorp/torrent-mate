@@ -124,7 +124,7 @@ SUGGESTION_STATE = "mediasheet-suggestion-series"
 # An owned series with a hole — the negative leg's control.
 OWNED_SHEET_STATE = "mediasheet-series"
 # Where the two suggestions are drawn as posters a finger opens a sheet from.
-DISCOVER_STATE = "acq-discover-posters"
+DISCOVER_STATE = "discover-posters"
 # A followed show nothing is owned of: every season aired, and one not yet.
 ALL_AIRED = "Agent Elvis"
 ONE_NOT_AIRED = "Grimsburg"

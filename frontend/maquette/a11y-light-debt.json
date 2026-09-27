@@ -17,7 +17,7 @@
     "acq-card-requester": [],
     "acq-card-rungs": [],
     "acq-card-waiting": [],
-    "acq-discover": [
+    "discover-full": [
       {
         "rule": "color-contrast",
         "impact": "serious",
@@ -51,11 +51,11 @@
         ]
       }
     ],
-    "acq-discover-deck": [],
-    "acq-discover-degraded": [],
-    "acq-discover-exhausted": [],
-    "acq-discover-loading": [],
-    "acq-discover-posters": [],
+    "discover-deck": [],
+    "discover-degraded": [],
+    "discover-exhausted": [],
+    "discover-loading": [],
+    "discover-posters": [],
     "acq-follows-error": [],
     "acq-follows-filter-empty": [],
     "acq-follows-grid": [],

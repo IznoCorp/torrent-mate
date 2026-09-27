@@ -340,7 +340,7 @@ async def main():
 
         # ─── Hold (d): __go() does not change history depth ────────────
         depth_before = await pg.evaluate("()=>history.length")
-        await pg.evaluate("()=>window.__go('acq-discover')")
+        await pg.evaluate("()=>window.__go('discover-full')")
         await pg.wait_for_timeout(400)
         depth_after = await pg.evaluate("()=>history.length")
 

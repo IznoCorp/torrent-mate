@@ -1,4 +1,8 @@
-"""R206 — Acquisition's four tabs fit a phone, in their order.
+"""R206 — Acquisition's tabs fit a phone, in their order.
+
+RE-AIMED OUT LOUD: « Découvrir » left Acquisition for a page of the bottom bar,
+so the tabs are THREE — « Suivis » · « En cours » · « À traiter » — and every
+hold below reads the three. The file keeps its name; its subject is the tabs.
 
 « À traiter » is a fourth tab of Acquisition (ruling 10), and the four read
 « Suivis » · « En cours » · « À traiter » · « Découvrir » — the operator's own
@@ -13,7 +17,7 @@ cost the ruling accepted, and this is where it is paid:
 3. every tab and the « ⋮ » meet the touch minimum — 44 px, the floor the harness
    holds locally (`add_footer.py`), not a written directive. The segment itself
    is 34 px tall where the library wears it; Acquisition's bar is lifted;
-4. the four are in the DOM in the ruled order, each under its own words.
+4. the three are in the DOM in the ruled order, each under its own words.
 
 Read where the bar is empty of counts and where it carries them.
 """
@@ -27,7 +31,7 @@ from playwright.async_api import async_playwright
 WORDS = json.loads((pathlib.Path(__file__).resolve().parents[1]
                     / "design/src/i18n/fr.json").read_text(encoding="utf-8"))["screens"]["acquisition"]
 # The ruled order, by the tab values the markup carries and the keys of their words.
-ORDER = [("follows", "tabFollows"), ("now", "tabNow"), ("todo", "tabTodo"), ("discover", "tabDiscover")]
+ORDER = [("follows", "tabFollows"), ("now", "tabNow"), ("todo", "tabTodo")]
 TOUCH_TARGET = 44
 PHONE_WIDTH = 390
 
@@ -50,7 +54,7 @@ BAR = """() => {
 
 
 async def main():
-    journal = Journal("R206 — four tabs at 390 px, in their order")
+    journal = Journal("R206 — Acquisition's tabs at 390 px, in their order")
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel="chrome")
         context, page = await open_page(browser)
@@ -65,7 +69,7 @@ async def main():
             bar = await page.evaluate(BAR)
             tabs = bar["tabs"]
             journal.check(
-                f"{state}: the four tabs read « Suivis · En cours · À traiter · Découvrir »",
+                f"{state}: the three tabs read « Suivis · En cours · À traiter »",
                 [tab["value"] for tab in tabs] == [value for value, _ in ORDER]
                 and all(tab["text"].startswith(WORDS.get(key, "\0"))
                         for tab, (_, key) in zip(tabs, ORDER)),

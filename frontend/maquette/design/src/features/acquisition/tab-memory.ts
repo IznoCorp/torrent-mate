@@ -9,8 +9,11 @@ const STORAGE_KEY = "acquisition-tab";
 /** The tab a first opening lands on. */
 const FIRST_TAB = "follows";
 
-/** Every tab Acquisition draws; a remembered value that is none of them is ignored. */
-const TABS = new Set(["follows", "now", "todo", "discover"]);
+/**
+ * Every tab Acquisition draws; a remembered value that is none of them is
+ * ignored — « discover » included, now a page of the bottom bar.
+ */
+const TABS = new Set(["follows", "now", "todo"]);
 
 /**
  * The tab to open when nothing names one.

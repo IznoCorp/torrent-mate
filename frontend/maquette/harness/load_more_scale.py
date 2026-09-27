@@ -53,7 +53,7 @@ from common import Journal, SETTLED, open_page
 from playwright.async_api import async_playwright
 
 # WHERE THE DECK IS DRAWN as a pile of cards with an end mark behind it.
-DISCOVER_STATE = "acq-discover"
+DISCOVER_STATE = "discover-full"
 
 # AND WHERE THE ACTION-BUTTON SYSTEM IS DRAWN, so its box can be measured
 # rather than assumed. Any screen with a sheet action or a card foot does.

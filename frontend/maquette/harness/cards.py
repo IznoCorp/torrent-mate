@@ -56,8 +56,8 @@ CARD_STATES = [
     "acq-resolution-none",
     "screen-releases",
     "acq-identify",
-    "acq-discover",
-    "acq-discover-degraded",
+    "discover-full",
+    "discover-degraded",
     # Search results were absent from this list, and the surface had drifted
     # exactly as far as the absence allowed: its poster box was sized, the
     # image inside it was not, and every thumbnail showed the top-left corner
@@ -286,7 +286,7 @@ async def main():
         # query would read the window instead, and a 390px frame on a 1280px
         # desktop would be told it has room for six columns it does not have.
         geometries = {}
-        for state_ in TILE_STATES + ["acq-discover-posters"]:
+        for state_ in TILE_STATES + ["discover-posters"]:
             await pg.evaluate("(i)=>window.__go(i)", state_)
             await pg.wait_for_timeout(400)
             await mode(pg, "grid")

@@ -14,6 +14,7 @@ prepared before the document loads, so what is read is what the boot reads:
 3. storage that throws on every read → « Suivis »;
 4. a value that is no tab → « Suivis »;
 5. « À traiter » remembered, `?tab=now` in the address → « En cours »;
+5b. « Découvrir » remembered — a tab no more, it is a page of the bar → « Suivis »;
 6. a tab tapped is remembered: « En cours » tapped, the page opened again cold in
    the same context → « En cours ».
 """
@@ -66,6 +67,7 @@ async def main():
             ("storage that throws opens « Suivis »", prepared(throwing=True), ENTRY, FIRST),
             ("a remembered value that is no tab opens « Suivis »", prepared("nowhere"), ENTRY, FIRST),
             ("an address naming its tab wins over the memory", prepared("todo"), ENTRY + "?tab=now", "now"),
+            ("« Découvrir » remembered, a tab no more, opens « Suivis »", prepared("discover"), ENTRY, FIRST),
         ):
             context, page, errors = await cold(browser, script, address)
             selected = await page.evaluate(SELECTED)

@@ -3885,7 +3885,7 @@
       "system/locks": null,
       "system/runs": null
     },
-    "acq-discover": {
+    "discover-full": {
       "account/body": null,
       "acquisition/body": null,
       "acquisition/filters": {
@@ -4303,7 +4303,7 @@
       "system/locks": null,
       "system/runs": null
     },
-    "acq-discover-deck": {
+    "discover-deck": {
       "account/body": null,
       "acquisition/body": null,
       "acquisition/filters": {
@@ -4721,7 +4721,7 @@
       "system/locks": null,
       "system/runs": null
     },
-    "acq-discover-degraded": {
+    "discover-degraded": {
       "account/body": null,
       "acquisition/body": null,
       "acquisition/filters": {
@@ -5139,7 +5139,7 @@
       "system/locks": null,
       "system/runs": null
     },
-    "acq-discover-exhausted": {
+    "discover-exhausted": {
       "account/body": null,
       "acquisition/body": null,
       "acquisition/filters": {
@@ -5557,7 +5557,7 @@
       "system/locks": null,
       "system/runs": null
     },
-    "acq-discover-loading": {
+    "discover-loading": {
       "account/body": null,
       "acquisition/body": null,
       "acquisition/filters": {
@@ -5975,7 +5975,7 @@
       "system/locks": null,
       "system/runs": null
     },
-    "acq-discover-posters": {
+    "discover-posters": {
       "account/body": null,
       "acquisition/body": null,
       "acquisition/filters": {

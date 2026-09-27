@@ -114,7 +114,7 @@ PANELS = [
     ("journey", "sheet-journey", None),
     ("watch", "sheet-more", None),
     ("user menu", "sheet-user", None),
-    ("suggestion", "acq-discover", '#view [data-panel^="sug:"]'),
+    ("suggestion", "discover-full", '#view [data-panel^="sug:"]'),
     # The add screen left `#screen` for a real route (`/add`, rendered
     # inside `#coquille`) — its results live under `[data-part="screen"][data-open]` now.
     ("search result", "acq-add-results", '[data-part="screen"][data-open] [data-panel^="add:"]'),
@@ -890,7 +890,7 @@ async def main():
                   bool(WATCH_LAUNCHED) and WATCH_LAUNCHED in message,
                   f"said {message!r}, expected {WATCH_LAUNCHED!r}")
 
-        await acquisition_page.evaluate("()=>window.__go('acq-discover-degraded')")
+        await acquisition_page.evaluate("()=>window.__go('discover-degraded')")
         await acquisition_page.wait_for_timeout(500)
         if check("the discover surface without TMDB offers the connection",
                  await acquisition_page.query_selector("[data-tmdb]") is not None):

@@ -60,7 +60,7 @@ from common import ACTED, Journal, PANEL_IN, SETTLED, open_page
 from playwright.async_api import async_playwright
 
 # WHERE THE SUGGESTIONS ARE, and where a sheet offers the same act.
-DECK_STATE = "acq-discover"
+DECK_STATE = "discover-full"
 SHEET_STATE = "mediasheet-suggestion-series"
 
 # THE RESERVE THE DECK IS DRAWN FROM, and the follows the layer holds. Both are

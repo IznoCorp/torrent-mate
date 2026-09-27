@@ -114,7 +114,7 @@ export function acquisitionStates(): NamedState[] {
       () => applyState({ page: "acq", acqTab: "follows", phase: "error" }),
     ],
     [
-      "acq-discover",
+      "discover-full",
       "Découvrir — réserve pleine",
       () =>
         applyState({
@@ -125,7 +125,7 @@ export function acquisitionStates(): NamedState[] {
         }),
     ],
     [
-      "acq-discover-posters",
+      "discover-posters",
       "Découvrir · affiches",
       () => {
         applyState({ page: "discover", phase: "ready" });
@@ -134,7 +134,7 @@ export function acquisitionStates(): NamedState[] {
       },
     ],
     [
-      "acq-discover-deck",
+      "discover-deck",
       "Découvrir · slide cards",
       () => {
         applyState({ page: "discover", phase: "ready" });
@@ -143,7 +143,7 @@ export function acquisitionStates(): NamedState[] {
       },
     ],
     [
-      "acq-discover-degraded",
+      "discover-degraded",
       "Découvrir — sans compte TMDB",
       () =>
         applyState({
@@ -153,7 +153,7 @@ export function acquisitionStates(): NamedState[] {
         }),
     ],
     [
-      "acq-discover-exhausted",
+      "discover-exhausted",
       "Découvrir — réserve épuisée",
       () =>
         applyState({
@@ -164,7 +164,7 @@ export function acquisitionStates(): NamedState[] {
         }),
     ],
     [
-      "acq-discover-loading",
+      "discover-loading",
       "Découvrir — chargement",
       () =>
         applyState({ page: "discover", phase: "loading" }),

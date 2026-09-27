@@ -171,8 +171,8 @@ PANEL_STATES = (
 # destroy a gesture in flight and lose a tap between press and click, and no
 # other hold here would see it.
 FEED_STATES = (
-    ("acq-discover-deck", 1),
-    ("acq-discover-posters", 5),
+    ("discover-deck", 1),
+    ("discover-posters", 5),
 )
 # ANCHORED ON `data-part`, never on a class token — the deck is
 # `[data-part="deck"]` and its cards `[data-part="deck/card"]`. A selector

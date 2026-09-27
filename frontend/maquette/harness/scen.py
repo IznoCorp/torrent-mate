@@ -11,7 +11,7 @@ from playwright.async_api import async_playwright
 # so a rename that replaces whole quoted strings walks straight past them. Two
 # rules broke on exactly that when the 51 French state ids moved.
 VIEWS = [("acq/now", "acq-now-{s}"), ("acq/follows", "acq-follows-list"),
-        ("discover", "acq-discover"), ("lib/media", "lib-grid"),
+        ("discover", "discover-full"), ("lib/media", "lib-grid"),
         ("lib/incomplete", "lib-incomplete"), ("lib/recent", "lib-recent"),
         ("arrivals", "arr-{s}"), ("system", "system")]
 

@@ -43,7 +43,7 @@ from common import ACTED, Journal, SETTLED, open_page
 from playwright.async_api import async_playwright
 
 # WHERE THE DECK IS DRAWN as a pile of cards with an end mark behind it.
-DISCOVER_STATE = "acq-discover"
+DISCOVER_STATE = "discover-full"
 
 # HOW MANY THE LAYER HOLDS FOR THE DECK, and what was thrown away. Read from
 # the seam the deck itself indexes into, so the rule and the interface cannot
