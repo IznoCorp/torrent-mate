@@ -346,7 +346,9 @@ def test_the_committed_reference_carries_a_platform():
     # and acq-abandon-confirm — added states, recorded new, none of the existing ones removed.
     # 123 SINCE L22b's phase 15a: acq-card-set-aside, « Mis de côté » folded at the end of
     # « À traiter » and opened — added, no existing state moved. Verified by name.
-    assert reference["counts"] == {"states": 123, "regions": 38}
+    # 124 SINCE L22b's phase 16: acq-resolution-not-media, « Ce n'est pas un média »'s choice
+    # of destinations — added; the states it moved are named in its acceptance commit.
+    assert reference["counts"] == {"states": 124, "regions": 38}
 
 
 class TestItRefusesToWriteOverAForeignBuild:
