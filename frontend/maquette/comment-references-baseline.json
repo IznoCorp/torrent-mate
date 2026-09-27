@@ -8,7 +8,6 @@
     "design/src/app/bottom-slot.tsx": 1,
     "design/src/app/drawer-gesture.ts": 1,
     "design/src/app/drawer.tsx": 1,
-    "design/src/app/engine-data.ts": 1,
     "design/src/app/engine-redraw.ts": 1,
     "design/src/app/entry.ts": 2,
     "design/src/app/history-bridge.ts": 1,
