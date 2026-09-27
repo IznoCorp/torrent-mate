@@ -47,7 +47,7 @@ export function primaryAction(facts: FollowFacts): Action {
   if (facts.toResolve)
     return {
       text: say("resolve"), icone: icons.play, ton: "primary",
-      target: { resolve: follow.title },
+      target: { resolution: follow.title },
     };
   if (facts.toTake)
     return {
