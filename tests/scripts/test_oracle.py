@@ -344,7 +344,9 @@ def test_the_committed_reference_carries_a_platform():
     # 122 SINCE L22a, and the eight are Acquisition's tunnel (`harness/states/tunnel.ts`):
     # acq-card-rungs, -blocked, -no-identity, -waiting, -requester, acq-todo-empty, -loaded
     # and acq-abandon-confirm — added states, recorded new, none of the existing ones removed.
-    assert reference["counts"] == {"states": 122, "regions": 38}
+    # 123 SINCE L22b's phase 15a: acq-card-set-aside, « Mis de côté » folded at the end of
+    # « À traiter » and opened — added, no existing state moved. Verified by name.
+    assert reference["counts"] == {"states": 123, "regions": 38}
 
 
 class TestItRefusesToWriteOverAForeignBuild:
