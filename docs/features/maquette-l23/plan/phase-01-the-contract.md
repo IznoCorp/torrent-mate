@@ -19,12 +19,12 @@ of this contract, never this phase's own shape.
   `uploadCrossSeed`, declared new (2); the reason enum's two new codes, `creation_failed` and `publish_failed`,
   filed into the SAME family as `inject_failed`/`obligation_write_failed` (≈ 6 lines new, schema plus two
   `x-unseeded` sentences) 1; the register regenerated, its counters read before and after 1; the report naming
-  what is DEFERRED (the `via` field of DESIGN § 2.1 demand S, contingent on § 7 Q6 — declared only if L23's own
+  what is DEFERRED (the `via` field of DESIGN § 2.1 demand S, contingent on § 7 Q5 — declared only if L23's own
   opening finds the operator has ruled it) 1½ — the deferral itself costs nothing to STATE, but the report's own
   line does.
 - **Found.** Round 8 Q8's own words settle the family (« cas A »): neither code is an ordinary mismatch, both
   belong to « the engine could not finish ». DESIGN § 2.1's demand S (the `via` field) is NOT filed here — it
-  reaches into L16's origin-colour question (§ 7 Q6), open, and a demand filed for a reading the operator has not
+  reaches into L16's origin-colour question (§ 7 Q5), open, and a demand filed for a reading the operator has not
   chosen is a demand this document is forbidden to invent (DESIGN Non-goals).
 
 ## Red today
@@ -47,7 +47,7 @@ None.
 ## Register
 
 Demand Q (§ 2.1 of DESIGN) filed by the regenerated `docs/reference/frontend-backend-demands.md`; demand R (the
-two codes) filed the same way; demand S is NOT filed (deferred, § 7 Q6).
+two codes) filed the same way; demand S is NOT filed (deferred, § 7 Q5).
 
 ## Oracle: states that diverge, declared by name
 

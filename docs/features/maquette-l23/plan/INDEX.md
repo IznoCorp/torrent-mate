@@ -21,19 +21,23 @@ L19 · L21 · L13 · L20 · L22 · L16 · L17 · L18 · L23 ». L23 extends L17'
 ## THE PHASES CHAIN, ONCE OPEN. THEY DO NOT PAUSE — BUT THIS PLAN DOES, TODAY.
 
 **This plan is written to be READ before it is RUN.** Unlike every other plan on this tree, it is published while
-its own six questions (DESIGN § 7) are still open, on purpose — so the operator can answer them now, cheaply, from
-this document, rather than after an implementer has already guessed. **No phase below opens until the lot
-itself is next in `frontend-architecture.md`'s order AND every open question a phase depends on is ruled.** Once
-both are true, the phases chain exactly as every other lot's do:
+its own five questions (DESIGN § 7) are still open, on purpose — so the operator can answer them now, cheaply,
+from this document, rather than after an implementer has already guessed. **A sixth question the brief itself
+named — who holds the upload right by default — is NOT among them**: organisation ruling 21 makes a right's
+default holder configuration (Comptes), never a design choice, so DESIGN § 0.2 draws the right's own name and a
+proposed starting value instead of asking. **No phase below opens until the lot itself is next in
+`frontend-architecture.md`'s order AND every open question a phase depends on is ruled.** Once both are true, the
+phases chain exactly as every other lot's do:
 
 - **STOP A** — the oracle diverging on a state the phase did not name.
 - **STOP B** — the pull request.
-- **STOP C — LIVE for this plan, unlike L16/L17/L18's own by the time their plans ran.** Six questions are open
+- **STOP C — LIVE for this plan, unlike L16/L17/L18's own by the time their plans ran.** Five questions are open
   (DESIGN § 7); every phase below names which ones it needs ruled before it can open, and a phase with a live STOP
   C is not begun — the steward relays the question through the auditor, the operator answers in
   `docs/reference/operator-method.md`, and THIS document is amended in one line per answer (DESIGN § 0's own
-  promise). **Phases 1, 6, 7, 8 and 9 carry no STOP C** — their content is drawn from what round 8 Q8 and Q18
-  already ruled, and nothing in DESIGN § 7 touches them. **Phases 2 through 5 each carry one.**
+  promise). **Phases 1, 4, 6, 7, 8 and 9 carry no STOP C** — their content is drawn from what round 8 Q8/Q18 and
+  organisation ruling 21 already ruled, and nothing live in DESIGN § 7 touches them. **Phases 2, 3 and 5 each
+  carry one.**
 - **STOP D** — a measurement that contradicts a home the design decided. Certain here already: every phase's
   opening figure about `features/trackers/`, `mocks/handlers/trackers.ts` or `harness/states/trackers.ts` is taken
   from L17's plan, not from this tree, and the re-measure at the phase's real opening is EXPECTED to move — that
@@ -98,16 +102,16 @@ at 12, three under it.
 | # | Phase | What it lands | Rules | Points | STOP C on |
 | ---: | --- | --- | --- | ---: | --- |
 | 1 | [The contract](phase-01-the-contract.md) | demand Q (`uploadCrossSeed`), the two new reason codes (R), the register's own regeneration | — | 10 | none |
-| 2 | [The invented seed](phase-02-the-invented-seed.md) | every case DESIGN § 3 needs reachable, each row marked `x-unseeded` | — | 9 | Q1, Q3 (identities to seed) |
-| 3 | [The mocks that move](phase-03-the-mocks-that-move.md) | `uploadCrossSeed` moves the seed exactly as `searchCrossSeed`/`cutCrossSeed` already do (success, and each of the two failures) | — | 8 | Q4 (what a refusal answers) |
-| 4 | [The gesture offered](phase-04-the-gesture-offered.md) | the act drawn on the eligible states, absent on the others and on an excluded pair | b | 8 | Q3 (who sees it offered) |
-| 5 | [The gesture answered](phase-05-the-gesture-answered.md) | the confirmation, the call, the visible « en file », the refusal's own reading | a, c, d, f | 12 | Q1, Q3, Q4 |
+| 2 | [The invented seed](phase-02-the-invented-seed.md) | every case DESIGN § 3 needs reachable, each row marked `x-unseeded`, including one identity holding `trackers.control` but not `trackers.upload` (proving § 0.2's two rights independent) | — | 9 | Q1 (what a seed row represents) |
+| 3 | [The mocks that move](phase-03-the-mocks-that-move.md) | `uploadCrossSeed` moves the seed exactly as `searchCrossSeed`/`cutCrossSeed` already do (success, and each of the two failures) | — | 8 | Q3 (what a refusal answers) |
+| 4 | [The gesture offered](phase-04-the-gesture-offered.md) | the act drawn on the eligible states, absent on the others, on an excluded pair, and for an account without `trackers.upload` (§ 0.2) | b | 7 | none |
+| 5 | [The gesture answered](phase-05-the-gesture-answered.md) | the confirmation, the call, the visible « en file », the refusal's own reading | a, c, d, f | 12 | Q1, Q3 |
 | 6 | [The badge's slot filled](phase-06-the-badges-slot-filled.md) | `crossSeed.failed` already counts the two new codes; R-L17-g re-aimed, not re-derived | e | 6 | none |
 | 7 | [The stream](phase-07-the-stream.md) | the SAME two events, now also fired by an upload's own outcome; R-L17-h re-aimed | — | 6 | none |
 | 8 | [The records](phase-08-the-records.md) | oracle, accessibility, regions, hold counts | — | 6 | none |
 | 9 | [The close](phase-09-the-close.md) | the register, the map's proposal, the demands' counters, the report | — | 6 | none |
 
-**Sum 71 over 9 phases, mean ≈ 7.9, max 12** (phase 5) — every phase at least 3 points under the 15-point ceiling,
+**Sum 70 over 9 phases, mean ≈ 7.8, max 12** (phase 5) — every phase at least 3 points under the 15-point ceiling,
 because most of this lot's cost is a SECOND act on a row L17 already draws, never a new surface of its own.
 **Against nothing** — this is the FIRST cut, not a re-cut: there is no prior count to compare it to.
 
@@ -153,20 +157,21 @@ answers to is `docs/features/BRIEF-design-l23.md`'s own — `check-docs-cited-pa
 
 ## What this plan cannot measure today, and says so
 
-Six things, all shared with DESIGN § 7 and none decided by this plan:
+Five things, all shared with DESIGN § 7 and none decided by this plan. **A sixth, once listed here as Q3 — whether
+phase 5's refusal-side rule binds to `trackers.control` or to a new `trackers.upload` — is no longer one of them**:
+DESIGN § 0.2 draws the right's own name (`trackers.upload`, distinct from `trackers.control`) as a SETTLED fact,
+per organisation ruling 21, and phase 4/5's own rule `f` reads whichever role Comptes has assigned it to, at
+whatever moment the rule runs — nothing here is void pending an operator's choice on this point any more.
 
 1. **Whether phase 4's gesture is reachable from `features/trackers` alone, or also from the library / the media
    sheet** — DESIGN § 7 Q1. A reading of B re-cuts phases 4 and 5 into at least four, and this plan's own point
    count is void for them until the operator rules.
 2. **Whether phase 2's seed needs a per-tracker upload-switch case** — Q2. Costs one more seeded tracker row,
    cheap, but a case this plan's phase 2 does not name until ruled.
-3. **Whether phase 5's refusal-side rule (`f`) is bound to `trackers.control` or to a new `trackers.upload`** —
-   Q3. Free either way in KIND, but the right's name is fixed by DESIGN § 1.5 regardless of which reading answers
-   who holds it.
-4. **Whether phase 1 declares a tracker-rule read, and phase 5 a pre-validating form** — Q4. A reading of B adds a
+3. **Whether phase 1 declares a tracker-rule read, and phase 5 a pre-validating form** — Q3. A reading of B adds a
    phase of its own between 1 and 2, and every later phase's number shifts.
-5. **Whether phase 6 gains a sibling — a per-tracker « N publications échouées » sub-surface** — Q5. A reading of
+4. **Whether phase 6 gains a sibling — a per-tracker « N publications échouées » sub-surface** — Q4. A reading of
    B adds one phase after 6, at roughly the size L16's own broken-obligations phase cost (its own plan's figure,
    re-read at that time).
-6. **Whether phase 3's mock also writes L16's own origin-colour field** — Q6. A reading of B touches a file L16
+5. **Whether phase 3's mock also writes L16's own origin-colour field** — Q5. A reading of B touches a file L16
    draws, never L23's own, and is a one-line change to phase 3's own move, not a new phase.

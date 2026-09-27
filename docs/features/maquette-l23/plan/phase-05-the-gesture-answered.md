@@ -1,10 +1,11 @@
 # Phase 5 — The gesture answered
 
-**STOP C — Q1, Q3 and Q4 (DESIGN § 7), all three.** The confirmation's own copy names what Q1 rules eligible, its
-refusal-side call is gated by whichever right Q3 names the default holder of, and whether a doomed call is
-stopped BEFORE it fires (Q4 reading B) or only answered afterwards with a reason (reading A) changes this phase's
-own move in a way § 4's rule `c` and `d` both depend on. This is the plan's LARGEST phase (12 points) precisely
-because it is where every open question converges on one gesture's own act.
+**STOP C — Q1 and Q3 (DESIGN § 7).** The confirmation's own copy names what Q1 rules eligible, and whether a
+doomed call is stopped BEFORE it fires (Q3 reading B) or only answered afterwards with a reason (reading A)
+changes this phase's own move in a way § 4's rule `c` and `d` both depend on. **The refusal-side call's own gate
+is NOT one of them**: `trackers.upload` is settled (DESIGN § 0.2), and R-L23-f's second half is proven against
+whichever role holds it, per phase 2's own seed. This is the plan's LARGEST phase (12 points) precisely because it
+is where most of what remains open converges on one gesture's own act.
 
 **Opening measure — PROJECTED, re-taken at this phase's real opening.**
 

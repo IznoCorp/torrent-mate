@@ -1,8 +1,8 @@
 # Phase 3 — The mocks that move
 
-**STOP C — Q4 (DESIGN § 7).** What the mock answers on a REFUSAL depends on whether the backend is asked to
+**STOP C — Q3 (DESIGN § 7).** What the mock answers on a REFUSAL depends on whether the backend is asked to
 pre-check tracker rules (reading B) or only to answer a plain refusal with its reason (reading A). This phase does
-not open until Q4 is ruled — its own « Move » below is written for reading A, the D7 default, and is amended in
+not open until Q3 is ruled — its own « Move » below is written for reading A, the D7 default, and is amended in
 one line, never redrawn, if B is chosen instead.
 
 **Opening measure — PROJECTED, re-taken at this phase's real opening.**
@@ -29,7 +29,7 @@ None — a mock has no rule of its own.
    2), moves the pair to `active` with `injectedAt` set (success), or to `error` with `creation_failed` or
    `publish_failed` set (failure) — the SAME single call, in the SAME render, that `cutCrossSeed` already answers
    with for its own write (L17 fact 7's own precedent: a handler moves `raw` and every projection together).
-2. Under Q4 reading A: a refusal never reaches a SECOND check — the mock answers the seeded outcome directly, no
+2. Under Q3 reading A: a refusal never reaches a SECOND check — the mock answers the seeded outcome directly, no
    pre-validation branch. Under reading B (if ruled before this phase opens): a rule-check branch answers a
    REFUSED-BEFORE-CALLING shape instead, named `tracker-rule-refused`, and this phase's own move gains one line
    for it.

@@ -2,7 +2,7 @@
 
 Contract: `docs/reference/frontend-architecture.md` § 4, entry `#### L23 — §19 point 5, upload to a tracker` (its
 « Where it lives » and « Done when » lines). It is not restated here; what follows is the drawing a later plan
-executes, once the operator has answered § 7's six open questions.
+executes, once the operator has answered § 7's five open questions.
 
 This document is written for a session that has none of the context it was produced in. **Nothing under
 `frontend/maquette/design/` was touched to write it** — no code, no rule, no mock, no seed: this is prose and
@@ -31,9 +31,10 @@ constitution's or the demands' own words do not already carry.
 | 3 | The six state words carry NO seventh — an uploaded-and-published pair reads « actif » on success, « erreur de cross-seed » on failure, exactly like a found one | § 19 point 5's own six words, unchanged; round 10 Q5 | reused verbatim, L17's own field | § 1.3 |
 | 4 | It has ITS OWN LOT, after L18, drawn ahead of time in the second slot with its own questions | round 8 Q18 = B | this document, and the frontend-architecture.md entry it proposes | § 1.4 |
 | 5 | L17 keeps only the reserved slot for it — L23 draws the rest | L17 DESIGN § 2.2, § 7.1 (« a reserved failure-kind slot… no code path emits it today and this lot draws nothing for it ») | S2 | § 1.2 |
+| 6 | The gesture's right is a LIST item, not a choice — its default holder is configuration (Comptes), never a design decision | organisation ruling 21 (round 9 Q13, 2026-09-27, precising ruling 17) | § 0.2 — the right, drawn; L18's own model, which enforces it | § 0.2 |
 
 **Its own blocking note.** Unlike L16/L17/L18's own first drawings, which carried a blocking note lifted by the
-operator's rulings of 2026-08-30 and 2026-09-27, **this design is written WHILE its note is still on**: six
+operator's rulings of 2026-08-30 and 2026-09-27, **this design is written WHILE its note is still on**: five
 questions (§ 7) have no answer yet, and a plan cut from this document before they do would either invent a choice
 this document is forbidden to make, or leave every phase provisional. **The frontend-architecture.md entry this
 PR proposes (§ 6) carries the note explicitly**, and `docs/features/maquette-l23/plan/INDEX.md` is cut to the
@@ -47,12 +48,37 @@ used for its own three first-drawing OPEN questions, before they were ruled).
 | --- | --- |
 | L16 — the Trackers page, its two tabs, the tracker's collapsed entry and its `Disclosure` | the HOME of S1's gesture: the Torrents tab's origin row, exactly where L17 already draws the per-pair mark — no new page, no new tab |
 | L17 — the six-word model, the per-pair mark (S3), the closed reason set with its reserved slot, `features/trackers/live.ts`, the exclusion memory (S3-bis), `trackersBadge` | the SHAPE S1 extends: one more act on the SAME row, one more pair of codes in the SAME closed set, the SAME two events (never a third), the SAME exclusion (an excluded pair refuses the upload gesture too, § 1.1) |
-| L18 — the rights model, one function from the account's role to a closed set of named RIGHTS, `trackers.control` | the HOME of S1's right: § 7 Q3 asks only where the DEFAULT holder sits, never whether a right exists — L23 proposes the right's NAME (§ 1.5), L18's model is what will enforce it |
+| L18 — the rights model, one function from the account's role to a closed set of named RIGHTS, `trackers.control` | the HOME of § 0.2's right: L18's model is what will enforce it, from whatever role the operator, through Comptes, assigns it to |
 
 **What L23 does NOT need from L16, L17 or L18, and must not assume**: the ratio surface, the switch's own
 confirmation copy beyond its precedent, the media sheet's cross-seed block, the accounts editor. **What L23 does
 not draw at all**: anything L16/L17/L18 already drew — this document adds to their surfaces, and amends none of
 their files (a contradiction found while reading them is reported to the orchestrator, never fixed here).
+
+### 0.2 The right, drawn (organisation ruling 21) — not one of § 7's open questions
+
+**Corrected on the orchestrator's own reading of ruling 21** (round 9 question 13, 2026-09-27, precising ruling
+17, `docs/reference/operator-method.md`): « les noms des rôles et la répartition des droits entre eux sont du
+PARAMÉTRAGE (page Comptes), pas du dessin ; le dessin fixe seulement la LISTE des droits… [et] les rôles fournis
+comme valeurs de départ ». **Who ends up holding this right is never the operator's to answer through this
+document** — it is a fact of `docs/features/maquette-l18/plan/`'s own Comptes editor, changeable at any time
+without touching this design. This document's OWN job, per ruling 21, is narrower: name the right in the LIST,
+and PROPOSE a starting value.
+
+- **The right's name, drawn**: `trackers.upload`, distinct from `trackers.control` (L18 DESIGN § 1.2). **Why a
+  second right, not a reuse**: creating and publishing a NEW torrent at a third party is the one cross-seed act
+  that can draw the tracker's OWN attention to the account — a duplicate or malformed upload risks a warning or a
+  ban (NE-DOIT-PAS-8's own territory) — a heavier consequence than flipping a switch or cutting a link, so a
+  manager who grants `trackers.control` to a role does not thereby grant this one; the two stay independent by
+  construction, exactly as L18 already splits `trackers.view` from `trackers.control` for a comparable reason
+  (F31 of that design).
+- **The proposed starting value**: the SAME default `trackers.control` already reads in L18's own rights table
+  (« — », held by nobody but Admin, via the ACL bypass) — because the two rights being independent (above) is a
+  reason to give them SEPARATE rows, not a reason to seed them differently before any role has asked for one; a
+  manager extends either right to a role from Comptes, at any time, on his own configuration.
+
+Every place this document used to ask « who holds it by default » now reads this section instead; § 7 carries
+five open questions, not six, because this was never a sixth choice for the operator to make.
 
 ---
 
@@ -101,9 +127,9 @@ for L16's not-yet-landed files).
 
 | Demand | Operation | What it is for |
 | --- | --- | --- |
-| **Q** | `POST /api/torrents/{infoHash}/cross-seed/{tracker}/upload` — `uploadCrossSeed` (new) | one torrent, one tracker, one call: creates a `.torrent` from the medium's own files and publishes it to the named tracker; answers a visible « en file » under the SAME discipline `searchCrossSeed` already carries (DOIT-4, NE-DOIT-PAS-3) — never « occupé », bounded by the tracker's own publication rules (§ 7 Q4) and by whatever quota the backend keeps for it (a sibling of the search quota, never assumed to BE it) |
+| **Q** | `POST /api/torrents/{infoHash}/cross-seed/{tracker}/upload` — `uploadCrossSeed` (new) | one torrent, one tracker, one call: creates a `.torrent` from the medium's own files and publishes it to the named tracker; answers a visible « en file » under the SAME discipline `searchCrossSeed` already carries (DOIT-4, NE-DOIT-PAS-3) — never « occupé », bounded by the tracker's own publication rules (§ 7 Q3) and by whatever quota the backend keeps for it (a sibling of the search quota, never assumed to BE it) |
 | **R** | the closed reason enum, extended | two new codes, `creation_failed` and `publish_failed`, filed into the SAME family as `inject_failed` / `obligation_write_failed` (§ 1, clause 2) — L17's twelve codes become fourteen, the reserved slot's own row in L17's table is what these two now answer |
-| **S** | `CrossSeedTrackerState`, extended | a `via: "search" | "upload"` field on a pair reading `active` or `error` — so a reader can tell an injected match from a created-and-published one WITHOUT a new state word; whether this also touches the ROW-level origin colour (L16's own field, § 2.3 item 3 of its DESIGN) is § 7 Q6, open |
+| **S** | `CrossSeedTrackerState`, extended | a `via: "search" | "upload"` field on a pair reading `active` or `error` — so a reader can tell an injected match from a created-and-published one WITHOUT a new state word; whether this also touches the ROW-level origin colour (L16's own field, § 2.3 item 3 of its DESIGN) is § 7 Q5, open |
 
 **Nothing here is filed against the contract today.** D7's own discipline (« a demand is filed where its surface
 is drawn ») means Q, R and S are FILED by L23's own plan, when it opens — this table is the typed FORM the plan
@@ -144,8 +170,8 @@ drawn exactly as any other refusal's is (§ 1, clause 2, § 2.2).
 ## 3. Named states
 
 Every id below is PROPOSED — none exists, and none is bound to a real seed row until L23's own plan opens (the
-same discipline L17's DESIGN § 4 used before its own eight OPEN questions were ruled). Six of the eight are
-CONDITIONAL on an answer in § 7, named as such; two are not.
+same discipline L17's DESIGN § 4 used before its own eight OPEN questions were ruled). Three of the eight are
+CONDITIONAL on an answer in § 7, named as such; five are not.
 
 | # | id | What is on the screen | Conditional on |
 | --- | --- | --- | --- |
@@ -155,8 +181,8 @@ CONDITIONAL on an answer in § 7, named as such; two are not.
 | 4 | `torrents-cross-seed-upload-refused-creation` | an « erreur de cross-seed » row reading `creation_failed`'s own sentence | — |
 | 5 | `torrents-cross-seed-upload-refused-publish` | the same, reading `publish_failed`'s own sentence | — |
 | 6 | `tracker-upload-disabled` | a tracker's own entry, a switch OFF for uploads specifically | § 7 Q2, reading B |
-| 7 | `torrents-cross-seed-upload-rule-refused` | the confirmation naming a tracker-side rule the medium cannot meet, before any call fires | § 7 Q4, reading B |
-| 8 | `tracker-upload-failures` | a per-tracker « N publications échouées » count, unfolding, a « vu » per row | § 7 Q5, reading B |
+| 7 | `torrents-cross-seed-upload-rule-refused` | the confirmation naming a tracker-side rule the medium cannot meet, before any call fires | § 7 Q3, reading B |
+| 8 | `tracker-upload-failures` | a per-tracker « N publications échouées » count, unfolding, a « vu » per row | § 7 Q4, reading B |
 
 States 6–8 are named here so the plan that later draws them does not invent an id from nothing; they are not
 proved by anything today, and a phase that finds them unneeded (because the operator ruled the OTHER reading) says
@@ -175,23 +201,23 @@ each says which question it is waiting on.
 | --- | --- | --- | --- |
 | **R-L23-a** — the two new codes are sentenced, no bare code (NE-DOIT-PAS-4) | every `error` row reading `creation_failed` or `publish_failed` draws ITS sentence, never the code | draw the code instead of its sentence → falls | — |
 | **R-L23-b** — the gesture is offered only where nothing already cross-seeds (§ 1, clause 1) | the act is present on `noMatch`/`error`/`notSearched` rows and absent on `active`/`stopped`/`trackerWithout`/excluded pairs | offer it on an `active` row → the offer hold falls | — |
-| **R-L23-c** — the call is answered, visible, never « occupé » (DOIT-4, NE-DOIT-PAS-3) | a tap calls `uploadCrossSeed`; a throttled or busy answer is a visible « en file », not a duplicate refusal shape | message success without calling → the network hold falls | § 7 Q4 (what bounds the throttle) |
+| **R-L23-c** — the call is answered, visible, never « occupé » (DOIT-4, NE-DOIT-PAS-3) | a tap calls `uploadCrossSeed`; a throttled or busy answer is a visible « en file », not a duplicate refusal shape | message success without calling → the network hold falls | § 7 Q3 (what bounds the throttle) |
 | **R-L23-d** — the confirmation names what will be published, before any call (NE-DOIT-PAS-6, this direction) | the confirmation's own copy names the tracker and the files, and, if § 7 Q1 reads B, the medium's own eligibility | confirm without naming the tracker → falls | § 7 Q1 |
 | **R-L23-e** — the badge's slot is filled, not re-derived (round 8 Q8; re-aims L17's R-L17-g) | the Trackers badge's `crossSeed.failed` count already includes `creation_failed` and `publish_failed`, WITHOUT a new component added to the sum | add a fifth summed component instead of reusing the two counted families → the re-aim falls, naming the drift |
-| **R-L23-f** — the right, on both sides (L18's own convention, « every rule proving a right names its two halves ») | the gesture ABSENT from the DOM for an account without the right; the call refused `403` when forced | offer the act to a non-holder → falls | § 7 Q3 (the right's default holder; the right's own name is drawn, § 1.5) |
+| **R-L23-f** — the right, on both sides (L18's own convention, « every rule proving a right names its two halves ») | the gesture ABSENT from the DOM for an account without `trackers.upload` (§ 0.2); the call refused `403` when forced | offer the act to a non-holder → falls | — (settled, § 0.2; whichever role Comptes assigns the right to at the moment the rule runs) |
 
 ---
 
 ## 5. What this design does NOT draw
 
-- **The tracker's own publication rules, enforced.** § 7 Q4's reading A — the backend enforces them, the
+- **The tracker's own publication rules, enforced.** § 7 Q3's reading A — the backend enforces them, the
   interface never pre-validates — is this document's own DEFAULT reading (the D7 discipline this codebase already
   holds everywhere: declare what is required, let the backend refuse with a clear reason); reading B, if ruled, is
   a materially bigger surface this document explicitly declines to draw ahead of that ruling.
 - **A per-tracker upload switch, distinct from the cross-seed switch.** § 7 Q2's reading B, named but not drawn —
   a mechanism, not a choice, waiting on the operator.
-- **A history of failed publications, kept until seen.** § 7 Q5's reading B, named (state 8, § 3) but not drawn.
-- **A third origin-colour value on L16's own field.** § 7 Q6, open; L16's DESIGN is read, never amended here.
+- **A history of failed publications, kept until seen.** § 7 Q4's reading B, named (state 8, § 3) but not drawn.
+- **A third origin-colour value on L16's own field.** § 7 Q5, open; L16's DESIGN is read, never amended here.
 - **Which media may be uploaded, beyond « the engine already has files for it ».** § 7 Q1, open.
 - **Anything the engine does.** The backend follows the interface, after the freeze (§ 15) — this lot files
   demands, never an implementation.
@@ -224,11 +250,15 @@ L17's own demands, once L23's questions are ruled.
 
 ---
 
-## 7. The six open questions — written OPEN, no choice
+## 7. The five open questions — written OPEN, no choice
 
-Every question below is the brief's own list, transcribed. Neither reading is chosen here; each carries its two
-readings and their cost, so the operator answers with the cost already in view, and this document is amended in
-ONE LINE per answer, never redrawn from a blank page.
+Every question below is the brief's own list, transcribed, minus one: the brief's own sixth item, « who holds the
+right by default », is corrected in § 0.2, on the orchestrator's reading of organisation ruling 21 — the DEFAULT
+holder of any right is configuration (Comptes), never a design choice the operator rules through this document;
+what this document owed instead was the right's own NAME and a proposed starting value, both drawn in § 0.2.
+Neither reading of the five below is chosen; each carries its two readings and their cost, so the operator
+answers with the cost already in view, and this document is amended in ONE LINE per answer, never redrawn from a
+blank page.
 
 **OPEN 1 — what may be uploaded.** *Reading A*: only a torrent this application already owns AND is currently
 seeding — a complete, healthy copy, never a partial or already-removed one — may have a torrent created from it
@@ -248,17 +278,7 @@ configuration; B needs one new per-tracker boolean — a new Réglages row, mirr
 SAME « one write, two doors » pattern L16/L17 already use (cheap in KIND, but a new key nonetheless), and the
 named state `tracker-upload-disabled` (§ 3, state 6) becomes real rather than merely proposed.
 
-**OPEN 3 — who holds the right by default.** *Reading A*: the SAME right as the rest of cross-seed control,
-`trackers.control` (L18's) — no new default-holder decision, no new row in L18's rights table. *Reading B*: a NEW,
-narrower right, `trackers.upload`, held by NOBODY by default (Admin only, via the ACL bypass) — because publishing
-new content at a third party is the one cross-seed act that can draw the TRACKER's OWN attention to the account (a
-duplicate or malformed upload risks a warning or a ban, NE-DOIT-PAS-8's own territory), a heavier consequence than
-flipping a switch or cutting a link. **Cost**: A is free; B is one more row in L18's rights table (§ 1.2 of its
-DESIGN) and one more toggle S9's roles editor must expose — cheap in itself, but a right nothing today
-anticipates, and R-L23-f (§ 4) is bound to it either way, since the right's NAME (`trackers.upload`) is this
-document's own proposal regardless of which reading answers WHO holds it.
-
-**OPEN 4 — what the tracker's rules require.** *Reading A*: the maquette draws NOTHING of a tracker's own upload
+**OPEN 3 — what the tracker's rules require.** *Reading A*: the maquette draws NOTHING of a tracker's own upload
 rules (category, private flag, source tag, a minimum ratio to be ALLOWED to upload) — the backend enforces them
 and answers a refusal with its own reason, the SAME discipline every other refusal in this codebase already
 carries (NE-DOIT-PAS-4); the interface never pre-validates. *Reading B*: the interface reads a per-tracker rule
@@ -267,7 +287,7 @@ A is the D7 discipline this codebase already holds everywhere — no new read, n
 B needs a new per-tracker rule read, a new mock shape, and a form — a materially bigger surface for a case
 NE-DOIT-PAS-8 already treats as the backend's to enforce, and named state 7 (§ 3) becomes real only under B.
 
-**OPEN 5 — what a failed or refused publication leaves behind.** *Reading A*: NOTHING beyond the pair's own row
+**OPEN 4 — what a failed or refused publication leaves behind.** *Reading A*: NOTHING beyond the pair's own row
 reading « erreur de cross-seed » with its reason (§ 2.2) — no temporary file, no partial record, ever surfaces;
 the same discipline as an ordinary cross-seed refusal. *Reading B*: a failed attempt is recorded on the TRACKER's
 own entry, the SAME shape L16 already built for a broken obligation (« N obligations rompues », round 10 Q4) —
@@ -277,7 +297,7 @@ what L17 already draws; B repeats a mechanism L16 already had to build once (a n
 write, a new demand) — not a new KIND of cost, but a second instance of one, and named state 8 (§ 3) becomes real
 only under B.
 
-**OPEN 6 — how the ratio counts an uploaded torrent.** *Reading A*: EXACTLY like any other cross-seed entry (L16's
+**OPEN 5 — how the ratio counts an uploaded torrent.** *Reading A*: EXACTLY like any other cross-seed entry (L16's
 own rule, ruling 18) — the ratio on that tracker is computed on the torrent's own SIZE, never a division by zero,
 whether the pair got there by search or by upload; nothing here changes L16's own derivation, and the uploaded
 pair is simply one more `active` row of it. *Reading B*: an uploaded-and-published torrent is, on THAT tracker, an
@@ -287,5 +307,5 @@ torrent — so L16's own origin-colour mark (§ 2.3 item 3 of its DESIGN) should
 would otherwise read a self-created original as a plain cross-seed and misjudge which copy exists by the
 application's own hand. **Cost**: A costs nothing beyond what L16/L17 already carry; B is one new enum value on an
 EXISTING field, touching the one place S3's own colour mark is drawn (L16's, read never amended by this document)
-— cheap in the writing, but a value nothing today anticipates, and it is the one reading among the six that
+— cheap in the writing, but a value nothing today anticipates, and it is the one reading among the five that
 reaches INTO another lot's own field rather than adding a field of L23's own.

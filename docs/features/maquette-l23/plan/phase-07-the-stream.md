@@ -8,7 +8,7 @@
   a search's own outcome event are already claimed, moving the mark's rows and the badge without a refetch. This
   phase asks for NO new event name — an upload's own outcome is answered through the SAME two engine events
   (`CrossSeedInjected` on success, `CrossSeedRejected` on either failure), extended, if `via` (DESIGN § 2.1 demand
-  S) is real by then, with that field; if § 7 Q6 is not yet ruled, the event fires unchanged and the row simply
+  S) is real by then, with that field; if § 7 Q5 is not yet ruled, the event fires unchanged and the row simply
   reads `via` as absent.
 - **Points ≈ 6.** `R-L17-h` re-aimed (its own fan-out proof gains the upload's own call site) 1½; the
   report naming the SAME two claimed events, no third (1); a check that a `queued` upload resolves within the

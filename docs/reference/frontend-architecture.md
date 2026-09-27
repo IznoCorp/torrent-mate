@@ -922,12 +922,15 @@ phase 20); no open question remains.
 **Objective.** § 19 point 5, dictated 2026-09-27: the application MAY create a torrent from a
 medium's own files and publish it on a tracker, to open a cross-seed where the engine's own search
 found none; a failure of the creation or the publication is a cross-seed failure, counted as such.
-Drawn AHEAD of its own turn (round 8 Q18 = B), so the operator answers its own six open questions —
-what may be uploaded, to which trackers, who holds the right by default, what a tracker's own rules
-require, what a failed or refused publication leaves behind, how the ratio counts an uploaded
-torrent — before an implementer has to guess. **No blocking note is lifted here**: unlike L16, L17
-and L18, this lot's own design is published WHILE its note is still on, and no phase of its plan
-opens until the six questions are ruled.
+Drawn AHEAD of its own turn (round 8 Q18 = B), so the operator answers its own five open questions —
+what may be uploaded, to which trackers, what a tracker's own rules require, what a failed or
+refused publication leaves behind, how the ratio counts an uploaded torrent — before an implementer
+has to guess. **A sixth question the brief itself posed, who holds the upload right by default, is
+NOT among them**: organisation ruling 21 makes a right's default holder configuration (Comptes),
+never a design choice, so the design draws the right's own name (`trackers.upload`, distinct from
+`trackers.control`) and a proposed starting value instead of asking. **No blocking note is lifted
+here**: unlike L16, L17 and L18, this lot's own design is published WHILE its note is still on, and
+no phase of its plan opens until the five questions are ruled.
 
 **Where it lives (invariant 10).** `features/trackers/` extended, once more — the SAME per-pair
 mark L17 draws on the Torrents tab's origin row (`features/trackers/torrents-tab.tsx`) gains a
@@ -938,13 +941,13 @@ No new page, no new tab, no new address.
 
 **Done when.** The two new codes are declared in the contract and sentenced in `fr.json`, never
 drawn as a bare code; the gesture is offered only where nothing already cross-seeds and absent for
-an account without the right; the Trackers badge's cross-seed term already counts both codes with
-no new summed component (L17's own `R-L17-g`, re-aimed, not re-derived); the two engine events
-already claimed by `features/trackers/live.ts` also move on an upload's own outcome, never a third
-event; the six open questions are ruled, each amended into the design in one line.
+an account without `trackers.upload`; the Trackers badge's cross-seed term already counts both
+codes with no new summed component (L17's own `R-L17-g`, re-aimed, not re-derived); the two engine
+events already claimed by `features/trackers/live.ts` also move on an upload's own outcome, never a
+third event; the five open questions are ruled, each amended into the design in one line.
 
 **Design and plan written 2026-09-27** — `docs/features/maquette-l23/DESIGN.md`, `plan/INDEX.md` (9
-phases, mean ≈ 7.9); six open questions, none chosen — the design states each one's two readings and
+phases, mean ≈ 7.8); five open questions, none chosen — the design states each one's two readings and
 their cost, and no phase depending on one opens before the operator rules it.
 
 ### Phase 6 — The finish
