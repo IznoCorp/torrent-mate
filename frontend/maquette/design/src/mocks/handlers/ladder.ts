@@ -132,6 +132,40 @@ export function ladderOf(subject: string, position?: Position): Rung[] {
 }
 
 /**
+ * Whether a medium is confirmed in the library: its last rung, « vérifié dans
+ * Plex », done (ruling 3).
+ *
+ * @param subject The medium.
+ * @returns True once that rung is done on the ladder the layer holds.
+ */
+export function isVerifiedInPlex(subject: string): boolean {
+  const held = mockState().journeyStages[subject];
+  return held !== undefined && held[held.length - 1].state === DONE;
+}
+
+/**
+ * Lays one medium's ladder again, one event away from the last rung: every rung
+ * before « vérifié dans Plex » done, that one pending.
+ *
+ * @param subject The medium.
+ */
+export function placeAtPlexCheck(subject: string): void {
+  delete mockState().journeyStages[subject];
+  ladderOf(subject, { current: TEMPLATE.length - 1, state: PENDING });
+}
+
+/**
+ * Marks the last rung done — the medium confirmed in the library.
+ *
+ * @param subject The medium.
+ */
+export function confirmInPlex(subject: string): void {
+  const ladder = ladderOf(subject);
+  // IN PLACE: the array the card and the sheet read is the one that moves.
+  TEMPLATE.forEach((seeded, index) => { ladder[index] = laid(seeded, DONE); });
+}
+
+/**
  * Forgets one medium's ladder, so the next read lays it where its card now stands.
  *
  * @param subject The medium.

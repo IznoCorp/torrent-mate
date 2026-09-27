@@ -15,6 +15,8 @@
   against the seed 1; R-L22-m with its mutations 3; one state (`acq-follows-film-confirming`) 1; the follows readers
   re-run, none expected to fall 1.
 
+- **Re-measured 2026-09-27 at its opening, on `b247f4077` — STOP D, RULINGS 14:** no followed film has a real row past « cherché » (Wicker « à récupérer », four « cherché, rien trouvé », Premier Contact paused) and nothing in the layer brings a ladder to « vérifié dans Plex » done; ruled (a): a derivation from Wicker's real row, shown as one. The state is named `acq-follows-film-at-plex-check` (the vocabulary refuses « confirming »); the event is the last rung's move to done, carried on the engine's `ItemProgressed` (the live-relay guard refuses an event the backend does not emit), a new live rule re-reading « Suivis » on it; the engine's timing is a demand owed (DESIGN § 6.2, dated line). Rule label m = R230. ≈ 11.
+
 Ruling 3: a film's follow ends by itself when the film is CONFIRMED in the library (Plex match validated, §4) and leaves
 « Suivis » without a trace there; a series' follow never ends by itself. **Drawn here, in its own phase; the media
 sheet's half (« acquis le … », release, requester) is NOT drawn** — DESIGN § 3.5 gives the reason and phase 27 names the

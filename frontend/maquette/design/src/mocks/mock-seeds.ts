@@ -24,6 +24,8 @@ import { seasonsHeld } from "../lib/season-rows";
 import { renameAccount } from "./account";
 import { mockState } from "./state";
 import { setAside } from "./handlers/staging";
+import { confirmInPlex, placeAtPlexCheck } from "./handlers/ladder";
+import { emit } from "./stream";
 
 /** What the layer exposes of its seeds. */
 export type MockSeeds = {
@@ -46,6 +48,13 @@ export type MockSeeds = {
   clearBlocked: () => void;
   /** Sets one queued folder aside, as « Laisser tel quel » does, until the layer is next reset. */
   setAside: (title: string) => boolean;
+  /** Lays a medium's ladder one event away from « vérifié dans Plex » — a DERIVATION from its real row (RULINGS 14). */
+  placeAtPlexCheck: (title: string) => void;
+  /**
+   * The medium confirmed in the library: its last rung done, carried on the
+   * engine's per-step event, `ItemProgressed`. Answers true once emitted.
+   */
+  confirmInPlex: (title: string) => boolean;
 };
 
 /** The seeds the harness reads, composed on each call so no caller holds a copy it could mutate. */
@@ -103,4 +112,10 @@ export const mockSeeds: MockSeeds = {
     });
   },
   setAside,
+  placeAtPlexCheck,
+  confirmInPlex: (title) => {
+    confirmInPlex(title);
+    emit("ItemProgressed", { step: "plex", item: title, status: "verified" });
+    return true;
+  },
 };

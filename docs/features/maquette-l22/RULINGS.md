@@ -163,3 +163,17 @@ acceptance commit carrying the script's proof that each differs on that region a
 the phase declared (`acq-resolution-none`, `acq-resolution-tie` on `screen-resolution/body`, the new state) are
 accepted as declared. B-554 is EXTENDED by one line — one row, one mechanism, one future repair of the driver's
 reset. B (reordering the states) hides it; C (repairing the reset) is new apparatus.
+
+## 14 — a followed film's last rung is a derivation from Wicker's real row (steward, 2026-09-27; L22b phase 18, STOP D)
+
+**The STOP.** No followed film has a real row past « cherché » (Wicker « à récupérer », four « cherché, rien
+trouvé », one paused), and nothing in the layer brings a ladder to « vérifié dans Plex » done: the plan's state « a
+followed film one event away from the last rung » needed a derivation.
+
+**Ruled (proposal a), the form of rulings 5 and 6.** Wicker's real row is the subject, its ladder laid one event
+away from the last rung — a derivation, shown as one. Ruling 3 ends a film's follow when the film is CONFIRMED in the
+library (« match Plex validé »): the last rung DONE, never at acquisition. The engine's `FilmAcquired` deletes the
+follow row at detection, earlier than the ruling — a demand owed, filed in DESIGN § 6.2 by one dated line; the
+layer draws the ruling, not the engine's timing. The event is the rung's move to done, and the live rule re-reads
+« Suivis » on it. R-L22-m holds: present while the rung is pending (not ended one rung early), absent after, and a
+followed series never removed.

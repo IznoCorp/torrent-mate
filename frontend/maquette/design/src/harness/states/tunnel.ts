@@ -116,6 +116,17 @@ export function tunnelStates(): NamedState[] {
       },
     ],
     [
+      "acq-follows-film-at-plex-check",
+      "Suivis — un film suivi à un événement de « vérifié dans Plex » (dérivé de la ligne réelle de Wicker)",
+      () => {
+        // A DERIVATION, SHOWN AS ONE (RULINGS 14): Wicker is the one followed
+        // film in a live list, « à récupérer »; its ladder is laid here one
+        // event away from the last rung, which no real row reaches today.
+        window.__mocks?.placeAtPlexCheck("Wicker");
+        applyState({ page: "acq", acqTab: "follows", scen: "real", phase: "ready" });
+      },
+    ],
+    [
       "acq-abandon-confirm",
       "À traiter — confirmation avant d'abandonner",
       () => {

@@ -6,7 +6,7 @@ import SUGGESTIONS from "../seeds/suggestions.json";
 import { DELETE, GET, PATCH, POST, field, route, text } from "./shared";
 import { launchDetection } from "./pipeline";
 import { arrivalsOf } from "./staging";
-import { forgetLadder, ladderOf, rungIndex, stripPosition, type Position } from "./ladder";
+import { isVerifiedInPlex, forgetLadder, ladderOf, rungIndex, stripPosition, type Position } from "./ladder";
 import type { components } from "../../contract/types";
 import { stagesOf } from "./acquisition-verbs";
 import { mockState } from "../state";
@@ -55,6 +55,9 @@ function onTheLadder(cards: components["schemas"]["QueueCard"][], at?: Position)
 
 // The dense body of data, asked for by name.
 const LOADED = "loaded";
+
+// The kind of a follow whose follow ends alone once it is confirmed in Plex.
+const FILM_KIND = "movie";
 
 // What a follow the request does not fully describe starts as. Every one of
 // these is a token or a blank, never a value copied off another record.
@@ -128,7 +131,13 @@ const NO_IDENTITY = "a follow with no provider identity has no sheet";
 /** Every route this subject answers. */
 export function acquisitionRoutes(): MockRoute[] {
   return [
-    route("readFollows", GET, "/api/acquisition/followed", () => mockState().follows),
+    // A FILM'S FOLLOW ENDS ALONE when the film is confirmed in the library —
+    // its last rung, « vérifié dans Plex », done (ruling 3) — and leaves no
+    // trace here; a series' follow never ends by itself. The engine deletes a
+    // film's follow at DETECTION today, earlier than the ruling: a demand owed
+    // (DESIGN § 6.2), and the layer answers the ruling.
+    route("readFollows", GET, "/api/acquisition/followed", () =>
+      mockState().follows.filter((follow) => follow.kind !== FILM_KIND || !isVerifiedInPlex(follow.title))),
     route("createFollow", POST, "/api/acquisition/followed", (request) => {
       const state = mockState();
       // BUILT FROM ITS OWN REQUEST, and from nothing else. An earlier version

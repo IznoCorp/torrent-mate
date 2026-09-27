@@ -943,6 +943,8 @@ demand D in L18's own first phase (L22 draws no rights, however small). The oper
 | E | `POST /api/acquisition/journeys/{infoHash}/plex-match` | `resolvePlexMatch` (new) | The confirm/correct verb on the Plex match itself: a card in « À traiter » that says « match Plex à confirmer » offers « Confirmer » (the match is the medium) and « Corriger » (it is not) on THAT match, and the answer moves the card. Nothing in the contract or the mocks names a Plex match today (§ 2.1); the match the card names is read by demand B's last rung. OPEN 9 (ruled B); § 20 point 3 |
 | D | `GET /api/auth/me` | `readAccount` (re-shaped) | Which places of the application THIS account may open — the input the bottom bar and the drawer compose from. **The shape is L18's**; L22 files the row's existence and nothing else. Rulings 11, 15; § 17 point 4 as dictated on 2026-09-26 |
 
+> **Amended 2026-09-27 (L22b phase 18, RULINGS 14):** a demand OWED, beside the rows above — the engine ends a film's follow when the film is CONFIRMED in the library (the last rung « vérifié dans Plex » done, ruling 3), not at detection as `FilmAcquired` does today (`personalscraper/acquire/detect.py:446`), and it signals that rung's move to done; the maquette's layer carries it on `ItemProgressed` meanwhile.
+
 **Not a sixth row: `discardStagedMedia` already has one** (`docs/reference/frontend-backend-demands.md:105` — the
 backend answers `detail`, `journaled`, `media_id`, `quarantine_path`; the maquette declares `{ok}` and calls it
 « Leave a staged item where it is »). « Abandonner » (OPEN 10, ruled B) quarantines, so the phase that draws it
