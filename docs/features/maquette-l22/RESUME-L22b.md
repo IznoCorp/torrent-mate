@@ -14,10 +14,14 @@ L22b appends from 13).
   « suivis stoppés » question; Q2 is ruled (both: the act removes the card; a folder deleted outside the app is absent
   after the re-read, an assertion in R227). Keep for 15b: ingest COPIES a seeding/seed-obligated torrent and MOVES any
   other (`ingest.py:549-561`, tracker `action: copied|moved`) — deleting a moved arrival deletes the only copy.
-- DONE: 15a, 16, 17. NEXT: 18 → 19 → 20 → [MIDPOINT full suite] → 21 … 27; 15b slots back in when
+- DONE: 15a, 16, 17, 18. NEXT: 19 → 19 → 20 → [MIDPOINT full suite] → 21 … 27; 15b slots back in when
   ruled (at the next unit boundary after the word).
 - Rule numbers: L22's a..u = R202–R222; R223 #616's; R224 (v), R225 (w) L22a's. L22b: i = **R226**
-  (`set_aside_is_later.py`); 15b's rule = R227 (reserved); j = **R228** (`not_a_media.py`); l = **R229** (`follow_offered.py`); next free R230.
+  (`set_aside_is_later.py`); 15b's rule = R227 (reserved); j = **R228** (`not_a_media.py`); l = **R229** (`follow_offered.py`); m = **R230** (`film_follow_ends.py`); next free R231.
+- RULINGS numbering: L22b writes 13–29 (13, 14 used); L22a's repair round writes from 30. Merge L22a's
+  repairs only once squashed on `main`, at a unit boundary (they touch staging.ts, arrival-slots.ts, the oracle).
+- AUDITOR ORDER 48 (binding): a fall set aside as « load » is proved by the SAME rule run 5× on this branch and
+  5× on `main` at comparable load; any gap is a regression; one green re-run proves nothing. Ratios in the ledger.
 - LOGS: `~/Library/Logs/tm-l22b/`. Mutex `sh scripts/heavy.sh --held`; own npm lock `/private/tmp/tm-heavy-l22b/holder`.
 - GATE FORM: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l22b frontend/maquette/harness/run.sh
   --contracts --oracle <full rule paths>`; `--a11y` on every gate that draws (the light ledger may only fall, 98 now).
