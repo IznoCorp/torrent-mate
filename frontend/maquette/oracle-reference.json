@@ -1,6 +1,6 @@
 {
   "$comment": "The recorded oracle's reference — `frontend/maquette/oracle.py`. One entry per (named state x region): a bounding rectangle rounded to one decimal, and the computed properties of `regions.json`'s `probe.computedStyleSubset`. `null` means the region's selector matched nothing in that state, which is data rather than an omission. Regenerate with `--record`; ratify a REVIEWED change with `--accept`, never from a gate.",
-  "baseCommit": "cefeff38d7e63afc82e9f9b360086ca778ac07d4",
+  "baseCommit": "87afc9d4d85d3d23e8be2b58b43675a090a5aa03",
   "platform": "Darwin/arm64",
   "counts": {
     "states": 122,
@@ -2575,7 +2575,7 @@
           "x": 0,
           "y": 139,
           "width": 390,
-          "height": 1214.4
+          "height": 946.4
         },
         "style": {
           "position": "static",
@@ -2803,7 +2803,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 1284.4
+          "height": 1016.4
         },
         "style": {
           "position": "static",
@@ -2992,7 +2992,7 @@
           "x": 0,
           "y": 139,
           "width": 390,
-          "height": 1301.5
+          "height": 1033.5
         },
         "style": {
           "position": "static",
@@ -3220,7 +3220,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 1371.5
+          "height": 1103.5
         },
         "style": {
           "position": "static",
@@ -9867,7 +9867,7 @@
           "x": 0,
           "y": 139,
           "width": 390,
-          "height": 1214.4
+          "height": 946.4
         },
         "style": {
           "position": "static",
@@ -10095,7 +10095,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 1284.4
+          "height": 1016.4
         },
         "style": {
           "position": "static",
