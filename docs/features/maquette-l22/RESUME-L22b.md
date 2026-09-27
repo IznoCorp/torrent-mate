@@ -7,29 +7,41 @@ L22b appends from 13).
 
 - Branch `feat/maquette-l22b`, worktree `/Users/izno/dev/worktrees/wave-l22b`, cut from L22a's pull-request head
   `6f0c987a3` (#619, READY, under its reader round). L22a's squash onto `main` is the steward's, named when it lands;
-  then you merge `origin/main` in at your next unit boundary. Steward: the session named in your launch prompt.
+  then you merge `origin/main` in at your next unit boundary. Steward: `Orch : TM frontend`.
 - Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l22b`.
-- Phases (`plan/INDEX.md`): 15 « Laisser tel quel » means later — RE-MEASURE it at its opening, ruling 16 (« Mis de
-  côté » folded at the end of « À traiter », four acts) grew it → 16 « Ce n'est pas un média » → 17 « Suivre »
-  proposed → 18 a film's follow ends alone → 19 Système leaves the bar (R-L22-s, the bar at 1/n) → 20 the menu
-  button's badge → [MIDPOINT full suite, measure 20] → 21 the sentences → 22, 23 the readers re-aimed (the four rules
-  that started a pass by finger say their re-aim OUT LOUD) → 24 the live rule Système was borrowing → 25 the death of
-  Arrivées → 26 the records of a dead page → 27 the close and the lot's gesture (the folder deleted whole).
-- DONE: nothing yet. NEXT: the handshake, then phase 15.
-- Rule numbers: L22's labels a..u = R202–R222; R223 is #616's; R224 (v) and R225 (w) are L22a's. A new label of
-  L22b starts at R226.
+- ORDER (steward, 2026-09-27): phase 15 CUT at its opening into 15a / 15b. 15a DONE. **15b WAITS** for the operator's
+  word on Q1 (« supprimer » = a real disk delete, new operation — recommended — or `discardStagedMedia`) and on the
+  « suivis stoppés » question; Q2 is ruled (both: the act removes the card; a folder deleted outside the app is absent
+  after the re-read, an assertion in R227). Keep for 15b: ingest COPIES a seeding/seed-obligated torrent and MOVES any
+  other (`ingest.py:549-561`, tracker `action: copied|moved`) — deleting a moved arrival deletes the only copy.
+- NEXT: 16 « Ce n'est pas un média » → 17 → 18 → 19 → 20 → [MIDPOINT full suite] → 21 … 27; 15b slots back in when
+  ruled (at the next unit boundary after the word).
+- Rule numbers: L22's a..u = R202–R222; R223 #616's; R224 (v), R225 (w) L22a's. L22b: i = **R226**
+  (`set_aside_is_later.py`); 15b's rule = R227 (reserved); the next free after that is R228.
 - LOGS: `~/Library/Logs/tm-l22b/`. Mutex `sh scripts/heavy.sh --held`; own npm lock `/private/tmp/tm-heavy-l22b/holder`.
 - GATE FORM: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l22b frontend/maquette/harness/run.sh
   --contracts --oracle <full rule paths>`; `--a11y` on every gate that draws (the light ledger may only fall, 98 now).
+- ORACLE ACCEPT: the 8899 host does not outlive an invocation — accept INSIDE one:
+  `heavy.sh … bash -c 'run.sh --oracle; python3 frontend/maquette/oracle.py --accept'`, then prove by script that
+  only the named states moved, and bump `tests/scripts/test_oracle.py`'s state-count pin in the same commit.
 - MUTATIONS: `sh scripts/mutate.sh <full path> "<expr>" frontend/maquette/harness/<rule>.py`; commit before; keep the
   EXPRESSION; « RULE CRASHED » proves something only when its message names the subject (RULINGS 1's reading).
 - PUSH: `sh scripts/heavy.sh --class test l22b git push -u origin feat/maquette-l22b`, its own command from the
   worktree root; a refusal = STOP with its exact text.
-- Traps inherited from L22a (its ledger, in `git show 6f0c987a3~2:docs/features/maquette-l22/RESUME-L22a.md`): the
-  oracle's `--accept` rewrites the WHOLE reference — name every changed state in the commit, prove the rest unmoved by
-  script; a closed `#dlg` keeps the last dialog's box (B-554); a rule green on the wrong subject (B-555); a gate's
-  named rules must include every reader of a surface the phase moves (cards.py missed phase 10's fall); a re-aim
-  before a removal keeps every gate green (rulings 9, 11); `outbox.py` falls under a full suite's load and passes
-  alone (B-546's mode).
+- Traps inherited from L22a: `--accept` rewrites the WHOLE reference (name every changed state); a closed `#dlg`
+  keeps the last dialog's box (B-554); a rule green on the wrong subject (B-555); a gate's named rules include every
+  reader of a surface the phase moves; `outbox.py` falls under a full suite's load and passes alone (B-546's mode).
+- New trap (15a): the staging list is not read on the « À traiter » tab — a rule counting `__queue().stuck` there
+  reads an empty list until a screen asks for it.
 
 ## LEDGER (append-only)
+
+- 2026-09-27 phase 15 opened: re-measured ≈ 29 (ruling 16's four acts) → CUT 15a / 15b (steward accepted; 15b waits
+  for Q1). 15a: R226 red (`15a-red.log`, 5 holds + markup guard), move, readers re-aimed out loud (R57 leave half,
+  actions.py, two_picks.py t6 — the latter now moves the list by the queue's `resolve`: no finger act takes a dense
+  staging folder out today); 15a ≈ 16 by its end (two readers found beyond the opening's re-runs, and the candidates
+  screen's guidance sentence) — said here. Commits c19ed60d3 (feat), 2918d4d19 (oracle accepts acq-card-set-aside
+  by name, pin 122 → 123). Gate `15a-gate.log` 32 rules + 26 guards 0 failed, oracle 0; `15a-a11y.log` 0 + light
+  98/98; mutation `15a-mutation.log`: EXPRESSION removes staging.ts's `if (… === LEFT_AS_IT_IS) return { ok:
+  setAside(asked) };` → R226 FAIL « and it is still set aside after both reads are asked again » (and four more).
+  Vocabulary gained « aside » (the contract's own token).
