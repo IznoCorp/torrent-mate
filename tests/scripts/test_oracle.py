@@ -357,7 +357,10 @@ def test_the_committed_reference_carries_a_platform():
     # 128 SINCE L22b's phase 24: acq-delete-keeps-files, acq-delete-only-copy and
     # acq-delete-unknown, « Supprimer »'s confirmation in its three cases — added; 63 states
     # moved on shell/dialog alone (B-554, RULINGS 7), named in the acceptance commit.
-    assert reference["counts"] == {"states": 128, "regions": 39}
+    # 129 SINCE L22b's phase 27: acq-card-plex-disagrees, a Plex match that DISAGREES with the
+    # identity held, POSED on Star Trek (RULINGS 24) — added; the states drawing « À traiter »
+    # moved with it (Star Trek's agreeing row left the tab), named in the acceptance commit.
+    assert reference["counts"] == {"states": 129, "regions": 39}
 
 
 class TestItRefusesToWriteOverAForeignBuild:
