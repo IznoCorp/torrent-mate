@@ -101,7 +101,10 @@ async def main():
         const s=getComputedStyle(el); const b=el.getBoundingClientRect();
         out[name]={h:Math.round(b.height),weight:s.fontWeight,size:s.fontSize,justify:s.justifyContent,
                    radius:s.borderRadius,icon:!!el.querySelector(':scope > svg')};};
-      window.__go('acq-now-loaded'); await new Promise(r=>setTimeout(r,220));
+      // RE-AIMED OUT LOUD: the solid card foot was « Récupérer maintenant » on
+      // « En cours »; it left, and the solid foot a card still carries is
+      // « Confirmer », on the Plex match in « À traiter ».
+      window.__go('acq-todo-loaded'); await new Promise(r=>setTimeout(r,220));
       measure('[data-part="card/foot"][data-solid]','card footer (primary)');
       window.__go('followsheet-gaps'); await new Promise(r=>setTimeout(r,240));
       measure('[data-part="sheet/action"][data-tone="primary"]','sheet (primary)');
@@ -244,9 +247,11 @@ async def main():
     # R16 — the badge is the sum it claims to be. RE-AIMED OUT LOUD as R203
     # (R-L22-b): the bar's badge counts « À traiter » alone (ruling 10) — it
     # equals the number on that tab and the cards drawn in it, and is ABSENT,
-    # not 0, when nothing waits; « En cours »'s own count is what is left of the
-    # old sum, the media waiting to be taken. It asserted `takeable + blocked`
-    # on both, which is the behaviour ruling 10 reverses.
+    # not 0, when nothing waits. « En cours »'s own count is what « En vol »
+    # holds — the queue's in-flight cards and the arrivals on their way —
+    # re-aimed out loud: it counted the media waiting to be taken, which left
+    # « En cours ». It asserted `takeable + blocked` on both, which is the
+    # behaviour ruling 10 reverses.
     bad=await pg.evaluate("""async ()=>{const out=[];
       const wait=()=>new Promise(r=>setTimeout(r,400));
       const number=(element)=>element?Number(element.textContent):null;
@@ -257,9 +262,12 @@ async def main():
         if (s==='acq-todo-empty') {
           if (badge!==null || tab!==null || cards!==0) out.push(`${s}: badge ${badge}, tab ${tab}, cards ${cards} — absent, absent, 0 wanted`);
         } else if (!cards || badge!==cards || tab!==cards) out.push(`${s}: badge ${badge}, tab ${tab}, cards drawn ${cards}`);
-        const q=window.__queue?.()||{takeable:[]};
+        const answer=window.__queries?.getQueryData(["/api/acquisition/to-handle", ""])||{inFlight:[],arrivals:[]};
+        const onTheirWay=(answer.arrivals||[]).filter((card)=>!(card.ladder||[]).some((rung)=>rung.state==='blocked'
+          || (rung.rung==='shelved' && rung.state==='done'))).length;
+        const moving=(answer.inFlight||[]).length+onTheirWay;
         const now=number(document.querySelector('[data-acqtab="now"] [data-part="segment/count"]'));
-        if ((now??0)!==q.takeable.length) out.push(`${s}: « En cours » count ${now} != to take ${q.takeable.length}`);
+        if ((now??0)!==moving) out.push(`${s}: « En cours » count ${now} != in flight ${moving}`);
       } return out;}""")
     for x in bad: note("R16 badge not derived", x)
 

@@ -86,15 +86,18 @@ async def main():
             and not error["resolve"] and error["reason"] == TUNNEL_ERROR["reason"],
             str(error))
         # RE-AIMED OUT LOUD: « En cours » is read in the loaded world, where
-        # something is in flight; the real world's holds nothing moving.
-        await go(page, journal, "acq-now-loaded")
+        # something is in flight — the real world's holds nothing moving — on
+        # the state that has a maintenance run holding, read FIRST in that
+        # world: a queue answer cached before the maintenance began would draw
+        # the cards still moving. The waiting hold used to pass on the cards
+        # « Cherché, rien trouvé » drew (waiting, with a reason), not on the
+        # ones a maintenance holds; that section left « En cours ».
+        await go(page, journal, "acq-card-waiting")
         now = await page.evaluate(CARDS)
         journal.check("« En cours » holds no blocked card",
                       bool(now) and not any("blocked" in card["states"] for card in now),
                       str([(card["title"], card["states"]) for card in now if "blocked" in card["states"]]))
-
-        await go(page, journal, "acq-card-waiting")
-        waiting = [card for card in await page.evaluate(CARDS) if "waiting" in card["states"]
+        waiting = [card for card in now if "waiting" in card["states"]
                    and card["reason"]]
         journal.check("a card waiting behind a maintenance run is in « En cours », with its reason",
                       bool(waiting), str(len(waiting)))

@@ -77,3 +77,7 @@ Read after `docs/features/maquette-l22/BRIEF-L22a.md` (governs) and `RULINGS.md`
   folder cards only; Arrivées is not redrawn — it dies in L22b (phase 25).
 - 2026-09-27 phase 14-bis-b1 — persistence.py « acq-follows-list … same nodes after a store touch » fell once in a
   16-rule gate (`14bb1-gate-3.log`) and passed ALONE (`14bb1-persistence-alone.log`, load 3.9): load.
+- 2026-09-27 phase 14-bis-b2 — todo_holds' « a card waiting behind a maintenance run » passed, before the removal, on
+  the « Cherché, rien trouvé » cards (waiting, with a reason), not on the three a maintenance holds in « En vol »;
+  and b1's re-aim read `acq-now-loaded` first, caching the loaded queue before the maintenance began. Read now on
+  `acq-card-waiting` first (probe: the three stay in « En vol » after the removal).
