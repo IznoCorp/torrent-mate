@@ -1018,7 +1018,7 @@
         "follow": "demandé par {{name}}",
         "unknown": "origine inconnue"
       },
-      "plexMatch": "Plex l'a reconnu comme « {{title}} » — est-ce bien lui ?"
+      "plexMatch": "Plex l'a reconnu comme « {{title}} », nous le tenons pour « {{held}} »."
     },
     "error": {
       "lead": "Impossible de charger {{subject}}.",

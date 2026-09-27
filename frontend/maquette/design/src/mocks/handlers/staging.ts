@@ -6,7 +6,7 @@ import { mockState } from "../state";
 import { FROM_BLOCKED, FROM_DENSE, FROM_REAL, SOURCE_LISTS, copiesOf, takeOutOfStaging } from "./staged-folders";
 import { scenario } from "../scenario";
 import { refused, type MockRequest, type MockRoute } from "../router";
-import { forgetLadder, ladderOf, rungIndex, stripPosition, type Origin, type Position } from "./ladder";
+import { confirmInPlex, forgetLadder, ladderOf, rungIndex, stripPosition, type Origin, type Position } from "./ladder";
 import { accountName } from "../account";
 import type { components } from "../../contract/types";
 
@@ -56,7 +56,34 @@ const TO_CONFIRM = "confirmation";
 const MATCH_TO_CONFIRM: Position = { current: rungIndex("verified"), state: BLOCKED, reason: TO_CONFIRM };
 // The rung state of a folder the operator set aside: the contract's own token.
 const ASIDE = "aside";
-const settled = (card: QueueCard) => (card.plexMatch === undefined ? SETTLED_AT : MATCH_TO_CONFIRM);
+const settled = (card: QueueCard) => (disagrees(card) ? MATCH_TO_CONFIRM : SETTLED_AT);
+
+/**
+ * Whether Plex's match disagrees with the identity held — the only match that
+ * waits for the operator (RULINGS 24). An agreeing match is no question.
+ *
+ * @param card The settled folder.
+ * @returns True when a match is carried and names another identity.
+ */
+function disagrees(card: QueueCard): boolean {
+  const match = card.plexMatch;
+  if (match === undefined) return false;
+  const held = (card.ids ?? {}) as Record<string, unknown>;
+  const matched = (match.ids ?? {}) as Record<string, unknown>;
+  return Object.keys(matched).some((provider) => String(matched[provider]) !== String(held[provider]));
+}
+
+/**
+ * A settled folder as it is served: its Plex match only when that match is a question.
+ *
+ * @param card The settled folder.
+ * @returns The folder, without an agreeing match.
+ */
+function served(card: QueueCard): QueueCard {
+  if (card.plexMatch === undefined || disagrees(card)) return card;
+  const { plexMatch, ...agreed } = card;
+  return plexMatch === undefined ? card : agreed;
+}
 // The pipeline's state while a maintenance run holds the lock, and the reason
 // a card moving through it then gives — both the contract's own tokens.
 const MAINTENANCE_HOLDS = "queued";
@@ -157,6 +184,22 @@ function moving(card: QueueCard): Position | undefined {
 }
 
 /**
+ * Poses a DISAGREEING Plex match on a settled folder, until the layer is next
+ * reset — a derivation, shown as one (RULINGS 24): no seeded row carries a
+ * disagreement; the backend compares Plex's real match with the identity held.
+ *
+ * @param title The settled folder.
+ * @param match The identity Plex is posed to have matched it to.
+ */
+export function poseDisagreement(title: string, match: NonNullable<QueueCard["plexMatch"]>): void {
+  const state = mockState();
+  for (const list of SETTLED_LISTS) {
+    state[list] = state[list].map((card) => (card.title === title ? { ...card, plexMatch: match } : card));
+  }
+  forgetLadder(title);
+}
+
+/**
  * EVERY ARRIVAL, AS AN ACQUISITION CARD (ruling 2): what the staging area holds
  * in the scenario's world, each carrying who asked for it. The account is the
  * mock's single one, which owns the Plex server by construction (§17); an
@@ -177,7 +220,7 @@ export function arrivalsOf(dense: boolean): QueueCard[] {
   // A TUNNEL ERROR IS A STEP NO PICK UNBLOCKS: a row a pending decision names
   // is resolved by that decision, whatever step it stopped at.
   const namedByDecision = new Set(state.pendingDecisions.map((decision) => decision.folder));
-  const inStaging = lists.flatMap(([cards, at]) => cards.map(({ strip, failedStep, ...stopped }) => {
+  const inStaging = lists.flatMap(([cards, at]) => cards.map(served).map(({ strip, failedStep, ...stopped }) => {
     const card = failedStep === undefined || namedByDecision.has(stopped.title) ? stopped : { ...stopped, failedStep };
     const position = at({ ...card, strip });
     const { requester, origin } = originOf(card, true);
@@ -232,10 +275,10 @@ export function stagingRoutes(): MockRoute[] {
         return {
           stuck: state.stuckLoaded,
           moving: state.moving,
-          settled: state.settledLoaded,
+          settled: state.settledLoaded.map(served),
         };
       }
-      return { stuck: state.stuck, moving: state.movingReel, settled: state.settled };
+      return { stuck: state.stuck, moving: state.movingReel, settled: state.settled.map(served) };
     }),
     route(
       "continueStagedMedia",
@@ -324,9 +367,15 @@ export function stagingRoutes(): MockRoute[] {
         for (const list of SETTLED_LISTS) {
           const found = state[list].find((card) => card.title === asked && card.plexMatch !== undefined);
           if (found === undefined) continue;
+          // « CORRIGER » ASKS PLEX TO MATCH IT TO WHAT WE HOLD: the card
+          // waits in « À traiter » until the corrected match is checked, its
+          // last rung not done. « CONFIRMER » answers the question: the
+          // match leaves, and « vérifié dans Plex » is done.
+          if (outcome === CORRECT) return { ok: true, outcome };
           const { plexMatch, ...answered } = found;
           state[list] = state[list].map((card) => (card === found ? answered : card));
           forgetLadder(asked);
+          confirmInPlex(asked);
           return { ok: plexMatch !== undefined, outcome };
         }
         return { ok: false, outcome };

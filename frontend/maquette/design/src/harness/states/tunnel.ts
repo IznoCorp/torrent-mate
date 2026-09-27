@@ -136,6 +136,22 @@ export function tunnelStates(): NamedState[] {
       },
     ],
     [
+      "acq-card-plex-disagrees",
+      "À traiter — un match Plex en DÉSACCORD, POSÉ sur Star Trek (le back-end comparera le vrai match de Plex à l'identité tenue — RULINGS 24)",
+      () => {
+        // A DERIVATION, SHOWN AS ONE (RULINGS 24): Star Trek's real row agrees
+        // with Plex, so the disagreement is posed on another real series of
+        // the franchise.
+        window.__mocks?.poseDisagreement("Star Trek: Strange New Worlds (2022)", {
+          title: "Star Trek: Discovery",
+          ids: { tvdb: 328711, tmdb: 67198, imdb: "tt5171438" },
+        });
+        window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
+        window.__queries?.removeQueries({ queryKey: ["/api/staging/media"] });
+        applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" });
+      },
+    ],
+    [
       "acq-delete-keeps-files",
       "Mis de côté — « Supprimer » : le torrent garde ses fichiers (cas POSÉ sur Lucky, que le back-end lira dans qBittorrent au geste — RULINGS 22)",
       () => {

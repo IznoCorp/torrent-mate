@@ -1120,8 +1120,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Confirm or correct the match Plex made for a medium
-         * @description Demand E (OPEN 9, ruled B): « Confirmer » says the match is the medium, « Corriger » says it is not. « Corriger » opens the candidates screen on the identity held and sends nothing; the correction is sent by the pick, carrying the identity picked. Either answer takes the card off « À traiter »; leaving the screen without a pick leaves the match to confirm.
+         * Confirm or correct the match Plex made for a medium — the Plex match's CORRECTION VERB, OPEN 9's fifth demand; the disagreement is POSED in the maquette (RULINGS 24), the backend compares Plex's real match with the identity held
+         * @description Demand E (OPEN 9, ruled B), the Plex match's correction verb: only a match that DISAGREES with the identity held waits in « À traiter ». « Confirmer » says the match is the medium: the card leaves « À traiter » and « vérifié dans Plex » is done. « Corriger » sends the correction carrying the identity HELD — no candidates screen — and the card stays in « À traiter », its last rung not done, until Plex's corrected match is checked. IN THE MAQUETTE THE DISAGREEMENT IS POSED, NOT READ (RULINGS 24): the backend compares Plex's real match with the identity held.
          */
         post: operations["resolvePlexMatch"];
         delete?: never;

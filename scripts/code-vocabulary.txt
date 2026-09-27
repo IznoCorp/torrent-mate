@@ -303,6 +303,8 @@ digits
 direct
 direction
 directions
+disagreement
+disagrees
 disarm
 discipline
 disclosure

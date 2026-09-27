@@ -287,6 +287,25 @@ layer — a sheet, a screen, the drawer, the add screen: their tab pinned by RUL
 proved no other region moved, and it was said. From now on, **a state that draws a tab under a layer inherits that
 tab's divergences, and is NAMED at the opening** of any phase that touches the tab.
 
+## 24 — only a disagreement waits; it is POSED on Star Trek; « Corriger » sends the identity held (steward and auditor, 2026-09-27; L22b phase 27, STOP D)
+
+**The STOP.** F3 has only a DISAGREEMENT wait in « À traiter » — Plex's match against the identity held — and the one
+seeded Plex match, Star Trek's (RULINGS 6), carries exactly the identity held (tmdb 103516, imdb tt12327578, tvdb
+382389): under F3 it no longer waits, and no seeded row carries a disagreement.
+
+**Ruled (a)**, on RULINGS 22's precedent: the disagreement is POSED on « Star Trek: Strange New Worlds » by a mock door —
+Plex matched it to another real series of the franchise, « Star Trek: Discovery » (tvdb 328711, tmdb 67198, imdb
+tt5171438) — and the seed keeps the real agreement, so without the door Star Trek is not in « À traiter », which is
+true of its real row. **« Corriger » sends demand E with the identity HELD** (« match it to what we hold »): no
+candidates screen, and the card stays in « À traiter » until Plex's corrected match is checked, its last rung not done.
+**« Confirmer » lays « vérifié dans Plex » done**, so a followed film leaves « Suivis ». Conditions: (1) the named state
+and demand E's description say the disagreement is POSED, not read, and name the backend read that replaces it — Plex's
+real match compared with the identity held; (2) one mutation per hold — an AGREEING card never waits in « À traiter »;
+« Corriger » then Back, the card is still there; « Confirmer », the rung is done; (3, the auditor) demand E stands in
+the backend demands register as the Plex match's CORRECTION VERB, OPEN 9's fifth demand, not a new gesture. (b), writing
+the disagreement into the seed, and (c), keeping an agreeing card waiting, were refused. RULINGS 6's derivation is
+revised by this one.
+
 ## 30 — the ladder's figure keeps one meaning; a Plex match waits on its current rung (steward, 2026-09-27; round one, A6)
 
 **The question.** The round's brief asked Star Trek's card to read « 7 sur 8 »; the figure is the current rung's

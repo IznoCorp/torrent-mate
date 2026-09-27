@@ -23,7 +23,7 @@ import INCOMPLETE_SHOWS from "./seeds/incomplete-shows.json";
 import { seasonsHeld } from "../lib/season-rows";
 import { renameAccount } from "./account";
 import { mockState } from "./state";
-import { setAside } from "./handlers/staging";
+import { poseDisagreement, setAside } from "./handlers/staging";
 import { poseKeepsItsFiles } from "./handlers/staged-folders";
 import { confirmInPlex, placeAtPlexCheck } from "./handlers/ladder";
 import { emit } from "./stream";
@@ -51,6 +51,8 @@ export type MockSeeds = {
   setAside: (title: string) => boolean;
   /** Poses « the torrent keeps its files » on a staged folder — a DERIVATION, never read (RULINGS 22). */
   poseKeepsItsFiles: (title: string) => void;
+  /** Poses a Plex match that DISAGREES with the identity held — a DERIVATION, never read (RULINGS 24). */
+  poseDisagreement: (title: string, match: { title: string; ids: Record<string, string | number> }) => void;
   /** Lays a medium's ladder one event away from « vérifié dans Plex » — a DERIVATION from its real row (RULINGS 14). */
   placeAtPlexCheck: (title: string) => void;
   /**
@@ -116,6 +118,7 @@ export const mockSeeds: MockSeeds = {
   },
   setAside,
   poseKeepsItsFiles,
+  poseDisagreement,
   placeAtPlexCheck,
   confirmInPlex: (title) => {
     confirmInPlex(title);
