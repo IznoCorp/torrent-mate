@@ -25,6 +25,14 @@
 - **Points ≈ 15–17** (Q16 ≈ 13–15 at 15a's cut, + M2's third wording, + F40) → **likely cut at the opening**
   (the operation and its three wordings / F40).
 
+- **Re-measured 2026-09-27 at its opening, on `3551e8125`: ≈ 31 → CUT into three whole phases** (the steward told):
+  the two new operations (read the case, delete) 4; their two mock routes 4; the verb and its confirmation, on
+  `abandon-verb.ts`'s model, ≈ 5; the section's « Supprimer » foot 1; the wordings 3; three states 3; R227 3; demand F
+  1; F40 ≈ 6. **This phase is now the deletion alone (≈ 15)**: the operation, the verb, the confirmation naming the
+  folder with the NEUTRAL case sentence (« inconnu », treated as the only copy), nothing sent before it is confirmed,
+  the card leaving the section and not coming back on a re-read; one state. **Phase 24** reads the case at the gesture
+  (M2) and draws the two other wordings; **phase 25** is F40.
+
 ## Red today
 
 **R227 — « Supprimer » deletes, and says what it deletes**: in « Mis de côté », « Supprimer » opens a confirmation naming

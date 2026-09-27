@@ -19,7 +19,7 @@
 
 Ruling 3: a film's follow ends by itself when the film is CONFIRMED in the library (Plex match validated, §4) and leaves
 « Suivis » without a trace there; a series' follow never ends by itself. **Drawn here, in its own phase; the media
-sheet's half (« acquis le … », release, requester) is NOT drawn** — DESIGN § 3.5 gives the reason and phase 37 names the
+sheet's half (« acquis le … », release, requester) is NOT drawn** — DESIGN § 3.5 gives the reason and phase 39 names the
 debt.
 
 ## Red today

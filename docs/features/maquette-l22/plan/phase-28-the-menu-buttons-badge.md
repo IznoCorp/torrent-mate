@@ -1,6 +1,6 @@
-# Phase 26 — The menu button's badge
+# Phase 28 — The menu button's badge
 
-**Numbered 24, then 26, on 2026-09-27** (was 20; the triage's F51). **HELD until its opening carries, BEFORE its first commit,
+**Numbered 24, then 26, then 28, on 2026-09-27** (was 20; the triage's F51). **HELD until its opening carries, BEFORE its first commit,
 the coherence triage (`review-archive/coherence-2026-09-27-triage.md` § B; texts in `coherence-2026-09-27.md`): F1 + C2 (blocking)** — each navigation row that carries a badge DECLARES the queries its badge reads, and the frame
 keeps them OBSERVED for the document's lifetime (a frame-level observer); the declaration is born keyed on the row, so a
 row not drawn registers no observer (C2); Système declares locks, services and dependencies; `engine-data.ts`'s boot list

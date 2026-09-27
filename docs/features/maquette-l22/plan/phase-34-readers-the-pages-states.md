@@ -1,8 +1,8 @@
-# Phase 32 — Readers re-aimed: the page's states
+# Phase 34 — Readers re-aimed: the page's states
 
-**Numbered 30, then 32, on 2026-09-27** (was 22; the triage's F51). **Carried at its opening, from the coherence triage (`review-archive/coherence-2026-09-27-triage.md` § B; texts in `coherence-2026-09-27.md`)**: F41 (the state is named
+**Numbered 30, then 32, then 34, on 2026-09-27** (was 22; the triage's F51). **Carried at its opening, from the coherence triage (`review-archive/coherence-2026-09-27-triage.md` § B; texts in `coherence-2026-09-27.md`)**: F41 (the state is named
 `acq-todo-error`; `acq-todo-loading` is dropped with a dated line unless it is built; B-515's reading is made here); F53
-if phase 31 did not take it.
+if phase 33 did not take it.
 
 **Opening measure (2026-09-26, on `94a369879`):**
 

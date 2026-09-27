@@ -16,7 +16,7 @@
 - **Points ≈ 15.** `navigation.ts` (`sys.inBar` false; the header comment rewritten, ≈ 12 lines) and the seam 2; five
   readers re-aimed onto the drawer path ½ each 3; R-L22-q with its mutation 3; three states (`drawer-system`,
   `bar-todo-badge`, `bar-clear`) 3 (reusing seeds) — 11 → **12** with the second touch of `queued_by_hand.py`, which
-  phase 33 revisits; **R-L22-s with its mutations 3 → 15** (OPEN 2).
+  phase 35 revisits; **R-L22-s with its mutations 3 → 15** (OPEN 2).
 - **Re-measured (2026-09-26, on `ba6a36cc9`, after the eleven rulings).** The commands above re-run: `git grep -n inBar` → 12
   site-lines (9 in `app/navigation.ts`, 2 in `navigation-seam.ts`, 1 in `tab-bar.tsx`), 7 lines in 5 files reach Système by the
   bar, `navigation.ts` 210 lines, `tab-bar.tsx` 94, the header comment still « the bar holds the four places one goes to SEE ». New
@@ -31,7 +31,7 @@
 Ruling 15: Système LEAVES the bar and is reached from the drawer, at its right. **The bar's composition by rights is
 L18's** — this phase draws the bar the table says, with no field added for a right. **OPEN 2 (ruled A) adds the frame rule the
 bar owes every count it will ever have**: only the buttons present are drawn, in equal shares of 1/n, n from 2 to 4, never an
-empty slot — three here, two when Arrivées dies (phase 35), three again when Trackers lands (L16).
+empty slot — three here, two when Arrivées dies (phase 37), three again when Trackers lands (L16).
 
 ## Red today
 

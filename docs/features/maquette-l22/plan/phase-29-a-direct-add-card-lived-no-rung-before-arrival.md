@@ -1,4 +1,4 @@
-# Phase 27 — A direct-add card lived no rung before « arrivé »
+# Phase 29 — A direct-add card lived no rung before « arrivé »
 
 **Born 2026-09-27 from the coherence triage's F5**, the first phase after the MIDPOINT.
 

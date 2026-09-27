@@ -10,16 +10,16 @@ L22b appends from 13).
   [ac1af8]`. main has moved (#621, the references' gesture): merge `origin/main` at the next unit boundary — only the
   generated files conflict; regenerate them (oracle by an accept in one invocation + the script proof; ledgers re-read).
 - Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b`.
-- DONE: 15a, 16, 17, 18, 19, 19-bis-a, 19-bis-b, the merges of #619 and #621, the triage's docs commit, **20** (the
-  waiting tone's text token; light ceiling 98 → 88). NEXT (integers; B-556/B-557 took 21/22, the rest +2): **21** a pull
-  begun on a card refreshes (B-556, R235) → 22 three tabs + lit badge at 390/369 px (B-557, proof only) → 23 « Supprimer »
-  for real (M2, F40; likely cut) → 24 paused follows fold (R233) → 25 the Plex match waits on a disagreement (F3; STOP D
-  if Star Trek's seed costs § 13) → 26 the menu button's badge (HELD: F1 + C2 and M3 at its opening) → [MIDPOINT full
-  suite + audit2.py ×10 kept output; the steward runs ×10 on main] → 27 direct-add card (F5) → 28 follow sheet search +
-  grab (F6 + F42; likely cut) → 29 « Abandonner » on a follow's card (M1) → 30 one-off acquisitions (round 10 Q1 + Q2;
-  likely cut) → 31 sentences (F7, F54, F53) → 32 readers (F41) → 33 → 34 → 35 death of Arrivées (F8) → 36 → 37 close
-  (F8, F52, F67, C9; product-intent-map.md:49 `acq-discover-posters` → `discover-posters`, the operator's ruling).
-  Each re-measured at its opening; > 15 → cut, one message. Plan: `plan/INDEX.md`; rulings: DESIGN § 7.4.
+- DONE: 15a, 16, 17, 18, 19, 19-bis-a, 19-bis-b, the merges of #619 and #621, the triage's docs commit, 20 (waiting
+  text token; light ceiling 98 → 88), 21 (B-556, R235), 22 (B-557, R206 at 390/369). NEXT (integers): **23** « Supprimer »
+  the deletion (neutral case, R227) → 24 the case read at the gesture (M2) → 25 F40 → 26 paused follows fold (R233) →
+  27 the Plex match waits on a disagreement (F3; STOP D if Star Trek's seed costs § 13) → 28 the menu button's badge
+  (HELD: F1 + C2 and M3 at its opening) → [MIDPOINT full suite + audit2.py ×10 with its output kept; the steward runs
+  ×10 on main] → 29 direct-add card (F5) → 30 follow sheet search + grab (F6 + F42; likely cut) → 31 « Abandonner » on a
+  follow's card (M1) → 32 one-off acquisitions (round 10 Q1 + Q2; likely cut) → 33 sentences (F7, F54, F53) → 34
+  readers (F41) → 35 → 36 → 37 death of Arrivées (F8) → 38 → 39 close (F8, F52, F67, C9; product-intent-map.md:49
+  `acq-discover-posters` → `discover-posters`, the operator's ruling). Each re-measured at its opening; > 15 → cut
+  (integers, the rest shifts), one message. Plan: `plan/INDEX.md`; rulings: DESIGN § 7.4.
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (21) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (22) R233 ·
   R234 discover_page · next free R235. RULINGS: L22b writes 13–29 (13–21 used); L22a's repair round wrote 30–32.
@@ -135,4 +135,13 @@ L22b appends from 13).
   audit2.py R11 fell ONCE (`20-green.log`, no detail — run.sh deletes per-rule logs), green on the three runs after;
   NOT set aside: ×10 here at the midpoint with the output kept, ×10 on main by the steward (R11 also fell on #623's CI).
 - 2026-09-27 B-556 / B-557 filed (the operator's verbatim) and placed as phases 21 / 22; 21–35 → 23–37.
+- 2026-09-27 phase 21 (B-556): cause read — the pull's isExcluded refused `.swipe`, the rows of « Suivis » and of the
+  Médiathèque's list; R223 pulled above the cards. `.swipe` left the exclusion. R235 new (pull_on_a_card.py): red
+  `21-red.log` (follows-list, lib-list), gate `21-gate.log` 41 rules (17 swipe drivers) + 26 guards 0 failed, mutation
+  `21-mutation.log` (`.swipe` back → FAIL both). Commits 85790103d, bf1eb3ec0 (the comment-reference record's `read`
+  514 → 515, the pre-push pytest refused the first push).
+- 2026-09-27 phase 22 (B-557): R206 at 390 AND 369 px, counted tabs at « 999 » (« Suivis » draws no count — my first
+  draft's premise, corrected out loud). Gate `22-gate.log` 0 failed; mutation `22-mutation.log` (tabTodo lengthened →
+  FAIL at both widths). Commit 3551e8125.
+- 2026-09-27 phase 23 re-measured ≈ 31 → cut into 23 / 24 / 25; the rest +2 (26–39).
 
