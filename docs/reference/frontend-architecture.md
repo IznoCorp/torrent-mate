@@ -846,6 +846,8 @@ preuve »): the action absent from the surface for the account without it, the c
 one that forces it; the map's DOIT-12 row reads `served` with that rule; the read-only role has
 no path of its own left.
 
+**Design and plan written 2026-09-27, PR #<n>** — `docs/features/maquette-l18/DESIGN.md`, `plan/INDEX.md` (29 phases, mean ≈ 12.3, cut in two at phase 17); seven open questions.
+
 ### Phase 6 — The finish
 
 #### L13 — The engine's residue · *depends on L07, L09, L12, L15, L19*
