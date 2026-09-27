@@ -133,6 +133,10 @@ the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
 
 RE-AIMED OUT LOUD: Système left the bottom bar (ruling 15); « sys », « maint »
 and « cfg » are walked through the menu and Système's drawer entry.
+
+RE-AIMED OUT LOUD: « Découvrir » became a page of the bottom bar (round 8,
+question 20); « discover » is walked by its bar button, like the other pages
+the bar carries.
 """
 import asyncio
 import json
@@ -168,6 +172,7 @@ PAGE_WALKS = {
     "acq": ['#nav button[data-page="acq"]'],
     "lib": ['#nav button[data-page="lib"]'],
     "arr": ['#nav button[data-page="arr"]'],
+    "discover": ['#nav button[data-page="discover"]'],
     # RE-AIMED OUT LOUD: Système left the tab bar (ruling 15) — the menu, then
     # its drawer entry.
     "sys": ['[data-drawer]', '#drawer [data-navgo="sys"]'],
