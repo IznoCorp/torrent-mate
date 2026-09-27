@@ -13,6 +13,20 @@ constant would read the old name after the rename, and this is where it falls.
 The gesture that REASSIGNS a request is not drawn here: it is an act of the
 rights model, and is born with it.
 
+EVERY ACQUISITION CARD SAYS ITS ORIGIN (round one, A9), and the rule reads every
+card, not only those that drew a line. Said out loud: it FILTERED OUT the cards
+without a line before reading, so the queue's three in-flight cards, which drew
+none, could never make it fall. Now a card carries its requester's line, or
+« origine inconnue » where the row names nobody; a folder DROPPED BY HAND —
+the seeds say which — asked nobody, draws no line, and its subtitle says so.
+Read on « À traiter » in the real world and on « En vol » in the loaded one,
+where the queue's cards and the direct adds are.
+
+THE LAST TEXT LINE, RE-READ OUT LOUD (ruling 32): a card of « À traiter » with
+one foot lays its line beside that foot, so « last » is the body's last text OR
+the line sharing the foot's row — below the reason either way, never competing
+with the title, the figure or the reason.
+
 RE-AIMED OUT LOUD: `acq-card-requester` stood on « En cours », where the
 arrival nobody followed was shelved today; that section left « En cours ». The
 state stands on « À traiter », where the real world's arrivals nobody followed
@@ -32,6 +46,12 @@ WORDS = json.loads((pathlib.Path(__file__).resolve().parents[1]
 LINES = WORDS["surfaces"]["card"].get("requester", {})
 # Another name, for the rename the rule reads the line follow.
 RENAMED = "Nadia"
+# The rows the seeds say were dropped in the staging area by hand.
+DROPPED = {row["title"] for name in ("stuck.json", "stuck-loaded.json")
+           for row in json.loads((SEEDS / name).read_text(encoding="utf-8"))
+           if row.get("droppedByHand")}
+# The two states read: « À traiter » in the real world, « En vol » in the loaded one.
+STATES = ("acq-card-requester", "acq-now-loaded")
 
 READ = """() => [...document.querySelectorAll('#view [data-part="card"]')]
   .map(card => {
@@ -41,10 +61,11 @@ READ = """() => [...document.querySelectorAll('#view [data-part="card"]')]
     return {
       title: card.querySelector('[data-part="card/title"]').textContent,
       line: line ? line.textContent : null,
-      last: texts.length ? texts[texts.length - 1] === (line ? line.textContent : undefined) : false,
+      // THE LAST TEXT LINE, in its body or beside its one foot (ruling 32).
+      last: line !== null && (line.parentElement.querySelector('[data-part="card/foot"]') !== null
+        || (texts.length ? texts[texts.length - 1] === line.textContent : false)),
     };
-  })
-  .filter(card => card.line !== null)"""
+  })"""
 
 
 def line_for(name, via):
@@ -60,20 +81,30 @@ async def main():
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
 
-        answer = await page.evaluate(
-            "()=>{try{window.__go('acq-card-requester');return null}catch(error){return String(error)}}")
-        journal.check("the named state acq-card-requester exists", answer is None, answer or "")
-        await page.wait_for_timeout(SETTLED)
-        cards = await page.evaluate(READ)
-        direct = [card for card in cards if card["line"] == line_for(ACCOUNT, "qbittorrent")]
+        cards = []
+        for state in STATES:
+            answer = await page.evaluate(
+                "(id)=>{try{window.__go(id);return null}catch(error){return String(error)}}", state)
+            journal.check(f"the named state {state} exists", answer is None, answer or "")
+            await page.wait_for_timeout(SETTLED)
+            cards += await page.evaluate(READ)
+        lined = [card for card in cards if card["title"] not in DROPPED]
+        dropped = [card for card in cards if card["title"] in DROPPED]
+        journal.check("every acquisition card says its origin, a folder dropped by hand aside",
+                      len(lined) >= 6 and all(card["line"] is not None for card in lined),
+                      str([card["title"] for card in lined if card["line"] is None]))
+        journal.check("a folder dropped by hand draws no requester line",
+                      len(dropped) >= 2 and all(card["line"] is None for card in dropped),
+                      str([(card["title"], card["line"]) for card in dropped]))
+        direct = [card for card in lined if card["line"] == line_for(ACCOUNT, "qbittorrent")]
         journal.check("an arrival nobody followed reads « ajouté par <the account>, dans qBittorrent »",
                       bool(direct), str(cards))
-        journal.check("every requester line is one of the two the answer can say",
-                      bool(cards) and all(card["line"] in (line_for(ACCOUNT, "qbittorrent"),
-                                                           line_for(ACCOUNT, "follow"))
-                                          for card in cards), str(cards))
+        journal.check("every line is one the answer can say, or « origine inconnue »",
+                      all(card["line"] in (line_for(ACCOUNT, "qbittorrent"), line_for(ACCOUNT, "follow"),
+                                           LINES.get("unknown"))
+                          for card in lined), str(lined))
         journal.check("the requester line is the card's last text line",
-                      bool(cards) and all(card["last"] for card in cards), str(cards))
+                      all(card["last"] for card in lined), str(lined))
 
         # THE SEED CHANGED TO ANOTHER NAME: every line follows it.
         renamed = await page.evaluate(
@@ -82,7 +113,8 @@ async def main():
                 void window.__queries?.invalidateQueries({queryKey: ['/api/acquisition/to-handle']});
                 return true; }""", RENAMED)
         await page.wait_for_timeout(ACTED)
-        after = await page.evaluate(READ)
+        after = [card for card in await page.evaluate(READ)
+                 if card["line"] is not None and card["line"] != LINES.get("unknown")]
         journal.check("the account renamed, every line names the new name",
                       renamed and bool(after) and all(RENAMED in card["line"] and ACCOUNT not in card["line"]
                                                       for card in after),

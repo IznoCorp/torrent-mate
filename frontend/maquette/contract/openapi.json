@@ -4241,6 +4241,10 @@
           "plexMatch": {
             "$ref": "#/components/schemas/PlexMatch",
             "description": "the match Plex made, when it waits for the operator's confirmation — the card sits in « À traiter » until he gives it"
+          },
+          "droppedByHand": {
+            "type": "boolean",
+            "description": "the folder was put in the staging area by hand: no acquisition asked for it, so it carries no requester, and its ladder starts where its own row does — at « arrivé »"
           }
         },
         "required": [

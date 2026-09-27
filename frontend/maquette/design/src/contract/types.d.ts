@@ -1127,6 +1127,8 @@ export interface components {
             failedStep?: "ingest" | "sort" | "clean" | "scrape" | "cleanup" | "enforce" | "verify" | "trailers" | "dispatch";
             /** @description the match Plex made, when it waits for the operator's confirmation — the card sits in « À traiter » until he gives it */
             plexMatch?: components["schemas"]["PlexMatch"];
+            /** @description the folder was put in the staging area by hand: no acquisition asked for it, so it carries no requester, and its ladder starts where its own row does — at « arrivé » */
+            droppedByHand?: boolean;
         };
         Fact: {
             /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */

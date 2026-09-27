@@ -29,7 +29,8 @@ import { followsQuery, incompleteShowsQuery } from "./queries";
 // undefined, which is what the engine's object literal did in practice.
 import type { Follow, FollowSubject } from "./types";
 import { followFraction } from "./follow-vocabulary";
-import { todoCards } from "./arrival-slots";
+import { inFlightCards, todoCards } from "./arrival-slots";
+import { originLine } from "./card-markup";
 export type { Follow };
 
 /** What is true about the medium a follow panel is about. */
@@ -57,6 +58,8 @@ export type FollowFacts = {
   hasSheet: boolean;
   /** Episodes held over episodes aired, or null for a film. */
   fraction: string | null;
+  /** Where its acquisition came from, whole — the line its card may truncate. */
+  origin: string | null;
 };
 
 /**
@@ -113,6 +116,7 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
   const scenario = String(store.read().state.scen) === "loaded" ? "loaded" : "";
   const answer = cache.held<AcquisitionQueue>(queueKey(scenario));
   const todo = answer ? todoCards(answer).find((one) => one.title === title) : undefined;
+  const acquisition = todo ?? (answer ? inFlightCards(answer).find((one) => one.title === title) : undefined);
   const toResolve = queue.blocked
     .concat(queue.stuck ?? [])
     .some((one) => one.title === title);
@@ -133,6 +137,7 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
     plexMatch: todo?.plexMatch !== undefined,
     tunnelError: todo?.failedStep !== undefined,
     hasSheet: (follow.ids ?? heldIdentity(title)?.ids) != null,
+    origin: acquisition ? originLine(acquisition) ?? null : null,
     // ONE DERIVATION: the card's fraction, the header's, and the sum of the
     // season headers all read this computation.
     fraction: isFilm

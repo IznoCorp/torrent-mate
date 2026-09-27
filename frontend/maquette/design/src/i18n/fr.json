@@ -1013,7 +1013,8 @@
       ],
       "requester": {
         "qbittorrent": "ajouté par {{name}}, dans qBittorrent",
-        "follow": "demandé par {{name}}"
+        "follow": "demandé par {{name}}",
+        "unknown": "origine inconnue"
       },
       "plexMatch": "Plex l'a reconnu comme « {{title}} » — est-ce bien lui ?"
     },
@@ -1040,8 +1041,10 @@
         "shelved": "rangé"
       },
       "step": "· {{name}}",
+      "toConfirm": "{{rung}} — à confirmer",
       "reasons": {
-        "queued": "En file — ce passage attend que la maintenance en cours se termine."
+        "queued": "En file — ce passage attend que la maintenance en cours se termine.",
+        "confirmation": "Le match Plex attend votre confirmation."
       }
     }
   },

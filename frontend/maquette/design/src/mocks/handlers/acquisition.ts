@@ -5,7 +5,7 @@ import SEARCH_RESULTS from "../seeds/search-results.json";
 import SUGGESTIONS from "../seeds/suggestions.json";
 import { DELETE, GET, PATCH, POST, field, route, text } from "./shared";
 import { launchDetection } from "./pipeline";
-import { arrivalsOf } from "./staging";
+import { arrivalsOf, originOf } from "./staging";
 import { forgetLadder, ladderOf, rungIndex, stripPosition, type Position } from "./ladder";
 import type { components } from "../../contract/types";
 import { stagesOf } from "./acquisition-verbs";
@@ -49,7 +49,11 @@ const DONE_TODAY_AT: Position = { current: rungIndex("verified"), state: PENDING
 function onTheLadder(cards: components["schemas"]["QueueCard"][], at?: Position) {
   return cards.map(({ strip, ...card }) => {
     const position = stripPosition(strip) ?? at;
-    return position === undefined ? card : { ...card, ladder: ladderOf(card.title, position) };
+    // WHO ASKED, derived from the follow when one did: a row of the queue no
+    // follow names carries none, and the card says its origin is unknown.
+    const { requester, origin } = originOf(card, false);
+    const asked = requester === undefined ? card : { ...card, requester };
+    return position === undefined ? asked : { ...asked, ladder: ladderOf(card.title, position, origin) };
   });
 }
 

@@ -2,12 +2,12 @@
   {
     "rung": "requested",
     "when": "",
-    "state": "done"
+    "state": "pending"
   },
   {
     "rung": "searched",
     "when": "",
-    "state": "done"
+    "state": "pending"
   },
   {
     "rung": "grabbed",

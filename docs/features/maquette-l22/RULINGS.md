@@ -176,3 +176,16 @@ follow applied, the store empty), and a new hold reads the envelope's key arrivi
 proof — the outbox never departs (the wait ends in a named FAIL, never a pass); the departure doubled (the rule falls
 on « once »). Red first on main (2/8 with the old read); then green in series on the branch AND on main, at least ten
 runs each side. #619's body corrected with the figures. Order 48 amended accordingly.
+
+## 32 — a one-foot card of « À traiter » lays its origin line beside its foot (steward, 2026-09-27; round one, A9, STOP A)
+
+**The STOP.** With every acquisition card saying its origin (A9), Lucky's card — a queue-blocked row no follow names,
+« origine inconnue » — gains one text line; its poster, stretched to the card's height, loses 43 % of its artwork and
+R47 falls.
+
+**Ruled (a), for every one-foot card of « À traiter »**, not Lucky alone: the origin line and the single foot share ONE
+row — the line at the left, the foot at the right — in the foot row ruling 10 introduced; the foot keeps its 44 px
+floor, the line truncates before the foot does (an ellipsis; the full text in the panel). R47 green, R212 kept (the
+line is still the body's last text). A mutation: the line back on its own row → R47 falls on Lucky. Oracle by name.
+(b), the poster no longer stretched past a bound, re-opens R47's own defect; (c), no line on a row no follow names,
+contradicts « the missing origin is said ».

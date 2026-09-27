@@ -4,7 +4,7 @@ import DESTINATIONS from "../seeds/staging-destinations.json";
 import { DELETE, GET, POST, route, text } from "./shared";
 import { mockState } from "../state";
 import { refused, type MockRequest, type MockRoute } from "../router";
-import { forgetLadder, ladderOf, rungIndex, stripPosition, type Position } from "./ladder";
+import { forgetLadder, ladderOf, rungIndex, stripPosition, type Origin, type Position } from "./ladder";
 import { accountName } from "../account";
 import type { components } from "../../contract/types";
 
@@ -61,7 +61,9 @@ const WAITING = "waiting";
 const STUCK_AT: Position = { current: rungIndex("identified"), state: BLOCKED };
 const SETTLED_AT: Position = { current: rungIndex("verified"), state: PENDING };
 // A settled folder whose Plex match waits for the operator: blocked there.
-const MATCH_TO_CONFIRM: Position = { current: rungIndex("verified"), state: BLOCKED };
+// Its word says it waits for his answer (ruling 30), never a done-looking rung.
+const TO_CONFIRM = "confirmation";
+const MATCH_TO_CONFIRM: Position = { current: rungIndex("verified"), state: BLOCKED, reason: TO_CONFIRM };
 const settled = (card: QueueCard) => (card.plexMatch === undefined ? SETTLED_AT : MATCH_TO_CONFIRM);
 // The pipeline's state while a maintenance run holds the lock, and the reason
 // a card moving through it then gives — both the contract's own tokens.
@@ -124,6 +126,29 @@ function sameMedium(card: QueueCard, ids: Record<string, unknown> | null | undef
 }
 
 /**
+ * Who asked for a card's medium, and what of its ladder its own row lived.
+ *
+ * THREE ORIGINS, each read off the rows the layer holds, never invented: a
+ * follow of the account asked for it, on the follow's own date; it was added
+ * directly in the download client (ruling 9); or it was DROPPED BY HAND in the
+ * staging area, in which case nobody asked, nothing was searched, taken or
+ * downloaded, and its ladder starts at « arrivé ».
+ *
+ * @param card The card.
+ * @param direct Whether a card no follow asked for was added in the download
+ *     client — true of an arrival, unknown for a row of the queue.
+ * @returns Its requester, when it has one, and what its row lived.
+ */
+export function originOf(card: QueueCard, direct: boolean): { requester?: QueueCard["requester"]; origin: Origin } {
+  if (card.droppedByHand) return { origin: { from: "arrived" } };
+  const follow = mockState().follows.find((one) => sameMedium(card, one.ids));
+  if (follow !== undefined) {
+    return { requester: { name: accountName(), via: ASKED_BY_FOLLOW }, origin: { asked: follow.since } };
+  }
+  return direct ? { requester: { name: accountName(), via: DIRECT_ADD }, origin: {} } : { origin: {} };
+}
+
+/**
  * Where a moving folder stands: on its strip — and, while a maintenance run
  * holds the lock, WAITING there rather than in motion (DOIT-4: « en file »,
  * never « occupé »).
@@ -162,16 +187,11 @@ export function arrivalsOf(dense: boolean): QueueCard[] {
   const inStaging = lists.flatMap(([cards, at]) => cards.map(({ strip, failedStep, ...stopped }) => {
     const card = failedStep === undefined || namedByDecision.has(stopped.title) ? stopped : { ...stopped, failedStep };
     const position = at({ ...card, strip });
-    return position === undefined ? card : { ...card, ladder: ladderOf(card.title, position) };
+    const { requester, origin } = originOf(card, true);
+    const asked = requester === undefined ? card : { ...card, requester };
+    return position === undefined ? asked : { ...asked, ladder: ladderOf(card.title, position, origin) };
   }));
-  return inStaging.map((card) => ({
-    ...card,
-    requester: {
-      name: accountName(),
-      via: state.follows.some((follow) => sameMedium(card, follow.ids))
-        ? ASKED_BY_FOLLOW : DIRECT_ADD,
-    },
-  }));
+  return inStaging;
 }
 
 /** Every route this subject answers. */

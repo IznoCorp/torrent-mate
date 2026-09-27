@@ -74,6 +74,8 @@ export type CardMarkupContent = {
   /** The class several feet are laid on ONE line with, the caller's own; without
    * it they stack. */
   footRow?: string;
+  /** The row a card with ONE foot lays its requester line in, beside it. */
+  originRow?: string;
 };
 
 /**
@@ -133,7 +135,14 @@ export function cardMarkup(content: CardMarkupContent): string {
   const foot = options
     .map((one) => `<button class="${actionButton({ kind: "cardFoot", tone: one.solid ? "solid" : "plain" })}" data-part="card/foot"${one.solid ? ' data-solid=""' : ""}${attributesMarkup(one.attributes)}>${escapeMarkup(one.label)}</button>`)
     .join("");
-  const footLine = content.footRow && options.length > 1 ? `<div class="${content.footRow}">${foot}</div>` : foot;
+  // ONE FOOT AND A REQUESTER: the line goes beside the foot, not under the reason.
+  const shared = Boolean(content.originRow && options.length === 1 && content.requester);
+  const requester = content.requester
+    ? `<span class="${cardCaption()}" data-part="card/requester" title="${escapeMarkup(content.requester)}">${escapeMarkup(content.requester)}</span>`
+    : "";
+  const footLine = shared
+    ? `<div class="${content.originRow}">${requester}${foot}</div>`
+    : content.footRow && options.length > 1 ? `<div class="${content.footRow}">${foot}</div>` : foot;
   return `<div class="${card()}${content.fresh ? " fresh" : ""}" data-part="card"${attributesMarkup(content.attributes ?? {})}>
     ${sideMarkup(content.side)}
     <div class="${cardContent()}">
@@ -145,7 +154,7 @@ export function cardMarkup(content: CardMarkupContent): string {
         ${content.overview ? `<span class="${cardOverview()}" data-part="card/overview">${escapeMarkup(content.overview)}</span>` : ""}
         ${state ? `<span class="${cardMeta()}" data-part="card/meta">${state}</span>` : ""}
         ${annotations ? `<span class="${cardAnnotations()}">${annotations}</span>` : ""}
-        ${content.requester ? `<span class="${cardCaption()}" data-part="card/requester">${escapeMarkup(content.requester)}</span>` : ""}
+        ${shared ? "" : requester}
       </button>
     </div>
     ${strip}
