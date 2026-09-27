@@ -324,10 +324,15 @@
              indicator back, so a utility written on `#ptr` did not survive it.
              The reset removes the two state classes and nothing else since the
              gesture left the engine, so `#ptr` may carry utilities again — the
-             states stay where they are drawn until a drawing lot moves them. -->
+             states stay where they are drawn until a drawing lot moves them.
+
+             The wheel turns from the arming, the finger still down, and keeps
+             turning while the refresh is answered: both states carry the same
+             animation, so the hand-over from one to the other does not restart it. -->
         <div
           class="spin w-[16px] h-[16px] rounded-full border-2 border-border border-t-primary
                  [.ptr.armed_&]:text-primary
+                 [.ptr.armed_&]:[animation:spin_var(--duration-loop-1)_linear_infinite]
                  [.ptr.loading_&]:[animation:spin_var(--duration-loop-1)_linear_infinite]"
         ></div>
       </div>

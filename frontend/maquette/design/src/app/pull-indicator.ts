@@ -11,6 +11,11 @@
 // again, the indicator stays open for as long as that takes, and the message
 // comes once it has closed (B-331). A fixed delay knew nothing of the refresh
 // it stood for: the message was said over an indicator still open.
+//
+// AND THE WHEEL IS SEEN TURNING (B-553). A re-read answered in a few
+// milliseconds closed the indicator before its wheel had moved, so the loader
+// « did not turn ». It stays open for the LATER of the refresh's answer and one
+// loop of the wheel — the loop read from the drawing, never typed here.
 import i18next from "i18next";
 import { installPullGesture } from "../lib/pull-gesture";
 import { toast } from "../lib/shell-doors";
@@ -101,8 +106,10 @@ export function installPullIndicator(
         indicator.classList.add(LOADING_MARK);
         indicator.style.height = `${LOADING_HEIGHT_PIXELS}px`;
         const currentPull = ++generation;
-        void Promise.resolve(refresh())
-          .catch(() => undefined)
+        const turnIcon = indicator.firstElementChild;
+        const oneTurn = turnIcon ? parseFloat(getComputedStyle(turnIcon).animationDuration) * 1000 || 0 : 0;
+        const oneTurnShown = new Promise((resolve) => window.setTimeout(resolve, oneTurn));
+        void Promise.all([Promise.resolve(refresh()).catch(() => undefined), oneTurnShown])
           .then(() => {
             if (currentPull !== generation) return;
             refreshing = false;
