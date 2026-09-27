@@ -11,11 +11,7 @@ L22b appends from 13).
   generated files conflict; regenerate them (oracle by an accept in one invocation + the script proof; ledgers re-read).
 - Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b`.
 - DONE: 15a–19-bis-b, merges of #619/#621/main(#617/#618/#622/#623/#624), the triage's docs commit, 20–30, the MIDPOINT
-  (1 real fall, R207, repaired; audit2 ×10: 0/10), 32 (F6). NEXT: **31** — HELD then scoped by RULINGS 25: condition 3
-  ONLY (every ARRIVED direct-add card: its 4 rungs before « arrivé » `skipped`, no borrowed time; hold + mutation); the
-  R212 extension is written and parked on the LOCAL branch `wip/l22b-31-r212` (7221c0571, never pushed) — cherry-pick
-  it, then re-aim its hold to ARRIVED direct adds (Zinzins, downloading, keeps its card until L16 phase 5, the named
-  gap). Re-measure at the opening. → **33** F42 (per-follow grab; `grabForFollow` on the backend's meaning, picker's
+  (1 real fall, R207, repaired; audit2 ×10: 0/10), 31 (F5, condition 3 of RULINGS 25), 32 (F6). NEXT: **33** F42 (per-follow grab; `grabForFollow` on the backend's meaning, picker's
   operation a demand, `takeQueued` retires, R225 re-aimed) → 34 « Abandonner » on a follow's card (M1) → 35 one-off
   acquisitions (round 10 Q1 + Q2; likely cut) → 36 sentences (F7, F54, F53) → 37 readers (F41) → 38 → 39 (the dead
   `acq-follows-pause-empty` still in the a11y ledgers) → 40 death of Arrivées (F8) → 41 (+ engine-data.ts's removal,
@@ -213,3 +209,11 @@ L22b appends from 13).
   the count; `searchStarted` retired; panel.py RE-AIMED OUT LOUD. Gate `32-gate.log` 35 rules (15 named) + 26 guards 0
   failed, no divergence. Mutations: toast without sending → FAIL « … sends its own search, once » (`32-mutation-toast.log`);
   zero sentence dropped → FAIL « … says « aucun torrent trouvé » … — said « … : 0 torrent trouvé. » » (`32-mutation-zero.log`).
+- 2026-09-28 phase 31 (condition 3 of RULINGS 25): R212 extension cherry-picked from wip/l22b-31-r212 and scoped to
+  ARRIVED direct adds; red `31-red2.log` (The Alabama Solution, Conclave). Commit 165a7e094: cell state `skipped`
+  (contract enum, strip variants — a hollow dot —, card tone, sheet pip), the mock lays a direct add's four rungs before
+  « arrivé » skipped with no time once arrived; DESIGN § 3.2 dated line (template times noted, § 13). Gate 1
+  (`31-gate.log`) fell on R207 alone (its own current-rung copy took `skipped` for active) → 2a7b2c9cf RE-AIMED OUT
+  LOUD. Gate 2 `31-gate2.log` 66 rules (50 named) + 26 guards 0 failed, no divergence; `31-a11y.log` 0 + light 88/88.
+  Mutation `31-mutation.log`: the four laid done again → R212 FAIL « … lived no rung before « arrivé » » ×2 and
+  « its sheet gives those rungs no time, none passed » ×2. wip/l22b-31-r212 is spent (local, never pushed).
