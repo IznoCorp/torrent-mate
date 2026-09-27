@@ -13,11 +13,8 @@
 // EVERY VALUE HERE COMES FROM A SEED. Nothing in this file invents one; the
 // only literals are the identifiers of the seeds themselves.
 import BLOCKED from "./seeds/blocked.json";
-import DONE_TODAY from "./seeds/done-today.json";
 import FOLLOWS from "./seeds/follows.json";
 import IN_FLIGHT from "./seeds/in-flight.json";
-import NOT_FOUND_LOADED from "./seeds/not-found-loaded.json";
-import NOT_FOUND from "./seeds/not-found.json";
 import STUCK_LOADED from "./seeds/stuck-loaded.json";
 import SETTLED_LOADED from "./seeds/settled-loaded.json";
 import TAKEABLE from "./seeds/takeable.json";
@@ -137,10 +134,6 @@ export type MockState = {
   blocked: Schemas["QueueCard"][];
   inFlight: Schemas["QueueCard"][];
   inFlightReel: Schemas["QueueCard"][];
-  notFound: Schemas["QueueCard"][];
-  notFoundReal: Schemas["QueueCard"][];
-  doneToday: Schemas["QueueCard"][];
-  doneReel: Schemas["QueueCard"][];
   settings: Schemas["SettingsTopic"][];
   secrets: Schemas["Secret"][];
   /**
@@ -287,10 +280,6 @@ const seeded = (): MockState => ({
   blocked: copyOf<Schemas["QueueCard"][]>(BLOCKED),
   inFlight: copyOf<Schemas["QueueCard"][]>(IN_FLIGHT),
   inFlightReel: [],
-  notFound: copyOf<Schemas["QueueCard"][]>(NOT_FOUND_LOADED),
-  notFoundReal: copyOf<Schemas["QueueCard"][]>(NOT_FOUND),
-  doneToday: copyOf<Schemas["QueueCard"][]>(DONE_TODAY),
-  doneReel: [],
   settings: copyOf<Schemas["SettingsTopic"][]>(SETTINGS),
   secrets: copyOf<Schemas["Secret"][]>(SECRETS),
   pipelineState: IDLE,

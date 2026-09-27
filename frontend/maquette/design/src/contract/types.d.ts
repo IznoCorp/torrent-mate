@@ -1747,8 +1747,6 @@ export interface components {
             takeable: components["schemas"]["QueueCard"][];
             blocked: components["schemas"]["QueueCard"][];
             inFlight: components["schemas"]["QueueCard"][];
-            notFound: components["schemas"]["QueueCard"][];
-            doneToday: components["schemas"]["QueueCard"][];
             /** @description WHAT ARRIVED THROUGH THE PIPELINE, each an acquisition card: a finished torrent the sort took in, requested by a follow or added directly in the download client. An arrival is a card (ruling 2), at its rung, with its requester. */
             arrivals: components["schemas"]["QueueCard"][];
         };

@@ -7,10 +7,10 @@
     "unserved": "not served, with the reason written out"
   },
   "$counts": {
-    "served": 44,
+    "served": 41,
     "asset": 5,
     "interface": 29,
-    "unserved": 3,
+    "unserved": 6,
     "total": 81
   },
   "$anonymous": {
@@ -97,10 +97,10 @@
       "converted": "L13r phase r·2 — the engine's literal died; the system page reads `readDisks`"
     },
     "DONE_TODAY": {
-      "class": "served",
-      "why": "arrivals — what reached the library today",
+      "class": "unserved",
+      "why": "NO READER SINCE ROUND 7: « Cherché, rien trouvé » and « Rangé aujourd'hui » left « En cours » (the operator, 2026-09-26) — what was not found reads on its follow, what arrived in the Médiathèque's « Récents ». The family, its seed and its contract field were removed rather than kept for nobody (the coherence triage's F40); the engine's side is the backend brief's",
       "seed": null,
-      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario; L22b phase 25 — removed (F40)"
     },
     "EP_LABEL": {
       "class": "interface",
@@ -223,16 +223,16 @@
       "converted": "L22a phase 1 — born with `readStagingDestinations`, the read « Ce n'est pas un média » files from (demand C)"
     },
     "NOTFOUND": {
-      "class": "served",
-      "why": "arrivals — what no release satisfies, loaded scenario",
+      "class": "unserved",
+      "why": "NO READER SINCE ROUND 7: « Cherché, rien trouvé » and « Rangé aujourd'hui » left « En cours » (the operator, 2026-09-26) — what was not found reads on its follow, what arrived in the Médiathèque's « Récents ». The family, its seed and its contract field were removed rather than kept for nobody (the coherence triage's F40); the engine's side is the backend brief's",
       "seed": null,
-      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario; L22b phase 25 — removed (F40)"
     },
     "NOTFOUND_REAL": {
-      "class": "served",
-      "why": "arrivals — what no release satisfies, real scenario",
+      "class": "unserved",
+      "why": "NO READER SINCE ROUND 7: « Cherché, rien trouvé » and « Rangé aujourd'hui » left « En cours » (the operator, 2026-09-26) — what was not found reads on its follow, what arrived in the Médiathèque's « Récents ». The family, its seed and its contract field were removed rather than kept for nobody (the coherence triage's F40); the engine's side is the backend brief's",
       "seed": null,
-      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
+      "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario; L22b phase 25 — removed (F40)"
     },
     "OWNED": {
       "class": "served",

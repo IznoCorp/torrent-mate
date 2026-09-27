@@ -90,8 +90,6 @@ export function queueNow() {
     takeable: queue?.takeable ?? [],
     blocked: queue?.blocked ?? [],
     inFlight: queue?.inFlight ?? [],
-    notFound: queue?.notFound ?? [],
-    doneToday: queue?.doneToday ?? [],
   };
 }
 

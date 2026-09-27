@@ -26,14 +26,10 @@ const INFORMATIVE = "info";
 
 const BATCH_SIZE = 30;
 
-// WHERE EACH FAMILY STANDS ON THE LADDER when its cards carry no strip: a
-// release found and waiting to be taken, a search that found nothing and will
-// look again, a medium in the library whose Plex check has not come.
+// WHERE A FAMILY STANDS ON THE LADDER when its cards carry no strip: a release
+// found and waiting to be taken.
 const WAITING = "waiting";
-const PENDING = "pending";
 const TAKEABLE_AT: Position = { current: rungIndex("grabbed"), state: WAITING };
-const NOT_FOUND_AT: Position = { current: rungIndex("searched"), state: WAITING };
-const DONE_TODAY_AT: Position = { current: rungIndex("verified"), state: PENDING };
 
 /**
  * A family's cards, each on its ladder.
@@ -330,8 +326,8 @@ export function acquisitionRoutes(): MockRoute[] {
       //
       // WHAT DID NOT CHANGE is D7: these are the shapes the running backend
       // answers, seeded from it and not invented. What changed is which of them
-      // this branch admits to holding. The lists in-flight, not-found and done
-      // keep their real-world counterparts, because those ARE a mutation's
+      // this branch admits to holding. The in-flight list keeps its real-world
+      // counterpart, because those ARE a mutation's
       // record — « nothing has moved yet » is true of a run just read off the
       // disk, and filling them would claim movements that never happened.
       if (request.query.get("scenario") === LOADED) {
@@ -339,8 +335,6 @@ export function acquisitionRoutes(): MockRoute[] {
           takeable: onTheLadder(state.takeable, TAKEABLE_AT),
           blocked: onTheLadder(state.blocked),
           inFlight: onTheLadder(state.inFlight),
-          notFound: onTheLadder(state.notFound, NOT_FOUND_AT),
-          doneToday: onTheLadder(state.doneToday, DONE_TODAY_AT),
           arrivals: arrivalsOf(true),
         };
       }
@@ -348,8 +342,6 @@ export function acquisitionRoutes(): MockRoute[] {
         takeable: onTheLadder(state.takeable, TAKEABLE_AT),
         blocked: onTheLadder(state.blocked),
         inFlight: onTheLadder(state.inFlightReel),
-        notFound: onTheLadder(state.notFoundReal, NOT_FOUND_AT),
-        doneToday: onTheLadder(state.doneReel, DONE_TODAY_AT),
         arrivals: arrivalsOf(false),
       };
     }),
