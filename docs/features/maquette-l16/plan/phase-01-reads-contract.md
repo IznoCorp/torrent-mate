@@ -3,7 +3,7 @@
 Three surfaces below read operations the maquette's own contract does not declare, and the tracker
 as a subject is read by no operation anywhere. This phase declares the three READS, seeded and
 mocked; the writes (the removal, the ranking's save reusing an existing one) are declared in the
-phase that draws them (INDEX, « Why sixteen phases »). It is FIRST because
+phase that draws them (INDEX, « Why seventeen phases »). It is FIRST because
 `scripts/compare-contracts.py --check` refuses the three artefacts apart and because the demands
 filed here are what make DESIGN § 2.3's divergences decisions rather than discoveries.
 
@@ -35,14 +35,18 @@ filed here are what make DESIGN § 2.3's divergences decisions rather than disco
   `build-mock-seeds.py` script (which does not exist) — seeds are edited by hand, this guard is run
   in the same commit.
 - **Points ≈ 14.** Three operations declared new — the tracker summary (name, ratio, volumes, trend,
-  the alert threshold, the refused-identifier health fact — DESIGN § 2.3 item 1), the obligations,
-  the downloads extended per active entry with tracker / ratio-on-size / deadline / origin (item 3) —
-  6; three mock routes new (`trackers.ts`) 6; the `fixture-register.json` / `x-seeded-from` rows for
-  the two new seed families (the roster, the obligations-and-downloads join) 2.
+  the alert threshold, the refused-identifier health fact, a `broken_obligations` array — DESIGN § 2.3
+  item 1), the obligations, the downloads extended per active entry with tracker / ratio-on-size /
+  deadline / origin (item 3) — 6; three mock routes new (`trackers.ts`) 6; the
+  `fixture-register.json` / `x-seeded-from` rows for the two new seed families (the roster, the
+  obligations-and-downloads join) 2. The `broken_obligations` array is DECLARED here (its shape is
+  part of the summary's own schema) but drawn nowhere until phase 9; an empty array is every seed's
+  default, costing nothing extra here.
 - **Re-cut (2026-09-27, on `5e5ecd052`).** The prior re-read's phase 1 (14) is UNCHANGED in shape —
   three reads, the same reasoning — but its CONTENTS moved: the tracker summary now carries the alert
-  threshold and the refused-identifier fact (round 9 Q1, Q2), and `stalled-grabs` is confirmed absent
-  from this lot's own contract entirely (F14, DESIGN § 2.5) rather than moved to a later phase as the
+  threshold, the refused-identifier fact and the broken-obligations array (round 9 Q1, Q2; round 10
+  Q4), and `stalled-grabs` is confirmed absent from this lot's own contract entirely (F14, DESIGN
+  § 2.5) rather than moved to a later phase as the
   prior reading did.
 
 A CONTRACT change: no behaviour is drawn yet.
@@ -74,8 +78,9 @@ WRITTEN », built by `python3 scripts/compare-contracts.py --write` from the dif
 `frontend/maquette/contract/openapi.json` against `frontend/openapi.json`. The tracker summary and
 the extended download are demand rows by that edit. The remaining rows of § 2.3 — the alert threshold
 as a config key (item 2, filed alongside the write in phase 4), the removal (item 5, phase 6), the
-grouped-removal read (phase 7), the ratio-derived scoring field (item 4, phase 12) and the deferral
-demand (phase 11) — are filed by the phase that draws each.
+grouped-removal read (phase 7), the « vu » write for a broken obligation (item 7, phase 9), the
+ratio-derived scoring field (item 4, phase 13) and the deferral demand (phase 12) — are filed by the
+phase that draws each.
 
 ### 3. The mocks, and each MOVES something (D7)
 

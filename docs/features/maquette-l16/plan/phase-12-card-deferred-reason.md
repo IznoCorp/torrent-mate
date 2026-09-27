@@ -1,15 +1,15 @@
-# Phase 11 — A card deferred names its tracker
+# Phase 12 — A card deferred names its tracker
 
 DOIT-2's ratio half (DESIGN § 4.6), corrected against F14: a medium deferred reads its cause on its
 **acquisition card** in « En cours », for ALL THREE of DOIT-2's kinds — ratio, insufficient space,
 missing content — not the ratio one alone, and its reason is NOT composed from `stalled-grabs` (a
 different rollup, F14, DESIGN § 2.5). **A new demand is filed here** (`classify_deferrals`, exposed on
-a route this lot's query can call), with the surface that names it (INDEX, « Why sixteen phases »).
+a route this lot's query can call), with the surface that names it (INDEX, « Why seventeen phases »).
 
 **Opening measure (2026-09-27, on `5e5ecd052`):**
 
 - **Commands.** `git grep -n -w 'stalled-grabs' -- frontend/maquette` → one comment, in
-  `features/acquisition/panel-more.ts:8` (phase 10 removes the panel it sits beside; the comment
+  `features/acquisition/panel-more.ts:8` (phase 11 removes the panel it sits beside; the comment
   itself is untouched, since it names an operation, not a fact this lot draws): **nothing consumes the
   operation, and this lot declares it for no surface**. `sed -n '1,45p' personalscraper/ingest/deferral.py`
   → `classify_deferrals` reads a torrent's own hold, never the legacy top-level `ingest.min_ratio`
@@ -78,7 +78,7 @@ Two, as above — each committed and restored separately.
 
 DOIT-2's row gains ALL THREE of its deferral kinds this time, not the ratio one alone; the row's
 surface is proposed as `features/acquisition` by L22 (its § 6.3); the map is the operator's. Reported
-precisely by phase 16, which also notes the prior reading's single `acq-card-ratio-reason` state never
+precisely by phase 17, which also notes the prior reading's single `acq-card-ratio-reason` state never
 lands (split into three, F14).
 
 ## Oracle: states that diverge, declared by name

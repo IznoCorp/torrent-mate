@@ -1,4 +1,4 @@
-# Phase 13 — The ranking editor reads the saved weights (B-298, F16)
+# Phase 14 — The ranking editor reads the saved weights (B-298, F16)
 
 § 18's « le ranking suit le ratio »: the screen `RankingPanel`'s production twin, under the settings
 page's own address (`frontend-architecture.md`'s L16 entry), listing the criteria `ranking.json5`
@@ -75,8 +75,8 @@ R-L16-f's read half: the fixed-list mutation above — committed and restored.
 ## Register
 
 B-298's two dead ends close here; the promise it names (the editor WITH its preview and its save) is
-kept in full at phase 15, once the save (14) and the preview (15) both land. Reported precisely by
-phase 16.
+kept in full at phase 16, once the save (15) and the preview (16) both land. Reported precisely by
+phase 17.
 
 ## Oracle: states that diverge, declared by name
 

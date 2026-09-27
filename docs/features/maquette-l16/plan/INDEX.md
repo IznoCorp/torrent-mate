@@ -42,7 +42,7 @@ reason, **continue**. The only permitted halts are:
   steward with the command, and the phase does not improvise a new home. **One is already known**:
   phase 4 (whether the tracker's policy fields compose through the settings panel's existing
   `setting` kind at a coarser subject, or through a block the Trackers feature registers itself —
-  DESIGN § 3, § 4.2). **One more, inherited and re-read**: phase 11's seed for a card deferred for a
+  DESIGN § 3, § 4.2). **One more, inherited and re-read**: phase 12's seed for a card deferred for a
   reason no mock seed carries (DESIGN § 4.6), now across three kinds, not one.
 
 **The placement of the trackers domain and its FORM are both ruled** (DESIGN § 5, « Ruled »):
@@ -129,36 +129,41 @@ own release-and-external-removal split made under the prior reading.
 
 | # | Phase | What it lands | Rules | Points |
 | ---: | --- | --- | --- | ---: |
-| 1 | [The reads' contract](phase-01-reads-contract.md) | the tracker summary (ratio, volumes, trend, the alert threshold, the refused-identifier health fact), the obligations, the extended downloads (per-entry tracker, ratio-on-size, deadline, origin) — seeded and mocked; the demands filed | — | 14 |
+| 1 | [The reads' contract](phase-01-reads-contract.md) | the tracker summary (ratio, volumes, trend, the alert threshold, the refused-identifier health fact, a broken-obligations array), the obligations, the extended downloads (per-entry tracker, ratio-on-size, deadline, origin) — seeded and mocked; the demands filed | — | 14 |
 | 2 | [The Trackers page and its two tabs](phase-02-the-page-and-tabs.md) | the bar button (inserted between Médiathèque and Découvrir), the route, the two dials (`tab`, `tracker`), the page shell; **STOP C** on the default tab | h | 15 |
 | 3 | [The « Trackers » tab — one entry per tracker](phase-03-trackers-tab.md) | the roster, collapsed: ratio, trend, volumes, never averaged; its states | a | 13 |
 | 4 | [The tracker's policy and alert threshold](phase-04-trackers-tab-policy.md) | `min_ratio` / `min_seed_time` / the alert threshold, set from the entry that shows the ratio, through the SAME write Réglages already uses; **STOP D** on how the three fields compose | b | 13 |
 | 5 | [The « Torrents » tab — every active entry, once](phase-05-torrents-tab.md) | one row per qBittorrent entry, any tracker, with its ratio on that tracker's size, its origin colour, its obligation marks, a path to the media sheet, a tracker filter | a (re-aimed) | 14 |
-| 6 | [Retirer de qBittorrent](phase-06-remove-from-qbittorrent.md) | the removal operation, the verb, a default confirmation (files deleted, checked by default) | c | 15 |
-| 7 | [The removal's shared files, and the external read](phase-07-remove-shared-files.md) | the grouped removal across shared entries, the confirmation's consequence and hit-and-run naming; a torrent removed by hand in qBittorrent reads as simply gone | c (re-aimed) | 9 |
-| 8 | [The ratio alert on the page](phase-08-alert-on-page.md) | one derivation, three components (threshold, breach, refused identifier), read at the entry and the row | d | 12 |
-| 9 | [The ratio alert on the bar](phase-09-alert-on-bar.md) | the Trackers tab's badge, the stream's ratio and obligation events claimed | d (re-aimed) | 10 |
-| 10 | [Acquisition's panel drops its hard-coded ratio facts](phase-10-panel-more-drops-ratio.md) | « Ratio global » and « Obligations en cours » removed from the « ⋮ » sheet | — | 4 |
-| 11 | [A card deferred names its tracker](phase-11-card-deferred-reason.md) | the deferral reason read for all three DOIT-2 kinds (ratio, space, missing), a tracker link for the ratio kind; **STOP D** on the seed | g | 13 |
-| 12 | [The ranking's contract](phase-12-ranking-contract.md) | the preview operation declared and mocked, the ratio-derived criterion field filed | — | 9 |
-| 13 | [The ranking editor reads the saved weights](phase-13-ranking-editor-reads.md) | `/settings/ranking`; the criteria READ from `ranking.json5`, never invented; the rubric's and the toast's dead ends both close | f | 15 |
-| 14 | [The ranking editor saves](phase-14-ranking-editor-saves.md) | the save through `updateConfigurationFile`, the conflict read | f (re-aimed) | 10 |
-| 15 | [The live preview](phase-15-live-preview.md) | the preview panel, excluded rows sunk and still visible; B-298's promise kept | e | 9 |
-| 16 | [The close](phase-16-close.md) | the map, the register, the README's cut-table row, the states counted, the report | — | 8 |
+| 6 | [Retirer de qBittorrent](phase-06-remove-from-qbittorrent.md) | the removal operation, the verb, a confirmation naming a running obligation whatever the delete-files checkbox reads (round 10 M4), closing it « libérée » always | c | 15 |
+| 7 | [The removal's shared files, and the external read](phase-07-remove-shared-files.md) | the grouped removal across shared entries, the confirmation's consequence and hit-and-run naming; a torrent removed by hand in qBittorrent, cleanly released, reads as simply gone | c (re-aimed) | 9 |
+| 8 | [The ratio alert on the page](phase-08-alert-on-page.md) | one derivation, three components (threshold, breach, refused identifier — one unit per tracker, round 10 M5), read at the entry and the row | d | 12 |
+| 9 | [The tracker's broken obligations](phase-09-broken-obligations.md) | « N obligations rompues », a nested disclosure, the « vu » write; the badge's fourth component (round 10 Q4) | d (re-aimed) | 9 |
+| 10 | [The ratio alert on the bar](phase-10-alert-on-bar.md) | the Trackers tab's badge, the stream's ratio and obligation events claimed | d (re-aimed) | 10 |
+| 11 | [Acquisition's panel drops its hard-coded ratio facts](phase-11-panel-more-drops-ratio.md) | « Ratio global » and « Obligations en cours » removed from the « ⋮ » sheet | — | 4 |
+| 12 | [A card deferred names its tracker](phase-12-card-deferred-reason.md) | the deferral reason read for all three DOIT-2 kinds (ratio, space, missing), a tracker link for the ratio kind; **STOP D** on the seed | g | 13 |
+| 13 | [The ranking's contract](phase-13-ranking-contract.md) | the preview operation declared and mocked, the ratio-derived criterion field filed | — | 9 |
+| 14 | [The ranking editor reads the saved weights](phase-14-ranking-editor-reads.md) | `/settings/ranking`; the criteria READ from `ranking.json5`, never invented; the rubric's and the toast's dead ends both close | f | 15 |
+| 15 | [The ranking editor saves](phase-15-ranking-editor-saves.md) | the save through `updateConfigurationFile`, the conflict read | f (re-aimed) | 10 |
+| 16 | [The live preview](phase-16-live-preview.md) | the preview panel, excluded rows sunk and still visible; B-298's promise kept in full | e | 9 |
+| 17 | [The close](phase-17-close.md) | the map, the register, the README's cut-table row, the states counted, the report | — | 8 |
 
 **Opening measures (2026-09-27, on `5e5ecd052`), each phase file's own head**: 14, 15, 13, 13, 14, 15,
-9, 12, 10, 4, 13, 9, 15, 10, 9, 8 — **sum 183 over 16 phases, mean ≈ 11.4, max 15** (phases 2, 6, 13).
-The prior re-read, on `dafe29ec1`, read 181 over 15 phases, mean ≈ 12.1. **Every phase from 4 onward
-changed**, for one reason: **ruling 19 replaces the tracker-detail screen with a two-tab page**, so
-the prior phases 4 (the head), 5 (the lists), 7 (the release verb) and 8 (the external removal) have
-no surface left to draw — their substance is redistributed across the new phases 3–7, and the prior
-9–15 shift down while gaining two new phases this redraw's own findings require: **phase 10** (F17,
-`panel-more.ts`'s hard-coded ratio facts, no home in the prior plan) and **phase 11's** three-kind
-generalisation (F14) replacing the prior single-kind phase.
+9, 12, 9, 10, 4, 13, 9, 15, 10, 9, 8 — **sum 192 over 17 phases, mean ≈ 11.3, max 15** (phases 2, 6,
+14). The prior re-read, on `dafe29ec1`, read 181 over 15 phases, mean ≈ 12.1. **Every phase from 4
+onward changed**, for two reasons in sequence: **ruling 19 replaces the tracker-detail screen with a
+two-tab page**, so the prior phases 4 (the head), 5 (the lists), 7 (the release verb) and 8 (the
+external removal) have no surface left to draw — their substance is redistributed across the new
+phases 3–7, and the prior 9–15 shift down while gaining two new phases this redraw's own findings
+require: **phase 11** (F17, `panel-more.ts`'s hard-coded ratio facts, no home in the prior plan) and
+**phase 12's** three-kind generalisation (F14) replacing the prior single-kind phase. **Then, the same
+day, the auditor's rulings-coherence round** (`review-archive/rulings-coherence-2026-09-27.md`) adds
+**phase 9** (round 10 Q4, the tracker's broken obligations, absent from every earlier pass) and
+broadens phases 6 and 8 in place (round 10 M4, M5) — every phase from 9 onward shifts up by one a
+SECOND time, and the steward is told in the same message that carries this re-cut.
 
 ---
 
-## Why sixteen phases, and what a phase costs
+## Why seventeen phases, and what a phase costs
 
 **A phase is a unit of attribution, not a gate.** Each is ONE commit (two where the phase says
 « commit before the mutation »), and its gate is the contracts tier plus the oracle — minutes, not
@@ -169,9 +174,9 @@ cannot share a commit) and **the 15-point ceiling**.
 **The contract is FIRST**, and it is the reads only. Every surface below calls one of its operations,
 and the demands filed there (DESIGN § 2.3) are what make the divergences decisions rather than
 discoveries. **A write's operation is declared in the phase that draws its surface** (the removal in
-6, the ranking's save reuses an EXISTING operation so it declares nothing new in 14): two writes more
-in phase 1 would have crossed the ceiling, and a verb declared before its first caller is an
-operation with no reader to prove it.
+6, the « vu » write in 9, the ranking's save reuses an EXISTING operation so it declares nothing new
+in 15): more writes in phase 1 would have crossed the ceiling, and a verb declared before its first
+caller is an operation with no reader to prove it.
 
 **The page and its tabs come before either tab holds anything** (2 before 3), so the bar's shares,
 the two dials and the route are proved on their own — the same cut L22 made between its phases 8 and
@@ -194,28 +199,32 @@ gave: a WRITE with its own confirmation, then a READ of a state (the external ca
 of that write's own hold (the grouped removal) — two different kinds, cut apart rather than forced
 into one phase over the ceiling.
 
-**The alert (8–9) comes after the removal** because its third component — an obligation in breach —
+**The alert (8–10) comes after the removal** because its third component — an obligation in breach —
 is drawn on rows the removal phase's own hold (a removed row disappears) must not contradict: proving
-the alert against a Torrents tab whose removal already works avoids re-opening 8 or 9 when 6–7 land
-later. **The page (8) precedes the bar (9)** because the bar's badge is a further reader of a fact
-the page's two readers already read from one field; **the bar's badge and the stream's claim share
-phase 9** because the badge is the reason the stream must be claimed.
+the alert against a Torrents tab whose removal already works avoids re-opening 8, 9 or 10 when 6–7
+land later. **The page (8) precedes the broken obligations (9), which precede the bar (10)**: the
+page's own three components (threshold, breach, refused identifier) are proved first, on the SAME
+surface the disclosure they sit beside already draws; the broken-obligations extension (round 10 Q4)
+is the badge's FOURTH component, added to the SAME derivation once the first three are settled, before
+the bar reads the now-complete sum — never the reverse, or the bar's own rule would need re-aiming
+twice instead of once; **the bar's badge and the stream's claim share phase 10** because the badge is
+the reason the stream must be claimed.
 
-**`panel-more.ts`'s fix (10) comes right after the alert lands**, not before: removing « Ratio global »
+**`panel-more.ts`'s fix (11) comes right after the alert lands**, not before: removing « Ratio global »
 without the Trackers page yet existing would leave the operator with strictly less than today: no
-hard-coded fact AND no real one to replace it. Once phase 9 lands, the real surface exists to point
+hard-coded fact AND no real one to replace it. Once phase 10 lands, the real surface exists to point
 the operator toward, even though this phase draws no `crossReference()` of its own (DESIGN's own
-choice: remove, do not replace with a link — § 4.9 of the design's reasoning under phase 10's file).
+choice: remove, do not replace with a link — § 4.9 of the design's reasoning under phase 11's file).
 
-**A card's ratio reason (11) comes after the alert**, not only after the removal, because it names a
+**A card's ratio reason (12) comes after the alert**, not only after the removal, because it names a
 tracker the operator can now open and a threshold he can now read — the same ordering reason the
 prior reading gave its own phase 11.
 
-**The ranking (12–15) is the last of the behaviour phases**, unchanged in its own internal ordering
+**The ranking (13–16) is the last of the behaviour phases**, unchanged in its own internal ordering
 from the prior reading, because it is the one surface this lot draws outside `features/trackers/`
 (DESIGN § 4.7) and its demand (a ratio-aware criterion) is not needed by anything earlier. **It is
 FOUR phases, not three**: F16 splits what the prior reading folded into one screen phase into a READ
-(13) and a SAVE (14), because a screen that reads a real file and a screen that writes one back are
+(14) and a SAVE (15), because a screen that reads a real file and a screen that writes one back are
 two different kinds of change, and the read must be proved (and its dead ends closed) before a save
 that reads back what it wrote can be proved against it.
 

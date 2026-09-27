@@ -23,6 +23,26 @@ what follows is redrawn from that surface down, not patched. § 0.1 says what mo
 audit fix this redraw answers is named where it lands, and any the redraw makes moot is said so
 explicitly rather than silently dropped.
 
+**Read again, same day, against the auditor's rulings-coherence round**
+(`review-archive/rulings-coherence-2026-09-27.md`, relayed by the orchestrator) — **M4** (a removal or
+a cross-seed cut done IN THE APP and confirmed always closes the obligation as « libérée », never as
+still in breach; the confirmation is owed whenever a RUNNING obligation would end, not only when
+files are deleted; an external removal's own trace — Système's history, L20's — reads « Libérée —
+retrait externe », a naming fact for that lot's own demand, not a Trackers-page state this lot
+draws), **M5** (a refused identifier is ONE unit in the badge, per tracker, never one per torrent it
+touches — a cross-seed failure's own contribution to the badge is L17's), and **round 10 Q3 = A**
+(« Libérer » is not a gesture of its own: the seed stops through « Retirer de qBittorrent » or a
+cross-seed cut, each already confirmed and each closing the obligation « libérée »; there is no
+separate release operation — **F15's finding is REPLACED, not merely corrected**: the first two
+readings' verb never had an id, a cause or an event because it never should have existed as its own
+operation) and **Q4 = A** (an obligation the ENGINE broke, whose torrent has already left
+qBittorrent, is not lost: it reads on the tracker's own entry, in the « Trackers » tab, as « N
+obligations rompues », a list — title, date — that unfolds, and a per-row « vu » (the same « × »
+elsewhere in this codebase) clears it from the badge; the « vu » field is a new demand). Neither
+M4 nor Q3 changes a surface this redraw had not already drawn — they CONFIRM it and correct one
+gap (the confirmation's own trigger); M5 and Q4 add, respectively, a counting rule and a new
+sub-surface, both folded into § 4.2 and § 4.5 below.
+
 **Where L16 opens in the order, and why.** L16 lands **after L22b**: L22b's phase 19 takes Système
 out of the bar, its phase 25 deletes the `arr` row, and its own porting of round 8's Q20 puts
 Découvrir in the bar as the third button (`docs/features/maquette-l22/plan/INDEX.md`; L22a = phases
@@ -83,6 +103,10 @@ The rulings are the operator's and are not reopened here. « Organisation ruling
 | 13, 15 (2026-09-26) | Système keeps the machine and the pipeline's levers, and leaves the bar for the drawer | nothing moves to Trackers; unchanged from the prior read |
 | 14 (2026-09-26) | accounts are managed in Réglages or a first-level drawer entry | nothing: accounts have no relation to Trackers (L18's) |
 | 2 and 7 (2026-09-15, through L22) | the page Arrivées dies; what stagnates reads on its card in « En cours » with its reason | § 4.6 — and F14 finds the first two readings' OWN reason source wrong, corrected there |
+| round 10 M4 (2026-09-27, rulings-coherence) | a removal or a cross-seed cut, confirmed in the app, always closes an obligation « libérée », never in breach; the confirmation is owed whenever a running obligation would end, not only when files are deleted | § 4.4 (broadened confirmation trigger, the always-released hold), § 4.8 (R-L16-c's new mutations) |
+| round 10 M5 (2026-09-27, rulings-coherence) | a refused identifier is one unit per tracker in the badge, never one per torrent; a cross-seed failure leaves the badge as a state change, L17's own rule | § 4.5 (the counting rule), § 4.8 (R-L16-d) |
+| round 10 Q3 = A (2026-09-27, rulings-coherence) | « Libérer » is not a gesture of its own: the seed stops through « Retirer de qBittorrent » or a cross-seed cut, each confirmed and each closing « libérée »; no separate release operation | confirms § 4.4 and § 2.3 item 5 as already drawn; **F15 is REPLACED**, not merely corrected |
+| round 10 Q4 = A (2026-09-27, rulings-coherence) | an obligation the engine broke, its torrent already gone from qBittorrent, reads on its tracker's own entry as « N obligations rompues », a list that unfolds, cleared row by row by a « vu » | § 4.2 (the new sub-surface), § 4.5 (the badge's fourth component), § 2.3 item 7 (the demand) |
 
 ---
 
@@ -180,7 +204,10 @@ it).
 
 1. **A tracker-level summary read.** Name, ratio, Download / Upload volumes, the trend — nothing
    existing answers a tracker as its own subject. **Round 9 Q1 adds a health fact**: whether the
-   tracker's identifier (API key, passkey) is refused, and since when.
+   tracker's identifier (API key, passkey) is refused, and since when. **Round 10 Q4 adds a
+   `broken_obligations` array**: one entry per obligation the engine broke whose torrent has already
+   left qBittorrent — title, `broken_at`, `seen` — folded into the SAME read, never a second
+   operation.
 2. **The alert threshold, as its own setting.** Round 9 Q2 rules it distinct from `min_ratio` (the
    floor) and `target_ratio` (the moteur's own target): a new key in the SAME `economy` block
    (`tracker.providers.<name>.economy.alert_threshold`, or equivalent — the config-shape half of
@@ -199,18 +226,29 @@ it).
 5. **« Retirer de qBittorrent ».** A write that removes one or more qBittorrent entries (an original
    grab and every cross-seed of the same files, per round 9 Q7's grouped removal) — with a boolean
    for deleting the underlying files, checked by default — and answers which trackers still held a
-   running obligation on what was removed, so the confirmation can name them (round 9 Q7's
-   hit-and-run warning). This REPLACES the first two readings' `POST
-   .../obligations/{id}/release`: the gesture the operator described works on the torrent's entries
-   in qBittorrent, not on an obligation id, and its consequence — the obligation ends — follows from
-   the torrent leaving qBittorrent, not from a separate release call.
+   running obligation on what was removed, so the confirmation can name them WHENEVER one is running,
+   whatever the file-deletion boolean reads (round 10 M4). **There is no separate release
+   operation** (round 10 Q3 = A): the write itself closes every running obligation it touches as
+   `released_at` set — never left reading `breached_at` alone — the SAME write a cross-seed cut
+   (L17's) also calls for its own, narrower case. This REPLACES the first two readings' `POST
+   .../obligations/{id}/release` OUTRIGHT, not merely corrects it (F15 is REPLACED): the gesture the
+   operator described works on the torrent's entries in qBittorrent, never on an obligation id, and
+   its consequence — the obligation ends, always as a release — follows from the removal itself, not
+   from a second call this design no longer asks the backend for.
 6. **A stream event for a removal**, own or external, so a torrent's row disappears from the Torrents
    tab and the trackers' badges move without a refetch: whatever reconciles an external qBittorrent
    removal today (the backend's own housekeeping) must emit it too, never only the interface's own
-   gesture — the SAME NE-DOIT-PAS-5 discipline § 18 already asks for the obligation's own read.
+   gesture — the SAME NE-DOIT-PAS-5 discipline § 18 already asks for the obligation's own read. The
+   event's own cause (this interface, a hand removal reconciled clean, or the engine's own break) is
+   what item 7 and § 4.2's « rompues » list read apart.
+7. **A « vu » write for a broken obligation** (round 10 Q4). One boolean per broken-obligation row
+   (`breached_at` set, `released_at` never set, its torrent already gone), on the tracker's own
+   summary read — the same shape the app's other « × » gestures already write, never a delete of the
+   row itself (NE-DOIT-PAS-5: seen is not gone).
 
-**Dropped from the first two readings' list: the obligation's release verb** (superseded by item 5
-above, ruling 18) **and `GET /api/acquisition/stalled-grabs`** as this lot's operation (F14, § 2.5).
+**Dropped from the first two readings' list: the obligation's release verb**, REPLACED, not merely
+corrected, by item 5 above (ruling 18, round 10 Q3 = A) **and `GET /api/acquisition/stalled-grabs`**
+as this lot's operation (F14, § 2.5).
 
 ### 2.4 The mocks, and what each must MOVE (D7 — « a mock that answers without moving certifies nothing »)
 
@@ -394,10 +432,23 @@ use it either.
 **« Voir les torrents ».** A path (`crossReference()`) that sets BOTH dials —
 `?tab=torrents&tracker=$name` — landing on § 4.3 filtered to this tracker.
 
+**« N obligations rompues » (round 10 Q4 = A).** An obligation the ENGINE broke — never through this
+lot's own gesture nor a hand removal it can read (§ 4.4) — whose torrent has already left
+qBittorrent is never lost: it reads on ITS TRACKER's own collapsed row as a count,
+« N obligations rompues » (`screens.trackers.brokenObligations`), and unfolds into a SECOND
+disclosure (title, date, one row each) nested under the entry's own. A per-row « vu »
+(`data-obligation-seen`, the same « × » this codebase already uses elsewhere) clears it from the
+badge (§ 4.5) without deleting the row — it stays legible, marked seen, until the operator's own
+housekeeping decides otherwise (out of this design's scope, per NE-DOIT-PAS-5: seen is not gone). The
+« vu » write is a NEW demand (§ 2.3 item 7); the list itself is answered by the same tracker summary
+read, extended with a `broken_obligations` array (title, `broken_at`, `seen: bool`) — never a second
+operation.
+
 **`data-part`**: `trackers/entry`, `trackers/ratio`, `trackers/trend`, `trackers/volumes`,
-`trackers/alert`, `trackers/identifier-refused`, `trackers/policy`, `trackers/policy-min-ratio`,
-`trackers/policy-min-seed-time`, `trackers/policy-alert-threshold`, `trackers/policy-save`,
-`trackers/see-torrents`. `data-region="trackers/body"`.
+`trackers/alert`, `trackers/identifier-refused`, `trackers/broken-obligations`,
+`trackers/broken-obligation-row`, `trackers/broken-obligation-seen`, `trackers/policy`,
+`trackers/policy-min-ratio`, `trackers/policy-min-seed-time`, `trackers/policy-alert-threshold`,
+`trackers/policy-save`, `trackers/see-torrents`. `data-region="trackers/body"`.
 
 **Named states.**
 
@@ -409,6 +460,8 @@ use it either.
 | `trackers-policy-unset` | the open entry, no policy set (`policy.min_ratio` absent) |
 | `tracker-alert-active` | the entry's own alert reader — S5's state, drawn here too, never only elsewhere |
 | `tracker-identifier-refused` | the entry names its refused identifier |
+| `tracker-broken-obligations` | the collapsed count, at least one unseen broken obligation |
+| `tracker-broken-obligations-open` | the nested disclosure unfolded, its rows drawn |
 
 ### 4.3 S3 — The « Torrents » tab: every active entry, once
 
@@ -455,59 +508,85 @@ the row's SHAPE and the marks its own data already answers.
 **What happens.** « Retirer de qBittorrent » (`screens.torrents.removeFromQbittorrent`,
 `data-torrent-remove`) opens a confirmation with **« Supprimer les fichiers »** checked by default,
 decheckable. Confirmed, the entry (and, per round 9 Q7, EVERY qBittorrent entry sharing its files —
-the grouped removal) is gone from the Torrents tab in the SAME render the operation answers; any
-obligation it carried ends, its trace left for Système's history (ruling 12), never a second
-« released » list on this page.
+the grouped removal) is gone from the Torrents tab in the SAME render the operation answers, and its
+obligation, if any was running, closes **« libérée »** — never left reading as still in breach, even
+if it had crossed its threshold a moment before (round 10 M4: an app-confirmed removal is always a
+release, not an infraction). The obligation's trace is left for Système's history (ruling 12), never
+a second list on THIS page — the tracker's own « N obligations rompues » (§ 4.2, Q4) is a DIFFERENT
+fact, covered below, never populated by a gesture this interface itself confirmed.
 
-**The confirmation's copy (round 9 Q7).** When files are shared across entries, the confirmation
-names the consequence — every share of those files ends — and lists each tracker where a running
-obligation would be cut short (the hit-and-run risk the auditor added, garant of coherence,
-2026-09-27). When the torrent has no obligation and no shared file, the confirmation is the same one
-« a physical file deletion » already carries elsewhere in this codebase (NE-DOIT-PAS-6) — no second,
-lighter wording invented for this case.
+**The confirmation is owed whenever the torrent carries a RUNNING obligation, corrected against round
+10 M4 — not only when files are deleted.** Ruling 18's own words name a confirmation « en cas de
+suppression de fichier »; M4 reads that as a MINIMUM, not the whole rule: ending a seed commitment
+early is itself the act NE-DOIT-PAS-6 guards, with or without a file ever touched. So:
 
-**The external-removal HANDLED case — simplified by ruling 18, not reinvented.** An obligation whose
-torrent the operator removed BY HAND in qBittorrent, outside this interface, is read the SAME WAY as
-one this lot's own gesture removed: **the row is gone**. There is no « Libérée — retrait externe »
-label to draw and no second obligation-list to keep honest against the torrents list, because ruling
-18 already killed that second list (round 9 Q3): a torrent's presence in the Torrents tab is a live
-read of qBittorrent's own state, and its absence — from any cause — IS the read. The trace an
-operator wants after the fact lives in Système's history (ruling 12), which this lot does not draw
-(L20's own surface); this design's own job is only that the row's absence is never mistaken for a
-still-open obligation (§ 4.8, R-L16-c).
+- **A running obligation, whatever the file-deletion checkbox reads**: the confirmation NAMES the
+  tracker (or every tracker, when files are shared and several obligations run) and says the
+  obligation ends. Unchecking « Supprimer les fichiers » never skips this.
+- **No running obligation, files shared**: the confirmation names the consequence — every share of
+  those files ends (round 9 Q7) — with no obligation to name.
+- **No running obligation, no shared file**: the confirmation is the same one a physical file
+  deletion already carries elsewhere in this codebase (NE-DOIT-PAS-6) — no second, lighter wording
+  invented for this case, and no confirmation at all when « Supprimer les fichiers » is unchecked and
+  nothing else is at stake (an inert removal, DOIT-4 — a legitimate act is never dressed up as
+  destructive when it destroys nothing).
+
+**The external-removal HANDLED case — simplified by ruling 18, not reinvented — but not the same
+fact as a « rompue » obligation (round 10 Q4).** A torrent the operator removed BY HAND in
+qBittorrent, its obligation released cleanly (`released_at` set, no in-app call), is read the SAME
+WAY as one this lot's own gesture closed: **the row is gone**, its trace « Libérée — retrait
+externe » living in Système's history (ruling 12, L20's own surface, not drawn here). **A torrent
+whose obligation the ENGINE broke (`breached_at` set) and which THEN left qBittorrent with no release
+ever recorded reads differently**: the row is gone from the Torrents tab exactly the same (a live
+read of qBittorrent's own state, round 9 Q3 — never a second list DOUBLING the active torrents), but
+the broken obligation itself is NOT silently lost — it surfaces on its tracker's own entry as one row
+of « N obligations rompues » (§ 4.2), until the operator marks it seen. This is not a second
+obligations-and-torrents list (round 9 Q3's own ban): it is a per-tracker record of what the engine
+itself already failed at, kept ONLY because ruling 18's own row would otherwise take it down with the
+torrent, and NE-DOIT-PAS-5 forbids that silence.
 
 **Named states.** `torrent-remove-confirm` (the confirmation, transient, no URL — D1); files shared,
-the confirmation names the consequence — `torrent-remove-confirm-shared`.
+the confirmation names the consequence — `torrent-remove-confirm-shared`; a running obligation named
+regardless of the checkbox — `torrent-remove-confirm-obligation`.
 
 ### 4.5 S5 — The ratio alert
 
 **Its place.** Where the ratio lives, and nowhere else (ruling 12: every thing speaks where it
-lives, and the bar tab that carries it takes a badge). **Three readers, ONE derivation**: a badge on
+lives, and the bar tab that carries it takes a badge). **Four readers, ONE derivation**: a badge on
 the Trackers tab of the bottom bar (the frame draws it from the row's `badge` function), a chip on
-S2's collapsed entry, and a chip on S3's row when it names a breach — the same shape R-L20-g held for
-the lock and its levers. **There is no notifications box** that collects it, **no alert line on
-Système**, and no second place: Système's history (L20) stays the only trace of the past, and the
-maintenance and the machine's faults are Système's own badge on the menu button (L22's OPEN 8), a
-different thing.
+S2's collapsed entry, a chip on S3's row when it names a breach, and S2's own « N obligations
+rompues » count (§ 4.2, Q4) — the same shape R-L20-g held for the lock and its levers. **There is no
+notifications box** that collects it, **no alert line on Système**, and no second place: Système's
+history (L20) stays the only trace of the past, and the maintenance and the machine's faults are
+Système's own badge on the menu button (L22's OPEN 8), a different thing.
 
-**What the derivation counts (three components, round 9 Q1 added the third).** A tracker's ratio
-under its own alert threshold; an obligation `breached_at` set and neither satisfied nor released
-(§ 4.3); and, from round 9 Q1, a tracker whose identifier is refused. All three read from the SAME
-tracker-summary and obligations reads, refreshed through this lot's `live.ts` — so the tab's badge
-moves without a refetch, like the row. Today the stream's `RatioMeasured` and `SeedObligation*`
-events are EXEMPTED from every live rule, by name: `acquisitionLiveExemptions`
-(`features/acquisition/live.ts`) lists them as belonging to « a ratio surface that has no page yet
-(B-144) » — this lot gives them that page, claims them in `features/trackers/live.ts`, and removes
-those four names from the exemption (the cross-seed events and `TrackerAuthFailed` stay named there:
-L17's, and the system feature's). **No push notification is drawn** — FCM / iOS / Android is a
-platform demand (`backend-demands-architecture.md` § 4), filed and not built; this lot's own surface
-IS the in-app signal DOIT-1 already asks every state to carry.
+**What the derivation counts (FOUR components, round 9 Q1 added the third, round 10 Q4 the fourth).**
+A tracker's ratio under its own alert threshold; an obligation `breached_at` set, neither satisfied
+nor released, on a torrent STILL active (§ 4.3); a tracker whose identifier is refused (round 9 Q1);
+and an UNSEEN broken obligation — `breached_at` set, `released_at` never set, its torrent already gone
+from qBittorrent (round 10 Q4, § 4.2). **Counting rule, round 10 M5**: a refused identifier is ONE
+unit for its tracker, never one per torrent it affects — the cause lives on the tracker (« chaque
+chose parle là où elle vit »), not on each of its torrents; a broken obligation is likewise one unit
+PER OBLIGATION, marked seen individually, never folded into the tracker's own refused-identifier
+count. **A cross-seed failure joins this same badge at L17** (round 9 Q8), and M5's own rule for it —
+a failure is a STATE, so it leaves the count the moment its row stops reading as failed, by a retry or
+a cut, with no fresh gesture needed — is L17's to build, not this lot's. All four of THIS lot's
+components read from the SAME tracker-summary and obligations reads, refreshed through this lot's
+`live.ts` — so the tab's badge moves without a refetch, like the row. Today the stream's
+`RatioMeasured` and `SeedObligation*` events are EXEMPTED from every live rule, by name:
+`acquisitionLiveExemptions` (`features/acquisition/live.ts`) lists them as belonging to « a ratio
+surface that has no page yet (B-144) » — this lot gives them that page, claims them in
+`features/trackers/live.ts`, and removes those four names from the exemption (the cross-seed events
+and `TrackerAuthFailed` stay named there: L17's, and the system feature's). **No push notification is
+drawn** — FCM / iOS / Android is a platform demand (`backend-demands-architecture.md` § 4), filed and
+not built; this lot's own surface IS the in-app signal DOIT-1 already asks every state to carry.
 
 **Named states.** `tracker-alert-active` (§ 4.2's entry, § 4.3's row); `tracker-identifier-refused`
-(§ 4.2's entry); `bar-trackers-alert` — **the bar at four buttons, the Trackers tab carrying its
-badge** (not « the fourth place stays free », F10's correction), in `harness/states/frame.ts` beside
-`drawer-navigation` (the only anchor D8's own oracle can prove — F58: L22's `bar-todo-badge` is a
-different lot's row and RULINGS never made this one a copy of it).
+(§ 4.2's entry); `tracker-broken-obligations` (§ 4.2's entry, an unseen count); `bar-trackers-alert` —
+**the bar at four buttons, the Trackers tab carrying its badge** (not « the fourth place stays free »,
+F10's correction), in `harness/states/frame.ts` beside `drawer-navigation` (the only anchor D8's own
+oracle can prove — F58: L22's `bar-todo-badge` is a different lot's row and RULINGS never made this
+one a copy of it).
 
 ### 4.6 S6 — A card deferred for ratio names its tracker (DOIT-2's ratio half)
 
@@ -577,8 +656,8 @@ base at that moment (`R225` on `5e5ecd052`, at this re-read — L20's own phase 
 | --- | --- | --- |
 | **R-L16-a** — NE-DOIT-PAS-1, the ratio is the tracker's | every ratio drawn (S2's entry, S3's row, computed on the torrent's own size) compared against the mock's own field, never a local computation | compute an average client-side → the comparison falls |
 | **R-L16-b** — DOIT-3, the tracker's policy and alert threshold | S2's save calling `updateConfigurationFile`; the SAME setting's OWN read (S2's entry, and Réglages' own row) reflecting the new value in the following render — one write, two doors (round 9 Q2) | message without calling → the network hold falls. Disagree S2's read from Réglages' own → the agreement falls too |
-| **R-L16-c** — ruling 18, « Retirer de qBittorrent » and the external-removal read | the operation CALLED, every entry sharing the removed files gone from S3 in the SAME render (round 9 Q7's grouped removal); a seeded entry already absent with its obligation's `released_at` set and no removal call anywhere in the walk drawn as simply GONE, never as still active nor as an unexplained gap | make the confirm button message without calling → the network hold falls. Leave a sibling entry (same files) present after the removal → falls. Draw the external case as still active → falls too |
-| **R-L16-d** — §13, one derivation for the alert (three readers, three components, ruling 12 + round 9 Q1) | the threshold, the breach and the refused identifier read from ONE field each, by S2's entry, S3's row **and the Trackers tab's badge on the bar**; changing any of the three moves what all three readers draw | disagree the chip from the row → the agreement falls. Disagree the tab's count from either → falls too. Drop one of the three components from the count → falls |
+| **R-L16-c** — ruling 18, « Retirer de qBittorrent » and the external-removal read | the operation CALLED, every entry sharing the removed files gone from S3 in the SAME render (round 9 Q7's grouped removal); the touched obligation(s) read `released_at` set, NEVER left `breached_at`-only (round 10 M4); a running obligation named in the confirmation whatever the file-deletion checkbox reads; a seeded entry already absent with its obligation's `released_at` set and no removal call anywhere in the walk drawn as simply GONE, never as still active nor as an unexplained gap | make the confirm button message without calling → the network hold falls. Leave a sibling entry (same files) present after the removal → falls. Draw the external case as still active → falls too. Skip the confirmation's tracker name when the checkbox is unchecked but an obligation runs → falls. Draw a removed obligation as still in breach → falls |
+| **R-L16-d** — §13, one derivation for the alert (four readers, four components, ruling 12 + round 9 Q1 + round 10 Q4/M5) | the threshold, the breach, the refused identifier and the unseen broken-obligation count read from ONE field each, by S2's entry, S3's row **and the Trackers tab's badge on the bar**; changing any of the four moves what every reader draws; a refused identifier counts ONE per tracker, never one per its torrents (M5) | disagree the chip from the row → the agreement falls. Disagree the tab's count from any reader → falls too. Drop one of the four components from the count → falls. Count a refused tracker's torrents individually → the unit hold falls, naming the inflation. Mark a broken obligation seen without the write answering → falls |
 | **R-L16-e** — the ranking preview | the criteria POSTed, the rows drawn compared against `RankingPreviewResponse.ranked`, the `excluded` flag honoured (sunk last, still visible) | draw a constant ranking → the comparison falls. Hide excluded rows → falls too |
 | **R-L16-f** — F16, the ranking's own read and save | the editor's criteria at OPEN equal the file `GET` answers, never a constant; a save calls `updateConfigurationFile` and the NEXT read (a reload) answers the saved weights | draw a fixed criteria list ignoring the read → falls. Message success without calling the write → the hold falls, naming the operation |
 | **R-L16-g** — DOIT-2's deferral reason, three kinds | the acquisition card in « En cours » naming ONE of ratio / space / missing, its path to `/trackers` for the ratio kind, read on the URL after a tap, and the ratio hold it names equal to the tracker's OWN obligation, never `ingest.min_ratio` | drop the path (ratio kind) → falls. Name the global `ingest.min_ratio` instead of the obligation's own → falls too |
@@ -668,14 +747,16 @@ readings. Neither is chosen: a STOP C at the phase that draws the page's shell.
 extended by this redraw's own demands (§ 2.3): the write already exists (`updateConfigurationFile`
 on the `economy` block) — only the alert threshold is a missing key, not a missing operation; a
 per-tracker health read (the refused identifier, round 9 Q1); the per-tracker, per-size ratio on
-each active entry; « Retirer de qBittorrent » with its grouped, shared-files removal (round 9 Q7);
-the removal-reconciliation stream event; the alert threshold's own push channel; the ranking's
-ratio-aware scoring field. **Nothing here is a demand this design invents from nothing** — every item
-is this design's typed shape of a sentence § 4 or the operator's own rulings already carry.
+each active entry; « Retirer de qBittorrent », REPLACING the release verb outright (round 10 Q3 = A,
+**F15 REPLACED**) with its grouped, shared-files removal (round 9 Q7) and its always-released close
+(round 10 M4); the removal-reconciliation stream event; a « vu » write for a broken obligation (round
+10 Q4); the alert threshold's own push channel; the ranking's ratio-aware scoring field. **Nothing
+here is a demand this design invents from nothing** — every item is this design's typed shape of a
+sentence § 4 or the operator's own rulings already carry.
 
 **`frontend/maquette/README.md`'s binding cut table** (« The cut is by the nature of the trouble »,
 C9) is not edited by this design — it is a code-adjacent file outside this PR's scope — but the
-closing phase's own move (§ 15 of the plan) adds the row it is missing: « A tracker in trouble
+closing phase's own move (§ 16 of the plan) adds the row it is missing: « A tracker in trouble
 (ratio, obligation) → **Trackers** », naming ruling 12, the same move C9 asks for, made when the lot
 that draws the surface lands rather than left for L17's close to invent a row of its own.
 

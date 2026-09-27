@@ -1,9 +1,9 @@
-# Phase 15 — The live preview
+# Phase 16 — The live preview
 
-The editor's live preview, through `POST /api/acquisition/ranking/preview` (phase 12's operation):
+The editor's live preview, through `POST /api/acquisition/ranking/preview` (phase 13's operation):
 `RankingPreviewResponse.ranked`, sorted, excluded rows flagged and sunk last — and still visible. With
-it the promise B-298 names is kept **in full**: a real editor, read from the saved file (13), able to
-save (14), and now scored live as it is edited.
+it the promise B-298 names is kept **in full**: a real editor, read from the saved file (14), able to
+save (15), and now scored live as it is edited.
 
 **Opening measure (2026-09-27, on `5e5ecd052`):**
 
@@ -15,11 +15,11 @@ save (14), and now scored live as it is edited.
   flag.
 - **Points ≈ 9.** The preview panel (≈ 50 new; each row: the release, its total, its `excluded` flag)
   5; **one new rule, R-L16-e** with its two mutations 3; `fr.json` (the preview's labels) 1. The states
-  `ranking-editor` and its twins are phase 13's — the preview enters `ranking-editor`'s reading, not a
+  `ranking-editor` and its twins are phase 14's — the preview enters `ranking-editor`'s reading, not a
   new state.
 - **Re-cut (2026-09-27, on `5e5ecd052`).** Unchanged in shape and points from the prior re-read's own
   phase 14 (9): the preview operation and its own rule are untouched by the audit — only WHERE B-298
-  closes moves, from this phase alone to the sum of phases 13, 14 and this one, since F16 split what
+  closes moves, from this phase alone to the sum of phases 14, 15 and this one, since F16 split what
   the prior reading believed was one screen into three distinct proofs.
 
 A BEHAVIOUR change: the preview did not exist; it calls the operation and draws the answer.
@@ -49,17 +49,17 @@ Two mutations, as above, each committed and restored separately.
 
 ## Register
 
-**B-298 closes, in full** — the rubric and the toast both resolve to `/settings/ranking` (13), the
-editor reads AND saves the real file (13, 14), and now previews it live (this phase) —
+**B-298 closes, in full** — the rubric and the toast both resolve to `/settings/ranking` (14), the
+editor reads AND saves the real file (14, 15), and now previews it live (this phase) —
 `python3 scripts/check-bug-register.py` read by OUTPUT, B-346. § 18's ranking clause reads `served` for
-the WEIGHTS half; the ratio-aware criterion itself (phase 12's demand row) stays a filed demand until
+the WEIGHTS half; the ratio-aware criterion itself (phase 13's demand row) stays a filed demand until
 the backend answers it — the design draws the editor so that field slots in without a second wave once
 it does (D7).
 
 ## Oracle: states that diverge, declared by name
 
-**None expected on other states.** `ranking-editor`'s own recorded reading (phase 13: the criteria
-alone) grows by the preview — accepted, named, with the reason « L16 phase 15: the editor draws its
+**None expected on other states.** `ranking-editor`'s own recorded reading (phase 14: the criteria
+alone) grows by the preview — accepted, named, with the reason « L16 phase 16: the editor draws its
 live preview ». Any divergence elsewhere is **STOP A**.
 
 ## Gate

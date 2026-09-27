@@ -1,9 +1,9 @@
-# Phase 12 — The ranking's contract
+# Phase 13 — The ranking's contract
 
 The ranking editor calls `POST /api/acquisition/ranking/preview` and the maquette's contract does not
 declare it. This phase declares it, seeds and mocks it, and files the last of the reading demands — a
 ratio-derived field on the scored release (DESIGN § 2.3 item 4). No screen is drawn: the operation is
-declared with the phases that call it, in the order the INDEX gives (« Why sixteen phases »).
+declared with the phases that call it, in the order the INDEX gives (« Why seventeen phases »).
 
 **Opening measure (2026-09-27, on `5e5ecd052`):**
 
@@ -22,7 +22,7 @@ declared with the phases that call it, in the order the INDEX gives (« Why sixt
   criterion's field set) 1; the `fixture-register.json` / `x-seeded-from` row for the release seed 1.
 - **Re-cut (2026-09-27, on `5e5ecd052`).** Unchanged in shape and points from the prior re-read's own
   phase 12 (9): this operation and its demand are untouched by the audit and the rulings — F16's own
-  finding is about the READ and SAVE that surround it (phases 13, 14), not the preview operation
+  finding is about the READ and SAVE that surround it (phases 14, 15), not the preview operation
   itself.
 
 A CONTRACT change: no behaviour is drawn yet.
@@ -30,7 +30,7 @@ A CONTRACT change: no behaviour is drawn yet.
 ## No rule in this phase, and that is stated rather than skipped
 
 What holds it is `scripts/compare-contracts.py --check`, `contract/types.d.ts`, and `scripts/check-mock-seeds.py`.
-The rule that reads the preview is R-L16-e, in phase 15.
+The rule that reads the preview is R-L16-e, in phase 16.
 
 ## The move
 
@@ -53,8 +53,8 @@ everywhere**.
 
 ## Register
 
-B-144's last reading-side demand row (the ranking term) is filed here; it closes with phase 15's
-report, the operation's caller landing in phase 15.
+B-144's last reading-side demand row (the ranking term) is filed here; it closes with phase 16's
+report, the operation's caller landing in phase 16.
 
 ## Commit
 

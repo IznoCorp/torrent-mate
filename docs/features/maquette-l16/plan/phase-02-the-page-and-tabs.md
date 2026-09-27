@@ -45,7 +45,7 @@ The phase reads DESIGN § 4.1's two readings to the steward, with this cost line
   first load) 2; **L22's `R-L22-s` re-run at four** — a rule file re-aimed, its walk gaining the
   fourth button 1.
 - **Re-cut (2026-09-27, on `5e5ecd052`).** The prior re-read's phase 2 (15, « the tab ») drew ONE tab
-  and its own row's `badge:` placeholder; this phase draws TWO dials and no badge (phase 9's). The
+  and its own row's `badge:` placeholder; this phase draws TWO dials and no badge (phase 10's). The
   point count lands the same by a different route: two dials cost less than the prior single-tab
   wiring, and the bar's insertion (ruling 20 — BETWEEN Médiathèque and Découvrir, not appended after a
   free slot) costs the header-comment rewrite the prior reading did not need. **OPEN 1 and OPEN 2**,
@@ -85,7 +85,7 @@ consecutive free numbers, and write the mapping into the report.
 - **`app/navigation.ts`** — one row: `id: "trackers"`, INSERTED between `lib` and `discover` (ruling
   20 — the array order is the bar's own order), `path: PAGE_PATHS.trackers`, `Body: TrackersPage`,
   `root: "body"`, `region: "trackers/body"`, `labelKey: "navigation.pages.trackers"`, `icon:
-  icons.<a ratio icon>`, `group: "supervision"`, `inBar: true` — **no `badge` yet** (phase 9) and no
+  icons.<a ratio icon>`, `group: "supervision"`, `inBar: true` — **no `badge` yet** (phase 10) and no
   field for a right (DESIGN § 5, OPEN 2, ruled A). The header comment is rewritten: the bar's fourth
   place is Trackers, before Découvrir, never a free slot.
 - **`harness/states/trackers.ts`** — `trackers-page`; **`harness/states/frame.ts`** — the bar reads at

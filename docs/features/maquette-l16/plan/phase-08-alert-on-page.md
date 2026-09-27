@@ -2,7 +2,7 @@
 
 A per-tracker ratio alert, THREE components (DESIGN § 4.5, round 9 Q1 adding the third), read where
 the ratio lives — the Trackers tab's entry, the Torrents tab's row — from ONE derivation each (§ 13).
-The bar's badge is a fourth reader and is phase 9's. **No push notification is drawn**: it is a
+The bar's badge is a fourth reader and is phase 10's. **No push notification is drawn**: it is a
 platform demand, filed (DESIGN § 4.5, § 5).
 
 **Opening measure (2026-09-27, on `5e5ecd052`):**
@@ -41,10 +41,13 @@ Its label R-L16-d is bound to the next free number, re-taken against `origin/mai
   tracker whose identifier is refused.
 - **What it reads.** All readers draw the SAME crossed / not-crossed fact for the threshold, the SAME
   breach fact for an obligation, and the SAME refused fact for the identifier — changing any of the
-  three in its own source moves what every reader draws, in the render that follows.
+  three in its own source moves what every reader draws, in the render that follows; a refused
+  identifier counts ONE unit for its tracker (round 10 M5), never one per torrent that tracker holds.
 - **Red today.** No alert anywhere — fails against `main` for that reason.
 - **Mutation.** `scripts/mutate.sh` disagrees the entry's chip from the row's breach chip (one reads the
-  threshold, the other a stale copy). The agreement must fall.
+  threshold, the other a stale copy). The agreement must fall. A second mutation joins the refused fact
+  against each of the tracker's torrents and counts once per torrent — the per-tracker unit hold must
+  fall, naming the inflation (round 10 M5).
 
 ## The move
 
@@ -64,8 +67,8 @@ One, as above — committed and restored.
 
 ## Register
 
-§ 18's alert clause reads `served` for its in-app half only when phase 9 has landed; reported by
-phase 16. Push stays a filed demand.
+§ 18's alert clause reads `served` for its in-app half only when phase 10 has landed; reported by
+phase 17. Push stays a filed demand.
 
 ## Oracle: states that diverge, declared by name
 

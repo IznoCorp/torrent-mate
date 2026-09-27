@@ -1,4 +1,4 @@
-# Phase 9 — The ratio alert on the bar
+# Phase 10 — The ratio alert on the bar
 
 The alert's fourth reader: **a badge on the Trackers tab** of the bottom bar (organisation ruling 12 —
 every thing speaks where it lives, and the tab that carries it takes a badge). And, because the badge

@@ -1,7 +1,7 @@
-# Phase 16 — The close
+# Phase 17 — The close
 
 Re-reads `product-intent-map.md`, `BUGS.md` and `frontend/maquette/README.md`'s own cut table rather
-than trusting what phases 1–15 claimed — the same discipline every prior lot's closing phase holds,
+than trusting what phases 1–16 claimed — the same discipline every prior lot's closing phase holds,
 extended here to a THIRD document (the README's row, C9) the prior reading's own closing phase never
 named.
 
@@ -15,31 +15,36 @@ named.
   against whichever wording stands when the lot closes; DOIT-3 `partly`, citing the pilot's bar (which
   dies at L22b; L22 proposes `features/system` — the levers — for the row, its § 6.3). `grep -n '^| B-143\|^| B-144\|^| B-145\|^| B-257\|^| B-298'
   BUGS.md` — five rows: B-143 `open`, B-144 `open`, B-145 `open`, B-257 `fixed #534`, B-298 `open`;
-  this lot closes B-144 in full (phases 1–9, the reads and the alert) and B-298 in full (phase 15,
+  this lot closes B-144 in full (phases 1–10, the reads and the alert) and B-298 in full (phase 16,
   the ranking's read, save and preview); B-143 and B-145 are untouched, named so the report says why.
   `grep -n 'A medium in trouble' -A2
   frontend/maquette/README.md` — the cut table's own row, four kinds, no Trackers row (C9); this
   phase's move adds it. `python3 -c "import
   glob,re;print(sum(len(re.findall(r'^\s*\[\s*\"([^\"]+)\"\s*,\s*\"',open(f).read(),re.M)) for f in
   glob.glob('frontend/maquette/design/src/harness/states/*.ts')))"` — the named-state total, to be
-  re-run after phase 15 and reported as a before/after pair; **DESIGN §§ 4.1–4.7 declares
-  TWENTY-FIVE**: `trackers-page`, `-loading`, `-error` (3); `trackers-roster`, `-roster-empty`,
+  re-run after phase 16 and reported as a before/after pair; **DESIGN §§ 4.1–4.7 declares
+  TWENTY-EIGHT**: `trackers-page`, `-loading`, `-error` (3); `trackers-roster`, `-roster-empty`,
   `-entry-open`, `-policy-unset`, `tracker-alert-active`, `tracker-identifier-refused` (6);
-  `torrents-list`, `-list-filtered`, `-empty`, `-empty-filtered`, `torrent-obligation-breached` (5);
-  `torrent-remove-confirm`, `-shared` (2); `bar-trackers-alert` (1); `acq-card-deferred-ratio`,
-  `-space`, `-missing` (3); `ranking-editor`, `-loading`, `-error`, `-saving`, `-save-conflict` (5).
+  `tracker-broken-obligations`, `-broken-obligations-open` (2, round 10 Q4); `torrents-list`,
+  `-list-filtered`, `-empty`, `-empty-filtered`, `torrent-obligation-breached` (5);
+  `torrent-remove-confirm`, `-shared`, `-obligation` (3, the third round 10 M4's own broadened
+  confirmation); `bar-trackers-alert` (1); `acq-card-deferred-ratio`, `-space`, `-missing` (3);
+  `ranking-editor`, `-loading`, `-error`, `-saving`, `-save-conflict` (5).
 - **Points ≈ 8.** The map's three rows re-read and reported 3; the register's two closes (B-144, B-298)
   2; the README's own new row (C9) 1; the states counted before/after 1; the report itself 1.
 - **Re-cut (2026-09-27, on `5e5ecd052`).** The prior re-read's own phase 15 (7) grows by one for the
   README row (C9) this redraw's own audit found missing — a directive that must change IN THE SAME
   MOVE as the decision that creates the surface it maps (`CLAUDE.md` § Design Reference), not left for
-  L17's own close to invent, per the triage's own instruction.
+  L17's own close to invent, per the triage's own instruction. **Re-cut again, same day, on the
+  auditor's rulings-coherence round**: phase 9 (broken obligations, round 10 Q4) is inserted, shifting
+  every phase after it up by one; this close's own commands and counts are re-taken against the
+  SEVENTEEN-phase plan, not the sixteen this paragraph's own point count was first measured against.
 
 A DOCUMENTATION-of-the-close change: no surface, no rule, no mock moves here.
 
 ## The proof FIRST
 
-No new rule. The close is proved by re-running what phases 1–15 already left green, not by a new hold:
+No new rule. The close is proved by re-running what phases 1–16 already left green, not by a new hold:
 
 - `frontend/maquette/harness/run.sh` (full suite, no flag) — expected no failure.
 - `--a11y` tier — 0 over the new named states.
@@ -55,15 +60,15 @@ No new rule. The close is proved by re-running what phases 1–15 already left g
   missing-content thirds `served` on the acquisition card (F14's own widened scope), its remaining gaps
   said so explicitly, never left to read as if the whole row had landed; DOIT-3 to its tracker-policy
   half `served`.
-- **The register.** B-144 closes in full (the reads and the alert land across phases 1–9); B-298 closes
-  in full (phase 15, F16's read-save-preview trio); B-257 stays `fixed #534`, unedited, cited as the
+- **The register.** B-144 closes in full (the reads and the alert land across phases 1–10); B-298 closes
+  in full (phase 16, F16's read-save-preview trio); B-257 stays `fixed #534`, unedited, cited as the
   confirmation that L16 is its named consumer; B-143 and B-145 stay `open`, named as L18's and L17's
   respectively.
 - **`frontend/maquette/README.md`'s cut table (C9).** The row this lot's own surface needs, added in
   the SAME move as the surface itself lands: « A tracker in trouble (ratio, obligation) → **Trackers**
   », naming organisation ruling 12. L17's own close extends this SAME row to cross-seed failures
   (per its own plan's citation) rather than writing a second one.
-- **The states.** The before/after count, and which of the twenty-five named states DESIGN §§ 4.1–4.7
+- **The states.** The before/after count, and which of the twenty-eight named states DESIGN §§ 4.1–4.7
   declares actually landed (a design's count is a plan; the close reports what shipped).
 - **The open question.** DESIGN § 5's OPEN 4 (the default tab), and the reading phase 2 took —
   reported, so the operator's ruling and the lot's drawing can be read together.
@@ -73,7 +78,7 @@ No new rule. The close is proved by re-running what phases 1–15 already left g
 
 ## Mutation
 
-None — this phase asserts nothing new; it reads what the fifteen before it already proved.
+None — this phase asserts nothing new; it reads what the sixteen before it already proved.
 
 ## Register
 

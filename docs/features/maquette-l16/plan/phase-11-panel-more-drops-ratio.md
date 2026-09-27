@@ -1,8 +1,8 @@
-# Phase 10 — Acquisition's panel drops its hard-coded ratio facts
+# Phase 11 — Acquisition's panel drops its hard-coded ratio facts
 
 `features/acquisition/panel-more.ts`'s « ⋮ » sheet has drawn « Ratio global » and « Obligations en
 cours » as HARD-CODED constants since before this lot existed — a fixture that names the operations
-that would replace it (§ 18 point 1, DOIT-13, ruling 12). Now that phase 9 gives the ratio a real
+that would replace it (§ 18 point 1, DOIT-13, ruling 12). Now that phase 10 gives the ratio a real
 surface with its own badge, the constants have no reason left to stand: this phase removes them (F17).
 
 **Opening measure (2026-09-27, on `5e5ecd052`):**
@@ -21,9 +21,9 @@ surface with its own badge, the constants have no reason left to stand: this pha
   fixture rather than leaving the header's own promise unanswered ½.
 - **Re-cut (2026-09-27, on `5e5ecd052`).** No row of the prior re-reads names this fix: F17 is an audit
   finding this redraw is the first to carry. It is placed here, its own small phase, rather than folded
-  into phase 8 or 9 — removing a fixture is a DIFFERENT kind of change from drawing the surface that
+  into phase 8 or 10 — removing a fixture is a DIFFERENT kind of change from drawing the surface that
   replaces it (INDEX's own « one kind of change per phase »), and it needs the real surface to exist
-  first so the operator is never left with strictly less than before (INDEX, « Why sixteen phases »).
+  first so the operator is never left with strictly less than before (INDEX, « Why seventeen phases »).
 
 A CLEAN-UP change: a fixture is removed once its replacement exists; nothing new is drawn.
 
@@ -37,14 +37,14 @@ still renders. **A phase with no rule says so; it does not invent one to look co
 
 - **`features/acquisition/panel-more.ts`** — `WATCH_FACTS.globalRatio` and `.obligations` removed,
   along with their two `lignes` entries in `standbyPanel()`'s `faits` block; the header comment
-  corrected to say the ratio facts left at L16 (§ 18, phase 9), never « replacement pending ».
+  corrected to say the ratio facts left at L16 (§ 18, phase 10), never « replacement pending ».
   **`crossReference()` toward the Trackers page is NOT added** (DESIGN's own choice, § 4.9 of its
   reasoning): the panel is « second rank — consulté, pas surveillé », and a bare link to a page that no
   longer has a single « obligations en cours » figure to point at would read as a promise this design
   does not keep either.
 - **`i18n/fr.json`** — `panels.standby.globalRatio` and `.obligations` removed.
 - **`docs/features/maquette-l22/DESIGN.md`** § 1.7 (l.258) — a dated line: « the panel's ratio facts
-  leave at L16 (§ 18, phase 9) », per F17.
+  leave at L16 (§ 18, phase 10) », per F17.
 
 ## Register
 
@@ -54,7 +54,7 @@ is this phase's only cross-lot edit, and it is a NOTE, not an amendment of L22's
 ## Oracle: states that diverge, declared by name
 
 **`panels.standby`'s own recorded reading changes**: two `lignes` are removed from its `faits` block —
-accepted, named, with the reason « L16 phase 10: the ratio facts leave the standby panel for the
+accepted, named, with the reason « L16 phase 11: the ratio facts leave the standby panel for the
 Trackers page ». Any OTHER change to the panel (the veille's own facts, the « Lancer la veille »
 button) is **STOP A**.
 
