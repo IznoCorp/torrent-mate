@@ -277,6 +277,16 @@ on answers « unknown ». **Two conditions**: (1) that wording in the state's de
 of the three cases has its own mutation, and « unknown » falls toward « only copy », never toward « keeps its files ».
 (b), reading the operator's real ingest record, is refused; (c), holding the phase, was not needed.
 
+## 23 — a state drawing a tab under a layer inherits the tab's divergences (steward, 2026-09-27; L22b phase 26)
+
+**The question.** Phase 26 moved « Suivis » (its paused follows folded), and nine states that draw « Suivis » UNDER a
+layer — a sheet, a screen, the drawer, the add screen: their tab pinned by RULINGS 20 — moved with it, on
+`acquisition/body` and `shell/page` alone, undeclared at the opening.
+
+**Ruled — accepted, and a standing rule.** Their cause is the phase's own move, seen through a layer; the script
+proved no other region moved, and it was said. From now on, **a state that draws a tab under a layer inherits that
+tab's divergences, and is NAMED at the opening** of any phase that touches the tab.
+
 ## 30 — the ladder's figure keeps one meaning; a Plex match waits on its current rung (steward, 2026-09-27; round one, A6)
 
 **The question.** The round's brief asked Star Trek's card to read « 7 sur 8 »; the figure is the current rung's

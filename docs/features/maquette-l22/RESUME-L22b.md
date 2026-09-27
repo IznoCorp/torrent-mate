@@ -154,4 +154,7 @@ L22b appends from 13).
 - 2026-09-27 phase 26 (R233): paused follows fold; three readers of the PAUSED follows re-aimed after the gate fell;
   96d37a7ad carried a whole-file --accept by accident (a background run's accept wrote after my restore) — replaced by
   the by-name form in b77bbbe22. NEVER edit while a background run has not returned its notification.
+  ORDER 36 (steward): NO gate runs in the background — wait inside the call (≤ 600 s) or in a bounded loop on its log,
+  editing nothing meanwhile. RULINGS 23: a state drawing a tab under a layer is named at the opening of a phase that
+  touches the tab.
 
