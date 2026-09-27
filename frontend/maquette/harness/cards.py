@@ -45,6 +45,10 @@ LIST_POSTER = 84  # two thirds of the card's floor, so a card at that floor is 2
 # are read instead.
 CARD_STATES = [
     "acq-todo-loaded",
+    # RE-AIMED OUT LOUD: the folded « Mis de côté », opened, whose cards carry
+    # two feet (« Résoudre → », « Supprimer ») that their panel must offer too.
+    # The loaded tab draws the fold closed, so its cards were read by no state.
+    "acq-card-set-aside",
     "acq-now-loaded",
     "acq-follows-list",
     "acq-follows-group",
