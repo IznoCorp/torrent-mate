@@ -225,6 +225,10 @@
     }
   },
   "screens": {
+    "trackers": {
+      "tabTorrents": "Torrents",
+      "tabTrackers": "Trackers"
+    },
     "releases": {
       "back": "Retour",
       "noteTitle": "Écran neuf.",

@@ -1,9 +1,13 @@
 // « Trackers » — a page of the bottom bar: the ratio, tracker by tracker.
 //
 // Its body is the page's own oracle region, `trackers/body`, set by the page
-// host from the navigation row. What the body holds — the two tabs, « Torrents »
-// and « Trackers », and what each lists — is drawn inside this container.
+// host from the navigation row. Two tabs, « Torrents » and « Trackers », are
+// DIALS of the page — the address carries the one open — and each draws its
+// own list below the strip.
 import type { ReactElement } from "react";
+import { useTranslation } from "react-i18next";
+import { useUiState } from "../../lib/store-access";
+import { segment, segmentTab, viewTabs } from "../../ui/variants";
 
 /**
  * The « Trackers » page.
@@ -11,5 +15,31 @@ import type { ReactElement } from "react";
  * @returns The page's body.
  */
 export function TrackersPage(): ReactElement {
-  return <div data-part="trackers" />;
+  const state = useUiState();
+  const { t } = useTranslation();
+  // THE ORDER IS THE OPERATOR'S: « Torrents » then « Trackers ».
+  const tabs = [
+    { id: "torrents", label: t("screens.trackers.tabTorrents") },
+    { id: "trackers", label: t("screens.trackers.tabTrackers") },
+  ];
+  return (
+    <div data-part="trackers">
+      <div className={viewTabs()} data-part="trackers/tabs">
+        <div className={segment()} data-part="segment" role="tablist">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              className={segmentTab()}
+              role="tab"
+              aria-selected={state.trackersTab === tab.id}
+              data-part="trackers/tab"
+              data-trackers-tab={tab.id}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }

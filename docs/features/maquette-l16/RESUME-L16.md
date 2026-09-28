@@ -5,10 +5,10 @@
 - **Branch** `feat/maquette-l16`, worktree `/Users/izno/dev/worktrees/wave-l16`, cut from L22b's head
   `a227ad6cb` (PR #626). `origin/main` is NOT merged in — only on the steward's word that L22b is squashed.
 - **Orchestrator** « Orch : TM frontend [84baa3] ». Handshake answered 2026-09-28.
-- **Done** phase 1 (the reads' contract); 2a committed, its gate next.
-- **Next** 2b (the two dials, the tab strip, the tab memory; R260 re-aimed).
-- **Remaining phase list**, rebuilt from `ls plan/`: 2b · 3 · 4 · 5 · 6 · 7 · 8 · 9 · (midpoint full suite) ·
-  10 · 11 · 12 · 13 · 14 · 15 · 16 · 17. Phase 2 was cut 2a / 2b at its opening (≈ 18).
+- **Done** phase 1; 2a (pushed `a7c8a5eac`); 2b committed, its gate next.
+- **Next** 2c (the tab memory; the landing door made plural — Acquisition's readers green before AND after).
+- **Remaining phase list**, rebuilt from `ls plan/`: 2c · 3 · 4 · 5 · 6 · 7 · 8 · 9 · (midpoint full suite) ·
+  10 · 11 · 12 · 13 · 14 · 15 · 16 · 17. Phase 2 was cut 2a / 2b at its opening (≈ 18), 2b re-cut 2b / 2c at its own (≈ 17).
 - **Known STOP D, one message each at its phase's opening**: 4 (how the three policy fields compose),
   9 (no « vu » precedent), 12 (the ratio cause is the global `ingest.min_ratio`; the seed), 14 (no read
   of a config file's content in the maquette's contract).
@@ -51,3 +51,13 @@
   `page_host.py` SHELL_OWNED / FLOORS (trackers 2: heading, body, container), R241 `arrivals_gone.py`'s
   THE_BAR_WANTED (said out loud). Frame-domain ceiling app/ 131 → 139 (+8, the guard with and without).
   Words `tracker`, `trackers` in the vocabulary.
+- 2026-09-28 — 2a gate: 12 divergences, all on the new `trackers-page`, none on the 260 declared bar/drawer
+  keys; accepted, `p02a-accept-proof.log`. `scroll_memory.py` re-aimed (it left by the empty Trackers page).
+  Mutation 1 (`p02a-mutation1.log`): `switchPage` records instead of replacing → FAIL « the change of page
+  REPLACES the entry — history.length 3 -> 4 ». First push refused by `test_oracle` (pinned 130/37) → 131/38,
+  every state's record given a null `trackers/body`. Pushed `a7c8a5eac`.
+- 2026-09-28 — 2b opening ≈ 17 → RE-CUT 2b / 2c (steward agreed): the dials travel on the entry
+  (`navigation-entry.ts` ENTRY_DIALS, `layers.ts` restore, `arrival.ts` opening state) and the landing door is
+  single. R260 re-aimed out loud (holds 5, 6), RED `p02b-red.log` (4 FAIL: no strip, no dial, no filter).
+  Attribute `data-trackers-tab` (two vocabulary words). Frame-domain lib/ 29 → 31, app/ 139 → 146, by the guard
+  with and without.

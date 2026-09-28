@@ -22,6 +22,9 @@ const INITIAL_STATE = {
   libLens: "cat",
   libCat: "all",
   libMode: "grid",
+  /* « Trackers »: its open tab, and the tracker « Torrents » is filtered to. */
+  trackersTab: "trackers",
+  trackersFilter: "",
   scen: "real",
   /* The pipeline's state, as the pilot's bar shows it — idle, running, or a run
      asked for while one is running, which DOIT-4 requires be QUEUED visibly
