@@ -1,24 +1,27 @@
 # L16 — RESUME
 
-## STATE BLOCK (rewritten at every boundary — 2026-09-29, boundary after phase 5b)
+## STATE BLOCK (rewritten at every boundary — 2026-09-29, boundary after phase 6a)
 
 - **Branch** `feat/maquette-l16`, worktree `/Users/izno/dev/worktrees/wave-l16`, on `origin/main` by MERGE
-  (`d5c255c57` merged the squash of L22b, `232a908ca`). `origin/main` is merged in at a phase boundary with
-  `git merge --no-edit`; NO force push, ever (the classifier refused one, 2026-09-28). The docs PR #627
-  touches DESIGN.md, plan/INDEX.md, phase-05 and phase-11: merge it when the steward says, keeping both texts.
+  (last: `0e523349f`, #627, merged at the 6a boundary — its only conflict the oracle reference, where main moved
+  the header alone). `git merge --no-edit` at a phase boundary; NO force push, ever.
 - **Orchestrator** « Orch : TM frontend [79475d] »; always write the reference. The gauge script runs here:
   `context-gauge.sh`, its `context_percent=` and `source=` lines in every report. Exit boundary ~55 %.
-- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b — each gated, mutated, pushed. **Next: phase 6** « Retirer de
-  qBittorrent » (R263, R-L16-c) — re-measure it at its opening (the brief's re-measure said ≈ 16: cut likely).
-- **Remaining** (from `ls plan/`): 6 · 7 · 8 · 9 · MIDPOINT FULL SUITE · 10 · 11 · 12 · 13 · 14 · 15 · 16 · 17.
+- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 6a — each gated, mutated, pushed. **Next: 6b** — the « Supprimer
+  les fichiers » checkbox, a new dialog block in `ui/dialog` (checked by default, sent as `deleteFiles`); the
+  tracker named whatever the box reads (M4); state `torrent-remove-confirm` (American Dad!, its obligation
+  satisfied by `setObligationSatisfied`); mutation 2. **PENDING the steward's word**: #627 wrote into phase 5
+  an inheritance of L22 RULINGS 25 (Zinzins's « En vol » card leaves, a hold « Zinzins downloading is readable
+  in Torrents », R229 `follow_offered.py` re-aimed) — proposed as a cut 5c.
+- **Remaining** (from `ls plan/`): 5c? · 6b · 7 · 8 · 9 · MIDPOINT FULL SUITE · 10 · 11 · 12 · 13 · 14 · 15 · 16 · 17.
   Known STOP D: 9 (no « vu » precedent), 12 (ratio cause = global `ingest.min_ratio`; the seed),
   14 (no read of a config file's content in the maquette's contract).
 - **Rulings** (`RULINGS.md`): 1 — the tab's parameter is `?list=`; 2 — C2, the policy rows raise the settings
   page's own `setting` panel, its save bar drawn on Trackers through `lib/save-bar-door.tsx`; 3 — B, the filter
   line « Filtré sur <tracker> · Tout voir », lifted by the `trackers-filter` verb given no tracker.
 - **Rules** R260 `trackers_page.py` (h) · R261 `trackers_roster.py` (a; holds 1–16, the Torrents tab since 5a,
-  its filter and empties since 5b) · R262 `trackers_policy.py` (b); R122 `paths_to_sheets.py` reads
-  `torrents/row`; `page_host.py`'s walk reaches `trackers`. Still to bind: c R263 (6) · d R264 (8) · g R265
+  its filter and empties since 5b) · R262 `trackers_policy.py` (b) · R263 `trackers_removal.py` (c, the single-entry case); R122 `paths_to_sheets.py` reads
+  `torrents/row`; `page_host.py`'s walk reaches `trackers`. Still to bind: d R264 (8) · g R265
   (12) · f R266 (14) · e R267 (16); cuts take R268+. Register rows B-570–B-589, none taken.
 - **Gate (orders 49, 58, 59, 65, 70)**: static list first (CI `no-french` job + cheap guards, typecheck) →
   `run.sh --oracle` ALONE (class browser) → acceptance `bash -c 'run.sh --oracle; oracle.py --accept'` in ONE
@@ -28,10 +31,13 @@
   NO `--contracts` at a phase gate: it runs at 9 (midpoint full suite), 14 and the close. entry R62 and pwa
   (R52, R105, R108, R111) are out of phase gates. Single-rule mutations run `--class rule`. Order 48 light:
   series in `--rules`; a known-unstable rule the phase does not read: 5 draws, stop at 0/5.
-  `test_oracle.py`'s pinned count moves with every new state (140 states, 38 regions).
+  `test_oracle.py`'s pinned count moves with every new state (141 states, 38 regions).
   `check-maquette-comments.py --record` INSIDE the commit when a maquette file is added.
 - **Order 52**: harness lines added ≤ 0.6 × `design/src` lines added (`git diff --numstat origin/main...HEAD`);
   at 5b: 737 / 1452 = 0.51. A new check on a surface with a rule is a HOLD in that rule's file.
+- **B-554 in practice**: a new dialog moves `shell/dialog` on every state measured after it (24 at 6a); declared
+  by script from the oracle-only reading, all with the same box pair. The light a11y ceiling (88) refuses
+  `.warnbox > b` (the warning block) — say a warning in a paragraph's strong run.
 - **Traps**: `git fetch` is blocked by a hook on the word — `git remote update origin`. The driver's reset
   (`harness/drive.ts`) clears the dials a state can move; a new dial that changes a drawing joins it.
 - **Mock state**: `mocks/trackers-state.ts` holds trackers / downloads / obligations and their dials
@@ -142,3 +148,14 @@
   holds, 0 failed. Mutations: the filter not applied → FAIL « filtered to c411: its rows alone »
   (`p05b-mutation1.log`); « Tout voir » pushing → FAIL « « Tout voir » drops the tracker from the address and
   pushes nothing — history.length 7 -> 8 » (`p05b-mutation2.log`).
+- 2026-09-29 — phase 6 opening ≈ 21 (the dialog has no checkbox block) → CUT 6a / 6b, announced. R263
+  `trackers_removal.py` RED (`p06a-red.log`, 7 FAIL). `removeDownload` declared (DELETE with a body, the
+  `deleteLibraryItems` precedent), types regenerated, demands register recomputed (72 required, 23 missing); the
+  mock keeps a `removals` log read through `trackerRemovals()`. Word `hash`.
+- 2026-09-29 — 6a gate: oracle alone 42 divergences — the new state, the three row states grown by the
+  gesture, and 24 states on `shell/dialog` alone, one identical box pair (B-554, L22 RULINGS 7) — declared by
+  script, 30 keys proved. a11y light 89 > 88: `.warnbox > b` fails contrast (lib-delete's known debt) → the
+  obligation said in a paragraph (`ec30b59a6`), light 88, dark 0; 25 `shell/dialog` keys re-accepted, proved.
+  Rules R263 10 · R261 56 · R122 13 · R260 27 · R262 14 · page_host 42, 0 failed. Mutation: the confirmation
+  without the call → FAIL « confirmed, the removal of THAT entry is answered, its files deleted — answered [] »
+  (`p06a-mutation1.log`). Merged `origin/main` `0e523349f` (#627) at the boundary.
