@@ -1,22 +1,41 @@
 # L16 — RESUME
 
-## STATE BLOCK (rewritten at every boundary)
+## STATE BLOCK (rewritten at every boundary — 2026-09-28, stand-down after phase 4)
 
-- **Branch** `feat/maquette-l16`, worktree `/Users/izno/dev/worktrees/wave-l16`, cut from L22b's head
-  `a227ad6cb` (PR #626). `origin/main` is NOT merged in — only on the steward's word that L22b is squashed.
-- **Orchestrator** « Orch : TM frontend [84baa3] ». Handshake answered 2026-09-28.
-- **Done** phases 1, 2 (2a · 2b · 2c), 3 (pushed `6d15c19c8`); 4 committed, its gate next.
-- **Next** phase 5 (the « Torrents » tab; R261 re-aimed).
-- **Remaining phase list**, rebuilt from `ls plan/`: 5 · 4 · 5 · 6 · 7 · 8 · 9 · (midpoint full suite) ·
-  10 · 11 · 12 · 13 · 14 · 15 · 16 · 17. Phase 2 was cut 2a / 2b at its opening (≈ 18), 2b re-cut 2b / 2c at its own (≈ 17).
-- **Known STOP D, one message each at its phase's opening**: 4 (how the three policy fields compose),
-  9 (no « vu » precedent), 12 (the ratio cause is the global `ingest.min_ratio`; the seed), 14 (no read
-  of a config file's content in the maquette's contract).
-- **Numbers.** Rules R260–R299, register rows B-570–B-589. Highest rule on this head at opening: R250.
-  Label → number, bound in the order the phases first need them:
+- **Branch** `feat/maquette-l16`, worktree `/Users/izno/dev/worktrees/wave-l16`, head pushed `33283269f`, on L22b's
+  `a227ad6cb` (PR #626). `origin/main` NOT merged in — only on the steward's word that L22b is squashed.
+- **Orchestrator** « Orch : TM frontend [84baa3] ». The steward reads this session's gauge on its status bar
+  (the gauge script is refused by the auto-mode classifier here; do not work around it).
+- **Done** 1 · 2a · 2b · 2c · 3 · 4 — each gated, mutated, pushed. **Next: phase 5**, cut at its opening
+  (announced to the steward, ≈ 19): **5a** the rows — `features/trackers/torrents-tab.tsx` (title as a path,
+  tracker, ratio on the size, deadline, origin colour, open/done marks), R261 `trackers_roster.py` re-aimed
+  (mutation: ratio on the tracker's volume), R122 `paths_to_sheets.py` re-aimed OUT LOUD (its NAMING reads
+  `card` and `tile` « and no third », l. 70-74: `torrents/row` becomes the third), state `torrents-list`;
+  **5b** the `trackersFilter` filter, `torrents-list-filtered`, `torrents-empty`, `torrents-empty-filtered`
+  (two new dials in `mocks/trackers-state.ts`, beside `setTrackersEmpty`).
+- **Remaining** (from `ls plan/`): 5a · 5b · 6 · 7 · 8 · 9 · MIDPOINT FULL SUITE · 10 · 11 · 12 · 13 · 14 · 15 ·
+  16 · 17. Known STOP D: 9 (no « vu » precedent), 12 (ratio cause = global `ingest.min_ratio`; the seed),
+  14 (no read of a config file's content in the maquette's contract).
+- **Rulings** (`RULINGS.md`): 1 — the tab's parameter is `?list=` (one parameter, one page); 2 — C2: the
+  policy rows raise the settings page's own `setting` panel, the settings save bar drawn on Trackers
+  through `lib/save-bar-door.tsx`. C1 carried to the operator by the steward.
+- **Rules** R260 `trackers_page.py` (h) · R261 `trackers_roster.py` (a) · R262 `trackers_policy.py` (b);
+  still to bind: c R263 (6) · d R264 (8) · g R265 (12) · f R266 (14) · e R267 (16); cuts take R268+.
+  Register rows B-570–B-589, none taken.
+- **Method that held**: rule first, RED by `run.sh --rules <rule>` under the mutex; gate =
+  `bash -c 'run.sh --contracts --oracle <rules>; oracle.py --accept'` in ONE mutex invocation, declared list
+  built by script into `~/Library/Logs/tm-l16/pNN-declared.json`, then
+  `python3 ~/Library/Logs/tm-l16/tools/accept_by_name.py <declared.json>` (keeps HEAD's state order; refuses
+  any undeclared key), every moved key LISTED with its cause (the steward asks), `test_oracle.py`'s
+  pinned count moved (now 135 states, 38 regions); `--a11y` its own run; `check-maquette-comments.py
+  --record` INSIDE the commit whenever a maquette file is added; readers of a behaviour changed are run
+  green BEFORE and AFTER with their hold counts (order 42). zsh: word-split rule lists with `${=RULES}`.
+- **Inherited fall at every gate**: `check-intent-map.py` (7 rows name `features/arrivals`) — L22b's, not ours.
+- **Mock state**: `mocks/trackers-state.ts` holds trackers / downloads / obligations keyed on `mockState()`'s
+  object; `mocks/index.ts` is at 399 non-blank lines — nothing more fits there.
+- **Logs** `~/Library/Logs/tm-l16/`; the proof tool lives in `tools/` there.
 
-  | label | rule | first written in |
-  | --- | --- | --- |
+--- | --- | --- |
   | R-L16-h | R260 | phase 2 |
   | R-L16-a | R261 | phase 3 |
   | R-L16-b | R262 | phase 4 |
@@ -98,3 +117,8 @@
   configuration sets none); `settings/format.test.ts` re-aimed out loud (160 → 161 settings). The walk
   shuts the setting's panel by the back gesture before saving, as `settings_editing.py` does — « Valider »
   keeps the panel up.
+- 2026-09-28 — phase 4 closed: 14 keys moved, HEIGHT only (`p04-moved-keys.log`); mutations « door unfilled »
+  (R262 FAIL « Valider makes the save bar appear … 'bar': False ») and « stale catalogue copy » (FAIL « the
+  entry, read again, shows the value the layer now answers »); settings readers 68 · 15 · 23 · 42 before and
+  after. Pushed `33283269f`. Phase 5 re-measured ≈ 19, cut 5a / 5b (announced); not opened — stand-down
+  on the steward's word at gauge 49 %.
