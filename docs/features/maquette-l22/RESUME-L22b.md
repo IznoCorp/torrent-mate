@@ -12,10 +12,8 @@ L22b appends from 13).
 - Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b`.
 - DONE: 15a–19-bis-b, merges of #619/#621/main(#617/#618/#622/#623/#624), the triage's docs commit, 20–30, the MIDPOINT
   (1 real fall, R207, repaired; audit2 ×10: 0/10), 31 (F5, condition 3 of RULINGS 25), 32 (F6), 33 (F42), 34 (M1, RULINGS 26), 35 (Q1's real half, RULINGS 27), 36 (Q2, RULINGS 28), 37 (« Demandée » + the one-off's « Suivre », R158 hold 5 given back), 38 (the sentences + F54,
-  R239; cut at its opening). NEXT: **39** F7 (both Système cross-references land on « À traiter » by a dial the control
-  carries — `app/frame-verbs.ts` `go` → `resetLandingDial(page)` today writes the remembered tab; the frame names no tab,
-  the dial's word into code-vocabulary.txt; hold « tab=todo in the landed address », a bare `data-go="acq"` keeps the
-  remembered tab, mutation « the dial removed → falls ») → 40 readers (F41, F53) → 41 → 42 (the dead
+  R239; cut at its opening), 39 (F7: `data-dial`, and the landing home repaired — page-switch `rewind(1 + stacked)`,
+  `countTheEntry`). NEXT: **40** readers (F41, F53) → 41 → 42 (the dead
   `acq-follows-pause-empty` still in the a11y ledgers) → 43 death of Arrivées (F8) → 44 (+ engine-data.ts's removal, the
   steward's placement) → 45 close (F8, F52, F67, C9; product-intent-map.md:49).
   Files renumbered twice by `git mv`; 29/30 live in phase-28's file, 33 in phase-32's, 39 in phase-38's (40–45 in the
@@ -289,3 +287,32 @@ L22b appends from 13).
   Mutations: run-screen's `data-go` back to `arr` → R239 FAIL « run-detail: its cross-reference 1 lands on Acquisition,
   and leaves Système — {'page': 'arr', 'path': '/arrivals'} » (`38-mutation-run.log`); the F54 note back → FAIL
   « screen-profile: no sentence promises « cherché, rien trouvé » » (`38-mutation-note.log`).
+- 2026-09-28 phase 39 (F7), re-measured ≈ 8. R239 extended, red `39-red.log` (the landing opened « Suivis », no tab in
+  the address). Commit 24465a071: a control names the dial it lands on (`data-dial`; « dial » already in the
+  vocabulary), `go` passes it unread through the landing door, `landingTab(asked)` opens it without remembering it; both
+  Système cross-references name « todo »; DESIGN § 3.7 amended. Gate 2 (`39-gate2.log`) fell on run-detail, and the
+  finger walks (`39-walk.log`, `39-before-fix.log`) showed a DEFECT OF MY PHASE 38, invisible to R239 there because it
+  read the named state `run-detail`, which lays Système with no entry a finger pushes: walked by finger, the run
+  screen's cross-reference stepped back onto Système, and from Système the landing lost its tab. Causes and repair
+  (steward approved each step, fix a separate commit 1f6272b8a): `switchPage` stepped home by an UNANNOUNCED `back()`,
+  so the floor re-read its own address over the landed tab → `rewind(1 + stackedSurfaces())` + `replacePath`, the
+  gesture `switchPageFromLayer` makes (the count justified in place: a rubric counts 0 at the replay); the run screen
+  pushed an entry nothing knew of, and `giveTheEntryBackFirst` could not serve it (its replayed tap lands on a control
+  the pop unmounted) → `countTheEntry(isOpen)`, new in `lib/stacked-surface.ts`, no capture listener. The branch
+  changed REVERSES « home re-reads the floor's address »; its readers: the bottom bar, the drawer, Back from a page, a
+  reload (the floor now carries the page's own address). R239 holds, all on finger walks with taps bounded at 5 s:
+  Système and a run → « À traiter » with `tab=todo`, the landing standing ON THE FLOOR (`__TSR_index`, § 16 rule 2);
+  the bar → home on a floor at « En cours » with « À traiter » remembered, back on « En cours » — GREEN BEFORE AND
+  AFTER by design (the bar's behaviour must not change; the steward's « red first » for it was withdrawn: what tells the
+  two readings apart is the back() mutation); a run's address loaded cold → the landing inside the application. The
+  steward's condition (a), the bar tapped over a run's screen, was WITHDRAWN on a measure: the tap at 5 s falls, the
+  screen covers the bar — no finger makes that walk (page-switch.ts's own comment on layers). entry.py was dropped from
+  the named rules (steward accepted): it reads the DEPLOYED host tm-design, not this copy, and I had added it by hand
+  (Page.goto timeouts at 30 s in `39-gate2.log`, `39-walk.log`). Gate 5 `39-gate5.log` on a7d9c3dec: 71 rules (60
+  named) + 26 guards 0 failed, no divergence; `39-floor.log` on 1f6272b8a (the floor hold added, no code moved) 0
+  failed, no divergence; `39-a11y.log` 0 + light 88/88. Mutations, each FAIL by name: `back()` put back → « system,
+  walked: … drawn follows » and « run-detail, walked: … page sys » (`39-mutation-back.log`); the screen undeclared and
+  `rewind(1)` → « run-detail, walked: the landing stands on the floor … floor 1, landed on 2 »
+  (`39-mutation-undeclared.log`, `39-mutation-count.log`) — both passed GREEN before the floor hold existed: the landing
+  looked right while leaving an entry underneath. One heavy run went unannounced (`39-diagnose.log`); every run is
+  announced from now on, a diagnostic included.
