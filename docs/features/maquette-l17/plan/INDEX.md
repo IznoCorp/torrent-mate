@@ -3,15 +3,12 @@
 Design: `docs/features/maquette-l17/DESIGN.md`. Contract: `docs/reference/frontend-architecture.md` § 4, entry
 `#### L17 — §19, cross-seed` (its « Where it lives » and « Done when » lines).
 
-**Written 2026-09-27 on `origin/main` at `46806a88d`, before the lot opens; RE-CUT 2026-09-27 on `1d1282567`** against
-the operator's rulings of round 8 (L17 OPEN 1–8, Q18), round 9 (Q5, Q7 in part, Q8, Q9, Q10, Q11) and round 10 (Q3,
-Q5), and the auditor's rulings-coherence round (M4, M5, M6) — `docs/reference/operator-method.md`,
-`review-archive/rulings-coherence-2026-09-27.md`. **Every OPEN question the first cut carried is now ruled: no phase
-below reads a live STOP C.** Every phase file carries an **opening measure** taken on THIS tree, by the commands a
-STOP D would run. **Two things this plan cannot measure today, and says so in every phase they touch**: L22 and L16
-land before this lot opens, so `frontend/maquette/design/src/features/trackers/`, `mocks/handlers/trackers.ts` and
-`harness/states/trackers.ts` do not exist on this head — the figures about them are taken from L16's OWN plan
-(`docs/features/maquette-l16/plan/`, already re-drawn on `5e5ecd052`), named beside each. **The lot's implementer
+**Written before the lot opens, on `1d1282567`**, under the operator's and the auditor's rulings of 2026-09-27
+(`docs/reference/operator-method.md`); the plan's history, its first cut included, is
+`docs/features/maquette-l17/plan/INDEX.md@0e523349f`. **Every OPEN question is ruled: no phase below reads a live
+STOP C.** Every phase file carries an **opening measure** taken on THAT tree, by the commands a STOP D would run. L22 and L16 land before this lot opens, so
+`frontend/maquette/design/src/features/trackers/`, `mocks/handlers/trackers.ts` and `harness/states/trackers.ts` do
+not exist on that head — their figures are taken from L16's own plan, named beside each. **The lot's implementer
 re-takes each phase's figures at the moment that phase opens** and reports a difference before moving anything.
 
 **Where L17 opens in the order: after L16.** The order is L13 · L22 · L16 · L17 · L18. L17 extends the two tabs L16
@@ -84,7 +81,7 @@ register says so; a phase that writes a row and does not mark it is refused by `
 ## Points, and the mean (measures 11 and 19)
 
 **A phase carries at most 15 points at its opening** (measure 11: the context budget; measure 19: the cadre). The
-scale is unchanged from the first cut and from L22's and L16's own:
+scale is L22's and L16's own:
 
 | Thing | Points |
 | --- | ---: |
@@ -103,10 +100,8 @@ A new file's length is estimated from the nearest measured analogue, named in th
 replaces the estimate with the file as it stands. Halves are rounded up.
 
 **The pre-cut clause.** A phase whose re-measure at its opening exceeds 15 is CUT at that opening, never begun; the
-plan's numbers after it shift by one and the steward is told. **Applied once already, at the re-cut itself**: phase
-6 (the torrent's cross-seed mark) lands at the ceiling and its own virtual window — needed because the mark now
-grows with the library once every eligible pair carries a row (OPEN 5 and round 10 Q5) — is cut into its own phase
-(16, order 38), never begun inside phase 6.
+plan's numbers after it shift by one and the steward is told. Phase 6's virtual window is already cut into its own
+phase (16) on that clause.
 
 | # | Phase | What it lands | Rules | Reads | Points |
 | ---: | --- | --- | --- | --- | ---: |
@@ -129,14 +124,8 @@ grows with the library once every eligible pair carries a row (OPEN 5 and round 
 | 17 | [The records](phase-17-the-records.md) | oracle, accessibility, regions, hold counts | — | — | 8 |
 | 18 | [The close](phase-18-the-close.md) | the register, the map's proposal, the demands' counters, the README's row extended, the report | — | 14 | 8 |
 
-**Opening measures (2026-09-27, on `1d1282567`), each phase file's own head**: 13, 13, 11, 15, 11, 15, 10, 13, 13,
-13, 11, 9, 10, 8, 10, 9, 8, 8 — **sum 201 over 18 phases, mean ≈ 11.2, max 15** (phases 4 and 6), none above measure
-19's 15-point ceiling. **Against the first cut** (208 over 19 phases): phases 10 and 11 (the media block and its
-gate, −22) and phases 16–17 (the feed, −24) of the first cut are GONE; three phases are NEW — cutting one tracker's
-cross-seed (+13), the exclusion memory (+11), the virtual window (+9); the six-word phase (+1 over the four-word
-one) and the switch's phase (+3 for its confirmation) grew; the badge's phase shrank (−1, the failure count needs no
-client-side kind filter any more, DESIGN § 2.2). **That is the full lot — every reading is now ruled, and nothing
-below is conditional.**
+**Opening measures**, each phase file's own head: 13, 13, 11, 15, 11, 15, 10, 13, 13, 13, 11, 9, 10, 8, 10, 9, 8,
+8 — **sum 201 over 18 phases, mean ≈ 11.2, max 15** (phases 4 and 6), none above the 15-point ceiling.
 
 ---
 
