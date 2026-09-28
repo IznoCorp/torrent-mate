@@ -8,18 +8,17 @@ L22b appends from 13).
 - Branch `feat/maquette-l22b`, worktree `/Users/izno/dev/worktrees/wave-l22b`. #619 (L22a) merged in at 7ca978d5e;
   origin/main 665788a90 (#624) is an ancestor (8a9500c43) — nothing to merge until main moves again. Steward `Orch : TM
   frontend [84baa3]` since the reboot of 2026-09-28 05:00.
-- DONE: 15a–48 (the ledger says each), pushed. OPEN since 47b: `check-intent-map.py` is RED on the branch — IN WAIT
-  FOR THE OPERATOR'S WORD: `docs/reference/product-intent-map.md` names `features/arrivals` / `harness/arrivals.py`
-  (DOIT-1..5, NE-DOIT-PAS-2, NE-DOIT-PAS-3); the steward put (b) — edit the surface/proof columns only, successor by
-  successor — to the operator through the auditor. DO NOT touch the map before the word; on it, make the edit, re-run
-  the guard, commit, push (local 22c571079 goes with it). NEXT: the
-  close (file phase-44; F8, F52, F67, C9; B-514 and B-560 `fixing` → `fixed #<PR>`). REBUILD the list from `ls plan/`
-  + INDEX's dated lines. Declared oracle list BY SCRIPT before every gate (every state whose `applyState` draws the
-  touched page/world, layers included, RULINGS 23). `mutate.sh` ALWAYS under `heavy.sh --class browser`; a new
-  maquette file ⇒ `check-maquette-comments.py --record` in its commit. At every gate AND the close, also the CI
-  `no-french` job's static list read by output (steward): check-no-french, check-css-tokens, check-compositor-css,
-  check-tailwind-confinement, check-markup-contracts, check-frontend-boundaries, `oracle.py --contracts` — one
-  already failing = STOP with its exit and first line.
+- DONE: 15a–48 and the close's work (register, README, rulings proved, bump 0.98.102 — #625 also carries 0.98.102:
+  if it merges first, merge origin/main and go to 0.98.103, the steward says when). THE OPERATOR RULED (b) on the
+  clause map (relayed by the steward, 2026-09-28): the edit of `docs/reference/product-intent-map.md` (surface/proof
+  columns of DOIT-1..5, NE-DOIT-PAS-2, -3; the prepared replacements are listed in the ledger's close line) was
+  REFUSED by the auto-mode classifier (« Modify Shared Resources ») — it waits for the user's own permission; nothing
+  was worked around. On it: apply, read `check-intent-map.py` and `check-docs-cited-paths.py` by output, commit with
+  « the operator ruled (b), 2026-09-28 », push. THEN: the pre-PR gate's rest (`--a11y`, `--compare` with `failed`
+  first, `make lint`), the pull request READY (title in the brief; B-037/B-038/B-514/B-560 → `fixed #<PR>` in a
+  commit after it opens), its number to the steward. The folder's deletion and its re-citations are NOT this branch's
+  (the steward's docs pull request after the squash; INDEX dated line). Oracle list BY SCRIPT; `mutate.sh` under
+  `heavy.sh --class browser`; the CI `no-french` job's static list read at every gate.
 - AUDIT2 SERIES (order 48): DONE 10 + 10, 0 violations each (verdict in the ledger); outputs in `44-audit2/`.
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (21) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (22) R233 ·
@@ -526,3 +525,19 @@ L22b appends from 13).
   fall of `44-final.log` (and of `20-green.log`) is not reproduced in 20 draws on either side: not charged to the code,
   not set aside as load either — it stays a single unexplained reading, named here. main-8 was delayed ~10 min by the
   auto-mode classifier's outage (no verdict on any Bash call), nothing ran meanwhile.
+- 2026-09-28 THE CLOSE (file phase-44), re-measured ≈ 12–13. Steward: the folder's deletion and re-citations go to his
+  docs pull request after the squash (INDEX dated line). 2e861500a: register (B-037/B-038 closed with arrivals.py;
+  B-514, B-560 carry their mutations; B-515 re-read on acq-todo-error, open; B-531 annotated), README (the card's
+  readers, the « Mis de côté » paragraph, the cut table, R66's row out). The eleven rulings proved by command
+  (`close-rulings-proof.log`; data-pipe= 0 files, a reassign verb or mark 0). The debt for the steward: the media
+  sheet's trace of a film (« acquis le …, release, demandeur », DESIGN § 3.5). origin/main 665788a90 already an
+  ancestor; bump 0.98.101 → 0.98.102 f2fd28a41. FULL SUITE (`close-suite.log`, 175 rules, 3 at a time) fell ×3:
+  check-intent-map (admitted), entry.py (Page.goto 30 s on the DEPLOYED tm-design host, not this copy — green replayed
+  alone, `close-machine.log`), and R67 machine.py « the list of blocked media is reachable — 0 » — A REGRESSION OF MY
+  47b: `window.__blocked` read the staging answer off the cache, which on Système only the dead Arrivées badge kept
+  observed; 47b's gate did not name machine.py. 5fe7fa064 RE-AIMED OUT LOUD: R67 asks /api/staging/media itself, the
+  probe with no reader removed; green replayed (`close-machine.log`, no divergence); mutation `close-mutation-r67.log`:
+  the staging layer reports nothing stuck → R67 FAIL « the list of blocked media is reachable — 0 » (and the leak hold).
+  The clause map on the operator's (b): replacements prepared (DOIT-1 `features/acquisition` + R63 alone, R66 died with
+  its page; DOIT-2 R209, R208; DOIT-3 `features/system` + `features/maintenance`, R178/R179, R240, R185; DOIT-4 R179;
+  DOIT-5 « À traiter » → Résoudre; NE-DOIT-PAS-2 R224, R209; NE-DOIT-PAS-3 R179) — the write REFUSED by the classifier.
