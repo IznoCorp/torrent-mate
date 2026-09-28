@@ -43,9 +43,11 @@ LIST_POSTER = 84  # two thirds of the card's floor, so a card at that floor is 2
 # RE-AIMED OUT LOUD: `acq-now-idle` left this list — the real world has
 # nothing in flight, so « En cours » draws no card there; « À traiter »'s cards
 # are read instead. RE-AIMED OUT LOUD again: `arr-idle` and `arr-loaded` left
-# it with the Arrivées page — their cards are « À traiter »'s, read above.
+# it with the Arrivées page — their cards are « À traiter »'s, in the real world
+# and in the dense one.
 CARD_STATES = [
     "acq-todo-loaded",
+    "acq-todo-dense",
     # RE-AIMED OUT LOUD: the folded « Mis de côté », opened, whose cards carry
     # two feet (« Résoudre → », « Supprimer ») that their panel must offer too.
     # The loaded tab draws the fold closed, so its cards were read by no state.
