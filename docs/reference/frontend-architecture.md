@@ -1159,7 +1159,7 @@ re-recorded while a rule is failing** — the gesture reads `failed` first; if n
 repaired first, or the reason is written into the baseline's record and the register entry that
 owns it.
 
-**The post-merge gesture, five steps, all at the same moment, none optional:**
+**The post-merge gesture, four steps, all at the same moment, none optional:**
 
 1. **Re-record the oracle's reference against the squash** — two commands, the first not optional:
    ```
@@ -1173,9 +1173,10 @@ owns it.
    file that became a durable reference (a model, a survey, a rule) moves to `docs/reference/`
    under its own name instead of staying in the folder as an exception.
 4. **Re-record the hold-count baseline's `taken_at_commit`** against the same squash.
-5. **Recount « guards green over what they do not read »** in `BUGS.md` § Guards green over what
-   they do not read, adding the wave's own figure — zero is a real answer, written down with the
-   same authority as a nonzero one.
+
+(2026-09-29: the fifth step, the per-wave recount of « guards green over what they do not read »,
+is removed with the table it fed — last kept at `BUGS.md@0e523349f`; the escape count lives in
+each register row's « escaped from / why / family repaired by » field, order 57.)
 
 **The maquette first.** Nothing about a surface is decided anywhere else. A surface is drawn
 before it is coded, with named states and a rule that bites.
