@@ -17,28 +17,8 @@
 // `check-live-relay.py --arm map-completeness` is what refuses one.
 import type { LiveExemptions, LiveRule } from "../../lib/live-rule";
 
-/** The address of the pipeline's own status. */
-const PIPELINE_KEY = ["/api/pipeline/status"];
-
-/** What a server event refreshes on Arrivées. */
-export const arrivalsLiveRules: readonly LiveRule[] = [
-  {
-    types: [
-      "PipelineStarted",
-      "PipelineEnded",
-      "PipelinePaused",
-      "PipelineResumed",
-      "StepStarted",
-      "StepCompleted",
-      "StepErrored",
-    ],
-    keys: [PIPELINE_KEY],
-    because:
-      "the run's lifecycle and every step boundary are what the status IS — a "
-      + "step that started and a screen that still says the previous one is the "
-      + "§8 defect this lot exists to end",
-  },
-];
+/** What a server event refreshes on Arrivées: nothing the page reads alone. */
+export const arrivalsLiveRules: readonly LiveRule[] = [];
 
 /**
  * The events that reach Arrivées and deliberately refresh nothing.
@@ -49,7 +29,7 @@ export const arrivalsLiveRules: readonly LiveRule[] = [
 export const arrivalsLiveExemptions: LiveExemptions = {
   types: ["DiskFullWarning", "WatcherRunTriggered", "LibraryScanCompleted"],
   keys: [],
-  /* the pipeline's status is refreshed by the rule above; staging and the decisions by Acquisition's table */
+  /* the pipeline's status is refreshed by Système's table; staging and the decisions by Acquisition's table */
   because:
     "none of the three changes what this feature reads. A disk warning and a "
     + "watcher trigger belong to the system feature, and a library scan to the "

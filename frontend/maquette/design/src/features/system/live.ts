@@ -22,9 +22,29 @@ const ERRORS_KEY = ["/api/system/errors"];
 const HISTORY_KEY = ["/api/pipeline/history"];
 /** What holds the pipeline, and what a crash left behind. */
 const LOCKS_KEY = ["/api/maintenance/locks"];
+/** The pipeline's own state, which the levers draw. */
+const PIPELINE_KEY = ["/api/pipeline/status"];
 
 /** What a server event refreshes on the system page. */
 export const systemLiveRules: readonly LiveRule[] = [
+  {
+    types: [
+      "PipelineStarted",
+      "PipelineEnded",
+      "PipelinePaused",
+      "PipelineResumed",
+      "StepStarted",
+      "StepCompleted",
+      "StepErrored",
+    ],
+    keys: [PIPELINE_KEY],
+    because:
+      "the run's lifecycle and every step boundary are what the status IS, and "
+      + "the levers draw it: a pause offered over a run that has ended, or a "
+      + "resume offered over one already going, is a lever offering the wrong "
+      + "act. The rule sat in the arrivals page's table, and the levers moved "
+      + "only because that page carried it for them",
+  },
   {
     types: ["DiskFullWarning", "ItemDispatched"],
     keys: [DISKS_KEY],
@@ -92,10 +112,6 @@ export const systemLiveExemptions: LiveExemptions = {
     "BackfillSkipped",
     "VerifyItemDone",
     "ItemProgressed",
-    "PipelinePaused",
-    "PipelineResumed",
-    "StepStarted",
-    "StepCompleted",
     "ProviderFallbackTriggered",
     "RegistryFanOutCompleted",
     "RegistryBootValidated",
