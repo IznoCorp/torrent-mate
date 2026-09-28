@@ -5,6 +5,7 @@
 // `run` builds the state. The driver resets the interface before every state,
 // so an entry pins only what its state means to show.
 import { applyState, type NamedState } from "../drive";
+import { openRemoveConfirm } from "../../features/trackers/remove-verb";
 
 export function trackersStates(): NamedState[] {
   return [
@@ -87,6 +88,15 @@ export function trackersStates(): NamedState[] {
         window.__mocks?.reset();
         window.__mocks?.setObligationSatisfied("e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb");
         applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+      },
+    ],
+    [
+      "torrent-remove-confirm-obligation",
+      "Torrents — « Retirer de qBittorrent » sur un torrent qui doit une obligation",
+      () => {
+        window.__mocks?.reset();
+        applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+        openRemoveConfirm("66e23ab395c438b7db4f7c855bd451d8bb1f0046", "c411");
       },
     ],
   ];

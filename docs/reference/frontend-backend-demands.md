@@ -19,9 +19,9 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 71 |
+| operations the interface requires | 72 |
 | operations the backend has | 65 |
-| required and missing | 22 |
+| required and missing | 23 |
 | declared by both, different response shape | 49 |
 | declared by both, path parameter spelled differently | 15 |
 | declared by both, answered with a different status | 10 |
@@ -34,6 +34,7 @@ than a blank page.
 
 | operation | operationId | what it is for |
 | --- | --- | --- |
+| `DELETE /api/acquisition/downloads/{infoHash}` | `removeDownload` | Remove one entry from the download client, its files deleted or kept |
 | `DELETE /api/library/items` | `deleteLibraryItems` | Delete titles from the library |
 | `DELETE /api/staging/media/{mediaId}` | `deleteStagedMedia` | Delete a staged folder from the disk |
 | `DELETE /api/staging/media/{mediaId}/reclassify` | `restoreReclassifiedMedia` | Put a reclassified folder back in the staging area |

@@ -1,7 +1,7 @@
 // The ratio, tracker by tracker: the configured trackers as their own subject,
 // the download client's entries one per tracker they run on, and the seeding
 // obligations those entries owe.
-import { GET, route } from "./shared";
+import { DELETE, GET, field, route } from "./shared";
 import { mockState } from "../state";
 import { trackersState } from "../trackers-state";
 import type { MockRoute } from "../router";
@@ -15,6 +15,9 @@ type Schemas = components["schemas"];
 // a second copy that could disagree with what the settings page shows.
 const SETTING_PREFIX = "tracker.providers.";
 const ALERT_THRESHOLD_SUFFIX = ".economy.alert_threshold";
+
+// The milliseconds in a second: a removal is dated in Unix-epoch seconds.
+const MILLISECONDS_PER_SECOND = 1000;
 
 /**
  * The alert threshold the settings hold for one tracker.
@@ -46,5 +49,19 @@ export function trackerRoutes(): MockRoute[] {
     route("readObligations", GET, "/api/acquisition/obligations", (): Schemas["Obligations"] => ({
       items: trackersState().obligations,
     })),
+    route("removeDownload", DELETE, "/api/acquisition/downloads/{infoHash}", (request) => {
+      // THE ENTRY LEAVES THE CLIENT, and a running obligation it owed is CLOSED
+      // at that moment — released, never left reading in breach.
+      const held = trackersState();
+      const entryHash = request.parameters.infoHash;
+      held.removals.push({ infoHash: entryHash, deleteFiles: field(request.body, "deleteFiles") === true });
+      const removed = held.downloads.filter((entry) => entry.infoHash === entryHash).map((entry) => entry.infoHash);
+      held.downloads = held.downloads.filter((entry) => entry.infoHash !== entryHash);
+      const now = Math.floor(Date.now() / MILLISECONDS_PER_SECOND);
+      for (const obligation of held.obligations) {
+        if (obligation.infoHash === entryHash && obligation.releasedAt === null) obligation.releasedAt = now;
+      }
+      return { removed };
+    }),
   ];
 }

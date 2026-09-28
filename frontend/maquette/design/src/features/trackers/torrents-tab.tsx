@@ -12,7 +12,7 @@ import { useUiState } from "../../lib/store-access";
 import { chip, emptyNote, factDetail, factList, factRow, factRowBody, factValue, statusDot } from "../../ui/variants";
 import { dayOf, written } from "./format";
 import { useDownloads, useObligations, type Download, type Obligation } from "./queries";
-import { torrentFilter, torrentFilterClear, torrentTitle } from "./variants";
+import { torrentFilter, torrentFilterClear, torrentRemove, torrentTitle } from "./variants";
 
 /**
  * The obligation one entry owes on its own tracker.
@@ -85,6 +85,13 @@ function TorrentRow({ entry, obligation }: { entry: Download; obligation: Obliga
               {t("screens.torrents.obligationDone")}
             </span>
           ) : null}
+          <button
+            className={torrentRemove()}
+            data-part="torrents/remove"
+            data-torrent-remove={`${entry.infoHash}:${entry.tracker}`}
+          >
+            {t("screens.torrents.remove")}
+          </button>
         </span>
         <span className={factValue()} data-part="torrents/ratio">
           {t("screens.trackers.ratio", { ratio: written(entry.ratio, 2) })}

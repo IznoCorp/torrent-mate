@@ -258,7 +258,8 @@
       "empty": "Rien en cours sur aucun tracker.",
       "emptyBody": "Un torrent apparaît ici dès que le client le télécharge ou le partage.",
       "emptyFiltered": "Rien en cours sur ce tracker.",
-      "emptyFilteredBody": "D'autres trackers peuvent en avoir : « Tout voir » lève le filtre."
+      "emptyFilteredBody": "D'autres trackers peuvent en avoir : « Tout voir » lève le filtre.",
+      "remove": "Retirer de qBittorrent"
     },
     "releases": {
       "back": "Retour",
@@ -1407,6 +1408,18 @@
       "held": "Commande demandée — en attente du réseau, elle partira au retour.",
       "dryHeld": "Essai à blanc demandé — en attente du réseau.",
       "refused": "La commande n'a pas abouti."
+    },
+    "trackers": {
+      "remove": {
+        "heading": "Retirer de qBittorrent ?",
+        "bodyOn": " quitte qBittorrent sur ",
+        "bodyFiles": ". Ses fichiers sont supprimés du disque.",
+        "obligation": "Obligation en cours sur {{tracker}}.",
+        "obligationBody": " La retirer maintenant la clôt avant qu'elle soit remplie.",
+        "confirm": "Retirer",
+        "cancel": "Annuler",
+        "done": "« {{title}} » a quitté qBittorrent."
+      }
     }
   },
   "discover": {

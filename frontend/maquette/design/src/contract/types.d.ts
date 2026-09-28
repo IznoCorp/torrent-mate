@@ -1144,6 +1144,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/downloads/{infoHash}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove one entry from the download client, its files deleted or kept
+         * @description « Retirer de qBittorrent » (organisation ruling 18; round 10 Q3 = B): the operator's own gesture on a torrent's entry, replacing any release of an obligation. `deleteFiles` is checked by default in the confirmation. A running obligation the entry owed is CLOSED — its `releasedAt` set, never left reading in breach (round 10 M4).
+         */
+        delete: operations["removeDownload"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/trackers": {
         parameters: {
             query?: never;
@@ -4130,6 +4150,46 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    removeDownload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the entry's own hash */
+                infoHash: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description whether the entry's files leave the disk with it */
+                    deleteFiles: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description it has left the client */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description the hashes of the entries that left the client */
+                        removed: string[];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];

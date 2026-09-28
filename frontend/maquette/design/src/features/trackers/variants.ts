@@ -24,3 +24,8 @@ export const torrentFilter = cva("flex items-center justify-between gap-4 px-5 t
 export const torrentFilterClear = cva(
   "text-3 font-semibold text-primary-text bg-transparent [border:0] p-0 min-h-[44px] cursor-pointer",
 );
+
+/** A row's « Retirer de qBittorrent »: a destructive act, said in its colour, at a finger's height. */
+export const torrentRemove = cva(
+  "text-2 font-semibold text-danger-text bg-transparent [border:0] p-0 min-h-[44px] cursor-pointer text-left",
+);

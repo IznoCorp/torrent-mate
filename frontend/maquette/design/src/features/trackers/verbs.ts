@@ -6,6 +6,8 @@ import { registerVerb } from "../../lib/verbs";
 import { fillLandingDoor, redraw, replaceAddress } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
 import { tabMemory } from "../../lib/tab-memory";
+// « Retirer de qBittorrent » declares its own verb.
+import "./remove-verb";
 
 // « TRACKERS » THE FIRST TIME, THEN THE TAB OPENED LAST on this device — the
 // rule every tabbed page follows, through the memory they share.

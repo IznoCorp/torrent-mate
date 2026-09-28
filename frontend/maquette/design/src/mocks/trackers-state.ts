@@ -17,6 +17,8 @@ export type TrackersHeld = {
   trackers: Schemas["Tracker"][];
   downloads: Schemas["Download"][];
   obligations: Schemas["Obligation"][];
+  /** Every removal asked for, in order: what a rule reads the request by. */
+  removals: { infoHash: string; deleteFiles: boolean }[];
 };
 
 const held = new WeakMap<object, TrackersHeld>();
@@ -34,6 +36,7 @@ export function trackersState(): TrackersHeld {
       trackers: structuredClone(TRACKERS) as Schemas["Tracker"][],
       downloads: structuredClone(DOWNLOADS) as Schemas["Download"][],
       obligations: structuredClone(OBLIGATIONS) as Schemas["Obligation"][],
+      removals: [],
     };
     held.set(owner, subject);
   }
@@ -46,6 +49,7 @@ export type TrackerDials = {
   setDownloadsEmpty: (empty: boolean) => void;
   setTrackerIdle: (tracker: string) => void;
   setObligationSatisfied: (infoHash: string) => void;
+  trackerRemovals: () => TrackersHeld["removals"];
 };
 
 /** Those dials, over the trackers' subject. */
@@ -63,6 +67,9 @@ export const trackerDials: TrackerDials = {
     const held = trackersState();
     held.downloads = held.downloads.filter((entry) => entry.tracker !== tracker);
   },
+  // NOT A DIAL — a reading: the removals the layer was asked for, and whether
+  // each took its files with it.
+  trackerRemovals: () => structuredClone(trackersState().removals),
   setObligationSatisfied: (infoHash: string) => {
     // AN OBLIGATION MET, at its seed time, the torrent still seeding.
     for (const obligation of trackersState().obligations) {
