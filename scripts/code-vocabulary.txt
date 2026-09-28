@@ -180,6 +180,7 @@ changer
 changing
 chart
 check
+checked
 child
 chip
 choice

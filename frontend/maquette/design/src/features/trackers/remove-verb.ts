@@ -27,12 +27,13 @@ function say(key: string, values: Record<string, string> = {}): string {
 }
 
 /**
- * Removes one entry, its files with it, then says it is gone.
+ * Removes one entry, its files with it or not, then says it is gone.
  *
  * @param entry The entry.
+ * @param deleteFiles Whether its files leave the disk with it.
  */
-async function removeEntry(entry: Schemas["Download"]): Promise<void> {
-  await send("DELETE", `/api/acquisition/downloads/${encodeURIComponent(entry.infoHash)}`, { deleteFiles: true });
+async function removeEntry(entry: Schemas["Download"], deleteFiles: boolean): Promise<void> {
+  await send("DELETE", `/api/acquisition/downloads/${encodeURIComponent(entry.infoHash)}`, { deleteFiles });
   // BOTH READS ASKED AGAIN TOGETHER, so the row leaves with the answer.
   await Promise.all(REFRESHED.map((queryKey) => sharedQueryClient?.invalidateQueries({ queryKey })));
   toast?.show({ message: say("done", { title: entry.title }) });
@@ -94,11 +95,21 @@ function openConfirm(entry: Schemas["Download"], obligations: Schemas["Obligatio
       runs: [{ text: say("obligation", { tracker }), strong: true }, { text: say("obligationBody") }],
     });
   }
+  // THE FILES GO BY DEFAULT, and the box is where the operator keeps them.
+  let deleteFiles = true;
+  body.push({
+    type: "check",
+    label: say("deleteFiles"),
+    checked: deleteFiles,
+    toggle: (checked) => {
+      deleteFiles = checked;
+    },
+  });
   dialog?.open({
     heading: say("heading"),
     body,
     actions: [
-      { text: say("confirm"), tone: "danger", run: () => void removeEntry(entry) },
+      { text: say("confirm"), tone: "danger", run: () => void removeEntry(entry, deleteFiles) },
       { text: say("cancel"), tone: "ghost", dismiss: true },
     ],
   });

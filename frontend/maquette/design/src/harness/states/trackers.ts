@@ -91,6 +91,16 @@ export function trackersStates(): NamedState[] {
       },
     ],
     [
+      "torrent-remove-confirm",
+      "Torrents — « Retirer de qBittorrent » sur un torrent qui ne doit plus rien",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.setObligationSatisfied("e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb");
+        applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+        openRemoveConfirm("e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb", "c411");
+      },
+    ],
+    [
       "torrent-remove-confirm-obligation",
       "Torrents — « Retirer de qBittorrent » sur un torrent qui doit une obligation",
       () => {
