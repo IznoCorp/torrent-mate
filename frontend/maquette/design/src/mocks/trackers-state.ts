@@ -43,6 +43,9 @@ export function trackersState(): TrackersHeld {
 /** The dials a named state turns to reach a trackers' state no verb produces. */
 export type TrackerDials = {
   setTrackersEmpty: (empty: boolean) => void;
+  setDownloadsEmpty: (empty: boolean) => void;
+  setTrackerIdle: (tracker: string) => void;
+  setObligationSatisfied: (infoHash: string) => void;
 };
 
 /** Those dials, over the trackers' subject. */
@@ -50,5 +53,22 @@ export const trackerDials: TrackerDials = {
   setTrackersEmpty: (empty: boolean) => {
     // NO TRACKER CONFIGURED, which a configuration can hold: a real answer, empty.
     trackersState().trackers = empty ? [] : (structuredClone(TRACKERS) as Schemas["Tracker"][]);
+  },
+  setDownloadsEmpty: (empty: boolean) => {
+    // NOTHING ACTIVE ANYWHERE, the client reachable: a real answer, empty.
+    trackersState().downloads = empty ? [] : (structuredClone(DOWNLOADS) as Schemas["Download"][]);
+  },
+  setTrackerIdle: (tracker: string) => {
+    // ONE TRACKER WITH NOTHING ACTIVE, the others unchanged.
+    const held = trackersState();
+    held.downloads = held.downloads.filter((entry) => entry.tracker !== tracker);
+  },
+  setObligationSatisfied: (infoHash: string) => {
+    // AN OBLIGATION MET, at its seed time, the torrent still seeding.
+    for (const obligation of trackersState().obligations) {
+      if (obligation.infoHash === infoHash) {
+        obligation.satisfiedAt = obligation.addedAt + obligation.minimumSeedTimeSeconds;
+      }
+    }
   },
 };

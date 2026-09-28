@@ -252,7 +252,13 @@
       "deadline": "Échéance le {{date}}",
       "noDeadline": "Aucune échéance",
       "obligationOpen": "Obligation en cours",
-      "obligationDone": "Obligation terminée"
+      "obligationDone": "Obligation terminée",
+      "filtered": "Filtré sur {{tracker}}",
+      "showAll": "Tout voir",
+      "empty": "Rien en cours sur aucun tracker.",
+      "emptyBody": "Un torrent apparaît ici dès que le client le télécharge ou le partage.",
+      "emptyFiltered": "Rien en cours sur ce tracker.",
+      "emptyFilteredBody": "D'autres trackers peuvent en avoir : « Tout voir » lève le filtre."
     },
     "releases": {
       "back": "Retour",

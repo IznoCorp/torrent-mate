@@ -478,7 +478,9 @@ operation.
 row per qBittorrent entry active on ANY tracker** — a torrent cross-seeded onto two trackers is TWO
 rows, never folded into one (ruling 18: « je veux voir tous les torrents peu importe le tracker »).
 The `tracker` dial, when set, FILTERS the rows client-side to that tracker; it never re-fetches (the
-same list answers filtered or not).
+same list answers filtered or not). *(2026-09-28, STOP D 5b = B, steward [79475d]: when set, a line « Filtré sur <tracker> · Tout voir »
+(`torrents/filter`, `torrents/filter-clear`) says it above the rows, and « Tout voir » lifts it through the same
+`trackers-filter` verb given no tracker — RULINGS 3.)*
 
 **What a row carries (ORGANISATION RULING 18, replacing the first two readings' two lists —
 round 9 Q3).** The title, as a PATH to `/media/:provider/:id` (or to `/resolution/$folder` when the

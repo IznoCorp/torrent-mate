@@ -26,6 +26,16 @@ division a cross-seed would make by zero. So, on `torrents-list`:
 9. each row's origin mark says origin grab or cross-seed, as its entry does;
 10. an open obligation is a MARK on its own row, never on a row that owes none;
 11. a finger on a row's title lands on its medium's sheet, by provider id.
+12. `torrents-list-filtered` draws the named tracker's rows alone, and SAYS the
+    filter: « Filtré sur <tracker> », with « Tout voir »;
+13. a finger on « Tout voir », landed cold on a filtered address, draws every
+    row again, drops `tracker` from the address and pushes nothing;
+14. `torrents-empty` — nothing active anywhere — draws no row, says so, and
+    shows no filter;
+15. `torrents-empty-filtered` — nothing on the filtered tracker — says a
+    DIFFERENT sentence, and still shows the filter it can be lifted from;
+16. `torrents-obligation-done` — an obligation met, the torrent still seeding —
+    marks it « terminée » on its row, never « en cours ».
 
 Red before the move: the tab draws no entry.
 """
@@ -34,7 +44,7 @@ import datetime
 import json
 import pathlib
 
-from common import ACTED, SETTLED, Journal, open_page
+from common import ACTED, PAGE_PATHS, PROTOTYPE, SETTLED, Journal, open_page
 from playwright.async_api import async_playwright
 
 SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
@@ -65,6 +75,13 @@ ROWS = """() => [...document.querySelectorAll('#view [data-part="torrents/row"]'
     done: row.querySelector('[data-part="torrents/obligation-done"]') !== null,
   };
 })"""
+FILTER = """() => {
+  const line = document.querySelector('#view [data-part="torrents/filter"]');
+  return line === null ? null : {
+    text: line.textContent.trim(),
+    clear: line.querySelector('[data-part="torrents/filter-clear"]') !== null,
+  };
+}"""
 EMPTY = """() => document.querySelector('#view [data-part="empty-state"]')?.textContent.trim() ?? null"""
 
 
@@ -138,6 +155,72 @@ async def torrents(page, journal):
     journal.check(f"a finger on the first row's title lands on its sheet, {wanted}", where == wanted, where)
 
 
+async def filtered(page, journal):
+    """Holds 12 to 16: the tracker filter, the empty tab, the met obligation."""
+    words = TORRENT_WORDS
+    named = TRACKERS[0]["name"]
+    answer = await enter(page, "torrents-list-filtered")
+    journal.check("the named state torrents-list-filtered exists", answer is None, answer or "")
+    drawn = await page.evaluate(ROWS)
+    wanted = [entry["infoHash"] for entry in DOWNLOADS if entry["tracker"] == named]
+    journal.check(f"filtered to {named}: its rows alone",
+                  [row["hash"] for row in drawn] == wanted and all(row["tracker"] == named for row in drawn),
+                  f"{[(row['hash'][:6], row['tracker']) for row in drawn]}")
+    line = await page.evaluate(FILTER)
+    said = words.get("filtered", "<no copy>").replace("{{tracker}}", named)
+    journal.check(f"the filter is said, « {said} », with « Tout voir »",
+                  line is not None and said in line["text"] and line["clear"], repr(line))
+
+    # A FINGER on « Tout voir », from a cold filtered address: every row back,
+    # the filter gone from the address, and the entry adjusted, never pushed.
+    address = f"{PROTOTYPE.rstrip('/')}{PAGE_PATHS.get('trackers', '/trackers')}?list=torrents&tracker={named}"
+    await page.goto(address, wait_until="load")
+    await page.evaluate("()=>window.__loadingDone?.()")
+    await page.wait_for_timeout(SETTLED)
+    before = await page.evaluate("()=>history.length")
+    clear = page.locator('#view [data-part="torrents/filter-clear"]')
+    if await clear.count():
+        await clear.first.tap()
+        await page.wait_for_timeout(ACTED)
+    drawn = await page.evaluate(ROWS)
+    where = await page.evaluate("()=>({search: location.search, length: history.length})")
+    journal.check("a finger on « Tout voir » draws every row again",
+                  len(drawn) == len(DOWNLOADS) and await page.evaluate(FILTER) is None,
+                  f"{len(drawn)} row(s) of {len(DOWNLOADS)}")
+    journal.check("« Tout voir » drops the tracker from the address and pushes nothing",
+                  "tracker=" not in where["search"] and where["length"] == before,
+                  f"{where['search']!r} · history.length {before} -> {where['length']}")
+
+    answer = await enter(page, "torrents-empty")
+    journal.check("the named state torrents-empty exists", answer is None, answer or "")
+    note = await page.evaluate(EMPTY)
+    journal.check("nothing active anywhere: no row, the tab says so, no filter shown",
+                  await page.evaluate(ROWS) == [] and note is not None
+                  and words.get("empty", "<no copy>") in note and await page.evaluate(FILTER) is None,
+                  repr(note))
+
+    idle = TRACKERS[-1]["name"]
+    answer = await enter(page, "torrents-empty-filtered")
+    journal.check("the named state torrents-empty-filtered exists", answer is None, answer or "")
+    note = await page.evaluate(EMPTY)
+    line = await page.evaluate(FILTER)
+    journal.check(f"nothing on {idle}: a different sentence from the unfiltered empty",
+                  await page.evaluate(ROWS) == [] and note is not None
+                  and words.get("emptyFiltered", "<no copy>") in note
+                  and words.get("empty", "<no copy>") not in note, repr(note))
+    journal.check(f"nothing on {idle}: the filter is still said, and can be lifted",
+                  line is not None and idle in line["text"] and line["clear"], repr(line))
+
+    answer = await enter(page, "torrents-obligation-done")
+    journal.check("the named state torrents-obligation-done exists", answer is None, answer or "")
+    drawn = {row["hash"]: row for row in await page.evaluate(ROWS)}
+    met = DOWNLOADS[1]
+    row = drawn.get(met["infoHash"], {})
+    journal.check(f"{met['title']}: its met obligation is marked done, never open",
+                  row.get("done") is True and row.get("open") is False,
+                  f"open {row.get('open')} · done {row.get('done')}")
+
+
 async def main():
     journal = Journal("R261 — the « Trackers » tab: one entry per tracker, never averaged")
     async with async_playwright() as playwright:
@@ -171,6 +254,7 @@ async def main():
                           repr(volumes))
 
         await torrents(page, journal)
+        await filtered(page, journal)
 
         answer = await enter(page, "trackers-roster-empty")
         journal.check("the named state trackers-roster-empty exists", answer is None, answer or "")

@@ -19,3 +19,11 @@ The steward's rulings on this lot's STOPs, numbered, one per STOP. The operator'
    C1 (the bar on every page) changes the settings page's own behaviour outside this lot: the steward
    carries it to the operator as a proposal. The settings page is held unchanged by its readers, green
    before and after (order 42).
+3. **2026-09-28, phase 5b, STOP D — how the tracker filter is seen and lifted.** DESIGN § 4.3 filters the
+   « Torrents » rows by the `tracker` dial and draws no sign of it and no way out: the tab verb keeps the
+   dial, and the filter verb REPLACES the entry, so a back leaves the page. Readings: A (the tab lifts
+   it, the filter left invisible), B (a line « Filtré sur <tracker> · Tout voir » above the rows) and C
+   (the address alone). **Ruled B**: DESIGN § 4.3's own « a filter that reads like a bug is a defect on
+   its own »; « Tout voir » is the same `trackers-filter` verb given no tracker, an adjustment that pushes
+   nothing, proved by a finger (R261); the line serves `torrents-empty-filtered` too; the met-obligation
+   state `torrents-obligation-done` is declared in 5b.

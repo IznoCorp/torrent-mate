@@ -54,5 +54,40 @@ export function trackersStates(): NamedState[] {
         applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
       },
     ],
+    [
+      "torrents-list-filtered",
+      "Torrents — filtrés sur un tracker",
+      () => {
+        window.__mocks?.reset();
+        applyState({ page: "trackers", trackersTab: "torrents", trackersFilter: "c411", phase: "ready" });
+      },
+    ],
+    [
+      "torrents-empty",
+      "Torrents — rien en cours nulle part",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.setDownloadsEmpty(true);
+        applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+      },
+    ],
+    [
+      "torrents-empty-filtered",
+      "Torrents — rien en cours sur le tracker filtré",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.setTrackerIdle("tr4ker");
+        applyState({ page: "trackers", trackersTab: "torrents", trackersFilter: "tr4ker", phase: "ready" });
+      },
+    ],
+    [
+      "torrents-obligation-done",
+      "Torrents — une obligation terminée, le torrent toujours en seed",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.setObligationSatisfied("e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb");
+        applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+      },
+    ],
   ];
 }

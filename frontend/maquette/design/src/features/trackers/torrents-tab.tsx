@@ -7,10 +7,12 @@
 // own row, never a second list.
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
-import { chip, factDetail, factList, factRow, factRowBody, factValue, statusDot } from "../../ui/variants";
+import { Markup, emptyNoteMarkup } from "../../ui/markup";
+import { useUiState } from "../../lib/store-access";
+import { chip, emptyNote, factDetail, factList, factRow, factRowBody, factValue, statusDot } from "../../ui/variants";
 import { dayOf, written } from "./format";
 import { useDownloads, useObligations, type Download, type Obligation } from "./queries";
-import { torrentTitle } from "./variants";
+import { torrentFilter, torrentFilterClear, torrentTitle } from "./variants";
 
 /**
  * The obligation one entry owes on its own tracker.
@@ -93,23 +95,68 @@ function TorrentRow({ entry, obligation }: { entry: Download; obligation: Obliga
 }
 
 /**
+ * The line saying which tracker the list is filtered to, and lifting it.
+ *
+ * « TOUT VOIR » IS THE SAME VERB AS « Voir les torrents », given no tracker: an
+ * adjustment of the page, which replaces its address and pushes nothing.
+ *
+ * @param props.tracker The tracker the list is filtered to.
+ * @returns The line.
+ */
+function FilterLine({ tracker }: { tracker: string }): ReactElement {
+  const { t } = useTranslation();
+  return (
+    <p className={torrentFilter()} data-part="torrents/filter">
+      <span>{t("screens.torrents.filtered", { tracker })}</span>
+      <button className={torrentFilterClear()} data-part="torrents/filter-clear" data-trackers-filter="">
+        {t("screens.torrents.showAll")}
+      </button>
+    </p>
+  );
+}
+
+/**
  * The « Torrents » tab.
  *
- * @returns Every entry's row, once both reads have answered.
+ * THE FILTER IS READ HERE, on the list both reads answered: filtered or not,
+ * the page asks the server the same thing.
+ *
+ * @returns Every entry's row — the filtered tracker's alone when the dial names
+ *     one — or the sentence saying there is none.
  */
 export function TorrentsTab(): ReactElement | null {
+  const { t } = useTranslation();
+  const state = useUiState();
   const { data: downloads } = useDownloads();
   const { data: obligations } = useObligations();
   if (!downloads || !obligations) return null;
+  const tracker = typeof state.trackersFilter === "string" ? state.trackersFilter : "";
+  const entries = tracker === "" ? downloads.downloads : downloads.downloads.filter((entry) => entry.tracker === tracker);
+  const filter = tracker === "" ? null : <FilterLine tracker={tracker} />;
+  if (entries.length === 0) {
+    // TWO SENTENCES, never one: nothing anywhere is not nothing on this tracker.
+    const [title, body] = tracker === ""
+      ? [t("screens.torrents.empty"), t("screens.torrents.emptyBody")]
+      : [t("screens.torrents.emptyFiltered"), t("screens.torrents.emptyFilteredBody")];
+    return (
+      <>
+        {filter}
+        <Markup className={emptyNote()} data-part="empty-state" html={emptyNoteMarkup(title, body)} />
+      </>
+    );
+  }
   return (
-    <ol className={factList()} data-part="torrents">
-      {downloads.downloads.map((entry) => (
-        <TorrentRow
-          key={`${entry.infoHash}:${entry.tracker}`}
-          entry={entry}
-          obligation={owedBy(entry, obligations.items)}
-        />
-      ))}
-    </ol>
+    <>
+      {filter}
+      <ol className={factList()} data-part="torrents">
+        {entries.map((entry) => (
+          <TorrentRow
+            key={`${entry.infoHash}:${entry.tracker}`}
+            entry={entry}
+            obligation={owedBy(entry, obligations.items)}
+          />
+        ))}
+      </ol>
+    </>
   );
 }
