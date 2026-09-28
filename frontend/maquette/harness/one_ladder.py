@@ -145,7 +145,9 @@ SHEET = """() => [...document.querySelectorAll('#sheet[data-open] [data-part="ke
     name: row.firstElementChild.textContent,
     value: row.lastElementChild.textContent.trim(),
     tone: row.querySelector('[data-part="status-dot"]')?.dataset.tone ?? null,
-    done: !!row.querySelector('[data-part="status-dot"][data-tone="success"]'),
+    // THE TONE READ BY VALUE: the sheet emits it computed, and the one literal
+    // emitter of this value went with the Arrivées page.
+    done: row.querySelector('[data-part="status-dot"]')?.dataset.tone === 'success',
   }))"""
 
 

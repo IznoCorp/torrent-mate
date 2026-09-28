@@ -121,7 +121,7 @@ async def reads(page, journal, state, selector):
     await drive(page, state)
     text = await page.evaluate(TEXT, selector)
     journal.check(f"{state}: the surface is drawn", text.strip() != "", selector)
-    journal.check(f"{state}: no sentence names « {PAGES['arr']} »",
+    journal.check(f"{state}: no sentence names « {ARRIVALS_NAME} »",
                   not names_arrivals(text), text[:400])
     links = await page.evaluate(LINKS, selector)
     journal.check(f"{state}: no control is addressed to it", "arr" not in links, str(links))
@@ -229,7 +229,7 @@ async def maintenance_toast(page, journal):
     await page.wait_for_timeout(ACTED)
     said = (await page.evaluate(TEXT, "#toast")).strip()
     journal.check("a real maintenance run is said in its started sentence", said == STARTED, repr(said))
-    journal.check(f"which names « {SYSTEM} », where its run is listed, and not « {PAGES['arr']} »",
+    journal.check(f"which names « {SYSTEM} », where its run is listed, and not « {ARRIVALS_NAME} »",
                   SYSTEM in said and not names_arrivals(said), repr(said))
 
 

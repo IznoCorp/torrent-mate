@@ -87,7 +87,9 @@ SHEET = """() => [...document.querySelectorAll('#sheet[data-open] [data-part="ke
   .map(row => ({
     name: row.firstElementChild.textContent,
     value: row.lastElementChild.textContent.trim(),
-    done: !!row.querySelector('[data-part="status-dot"][data-tone="success"]'),
+    // THE TONE READ BY VALUE: the sheet emits it computed, and the one literal
+    // emitter of this value went with the Arrivées page.
+    done: row.querySelector('[data-part="status-dot"]')?.dataset.tone === 'success',
   }))"""
 
 

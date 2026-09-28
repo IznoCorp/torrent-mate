@@ -727,29 +727,10 @@ async def main():
         # behind a maintenance run, was its own operation's, which no surface
         # sends any more — Système's `levers-queued` (levers.py) holds the queued
         # pass.
-        # EVERY DIAL NAMED, and the world reset: this block runs after the
-        # settings taps, which leave a scenario and a mutated world behind. The
-        # crossref hold below is gated on `scen`, so the dependency is real —
-        # naming half of it is what makes a hold measure a surface nobody asked
-        # for.
+        # The world reset: this block runs after the settings taps, which
+        # leave a scenario and a mutated world behind. RE-AIMED OUT LOUD: the
+        # Arrivées page's own crossref hold died with the page.
         await page.evaluate("()=>window.__reset()")
-        # EVERY DIAL NAMED — four of five until a rubric gained an ENTRY.
-        await page.evaluate("()=>window.__store.write({page: 'arr', maintTopic:"
-                            " null, phase: 'ready',"
-                            " scen: 'loaded'})")
-        await page.evaluate("()=>window.__store.touch()")
-        await page.wait_for_timeout(320)
-
-        # The crossref leaves the page entirely, and it is the page's own
-        # `data-go` — the attribute B-024's containment argument counts. It is
-        # drawn only outside the real-data scenario, which the block named at
-        # its head.
-        refused = await tap("""#view [data-part="cross-reference"][data-go='acq']""")
-        landed = await page.evaluate("()=>window.__store.read().state.page")
-        journal.check(
-            "a real tap on the crossref lands on Acquisition",
-            not refused and landed == "acq",
-            f"page={landed}" if not refused else f"data-go='acq' {refused}")
 
         # THE LEVERS ADMIT A PAUSE ONLY WHILE SOMETHING RUNS: a maintenance
         # command, asked of the layer, holds the pipeline running.

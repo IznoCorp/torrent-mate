@@ -4,7 +4,6 @@
   "files": {
     "frontend/maquette/harness/actions.py": 2,
     "frontend/maquette/harness/address.py": 2,
-    "frontend/maquette/harness/arrivals.py": 3,
     "frontend/maquette/harness/attrs.py": 3,
     "frontend/maquette/harness/audit.py": 3,
     "frontend/maquette/harness/audit2.py": 5,
