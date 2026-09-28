@@ -332,6 +332,14 @@ async def open_frame(browser, recipe: dict):
         await context.clock.set_fixed_time(FIXED_CLOCK)
     page = await context.new_page()
     await page.goto(PROTOTYPE, wait_until="load")
+    # MEASURING MODE, FIRST AND FOR THE WHOLE READING (B-558). The harness raises
+    # a welcome hint on a timer from the boot, silent in this mode only; outside
+    # it, `neutralise`'s click raced that timer and lost under load — `pwa-ios`
+    # was recorded with the hint on screen in 3 readings of 10. The mode also
+    # takes every message host out of the frame (`harness.css`), so the oracle
+    # reads no message at all: a message a state raises on purpose is a rule's
+    # to read. Optional call: a copy that registered nothing is refused below.
+    await page.evaluate("()=>window.__measure?.(true)")
     # The startup screen covers the frame for as long as the load it stands for.
     # Nothing is fetched here, so it is closed through the seam the app uses.
     await page.evaluate("()=>window.__loadingDone?.()")
