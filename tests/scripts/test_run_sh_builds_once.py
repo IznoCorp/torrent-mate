@@ -29,6 +29,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 RUN_SCRIPT = ROOT / "frontend" / "maquette" / "harness" / "run.sh"
+HOLD_COUNTS = ROOT / "scripts" / "harness-hold-counts.py"
 
 # A stub collaborator: appends its own name and arguments to the journal, and
 # answers `--token` with a constant so the stamp around every rule never moves.
@@ -87,12 +88,22 @@ def scratch_tree(tmp_path: Path) -> Path:
     _write_executable(harness / "settings.py", STUB_PYTHON)
     _write_executable(harness / "fallen.py", STUB_PYTHON + "sys.exit(1)\n")
     _write_executable(harness / "hung.py", STUB_PYTHON + "import time\ntime.sleep(40)\n")
+    # Rules as `--rules` reads them: one that prints its hold count, one that
+    # prints a count and falls, one that exits 0 before its first hold.
+    _write_executable(harness / "counted.py", STUB_PYTHON + 'print("3 rules EXECUTED — no violation")\n')
+    _write_executable(
+        harness / "counted_fallen.py",
+        STUB_PYTHON + 'print("2 rules EXECUTED — 1 violation(s): x")\nsys.exit(1)\n',
+    )
+    _write_executable(harness / "silent.py", STUB_PYTHON)
     for rule in _array("CONTRACTS", text):
         _write_executable(harness / rule, STUB_PYTHON)
     for guard in _array("REPOSITORY_GUARDS", text):
         _write_executable(tmp_path / guard.split()[0], STUB_PYTHON)
     _write_executable(tmp_path / "frontend" / "maquette" / "oracle.py", STUB_PYTHON)
     _write_executable(tmp_path / "frontend" / "maquette" / "a11y.py", STUB_PYTHON)
+    # The parser `--rules` reads each rule's hold count with — the real one.
+    shutil.copy(HOLD_COUNTS, tmp_path / "scripts" / HOLD_COUNTS.name)
     binaries = tmp_path / "bin"
     # `npm` records the build; `lsof` answers « the host is listening » so no
     # server is started.
@@ -273,4 +284,82 @@ def test_a_bare_rule_name_is_refused_rather_than_run_as_the_full_suite(
 
     assert result.returncode == 64, result.stdout + result.stderr
     assert "only read with --contracts --oracle" in result.stderr, result.stderr
+    assert _count(journal, "npm run build") == 0, journal
+
+
+def test_the_rules_mode_runs_the_named_rules_alone_over_one_build(scratch_tree: Path) -> None:
+    """`--rules` builds once and runs the named rule, and no contract rule, guard, oracle or audit."""
+    result, journal = _run(scratch_tree, "--rules", "counted.py")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert _count(journal, "npm run build") == 1, journal
+    assert _count(journal, "counted.py") == 1, journal
+    assert _count(journal, "audit2.py") == 0, journal
+    assert _count(journal, "check-bug-register.py") == 0, journal
+    assert _count(journal, "oracle.py --check") == 0, journal
+    assert _count(journal, "a11y.py") == 0, journal
+    assert "1 named, 1 EXECUTED, 0 failed" in result.stdout, result.stdout
+    assert "rules: no violation — NOT a gate" in result.stdout, result.stdout
+
+
+def test_the_rules_mode_says_it_is_not_a_gate(scratch_tree: Path) -> None:
+    """A fast run must never be read as a phase's proof: the verdict says what did not run."""
+    result, _journal = _run(scratch_tree, "--rules", "counted.py")
+
+    assert "── named rules verdict — NOT a gate ──" in result.stdout, result.stdout
+    assert "The gate is --contracts --oracle." in result.stdout, result.stdout
+    assert "gate: no violation" not in result.stdout, result.stdout
+
+
+def test_a_rule_that_exits_before_its_first_hold_fails_the_rules_mode(
+    scratch_tree: Path,
+) -> None:
+    """Exit 0 with no hold count read is a rule that never ran — never a green one."""
+    result, journal = _run(scratch_tree, "--rules", "counted.py", "silent.py")
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert _count(journal, "silent.py") == 1, journal
+    assert "DID NOT RUN: silent.py" in result.stdout, result.stdout
+    assert "2 named, 1 EXECUTED, 0 failed" in result.stdout, result.stdout
+    assert "rules: FAILED" in result.stdout, result.stdout
+
+
+def test_a_rule_that_ran_and_fell_fails_the_rules_mode(scratch_tree: Path) -> None:
+    """A rule that held something and fell is executed AND failed."""
+    result, _journal = _run(scratch_tree, "--rules", "counted_fallen.py")
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "1 named, 1 EXECUTED, 1 failed" in result.stdout, result.stdout
+    assert "rules: FAILED" in result.stdout, result.stdout
+
+
+def test_a_rule_named_twice_runs_once_in_the_rules_mode(scratch_tree: Path) -> None:
+    """The verdict counts rules, not words: a repeated name is one rule."""
+    result, journal = _run(scratch_tree, "--rules", "counted.py", "counted.py")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert _count(journal, "counted.py") == 1, journal
+    assert "1 named, 1 EXECUTED" in result.stdout, result.stdout
+
+
+def test_an_unknown_rule_is_refused_by_the_rules_mode_before_the_build(
+    scratch_tree: Path,
+) -> None:
+    """A mistyped name is refused exactly as the gate form refuses it: before anything is built."""
+    result, journal = _run(scratch_tree, "--rules", "counted.py", "no_such_rule.py")
+
+    assert result.returncode == 2, result.stdout + result.stderr
+    assert "no rule named no_such_rule.py" in result.stderr, result.stderr
+    assert _count(journal, "npm run build") == 0, journal
+    assert _count(journal, "counted.py") == 0, journal
+
+
+def test_an_empty_rule_list_is_refused_by_the_rules_mode_before_the_build(
+    scratch_tree: Path,
+) -> None:
+    """`--rules` alone would build, run nothing and close on a verdict."""
+    result, journal = _run(scratch_tree, "--rules")
+
+    assert result.returncode == 64, result.stdout + result.stderr
+    assert "--rules names no rule" in result.stderr, result.stderr
     assert _count(journal, "npm run build") == 0, journal
