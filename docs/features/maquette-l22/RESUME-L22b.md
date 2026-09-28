@@ -8,37 +8,37 @@ L22b appends from 13).
 - Branch `feat/maquette-l22b`, worktree `/Users/izno/dev/worktrees/wave-l22b`. #619 (L22a) merged in at 7ca978d5e;
   origin/main 665788a90 (#624) is an ancestor (8a9500c43) — nothing to merge until main moves again. Steward `Orch : TM
   frontend [84baa3]` since the reboot of 2026-09-28 05:00.
-- Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b`.
-- DONE: 15a–47a (the ledger says each). NEXT: **47b** the death of Arrivées (file phase-42, ≈ 13; see the ledger's
-  47 line for its contents and the order trap); B-514 and
-  B-560 are `fixing` → `fixed #<PR>` at the pull request. From 45 on (steward, after 38/43/44 each missed states under a layer):
-  the oracle's DECLARED list is built BY SCRIPT before the gate — every state whose `applyState` draws the touched
-  page/world (`scen`, page in harness/states/*.ts), layers included (RULINGS 23). AUDIT2 SERIES (order 48, after 44's R11 fall): pilot `series2.sh` in the scratchpad, log
-  `44-audit2/series.log`; branch side in `/Users/izno/dev/worktrees/reader-l22b` (ed55084bd), main side in
-  `control-l22b` (665788a90); `touch <scratchpad>/series.pause` holds it between runs (a gate of mine starves behind
-  it otherwise). At a stand-down: kill the pilot (`ps` proof) and write here where it stopped.
-  The phases (REBUILD from `ls plan/` at every cut, never from memory): 47b the death of Arrivées (phase-42,
-  F8; R239 reads `navigation.pages.arr` in fr.json at no_sentence_to_arrivals.py:58; page_host.py's 7 « arr » lines) →
-  48 the records of a dead page (phase-43) + engine-data.ts's removal (the follows' prefetch declared by its feature,
-  drive.ts's `refillEngineData` door re-pointed; R207 named at its gate — the boot re-read may change) + the dead
-  `acq-follows-pause-empty` in the a11y ledgers → 49 the close (phase-44; F8, F52, F67, C9; product-intent-map.md:49).
-  Each re-measured at its opening; > 15 → cut.
+- DONE: 15a–47b (the ledger says each), pushed. OPEN IN 47b: `check-intent-map.py` is RED on the branch — IN WAIT FOR
+  THE OPERATOR'S WORD: `docs/reference/product-intent-map.md` names `features/arrivals` / `harness/arrivals.py` (grep
+  `arrivals` there: DOIT-1..5, NE-DOIT-PAS-2, NE-DOIT-PAS-3 at least); the steward put (b) — edit the surface/proof
+  columns only, successor by successor — to the operator through the auditor. DO NOT touch the map before the word;
+  on it, the successor makes the edit, re-runs the guard, commits, pushes. NEXT after it: **48** the records of a dead
+  page (file phase-43: regions.json's two arrivals regions, fixture-register's lines, check-component-once.py's
+  docstring, the ratchets DOWN — frame-domain app/ 147 → measured 133, hold-counts baseline, vocabulary word) +
+  engine-data.ts's removal (follows' prefetch declared by its feature, drive.ts's `refillEngineData` re-pointed; R207
+  NAMED at its gate) + the dead `acq-follows-pause-empty` in the a11y ledgers → then the close (file phase-44; F8,
+  F52, F67, C9; B-514 and B-560 `fixing` → `fixed #<PR>`). REBUILD the list from `ls plan/` + INDEX's dated lines.
+  Declared oracle list BY SCRIPT before every gate (every state whose `applyState` draws the touched page/world,
+  layers included, RULINGS 23). `mutate.sh` ALWAYS under `heavy.sh --class browser`; a new maquette file ⇒
+  `check-maquette-comments.py --record` in its commit.
+- AUDIT2 SERIES (order 48, after 44's R11 fall) STOPPED at the stand-down: branch 1–7 and main 1–6 done, 0 violations
+  each, WHOLE outputs in `44-audit2/{branch,main}-N.out`; REMAINING main-7, branch-8..10, main-8..10. Scripts copied
+  to `44-audit2/audit2run.sh` and `series2.sh` (args `main:7 branch:8 main:8 …`; its pause flag path is the old
+  session's scratchpad — edit it); branch side `/Users/izno/dev/worktrees/reader-l22b` (ed55084bd), main side
+  `control-l22b` (665788a90). Verdict to the ledger ONLY at 10 + 10.
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (21) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (22) R233 ·
-  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · (38) R239 no_sentence_to_arrivals · (46) R240 levers_stay_live · next free R241. Oracle pin 136. RULINGS: L22b wrote 13–29 and 33, L22a's round 30–32; a new one takes 34.
-- AUDITOR ORDER 48 (amended): a fall set aside as « load » needs the same rule ≥ 10× here and ≥ 10× on `main` at
-  comparable load; any gap is a regression.
+  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · (38) R239 no_sentence_to_arrivals · (46) R240 levers_stay_live · (47b) R241 arrivals_gone · next free R242. Oracle pin 130. RULINGS: L22b wrote 13–29 and 33, L22a's round 30–32; a new one takes 34.
+- AUDITOR ORDER 48: a fall set aside as « load » needs the same rule ≥ 10× here and ≥ 10× on `main`.
 - LOGS `~/Library/Logs/tm-l22b/`; mutex `sh scripts/heavy.sh --held`. GATE: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh
   --class browser l22b frontend/maquette/harness/run.sh --contracts --oracle <rule paths>` — NAME every rule a phase's
   change can reach, not only the ones it edits (url_state.py was missed at 19-bis-a); `--a11y` on every gate that draws
-  (light ledger 98, may only fall).
+  (light ledger 88, may only fall). No heavy run while the 1-min load is 6 or above (read it in its own call).
 - ORACLE ACCEPT inside one invocation (`bash -c 'run.sh …; python3 frontend/maquette/oracle.py --accept'`), then a
   script proves only the named keys moved and the committed file is HEAD's with those keys (never the accept's
   reformatting); bump `tests/scripts/test_oracle.py`'s pin when the state count moves.
 - MUTATIONS `sh scripts/mutate.sh <path> "<expr>" <rule>` on a CLEAN tree — never edit while one runs. PUSH at EVERY
   phase end: `sh scripts/heavy.sh --class test l22b git push -u origin feat/maquette-l22b`, its own command.
-- ORDER (steward [84baa3], 2026-09-28): no heavy gate while the 1-min load (`uptime`) is 6 or above; read it before
-  every heavy run.
 - Traps: `--accept` rewrites the whole reference; a closed `#dlg` / `#sheet` keeps the last box (B-554, RULINGS 7, 13,
   20); the entry page's tab rewinds the stack; read `data-follow` by value; new data-*/identifier words need
   `scripts/code-vocabulary.txt`; a live rule may only name an event the backend emits; zsh does not word-split `$var`
@@ -483,3 +483,26 @@ L22b appends from 13).
   clean committed tree and restored): a message key pointed back at the removed `verbs.arrivals.left` fells NOTHING —
   no rule reads these three messages and check-i18n-placeholders skips an unresolved key (79 → 78 calls, clean); a
   wrong key would render the raw key. No new guard (measure 1): said, for the reader round.
+- 2026-09-28 phase 47b (the death). R241 arrivals_gone.py (new) red `47b-red.log` ×7 (the table's « arr » row, five
+  modules addressing it, screens.arrivals, the bar at four, the drawer, /arrivals drawing « arr »). Commit 6645c23d8:
+  features/arrivals (7 files), routes/arrivals.tsx, harness/states/arrivals.ts, arrivals.py (R66, its holds' homes in
+  the 45a line) deleted; the row, route, live table, panel contribution, path, live-rule.ts's comment; screens.arrivals,
+  navigation.pages.arr, verbs.arrivals; the six arr-* ids out of the oracle reference (counts.states 130, pin 136 → 130)
+  and the three a11y ledgers by NAMED deletion (`47b-drop-proof.log`); page_host.py (walk, SHELL_OWNED, FLOORS, the cold
+  deep address → /system), url_state.py, selection_survives' prose, three comments re-worded; comment record 532 → 523.
+  tsc -b clean, vitest 138/138; eslint: design/ HAS NO eslint config, so the plan's « eslint » does not apply (said).
+  Gate 1 `47b-gate.log` fell ×6: page_host's Arrivées crossref hold (died with the page), R239's two messages still
+  reading PAGES['arr'], check-code-abbreviations (arrivals.py reached zero → out of the record), check-markup-contracts
+  (R207/R212 selected [data-tone="success"], whose one literal emitter was the page → read by value, phase 20's
+  precedent) → 3868f823f, all said; a REAL REGRESSION of my deletion — R43 (cards.py) on acq-todo-dense « Backrooms »
+  and « S.W.A.T. »: « inline « Résoudre → » is offered by no panel action ([['data-journey']]) »: the Arrivées badge's
+  reads had kept /api/staging/media observed, and a folder's panel derives its act from it (queueNow().stuck) → fix
+  009ac75c1: « À traiter » observes the staging read; mutation `47b-mutation-staging.log` (the observer removed) → R43
+  FAIL ×2 by name. And check-intent-map (7 rows name features/arrivals / arrivals.py) — the operator's document → OPEN
+  (STATE). Gate 2 `47b-gate2.log` 44 rules (28 named) + 26 guards: only check-intent-map failed, no divergence (declared:
+  the six arr-* deleted, nothing else moved). Mutations: the sys row put in the bar → R241 FAIL « … exactly the table's
+  three — ['acq', 'lib', 'discover', 'sys'] » (`47b-mutation-bar.log`); navigation.pages.arr put back → R241 FAIL « the
+  resources carry none of its screen's sentences » (`47b-mutation-name.log`); the redirect mutation of the plan was not
+  run (the address hold reads `location.pathname` stays « /arrivals »). `47b-a11y.log` 0 + light 88/88 (130 states).
+- 2026-09-28 stood down after 47b (the steward's order at ~55 %; measured 50 %): the audit2 pilot killed (`ps`: 0
+  series/audit2run processes), branch 1–7 / main 1–6 all 0 violations; next: the map on the operator's word, then 48.
