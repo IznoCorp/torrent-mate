@@ -66,6 +66,11 @@ folder of the dense staging list out (its one other pending decision offers no
 candidate), and a resolve takes it out at once, which is what the put-back
 needs under it. B-396 asked for a list that has MOVED, not for a finger on this
 act; t4 keeps the finger on the undo. What t6 holds is unchanged.
+
+RE-AIMED OUT LOUD, t6 again: its third folder is read off the seed, and the
+list the put-back lands on is now empty, so any index lands right. t6 gains
+« the folder resolved under it stays gone »: a put-back restoring the snapshot
+taken before the resolve brought the resolved folder back, and no hold saw it.
 """
 import asyncio
 import json
@@ -354,6 +359,14 @@ async def put_back_onto_a_moved_list(page, journal):
         restored_at and restored["stuck"].count(SECOND_FOLDER) == 1,
         f"{moved['stuck']} → {restored['stuck']}: it left index {index_before} "
         f"and lands at index {landed}",
+    )
+    # THE LIST IT LANDS ON IS THE MOVED ONE: a put-back that restores the
+    # snapshot taken BEFORE the resolve brings the resolved folder back with it,
+    # and the card still comes back exactly once — only this reads that.
+    journal.check(
+        "and the folder resolved under it stays gone",
+        THIRD_FOLDER not in restored["stuck"],
+        f"{moved['stuck']} → {restored['stuck']}",
     )
     await page.wait_for_timeout(WINDOW_CLOSED)
     sends_later = await page.evaluate(SENDS)
