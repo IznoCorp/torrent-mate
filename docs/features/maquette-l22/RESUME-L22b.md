@@ -11,17 +11,20 @@ L22b appends from 13).
   generated files conflict; regenerate them (oracle by an accept in one invocation + the script proof; ledgers re-read).
 - Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b`.
 - DONE: 15a–19-bis-b, merges of #619/#621/main(#617/#618/#622/#623/#624), the triage's docs commit, 20–30, the MIDPOINT
-  (1 real fall, R207, repaired; audit2 ×10: 0/10), 31 (F5, condition 3 of RULINGS 25), 32 (F6), 33 (F42), 34 (M1, RULINGS 26), 35 (Q1's real half, RULINGS 27). NEXT:
-  **36** a season of an unfollowed series is one-off (round 10 Q2; re-measure) → 37 sentences (F7, F54, F53) → 38 readers (F41) → 39 → 40 (the dead
-  `acq-follows-pause-empty` still in the a11y ledgers) → 41 death of Arrivées (F8) → 42 (+ engine-data.ts's removal,
-  the steward's placement) → 43 close (F8, F52, F67, C9; product-intent-map.md:49).
+  (1 real fall, R207, repaired; audit2 ×10: 0/10), 31 (F5, condition 3 of RULINGS 25), 32 (F6), 33 (F42), 34 (M1, RULINGS 26), 35 (Q1's real half, RULINGS 27), 36 (Q2, RULINGS 28). NEXT: **37** a one-off
+  season's card offers « Suivre » AND (RULINGS 28) the season's row says « demandée » and withdraws the act while the
+  one-off lives — R158 gets back « the surface pressed reads differently afterwards » on « demandée », MUTATED (the
+  offer: follow-offer.ts reads arrivals only; extend it to the one-off card, via `request`) → 38 sentences (F7, F54,
+  F53) → 39 readers (F41) → 40 → 41 (the dead `acq-follows-pause-empty` still in the a11y ledgers) → 42 death of
+  Arrivées (F8) → 43 (+ engine-data.ts's removal, the steward's placement) → 44 close (F8, F52, F67, C9;
+  product-intent-map.md:49).
   Files renumbered twice by `git mv`; 29/30 live in phase-28's file, 33 in phase-32's. engine-data.ts's removal (the
-  follows' prefetch declared by its feature, drive.ts's `refillEngineData` door re-pointed) is L22b's, at 42.
+  follows' prefetch declared by its feature, drive.ts's `refillEngineData` door re-pointed) is L22b's, at 43.
   Each re-measured at its opening; > 15
   → cut. **REBOOT Monday 2026-09-28 05:00: open no phase that cannot finish before 04:50.**
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (21) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (22) R233 ·
-  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · next free R239. RULINGS: L22b writes 13–29 (13–27 used); L22a's repair round wrote 30–32.
+  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · next free R239. RULINGS: L22b writes 13–29 (13–28 used); L22a's repair round wrote 30–32.
 - AUDITOR ORDER 48 (amended): a fall set aside as « load » needs the same rule ≥ 10× here and ≥ 10× on `main` at
   comparable load; any gap is a regression.
 - LOGS `~/Library/Logs/tm-l22b/`; mutex `sh scripts/heavy.sh --held`. GATE: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh
@@ -246,3 +249,13 @@ L22b appends from 13).
   acquisition/body + shell/page (+58 px: the follows now WAIT behind maintenance with their reason) → ba0c29ebc,
   accepted by name, script proof. `35-a11y.log` 0 + light 88/88. Mutations: the join removed → FAIL « the queue's
   answer names every medium once »; series-only matching → FAIL « … another episode is another card ».
+- 2026-09-28 phase 36 (round 10 Q2): re-measured ≈ 16 → CUT 36 / 37 (the offer), the rest +1 (38–44). R158 RE-AIMED
+  OUT LOUD (red `36-red.log`: « the act moved the world — a one-off … queued: False », « NO follow is born — status
+  after: 'acquiring' », the NewlyFollowed sentence). Commit 5fd094907: `Requester.via` gains `request` (« demandé par …,
+  pour cette saison »), the season grab queues a one-off card and begins no follow, `newlyFollowed` and its four
+  sentences retire, register regenerated. Gate 1 fell on R158 hold 5 (the surface pressed no longer changes) → STOP →
+  RULINGS 28: dedupe (a second tap queues no second card) + hold 5 set aside TEMPORARILY, given back in 37 on
+  « demandée ». Fix 34ecc6cb8. Gate 2 `36-gate2.log` 99 rules (84 named) + 26 guards 0 failed, no divergence.
+  Mutations: the verb begins a follow again → FAIL « NO follow is born of it » (`36-mutation-follow.log`); dedupe
+  removed → FAIL « a second tap queues no second card — 2 one-off card(s) » (`36-mutation-twice.log`).
+- 2026-09-28 stood down after phase 36: the context hook's gate (60 %). Next unit: phase 37, for a fresh session.
