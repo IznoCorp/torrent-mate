@@ -13,7 +13,8 @@
 // THE HISTORY LATCH STAYS WITH ITS READERS. A driven state writes no history,
 // and the writers that check the latch live in the page switch, so the driver never
 // holds it: it hands each state to `drivenWithoutHistory`, the verb that does.
-import { refillEngineData } from "../app/engine-data";
+import { refillProducers } from "../app/panel-host";
+import { refillSuggestions } from "../features/acquisition/queries";
 import { navigation } from "../app/navigation-seam";
 import type { UiState } from "../app/store";
 import { drivenWithoutHistory } from "../app/page-switch";
@@ -85,9 +86,10 @@ function reset(): boolean {
   window.__queries?.clear();
   window.__mocks?.reset();
   /* AND WHAT NO COMPONENT OBSERVES IS ASKED FOR AGAIN. A cleared query with an
-     observer is re-asked by that observer; the deck's cards have none, because
-     the engine draws the deck. */
-  refillEngineData?.();
+     observer is re-asked by that observer; the deck's cards and the producers'
+     reads have none — each feature declares its own, and both doors re-ask. */
+  refillSuggestions?.();
+  refillProducers?.();
   window.__store.write({
     /* The SCENARIO is state too, and the loudest kind: it decides which world
        every later reading is taken from. A state that switched to the dense

@@ -58,7 +58,7 @@ import {
   installScreenBridge,
 } from "./history-bridge";
 import { installScrollRestoration } from "./scroll-restoration";
-import { installPanelHost } from "./panel-host";
+import { installPanelHost, refillProducers } from "./panel-host";
 import { installLiveUpdates } from "./live-updates";
 import { installRelay } from "../lib/relay";
 import { installRelayRecovery } from "./relay-recovery";
@@ -73,7 +73,6 @@ import { createQueryClient, installSharedQueryClient } from "../lib/query-client
 import { installDecisionLookup } from "../features/acquisition/decision-queries";
 import { installLibraryDelete, installLibraryPaging } from "../features/library/queries";
 import { installEngineRedraw } from "./engine-redraw";
-import { installEngineData } from "./engine-data";
 import { installNavigationSeam } from "./navigation-seam";
 import {
   installFollowActions,
@@ -259,8 +258,10 @@ installReleasesLookup(queryClient);
 installSearchLookup(queryClient);
 // The engine draws surfaces that read the cache, and it draws them once.
 installEngineRedraw(queryClient);
-// And what the engine reads with no component to ask for it.
-installEngineData(queryClient);
+// WHAT THE PRODUCERS NEED, ASKED FOR ONCE THE MOCKS ANSWER. Each feature
+// declares its producers' reads beside them; this is only the first asking,
+// placed after the mock layer for the reason `refillProducers` gives.
+refillProducers?.();
 // THE LIVE RELAY, LAST OF THE CACHE'S INSTALLERS AND BEFORE THE RENDER. Two
 // things fix its place and neither is a preference:
 //
