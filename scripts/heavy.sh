@@ -17,10 +17,16 @@
 #
 #   sh scripts/heavy.sh [--class browser|test|rule] "<who>" <command...>
 #
-# It waits for whoever holds the lock, waits again until the machine has room
-# to spare, runs the command under a watchdog, and releases the lock whatever
-# happens. `HEAVY_LOCK` moves the lock, which is what `tests/scripts/test_heavy.py`
-# uses to exercise every path here without touching the machine's real lock.
+# It waits until the machine has room to spare, THEN waits for whoever holds
+# the lock, re-reads room once the lock is its own (the reading may have moved
+# meanwhile) and gives the lock straight back if it no longer fits, runs the
+# command under a watchdog, and releases the lock whatever happens. The lock is
+# held only by a run that is running or about to — never by one still waiting
+# for room (auditor's order 71: a holder used to take the lock BEFORE waiting
+# for room, so a run stuck on load held it for everyone behind it, including a
+# run whose own class already fit). `HEAVY_LOCK` moves the lock, which is what
+# `tests/scripts/test_heavy.py` uses to exercise every path here without
+# touching the machine's real lock.
 #
 # THE CLASS SAYS WHAT THE RUN COSTS. Until B-386 there was one readiness floor
 # for every run, so the replay of a single rule waited behind the same room a
@@ -139,6 +145,19 @@ at_most() {
     awk -v have="$1" -v want="$2" 'BEGIN { print (have <= want) ? 1 : 0 }'
 }
 
+# Sets `free` and `load` for the caller to log, and answers in its exit code:
+# 0 room fits, 1 it does not, 2 the machine reports neither figure. Called both
+# before the lock is taken and right after, so a reading that moved between the
+# two never leaves the lock with a run that no longer fits.
+room_fits() {
+    free=$(free_megabytes)
+    load=$(one_minute_load)
+    if [ -z "$free" ] || [ -z "$load" ]; then
+        return 2
+    fi
+    [ "$(at_least "$free" "$FREE_FLOOR_MB")" = 1 ] && [ "$(at_most "$load" "$LOAD_CEILING")" = 1 ]
+}
+
 # ── A named class cannot be talked down ──────────────────────────────────────
 # Naming a class is a statement about what the run costs, so the environment may
 # RAISE its floor and never lower it. Without this the class would be a label on
@@ -173,72 +192,99 @@ if [ ! -d "$parent" ] || [ ! -w "$parent" ]; then
     exec "$@"
 fi
 
-# ── Take the lock ────────────────────────────────────────────────────────────
-announced=0
-silent_announced=0
-while :; do
-    if mkdir "$LOCK" 2>/dev/null; then
-        echo "$WHO" > "$LOCK/who"
-        # THE PID IS WRITTEN BESIDE THE NAME: this shell lives exactly as long
-        # as the run it wraps, so it is the fact the breaker below can ask.
-        echo "$$" > "$LOCK/pid"
-        break
-    fi
-    holder=$(cat "$LOCK/who" 2>/dev/null || echo "someone")
-    # A lock older than 45 minutes is BROKEN ONLY WHEN ITS HOLDER IS GONE. Age
-    # alone broke the lock of a run that was alive and hung, and the next
-    # session rebuilt the served copy under it. A holder alive and silent is
-    # held off and said aloud, never broken; a lock with no pid (written before
-    # the pid was) is judged by its age, as it always was.
-    if [ -n "$(find "$LOCK" -maxdepth 0 -mmin +45 2>/dev/null)" ]; then
-        holder_pid=$(cat "$LOCK/pid" 2>/dev/null || true)
-        if [ -n "$holder_pid" ] && kill -0 "$holder_pid" 2>/dev/null; then
-            if [ "$silent_announced" -eq 0 ]; then
-                since=$(stat -c %Y "$LOCK" 2>/dev/null || stat -f %m "$LOCK")
-                echo "heavy: holding off — $holder (pid $holder_pid) is alive and silent for $(( ($(date +%s) - since) / 60 )) min; the lock is not broken" >&2
-                silent_announced=1
-            fi
-            sleep 3
-            continue
-        fi
-        echo "heavy: breaking a stale lock held by $holder${holder_pid:+ (pid $holder_pid is gone)}" >&2
-        rm -rf "$LOCK"
-        continue
-    fi
-    [ "$announced" -eq 0 ] && echo "heavy: waiting for $holder to finish" >&2
-    announced=1
-    sleep 3
-done
-
-# Interrupted, the wrapper must take DOWN what it started, not merely let go of
-# the lock: a run stopped by hand that leaves its browsers behind is the exact
-# residue the ceiling exists to prevent, and the operator has had to clear it.
-# `child` is empty until the run begins, so the same handler serves both phases.
+# Interrupted while it HOLDS the lock, the wrapper must take DOWN what it
+# started, not merely let go: a run stopped by hand that leaves its browsers
+# behind is the exact residue the ceiling exists to prevent. `child` is empty
+# until the run begins, so the same handler serves both phases. The trap is
+# armed only from the moment the lock is actually taken below, and disarmed
+# again the moment it is given back on purpose — armed while merely waiting
+# (for room or for another holder) it would delete a lock this run does not
+# own.
 child=""
 release() {
     [ -n "$child" ] && { kill -TERM -"$child" 2>/dev/null || kill -TERM "$child" 2>/dev/null; }
     rm -rf "$LOCK"
 }
-trap 'release; exit 130' INT TERM
-trap release EXIT
 
-# ── Wait for room to spare ───────────────────────────────────────────────────
-announced=0
+# ── Wait for room, then take the lock ────────────────────────────────────────
+# Room is read BEFORE the lock is taken: a holder who took the lock first and
+# only then waited for room kept it for everyone behind it, including a run
+# whose own class already fit (auditor's order 71 — docs-l22 held the lock 27
+# minutes waiting for load, with a fitting `--class rule` run queued behind
+# it). Room can still move between this read and the lock actually landing, so
+# it is read once more right after; a lock that no longer fits is given back at
+# once and the wait for room starts over. The lock is held only by a run that
+# is running or about to, with room read true.
 while :; do
-    free=$(free_megabytes)
-    load=$(one_minute_load)
-    if [ -z "$free" ] || [ -z "$load" ]; then
-        echo "heavy: this machine reports neither free memory nor load — running unmeasured" >&2
-        break
+    room_announced=0
+    while :; do
+        room_fits
+        rc=$?
+        [ "$rc" -eq 2 ] &&
+            echo "heavy: this machine reports neither free memory nor load — running unmeasured" >&2
+        [ "$rc" -ne 1 ] && break
+        [ "$room_announced" -eq 0 ] &&
+            echo "heavy: holding off — ${free}MB free, load $load (wants ${FREE_FLOOR_MB}MB and $LOAD_CEILING)" >&2
+        room_announced=1
+        sleep 5
+    done
+
+    lock_announced=0
+    silent_announced=0
+    while :; do
+        if mkdir "$LOCK" 2>/dev/null; then
+            echo "$WHO" > "$LOCK/who"
+            # THE PID IS WRITTEN BESIDE THE NAME: this shell lives exactly as
+            # long as the run it wraps, so it is the fact the breaker below can
+            # ask.
+            echo "$$" > "$LOCK/pid"
+            # Ours now — armed so an interrupt from here on cleans up rather
+            # than abandoning it.
+            trap 'release; exit 130' INT TERM
+            trap release EXIT
+            break
+        fi
+        holder=$(cat "$LOCK/who" 2>/dev/null || echo "someone")
+        # A lock older than 45 minutes is BROKEN ONLY WHEN ITS HOLDER IS GONE. Age
+        # alone broke the lock of a run that was alive and hung, and the next
+        # session rebuilt the served copy under it. A holder alive and silent is
+        # held off and said aloud, never broken; a lock with no pid (written before
+        # the pid was) is judged by its age, as it always was.
+        if [ -n "$(find "$LOCK" -maxdepth 0 -mmin +45 2>/dev/null)" ]; then
+            holder_pid=$(cat "$LOCK/pid" 2>/dev/null || true)
+            if [ -n "$holder_pid" ] && kill -0 "$holder_pid" 2>/dev/null; then
+                if [ "$silent_announced" -eq 0 ]; then
+                    since=$(stat -c %Y "$LOCK" 2>/dev/null || stat -f %m "$LOCK")
+                    echo "heavy: holding off — $holder (pid $holder_pid) is alive and silent for $(( ($(date +%s) - since) / 60 )) min; the lock is not broken" >&2
+                    silent_announced=1
+                fi
+                sleep 3
+                continue
+            fi
+            echo "heavy: breaking a stale lock held by $holder${holder_pid:+ (pid $holder_pid is gone)}" >&2
+            rm -rf "$LOCK"
+            continue
+        fi
+        [ "$lock_announced" -eq 0 ] && echo "heavy: waiting for $holder to finish" >&2
+        lock_announced=1
+        sleep 3
+    done
+
+    # The lock is ours. Trust it only once room is read again — the mkdir above
+    # may have landed well after the read that let this run start queuing for
+    # it.
+    room_fits
+    rc=$?
+    if [ "$rc" -eq 1 ]; then
+        echo "heavy: ${free}MB free, load $load right after taking the lock — giving it back" >&2
+        # Disarmed before releasing on purpose: this is not the interrupt or
+        # exit the trap exists for, and the lock is about to belong to nobody
+        # again — the next holder's is not this run's to remove.
+        trap - INT TERM EXIT
+        rm -rf "$LOCK"
+        continue
     fi
-    if [ "$(at_least "$free" "$FREE_FLOOR_MB")" = 1 ] &&
-       [ "$(at_most "$load" "$LOAD_CEILING")" = 1 ]; then
-        break
-    fi
-    [ "$announced" -eq 0 ] &&
-        echo "heavy: holding off — ${free}MB free, load $load (wants ${FREE_FLOOR_MB}MB and $LOAD_CEILING)" >&2
-    announced=1
-    sleep 5
+    break
 done
 
 # ── Run it, watched ──────────────────────────────────────────────────────────
