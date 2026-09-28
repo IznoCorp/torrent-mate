@@ -14,8 +14,7 @@ L22b appends from 13).
   (1 real fall, R207, repaired; audit2 ×10: 0/10), 31 (F5, condition 3 of RULINGS 25), 32 (F6), 33 (F42), 34 (M1, RULINGS 26), 35 (Q1's real half, RULINGS 27), 36 (Q2, RULINGS 28), 37 (« Demandée » + the one-off's « Suivre », R158 hold 5 given back), 38 (the sentences + F54,
   R239; cut at its opening), 39 (F7: `data-dial`, and the landing home repaired — page-switch `rewind(1 + stacked)`,
   `countTheEntry`), 40 (F41: acq-todo-loading/-error, R90; the readers' phase cut in three), 41 (the readers; acq-todo-dense, RULINGS 29;
-  R139's B-313 hold SET ASIDE). NEXT: **42** at once: R139's hold back on a case POSED on a dense-world arrival in flight
-  (Alabama Solution / Conclave), identity « not yet known », backend read named, named state, mutation → 43 F53 (Spider-Man out of the seeds and the count, R-L22-g/-j onto Backrooms, doc_fr_2026_final) → 44 the live
+  R139's B-313 hold SET ASIDE), 42 (the hold given back on « Conclave », identity POSED unknown). NEXT: **43** F53 (Spider-Man out of the seeds and the count, R-L22-g/-j onto Backrooms, doc_fr_2026_final) → 44 the live
   rule → 45 (the dead `acq-follows-pause-empty` still in the a11y ledgers) → 46 death of Arrivées (F8) → 47 (+
   engine-data.ts's removal) → 48 close (F8, F52, F67, C9; product-intent-map.md:49).
   Files renumbered twice by `git mv`; 29/30 live in phase-28's file, 33 in phase-32's, 39 in phase-38's, 40–43 in phase-39's
@@ -24,7 +23,7 @@ L22b appends from 13).
   Each re-measured at its opening; > 15 → cut. (The machine rebooted Monday 2026-09-28 05:00: re-verify the state.)
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (21) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (22) R233 ·
-  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · (38) R239 no_sentence_to_arrivals · next free R240. Oracle pin 135. RULINGS: 29 used (L22b's last). RULINGS: L22b writes 13–29 (13–28 used); L22a's repair round wrote 30–32.
+  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · (38) R239 no_sentence_to_arrivals · next free R240. Oracle pin 136. RULINGS: 29 used (L22b's last). RULINGS: L22b writes 13–29 (13–28 used); L22a's repair round wrote 30–32.
 - AUDITOR ORDER 48 (amended): a fall set aside as « load » needs the same rule ≥ 10× here and ≥ 10× on `main` at
   comparable load; any gap is a regression.
 - LOGS `~/Library/Logs/tm-l22b/`; mutex `sh scripts/heavy.sh --held`. GATE: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh
@@ -363,3 +362,14 @@ L22b appends from 13).
   1639f7d61 (acq-todo-dense in CARD_STATES, out loud): `42-cards-compare.log` cards 84 (+7: the state's 3 + 4 inline
   items), fanout 152. Mutation `42-mutation-dense.log`, the dense-only folder « doc_fr_2026_final »'s body without
   `data-panel` → cards FAIL « R46 acq-todo-dense « doc_fr_2026_final »: a folder addresses no panel ».
+- 2026-09-28 phase 42 (R139's B-313 hold given back), re-measured ≈ 7. Red `42-red.log` with the hold active on the
+  current surfaces (« and it reached a panel whose PRIMARY act leads to the journey … 0 such panel(s) »). Commit
+  e8a856dac: `mocks/handlers/posed-identity.ts` — `poseUnknownIdentity`, a DERIVATION shown as one (RULINGS 22/24/26's
+  precedent): a real dense-world arrival in flight, « Conclave » (not in the library, so no held identity finds its
+  sheet; « The Alabama Solution » is in the library), loses its identifiers (`ids: null`, the contract's « no sheet
+  identifies it yet »), its strip stands on the identifying step, its chip goes rather than carry a word no row says;
+  named state `acq-card-identity-unknown` says it is posed and names the backend read that replaces it (the « identifié »
+  rung in progress); R139 reads it. Gate `42-gate.log` 33 rules (11 named) + 26 guards 0 failed; 13 divergences = the
+  new state only (proof `42-accept-proof.log`), accepted 1eeb6378f, pin 136. Mutation `42-mutation.log`: the door keeps
+  the identity (`ids: null, ` removed) → R139 FAIL « and it reached a panel whose PRIMARY act leads to the journey ».
+  `42-a11y.log` 0 + light 88/88 (136 states).
