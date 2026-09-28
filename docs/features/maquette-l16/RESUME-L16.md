@@ -5,9 +5,9 @@
 - **Branch** `feat/maquette-l16`, worktree `/Users/izno/dev/worktrees/wave-l16`, cut from L22b's head
   `a227ad6cb` (PR #626). `origin/main` is NOT merged in — only on the steward's word that L22b is squashed.
 - **Orchestrator** « Orch : TM frontend [84baa3] ». Handshake answered 2026-09-28.
-- **Done** phase 1; 2a (pushed `a7c8a5eac`); 2b committed, its gate next.
-- **Next** 2c (the tab memory; the landing door made plural — Acquisition's readers green before AND after).
-- **Remaining phase list**, rebuilt from `ls plan/`: 2c · 3 · 4 · 5 · 6 · 7 · 8 · 9 · (midpoint full suite) ·
+- **Done** phase 1; 2a; 2b (pushed `151aa6b56`); 2c committed, its gate next.
+- **Next** phase 3 (the « Trackers » tab, one entry per tracker; R261).
+- **Remaining phase list**, rebuilt from `ls plan/`: 3 · 4 · 5 · 6 · 7 · 8 · 9 · (midpoint full suite) ·
   10 · 11 · 12 · 13 · 14 · 15 · 16 · 17. Phase 2 was cut 2a / 2b at its opening (≈ 18), 2b re-cut 2b / 2c at its own (≈ 17).
 - **Known STOP D, one message each at its phase's opening**: 4 (how the three policy fields compose),
   9 (no « vu » precedent), 12 (the ratio cause is the global `ingest.min_ratio`; the seed), 14 (no read
@@ -65,3 +65,15 @@
   `check-state-ownership` wanted the two dials classified (interface state); `addresses.test.ts:134` refused
   `?tab=` (Acquisition's) → STOP D, RULINGS 1 = A: the parameter is `list`. 2 divergences, both on
   `trackers-page` (the strip).
+- 2026-09-28 — 2b closed: RULINGS 1 applied; mutation (`p02b-mutation.log`) a tab verb that PUSHES → FAIL « a
+  finger's tap on « Torrents » ADJUSTS … length 3 -> 4 » and « a back then leaves the page … 'trackers' ».
+  Oracle 2 keys on `trackers-page`. Pushed `151aa6b56` (the comment record forgotten in `b723ae9a0`, caught
+  by the pre-push).
+- 2026-09-28 — 2c, order 42: the READERS of Acquisition's tab memory and landing door — R202
+  `default_tab.py` (16 holds), R239 `no_sentence_to_arrivals.py` (29, the `data-dial="todo"` walk),
+  `return_to_todo.py` (16), R69 `url_state.py` (103), `entry.py` (10) — all GREEN before the move
+  (`p02c-acq-before.log`); `inter.py` and `surfaces.py` print no hold count and are not counted.
+  R260 hold 7 RED (`p02c-red.log`, 4 FAIL). The move: `lib/tab-memory.ts` (no feature named, each
+  brings its key), Acquisition's memory reads it, the landing door made plural, the boot asks every
+  page of the table for its dial (Acquisition receives the very call it received). Words `memory`,
+  `doors`. Frame-domain unchanged (lib/ 31, app/ 146).

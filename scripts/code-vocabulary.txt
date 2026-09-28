@@ -324,6 +324,7 @@ dlg
 dlgcancel
 done
 door
+doors
 dot
 down
 drag
@@ -651,6 +652,7 @@ medium
 member
 members
 membership
+memory
 menu
 message
 meta

@@ -18,10 +18,16 @@ address model, never written here; its body is its own oracle region,
    the address says `?list=`, `history.length` unchanged — and a back then leaves
    the page for the one beneath it rather than stepping between tabs;
 6. the address carries both dials: `?list=torrents&tracker=<name>` opened cold
-   lands on that tab, filtered to that tracker.
+   lands on that tab, filtered to that tracker;
+7. the tab a bare address opens is « Trackers » the first time, then the tab
+   opened last on this device — the same rule, and the same mechanism, as
+   Acquisition's: storage empty, refused or holding no tab opens « Trackers »; an
+   address naming its tab wins; a tab tapped is the next cold entry's, and the
+   next landing's from the bar, the address then naming it.
 
 Red before the move: no such page exists. RE-AIMED OUT LOUD: holds 5 and 6 came
-with the page's tabs, red on the page that had none.
+with the page's tabs, red on the page that had none; hold 7 with the tab memory,
+red while a bare address always opened « Trackers ».
 """
 import asyncio
 import json
@@ -66,6 +72,82 @@ FIRST = "trackers"
 OTHER = "torrents"
 # A tracker the configuration declares, read off the seed the page reads.
 FILTERED = json.loads((SOURCE / "mocks/seeds/trackers.json").read_text(encoding="utf-8"))[0]["name"]
+
+# The storage key the tab is remembered under, and what a tab reads as selected.
+KEY = "trackers-tab"
+SELECTED = """() => document.querySelector('[data-trackers-tab][aria-selected="true"]')?.dataset.trackersTab ?? null"""
+ENTRY = PROTOTYPE.rstrip("/") + PAGE_PATHS.get(PAGE, "/trackers")
+
+
+def prepared(value=None, throwing=False):
+    """An init script that sets the storage before the document loads."""
+    if throwing:
+        return ("Storage.prototype.getItem = function () { throw new Error('storage refused'); };"
+                "Storage.prototype.setItem = function () { throw new Error('storage refused'); };")
+    if value is None:
+        return "try { localStorage.clear(); } catch (error) {}"
+    return f"try {{ localStorage.setItem({json.dumps(KEY)}, {json.dumps(value)}); }} catch (error) {{}}"
+
+
+async def cold(browser, script, address):
+    """Opens the address cold in a fresh context, its storage prepared first."""
+    context = await browser.new_context(**PHONE)
+    if script:
+        await context.add_init_script(script)
+    page = await context.new_page()
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    await page.goto(address, wait_until="load")
+    await page.evaluate("()=>window.__loadingDone?.()")
+    await page.wait_for_timeout(SETTLED)
+    return context, page, errors
+
+
+async def remembered(browser, journal):
+    """Hold 7: the tab a bare address opens, first and then remembered."""
+    for label, script, address, wanted in (
+        ("empty storage opens « Trackers »", prepared(), ENTRY, FIRST),
+        ("« Torrents » remembered opens « Torrents »", prepared(OTHER), ENTRY, OTHER),
+        ("storage that throws opens « Trackers »", prepared(throwing=True), ENTRY, FIRST),
+        ("a remembered value that is no tab opens « Trackers »", prepared("nowhere"), ENTRY, FIRST),
+        ("an address naming its tab wins over the memory", prepared(OTHER), f"{ENTRY}?list={FIRST}", FIRST),
+    ):
+        context, page, errors = await cold(browser, script, address)
+        selected = await page.evaluate(SELECTED)
+        journal.check(label, selected == wanted, f"{selected!r} — wanted {wanted!r}")
+        journal.check(f"no JS error ({label})", not errors, str(errors))
+        await context.close()
+
+    context, page, errors = await cold(browser, prepared(OTHER), ENTRY)
+    where = await page.evaluate("()=>location.pathname + location.search")
+    journal.check("a cold landing on the remembered « Torrents » says it in the address",
+                  where == f"{PAGE_PATHS.get(PAGE)}?list={OTHER}", where)
+    await context.close()
+
+    # A TAB TAPPED BY A FINGER IS REMEMBERED: the next cold entry opens it, and so
+    # does the next landing from the bar. No init script: it would run again on
+    # the second page and undo the very memory being read.
+    context, page, errors = await cold(browser, None, ENTRY)
+    await page.tap(f'#view [data-trackers-tab="{OTHER}"]')
+    await page.wait_for_timeout(ACTED)
+    second = await context.new_page()
+    second.on("pageerror", lambda error: errors.append(str(error)))
+    await second.goto(ENTRY, wait_until="load")
+    await second.evaluate("()=>window.__loadingDone?.()")
+    await second.wait_for_timeout(SETTLED)
+    journal.check("a tab tapped is the one the next cold entry opens",
+                  await second.evaluate(SELECTED) == OTHER, str(await second.evaluate(SELECTED)))
+    await second.goto(PROTOTYPE.rstrip("/") + PAGE_PATHS[HOME_PAGE], wait_until="load")
+    await second.evaluate("()=>window.__loadingDone?.()")
+    await second.wait_for_timeout(SETTLED)
+    await second.tap(f'#nav button[data-page="{PAGE}"]')
+    await second.wait_for_timeout(ACTED)
+    landed = await second.evaluate(SELECTED)
+    journal.check("and the one a landing from the bar opens, the address naming it",
+                  landed == OTHER and second.url.endswith(f"?list={OTHER}"), f"{landed!r} · {second.url}")
+    journal.check("no JS error around the memory", not errors, str(errors))
+    await context.close()
+
 
 BAR = """() => [...document.querySelectorAll('#nav button[data-page]')]
   .map(button => ({page: button.dataset.page, width: button.getBoundingClientRect().width}))"""
@@ -162,6 +244,7 @@ async def main():
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()
+        await remembered(browser, journal)
         await browser.close()
     journal.summary()
 

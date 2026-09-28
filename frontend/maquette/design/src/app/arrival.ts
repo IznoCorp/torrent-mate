@@ -14,6 +14,7 @@ import { reopenAddressedPanel } from "./addressed-panels";
 import { entry, loadingDone } from "./entry";
 import { onEngineBack } from "./layers";
 import { walk } from "./page-switch";
+import { NAVIGATION } from "./navigation";
 
 /* The interface's opening state, before the address has said anything. */
 const INITIAL_STATE = {
@@ -75,10 +76,11 @@ const INITIAL_STATE = {
  */
 export function installArrival(store: Store): void {
   store.adoptState(INITIAL_STATE);
-  // THE BOOT IS AN ARRIVAL TOO: the opening page resets its dials the way a
-  // landing from elsewhere does — the feature decides what they open on — and
-  // an address that names them overrides it below.
-  resetLandingDial?.(INITIAL_STATE.page);
+  // THE BOOT IS AN ARRIVAL TOO: every page resets its dials the way a landing
+  // from elsewhere does — the feature decides what they open on, so a page
+  // reached later from the bar opens where its feature says — and an address
+  // that names them overrides it below.
+  for (const row of NAVIGATION) resetLandingDial(row.id);
 
   /* The bridge announces a back the way `popstate` did. Registered HERE: the
      real bridge exists from the shell's boot on, and nothing upstream queues

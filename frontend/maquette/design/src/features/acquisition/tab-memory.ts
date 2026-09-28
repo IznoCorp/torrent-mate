@@ -1,9 +1,11 @@
 // The tab Acquisition opens on when nothing names one — the operator's rule:
 // « Suivis par défaut, puis le dernier onglet ouvert (mémoire locale) ».
 //
-// THE DEVICE REMEMBERS, the server does not: the last tab opened is kept in this
-// browser's local storage. Storage can be empty, refused or cleared — a private
-// window, a blocked site — and each of those opens « Suivis », never a failure.
+// THE DEVICE REMEMBERS, the server does not, through the memory every tabbed
+// page shares (`lib/tab-memory.ts`) — this page brings its key, its first tab
+// and its tabs. Storage that is empty, refused or cleared opens « Suivis ».
+import { tabMemory } from "../../lib/tab-memory";
+
 const STORAGE_KEY = "acquisition-tab";
 
 /** The tab a first opening lands on. */
@@ -15,18 +17,15 @@ const FIRST_TAB = "follows";
  */
 const TABS = new Set(["follows", "now", "todo"]);
 
+const MEMORY = tabMemory(STORAGE_KEY, FIRST_TAB, TABS);
+
 /**
  * The tab to open when nothing names one.
  *
  * @returns The last tab opened on this device, or « Suivis ».
  */
 export function rememberedTab(): string {
-  try {
-    const kept = localStorage.getItem(STORAGE_KEY);
-    return kept !== null && TABS.has(kept) ? kept : FIRST_TAB;
-  } catch {
-    return FIRST_TAB;
-  }
+  return MEMORY.remembered();
 }
 
 /** The candidates screen's address, whose every exit returns to « À traiter ». */
@@ -59,9 +58,5 @@ export function landingTab(asked?: string): string {
  * @param tab The tab.
  */
 export function rememberTab(tab: string): void {
-  try {
-    if (TABS.has(tab)) localStorage.setItem(STORAGE_KEY, tab);
-  } catch {
-    // Storage refused: the next entry opens « Suivis », which is the rule.
-  }
+  MEMORY.remember(tab);
 }
