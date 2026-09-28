@@ -8,19 +8,18 @@ L22b appends from 13).
 - Branch `feat/maquette-l22b`, worktree `/Users/izno/dev/worktrees/wave-l22b`. #619 (L22a) merged in at 7ca978d5e;
   origin/main 665788a90 (#624) is an ancestor (8a9500c43) — nothing to merge until main moves again. Steward `Orch : TM
   frontend [84baa3]` since the reboot of 2026-09-28 05:00.
-- DONE: 15a–47b (the ledger says each), pushed. OPEN IN 47b: `check-intent-map.py` is RED on the branch — IN WAIT FOR
-  THE OPERATOR'S WORD: `docs/reference/product-intent-map.md` names `features/arrivals` / `harness/arrivals.py` (grep
-  `arrivals` there: DOIT-1..5, NE-DOIT-PAS-2, NE-DOIT-PAS-3 at least); the steward put (b) — edit the surface/proof
-  columns only, successor by successor — to the operator through the auditor. DO NOT touch the map before the word;
-  on it, the successor makes the edit, re-runs the guard, commits, pushes. NEXT after it: **48** the records of a dead
-  page (file phase-43: regions.json's two arrivals regions, fixture-register's lines, check-component-once.py's
-  docstring, the ratchets DOWN — frame-domain app/ 147 → measured 133, hold-counts baseline, vocabulary word) +
-  engine-data.ts's removal (follows' prefetch declared by its feature, drive.ts's `refillEngineData` re-pointed; R207
-  NAMED at its gate) + the dead `acq-follows-pause-empty` in the a11y ledgers → then the close (file phase-44; F8,
-  F52, F67, C9; B-514 and B-560 `fixing` → `fixed #<PR>`). REBUILD the list from `ls plan/` + INDEX's dated lines.
-  Declared oracle list BY SCRIPT before every gate (every state whose `applyState` draws the touched page/world,
-  layers included, RULINGS 23). `mutate.sh` ALWAYS under `heavy.sh --class browser`; a new maquette file ⇒
-  `check-maquette-comments.py --record` in its commit.
+- DONE: 15a–48 (the ledger says each), pushed. OPEN since 47b: `check-intent-map.py` is RED on the branch — IN WAIT
+  FOR THE OPERATOR'S WORD: `docs/reference/product-intent-map.md` names `features/arrivals` / `harness/arrivals.py`
+  (DOIT-1..5, NE-DOIT-PAS-2, NE-DOIT-PAS-3); the steward put (b) — edit the surface/proof columns only, successor by
+  successor — to the operator through the auditor. DO NOT touch the map before the word; on it, make the edit, re-run
+  the guard, commit, push (local 22c571079 goes with it). NEXT: the audit2 series' remaining draws (below), then the
+  close (file phase-44; F8, F52, F67, C9; B-514 and B-560 `fixing` → `fixed #<PR>`). REBUILD the list from `ls plan/`
+  + INDEX's dated lines. Declared oracle list BY SCRIPT before every gate (every state whose `applyState` draws the
+  touched page/world, layers included, RULINGS 23). `mutate.sh` ALWAYS under `heavy.sh --class browser`; a new
+  maquette file ⇒ `check-maquette-comments.py --record` in its commit. At every gate AND the close, also the CI
+  `no-french` job's static list read by output (steward): check-no-french, check-css-tokens, check-compositor-css,
+  check-tailwind-confinement, check-markup-contracts, check-frontend-boundaries, `oracle.py --contracts` — one
+  already failing = STOP with its exit and first line.
 - AUDIT2 SERIES (order 48, after 44's R11 fall) STOPPED at the stand-down: branch 1–7 and main 1–6 done, 0 violations
   each, WHOLE outputs in `44-audit2/{branch,main}-N.out`; REMAINING main-7, branch-8..10, main-8..10. Scripts copied
   to `44-audit2/audit2run.sh` and `series2.sh` (args `main:7 branch:8 main:8 …`; its pause flag path is the old
@@ -509,3 +508,19 @@ L22b appends from 13).
 - 2026-09-28 the stand-down push was refused once by the pre-push pytest: tests/scripts/test_check_frame_domain.py
   sampled `arrivals`/`arr` from the derived vocabulary, which left with the page → RE-AIMED OUT LOUD onto
   `library`/`lib` (2b9d5833d). Pushed; pilot killed; no process of mine left.
+- 2026-09-28 (successor « Agent : l22b 7 ») phase 48 (file phase-43 + engine-data.ts + the dead a11y id), re-measured
+  ≈ 14 → one phase. 3df29d738: engine-data.ts deleted (shell calls `refillProducers` after the mocks, drive.ts's reset
+  re-asks through the feature doors). 6b65b264c: the two arrivals regions and knownAbsent `arrivees/empty` out of
+  regions.json, their 260 null records out of the oracle reference by named deletion (`48-regions-drop-proof.log`,
+  regions 39 → 37, pin), `acq-follows-pause-empty` out of the three a11y ledgers (`48-a11y-drop-proof.log`), frame-domain
+  app/ 147 → 131, code-abbreviations regenerated lower (plex.py 5 → 2, check-markup-contracts.py 4 → 2), arrivals.py out
+  of hold-counts, fixture register names the tabs; the word « arrivals » STAYS (arrivalsOf, slotArrivals: staging
+  arrivals). FOUND: `oracle.py --contracts` (CI no-french job, make) FAILED on the branch since 19-bis-a — discover/body
+  passed through a constant the static reader cannot see → written as a literal, the vestigial prop removed. Gate 1
+  (`48-gate.log`) fell on panel.py « a cold panel over a screen leaves the screen standing »: MY READING WAS WRONG — the
+  followed-titles door (a cold addressed follow panel; the Médiathèque's delete dialog) read follows only the boot list
+  asked for → 06c338c5e: installFollowActions asks and publishes `refillFollows`, the reset re-asks. Gate 2
+  `48-gate2.log` 38 rules (21 named, R207 one_ladder among them) + 26 guards: only check-intent-map failed, no
+  divergence (declared: none). `48-a11y.log` 0 + light 88/88 (130 states). CI static list 7/7 exit 0. Mutation
+  `48-mutation-follows.log`: `refillFollows();` removed at install → panel.py FAIL « a cold panel over a screen leaves
+  the screen standing » (×3 holds).
