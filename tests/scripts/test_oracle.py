@@ -375,7 +375,9 @@ def test_the_committed_reference_carries_a_platform():
     # reference by named deletion — nothing else moved.
     # 37 regions SINCE L22b's phase 48: the page's two regions (arrivals/pilot-bar,
     # arrivals/body) left regions.json and every state's record, all null — nothing else moved.
-    assert reference["counts"] == {"states": 130, "regions": 37}
+    # 131 states and 38 regions SINCE L16's phase 2a: `trackers-page`, the « Trackers » page of
+    # the bar, and `trackers/body`, its body — the reference GREW, not one existing key moved.
+    assert reference["counts"] == {"states": 131, "regions": 38}
 
 
 class TestItRefusesToWriteOverAForeignBuild:
