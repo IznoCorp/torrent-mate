@@ -165,11 +165,13 @@ async def main():
         # than it emits. Each page below is reached from two different
         # predecessors, once across each world's boundary.
         # RE-AIMED OUT LOUD: the Arrivées page left the walk with the page;
-        # every page left is still reached from two predecessors.
+        # every page left is still reached from two predecessors — « discover »
+        # among them, from « 404 » and from « sys ».
         walk = ["lib", "sys", "lib", "acq", "sys", "acq",
                 "maint", "lib", "maint", "cfg", "maint", "sys", "cfg",
                 "sys", "cfg", "lib", "acq", "profile",
-                "acq", "profile", "404", "lib", "404"]
+                "acq", "profile", "404", "lib", "404",
+                "discover", "sys", "discover"]
         signatures: dict[str, set[str]] = {}
         residue = []
         absent = []
