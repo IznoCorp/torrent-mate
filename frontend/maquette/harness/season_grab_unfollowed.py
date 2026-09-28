@@ -327,6 +327,31 @@ ONE_OFF = """async ({ title, season }) => {
 
 SURFACE_TEXT = "(scope)=>(document.querySelector(scope)?.textContent || '')"
 
+# THE SHORTFALL THE SEASON'S ROW DRAWS before the ask — « n manquants » — the
+# count the answer's sentence must agree with.
+ROW_MISSING = """([scope, key])=>{
+  const act = document.querySelector(scope)?.querySelector(`[data-grab-season="${CSS.escape(key)}"]`);
+  const shortfall = act?.closest('[data-part="season"]')?.querySelector('[data-part="season/missing"]');
+  return shortfall ? parseInt(shortfall.textContent, 10) : null;}"""
+
+
+def said_count(said, key):
+    """Reads the episode count a season's sentence states.
+
+    Args:
+        said: The sentence.
+        key: Its key, as `the_seasons_own` matched it.
+
+    Returns:
+        The count, 0 for « aucun », 1 for the singular sentence.
+    """
+    if key == "seasonAskedNone":
+        return 0
+    if key == "seasonAskedOne":
+        return 1
+    found = re.search(r"(\d+) épisodes", said)  # french-ok: the sentence the interface renders
+    return int(found.group(1)) if found else None
+
 # THE SEASON'S ROW after the ask: its mark, and whether it still offers the act.
 SEASON_ROW = """([scope, key])=>{
   const surface = document.querySelector(scope);
@@ -406,6 +431,7 @@ async def take_a_season(page, journal, errors, title, surface):
         return
     number = season["value"].split("|")[-1]
     looked_at = await page.evaluate(SURFACE_TEXT, scope)
+    row_missing = await page.evaluate(ROW_MISSING, [scope, season["value"]])
     mark = len(await page.evaluate(ANSWERED))
     errors.clear()
     await page.touchscreen.tap(act["x"], act["y"])
@@ -430,6 +456,9 @@ async def take_a_season(page, journal, errors, title, surface):
     said = await page.evaluate(SAID)
     journal.check(f"{where}: the sentence is the season's own, with no follow in it",
                   bool(the_seasons_own(said, number, title)), repr(said))
+    journal.check(f"{where}: its count is the shortfall the season's row drew",
+                  row_missing is not None and said_count(said, the_seasons_own(said, number, title)) == row_missing,
+                  f"row « {row_missing} manquants », said {said!r}")
     journal.check(f"{where}: the surface pressed reads differently afterwards",
                   await page.evaluate(SURFACE_TEXT, scope) != looked_at)
     row = await page.evaluate(SEASON_ROW, [scope, season["value"]])
