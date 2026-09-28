@@ -14,7 +14,7 @@ VIEWS = [("acq/now",'[data-page="acq"]'), ("acq/follows",'[data-acqtab="follows"
          ("discover",'#nav [data-page="discover"]'), ("lib/categories",'[data-page="lib"]'),
          ("lib/incomplete",'[data-lens="inc"]'), ("lib/recent",'[data-lens="rec"]'),
          # RE-AIMED OUT LOUD: Arrivées leaves; its successor is « À traiter ».
-         ("acq/todo",'[data-acqtab="todo"]'),
+         ("acq/todo",['[data-page="acq"]','[data-acqtab="todo"]']),
          # RE-AIMED OUT LOUD: Système left the tab bar (ruling 15) — the menu, then its entry.
          ("system",['[data-drawer]','#drawer [data-navgo="sys"]'])]
 
