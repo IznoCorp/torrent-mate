@@ -105,6 +105,8 @@ function reset(): boolean {
     // The library's category and sort are dials a state or a rule can move; one
     // that does must not leave the next state's listing read under them.
     libCat: "all",
+    // The trackers' filter too: left set, it filters the next state's torrents.
+    trackersFilter: "",
     sortKey: "recent",
     sortReversed: false,
     sugCount: 30,
