@@ -49,8 +49,9 @@ def test_the_vocabulary_carries_the_page_aliases(arm):
         arm: The loaded module.
     """
     words = set(arm.domain_vocabulary())
-    assert {"acquisition", "arrivals", "settings"} <= words, "feature names"
-    assert {"acq", "arr", "cfg", "maint", "sys"} <= words, (
+    # RE-AIMED OUT LOUD: `arrivals` / `arr` left the derived vocabulary with the page.
+    assert {"acquisition", "library", "settings"} <= words, "feature names"
+    assert {"acq", "lib", "cfg", "maint", "sys"} <= words, (
         "the page aliases are the half the frame actually writes; without them "
         "app/page-host.tsx's table of pages is invisible to this arm"
     )
