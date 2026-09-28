@@ -137,6 +137,12 @@ Each phase is still re-measured at ITS opening on YOUR head; these are the facts
   `check-tailwind-confinement.py`, `check-markup-contracts.py`, `check-frontend-boundaries.py`,
   `frontend/maquette/oracle.py --contracts`. Seconds each; `run.sh` does not fold them all in (L22b's branch failed
   `oracle.py --contracts` for twenty phases, seen only at phase 48).
+- **2026-09-28, auditor's order 49**: before a gate, the static list, then `run.sh --oracle` ALONE, the moves it shows
+  declared BY NAME with their cause in the gate's invocation; after an acceptance by name proved by script on a green
+  gate, no « final » gate. Measured at the close: gates per phase (≤ 1.3), share of oracle-only failures (0).
+- **2026-09-28, auditor's order 52**: harness lines added ≤ 0.6 × product lines added in this lot (`git diff --numstat
+  origin/main...HEAD`, harness/ against design/src/), measured at the midpoint and the close; a new check on a surface
+  that has its rule is a HOLD in that file; above the budget, a CONSOLIDATION phase before READY.
 - **Your context**: the hook stops you at 60 % — at ~55 %, commit, push, rewrite the RESUME and stand down.
 - **The RESUME**: `docs/features/maquette-l16/RESUME-L16.md` = a STATE BLOCK of at most 40 lines (rewritten at every
   boundary) + an APPEND-ONLY ledger below it. No register row for an unshipped defect: a ledger line on the phase

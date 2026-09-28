@@ -1,52 +1,39 @@
 # L16 — RESUME
 
-## STATE BLOCK (rewritten at every boundary — 2026-09-28, stand-down after phase 4)
+## STATE BLOCK (rewritten at every boundary — 2026-09-28, boundary after phase 5a)
 
-- **Branch** `feat/maquette-l16`, worktree `/Users/izno/dev/worktrees/wave-l16`, head pushed `33283269f`, on L22b's
-  `a227ad6cb` (PR #626). `origin/main` NOT merged in — only on the steward's word that L22b is squashed.
-- **Orchestrator** « Orch : TM frontend [84baa3] ». The steward reads this session's gauge on its status bar
-  (the gauge script is refused by the auto-mode classifier here; do not work around it).
-- **Done** 1 · 2a · 2b · 2c · 3 · 4 — each gated, mutated, pushed. **Next: phase 5**, cut at its opening
-  (announced to the steward, ≈ 19): **5a** the rows — `features/trackers/torrents-tab.tsx` (title as a path,
-  tracker, ratio on the size, deadline, origin colour, open/done marks), R261 `trackers_roster.py` re-aimed
-  (mutation: ratio on the tracker's volume), R122 `paths_to_sheets.py` re-aimed OUT LOUD (its NAMING reads
-  `card` and `tile` « and no third », l. 70-74: `torrents/row` becomes the third), state `torrents-list`;
-  **5b** the `trackersFilter` filter, `torrents-list-filtered`, `torrents-empty`, `torrents-empty-filtered`
-  (two new dials in `mocks/trackers-state.ts`, beside `setTrackersEmpty`).
-- **Remaining** (from `ls plan/`): 5a · 5b · 6 · 7 · 8 · 9 · MIDPOINT FULL SUITE · 10 · 11 · 12 · 13 · 14 · 15 ·
-  16 · 17. Known STOP D: 9 (no « vu » precedent), 12 (ratio cause = global `ingest.min_ratio`; the seed),
+- **Branch** `feat/maquette-l16`, worktree `/Users/izno/dev/worktrees/wave-l16`. L22b is SQUASHED on `main`
+  (#626 → `232a908ca`); at this boundary the branch is re-based by the auditor's order: `git rebase --onto
+  origin/main f91e4c714`, range-diff, push `--force-with-lease` under the mutex (the ONLY force allowed).
+  From here on, `origin/main` is merged in (`git merge --no-edit`), never re-based, unless the steward says.
+- **Orchestrator** « Orch : TM frontend [79475d] » (succeeded [84baa3]); always write the reference.
+  The gauge script runs here: `context-gauge.sh`, its `context_percent=` and `source=` lines in every report.
+- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a — each gated, mutated, pushed. **Next: 5b** — the `trackersFilter`
+  filter on the Torrents tab, `torrents-list-filtered`, `torrents-empty`, `torrents-empty-filtered` (two new dials
+  in `mocks/trackers-state.ts` beside `setTrackersEmpty`), `screens.torrents.empty` / `.emptyFiltered`; and a dial
+  giving one obligation `satisfiedAt`, so the drawn « obligation terminée » mark (`torrents/obligation-done`)
+  gets a state and a hold (R261).
+- **Remaining** (from `ls plan/`): 5b · 6 · 7 · 8 · 9 · MIDPOINT FULL SUITE · 10 · 11 · 12 · 13 · 14 · 15 · 16 ·
+  17. Known STOP D: 9 (no « vu » precedent), 12 (ratio cause = global `ingest.min_ratio`; the seed),
   14 (no read of a config file's content in the maquette's contract).
-- **Rulings** (`RULINGS.md`): 1 — the tab's parameter is `?list=` (one parameter, one page); 2 — C2: the
-  policy rows raise the settings page's own `setting` panel, the settings save bar drawn on Trackers
-  through `lib/save-bar-door.tsx`. C1 carried to the operator by the steward.
-- **Rules** R260 `trackers_page.py` (h) · R261 `trackers_roster.py` (a) · R262 `trackers_policy.py` (b);
-  still to bind: c R263 (6) · d R264 (8) · g R265 (12) · f R266 (14) · e R267 (16); cuts take R268+.
-  Register rows B-570–B-589, none taken.
-- **Method that held**: rule first, RED by `run.sh --rules <rule>` under the mutex; gate =
-  `bash -c 'run.sh --contracts --oracle <rules>; oracle.py --accept'` in ONE mutex invocation, declared list
-  built by script into `~/Library/Logs/tm-l16/pNN-declared.json`, then
-  `python3 ~/Library/Logs/tm-l16/tools/accept_by_name.py <declared.json>` (keeps HEAD's state order; refuses
-  any undeclared key), every moved key LISTED with its cause (the steward asks), `test_oracle.py`'s
-  pinned count moved (now 135 states, 38 regions); `--a11y` its own run; `check-maquette-comments.py
-  --record` INSIDE the commit whenever a maquette file is added; readers of a behaviour changed are run
-  green BEFORE and AFTER with their hold counts (order 42). zsh: word-split rule lists with `${=RULES}`.
-- **Inherited fall at every gate**: `check-intent-map.py` (7 rows name `features/arrivals`) — L22b's, not ours.
-- **Mock state**: `mocks/trackers-state.ts` holds trackers / downloads / obligations keyed on `mockState()`'s
-  object; `mocks/index.ts` is at 399 non-blank lines — nothing more fits there.
+- **Rulings** (`RULINGS.md`): 1 — the tab's parameter is `?list=`; 2 — C2, the policy rows raise the settings
+  page's own `setting` panel, the save bar drawn on Trackers through `lib/save-bar-door.tsx`.
+- **Rules** R260 `trackers_page.py` (h) · R261 `trackers_roster.py` (a, re-aimed onto the Torrents tab in 5a) ·
+  R262 `trackers_policy.py` (b); R122 `paths_to_sheets.py` reads `torrents/row` since 5a; `page_host.py`'s walk
+  reaches `trackers`. Still to bind: c R263 (6) · d R264 (8) · g R265 (12) · f R266 (14) · e R267 (16); cuts
+  take R268+. Register rows B-570–B-589, none taken.
+- **Method that held**: rule first, RED by `run.sh --rules <rule>`; ORDER 49 — the static list first, then
+  `run.sh --oracle` ALONE, then the gate `bash -c 'run.sh --contracts --oracle <rules>; oracle.py --accept'` in
+  ONE mutex invocation, declared list built by script into `~/Library/Logs/tm-l16/pNN-declared.json`, then
+  `python3 ~/Library/Logs/tm-l16/tools/accept_by_name.py <declared.json>`; no « final » gate after an
+  acceptance proved by name on a green gate. `--a11y` on every gate that draws. `test_oracle.py`'s pinned
+  count moves with every new state (now 136 states, 38 regions). `check-maquette-comments.py --record`
+  INSIDE the commit whenever a maquette file is added. ORDER 52 — harness lines added ≤ 0.6 × product
+  lines added in this lot, measured at the midpoint and the close; a new check on a surface with a rule
+  is a HOLD in that rule's file. `git fetch` is blocked by a hook on the word: use `git remote update origin`.
+- **Mock state**: `mocks/trackers-state.ts` holds trackers / downloads / obligations; `mocks/index.ts` is at
+  399 non-blank lines — nothing more fits there.
 - **Logs** `~/Library/Logs/tm-l16/`; the proof tool lives in `tools/` there.
-
---- | --- | --- |
-  | R-L16-h | R260 | phase 2 |
-  | R-L16-a | R261 | phase 3 |
-  | R-L16-b | R262 | phase 4 |
-  | R-L16-c | R263 | phase 6 |
-  | R-L16-d | R264 | phase 8 |
-  | R-L16-g | R265 | phase 12 |
-  | R-L16-f | R266 | phase 14 |
-  | R-L16-e | R267 | phase 16 |
-
-  A cut that needs a further rule takes R268 onward. No register row taken yet.
-- **Logs** `~/Library/Logs/tm-l16/`.
 
 ---
 
@@ -122,3 +109,18 @@
   entry, read again, shows the value the layer now answers »); settings readers 68 · 15 · 23 · 42 before and
   after. Pushed `33283269f`. Phase 5 re-measured ≈ 19, cut 5a / 5b (announced); not opened — stand-down
   on the steward's word at gauge 49 %.
+- 2026-09-28 — successor session (« Agent : l16 2 »): handshake; the gauge script runs here (9 %). Phase 5a
+  opening ≈ 11. Slip: one read-only `cd` into `design/src` (B-384), one grep, left at once, nothing written
+  or run there. R261 re-aimed OUT LOUD onto the Torrents tab (holds 6–11, a finger on a title lands on
+  `/media/tvdb/466198`), R122 re-aimed OUT LOUD (« card and tile, and no third » → `torrents/row` the third);
+  RED `p05a-red.log` (R261 « état inconnu : torrents-list », 0 rows of 6; R122 crashes on the same absent state).
+- 2026-09-28 — 5a move `7228f6896`; merge of L22b's head `f91e4c714` (steward's order, operator ruling A:
+  tm-design shows the lot in flight): one conflict, the comment baseline, re-recorded. The merge felled
+  `page_host.py` — L22b's new hold « every page the shell owns is in the walk » met `trackers` — re-aimed
+  OUT LOUD, the walk reaches it from `discover` and `sys`. `check-intent-map` green from the merge on.
+- 2026-09-28 — 5a gate: a11y read 6 colour-contrast on `torrents-list` (the title button's native ground) →
+  `features/trackers/variants.ts`, 0. Oracle: `torrents-list` new (0 keys moved), then its `shell/page` and
+  `trackers/body` height 739.1 → 870 (the title at 44 px), accepted by name (`p05a-accept-proof2.log`).
+  Mutations: ratio on the tracker's volume → R261 FAIL « President Curtis on c411: its ratio is its own, 0,42,
+  on its own size — never 0,00 on the tracker's volume » (`p05a-mutation1.log`); title path dropped → R122
+  FAIL « 6 dead of 6 — carried by none » (`p05a-mutation2.log`). Orders 49 and 52 received.
