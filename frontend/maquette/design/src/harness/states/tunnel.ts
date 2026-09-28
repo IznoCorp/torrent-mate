@@ -86,7 +86,7 @@ export function tunnelStates(): NamedState[] {
         applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" }),
     ],
     // THE DENSE WORLD'S « À TRAITER »: the folders the Arrivées page drew in
-    // it — Backrooms, S.W.A.T., doc_fr_2026_final — whose readers begin here
+    // it — Backrooms, S.W.A.T. — whose readers begin here
     // since the page died. The real world's holds only one of the staging's.
     [
       "acq-todo-dense",

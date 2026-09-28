@@ -68,6 +68,7 @@ needs under it. B-396 asked for a list that has MOVED, not for a finger on this
 act; t4 keeps the finger on the undo. What t6 holds is unchanged.
 """
 import asyncio
+import json
 import pathlib
 import sys
 
@@ -89,8 +90,13 @@ WINDOW_CLOSED = UNDO_WINDOW + ACTED
 SECOND_FOLDER = "S.W.A.T."
 
 # THE THIRD FOLDER, resolved so the list moves under the put-back: a resolve
-# takes its folder out of the list AT ONCE, with no window of its own.
-THIRD_FOLDER = "doc_fr_2026_final"
+# takes its folder out of the list AT ONCE, with no window of its own. Read off
+# the dense world's stuck list: its first row that is not the second folder.
+# RE-AIMED OUT LOUD: it was « doc_fr_2026_final », which the sort files as other
+# and which left the seeds; the list the put-back lands on is now EMPTY.
+THIRD_FOLDER = next(row["title"] for row in json.loads(
+    (pathlib.Path(__file__).resolve().parents[1] / "design/src/mocks/seeds/stuck-loaded.json")
+    .read_text(encoding="utf-8")) if row["title"] != SECOND_FOLDER)
 
 # THE QUEUE'S TWO LISTS, by title, as the surfaces are drawn from.
 LISTS = """()=>({

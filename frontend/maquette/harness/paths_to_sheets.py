@@ -55,7 +55,7 @@ SURFACES = (
     ("acq-now-loaded", "an acquisition in flight", PAGE),
     # RE-AIMED OUT LOUD: `arr-loaded` left with the Arrivées page and takes NO
     # successor. Its folders are « À traiter »'s in the same world, measured
-    # there: one row names a medium, the three others wear `data-nonmedia` —
+    # there: one row names a medium, the two others wear `data-nonmedia` —
     # nobody identified them, and they owe no sheet — which is under this
     # rule's floor of rows. An identified arrival is a card of « En cours »,
     # read by acq-now-loaded above.
