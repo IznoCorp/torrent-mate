@@ -15,7 +15,7 @@ phase opens — the tree will have moved again by L22b's landing.
 
 **Where L16 opens in the order: after L22b.** L22b's phase 19 takes Système out of the bar, its
 phase 25 deletes the `arr` row, and its own porting of round 8's Q20 puts Découvrir in the bar as a
-third button (`docs/features/maquette-l22/plan/INDEX.md`; L22a = phases 1–14, L22b = phases 15–27).
+third button (`docs/features/maquette-l22/plan/INDEX.md@232a908ca`; L22a = phases 1–14, L22b = phases 15–27).
 The order is L13 · L22 · L16 · L17 · L18, and an upload-to-tracker lot (L23 proposed) is drawn ahead
 of time in the second slot after L18 (round 8 Q18).
 

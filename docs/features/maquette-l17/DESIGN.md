@@ -59,7 +59,7 @@ serves it (§ 3) and the phases that build it (`plan/INDEX.md`).
 ### 0.1 The rulings this amendment is read against, and what each moved
 
 The rulings are the operator's and are not reopened here. « Organisation ruling N » is his entry in
-`docs/reference/operator-method.md`, numbered as `docs/features/maquette-l22/DESIGN.md` § 0 numbers them; L16's own
+`docs/reference/operator-method.md`, numbered as `docs/features/maquette-l22/DESIGN.md@232a908ca` § 0 numbers them; L16's own
 re-read continues the count from 16.
 
 | Ruling | What it dictates | What it moved in this amendment |
@@ -405,7 +405,7 @@ only a cross-seed failure justifies, beside L16's `bar-trackers-alert`).
 ## 4. The named states
 
 **Measured before naming them at the amendment**: the count on `1d1282567` is L16's and L22's own, re-taken at
-phase 1's opening (the command is unchanged from the first drawing, `docs/features/maquette-l22/DESIGN.md` § 4).
+phase 1's opening (the command is unchanged from the first drawing, `docs/features/maquette-l22/DESIGN.md@232a908ca` § 4).
 **L17 adds these unconditionally** — every OPEN question is ruled, so nothing here is conditional any more. Every
 one is reachable by `window.__go("<id>")`, has an English id, and its French label is what the panel says. They live
 in `harness/states/trackers.ts` (L16's file) while it stays under invariant 6's 400 lines, and in a new

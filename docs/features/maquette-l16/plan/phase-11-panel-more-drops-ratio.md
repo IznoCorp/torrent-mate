@@ -16,7 +16,7 @@ surface with its own badge, the constants have no reason left to stand: this pha
   own figures), untouched here.
 - **Points ≈ 4.** `WATCH_FACTS.globalRatio` and `.obligations`, and their two `lignes` in the panel's
   `faits` block, removed (≈ 10 edited) 2; the two `fr.json` keys removed (≈ 2 edited) ½; a dated line
-  in `docs/features/maquette-l22/DESIGN.md` § 1.7 (l.258), noting the panel's ratio facts leave at L16
+  in `docs/features/maquette-l22/DESIGN.md@232a908ca` § 1.7 (l.258), noting the panel's ratio facts leave at L16
   — a documentation row 1; a comment in `panel-more.ts` itself, naming L16 as the lot that closed this
   fixture rather than leaving the header's own promise unanswered ½.
 - **Re-cut (2026-09-27, on `5e5ecd052`).** No row of the prior re-reads names this fix: F17 is an audit
@@ -43,7 +43,7 @@ still renders. **A phase with no rule says so; it does not invent one to look co
   longer has a single « obligations en cours » figure to point at would read as a promise this design
   does not keep either.
 - **`i18n/fr.json`** — `panels.standby.globalRatio` and `.obligations` removed.
-- **`docs/features/maquette-l22/DESIGN.md`** § 1.7 (l.258) — a dated line: « the panel's ratio facts
+- **`docs/features/maquette-l22/DESIGN.md@232a908ca`** § 1.7 (l.258) — a dated line: « the panel's ratio facts
   leave at L16 (§ 18, phase 10) », per F17.
 
 ## Register
