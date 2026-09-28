@@ -16,7 +16,7 @@ import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { mediumCardMarkup } from "./card-markup";
 import { setAsideCards, todoCards } from "./arrival-slots";
 import { Disclosure } from "../../ui/disclosure";
-import { useAcquisitionQueue } from "../../lib/queue";
+import { useAcquisitionQueue, useStaging } from "../../lib/queue";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useUiState } from "../../lib/store-access";
 import { body, emptyNote, section as sectionClass } from "../../ui/variants";
@@ -43,6 +43,11 @@ export function TodoTab(): ReactElement {
   }
   const scenario = state.scen === "loaded" ? "loaded" : "";
   const { data: queue } = useAcquisitionQueue(scenario);
+  // THE STAGING READ IS OBSERVED HERE because the panels this tab opens derive
+  // their act from it (`queueNow().stuck`): a folder the read does not hold is
+  // offered its journey instead of « Résoudre ». An unobserved answer is not
+  // read at all on a cold load.
+  useStaging(scenario);
   const blocked = queue ? todoCards(queue) : [];
   const setAside = queue ? setAsideCards(queue) : [];
   // A STEP THAT CANNOT FINISH is unblocked by a relaunch, never by an identity
