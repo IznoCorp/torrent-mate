@@ -364,7 +364,9 @@ def test_the_committed_reference_carries_a_platform():
     # Système's badge and carrying none — added, nothing else moved.
     # 132 SINCE L22b's phase 34: acq-card-follow-error, a tunnel error POSED on « Furious », a
     # follow in flight (RULINGS 26) — added, nothing else moved.
-    assert reference["counts"] == {"states": 132, "regions": 39}
+    # 134 SINCE L22b's phase 40: acq-todo-loading and acq-todo-error, « À traiter »'s own
+    # loading and error surfaces (R90 reads the error in Arrivées' place) — added, nothing else moved.
+    assert reference["counts"] == {"states": 134, "regions": 39}
 
 
 class TestItRefusesToWriteOverAForeignBuild:

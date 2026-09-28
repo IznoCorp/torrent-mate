@@ -782,6 +782,7 @@
       "tabTodo": "À traiter",
       "moreLabel": "Plus — veille et obligations",
       "errorNow": "ce qui vous attend",
+      "errorTodo": "ce qui attend votre main",
       "errorFollows": "vos suivis",
       "errorSuggestions": "les suggestions",
       "nowEmpty": "Rien en cours.",

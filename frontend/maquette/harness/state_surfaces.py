@@ -12,7 +12,7 @@ AND THE REASON THIS RULE IS WORTH ITS BROWSER is B-108. The oracle's own
 `neutralise` used to tear `.note` nodes out of React's tree before measuring;
 React then threw `NotFoundError` on the next reconciliation, the subtree died,
 and four states were RECORDED AS BLANK — `acq-now-error`, `acq-now-loading`,
-`arr-error`, `arr-loading`, every one of them a loading or an error surface. The
+and the two of the Arrivées page, every one of them a loading or an error surface. The
 instrument was blind exactly here. So this rule reads the surfaces DIRECTLY,
 by their own text and their own control, and it does not depend on a rectangle.
 
@@ -28,6 +28,7 @@ WHAT IT DOES NOT READ, said before what it does:
     would be a rule certifying the fixture.
 """
 import asyncio
+import json
 import pathlib
 import sys
 
@@ -41,8 +42,13 @@ from common import PHONE, Journal, open_page
 # `sys-error` and `maint-error`, which do not exist, and the rule crashed on the
 # third state rather than quietly measuring three of five.
 # <sub>`grep -rB3 'phase: "error"' design/src/harness/states/`</sub>
+# RE-AIMED OUT LOUD: the Arrivées page dies, and « À traiter » takes its place
+# here — the tab that says what waits for the operator's hand, with its own
+# subject, read from the resources.
+WORDS = json.loads((pathlib.Path(__file__).resolve().parents[1]
+                    / "design/src/i18n/fr.json").read_text(encoding="utf-8"))
 ERROR_STATES = {
-    "arr-error": "ce qui arrive",                  # french-ok: the app's rendered output
+    "acq-todo-error": WORDS["screens"]["acquisition"]["errorTodo"],
     "acq-now-error": "ce qui vous attend",         # french-ok: the app's rendered output
     "acq-follows-error": "vos suivis",             # french-ok: the app's rendered output
     "lib-error": "votre médiathèque",              # french-ok: the app's rendered output
@@ -114,7 +120,7 @@ async def hold(journal):
         # « RÉESSAYER » RE-ASKS, where no caller gave it a read of its own: the
         # frame answers `data-retry` by asking every active read again. Read as
         # the ANSWERS the cache counts, which move only when a read was asked.
-        await page.evaluate("(id)=>window.__go(id)", "arr-error")
+        await page.evaluate("(id)=>window.__go(id)", "acq-todo-error")
         await page.wait_for_timeout(400)
         answers = """()=>window.__queries.getQueryCache().getAll()
             .filter((query) => query.getObserversCount() > 0)
@@ -125,7 +131,7 @@ async def hold(journal):
                     if (!retry) return false; retry.click(); return true;}""")
         await page.wait_for_timeout(600)
         after = await page.evaluate(answers)
-        journal.check("arr-error's « Réessayer » asks every active read again",
+        journal.check("acq-todo-error's « Réessayer » asks every active read again",
                       tapped and after > before,
                       f"tapped={tapped}, active answers {before} -> {after}")
 

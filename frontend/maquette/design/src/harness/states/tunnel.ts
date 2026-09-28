@@ -85,6 +85,16 @@ export function tunnelStates(): NamedState[] {
         applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" }),
     ],
     [
+      "acq-todo-loading",
+      "À traiter — chargement",
+      () => applyState({ page: "acq", acqTab: "todo", phase: "loading" }),
+    ],
+    [
+      "acq-todo-error",
+      "À traiter — erreur",
+      () => applyState({ page: "acq", acqTab: "todo", phase: "error" }),
+    ],
+    [
       "acq-card-set-aside",
       "À traiter — une carte mise de côté, « Mis de côté » déplié",
       () => {

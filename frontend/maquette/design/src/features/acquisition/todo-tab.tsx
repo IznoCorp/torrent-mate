@@ -34,7 +34,7 @@ export function TodoTab(): ReactElement {
     return (
       <div className={body()} data-part="surface/body" data-region="acquisition/body">
         {state.phase === "error" ? (
-          <SurfaceError subject={t("screens.acquisition.errorNow")} />
+          <SurfaceError subject={t("screens.acquisition.errorTodo")} />
         ) : (
           <div className={sectionClass()} data-part="section"><Skeletons count={3} shape="card" /></div>
         )}
