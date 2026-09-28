@@ -41,7 +41,9 @@ torrent trouvé ».
 5. the quality screen promises no « cherché, rien trouvé ».
 
 Every expected sentence is read from the interface's resources, never written
-here; the page's own name is read from them too.
+here. The page's own name is NOT: the page is gone from the resources with the
+page, and a sentence naming it is the defect this rule looks for, so its name is
+written here, once.
 """
 import asyncio
 import json
@@ -55,7 +57,9 @@ WORDS = json.loads((pathlib.Path(__file__).resolve().parents[1]
                     / "design/src/i18n/fr.json").read_text(encoding="utf-8"))
 # The page's name in the interface, and its plural in running text.
 PAGES = WORDS["navigation"]["pages"]
-ARRIVALS = re.compile(r"\b" + re.escape(PAGES["arr"].lower()) + r"\b")
+# THE DEAD PAGE'S NAME, as the interface wrote it while it lived.
+ARRIVALS_NAME = "Arrivées"  # french-ok: the removed page's name, asserted absent
+ARRIVALS = re.compile(r"\b" + re.escape(ARRIVALS_NAME.lower()) + r"\b")
 STARTED = WORDS["verbs"]["maintenance"]["started"]
 SYSTEM = PAGES["sys"]
 REMOVED_PROMISE = "cherché, rien trouvé"  # french-ok: the removed section's words, asserted absent

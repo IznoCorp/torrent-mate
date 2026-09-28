@@ -1346,16 +1346,15 @@
         "confirm": "Supprimer",
         "cancel": "Annuler",
         "done": "« {{title}} » supprimé du disque."
-      }
+      },
+      "left": "« {{title}} » mis de côté — il vous attend, replié en fin d'« À traiter ».",
+      "resolved": "Identifié comme « {{choice}} » — le pipeline reprend jusqu'à la médiathèque."
     },
     "arrivals": {
-      "taken": "« {{title}} » récupéré — suivez-le dans « En vol ».",
-      "left": "« {{title}} » mis de côté — il vous attend, replié en fin d'« À traiter ».",
       "pipelineStarted": "Pipeline lancé — il se raconte ici, étape par étape.",
       "pipelineQueued": "En file — votre passage partira dès que la maintenance en cours sera finie.",
       "pipelineAlreadyRunning": "Un passage est déjà en cours — celui-ci n'a pas été relancé.",
-      "pipelineStopped": "Pipeline arrêté. Ce qui était déjà rangé le reste.",
-      "resolved": "Identifié comme « {{choice}} » — le pipeline reprend jusqu'à la médiathèque."
+      "pipelineStopped": "Pipeline arrêté. Ce qui était déjà rangé le reste."
     },
     "media": {
       "seasonAsked": "Saison {{season}} de « {{title}} » demandée — {{count}} épisodes à récupérer.",

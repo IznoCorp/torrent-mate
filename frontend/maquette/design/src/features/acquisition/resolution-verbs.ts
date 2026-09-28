@@ -46,7 +46,7 @@ registerVerb("take", (value) => {
   queueActions?.take(value);
   redraw();
   toast?.show({
-    message: i18next.t("verbs.arrivals.taken", {
+    message: i18next.t("verbs.acquisition.taken", {
       title: baseTitle(value),
     }),
   });
@@ -75,7 +75,7 @@ registerVerb("resolve", (choice) => {
   }
   const undo = queueActions?.pick(target, choice);
   store.touch();
-  const message = i18next.t("verbs.arrivals.resolved", { choice: choice || target });
+  const message = i18next.t("verbs.acquisition.resolved", { choice: choice || target });
   toast?.show(typeof undo === "function" ? { message, undo } : { message });
 });
 
@@ -91,7 +91,7 @@ registerVerb("leave", () => {
   }
   if (!queueActions?.leave(target)) return;
   store.touch();
-  toast?.show({ message: i18next.t("verbs.arrivals.left", { title: target }) });
+  toast?.show({ message: i18next.t("verbs.acquisition.left", { title: target }) });
 });
 
 // No match for the folder: a pre-filled identification search, its query the
