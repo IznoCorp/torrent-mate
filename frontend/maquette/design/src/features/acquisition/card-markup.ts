@@ -20,6 +20,7 @@ import { posterFallback } from "../../ui/variants";
 import { posterArtwork } from "../../lib/engine-drawing";
 import { richTextMarkup } from "./rich-text";
 import { originRow, footRow } from "./variants";
+import { currentRung } from "../../lib/current-rung";
 
 /** A medium as an acquisition list holds one, in the engine's field names. */
 export type MediumCard = {
@@ -82,23 +83,6 @@ const RUNG_TONE: Record<StripState, string> = {
 
 // The reason a rung waits for the operator's answer rather than for his hand.
 const TO_CONFIRM = "confirmation";
-
-/**
- * The rung a card stands on: the one in motion, waiting or stopped; else the one
- * after the last passed — a rung the row never lived, before it, is not where it
- * stands — or the last when every one is passed.
- *
- * @param ladder The medium's rungs.
- * @returns The current rung's index.
- */
-function currentRung(ladder: { state: StripState }[]): number {
-  // A rung never lived is not where it stands either, like one not reached.
-  const active = ladder.findIndex(
-    (rung) => rung.state !== "done" && rung.state !== "pending" && rung.state !== "skipped");
-  if (active !== -1) return active;
-  const done = ladder.map((rung) => rung.state).lastIndexOf("done");
-  return Math.min(done + 1, ladder.length - 1);
-}
 
 /**
  * A date, as a sentence says it: the day and the month.

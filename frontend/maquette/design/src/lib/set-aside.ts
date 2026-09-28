@@ -11,6 +11,7 @@
 // optimistic half of one verb of that module, and only that module calls it.
 import type { QueryClient } from "@tanstack/react-query";
 import { today } from "./clock";
+import { currentRung } from "./current-rung";
 import type { Schemas } from "./contract-schemas";
 
 type Card = Schemas["QueueCard"];
@@ -39,8 +40,11 @@ export function isSetAside(card: { ladder?: { state: string }[] }): boolean {
  */
 function setAsideOn(card: Card): Card {
   const ladder = card.ladder;
-  const standing = ladder?.findIndex((rung) => rung.state !== "done") ?? -1;
-  if (ladder === undefined || standing === -1) return card;
+  if (ladder === undefined || ladder.length === 0) return card;
+  // THE RUNG IT STANDS ON, the card's own derivation — never the first rung
+  // not done, which for a folder whose first rungs were never lived is « demandé ».
+  const standing = currentRung(ladder);
+  if (ladder[standing].state === "done") return card;
   return {
     ...card,
     ladder: ladder.map((rung, index) =>

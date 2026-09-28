@@ -250,11 +250,11 @@ export function setAside(title: string): boolean {
   for (const list of SOURCE_LISTS) {
     const found = state[list].find((card) => card.title === title);
     if (found === undefined) continue;
-    // Laid where the list that draws it lays it: a staging folder on
-    // « identifié », a blocked card on its strip.
-    const ladder = ladderOf(title, list === FROM_BLOCKED ? stripPosition(found.strip) : STUCK_AT);
-    const standing = ladder.findIndex((rung) => rung.state !== "done");
-    if (standing === -1) return false;
+    // Set aside on the rung it STANDS on (a staging folder « identifié », a blocked card its strip's
+    // current cell) — never the first one not done, « demandé » for a folder that never lived it.
+    const position = (list === FROM_BLOCKED ? stripPosition(found.strip) : undefined) ?? STUCK_AT;
+    const ladder = ladderOf(title, position);
+    const standing = position.current;
     ladder[standing] = { rung: ladder[standing].rung, state: ASIDE, when: scenario().now };
     return true;
   }
