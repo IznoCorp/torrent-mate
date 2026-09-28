@@ -541,3 +541,13 @@ L22b appends from 13).
   The clause map on the operator's (b): replacements prepared (DOIT-1 `features/acquisition` + R63 alone, R66 died with
   its page; DOIT-2 R209, R208; DOIT-3 `features/system` + `features/maintenance`, R178/R179, R240, R185; DOIT-4 R179;
   DOIT-5 « À traiter » → Résoudre; NE-DOIT-PAS-2 R224, R209; NE-DOIT-PAS-3 R179) — the write REFUSED by the classifier.
+- 2026-09-28 (steward's question on R67) WHO HOLDS « a medium in trouble is reachable ON SCREEN », and where: R67 now
+  holds only that none of the stuck titles the layer serves is drawn on Système. The reach is held on Acquisition's
+  « À traiter »: R209 (`todo_holds.py`, state `acq-todo-loaded`) — the real stuck row of `stuck.json` (Top Chef) is a
+  card of the tab, blocked on its ladder, its reason in full, offering « Relancer » and never « Résoudre »; « En cours »
+  holds no blocked card; R208 (`card_without_identity.py`, `acq-card-no-identity`, the dense world's
+  `stuck-loaded.json` folder) — the folder nobody recognised is a card there, its reason drawn, its foot leading to
+  the candidates screen, a tap opening it. The walk BY FINGER to the tab: R239 (`no_sentence_to_arrivals.py`) —
+  from Système and from a run's screen, a cross-reference lands on « À traiter » (`tab=todo`), standing on the floor.
+  Not a STOP.
+
