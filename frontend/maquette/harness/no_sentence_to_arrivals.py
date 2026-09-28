@@ -19,12 +19,19 @@ torrent trouvé ».
    A run's detail is reached BY FINGER for the landing — home, the menu,
    Système, a run — because its named state lays Système without the entry a
    finger pushes, and the landing's walk back through the history then has no
-   floor to land on: the address would be read off a history no finger makes;
+   floor to land on: the address would be read off a history no finger makes.
+   And the landing STANDS ON THE FLOOR — the entry home stood on when the walk
+   began (§ 16 rule 2: [guard, acq] arriving home, never a page's entry left
+   underneath, which would take two Backs to leave);
 2b. and the landing home that every bar tap makes is unchanged: on a
    history a finger laid with « En cours » in the floor's address and « À
    traiter » remembered, the bar's Médiathèque then its Acquisition come back
    to « En cours », the address saying it (the step back home is ANNOUNCED
    since the landings above, and the floor takes the page's own state);
+2d. a run's screen opened by a row COUNTS its entry into the step home (held
+   by the walk above); a run's address loaded cold — no entry pushed — lands
+   its cross-reference on Acquisition without leaving the application. The
+   bar is not a second reader: the screen covers it, and no finger reaches it;
 2c. a control that names no tab (the not-found page's « Acquisition ») lands
    on the tab the device remembers, « En cours » here;
 3. « En cours » draws no cross-reference at all: its subject — what entered
@@ -41,7 +48,7 @@ import json
 import pathlib
 import re
 
-from common import ACTED, PAGE_PATHS, PANEL_IN, SETTLED, Journal, open_page
+from common import ACTED, PAGE_PATHS, PROTOTYPE, PANEL_IN, SETTLED, Journal, open_page
 from playwright.async_api import async_playwright
 
 WORDS = json.loads((pathlib.Path(__file__).resolve().parents[1]
@@ -63,6 +70,8 @@ LANDED = """()=>({ page: state.page, path: location.pathname,
 KEY = "acquisition-tab"
 FORGET = "(key)=>{ try { localStorage.removeItem(key); } catch (error) {} }"
 REMEMBER = "([key, tab])=>{ try { localStorage.setItem(key, tab); } catch (error) {} }"
+# The index of the history entry the page stands on, as the router writes it.
+ENTRY = "()=>(history.state || {}).__TSR_index ?? null"
 TODO = "todo"
 NOW = "now"
 REAL_COMMAND = "library-status"
@@ -83,6 +92,17 @@ EVERY_CROSS_REFERENCE = """(selector)=>document.querySelectorAll(
 def names_arrivals(text):
     """Whether a text names the Arrivées page."""
     return ARRIVALS.search(text.lower()) is not None
+
+
+async def step(page, journal, where, selector):
+    """Taps what a selector finds, by a finger; a step nobody can tap is a named failure."""
+    try:
+        await page.locator(selector).first.tap(timeout=5000)
+    except Exception as error:  # the walk cannot go on, and says where it stopped
+        journal.check(f"{where}: the finger reaches {selector}", False, str(error).splitlines()[0])
+        return False
+    await page.wait_for_timeout(ACTED)
+    return True
 
 
 async def drive(page, state):
@@ -138,30 +158,61 @@ async def walked(browser, journal, name):
     """Holds the landing of a cross-reference on a history a finger laid."""
     context, page = await open_page(browser)
     await page.evaluate(FORGET, KEY)
-    for step in WALKS[name]:
-        await page.locator(step).first.tap()
-        await page.wait_for_timeout(ACTED)
+    floor = await page.evaluate(ENTRY)
+    for selector in WALKS[name]:
+        if not await step(page, journal, f"{name}, walked", selector):
+            await context.close()
+            return
     landed = await page.evaluate(LANDED)
     journal.check(f"{name}, walked: its cross-reference lands on Acquisition, and leaves Système",
                   landed["page"] == "acq" and not landed["path"].startswith(SYSTEM_PATH), str(landed))
     journal.check(f"{name}, walked: on « À traiter », which it names — the address says it, and the tab is drawn",
                   landed["tab"] == TODO and landed["drawn"] == TODO, str(landed))
+    standing = await page.evaluate(ENTRY)
+    journal.check(f"{name}, walked: the landing stands on the floor, no entry left underneath",
+                  floor is not None and standing == floor, f"floor {floor}, landed on {standing}")
     await context.close()
 
 
 async def bar_home(browser, journal):
     """Holds a bar tap home on a floor whose tab is not the remembered one."""
     context, page = await open_page(browser)
-    await page.locator('[data-acqtab="now"]').first.tap()
-    await page.wait_for_timeout(ACTED)
-    await page.evaluate(REMEMBER, [KEY, TODO])
-    for step in ('#nav button[data-page="lib"]', '#nav button[data-page="acq"]'):
-        await page.locator(step).first.tap()
-        await page.wait_for_timeout(ACTED)
+    walk = ('[data-acqtab="now"]', '#nav button[data-page="lib"]', '#nav button[data-page="acq"]')
+    for index, selector in enumerate(walk):
+        if not await step(page, journal, "the bar, walked home", selector):
+            await context.close()
+            return
+        if index == 0:
+            await page.evaluate(REMEMBER, [KEY, TODO])
     landed = await page.evaluate(LANDED)
     journal.check("the bar, walked home: back on « En cours », the floor's tab, and the address says it",
                   landed["page"] == "acq" and landed["drawn"] == NOW and landed["tab"] == NOW, str(landed))
     await page.evaluate(FORGET, KEY)
+    await context.close()
+
+
+async def cold_run(browser, journal):
+    """Holds a run's cross-reference on the run's address loaded cold."""
+    context, page = await open_page(browser)
+    for selector in (*TO_SYSTEM, '[data-part="runs/row"]'):
+        if not await step(page, journal, "a run's address, read", selector):
+            await context.close()
+            return
+    address = await page.evaluate("()=>location.pathname")
+    await context.close()
+
+    context, page = await open_page(browser)
+    await page.goto(PROTOTYPE.rstrip("/") + address, wait_until="load")
+    await page.evaluate("()=>window.__loadingDone?.()")
+    await page.evaluate("()=>document.querySelector('#toastx')?.click()")
+    await page.wait_for_timeout(SETTLED)
+    if not await step(page, journal, "a run's address loaded cold", f'{RUN_BODY} [data-part="cross-reference"][data-go]'):
+        await context.close()
+        return
+    inside = page.url.startswith(PROTOTYPE.rstrip("/"))
+    landed = await page.evaluate(LANDED) if inside else {"url": page.url}
+    journal.check("a run's address loaded cold: its cross-reference lands on Acquisition, inside the application",
+                  inside and landed.get("page") == "acq", f"{address} → {landed}")
     await context.close()
 
 
@@ -191,6 +242,7 @@ async def main():
         await walked(browser, journal, "system")
         await walked(browser, journal, "run-detail")
         await bar_home(browser, journal)
+        await cold_run(browser, journal)
 
         await reads(page, journal, "acq-now-loaded", PAGE)
         staged = await page.evaluate("async()=>(await (await fetch('/api/staging/media?scenario=loaded')).json())")
