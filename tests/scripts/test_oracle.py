@@ -377,7 +377,10 @@ def test_the_committed_reference_carries_a_platform():
     # arrivals/body) left regions.json and every state's record, all null — nothing else moved.
     # 131 states and 38 regions SINCE L16's phase 2a: `trackers-page`, the « Trackers » page of
     # the bar, and `trackers/body`, its body — the reference GREW, not one existing key moved.
-    assert reference["counts"] == {"states": 131, "regions": 38}
+    # 133 SINCE L16's phase 3: `trackers-roster` and `trackers-roster-empty`, the « Trackers » tab
+    # with its entries and with none configured — added; `trackers-page` alone moved, its default
+    # tab now drawing the roster.
+    assert reference["counts"] == {"states": 133, "regions": 38}
 
 
 class TestItRefusesToWriteOverAForeignBuild:
