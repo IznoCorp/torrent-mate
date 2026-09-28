@@ -70,8 +70,8 @@ export function firstStuckFolder(): string | null {
 /**
  * The queue's lists, answered synchronously from the cache.
  *
- * WHAT STILL ASKS. The engine draws its own nav badges, its `__blocked` probe
- * and two « next folder » walks from click handlers that cannot await. They are
+ * WHAT STILL ASKS. The engine draws its own nav badges and two « next
+ * folder » walks from click handlers that cannot await. They are
  * the same question the surfaces ask, so they read the same cache rather than a
  * copy — §13's « une seule dérivation par question », which a second world was
  * the standing way to break. It goes with the drawing at L13.

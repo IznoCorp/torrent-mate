@@ -224,10 +224,6 @@ export function installDriver(states: NamedState[]): void {
      at one and answered a tap with a message. Reading the page table rather
      than a list written beside it is what makes that checkable at all. */
   window.__pages = () => navigation?.ids() ?? [];
-  /* The media the pipeline is currently refusing. The rule that keeps them OFF
-     the machine's page has to know their names, and a rule that cannot reach
-     them compares against an empty list and passes whatever it is shown. */
-  window.__blocked = () => (window.__queue?.() ?? { stuck: [] }).stuck.map((card) => card.title);
   /* Clears ALL harness chrome before a capture or a measurement: the harness
      buttons float above the shell, which is a measured region and must carry
      nothing that does not exist in the app. */
@@ -260,7 +256,6 @@ declare global {
     /** Hides the harness chrome, or shows it again with `false`. */
     __measure: (enabled?: boolean) => boolean;
     /** The media the pipeline is refusing. */
-    __blocked: () => unknown[];
     /** The page ids the interface can render. */
     __pages: () => string[];
     /** What the seed, or else the cache, knows of the medium a title names. */

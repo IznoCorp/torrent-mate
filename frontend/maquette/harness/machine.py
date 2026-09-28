@@ -454,7 +454,14 @@ async def main():
         # 1. No blocked medium here. The stuck folders are named on
         # Acquisition's « À traiter »; finding one on Système means a medium is
         # being reported twice and answered nowhere.
-        blocked = await pg.evaluate("()=>window.__blocked ? window.__blocked() : null")
+        # RE-AIMED OUT LOUD: the stuck folders were read off the interface's
+        # cache, which Système does not observe — only the Arrivées badge,
+        # gone with its page, kept the staging read alive on every page. They
+        # are asked of the layer itself, the answer as served: what the
+        # server reports stuck is what must not be drawn here.
+        blocked = await pg.evaluate(
+            "()=>fetch('/api/staging/media').then((r)=>r.json())"
+            ".then((a)=>(a.stuck || []).map((card)=>card.title))")
         journal.check("the list of blocked media is reachable",
                          bool(blocked),
                          f"{len(blocked or [])} : {', '.join(blocked or [])}")
