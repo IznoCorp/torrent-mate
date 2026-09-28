@@ -219,9 +219,6 @@ export const crossReference = cva(
     "bg-transparent text-muted-foreground text-3 text-left p-5 rounded-3",
 );
 
-/** The emphasis inside a cross-reference. */
-export const crossReferenceStrong = cva("text-foreground font-semibold");
-
 /** The cross-reference's link, on its own row. */
 export const crossReferenceLink = cva("block mt-3 text-primary-text font-semibold whitespace-nowrap");
 

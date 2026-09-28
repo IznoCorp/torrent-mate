@@ -367,7 +367,7 @@
       "scopeAllFollows": "tous les suivis",
       "rankingToast": "Dans l'app, ce bouton mènera à /config ?tab=classement — l'éditeur de classement existe déjà.",
       "rankingWeights": "Poids du classement (global) →",
-      "rulenote": "Un profil qui n'accepte plus rien se dit : la carte affichera « cherché, rien trouvé » avec la raison, jamais un silence (§8).",
+      "rulenote": "Un profil qui n'accepte plus rien se dit : le suivi le dit, et sa recherche en direct répond « aucun torrent trouvé », jamais un silence (§8).",
       "saveToast": "Profil enregistré — la prochaine recherche l'appliquera.",
       "save": "Enregistrer",
       "audioOptions": {
@@ -485,7 +485,7 @@
     "system": {
       "errorSubject": "l'état de la machine",
       "introLead": "Système répond à une seule question : la machine va-t-elle bien ?",
-      "introRest": " Un média bloqué n'est pas ici — c'est une décision du pipeline, et elle est dans Arrivées. Ce qu'on trouve ici, ce sont les processus, les passages programmés, la place qui reste, et le code qui a levé une erreur.",
+      "introRest": " Un média bloqué n'est pas ici — il attend votre main dans « À traiter », sur Acquisition. Ce qu'on trouve ici, ce sont les processus, les passages programmés, la place qui reste, et le code qui a levé une erreur.",
       "faultLead": "Panne SIMULÉE.",
       "faultRest": " Cette machine est verte partout, et un écran qui ne peut être que vert ne se juge pas : cet état rejoue une panne pour montrer ce qu'on verrait le jour où quelque chose s'arrête. Rien ici n'est lu du système.",
       "services": "Services",
@@ -501,8 +501,8 @@
       "runRunning": "en cours",
       "runKilled": "arrêté",
       "runPaused": "en pause",
-      "toArrivals": "Le pipeline se pilote depuis Arrivées, où l'on voit ce qu'il fait aux médias. ",
-      "toArrivalsLink": "Arrivées →",
+      "toAcquisition": "Le pipeline se pilote ici, depuis ses leviers ; ce qu'il fait à un média se lit sur sa carte, dans Acquisition. ",
+      "toAcquisitionLink": "Acquisition →",
       "disks": "Disques",
       "index": "Index de la médiathèque",
       "toMaintenance": "Réparer ce que l'index signale se fait depuis Maintenance. ",
@@ -654,7 +654,7 @@
       "notFoundBack": "Revenir aux passages",
       "errorSubject": "ce passage",
       "leftBehind": "Ce que ce passage a laissé",
-      "leftBehindLink": "Voir les arrivées"
+      "leftBehindLink": "Voir « À traiter »"
     },
     "arrivals": {
       "introLead": "Arrivées porte la santé du PIPELINE",
@@ -777,14 +777,6 @@
       "gesturesNoteAfter": " écarte la suggestion — avec un « Annuler » dans la notification, parce qu'un geste rapide se trompe.",
       "tmdbMissingNoteLead": "Si le compte TMDB n'est pas connecté",
       "tmdbMissingNoteRest": ", la vue ne se vide pas : elle sert les similaires de votre médiathèque et dit ce qui manque et pourquoi. §8 — aucun rien silencieux.",
-      "crossrefFromAcquisition": "Ces items viennent d'une acquisition. ",
-      "crossrefMedium": " média",
-      "crossrefPlural": "s",
-      "crossrefToTreat": " à traiter ",
-      "crossrefEnteredOne": "est entré",
-      "crossrefEnteredMany": "sont entrés",
-      "crossrefWithoutFollow": " sans suivi. ",
-      "crossrefLink": "Arrivées →",
       "tabNow": "En cours",
       "tabFollows": "Suivis",
       "tabTodo": "À traiter",
@@ -1418,7 +1410,7 @@
       "watchLaunched": "Veille lancée — elle est en cours, son résultat s'affichera dans Système."
     },
     "maintenance": {
-      "started": "Commande lancée — suivez-la dans « Arrivées ».",
+      "started": "Commande lancée — suivez-la dans « Système ».",
       "queued": "Commande en file — pipeline en cours.",
       "dryDone": "Essai à blanc terminé — rien n'a été modifié.",
       "held": "Commande demandée — en attente du réseau, elle partira au retour.",

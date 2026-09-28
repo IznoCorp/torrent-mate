@@ -82,7 +82,7 @@ async function runAction(
         : "started";
     toast?.show({ message: say(messageKey) });
     // THE PIPELINE IS RE-READ, because that is where a real run becomes
-    // visible: Arrivées draws the pipeline's own state, and an answer nobody
+    // visible: Système draws the pipeline's own state, and an answer nobody
     // invalidates leaves it showing the machine as it was before the command.
     // A BLANK RUN RE-READS IT TOO — it moved nothing, and proving that on the
     // surface is worth exactly as much as proving the other.
