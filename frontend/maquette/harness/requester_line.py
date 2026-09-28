@@ -135,8 +135,10 @@ async def main():
         journal.check("every acquisition card says its origin, a folder dropped by hand aside",
                       len(lined) >= 6 and all(card["line"] is not None for card in lined),
                       str([card["title"] for card in lined if card["line"] is None]))
+        # ONE SUBJECT, said out loud: the game folder, the second, was never an
+        # acquisition card (the sort files it « autre ») and left the seeds.
         journal.check("a folder dropped by hand draws no requester line",
-                      len(dropped) >= 2 and all(card["line"] is None for card in dropped),
+                      len(dropped) >= 1 and all(card["line"] is None for card in dropped),
                       str([(card["title"], card["line"]) for card in dropped]))
         direct = [card for card in lined if card["line"] == line_for(ACCOUNT, "qbittorrent")]
         journal.check("direct adds that have arrived are read",

@@ -36,8 +36,9 @@ SHELL_OWNED = ["sys", "maint", "cfg", "arr", "lib", "acq", "discover", "profile"
 
 # What each page really emits, less a small margin. Measured, not guessed: one
 # floor for eight pages is either too high for the smallest or too low to notice
-# a page that lost half of itself.
-FLOORS = {"sys": 180, "maint": 50, "cfg": 40, "arr": 140, "lib": 150,
+# a page that lost half of itself. « arr » re-measured at 135 once the game
+# folder, never a medium, left the real world's seeds.
+FLOORS = {"sys": 180, "maint": 50, "cfg": 40, "arr": 130, "lib": 150,
           "acq": 55, "discover": 40, "profile": 30, "404": 5}
 # EMPTY, and that is the point of this wave: no page is drawn by the fragment
 # any more. The hold below says so out loud rather than passing over an empty

@@ -240,7 +240,9 @@ async def main():
         dropped = [card for card in cards + await page.evaluate(CARDS) if card["title"] in DROPPED]
         journal.check(
             "a folder dropped by hand passed no rung before « arrivé »",
-            bool(DROPPED) and len({card["title"] for card in dropped}) >= 2
+            # ONE SUBJECT, said out loud: the game folder, the second, was never an
+            # acquisition card (the sort files it « autre ») and left the seeds.
+            bool(DROPPED) and len({card["title"] for card in dropped}) >= 1
             and all(not any(state == "done" for state in card["states"][:RUNGS.index("arrived")])
                     for card in dropped),
             str([(card["title"], card["states"][:RUNGS.index("arrived")]) for card in dropped]))
