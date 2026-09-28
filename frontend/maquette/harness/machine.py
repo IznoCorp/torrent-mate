@@ -1,6 +1,6 @@
 """R67 — Système says whether the MACHINE is unwell, Maintenance is what one does to it.
 
-The cut is the operator's: a medium in trouble is Arrivées, a machine in
+The cut is the operator's: a medium in trouble is « À traiter », a machine in
 trouble is Système, and a command run against the library is Maintenance. Two
 surfaces, one rule, because the boundary between them is what the rule is
 about — a panel on the wrong page is the defect, not a missing panel.
@@ -9,8 +9,8 @@ What this holds to:
 
 1. **No blocked medium on Système.** Its business is processes, schedules,
    space, and code that raised. A medium the pipeline refused is a DECISION
-   and belongs to Arrivées; drawn here it would be reported twice and answered
-   nowhere.
+   and belongs to Acquisition's « À traiter »; drawn here it would be reported
+   twice and answered nowhere.
 2. **A scheduler between two runs is not stopped.** PM2 reports `stopped` and
    that is the literal truth about the process and a lie about the system:
    seven red rows on a machine in perfect health. A service is judged on
@@ -451,10 +451,17 @@ async def main():
                  f"the heading is there and NO LIST follows it — every {word} "
                  "hold below would judge an empty list"))
 
-        # 1. No blocked medium here. The two stuck folders are named on
-        # Arrivées; finding either name on Système means a medium is being
-        # reported twice and answered nowhere.
-        blocked = await pg.evaluate("()=>window.__blocked ? window.__blocked() : null")
+        # 1. No blocked medium here. The stuck folders are named on
+        # Acquisition's « À traiter »; finding one on Système means a medium is
+        # being reported twice and answered nowhere.
+        # RE-AIMED OUT LOUD: the stuck folders were read off the interface's
+        # cache, which Système does not observe — only the Arrivées badge,
+        # gone with its page, kept the staging read alive on every page. They
+        # are asked of the layer itself, the answer as served: what the
+        # server reports stuck is what must not be drawn here.
+        blocked = await pg.evaluate(
+            "()=>fetch('/api/staging/media').then((r)=>r.json())"
+            ".then((a)=>(a.stuck || []).map((card)=>card.title))")
         journal.check("the list of blocked media is reachable",
                          bool(blocked),
                          f"{len(blocked or [])} : {', '.join(blocked or [])}")

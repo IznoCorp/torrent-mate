@@ -54,7 +54,7 @@ export function installOutboxWiring(queryClient: QueryClient): void {
     // 10 refuses them in the frame; this reads the list without knowing what is
     // in it, and the queue still knows nothing at all.
     // MATCHED ON EITHER END. `find(([one]) => …)` read only the pair's FIRST
-    // address, so a replayed `/api/acquisition/to-handle/…/take` never reached
+    // address, so a replayed take never reached
     // staging — the same defect the pairing was written to fix, in the other
     // direction.
     const also = ADDRESSES_THAT_MOVE_TOGETHER.find(

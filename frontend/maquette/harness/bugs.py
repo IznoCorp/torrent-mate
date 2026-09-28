@@ -44,7 +44,7 @@ async def main():
     chk("2. media sheet from a follow sheet", r["screen"] and not r["sheet"], str(r))
 
     # 2b — from Découvrir
-    await pg.evaluate("()=>window.__go('acq-discover')"); await pg.wait_for_timeout(400)
+    await pg.evaluate("()=>window.__go('discover-full')"); await pg.wait_for_timeout(400)
     await pg.evaluate("()=>[...document.querySelectorAll('[data-panel]')].find(e=>e.dataset.panel.startsWith('sug:')).click()"); await pg.wait_for_timeout(400)
     await pg.evaluate("""()=>[...document.querySelectorAll('#sheet [data-part="sheet/action"]')].find(x=>x.textContent.includes('Voir la fiche')).click()""")
     await pg.wait_for_timeout(700)

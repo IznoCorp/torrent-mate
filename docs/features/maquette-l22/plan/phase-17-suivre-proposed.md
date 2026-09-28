@@ -19,6 +19,8 @@
   Worlds (2022) » are arrivals of followed series, and « Furious » (a film carrying a series' identifiers, B-549, not this lot's) is
   not used as a subject.
 
+- **Re-measured 2026-09-27 at its opening, on `bfe7e254b`:** ≈ 10. Since 14-bis a shelved arrival is drawn nowhere in Acquisition, so the one real subject is « Les Zinzins de l'Espace » — an arrival of the dense « En vol », carrying a TVDB identifier (a series) and matched by no follow; a series is known by its TVDB identifier and a follow by any shared provider identifier (`features/acquisition/follow-offer.ts`, ONE derivation for the foot and the panel). States declared: the dense « En cours » body — `acq-now-loaded`, and `acq-card-rungs`, `acq-card-waiting` (born in L22a after this file) — « L22 § 3.5: the proposal ». Rule label l = R229.
+
 Ruling 1: an arrival creates a PUNCTUAL acquisition, never a follow. « Suivre » is PROPOSED on the card of an unfollowed
 IDENTIFIED SERIES; nothing is followed until it is tapped. **No new verb**: the foot emits the existing `data-follow`.
 

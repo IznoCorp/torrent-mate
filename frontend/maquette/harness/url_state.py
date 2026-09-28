@@ -130,6 +130,13 @@ unchanged.
 RE-AIMED when the follows took the contract's names: a follow's title, kind and
 status are read as `title`, `kind` and `status` (and `owned`), where they were
 the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
+
+RE-AIMED OUT LOUD: Système left the bottom bar (ruling 15); « sys », « maint »
+and « cfg » are walked through the menu and Système's drawer entry.
+
+RE-AIMED OUT LOUD: « Découvrir » became a page of the bottom bar (round 8,
+question 20); « discover » is walked by its bar button, like the other pages
+the bar carries.
 """
 import asyncio
 import json
@@ -164,10 +171,12 @@ from playwright.async_api import async_playwright
 PAGE_WALKS = {
     "acq": ['#nav button[data-page="acq"]'],
     "lib": ['#nav button[data-page="lib"]'],
-    "arr": ['#nav button[data-page="arr"]'],
-    "sys": ['#nav button[data-page="sys"]'],
-    "maint": ['#nav button[data-page="sys"]', '[data-page="maint"]'],
-    "cfg": ['#nav button[data-page="sys"]', '[data-page="cfg"]'],
+    "discover": ['#nav button[data-page="discover"]'],
+    # RE-AIMED OUT LOUD: Système left the tab bar (ruling 15) — the menu, then
+    # its drawer entry.
+    "sys": ['[data-drawer]', '#drawer [data-navgo="sys"]'],
+    "maint": ['[data-drawer]', '#drawer [data-navgo="sys"]', '[data-page="maint"]'],
+    "cfg": ['[data-drawer]', '#drawer [data-navgo="sys"]', '[data-page="cfg"]'],
     "profile": ['JS:window.__panel.produce("account")', '[data-go="profile"]'],
 }
 

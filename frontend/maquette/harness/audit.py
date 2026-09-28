@@ -295,13 +295,22 @@ async def main():
     inert = await pg.evaluate("""async ()=>{
       // The snapshot has to carry every dial the interface tracks, or an
       // action that moves one the snapshot forgets reads as inert. The
-      // pipeline dial joined when Arrivées gained its pilot's bar: « Lancer le
+      // pipeline dial joined when Arrivées gained its pilot's bar (« À traiter »
+      // walks in its place since the page died, RE-AIMED OUT LOUD): « Lancer le
       // pipeline » really does change the interface, and this rule said it did
       // not — a false accusation is as expensive as a missed defect.
       const out=[]; const snap=()=>JSON.stringify({t:(window.__queue?.().takeable||[]).length,i:(window.__queue?.().inFlight||[]).length,s:(window.__queue?.().stuck||[]).length,
         m:(window.__queue?.().moving||[]).length,f:(window.__followActions?.all()||[]).length,l:(window.__queries?.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages?.[0]?.loaded ?? 0),p:state.page,tab:state.acqTab,lens:state.libLens,
-        pipe:window.__queries?.getQueryData(['/api/pipeline/status'])?.state});
-      for (const id of ['acq-now-loaded','arr-loaded','lib-incomplete']) {
+        pipe:window.__queries?.getQueryData(['/api/pipeline/status'])?.state,
+        // RE-AIMED OUT LOUD: what an action SENDS is an effect too. « Relancer »
+        // on a tunnel error asks the engine to resume and says so; the card
+        // stays until the engine moves it — no dial here moved, the call did.
+        // A WRITE, never a read: a GET re-asks what is already drawn, so an
+        // action whose only effect is a re-read is inert and counted as such.
+        sent:(window.__mocks?.answered()||[]).filter(call=>call.method!=='GET').length});
+      // « À traiter » in BOTH worlds: the dense one holds the Arrivées page's
+      // folders, the real one the tunnel error whose « Relancer » only SENDS.
+      for (const id of ['acq-now-loaded','acq-todo-dense','acq-todo-loaded','lib-incomplete']) {
         window.__go(id); await new Promise(r=>setTimeout(r,220));
         const btns=[...document.querySelectorAll('#view [data-part="card/foot"]')];
         for (let i=0;i<btns.length;i++){

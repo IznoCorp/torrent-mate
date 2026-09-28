@@ -15,12 +15,14 @@
 import type { ReactElement } from "react";
 
 import { ActionButton } from "./action-button";
+import { BadgeReads } from "./badge-reads";
 import { BottomSlot } from "./bottom-slot";
 import { NavigationDrawer } from "./drawer";
 import { installAppearance } from "./appearance";
 import { DialogLayer } from "./dialog-layer";
 import { installDialogHost } from "./dialog-host";
 import { installEntry } from "./entry";
+import { MenuBadge } from "./menu-badge";
 import { MessageLayer } from "./message-layer";
 import { installPopoverHost } from "./popover-host";
 import { PopoverLayer } from "./popover-layer";
@@ -45,6 +47,8 @@ installAppearance();
 export function Frame(): ReactElement {
   return (
     <>
+      <BadgeReads />
+      <MenuBadge />
       <ActionButton />
       <BottomSlot />
       <TabBar />

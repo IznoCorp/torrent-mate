@@ -23,6 +23,13 @@ import INCOMPLETE_SHOWS from "./seeds/incomplete-shows.json";
 import { seasonsHeld } from "../lib/season-rows";
 import { renameAccount } from "./account";
 import { mockState } from "./state";
+import { poseDisagreement, setAside } from "./handlers/staging";
+import { poseTunnelError } from "./handlers/follow-errors";
+import { poseUnknownIdentity } from "./handlers/posed-identity";
+import { sameItem } from "./handlers/same-item";
+import { poseKeepsItsFiles } from "./handlers/staged-folders";
+import { confirmInPlex, placeAtPlexCheck } from "./handlers/ladder";
+import { emit } from "./stream";
 
 /** What the layer exposes of its seeds. */
 export type MockSeeds = {
@@ -43,6 +50,25 @@ export type MockSeeds = {
   renameAccount: (name: string) => void;
   /** Empties what is blocked — the queue's, the staging area's, a match to confirm — until the layer is next reset. */
   clearBlocked: () => void;
+  /** Sets one queued folder aside, as « Laisser tel quel » does, until the layer is next reset. */
+  setAside: (title: string) => boolean;
+  /** Poses « the torrent keeps its files » on a staged folder — a DERIVATION, never read (RULINGS 22). */
+  poseKeepsItsFiles: (title: string) => void;
+  /** Poses a Plex match that DISAGREES with the identity held — a DERIVATION, never read (RULINGS 24). */
+  poseDisagreement: (title: string, match: { title: string; ids: Record<string, string | number> }) => void;
+  /** Poses a tunnel error on a follow's folder in flight — a DERIVATION, never read (RULINGS 26). */
+  poseTunnelError: typeof poseTunnelError;
+  /** Poses an arrival in flight whose identity is not known yet — a DERIVATION, never read: the backend reads the « identifié » rung in progress. */
+  poseUnknownIdentity: typeof poseUnknownIdentity;
+  /** Whether two queue cards stand for one item — the layer's own rapprochement (R238). */
+  sameItem: typeof sameItem;
+  /** Lays a medium's ladder one event away from « vérifié dans Plex » — a DERIVATION from its real row (RULINGS 14). */
+  placeAtPlexCheck: (title: string) => void;
+  /**
+   * The medium confirmed in the library: its last rung done, carried on the
+   * engine's per-step event, `ItemProgressed`. Answers true once emitted.
+   */
+  confirmInPlex: (title: string) => boolean;
 };
 
 /** The seeds the harness reads, composed on each call so no caller holds a copy it could mutate. */
@@ -98,5 +124,17 @@ export const mockSeeds: MockSeeds = {
       // and every ladder already laid is laid again, from where the cards now stand.
       journeyStages: {},
     });
+  },
+  setAside,
+  poseKeepsItsFiles,
+  poseDisagreement,
+  poseTunnelError,
+  poseUnknownIdentity,
+  sameItem,
+  placeAtPlexCheck,
+  confirmInPlex: (title) => {
+    confirmInPlex(title);
+    emit("ItemProgressed", { step: "plex", item: title, status: "verified" });
+    return true;
   },
 };

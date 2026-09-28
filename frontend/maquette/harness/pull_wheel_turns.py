@@ -39,8 +39,8 @@ from playwright.async_api import async_playwright
 
 # The pages carrying the indicator: R55's seven scrolling surfaces, and « Réglages »,
 # where B-331 was seen.
-PAGES = ("acq-now-idle", "acq-follows-list", "acq-discover", "lib-grid", "lib-list",
-         "arr-idle", "system", "settings")
+PAGES = ("acq-now-idle", "acq-follows-list", "discover-full", "lib-grid", "lib-list",
+         "acq-todo-loaded", "system", "settings")  # « À traiter » in the dead page's place
 # An answer time longer than one loop of the wheel, by far.
 SLOW_LATENCY_MILLISECONDS = 1600
 # How long the finger stays down once the pull is armed.

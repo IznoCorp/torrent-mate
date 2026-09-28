@@ -20,8 +20,8 @@ allow-list is a baseline, and a baseline is where the next copy hides.
 WHAT IT DOES NOT READ, said before the arm so nobody reads more into it:
   - camelCase functions. `announce` is declared in four files and `isOpen` in
     two, each a private helper of its own module about its own subject; a hook
-    written twice (`useStaging`, in `lib/queue.ts` and `features/arrivals/
-    queries.ts`) is a finding for a reader, not a component for this arm.
+    written twice in two modules is a finding for a reader, not a component
+    for this arm.
   - a component copied under a DIFFERENT name. Two bodies compared by text
     would be a second instrument with its own blind spots; this one holds the
     NAME, which is what a reader greps.

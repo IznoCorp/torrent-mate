@@ -42,22 +42,27 @@ URL = "http://127.0.0.1:8899/"
 LIST_POSTER = 84  # two thirds of the card's floor, so a card at that floor is 2:3  # the notch of the card that explains; see refonte.html@60530dbd8
 # RE-AIMED OUT LOUD: `acq-now-idle` left this list — the real world has
 # nothing in flight, so « En cours » draws no card there; « À traiter »'s cards
-# are read instead.
+# are read instead. RE-AIMED OUT LOUD again: the Arrivées page's idle and loaded states left
+# it with the Arrivées page — their cards are « À traiter »'s, in the real world
+# and in the dense one.
 CARD_STATES = [
     "acq-todo-loaded",
+    "acq-todo-dense",
+    # RE-AIMED OUT LOUD: the folded « Mis de côté », opened, whose cards carry
+    # two feet (« Résoudre → », « Supprimer ») that their panel must offer too.
+    # The loaded tab draws the fold closed, so its cards were read by no state.
+    "acq-card-set-aside",
     "acq-now-loaded",
     "acq-follows-list",
     "acq-follows-group",
     "lib-list",
     "lib-incomplete",
     "lib-recent",
-    "arr-idle",
-    "arr-loaded",
     "acq-resolution-none",
     "screen-releases",
     "acq-identify",
-    "acq-discover",
-    "acq-discover-degraded",
+    "discover-full",
+    "discover-degraded",
     # Search results were absent from this list, and the surface had drifted
     # exactly as far as the absence allowed: its poster box was sized, the
     # image inside it was not, and every thumbnail showed the top-left corner
@@ -314,7 +319,7 @@ async def main():
         # query would read the window instead, and a 390px frame on a 1280px
         # desktop would be told it has room for six columns it does not have.
         geometries = {}
-        for state_ in TILE_STATES + ["acq-discover-posters"]:
+        for state_ in TILE_STATES + ["discover-posters"]:
             await pg.evaluate("(i)=>window.__go(i)", state_)
             await pg.wait_for_timeout(400)
             await mode(pg, "grid")

@@ -13,7 +13,7 @@ GALLERIES = [
   ("Médiathèque · Incomplets","lib-incomplete",            None),
   ("Médiathèque · Récents",   "lib-recent",               None),
   ("Suivis · grille",         "acq-follows-grid",         '[data-part="tile"][data-panel]'),
-  ("Découvrir · affiches",    "acq-discover-posters",    '[data-part="tile"][data-panel]'),
+  ("Découvrir · affiches",    "discover-posters",    '[data-part="tile"][data-panel]'),
 ]
 
 async def main():

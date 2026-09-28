@@ -165,6 +165,10 @@ export function ResolutionScreen() {
               <Icon paths={icons.check} />
               {t("screens.resolution.leaveAsIs")}
             </button>
+            <button className={actionButton({ kind: "panelAction" })} data-part="sheet/action" data-not-media={folder || undefined}>
+              <Icon paths={icons.folder} />
+              {t("screens.resolution.notMedia")}
+            </button>
           </div>
           <div className={guidance()} data-part="guidance">
             <b>{t("screens.resolution.note2Title")}</b>{" "}

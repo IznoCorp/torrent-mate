@@ -33,13 +33,13 @@ import type { ReactElement } from "react";
 
 import { AccountPage } from "../features/account/page";
 import { AcquisitionPage } from "../features/acquisition/page";
-import { acquisitionBadge } from "../features/acquisition/queries";
-import { ArrivalsPage } from "../features/arrivals/page";
-import { arrivalsBadge } from "../features/arrivals/queries";
+import { acquisitionBadge, useAcquisitionBadgeReads } from "../features/acquisition/queries";
+import { DiscoverPage } from "../features/acquisition/discover-page";
 import { LibraryPage } from "../features/library/page";
 import { MaintenancePage } from "../features/maintenance/page";
 import { NotFoundPage } from "./not-found";
 import { SettingsPage } from "../features/settings/page";
+import { systemBadge, useSystemBadgeReads } from "../features/system/badge";
 import { SystemPage } from "../features/system/page";
 import { PAGE_PATHS } from "../lib/addresses";
 import { icons } from "./icons";
@@ -91,16 +91,28 @@ export type NavigationRow = {
    * so in a comment.
    */
   badge?: () => number;
+  /**
+   * The reads `badge` derives from, DECLARED — a hook the feature exports,
+   * which the frame calls once for every row it draws (`app/badge-reads.tsx`).
+   *
+   * `badge` reads the cache and observes nothing, and an answer nobody observes
+   * is neither refetched on a live event nor kept: the badge froze on every page
+   * that did not draw its subject. A row that carries a badge carries this.
+   */
+  useBadgeReads?: () => void;
 };
 
 /**
  * Every page, in the order the bottom bar draws them.
  *
- * Réglages and Maintenance are PAGES and not tabs, and that is a decision the
- * engine's own table recorded: the bar holds the four places one goes to SEE
- * what is happening; a setting is what one goes to CHANGE and a maintenance
- * command is something one goes to DO. They are reached from Système and from
- * the drawer, and the back gesture walks out of them like any other page.
+ * THE BAR DRAWS THE BUTTONS PRESENT, each at 1/n of its width, n from 2 to 4 —
+ * never an empty slot, and one page draws no bar at all (a frame rule, R232).
+ * It holds the places one goes to every day; Système is reached from the drawer
+ * and the menu button carries its badge (ruling 15). Réglages and Maintenance
+ * are PAGES and not tabs either: a setting is what one goes to CHANGE and a
+ * maintenance command is something one goes to DO. They are reached from
+ * Système and from the drawer, and the back gesture walks out of them like any
+ * other page.
  */
 export const NAVIGATION: readonly NavigationRow[] = [
   {
@@ -113,6 +125,7 @@ export const NAVIGATION: readonly NavigationRow[] = [
     inBar: true,
     actionButton: true,
     badge: acquisitionBadge,
+    useBadgeReads: useAcquisitionBadgeReads,
   },
   {
     id: "lib",
@@ -125,16 +138,15 @@ export const NAVIGATION: readonly NavigationRow[] = [
     slotReplacesTabBar: true,
   },
   {
-    id: "arr",
-    path: PAGE_PATHS.arr,
-    Body: ArrivalsPage,
-    root: "body",
-    region: "arrivals/body",
-    labelKey: "navigation.pages.arr",
-    icon: icons.inbox,
+    // « DÉCOUVRIR », A PAGE OF THE BAR: it left
+    // Acquisition's tabs. It draws its own body, as Acquisition does.
+    id: "discover",
+    path: PAGE_PATHS.discover,
+    Body: DiscoverPage,
+    labelKey: "navigation.pages.discover",
+    icon: icons.star,
     group: "supervision",
     inBar: true,
-    badge: arrivalsBadge,
   },
   {
     id: "sys",
@@ -145,7 +157,9 @@ export const NAVIGATION: readonly NavigationRow[] = [
     labelKey: "navigation.pages.sys",
     icon: icons.wrench,
     group: "system",
-    inBar: true,
+    inBar: false,
+    badge: systemBadge,
+    useBadgeReads: useSystemBadgeReads,
   },
   {
     id: "maint",

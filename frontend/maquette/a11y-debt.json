@@ -59,7 +59,7 @@
         ]
       }
     ],
-    "acq-discover": [
+    "discover-full": [
       {
         "rule": "landmark-one-main",
         "impact": "moderate",
@@ -124,7 +124,7 @@
         ]
       }
     ],
-    "acq-discover-deck": [
+    "discover-deck": [
       {
         "rule": "landmark-one-main",
         "impact": "moderate",
@@ -160,7 +160,7 @@
         ]
       }
     ],
-    "acq-discover-degraded": [
+    "discover-degraded": [
       {
         "rule": "landmark-one-main",
         "impact": "moderate",
@@ -196,7 +196,7 @@
         ]
       }
     ],
-    "acq-discover-exhausted": [
+    "discover-exhausted": [
       {
         "rule": "landmark-one-main",
         "impact": "moderate",
@@ -232,7 +232,7 @@
         ]
       }
     ],
-    "acq-discover-loading": [
+    "discover-loading": [
       {
         "rule": "landmark-one-main",
         "impact": "moderate",
@@ -267,7 +267,7 @@
         ]
       }
     ],
-    "acq-discover-posters": [
+    "discover-posters": [
       {
         "rule": "landmark-one-main",
         "impact": "moderate",
@@ -481,43 +481,6 @@
         "help": "All page content should be contained by landmarks",
         "targets": [
           "#follq",
-          ".cadence",
-          ".seg"
-        ]
-      }
-    ],
-    "acq-follows-pause-empty": [
-      {
-        "rule": "landmark-one-main",
-        "impact": "moderate",
-        "help": "Document should have one main landmark",
-        "targets": [
-          "html"
-        ]
-      },
-      {
-        "rule": "meta-viewport",
-        "impact": "moderate",
-        "help": "Zooming and scaling must not be disabled",
-        "targets": [
-          "meta[name=\"viewport\"]"
-        ]
-      },
-      {
-        "rule": "page-has-heading-one",
-        "impact": "moderate",
-        "help": "Page should contain a level-one heading",
-        "targets": [
-          "html"
-        ]
-      },
-      {
-        "rule": "region",
-        "impact": "moderate",
-        "help": "All page content should be contained by landmarks",
-        "targets": [
-          "#follq",
-          ".body",
           ".cadence",
           ".seg"
         ]
@@ -750,184 +713,6 @@
         ]
       }
     ],
-    "arr-error": [
-      {
-        "rule": "landmark-one-main",
-        "impact": "moderate",
-        "help": "Document should have one main landmark",
-        "targets": [
-          "html"
-        ]
-      },
-      {
-        "rule": "meta-viewport",
-        "impact": "moderate",
-        "help": "Zooming and scaling must not be disabled",
-        "targets": [
-          "meta[name=\"viewport\"]"
-        ]
-      },
-      {
-        "rule": "page-has-heading-one",
-        "impact": "moderate",
-        "help": "Page should contain a level-one heading",
-        "targets": [
-          "html"
-        ]
-      }
-    ],
-    "arr-idle": [
-      {
-        "rule": "landmark-one-main",
-        "impact": "moderate",
-        "help": "Document should have one main landmark",
-        "targets": [
-          "html"
-        ]
-      },
-      {
-        "rule": "meta-viewport",
-        "impact": "moderate",
-        "help": "Zooming and scaling must not be disabled",
-        "targets": [
-          "meta[name=\"viewport\"]"
-        ]
-      },
-      {
-        "rule": "page-has-heading-one",
-        "impact": "moderate",
-        "help": "Page should contain a level-one heading",
-        "targets": [
-          "html"
-        ]
-      },
-      {
-        "rule": "region",
-        "impact": "moderate",
-        "help": "All page content should be contained by landmarks",
-        "targets": [
-          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(2) > .ccol > .strip",
-          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(3) > .ccol > .strip",
-          ".ph",
-          ".sec[data-part=\"section\"]:nth-child(2)",
-          ".sec[data-part=\"section\"]:nth-child(3) > .sechead[data-part=\"section/head\"]",
-          ".sec[data-part=\"section\"]:nth-child(4) > .sechead[data-part=\"section/head\"]"
-        ]
-      }
-    ],
-    "arr-loaded": [
-      {
-        "rule": "landmark-one-main",
-        "impact": "moderate",
-        "help": "Document should have one main landmark",
-        "targets": [
-          "html"
-        ]
-      },
-      {
-        "rule": "meta-viewport",
-        "impact": "moderate",
-        "help": "Zooming and scaling must not be disabled",
-        "targets": [
-          "meta[name=\"viewport\"]"
-        ]
-      },
-      {
-        "rule": "page-has-heading-one",
-        "impact": "moderate",
-        "help": "Page should contain a level-one heading",
-        "targets": [
-          "html"
-        ]
-      },
-      {
-        "rule": "region",
-        "impact": "moderate",
-        "help": "All page content should be contained by landmarks",
-        "targets": [
-          ".body > .live[data-part=\"live-activity\"]",
-          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(2) > .ccol > .strip",
-          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(3) > .ccol > .strip",
-          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(4) > .ccol > .strip",
-          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .strip",
-          ".card[data-part=\"card\"]:nth-child(6) > .ccol > .strip",
-          ".ph",
-          ".sec[data-part=\"section\"]:nth-child(2)",
-          ".sec[data-part=\"section\"]:nth-child(4) > .sechead[data-part=\"section/head\"]",
-          ".sec[data-part=\"section\"]:nth-child(6) > .card[data-part=\"card\"]:nth-child(2) > .ccol > .strip",
-          ".sec[data-part=\"section\"]:nth-child(6) > .card[data-part=\"card\"]:nth-child(3) > .ccol > .strip",
-          ".sec[data-part=\"section\"]:nth-child(6) > .card[data-part=\"card\"]:nth-child(4) > .ccol > .strip",
-          ".sec[data-part=\"section\"]:nth-child(6) > .sechead[data-part=\"section/head\"]",
-          ".sec[data-part=\"section\"]:nth-child(7) > .sechead[data-part=\"section/head\"]"
-        ]
-      }
-    ],
-    "arr-loading": [
-      {
-        "rule": "landmark-one-main",
-        "impact": "moderate",
-        "help": "Document should have one main landmark",
-        "targets": [
-          "html"
-        ]
-      },
-      {
-        "rule": "meta-viewport",
-        "impact": "moderate",
-        "help": "Zooming and scaling must not be disabled",
-        "targets": [
-          "meta[name=\"viewport\"]"
-        ]
-      },
-      {
-        "rule": "page-has-heading-one",
-        "impact": "moderate",
-        "help": "Page should contain a level-one heading",
-        "targets": [
-          "html"
-        ]
-      }
-    ],
-    "arr-queued": [
-      {
-        "rule": "landmark-one-main",
-        "impact": "moderate",
-        "help": "Document should have one main landmark",
-        "targets": [
-          "html"
-        ]
-      },
-      {
-        "rule": "meta-viewport",
-        "impact": "moderate",
-        "help": "Zooming and scaling must not be disabled",
-        "targets": [
-          "meta[name=\"viewport\"]"
-        ]
-      },
-      {
-        "rule": "page-has-heading-one",
-        "impact": "moderate",
-        "help": "Page should contain a level-one heading",
-        "targets": [
-          "html"
-        ]
-      },
-      {
-        "rule": "region",
-        "impact": "moderate",
-        "help": "All page content should be contained by landmarks",
-        "targets": [
-          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(2) > .ccol > .strip",
-          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(3) > .ccol > .strip",
-          ".ph",
-          ".pipeline > .live[data-part=\"live-activity\"]",
-          ".sec[data-part=\"section\"]:nth-child(2)",
-          ".sec[data-part=\"section\"]:nth-child(3) > .sechead[data-part=\"section/head\"]",
-          ".sec[data-part=\"section\"]:nth-child(4) > .sechead[data-part=\"section/head\"]"
-        ]
-      }
-    ],
     "acq-resolution-none": [
       {
         "rule": "meta-viewport",
@@ -964,45 +749,6 @@
           ".sec[data-part=\"section\"]:nth-child(4) > .sechead[data-part=\"section/head\"]",
           "h2:nth-child(1)",
           "h2:nth-child(7)"
-        ]
-      }
-    ],
-    "arr-running": [
-      {
-        "rule": "landmark-one-main",
-        "impact": "moderate",
-        "help": "Document should have one main landmark",
-        "targets": [
-          "html"
-        ]
-      },
-      {
-        "rule": "meta-viewport",
-        "impact": "moderate",
-        "help": "Zooming and scaling must not be disabled",
-        "targets": [
-          "meta[name=\"viewport\"]"
-        ]
-      },
-      {
-        "rule": "page-has-heading-one",
-        "impact": "moderate",
-        "help": "Page should contain a level-one heading",
-        "targets": [
-          "html"
-        ]
-      },
-      {
-        "rule": "region",
-        "impact": "moderate",
-        "help": "All page content should be contained by landmarks",
-        "targets": [
-          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(2) > .ccol > .strip",
-          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(3) > .ccol > .strip",
-          ".ph",
-          ".sec[data-part=\"section\"]:nth-child(2)",
-          ".sec[data-part=\"section\"]:nth-child(3) > .sechead[data-part=\"section/head\"]",
-          ".sec[data-part=\"section\"]:nth-child(4) > .sechead[data-part=\"section/head\"]"
         ]
       }
     ],

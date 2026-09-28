@@ -44,8 +44,8 @@ WHAT IT READS, and each hold fails differently:
 
       EVERY OTHER PAGE, and not one. The drawer's own entries are read at
       runtime, so a page joins this walk by existing rather than by being
-      remembered here. Five today: Acquisition, Arrivées, Système, Maintenance
-      et Configuration. `profile` is a navigation row with no group, so the
+      remembered here. Five today: Acquisition, « Découvrir », Système,
+      Maintenance et Configuration. `profile` is a navigation row with no group, so the
       drawer does not offer it and a finger cannot reach it from here.
   s4. BACK ON THE MÉDIATHÈQUE THE BAR IS BACK, with the SAME titles — not a
       count, the titles themselves: a selection that survived as a number and

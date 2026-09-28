@@ -171,8 +171,8 @@ PANEL_STATES = (
 # destroy a gesture in flight and lose a tap between press and click, and no
 # other hold here would see it.
 FEED_STATES = (
-    ("acq-discover-deck", 1),
-    ("acq-discover-posters", 5),
+    ("discover-deck", 1),
+    ("discover-posters", 5),
 )
 # ANCHORED ON `data-part`, never on a class token — the deck is
 # `[data-part="deck"]` and its cards `[data-part="deck/card"]`. A selector
@@ -289,9 +289,12 @@ async def main():
         await page.evaluate("()=>window.__go('acq-now-idle')")
         await page.wait_for_timeout(200)
         captured = await page.evaluate(CAPTURE)
+        # RE-AIMED OUT LOUD: this read FOUR buttons; Système left the bar
+        # (ruling 15) and the bar's count is R232's. The hold keeps its point:
+        # the identity hold below has a subject, two buttons at least.
         journal.check(
             "the bar draws its buttons at all — the identity hold has a subject",
-            captured == 4,
+            captured >= 2,
             f"{captured} button(s) in #nav")
         await page.evaluate("()=>window.__store.write({page: 'lib'})")
         await page.wait_for_timeout(200)

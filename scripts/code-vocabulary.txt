@@ -35,6 +35,7 @@
 # written down here so the next reader knows it was a decision.
 
 abandon
+abandoned
 above
 accent
 accepted
@@ -62,6 +63,7 @@ agent
 ahead
 air
 aired
+alert
 all
 already
 also
@@ -88,6 +90,7 @@ arrived
 arriving
 artwork
 as
+aside
 ask
 asked
 at
@@ -157,6 +160,7 @@ cards
 carried
 carries
 carrying
+case
 cases
 cast
 cat
@@ -227,6 +231,7 @@ control
 controller
 convert
 converted
+copies
 copy
 corps
 correct
@@ -300,6 +305,8 @@ digits
 direct
 direction
 directions
+disagreement
+disagrees
 disarm
 discipline
 disclosure
@@ -328,6 +335,7 @@ draws
 driven
 driver
 drop
+dropped
 dry
 duration
 dx
@@ -378,6 +386,7 @@ failure
 fallback
 families
 fast
+faults
 feature
 feed
 feedback
@@ -548,6 +557,7 @@ journey
 json
 jsx
 keep
+keeps
 kept
 key
 keys
@@ -641,6 +651,7 @@ medium
 member
 members
 membership
+menu
 message
 meta
 method
@@ -799,6 +810,7 @@ port
 portrait
 portraits
 pos
+pose
 posed
 position
 positioned
@@ -862,6 +874,7 @@ receive
 received
 recent
 recents
+reclassify
 reconcile
 reconnect
 reconnecting
@@ -1013,6 +1026,7 @@ sequence
 series
 served
 server
+service
 services
 set
 setsort
@@ -1053,6 +1067,7 @@ skel
 skeleton
 skeletons
 skip
+skipped
 slice
 slot
 slow

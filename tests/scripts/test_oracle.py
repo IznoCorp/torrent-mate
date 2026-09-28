@@ -344,7 +344,38 @@ def test_the_committed_reference_carries_a_platform():
     # 122 SINCE L22a, and the eight are Acquisition's tunnel (`harness/states/tunnel.ts`):
     # acq-card-rungs, -blocked, -no-identity, -waiting, -requester, acq-todo-empty, -loaded
     # and acq-abandon-confirm — added states, recorded new, none of the existing ones removed.
-    assert reference["counts"] == {"states": 122, "regions": 38}
+    # 123 SINCE L22b's phase 15a: acq-card-set-aside, « Mis de côté » folded at the end of
+    # « À traiter » and opened — added, no existing state moved. Verified by name.
+    # 124 SINCE L22b's phase 16: acq-resolution-not-media, « Ce n'est pas un média »'s choice
+    # of destinations — added; the states it moved are named in its acceptance commit.
+    # 39 REGIONS SINCE L22b's 19-bis-a: `discover/body`, the « Découvrir » page's body — every
+    # other state gained a null there and nothing else, save the eight re-aimed onto the page
+    # and the three that pinned Acquisition's tab (RULINGS 20). Verified by name.
+    # 125 SINCE L22b's phase 20: acq-follows-film-at-plex-check, a followed film one event away
+    # from « vérifié dans Plex » (a derivation from Wicker's real row), back with the waiting
+    # tone's text token — added, nothing else moved.
+    # 128 SINCE L22b's phase 24: acq-delete-keeps-files, acq-delete-only-copy and
+    # acq-delete-unknown, « Supprimer »'s confirmation in its three cases — added; 63 states
+    # moved on shell/dialog alone (B-554, RULINGS 7), named in the acceptance commit.
+    # 129 SINCE L22b's phase 27: acq-card-plex-disagrees, a Plex match that DISAGREES with the
+    # identity held, POSED on Star Trek (RULINGS 24) — added; the states drawing « À traiter »
+    # moved with it (Star Trek's agreeing row left the tab), named in the acceptance commit.
+    # 131 SINCE L22b's phase 30: menu-system-badge and menu-clear, the menu button carrying
+    # Système's badge and carrying none — added, nothing else moved.
+    # 132 SINCE L22b's phase 34: acq-card-follow-error, a tunnel error POSED on « Furious », a
+    # follow in flight (RULINGS 26) — added, nothing else moved.
+    # 134 SINCE L22b's phase 40: acq-todo-loading and acq-todo-error, « À traiter »'s own
+    # loading and error surfaces (R90 reads the error in Arrivées' place) — added, nothing else moved.
+    # 135 SINCE L22b's phase 41: acq-todo-dense, « À traiter » in the dense world, where the rules
+    # that began on the Arrivées page's folders begin now (RULINGS 29) — added; acq-identify and
+    # the two resolution states lay « À traiter » beneath their screen instead of Arrivées.
+    # 136 SINCE L22b's phase 42: acq-card-identity-unknown, an arrival in flight whose identity is
+    # not known yet, POSED on « Conclave » — added, nothing else moved.
+    # 130 SINCE L22b's phase 47b: the Arrivées page died, and its six arr-* records left the
+    # reference by named deletion — nothing else moved.
+    # 37 regions SINCE L22b's phase 48: the page's two regions (arrivals/pilot-bar,
+    # arrivals/body) left regions.json and every state's record, all null — nothing else moved.
+    assert reference["counts"] == {"states": 130, "regions": 37}
 
 
 class TestItRefusesToWriteOverAForeignBuild:

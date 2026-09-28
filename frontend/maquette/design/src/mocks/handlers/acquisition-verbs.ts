@@ -21,8 +21,10 @@ import INCOMPLETE_SHOWS from "../seeds/incomplete-shows.json";
 import { POST, route } from "./shared";
 import { ladderOf } from "./ladder";
 import { mockState } from "../state";
+import { accountName } from "../account";
 import type { MockRoute } from "../router";
 import type { components } from "../../contract/types";
+import { seasonsAnswer } from "./media";
 
 type Schemas = components["schemas"];
 
@@ -44,14 +46,13 @@ const UPCOMING = "pending";
 // token, carried like every other token in this layer.
 const BEING_ACQUIRED = "acquiring";
 
-// What a follow begun by a season's ask is, before anything runs for it. The
-// same tokens and blanks `createFollow` gives a follow its request does not
-// fully describe: a value copied off another record would typecheck and read as
-// real, which is worse than a blank.
-const WAITING = "pending";
-const SHOW = "show";
-const NEWLY_FOLLOWED_SINCE = "";
-const UNKNOWN_YEAR = 0;
+// Who asked for a one-off season: the account, once, in the application — the
+// contract's own `Requester.via` token.
+const ASKED_ONCE = "request";
+// A one-off card's line names its season the way an episode line does: « S03 ».
+const SEASON_MARK = "S";
+const SEASON_DIGITS = 2;
+const DIGITS_FILL = "0";
 
 // The seeds this module derives from, named at their shapes. A handler holds no
 // data literal: what it answers traces to one of these or to the request.
@@ -144,43 +145,34 @@ function restart(subject: string, running: boolean): void {
 function episodesMissingFromSeason(title: string, season: number): number {
   const counted = (SEASON_COUNT[title] ?? []).find(
     (one) => one.season === season);
-  if (counted === undefined) return 0;
-  const missing = counted.aired - counted.owned;
+  // A SEASON THAT TABLE DOES NOT CARRY is counted the way the season surfaces
+  // draw it — aired by the scenario's date, less what is held — so the answer
+  // never says « aucun épisode » beside a card reading « 0/23 ».
+  const drawn = seasonsAnswer([title]);
+  const aired = counted?.aired ?? drawn.aired[String(season)] ?? 0;
+  const missing = aired - (counted?.owned ?? (drawn.owned[String(season)] ?? []).length);
   return missing > 0 ? missing : 0;
 }
 
 /**
- * The follow a season's ask begins, for a medium nobody followed.
+ * A one-off acquisition of one season, as the queue holds it.
  *
- * BUILT FROM THE LIBRARY'S OWN RECORD OF THE SHOW, and from nothing else. The
- * only surface that reaches this path is the « Incomplets » lens, and the
- * incomplete show it drew carries the year, the owned and aired counts, and its
- * joined identity and poster; a medium the library does not hold gets the blanks
- * `createFollow` uses.
- *
- * @param title The medium, by title.
- * @returns A follow record in the contract's shape.
+ * @param title The show, as the incomplete shows name it.
+ * @param season The season asked for, 1-based.
+ * @returns Its card: the show's identity and poster, the season on its line,
+ *     and who asked — the account, once, in the application.
  */
-function beginFollow(title: string) {
+function oneOff(title: string, season: number): Schemas["QueueCard"] {
   const show = (INCOMPLETE_SHOWS as {
-    title: string; owned: number; aired: number; year: number;
-    ids: Record<string, string | number> | null; poster: string | null;
+    title: string; ids: Record<string, string | number> | null; poster: string | null;
   }[]).find((one) => one.title === title);
   return {
     title,
-    kind: SHOW,
-    year: show?.year ?? UNKNOWN_YEAR,
-    status: queued() ? WAITING : BEING_ACQUIRED,
-    showStatus: null,
-    since: NEWLY_FOLLOWED_SINCE,
-    searches: 0,
-    fresh: true,
-    // THE IDENTITY AND THE POSTER of the incomplete show it was asked from. A
-    // medium the library does not hold has neither, which the contract refuses
-    // (B-366); the layer does not invent one, and the cast says so.
-    ids: (show?.ids ?? null) as Schemas["Follow"]["ids"],
+    secondaryLine: SEASON_MARK + String(season).padStart(SEASON_DIGITS, DIGITS_FILL),
+    ids: (show?.ids ?? null) as Schemas["QueueCard"]["ids"],
     poster: show?.poster ?? null,
-    ...(show === undefined ? {} : { owned: show.owned, aired: show.aired }),
+    strip: [0, 0, 0, 0, 0],
+    requester: { name: accountName(), via: ASKED_ONCE },
   };
 }
 
@@ -207,15 +199,17 @@ export function acquisitionVerbRoutes(): MockRoute[] {
         // on the follow's row and panel, beside the sentence « aucun épisode à
         // récupérer » just said. Nothing is acquired, so nothing moves.
         if (found !== undefined && !queued() && missing > 0) found.status = BEING_ACQUIRED;
-        // AND A MEDIUM NOBODY FOLLOWS IS FOLLOWED BY THE ASK (B-378). This
-        // handler used to move a status only when it FOUND a follow, so for an
-        // incomplete show reached from the library it answered 201 with a real
-        // count over a world in which nothing had changed — a success the
-        // operator could see was false. The act implies the follow: it is
-        // created here, at the head of the list as `createFollow` puts one, and
-        // the answer says so. Waiting when the machine is busy, since nothing
-        // runs for it yet; being acquired when the ask starts now.
-        if (found === undefined) state.follows = [beginFollow(title), ...state.follows];
+        // A SEASON OF A SERIES NOBODY FOLLOWS IS A ONE-OFF (round 10 Q2): the ask
+        // moves the world — never a success over an unchanged one (B-378) — by
+        // queueing ONE acquisition of that season, asked by the account, and it
+        // begins no follow. Both worlds hold it, as the flight lists do.
+        // ONE ITEM, ONE CARD: a second ask of the same season queues nothing more.
+        const card = oneOff(title, season);
+        const held = (one: Schemas["QueueCard"]) => one.title === card.title && one.secondaryLine === card.secondaryLine;
+        if (found === undefined && !state.inFlight.some(held)) {
+          state.inFlightReel = [card, ...state.inFlightReel];
+          state.inFlight = [card, ...state.inFlight];
+        }
         return {
           season,
           absorbedCount: missing,
@@ -224,7 +218,6 @@ export function acquisitionVerbRoutes(): MockRoute[] {
           // identifier at all — `runPipeline` answers `uid: null` for the same
           // reason — and the register asks the backend for one.
           runUid: null,
-          newlyFollowed: found === undefined,
         };
       },
     ),

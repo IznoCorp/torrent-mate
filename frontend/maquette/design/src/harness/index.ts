@@ -9,9 +9,8 @@ import { installHarnessPanel } from "./panel";
 import { publishSeams } from "./publish";
 import { accountStates } from "./states/account";
 import { acquisitionStates } from "./states/acquisition";
-import { arrivalsStates } from "./states/arrivals";
 import { entryStates } from "./states/entry";
-import { drawerStates, notFoundStates } from "./states/frame";
+import { drawerStates, menuStates, notFoundStates } from "./states/frame";
 import { libraryStates } from "./states/library";
 import { maintenanceStates } from "./states/maintenance";
 import { mediaStates } from "./states/media";
@@ -35,10 +34,10 @@ function namedStates(): NamedState[] {
     ...entryStates(),
     ...acquisitionStates(),
     ...libraryStates(),
-    ...arrivalsStates(),
     ...tunnelStates(),
     ...mediaStates(),
     ...drawerStates(),
+    ...menuStates(),
     ...systemStates(),
     ...notFoundStates(),
     ...accountStates(),

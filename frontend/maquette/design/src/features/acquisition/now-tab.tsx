@@ -2,10 +2,12 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { mediumCardMarkup } from "./card-markup";
-import { inFlightCards, slotArrivals } from "./arrival-slots";
-import { useAcquisitionQueue, useStaging } from "../../lib/queue";
+import { inFlightCards } from "./arrival-slots";
+import { followOffered } from "./follow-offer";
+import { useFollows } from "./queries";
+import { useAcquisitionQueue } from "../../lib/queue";
 import { useUiState } from "../../lib/store-access";
-import { body, crossReference, crossReferenceLink, crossReferenceStrong, emptyNote, section as sectionClass } from "../../ui/variants";
+import { body, emptyNote, section as sectionClass } from "../../ui/variants";
 import { Markup, emptyNoteMarkup, sectionInnerMarkup } from "../../ui/markup";
 
 // « En cours » — what moves, and nothing else: ONE section, « En vol », and
@@ -33,12 +35,10 @@ export function NowTab(): ReactElement {
   // them; the key carries it, so a surface never reads the other one's cards.
   const scenario = state.scen === "loaded" ? "loaded" : "";
   const { data: queue } = useAcquisitionQueue(scenario);
-  const { data: staging } = useStaging(scenario);
   // THE ARRIVALS ARE CARDS HERE (ruling 2), on their way; what is blocked is
-  // « À traiter »'s, a tab of its own, and read here only for the note below.
-  const blocked = [...(queue?.blocked ?? []), ...slotArrivals(queue?.arrivals ?? []).blocked];
+  // « À traiter »'s, a tab of its own with its count, and is not repeated here.
   const inflight = queue ? inFlightCards(queue) : [];
-  const stuck = staging?.stuck ?? [];
+  const { data: follows } = useFollows();
 
   return (
     <div className={body()} data-part="surface/body" data-region="acquisition/body">
@@ -52,22 +52,6 @@ export function NowTab(): ReactElement {
           html={emptyNoteMarkup(t("screens.acquisition.nowEmpty"), "")}
         />
       ) : null}
-      {stuck.length > 0 ? (
-        <button className={crossReference()} data-part="cross-reference" data-go="arr">
-          {blocked.length > 0
-            ? t("screens.acquisition.crossrefFromAcquisition")
-            : ""}
-          <b className={crossReferenceStrong()}>{stuck.length}</b>
-          {t("screens.acquisition.crossrefMedium")}
-          {stuck.length > 1 ? t("screens.acquisition.crossrefPlural") : ""}
-          {t("screens.acquisition.crossrefToTreat")}
-          {stuck.length > 1
-            ? t("screens.acquisition.crossrefEnteredMany")
-            : t("screens.acquisition.crossrefEnteredOne")}
-          {t("screens.acquisition.crossrefWithoutFollow")}
-          <span className={crossReferenceLink()}>{t("screens.acquisition.crossrefLink")}</span>
-        </button>
-      ) : null}
       {inflight.length > 0 ? (
         <Markup tag="section"
           className={sectionClass()} data-part="section"
@@ -75,7 +59,11 @@ export function NowTab(): ReactElement {
             "info",
             t("screens.acquisition.inflight"),
             String(inflight.length),
-            inflight.map((card) => mediumCardMarkup(card)).join(""),
+            // « Suivre », PROPOSED on an arrived series nobody follows (ruling 1).
+            inflight.map((card) => mediumCardMarkup(card, followOffered(card, follows ?? []) ? {
+              label: t("screens.acquisition.followFoot"),
+              attributes: { "data-follow": card.title, "data-follow-ids": JSON.stringify(card.ids) },
+            } : undefined)).join(""),
           )}
         />
       ) : null}

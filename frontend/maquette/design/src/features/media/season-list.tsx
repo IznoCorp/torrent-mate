@@ -7,6 +7,7 @@ import { SkeletonLine } from "../../ui/state-surfaces";
 import { actionButton, factsPanel } from "../../ui/variants";
 import { queuedMark, seasonGrabSpacing, seasonGrabTaken, upcomingMark, episodeCell, episodeDate, episodeDot, episodeNumber, episodeRow, episodeSet, episodeTitle, missingList, noInfo, seasonDisclosure, seasonFraction, seasonShortfall } from "./variants";
 import { useQueuedSeasons } from "./queued-seasons";
+import { useAskedSeasons } from "./asked-seasons";
 import { askForSeason, useAskedInFlight } from "./season-grab";
 import { announcedAfter, ownedSeason, type MediaSeasons } from "./queries";
 import { useQueryClient } from "@tanstack/react-query";
@@ -73,6 +74,8 @@ export function SeasonList({
   // this sheet, so the row redraws when one arrives.
   const waiting = useQueuedSeasons(followTitle);
   const askedInFlight = useAskedInFlight();
+  // The seasons asked once — a one-off acquisition in the queue.
+  const askedOnce = useAskedSeasons(followTitle);
   // The cache the shared ask re-reads and redraws from. Taken here
   // rather than threaded through props: this component is rendered, so
   // it has a hook to read it from, which the panel's producer does not.
@@ -363,7 +366,13 @@ export function SeasonList({
                 measurement of geometry can see a button. Having a sheet does not
                 make a medium one of the reader's. The behaviour is shared —
                 `askForSeason` — so the two surfaces cannot drift apart. */}
-            {(owns || followed) && !complete && !seasonUpcoming ? (
+            {/* « DEMANDÉE » WHILE A ONE-OFF ACQUISITION OF THE SEASON LIVES, in
+                the act's place: the same fact the follow panel draws. */}
+            {askedOnce.includes(row.n) ? (
+              <span className={queuedMark()} data-part="season/asked" data-asked-season={`${followTitle}|${row.n}`}>
+                {t("screens.media.seasonAskedOnce")}
+              </span>
+            ) : (owns || followed) && !complete && !seasonUpcoming ? (
               <button
                 type="button"
                 className={`${actionButton({ kind: "panelAction" })} ${seasonGrabSpacing()} ${seasonGrabTaken()}`}

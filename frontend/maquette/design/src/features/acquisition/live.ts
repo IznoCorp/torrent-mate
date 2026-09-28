@@ -47,6 +47,15 @@ export const acquisitionLiveRules: readonly LiveRule[] = [
       + "silence permanent rather than momentary",
   },
   {
+    types: ["ItemProgressed"],
+    keys: [FOLLOWED_KEY],
+    because:
+      "the rung an item reaches may be its last, « vérifié dans Plex », and a "
+      + "film confirmed in the library leaves the follows by itself (ruling 3). "
+      + "The engine's per-step event is what carries a rung; ending the follow "
+      + "at the Plex confirmation rather than at detection is a demand owed",
+  },
+  {
     types: ["WantedEnqueued", "WantedAbandoned", "GrabSucceeded", "GrabFailed",
             "GrabReswitched"],
     keys: [QUEUE_KEY],

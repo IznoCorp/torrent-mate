@@ -1,0 +1,596 @@
+# L22b — resume brief (STATE BLOCK ≤ 40 lines, rewritten at every boundary; ledger below, append-only)
+
+Read after `docs/features/maquette-l22/BRIEF-L22b.md` (governs) and `RULINGS.md` (the lot's own; L22a wrote 1–12,
+L22b appends from 13).
+
+## STATE
+
+- Branch `feat/maquette-l22b`, worktree `/Users/izno/dev/worktrees/wave-l22b`. #619 (L22a) merged in at 7ca978d5e;
+  origin/main 665788a90 (#624) is an ancestor (8a9500c43) — nothing to merge until main moves again. Steward `Orch : TM
+  frontend [84baa3]` since the reboot of 2026-09-28 05:00.
+- DONE: 15a–48 and the close's work (register, README, rulings proved); origin/main 5644107ee (#625) merged in,
+  bump 0.98.103; the pre-PR gate done (suite, --a11y, --compare, make lint) — the ledger's last lines. THE OPERATOR RULED (b) on the
+  clause map (relayed by the steward, 2026-09-28): the edit of `docs/reference/product-intent-map.md` (surface/proof
+  columns of DOIT-1..5, NE-DOIT-PAS-2, -3; the prepared replacements are listed in the ledger's close line) was
+  REFUSED by the auto-mode classifier (« Modify Shared Resources ») — it waits for the user's own permission; nothing
+  was worked around. On it: apply, read `check-intent-map.py` and `check-docs-cited-paths.py` by output, commit with
+  « the operator ruled (b), 2026-09-28 », push. THEN: the pre-PR gate's rest (`--a11y`, `--compare` with `failed`
+  first, `make lint`), the pull request READY (title in the brief; B-037/B-038/B-514/B-560 → `fixed #<PR>` in a
+  commit after it opens), its number to the steward. The folder's deletion and its re-citations are NOT this branch's
+  (the steward's docs pull request after the squash; INDEX dated line). Oracle list BY SCRIPT; `mutate.sh` under
+  `heavy.sh --class browser`; the CI `no-french` job's static list read at every gate.
+- AUDIT2 SERIES (order 48): DONE 10 + 10, 0 violations each (verdict in the ledger); outputs in `44-audit2/`.
+- Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (21) R227 · j R228
+  not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (22) R233 ·
+  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · (38) R239 no_sentence_to_arrivals · (46) R240 levers_stay_live · (47b) R241 arrivals_gone · next free R242. Oracle pin 130. RULINGS: L22b wrote 13–29 and 33, L22a's round 30–32; a new one takes 34.
+- AUDITOR ORDER 48: a fall set aside as « load » needs the same rule ≥ 10× here and ≥ 10× on `main`.
+- LOGS `~/Library/Logs/tm-l22b/`; mutex `sh scripts/heavy.sh --held`. GATE: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh
+  --class browser l22b frontend/maquette/harness/run.sh --contracts --oracle <rule paths>` — NAME every rule a phase's
+  change can reach, not only the ones it edits (url_state.py was missed at 19-bis-a); `--a11y` on every gate that draws
+  (light ledger 88, may only fall). No heavy run while the 1-min load is 6 or above (read it in its own call).
+- ORACLE ACCEPT inside one invocation (`bash -c 'run.sh …; python3 frontend/maquette/oracle.py --accept'`), then a
+  script proves only the named keys moved and the committed file is HEAD's with those keys (never the accept's
+  reformatting); bump `tests/scripts/test_oracle.py`'s pin when the state count moves.
+- MUTATIONS `sh scripts/mutate.sh <path> "<expr>" <rule>` on a CLEAN tree — never edit while one runs. PUSH at EVERY
+  phase end: `sh scripts/heavy.sh --class test l22b git push -u origin feat/maquette-l22b`, its own command.
+- Traps: `--accept` rewrites the whole reference; a closed `#dlg` / `#sheet` keeps the last box (B-554, RULINGS 7, 13,
+  20); the entry page's tab rewinds the stack; read `data-follow` by value; new data-*/identifier words need
+  `scripts/code-vocabulary.txt`; a live rule may only name an event the backend emits; zsh does not word-split `$var`
+  in loops; a transient `index.lock` (the status line) — retry the git write, never delete the lock.
+
+## LEDGER (append-only)
+
+- 2026-09-27 phase 15 opened: re-measured ≈ 29 (ruling 16's four acts) → CUT 15a / 15b (steward accepted; 15b waits
+  for Q1). 15a: R226 red (`15a-red.log`, 5 holds + markup guard), move, readers re-aimed out loud (R57 leave half,
+  actions.py, two_picks.py t6 — the latter now moves the list by the queue's `resolve`: no finger act takes a dense
+  staging folder out today); 15a ≈ 16 by its end (two readers found beyond the opening's re-runs, and the candidates
+  screen's guidance sentence) — said here. Commits c19ed60d3 (feat), 2918d4d19 (oracle accepts acq-card-set-aside
+  by name, pin 122 → 123). Gate `15a-gate.log` 32 rules + 26 guards 0 failed, oracle 0; `15a-a11y.log` 0 + light
+  98/98; mutation `15a-mutation.log`: EXPRESSION removes staging.ts's `if (… === LEFT_AS_IT_IS) return { ok:
+  setAside(asked) };` → R226 FAIL « and it is still set aside after both reads are asked again » (and four more).
+  Vocabulary gained « aside » (the contract's own token).
+- 2026-09-27 phase 16: re-measured ≈ 14; the « Annuler » calls the declared inverse (DESIGN § 3.4), dated line in
+  the phase file. R228 red (`16-red.log`), move, STOP A → RULINGS 13 (42 states on shell/sheet-content only, the
+  closed #sheet — B-554 extended), audit2's CancelledError repaired (a cancelled read opens nothing), producers.py
+  grown by `not-media` out loud. Commits e14a2f15c (feat), 61b09ac99 (oracle, script proof in the body, pin 124).
+  Gate `16-gate.log` 31 rules + 26 guards 0 failed, oracle 0; `16-a11y.log` 0 + light 98/98; mutation
+  `16-mutation.log`: EXPRESSION replaces the verb's `await send("POST", path, { destination })` by `undefined` → R228
+  FAIL « the reclassification is answered, and the message says the destination » (and « the card is in neither »).
+  Vocabulary gained « reclassify ».
+- 2026-09-27 phase 17: re-measured ≈ 10; the one real subject is « Les Zinzins de l'Espace » (dense « En vol »,
+  TVDB-identified, no follow); states declared at the opening: acq-now-loaded, acq-card-rungs, acq-card-waiting.
+  R229 red (`17-red.log`; its first draft read `[data-follow]` by presence, which made the markup guard treat
+  `data-follow` as a boolean — re-read by VALUE). Commits c67a904e9 (feat), d612e9323 (oracle, 3 states, script
+  proof). Mutations (`17-mutation-{1,2,3}.log`): arrivals create follows (staging.ts arrivalsOf pushes a follow) →
+  FAIL « a tap changes the follows list by exactly one » (14 → 26: the follows cache re-reads only at the tap);
+  `|| ids[SERIES_PROVIDER] == null` removed → FAIL « no film and no followed series carries it »; follows-tab rows
+  given a requester → FAIL « « Suivis » draws no card born of an arrival ». The gate then caught phase 16's state
+  measured mid-fade: fix 9f61747fd (the choice opened alone over « À traiter », BACKDROP ≠ product, steward
+  accepted) + 658c9b96b (oracle accepts its screen-resolution/body by name; a second pass read no divergence).
+  Final gate on 658c9b96b (`17-final.log`): 32 rules + 26 guards 0 failed, oracle 0; `17-final-a11y.log` 0 + light 98/98.
+- 2026-09-27 phase 18: STOP D → RULINGS 14 (a derivation from Wicker's real row; the event is the last rung done,
+  carried on `ItemProgressed` — the live-relay guard refuses an event the backend does not emit; the engine's timing a
+  demand owed, DESIGN § 6.2). R230 red (`18-red.log`), commits e70c41f20 (feat), 5dce183de (oracle). The drawing gate
+  raised the light ledger 98 → 103 (the state redrew « Suivis »'s `waiting` chip) → RULINGS 15 (repair the variant,
+  never re-tone) → 16 (no existing token passes, 2.98:1; the state leaves, `--color-waiting-text` goes to the operator
+  through the auditor). Fix ccf142e3b (state removed, reference and pin back to 124). Gate `18-gate2.log` 30 rules + 26
+  guards 0 failed, oracle 0; `18-a11y2.log` 0 + light 98/98. Mutations: `isVerifiedInPlex` reads the rung before the
+  last → FAIL « while its last rung is pending, « Wicker » is in « Suivis » » (`18-mutation2-1.log`); the film-only
+  filter dropped → FAIL « a followed series confirmed in Plex … is still there » (`18-mutation2-2.log`). The first
+  mutation run was refused on a dirty tree (I had edited the resume during the gate) — never again.
+- 2026-09-27 phase 19: re-measured ≈ 11 (RULINGS 17: no copied states; journey.py a sixth reader). R231 red
+  (`19-red.log`, « Système is not in the bar »); R232 written green. Commit 7a7a697c8 (amended twice, unpushed: the
+  first gate fell on four readers my grep missed or I re-aimed wrong — persistence.py counted four buttons,
+  scroll_memory.py left by Système, and locks.py / queued_by_hand.py clicked the menu's SVG; the entry page's tab
+  rewinds the stack, so scroll_memory.py leaves by a tab read off the bar). Mutations (`19-mutation-{1..4}.log`, on
+  087794d96, the mutated files unchanged since): `sys` inBar back → R231 FAIL « Système is not in the bar »;
+  `basis-1/4` → R232 FAIL « each button is 1/3 of the bar »; `flex-1` dropped → same; every row inBar → FAIL « the
+  table gives the bar between 1 and 4 places ». The first mutation run was refused AGAIN on a dirty tree (I edited
+  readers while it ran). Gate `19-gate2.log` on 7a7a697c8: 32 rules + 26 guards 0 failed, oracle 0; `19-a11y.log`
+  light 98/98. The oracle warns its reference's base 5de78a1e is not an ancestor (my amended fix) — metadata only,
+  the steward re-records at the merge.
+- 2026-09-27 phase 19-bis: ≈ 20 → cut (RULINGS 18). 19-bis-a: R234 red (`19bisa-red.log`) — CONTAMINATED in part: I
+  edited sources after the build, and the two assertions reading source (« the table marks « Découvrir » a page of the
+  bar », « the address model declares its address ») were not red on that build; the three carrying the claim (no
+  button, no page, `/discover` cold → not found) were. Commits a639bec28 (feat; frame ceiling 132 → 141, RULINGS 19),
+  24906af99 (oracle: 39th region discover/body; 8 declared states; 3 pinned by RULINGS 20; script proof in the body).
+  STOP A → RULINGS 20 (acq-add-empty, acq-add-results, drawer-navigation inherited `acqTab` — pinned; B-554 gains a
+  line). My earlier `--record` had blessed 2 lot/date references in bar_shares.py — removed, baseline back to 0.
+  Gate `19bisa-gate.log` 34 rules + 26 guards 0 failed, oracle 0; `19bisa-a11y.log` 0 + light 98/98. Mutation
+  (`19bisa-mutation.log`): the discover row `inBar: false` → R234 FAIL « the table marks « Découvrir » a page of the
+  bar » and « the bar carries its button, and a tap lands on its address ».
+- 2026-09-27 phase 19-bis-b: R206 (three tabs) and R202's « discover » fallback red (`19bisb-red.log`). Commits
+  fa0610743 (feat: the tab dies; six ids renamed by `rename-identifiers.py --values --whole` — discover-full, -posters,
+  -deck, -degraded, -exhausted, -loading — the oracle and three a11y ledgers re-keyed, light still 98; RULINGS 1's exact
+  substitution for five `__go('…')` strings and one backticked comment: 6; zero left under frontend/maquette; history
+  left in BUGS.md, the lot's docs, and `docs/reference/product-intent-map.md:49` — not mine to edit), 12dab6588 (fix:
+  the Découvrir page observes suggestionsQuery — R223 fell on discover-full, a pull re-read nothing on the page
+  19-bis-a created). The oracle read no divergence; an accept run rewrote 847 lines of noise — reverted. Gate
+  `19bisb-gate.log` 42 rules (21 named) + 26 guards 0 failed, oracle 0; `19bisb-a11y.log` 0 + light 98/98. Mutations:
+  a « discover » tab put back → R206 FAIL « the three tabs read … »; « discover » kept in TABS → R202 FAIL « « Découvrir »
+  remembered … opens « Suivis » »; `acq-discover-degraded` put back in panel.py → RULE CRASHED naming it (« état inconnu :
+  acq-discover-degraded ») — RULINGS 1's reading.
+- 2026-09-27 stood down at 69 % after 19-bis-b (the triage's docs commit is the next unit, for a fresh session).
+- 2026-09-27 (successor « Agent : l22b 2 ») merge of #619 (5e5ecd052): git's base was the old main, so 47 files
+  conflicted; re-merged three ways on L22a's head 6f0c987a3 → 40 clean, 6 unions (follow-facts, card-markup, fr.json,
+  handlers/staging, handlers/acquisition, RULINGS). handlers/acquisition.ts merged at 403 non-blank lines (> 400): my
+  phase-18 comment tightened, said in the body. Oracle merged key by key. Commit 7ca978d5e. Gate 1 (`merge-gate.log`)
+  RED: url_state.py « every page the model declares is one this rule knows how to reach » — MY miss at 19-bis-a (the
+  rule is in no --contracts tier and I never named it); RE-AIMED OUT LOUD, fix 91811f599. Gate 2 (`merge-gate2.log`):
+  64 rules (48 named) + 26 guards, 0 failed; 10 oracle divergences, five states × (acquisition/body, shell/page), each
+  cause named (phase 17's foot and 15a/16's cards under L22a's ruling 32), accepted in the same invocation; the script
+  proved exactly those 10 keys moved; aae52da02. `merge-oracle3.log` no divergence; `merge-a11y.log` 0 + light 98/98.
+  Pushed aae52da02.
+- 2026-09-27 the triage's docs commit (§ B): F51 renumbering (20–27 → 24, 29–35; new 20–23, 25–28), F4 / F50 / F58 /
+  C8 / round 8 Q16, Q17, Q19, Q20 / M1, M2, M3, round 10 Q1, Q2, Q6 as dated lines and DESIGN § 7.4; RULINGS 21. Not
+  mine and not done: `frontend-architecture.md`'s L22 entry and `product-intent-map.md:49` (the steward's docs PR); the
+  regions.json note of F58 (« the four tabs » → « the bottom bar: two to four buttons ») is left to the lot that edits
+  regions.json.
+- 2026-09-27 phase 20: R230 re-aimed out loud onto the named state again, hold 4 (the chip's light text is the computed
+  --color-waiting-text). Red `20-red.log` (after two authoring fixes the guards caught: a class-token selector → the
+  chip read by `dataset.tone`; a phase reference in a comment) + `20-red-a11y.log` light 103. Commits 662989abc (feat),
+  e5411db6f (oracle by name, pin 125, light ceiling 98 → 88 by --record in the same invocation). Mutation
+  `20-mutation.log`: the variant reads the tone → R230 FAIL by hold 4. `20-final.log` no divergence, light 88/88.
+  audit2.py R11 fell ONCE (`20-green.log`, no detail — run.sh deletes per-rule logs), green on the three runs after;
+  NOT set aside: ×10 here at the midpoint with the output kept, ×10 on main by the steward (R11 also fell on #623's CI).
+- 2026-09-27 B-556 / B-557 filed (the operator's verbatim) and placed as phases 21 / 22; 21–35 → 23–37.
+- 2026-09-27 phase 21 (B-556): cause read — the pull's isExcluded refused `.swipe`, the rows of « Suivis » and of the
+  Médiathèque's list; R223 pulled above the cards. `.swipe` left the exclusion. R235 new (pull_on_a_card.py): red
+  `21-red.log` (follows-list, lib-list), gate `21-gate.log` 41 rules (17 swipe drivers) + 26 guards 0 failed, mutation
+  `21-mutation.log` (`.swipe` back → FAIL both). Commits 85790103d, bf1eb3ec0 (the comment-reference record's `read`
+  514 → 515, the pre-push pytest refused the first push).
+- 2026-09-27 phase 22 (B-557): R206 at 390 AND 369 px, counted tabs at « 999 » (« Suivis » draws no count — my first
+  draft's premise, corrected out loud). Gate `22-gate.log` 0 failed; mutation `22-mutation.log` (tabTodo lengthened →
+  FAIL at both widths). Commit 3551e8125.
+- 2026-09-27 phase 23 re-measured ≈ 31 → cut into 23 / 24 / 25; the rest +2 (26–39).
+- 2026-09-27 phase 23 (the deletion): deleteStagedMedia + verb + confirmation (neutral case) + the set-aside card's
+  second foot and its panel action; R227 new (delete_set_aside.py). Commits c49b6562c, 8c19bd589 (R43 read no card of
+  the closed fold — acq-card-set-aside joined its CARD_STATES, re-aimed out loud; mutation 23-mutation3.log).
+- 2026-09-27 phase 25 (F40): notFound/doneToday out of the contract, the mock, the seeds; register → unserved. 287acb0c3.
+- 2026-09-27 phase 24 (M2): STOP D → RULINGS 22 (the auditor: (a), the case POSED on Lucky, two conditions);
+  readStagedMediaCopies, staged-folders.ts, three states; four mutations; STOP A (63 states on shell/dialog, B-554) →
+  RULINGS 7 applied. da0ecf77f, 576e90994 (pin 128).
+- 2026-09-27 phase 26 (R233): paused follows fold; three readers of the PAUSED follows re-aimed after the gate fell;
+  96d37a7ad carried a whole-file --accept by accident (a background run's accept wrote after my restore) — replaced by
+  the by-name form in b77bbbe22. NEVER edit while a background run has not returned its notification.
+  ORDER 36 (steward): NO gate runs in the background — wait inside the call (≤ 600 s) or in a bounded loop on its log,
+  editing nothing meanwhile. RULINGS 23: a state drawing a tab under a layer is named at the opening of a phase that
+  touches the tab.
+- 2026-09-27 phase 27 (F3): STOP D → RULINGS 24 (only a disagreement waits; POSED on Star Trek as « Star Trek:
+  Discovery »; « Corriger » sends the identity held, no candidates screen; demand E = the correction verb, OPEN 9's
+  fifth demand). R221 re-aimed out loud; four readers of Star Trek's card re-aimed or repaired (R47 was a real defect:
+  the two-sided sentence cropped the poster to 43 % — the card's title is the held side, the sentence names Plex's);
+  a guard exemption keyed by line (markup_anchors.py, audit2.py:184) kept by a shorter comment. Commits 571989427,
+  2122c49f5, ddb9ce06b, f0566bda1 (pin 129). Mutations `27-mutation-{agree,correct,confirm}.log`, each FAIL by name.
+- 2026-09-27 stood down after phase 27 (the context hook's 60 % gate: 63 %); the next unit is phase 28.
+- 2026-09-27 (successor « Agent : l22b 3 ») merged origin/main 665788a90 (#624, docs only) clean: 8a9500c43.
+- 2026-09-27 phase 28 opened: re-measured ≈ 30 → CUT 28 / 29 / 30 (steward accepted). Read at the opening, and a
+  PRODUCT defect F1 covers: Acquisition's bar badge froze on any other page after a live event (a cache read observes
+  nothing; only engine-data's boot prefetch filled it). 28 (F1 + C2): `NavigationRow.useBadgeReads`, acq + arr declare,
+  `app/badge-reads.tsx` observes per drawn row. R236 red (`28-red.log`: « still reads 3 »). app/ domain ceiling 141 →
+  145 (steward accepted). Commit 36bdd1762. Gate `28-gate.log` 66 rules (52 named) + 26 guards 0 failed, no
+  divergence. Mutation `28-mutation.log`: EXPRESSION drops `useBadgeReads: useAcquisitionBadgeReads,` → R236 FAIL
+  « after a live event empties « À traiter », the badge is gone from the other page — still reads 3 ».
+- 2026-09-27 phase 29 (MOVE): engine-data.ts's staging + queue prefetch removed, header corrected; app/ ceiling 145 →
+  143 measured. Commit 33dc70d2e. Gate `29-gate.log` 66 rules (52 named) + 26 guards 0 failed, no divergence.
+  Mutation `29-mutation.log`: the same EXPRESSION now fells the COLD-LOAD hold too (« … carries the seeded count —
+  None »): the declaration alone fills the badge. Steward placed engine-data.ts's removal at phase 40 (a new phase
+  before the close if 40's budget does not hold it).
+- 2026-09-27 phase 30 (the menu button's badge, M3's no-rights half): `features/system/badge.ts` (`systemBadge` +
+  `useSystemBadgeReads`), `app/menu-badge.tsx` portalled into the static button, the drawer's count named
+  `shell/drawer-count`, states menu-system-badge / menu-clear. R236 grew the menu holds, red `30-red.log` (« server 1,
+  button None »). app/ ceiling 143 → 147; vocabulary + alert, faults, menu, service. Commit 567462c2e; gate 1
+  (`30-gate.log`) fell on two causes → fix 56623d4ac (the drawer re-derived on server state only: « button 3, entry
+  2 »; systemBadge threw on fanout/replay's pending-read marker). Gate 2 `30-gate2.log` 68 rules (55 named) + 26
+  guards 0 failed; 36 divergences = the two NEW states only; accepted in one invocation (`30-accept.log`), script
+  proof, f37b9c460 (pin 131). `30-a11y.log` 0 + light 88/88. Mutations `30-mutation-{wiring,constant,maintenance,
+  declaration}.log`, each FAIL by name (MenuBadge unmounted → « button None »; `return 1` → « server 2, button 1 »;
+  `return maintenance` → « expected 3, button 2 »; Système's declaration dropped → « server 1, button None »).
+- 2026-09-27 MIDPOINT (the steward told before). Full suite on 9c5db252b (`midpoint-suite.log`, 171 rules, 3 at a time):
+  ONE fall, R207 one_ladder.py « the sheet's current rung is the card's » ×4; re-read ALONE on a quiet machine (load
+  4): same fall (`midpoint-one_ladder-alone.log`) → charged to the CODE, mine. Bisected: with BadgeReads unmounted it
+  still fell (`midpoint-bisect-observers.log`); with phase 28's engine-data.ts it PASSED (`midpoint-bisect-29.log`);
+  a read-order diagnostic (a temporary rule, deleted) showed why — R207 collects cards in two states and opened every
+  sheet in the second state's world; it agreed only because the boot list re-read the queue under the PREVIOUS state's
+  scenario at each reset. Not a product defect: R207 RE-AIMED OUT LOUD (each sheet opened in its card's state), and
+  BadgeReads redraws on cache moves (an observer kept a removed query after a reset's clear). Commit 76b54a3ec; gate
+  `midpoint-repair-gate.log` 69 rules (56 named) + 26 guards 0 failed, no divergence. The bisect on pre-27 staging.ts
+  did not build (`midpoint-bisect-27.log`, nothing measured). audit2.py ×10 in the steward's load shape (3 contract
+  partners, host from run.sh, never by hand): 0/10 fell, each draw « 0 violations · 13/13 », WHOLE output kept in
+  `midpoint-audit2/audit2-{1..10}.out` (main read 0/10) — the R11 fall of `20-green.log` is not reproduced.
+- 2026-09-27 phase 31 opened (F5): R212 extended, red `31-red.log` — and STOP D: « Les Zinzins de l'Espace », a direct
+  add, is DOWNLOADING. RULINGS 25: (b) on the operator's texts (a direct add is a card only once finished); no new
+  surface in L22b (« Système › téléchargements » does not exist), so Zinzins's card stays in « En vol » until L16
+  phase 5 (named gap; its removal and R229's re-aim go to L16's plan, by the steward); 31 keeps condition 3 alone. The
+  R212 extension parked on local `wip/l22b-31-r212`.
+- 2026-09-27 phase 32 (F6): re-measured ≈ 16 → CUT 32 (search) / 33 (F42 grab), the rest +1 (34–42). R237 red
+  (`32-red.log`: no search sent). Commit e71618e71: the tap sends `searchForFollow`, says « aucun torrent trouvé » or
+  the count; `searchStarted` retired; panel.py RE-AIMED OUT LOUD. Gate `32-gate.log` 35 rules (15 named) + 26 guards 0
+  failed, no divergence. Mutations: toast without sending → FAIL « … sends its own search, once » (`32-mutation-toast.log`);
+  zero sentence dropped → FAIL « … says « aucun torrent trouvé » … — said « … : 0 torrent trouvé. » » (`32-mutation-zero.log`).
+- 2026-09-28 phase 31 (condition 3 of RULINGS 25): R212 extension cherry-picked from wip/l22b-31-r212 and scoped to
+  ARRIVED direct adds; red `31-red2.log` (The Alabama Solution, Conclave). Commit 165a7e094: cell state `skipped`
+  (contract enum, strip variants — a hollow dot —, card tone, sheet pip), the mock lays a direct add's four rungs before
+  « arrivé » skipped with no time once arrived; DESIGN § 3.2 dated line (template times noted, § 13). Gate 1
+  (`31-gate.log`) fell on R207 alone (its own current-rung copy took `skipped` for active) → 2a7b2c9cf RE-AIMED OUT
+  LOUD. Gate 2 `31-gate2.log` 66 rules (50 named) + 26 guards 0 failed, no divergence; `31-a11y.log` 0 + light 88/88.
+  Mutation `31-mutation.log`: the four laid done again → R212 FAIL « … lived no rung before « arrivé » » ×2 and
+  « its sheet gives those rungs no time, none passed » ×2. wip/l22b-31-r212 is spent (local, never pushed).
+- 2026-09-28 phase 33 (F42): R225 RE-AIMED OUT LOUD onto `grabForFollow` at the follow's address, red `33-red.log` (it
+  counted `takeQueued`). Commit 8c727d8e5: the sheet's act, the release picker and the takeable card send the
+  per-follow grab (202, `runUid`, optional `releaseName` — the picker's chosen release, a demand filed in DESIGN § 6.2:
+  the register compares no request body); `takeQueued` retired from contract and mock; register regenerated; the
+  replay pair gains `/api/acquisition/followed`. Gate 1 (`33-gate.log`) fell on my two misses → 4c0778ce2
+  (declared_codes.py asks the grab's 202; lib/ ceiling 28 → 29, measured 28 without / 29 with). Gate 2 `33-gate2.log`
+  47 rules (29 named) + 26 guards 0 failed, no divergence. Mutation `33-mutation.log`: the take path back → R225 FAIL
+  « the tap sends that follow's grab — 0 → 0 » (and the sheet still waits for the next pass).
+- 2026-09-28 phase 34 (M1): STOP D (the one seeded tunnel error, Top Chef, has no follow) → RULINGS 26 (a): the error
+  POSED on « Furious » (`poseTunnelError`, state acq-card-follow-error). R222 gained four holds, red `34-red.log`.
+  Commit eff6c46a0: on a follow's card the quarantine records the release as tried (the release read no longer offers
+  it), the medium is back in « En vol » on « cherché », the follow goes on, the confirmation says « une autre release
+  sera cherchée »; door and branch in mocks/handlers/follow-errors.ts, the release read in the leaf releases-of.ts (no
+  cycle; staging.ts at 399); DESIGN § 6.2 files the demand and round 10 Q6 = C (unbuilt). Gate 1 fell: Furious is also
+  a card of the queue's flight and laid the ladder first, running (`34-diagnostic.log`, a temporary rule, removed) →
+  fix: the pose takes it out of flight. Gate 2 `34-gate2.log` 45 rules (25 named) + 26 guards 0 failed; 13 divergences
+  = the new state only; accepted (`34-accept.log`, script proof) 982c71877, pin 132. `34-a11y.log` 0 + light 88/88.
+  Mutations, each FAIL by name: tried release not recorded → « … no longer offered … »; not put back in flight → « …
+  back in « En vol », on « cherché » — None »; the follow removed → « and the follow goes on » (`34-mutation-*.log`).
+- 2026-09-28 phase 35: re-measured ≈ 16 → CUT 35 (Q1) / 36 (Q2), the rest +1 (37–43). STOP D (no hand-added arrival
+  matches a follow) → RULINGS 27 (a): the real half — « President Curtis » and « Furious », the SAME episode as the
+  queue's card in flight and as a staging arrival (read on the seeds at the auditor's condition). R238 red
+  (`35-red.log`: the queue's answer names both twice). Commit 44ff14143: the queue composes arrivals first and drops
+  from the flight the same ITEM (shared provider id + same episode, `mocks/handlers/same-item.ts`; the episode off
+  `secondaryLine`, fragile, a demand for the field); the hand-added half a demand held by no rule. NOTE: the interface
+  already joined the two in the DRAWING (`inFlightCards`); the visible defect was the ladder, laid per title by the
+  flight first. Gate `35-gate.log` 80 rules (64 named) + 26 guards 0 failed; 2 divergences, acq-card-waiting on
+  acquisition/body + shell/page (+58 px: the follows now WAIT behind maintenance with their reason) → ba0c29ebc,
+  accepted by name, script proof. `35-a11y.log` 0 + light 88/88. Mutations: the join removed → FAIL « the queue's
+  answer names every medium once »; series-only matching → FAIL « … another episode is another card ».
+- 2026-09-28 phase 36 (round 10 Q2): re-measured ≈ 16 → CUT 36 / 37 (the offer), the rest +1 (38–44). R158 RE-AIMED
+  OUT LOUD (red `36-red.log`: « the act moved the world — a one-off … queued: False », « NO follow is born — status
+  after: 'acquiring' », the NewlyFollowed sentence). Commit 5fd094907: `Requester.via` gains `request` (« demandé par …,
+  pour cette saison »), the season grab queues a one-off card and begins no follow, `newlyFollowed` and its four
+  sentences retire, register regenerated. Gate 1 fell on R158 hold 5 (the surface pressed no longer changes) → STOP →
+  RULINGS 28: dedupe (a second tap queues no second card) + hold 5 set aside TEMPORARILY, given back in 37 on
+  « demandée ». Fix 34ecc6cb8. Gate 2 `36-gate2.log` 99 rules (84 named) + 26 guards 0 failed, no divergence.
+  Mutations: the verb begins a follow again → FAIL « NO follow is born of it » (`36-mutation-follow.log`); dedupe
+  removed → FAIL « a second tap queues no second card — 2 one-off card(s) » (`36-mutation-twice.log`).
+- 2026-09-28 stood down after phase 36: the context hook's gate (60 %). Next unit: phase 37, for a fresh session.
+- 2026-09-28 phase 37 (successor « Agent : l22b 4 »): re-measured ≈ 13 → one phase. Red `37-red.log`: R158 ×8 (« the
+  surface pressed reads differently afterwards » GIVEN BACK OUT LOUD, and « the season's row says « Demandée » and offers
+  the act no more »), R229's new leg red on the panel only — the one-off card's foot in « En vol » was ALREADY offered
+  (the flight's offer reads any requester), said in the commit. Commit 31df61609: `features/media/asked-seasons.ts`
+  derives the seasons asked once from the queue (`via` = `request`, season off `secondaryLine`, fragile), both season
+  surfaces draw « Demandée » (`season/asked`, `data-asked-season`) in the act's place, the ask re-reads the queue;
+  follow-facts offers « Suivre » on the one-off card's panel. Gate `37-gate.log` 84 rules (73 named) + 26 guards 0
+  failed, no divergence; `37-a11y.log` 0 + light 88/88. Mutations: no season read as asked → R158 FAIL « Demandée »
+  ×4 and « reads differently » on the sheet ×2 (`37-mutation-asked.log`; on the PANEL « reads differently » stays green
+  under it — the panel also gains « Suivre » and the one-off's actions, a second visible fact); the panel reads
+  arrivals only → R229 FAIL « and its panel offers « Suivre » » (`37-mutation-offer.log`).
+- 2026-09-28 stood down after phase 37: the reboot at 05:00 (nothing opens after 37 tonight). Next unit: phase 38.
+- 2026-09-28 (successor « Agent : l22b 5 », steward [84baa3] since the reboot) phase 38 opened: re-measured ≈ 17 → CUT
+  38 / 39 (F7 needs a landing on a NAMED tab; steward accepted; the rest +1, 40–45). R239 red (`38-red.log`: Système,
+  run-detail, acq-now-loaded, the maintenance toast and screen-profile — F54 — named Arrivées or promised « cherché, rien
+  trouvé »). Commit b0d9dcd2e: five sentences rewritten, the rule note names the follow and « aucun torrent trouvé »,
+  « En cours »'s cross-reference dies with its eight keys and `crossReferenceStrong`, Système's two cross-references
+  land on Acquisition (remembered tab); `toArrivals*` rewritten under new keys `toAcquisition*` (the rename tool reaches
+  no JSON key). Gate 1 (`38-gate.log`) fell on MY read: from a run's screen the landing rewinds to the entry « / », the
+  home page's address — R239 now reads `state.page` and the address leaving /system (amended before any push). STOP A:
+  13 states diverged, 4 unnamed in my announcement — relay-* / pwa-* / startup draw « En cours » under a layer (RULINGS
+  23: my announcement should have named them), signin / signin-error pin no page and inherit the state before (RULINGS
+  20 / 23's precedent) → steward (A): accepted by name. Gate 2 `38-gate2.log` 57 rules (48 named) + 26 guards 0 failed;
+  25 divergences = 12 states × {acquisition/body, shell/page} −94.2 px + screen-profile/body +17.4 px, accepted in the
+  same invocation, script proof `38-accept-proof.log`, a8a8ea558 (pin unchanged). `38-a11y.log` 0 + light 88/88.
+  Mutations: run-screen's `data-go` back to `arr` → R239 FAIL « run-detail: its cross-reference 1 lands on Acquisition,
+  and leaves Système — {'page': 'arr', 'path': '/arrivals'} » (`38-mutation-run.log`); the F54 note back → FAIL
+  « screen-profile: no sentence promises « cherché, rien trouvé » » (`38-mutation-note.log`).
+- 2026-09-28 phase 39 (F7), re-measured ≈ 8. R239 extended, red `39-red.log` (the landing opened « Suivis », no tab in
+  the address). Commit 24465a071: a control names the dial it lands on (`data-dial`; « dial » already in the
+  vocabulary), `go` passes it unread through the landing door, `landingTab(asked)` opens it without remembering it; both
+  Système cross-references name « todo »; DESIGN § 3.7 amended. Gate 2 (`39-gate2.log`) fell on run-detail, and the
+  finger walks (`39-walk.log`, `39-before-fix.log`) showed a DEFECT OF MY PHASE 38, invisible to R239 there because it
+  read the named state `run-detail`, which lays Système with no entry a finger pushes: walked by finger, the run
+  screen's cross-reference stepped back onto Système, and from Système the landing lost its tab. Causes and repair
+  (steward approved each step, fix a separate commit 1f6272b8a): `switchPage` stepped home by an UNANNOUNCED `back()`,
+  so the floor re-read its own address over the landed tab → `rewind(1 + stackedSurfaces())` + `replacePath`, the
+  gesture `switchPageFromLayer` makes (the count justified in place: a rubric counts 0 at the replay); the run screen
+  pushed an entry nothing knew of, and `giveTheEntryBackFirst` could not serve it (its replayed tap lands on a control
+  the pop unmounted) → `countTheEntry(isOpen)`, new in `lib/stacked-surface.ts`, no capture listener. The branch
+  changed REVERSES « home re-reads the floor's address »; its readers: the bottom bar, the drawer, Back from a page, a
+  reload (the floor now carries the page's own address). R239 holds, all on finger walks with taps bounded at 5 s:
+  Système and a run → « À traiter » with `tab=todo`, the landing standing ON THE FLOOR (`__TSR_index`, § 16 rule 2);
+  the bar → home on a floor at « En cours » with « À traiter » remembered, back on « En cours » — GREEN BEFORE AND
+  AFTER by design (the bar's behaviour must not change; the steward's « red first » for it was withdrawn: what tells the
+  two readings apart is the back() mutation); a run's address loaded cold → the landing inside the application. The
+  steward's condition (a), the bar tapped over a run's screen, was WITHDRAWN on a measure: the tap at 5 s falls, the
+  screen covers the bar — no finger makes that walk (page-switch.ts's own comment on layers). entry.py was dropped from
+  the named rules (steward accepted): it reads the DEPLOYED host tm-design, not this copy, and I had added it by hand
+  (Page.goto timeouts at 30 s in `39-gate2.log`, `39-walk.log`). Gate 5 `39-gate5.log` on a7d9c3dec: 71 rules (60
+  named) + 26 guards 0 failed, no divergence; `39-floor.log` on 1f6272b8a (the floor hold added, no code moved) 0
+  failed, no divergence; `39-a11y.log` 0 + light 88/88. Mutations, each FAIL by name: `back()` put back → « system,
+  walked: … drawn follows » and « run-detail, walked: … page sys » (`39-mutation-back.log`); the screen undeclared and
+  `rewind(1)` → « run-detail, walked: the landing stands on the floor … floor 1, landed on 2 »
+  (`39-mutation-undeclared.log`, `39-mutation-count.log`) — both passed GREEN before the floor hold existed: the landing
+  looked right while leaving an entry underneath. One heavy run went unannounced (`39-diagnose.log`); every run is
+  announced from now on, a diagnostic included.
+- 2026-09-28 phase 40 opened (the readers of the page's states): re-measured ≈ 30 → CUT 40 (F41) / 41 (the twelve
+  other readers + three code sites) / 42 (F53); the rest +2 (43–47); steward approved. `acq-todo-loading`: the steward
+  ruled (A) BUILD it (DESIGN § 4 row 11 names it; its own three-card skeleton, measured by the oracle) — phase 13's use
+  of it, « no tab selected while the count is unread », died with round 7's default-tab rule. R90 (state_surfaces.py)
+  RE-AIMED OUT LOUD, arr-error → acq-todo-error, its subject read from fr.json: red `40-red.log` (« acq-todo-error names
+  its own subject — looked for « ce qui attend votre main » »: the tab said « En cours »'s `errorNow`). Commit 7c9597cf6:
+  `errorTodo`, the two states, pin 132 → 134. Gate `40-gate.log` 38 rules (17 named) + 26 guards 0 failed; 26
+  divergences = the two new states only (proof `40-accept-proof.log`), accepted 5406a8db8. `40-a11y.log` 0 + light
+  88/88 (134 states). Mutation `40-mutation.log`: `errorTodo` → `errorNow` → R90 FAIL « acq-todo-error names its own
+  subject ». B-515 READ on acq-todo-error (triage F41): the tab's SurfaceError has no `onRetry`, so « Réessayer » is the
+  delegated `data-retry` → `refetchQueries({ type: "active" })`, no pending or busy sign; the named state's error is the
+  harness dial `phase: "error"`, which no answered read can clear — the same traits as on arr-error: honest, no product
+  defect; B-515 stays open with its surface now acq-todo-error (owner L13c), for the closing docs pull request to record.
+- 2026-09-28 phase 41 (the twelve readers + three code sites): the gate on 5f52976c9 (`41-gate.log`) fell ×5 → STOP D:
+  `arr-loaded` (the dense world) had NO successor — `acq-todo-loaded` is the real world, whose staging folders are Top
+  Chef (« Relancer ») and the Spider-Man game F53 removes → RULINGS 29 (a): `acq-todo-dense`, « À traiter » in the dense
+  world. Measured with a TEMPORARY probe (`41-measure.log`, deleted, never committed): actions, add_screen_opens_fresh,
+  audit, ident, resolution_window green there (actions and ident tap the « Résoudre » of a `data-nonmedia` card, the
+  folder nobody identified — the tab also holds the queue's tie); R122 (paths_to_sheets) reads ONE identified row there
+  — the steward's floor of 2 → its `arr-loaded` entry takes no successor, said in the file; the identified arrival is a
+  card of « En cours », read by acq-now-loaded. R139 (panel_label_once): 0 of 25 panels on five surfaces lead to the
+  journey, yet the branch LIVES in the source (`follow-actions.ts:75–83`, `primaryAction`'s last fallback: an arrival in
+  flight the sort has not identified) → its B-313 hold is SET ASIDE (`BRANCH_SET_ASIDE`), given back in phase 42 on a
+  posed case (the file names no phase: check-maquette-comments refuses one in a maquette comment). audit's R10: « Relancer »
+  on the real world's tunnel error SENDS and changes no dial — the snapshot counts answered calls, and R10 walks « À
+  traiter » in both worlds (6301f4cbb) so the count is exercised. Commits e2751fc7d (test), 4b3cd1819 (oracle: 34
+  divergences = acq-todo-dense new + acq-identify / acq-resolution-none / -tie on six regions each, « À traiter » now
+  under their screen; proof `41-accept-proof.log`; pin 135), 6301f4cbb, 2ccc6d6e2 (fix: acq-todo-dense's comment moved
+  above its entry — the no-French arm could not parse the state; the gate before the accept could not see it). Gate
+  `41-gate2.log` 42 rules (24 named) + 26 guards 0 failed. Mutation `41-mutation-r10.log`: « Relancer »'s send removed →
+  R10 « acq-todo-loaded : « Relancer » changes nothing » (it did NOT fall while audit read acq-todo-dense alone, where no
+  « Relancer » is — hence 6301f4cbb). `41-compare.log` (--only the 14 re-aimed, baseline 5e5ecd05): failed none;
+  panel_label_once 3 → 2 and paths_to_sheets 13 → 11 are THIS phase's, said above; cards 68 → 77 and fanout 150 → 152
+  are not attributable against a baseline that old (none of this phase's edits adds a hold there — cards lost two states).
+  actions.py and ident.py print prose, compared on exit only. `41-a11y.log` 0 + light 88/88 (135 states).
+- 2026-09-28 cards / fanout ATTRIBUTED (the steward's demand, before phase 42): a fresh base on cdb19a7c4 (just before
+  41), taken by `git checkout cdb19a7c4 -- frontend/maquette` in this tree (no file added since:
+  `git diff --name-only --diff-filter=A cdb19a7c4 HEAD -- frontend/maquette` empty; the served copy rebuilt by run.sh;
+  restored, `git status` empty; the tool dates the record at HEAD since it reads HEAD — scratchpad only):
+  `42-baseline-cdb.log` cards 75, fanout 152. fanout: unchanged by 41. cards: 77 after 41, a net +2 HIDING A FALL OF
+  MINE — CARD_STATES lost arr-idle AND arr-loaded (R41/R42, cards.py:165–187, 3 holds per state plus its inline items)
+  and only the first had a successor already read; the dense world's cards were read by no card state. Repaired
+  1639f7d61 (acq-todo-dense in CARD_STATES, out loud): `42-cards-compare.log` cards 84 (+7: the state's 3 + 4 inline
+  items), fanout 152. Mutation `42-mutation-dense.log`, the dense-only folder « doc_fr_2026_final »'s body without
+  `data-panel` → cards FAIL « R46 acq-todo-dense « doc_fr_2026_final »: a folder addresses no panel ».
+- 2026-09-28 phase 42 (R139's B-313 hold given back), re-measured ≈ 7. Red `42-red.log` with the hold active on the
+  current surfaces (« and it reached a panel whose PRIMARY act leads to the journey … 0 such panel(s) »). Commit
+  e8a856dac: `mocks/handlers/posed-identity.ts` — `poseUnknownIdentity`, a DERIVATION shown as one (RULINGS 22/24/26's
+  precedent): a real dense-world arrival in flight, « Conclave » (not in the library, so no held identity finds its
+  sheet; « The Alabama Solution » is in the library), loses its identifiers (`ids: null`, the contract's « no sheet
+  identifies it yet »), its strip stands on the identifying step, its chip goes rather than carry a word no row says;
+  named state `acq-card-identity-unknown` says it is posed and names the backend read that replaces it (the « identifié »
+  rung in progress); R139 reads it. Gate `42-gate.log` 33 rules (11 named) + 26 guards 0 failed; 13 divergences = the
+  new state only (proof `42-accept-proof.log`), accepted 1eeb6378f, pin 136. Mutation `42-mutation.log`: the door keeps
+  the identity (`ids: null, ` removed) → R139 FAIL « and it reached a panel whose PRIMARY act leads to the journey ».
+  `42-a11y.log` 0 + light 88/88 (136 states).
+- 2026-09-28 stood down after phase 42 (the context hook's gate is 60 %: 50.5 measured + phase 43's ≈ 10 would cross
+  it; the steward's order). Next unit: phase 43 (F53), for a fresh session; its measure is in the STATE.
+- 2026-09-28 (successor « Agent : l22b 6 ») phase 43 (F53), re-measured ≈ 13; STOP D at the opening: « check
+  doc_fr_2026_final the same way » found the same case → steward (A), verified in the engine (file_type.py:178–200):
+  a NEW phase 44 for it, the rest 45–49 (INDEX dated line). Red `43-red.log`: R208 re-aimed OUT LOUD onto Backrooms (dense
+  world) FAIL ×7, among them the new hold « acq-todo-loaded: « À traiter » draws no folder the sort filed as no medium —
+  ['Marvels.Spider-Man…'] » (the non-media destinations' staging folders, `{id:03d}-{NAME}` of staging-destinations.json);
+  R228 re-aimed OUT LOUD onto Backrooms, GREEN before the move (its subject changed, not its verdict — the steward asked
+  for a named mutation, below). Commit f425ecb10 (seed row out; acq-card-no-identity and acq-resolution-not-media draw the
+  dense world). Gate 1 `43-gate.log` fell ×3, readers of the game folder → 7a99a4c8f, re-aimed OUT LOUD: page_host.py's
+  « arr » floor 140 → 130 (measured 135; steward accepted); R207 one_ladder.py and R212 requester_line.py required ≥ 2
+  folders dropped by hand → ≥ 1 — A WEAKENING, said so (steward's reserve): the plurality protected a defect seen only
+  from a second card — the « arrivé » start not being an accident of ONE strip (the game's [1, blocked] and Top Chef's
+  [1, 1, blocked] stood at different strip positions) nor of the first card laid. MEASURED: no surface shows two folders
+  dropped by hand any more — stuck.json holds Top Chef alone, stuck-loaded.json doc_fr_2026_final alone (read by neither
+  rule's states) and it leaves at 44; after 44 Top Chef is the only one in every seed. The limit is NAMED: the plurality
+  cannot be read on the operator's data. STOP A: 32 divergences = 16 states × 2 regions, one cause — the real world's
+  « À traiter » and the Arrivées page lose the game's card; arr-idle / arr-queued / arr-running were NOT in my
+  announcement (same cause) → steward (A). Gate 2 `43-gate2.log` 55 rules (38 named) + 26 guards 0 failed; `oracle.py
+  --accept` takes no names — the whole-file accept ran in the run's invocation (`43-accept.log`), then a script proved
+  exactly the 16 moved and wrote HEAD's reference with them (`43-accept-proof.log`) → 0c6ff1369, pin 136 unchanged.
+  `43-final.log` no divergence; `43-a11y.log` 0 + light 88/88 (136 states). Mutations, each FAIL by name: the
+  reclassification skips the dense list → R228 « the card is in neither « À traiter » nor « En cours » » (`43-mutation.log`;
+  on the game it would not have fallen); the game row put back → R208 « acq-todo-loaded: « À traiter » draws no folder the
+  sort filed as no medium » (`43-mutation-r208.log`). DESIGN §§ 2.2 item 2 and « Ce n'est pas un média » on real data,
+  phases 6 and 16: one dated line each.
+- 2026-09-28 phase 44 (NEW, RULINGS 33), re-measured ≈ 7. The steward's correction first: the STATE's list had LOST the
+  readers phase (file phase-40) — rebuilt from `ls plan/` (37697c4e0). R208 gains SORTED_OTHER (the game folder and
+  doc_fr_2026_final, citing personalscraper/sorter/file_type.py:178–200): neither « À traiter » nor « En cours » draws one,
+  either world; red `44-red.log` « acq-todo-dense: … — ['doc_fr_2026_final'] ». R172 two_picks.py t6 RE-AIMED OUT LOUD:
+  THIRD_FOLDER read off the seed (Backrooms); the moved list is now EMPTY, so any index lands right. The steward's
+  condition: a put-back restoring the snapshot taken BEFORE the resolve (`return before ?? now;` in putOneBack's
+  `restored`, queue.ts) must fell t6 — `44-mutation-t6.log`: NO RULE FELL. t6 was BLIND to it before 44 too (it holds
+  « back exactly once » and « nothing sent »; the position is printed, not held; with doc_fr as third, [B,S,d] keeps S
+  once) and (b) would have been as blind → (c), steward approved: t6 gains « and the folder resolved under it stays
+  gone » (95b45734e); `44-mutation-t6b.log` FAIL « … stays gone — [] → ['Backrooms…', 'S.W.A.T.'] ». Commit bd984d4c6
+  (row out, comments tunnel.ts:89 / paths_to_sheets.py:58). Gate `44-gate.log` 50 rules (33 named) + 26 guards 0 failed;
+  STOP A: 12 divergences = 6 states, one card each (−211.5 px, arr-loaded −204): acq-card-follow-error and
+  acq-resolution-tie NOT named in my announcement (under a layer — third time, 38/43/44 → the scripted list above).
+  Gate 2 `44-gate2.log` 0 failed, accept in the invocation, proof `44-accept-proof.log` (exactly the 6), cd5cb6d83, pin
+  136. Mutation R208 `44-mutation-r208.log`: doc_fr's row back → FAIL by name. MY FAULT: the first t6 mutation started
+  at load 6.76 (read in the same call, not gated) — the load is now read in its own call, and waited under 6.
+  `44-final.log` (cd5cb6d83): no divergence, but audit2.py R11 fell ONCE (« visible jargon or technical value — 1 »,
+  text lost with run.sh's per-rule log; load 5.44, 5-min 7.76; green in gate 2 on the same sources) — NOT set aside:
+  order 48's ×10 here and on main, reported to the steward.
+  `44-a11y.log` 0 + light 88/88 (136 states). The steward's decision on R11: audit2 ×10 on this branch AND ×10 on main
+  (the detached worktree `/Users/izno/dev/worktrees/control-l22b`, origin/main 665788a90, only the harness's build written
+  there), alternating pairs, ≤ 5 pairs per heavy invocation, load < 6 before each, WHOLE output kept in
+  `44-audit2/{branch,main}-{1..10}.out`; a fall on the branch alone, or a text from L22b's surfaces = STOP regression;
+  the same text on both sides = one more line on B-546.
+- 2026-09-28 phase 45 (file phase-40) re-measured ≈ 15 → CUT by nature (steward approved): 45a the launch walks, 45b
+  the identity. 45a: R185 re-aimed OUT LOUD onto a maintenance command (drawer → Maintenance → « query » →
+  library-status → « Lancer ») then a season → « En file »; the bar's holds (« Lancer » inactive, the 409, the queued
+  pass) died with it, the queued pass is Système's levers-queued (levers.py). R184 (locks.py): the lock taken by that
+  command, « after a hand stop » died with « Arrêter ». R77 (page_host.py): (c-quinquies) read on Système's levers
+  (pause / resume), 11 data-pipe sites → 0, the cold address loses its `bar` conjunct. R66 (arrivals.py, untouched,
+  dies at 47): its pilot's-bar holds went to R184 (the lock by a maintenance command) and R77 (the levers' delegation);
+  its « what really happened » half read the live databases and dies with the page; its stuck cards are R208's.
+  Red `45a-red.log`: R185 and R77 GREEN on the new paths (said), R184 RED — a PRODUCT DEFECT: after a maintenance
+  command Système said « Libre » over the held lock (runAction re-read the pipeline's status, not the locks) → STOP →
+  steward (a) + (a1): B-559 opened `fixing`, fix 7d77f3d8f (the verb re-reads /api/maintenance/locks), after the test
+  commit b3796b4ef. Gate `45a-gate.log` 26 rules (6 named) + 26 guards 0 failed, no divergence (declared: none).
+  Mutations, each FAIL by name: the locks re-read removed → R184 « after a maintenance command: « Verrou du pipeline »
+  says what the locks read answers — 'Libre' » (`45a-mutation-locks.log`); the pastille's mark removed (season-grab.ts)
+  → R185 « the « En file » pastille is PRESENT … 0 mark(s) » (`45a-mutation-pastille.log`); the pause verb's send
+  removed → R77 « a real tap on « Mettre tout en pause » pauses the pipeline » (`45a-mutation-levers.log`). MY FAULT:
+  the first locks mutation ran outside the mutex (refused by the served-copy lock of another run) — every mutate.sh
+  now under `heavy.sh --class browser`; 43's and 44's mutations had also run bare (they found the copy free). The
+  audit2 series starved my gate (the pilot re-takes the mutex at once): pilot stopped after main-4, restarted from
+  branch-5 with a pause flag. Series so far: branch 1–4 and main 1–4, 0 violations each.
+- 2026-09-28 the locks row RENUMBERED B-559 → B-560 (steward): the day's repair train took B-559 (pwa.py Page.goto) and
+  merges first. 7d77f3d8f's message and the ledger line above still say B-559 — history, not rewritten (no rebase);
+  B-560 is the row's number from d52936dd2's successor on.
+- 2026-09-28 phase 45b (the identity): 9c4cb8aac, 8d84693ca — back.py's walk ends on « Découvrir »; sweep.py sweeps
+  « À traiter » (its first draft clicked the tab from the library page: gate 1 `45b-gate.log` Page.click timeout, mine →
+  through Acquisition's bar button); common.py's ARRIVALS (no reader left) removed; R67 machine.py's three sentences;
+  R138 queued_ask_mark.py names the maintenance path and its SCREEN half (B-514, `open` → `fixing`) reads Système's
+  levers. Left for 47, said in the commit: url_state.py's « arr » walk (the model still declares the page) and
+  selection_survives_the_tab.py's page count. Gate 2 `45b-gate2.log` 31 rules (8 named) + 26 guards 0 failed, no
+  divergence (declared: none). `45-compare.log` (--only the seven files of 45a/45b, baseline 5e5ecd05): failed none;
+  locks.py 74 → 71 and queued_by_hand.py 23 → 15 — the bar's holds, said in 45a; the others unchanged. Mutation
+  `45b-mutation-r138.log`: « Mettre tout en pause » never drawn → R138 FAIL « … layer='running', interface='idle' ».
+  Audit2 series resumed after the gate: branch 1–5, main 1–5, 0 violations.
+- 2026-09-28 phase 46 (file phase-41), measured ≈ 5. R240 levers_stay_live.py (new): on Système, the layer moved
+  behind the interface's back by raw requests, then one relayed event — the levers move with PipelineStarted,
+  PipelinePaused, PipelineEnded; a hold proves nothing moved BEFORE the event. Red `46-red.log` on the plan's shape (the
+  rule out of arrivals/live.ts, not yet in Système): FAIL ×2 « … the levers offer « Mettre tout en pause » —
+  ['levers/nothing-running'] » (and PipelinePaused); check-live-relay fell too. Fix 78c829555 (amended once before any
+  push: my `because:` carried French, check-no-french refused it): the rule in features/system/live.ts, four events out
+  of Système's exemptions (PipelinePaused, PipelineResumed, StepStarted, StepCompleted); check-live-relay clean, 48/48.
+  Gate `46-gate.log` 28 rules (9 named) + 26 guards 0 failed, no divergence (declared: none). Mutation `46-mutation.log`:
+  the rule's keys emptied → R240 FAIL ×2 by name.
+- 2026-09-28 phase 47 (file phase-42) re-measured ≈ 18 → CUT (steward approved): 47a the readers without a deletion,
+  47b the death — its files (features/arrivals 7 files, routes/arrivals.tsx, harness/states/arrivals.ts, arrivals.py),
+  the app's lines (navigation row + ArrivalsPage + arrivalsBadge, router-tree, live-updates, panel-contributions,
+  addresses.ts:23, live-rule.ts's comment), fr.json (screens.arrivals 36, navigation.pages.arr, verbs.arrivals's four
+  pipe* keys), page_host.py (SHELL_OWNED, FLOORS, the walk, the cold `/arrivals` address — all while the page exists
+  they must stay), url_state.py's « arr » row, selection_survives_the_tab.py's prose count, R241 (R-L22-o) + R-L22-s
+  re-read at THREE buttons (F8) + three mutations; and THE ORDER TRAP: the six arr-* ids leave the oracle and the three
+  a11y ledgers IN 47b, by named deletion proved by a script, `oracle.py --check` re-read (steward) — deleting the states
+  file removes them. 48 keeps the other records. 47a (eedabfdff): verbs.arrivals.{taken,left,resolved} →
+  verbs.acquisition.* by `rename-identifiers.py --values --whole` (4 sites; diff re-read outside the tool), fr.json moved
+  by hand (verbs.acquisition.taken already said the same sentence); R239 RE-AIMED OUT LOUD: the dead page's name is a
+  literal in the rule (french-ok), it leaves the resources with the page. Gate `47a-gate.log` 34 rules (12 named) + 26
+  guards 0 failed, no divergence (declared: none). NAMED GAP, measured (`47a-mutation-key.log`, applied by hand on a
+  clean committed tree and restored): a message key pointed back at the removed `verbs.arrivals.left` fells NOTHING —
+  no rule reads these three messages and check-i18n-placeholders skips an unresolved key (79 → 78 calls, clean); a
+  wrong key would render the raw key. No new guard (measure 1): said, for the reader round.
+- 2026-09-28 phase 47b (the death). R241 arrivals_gone.py (new) red `47b-red.log` ×7 (the table's « arr » row, five
+  modules addressing it, screens.arrivals, the bar at four, the drawer, /arrivals drawing « arr »). Commit 6645c23d8:
+  features/arrivals (7 files), routes/arrivals.tsx, harness/states/arrivals.ts, arrivals.py (R66, its holds' homes in
+  the 45a line) deleted; the row, route, live table, panel contribution, path, live-rule.ts's comment; screens.arrivals,
+  navigation.pages.arr, verbs.arrivals; the six arr-* ids out of the oracle reference (counts.states 130, pin 136 → 130)
+  and the three a11y ledgers by NAMED deletion (`47b-drop-proof.log`); page_host.py (walk, SHELL_OWNED, FLOORS, the cold
+  deep address → /system), url_state.py, selection_survives' prose, three comments re-worded; comment record 532 → 523.
+  tsc -b clean, vitest 138/138; eslint: design/ HAS NO eslint config, so the plan's « eslint » does not apply (said).
+  Gate 1 `47b-gate.log` fell ×6: page_host's Arrivées crossref hold (died with the page), R239's two messages still
+  reading PAGES['arr'], check-code-abbreviations (arrivals.py reached zero → out of the record), check-markup-contracts
+  (R207/R212 selected [data-tone="success"], whose one literal emitter was the page → read by value, phase 20's
+  precedent) → 3868f823f, all said; a REAL REGRESSION of my deletion — R43 (cards.py) on acq-todo-dense « Backrooms »
+  and « S.W.A.T. »: « inline « Résoudre → » is offered by no panel action ([['data-journey']]) »: the Arrivées badge's
+  reads had kept /api/staging/media observed, and a folder's panel derives its act from it (queueNow().stuck) → fix
+  009ac75c1: « À traiter » observes the staging read; mutation `47b-mutation-staging.log` (the observer removed) → R43
+  FAIL ×2 by name. And check-intent-map (7 rows name features/arrivals / arrivals.py) — the operator's document → OPEN
+  (STATE). Gate 2 `47b-gate2.log` 44 rules (28 named) + 26 guards: only check-intent-map failed, no divergence (declared:
+  the six arr-* deleted, nothing else moved). Mutations: the sys row put in the bar → R241 FAIL « … exactly the table's
+  three — ['acq', 'lib', 'discover', 'sys'] » (`47b-mutation-bar.log`); navigation.pages.arr put back → R241 FAIL « the
+  resources carry none of its screen's sentences » (`47b-mutation-name.log`); the redirect mutation of the plan was not
+  run (the address hold reads `location.pathname` stays « /arrivals »). `47b-a11y.log` 0 + light 88/88 (130 states).
+- 2026-09-28 stood down after 47b (the steward's order at ~55 %; measured 50 %): the audit2 pilot killed (`ps`: 0
+  series/audit2run processes), branch 1–7 / main 1–6 all 0 violations; next: the map on the operator's word, then 48.
+- 2026-09-28 the stand-down push was refused once by the pre-push pytest: tests/scripts/test_check_frame_domain.py
+  sampled `arrivals`/`arr` from the derived vocabulary, which left with the page → RE-AIMED OUT LOUD onto
+  `library`/`lib` (2b9d5833d). Pushed; pilot killed; no process of mine left.
+- 2026-09-28 (successor « Agent : l22b 7 ») phase 48 (file phase-43 + engine-data.ts + the dead a11y id), re-measured
+  ≈ 14 → one phase. 3df29d738: engine-data.ts deleted (shell calls `refillProducers` after the mocks, drive.ts's reset
+  re-asks through the feature doors). 6b65b264c: the two arrivals regions and knownAbsent `arrivees/empty` out of
+  regions.json, their 260 null records out of the oracle reference by named deletion (`48-regions-drop-proof.log`,
+  regions 39 → 37, pin), `acq-follows-pause-empty` out of the three a11y ledgers (`48-a11y-drop-proof.log`), frame-domain
+  app/ 147 → 131, code-abbreviations regenerated lower (plex.py 5 → 2, check-markup-contracts.py 4 → 2), arrivals.py out
+  of hold-counts, fixture register names the tabs; the word « arrivals » STAYS (arrivalsOf, slotArrivals: staging
+  arrivals). FOUND: `oracle.py --contracts` (CI no-french job, make) FAILED on the branch since 19-bis-a — discover/body
+  passed through a constant the static reader cannot see → written as a literal, the vestigial prop removed. Gate 1
+  (`48-gate.log`) fell on panel.py « a cold panel over a screen leaves the screen standing »: MY READING WAS WRONG — the
+  followed-titles door (a cold addressed follow panel; the Médiathèque's delete dialog) read follows only the boot list
+  asked for → 06c338c5e: installFollowActions asks and publishes `refillFollows`, the reset re-asks. Gate 2
+  `48-gate2.log` 38 rules (21 named, R207 one_ladder among them) + 26 guards: only check-intent-map failed, no
+  divergence (declared: none). `48-a11y.log` 0 + light 88/88 (130 states). CI static list 7/7 exit 0. Mutation
+  `48-mutation-follows.log`: `refillFollows();` removed at install → panel.py FAIL « a cold panel over a screen leaves
+  the screen standing » (×3 holds).
+- 2026-09-28 AUDIT2 SERIES CLOSED (order 48, after 44's R11 fall): branch 1–10 (reader-l22b at ed55084bd) and main 1–10
+  (control-l22b at 665788a90), alternating, load < 6 before each, each under the browser mutex — ALL TWENTY « TOTAL,
+  second pass: 0 violations · 13/13 rules executed », WHOLE outputs in `44-audit2/{branch,main}-{1..10}.out`. The R11
+  fall of `44-final.log` (and of `20-green.log`) is not reproduced in 20 draws on either side: not charged to the code,
+  not set aside as load either — it stays a single unexplained reading, named here. main-8 was delayed ~10 min by the
+  auto-mode classifier's outage (no verdict on any Bash call), nothing ran meanwhile.
+- 2026-09-28 THE CLOSE (file phase-44), re-measured ≈ 12–13. Steward: the folder's deletion and re-citations go to his
+  docs pull request after the squash (INDEX dated line). 2e861500a: register (B-037/B-038 closed with arrivals.py;
+  B-514, B-560 carry their mutations; B-515 re-read on acq-todo-error, open; B-531 annotated), README (the card's
+  readers, the « Mis de côté » paragraph, the cut table, R66's row out). The eleven rulings proved by command
+  (`close-rulings-proof.log`; data-pipe= 0 files, a reassign verb or mark 0). The debt for the steward: the media
+  sheet's trace of a film (« acquis le …, release, demandeur », DESIGN § 3.5). origin/main 665788a90 already an
+  ancestor; bump 0.98.101 → 0.98.102 f2fd28a41. FULL SUITE (`close-suite.log`, 175 rules, 3 at a time) fell ×3:
+  check-intent-map (admitted), entry.py (Page.goto 30 s on the DEPLOYED tm-design host, not this copy — green replayed
+  alone, `close-machine.log`), and R67 machine.py « the list of blocked media is reachable — 0 » — A REGRESSION OF MY
+  47b: `window.__blocked` read the staging answer off the cache, which on Système only the dead Arrivées badge kept
+  observed; 47b's gate did not name machine.py. 5fe7fa064 RE-AIMED OUT LOUD: R67 asks /api/staging/media itself, the
+  probe with no reader removed; green replayed (`close-machine.log`, no divergence); mutation `close-mutation-r67.log`:
+  the staging layer reports nothing stuck → R67 FAIL « the list of blocked media is reachable — 0 » (and the leak hold).
+  The clause map on the operator's (b): replacements prepared (DOIT-1 `features/acquisition` + R63 alone, R66 died with
+  its page; DOIT-2 R209, R208; DOIT-3 `features/system` + `features/maintenance`, R178/R179, R240, R185; DOIT-4 R179;
+  DOIT-5 « À traiter » → Résoudre; NE-DOIT-PAS-2 R224, R209; NE-DOIT-PAS-3 R179) — the write REFUSED by the classifier.
+- 2026-09-28 (steward's question on R67) WHO HOLDS « a medium in trouble is reachable ON SCREEN », and where: R67 now
+  holds only that none of the stuck titles the layer serves is drawn on Système. The reach is held on Acquisition's
+  « À traiter »: R209 (`todo_holds.py`, state `acq-todo-loaded`) — the real stuck row of `stuck.json` (Top Chef) is a
+  card of the tab, blocked on its ladder, its reason in full, offering « Relancer » and never « Résoudre »; « En cours »
+  holds no blocked card; R208 (`card_without_identity.py`, `acq-card-no-identity`, the dense world's
+  `stuck-loaded.json` folder) — the folder nobody recognised is a card there, its reason drawn, its foot leading to
+  the candidates screen, a tap opening it. The walk BY FINGER to the tab: R239 (`no_sentence_to_arrivals.py`) —
+  from Système and from a run's screen, a cross-reference lands on « À traiter » (`tab=todo`), standing on the floor.
+  Not a STOP.
+- 2026-09-28 THE PRE-PR GATE. `--a11y` (`close-a11y.log`): 0 + light 88/88 (130 states). `--compare`
+  (`close-compare.log`, 175 rules, host started in the same invocation): FAILED read first — entry.py alone (1 hold,
+  Page.goto on the deployed tm-design host; it fell in the full suite too and passed alone twice: an instrument reading
+  another host, not this copy); 20 counts moved, each attributed: the rises are this lot's own holds (cards, four_tabs,
+  season_grab_unfollowed, states …); the falls are said above — one_ladder 51 → 44 (43's weakening), locks 74 → 71 and
+  queued_by_hand 23 → 15 (45a), page_host 43 → 41 and paths_to_sheets 13 → 11 (41, 47b), decision.py 30 → 29 (the
+  « Suivant » progression hold died with the button, 736ee5ca6, OPEN 7), entry 10 → 1 (the fall); 16 rules new. Merge
+  of origin/main 5644107ee (#625, the repair train): 29ce8e6c8, conflicts BUGS.md (union B-556..B-560), the comment
+  record (re-recorded, read 523), the oracle reference (ours, then the train's 130 shell/toast keys accepted in the
+  run's invocation, script proof `merge2-accept-proof.log`: 109 states equal main's value, 21 of this branch take one of
+  main's; HEAD's reference written with those keys only, 43e297bbc); `merge2-check.log` no divergence. Bump 0.98.103
+  eb214ce4f. `make lint` 0 findings; the CI static list + check-bug-register + check-docs-cited-paths all exit 0.
+- 2026-09-28 READER B22's CORRECTION ROUND (the steward's decided list, `review-archive/l22/BRIEF-L22b-round1.md`).
+- B1 (blocker): a folder set aside stood on « demandé ». R226 gained two holds (8509e4655), red `r1-B1-red.log` (« layer
+  'requested' », « '6 sur 8' · 'identifié' → '1 sur 8' · 'demandé' »); 9ae33e6d8: setAside, in the layer AND in the
+  cache's optimistic write (lib/set-aside.ts, the same defect), sets aside the rung the card stands on — the card's
+  derivation moved to `lib/current-rung.ts`, one answer for both. Declared states (by script): acq-card-set-aside,
+  acq-delete-keeps-files, acq-delete-only-copy, acq-delete-unknown — the gate read NO divergence (the text moved, no
+  box). Mutation P2 `r1-B1-mutation-P2.log`: `standing = 0` → FAIL both new holds by name.
+- B2 (major): R230 hold 1 re-reads « Suivis » from the layer after the ladder is laid (15bfe36e2), RE-AIMED OUT LOUD.
+  Mutation 18-1 `r1-B2-mutation-18-1.log` (`held.length - 2`) → FAIL « while its last rung is pending, « Wicker » is in
+  « Suivis » ».
+- B3 (major): R10's `sent` counts writes only (21df4c939). Phase 41's mutation → « acq-todo-loaded : « Relancer »
+  changes nothing » (`r1-B3-mutation-41.log`); probe P1 (« Relancer » refetches instead of sending) → the same line
+  (`r1-B3-mutation-P1.log`).
+- B4 (minor): R158's « a second tap queues no second card » RETIRED OUT LOUD (98779d026): once asked, both surfaces
+  draw « Demandée » where the act was, no finger can ask twice; « offers the act no more » holds it. 36-twice is
+  recorded RETIRED for that reason (not replayed: its hold is gone).
+- B5 (minor): R158 gained « its count is the shortfall the season's row drew » (18aaa17c2), red `r1-B5-red.log` (« row
+  « 23 manquants », said … aucun épisode … », panel and sheet); 2b7b17d06: a season seasons.json does not carry is
+  counted as the season surfaces draw it (seasonsAnswer). « Agent Elvis » (followed, nothing held) then fell: R158's
+  own expectation read the same incomplete table — RE-AIMED OUT LOUD (8a0eab22d), its aired season has ten episodes to
+  get. Mutation `r1-B5-mutation.log` (the drawn fallback dropped) → FAIL the new hold ×2 and « Agent Elvis » ×2. A
+  sentence of its own for the one-off: a copy decision, for the steward's docs PR.
+- B6 (minor): R77's walk now holds every page the shell owns is walked (34adc2147), red `r1-B6-red.log` (« never
+  re-entered: ['discover'] »); « discover » reached from « 404 » and « sys » (d79de9a82). Mutation `r1-B6-mutation.log`
+  (discover out of the walk) → the same FAIL by name.
+- B7 (record): 42-dense replayed on « Backrooms » (`r1-B7-mutation-42-dense.log`): EXPRESSION the card body's
+  `data-panel` emptied for « Backrooms.2026.MULTi.2160p.WEB-DL » → cards FAIL « R46 acq-todo-dense
+  « Backrooms.2026.MULTi.2160p.WEB-DL »: a folder addresses no panel ». B8 dropped by the steward (old, new scope).
+- ROUND GATE on d79de9a82 (`r1-gate.log`): 37 rules (15 named) + 26 guards, only check-intent-map failed (the
+  operator's word), no divergence (the in-invocation accept rewrote only formatting and baseCommit — restored);
+  `r1-a11y.log` 0 + light 88/88; `make lint` 0; the CI static list 7/7 exit 0.
+

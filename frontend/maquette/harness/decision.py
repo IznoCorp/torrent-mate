@@ -19,7 +19,7 @@ could quietly stop being true:
   · a folder with no pending decision borrows nobody's candidates. Showing
     another folder's would be the worst possible lie on the one screen whose
     job is to name what is on disk;
-  · and answering takes the folder out of the queue, on BOTH lists it appears
+  · and a pick takes the folder out of the queue, on BOTH lists it appears
     on. « À traiter » on the acquisition side used to keep it forever.
 
 RE-AIMED WITH B-393: the pick is the candidate card itself, so « one can pick a
@@ -30,6 +30,12 @@ tap is R161's (`resolution_card.py`).
 
 RE-AIMED OUT LOUD: « Suivant » is gone, so the hold that read it opening the
 next folder in place now reads its ABSENCE on a folder among several.
+
+RE-AIMED OUT LOUD, the leave half: « Laisser tel quel » means LATER (ruling 6,
+placed by ruling 16). This hold asserted that leaving a folder emptied the
+Arrivées « stuck » list — the behaviour the ruling reverses. It now walks
+« À traiter » and reads that the folder STAYS queued, set aside; R226 holds the
+rest (the folded section, its reason, the count, the panel).
 """
 import asyncio
 
@@ -210,18 +216,12 @@ async def main():
         check("a folder among several offers no « Suivant »",
               first["key"] is not None and not first["next"], str(first))
 
-        # ── answering empties the queue, on BOTH lists ────────────────────
+        # ── a pick empties the queue, on BOTH lists ───────────────────────
         for state_, list_, exit_ in (
             ("acq-resolution-tie", "blocked", "[data-resolve]"),
-            ("arr-idle", "stuck", "[data-leave]"),
         ):
             await go(pg, state_)
             await pg.wait_for_timeout(420)
-            if state_ == "arr-idle":
-                await pg.evaluate(
-                    """()=>[...document.querySelectorAll('[data-part="card/foot"]')]"""
-                    ".find(x=>x.textContent.includes('Résoudre')).click()")
-                await pg.wait_for_timeout(420)
             before = await pg.evaluate(f"()=>(window.__queue?.().{list_}||[]).length")
             # Without the way out there is nothing to click, and clicking
             # nothing raises instead of naming the defect. A crash is a
@@ -235,6 +235,24 @@ async def main():
             after = await pg.evaluate(f"()=>(window.__queue?.().{list_}||[]).length")
             check(f"answering empties the « {list_} » queue", after == before - 1,
                   f"{before} → {after}")
+
+        # ── « Laisser tel quel » keeps the folder queued, set aside ───────
+        await pg.evaluate("()=>window.__go('acq-todo-loaded')")
+        await pg.wait_for_timeout(420)
+        # The list « Lucky » is queued in: the staging list is not read on this tab.
+        queued = "()=>(window.__queue?.().blocked||[]).map(c=>c.title)"
+        before = await pg.evaluate(queued)
+        await pg.evaluate("""()=>document.querySelector('#view [data-part="card/foot"][data-resolution="Lucky"]')?.click()""")
+        await pg.wait_for_timeout(420)
+        tapped = await pg.evaluate("()=>{const x=document.querySelector('[data-leave]'); if(!x) return false; x.click(); return true;}")
+        await pg.wait_for_timeout(700)
+        after = await pg.evaluate(queued)
+        aside = await pg.evaluate("""()=>{const a=window.__queries?.getQueryData(["/api/acquisition/to-handle",""])||{};
+          const card=(a.blocked||[]).find(c=>c.title==='Lucky');
+          return !!card && (card.ladder||[]).some(r=>r.state==='aside');}""")
+        check("« Laisser tel quel » keeps the folder queued, set aside",
+              tapped and "Lucky" in before and sorted(after) == sorted(before) and aside,
+              f"tapped {tapped}, {before} → {after}, set aside {aside}")
 
         check("no JS error", not errors, str(errors))
         await b.close()

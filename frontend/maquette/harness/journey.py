@@ -82,12 +82,14 @@ RE-AIMED, said out loud: the sheet is opened with the identity a tap carries, wh
 its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
 `__carriedFor` — the seed the served read answers from, published by the harness
 driver — and the hold count is unchanged.
+
+RE-AIMED OUT LOUD: Système left the bottom bar (ruling 15); the page-switch
+walks read the bar's own pages off the bar instead of a written list.
 """
 import asyncio
 import json
 
 from common import (
-    ARRIVALS,
     HOME,
     HOME_PAGE,
     LIBRARY,
@@ -96,6 +98,11 @@ from common import (
     PROTOTYPE,
 )
 from playwright.async_api import async_playwright
+
+# THE BAR'S OWN PAGES, the entry page left out: which pages are tabs is the
+# bar's decision, read off the bar, never written down here.
+BAR_PAGES = """()=>[...document.querySelectorAll('#nav button[data-page]')]
+  .map(button => button.dataset.page).filter(page => page !== state.page)"""
 
 # The medium the sheet walk opens, by the title the library really carries: a
 # sheet asked for under a name nothing holds opens nothing at all, and the walk
@@ -413,16 +420,22 @@ async def main():
         # so three pages leave exactly one entry behind. Backing over the
         # pages one visited is the gesture no platform offers and the one a
         # web application betrays itself with.
+        #
+        # RE-AIMED OUT LOUD: the pages walked are read off the BAR, never
+        # written here — Système left it (ruling 15), and a list written down
+        # would hold a walk nobody can take the day a page leaves or joins it.
         ctx, pg, errors = await open_page(b)
         depth = await pg.evaluate("()=>history.length")
-        for page in ("lib", "sys", "arr"):
+        tabs = await pg.evaluate(BAR_PAGES)
+        for page in tabs:
             await pg.tap(f'#nav button[data-page="{page}"]')
             await pg.wait_for_timeout(340)
         walked = await pg.evaluate("()=>history.length")
-        journal.check("after three steps, the address is the third one's",
-                      path(pg.url) == ARRIVALS, pg.url)
+        last = await pg.evaluate("(page)=>state.page===page", tabs[-1]) if tabs else False
+        journal.check("after the bar's pages, the address is the last one's",
+                      len(tabs) >= 2 and last, f"{tabs} · {pg.url}")
         journal.check(
-            "and walking three top-level pages left exactly ONE entry behind",
+            "and walking the bar's top-level pages left exactly ONE entry behind",
             walked - depth == 1, f"history.length {depth} -> {walked}")
         await pg.go_back()
         await pg.wait_for_timeout(420)
@@ -447,7 +460,7 @@ async def main():
         # walk that only ever measures the LAST page tells nothing about the
         # ones before it, and « lands on the entry page » is a promise every
         # page makes.
-        for page in ("lib", "sys"):
+        for page in tabs:
             ctx, pg, errors = await open_page(b)
             await pg.tap(f'#nav button[data-page="{page}"]')
             await pg.wait_for_timeout(340)

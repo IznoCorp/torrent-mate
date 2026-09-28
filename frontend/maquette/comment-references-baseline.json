@@ -1,6 +1,6 @@
 {
   "note": "One entry per file: how many references to a lot, a phase or a date its comments hold. Refused UPWARD; re-record a file that has shrunk in the commit that shrinks it. `read` is how many files the corpus held when this was taken — the floor below is derived from it, never typed.",
-  "read": 503,
+  "read": 524,
   "files": {
     "a11y.py": 4,
     "design/src/app/artwork-arrival.ts": 1,
@@ -8,7 +8,6 @@
     "design/src/app/bottom-slot.tsx": 1,
     "design/src/app/drawer-gesture.ts": 1,
     "design/src/app/drawer.tsx": 1,
-    "design/src/app/engine-data.ts": 1,
     "design/src/app/engine-redraw.ts": 1,
     "design/src/app/entry.ts": 2,
     "design/src/app/history-bridge.ts": 1,
@@ -26,7 +25,6 @@
     "design/src/features/acquisition/decision-queries.ts": 1,
     "design/src/features/acquisition/queries.ts": 2,
     "design/src/features/acquisition/variants.ts": 1,
-    "design/src/features/arrivals/queries.ts": 1,
     "design/src/features/media/queries.ts": 1,
     "design/src/features/media/variants.ts": 1,
     "design/src/features/releases/queries.ts": 1,
@@ -52,7 +50,6 @@
     "design/src/ui/virtual-rows.tsx": 1,
     "design/sw.js": 1,
     "harness/add_footer.py": 3,
-    "harness/arrivals.py": 1,
     "harness/audit.py": 1,
     "harness/audit2.py": 1,
     "harness/boot_order.py": 2,

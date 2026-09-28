@@ -16,6 +16,7 @@
 import { landingTab, rememberTab } from "./tab-memory";
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
+import { HELD, send } from "../../lib/query-client";
 import { queueActions } from "../../lib/queue";
 import { fillLandingDoor, panel, replaceAddress, toast, redraw } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
@@ -65,10 +66,30 @@ registerVerb("sheetprim", (value) => {
     });
     return;
   }
-  toast?.show({
-    message: i18next.t("verbs.acquisition.searchStarted", { title: baseTitle(title) }),
-  });
+  void searchNow(title);
 });
+
+/**
+ * Searches for one follow now, and says what the search found.
+ *
+ * WHAT WAS NOT FOUND IS CONFIRMED BY A LIVE SEARCH: the act sends the follow's
+ * own search and reads its answer — « aucun torrent trouvé » or how many.
+ * Announcing a search nothing sent was the promise of a result no surface drew.
+ *
+ * @param title The follow's title — its address.
+ */
+async function searchNow(title: string): Promise<void> {
+  const answer = await send<{ found: number }>(
+    "POST", `/api/acquisition/followed/${encodeURIComponent(title)}/search`);
+  // HELD OR REFUSED, the queue and the refusal say so themselves.
+  if (answer === undefined || answer === HELD) return;
+  const named = baseTitle(title);
+  toast?.show({
+    message: answer.found === 0
+      ? i18next.t("verbs.acquisition.searchFoundNone", { title: named })
+      : i18next.t("verbs.acquisition.searchFound", { title: named, count: answer.found }),
+  });
+}
 // An incomplete series: the search for its missing episodes is said where it
 // will be seen moving, on « Maintenant ».
 registerVerb("complete", (title) => {
@@ -109,7 +130,8 @@ registerVerb("search-again", (title, element) => {
    screen answers (`landingTab`). The engine's own landing branch wrote
    this dial itself; the frame that answers the tap now cannot, since the dial is
    this page's name and not the frame's (invariant 10), so it asks through the
-   landing door and the write is made here. */
-fillLandingDoor((page) => {
-  if (page === "acq") store.write({ acqTab: landingTab() });
+   landing door and the write is made here. A control that NAMES the tab it
+   lands on is obeyed: a link to what waits for the hand opens « À traiter ». */
+fillLandingDoor((page, dial) => {
+  if (page === "acq") store.write({ acqTab: landingTab(dial) });
 });

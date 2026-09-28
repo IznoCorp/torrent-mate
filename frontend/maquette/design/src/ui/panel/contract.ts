@@ -219,10 +219,9 @@ export type PanelProducer = (
  * reading of it was `undefined` on every page but one — the producer answered
  * `null`, correctly, and the menu opened nowhere.
  *
- * The engine's answer to the same problem is `app/engine-data.ts`: ONE list, in
- * `app/`, of what it reads with no component to ask for it. A producer that has
- * moved into its feature declares its own instead, beside itself, which is what
- * lets that list empty entry by entry rather than grow one per conversion.
+ * The answer is declared beside the producer, never in a list the frame keeps
+ * for everybody: a list of that kind grows one entry per conversion and is
+ * forgotten on the entry nobody tests.
  *
  * STRUCTURAL, like `PanelCache`: a key and a function that answers. This file
  * learns neither the caching library nor the address.

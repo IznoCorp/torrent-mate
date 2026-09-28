@@ -40,11 +40,6 @@
       "count": 10,
       "source": "common.Journal summary"
     },
-    "arrivals.py": {
-      "exit": 0,
-      "count": 27,
-      "source": "common.Journal summary"
-    },
     "attrs.py": {
       "exit": 0,
       "count": 8,

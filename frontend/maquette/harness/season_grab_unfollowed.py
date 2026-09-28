@@ -35,15 +35,25 @@ each walked on a freshly seeded layer, for each subject:
   2. THE OPERATION IS CALLED once, for the season the finger was on, answered
      as a success — read on what the LAYER answered, because the mock layer replaces
      `fetch` and no browser request event ever fires for it.
-  3. THE WORLD MOVES: the medium is followed afterwards, when it was not before.
-     A success over an unchanged world is the exact defect of B-378.
-  4. THE SENTENCE IS CHOSEN for a follow begun by the act — one of the
-     `…NewlyFollowed` sentences, read from `fr.json` rather than retyped. That
-     is the only reading of the answer's `newlyFollowed` a rule can take: the
-     layer records a call's status and path, not its body.
+  3. THE WORLD MOVES, AND NO FOLLOW IS BORN: the queue holds a ONE-OFF
+     acquisition of that season, asked by the account, and the medium is still
+     not followed (round 10 Q2 = A). A success over an unchanged world is the
+     exact defect of B-378. RE-AIMED OUT LOUD: this hold read « the medium is
+     followed afterwards » — the act implied the follow until the operator
+     ruled that a season of an unfollowed series is one-off, never a follow.
+  4. THE SENTENCE IS THE SEASON'S OWN, with no follow in it — read from
+     `fr.json`; RE-AIMED OUT LOUD from the `…NewlyFollowed` sentences, which
+     retire with the follow the act no longer begins.
   5. THE SURFACE PRESSED READS DIFFERENTLY afterwards — the one the operator was
-     looking at is not the only one that does not know.
-  6. NO ERROR IS RAISED.
+     looking at is not the only one that does not know. GIVEN BACK, said out
+     loud (RULINGS 28): it was set aside for one phase while a one-off ask
+     changed no fact the panel or the sheet drew; it now reads the season's row,
+     which says « demandée » and offers the act no more while the one-off
+     acquisition lives in the queue.
+  6. (RETIRED OUT LOUD: « a second tap queues no second card » — once asked, both
+     surfaces draw « Demandée » where the act was, so no finger can ask twice;
+     item 5's « offers the act no more » holds it.)
+  7. NO ERROR IS RAISED.
 
 AND ONE NEGATIVE LEG, from a measurement: the sheet's season list must NOT
 offer the act on a show nobody owns. `complete` is false for anything not
@@ -69,18 +79,18 @@ named by no other rule and no named state:
   the act is answered, the follow resolves a sheet (the question R156 asks), and
   the follow agrees with the answer: being acquired where the season had
   episodes to get, its status kept where it had none. RE-AIMED, and said here:
-  this hold read « being acquired afterwards » whatever was answered, and the
-  seasons data the layer counts from does not hold « Agent Elvis », so the
-  answer is zero and a status moved over it would be the proxy R160's hold 3
-  was re-aimed away from.
+  this hold read « being acquired afterwards » whatever was answered. RE-AIMED
+  AGAIN: the layer counts a season its family does not carry the way the
+  season surfaces draw it, so « Agent Elvis »'s aired season has episodes to
+  get and the follow is being acquired.
   « Grimsburg » — its third season airs after the page's today, read in the
   page (`window.__today()`, the clock the sheet compares with; it read the
   engine's `TODAY` through the referential until that left the engine, and was
   RE-AIMED at the clock then). Once followed its first two seasons are offered the act and the
   third is not.
 
-WHAT IT DOES NOT READ: the QUEUED path of a follow begun by the act — the
-pipeline busy, `seasonQueuedNewlyFollowed` said, the follow created `pending`.
+WHAT IT DOES NOT READ: the QUEUED path of a one-off ask — the pipeline busy,
+`seasonQueued` said.
 R125 holds the queued clause on a medium already followed; this rule walks the
 idle pipeline only.
 
@@ -124,7 +134,7 @@ SUGGESTION_STATE = "mediasheet-suggestion-series"
 # An owned series with a hole — the negative leg's control.
 OWNED_SHEET_STATE = "mediasheet-series"
 # Where the two suggestions are drawn as posters a finger opens a sheet from.
-DISCOVER_STATE = "acq-discover-posters"
+DISCOVER_STATE = "discover-posters"
 # A followed show nothing is owned of: every season aired, and one not yet.
 ALL_AIRED = "Agent Elvis"
 ONE_NOT_AIRED = "Grimsburg"
@@ -149,11 +159,11 @@ REACHED_BY = {
 SENTENCES = json.loads(
     (ROOT / "design" / "src" / "i18n" / "fr.json").read_text(encoding="utf-8")
 )["verbs"]["media"]
-NEWLY_FOLLOWED_KEYS = (
-    "seasonAskedNewlyFollowed",
-    "seasonAskedOneNewlyFollowed",
-    "seasonAskedNoneNewlyFollowed",
-)
+SEASON_KEYS = ("seasonAsked", "seasonAskedOne", "seasonAskedNone", "seasonQueued")
+# The season's own mark while its one-off acquisition lives.
+ASKED_MARK = json.loads(
+    (ROOT / "design" / "src" / "i18n" / "fr.json").read_text(encoding="utf-8")
+)["screens"]["media"]["seasonAskedOnce"]
 
 ANSWERED = "()=>(window.__mocks?.answered?.() || [])"
 
@@ -295,22 +305,67 @@ NOT_YET_AIRED = """(title)=>{
           later: ((sheet && sheet.seasons) || []).filter(
             (season) => today && season.airDate && season.airDate > today).map((season) => season.number)};}"""
 
-# HOW MANY EPISODES A SEASON HAS TO GET, from the seasons data the follow panel
-# reads — the count the layer answers from. A title that data does not hold
-# has nothing to get.
+# HOW MANY EPISODES A SEASON HAS TO GET — the count the layer answers from: the
+# season family's row, and for a season that family does not carry, the row as
+# the season surfaces draw it (aired, less held). RE-AIMED OUT LOUD: a season
+# the family did not carry used to count nothing, so « Agent Elvis », followed
+# with nothing held, was answered « aucun épisode » over ten aired ones.
 MISSING_IN_SEASON = """([title, season])=>{
-  const row = (window.__mocks.seasonFamily()[title] || []).find(([number]) => number === season);
+  const counted = (window.__mocks.seasonFamily()[title] || []).find(([number]) => number === season);
+  const drawn = (window.__mocks.seasons()[title] || []).find(([number]) => number === season);
+  const row = counted || drawn;
   return row ? Math.max(0, (row[1] || 0) - (row[2] || 0)) : 0;}"""
 
 SAID = """()=>{
   const held = window.__toast?.read?.();
   return held && held.message ? held.message.message || '' : '';}"""
 
+# A one-off acquisition of one season, in the queue as the layer answers it.
+ONE_OFF = """async ({ title, season }) => {
+  const worlds = await Promise.all(['', '?scenario=loaded'].map(async (query) =>
+    (await fetch('/api/acquisition/to-handle' + query)).json()));
+  const episode = 'S' + String(season).padStart(2, '0');
+  return worlds.some((answer) => Object.values(answer).flat().some((card) => card && card.title === title
+    && card.requester?.via === 'request' && card.secondaryLine.startsWith(episode)));
+}"""
+
 SURFACE_TEXT = "(scope)=>(document.querySelector(scope)?.textContent || '')"
 
+# THE SHORTFALL THE SEASON'S ROW DRAWS before the ask — « n manquants » — the
+# count the answer's sentence must agree with.
+ROW_MISSING = """([scope, key])=>{
+  const act = document.querySelector(scope)?.querySelector(`[data-grab-season="${CSS.escape(key)}"]`);
+  const shortfall = act?.closest('[data-part="season"]')?.querySelector('[data-part="season/missing"]');
+  return shortfall ? parseInt(shortfall.textContent, 10) : null;}"""
 
-def chosen_for_a_follow_begun(said, season, title):
-    """Says whether a message is one of the sentences chosen for a follow begun.
+
+def said_count(said, key):
+    """Reads the episode count a season's sentence states.
+
+    Args:
+        said: The sentence.
+        key: Its key, as `the_seasons_own` matched it.
+
+    Returns:
+        The count, 0 for « aucun », 1 for the singular sentence.
+    """
+    if key == "seasonAskedNone":
+        return 0
+    if key == "seasonAskedOne":
+        return 1
+    found = re.search(r"(\d+) épisodes", said)  # french-ok: the sentence the interface renders
+    return int(found.group(1)) if found else None
+
+# THE SEASON'S ROW after the ask: its mark, and whether it still offers the act.
+SEASON_ROW = """([scope, key])=>{
+  const surface = document.querySelector(scope);
+  const mark = surface?.querySelector(`[data-asked-season="${CSS.escape(key)}"]`);
+  return {mark: mark ? mark.textContent.trim() : null,
+          act: !!surface?.querySelector(`[data-grab-season="${CSS.escape(key)}"]`)};}"""
+
+
+def the_seasons_own(said, season, title):
+    """Says whether a message is one of the season's own sentences.
 
     Args:
         said: What the interface said.
@@ -320,7 +375,7 @@ def chosen_for_a_follow_begun(said, season, title):
     Returns:
         The matching key, or an empty string.
     """
-    for key in NEWLY_FOLLOWED_KEYS:
+    for key in SEASON_KEYS:
         pieces = re.split(r"(\{\{season\}\}|\{\{count\}\}|\{\{title\}\})", SENTENCES[key])
         pattern = "".join(
             re.escape(str(season)) if piece == "{{season}}"
@@ -380,6 +435,7 @@ async def take_a_season(page, journal, errors, title, surface):
         return
     number = season["value"].split("|")[-1]
     looked_at = await page.evaluate(SURFACE_TEXT, scope)
+    row_missing = await page.evaluate(ROW_MISSING, [scope, season["value"]])
     mark = len(await page.evaluate(ANSWERED))
     errors.clear()
     await page.touchscreen.tap(act["x"], act["y"])
@@ -396,14 +452,28 @@ async def take_a_season(page, journal, errors, title, surface):
         and 200 <= grabs[0]["status"] < 300,
         str([(call["path"], call["status"]) for call in grabs]))
     after = await page.evaluate(FOLLOWS)
-    journal.check(f"{where}: and the medium IS FOLLOWED afterwards — the act moved the "
-                  "world, it did not answer a success over an unchanged one (B-378)",
-                  title in after, f"status after: {after.get(title)!r}")
+    one_off = await page.evaluate(ONE_OFF, {"title": title, "season": int(number)})
+    journal.check(f"{where}: the act moved the world — a one-off acquisition of that season is "
+                  "queued, asked by the account (B-378)", one_off, f"queued: {one_off}")
+    journal.check(f"{where}: and NO follow is born of it (round 10 Q2)",
+                  title not in after, f"status after: {after.get(title)!r}")
     said = await page.evaluate(SAID)
-    journal.check(f"{where}: the sentence is the one CHOSEN for a follow begun by the act",
-                  bool(chosen_for_a_follow_begun(said, number, title)), repr(said))
+    journal.check(f"{where}: the sentence is the season's own, with no follow in it",
+                  bool(the_seasons_own(said, number, title)), repr(said))
+    journal.check(f"{where}: its count is the shortfall the season's row drew",
+                  row_missing is not None and said_count(said, the_seasons_own(said, number, title)) == row_missing,
+                  f"row « {row_missing} manquants », said {said!r}")
     journal.check(f"{where}: the surface pressed reads differently afterwards",
                   await page.evaluate(SURFACE_TEXT, scope) != looked_at)
+    row = await page.evaluate(SEASON_ROW, [scope, season["value"]])
+    journal.check(f"{where}: the season's row says « {ASKED_MARK} » and offers the act no more",
+                  row["mark"] == ASKED_MARK and not row["act"], str(row))
+    # RETIRED OUT LOUD: « a second tap queues no second card ». Once the season
+    # is asked, BOTH surfaces draw « Demandée » in the act's place (the hold
+    # above reads it here; the other surface derives the same mark from the
+    # same queue), so a second tap lands on the mark and no finger can ask
+    # twice. The hold read nothing any more: the layer's own dedupe is not
+    # reachable by a hand, and « offers the act no more » is what holds it.
     journal.check(f"{where}: tapping raises no error", not errors, str(errors))
 
 

@@ -13,7 +13,8 @@
 // THE HISTORY LATCH STAYS WITH ITS READERS. A driven state writes no history,
 // and the writers that check the latch live in the page switch, so the driver never
 // holds it: it hands each state to `drivenWithoutHistory`, the verb that does.
-import { refillEngineData } from "../app/engine-data";
+import { refillProducers } from "../app/panel-host";
+import { refillFollows, refillSuggestions } from "../features/acquisition/queries";
 import { navigation } from "../app/navigation-seam";
 import type { UiState } from "../app/store";
 import { drivenWithoutHistory } from "../app/page-switch";
@@ -85,9 +86,12 @@ function reset(): boolean {
   window.__queries?.clear();
   window.__mocks?.reset();
   /* AND WHAT NO COMPONENT OBSERVES IS ASKED FOR AGAIN. A cleared query with an
-     observer is re-asked by that observer; the deck's cards have none, because
-     the engine draws the deck. */
-  refillEngineData?.();
+     observer is re-asked by that observer; the deck's cards, the follows the
+     followed-titles door reads and the producers' reads have none — each
+     feature declares its own, and these doors re-ask. */
+  refillSuggestions?.();
+  refillFollows?.();
+  refillProducers?.();
   window.__store.write({
     /* The SCENARIO is state too, and the loudest kind: it decides which world
        every later reading is taken from. A state that switched to the dense
@@ -220,10 +224,6 @@ export function installDriver(states: NamedState[]): void {
      at one and answered a tap with a message. Reading the page table rather
      than a list written beside it is what makes that checkable at all. */
   window.__pages = () => navigation?.ids() ?? [];
-  /* The media the pipeline is currently refusing. The rule that keeps them OFF
-     the machine's page has to know their names, and a rule that cannot reach
-     them compares against an empty list and passes whatever it is shown. */
-  window.__blocked = () => (window.__queue?.() ?? { stuck: [] }).stuck.map((card) => card.title);
   /* Clears ALL harness chrome before a capture or a measurement: the harness
      buttons float above the shell, which is a measured region and must carry
      nothing that does not exist in the app. */
@@ -256,7 +256,6 @@ declare global {
     /** Hides the harness chrome, or shows it again with `false`. */
     __measure: (enabled?: boolean) => boolean;
     /** The media the pipeline is refusing. */
-    __blocked: () => unknown[];
     /** The page ids the interface can render. */
     __pages: () => string[];
     /** What the seed, or else the cache, knows of the medium a title names. */

@@ -16,6 +16,8 @@
   layer's own, not the screen's) 1; two `fr.json` keys 1; R-L22-i with its mutation 3; R57's leave half re-aimed 1; one
   state (`acq-card-set-aside`, re-using a real stuck row — no new seed) 1.
 
+- **Re-measured 2026-09-27 at its opening, on `0d86834fe` (ruling 16, DESIGN § 7.3 item 4):** « Mis de côté » is a folded section at the END of « À traiter », outside its count and the bar's badge, with four acts (see, delete with a confirmation like the library's, gone from disk → gone from the section, handle); `leave` still sends `continueStagedMedia` outcome `left` (`lib/queue.ts:346`, mock `staging.ts:195`), the rung state `aside` is already declared, no staging delete operation exists (`discardStagedMedia` quarantines) and no folded section exists in Acquisition (`ui/disclosure.tsx` is the primitive) → ≈ 29 points; CUT at its opening into **15a** (the card kept aside, the folded section, « Résoudre → », R-L22-i, R57 re-aimed, ≈ 14) and **15b** (« Supprimer » with its confirmation, the card leaving the section, its rule, ≈ 13–15).
+
 Ruling 6: « Laisser tel quel » means LATER. The card stays in acquisition, `aside`, « identifié » pending, reason
 « mis de côté par vous, le … », out of « À traiter » and visible in « En cours »; the file stays in transit. It
 disappears only by his own reclassification (phase 16). **The operation does not change (`dismissDecision`); what the
@@ -30,6 +32,10 @@ screen's); its panel offers « Résoudre → » (One card, one behaviour: the pa
 **Red against `main`**: the card leaves both lists and nothing draws it.
 
 ## Move
+
+> **Amended 2026-09-27 (triage F4, F51):** « Laisser tel quel » sends `continueStagedMedia` with outcome `left`
+> (`lib/queue.ts`, mock `handlers/staging.ts`) — built so at 15a; `dismissDecision` below is the first drawing's
+> reading, kept for the record. 15b's delete is a SEPARATE operation, and 15b is now **phase 23**.
 
 `leave` keeps the card and marks it `aside` with its date; `now-tab.tsx` draws the section « Mis de côté » (a pip of the
 « waiting » tone; its name and place adjust to the drawing); the reason is composed from the date, never a constant (§13).

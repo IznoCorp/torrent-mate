@@ -15,7 +15,11 @@ What this holds, at the phone's real width:
    current cell's position.
 2. THE AGREEMENT. For every such card, the journey sheet opened on the same
    medium names the same current rung — the card and the sheet cannot disagree
-   because they read one list.
+   because they read one list. RE-AIMED OUT LOUD: the sheet is opened in the
+   state that drew its card. It was opened in the LAST state for every card, so
+   a card of the first state was read against the other world's journey, and
+   agreed only while the reset re-read the queue under the previous state's
+   scenario — an accident the frame's boot list carried, gone with it.
 3. THE ORDER. The sheet draws the eight rungs in the ruled order, read from the
    i18n resources by their keys, and opens « rangé » into its three steps —
    trié, enrichi, rangé — from the same answer, right under it.
@@ -58,8 +62,10 @@ RUNGS = ["requested", "searched", "grabbed", "downloading", "arrived",
 # Where the cards on the ladder are drawn: what is in flight, and what waits for
 # the operator's hand.
 LADDER_STATES = ("acq-card-rungs", "acq-todo-loaded")
-# The rungs the real rows stand on across those two lists.
-REACHED = {"downloading", "arrived", "identified", "shelved", "verified"}
+# The rungs the real rows stand on across those two lists. RE-AIMED OUT LOUD:
+# « vérifié dans Plex » left it — only a DISAGREEING Plex match waits there, and
+# no real row carries one; the eight are held whole on the journey sheet.
+REACHED = {"downloading", "arrived", "identified", "shelved"}
 # The three steps the sheet opens « rangé » into.
 STEPS = ["sorted", "enriched", "shelved"]
 # The rows the seeds say were dropped in the staging area by hand.
@@ -102,8 +108,10 @@ def current_of(states):
         The rung in motion, waiting or stopped; else the one after the last
         passed; the last when every one is passed.
     """
+    # RE-AIMED OUT LOUD: a rung never lived (`skipped`, a direct add's start) is
+    # not where a ladder stands, like one not reached — the card's own rule.
     active = next((index for index, state in enumerate(states)
-                   if state not in ("done", PENDING)), None)
+                   if state not in ("done", PENDING, "skipped")), None)
     if active is not None:
         return active
     passed = max((index for index, state in enumerate(states) if state == "done"), default=-1)
@@ -137,7 +145,9 @@ SHEET = """() => [...document.querySelectorAll('#sheet[data-open] [data-part="ke
     name: row.firstElementChild.textContent,
     value: row.lastElementChild.textContent.trim(),
     tone: row.querySelector('[data-part="status-dot"]')?.dataset.tone ?? null,
-    done: !!row.querySelector('[data-part="status-dot"][data-tone="success"]'),
+    // THE TONE READ BY VALUE: the sheet emits it computed, and the one literal
+    // emitter of this value went with the Arrivées page.
+    done: row.querySelector('[data-part="status-dot"]')?.dataset.tone === 'success',
   }))"""
 
 
@@ -170,7 +180,7 @@ async def main():
         for state in LADDER_STATES:
             await go(page, journal, state)
             await page.wait_for_timeout(SETTLED)
-            cards += await page.evaluate(CARDS)
+            cards += [{**card, "state": state} for card in await page.evaluate(CARDS)]
         journal.check("cards on the ladder are drawn", len(cards) >= 6, str(len(cards)))
         for card in cards:
             journal.check(
@@ -190,8 +200,14 @@ async def main():
         journal.check("the real rows reach the rungs they stand on across « En vol » and « À traiter » (RULINGS 2)",
                       REACHED <= reached, f"{sorted(reached, key=RUNGS.index)} — wanted at least {sorted(REACHED, key=RUNGS.index)}")
 
-        # THE AGREEMENT: the sheet opened on each card's medium names its rung.
+        # THE AGREEMENT: the sheet opened on each card's medium names its rung,
+        # in the state that drew the card.
+        drawn_in = LADDER_STATES[-1]
         for card in cards:
+            if card["state"] != drawn_in:
+                drawn_in = card["state"]
+                await go(page, journal, drawn_in)
+                await page.wait_for_timeout(SETTLED)
             await page.evaluate(f"()=>window.__panel.produce('journey', {json.dumps(card['title'])})")
             await page.wait_for_timeout(PANEL_IN)
             rows = await page.evaluate(SHEET)
@@ -226,7 +242,9 @@ async def main():
         dropped = [card for card in cards + await page.evaluate(CARDS) if card["title"] in DROPPED]
         journal.check(
             "a folder dropped by hand passed no rung before « arrivé »",
-            bool(DROPPED) and len({card["title"] for card in dropped}) >= 2
+            # ONE SUBJECT, said out loud: the game folder, the second, was never an
+            # acquisition card (the sort files it « autre ») and left the seeds.
+            bool(DROPPED) and len({card["title"] for card in dropped}) >= 1
             and all(not any(state == "done" for state in card["states"][:RUNGS.index("arrived")])
                     for card in dropped),
             str([(card["title"], card["states"][:RUNGS.index("arrived")]) for card in dropped]))

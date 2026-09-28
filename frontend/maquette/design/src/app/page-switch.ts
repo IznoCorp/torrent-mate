@@ -226,8 +226,18 @@ export function switchPage(leaving: string): void {
       if (recordPath()) walk.homeFloorExists = true;
       return;
     }
+    /* THE STEP BACK IS ANNOUNCED, and the floor then takes the destination as
+       the state holds it — the gesture `switchPageFromLayer` makes arriving
+       home. An unannounced back was read as the operator's own, and the floor
+       re-read its own address over the tab the landing had just opened.
+       THE COUNT IS ONE ENTRY PLUS WHAT STACKS: no layer is up, and between two
+       other pages the top is replaced, so the page's entry sits on the floor.
+       A surface that gives its entry back in capture (a rubric) counts 0 here —
+       it is closed by the time its tap is replayed; a surface that only counts
+       its entry (a screen whose control dies with it) counts 1. */
     try {
-      bridge.back();
+      bridge.rewind(1 + stackedSurfaces());
+      walk.afterUnwind = replacePath;
     } catch (error) {
       console.error("switchPage: stepping back onto the entry page failed", error);
       window.__navEchec = true;

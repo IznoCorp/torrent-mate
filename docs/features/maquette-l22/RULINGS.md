@@ -156,6 +156,229 @@ offers « Relancer » and « Abandonner » — every inline foot of « À traite
 repair in its own `fix` commit, R43 green, one mutation per card (the panel action removed → R43 falls by name).
 (b), dropping the state from R41's list and filing the gap, would leave a shipped broken promise — refused.
 
+## 13 — a closed panel's box is inherited by later states (steward, 2026-09-27; L22b phase 16, STOP A)
+
+**The STOP.** Phase 16's gate diverged on 42 states it did not name, all on `shell/sheet-content` alone and all to
+one box (207 → 358 px high): the region measures the CLOSED `#sheet`, which keeps the last panel's box, and the new
+`acq-resolution-not-media` — « Ce n'est pas un média »'s choice of destinations — became the last panel opened
+before them in the run order. B-554's mechanism, on the panel instead of the dialog.
+
+**Ruled (proposal A), the form of ruling 7.** The 42 are accepted by name on `shell/sheet-content` only, the
+acceptance commit carrying the script's proof that each differs on that region and on no other; the three states
+the phase declared (`acq-resolution-none`, `acq-resolution-tie` on `screen-resolution/body`, the new state) are
+accepted as declared. B-554 is EXTENDED by one line — one row, one mechanism, one future repair of the driver's
+reset. B (reordering the states) hides it; C (repairing the reset) is new apparatus.
+
+## 14 — a followed film's last rung is a derivation from Wicker's real row (steward, 2026-09-27; L22b phase 18, STOP D)
+
+**The STOP.** No followed film has a real row past « cherché » (Wicker « à récupérer », four « cherché, rien
+trouvé », one paused), and nothing in the layer brings a ladder to « vérifié dans Plex » done: the plan's state « a
+followed film one event away from the last rung » needed a derivation.
+
+**Ruled (proposal a), the form of rulings 5 and 6.** Wicker's real row is the subject, its ladder laid one event
+away from the last rung — a derivation, shown as one. Ruling 3 ends a film's follow when the film is CONFIRMED in the
+library (« match Plex validé »): the last rung DONE, never at acquisition. The engine's `FilmAcquired` deletes the
+follow row at detection, earlier than the ruling — a demand owed, filed in DESIGN § 6.2 by one dated line; the
+layer draws the ruling, not the engine's timing. The event is the rung's move to done, and the live rule re-reads
+« Suivis » on it. R-L22-m holds: present while the rung is pending (not ended one rung early), absent after, and a
+followed series never removed.
+
+## 15 — the `waiting` chip is repaired at its variant, never re-toned (steward, 2026-09-27; L22b phase 18, STOP)
+
+**The STOP.** Phase 18's `--a11y` read the light ledger at 103 against its ceiling of 98: the new state redrew
+« Suivis », whose `waiting` chips (a pending follow) fail contrast on light — five targets already counted in
+`acq-follows-list` and `acq-follows-group`.
+
+**Ruled — neither A (the chip re-toned `neutral`) nor B (the ceiling raised).** « Suivis » and its `waiting` chip are
+VALIDATED drawing (the mission's point 2); ruling 4's `neutral` was a chip the lot itself had just invented. (D): repair
+the `waiting` chip's VARIANT so its text passes on light with EXISTING tokens — the tone stays, the debt falls on every
+state that draws it; if no existing token passes, STOP with the pair, the ratio and the consumers — a token change is
+the operator's.
+
+## 16 — no existing token passes: the state leaves, the token goes to the operator (steward, 2026-09-27; L22b phase 18)
+
+**The STOP.** The chip's foreground is `var(--color-waiting)` itself (`ui/variants/surfaces.ts:77`) where the four other
+tones read a `-text` token; on light, oklch(0.65 0.14 345) on its own 20 % tint over the white card reads ≈ 2.98:1
+against 4.5. No existing token of that hue passes; those that do change its meaning (`--color-muted-foreground` 4.73,
+`--color-foreground` 15.4, `--color-upcoming` 4.42 and another tone). Consumers: `follow-vocabulary.ts` (a pending
+follow in « Suivis »), `panel-journey.ts` (a waiting step), the not-found seeds' chips.
+
+**Ruled (i).** Phase 18's named state is removed — R230 keeps its holds without it (ruling 14's reading b), laying the
+ladder through the layer's door over `acq-follows-list` — and the light ledger stays at 98. The token question —
+`--color-waiting-text`, light oklch(0.48 0.14 345) ≈ 6.1:1, dark `var(--color-waiting)`, as the four other tones —
+goes to the operator through the auditor; on his word the state comes back with the token, in a phase of its own.
+
+## 17 — the bar's rules read the states that already draw it (steward, 2026-09-27; L22b phase 19)
+
+**The question.** Phase 19's plan adds `drawer-system`, `bar-todo-badge` and `bar-clear`; they would copy
+`drawer-navigation`, `acq-todo-loaded` and `acq-todo-empty`, and the drawer's copy would copy a known light-contrast
+finding (ruling 4's ratchet).
+
+**Ruled.** R-L22-q and R-L22-s read the bar and the drawer on the three EXISTING states; no copy is added (a copy adds
+no subject). `journey.py`'s page-switch walks are re-aimed onto the bar's own pages, out loud. R-L22-s holds the bar at
+its count — two buttons at 1/2 once Arrivées dies — and reads a count of ONE as « no bar at all » (the operator,
+2026-09-27, L18 OPEN 7), never as a full-width button.
+
+## 18 — 19-bis cut in two: the page is born, then the tab dies (steward, 2026-09-27; L22b phase 19-bis, STOP D)
+
+**The STOP.** « Découvrir » leaving Acquisition (the operator, 2026-09-27) measured ≈ 20 at its opening: a page (its
+address, route, navigation row, label and component), the tab removed, R206 re-aimed to three, eight `acq-discover*`
+state ids that would say « acq » falsely, five readers opening the tab by hand, a new rule.
+
+**Ruled (the implementer's cut).** **19-bis-a**: the page is born — the bar at four (Acquisition · Médiathèque ·
+Arrivées · Découvrir) until Arrivées dies at 25 — R234, the eight states and five readers re-aimed onto the page (ids
+kept), the tab still drawn so every gate is green. **19-bis-b**: the tab dies, R206 at three, R202's « discover »
+fallback, the eight ids renamed by `scripts/rename-identifiers.py` with the oracle outside it. The page's body is its
+own oracle region, `discover/body`, as every page's. The light-ledger entry that moves with the rename is re-keyed,
+never re-counted upward.
+
+## 19 — a bar page's navigation row and route raise the frame's domain ceiling (steward, 2026-09-27; L22b phase 19-bis-a)
+
+**The question.** `scripts/check-frame-domain.py` read `app/` at 141 against its ceiling of 132: the new page's row in
+`app/navigation.ts` and its route in `app/router-tree.tsx`.
+
+**Ruled.** ACCEPTED, 132 → 141: a new bar page's row and route are what invariant 10 blesses — « L16 and L20 add rows
+to the navigation table, which is the template working as designed » — +9 measured with and without the change; the
+baseline's reason names what raised it. On the phase's contaminated red (a source edited between the build and its
+reading): the assertions that carry the claim were red on a clean build — accepted; never edit a source between a
+build and its reading again.
+
+## 20 — three states pin Acquisition's tab (steward, 2026-09-27; L22b phase 19-bis-a, STOP A)
+
+**The STOP.** 19-bis-a's gate moved three undeclared states — `acq-add-empty`, `acq-add-results`, `drawer-navigation`
+— on `acquisition/body`, `acquisition/filters` and `shell/page`: they set the Acquisition page without its tab, the
+driver's reset leaves `acqTab`, so they drew the tab the state before left (« Découvrir » until it became a page).
+
+**Ruled (B).** The three FIX their tab — `acqTab: "follows"`, Acquisition's opening tab — and stop depending on run
+order, which is the real defect; they are accepted by name on those three regions with the script's proof, and B-554's
+row gains one line naming this third inheritance. (A) keeps the defect; (C), repairing the reset, is new apparatus.
+
+## 21 — a pull on « Découvrir » returns the deck to its first batch (steward, 2026-09-27; L22b phase 19-bis-b)
+
+**The question.** 19-bis-b's repair (`12dab6588`) made the « Découvrir » page observe `suggestionsQuery`, so a pull
+to refresh re-reads it (R223 held the wheel on `discover-full`). A re-read of that query answers the FIRST batch: a
+pull on a deck the operator had paged through returns it to its start.
+
+**Ruled — accepted.** A pull re-reads what the page shows, and the first batch is what a fresh read of the suggestions
+answers; the deck returning to it is the pull doing what it says, not a lost position. No hold asserts the contrary, and
+none is added.
+
+## 22 — the « keeps its files » case is POSED on Lucky, a derivation shown as one (auditor, 2026-09-27 16:4x; L22b phase 24, STOP D)
+
+**The STOP.** M2 has « Supprimer »'s confirmation read its case from qBittorrent at the gesture — the torrent keeps its
+files / the only copy / unknown, treated as the only copy. No seed carries a staged folder's ingest action (`copied` /
+`moved`) or its torrent's presence: « only copy » derives from a real `droppedByHand`, « unknown » from a download client
+that says nothing, and « keeps its files » from no seeded fact at all.
+
+**Ruled (a)**, on the precedent of rulings 5, 6 and 14: the case is POSED on « Lucky » — a real blocked row that
+arrived by torrent — by a mock door, and the named state and its demand row SAY it is posed, not read, and name the
+backend read that replaces it: the torrent's presence in qBittorrent at the gesture (M2). A folder nothing is posed
+on answers « unknown ». **Two conditions**: (1) that wording in the state's description and in the demand; (2) each
+of the three cases has its own mutation, and « unknown » falls toward « only copy », never toward « keeps its files ».
+(b), reading the operator's real ingest record, is refused; (c), holding the phase, was not needed.
+
+## 23 — a state drawing a tab under a layer inherits the tab's divergences (steward, 2026-09-27; L22b phase 26)
+
+**The question.** Phase 26 moved « Suivis » (its paused follows folded), and nine states that draw « Suivis » UNDER a
+layer — a sheet, a screen, the drawer, the add screen: their tab pinned by RULINGS 20 — moved with it, on
+`acquisition/body` and `shell/page` alone, undeclared at the opening.
+
+**Ruled — accepted, and a standing rule.** Their cause is the phase's own move, seen through a layer; the script
+proved no other region moved, and it was said. From now on, **a state that draws a tab under a layer inherits that
+tab's divergences, and is NAMED at the opening** of any phase that touches the tab.
+
+## 24 — only a disagreement waits; it is POSED on Star Trek; « Corriger » sends the identity held (steward and auditor, 2026-09-27; L22b phase 27, STOP D)
+
+**The STOP.** F3 has only a DISAGREEMENT wait in « À traiter » — Plex's match against the identity held — and the one
+seeded Plex match, Star Trek's (RULINGS 6), carries exactly the identity held (tmdb 103516, imdb tt12327578, tvdb
+382389): under F3 it no longer waits, and no seeded row carries a disagreement.
+
+**Ruled (a)**, on RULINGS 22's precedent: the disagreement is POSED on « Star Trek: Strange New Worlds » by a mock door —
+Plex matched it to another real series of the franchise, « Star Trek: Discovery » (tvdb 328711, tmdb 67198, imdb
+tt5171438) — and the seed keeps the real agreement, so without the door Star Trek is not in « À traiter », which is
+true of its real row. **« Corriger » sends demand E with the identity HELD** (« match it to what we hold »): no
+candidates screen, and the card stays in « À traiter » until Plex's corrected match is checked, its last rung not done.
+**« Confirmer » lays « vérifié dans Plex » done**, so a followed film leaves « Suivis ». Conditions: (1) the named state
+and demand E's description say the disagreement is POSED, not read, and name the backend read that replaces it — Plex's
+real match compared with the identity held; (2) one mutation per hold — an AGREEING card never waits in « À traiter »;
+« Corriger » then Back, the card is still there; « Confirmer », the rung is done; (3, the auditor) demand E stands in
+the backend demands register as the Plex match's CORRECTION VERB, OPEN 9's fifth demand, not a new gesture. (b), writing
+the disagreement into the seed, and (c), keeping an agreeing card waiting, were refused. RULINGS 6's derivation is
+revised by this one.
+
+## 25 — a direct add is a card only once finished; its rungs before « arrivé » were not lived (auditor and steward, 2026-09-27; L22b phase 31, STOP D)
+
+**The STOP.** F5 draws a direct-add card's four rungs before « arrivé » as not lived. The measure contradicted it: « Les
+Zinzins de l'Espace », a direct add in qBittorrent, is DOWNLOADING (`moving.json`), so « téléchargement » is lived now.
+
+**Ruled (b), on the operator's texts** (rulings 1, 2 and 4; « les arrivées, c'est des acquisitions faites en direct dans
+qBittorrent », « les torrents qui sont TÉLÉCHARGÉS »): a direct add becomes a card only once FINISHED and sorted, and
+every direct-add card that exists stands at « arrivé » or beyond, its four earlier rungs not lived, with no borrowed
+time. Proposal (a) — skip only the rungs never lived by origin — was refused.
+
+**Scoped (a) of the steward's second proposal, accepted by the auditor.** The surface the auditor's condition named,
+« Système › téléchargements », does not exist, and L22b draws no new surface. So: **until L16 phase 5, Zinzins's card,
+downloading, stays in « En vol », against the letter of ruling 2 — a temporary gap, named here.** Its removal, the hold
+« readable in Torrents » (ruling 19's tab) and the re-aim of R229 (Zinzins is its only real subject) are written into
+L16's plan by the steward at the closing docs pull request. Phase 31 keeps condition 3 alone: every direct-add card that
+has ARRIVED shows its four rungs before « arrivé » not lived, with no borrowed time, held and mutated (R212).
+
+## 26 — « Abandonner » on a follow's card is POSED on Furious; the follow goes on (steward, 2026-09-28; L22b phase 34, STOP D)
+
+**The STOP.** M1 has « Abandonner » on a FOLLOW's card set the release aside and search another. The one seeded tunnel
+error, « Top Chef Le Concours Parallèle (2026) », was dropped by hand and no follow asked for it: no real row carries a
+follow's tunnel error.
+
+**Ruled (a)**, on RULINGS 22 and 24's precedent: a tunnel error is POSED by a mock door (`poseTunnelError`) on
+« Furious », a real follow in flight, in the named state `acq-card-follow-error`. « Abandonner » there quarantines the
+folder, adds its release to the ones tried for that title — the release read no longer offers it — and puts the medium
+back in « En vol » on « cherché »; the follow goes on; the confirmation says « une autre release sera cherchée ».
+Conditions: (1) the state and the demand say the error is POSED, not read, and name the backend read that replaces it —
+the follow's own failed step; (2) one mutation per hold — the abandoned release still offered, the card not back on
+« cherché », the follow stopped — each falls. Top Chef keeps the one-off behaviour (its card closes) and R222 stays held
+on it. (b), writing the error into Furious's seed, was refused.
+
+## 27 — one item, one card; the hand-added half is a demand, held by no rule (steward and auditor, 2026-09-28; L22b phase 35, STOP D)
+
+**The STOP.** Round 10 Q1 = A: a hand-added arrival that matches an item a follow waits for joins that follow's
+acquisition. No real row is one — the two « qBittorrent (manuel) » rows (The Alabama Solution, Conclave) are followed by
+nobody. But two real follows, « President Curtis » and « Furious », were drawn TWICE in the dense world: the queue's
+card in flight and the staging arrival — the same episode on both sides (S01E02 and S01E01, read on the seeds at the
+auditor's condition), the same position.
+
+**Ruled (a).** The real half is built: one item, one card — a follow's folder in the staging area joins the follow's
+card in flight, matched by ITEM (a shared provider identifier AND the same episode), never by title; R238 holds it, with
+a mutation per hold, and a pair built from President Curtis's real card (S01E02 → S01E03, a derivation) proves two
+episodes stay two cards. The episode is read off `secondaryLine` — fragile, said in the rule; a demand asks for the
+field on `QueueCard`. **The hand-added half gets NO posed subject** — posing a follow on Conclave would invent a follow
+nobody made: it stays a DEMAND (matching by identity after identification), with a dated line saying why no rule holds
+it.
+
+## 28 — a one-off season: R158's hold 5 set aside for one phase, given back on « demandée » (steward, 2026-09-28; L22b phase 36, STOP)
+
+**The STOP.** Once a season of an unfollowed series is a one-off acquisition (round 10 Q2), the act changes no fact
+the follow panel or the media sheet draws — it reads in « En vol » — so R158's hold 5, « the surface pressed reads
+differently afterwards », fell ×4; and the act stayed offered, so a second tap would queue a second card.
+
+**Ruled (a).** In phase 36: the layer never queues the same season twice (« a second tap queues no second card »,
+held and mutated), and hold 5 is RE-AIMED OUT LOUD — **temporarily**. The hold defends a standing rule: a gesture is
+seen on the surface pressed. **Phase 37 gives it back**: the season's row says « demandée » and withdraws the act while
+the one-off acquisition lives, and R158 holds again « the surface pressed reads differently afterwards » on
+« demandée », mutated. (b), drawing « demandée » in phase 36, was over its measure.
+
+## 29 — `acq-todo-dense`: the Arrivées page's dense world gets its « À traiter » (steward, 2026-09-28; L22b phase 41, STOP D)
+
+**The STOP.** The plan read « each arr-* state they drive has an Acquisition successor by then ». Measured, `arr-loaded`
+has none: it is the dense world (Backrooms, S.W.A.T., doc_fr_2026_final, all « Résoudre »), and no state draws « À
+traiter » there; `acq-todo-loaded` is the real world, whose two staging folders are Top Chef (a tunnel error, « Relancer »)
+and the Spider-Man game, which F53 takes out. The readers aimed there clicked the queue's tie (Lucky) and fell.
+
+**Ruled (a)**, on RULINGS 22 and 24's precedent (existing seeds, no invented title): a named state `acq-todo-dense`, « À
+traiter » in the dense world; the readers of `arr-loaded`'s folders begin there, out loud, and tap the « Résoudre » of a
+card nobody identified (`data-nonmedia`) where their subject is such a folder. R122 takes no successor for `arr-loaded` —
+measured on the new state, one row names a medium, under its floor — and says so. (b), aiming at real-world folders F53
+removes, was refused.
+
 ## 30 — the ladder's figure keeps one meaning; a Plex match waits on its current rung (steward, 2026-09-27; round one, A6)
 
 **The question.** The round's brief asked Star Trek's card to read « 7 sur 8 »; the figure is the current rung's
@@ -194,3 +417,18 @@ floor, the line truncates before the foot does (an ellipsis; the full text in th
 line is still the body's last text). A mutation: the line back on its own row → R47 falls on Lucky. Oracle by name.
 (b), the poster no longer stretched past a bound, re-opens R47's own defect; (c), no line on a row no follow names,
 contradicts « the missing origin is said ».
+
+## 33 — « doc_fr_2026_final » is « autre » too: it leaves the acquisitions in a phase of its own (steward, 2026-09-28; L22b phase 43, STOP D)
+
+**The STOP.** F53 asked to check « doc_fr_2026_final » the way the game folder was checked. Same case: its row in
+`stuck-loaded.json` says « Aucun fichier vidéo dans le dossier : seulement 3 fichiers .nfo et une archive .rar non
+extraite ». Taking it out costs about five more points than phase 43 measured (its readers: two_picks.py's third
+folder, the dense states' oracle, two comments).
+
+**Ruled (A)**, verified in the engine and not only on the operator's rule: `personalscraper/sorter/file_type.py:178–200`
+types an archive-only folder as a film only when its NAME carries a video-release signal (`_looks_like_video_release`:
+a resolution, a source, a codec). « doc_fr_2026_final » carries none, so it is OTHER, filed under 098-AUTRES, out of
+the acquisitions (ruling 1). Phase 43 takes the game folder out as measured. A NEW phase 44 takes out
+« doc_fr_2026_final », and its readers are re-aimed out loud. The remaining phases become 45–49. (B), keeping the
+folder with a dated line, was refused: no reason for it survives the sort's rule.
+

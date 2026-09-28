@@ -1,5 +1,7 @@
 # Phase 6 — Arrivals join « En cours »
 
+**Amended 2026-09-28 (L22b phase 43, F53):** the game folder was « autre » for the sort, never an acquisition card; it left `stuck.json`, and this phase's rule and state now read « Backrooms.2026.MULTi.2160p.WEB-DL » in the dense world.
+
 **Opening measure (2026-09-26, on `94a369879`):**
 
 - **Commands.** `git grep -n mediumCardMarkup -- frontend/maquette/design/src | cut -d: -f1 | sort | uniq -c` → 13 call sites
@@ -23,7 +25,7 @@
 Ruling 2: an arrival is an acquisition card. The cards of phase 1's new family now DRAW: `moving` → « En vol » while it
 moves, `settled` → « Rangé aujourd'hui » (Arrivées called it « Arrivé dans les 24 h »), `stuck` → the `blocked`
 section, which still bears the name « À traiter » inside « En cours » until phase 9 gives it a tab of its own.
-**Arrivées still exists and still draws the same rows from `readStaging`**: one source, two readers, until phase 25.
+**Arrivées still exists and still draws the same rows from `readStaging`**: one source, two readers, until phase 37.
 
 ## Red today
 

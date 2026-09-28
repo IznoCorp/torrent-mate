@@ -31,6 +31,7 @@ import { HELD, read, send } from "./query-client";
 import type { QueueCard } from "./engine-queue";
 import type { Schemas } from "./contract-schemas";
 import { store } from "./store-access";
+import { setAsideInQueue } from "./set-aside";
 
 /** The staging queue, as Arrivées and the deck both read it. */
 export type Staging = {
@@ -69,8 +70,8 @@ export function firstStuckFolder(): string | null {
 /**
  * The queue's lists, answered synchronously from the cache.
  *
- * WHAT STILL ASKS. The engine draws its own nav badges, its `__blocked` probe
- * and two « next folder » walks from click handlers that cannot await. They are
+ * WHAT STILL ASKS. The engine draws its own nav badges and two « next
+ * folder » walks from click handlers that cannot await. They are
  * the same question the surfaces ask, so they read the same cache rather than a
  * copy — §13's « une seule dérivation par question », which a second world was
  * the standing way to break. It goes with the drawing at L13.
@@ -89,8 +90,6 @@ export function queueNow() {
     takeable: queue?.takeable ?? [],
     blocked: queue?.blocked ?? [],
     inFlight: queue?.inFlight ?? [],
-    notFound: queue?.notFound ?? [],
-    doneToday: queue?.doneToday ?? [],
   };
 }
 
@@ -243,10 +242,11 @@ const UNDO_WINDOW_MILLISECONDS = 7000;
 // without knowing what is in it.
 //
 // A PAIR IS SYMMETRIC. Its reader matches on EITHER end — reading only the
-// first left a replayed `/api/acquisition/to-handle/…/take` never reaching
-// staging, which is this constant's own defect in the other direction.
+// first left a replayed take never reaching staging, which is this constant's
+// own defect in the other direction. A take is a FOLLOW's grab, so a replayed
+// `/api/acquisition/followed/…/grab` moves the two lists the take wrote to.
 export const ADDRESSES_THAT_MOVE_TOGETHER: readonly (readonly string[])[] = [
-  ["/api/staging/media", "/api/acquisition/to-handle"],
+  ["/api/staging/media", "/api/acquisition/to-handle", "/api/acquisition/followed"],
 ];
 
 /**
@@ -342,7 +342,8 @@ export function installQueueActions(queryClient: QueryClient): void {
     // IT ANSWERS WHETHER THE FOLDER WAS THERE, synchronously, because the
     // engine's own `actionLeave` did and its caller reads the answer. The
     // optimistic write is what makes that answerable without waiting: the
-    // folder is either in a queue the cache holds, or it is not.
+    // folder is either in a queue the cache holds, or it is not. LEAVING IT
+    // MEANS LATER (ruling 6): the card is set aside, never taken out.
     leave: (title) => {
       const scenario = scenarioNow();
       const staging = queryClient.getQueryData<Staging>(stagingKey(scenario));
@@ -352,13 +353,19 @@ export function installQueueActions(queryClient: QueryClient): void {
         ...(queue?.blocked ?? []),
       ].some((card) => card.title === title);
       if (!queued) return false;
-      void settle(title, "left");
+      const held: Parameters<typeof putBack>[2] = { queue: setAsideInQueue(queryClient, queueKey(scenario), title) };
+      void deliver(scenario, title, "left", () => putBack(queryClient, scenario, held));
       return true;
     },
-    take: (title) => {
+    // THE FOLLOW'S OWN GRAB, the backend's « claim now » for one follow: what
+    // waits to be taken is a follow's found release. The picker names the
+    // release it chose; the sheet's act names none and the grab takes what the
+    // last search marked takeable.
+    take: (title, releaseName) => {
       const scenario = scenarioNow();
       const held = takeOutOfQueue(queryClient, scenario, title);
-      void send("POST", `/api/acquisition/to-handle/${encodeURIComponent(title)}/take`)
+      void send("POST", `/api/acquisition/followed/${encodeURIComponent(title)}/grab`,
+        releaseName === undefined ? undefined : { releaseName })
         .catch((refusal) => {
           putBack(queryClient, scenario, held);
           throw refusal;
@@ -395,7 +402,7 @@ declare global {
       /** Picks a candidate at once and sends it when the undo window closes. */
       pick: (title: string, choice?: string) => () => void;
       leave: (title: string) => boolean;
-      take: (title: string) => void;
+      take: (title: string, releaseName?: string) => void;
     };
   }
 }

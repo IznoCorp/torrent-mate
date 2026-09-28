@@ -1,13 +1,13 @@
 {
   "$comment": "The accessibility findings under `data-theme=\"light\"`, which this tier drove for nobody until L10-bis: it measured the DEFAULT theme only, so 154 findings counted by hand during L06 were invisible to it (B-055). THIS FILE IS READ BY `--check` AND THAT IS DELIBERATE — it is a RATCHET, a ceiling that may fall and may not rise, not the tolerance `a11y-debt.json` refuses to be. The dark floor stays a hard zero; remediating this list is a campaign with its own design, and what is held here meanwhile is that nothing is ADDED to it.",
-  "takenAtCommit": "5e5ecd052c1cb371ff82d4980556af1253964298",
+  "takenAtCommit": "662989abc4204c61b6e55a8a332018029ef40fa4",
   "platform": "Darwin/arm64",
   "counts": {
-    "states": 122,
+    "states": 125,
     "byRule": {
-      "color-contrast": 98
+      "color-contrast": 88
     },
-    "total": 98
+    "total": 88
   },
   "states": {
     "acq-abandon-confirm": [],
@@ -17,78 +17,14 @@
     "acq-card-no-identity": [],
     "acq-card-requester": [],
     "acq-card-rungs": [],
+    "acq-card-set-aside": [],
     "acq-card-waiting": [],
-    "acq-discover": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          "button[data-panel=\"sug:0\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:1\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:10\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:11\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:12\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:13\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:14\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:15\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:16\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:17\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:18\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:19\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:2\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:20\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:21\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:22\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:24\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:26\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:28\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:3\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:4\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:5\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:7\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:8\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
-          "button[data-panel=\"sug:9\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]"
-        ]
-      }
-    ],
-    "acq-discover-deck": [],
-    "acq-discover-degraded": [],
-    "acq-discover-exhausted": [],
-    "acq-discover-loading": [],
-    "acq-discover-posters": [],
     "acq-follows-error": [],
+    "acq-follows-film-at-plex-check": [],
     "acq-follows-filter-empty": [],
     "acq-follows-grid": [],
-    "acq-follows-group": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".swipe.\\[\\&_img\\]\\:\\[-webkit-user-drag\\:none\\][data-part=\"swipe\"]:nth-child(5) > .card.grid-cols-\\[auto_1fr\\].min-h-\\[126px\\] > .ccol.p-4.flex-1 > .ctop.gap-5[data-part=\"card/top\"] > .cbody.\\[background\\:transparent\\][data-part=\"card/body\"] > .cmeta.mt-3[data-part=\"card/meta\"] > .chip.px-3.leading-\\[15px\\]",
-          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta.mt-3[data-part=\"card/meta\"] > .chip.px-3.leading-\\[15px\\]",
-          "button[data-panel=\"media:L'Odyssée\"] > .cmeta.mt-3[data-part=\"card/meta\"] > .chip.px-3.leading-\\[15px\\]",
-          "button[data-panel=\"media:Silo\"] > .cmeta.mt-3[data-part=\"card/meta\"] > .chip.px-3.leading-\\[15px\\]",
-          "button[data-panel=\"media:Wicker\"] > .cmeta.mt-3[data-part=\"card/meta\"] > .chip.px-3.leading-\\[15px\\]"
-        ]
-      }
-    ],
-    "acq-follows-list": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".swipe.\\[\\&_img\\]\\:\\[-webkit-user-drag\\:none\\][data-part=\"swipe\"]:nth-child(4) > .card.grid-cols-\\[auto_1fr\\].min-h-\\[126px\\] > .ccol.p-4.flex-1 > .ctop.gap-5[data-part=\"card/top\"] > .cbody.text-left.\\[background\\:transparent\\] > .cmeta.mt-3[data-part=\"card/meta\"] > .waiting.\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\]",
-          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta.mt-3[data-part=\"card/meta\"] > .waiting.\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\]",
-          "button[data-panel=\"media:L'Odyssée\"] > .cmeta.mt-3[data-part=\"card/meta\"] > .waiting.\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\]",
-          "button[data-panel=\"media:Silo\"] > .cmeta.mt-3[data-part=\"card/meta\"] > .waiting.\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\]",
-          "button[data-panel=\"media:Wicker\"] > .cmeta.mt-3[data-part=\"card/meta\"] > .waiting.\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\]"
-        ]
-      }
-    ],
-    "acq-follows-pause-empty": [],
+    "acq-follows-group": [],
+    "acq-follows-list": [],
     "acq-identify": [
       {
         "rule": "color-contrast",
@@ -104,15 +40,49 @@
     "acq-now-loaded": [],
     "acq-now-loading": [],
     "acq-resolution-none": [],
+    "acq-resolution-not-media": [],
     "acq-resolution-tie": [],
     "acq-todo-empty": [],
     "acq-todo-loaded": [],
-    "arr-error": [],
-    "arr-idle": [],
-    "arr-loaded": [],
-    "arr-loading": [],
-    "arr-queued": [],
-    "arr-running": [],
+    "discover-deck": [],
+    "discover-degraded": [],
+    "discover-exhausted": [],
+    "discover-full": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "targets": [
+          "button[data-panel=\"sug:0\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:1\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:10\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:11\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:12\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:13\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:14\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:15\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:16\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:17\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:18\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:19\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:2\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:20\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:21\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:22\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:24\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:26\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:28\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:3\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:4\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:5\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:7\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:8\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3",
+          "button[data-panel=\"sug:9\"] > .cmeta.mt-3.flex-wrap > .crating.py-1.px-3"
+        ]
+      }
+    ],
+    "discover-loading": [],
+    "discover-posters": [],
     "drawer-navigation": [
       {
         "rule": "color-contrast",

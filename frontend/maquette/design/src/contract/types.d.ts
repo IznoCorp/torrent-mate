@@ -294,7 +294,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Take a release for one follow */
+        /** Claim now what the last search found for one follow */
         post: operations["grabForFollow"];
         delete?: never;
         options?: never;
@@ -467,6 +467,46 @@ export interface paths {
         };
         /** What is in the staging area, by bucket */
         get: operations["readStaging"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staging/media/{mediaId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a staged folder from the disk
+         * @description « Supprimer » on a folder set aside (ruling 16; round 8, question 16 = B): a REAL deletion of the staging folder, journaled — not the quarantine « Abandonner » makes — after a confirmation that names the folder and says whether this copy is the only one.
+         */
+        delete: operations["deleteStagedMedia"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staging/media/{mediaId}/copies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether a staged folder is the only copy of its files — POSED in the maquette (RULINGS 22); the backend reads the torrent's presence in qBittorrent at the gesture
+         * @description Read when « Supprimer »'s confirmation opens (M2): the torrent still in qBittorrent with its files (`keeps_files`), no torrent or a moved arrival (`only_copy`), or no answer from qBittorrent (`unknown`, treated as the only copy). The ingest row's `copied`/`moved` gives the provenance only; the backend answers from qBittorrent at the gesture. IN THE MAQUETTE THE CASE IS POSED, NOT READ (RULINGS 22): `keeps_files` on one folder by the harness, `only_copy` from a folder dropped by hand, `unknown` for any other.
+         */
+        get: operations["readStagedMediaCopies"];
         put?: never;
         post?: never;
         delete?: never;
@@ -955,26 +995,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/to-handle/{mediaId}/take": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Restart one item that was waiting to be acquired
-         * @description The interface offers « récupérer » on every takeable card and the contract had no operation for it — the engine moved the card inside its own fixture. Recorded here as the interface's requirement (D7): the backend must restart the acquisition and the card must leave « à récupérer » for « en vol » at its first step.
-         */
-        post: operations["takeQueued"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/pipeline/history/{runUid}": {
         parameters: {
             query?: never;
@@ -1080,8 +1100,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Confirm or correct the match Plex made for a medium
-         * @description Demand E (OPEN 9, ruled B): « Confirmer » says the match is the medium, « Corriger » says it is not. « Corriger » opens the candidates screen on the identity held and sends nothing; the correction is sent by the pick, carrying the identity picked. Either answer takes the card off « À traiter »; leaving the screen without a pick leaves the match to confirm.
+         * Confirm or correct the match Plex made for a medium — the Plex match's CORRECTION VERB, OPEN 9's fifth demand; the disagreement is POSED in the maquette (RULINGS 24), the backend compares Plex's real match with the identity held
+         * @description Demand E (OPEN 9, ruled B), the Plex match's correction verb: only a match that DISAGREES with the identity held waits in « À traiter ». « Confirmer » says the match is the medium: the card leaves « À traiter » and « vérifié dans Plex » is done. « Corriger » sends the correction carrying the identity HELD — no candidates screen — and the card stays in « À traiter », its last rung not done, until Plex's corrected match is checked. IN THE MAQUETTE THE DISAGREEMENT IS POSED, NOT READ (RULINGS 24): the backend compares Plex's real match with the identity held.
          */
         post: operations["resolvePlexMatch"];
         delete?: never;
@@ -1517,10 +1537,10 @@ export interface components {
              */
             rung: "requested" | "searched" | "grabbed" | "downloading" | "arrived" | "identified" | "shelved" | "verified" | "sorted" | "enriched";
             /**
-             * @description passed, in motion, queued behind something else, waiting for the operator's hand, set aside by him, or not reached
+             * @description passed, in motion, queued behind something else, waiting for the operator's hand, set aside by him, never lived by this medium (a direct add begins at « arrivé »), or not reached
              * @enum {string}
              */
-            state: "done" | "now" | "waiting" | "blocked" | "aside" | "pending";
+            state: "done" | "now" | "waiting" | "blocked" | "aside" | "skipped" | "pending";
             /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             when: string;
             /** @description why the rung is blocked or waiting, as a token, when it is */
@@ -1708,10 +1728,10 @@ export interface components {
             /** @description the account's name */
             name: string;
             /**
-             * @description `follow` when a follow of that account asked for it, `qbittorrent` when it was added directly in the download client
+             * @description `follow` when a follow of that account asked for it, `qbittorrent` when it was added directly in the download client `request`: asked once in the application, for one season of a series nobody follows — a one-off acquisition, never a follow.
              * @enum {string}
              */
-            via: "follow" | "qbittorrent";
+            via: "follow" | "qbittorrent" | "request";
         };
         /** @description a staging directory the sort files a NON-MEDIA folder into, as the configuration declares it */
         StagingDestination: {
@@ -1727,8 +1747,6 @@ export interface components {
             takeable: components["schemas"]["QueueCard"][];
             blocked: components["schemas"]["QueueCard"][];
             inFlight: components["schemas"]["QueueCard"][];
-            notFound: components["schemas"]["QueueCard"][];
-            doneToday: components["schemas"]["QueueCard"][];
             /** @description WHAT ARRIVED THROUGH THE PIPELINE, each an acquisition card: a finished torrent the sort took in, requested by a follow or added directly in the download client. An arrival is a card (ruling 2), at its rung, with its requester. */
             arrivals: components["schemas"]["QueueCard"][];
         };
@@ -2370,8 +2388,6 @@ export interface operations {
                         queued: boolean;
                         /** @description the run to follow, when one was started. Null when the ask is queued and nothing runs yet. */
                         runUid: string | null;
-                        /** @description whether THIS act began the follow — true when the medium was not followed before the ask, on the queued path as on the direct one. An owned show with a hole is identified by construction (its sheet, its year, its owned and aired counts), so the library's « Incomplets » lens offers its missing seasons to a medium nobody follows, and taking a season follows it: after the act the address's `followedId` names a follow. The interface CHOOSES its sentence by this field — a follow begun is a second fact, said in a sentence of its own and never appended to another (NE-DOIT-PAS-1). */
-                        newlyFollowed: boolean;
                     };
                 };
             };
@@ -2393,23 +2409,24 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": {
+                    /** @description the release the picker chose; absent, the grab takes what the last search marked takeable. The backend's grab takes no body: the chosen release is a demand */
                     releaseName?: string;
                 };
             };
         };
         responses: {
-            /** @description the torrent that was taken */
-            200: {
+            /** @description the grab was launched */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        /** @description the release that was taken, by name. The fixture carries no info hash at all — the demand register asks for one */
-                        releaseName: string;
+                        /** @description the run that claims it */
+                        runUid: string | null;
                     };
                 };
             };
@@ -2728,6 +2745,70 @@ export interface operations {
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    deleteStagedMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the staged item */
+                mediaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description it is gone from the disk */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                        /** @description whether the deletion was written to the deletion journal */
+                        journaled: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    readStagedMediaCopies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the staged item */
+                mediaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the folder's case */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        case: "keeps_files" | "only_copy" | "unknown";
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
         };
@@ -3602,31 +3683,6 @@ export interface operations {
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
-        };
-    };
-    takeQueued: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description the card's own title, which is how the queue keys one */
-                mediaId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description whether a card of that name was waiting */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        ok: boolean;
-                    };
-                };
-            };
         };
     };
     readRun: {

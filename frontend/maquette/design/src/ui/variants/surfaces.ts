@@ -74,7 +74,7 @@ export const chip = cva(
         info:
           "info [--chip-background:color-mix(in_oklab,var(--color-info)_20%,transparent)] [--chip-foreground:var(--color-info-text)]",
         waiting:
-          "waiting [--chip-background:color-mix(in_oklab,var(--color-waiting)_20%,transparent)] [--chip-foreground:var(--color-waiting)]",
+          "waiting [--chip-background:color-mix(in_oklab,var(--color-waiting)_20%,transparent)] [--chip-foreground:var(--color-waiting-text)]",
         neutral: "neutral",
       },
     },
@@ -218,9 +218,6 @@ export const crossReference = cva(
   "crossref block w-full leading-[1.45] border border-dashed border-border " +
     "bg-transparent text-muted-foreground text-3 text-left p-5 rounded-3",
 );
-
-/** The emphasis inside a cross-reference. */
-export const crossReferenceStrong = cva("text-foreground font-semibold");
 
 /** The cross-reference's link, on its own row. */
 export const crossReferenceLink = cva("block mt-3 text-primary-text font-semibold whitespace-nowrap");

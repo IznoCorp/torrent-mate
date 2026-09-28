@@ -47,7 +47,7 @@ let sentinel: IntersectionObserver | null = null;
 // `discover-tab.tsx`'s effect runs on EVERY commit and asks for the feed to be
 // filled; the deck branch already refused to rewrite a pile that was there
 // (« rewriting it destroys the gesture in flight »), and the list and poster
-// branches rewrote unconditionally. Measured: on `acq-discover-posters`, all
+// branches rewrote unconditionally. Measured: on `discover-posters`, all
 // SIXTY tiles were new nodes after any store write — so a tap landing between
 // `pointerdown` and `click` was lost, silently, on the one surface built to be
 // browsed with a thumb.

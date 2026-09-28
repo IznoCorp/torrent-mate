@@ -1241,18 +1241,13 @@
                         "null"
                       ],
                       "description": "the run to follow, when one was started. Null when the ask is queued and nothing runs yet."
-                    },
-                    "newlyFollowed": {
-                      "type": "boolean",
-                      "description": "whether THIS act began the follow — true when the medium was not followed before the ask, on the queued path as on the direct one. An owned show with a hole is identified by construction (its sheet, its year, its owned and aired counts), so the library's « Incomplets » lens offers its missing seasons to a medium nobody follows, and taking a season follows it: after the act the address's `followedId` names a follow. The interface CHOOSES its sentence by this field — a follow begun is a second fact, said in a sentence of its own and never appended to another (NE-DOIT-PAS-1)."
                     }
                   },
                   "required": [
                     "season",
                     "absorbedCount",
                     "queued",
-                    "runUid",
-                    "newlyFollowed"
+                    "runUid"
                   ]
                 }
               }
@@ -1297,31 +1292,34 @@
             "description": "the season, 1-based"
           }
         ],
-        "x-unseeded": "an acknowledgement and a queued flag. No fixture covers either: the maquette's engine printed a season as to_grab and offered nothing at all, so there is no recorded answer to seed from. The season number is the request's own and `absorbedCount` is derived from the episodes the fixture holds for that season. `newlyFollowed` is unseeded for the same reason: no fixture records a season asked of a medium nobody followed, because no surface offered one — it is the layer's own reading of whether a follow existed before the act, and the follow it creates is built from the incomplete show the library already holds, never copied off another record."
+        "x-unseeded": "an acknowledgement and a queued flag. No fixture covers either: the maquette's engine printed a season as to_grab and offered nothing at all, so there is no recorded answer to seed from. The season number is the request's own and `absorbedCount` is derived from the episodes the fixture holds for that season. A season of a series nobody follows begins no follow (round 10 Q2): the layer queues a one-off acquisition of that season, built from the incomplete show the library already holds."
       }
     },
     "/api/acquisition/followed/{followedId}/grab": {
       "post": {
         "operationId": "grabForFollow",
-        "summary": "Take a release for one follow",
+        "summary": "Claim now what the last search found for one follow",
         "tags": [
           "acquisition"
         ],
         "responses": {
-          "200": {
-            "description": "the torrent that was taken",
+          "202": {
+            "description": "the grab was launched",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "releaseName": {
-                      "type": "string",
-                      "description": "the release that was taken, by name. The fixture carries no info hash at all — the demand register asks for one"
+                    "runUid": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "the run that claims it"
                     }
                   },
                   "required": [
-                    "releaseName"
+                    "runUid"
                   ]
                 }
               }
@@ -1358,14 +1356,15 @@
           }
         ],
         "requestBody": {
-          "required": true,
+          "required": false,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
                 "properties": {
                   "releaseName": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "the release the picker chose; absent, the grab takes what the last search marked takeable. The backend's grab takes no body: the chosen release is a demand"
                   }
                 },
                 "required": []
@@ -1373,7 +1372,7 @@
             }
           }
         },
-        "x-unseeded": "the release that was taken, identified by the release the request named. The fixture carries no torrent digest, so the answer names what it can."
+        "x-unseeded": "the run that claims the release; the fixture holds no runner, so it answers none"
       }
     },
     "/api/acquisition/search": {
@@ -1642,9 +1641,6 @@
           "TAKEABLE",
           "BLOCKED",
           "INFLIGHT",
-          "NOTFOUND",
-          "NOTFOUND_REAL",
-          "DONE_TODAY",
           "STUCK",
           "STUCK_REAL",
           "MOVING",
@@ -2021,6 +2017,133 @@
             "description": "which body of data to answer with. `real` is the operator's system as it stands — calm, and what makes a REST state judgeable at all; `loaded` is a dense one, for judging density and scrolling. The prototype has always carried both, and an interface that could only ever be busy would never show its rest states."
           }
         ]
+      }
+    },
+    "/api/staging/media/{mediaId}": {
+      "delete": {
+        "operationId": "deleteStagedMedia",
+        "summary": "Delete a staged folder from the disk",
+        "description": "« Supprimer » on a folder set aside (ruling 16; round 8, question 16 = B): a REAL deletion of the staging folder, journaled — not the quarantine « Abandonner » makes — after a confirmation that names the folder and says whether this copy is the only one.",
+        "tags": [
+          "staging"
+        ],
+        "parameters": [
+          {
+            "name": "mediaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the staged item"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "it is gone from the disk",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "journaled": {
+                      "type": "boolean",
+                      "description": "whether the deletion was written to the deletion journal"
+                    }
+                  },
+                  "required": [
+                    "journaled",
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "an acknowledgement that the folder asked for was removed."
+      }
+    },
+    "/api/staging/media/{mediaId}/copies": {
+      "get": {
+        "operationId": "readStagedMediaCopies",
+        "summary": "Whether a staged folder is the only copy of its files — POSED in the maquette (RULINGS 22); the backend reads the torrent's presence in qBittorrent at the gesture",
+        "description": "Read when « Supprimer »'s confirmation opens (M2): the torrent still in qBittorrent with its files (`keeps_files`), no torrent or a moved arrival (`only_copy`), or no answer from qBittorrent (`unknown`, treated as the only copy). The ingest row's `copied`/`moved` gives the provenance only; the backend answers from qBittorrent at the gesture. IN THE MAQUETTE THE CASE IS POSED, NOT READ (RULINGS 22): `keeps_files` on one folder by the harness, `only_copy` from a folder dropped by hand, `unknown` for any other.",
+        "tags": [
+          "staging"
+        ],
+        "parameters": [
+          {
+            "name": "mediaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the staged item"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the folder's case",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "case": {
+                      "type": "string",
+                      "enum": [
+                        "keeps_files",
+                        "only_copy",
+                        "unknown"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "case"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "the case is POSED on one folder by the harness (RULINGS 22): no fixture records a staged folder's ingest action or its torrent; the backend reads the torrent's presence in qBittorrent at the gesture."
       }
     },
     "/api/staging/media/{mediaId}/continue": {
@@ -3652,45 +3775,6 @@
         "x-unseeded": "the running version. It is the server's own identity and no maquette fixture carries one."
       }
     },
-    "/api/acquisition/to-handle/{mediaId}/take": {
-      "post": {
-        "operationId": "takeQueued",
-        "summary": "Restart one item that was waiting to be acquired",
-        "description": "The interface offers « récupérer » on every takeable card and the contract had no operation for it — the engine moved the card inside its own fixture. Recorded here as the interface's requirement (D7): the backend must restart the acquisition and the card must leave « à récupérer » for « en vol » at its first step.",
-        "parameters": [
-          {
-            "name": "mediaId",
-            "in": "path",
-            "required": true,
-            "description": "the card's own title, which is how the queue keys one",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "whether a card of that name was waiting",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "ok"
-                  ]
-                }
-              }
-            }
-          }
-        },
-        "x-unseeded": "whether a card of that name was waiting is decided by the layer's own state at the moment of the call, not by a fixture — there is nothing to seed it from"
-      }
-    },
     "/api/pipeline/history/{runUid}": {
       "get": {
         "operationId": "readRun",
@@ -4046,11 +4130,11 @@
     "/api/acquisition/journeys/{infoHash}/plex-match": {
       "post": {
         "operationId": "resolvePlexMatch",
-        "summary": "Confirm or correct the match Plex made for a medium",
+        "summary": "Confirm or correct the match Plex made for a medium — the Plex match's CORRECTION VERB, OPEN 9's fifth demand; the disagreement is POSED in the maquette (RULINGS 24), the backend compares Plex's real match with the identity held",
         "tags": [
           "acquisition"
         ],
-        "description": "Demand E (OPEN 9, ruled B): « Confirmer » says the match is the medium, « Corriger » says it is not. « Corriger » opens the candidates screen on the identity held and sends nothing; the correction is sent by the pick, carrying the identity picked. Either answer takes the card off « À traiter »; leaving the screen without a pick leaves the match to confirm.",
+        "description": "Demand E (OPEN 9, ruled B), the Plex match's correction verb: only a match that DISAGREES with the identity held waits in « À traiter ». « Confirmer » says the match is the medium: the card leaves « À traiter » and « vérifié dans Plex » is done. « Corriger » sends the correction carrying the identity HELD — no candidates screen — and the card stays in « À traiter », its last rung not done, until Plex's corrected match is checked. IN THE MAQUETTE THE DISAGREEMENT IS POSED, NOT READ (RULINGS 24): the backend compares Plex's real match with the identity held.",
         "parameters": [
           {
             "name": "infoHash",
@@ -5562,9 +5646,10 @@
               "waiting",
               "blocked",
               "aside",
+              "skipped",
               "pending"
             ],
-            "description": "passed, in motion, queued behind something else, waiting for the operator's hand, set aside by him, or not reached"
+            "description": "passed, in motion, queued behind something else, waiting for the operator's hand, set aside by him, never lived by this medium (a direct add begins at « arrivé »), or not reached"
           },
           "when": {
             "type": "string",
@@ -6198,9 +6283,10 @@
             "type": "string",
             "enum": [
               "follow",
-              "qbittorrent"
+              "qbittorrent",
+              "request"
             ],
-            "description": "`follow` when a follow of that account asked for it, `qbittorrent` when it was added directly in the download client"
+            "description": "`follow` when a follow of that account asked for it, `qbittorrent` when it was added directly in the download client `request`: asked once in the application, for one season of a series nobody follows — a one-off acquisition, never a follow."
           }
         },
         "required": [
@@ -6252,18 +6338,6 @@
               "$ref": "#/components/schemas/QueueCard"
             }
           },
-          "notFound": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/QueueCard"
-            }
-          },
-          "doneToday": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/QueueCard"
-            }
-          },
           "arrivals": {
             "type": "array",
             "description": "WHAT ARRIVED THROUGH THE PIPELINE, each an acquisition card: a finished torrent the sort took in, requested by a follow or added directly in the download client. An arrival is a card (ruling 2), at its rung, with its requester.",
@@ -6275,9 +6349,7 @@
         "required": [
           "arrivals",
           "blocked",
-          "doneToday",
           "inFlight",
-          "notFound",
           "takeable"
         ],
         "description": "What the acquisition side is holding, by bucket — and every arrival, as a card."

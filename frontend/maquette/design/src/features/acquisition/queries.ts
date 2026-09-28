@@ -7,8 +7,8 @@ import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { HELD, read, send, sharedQueryClient } from "../../lib/query-client";
 import type { Schemas } from "../../lib/contract-schemas";
 import type { Follow, FollowOutcome } from "./types";
-import { queueKey, type AcquisitionQueue } from "../../lib/queue";
-import { store } from "../../lib/store-access";
+import { queueKey, useAcquisitionQueue, type AcquisitionQueue } from "../../lib/queue";
+import { store, useUiState } from "../../lib/store-access";
 import { todoCards } from "./arrival-slots";
 import { fillFollowedTitlesDoor } from "../../lib/shell-doors";
 
@@ -212,6 +212,12 @@ export function installFollowActions(queryClient: QueryClient): void {
   const write = (follows: Follow[]) => queryClient.setQueryData(followsKey, follows);
   const refresh = () => void queryClient.invalidateQueries({ queryKey: followsKey });
   fillFollowedTitlesDoor(() => held().map((follow) => follow.title));
+  // AND THE FOLLOWS ARE ASKED FOR HERE, because two readers of that door have
+  // no component to ask: an addressed follow panel resolving on a cold load,
+  // and the Médiathèque's delete dialog. Published, as `refillSuggestions` is,
+  // for the reset that clears the cache.
+  refillFollows = () => void queryClient.prefetchQuery(followsQuery);
+  refillFollows();
 
   followActions = {
     setStatus: (title, status) => {
@@ -327,6 +333,8 @@ declare global {
 export let suggestions: Window["__suggestions"];
 /** The deck's reserve, asked for again — filled at install. */
 export let refillSuggestions: (() => void) | undefined;
+/** The follows, asked for again — filled at install. */
+export let refillFollows: (() => void) | undefined;
 /** The follows' verbs — filled at install. */
 export let followActions: Window["__followActions"];
 
@@ -351,4 +359,17 @@ export function acquisitionBadge(): number {
   const scenario = String(store.read().state.scen ?? "") === "loaded" ? "loaded" : "";
   const queue = sharedQueryClient?.getQueryData<AcquisitionQueue>(queueKey(scenario));
   return queue ? todoCards(queue).length : 0;
+}
+
+/**
+ * Observes the answer `acquisitionBadge` derives from, for as long as the frame
+ * draws the row.
+ *
+ * A SYNCHRONOUS READ IS NOT AN OBSERVER. An answer nobody observes is not
+ * refetched when a live event invalidates it, so the badge froze on every page
+ * that does not draw « À traiter » itself.
+ */
+export function useAcquisitionBadgeReads(): void {
+  const scenario = useUiState().scen === "loaded" ? "loaded" : "";
+  useAcquisitionQueue(scenario);
 }

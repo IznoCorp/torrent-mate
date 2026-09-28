@@ -11,7 +11,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { send } from "../../lib/query-client";
 import { registerVerb } from "../../lib/verbs";
 import { queueNow } from "../../lib/queue";
-import { screens, toast } from "../../lib/shell-doors";
+import { toast } from "../../lib/shell-doors";
 import type { Schemas } from "../../lib/contract-schemas";
 
 /** The queue the card is drawn from, asked again once the match is answered. */
@@ -65,5 +65,10 @@ export function installPlexVerbs(client: QueryClient): void {
     void answerMatch("confirm", title);
   });
   // The screen opens on the identity held; nothing is sent until a pick.
-  registerVerb("plex-correct", (title) => screens.resolution(title));
+  // « CORRIGER » MATCHES IT TO WHAT WE HOLD (RULINGS 24): the identity held is
+  // the correction, so no candidates screen is asked for.
+  registerVerb("plex-correct", (title) => {
+    const card = queueNow().settled.find((one) => one.title === title);
+    void answerMatch("correct", title, { title, ids: card?.ids ?? {} } as Identity);
+  });
 }

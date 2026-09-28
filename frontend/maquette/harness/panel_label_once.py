@@ -53,10 +53,18 @@ from common import Journal, PANEL_IN, SETTLED, open_page
 
 from playwright.async_api import async_playwright
 
-# WHERE THE PANELS ARE RAISED FROM. `arr-queued` carries the subject — a medium
-# with no sheet that nothing is chasing, whose primary act falls through to the
-# journey. `acq-follows-list` is the breadth.
-SURFACES = ["arr-queued", "acq-follows-list"]
+# WHERE THE PANELS ARE RAISED FROM. `acq-todo-dense` — RE-AIMED OUT LOUD from
+# the Arrivées page, which dies — carries the dense world's folders, media with
+# no sheet. The follows list is the breadth — RE-AIMED OUT LOUD onto
+# `acq-follows-paused`, the same list with its paused fold opened: the paused
+# follows' panels are addressed from inside the fold, which a closed fold hides
+# from the finger.
+#
+# AND B-313'S OWN BRANCH — the panel whose primary act falls through to the
+# journey, `primaryAction`'s last branch — is an arrival in flight the sort has
+# not identified yet. No seed draws one outside the dead Arrivées page, so it is
+# read on a case POSED on a real arrival in flight, « Conclave », and said so.
+SURFACES = ["acq-todo-dense", "acq-follows-paused", "acq-card-identity-unknown"]
 
 # THE DISTINCT PANELS A SURFACE ADDRESSES. A card offers the same panel from
 # its folder button and from its body; both are the same descriptor, so the

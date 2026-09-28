@@ -111,8 +111,8 @@ async def main():
         # 1. Pull to refresh — on every scrolling surface, not the convenient
         #    one. The indicator has to ARM and then show its spinner; a pull
         #    that travels a few pixels and stops has no loader to show.
-        surfaces = ["acq-now-idle", "acq-follows-list", "acq-discover",
-                    "lib-grid", "lib-list", "arr-idle", "system"]
+        surfaces = ["acq-now-idle", "acq-follows-list", "discover-full",
+                    "lib-grid", "lib-list", "acq-todo-loaded", "system"]
         without_loading = []
         for state_ in surfaces:
             await pg.evaluate("(s)=>window.__go(s)", state_)
@@ -177,7 +177,7 @@ async def main():
         check("a row still opens", transformed not in ("none", "matrix(1, 0, 0, 1, 0, 0)"),
                  transformed)
 
-        await pg.evaluate("()=>window.__go('acq-discover-deck')")
+        await pg.evaluate("()=>window.__go('discover-deck')")
         await pg.wait_for_timeout(350)
         before = await pg.evaluate("""()=>document.querySelectorAll('[data-part="suggestion/wrap"], [data-part="deck/card"]').length""")
         r = await rect('[data-part="deck"] [data-part="deck/card"][data-depth="0"]')
@@ -210,7 +210,7 @@ async def main():
             ("library gallery", "lib-grid", '[data-part="tile"]'),
             ("a card's poster", "acq-follows-list", '#view [data-part="card"] [data-part="card/poster"]'),
             ("a card's body", "acq-follows-list", '#view [data-part="card"] [data-part="card/body"]'),
-            ("deck card", "acq-discover-deck", '[data-part="deck"] [data-part="deck/card"][data-depth="0"]'),
+            ("deck card", "discover-deck", '[data-part="deck"] [data-part="deck/card"][data-depth="0"]'),
         ]
         without_panel, with_selection, fired = [], [], []
         for name, state_, sel in press_surfaces:
@@ -265,7 +265,7 @@ async def main():
         # no list poster, and a rule that skips what is absent proves nothing.
         for state_, selectors in (("acq-follows-list", ['[data-part="card/poster"]']),
                                  ("lib-grid", ['[data-part="tile"]']),
-                                 ("acq-discover-deck", ['[data-part="deck/card"]']),
+                                 ("discover-deck", ['[data-part="deck/card"]']),
                                  ("followsheet-complete", ['[data-part="sheet/poster"]'])):
             await pg.evaluate("(s)=>window.__go(s)", state_)
             await pg.wait_for_timeout(320)

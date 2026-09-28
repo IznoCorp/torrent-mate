@@ -1,5 +1,7 @@
 # Phase 16 — « Ce n'est pas un média »
 
+**Amended 2026-09-28 (L22b phase 43, F53):** the game folder was « autre » for the sort, never an acquisition card; it left `stuck.json`, and this phase's rule and state now read « Backrooms.2026.MULTi.2160p.WEB-DL » in the dense world.
+
 **Opening measure (2026-09-26, on `94a369879`):**
 
 - **Commands.** The exits of the candidates screen today (`resolution-screen.tsx`, after phase 2 in Acquisition): pick,
@@ -13,6 +15,8 @@
 - **Points ≈ 13.** A new exit in the screen (a button and the choice sheet, ≈ 40 lines written) 4; the verb (≈ 20 lines
   written) 2; the choice's words as `fr.json` keys (≈ 6) 1; the reclassify held action with its undo window 2; R-L22-j with
   its mutation 3; one state (`acq-resolution-not-media`, composed on the seed's game folder — no new seed row) 1.
+
+- **Re-measured 2026-09-27 at its opening, on `79c4309a7`:** ≈ 14. `reclassifyStagedMedia` AND its inverse `restoreReclassifiedMedia` are declared and mocked, and no client read the destinations; the « Annuler » calls the inverse, as DESIGN § 3.4 says (« demand C carries its inverse »), rather than the held send this file's Move describes; the choice is a panel kind `not-media`, the return one settlement (`panel.close(true)` + `bridge.rewind`, the identification's own); rule label j = R228 (R227 is 15b's).
 
 Ruling 5: the candidates screen offers « Ce n'est pas un média ». The folder is reclassified « other » and filed where the
 sort files that category; **its card leaves the acquisitions and he does not see it again**. The choice among the

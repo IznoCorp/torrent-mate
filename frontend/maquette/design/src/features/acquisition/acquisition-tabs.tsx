@@ -19,7 +19,8 @@ export function AcquisitionTabs(): ReactElement {
   // truths (§13).
   const scenario = state.scen === "loaded" ? "loaded" : "";
   const { data: queue } = useAcquisitionQueue(scenario);
-  // THE ORDER IS THE OPERATOR'S: « Suivis · En cours · À traiter · Découvrir ».
+  // THE ORDER IS THE OPERATOR'S: « Suivis · En cours · À traiter ». « Découvrir »
+  // is a page of the bottom bar, not a tab of this one.
   // The tab opened by default is derived, wherever it stands in the row.
   const tabs = [
     { id: "follows", label: t("screens.acquisition.tabFollows") },
@@ -27,7 +28,6 @@ export function AcquisitionTabs(): ReactElement {
     { id: "now", label: t("screens.acquisition.tabNow"), count: queue ? inFlightCards(queue).length : 0 },
     // « À TRAITER » COUNTS ITS CARDS, the number the bar's badge says too.
     { id: "todo", label: t("screens.acquisition.tabTodo"), count: queue ? todoCards(queue).length : 0 },
-    { id: "discover", label: t("screens.acquisition.tabDiscover") },
   ];
   return (
     <div className={viewTabs()} data-region="acquisition/tabs">

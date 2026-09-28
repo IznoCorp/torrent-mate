@@ -79,7 +79,7 @@ registerVerb("page", (page) => {
    « Profil et préférences »: every other producer renders into the page body,
    which sits under every layer and is therefore untappable while one is open
    (walked control by control, B-024). Landing must LEAVE the layer. */
-registerVerb("go", (page) => {
+registerVerb("go", (page, element) => {
   const fromLayer = Boolean(history.state && history.state.layer);
   const leaving = currentPage();
   registeredLayers.close("drawer", true);
@@ -88,8 +88,9 @@ registerVerb("go", (page) => {
   /* AND THE PAGE PUTS ITS OWN DIAL BACK, through the door its feature fills:
      arriving at the acquisition page from elsewhere has always opened its first
      tab. The frame does not name that dial — it is the page's, and the write is
-     made where it is understood. */
-  resetLandingDial?.(page);
+     made where it is understood. A control that names the dial it lands on
+     (`data-dial`) has it passed along, unread. */
+  resetLandingDial?.(page, element.dataset.dial);
   scrollPortToTop();
   redraw();
   settleLanding(fromLayer, leaving, "go");

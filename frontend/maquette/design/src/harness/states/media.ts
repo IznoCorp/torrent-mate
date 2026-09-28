@@ -15,7 +15,7 @@ export function mediaStates(): NamedState[] {
       "mediasheet-suggestion-series",
       "Fiche — suggestion NON possédée (série)",
       () => {
-        applyState({ page: "acq", acqTab: "discover", phase: "ready" });
+        applyState({ page: "discover", phase: "ready" });
         open("The Venture Bros");
       },
     ],
@@ -23,7 +23,7 @@ export function mediaStates(): NamedState[] {
       "mediasheet-suggestion-movie",
       "Fiche — suggestion NON possédée (film)",
       () => {
-        applyState({ page: "acq", acqTab: "discover", phase: "ready" });
+        applyState({ page: "discover", phase: "ready" });
         open("Superman : L'Homme de demain");
       },
     ],

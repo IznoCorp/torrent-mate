@@ -320,15 +320,14 @@ function held<Result>(key: readonly unknown[]): Result | undefined {
    measurement inherits a previous one's pages, and a query with an OBSERVER is
    re-asked by that observer while one without is not. A producer has none: it
    is called from a click, not rendered. This is the door the reset re-asks
-   through, and `app/engine-data.ts` — the engine's own list of what nothing
-   observes — calls it beside its own. It dies when that file does.
+   through, and the boot's first asking.
 
-   FILLED HERE AND FIRST CALLED THERE, which is an ordering and was measured:
-   this module is installed BEFORE `installMockNetwork()`, so a fetch started on
-   this line leaves before there is a layer to answer it, and the cache stays
-   empty in a way that reads exactly like a producer with nothing to say. The
-   first fill is `installEngineData`'s, which runs after the mocks — the same
-   position `installSuggestionsLookup` fills its own reserve from. */
+   FILLED HERE AND FIRST CALLED BY THE SHELL, which is an ordering and was
+   measured: this module is installed BEFORE `installMockNetwork()`, so a fetch
+   started on this line leaves before there is a layer to answer it, and the
+   cache stays empty in a way that reads exactly like a producer with nothing to
+   say. The shell's first call runs after the mocks — the same position
+   `installSuggestionsLookup` fills its own reserve from. */
 refillProducers = () => {
   for (const required of producerNeeds()) void queryClient.prefetchQuery(required);
 };

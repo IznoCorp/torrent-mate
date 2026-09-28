@@ -130,7 +130,7 @@ export function DiscoverTab(): ReactElement {
     return (
       <>
         {selector}
-        <div className={`${body()} ${deckBody()}`} data-part="surface/body"></div>
+        <div className={`${body()} ${deckBody()}`} data-part="surface/body" data-region="discover/body"></div>
       </>
     );
   }
@@ -141,6 +141,7 @@ export function DiscoverTab(): ReactElement {
       <div
         className={`${body()}${state.sugMode === "deck" ? ` ${deckBody()}` : ""}`}
         data-part="surface/body"
+        data-region="discover/body"
       >
         <div className="note" data-part="note">
           <b>{t("screens.acquisition.discoverNoteLead")}</b>

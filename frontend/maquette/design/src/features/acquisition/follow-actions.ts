@@ -96,12 +96,23 @@ export function secondaryActions(facts: FollowFacts): (Action | null)[] {
   const { follow, isFilm } = facts;
   const beingAcquired = facts.isFollowed || facts.incomplete || facts.toTake;
   return [
+    // « Suivre », PROPOSED on an arrived series nobody follows (ruling 1).
+    facts.followOffer
+      ? {
+          text: say("offerFollow"), icone: icons.plus, ton: "primary",
+          target: { follow: follow.title, "follow-ids": JSON.stringify(facts.followOffer) },
+        }
+      : null,
     // The second answer « À traiter » offers at the card's foot.
     facts.plexMatch
       ? { text: say("plexCorrect"), icone: icons.search, target: { "plex-correct": follow.title } }
       : null,
     facts.tunnelError
       ? { text: say("abandon"), icone: icons.trash, ton: "danger", target: { "journey-abandon": follow.title } }
+      : null,
+    // The second foot « Mis de côté » offers.
+    facts.setAside
+      ? { text: say("deleteStaged"), icone: icons.trash, ton: "danger", target: { "staging-delete": follow.title } }
       : null,
     // « Voir la fiche » is reachable whenever a sheet exists. It is omitted only
     // when it is ALREADY the primary action, which happens for a medium that is

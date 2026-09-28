@@ -26,7 +26,6 @@ import { subscribeToEvents, type RelayEvent } from "../lib/relay-events";
 // `router-tree.tsx` does with its pages. What each line brings is the feature's
 // own; nothing here knows an event name or a query key.
 import { acquisitionLiveRules } from "../features/acquisition/live";
-import { arrivalsLiveRules } from "../features/arrivals/live";
 import { libraryLiveRules } from "../features/library/live";
 import { maintenanceLiveRules } from "../features/maintenance/live";
 import { mediaLiveRules } from "../features/media/live";
@@ -76,7 +75,6 @@ export function unmatchedCount(): number {
 export function installLiveUpdates(queryClient: QueryClient): void {
   const rules: LiveRule[] = [
     ...acquisitionLiveRules,
-    ...arrivalsLiveRules,
     ...libraryLiveRules,
     ...maintenanceLiveRules,
     ...mediaLiveRules,

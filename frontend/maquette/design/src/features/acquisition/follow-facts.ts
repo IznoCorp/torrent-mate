@@ -29,8 +29,13 @@ import { followsQuery, incompleteShowsQuery } from "./queries";
 // undefined, which is what the engine's object literal did in practice.
 import type { Follow, FollowSubject } from "./types";
 import { followFraction } from "./follow-vocabulary";
-import { inFlightCards, todoCards } from "./arrival-slots";
+import { inFlightCards, setAsideCards, todoCards } from "./arrival-slots";
 import { originLine } from "./card-markup";
+import { followOffered } from "./follow-offer";
+
+// The contract's token for a season asked once, in the application.
+const ASKED_ONCE = "request";
+
 export type { Follow };
 
 /** What is true about the medium a follow panel is about. */
@@ -54,8 +59,12 @@ export type FollowFacts = {
   plexMatch: boolean;
   /** In « À traiter », a step that cannot finish: relaunched or abandoned, never resolved. */
   tunnelError: boolean;
+  /** In the folded « Mis de côté »: kept on the disk until he deletes it or handles it. */
+  setAside: boolean;
   /** It has a media sheet — an unidentified release has none. */
   hasSheet: boolean;
+  /** An arrived series nobody follows: « Suivre » is proposed (ruling 1), with its identity. */
+  followOffer: Record<string, unknown> | null;
   /** Episodes held over episodes aired, or null for a film. */
   fraction: string | null;
   /** Where its acquisition came from, whole — the line its card may truncate. */
@@ -116,7 +125,11 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
   const scenario = String(store.read().state.scen) === "loaded" ? "loaded" : "";
   const answer = cache.held<AcquisitionQueue>(queueKey(scenario));
   const todo = answer ? todoCards(answer).find((one) => one.title === title) : undefined;
+  const arrival = answer?.arrivals.find((one) => one.title === title);
   const acquisition = todo ?? (answer ? inFlightCards(answer).find((one) => one.title === title) : undefined);
+  // WHAT MAY BE OFFERED « Suivre »: an arrival, or a season asked once — a
+  // one-off acquisition of a series nobody follows (round 10 Q2).
+  const offered = arrival ?? (acquisition?.requester?.via === ASKED_ONCE ? acquisition : undefined);
   const toResolve = queue.blocked
     .concat(queue.stuck ?? [])
     .some((one) => one.title === title);
@@ -136,7 +149,10 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
     // foot, its panel offers too (R43, one card, one behaviour).
     plexMatch: todo?.plexMatch !== undefined,
     tunnelError: todo?.failedStep !== undefined,
+    setAside: answer ? setAsideCards(answer).some((one) => one.title === title) : false,
     hasSheet: (follow.ids ?? heldIdentity(title)?.ids) != null,
+    // THE SAME OFFER THE CARD'S FOOT MAKES, from the same derivation (R43).
+    followOffer: offered !== undefined && followOffered(offered, followed) ? offered.ids ?? null : null,
     origin: acquisition ? originLine(acquisition) ?? null : null,
     // ONE DERIVATION: the card's fraction, the header's, and the sum of the
     // season headers all read this computation.

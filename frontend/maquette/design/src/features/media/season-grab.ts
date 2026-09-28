@@ -26,7 +26,6 @@ type SeasonGrab = {
   absorbedCount: number;
   queued: boolean;
   runUid: string | null;
-  newlyFollowed: boolean;
 };
 
 /**
@@ -86,6 +85,9 @@ export async function askForSeason(
   const waiting = await grabSeason(title, season);
   if (waiting) markSeasonQueued(client, title, season);
   await client.refetchQueries({ queryKey: ["/api/acquisition/followed"] });
+  // AND THE QUEUE: a season of a series nobody follows is queued as a one-off
+  // card, and the season's row says « demandée » from that card.
+  await client.invalidateQueries({ queryKey: ["/api/acquisition/to-handle"] });
   panel?.redraw();
 }
 
@@ -166,25 +168,21 @@ export async function grabSeason(title: string, season: number): Promise<boolean
     // à récupérer » is both wrong in French, where zero takes the singular, and
     // a worse thing to read than saying so.
     //
-    // AND A FOLLOW BEGUN BY THE ASK IS A SECOND FACT, so it has sentences of its
-    // own: the same four, each with the follow said in it, chosen by the
-    // answer's `newlyFollowed`. Never a clause appended to one of the others,
-    // and never a key assembled from two halves: every key is written out, so
-    // a reader searching for one finds the line that chooses it.
+    // NO FOLLOW IS BEGUN BY THE ASK: a season of a series nobody follows is a
+    // one-off acquisition (round 10 Q2), so no sentence says one was.
     //
     // AND EVERY SENTENCE NAMES THE SHOW. An answer held back lands over whatever
     // panel is open by then: « Saison 3 demandée » said over American Dad!'s
     // panel read as about American Dad!, where the ask was Silo's. The take's
     // own sentence already names its show.
     const count = grab?.absorbedCount ?? 0;
-    const newly = grab?.newlyFollowed === true;
     const messageKey = grab?.queued
-      ? newly ? "seasonQueuedNewlyFollowed" : "seasonQueued"
+      ? "seasonQueued"
       : count === 0
-        ? newly ? "seasonAskedNoneNewlyFollowed" : "seasonAskedNone"
+        ? "seasonAskedNone"
         : count === 1
-          ? newly ? "seasonAskedOneNewlyFollowed" : "seasonAskedOne"
-          : newly ? "seasonAskedNewlyFollowed" : "seasonAsked";
+          ? "seasonAskedOne"
+          : "seasonAsked";
     toast?.show({
       message: say(messageKey, { season, count, title }),
     });

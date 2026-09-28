@@ -524,8 +524,8 @@ def read_addresses():
 
     THE CORPUS WAS THREE FILENAMES — `features/**/queries.ts`,
     `search-queries.ts` and `lib/queue.ts` — and nothing enforces that query
-    keys live there. `app/engine-data.ts` already declared four the arm never
-    read; a `mutations.ts` or a component-level `useQuery` would be four more.
+    keys live there. The frame's boot list (since removed) declared four the arm
+    never read; a `mutations.ts` or a component-level `useQuery` would be four more.
     A hand-named corpus is the shape this register counts, and it was one.
     """
     found = {}
@@ -550,10 +550,10 @@ def read_addresses():
             r'useSystemRead<.*?>\(\s*"([^"]+)"', source, re.DOTALL))
         addresses |= set(re.findall(
             r'prefetchQuery\(\s*\{\s*queryKey:\s*\[\s*"([^"]+)"', source))
-        # A CACHE KEY IS NOT ALWAYS SPELLED `queryKey:`. `app/engine-data.ts`
-        # declares its four under `key:` in a table it hands to
-        # `fetchQuery`/`setQueryData` — read by no version of this arm until
-        # now, and every one of them an address a surface really holds.
+        # A CACHE KEY IS NOT ALWAYS SPELLED `queryKey:`. The frame's boot list
+        # (since removed) declared its four under `key:` in a table it handed to
+        # the cache — read by no version of this arm until then; a table of that
+        # shape is still read here.
         addresses |= set(re.findall(
             r'^\s*key:\s*\[\s*"(/api/[^"]+)"', source, re.MULTILINE))
         for address in addresses:

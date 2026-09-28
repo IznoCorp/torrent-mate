@@ -515,7 +515,6 @@ SCREEN_PATHS = tuple(SCREEN_PARENTS)
 HOME_PAGE = re.search(r'HOME_PAGE = "(\w+)"', DECLARATION).group(1)
 HOME = PAGE_PATHS[HOME_PAGE]
 LIBRARY = PAGE_PATHS["lib"]
-ARRIVALS = PAGE_PATHS["arr"]
 
 # ── the boot's history seam ───────────────────────────────────────────────
 # The boot's own writers run before anything in the document can reach the

@@ -60,7 +60,7 @@ from common import ACTED, Journal, SETTLED, open_page
 from playwright.async_api import async_playwright
 
 # WHERE THE DECK IS DRAWN.
-DISCOVER_STATE = "acq-discover"
+DISCOVER_STATE = "discover-full"
 
 # THE MODES THE SURFACE LEAVES THE DECK FOR.
 OTHER_MODES = ("list", "poster")

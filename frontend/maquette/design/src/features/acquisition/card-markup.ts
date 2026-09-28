@@ -20,6 +20,7 @@ import { posterFallback } from "../../ui/variants";
 import { posterArtwork } from "../../lib/engine-drawing";
 import { richTextMarkup } from "./rich-text";
 import { originRow, footRow } from "./variants";
+import { currentRung } from "../../lib/current-rung";
 
 /** A medium as an acquisition list holds one, in the engine's field names. */
 export type MediumCard = {
@@ -40,7 +41,7 @@ export type MediumCard = {
   /** Put in the staging area by hand: nobody asked, and its subtitle says so. */
   droppedByHand?: boolean;
   /** The medium's ladder — the same list its journey sheet reads. */
-  ladder?: { rung: string; state: StripState; reason?: string }[];
+  ladder?: { rung: string; state: StripState; reason?: string; when?: string }[];
   withoutPoster?: boolean;
   overview?: string;
   panel?: string;
@@ -76,6 +77,7 @@ const RUNG_TONE: Record<StripState, string> = {
   waiting: "neutral",
   blocked: "danger",
   aside: "neutral",
+  skipped: "neutral",
   pending: "neutral",
 };
 
@@ -83,18 +85,16 @@ const RUNG_TONE: Record<StripState, string> = {
 const TO_CONFIRM = "confirmation";
 
 /**
- * The rung a card stands on: the one in motion, waiting or stopped; else the one
- * after the last passed — a rung the row never lived, before it, is not where it
- * stands — or the last when every one is passed.
+ * A date, as a sentence says it: the day and the month.
  *
- * @param ladder The medium's rungs.
- * @returns The current rung's index.
+ * @param date The date, `YYYY-MM-DD`.
+ * @returns The day in the interface's language, or the date as given when it is not one.
  */
-function currentRung(ladder: { state: StripState }[]): number {
-  const active = ladder.findIndex((rung) => rung.state !== "done" && rung.state !== "pending");
-  if (active !== -1) return active;
-  const done = ladder.map((rung) => rung.state).lastIndexOf("done");
-  return Math.min(done + 1, ladder.length - 1);
+function dayOf(date: string): string {
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return date;
+  // In UTC, the zone a bare date is read in, so the day never slips by one.
+  return new Intl.DateTimeFormat(i18next.language, { day: "numeric", month: "long", timeZone: "UTC" }).format(parsed);
 }
 
 /**
@@ -108,13 +108,18 @@ function currentRung(ladder: { state: StripState }[]): number {
  * @param ladder The medium's rungs.
  * @returns The strip, the figure and the current rung's chip.
  */
-function ladderMarkup(ladder: { rung: string; state: StripState; reason?: string }[]) {
+function ladderMarkup(ladder: { rung: string; state: StripState; reason?: string; when?: string }[]) {
   const current = currentRung(ladder);
   const strip: StripCell[] = ladder.map((rung) => ({ state: rung.state }));
   const reason = ladder[current].reason;
+  const setAside = ladder[current].state === "aside";
   const name = i18next.t(`surfaces.ladder.rungs.${ladder[current].rung}`);
   return {
     strip,
+    // WHO SET IT ASIDE, AND WHEN, composed from the date the rung carries —
+    // never a constant (§13). It outranks the row's own reason: the folder is
+    // waiting for him now, not for the step that stopped it.
+    setAside: setAside ? i18next.t("surfaces.ladder.setAside", { day: dayOf(ladder[current].when ?? "") }) : undefined,
     // THE REASON THE LADDER KNOWS, said in words, for a card whose row carries none.
     reason: reason === undefined ? undefined : i18next.t(`surfaces.ladder.reasons.${reason}`),
     fraction: i18next.t("surfaces.ladder.figure", { position: current + 1, count: ladder.length }),
@@ -185,6 +190,8 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot | Med
     subtitle: medium.secondaryLine,
     reason: medium.plexMatch
       ? escapeMarkup(i18next.t("surfaces.card.plexMatch", { title: medium.plexMatch.title }))
+      : onLadder?.setAside
+      ? escapeMarkup(onLadder.setAside)
       : medium.reason
       ? richTextMarkup(medium.reason)
       : onLadder?.reason ? escapeMarkup(onLadder.reason) : undefined,

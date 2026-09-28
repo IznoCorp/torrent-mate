@@ -32,11 +32,19 @@ reconcile by looking twice.
 AND THE AGREEMENT A HAND REACHES. A named state clears the reads' cache, so a
 block read right after `__go` is always fresh — which is exactly where a stale
 lock row cannot be seen. The walk below opens NO state door: it reads the block,
-starts the pipeline from Arrivées by a finger, comes back, pauses, resumes, and
-cuts and restores the automatic trigger by the levers, stops from Arrivées, and
-comes back again. At every return each row agrees with the layer's locks read,
-and the locks read agrees with the pipeline's own status — « Libre » over a
-running pipeline is the defect.
+starts a maintenance command from Maintenance by a finger, comes back, pauses,
+resumes, and cuts and restores the automatic trigger by the levers. At every
+return each row agrees with the layer's locks read, and the locks read agrees
+with the pipeline's own status — « Libre » over a running pipeline is the defect.
+
+RE-AIMED OUT LOUD (OPEN 6, ruled A): « Lancer » and « Arrêter » a pass died with
+Arrivées' bar, and no lever took them over. The lock is now taken by the path a
+hand still has — a maintenance command, which holds it while it runs — and the
+reading « after a hand stop » died with « Arrêter »: no finger releases the lock
+any more, the command ends on its own.
+
+RE-AIMED OUT LOUD: Système left the bottom bar (ruling 15); each walk to it opens
+the menu, then taps its drawer entry, by a finger.
 """
 import asyncio
 import pathlib
@@ -149,14 +157,30 @@ PRESS = """(selector)=>{
   const hit = document.elementFromPoint(box.left + box.width / 2,
                                         box.top + box.height / 2);
   const mine = Boolean(hit) && (hit === control || control.contains(hit));
-  if (mine) hit.click();
+  // THE CONTROL IS CLICKED once the finger is proved to land on it: what the
+  // point hits may be a drawing inside it (the menu button's SVG has no click).
+  if (mine) control.click();
   return {found: true, pressed: mine,
           covered: mine ? '' : ((hit && (hit.dataset.part || hit.tagName)) || 'nothing')};}"""
 
-SYSTEM_TAB = '#nav button[data-page="sys"]'
-ARRIVALS_TAB = '#nav button[data-page="arr"]'
-START = '[data-part="pipeline"] [data-pipe="start"]'
-STOP = '[data-part="pipeline"] [data-pipe="stop"]'
+# SYSTEM IS REACHED FROM THE DRAWER (ruling 15): the menu, then its entry.
+MENU = '[data-drawer]'
+SYSTEM_TAB = '#drawer [data-navgo="sys"]'
+# THE MAINTENANCE COMMAND THAT TAKES THE LOCK: a real run of a query, which
+# changes no file. Its panel covers the menu button, so Back closes it first.
+MAINTENANCE_TAB = '#drawer [data-navgo="maint"]'
+COMMAND_TOPIC = '[data-maintopic="query"]'
+COMMAND = '[data-maintact="library-status"]'
+RUN = '[data-maintenance-run]'
+BACK = "back"
+
+# WHETHER A FINGER WOULD REACH A CONTROL, without pressing it.
+REACHABLE = """(selector)=>{
+  const control = document.querySelector(selector);
+  if (!control) return false;
+  const box = control.getBoundingClientRect();
+  const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+  return Boolean(hit) && (hit === control || control.contains(hit));}"""
 
 # THE WORD A HELD LOCK AND AN ACTIVE PAUSE WEAR, the interface's own.
 HELD_SAID = "Pris"
@@ -270,21 +294,33 @@ async def agreement_by_hand(journal, browser):
     await page.wait_for_timeout(SETTLED)
 
     steps = (
+        (MENU, "the menu is opened by a finger", None),
         (SYSTEM_TAB, "Système is reached by a finger", "at rest"),
-        (ARRIVALS_TAB, "Arrivées is reached by a finger", None),
-        (START, "« Lancer le pipeline » is pressed by a finger", None),
-        (SYSTEM_TAB, "Système is reached again by a finger", "after a hand start"),
+        (MENU, "the menu is opened again by a finger", None),
+        (MAINTENANCE_TAB, "Maintenance is reached by a finger", None),
+        (COMMAND_TOPIC, "its topic is opened by a finger", None),
+        (COMMAND, "a maintenance command is opened by a finger", None),
+        (RUN, "and its « Lancer » is pressed by a finger", None),
+        (BACK, "", None),
+        (MENU, "the menu is opened a third time by a finger", None),
+        (SYSTEM_TAB, "Système is reached again by a finger", "after a maintenance command"),
         ('[data-part="levers/pause"]', "« Mettre tout en pause » is pressed", "after a pause"),
         ('[data-part="levers/resume"]', "« Reprendre » is pressed", "after a resume"),
         ('[data-part="levers/watcher"]', "the automatic trigger is cut by a finger",
          "after the trigger is cut"),
         ('[data-part="levers/watcher"]', "and turned back on by a finger",
          "after the trigger is back"),
-        (ARRIVALS_TAB, "Arrivées is reached again by a finger", None),
-        (STOP, "« Arrêter » is pressed by a finger", None),
-        (SYSTEM_TAB, "Système is reached a third time by a finger", "after a hand stop"),
     )
     for selector, claim, moment in steps:
+        if selector == BACK:
+            # THE COMMAND'S PANEL COVERS THE MENU BUTTON: Back, the way a phone
+            # closes it, until the button answers a finger again.
+            for _ in range(3):
+                if await page.evaluate(REACHABLE, MENU):
+                    break
+                await page.go_back()
+                await page.wait_for_timeout(SETTLED)
+            continue
         if not await press(journal, page, selector, claim):
             break
         if moment is not None:

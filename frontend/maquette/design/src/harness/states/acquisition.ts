@@ -7,6 +7,9 @@
 import { applyState, type NamedState } from "../drive";
 import { redraw } from "../../lib/shell-doors";
 
+// How long after the list is drawn the paused fold is opened, as a finger would.
+const OPEN_AFTER = 300;
+
 export function acquisitionStates(): NamedState[] {
   // The store the shell creates and publishes, read when the table is built.
   const store = window.__store;
@@ -96,17 +99,22 @@ export function acquisitionStates(): NamedState[] {
         }),
     ],
     [
-      "acq-follows-pause-empty",
-      "Acquisition · Suivis — « En pause » vide",
-      () =>
+      "acq-follows-paused",
+      "Acquisition · Suivis — « En pause » déplié en fin de liste",
+      () => {
         applyState({
           page: "acq",
           acqTab: "follows",
           followMode: "list",
-          pill: "pause",
+          pill: "tout",
           filter: "",
           phase: "ready",
-        }),
+        });
+        // THE FOLD OPENED THE WAY A FINGER OPENS IT, once the list is drawn.
+        window.setTimeout(() => {
+          document.querySelector<HTMLElement>('[data-part="section/paused"] summary')?.click();
+        }, OPEN_AFTER);
+      },
     ],
     [
       "acq-follows-error",
@@ -114,69 +122,67 @@ export function acquisitionStates(): NamedState[] {
       () => applyState({ page: "acq", acqTab: "follows", phase: "error" }),
     ],
     [
-      "acq-discover",
-      "Acquisition · Découvrir — réserve pleine",
+      "discover-full",
+      "Découvrir — réserve pleine",
       () =>
         applyState({
-          page: "acq",
-          acqTab: "discover",
+          page: "discover",
           tmdb: true,
           phase: "ready",
           sugCount: 30,
         }),
     ],
     [
-      "acq-discover-posters",
+      "discover-posters",
       "Découvrir · affiches",
       () => {
-        applyState({ page: "acq", acqTab: "discover", phase: "ready" });
+        applyState({ page: "discover", phase: "ready" });
         store.write({ sugMode: "poster" });
         redraw();
       },
     ],
     [
-      "acq-discover-deck",
+      "discover-deck",
       "Découvrir · slide cards",
       () => {
-        applyState({ page: "acq", acqTab: "discover", phase: "ready" });
+        applyState({ page: "discover", phase: "ready" });
         store.write({ sugMode: "deck" });
         redraw();
       },
     ],
     [
-      "acq-discover-degraded",
-      "Acquisition · Découvrir — sans compte TMDB",
+      "discover-degraded",
+      "Découvrir — sans compte TMDB",
       () =>
         applyState({
-          page: "acq",
-          acqTab: "discover",
+          page: "discover",
           tmdb: false,
           phase: "ready",
         }),
     ],
     [
-      "acq-discover-exhausted",
-      "Acquisition · Découvrir — réserve épuisée",
+      "discover-exhausted",
+      "Découvrir — réserve épuisée",
       () =>
         applyState({
-          page: "acq",
-          acqTab: "discover",
+          page: "discover",
           tmdb: true,
           phase: "ready",
           sugCount: 999,
         }),
     ],
     [
-      "acq-discover-loading",
-      "Acquisition · Découvrir — chargement",
+      "discover-loading",
+      "Découvrir — chargement",
       () =>
-        applyState({ page: "acq", acqTab: "discover", phase: "loading" }),
+        applyState({ page: "discover", phase: "loading" }),
     ],
     [
       "acq-add-empty",
       "Écran d'ajout — au repos",
       () => {
-        applyState({ page: "acq", phase: "ready" });
+        // THE TAB BENEATH IS PINNED: the driver's reset leaves `acqTab`.
+        applyState({ page: "acq", acqTab: "follows", phase: "ready" });
         window.__screens.add("");
       },
     ],
@@ -184,7 +190,8 @@ export function acquisitionStates(): NamedState[] {
       "acq-add-results",
       "Écran d'ajout — résultats réels",
       () => {
-        applyState({ page: "acq", phase: "ready" });
+        // THE TAB BENEATH IS PINNED: the driver's reset leaves `acqTab`.
+        applyState({ page: "acq", acqTab: "follows", phase: "ready" });
         window.__screens.add("star wars");
       },
     ],
@@ -208,7 +215,7 @@ export function acquisitionStates(): NamedState[] {
       "acq-identify",
       "Recherche en mode IDENTIFIER (depuis une résolution)",
       () => {
-        applyState({ page: "arr", phase: "ready", pipe: "idle" });
+        applyState({ page: "acq", acqTab: "todo", phase: "ready", pipe: "idle" });
         store.write({
           resolveTarget: "Backrooms.2026.MULTi.2160p.WEB-DL",
         });

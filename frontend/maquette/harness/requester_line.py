@@ -10,6 +10,14 @@ THE NAME IS READ FROM THE ANSWER, never printed: the rule renames the seeded
 account at runtime and reads every line follow it. A line composed from a
 constant would read the old name after the rename, and this is where it falls.
 
+A DIRECT ADD LIVED NO RUNG BEFORE « ARRIVÉ » (ruling 4: « une carte née d'une
+arrivée manuelle commence à « arrivé » »). A direct-add card that has ARRIVED
+keeps the eight cells and « n sur 8 », and the four before « arrivé » are drawn
+`skipped` — neither passed nor still to come — and its journey sheet gives them
+no time: a time there would be another medium's, borrowed from the template. A
+direct add still downloading is not read here: it is not a card once the
+download is read where torrents are, and until then it keeps the rungs it has.
+
 The gesture that REASSIGNS a request is not drawn here: it is an act of the
 rights model, and is born with it.
 
@@ -58,7 +66,9 @@ READ = """() => [...document.querySelectorAll('#view [data-part="card"]')]
     const texts = [...card.querySelectorAll('[data-part="card/body"] > span')]
       .map(span => span.textContent);
     const line = card.querySelector('[data-part="card/requester"]');
+    const cells = [...card.querySelectorAll('[data-part="card/strip"] [data-part="card/step"]')];
     return {
+      cells: cells.map(cell => cell.dataset.state),
       title: card.querySelector('[data-part="card/title"]').textContent,
       line: line ? line.textContent : null,
       // THE LAST TEXT LINE, in its body or beside its one foot (ruling 32).
@@ -66,6 +76,21 @@ READ = """() => [...document.querySelectorAll('#view [data-part="card"]')]
         || (texts.length ? texts[texts.length - 1] === line.textContent : false)),
     };
   })"""
+
+
+# The rungs before « arrivé », by their keys, in the ladder's order.
+BEFORE_ARRIVAL = ("requested", "searched", "grabbed", "downloading")
+RUNG_WORDS = WORDS["surfaces"]["ladder"]["rungs"]
+# The mark of a time nobody recorded.
+NO_TIME = "—"
+SHEET = """() => [...document.querySelectorAll('#sheet[data-open] [data-part="key-value"]')]
+  .map(row => ({
+    name: row.firstElementChild.textContent,
+    value: row.lastElementChild.textContent.trim(),
+    // THE TONE READ BY VALUE: the sheet emits it computed, and the one literal
+    // emitter of this value went with the Arrivées page.
+    done: row.querySelector('[data-part="status-dot"]')?.dataset.tone === 'success',
+  }))"""
 
 
 def line_for(name, via):
@@ -87,16 +112,40 @@ async def main():
                 "(id)=>{try{window.__go(id);return null}catch(error){return String(error)}}", state)
             journal.check(f"the named state {state} exists", answer is None, answer or "")
             await page.wait_for_timeout(SETTLED)
-            cards += await page.evaluate(READ)
+            drawn = await page.evaluate(READ)
+            cards += drawn
+            # EACH DIRECT ADD READ IN THE STATE THAT DREW IT, card and sheet.
+            for card in drawn:
+                arrived = len(card["cells"]) > len(BEFORE_ARRIVAL) and card["cells"][len(BEFORE_ARRIVAL)] != "pending"
+                if card["line"] != line_for(ACCOUNT, "qbittorrent") or not arrived:
+                    continue
+                before = card["cells"][:len(BEFORE_ARRIVAL)]
+                journal.check(f"« {card['title']} », a direct add, lived no rung before « arrivé »",
+                              len(card["cells"]) == 8 and all(state == "skipped" for state in before),
+                              str(card["cells"]))
+                await page.evaluate(f"()=>window.__panel.produce('journey', {json.dumps(card['title'])})")
+                await page.wait_for_timeout(ACTED)
+                rows = {row["name"]: row for row in await page.evaluate(SHEET)}
+                unlived = [rows.get(RUNG_WORDS[key]) for key in BEFORE_ARRIVAL]
+                journal.check(f"« {card['title']} »: its sheet gives those rungs no time, none passed",
+                              all(row is not None and row["value"] == NO_TIME and not row["done"] for row in unlived),
+                              str(unlived))
+                await page.evaluate("()=>window.__panel.close()")
+                await page.wait_for_timeout(ACTED)
         lined = [card for card in cards if card["title"] not in DROPPED]
         dropped = [card for card in cards if card["title"] in DROPPED]
         journal.check("every acquisition card says its origin, a folder dropped by hand aside",
                       len(lined) >= 6 and all(card["line"] is not None for card in lined),
                       str([card["title"] for card in lined if card["line"] is None]))
+        # ONE SUBJECT, said out loud: the game folder, the second, was never an
+        # acquisition card (the sort files it « autre ») and left the seeds.
         journal.check("a folder dropped by hand draws no requester line",
-                      len(dropped) >= 2 and all(card["line"] is None for card in dropped),
+                      len(dropped) >= 1 and all(card["line"] is None for card in dropped),
                       str([(card["title"], card["line"]) for card in dropped]))
         direct = [card for card in lined if card["line"] == line_for(ACCOUNT, "qbittorrent")]
+        journal.check("direct adds that have arrived are read",
+                      any(len(card["cells"]) > len(BEFORE_ARRIVAL) and card["cells"][len(BEFORE_ARRIVAL)] != "pending"
+                          for card in direct), str([(card["title"], card["cells"]) for card in direct]))
         journal.check("an arrival nobody followed reads « ajouté par <the account>, dans qBittorrent »",
                       bool(direct), str(cards))
         journal.check("every line is one the answer can say, or « origine inconnue »",

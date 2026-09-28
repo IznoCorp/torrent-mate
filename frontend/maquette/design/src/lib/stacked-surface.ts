@@ -132,3 +132,29 @@ export function giveTheEntryBackFirst(isOpen: () => boolean): () => void {
     posed = true;
   };
 }
+
+/**
+ * Counts one surface's history entry into the step home, without replaying the tap.
+ *
+ * FOR A SURFACE WHOSE CONTROLS DIE WITH IT — a screen whose own control leaves
+ * for another page. Giving the entry back first unmounts the screen, and the
+ * replayed tap lands on a detached element no listener hears: the landing
+ * never happens. So this surface is not intercepted: the step home counts its
+ * entry (`stackedSurfaces()`) and walks over it in one traversal.
+ *
+ * Args:
+ *     isOpen: Whether the surface is open right now.
+ *
+ * Returns:
+ *     What to call when the surface has PUSHED an entry of its own.
+ */
+export function countTheEntry(isOpen: () => boolean): () => void {
+  let posed = false;
+  stacked.push(() => {
+    if (!isOpen()) posed = false;
+    return posed;
+  });
+  return () => {
+    posed = true;
+  };
+}

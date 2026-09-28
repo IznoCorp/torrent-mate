@@ -1,12 +1,13 @@
 // What is wanted, and what is being fetched.
 import GRAB_CADENCE from "../seeds/grab-cadence.json";
-import RELEASES from "../seeds/releases.json";
+import { releasesFor } from "./releases-of";
+import { sameItem } from "./same-item";
 import SEARCH_RESULTS from "../seeds/search-results.json";
 import SUGGESTIONS from "../seeds/suggestions.json";
 import { DELETE, GET, PATCH, POST, field, route, text } from "./shared";
 import { launchDetection } from "./pipeline";
 import { arrivalsOf, originOf } from "./staging";
-import { forgetLadder, ladderOf, rungIndex, stripPosition, type Position } from "./ladder";
+import { isVerifiedInPlex, forgetLadder, ladderOf, rungIndex, stripPosition, type Position } from "./ladder";
 import type { components } from "../../contract/types";
 import { stagesOf } from "./acquisition-verbs";
 import { mockState } from "../state";
@@ -26,14 +27,10 @@ const INFORMATIVE = "info";
 
 const BATCH_SIZE = 30;
 
-// WHERE EACH FAMILY STANDS ON THE LADDER when its cards carry no strip: a
-// release found and waiting to be taken, a search that found nothing and will
-// look again, a medium in the library whose Plex check has not come.
+// WHERE A FAMILY STANDS ON THE LADDER when its cards carry no strip: a release
+// found and waiting to be taken.
 const WAITING = "waiting";
-const PENDING = "pending";
 const TAKEABLE_AT: Position = { current: rungIndex("grabbed"), state: WAITING };
-const NOT_FOUND_AT: Position = { current: rungIndex("searched"), state: WAITING };
-const DONE_TODAY_AT: Position = { current: rungIndex("verified"), state: PENDING };
 
 /**
  * A family's cards, each on its ladder.
@@ -60,6 +57,8 @@ function onTheLadder(cards: components["schemas"]["QueueCard"][], at?: Position)
 // The dense body of data, asked for by name.
 const LOADED = "loaded";
 
+const FILM_KIND = "movie"; // A follow of this kind ends alone once confirmed in Plex.
+
 // What a follow the request does not fully describe starts as. Every one of
 // these is a token or a blank, never a value copied off another record.
 const NEWLY_ADDED_STATUS = "pending";
@@ -81,36 +80,6 @@ function followFor(identifier: string) {
   return mockState().follows.find((follow) => follow.title === identifier);
 }
 
-const DECOMPOSED_FORM = "NFD";
-const ACCENT_MARK = /[\u0300-\u036f]/g;
-const SEPARATOR = /[^\p{Ll}\p{Nd}]/gu;
-
-/**
- * A title or a release name reduced to what the two have in common.
- *
- * A RELEASE NAME SPELLS A TITLE WITH DOTS, and without its accents or its
- * punctuation: « L'Odyssée » is `L.Odyssee.2026…`. Compared as written, every
- * title of more than one word matched no release at all — the same list that
- * does not depend on what it is a list of, reached through the spelling.
- *
- * @param spelled A title or a release name.
- * @returns The letters and digits, lower-cased, accents removed.
- */
-function matchingKey(spelled: string): string {
-  return spelled.normalize(DECOMPOSED_FORM).replace(ACCENT_MARK, "")
-    .toLowerCase().replace(SEPARATOR, "");
-}
-
-/**
- * The releases a search for one title turns up.
- *
- * @param title The medium's title, as the interface spells it.
- * @returns Every seeded release whose name carries that title.
- */
-function releasesFor(title: string) {
-  const wanted = matchingKey(title);
-  return RELEASES.filter((release) => matchingKey(String(release.name ?? "")).includes(wanted));
-}
 
 /**
  * The entry a follow is created from, by title: a search result or a suggestion.
@@ -132,7 +101,10 @@ const NO_IDENTITY = "a follow with no provider identity has no sheet";
 /** Every route this subject answers. */
 export function acquisitionRoutes(): MockRoute[] {
   return [
-    route("readFollows", GET, "/api/acquisition/followed", () => mockState().follows),
+    // A FILM'S FOLLOW ENDS ALONE once its last rung, « vérifié dans Plex », is done (ruling 3); a series' never
+    // does. The engine deletes it at DETECTION today, earlier: a demand owed (DESIGN § 6.2).
+    route("readFollows", GET, "/api/acquisition/followed", () =>
+      mockState().follows.filter((follow) => follow.kind !== FILM_KIND || !isVerifiedInPlex(follow.title))),
     route("createFollow", POST, "/api/acquisition/followed", (request) => {
       const state = mockState();
       // BUILT FROM ITS OWN REQUEST, and from nothing else. An earlier version
@@ -258,14 +230,25 @@ export function acquisitionRoutes(): MockRoute[] {
       POST,
       "/api/acquisition/followed/{followedId}/grab",
       (request) => {
-        // THE RELEASE'S NAME, under a field that says so. It answered
-        // `infoHash` with this value, and a release name is not a torrent
-        // digest — the same class of wrong name as calling a run status a
-        // series. The fixture carries no info hash at all, which is what the
-        // demand register asks the backend for.
-        const asked = text(request.body, "releaseName");
-        const taken = RELEASES.find((release) => release.name === asked) ?? RELEASES[0];
-        return { releaseName: taken.name };
+        // THE FOLLOW'S CLAIM, launched: what its last search found and marked
+        // takeable leaves the queue and is in flight. The backend answers the
+        // run it spawned; the layer holds no runner, and answers none.
+        const state = mockState();
+        const asked = request.parameters.followedId;
+        const found = state.takeable.find((card) => card.title === asked);
+        if (found !== undefined) {
+          state.takeable = state.takeable.filter((card) => card !== found);
+          forgetLadder(asked);
+          state.inFlight = [
+            {
+              ...found,
+              strip: [RUNNING_NOW, 0, 0, 0, 0],
+              chip: { tone: INFORMATIVE, text: STARTED_LABEL },
+            },
+            ...state.inFlight,
+          ];
+        }
+        return { runUid: null };
       },
     ),
     route("searchProviders", GET, "/api/acquisition/search", (request: MockRequest) => {
@@ -325,55 +308,24 @@ export function acquisitionRoutes(): MockRoute[] {
       //
       // WHAT DID NOT CHANGE is D7: these are the shapes the running backend
       // answers, seeded from it and not invented. What changed is which of them
-      // this branch admits to holding. The lists in-flight, not-found and done
-      // keep their real-world counterparts, because those ARE a mutation's
+      // this branch admits to holding. The in-flight list keeps its real-world
+      // counterpart, because those ARE a mutation's
       // record — « nothing has moved yet » is true of a run just read off the
       // disk, and filling them would claim movements that never happened.
-      if (request.query.get("scenario") === LOADED) {
-        return {
-          takeable: onTheLadder(state.takeable, TAKEABLE_AT),
-          blocked: onTheLadder(state.blocked),
-          inFlight: onTheLadder(state.inFlight),
-          notFound: onTheLadder(state.notFound, NOT_FOUND_AT),
-          doneToday: onTheLadder(state.doneToday, DONE_TODAY_AT),
-          arrivals: arrivalsOf(true),
-        };
-      }
+      // ONE ITEM, ONE CARD: a follow's folder in the staging area JOINS the
+      // follow's card in flight — the arrivals are composed FIRST, so the item's
+      // ladder is laid where the staging area has it, and the flight drops it.
+      const dense = request.query.get("scenario") === LOADED;
+      const arrivals = arrivalsOf(dense);
+      const inFlight = (dense ? state.inFlight : state.inFlightReel)
+        .filter((card) => !arrivals.some((arrival) => sameItem(arrival, card)));
       return {
         takeable: onTheLadder(state.takeable, TAKEABLE_AT),
         blocked: onTheLadder(state.blocked),
-        inFlight: onTheLadder(state.inFlightReel),
-        notFound: onTheLadder(state.notFoundReal, NOT_FOUND_AT),
-        doneToday: onTheLadder(state.doneReel, DONE_TODAY_AT),
-        arrivals: arrivalsOf(false),
+        inFlight: onTheLadder(inFlight),
+        arrivals,
       };
     }),
-    route(
-      "takeQueued",
-      POST,
-      "/api/acquisition/to-handle/{mediaId}/take",
-      (request) => {
-        // RESTARTING WHAT WAS WAITING. It leaves « à récupérer » and joins
-        // « en vol » at the first step — which is what the strip says, and it
-        // is the engine's own.
-        const state = mockState();
-        const asked = request.parameters.mediaId;
-        const found = state.takeable.find((card) => card.title === asked);
-        if (found === undefined) return { ok: false };
-        state.takeable = state.takeable.filter((card) => card !== found);
-        // Its ladder is laid again from where it now stands.
-        forgetLadder(asked);
-        state.inFlight = [
-          {
-            ...found,
-            strip: [RUNNING_NOW, 0, 0, 0, 0],
-            chip: { tone: INFORMATIVE, text: STARTED_LABEL },
-          },
-          ...state.inFlight,
-        ];
-        return { ok: true };
-      },
-    ),
     // THE STAGES THE VERBS MOVE, not the seed itself. This answered the
     // imported list to every journey ever asked for, which was enough while the
     // sheet only displayed them; « Remettre en file » and « Re-scraper » are

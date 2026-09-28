@@ -76,11 +76,6 @@
         "region": "matrice/popover-date",
         "selector": ".eppop",
         "cause": "INTERACTION-GATED: the episode date popover exists in CSS and is mounted by a click. No named state opens it."
-      },
-      {
-        "region": "arrivees/empty",
-        "selector": ".empty",
-        "cause": "WRONG STATE, not dead: `pages/arrivals.tsx:254` renders `.empty` only when the list is empty, and `arr-repos` has arrivals. The region wants a state that empties the list."
       }
     ],
     "neutralise": [
@@ -183,13 +178,9 @@
       "selector": "[data-region=\"library/body\"]",
       "note": "the list or the grid"
     },
-    "arrivals/pilot-bar": {
-      "selector": "[data-region=\"arrivals/pilot-bar\"]",
-      "note": "the pipeline's bar, and the only migrated control that WRITES"
-    },
-    "arrivals/body": {
-      "selector": "[data-region=\"arrivals/body\"]",
-      "note": "the run's health, drawn through the page host"
+    "discover/body": {
+      "selector": "[data-region=\"discover/body\"]",
+      "note": "the « Découvrir » page: what is proposed to follow, as posters, a list or a deck"
     },
     "system/body": {
       "selector": "[data-region=\"system/body\"]",

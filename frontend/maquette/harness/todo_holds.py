@@ -2,8 +2,9 @@
 
 Ruling 7: the tab holds what only his hand unblocks — a medium to resolve, a
 tunnel error awaiting relaunch or abandon, a Plex match to confirm —
-and nothing else. What waits behind a maintenance run, or was set aside by him,
-reads on its own card in « En cours », with its reason. The section a card sits
+and nothing else. What waits behind a maintenance run reads on its own card in
+« En cours », with its reason; what he set aside is folded at the end of the
+tab, outside its count (R226). The section a card sits
 in is a function of its state, never of its origin.
 
 What this holds:
@@ -77,6 +78,10 @@ async def main():
         # too, answered on the match and never by « Résoudre ».
         to_resolve = [card for card in todo if card["title"] != TUNNEL_ERROR["title"] and not card["plex"]]
         matches = [card for card in todo if card["plex"]]
+        # RE-AIMED OUT LOUD: only a DISAGREEING match waits, and no real row
+        # carries one — the match is read on the state that poses it.
+        await go(page, journal, "acq-card-plex-disagrees")
+        matches = [card for card in await page.evaluate(CARDS) if card["plex"]]
         journal.check("a Plex match to confirm is in the tab, and never offers « Résoudre »",
                       bool(matches) and not any(card["resolve"] for card in matches),
                       str([(card["title"], card["resolve"]) for card in matches]))

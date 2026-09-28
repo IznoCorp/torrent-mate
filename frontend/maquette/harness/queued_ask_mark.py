@@ -25,15 +25,21 @@ rather than blurred:
     a producer or a verb directly, so what is measured is the path and not just
     the drawing at the end of it.
   · **The BUSY-NESS is arranged**, through `/api/pipeline/run` and the store's
-    own `pipe`, because `window.__go` re-seeds the layer: a pipeline started by
-    a finger on Arrivées BEFORE the state is driven is idle again by the time
-    the act lands. R125 paid for that ordering.
+    own `pipe`, because `window.__go` re-seeds the layer: a pipeline started
+    BEFORE the state is driven is idle again by the time the act lands. R125
+    paid for that ordering.
 
-**The operator's own path does not need any of that**, and it is written in
-DESIGN beside B-352's paragraph: from Arrivées he starts the pipeline with the
-button that is already there, then opens a follow and asks for a season. The
-layer answers `queued` because `pipelineState` is not idle — the same fact this
-rule arranges — so what he sees by hand is what this rule reads.
+**The operator's own path does not need any of that**: he starts a
+maintenance command from Maintenance, then opens a follow and asks for a season
+(R185 walks it by finger). The layer answers `queued` because `pipelineState` is
+not idle — the same fact this rule arranges — so what he sees by hand is what
+this rule reads. RE-AIMED OUT LOUD: that path started from Arrivées' launch
+button, which died with the bar.
+
+THE SCREEN HALF IS SYSTÈME'S LEVERS (B-514). The hold « the interface agrees
+the machine is busy » read the layer twice once the arrivals bar's own `pipe`
+key was deleted. It now reads what a person sees: Système's levers offer
+« Mettre tout en pause » only while something runs.
 
 NO NAMED STATE, and it was B-352: the named-state table was grandfathered AT its
 record when this rule was written, so the pastille got no state and the oracle
@@ -87,8 +93,17 @@ RUN_THE_PIPELINE = """async()=>{
 # AND THE INTERFACE IS ASKED WHETHER IT AGREES. Two different questions: the
 # LAYER decides whether an ask is queued, the SCREEN decides whether the
 # operator can see that it is busy. A hold on one alone passes while the other
-# says the opposite.
-DRAWN_AS_BUSY = """async ()=>(await (await fetch('/api/pipeline/status')).json()).state"""
+# says the opposite. The screen is Système's levers, drawn and read, then the
+# follows put back.
+DRAWN_AS_BUSY = """async ()=>{
+  window.__store.write({page: 'sys'});
+  window.__store.touch();
+  await new Promise((done) => setTimeout(done, 800));
+  const busy = !!document.querySelector('#view [data-part="levers/pause"]');
+  window.__store.write({page: 'acq', acqTab: 'follows'});
+  window.__store.touch();
+  await new Promise((done) => setTimeout(done, 800));
+  return busy ? "running" : "idle";}"""
 
 # THE MEDIUM WITH A HOLE, among the rows actually drawn — a subject the panel
 # can be raised on AND that has something to ask for.

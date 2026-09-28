@@ -90,6 +90,26 @@ export function useSchedulersDown(schedulers: Fact[]): Fact[] {
 }
 
 /**
+ * The stopped service's words, from the interface's resources.
+ *
+ * Shared by the page's replay and by Système's badge, so what the page draws
+ * stopped is what the badge counts — one derivation.
+ *
+ * Args:
+ *     t: The translation function in force.
+ *
+ * Returns:
+ *     The name of the service drawn down, and the words it wears.
+ */
+export function serviceDownWords(t: (key: string) => string): OverdueWords {
+  return {
+    label: t("screens.system.serviceDownLabel"),
+    value: t("screens.system.serviceDownValue"),
+    secondaryLine: t("screens.system.serviceDownLine"),
+  };
+}
+
+/**
  * Reads the stopped service's words from the interface's resources and applies them.
  *
  * Args:
@@ -100,9 +120,5 @@ export function useSchedulersDown(schedulers: Fact[]): Fact[] {
  */
 export function useServicesDown(services: Fact[]): Fact[] {
   const { t } = useTranslation();
-  return withOneRowDown(services, {
-    label: t("screens.system.serviceDownLabel"),
-    value: t("screens.system.serviceDownValue"),
-    secondaryLine: t("screens.system.serviceDownLine"),
-  });
+  return withOneRowDown(services, serviceDownWords(t));
 }

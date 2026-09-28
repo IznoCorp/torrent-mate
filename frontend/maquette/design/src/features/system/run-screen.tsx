@@ -265,7 +265,8 @@ function RunBody({ run }: { run: RunDetail }): ReactElement {
       <button
         className={crossReference()}
         data-part="cross-reference"
-        data-go="arr"
+        data-go="acq"
+        data-dial="todo"
       >
         {t("screens.run.leftBehind")}
         <span className={crossReferenceLink()}>

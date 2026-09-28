@@ -137,18 +137,6 @@
       "answers": "QueueCard[]",
       "file": "in-flight"
     },
-    "NOTFOUND": {
-      "answers": "QueueCard[]",
-      "file": "not-found-loaded"
-    },
-    "NOTFOUND_REAL": {
-      "answers": "QueueCard[]",
-      "file": "not-found"
-    },
-    "DONE_TODAY": {
-      "answers": "QueueCard[]",
-      "file": "done-today"
-    },
     "STUCK": {
       "answers": "QueueCard[]",
       "file": "stuck-loaded"

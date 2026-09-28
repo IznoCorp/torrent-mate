@@ -11,12 +11,12 @@ import { rootRoute } from "./root-route";
 import { accountRoute } from "../routes/account";
 import { acquisitionRoute } from "../routes/acquisition";
 import { addRoute } from "../routes/add";
-import { arrivalsRoute } from "../routes/arrivals";
 import { rootAddressRoute } from "../routes/index";
 import { libraryRoute } from "../routes/library";
 import { maintenanceRoute } from "../routes/maintenance";
 import { settingsRoute } from "../routes/settings";
 import { systemRoute } from "../routes/system";
+import { discoverRoute } from "../routes/discover";
 import { mediaRoute } from "../routes/media-sheet";
 import { runRoute } from "../routes/run";
 import { qualityRoute } from "../routes/quality";
@@ -66,7 +66,7 @@ export const router = createRouter({
     rootAddressRoute,
     acquisitionRoute,
     libraryRoute,
-    arrivalsRoute,
+    discoverRoute,
     systemRoute,
     maintenanceRoute,
     settingsRoute,

@@ -5,7 +5,7 @@
 // each feature's table; each feature's table imported the type back, and
 // `check-frontend-boundaries.py` printed the loop:
 //
-//     app/live-updates.ts → features/arrivals/live.ts → app/live-updates.ts
+//     app/live-updates.ts → features/system/live.ts → app/live-updates.ts
 //
 // A cycle makes every OTHER dependency rule unenforceable, because the cycle IS
 // the violation. A type has no reason to sit with its consumer: `lib/` is where

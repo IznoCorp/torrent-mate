@@ -10,9 +10,13 @@ from playwright.async_api import async_playwright
 # set of words for one set of screens. The SELECTOR beside it is an address and
 # is untouched.
 VIEWS = [("acq/now",'[data-page="acq"]'), ("acq/follows",'[data-acqtab="follows"]'),
-         ("acq/discover",'[data-acqtab="discover"]'), ("lib/categories",'[data-page="lib"]'),
+         # RE-AIMED OUT LOUD: « Découvrir » is a page of the bar.
+         ("discover",'#nav [data-page="discover"]'), ("lib/categories",'[data-page="lib"]'),
          ("lib/incomplete",'[data-lens="inc"]'), ("lib/recent",'[data-lens="rec"]'),
-         ("arrivals",'[data-page="arr"]'), ("system",'[data-page="sys"]')]
+         # RE-AIMED OUT LOUD: Arrivées leaves; its successor is « À traiter ».
+         ("acq/todo",['[data-page="acq"]','[data-acqtab="todo"]']),
+         # RE-AIMED OUT LOUD: Système left the tab bar (ruling 15) — the menu, then its entry.
+         ("system",['[data-drawer]','#drawer [data-navgo="sys"]'])]
 
 async def main():
   async with async_playwright() as p:
@@ -47,7 +51,8 @@ async def main():
     await pg.evaluate("()=>document.querySelector('#toastx').click()")
     bad = 0
     for name, sel in VIEWS:
-        await pg.click(sel); await pg.wait_for_timeout(420)
+        for step in (sel if isinstance(sel, list) else [sel]):
+            await pg.click(step); await pg.wait_for_timeout(420)
         r = await pg.evaluate("""()=>{
           const v=document.querySelector('#view');
           return {content: v.textContent.replace(/\\s+/g,' ').trim().length,

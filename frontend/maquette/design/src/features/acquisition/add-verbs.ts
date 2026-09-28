@@ -47,7 +47,7 @@ function identify(result: SearchResult): void {
   }
   queueActions?.resolve(target, title);
   redraw();
-  toast?.show({ message: i18next.t("verbs.arrivals.resolved", { choice: title }) });
+  toast?.show({ message: i18next.t("verbs.acquisition.resolved", { choice: title }) });
   toast?.show({
     message: i18next.t("verbs.acquisition.identified", { target: baseTitle(target), title }),
   });

@@ -43,7 +43,7 @@ from common import ACTED, Journal, PANEL_IN, SETTLED, open_page
 from playwright.async_api import async_playwright
 
 # WHERE THE SUGGESTIONS ARE DRAWN.
-DECK_STATE = "acq-discover"
+DECK_STATE = "discover-full"
 
 # WHAT THE DECK CONSIDERS SPENT — the positions it consults when it rebuilds.
 SPENT = "()=>[...(window.__store?.read().state.sugGone || [])]"

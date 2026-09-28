@@ -27,14 +27,15 @@ import "../features/account/verbs";
 import "../features/maintenance/panel-action";
 import "../features/library/panel-sort";
 import "../features/acquisition/panels";
-// Arrivals contributes no PANEL — it contributes the pipeline's two commands,
-// and the boot is where a side effect is named whatever it is.
-import "../features/arrivals/verbs";
 // Acquisition contributes the verb `data-take` reads (B-309) and the candidates
 // screen's verbs.
 import "../features/acquisition/resolution-verbs";
 // And « Abandonner », which opens its confirmation before anything is sent.
 import "../features/acquisition/abandon-verb";
+// And « Supprimer », a folder set aside deleted after its confirmation.
+import "../features/acquisition/delete-set-aside-verb";
+// And « Ce n'est pas un média », its choice of destinations and its verb.
+import "../features/acquisition/not-media-verb";
 // And the release picker contributes its own — `data-pick-release`, declared
 // to the tap registry. It is named beside the take verb because the two
 // used to be ONE attribute read by two branches, and telling them apart by

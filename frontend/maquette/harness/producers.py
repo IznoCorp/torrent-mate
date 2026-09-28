@@ -42,6 +42,12 @@ keys. The holds and what they compare are unchanged.
 RE-AIMED when the library, the maintenance actions and the account took the
 contract's names: a maintenance action's label is read as `label`, where they
 were the engine's short keys. The holds and what they compare are unchanged.
+
+GROWN OUT LOUD: `not-media` — « Ce n'est pas un média »'s choice of
+destinations — is a kind BORN in its feature, not moved; it joins the expected
+list, and R228 (`not_a_media.py`) drives it by finger and reads its actions
+against the configuration the layer answers. It is not in DRIVEN: its producer
+answers null until the destinations are read, which is the verb's to ask.
 """
 import asyncio
 import pathlib
@@ -57,7 +63,7 @@ from playwright.async_api import async_playwright
 # appears without being written here is a registration nobody declared, and a
 # kind written here that is missing is a producer that stopped answering.
 MOVED = ("account", "action", "journey", "more", "secret", "setting", "sort",
-         "suggestion", "add", "follow")
+         "suggestion", "add", "follow", "not-media")
 
 # What each kind is driven with, and what the panel must then say about it. The
 # expected title is read from the PROTOTYPE's own data at run time — the third

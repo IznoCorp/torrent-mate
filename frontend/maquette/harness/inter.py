@@ -64,7 +64,8 @@ async def main():
 
     print("── Découvrir: batch, panel, drag, undo ──")
     await pg.evaluate("""()=>document.querySelector('[data-part="dialog/button"][data-dialog-dismiss]').click()"""); await pg.wait_for_timeout(300)
-    await pg.click('[data-page="acq"]'); await pg.click('[data-acqtab="discover"]'); await pg.wait_for_timeout(450)
+    # RE-AIMED OUT LOUD: « Découvrir » is a page of the bar.
+    await pg.click('#nav [data-page="discover"]'); await pg.wait_for_timeout(450)
     print("  initial batch   :", await pg.evaluate("""()=>document.querySelectorAll('[data-part="suggestion/wrap"]').length"""))
     await pg.evaluate(SW, ["[data-dismissable='0']", 1, 9])
     print("  after right swipe:", await pg.evaluate("""()=>document.querySelectorAll('[data-part="suggestion/wrap"]').length"""))
