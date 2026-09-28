@@ -506,3 +506,6 @@ L22b appends from 13).
   run (the address hold reads `location.pathname` stays « /arrivals »). `47b-a11y.log` 0 + light 88/88 (130 states).
 - 2026-09-28 stood down after 47b (the steward's order at ~55 %; measured 50 %): the audit2 pilot killed (`ps`: 0
   series/audit2run processes), branch 1–7 / main 1–6 all 0 violations; next: the map on the operator's word, then 48.
+- 2026-09-28 the stand-down push was refused once by the pre-push pytest: tests/scripts/test_check_frame_domain.py
+  sampled `arrivals`/`arr` from the derived vocabulary, which left with the page → RE-AIMED OUT LOUD onto
+  `library`/`lib` (2b9d5833d). Pushed; pilot killed; no process of mine left.
