@@ -5,6 +5,8 @@ land on the default-tab rule round 7 wrote, not on « the default tab »; `toArr
 screen's sentence no longer promises a card reading « cherché, rien trouvé » — it edits i18n); F53 if this phase re-aims
 R-L22-g / R-L22-j first (the Backrooms row; the Spider-Man game out of the seeds and the count; check `doc_fr_2026_final`).
 
+**Amended 2026-09-28 (L22b, at its opening, steward accepted):** re-measured ≈ 17 on `5cbd8f192` (F7 needs a landing on a NAMED tab, which `data-go` cannot ask: `app/frame-verbs.ts` `go` → `resetLandingDial(page)` → the remembered tab) → CUT into **38** (the sentences, F54, « En cours »'s cross-reference dies, the two Système cross-references land on Acquisition; R239) and **39** (F7: both land on « À traiter » through a dial the control carries, the frame naming no tab; the rest +1, 40–45).
+
 **Opening measure (2026-09-26, on `94a369879`):**
 
 - **Commands.** `git grep -n -F 'data-go="arr"' -- frontend/maquette/design/src` → **3 emitters**:
