@@ -9,12 +9,15 @@ L22b appends from 13).
   origin/main 665788a90 (#624) is an ancestor (8a9500c43) — nothing to merge until main moves again. Steward `Orch : TM
   frontend [84baa3]` since the reboot of 2026-09-28 05:00.
 - Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b`.
-- DONE: 15a–44 (the ledger says each; the MIDPOINT after 30). NEXT: **45**, see below. From 45 on (steward, after
-  38/43/44 each missed states under a layer): the oracle's DECLARED list is built BY SCRIPT before the gate — every state
-  whose `applyState` draws the touched page/world (`scen`, page in harness/states/*.ts), layers included (RULINGS 23).
-  The phases (the steward's correction, 2026-09-28 — the list had LOST the readers phase;
-  REBUILD it from `ls plan/` at every cut, never from memory): 45 readers, identity and launch bar (file phase-40, ≈ 15,
-  OPEN 6 = A, nothing done; its own cut rule: journey.py + common.py apart) → 46 the live rule Système was borrowing
+- DONE: 15a–45a (the ledger says each). NEXT: **45b** (the identity readers: back, sweep, url_state, journey + common's
+  ARRIVALS, R138's and R67's sentences; ≈ 7). From 45 on (steward, after 38/43/44 each missed states under a layer):
+  the oracle's DECLARED list is built BY SCRIPT before the gate — every state whose `applyState` draws the touched
+  page/world (`scen`, page in harness/states/*.ts), layers included (RULINGS 23). B-559 is `fixing` → `fixed #<PR>` at
+  the pull request. AUDIT2 SERIES (order 48, after 44's R11 fall): pilot `series2.sh` in the scratchpad, log
+  `44-audit2/series.log`; branch side in `/Users/izno/dev/worktrees/reader-l22b` (ed55084bd), main side in
+  `control-l22b` (665788a90); `touch <scratchpad>/series.pause` holds it between runs (a gate of mine starves behind
+  it otherwise). At a stand-down: kill the pilot (`ps` proof) and write here where it stopped.
+  The phases (REBUILD from `ls plan/` at every cut, never from memory): 45b (file phase-40) → 46 the live rule Système was borrowing
   (phase-41; system/live.ts:95–98's exemptions → check-live-relay.py at its gate) → 47 the death of Arrivées (phase-42,
   F8; R239 reads `navigation.pages.arr` in fr.json at no_sentence_to_arrivals.py:58; page_host.py's 7 « arr » lines) →
   48 the records of a dead page (phase-43) + engine-data.ts's removal (the follows' prefetch declared by its feature,
@@ -423,3 +426,23 @@ L22b appends from 13).
   there), alternating pairs, ≤ 5 pairs per heavy invocation, load < 6 before each, WHOLE output kept in
   `44-audit2/{branch,main}-{1..10}.out`; a fall on the branch alone, or a text from L22b's surfaces = STOP regression;
   the same text on both sides = one more line on B-546.
+- 2026-09-28 phase 45 (file phase-40) re-measured ≈ 15 → CUT by nature (steward approved): 45a the launch walks, 45b
+  the identity. 45a: R185 re-aimed OUT LOUD onto a maintenance command (drawer → Maintenance → « query » →
+  library-status → « Lancer ») then a season → « En file »; the bar's holds (« Lancer » inactive, the 409, the queued
+  pass) died with it, the queued pass is Système's levers-queued (levers.py). R184 (locks.py): the lock taken by that
+  command, « after a hand stop » died with « Arrêter ». R77 (page_host.py): (c-quinquies) read on Système's levers
+  (pause / resume), 11 data-pipe sites → 0, the cold address loses its `bar` conjunct. R66 (arrivals.py, untouched,
+  dies at 47): its pilot's-bar holds went to R184 (the lock by a maintenance command) and R77 (the levers' delegation);
+  its « what really happened » half read the live databases and dies with the page; its stuck cards are R208's.
+  Red `45a-red.log`: R185 and R77 GREEN on the new paths (said), R184 RED — a PRODUCT DEFECT: after a maintenance
+  command Système said « Libre » over the held lock (runAction re-read the pipeline's status, not the locks) → STOP →
+  steward (a) + (a1): B-559 opened `fixing`, fix 7d77f3d8f (the verb re-reads /api/maintenance/locks), after the test
+  commit b3796b4ef. Gate `45a-gate.log` 26 rules (6 named) + 26 guards 0 failed, no divergence (declared: none).
+  Mutations, each FAIL by name: the locks re-read removed → R184 « after a maintenance command: « Verrou du pipeline »
+  says what the locks read answers — 'Libre' » (`45a-mutation-locks.log`); the pastille's mark removed (season-grab.ts)
+  → R185 « the « En file » pastille is PRESENT … 0 mark(s) » (`45a-mutation-pastille.log`); the pause verb's send
+  removed → R77 « a real tap on « Mettre tout en pause » pauses the pipeline » (`45a-mutation-levers.log`). MY FAULT:
+  the first locks mutation ran outside the mutex (refused by the served-copy lock of another run) — every mutate.sh
+  now under `heavy.sh --class browser`; 43's and 44's mutations had also run bare (they found the copy free). The
+  audit2 series starved my gate (the pilot re-takes the mutex at once): pilot stopped after main-4, restarted from
+  branch-5 with a pause flag. Series so far: branch 1–4 and main 1–4, 0 violations each.

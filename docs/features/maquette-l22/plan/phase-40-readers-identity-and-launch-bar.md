@@ -1,5 +1,7 @@
 # Phase 40 — Readers re-aimed: the page's identity and the launch bar
 
+**Amended 2026-09-28 (L22b, at its opening, steward approved):** re-measured ≈ 15 → CUT into **45a** (the launch walks: R185 re-aimed onto a maintenance command then a season, R184's start by that command, R77's delegation read on Système's levers) and **45b** (the identity readers and the two sentences); INDEX's dated line.
+
 **Opening measure (2026-09-26, on `94a369879`):**
 
 - **Commands.** `git grep -n -E 'data-page="arr"|PAGE_PATHS\["arr"\]|ARRIVALS' -- 'frontend/maquette/harness/*.py'` →
