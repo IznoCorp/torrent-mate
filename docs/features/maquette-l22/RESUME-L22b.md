@@ -5,26 +5,24 @@ L22b appends from 13).
 
 ## STATE
 
-- Branch `feat/maquette-l22b`, worktree `/Users/izno/dev/worktrees/wave-l22b`. #619 (L22a) merged in at 7ca978d5e
-  (re-merged three ways on the real fork point 6f0c987a3: 47 conflicts → 6 unions). Steward `Orch : TM frontend
-  [84baa3]` since the reboot of 2026-09-28 05:00 (was [ac1af8]). main has moved (#621, the references' gesture): merge `origin/main` at the next unit boundary — only the
-  generated files conflict; regenerate them (oracle by an accept in one invocation + the script proof; ledgers re-read).
+- Branch `feat/maquette-l22b`, worktree `/Users/izno/dev/worktrees/wave-l22b`. #619 (L22a) merged in at 7ca978d5e;
+  origin/main 665788a90 (#624) is an ancestor (8a9500c43) — nothing to merge until main moves again. Steward `Orch : TM
+  frontend [84baa3]` since the reboot of 2026-09-28 05:00.
 - Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b`.
-- DONE: 15a–42 (the ledger says each; the MIDPOINT after 30). NEXT: **43** F53, measured at
-  stand-down ≈ 12–14: stuck.json's Spider-Man game row out (the real world's « À traiter » count, so the bar badge of
-  nearly every real-world state diverges — accept by name, script proof); R208 card_without_identity.py (FOLDER picked
-  by « Spider-Man ») and R228 not_a_media.py + state acq-resolution-not-media (tunnel.ts:136, openNotMediaChoice on
-  the game) re-aimed onto a dense-world folder the sort typed film/series that no provider identifies (Backrooms);
-  DESIGN:307/319/638 and phases 6/16 by dated lines; doc_fr_2026_final checked the same way → 44 the live
-  rule → 45 (the dead `acq-follows-pause-empty` still in the a11y ledgers) → 46 death of Arrivées (F8) → 47 (+
-  engine-data.ts's removal) → 48 close (F8, F52, F67, C9; product-intent-map.md:49).
-  Files renumbered twice by `git mv`; 29/30 live in phase-28's file, 33 in phase-32's, 39 in phase-38's, 40–43 in phase-39's
-  (44–48 in the files named 40–44). engine-data.ts's removal (the follows' prefetch declared by its feature, drive.ts's
-  `refillEngineData` door re-pointed) is L22b's, at 47.
+- DONE: 15a–43 (the ledger says each; the MIDPOINT after 30). NEXT: **44** (NEW, steward (A) at 43's opening; INDEX's
+  dated line): « doc_fr_2026_final » out of `stuck-loaded.json` — no video file, and `personalscraper/sorter/file_type.py:
+  178–200` types an archive-only folder a film only if its NAME carries a video-release signal, so it is OTHER (ruling 1);
+  its readers re-aimed OUT LOUD: two_picks.py (THIRD_FOLDER), cards.py (42's dense mutation subject), paths_to_sheets.py
+  (« three others wear data-nonmedia »), actions/ident (first nonmedia « Résoudre »), the dense states' oracle; measured
+  ≈ 5–6 — RE-MEASURE at the opening. Then 45 the live rule → 46 (the dead `acq-follows-pause-empty` in the a11y ledgers)
+  → 47 death of Arrivées (F8) → 48 (+ engine-data.ts's removal) → 49 close (F8, F52, F67, C9; product-intent-map.md:49).
+  Phase files: 44 has none (INDEX's dated line is its spec); 45–49 live in the files named 40–44.
+  engine-data.ts's removal (the follows' prefetch declared by its feature, drive.ts's `refillEngineData` door
+  re-pointed) is L22b's, at 48.
   Each re-measured at its opening; > 15 → cut. (The machine rebooted Monday 2026-09-28 05:00: re-verify the state.)
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (21) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (22) R233 ·
-  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · (38) R239 no_sentence_to_arrivals · next free R240. Oracle pin 136. RULINGS: L22b wrote 13–29 (all used; a new one takes 33); L22a's round wrote 30–32.
+  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · (38) R239 no_sentence_to_arrivals · next free R240. Oracle pin 136. RULINGS: L22b wrote 13–29, L22a's round 30–32; a new one takes 33.
 - AUDITOR ORDER 48 (amended): a fall set aside as « load » needs the same rule ≥ 10× here and ≥ 10× on `main` at
   comparable load; any gap is a regression.
 - LOGS `~/Library/Logs/tm-l22b/`; mutex `sh scripts/heavy.sh --held`. GATE: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh
@@ -376,3 +374,27 @@ L22b appends from 13).
   `42-a11y.log` 0 + light 88/88 (136 states).
 - 2026-09-28 stood down after phase 42 (the context hook's gate is 60 %: 50.5 measured + phase 43's ≈ 10 would cross
   it; the steward's order). Next unit: phase 43 (F53), for a fresh session; its measure is in the STATE.
+- 2026-09-28 (successor « Agent : l22b 6 ») phase 43 (F53), re-measured ≈ 13; STOP D at the opening: « check
+  doc_fr_2026_final the same way » found the same case → steward (A), verified in the engine (file_type.py:178–200):
+  a NEW phase 44 for it, the rest 45–49 (INDEX dated line). Red `43-red.log`: R208 re-aimed OUT LOUD onto Backrooms (dense
+  world) FAIL ×7, among them the new hold « acq-todo-loaded: « À traiter » draws no folder the sort filed as no medium —
+  ['Marvels.Spider-Man…'] » (the non-media destinations' staging folders, `{id:03d}-{NAME}` of staging-destinations.json);
+  R228 re-aimed OUT LOUD onto Backrooms, GREEN before the move (its subject changed, not its verdict — the steward asked
+  for a named mutation, below). Commit f425ecb10 (seed row out; acq-card-no-identity and acq-resolution-not-media draw the
+  dense world). Gate 1 `43-gate.log` fell ×3, readers of the game folder → 7a99a4c8f, re-aimed OUT LOUD: page_host.py's
+  « arr » floor 140 → 130 (measured 135; steward accepted); R207 one_ladder.py and R212 requester_line.py required ≥ 2
+  folders dropped by hand → ≥ 1 — A WEAKENING, said so (steward's reserve): the plurality protected a defect seen only
+  from a second card — the « arrivé » start not being an accident of ONE strip (the game's [1, blocked] and Top Chef's
+  [1, 1, blocked] stood at different strip positions) nor of the first card laid. MEASURED: no surface shows two folders
+  dropped by hand any more — stuck.json holds Top Chef alone, stuck-loaded.json doc_fr_2026_final alone (read by neither
+  rule's states) and it leaves at 44; after 44 Top Chef is the only one in every seed. The limit is NAMED: the plurality
+  cannot be read on the operator's data. STOP A: 32 divergences = 16 states × 2 regions, one cause — the real world's
+  « À traiter » and the Arrivées page lose the game's card; arr-idle / arr-queued / arr-running were NOT in my
+  announcement (same cause) → steward (A). Gate 2 `43-gate2.log` 55 rules (38 named) + 26 guards 0 failed; `oracle.py
+  --accept` takes no names — the whole-file accept ran in the run's invocation (`43-accept.log`), then a script proved
+  exactly the 16 moved and wrote HEAD's reference with them (`43-accept-proof.log`) → 0c6ff1369, pin 136 unchanged.
+  `43-final.log` no divergence; `43-a11y.log` 0 + light 88/88 (136 states). Mutations, each FAIL by name: the
+  reclassification skips the dense list → R228 « the card is in neither « À traiter » nor « En cours » » (`43-mutation.log`;
+  on the game it would not have fallen); the game row put back → R208 « acq-todo-loaded: « À traiter » draws no folder the
+  sort filed as no medium » (`43-mutation-r208.log`). DESIGN §§ 2.2 item 2 and « Ce n'est pas un média » on real data,
+  phases 6 and 16: one dated line each.

@@ -326,6 +326,8 @@ and the guard is what reads them (an earlier lot's plan cites a `build-mock-seed
    Plex owner by construction (§ 17: « les demandes existantes … sont attribuées au compte propriétaire du
    serveur Plex »).
 
+> **Amended 2026-09-28, F53 (L22b phase 43):** the game folder « Marvels.Spider-Man.2.v1.526.0.FRENCH-Mephisto » was filed by the sort under 098-AUTRES — a folder with no video is « autre », and ruling 1 keeps « autre » out of the acquisitions — so it was never an acquisition card and left `stuck.json`; R-L22-g (R208) and R-L22-j (R228), `acq-card-no-identity` and `acq-resolution-not-media` read « Backrooms.2026.MULTi.2160p.WEB-DL » (dense world), a folder the sort typed as a medium that no provider identifies. « doc_fr_2026_final » is the same case and leaves at phase 44.
+
 The mocks MOVE (D7 — « a mock that answers without moving certifies nothing »): a resolution removes the
 card from « À traiter » and adds it to the ladder at its next rung; a reclassification removes it from the
 acquisitions; « Laisser tel quel » moves it to « En cours » with its reason; « Confirmer » on a Plex match moves the
@@ -638,6 +640,8 @@ the optimistic write the layer makes is a different one. R-L22-i reads that the 
 **« Ce n'est pas un média » on real data.** `stuck.json` carries « Marvels.Spider-Man.2.v1.526.0.FRENCH-Mephisto » —
 « c'est un jeu, pas un média » — the operator's own case. The rule (R-L22-j) is walked on it and reads the
 NETWORK: the reclassification operation answered, then the card gone.
+
+> **Amended 2026-09-28, F53 (L22b phase 43):** the game folder « Marvels.Spider-Man.2.v1.526.0.FRENCH-Mephisto » was filed by the sort under 098-AUTRES — a folder with no video is « autre », and ruling 1 keeps « autre » out of the acquisitions — so it was never an acquisition card and left `stuck.json`; R-L22-g (R208) and R-L22-j (R228), `acq-card-no-identity` and `acq-resolution-not-media` read « Backrooms.2026.MULTi.2160p.WEB-DL » (dense world), a folder the sort typed as a medium that no provider identifies. « doc_fr_2026_final » is the same case and leaves at phase 44.
 
 **The return (ruling 8, D1b).** After any exit the operator is back on « À traiter », the tab open,
 whichever way the screen was reached. Opened from the list, that is the pop of D1b rule 1; opened cold, the

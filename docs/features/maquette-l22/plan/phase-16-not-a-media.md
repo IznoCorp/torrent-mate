@@ -1,5 +1,7 @@
 # Phase 16 — « Ce n'est pas un média »
 
+**Amended 2026-09-28 (L22b phase 43, F53):** the game folder was « autre » for the sort, never an acquisition card; it left `stuck.json`, and this phase's rule and state now read « Backrooms.2026.MULTi.2160p.WEB-DL » in the dense world.
+
 **Opening measure (2026-09-26, on `94a369879`):**
 
 - **Commands.** The exits of the candidates screen today (`resolution-screen.tsx`, after phase 2 in Acquisition): pick,
