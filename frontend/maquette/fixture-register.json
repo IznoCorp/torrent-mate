@@ -44,7 +44,7 @@
     },
     "BLOCKED": {
       "class": "served",
-      "why": "arrivals — what is blocked, with the reason",
+      "why": "Acquisition, « À traiter » — what is blocked, with the reason",
       "seed": null,
       "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
@@ -76,13 +76,13 @@
       "class": "interface",
       "why": "the tone and the French name of each decision state",
       "seed": null,
-      "converted": "L13r phase r·1 — the engine's copy died; its home is `DECISION_STATE_TONE` and `screens.resolution.decisionState`, said by `decisionState` in `features/arrivals/decision-vocabulary.ts`"
+      "converted": "L13r phase r·1 — the engine's copy died; its home is `DECISION_STATE_TONE` and `screens.resolution.decisionState`, said by `decisionState` in `features/acquisition/decision-vocabulary.ts`"
     },
     "DECISION_STATE_DETAIL": {
       "class": "interface",
       "why": "the sentence that explains each decision state",
       "seed": null,
-      "converted": "L13r phase r·1 — the engine's copy died; its home is `screens.resolution.decisionStateDetail` in fr.json, said by `decisionStateDetail` in `features/arrivals/decision-vocabulary.ts`"
+      "converted": "L13r phase r·1 — the engine's copy died; its home is `screens.resolution.decisionStateDetail` in fr.json, said by `decisionStateDetail` in `features/acquisition/decision-vocabulary.ts`"
     },
     "DEPENDENCIES": {
       "class": "served",
@@ -164,7 +164,7 @@
     },
     "INFLIGHT": {
       "class": "served",
-      "why": "arrivals — what is in flight",
+      "why": "Acquisition, « En cours » — what is in flight",
       "seed": null,
       "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
@@ -286,19 +286,19 @@
       "class": "interface",
       "why": "the sentence that explains each reason",
       "seed": null,
-      "converted": "L13r phase r·1 — the engine's copy died; its home is `screens.resolution.reasonDetail` in fr.json, said by `reasonDetail` in `features/arrivals/decision-vocabulary.ts`"
+      "converted": "L13r phase r·1 — the engine's copy died; its home is `screens.resolution.reasonDetail` in fr.json, said by `reasonDetail` in `features/acquisition/decision-vocabulary.ts`"
     },
     "REASON_LABEL": {
       "class": "interface",
       "why": "the French name of each decision reason",
       "seed": null,
-      "converted": "L13r phase r·1 — the engine's copy died; its home is `screens.resolution.reason` in fr.json, said by `reasonLabel` in `features/arrivals/decision-vocabulary.ts`"
+      "converted": "L13r phase r·1 — the engine's copy died; its home is `screens.resolution.reason` in fr.json, said by `reasonLabel` in `features/acquisition/decision-vocabulary.ts`"
     },
     "REASON_TONE": {
       "class": "interface",
       "why": "which tone each reason wears",
       "seed": null,
-      "converted": "L13r phase r·1 — the engine's copy died; its home is `REASON_TONE` in `features/arrivals/decision-vocabulary.ts`"
+      "converted": "L13r phase r·1 — the engine's copy died; its home is `REASON_TONE` in `features/acquisition/decision-vocabulary.ts`"
     },
     "RECENT": {
       "class": "served",
@@ -440,7 +440,7 @@
     },
     "TAKEABLE": {
       "class": "served",
-      "why": "arrivals — what is ready to be grabbed",
+      "why": "Acquisition, « À traiter » — what is ready to be grabbed",
       "seed": null,
       "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
@@ -472,7 +472,7 @@
       "class": "interface",
       "why": "how a decision was reached, said in French",
       "seed": null,
-      "converted": "L13r phase r·1 — the engine's copy died; its home is `screens.resolution.via` in fr.json, said by `viaLabel` in `features/arrivals/decision-vocabulary.ts`"
+      "converted": "L13r phase r·1 — the engine's copy died; its home is `screens.resolution.via` in fr.json, said by `viaLabel` in `features/acquisition/decision-vocabulary.ts`"
     },
     "icons": {
       "class": "interface",

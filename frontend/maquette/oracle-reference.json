@@ -4,7 +4,7 @@
   "platform": "Darwin/arm64",
   "counts": {
     "states": 130,
-    "regions": 39
+    "regions": 37
   },
   "measurements": {
     "acq-abandon-confirm": {
@@ -70,8 +70,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -517,8 +515,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -993,8 +989,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -1440,8 +1434,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -1858,8 +1850,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -2276,8 +2266,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -2694,8 +2682,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -3112,8 +3098,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -3530,8 +3514,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -3948,8 +3930,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -4337,8 +4317,6 @@
         }
       },
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": {
         "matches": 1,
         "rect": {
@@ -4755,8 +4733,6 @@
         }
       },
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": {
         "matches": 1,
         "rect": {
@@ -5173,8 +5149,6 @@
         }
       },
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": {
         "matches": 1,
         "rect": {
@@ -5591,8 +5565,6 @@
         }
       },
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": {
         "matches": 1,
         "rect": {
@@ -6009,8 +5981,6 @@
         }
       },
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": {
         "matches": 1,
         "rect": {
@@ -6427,8 +6397,6 @@
         }
       },
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": {
         "matches": 1,
         "rect": {
@@ -6903,8 +6871,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -7350,8 +7316,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -7797,8 +7761,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -8244,8 +8206,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -8691,8 +8651,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -9109,8 +9067,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -9556,8 +9512,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -9974,8 +9928,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -10392,8 +10344,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -10810,8 +10760,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -11228,8 +11176,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -11675,8 +11621,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -12093,8 +12037,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -12540,8 +12482,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -12958,8 +12898,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -13405,8 +13343,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -13852,8 +13788,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -14212,8 +14146,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": {
         "matches": 1,
@@ -14717,8 +14649,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -15106,8 +15036,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -15582,8 +15510,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -16058,8 +15984,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -16534,8 +16458,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -17010,8 +16932,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -17486,8 +17406,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -17962,8 +17880,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": {
         "matches": 1,
@@ -18525,8 +18441,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": {
         "matches": 1,
@@ -19088,8 +19002,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": {
         "matches": 1,
@@ -19651,8 +19563,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": {
         "matches": 1,
@@ -20214,8 +20124,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": {
         "matches": 1,
@@ -20777,8 +20685,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": {
         "matches": 1,
@@ -21282,8 +21188,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": {
         "matches": 1,
@@ -21845,8 +21749,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": {
         "matches": 1,
@@ -22408,8 +22310,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": {
         "matches": 1,
@@ -22942,8 +22842,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": {
         "matches": 1,
@@ -23505,8 +23403,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": {
         "matches": 1,
@@ -24068,8 +23964,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": {
         "matches": 1,
@@ -24631,8 +24525,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -25107,8 +24999,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -25583,8 +25473,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -26059,8 +25947,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -26535,8 +26421,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -27011,8 +26895,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -27400,8 +27282,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -27789,8 +27669,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -28178,8 +28056,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -28567,8 +28443,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": {
         "matches": 1,
@@ -29159,8 +29033,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": {
         "matches": 1,
@@ -29751,8 +29623,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": {
         "matches": 1,
@@ -30343,8 +30213,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": {
         "matches": 1,
@@ -30964,8 +30832,6 @@
         }
       },
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": {
         "matches": 1,
         "rect": {
@@ -31411,8 +31277,6 @@
         }
       },
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": {
         "matches": 1,
         "rect": {
@@ -31829,8 +31693,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": {
         "matches": 1,
@@ -32392,8 +32254,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": {
         "matches": 1,
@@ -32955,8 +32815,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -33373,8 +33231,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -33791,8 +33647,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -34209,8 +34063,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -34627,8 +34479,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -35045,8 +34895,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -35463,8 +35311,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -35823,8 +35669,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -36328,8 +36172,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -36833,8 +36675,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -37338,8 +37178,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -37843,8 +37681,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -38348,8 +38184,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -38853,8 +38687,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -39329,8 +39161,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -39805,8 +39635,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -40368,8 +40196,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -40844,8 +40670,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -41233,8 +41057,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -41622,8 +41444,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -42040,8 +41860,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -42429,8 +42247,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -42818,8 +42634,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -43207,8 +43021,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -43596,8 +43408,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -43985,8 +43795,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -44374,8 +44182,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -44763,8 +44569,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -45152,8 +44956,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -45541,8 +45343,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -45930,8 +45730,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -46319,8 +46117,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -46708,8 +46504,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -47097,8 +46891,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -47486,8 +47278,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -47962,8 +47752,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -48409,8 +48197,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -48856,8 +48642,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -49274,8 +49058,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -49692,8 +49474,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -50110,8 +49890,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -50470,8 +50248,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -50946,8 +50722,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -51335,8 +51109,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -51724,8 +51496,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -52200,8 +51970,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -52676,8 +52444,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -53152,8 +52918,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -53628,8 +53392,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -54104,8 +53866,6 @@
       "acquisition/body": null,
       "acquisition/filters": null,
       "acquisition/tabs": null,
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -54667,8 +54427,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -55085,8 +54843,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -55503,8 +55259,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -55921,8 +55675,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -56368,8 +56120,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -56786,8 +56536,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -57204,8 +56952,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -57622,8 +57368,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -58040,8 +57784,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,
@@ -58458,8 +58200,6 @@
           "justify-content": "normal"
         }
       },
-      "arrivals/body": null,
-      "arrivals/pilot-bar": null,
       "discover/body": null,
       "library/body": null,
       "library/count-line": null,

@@ -1,6 +1,6 @@
 {
   "what": "Occurrences of a refused word in a DECLARED name, per file. The rule is `docs/reference/code-naming.md`; the guard is `scripts/check-code-abbreviations.py`. A count may go DOWN and never up, and a file that reaches zero leaves this record. Per file and never a global total: a change that removes one `tmp` and adds another leaves a total unchanged and passes.",
-  "total": 1789,
+  "total": 1778,
   "files": {
     "frontend/maquette/harness/actions.py": 2,
     "frontend/maquette/harness/address.py": 2,
@@ -90,7 +90,7 @@
     "personalscraper/api/metadata/trakt.py": 1,
     "personalscraper/api/metadata/tvdb.py": 11,
     "personalscraper/api/notify/telegram.py": 2,
-    "personalscraper/api/plex.py": 5,
+    "personalscraper/api/plex.py": 2,
     "personalscraper/api/torrent/_base.py": 36,
     "personalscraper/api/torrent/_factory.py": 2,
     "personalscraper/api/torrent/_layout.py": 1,
@@ -330,7 +330,7 @@
     "scripts/check-compositor-css.py": 7,
     "scripts/check-css-tokens.py": 5,
     "scripts/check-frontend-boundaries.py": 1,
-    "scripts/check-markup-contracts.py": 4,
+    "scripts/check-markup-contracts.py": 2,
     "scripts/check-module-size.py": 1,
     "scripts/check-spine-complete.py": 5,
     "scripts/check-typed-api.py": 1,

@@ -33,10 +33,7 @@ import { deckBody } from "./variants";
 // `sugFoot` / `refreshDeck`, because the deck's gesture mutates its own DOM in
 // place and a replaced node cannot animate. React renders zero children into
 // them, so neither world removes the other's nodes.
-export function DiscoverTab({ region }: {
-  /** The oracle region its body carries when it is a page's body, `undefined` as a tab. */
-  region?: string;
-} = {}): ReactElement {
+export function DiscoverTab(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
   const { icons } = useEngineDrawing();
@@ -133,7 +130,7 @@ export function DiscoverTab({ region }: {
     return (
       <>
         {selector}
-        <div className={`${body()} ${deckBody()}`} data-part="surface/body" data-region={region}></div>
+        <div className={`${body()} ${deckBody()}`} data-part="surface/body" data-region="discover/body"></div>
       </>
     );
   }
@@ -144,7 +141,7 @@ export function DiscoverTab({ region }: {
       <div
         className={`${body()}${state.sugMode === "deck" ? ` ${deckBody()}` : ""}`}
         data-part="surface/body"
-        data-region={region}
+        data-region="discover/body"
       >
         <div className="note" data-part="note">
           <b>{t("screens.acquisition.discoverNoteLead")}</b>

@@ -373,7 +373,9 @@ def test_the_committed_reference_carries_a_platform():
     # not known yet, POSED on « Conclave » — added, nothing else moved.
     # 130 SINCE L22b's phase 47b: the Arrivées page died, and its six arr-* records left the
     # reference by named deletion — nothing else moved.
-    assert reference["counts"] == {"states": 130, "regions": 39}
+    # 37 regions SINCE L22b's phase 48: the page's two regions (arrivals/pilot-bar,
+    # arrivals/body) left regions.json and every state's record, all null — nothing else moved.
+    assert reference["counts"] == {"states": 130, "regions": 37}
 
 
 class TestItRefusesToWriteOverAForeignBuild:

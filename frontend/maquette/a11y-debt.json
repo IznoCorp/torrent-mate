@@ -486,43 +486,6 @@
         ]
       }
     ],
-    "acq-follows-pause-empty": [
-      {
-        "rule": "landmark-one-main",
-        "impact": "moderate",
-        "help": "Document should have one main landmark",
-        "targets": [
-          "html"
-        ]
-      },
-      {
-        "rule": "meta-viewport",
-        "impact": "moderate",
-        "help": "Zooming and scaling must not be disabled",
-        "targets": [
-          "meta[name=\"viewport\"]"
-        ]
-      },
-      {
-        "rule": "page-has-heading-one",
-        "impact": "moderate",
-        "help": "Page should contain a level-one heading",
-        "targets": [
-          "html"
-        ]
-      },
-      {
-        "rule": "region",
-        "impact": "moderate",
-        "help": "All page content should be contained by landmarks",
-        "targets": [
-          "#follq",
-          ".body",
-          ".cadence",
-          ".seg"
-        ]
-      }
-    ],
     "acq-identify": [
       {
         "rule": "meta-viewport",

@@ -10,9 +10,6 @@ import { useStoreContent } from "../../lib/store-access";
 import { DiscoverTab } from "./discover-tab";
 import { suggestionsQuery } from "./queries";
 
-/** The region the page's body is measured by. */
-const REGION = "discover/body";
-
 /**
  * The « Découvrir » page.
  *
@@ -27,5 +24,5 @@ export function DiscoverPage(): ReactElement {
   // active query and a pull to refresh re-read nothing at all — under
   // Acquisition's tabs it had borrowed the queue the tab bar observes.
   useQuery(suggestionsQuery);
-  return <DiscoverTab region={REGION} />;
+  return <DiscoverTab />;
 }
