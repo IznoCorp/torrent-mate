@@ -212,6 +212,12 @@ export function installFollowActions(queryClient: QueryClient): void {
   const write = (follows: Follow[]) => queryClient.setQueryData(followsKey, follows);
   const refresh = () => void queryClient.invalidateQueries({ queryKey: followsKey });
   fillFollowedTitlesDoor(() => held().map((follow) => follow.title));
+  // AND THE FOLLOWS ARE ASKED FOR HERE, because two readers of that door have
+  // no component to ask: an addressed follow panel resolving on a cold load,
+  // and the Médiathèque's delete dialog. Published, as `refillSuggestions` is,
+  // for the reset that clears the cache.
+  refillFollows = () => void queryClient.prefetchQuery(followsQuery);
+  refillFollows();
 
   followActions = {
     setStatus: (title, status) => {
@@ -327,6 +333,8 @@ declare global {
 export let suggestions: Window["__suggestions"];
 /** The deck's reserve, asked for again — filled at install. */
 export let refillSuggestions: (() => void) | undefined;
+/** The follows, asked for again — filled at install. */
+export let refillFollows: (() => void) | undefined;
 /** The follows' verbs — filled at install. */
 export let followActions: Window["__followActions"];
 

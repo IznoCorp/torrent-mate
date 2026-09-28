@@ -14,7 +14,7 @@
 // and the writers that check the latch live in the page switch, so the driver never
 // holds it: it hands each state to `drivenWithoutHistory`, the verb that does.
 import { refillProducers } from "../app/panel-host";
-import { refillSuggestions } from "../features/acquisition/queries";
+import { refillFollows, refillSuggestions } from "../features/acquisition/queries";
 import { navigation } from "../app/navigation-seam";
 import type { UiState } from "../app/store";
 import { drivenWithoutHistory } from "../app/page-switch";
@@ -86,9 +86,11 @@ function reset(): boolean {
   window.__queries?.clear();
   window.__mocks?.reset();
   /* AND WHAT NO COMPONENT OBSERVES IS ASKED FOR AGAIN. A cleared query with an
-     observer is re-asked by that observer; the deck's cards and the producers'
-     reads have none — each feature declares its own, and both doors re-ask. */
+     observer is re-asked by that observer; the deck's cards, the follows the
+     followed-titles door reads and the producers' reads have none — each
+     feature declares its own, and these doors re-ask. */
   refillSuggestions?.();
+  refillFollows?.();
   refillProducers?.();
   window.__store.write({
     /* The SCENARIO is state too, and the loudest kind: it decides which world
