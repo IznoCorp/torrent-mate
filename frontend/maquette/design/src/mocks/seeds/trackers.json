@@ -1,0 +1,22 @@
+[
+  {
+    "name": "c411",
+    "ratio": 1.42,
+    "downloadedBytes": 442381297664,
+    "uploadedBytes": 628181442560,
+    "trend": "up",
+    "alertThreshold": null,
+    "identifierRefusedSince": null,
+    "brokenObligations": []
+  },
+  {
+    "name": "tr4ker",
+    "ratio": 0.55,
+    "downloadedBytes": 40802189312,
+    "uploadedBytes": 22441204121,
+    "trend": "down",
+    "alertThreshold": null,
+    "identifierRefusedSince": null,
+    "brokenObligations": []
+  }
+]

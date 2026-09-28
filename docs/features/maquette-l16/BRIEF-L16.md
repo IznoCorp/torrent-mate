@@ -69,8 +69,8 @@ Each phase is still re-measured at ITS opening on YOUR head; these are the facts
 ## What you read before acting — and NOTHING ELSE before the handshake (auditor's order 8)
 
 1. This brief; `docs/features/maquette-l16/RESUME-L16.md`'s STATE BLOCK (you create it at your first boundary if
-   absent); DESIGN § 0 and § 7; `plan/INDEX.md` whole; and `plan/phase-01-contract.md`. That is the whole required
-   reading before your handshake.
+   absent); DESIGN § 0 and § 6; `plan/INDEX.md` whole; and `plan/phase-01-reads-contract.md`. That is the whole required
+   reading before your handshake. (Corrected by the steward's word, 2026-09-28: it read « § 7 » and « phase-01-contract.md ».)
 2. After the handshake, as each phase opens: its phase file (re-read at that moment), the DESIGN sections it cites,
    `frontend/maquette/README.md` § named states and § traps, `CLAUDE.md` § Critical Rules (search safety, language,
    naming, `scripts/rename-identifiers.py` — never a rename by hand), and `scripts/check-mock-seeds.py`'s docstring

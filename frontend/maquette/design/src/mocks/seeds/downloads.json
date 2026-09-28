@@ -1,0 +1,132 @@
+[
+  {
+    "infoHash": "66e23ab395c438b7db4f7c855bd451d8bb1f0046",
+    "name": "President.Curtis.S01E10.FiNAL.MULTi.VFF.1080p.WEB.EAC3.5.1.H264-GL0P",
+    "title": "President Curtis",
+    "kind": "episode",
+    "season": 1,
+    "episode": 10,
+    "state": "seeding",
+    "progress": 1,
+    "sizeBytes": 803859794,
+    "etaSeconds": null,
+    "errorReason": null,
+    "ids": {
+      "tvdb": "466198",
+      "tmdb": "296756",
+      "imdb": "tt37692332"
+    },
+    "tracker": "c411",
+    "origin": true,
+    "ratio": 0.42,
+    "deadline": 1790860805
+  },
+  {
+    "infoHash": "e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb",
+    "name": "American.Dad.S22.MULTI.VFF.1080p.WEB.EAC3.5.1.H264-SUPPLY",
+    "title": "American Dad!",
+    "kind": "season",
+    "season": 22,
+    "episode": null,
+    "state": "seeding",
+    "progress": 1,
+    "sizeBytes": 9040170236,
+    "etaSeconds": null,
+    "errorReason": null,
+    "ids": {
+      "tvdb": "73141",
+      "tmdb": "1433",
+      "imdb": "tt0397306"
+    },
+    "tracker": "c411",
+    "origin": true,
+    "ratio": 1.31,
+    "deadline": 1790558403
+  },
+  {
+    "infoHash": "8d51568b1a4f46e1fb7e7b535b52a5203312fc28",
+    "name": "Star.Trek.Strange.New.Worlds.S04E10.FiNAL.MULTi.VFF.1080p.WEB.EAC3.5.1.H265-GL0P",
+    "title": "Star Trek: Strange New Worlds",
+    "kind": "episode",
+    "season": 4,
+    "episode": 10,
+    "state": "seeding",
+    "progress": 1,
+    "sizeBytes": 1233124362,
+    "etaSeconds": null,
+    "errorReason": null,
+    "ids": {
+      "tmdb": 103516,
+      "imdb": "tt12327578",
+      "tvdb": 382389
+    },
+    "tracker": "c411",
+    "origin": true,
+    "ratio": 0.88,
+    "deadline": 1790515201
+  },
+  {
+    "infoHash": "e1af6819d9e3159e0aa191b534b6a66af4344788",
+    "name": "Ted.Lasso.S04E08.AD.MULTI.VFF.1080p.WEBRip.EAC3.Atmos.5.1.x265-KAF",
+    "title": "Ted Lasso",
+    "kind": "episode",
+    "season": 4,
+    "episode": 8,
+    "state": "seeding",
+    "progress": 1,
+    "sizeBytes": 1365328906,
+    "etaSeconds": null,
+    "errorReason": null,
+    "ids": {
+      "tmdb": 97546,
+      "imdb": "tt10986410",
+      "tvdb": 383203
+    },
+    "tracker": "c411",
+    "origin": true,
+    "ratio": 1.07,
+    "deadline": 1790428801
+  },
+  {
+    "infoHash": "0ff265e478d97d9eae4d1cabd13748e23b9e6cba",
+    "name": "Lanterns.S01E06.MULTi.VFF.1080p.WEB.SDR.EAC3.5.1.H265-BYOR",
+    "title": "Lanterns",
+    "kind": "episode",
+    "season": 1,
+    "episode": 6,
+    "state": "seeding",
+    "progress": 1,
+    "sizeBytes": 1476180815,
+    "etaSeconds": null,
+    "errorReason": null,
+    "ids": {
+      "tvdb": "376098"
+    },
+    "tracker": "c411",
+    "origin": true,
+    "ratio": 0.19,
+    "deadline": 1790212801
+  },
+  {
+    "infoHash": "7c1e0b2f95c438b7db4f7c855bd451d8bb1f0046",
+    "name": "President.Curtis.S01E10.FiNAL.MULTi.VFF.1080p.WEB.EAC3.5.1.H264-GL0P",
+    "title": "President Curtis",
+    "kind": "episode",
+    "season": 1,
+    "episode": 10,
+    "state": "seeding",
+    "progress": 1,
+    "sizeBytes": 803859794,
+    "etaSeconds": null,
+    "errorReason": null,
+    "ids": {
+      "tvdb": "466198",
+      "tmdb": "296756",
+      "imdb": "tt37692332"
+    },
+    "tracker": "tr4ker",
+    "origin": false,
+    "ratio": 0.06,
+    "deadline": null
+  }
+]

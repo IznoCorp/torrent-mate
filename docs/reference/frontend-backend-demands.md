@@ -19,14 +19,14 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 68 |
+| operations the interface requires | 71 |
 | operations the backend has | 65 |
-| required and missing | 21 |
-| declared by both, different response shape | 47 |
+| required and missing | 22 |
+| declared by both, different response shape | 49 |
 | declared by both, path parameter spelled differently | 15 |
 | declared by both, answered with a different status | 10 |
 | fields carried pre-formatted | 25 |
-| the backend has and the interface does not use | 18 |
+| the backend has and the interface does not use | 16 |
 
 ---
 
@@ -51,6 +51,7 @@ than a blank page.
 | `GET /api/system/dependencies` | `readDependencies` | The external dependencies, and whether each answers |
 | `GET /api/system/errors` | `readErrors` | How many errors, out of how many runs, and the latest |
 | `GET /api/system/services` | `readServices` | The services, and whether each answers |
+| `GET /api/trackers` | `readTrackers` | Every configured tracker, its ratio, volumes, trend, alert threshold and health |
 | `POST /api/acquisition/followed/{followedId}/restore` | `restoreFollow` | Put a removed follow back, as it was |
 | `POST /api/acquisition/journeys/{infoHash}/plex-match` | `resolvePlexMatch` | Confirm or correct the match Plex made for a medium — the Plex match's CORRECTION VERB, OPEN 9's fifth demand; the disagreement is POSED in the maquette (RULINGS 24), the backend compares Plex's real match with the identity held |
 | `POST /api/media/{provider}/{providerId}/rescrape` | `rescrapeMedia` | Ask the providers for one medium's metadata again |
@@ -64,7 +65,9 @@ reports a difference for every optional field and drowns the real findings.
 | operation | the interface adds | the backend has and the interface does not use |
 | --- | --- | --- |
 | `DELETE /api/acquisition/followed/{followedId}` (`deleteFollow`) | `ok` | — |
+| `GET /api/acquisition/downloads` (`readDownloads`) | `clientAvailable`, `deadline`, `errorReason`, `etaSeconds`, `ids`, `infoHash`, `origin`, `ratio`, `sizeBytes`, `tracker` | `client_available`, `error_reason`, `eta_seconds`, `imdb_id`, `info_hash`, `media_ref`, `size_bytes`, `tmdb_id`, `tvdb_id` |
 | `GET /api/acquisition/followed` (`readFollows`) | `aired`, `fresh`, `ids`, `poster`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `id`, `imdb_id`, `items`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
+| `GET /api/acquisition/obligations` (`readObligations`) | `accumulatedSeedTimeSeconds`, `addedAt`, `breachedAt`, `dispatchedPath`, `hitAndRunCount`, `infoHash`, `minimumRatio`, `minimumSeedTimeSeconds`, `observedRatio`, `releasedAt`, `satisfiedAt`, `sourceTracker` | `accumulated_seed_time_s`, `added_at`, `breached_at`, `dispatched_path`, `hnr_count`, `info_hash`, `min_ratio`, `min_seed_time_s`, `observed_ratio`, `released_at`, `satisfied_at`, `source_tracker` |
 | `GET /api/acquisition/search` (`searchProviders`) | `followed`, `ids`, `owned`, `poster`, `shown` | `already_owned`, `limit`, `offset`, `poster_url`, `provider`, `provider_id`, `score` |
 | `GET /api/acquisition/status` (`readAcquisitionStatus`) | `cadence`, `nextSearch` | `command`, `deferred`, `ended_at`, `last_successful_run_at`, `name`, `outcome`, `reason`, `recent_runs`, `result`, `run_uid`, `started_at`, `trigger`, `watcher_enabled` |
 | `GET /api/acquisition/to-handle` (`readAcquisitionQueue`) | `arrivals`, `blocked`, `chip`, `droppedByHand`, `failedStep`, `ids`, `inFlight`, `ladder`, `name`, `plexMatch`, `poster`, `requester`, `rung`, `secondaryLine`, `state`, `steps`, `strip`, `takeable`, `text`, `tone`, `via`, `when`, `withoutPoster` | `candidates_count`, `created_at`, `decision_id`, `degraded`, `episode`, `followed_id`, `info_hash`, `items`, `kind`, `orphan_count`, `season`, `stage`, `year` |
@@ -205,11 +208,9 @@ Recorded because it says what the switchover MAY retire. It is not a suggestion 
 remove anything: an operation the maquette does not call may still be called by the
 production app, by a script, or by the operator.
 
-- `GET /api/acquisition/downloads`
 - `GET /api/acquisition/followed/{followed_id}/completeness`
 - `GET /api/acquisition/journeys`
 - `GET /api/acquisition/lookup`
-- `GET /api/acquisition/obligations`
 - `GET /api/acquisition/overview`
 - `GET /api/acquisition/stalled-grabs`
 - `GET /api/acquisition/wanted`

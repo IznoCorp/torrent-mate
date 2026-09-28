@@ -1110,6 +1110,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/obligations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every seeding obligation, open or ended */
+        get: operations["readObligations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/acquisition/downloads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every entry the download client holds, one per tracker it is active on */
+        get: operations["readDownloads"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/trackers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every configured tracker, its ratio, volumes, trend, alert threshold and health */
+        get: operations["readTrackers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1754,6 +1805,121 @@ export interface components {
         PlexMatch: {
             title: string;
             ids?: components["schemas"]["ProviderIds"] | null;
+        };
+        /** @description a seeding obligation a grab owes the tracker it came from — the backend's `ObligationItem`, field for field; its three terminal instants are the MARKS a torrent's own row carries, never a second list */
+        Obligation: {
+            /** @description the torrent the obligation is owed on */
+            infoHash: string;
+            /** @description the tracker the obligation is owed to */
+            sourceTracker: string;
+            /** @description the title the engine composes for it, or null when it resolves none */
+            title: string | null;
+            /** @description where the dispatch put the files, or null before it did */
+            dispatchedPath: string | null;
+            /** @description the ratio floor owed, read from the tracker's economy when the grab happened */
+            minimumRatio: number;
+            /** @description the seed time owed, in seconds */
+            minimumSeedTimeSeconds: number;
+            /** @description the tracker's ratio as last observed, or null when never observed */
+            observedRatio: number | null;
+            /** @description the seed time accumulated so far, or null when never observed */
+            accumulatedSeedTimeSeconds: number | null;
+            /** @description the tracker's hit-and-run count as last observed, or null when never observed */
+            hitAndRunCount: number | null;
+            /** @description when the obligation began, Unix-epoch seconds */
+            addedAt: number;
+            /** @description when it was met, Unix-epoch seconds, or null */
+            satisfiedAt: number | null;
+            /** @description when it was broken, Unix-epoch seconds, or null */
+            breachedAt: number | null;
+            /** @description when it ended early — a removal confirmed in the app always sets this — Unix-epoch seconds, or null */
+            releasedAt: number | null;
+        };
+        /** @description every seeding obligation the engine holds */
+        Obligations: {
+            /** @description the obligations, newest first */
+            items: components["schemas"]["Obligation"][];
+        };
+        /** @description one qBittorrent ENTRY on one tracker — a torrent cross-seeded onto two trackers is two entries. The backend's `AcquisitionDownload` extended with the tracker it runs on, its ratio there, its deadline and whether it is the origin grab (a demand: none of the four exists) */
+        Download: {
+            /** @description the entry's own hash */
+            infoHash: string;
+            /** @description the torrent's name in the client */
+            name: string;
+            /** @description the medium's title */
+            title: string;
+            /**
+             * @description what the entry carries
+             * @enum {string}
+             */
+            kind: "movie" | "episode" | "season";
+            /** @description the season, or null for a movie */
+            season: number | null;
+            /** @description the episode, or null for a movie or a season pack */
+            episode: number | null;
+            /**
+             * @description the client's state, in the backend's own tokens
+             * @enum {string}
+             */
+            state: "downloading" | "stalled" | "seeding" | "paused" | "queued" | "in_client" | "missing" | "errored";
+            /** @description how much is downloaded, from 0 to 1 */
+            progress: number;
+            /** @description the torrent's size */
+            sizeBytes: number;
+            /** @description the time left to download, or null when none is running */
+            etaSeconds: number | null;
+            /** @description why the client refuses it, or null */
+            errorReason: string | null;
+            /** @description the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it */
+            ids: components["schemas"]["ProviderIds"] | null;
+            /** @description the tracker this entry is active on */
+            tracker: string;
+            /** @description true for the torrent's origin grab, false for a cross-seed of the same files */
+            origin: boolean;
+            /** @description the entry's ratio on THIS tracker, computed on the torrent's own size — so a cross-seed never divides by zero */
+            ratio: number;
+            /** @description when the obligation on this entry is met by seed time, Unix-epoch seconds, or null when none is owed */
+            deadline: number | null;
+        };
+        /** @description every entry the download client holds */
+        Downloads: {
+            /** @description whether the client answered */
+            clientAvailable: boolean;
+            /** @description one per entry, never folded */
+            downloads: components["schemas"]["Download"][];
+        };
+        /** @description an obligation the ENGINE broke whose torrent has already left the client — kept, never lost, until the operator marks it seen */
+        BrokenObligation: {
+            /** @description the torrent it was owed on */
+            infoHash: string;
+            /** @description the title the engine composes for it */
+            title: string;
+            /** @description when it was broken, Unix-epoch seconds */
+            brokenAt: number;
+            /** @description whether the operator marked it seen; seen is not gone */
+            seen: boolean;
+        };
+        /** @description one configured tracker as its own subject — nothing in the backend answers a tracker today (a demand) */
+        Tracker: {
+            /** @description the tracker's configured name */
+            name: string;
+            /** @description the account's ratio on this tracker, never averaged with another, or null before anything was downloaded there */
+            ratio: number | null;
+            /** @description the account's Download volume on this tracker */
+            downloadedBytes: number;
+            /** @description the account's Upload volume on this tracker */
+            uploadedBytes: number;
+            /**
+             * @description where the ratio is heading
+             * @enum {string}
+             */
+            trend: "up" | "stable" | "down";
+            /** @description the ratio under which the tracker is in alert — its own setting, distinct from the floor and the target — or null when none is set */
+            alertThreshold: number | null;
+            /** @description since when the tracker refuses the configured identifier, Unix-epoch seconds, or null when it accepts it */
+            identifierRefusedSince: number | null;
+            /** @description the obligations the engine broke on this tracker, their torrent gone */
+            brokenObligations: components["schemas"]["BrokenObligation"][];
         };
     };
     responses: {
@@ -3907,6 +4073,84 @@ export interface operations {
                         /** @enum {string} */
                         outcome: "confirm" | "correct";
                     };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    readObligations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the obligations */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Obligations"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    readDownloads: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the entries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Downloads"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    readTrackers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the trackers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Tracker"][];
                 };
             };
             400: components["responses"]["Problem"];

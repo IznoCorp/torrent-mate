@@ -16,6 +16,7 @@ import { mediaRoutes } from "./media";
 import { pipelineRoutes } from "./pipeline";
 import { stagingRoutes } from "./staging";
 import { systemRoutes } from "./system";
+import { trackerRoutes } from "./trackers";
 import type { MockRoute } from "../router";
 
 /** Every route, in a stable order. */
@@ -33,5 +34,6 @@ export function routes(): MockRoute[] {
     ...systemRoutes(),
     ...maintenanceRoutes(),
     ...configurationRoutes(),
+    ...trackerRoutes(),
   ];
 }

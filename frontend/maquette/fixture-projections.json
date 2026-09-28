@@ -188,6 +188,18 @@
     "NON_MEDIA_DESTINATIONS": {
       "answers": "StagingDestination[]",
       "file": "staging-destinations"
+    },
+    "OBLIGATIONS": {
+      "answers": "Obligation[]",
+      "file": "obligations"
+    },
+    "DOWNLOADS": {
+      "answers": "Download[]",
+      "file": "downloads"
+    },
+    "TRACKERS": {
+      "answers": "Tracker[]",
+      "file": "trackers"
     }
   }
 }

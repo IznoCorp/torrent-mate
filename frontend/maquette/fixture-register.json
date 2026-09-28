@@ -7,11 +7,11 @@
     "unserved": "not served, with the reason written out"
   },
   "$counts": {
-    "served": 41,
+    "served": 44,
     "asset": 5,
     "interface": 29,
     "unserved": 6,
-    "total": 81
+    "total": 84
   },
   "$anonymous": {
     "count": 0,
@@ -101,6 +101,12 @@
       "why": "NO READER SINCE ROUND 7: « Cherché, rien trouvé » and « Rangé aujourd'hui » left « En cours » (the operator, 2026-09-26) — what was not found reads on its follow, what arrived in the Médiathèque's « Récents ». The family, its seed and its contract field were removed rather than kept for nobody (the coherence triage's F40); the engine's side is the backend brief's",
       "seed": null,
       "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario; L22b phase 25 — removed (F40)"
+    },
+    "DOWNLOADS": {
+      "class": "served",
+      "why": "the download client's entries, one per tracker — the same five torrents as OBLIGATIONS, their names from `acquire.db`'s `seed_obligation` and `staging_provenance`, read read-only on 2026-09-28, their sizes from `library.db`'s `media_file`; the per-entry ratio and the tr4ker cross-seed (hash included) are composed for the drawing, since no engine route reads an entry's upload or tracker (DESIGN § 2.3 item 3)",
+      "seed": null,
+      "converted": "L16 phase 1 — born with `readDownloads`"
     },
     "EP_LABEL": {
       "class": "interface",
@@ -233,6 +239,12 @@
       "why": "NO READER SINCE ROUND 7: « Cherché, rien trouvé » and « Rangé aujourd'hui » left « En cours » (the operator, 2026-09-26) — what was not found reads on its follow, what arrived in the Médiathèque's « Récents ». The family, its seed and its contract field were removed rather than kept for nobody (the coherence triage's F40); the engine's side is the backend brief's",
       "seed": null,
       "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario; L22b phase 25 — removed (F40)"
+    },
+    "OBLIGATIONS": {
+      "class": "served",
+      "why": "the seeding obligations the engine holds — five real c411 rows of `acquire.db`'s `seed_obligation` and `staging_provenance`, read read-only on 2026-09-28, titled by the backend's own join (`obligation_titles.py`)",
+      "seed": null,
+      "converted": "L16 phase 1 — born with `readObligations`"
     },
     "OWNED": {
       "class": "served",
@@ -455,6 +467,12 @@
       "why": "THE PROTOTYPE'S FROZEN CLOCK, and it is the determinism device rather than data. A server does not send today's date. It is not seeded — the mock layer declares its own instant (D-L08-8) and R85 holds that the two AGREE, because every date-derived state moves the moment they do not",
       "seed": null,
       "converted": "L13r phase r·2 — the engine's literal died; `lib/clock.ts` `today()`, filled at boot with the mock scenario's instant (ruling 100 Q2)"
+    },
+    "TRACKERS": {
+      "class": "served",
+      "why": "the configured trackers as their own subject, in the configuration's order (c411, tr4ker); their volumes and trend are composed for the drawing, since no engine route reads a tracker's account (DESIGN § 2.1), and the ratio is those volumes' quotient. The alert threshold is a SETTING: the layer serves the settings seed's `tracker.providers.<name>.economy.alert_threshold`, never this seed's null",
+      "seed": null,
+      "converted": "L16 phase 1 — born with `readTrackers`"
     },
     "TRIS": {
       "class": "interface",
