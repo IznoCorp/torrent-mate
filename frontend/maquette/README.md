@@ -56,12 +56,14 @@ holds what remains true of that emission: the fragment appears verbatim exactly 
 document names exactly one module entry, and the bundle it names exists.
 
 **The fragment is a title and a stylesheet, and nothing else.** Two things left it. The
-engine — the 35 052-line script it used to carry — lives at `design/src/engine/legacy.js`, a
-module the shell imports before it starts it; it was moved byte for byte, not rewritten, and
-it stays JavaScript on purpose, because typing it would mean editing it and an edit hidden
-inside a move that size is an edit nobody can review. The application shell's markup — the
-phone frame, the splash, the sign-in card, the topbar, the drawer, the layer hosts — lives in
-`index.html`, the document Vite owns.
+engine — the 35 052-line script it used to carry — lived at
+`design/src/engine/legacy.js@c0a5062ac`, a module the shell imported before it started it,
+moved byte for byte, not rewritten, and kept as JavaScript on purpose, because typing it
+would have meant editing it and an edit hidden inside a move that size is an edit nobody could
+review. **It is DEAD, removed at L13r** (`08400a22a`, #605) — its residue's own death, the
+engine's last code gone. The application shell's markup — the phone frame, the splash, the
+sign-in card, the topbar, the drawer, the layer hosts — lives in `index.html`, the document
+Vite owns.
 
 **The markup went to `index.html` rather than into React**, and the reason is the engine's
 boot: it captures its containers at module evaluation (`view = F('#view')` and its siblings),
@@ -95,17 +97,17 @@ Two consequences worth knowing before writing a rule:
   reads it, the rules that tap it — and they move in ONE step. Beware the ones the engine
   GENERATES: it writes `data-${nom}` from a data key, so no search for the literal `data-x`
   will ever list them.
-- **The engine republishes its own surface.** A classic script's top-level declarations are
-  global; a module's are not, and the harness drives the engine by bare name in some forty
-  `page.evaluate` call sites. The block at the bottom of `legacy.js` republishes exactly
-  what already existed — by value, or by getter for the bindings the engine reassigns, and
-  the split is measured rather than chosen. `state` is neither: there is no cached binding
-  left to publish, so its getter reads the store.
-- **The engine imports what it calls.** `src/seams.ts` holds `pont`, `ecrans` and `panneau`
-  as live `export let` bindings the shell fills at boot — the implementations need the
-  store, which the shell creates in its body, after its imports. The globals stay published
-  because this harness drives through them; they are the same objects, so the two ways
-  cannot disagree.
+- **The engine republished its own surface — DEAD, removed at L13r.** `design/src/engine/legacy.js@c0a5062ac`
+  (`08400a22a`, #605) was a classic script, whose top-level declarations were global where a
+  module's are not, and the harness drove it by bare name in some forty `page.evaluate` call
+  sites; the block at its bottom republished exactly what already existed — by value, or by
+  getter for the bindings the engine reassigned, the split measured rather than chosen. Its
+  successor is `harness/publish.ts`: every name the harness drives by is an explicit `publish()`
+  call from the typed module that owns it, never a script's own top-level scope.
+- **`src/seams.ts`'s three live bindings are gone too, moved to imports at L13r** (`docs/reference/frontend-architecture.md`,
+  « the seam is an import »). `pont`, `ecrans` and `panneau` were `export let` bindings the
+  engine-era shell filled at boot; the implementations import the store directly now, one
+  import per feature, and no two ways of reaching it are left to disagree.
 - **The scenario table is not the engine's.** The named states live in
   `src/harness/states/`, one file per surface, and `window.__go(id)` is published by
   `src/harness/drive.ts` (`installDriver`), which the harness module installs at boot. The
@@ -465,17 +467,20 @@ judged. Both are labelled as such in the design notes.
 **The copy ages by design.** The system keeps running: the scheduler searches twice a day
 and increments each follow's attempt counter in `acquire.db`, so the embedded counters
 drift and `content.py` (which compares the cards against the LIVE database) goes red with
-no code change. `resync.py` closes the gap the only honest way — it reads the live
-counters and rewrites the embedded ones, nothing else. Run it when the suite names a
-drift, review the diff, commit it as data.
+no code change. `resync.py` is SUPPOSED to close the gap the only honest way — reading the
+live counters and rewriting the embedded ones, nothing else — but it is BROKEN, since L13r:
+it still reads `design/src/engine/legacy.js@c0a5062ac` (`08400a22a`, #605), deleted whole
+that lot, and crashes with an uncaught `FileNotFoundError` rather than the graceful refusal
+its own header describes (B-563, filed at this close). Do not run it expecting a correction
+until it is repaired.
 
-`frontend/maquette/resync.py` is that tool, run standalone
+`frontend/maquette/resync.py` was that tool, run standalone
 (`python3 frontend/maquette/resync.py`) before the suite, not as part of it: it opens
-`acquire.db` read-only, computes each followed title's real attempt count, and rewrites
-only the matching counters already embedded in `design/src/engine/legacy.js`'s data blocks —
-never a layout, a class, or anything the harness itself measures. It reports how many
-objects it corrected and touches the file only when a count actually changed, so a clean
-run leaves no diff to review. A correction is committed on its own, as data, never folded
+`acquire.db` read-only, computes each followed title's real attempt count, and used to rewrite
+only the matching counters embedded in `design/src/engine/legacy.js@c0a5062ac`'s data blocks —
+never a layout, a class, or anything the harness itself measures. It reported how many
+objects it corrected and touched the file only when a count actually changed, so a clean
+run left no diff to review. A correction was committed on its own, as data, never folded
 into a code change it happens to precede.
 
 **Two scenarios**, switched from the harness (the **≡** button):
@@ -491,32 +496,31 @@ into a code change it happens to precede.
 
 **The prototype is still NOT connected to a backend, and this changes nothing about that**
 (operator, 2026-08-20). A mock layer is not a connection: it answers the maquette's own
-contract, in process, from data taken out of the engine's fixtures. The wiring belongs to the
-switchover.
+contract, in process. The wiring belongs to the switchover.
 
 **What it is.** `design/src/mocks/` — one module replaces `fetch` with a table of routes, one
 per operation `frontend/maquette/contract/openapi.json` declares — 63 of them today, counted by
 `window.__mocks.routes().length` and never from this line. No service worker: the oracle
 measures at first paint and a worker's registration is asynchronous. It is installed
-synchronously in the boot, before the engine starts, behind the build-time constant
-`__MOCKS_BUILT_IN__`.
+synchronously in the boot, behind the build-time constant `__MOCKS_BUILT_IN__`.
 
-**Where its data comes from, and it is the whole point.** `design/src/mocks/seeds/*.json` are
-built from `design/src/engine/legacy.js` by a declared projection — a rename of keys and a
-regroup of positional arrays, never a re-derivation. Nothing in them is invented. That is what
-makes the NEXT lot provable: wiring a surface to a mock that returns exactly what the fixture
-returns renders the same thing, so the oracle proves the wiring at zero divergence.
+**Where its data comes from.** `design/src/mocks/seeds/*.json` were ORIGINALLY built from
+`design/src/engine/legacy.js@c0a5062ac` by a declared projection — a rename of keys and a
+regroup of positional arrays, never a re-derivation, so nothing in them was invented. **That
+builder is gone**: `scripts/build-mock-seeds.py` died with the engine at L13r (`08400a22a`,
+#605, B-563), and nothing has rebuilt a seed from a live fixture since. `check-mock-seeds.py`
+(still live) holds what is left of the discipline without the builder — every seed against the
+CONTRACT's own schema, and a provenance correspondence between the register, the seed files and
+the contract's `x-seeded-from`, never a fixture it re-derives from.
 
 ```
-python3 scripts/build-mock-seeds.py --write     # rebuild every seed
 python3 scripts/check-mock-seeds.py             # six arms, ~1 s
 python3 scripts/check-mock-seeds.py --list      # the inventory it holds
-node scripts/extract-maquette-fixtures.mjs --measure
 ```
 
-**After `resync.py` or `refresh-maquette-fixture.py` rewrites a fixture, rebuild the seeds in the
-same commit.** The correspondence arm re-derives on every run, so a refresh that does not is a
-red guard — which is wanted, and is the reminder rather than a defect.
+**After `refresh-maquette-fixture.py` rewrites a fixture, edit the affected seeds by hand in the
+same commit** and let `check-mock-seeds.py` hold the correspondence — there is no rebuild step
+to run instead (B-563). `resync.py` is presently BROKEN (B-563) and rewrites nothing.
 
 **How to drive it**, from the console or from a rule — `window.__mocks`:
 
