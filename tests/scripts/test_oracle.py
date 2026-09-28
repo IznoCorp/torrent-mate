@@ -384,7 +384,9 @@ def test_the_committed_reference_carries_a_platform():
     # entry opened on its policy and on none — added; heights alone moved elsewhere.
     # 136 SINCE L16's phase 5a: `torrents-list`, the « Torrents » tab's rows — added, nothing
     # else moved.
-    assert reference["counts"] == {"states": 136, "regions": 38}
+    # 140 SINCE L16's phase 5b: `torrents-list-filtered`, `torrents-empty`, `torrents-empty-filtered`
+    # and `torrents-obligation-done` — added, nothing else moved.
+    assert reference["counts"] == {"states": 140, "regions": 38}
 
 
 class TestItRefusesToWriteOverAForeignBuild:
