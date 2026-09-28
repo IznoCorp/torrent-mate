@@ -305,7 +305,9 @@ async def main():
         // RE-AIMED OUT LOUD: what an action SENDS is an effect too. « Relancer »
         // on a tunnel error asks the engine to resume and says so; the card
         // stays until the engine moves it — no dial here moved, the call did.
-        sent:(window.__mocks?.answered()||[]).length});
+        // A WRITE, never a read: a GET re-asks what is already drawn, so an
+        // action whose only effect is a re-read is inert and counted as such.
+        sent:(window.__mocks?.answered()||[]).filter(call=>call.method!=='GET').length});
       // « À traiter » in BOTH worlds: the dense one holds the Arrivées page's
       // folders, the real one the tunnel error whose « Relancer » only SENDS.
       for (const id of ['acq-now-loaded','acq-todo-dense','acq-todo-loaded','lib-incomplete']) {
