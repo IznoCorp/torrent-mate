@@ -128,5 +128,27 @@
     "origin": false,
     "ratio": 0.06,
     "deadline": null
+  },
+  {
+    "infoHash": "c44e8cd75bec37a8337175c6580e85d4e2079da3",
+    "name": "Les.Zinzins.de.l.Espace.S03E14.FRENCH.720p.WEBRip.x264-JiHEFF",
+    "title": "Les Zinzins de l'Espace",
+    "kind": "episode",
+    "season": 3,
+    "episode": 14,
+    "state": "downloading",
+    "progress": 0.34,
+    "sizeBytes": 1200000000,
+    "etaSeconds": null,
+    "errorReason": null,
+    "ids": {
+      "tmdb": 11801,
+      "imdb": "tt0118343",
+      "tvdb": 73248
+    },
+    "tracker": "c411",
+    "origin": true,
+    "ratio": 0.0,
+    "deadline": null
   }
 ]

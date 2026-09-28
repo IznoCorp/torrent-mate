@@ -37,6 +37,14 @@ division a cross-seed would make by zero. So, on `torrents-list`:
 16. `torrents-obligation-done` — an obligation met, the torrent still seeding —
     marks it « terminée » on its row, never « en cours ».
 
+A direct add is a card of Acquisition only once it has arrived (L22 RULINGS
+25): until then, the download client's entry is where it is read — here, like
+any other active entry. The subject is read off the seeds, never named: the
+entry the client is still downloading.
+
+17. the downloading entry is a row of `torrents-list`, under its own title, and
+    a finger on that title lands on its medium's sheet, by provider id.
+
 Red before the move: the tab draws no entry.
 """
 import asyncio
@@ -221,6 +229,29 @@ async def filtered(page, journal):
                   f"open {row.get('open')} · done {row.get('done')}")
 
 
+async def downloading(page, journal):
+    """Hold 17: the entry still downloading is read in « Torrents »."""
+    entry = next((one for one in DOWNLOADS if one["state"] == "downloading"), None)
+    journal.check("the seeds hold an entry the client is still downloading", entry is not None,
+                  str(sorted({one["state"] for one in DOWNLOADS})))
+    if entry is None:
+        return
+    await enter(page, "torrents-list")
+    hash_value = entry["infoHash"]
+    row = page.locator(f'#view [data-part="torrents/row"][data-entry="{hash_value}"]')
+    title = row.locator('[data-part="torrents/title"]')
+    drawn = (await title.first.text_content()).strip() if await title.count() else None
+    journal.check(f"« {entry['title']} », downloading, is a row of « Torrents » under its own title",
+                  drawn == entry["title"], repr(drawn))
+    ids = entry["ids"]
+    wanted = f"/media/tvdb/{ids['tvdb']}" if ids.get("tvdb") else f"/media/tmdb/{ids.get('tmdb')}"
+    if drawn is not None:
+        await title.first.tap()
+        await page.wait_for_timeout(ACTED)
+    where = await page.evaluate("()=>location.pathname")
+    journal.check(f"a finger on « {entry['title']} » lands on its sheet, {wanted}", where == wanted, where)
+
+
 async def main():
     journal = Journal("R261 — the « Trackers » tab: one entry per tracker, never averaged")
     async with async_playwright() as playwright:
@@ -255,6 +286,7 @@ async def main():
 
         await torrents(page, journal)
         await filtered(page, journal)
+        await downloading(page, journal)
 
         answer = await enter(page, "trackers-roster-empty")
         journal.check("the named state trackers-roster-empty exists", answer is None, answer or "")
