@@ -42,9 +42,14 @@ const CANDIDATES_SCREEN = "/resolution/";
  * « À traiter » rather than on the tab the device remembers — or the exit would
  * land on a list the screen does not answer.
  *
- * @returns « À traiter » beneath the candidates screen, the remembered tab otherwise.
+ * A LANDING THAT NAMES ITS TAB opens that tab, as an address that names one
+ * does; it is not remembered, since the operator did not choose it.
+ *
+ * @param asked The tab the landing names, if any; a value that is no tab is ignored.
+ * @returns The tab asked for, « À traiter » beneath the candidates screen, the remembered tab otherwise.
  */
-export function landingTab(): string {
+export function landingTab(asked?: string): string {
+  if (asked !== undefined && TABS.has(asked)) return asked;
   return location.pathname.startsWith(CANDIDATES_SCREEN) ? "todo" : rememberedTab();
 }
 

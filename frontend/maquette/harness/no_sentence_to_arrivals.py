@@ -13,7 +13,20 @@ torrent trouvé ».
    sentence naming Arrivées, and no control addressed to it;
 2. every cross-reference that leaves Système or a run's detail for another
    page (`data-go`; Maintenance is reached by `data-page`) lands on
-   Acquisition, tapped by a finger;
+   Acquisition, tapped by a finger — on « À traiter », which it names: the
+   address it settles on says `tab=todo`, and « À traiter » is the tab drawn,
+   though the device remembers no tab (« Suivis » otherwise);
+   A run's detail is reached BY FINGER for the landing — home, the menu,
+   Système, a run — because its named state lays Système without the entry a
+   finger pushes, and the landing's walk back through the history then has no
+   floor to land on: the address would be read off a history no finger makes;
+2b. and the landing home that every bar tap makes is unchanged: on a
+   history a finger laid with « En cours » in the floor's address and « À
+   traiter » remembered, the bar's Médiathèque then its Acquisition come back
+   to « En cours », the address saying it (the step back home is ANNOUNCED
+   since the landings above, and the floor takes the page's own state);
+2c. a control that names no tab (the not-found page's « Acquisition ») lands
+   on the tab the device remembers, « En cours » here;
 3. « En cours » draws no cross-reference at all: its subject — what entered
    without a follow and waits for a hand — is « À traiter » and its count;
 4. a maintenance command, run for real, is said in the sentence that names
@@ -43,7 +56,15 @@ SYSTEM_PATH = PAGE_PATHS["sys"]
 # Where a landing ends: the page the interface holds, and the address it shows.
 # The entry of the stack is the home page's own address, so a landing that
 # rewinds to it reads the entry's path rather than the page's.
-LANDED = "()=>({ page: state.page, path: location.pathname })"
+LANDED = """()=>({ page: state.page, path: location.pathname,
+  tab: new URLSearchParams(location.search).get('tab'),
+  drawn: document.querySelector('[data-acqtab][aria-selected="true"]')?.dataset.acqtab ?? null })"""
+# The storage key the device remembers Acquisition's tab under (R202's).
+KEY = "acquisition-tab"
+FORGET = "(key)=>{ try { localStorage.removeItem(key); } catch (error) {} }"
+REMEMBER = "([key, tab])=>{ try { localStorage.setItem(key, tab); } catch (error) {} }"
+TODO = "todo"
+NOW = "now"
 REAL_COMMAND = "library-status"
 RULE_NOTE = WORDS["screens"]["profile"]["rulenote"]
 # A page's body is drawn from the navigation table, so it is read as the view.
@@ -82,7 +103,7 @@ async def reads(page, journal, state, selector):
     journal.check(f"{state}: no control is addressed to it", "arr" not in links, str(links))
 
 
-async def lands(page, journal, state, selector):
+async def lands(page, journal, state, selector, walked=False):
     """Holds that each cross-reference of a surface that leaves for a page, tapped, lands on Acquisition.
 
     Système's cross-references to Maintenance are a page of its own reached
@@ -91,13 +112,57 @@ async def lands(page, journal, state, selector):
     await reads(page, journal, state, selector)
     count = await page.evaluate(CROSS_REFERENCES, selector)
     journal.check(f"{state}: it draws a cross-reference that leaves the page", count > 0, str(count))
+    if walked:
+        return
     for index in range(count):
         await drive(page, state)
+        await page.evaluate(FORGET, KEY)
         await page.locator(f'{selector} [data-part="cross-reference"][data-go]').nth(index).tap()
         await page.wait_for_timeout(ACTED)
         landed = await page.evaluate(LANDED)
         journal.check(f"{state}: its cross-reference {index + 1} lands on Acquisition, and leaves Système",
                       landed["page"] == "acq" and not landed["path"].startswith(SYSTEM_PATH), str(landed))
+        journal.check(f"{state}: on « À traiter », which it names — the address says it, and the tab is drawn",
+                      landed["tab"] == TODO and landed["drawn"] == TODO, str(landed))
+
+
+# The walks a finger makes from home to each cross-reference.
+TO_SYSTEM = ('[data-drawer]', '#drawer [data-navgo="sys"]')
+WALKS = {
+    "system": (*TO_SYSTEM, f'{PAGE} [data-part="cross-reference"][data-go]'),
+    "run-detail": (*TO_SYSTEM, '[data-part="runs/row"]', f'{RUN_BODY} [data-part="cross-reference"][data-go]'),
+}
+
+
+async def walked(browser, journal, name):
+    """Holds the landing of a cross-reference on a history a finger laid."""
+    context, page = await open_page(browser)
+    await page.evaluate(FORGET, KEY)
+    for step in WALKS[name]:
+        await page.locator(step).first.tap()
+        await page.wait_for_timeout(ACTED)
+    landed = await page.evaluate(LANDED)
+    journal.check(f"{name}, walked: its cross-reference lands on Acquisition, and leaves Système",
+                  landed["page"] == "acq" and not landed["path"].startswith(SYSTEM_PATH), str(landed))
+    journal.check(f"{name}, walked: on « À traiter », which it names — the address says it, and the tab is drawn",
+                  landed["tab"] == TODO and landed["drawn"] == TODO, str(landed))
+    await context.close()
+
+
+async def bar_home(browser, journal):
+    """Holds a bar tap home on a floor whose tab is not the remembered one."""
+    context, page = await open_page(browser)
+    await page.locator('[data-acqtab="now"]').first.tap()
+    await page.wait_for_timeout(ACTED)
+    await page.evaluate(REMEMBER, [KEY, TODO])
+    for step in ('#nav button[data-page="lib"]', '#nav button[data-page="acq"]'):
+        await page.locator(step).first.tap()
+        await page.wait_for_timeout(ACTED)
+    landed = await page.evaluate(LANDED)
+    journal.check("the bar, walked home: back on « En cours », the floor's tab, and the address says it",
+                  landed["page"] == "acq" and landed["drawn"] == NOW and landed["tab"] == NOW, str(landed))
+    await page.evaluate(FORGET, KEY)
+    await context.close()
 
 
 async def maintenance_toast(page, journal):
@@ -122,7 +187,10 @@ async def main():
         page.on("pageerror", lambda error: errors.append(str(error)))
 
         await lands(page, journal, "system", PAGE)
-        await lands(page, journal, "run-detail", RUN_BODY)
+        await lands(page, journal, "run-detail", RUN_BODY, walked=True)
+        await walked(browser, journal, "system")
+        await walked(browser, journal, "run-detail")
+        await bar_home(browser, journal)
 
         await reads(page, journal, "acq-now-loaded", PAGE)
         staged = await page.evaluate("async()=>(await (await fetch('/api/staging/media?scenario=loaded')).json())")
@@ -130,6 +198,15 @@ async def main():
                       len((staged or {}).get("stuck", [])) > 0, str(staged)[:200])
         count = await page.evaluate(EVERY_CROSS_REFERENCE, PAGE)
         journal.check("acq-now-loaded: « En cours » draws no cross-reference", count == 0, str(count))
+
+        await drive(page, "not-found")
+        await page.evaluate(REMEMBER, [KEY, NOW])
+        await page.locator('[data-part="card/foot"][data-go="acq"]').first.tap()
+        await page.wait_for_timeout(ACTED)
+        landed = await page.evaluate(LANDED)
+        journal.check("not-found: a control that names no tab lands on the remembered one, « En cours »",
+                      landed["page"] == "acq" and landed["drawn"] == NOW, str(landed))
+        await page.evaluate(FORGET, KEY)
 
         await maintenance_toast(page, journal)
 

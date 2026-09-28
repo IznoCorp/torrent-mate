@@ -53,8 +53,8 @@ export let followedTitles: (() => string[]) | undefined;
 export let replaceAddress: (() => boolean) | undefined;
 /** Opening the panel an element addresses — the press reads it while the gesture is still the engine's. */
 export let openAddressedPanel: ((element: Element) => void) | undefined;
-/** What a page puts back at its default when a landing arrives on it — filled by the page's own feature. */
-export let resetLandingDial: ((page: string) => void) | undefined;
+/** What a page puts back at its default when a landing arrives on it — or at the dial the landing names — filled by the page's own feature. */
+export let resetLandingDial: ((page: string, dial?: string) => void) | undefined;
 /** The history primitives the navigation logic speaks through. */
 export let bridge: Window["__bridge"];
 /** The screen openers. */
@@ -132,10 +132,13 @@ export function fillAddressedPanelDoor(open: (element: Element) => void): void {
  * A page's dials are the page's own — the frame may not name one (invariant 10)
  * and the state-ownership arm reads every write by the keys it can SEE, so the
  * write is made where the dial is understood rather than forwarded as a patch.
+ * A control may NAME the dial it lands on (`data-dial`); the frame carries the
+ * value without reading it, and the page decides what it means.
  *
- * @param land What a feature does when a landing arrives on one of its pages.
+ * @param land What a feature does when a landing arrives on one of its pages,
+ *     with the dial the landing names, if any.
  */
-export function fillLandingDoor(land: (page: string) => void): void {
+export function fillLandingDoor(land: (page: string, dial?: string) => void): void {
   resetLandingDial = land;
 }
 

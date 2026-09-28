@@ -788,6 +788,11 @@ adjusts them at the drawing (French only inside « guillemets »):
 A cross-reference that leads to Acquisition lands on the default tab, so « À traiter » when something
 waits: a link never sends the operator to a tab it knows to be empty.
 
+> **Amended 2026-09-28 (L22b phase 39, triage F7 — round 7 replaced the default tab by « Suivis », then the tab
+> opened last):** the two cross-references of Système and of a run's detail NAME « À traiter » (`data-dial="todo"`,
+> passed by the frame unread to Acquisition's landing, the address settling on `?tab=todo`); when nothing waits its
+> empty state is drawn. A control that names no tab lands on the remembered one. R239 holds both.
+
 ---
 
 ## 4. The named states

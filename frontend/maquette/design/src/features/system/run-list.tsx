@@ -180,7 +180,7 @@ export function RunList(): ReactElement {
         ))}
       </ol>
 
-      <button className={crossReference()} data-part="cross-reference" data-go="acq">
+      <button className={crossReference()} data-part="cross-reference" data-go="acq" data-dial="todo">
         {t("screens.system.toAcquisition")}
         <span className={crossReferenceLink()}>{t("screens.system.toAcquisitionLink")}</span>
       </button>

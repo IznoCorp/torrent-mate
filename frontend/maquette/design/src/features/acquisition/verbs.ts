@@ -130,7 +130,8 @@ registerVerb("search-again", (title, element) => {
    screen answers (`landingTab`). The engine's own landing branch wrote
    this dial itself; the frame that answers the tap now cannot, since the dial is
    this page's name and not the frame's (invariant 10), so it asks through the
-   landing door and the write is made here. */
-fillLandingDoor((page) => {
-  if (page === "acq") store.write({ acqTab: landingTab() });
+   landing door and the write is made here. A control that NAMES the tab it
+   lands on is obeyed: a link to what waits for the hand opens « À traiter ». */
+fillLandingDoor((page, dial) => {
+  if (page === "acq") store.write({ acqTab: landingTab(dial) });
 });
