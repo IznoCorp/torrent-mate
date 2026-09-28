@@ -1,8 +1,9 @@
-// « Suivre », PROPOSED on an arrival (ruling 1) — never done unasked.
+// « Suivre », PROPOSED on a one-off acquisition (ruling 1) — never done unasked.
 //
-// An arrival creates a punctual acquisition, never a follow. On the card of an
-// arrival that is an IDENTIFIED SERIES nobody follows, the interface offers the
-// follow; nothing is followed until it is tapped. ONE derivation, read by the
+// An arrival creates a punctual acquisition, never a follow; so does a season
+// asked of a series nobody follows (round 10 Q2). On the card of either that is
+// an IDENTIFIED SERIES nobody follows, the interface offers the follow; nothing
+// is followed until it is tapped. ONE derivation, read by the
 // card's foot and by its panel (one card, one behaviour).
 
 /** What the offer reads of a card: who asked for it, and its identity. */
@@ -20,7 +21,7 @@ const SERIES_PROVIDER = "tvdb";
  *
  * @param card The card.
  * @param follows Every follow the operator has.
- * @returns True for an arrival of an identified series no follow shares an
+ * @returns True for a one-off card of an identified series no follow shares an
  *     identifier with — by provider identity, never by title.
  */
 export function followOffered(card: Offered, follows: Followed[]): boolean {

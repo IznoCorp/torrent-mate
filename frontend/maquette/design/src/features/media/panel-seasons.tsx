@@ -21,6 +21,7 @@ import { actionButton } from "../../ui/variants";
 import { askForSeason, useAskedInFlight } from "./season-grab";
 import { episodeStateLabel } from "./format";
 import { useQueuedSeasons } from "./queued-seasons";
+import { useAskedSeasons } from "./asked-seasons";
 
 // The slice of a "follow" record the season blocks read: `ids` for the medium's
 // two served reads — the owned numbers and the episode catalogue — `title` for
@@ -106,6 +107,8 @@ function SeasonDetails({
   // redraws the moment one is answered « queued ».
   const waiting = useQueuedSeasons(follow.title);
   const askedInFlight = useAskedInFlight();
+  // WHICH SEASONS ARE ASKED ONCE — a one-off acquisition in the queue.
+  const askedOnce = useAskedSeasons(follow.title).includes(season[0]);
   const [num, rawAired, owned] = season;
   const aired = rawAired ?? 0;
   const complete = owned >= aired;
@@ -173,6 +176,13 @@ function SeasonDetails({
             {t("screens.media.seasonWaitingOnPipeline")}
           </span>
         ) : null}{" "}
+        {/* « DEMANDÉE » WHILE A ONE-OFF ACQUISITION OF THE SEASON LIVES, and the
+            act below is withdrawn: the surface pressed says what the ask did. */}
+        {askedOnce ? (
+          <span className={queuedMark()} data-part="season/asked" data-asked-season={`${follow.title}|${num}`}>
+            {t("screens.media.seasonAskedOnce")}
+          </span>
+        ) : null}{" "}
         {/* A shortfall is an episode that AIRED and is not held — never one
             of a medium nobody holds, nor of a count nobody knows. */}
         {complete || !owns || rawAired === null ? null : (
@@ -202,7 +212,7 @@ function SeasonDetails({
           call to the wrong one. The act itself is a React handler and NOT a
           delegation target: the engine died by subtraction (D5), and a verb
           that needed a line in it was a verb that had not moved. */}
-      {complete ? null : (
+      {complete || askedOnce ? null : (
         <button
           type="button"
           className={`${actionButton({ kind: "panelAction" })} ${seasonGrabSpacing()} ${seasonGrabTaken()}`}

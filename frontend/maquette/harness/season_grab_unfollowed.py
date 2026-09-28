@@ -44,12 +44,14 @@ each walked on a freshly seeded layer, for each subject:
   4. THE SENTENCE IS THE SEASON'S OWN, with no follow in it — read from
      `fr.json`; RE-AIMED OUT LOUD from the `…NewlyFollowed` sentences, which
      retire with the follow the act no longer begins.
-  5. A SECOND TAP QUEUES NO SECOND CARD — one item, one card.
-     RE-AIMED OUT LOUD, AND TEMPORARILY (RULINGS 28): this hold read « the surface
-     pressed reads differently afterwards ». A one-off ask changes no fact the
-     panel or the sheet draws, so the hold is set aside until the season's row
-     says « demandée » and withdraws the act — the next phase gives it back.
-  6. NO ERROR IS RAISED.
+  5. THE SURFACE PRESSED READS DIFFERENTLY afterwards — the one the operator was
+     looking at is not the only one that does not know. GIVEN BACK, said out
+     loud (RULINGS 28): it was set aside for one phase while a one-off ask
+     changed no fact the panel or the sheet drew; it now reads the season's row,
+     which says « demandée » and offers the act no more while the one-off
+     acquisition lives in the queue.
+  6. A SECOND TAP QUEUES NO SECOND CARD — one item, one card.
+  7. NO ERROR IS RAISED.
 
 AND ONE NEGATIVE LEG, from a measurement: the sheet's season list must NOT
 offer the act on a show nobody owns. `complete` is false for anything not
@@ -156,6 +158,10 @@ SENTENCES = json.loads(
     (ROOT / "design" / "src" / "i18n" / "fr.json").read_text(encoding="utf-8")
 )["verbs"]["media"]
 SEASON_KEYS = ("seasonAsked", "seasonAskedOne", "seasonAskedNone", "seasonQueued")
+# The season's own mark while its one-off acquisition lives.
+ASKED_MARK = json.loads(
+    (ROOT / "design" / "src" / "i18n" / "fr.json").read_text(encoding="utf-8")
+)["screens"]["media"]["seasonAskedOnce"]
 
 ANSWERED = "()=>(window.__mocks?.answered?.() || [])"
 
@@ -325,6 +331,15 @@ ONE_OFF_COUNT = """async ({ title, season }) => {
 }"""
 
 
+SURFACE_TEXT = "(scope)=>(document.querySelector(scope)?.textContent || '')"
+
+# THE SEASON'S ROW after the ask: its mark, and whether it still offers the act.
+SEASON_ROW = """([scope, key])=>{
+  const surface = document.querySelector(scope);
+  const mark = surface?.querySelector(`[data-asked-season="${CSS.escape(key)}"]`);
+  return {mark: mark ? mark.textContent.trim() : null,
+          act: !!surface?.querySelector(`[data-grab-season="${CSS.escape(key)}"]`)};}"""
+
 
 def the_seasons_own(said, season, title):
     """Says whether a message is one of the season's own sentences.
@@ -396,6 +411,7 @@ async def take_a_season(page, journal, errors, title, surface):
     if not (act["found"] and act["reachable"]):
         return
     number = season["value"].split("|")[-1]
+    looked_at = await page.evaluate(SURFACE_TEXT, scope)
     mark = len(await page.evaluate(ANSWERED))
     errors.clear()
     await page.touchscreen.tap(act["x"], act["y"])
@@ -420,6 +436,11 @@ async def take_a_season(page, journal, errors, title, surface):
     said = await page.evaluate(SAID)
     journal.check(f"{where}: the sentence is the season's own, with no follow in it",
                   bool(the_seasons_own(said, number, title)), repr(said))
+    journal.check(f"{where}: the surface pressed reads differently afterwards",
+                  await page.evaluate(SURFACE_TEXT, scope) != looked_at)
+    row = await page.evaluate(SEASON_ROW, [scope, season["value"]])
+    journal.check(f"{where}: the season's row says « {ASKED_MARK} » and offers the act no more",
+                  row["mark"] == ASKED_MARK and not row["act"], str(row))
     await page.touchscreen.tap(act["x"], act["y"])
     await page.wait_for_timeout(ACTED)
     count = await page.evaluate(ONE_OFF_COUNT, {"title": title, "season": int(number)})

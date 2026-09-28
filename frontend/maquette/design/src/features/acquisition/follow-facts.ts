@@ -32,6 +32,10 @@ import { followFraction } from "./follow-vocabulary";
 import { inFlightCards, setAsideCards, todoCards } from "./arrival-slots";
 import { originLine } from "./card-markup";
 import { followOffered } from "./follow-offer";
+
+// The contract's token for a season asked once, in the application.
+const ASKED_ONCE = "request";
+
 export type { Follow };
 
 /** What is true about the medium a follow panel is about. */
@@ -123,6 +127,9 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
   const todo = answer ? todoCards(answer).find((one) => one.title === title) : undefined;
   const arrival = answer?.arrivals.find((one) => one.title === title);
   const acquisition = todo ?? (answer ? inFlightCards(answer).find((one) => one.title === title) : undefined);
+  // WHAT MAY BE OFFERED « Suivre »: an arrival, or a season asked once — a
+  // one-off acquisition of a series nobody follows (round 10 Q2).
+  const offered = arrival ?? (acquisition?.requester?.via === ASKED_ONCE ? acquisition : undefined);
   const toResolve = queue.blocked
     .concat(queue.stuck ?? [])
     .some((one) => one.title === title);
@@ -145,7 +152,7 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
     setAside: answer ? setAsideCards(answer).some((one) => one.title === title) : false,
     hasSheet: (follow.ids ?? heldIdentity(title)?.ids) != null,
     // THE SAME OFFER THE CARD'S FOOT MAKES, from the same derivation (R43).
-    followOffer: arrival !== undefined && followOffered(arrival, followed) ? arrival.ids ?? null : null,
+    followOffer: offered !== undefined && followOffered(offered, followed) ? offered.ids ?? null : null,
     origin: acquisition ? originLine(acquisition) ?? null : null,
     // ONE DERIVATION: the card's fraction, the header's, and the sum of the
     // season headers all read this computation.

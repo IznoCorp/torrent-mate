@@ -319,6 +319,7 @@
       "unread": "non lu",
       "unreadFeminine": "non lue",
       "seasonWaitingOnPipeline": "En file — pipeline en cours",
+      "seasonAskedOnce": "Demandée",
       "episodeState": {
         "in_library": "En médiathèque",
         "to_grab": "À récupérer",

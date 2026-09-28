@@ -85,6 +85,9 @@ export async function askForSeason(
   const waiting = await grabSeason(title, season);
   if (waiting) markSeasonQueued(client, title, season);
   await client.refetchQueries({ queryKey: ["/api/acquisition/followed"] });
+  // AND THE QUEUE: a season of a series nobody follows is queued as a one-off
+  // card, and the season's row says « demandée » from that card.
+  await client.invalidateQueries({ queryKey: ["/api/acquisition/to-handle"] });
   panel?.redraw();
 }
 
