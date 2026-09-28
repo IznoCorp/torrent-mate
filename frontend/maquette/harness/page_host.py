@@ -166,11 +166,13 @@ async def main():
         # than it emits. Each page below is reached from two different
         # predecessors, once across each world's boundary.
         # RE-AIMED OUT LOUD: the Arrivées page left the walk with the page;
-        # every page left is still reached from two predecessors.
+        # every page left is still reached from two predecessors — « discover »
+        # among them, from « 404 » and from « sys ».
         walk = ["lib", "sys", "lib", "acq", "sys", "acq",
                 "maint", "lib", "maint", "cfg", "maint", "sys", "cfg",
                 "sys", "cfg", "lib", "acq", "profile",
-                "acq", "profile", "404", "lib", "404"]
+                "acq", "profile", "404", "lib", "404",
+                "discover", "sys", "discover"]
         signatures: dict[str, set[str]] = {}
         residue = []
         absent = []
@@ -192,6 +194,9 @@ async def main():
         compared = {name: len(hits) for name, hits in signatures.items()}
         walked_twice = [name for name in signatures
                         if walk.count(name) < 2]
+        # AND EVERY PAGE THE SHELL OWNS IS IN THE WALK, or a page added to the
+        # table is never walked and this hold is green over it.
+        walked_twice += [name for name in SHELL_OWNED if name not in signatures]
         journal.check(
             "every page in the walk was reached from two different predecessors",
             not walked_twice and not absent,

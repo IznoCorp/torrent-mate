@@ -71,6 +71,14 @@ async def main():
             "()=>{try{window.__go('acq-follows-film-at-plex-check');return null}catch(error){return String(error)}}")
         journal.check("the named state acq-follows-film-at-plex-check exists", answer is None, answer or "")
         await page.wait_for_timeout(SETTLED)
+        # RE-AIMED OUT LOUD: « Suivis » is re-read from the layer AFTER the
+        # state laid the ladder one event from the end. Read as the reset drew
+        # it, the list came from a follows answer taken before that ladder
+        # existed, so a film ended one rung early still showed — the hold was
+        # green over nothing.
+        await page.evaluate(
+            "()=>window.__queries?.refetchQueries({ queryKey: ['/api/acquisition/followed'] })")
+        await page.wait_for_timeout(SETTLED)
         before = await page.evaluate(TITLES)
         journal.check(f"while its last rung is pending, « {FILM} » is in « Suivis »",
                       FILM in before and SERIES in before, str(before))

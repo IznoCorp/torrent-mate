@@ -19,7 +19,11 @@ quel » on the candidates screen.
 3. it is still there after both reads are asked again: the layer holds it, not
    the screen;
 4. its panel offers « Résoudre » — the section's own act, also in the panel
-   (one card, one behaviour).
+   (one card, one behaviour);
+5. the rung set aside is the one the card STANDS on (ruling 6: `aside`,
+   « identifié » pending), never the first rung it has not lived — and the card
+   keeps the figure and the word it had in « À traiter » (« 6 sur 8 ·
+   identifié »), read on the card and on the ladder the layer holds.
 
 Red before the move: « Laisser tel quel » took the folder out of both lists and
 nothing drew it anywhere.
@@ -50,6 +54,11 @@ READING = f"""(title) => {{
   const answer = window.__queries?.getQueryData(["/api/acquisition/to-handle", ""]) || {{}};
   const held = [...(answer.blocked || []), ...(answer.arrivals || [])].find(one => one.title === title);
   const rung = (held?.ladder || []).find(one => one.state === 'aside');
+  const drawn = [...document.querySelectorAll('#view [data-part="card"]')]
+    .find(one => one.querySelector('[data-part="card/title"]').textContent === title);
+  const cells = drawn ? [...drawn.querySelectorAll('[data-part="card/step"]')].map(cell => cell.dataset.state) : [];
+  const figure = drawn?.querySelector('[data-part="card/meta"] > span:first-child');
+  const word = drawn?.querySelector('[data-part="card/meta"] [data-part="chip"]');
   return {{
     counted,
     tab: number(document.querySelector('[data-acqtab="todo"] [data-part="segment/count"]')),
@@ -59,6 +68,10 @@ READING = f"""(title) => {{
     folded: aside ? !aside.querySelector('details')?.open : null,
     reason: card ? (card.querySelector('[data-part="card/reason"]') || {{}}).textContent || null : null,
     when: rung ? rung.when : null,
+    asideRung: rung ? rung.rung : null,
+    cells,
+    figure: figure ? figure.textContent : null,
+    word: word ? word.textContent : null,
   }};
 }}"""
 
@@ -108,6 +121,15 @@ async def main():
                       day is not None and after["reason"] is not None
                       and after["reason"].startswith("Mis de côté par vous, le ") and day in after["reason"],
                       f"{after['reason']!r}, answered {after['when']!r}")
+
+        standing = before["cells"].index("blocked") if "blocked" in before["cells"] else None
+        journal.check("the rung set aside is the one the card stood on, « identifié »",
+                      after["asideRung"] == "identified" and standing is not None
+                      and after["cells"][standing:standing + 1] == ["aside"],
+                      f"layer {after['asideRung']!r}, cells {before['cells']} → {after['cells']}")
+        journal.check("and the card keeps its figure and its word",
+                      before["figure"] is not None and (after["figure"], after["word"]) == (before["figure"], before["word"]),
+                      f"{before['figure']!r} · {before['word']!r} → {after['figure']!r} · {after['word']!r}")
 
         # ── the layer holds it: both reads asked again ─────────────────────
         await page.evaluate("""()=>{

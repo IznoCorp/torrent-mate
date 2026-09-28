@@ -562,4 +562,35 @@ L22b appends from 13).
   run's invocation, script proof `merge2-accept-proof.log`: 109 states equal main's value, 21 of this branch take one of
   main's; HEAD's reference written with those keys only, 43e297bbc); `merge2-check.log` no divergence. Bump 0.98.103
   eb214ce4f. `make lint` 0 findings; the CI static list + check-bug-register + check-docs-cited-paths all exit 0.
+- 2026-09-28 READER B22's CORRECTION ROUND (the steward's decided list, `review-archive/l22/BRIEF-L22b-round1.md`).
+- B1 (blocker): a folder set aside stood on « demandé ». R226 gained two holds (8509e4655), red `r1-B1-red.log` (« layer
+  'requested' », « '6 sur 8' · 'identifié' → '1 sur 8' · 'demandé' »); 9ae33e6d8: setAside, in the layer AND in the
+  cache's optimistic write (lib/set-aside.ts, the same defect), sets aside the rung the card stands on — the card's
+  derivation moved to `lib/current-rung.ts`, one answer for both. Declared states (by script): acq-card-set-aside,
+  acq-delete-keeps-files, acq-delete-only-copy, acq-delete-unknown — the gate read NO divergence (the text moved, no
+  box). Mutation P2 `r1-B1-mutation-P2.log`: `standing = 0` → FAIL both new holds by name.
+- B2 (major): R230 hold 1 re-reads « Suivis » from the layer after the ladder is laid (15bfe36e2), RE-AIMED OUT LOUD.
+  Mutation 18-1 `r1-B2-mutation-18-1.log` (`held.length - 2`) → FAIL « while its last rung is pending, « Wicker » is in
+  « Suivis » ».
+- B3 (major): R10's `sent` counts writes only (21df4c939). Phase 41's mutation → « acq-todo-loaded : « Relancer »
+  changes nothing » (`r1-B3-mutation-41.log`); probe P1 (« Relancer » refetches instead of sending) → the same line
+  (`r1-B3-mutation-P1.log`).
+- B4 (minor): R158's « a second tap queues no second card » RETIRED OUT LOUD (98779d026): once asked, both surfaces
+  draw « Demandée » where the act was, no finger can ask twice; « offers the act no more » holds it. 36-twice is
+  recorded RETIRED for that reason (not replayed: its hold is gone).
+- B5 (minor): R158 gained « its count is the shortfall the season's row drew » (18aaa17c2), red `r1-B5-red.log` (« row
+  « 23 manquants », said … aucun épisode … », panel and sheet); 2b7b17d06: a season seasons.json does not carry is
+  counted as the season surfaces draw it (seasonsAnswer). « Agent Elvis » (followed, nothing held) then fell: R158's
+  own expectation read the same incomplete table — RE-AIMED OUT LOUD (8a0eab22d), its aired season has ten episodes to
+  get. Mutation `r1-B5-mutation.log` (the drawn fallback dropped) → FAIL the new hold ×2 and « Agent Elvis » ×2. A
+  sentence of its own for the one-off: a copy decision, for the steward's docs PR.
+- B6 (minor): R77's walk now holds every page the shell owns is walked (34adc2147), red `r1-B6-red.log` (« never
+  re-entered: ['discover'] »); « discover » reached from « 404 » and « sys » (d79de9a82). Mutation `r1-B6-mutation.log`
+  (discover out of the walk) → the same FAIL by name.
+- B7 (record): 42-dense replayed on « Backrooms » (`r1-B7-mutation-42-dense.log`): EXPRESSION the card body's
+  `data-panel` emptied for « Backrooms.2026.MULTi.2160p.WEB-DL » → cards FAIL « R46 acq-todo-dense
+  « Backrooms.2026.MULTi.2160p.WEB-DL »: a folder addresses no panel ». B8 dropped by the steward (old, new scope).
+- ROUND GATE on d79de9a82 (`r1-gate.log`): 37 rules (15 named) + 26 guards, only check-intent-map failed (the
+  operator's word), no divergence (the in-invocation accept rewrote only formatting and baseCommit — restored);
+  `r1-a11y.log` 0 + light 88/88; `make lint` 0; the CI static list 7/7 exit 0.
 

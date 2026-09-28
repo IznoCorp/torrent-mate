@@ -24,6 +24,7 @@ import { mockState } from "../state";
 import { accountName } from "../account";
 import type { MockRoute } from "../router";
 import type { components } from "../../contract/types";
+import { seasonsAnswer } from "./media";
 
 type Schemas = components["schemas"];
 
@@ -144,8 +145,12 @@ function restart(subject: string, running: boolean): void {
 function episodesMissingFromSeason(title: string, season: number): number {
   const counted = (SEASON_COUNT[title] ?? []).find(
     (one) => one.season === season);
-  if (counted === undefined) return 0;
-  const missing = counted.aired - counted.owned;
+  // A SEASON THAT TABLE DOES NOT CARRY is counted the way the season surfaces
+  // draw it — aired by the scenario's date, less what is held — so the answer
+  // never says « aucun épisode » beside a card reading « 0/23 ».
+  const drawn = seasonsAnswer([title]);
+  const aired = counted?.aired ?? drawn.aired[String(season)] ?? 0;
+  const missing = aired - (counted?.owned ?? (drawn.owned[String(season)] ?? []).length);
   return missing > 0 ? missing : 0;
 }
 
