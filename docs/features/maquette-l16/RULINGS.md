@@ -27,3 +27,10 @@ The steward's rulings on this lot's STOPs, numbered, one per STOP. The operator'
    its own »; « Tout voir » is the same `trackers-filter` verb given no tracker, an adjustment that pushes
    nothing, proved by a finger (R261); the line serves `torrents-empty-filtered` too; the met-obligation
    state `torrents-obligation-done` is declared in 5b.
+4. **2026-09-29, phase 6b, STOP D — a torrent's title leads to a hollow sheet.** `audit.py` R1 fell on
+   « Lanterns » ×3: its sheet was in no seed. A (swap the torrent) was refused — it hides a real state;
+   B2 (the cast from TMDB) refused — the interface reads the NFO, not the provider live. **Ruled B1,
+   reinforced**: Lanterns's sheet enters `media-sheets.json` from its real NFO, cast empty; R1 is re-aimed
+   OUT LOUD, not weakened — a sheet is filled with an overview and genres — and a new hold R1 bis reads
+   that a castless sheet draws no cast strip and says « Distribution inconnue. » (condition 2 corrected by
+   the steward: saying the absence is an answer, § 8). No product change, no new state.

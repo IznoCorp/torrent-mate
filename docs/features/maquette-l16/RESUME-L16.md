@@ -1,19 +1,18 @@
 # L16 — RESUME
 
-## STATE BLOCK (rewritten at every boundary — 2026-09-29, boundary after phase 6a)
+## STATE BLOCK (rewritten at every boundary — 2026-09-29, boundary after phase 6b)
 
 - **Branch** `feat/maquette-l16`, worktree `/Users/izno/dev/worktrees/wave-l16`, on `origin/main` by MERGE
   (last: `0e523349f`, #627, merged at the 6a boundary — its only conflict the oracle reference, where main moved
   the header alone). `git merge --no-edit` at a phase boundary; NO force push, ever.
 - **Orchestrator** « Orch : TM frontend [79475d] »; always write the reference. The gauge script runs here:
   `context-gauge.sh`, its `context_percent=` and `source=` lines in every report. Exit boundary ~55 %.
-- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 6a — each gated, mutated, pushed. **Next: 6b** — the « Supprimer
-  les fichiers » checkbox, a new dialog block in `ui/dialog` (checked by default, sent as `deleteFiles`); the
-  tracker named whatever the box reads (M4); state `torrent-remove-confirm` (American Dad!, its obligation
-  satisfied by `setObligationSatisfied`); mutation 2. **PENDING the steward's word**: #627 wrote into phase 5
-  an inheritance of L22 RULINGS 25 (Zinzins's « En vol » card leaves, a hold « Zinzins downloading is readable
-  in Torrents », R229 `follow_offered.py` re-aimed) — proposed as a cut 5c.
-- **Remaining** (from `ls plan/`): 5c? · 6b · 7 · 8 · 9 · MIDPOINT FULL SUITE · 10 · 11 · 12 · 13 · 14 · 15 · 16 · 17.
+- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 6a · 6b — each gated, mutated, pushed. **Next: 5c** (ruled
+  2026-09-29: after 6b, before 7) — L22 RULINGS 25 inherited through #627 into phase 5: Zinzins (real, from
+  `moving.json`) into the downloads seed, its « En vol » card gone, a hold « Zinzins downloading is readable in
+  Torrents » in R261 with its mutation, R229 `follow_offered.py` re-aimed OUT LOUD with the removed state's
+  successor named; the opening measure counts the READERS of « En vol ». Then 7.
+- **Remaining** (from `ls plan/`): 5c · 7 · 8 · 9 · MIDPOINT FULL SUITE · 10 · 11 · 12 · 13 · 14 · 15 · 16 · 17.
   Known STOP D: 9 (no « vu » precedent), 12 (ratio cause = global `ingest.min_ratio`; the seed),
   14 (no read of a config file's content in the maquette's contract).
 - **Rulings** (`RULINGS.md`): 1 — the tab's parameter is `?list=`; 2 — C2, the policy rows raise the settings
@@ -31,10 +30,12 @@
   NO `--contracts` at a phase gate: it runs at 9 (midpoint full suite), 14 and the close. entry R62 and pwa
   (R52, R105, R108, R111) are out of phase gates. Single-rule mutations run `--class rule`. Order 48 light:
   series in `--rules`; a known-unstable rule the phase does not read: 5 draws, stop at 0/5.
-  `test_oracle.py`'s pinned count moves with every new state (141 states, 38 regions).
+  `test_oracle.py`'s pinned count moves with every new state (142 states, 38 regions).
   `check-maquette-comments.py --record` INSIDE the commit when a maquette file is added.
 - **Order 52**: harness lines added ≤ 0.6 × `design/src` lines added (`git diff --numstat origin/main...HEAD`);
   at 5b: 737 / 1452 = 0.51. A new check on a surface with a rule is a HOLD in that rule's file.
+- **A phase that adds `data-mediasheet` runs `audit.py` at its gate** (R1 / R1 bis: every sheet behind a
+  tap is filled, a castless one says so). A phase touching `ui/dialog` runs the dialog's readers.
 - **B-554 in practice**: a new dialog moves `shell/dialog` on every state measured after it (24 at 6a); declared
   by script from the oracle-only reading, all with the same box pair. The light a11y ceiling (88) refuses
   `.warnbox > b` (the warning block) — say a warning in a paragraph's strong run.
@@ -159,3 +160,20 @@
   Rules R263 10 · R261 56 · R122 13 · R260 27 · R262 14 · page_host 42, 0 failed. Mutation: the confirmation
   without the call → FAIL « confirmed, the removal of THAT entry is answered, its files deleted — answered [] »
   (`p06a-mutation1.log`). Merged `origin/main` `0e523349f` (#627) at the boundary.
+- 2026-09-29 — 6b: R263 holds 6–8 RED (`p06b-red.log`, 5 FAIL). `ui/dialog` gains a `check` block, its value
+  the block's own (the closed `#dlg` keeps content). Oracle: `torrent-remove-confirm` new + 25 `shell/dialog`
+  keys (B-554), proved; a11y dark 0, light 88. Word `checked`.
+- 2026-09-29 — 6b gate, order 42 on `ui/dialog`'s 13 readers: `audit.py` fell, R1 « hollow sheet behind a
+  poster — 3 », reproduced twice. ESCAPED FROM: `audit.py` absent from the 5a/5b gates; WHY: `ui/dialog` not
+  yet touched, so its readers were not run; FAMILY: the readers of `data-mediasheet`. R1 on the 142 states:
+  Lanterns ×3 alone (torrents-list, -filtered, -obligation-done). → RULINGS 4 = B1 reinforced. Lanterns's
+  sheet read from `/Volumes/Disk1/medias/series/Lanterns (2026)/tvshow.nfo` and its seven episode NFOs,
+  located through `library.db` (`mode=ro`: media_item 3308 → path 7429 → disk 1); no `<actor>` anywhere, so
+  cast []; composed: status « En cours » (none in the NFO), rating null (tmdb 0.0 on 0 votes), genres in
+  the seed's own labels. R1 re-aimed OUT LOUD + hold R1 bis (`audit.py` 13 → 14 holds).
+- 2026-09-29 — 6b mutations: Lanterns's overview null → `audit.py` FELL « torrents-obligation-done :
+  Lanterns » (`p06b-mutation-r1.log`; a first expression wrote invalid JSON, the build failed — no verdict,
+  re-run); the cast strip drawn empty → FELL « « Lanterns » : {'strip': True, 'said': True} »
+  (`p06b-mutation-r1bis.log`); the obligation paragraph dropped → R263 FAIL « the box unchecked, the running
+  obligation on c411 is still named » (`p06b-mutation2.log`; the naming is static, independent of the box by
+  construction). Rules audit 14 · audit2 13 · R263 15 · R261 56 · R122 13, 0 failed; oracle no divergence.
