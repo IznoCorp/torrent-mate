@@ -56,6 +56,9 @@
 #     frontend/maquette/harness/run.sh --contracts --oracle  # a phase gate: both, one build
 #     frontend/maquette/harness/run.sh --contracts --oracle settings.py page_host.py
 #                                        # the same, with the phase's re-aimed rules replayed
+#     frontend/maquette/harness/run.sh --rules pwa.py settings.py
+#                                        # ONLY the named rules, over one build: for a red,
+#                                        # a diagnosis, a finger walk — NEVER as a gate
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -235,18 +238,21 @@ REPOSITORY_ROOT="$(cd "$HERE/../../.." && pwd)"
 # RULES NAMED AFTER THE TWO FLAGS are the phase's re-aimed rules, replayed in the
 # same pass over the same build; a name with no file beside this script is
 # refused before anything is built.
-TIER="${1:-}"
-WITH_ORACLE=0
-NAMED_RULES=()
-if [ "$#" -ge 2 ] && { [ "$1 $2" = "--contracts --oracle" ] || [ "$1 $2" = "--oracle --contracts" ]; }; then
-  TIER="--contracts"
-  WITH_ORACLE=1
-  shift 2
-  # EACH ARGUMENT IS RESOLVED WHOLE, never by its `basename` alone: several
-  # paths an unsplit shell variable hands over as ONE word end in a rule that
-  # exists, and reading only that last name ran one rule and called the gate
-  # green. A path must name a file IN this directory; a bare name, a file beside
-  # this script.
+#
+# `--rules` RUNS THE NAMED RULES AND NOTHING ELSE, over one build: no contract
+# rule, no guard, no oracle, no audit. A red, a diagnosis or a finger walk wants
+# one rule, and the gate form made it pay for the whole contracts tier — about
+# six minutes against well under one. The price of that speed is that it proves
+# nothing about a phase, so its closing block says so in words: a fast run is
+# never a phase's proof, and the gate form is unchanged.
+#
+# EACH ARGUMENT IS RESOLVED WHOLE, never by its `basename` alone: several
+# paths an unsplit shell variable hands over as ONE word end in a rule that
+# exists, and reading only that last name ran one rule and called the gate
+# green. A path must name a file IN this directory; a bare name, a file beside
+# this script.
+resolve_named_rules() {
+  local harness_directory rule rule_directory
   harness_directory="$(cd "$HERE" && pwd -P)"
   for rule in "$@"; do
     case "$rule" in
@@ -259,6 +265,26 @@ if [ "$#" -ge 2 ] && { [ "$1 $2" = "--contracts --oracle" ] || [ "$1 $2" = "--or
     fi
     NAMED_RULES+=("$(basename "$rule")")
   done
+}
+TIER="${1:-}"
+WITH_ORACLE=0
+RULES_ONLY=0
+NAMED_RULES=()
+if [ "$#" -ge 2 ] && { [ "$1 $2" = "--contracts --oracle" ] || [ "$1 $2" = "--oracle --contracts" ]; }; then
+  TIER="--contracts"
+  WITH_ORACLE=1
+  shift 2
+  resolve_named_rules "$@"
+elif [ "$TIER" = "--rules" ]; then
+  RULES_ONLY=1
+  shift
+  # AN EMPTY LIST IS REFUSED, never run: it would build, run nothing and close
+  # on a verdict — the shape of a rule proved green that never ran.
+  if [ "$#" -eq 0 ]; then
+    echo "run.sh: --rules names no rule — a run of nothing would read as a green one" >&2
+    exit 64
+  fi
+  resolve_named_rules "$@"
 else
   # AN ARGUMENT THIS SCRIPT DOES NOT READ IS REFUSED, never dropped. A rule
   # named after a single tier was ignored in silence — « 0 named rule(s) », exit
@@ -267,14 +293,24 @@ else
   case "$#:$TIER" in
     0:|1:--contracts|1:--oracle|1:--a11y) ;;
     *)
-      echo "run.sh: rule names are only read with --contracts --oracle — refused: $*" >&2
+      echo "run.sh: rule names are only read with --contracts --oracle, or after --rules — refused: $*" >&2
       exit 64
       ;;
   esac
 fi
 ORACLE_ONLY=0
 A11Y_ONLY=0
-if [ "$TIER" = "--oracle" ]; then
+if [ "$RULES_ONLY" -eq 1 ]; then
+  # A name given twice runs once: the verdict below counts rules, not words.
+  scripts=()
+  for rule in "${NAMED_RULES[@]}"; do
+    case " ${scripts[*]-} " in
+      *" $rule "*) ;;
+      *) scripts+=("$rule") ;;
+    esac
+  done
+  label="${#scripts[@]} named rule(s) only — NOT a gate"
+elif [ "$TIER" = "--oracle" ]; then
   ORACLE_ONLY=1
   scripts=()
   label="recorded oracle only"
@@ -488,6 +524,49 @@ else
     echo "$hits" | sed 's/^/      /'
     failed=$((failed + 1))
   done
+fi
+
+# THE NAMED RULES' OWN VERDICT, and it counts what RAN, not what was asked for.
+# A rule that exits 0 before its first hold — an early return, a guard clause, a
+# `main()` never called — reads exactly like one that held everything, so each
+# rule's printed hold count is read back with the parser the hold-count tool
+# uses (`scripts/harness-hold-counts.py`), and a rule with no count, or a count
+# of zero, did not run as far as this verdict is concerned. A rule that prints
+# no count at all is refused for that reason too: this mode cannot tell it from
+# one that never started, and the gate form is where it is read.
+if [ "$RULES_ONLY" -eq 1 ]; then
+  executed=0
+  for s in "${scripts[@]}"; do
+    holds="$(python3 -c '
+import importlib.util
+import pathlib
+import sys
+
+specification = importlib.util.spec_from_file_location("hold_counts", sys.argv[1])
+hold_counts = importlib.util.module_from_spec(specification)
+specification.loader.exec_module(hold_counts)
+count, _ = hold_counts.parse_hold_count(pathlib.Path(sys.argv[2]).read_text(errors="replace"))
+print("" if count is None else count)
+' "$REPOSITORY_ROOT/scripts/harness-hold-counts.py" "$LOGS/$s.out")" \
+      || { echo "run.sh: the hold counts could not be read — no verdict." >&2; exit 1; }
+    if [ -n "$holds" ] && [ "$holds" -gt 0 ]; then
+      executed=$((executed + 1))
+      echo "  ran: $s — ${holds} hold(s) executed"
+    else
+      echo "  DID NOT RUN: $s — its output carries no hold count, so nothing says it held anything"
+    fi
+  done
+  echo
+  echo "── named rules verdict — NOT a gate ──"
+  echo "  rules: ${#scripts[@]} named, ${executed} EXECUTED, ${failed} failed (${timed_out} timed out)"
+  echo "  No contract rule, no guard and no oracle ran: this proves the named rules on"
+  echo "  one build and nothing about a phase. The gate is --contracts --oracle."
+  if [ "$failed" -gt 0 ] || [ "$executed" -lt "${#scripts[@]}" ]; then
+    echo "rules: FAILED"
+    exit 1
+  fi
+  echo "rules: no violation — NOT a gate"
+  exit 0
 fi
 
 # The repository's guards, after the rules and before the two audits. They read
