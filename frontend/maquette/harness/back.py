@@ -99,16 +99,18 @@ async def main():
             ('[data-acqtab="follows"]', "acq", "follows"),
             ('[data-page="lib"]', "lib", None),
             ('[data-lens="inc"]', "lib", None),
-            ('[data-page="arr"]', "arr", None),
+            # RE-AIMED OUT LOUD: the walk's last page was Arrivées, which
+            # leaves; « Découvrir » is a page of the bar.
+            ('#nav [data-page="discover"]', "discover", None),
         ]
         for selector, _, _ in path:
             await pg.click(selector)
             await pg.wait_for_timeout(250)
         arrival = await where(pg)
-        check("the path can be walked", arrival is not None and arrival["page"] == "arr",
+        check("the path can be walked", arrival is not None and arrival["page"] == "discover",
               str(arrival and arrival["page"]))
 
-        # ── and walked back: the ARRIVALS, which is not every tap ──────────
+        # ── and walked back: the RETURN, which is not every tap ────────────
         # § 16 renegotiates what the walk above leaves behind, and the four
         # taps are one of each kind. An inner tab and a lens are SETTINGS — the
         # same surface looked at another way — and they replace the entry they
