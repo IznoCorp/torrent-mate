@@ -382,7 +382,9 @@ def test_the_committed_reference_carries_a_platform():
     # tab now drawing the roster.
     # 135 SINCE L16's phase 4: `trackers-entry-open` and `trackers-policy-unset`, a tracker's
     # entry opened on its policy and on none — added; heights alone moved elsewhere.
-    assert reference["counts"] == {"states": 135, "regions": 38}
+    # 136 SINCE L16's phase 5a: `torrents-list`, the « Torrents » tab's rows — added, nothing
+    # else moved.
+    assert reference["counts"] == {"states": 136, "regions": 38}
 
 
 class TestItRefusesToWriteOverAForeignBuild:

@@ -168,11 +168,14 @@ async def main():
         # RE-AIMED OUT LOUD: the Arrivées page left the walk with the page;
         # every page left is still reached from two predecessors — « discover »
         # among them, from « 404 » and from « sys ».
+        # RE-AIMED OUT LOUD: « trackers » joined the bar, so it joins the walk,
+        # reached from « discover » and from « sys ».
         walk = ["lib", "sys", "lib", "acq", "sys", "acq",
                 "maint", "lib", "maint", "cfg", "maint", "sys", "cfg",
                 "sys", "cfg", "lib", "acq", "profile",
                 "acq", "profile", "404", "lib", "404",
-                "discover", "sys", "discover"]
+                "discover", "sys", "discover",
+                "trackers", "sys", "trackers"]
         signatures: dict[str, set[str]] = {}
         residue = []
         absent = []
