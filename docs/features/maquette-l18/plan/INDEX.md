@@ -51,10 +51,8 @@ counted.** **A right is proved on BOTH sides and separately** — a rule proving
 
 **Commit BEFORE every mutation**, `scripts/mutate.sh <file> <expression> <rule…>`.
 
-**The numbers R-L18-a … z, plus R-L18-l-bis, are LABELS, not rule numbers.** Phase 3 re-takes
-`grep -rhoE '^"""R[0-9]+ ' frontend/maquette/harness/*.py | sort -V | tail -1` against **both** `origin/main` and
-the open head of any branch running beside this one (F68 — L22b's, at the moment phase 3 opens) and binds every
-label to a number then.
+**The numbers R-L18-a … z, plus R-L18-l-bis, are LABELS, not rule numbers:** the rule numbers are the range the steward reserves in this lot's launch brief; phase 3
+binds every label to one of them.
 
 **The identities are INVENTED, ROLES not per-account toggles** (DESIGN § 2.2): `seeds/accounts.json` carries
 `x-unseeded` rows; readable only while a named state turns a dial; the resting maquette is Admin's (`izno`,

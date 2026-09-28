@@ -53,11 +53,8 @@ confirm the rule falls and NAMES the right defect, restore.
 the served copy of the PREVIOUS build in place (B-303). It cannot judge a GUARD (B-273): a guard's exit code is read
 by hand.
 
-**The labels `R-L17-a … R-L17-k` (DESIGN § 5) are NOT rule numbers.** Every parallel branch's own highest number
-matters too (F68): **phase 4 — the first phase that writes a rule — re-takes the R-number command against the
-highest of `origin/main` and every open branch running beside this one, at the moment it runs, and binds every
-label to a consecutive free number then**, writing the mapping into the report. A number chosen from this file
-without re-measuring is a collision.
+**The labels `R-L17-a … R-L17-k` (DESIGN § 5) are NOT rule numbers:** the rule numbers are the range the steward reserves in this lot's launch brief; phase 4 — the
+first phase that writes a rule — binds every label to one of them and writes the mapping into the report.
 
 **Every heavy run is wrapped in the machine's mutex** — `sh scripts/heavy.sh --class browser|test|rule l17
 <command>` — with no `HEAVY_LOCK=` override; the harness is one per machine and `sh scripts/heavy.sh --held` names

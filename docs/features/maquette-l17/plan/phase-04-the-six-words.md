@@ -13,8 +13,6 @@
   variant. The vocabulary arm: `for w in cross seed refused stopped engine origin reason sentence switch match
   searched; do grep -c -x $w scripts/code-vocabulary.txt; done` → 1 each; `tracker`, `torrent`, `family`, `quota`,
   `throttle`, `injected`, `rejected`, `roster`, `admin` → **0 each**, L16 adds `tracker`, `torrent`, `roster` first.
-  `grep -rhoE '^"""R[0-9]+ ' frontend/maquette/harness/*.py | sort -V | tail -1` → the highest number at this
-  writing — re-taken against the highest of `origin/main` and every open branch (F68).
 - **Points ≈ 15.** The map in `features/trackers/cross-seed-state.ts` ≈ 30 lines 3; the reason → sentence helper ≈
   25 lines 2½; `fr.json` keys ≈ 35 lines 3½; the vocabulary lines 1; the unit test ≈ 25 lines 2½; R-L17-a (its
   enumerations half) 3. **At the ceiling; cut if it opens over: the unit test moves to phase 5.**
@@ -38,8 +36,8 @@ sentence in `fr.json`; the map has one word per state, the operator's, six of th
 
 ## Move
 
-1. Bind the labels: re-take the R-number command against the highest of `origin/main` and every open branch running
-   beside this lot, write the mapping (a → R…, …, k → R…) into the report.
+1. Bind the labels — the rule numbers are the range the steward reserves in this lot's launch brief — and write the mapping (a → R…, …, k → R…)
+   into the report.
 2. `features/trackers/cross-seed-state.ts` (the map and the helper), the `fr.json` keys, the Réglages rename, the
    vocabulary lines the arm asks for, the unit test.
 3. The rule, written first and seen red, then green.
