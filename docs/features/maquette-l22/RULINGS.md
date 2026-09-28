@@ -417,3 +417,18 @@ floor, the line truncates before the foot does (an ellipsis; the full text in th
 line is still the body's last text). A mutation: the line back on its own row → R47 falls on Lucky. Oracle by name.
 (b), the poster no longer stretched past a bound, re-opens R47's own defect; (c), no line on a row no follow names,
 contradicts « the missing origin is said ».
+
+## 33 — « doc_fr_2026_final » is « autre » too: it leaves the acquisitions in a phase of its own (steward, 2026-09-28; L22b phase 43, STOP D)
+
+**The STOP.** F53 asked to check « doc_fr_2026_final » the way the game folder was checked. Same case: its row in
+`stuck-loaded.json` says « Aucun fichier vidéo dans le dossier : seulement 3 fichiers .nfo et une archive .rar non
+extraite ». Taking it out costs about five more points than phase 43 measured (its readers: two_picks.py's third
+folder, the dense states' oracle, two comments).
+
+**Ruled (A)**, verified in the engine and not only on the operator's rule: `personalscraper/sorter/file_type.py:178–200`
+types an archive-only folder as a film only when its NAME carries a video-release signal (`_looks_like_video_release`:
+a resolution, a source, a codec). « doc_fr_2026_final » carries none, so it is OTHER, filed under 098-AUTRES, out of
+the acquisitions (ruling 1). Phase 43 takes the game folder out as measured. A NEW phase 44 takes out
+« doc_fr_2026_final », and its readers are re-aimed out loud. The remaining phases become 45–49. (B), keeping the
+folder with a dated line, was refused: no reason for it survives the sort's rule.
+

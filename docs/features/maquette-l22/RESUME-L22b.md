@@ -14,15 +14,19 @@ L22b appends from 13).
   178–200` types an archive-only folder a film only if its NAME carries a video-release signal, so it is OTHER (ruling 1);
   its readers re-aimed OUT LOUD: two_picks.py (THIRD_FOLDER), cards.py (42's dense mutation subject), paths_to_sheets.py
   (« three others wear data-nonmedia »), actions/ident (first nonmedia « Résoudre »), the dense states' oracle; measured
-  ≈ 5–6 — RE-MEASURE at the opening. Then 45 the live rule → 46 (the dead `acq-follows-pause-empty` in the a11y ledgers)
-  → 47 death of Arrivées (F8) → 48 (+ engine-data.ts's removal) → 49 close (F8, F52, F67, C9; product-intent-map.md:49).
-  Phase files: 44 has none (INDEX's dated line is its spec); 45–49 live in the files named 40–44.
-  engine-data.ts's removal (the follows' prefetch declared by its feature, drive.ts's `refillEngineData` door
-  re-pointed) is L22b's, at 48.
-  Each re-measured at its opening; > 15 → cut. (The machine rebooted Monday 2026-09-28 05:00: re-verify the state.)
+  ≈ 5–6 — RE-MEASURE at the opening. Then (the steward's correction, 2026-09-28 — the list had LOST the readers phase;
+  REBUILD it from `ls plan/` at every cut, never from memory): 45 readers, identity and launch bar (file phase-40, ≈ 15,
+  OPEN 6 = A, nothing done; its own cut rule: journey.py + common.py apart) → 46 the live rule Système was borrowing
+  (phase-41; system/live.ts:95–98's exemptions → check-live-relay.py at its gate) → 47 the death of Arrivées (phase-42,
+  F8; R239 reads `navigation.pages.arr` in fr.json at no_sentence_to_arrivals.py:58; page_host.py's 7 « arr » lines) →
+  48 the records of a dead page (phase-43) + engine-data.ts's removal (the follows' prefetch declared by its feature,
+  drive.ts's `refillEngineData` door re-pointed; R207 named at its gate — the boot re-read may change) + the dead
+  `acq-follows-pause-empty` in the a11y ledgers → 49 the close (phase-44; F8, F52, F67, C9; product-intent-map.md:49).
+  Phase 44 has no file (INDEX's dated line and RULINGS 33 are its spec).
+  Each re-measured at its opening; > 15 → cut.
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (21) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (22) R233 ·
-  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · (38) R239 no_sentence_to_arrivals · next free R240. Oracle pin 136. RULINGS: L22b wrote 13–29, L22a's round 30–32; a new one takes 33.
+  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · (38) R239 no_sentence_to_arrivals · next free R240. Oracle pin 136. RULINGS: L22b wrote 13–29 and 33, L22a's round 30–32; a new one takes 34.
 - AUDITOR ORDER 48 (amended): a fall set aside as « load » needs the same rule ≥ 10× here and ≥ 10× on `main` at
   comparable load; any gap is a regression.
 - LOGS `~/Library/Logs/tm-l22b/`; mutex `sh scripts/heavy.sh --held`. GATE: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh
