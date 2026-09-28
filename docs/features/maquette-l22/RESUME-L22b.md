@@ -9,15 +9,14 @@ L22b appends from 13).
   origin/main 665788a90 (#624) is an ancestor (8a9500c43) — nothing to merge until main moves again. Steward `Orch : TM
   frontend [84baa3]` since the reboot of 2026-09-28 05:00.
 - Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b`.
-- DONE: 15a–45a (the ledger says each). NEXT: **45b** (the identity readers: back, sweep, url_state, journey + common's
-  ARRIVALS, R138's and R67's sentences; ≈ 7). From 45 on (steward, after 38/43/44 each missed states under a layer):
+- DONE: 15a–45b (the ledger says each). NEXT: **46** the live rule Système was borrowing (file phase-41); B-514 and
+  B-560 are `fixing` → `fixed #<PR>` at the pull request. From 45 on (steward, after 38/43/44 each missed states under a layer):
   the oracle's DECLARED list is built BY SCRIPT before the gate — every state whose `applyState` draws the touched
-  page/world (`scen`, page in harness/states/*.ts), layers included (RULINGS 23). B-560 is `fixing` → `fixed #<PR>` at
-  the pull request. AUDIT2 SERIES (order 48, after 44's R11 fall): pilot `series2.sh` in the scratchpad, log
+  page/world (`scen`, page in harness/states/*.ts), layers included (RULINGS 23). AUDIT2 SERIES (order 48, after 44's R11 fall): pilot `series2.sh` in the scratchpad, log
   `44-audit2/series.log`; branch side in `/Users/izno/dev/worktrees/reader-l22b` (ed55084bd), main side in
   `control-l22b` (665788a90); `touch <scratchpad>/series.pause` holds it between runs (a gate of mine starves behind
   it otherwise). At a stand-down: kill the pilot (`ps` proof) and write here where it stopped.
-  The phases (REBUILD from `ls plan/` at every cut, never from memory): 45b (file phase-40) → 46 the live rule Système was borrowing
+  The phases (REBUILD from `ls plan/` at every cut, never from memory): 46 the live rule Système was borrowing
   (phase-41; system/live.ts:95–98's exemptions → check-live-relay.py at its gate) → 47 the death of Arrivées (phase-42,
   F8; R239 reads `navigation.pages.arr` in fr.json at no_sentence_to_arrivals.py:58; page_host.py's 7 « arr » lines) →
   48 the records of a dead page (phase-43) + engine-data.ts's removal (the follows' prefetch declared by its feature,
@@ -449,3 +448,13 @@ L22b appends from 13).
 - 2026-09-28 the locks row RENUMBERED B-559 → B-560 (steward): the day's repair train took B-559 (pwa.py Page.goto) and
   merges first. 7d77f3d8f's message and the ledger line above still say B-559 — history, not rewritten (no rebase);
   B-560 is the row's number from d52936dd2's successor on.
+- 2026-09-28 phase 45b (the identity): 9c4cb8aac, 8d84693ca — back.py's walk ends on « Découvrir »; sweep.py sweeps
+  « À traiter » (its first draft clicked the tab from the library page: gate 1 `45b-gate.log` Page.click timeout, mine →
+  through Acquisition's bar button); common.py's ARRIVALS (no reader left) removed; R67 machine.py's three sentences;
+  R138 queued_ask_mark.py names the maintenance path and its SCREEN half (B-514, `open` → `fixing`) reads Système's
+  levers. Left for 47, said in the commit: url_state.py's « arr » walk (the model still declares the page) and
+  selection_survives_the_tab.py's page count. Gate 2 `45b-gate2.log` 31 rules (8 named) + 26 guards 0 failed, no
+  divergence (declared: none). `45-compare.log` (--only the seven files of 45a/45b, baseline 5e5ecd05): failed none;
+  locks.py 74 → 71 and queued_by_hand.py 23 → 15 — the bar's holds, said in 45a; the others unchanged. Mutation
+  `45b-mutation-r138.log`: « Mettre tout en pause » never drawn → R138 FAIL « … layer='running', interface='idle' ».
+  Audit2 series resumed after the gate: branch 1–5, main 1–5, 0 violations.
