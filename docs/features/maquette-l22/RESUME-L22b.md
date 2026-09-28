@@ -9,15 +9,14 @@ L22b appends from 13).
   origin/main 665788a90 (#624) is an ancestor (8a9500c43) — nothing to merge until main moves again. Steward `Orch : TM
   frontend [84baa3]` since the reboot of 2026-09-28 05:00.
 - Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b`.
-- DONE: 15a–45b (the ledger says each). NEXT: **46** the live rule Système was borrowing (file phase-41); B-514 and
+- DONE: 15a–46 (the ledger says each). NEXT: **47** the death of Arrivées (file phase-42); B-514 and
   B-560 are `fixing` → `fixed #<PR>` at the pull request. From 45 on (steward, after 38/43/44 each missed states under a layer):
   the oracle's DECLARED list is built BY SCRIPT before the gate — every state whose `applyState` draws the touched
   page/world (`scen`, page in harness/states/*.ts), layers included (RULINGS 23). AUDIT2 SERIES (order 48, after 44's R11 fall): pilot `series2.sh` in the scratchpad, log
   `44-audit2/series.log`; branch side in `/Users/izno/dev/worktrees/reader-l22b` (ed55084bd), main side in
   `control-l22b` (665788a90); `touch <scratchpad>/series.pause` holds it between runs (a gate of mine starves behind
   it otherwise). At a stand-down: kill the pilot (`ps` proof) and write here where it stopped.
-  The phases (REBUILD from `ls plan/` at every cut, never from memory): 46 the live rule Système was borrowing
-  (phase-41; system/live.ts:95–98's exemptions → check-live-relay.py at its gate) → 47 the death of Arrivées (phase-42,
+  The phases (REBUILD from `ls plan/` at every cut, never from memory): 47 the death of Arrivées (phase-42,
   F8; R239 reads `navigation.pages.arr` in fr.json at no_sentence_to_arrivals.py:58; page_host.py's 7 « arr » lines) →
   48 the records of a dead page (phase-43) + engine-data.ts's removal (the follows' prefetch declared by its feature,
   drive.ts's `refillEngineData` door re-pointed; R207 named at its gate — the boot re-read may change) + the dead
@@ -25,7 +24,7 @@ L22b appends from 13).
   Each re-measured at its opening; > 15 → cut.
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (21) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (22) R233 ·
-  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · (38) R239 no_sentence_to_arrivals · next free R240. Oracle pin 136. RULINGS: L22b wrote 13–29 and 33, L22a's round 30–32; a new one takes 34.
+  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · (38) R239 no_sentence_to_arrivals · (46) R240 levers_stay_live · next free R241. Oracle pin 136. RULINGS: L22b wrote 13–29 and 33, L22a's round 30–32; a new one takes 34.
 - AUDITOR ORDER 48 (amended): a fall set aside as « load » needs the same rule ≥ 10× here and ≥ 10× on `main` at
   comparable load; any gap is a regression.
 - LOGS `~/Library/Logs/tm-l22b/`; mutex `sh scripts/heavy.sh --held`. GATE: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh
@@ -458,3 +457,12 @@ L22b appends from 13).
   locks.py 74 → 71 and queued_by_hand.py 23 → 15 — the bar's holds, said in 45a; the others unchanged. Mutation
   `45b-mutation-r138.log`: « Mettre tout en pause » never drawn → R138 FAIL « … layer='running', interface='idle' ».
   Audit2 series resumed after the gate: branch 1–5, main 1–5, 0 violations.
+- 2026-09-28 phase 46 (file phase-41), measured ≈ 5. R240 levers_stay_live.py (new): on Système, the layer moved
+  behind the interface's back by raw requests, then one relayed event — the levers move with PipelineStarted,
+  PipelinePaused, PipelineEnded; a hold proves nothing moved BEFORE the event. Red `46-red.log` on the plan's shape (the
+  rule out of arrivals/live.ts, not yet in Système): FAIL ×2 « … the levers offer « Mettre tout en pause » —
+  ['levers/nothing-running'] » (and PipelinePaused); check-live-relay fell too. Fix 78c829555 (amended once before any
+  push: my `because:` carried French, check-no-french refused it): the rule in features/system/live.ts, four events out
+  of Système's exemptions (PipelinePaused, PipelineResumed, StepStarted, StepCompleted); check-live-relay clean, 48/48.
+  Gate `46-gate.log` 28 rules (9 named) + 26 guards 0 failed, no divergence (declared: none). Mutation `46-mutation.log`:
+  the rule's keys emptied → R240 FAIL ×2 by name.
