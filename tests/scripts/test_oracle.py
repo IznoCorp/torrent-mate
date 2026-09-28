@@ -386,7 +386,10 @@ def test_the_committed_reference_carries_a_platform():
     # else moved.
     # 140 SINCE L16's phase 5b: `torrents-list-filtered`, `torrents-empty`, `torrents-empty-filtered`
     # and `torrents-obligation-done` — added, nothing else moved.
-    assert reference["counts"] == {"states": 140, "regions": 38}
+    # 141 SINCE L16's phase 6a: `torrent-remove-confirm-obligation`, the removal's confirmation —
+    # added; the three Torrents states with rows grew by the gesture, and 24 states measured after
+    # it read the closed dialog's new box (B-554), named in the acceptance commit.
+    assert reference["counts"] == {"states": 141, "regions": 38}
 
 
 class TestItRefusesToWriteOverAForeignBuild:
