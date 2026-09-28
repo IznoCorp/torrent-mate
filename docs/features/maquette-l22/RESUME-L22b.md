@@ -11,17 +11,13 @@ L22b appends from 13).
   generated files conflict; regenerate them (oracle by an accept in one invocation + the script proof; ledgers re-read).
 - Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b`.
 - DONE: 15a–19-bis-b, merges of #619/#621/main(#617/#618/#622/#623/#624), the triage's docs commit, 20–30, the MIDPOINT
-  (1 real fall, R207, repaired; audit2 ×10: 0/10), 31 (F5, condition 3 of RULINGS 25), 32 (F6), 33 (F42), 34 (M1, RULINGS 26), 35 (Q1's real half, RULINGS 27), 36 (Q2, RULINGS 28). NEXT: **37** a one-off
-  season's card offers « Suivre » AND (RULINGS 28) the season's row says « demandée » and withdraws the act while the
-  one-off lives — R158 gets back « the surface pressed reads differently afterwards » on « demandée », MUTATED (the
-  offer: follow-offer.ts reads arrivals only; extend it to the one-off card, via `request`) → 38 sentences (F7, F54,
-  F53) → 39 readers (F41) → 40 → 41 (the dead `acq-follows-pause-empty` still in the a11y ledgers) → 42 death of
-  Arrivées (F8) → 43 (+ engine-data.ts's removal, the steward's placement) → 44 close (F8, F52, F67, C9;
+  (1 real fall, R207, repaired; audit2 ×10: 0/10), 31 (F5, condition 3 of RULINGS 25), 32 (F6), 33 (F42), 34 (M1, RULINGS 26), 35 (Q1's real half, RULINGS 27), 36 (Q2, RULINGS 28), 37 (« Demandée » + the one-off's « Suivre », R158 hold 5 given back). NEXT: **38**
+  sentences (F7, F54, F53) → 39 readers (F41) → 40 → 41 (the dead `acq-follows-pause-empty` still in the a11y ledgers)
+  → 42 death of Arrivées (F8) → 43 (+ engine-data.ts's removal, the steward's placement) → 44 close (F8, F52, F67, C9;
   product-intent-map.md:49).
   Files renumbered twice by `git mv`; 29/30 live in phase-28's file, 33 in phase-32's. engine-data.ts's removal (the
   follows' prefetch declared by its feature, drive.ts's `refillEngineData` door re-pointed) is L22b's, at 43.
-  Each re-measured at its opening; > 15
-  → cut. **REBOOT Monday 2026-09-28 05:00: open no phase that cannot finish before 04:50.**
+  Each re-measured at its opening; > 15 → cut. (The machine rebooted Monday 2026-09-28 05:00: re-verify the state.)
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (21) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (22) R233 ·
   R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · next free R239. RULINGS: L22b writes 13–29 (13–28 used); L22a's repair round wrote 30–32.
@@ -259,3 +255,15 @@ L22b appends from 13).
   Mutations: the verb begins a follow again → FAIL « NO follow is born of it » (`36-mutation-follow.log`); dedupe
   removed → FAIL « a second tap queues no second card — 2 one-off card(s) » (`36-mutation-twice.log`).
 - 2026-09-28 stood down after phase 36: the context hook's gate (60 %). Next unit: phase 37, for a fresh session.
+- 2026-09-28 phase 37 (successor « Agent : l22b 4 »): re-measured ≈ 13 → one phase. Red `37-red.log`: R158 ×8 (« the
+  surface pressed reads differently afterwards » GIVEN BACK OUT LOUD, and « the season's row says « Demandée » and offers
+  the act no more »), R229's new leg red on the panel only — the one-off card's foot in « En vol » was ALREADY offered
+  (the flight's offer reads any requester), said in the commit. Commit 31df61609: `features/media/asked-seasons.ts`
+  derives the seasons asked once from the queue (`via` = `request`, season off `secondaryLine`, fragile), both season
+  surfaces draw « Demandée » (`season/asked`, `data-asked-season`) in the act's place, the ask re-reads the queue;
+  follow-facts offers « Suivre » on the one-off card's panel. Gate `37-gate.log` 84 rules (73 named) + 26 guards 0
+  failed, no divergence; `37-a11y.log` 0 + light 88/88. Mutations: no season read as asked → R158 FAIL « Demandée »
+  ×4 and « reads differently » on the sheet ×2 (`37-mutation-asked.log`; on the PANEL « reads differently » stays green
+  under it — the panel also gains « Suivre » and the one-off's actions, a second visible fact); the panel reads
+  arrivals only → R229 FAIL « and its panel offers « Suivre » » (`37-mutation-offer.log`).
+- 2026-09-28 stood down after phase 37: the reboot at 05:00 (nothing opens after 37 tonight). Next unit: phase 38.
