@@ -67337,5 +67337,71 @@
     "status": "Sorti",
     "owned": true,
     "title": "Jim Gaffigan: Mr. Universe"
+  },
+  "Lanterns": {
+    "kind": "show",
+    "year": "2026",
+    "rating": null,
+    "genres": "Science-Fiction · Mystère",
+    "runtime": null,
+    "overview": "Deux flics intergalactiques, la nouvelle recrue John Stewart et le légendaire Hal Jordan, sont confrontés à un sombre mystère sur Terre alors qu’ils enquêtent sur un meurtre au fin fond de l’Amérique.",
+    "director": null,
+    "creator": null,
+    "cast": [],
+    "trailer": null,
+    "ids": {
+      "tvdb": 376098,
+      "tmdb": "95350",
+      "imdb": "tt26545992"
+    },
+    "status": "En cours",
+    "owned": true,
+    "seasons": [
+      {
+        "number": 1,
+        "episodes": 7,
+        "airDate": null
+      }
+    ],
+    "episodes": {
+      "1": [
+        {
+          "number": 1,
+          "title": "Pilot",
+          "airDate": null
+        },
+        {
+          "number": 2,
+          "title": "Trust Fall",
+          "airDate": null
+        },
+        {
+          "number": 3,
+          "title": "OutKast",
+          "airDate": null
+        },
+        {
+          "number": 4,
+          "title": "The Weenie",
+          "airDate": null
+        },
+        {
+          "number": 5,
+          "title": "Lights Out",
+          "airDate": null
+        },
+        {
+          "number": 6,
+          "title": "Bad Optics",
+          "airDate": null
+        },
+        {
+          "number": 7,
+          "title": "The Jordan Boys' Legacy",
+          "airDate": null
+        }
+      ]
+    },
+    "title": "Lanterns"
   }
 }
