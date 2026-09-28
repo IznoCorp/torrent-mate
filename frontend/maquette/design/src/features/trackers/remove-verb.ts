@@ -86,7 +86,14 @@ function openConfirm(entry: Schemas["Download"], obligations: Schemas["Obligatio
       ],
     },
   ];
-  if (running) body.push({ type: "warning", strong: say("obligation", { tracker }), text: say("obligationBody") });
+  // A PARAGRAPH, not the warning box: the box's bold line fails contrast in
+  // the light theme, a debt this confirmation must not add to.
+  if (running) {
+    body.push({
+      type: "paragraph",
+      runs: [{ text: say("obligation", { tracker }), strong: true }, { text: say("obligationBody") }],
+    });
+  }
   dialog?.open({
     heading: say("heading"),
     body,
