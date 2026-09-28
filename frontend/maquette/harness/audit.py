@@ -306,7 +306,9 @@ async def main():
         // on a tunnel error asks the engine to resume and says so; the card
         // stays until the engine moves it — no dial here moved, the call did.
         sent:(window.__mocks?.answered()||[]).length});
-      for (const id of ['acq-now-loaded','acq-todo-dense','lib-incomplete']) {
+      // « À traiter » in BOTH worlds: the dense one holds the Arrivées page's
+      // folders, the real one the tunnel error whose « Relancer » only SENDS.
+      for (const id of ['acq-now-loaded','acq-todo-dense','acq-todo-loaded','lib-incomplete']) {
         window.__go(id); await new Promise(r=>setTimeout(r,220));
         const btns=[...document.querySelectorAll('#view [data-part="card/foot"]')];
         for (let i=0;i<btns.length;i++){
