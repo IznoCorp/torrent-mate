@@ -1,27 +1,24 @@
 # Phase 13 — The stream
 
 **No OPEN question.** The two engine events are claimed whatever the operator ruled; OPEN 8 decided what the badge
-does with a refusal, not whether the events move a surface. **F59 adds a THIRD event this phase must claim too**: a
-search's own outcome, so a `queued` pair (phase 15's act) is seen to resolve within the same visit.
+does with a refusal, not whether the events move a surface. **F59 adds a THIRD event**: a search's own outcome, so
+a `queued` pair (phase 15's act) is seen to resolve within the same visit.
 
 **Opening measure (2026-09-27, on `1d1282567`):**
 
 - **Commands.** `sed -n 130,148p frontend/maquette/design/src/features/acquisition/live.ts` →
   `acquisitionLiveExemptions.types` lists `RatioMeasured`, the three `SeedObligation*`, **`CrossSeedInjected`,
-  `CrossSeedRejected`** and `TrackerAuthFailed`, with a `because` that says the ratio and cross-seed events belong
-  to surfaces with no page yet; the file is **148** non-blank lines. L16's own phase claims the four ratio names and
-  leaves these three; this phase claims the two cross-seed names and leaves `TrackerAuthFailed`. `grep -cve
-  '^[[:space:]]*$'` → `app/live-updates.ts` **116**, `lib/live-rule.ts` **82**, `harness/fanout.py` **486** (R91's
-  per-rule and exemption holds), `mocks/stream.ts` **399 of 400** — **no line of this phase goes into `stream.ts`**:
-  an event is emitted by a named state or a rule through `window.__mocks.emit`.
-- **Points ≈ 10.** `features/trackers/live.ts` (L16's file) gains the three rules ≈ 25 lines new 2½; the exemption
-  edited (two names leave, `because` rewritten) ≈ 12 lines edited 2½; R91 re-aimed at the three rules 1; R-L17-h 3;
-  the registration is L16's line (already in `app/live-updates.ts`), so ≈ 0 → 9, two refresh keys (the summary, the
-  downloads read — **never a third, media-block key: held for L18, F25**) 1 → 10.
+  `CrossSeedRejected`** and `TrackerAuthFailed`; the file is **148** non-blank lines. L16 claims the four ratio
+  names; this phase claims the two cross-seed names and leaves `TrackerAuthFailed`. `grep -cve '^[[:space:]]*$'` →
+  `app/live-updates.ts` **116**, `lib/live-rule.ts` **82**, `harness/fanout.py` **486** (R91's per-rule and
+  exemption holds), `mocks/stream.ts` **399 of 400** — **no line of this phase goes into `stream.ts`**: an event is
+  emitted by a named state or a rule through `window.__mocks.emit`.
+- **Points ≈ 10.** `features/trackers/live.ts` (L16's file) gains the three rules ≈ 25 lines 2½; the exemption
+  edited ≈ 12 lines 2½; R91 re-aimed 1; R-L17-h 3; two refresh keys 1 → 10 (the registration is L16's line).
 - **Found.** The registers disagree on whether the two engine events reach the stream (DESIGN fact 10, demand I):
-  the maquette's mock relay emits them regardless; the demand is the backend brief's. **The search-outcome event has
-  no engine counterpart today** — it is the maquette's own invention, marked as such, standing in for what the
-  backend must emit once `searchCrossSeed` (phase 14) exists.
+  the mock relay emits them regardless; the demand is the backend brief's. **The search-outcome event has no engine
+  counterpart today** — the maquette's own invention, marked as such, standing in for what the backend must emit
+  once `searchCrossSeed` (phase 14) exists.
 
 ## Red today
 
@@ -33,7 +30,7 @@ and the badge WITHOUT a refetch; a `queued` pair resolves within the SAME visit;
 ## Move
 
 1. The three rules in `features/trackers/live.ts`, each refreshing the summary read and the downloads read and
-   nothing else.
+   nothing else — **never a third, media-block key: held for L18, F25**.
 2. The two engine names leave `acquisitionLiveExemptions`; its `because` is rewritten to the authentication event
    that remains.
 3. R91's fan-out reads the new rules; R-L17-h written first, seen red.
@@ -46,16 +43,11 @@ name back in the exemption → falls; make a rule refresh every key → the « n
 
 ## Register
 
-**B-145's reading half** is what this phase serves; the row is annotated at the close (phase 18), never edited
-here.
+**B-145's reading half** is what this phase serves; the row is annotated at the close (phase 18), never edited here.
 
-## Oracle: states that diverge, declared by name
+## Oracle and gate — done when
 
-None — a live rule moves no rectangle.
-
-## Gate
-
-Per INDEX « Gates »; the R91 fan-out under `--contracts`.
+Oracle: none — a live rule moves no rectangle. Gate: per INDEX « Gates »; the R91 fan-out under `--contracts`.
 
 ## Commit
 

@@ -13,14 +13,11 @@ drawn, and phase 1 could not carry it without crossing the ceiling.
   row (L16 phase 5). The engine persists the obligation on injection (`sed -n 353,366p
   personalscraper/acquire/events.py`, « emit-after-persist »), so a cross-seed's obligation exists on the backend
   and only lacks its origin.
-- **Points ≈ 13.** The obligations read edited (`crossSeedOf`) 1; the schema ≈ 12 lines new 1½ (rounded up 2 with
-  the `x-unseeded` sentence); the obligations handler re-answered, deriving `crossSeedOf` from the SAME rows as the
-  mark 1; ≈ 8 lines of that handler edited 1½; the mark and its path in the obligation's own mark ≈ 15 lines new
-  1½ and ≈ 6 edited 1; `fr.json` ≈ 4 lines ½; the state `torrents-obligation-cross-seed` 1; R-L17-d 3 → ≈ 12½, 13
-  by rounding.
-- **Found.** The obligation mark L16 draws is a plain mark (round 10 Q3 = B retired the release verb; L16's own
-  redraw no longer names it « Libérer l'obligation » anywhere on this row). This phase adds a further mark and
-  reads no verb of its own. An obligation that is not a cross-seed's reads exactly as L16 drew it: no mark, no
+- **Points ≈ 13.** The obligations read edited (`crossSeedOf`) 1; the schema with its `x-unseeded` sentence 2; the
+  handler re-answered from the SAME rows as the mark 1, ≈ 8 lines edited 1½; the mark and its path ≈ 15 lines new
+  1½, ≈ 6 edited 1; `fr.json` ½; the state `torrents-obligation-cross-seed` 1; R-L17-d 3 → ≈ 12½, 13 by rounding.
+- **Found.** L16's obligation mark is a plain mark (round 10 Q3 = B retired the release verb). This phase adds a
+  further mark and reads no verb of its own. An obligation that is not a cross-seed's reads exactly as L16 drew it: no mark, no
   empty slot.
 
 ## Red today
@@ -43,16 +40,14 @@ that is not carries neither. Red against `main`: no field, no mark.
 Commit first: drop the mark → R-L17-d falls; mark every obligation → its absence hold falls; point the path at the
 obligation's own title → the path hold falls.
 
-## Register
-
-Demand D filed by the regenerated register; nothing in `BUGS.md`.
+**Register**: demand D filed by the regenerated register; nothing in `BUGS.md`.
 
 ## Oracle: states that diverge, declared by name
 
 L16's `torrents-list` where an obligation is a cross-seed's — accepted with « L17 § 3.4: the obligation's origin ».
 Any other divergence is STOP A.
 
-## Gate
+## Gate — done when
 
 Per INDEX « Gates »; `python3 scripts/compare-contracts.py --check`; `python3 scripts/check-mock-seeds.py`.
 
