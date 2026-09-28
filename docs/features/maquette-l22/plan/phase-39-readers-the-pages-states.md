@@ -4,6 +4,8 @@
 `acq-todo-error`; `acq-todo-loading` is dropped with a dated line unless it is built; B-515's reading is made here); F53
 if phase 33 did not take it.
 
+**Amended 2026-09-28 (L22b, at its opening, steward approved):** re-measured ≈ 30 on `24bc410f3` → CUT into **40** (F41: `acq-todo-error` and `acq-todo-loading` — built, the steward's ruling A —, R90 re-aimed, B-515 read), **41** (the twelve other readers and the code sites) and **42** (F53); the rest +2 (43–47).
+
 **Opening measure (2026-09-26, on `94a369879`):**
 
 - **Commands.** `git grep -n -E 'arr-(idle|loaded|queued|running|error|loading)|arr-\{' -- 'frontend/maquette/harness/*.py'`

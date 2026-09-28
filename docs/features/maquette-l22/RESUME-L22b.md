@@ -13,16 +13,18 @@ L22b appends from 13).
 - DONE: 15a–19-bis-b, merges of #619/#621/main(#617/#618/#622/#623/#624), the triage's docs commit, 20–30, the MIDPOINT
   (1 real fall, R207, repaired; audit2 ×10: 0/10), 31 (F5, condition 3 of RULINGS 25), 32 (F6), 33 (F42), 34 (M1, RULINGS 26), 35 (Q1's real half, RULINGS 27), 36 (Q2, RULINGS 28), 37 (« Demandée » + the one-off's « Suivre », R158 hold 5 given back), 38 (the sentences + F54,
   R239; cut at its opening), 39 (F7: `data-dial`, and the landing home repaired — page-switch `rewind(1 + stacked)`,
-  `countTheEntry`). NEXT: **40** readers (F41, F53) → 41 → 42 (the dead
-  `acq-follows-pause-empty` still in the a11y ledgers) → 43 death of Arrivées (F8) → 44 (+ engine-data.ts's removal, the
-  steward's placement) → 45 close (F8, F52, F67, C9; product-intent-map.md:49).
-  Files renumbered twice by `git mv`; 29/30 live in phase-28's file, 33 in phase-32's, 39 in phase-38's (40–45 in the
-  files named 39–44). engine-data.ts's removal (the follows' prefetch declared by its feature, drive.ts's
+  `countTheEntry`), 40 (F41: acq-todo-loading/-error, R90; the readers' phase cut in three). NEXT: **41** the
+  twelve other readers of `arr-*` + the code sites (states/acquisition.ts:218, states/tunnel.ts:23,32) + busy.py →
+  42 F53 (Spider-Man out of the seeds and the count, R-L22-g/-j onto Backrooms, doc_fr_2026_final) → 43 the live rule →
+  44 (the dead `acq-follows-pause-empty` still in the a11y ledgers) → 45 death of Arrivées (F8) → 46 (+ engine-data.ts's
+  removal) → 47 close (F8, F52, F67, C9; product-intent-map.md:49).
+  Files renumbered twice by `git mv`; 29/30 live in phase-28's file, 33 in phase-32's, 39 in phase-38's, 40–42 in phase-39's
+  (43–47 in the files named 40–44). engine-data.ts's removal (the follows' prefetch declared by its feature, drive.ts's
   `refillEngineData` door re-pointed) is L22b's, at 44.
   Each re-measured at its opening; > 15 → cut. (The machine rebooted Monday 2026-09-28 05:00: re-verify the state.)
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (21) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (22) R233 ·
-  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · (38) R239 no_sentence_to_arrivals · next free R240. RULINGS: L22b writes 13–29 (13–28 used); L22a's repair round wrote 30–32.
+  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · (38) R239 no_sentence_to_arrivals · next free R240. Oracle pin 134. RULINGS: L22b writes 13–29 (13–28 used); L22a's repair round wrote 30–32.
 - AUDITOR ORDER 48 (amended): a fall set aside as « load » needs the same rule ≥ 10× here and ≥ 10× on `main` at
   comparable load; any gap is a regression.
 - LOGS `~/Library/Logs/tm-l22b/`; mutex `sh scripts/heavy.sh --held`. GATE: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh
@@ -316,3 +318,16 @@ L22b appends from 13).
   (`39-mutation-undeclared.log`, `39-mutation-count.log`) — both passed GREEN before the floor hold existed: the landing
   looked right while leaving an entry underneath. One heavy run went unannounced (`39-diagnose.log`); every run is
   announced from now on, a diagnostic included.
+- 2026-09-28 phase 40 opened (the readers of the page's states): re-measured ≈ 30 → CUT 40 (F41) / 41 (the twelve
+  other readers + three code sites) / 42 (F53); the rest +2 (43–47); steward approved. `acq-todo-loading`: the steward
+  ruled (A) BUILD it (DESIGN § 4 row 11 names it; its own three-card skeleton, measured by the oracle) — phase 13's use
+  of it, « no tab selected while the count is unread », died with round 7's default-tab rule. R90 (state_surfaces.py)
+  RE-AIMED OUT LOUD, arr-error → acq-todo-error, its subject read from fr.json: red `40-red.log` (« acq-todo-error names
+  its own subject — looked for « ce qui attend votre main » »: the tab said « En cours »'s `errorNow`). Commit 7c9597cf6:
+  `errorTodo`, the two states, pin 132 → 134. Gate `40-gate.log` 38 rules (17 named) + 26 guards 0 failed; 26
+  divergences = the two new states only (proof `40-accept-proof.log`), accepted 5406a8db8. `40-a11y.log` 0 + light
+  88/88 (134 states). Mutation `40-mutation.log`: `errorTodo` → `errorNow` → R90 FAIL « acq-todo-error names its own
+  subject ». B-515 READ on acq-todo-error (triage F41): the tab's SurfaceError has no `onRetry`, so « Réessayer » is the
+  delegated `data-retry` → `refetchQueries({ type: "active" })`, no pending or busy sign; the named state's error is the
+  harness dial `phase: "error"`, which no answered read can clear — the same traits as on arr-error: honest, no product
+  defect; B-515 stays open with its surface now acq-todo-error (owner L13c), for the closing docs pull request to record.
