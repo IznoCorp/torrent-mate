@@ -36,6 +36,20 @@ list. « Retirer de qBittorrent » is phase 6's; this phase draws the rows and t
 A BEHAVIOUR change: the tab did not exist; it now reads the downloads and obligations together and
 draws one row per active entry, anywhere.
 
+**Inherited from L22 RULINGS 25 (auditor and steward, 2026-09-27; L22b phase 31, STOP D), written in by the
+steward at L22's close.** A direct add is a card only once « arrivé »; a downloading direct add — « Les Zinzins de
+l'Espace », real, in `moving.json` — stays in « En vol », against the letter of ruling 2, a temporary gap named
+there and closed here:
+
+- **The card's removal.** Zinzins's « En vol » card, downloading, leaves — no direct-add card before « arrivé »
+  once this phase ships (F5, ruling 25 scoped (a)).
+- **A new hold, « Zinzins downloading is readable in Torrents ».** The Torrents tab's own row (above) is where a
+  downloading direct add is now read, exactly like any other active qBittorrent entry; a mutation that drops
+  Zinzins's row, or reads it back under « En vol », must fall by name.
+- **`R229` (`frontend/maquette/harness/follow_offered.py`) re-aimed on a real subject.** Zinzins, downloading and
+  real, becomes the rule's own case for « never proposes « Suivre » before a series has arrived » — the phase-17
+  offer's hold, until now proved on no real row, is proved on this one.
+
 ## The proof FIRST
 
 R-L16-a re-aimed (its label was bound in phase 2); `R122` re-aimed.
