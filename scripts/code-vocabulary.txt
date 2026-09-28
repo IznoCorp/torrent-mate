@@ -327,6 +327,8 @@ door
 doors
 dot
 down
+download
+downloads
 drag
 draw
 drawer
@@ -723,6 +725,8 @@ numbers
 numeric
 nums
 object
+obligation
+obligations
 observer
 of
 offer
@@ -1213,6 +1217,7 @@ tons
 top
 topic
 topics
+torrent
 torrents
 total
 tracker

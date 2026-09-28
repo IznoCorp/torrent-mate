@@ -246,6 +246,14 @@
       "policyUnset": "Aucune politique réglée pour ce tracker.",
       "seeTorrents": "Voir les torrents"
     },
+    "torrents": {
+      "origin": "Téléchargé ici en premier",
+      "crossSeed": "Cross-seed d'un torrent déjà présent",
+      "deadline": "Échéance le {{date}}",
+      "noDeadline": "Aucune échéance",
+      "obligationOpen": "Obligation en cours",
+      "obligationDone": "Obligation terminée"
+    },
     "releases": {
       "back": "Retour",
       "noteTitle": "Écran neuf.",

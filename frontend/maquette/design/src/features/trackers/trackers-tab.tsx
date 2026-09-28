@@ -13,6 +13,7 @@ import { useUiState } from "../../lib/store-access";
 import {
   crossReference, emptyNote, factDetail, factList, factName, factRow, factRowBody, factValue, guidance,
 } from "../../ui/variants";
+import { written } from "./format";
 import { useSettingsCatalogue, useTrackers, type Setting, type Tracker } from "./queries";
 
 // THE POLICY IS THE TRACKER'S ECONOMY BLOCK, in the tracker's configuration
@@ -26,20 +27,6 @@ const POLICY_FIELDS = [
 
 // A billion bytes: the « Go » the interface writes volumes in.
 const GIGABYTE = 1_000_000_000;
-
-/**
- * A number as the interface writes it, with fixed decimals.
- *
- * @param value The number.
- * @param decimals How many decimals it carries.
- * @returns The number, written in the interface's language.
- */
-function written(value: number, decimals: number): string {
-  return new Intl.NumberFormat("fr-FR", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  }).format(value);
-}
 
 /**
  * One tracker's policy: each field is the SAME setting the settings page draws,

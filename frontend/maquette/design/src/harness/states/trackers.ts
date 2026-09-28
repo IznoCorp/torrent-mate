@@ -46,5 +46,13 @@ export function trackersStates(): NamedState[] {
         applyState({ page: "trackers", trackersTab: "trackers", trackersFilter: "tr4ker", phase: "ready" });
       },
     ],
+    [
+      "torrents-list",
+      "Torrents — une ligne par entrée, tous trackers",
+      () => {
+        window.__mocks?.reset();
+        applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+      },
+    ],
   ];
 }

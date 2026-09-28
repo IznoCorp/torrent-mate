@@ -24,6 +24,42 @@ export function useTrackers() {
   });
 }
 
+/** One entry of the download client, on the tracker it runs on. */
+export type Download = Schemas["Download"];
+
+/** One seeding obligation an entry owes its tracker. */
+export type Obligation = Schemas["Obligation"];
+
+/** The address of the download client's entries. */
+const DOWNLOADS_ADDRESS = "/api/acquisition/downloads";
+
+/** The address of the seeding obligations. */
+const OBLIGATIONS_ADDRESS = "/api/acquisition/obligations";
+
+/**
+ * Every entry the download client holds, one per tracker it runs on.
+ *
+ * @returns The query, its answer in the contract's names.
+ */
+export function useDownloads() {
+  return useQuery({
+    queryKey: [DOWNLOADS_ADDRESS],
+    queryFn: async () => read<Schemas["Downloads"]>(DOWNLOADS_ADDRESS),
+  });
+}
+
+/**
+ * Every seeding obligation, running or closed.
+ *
+ * @returns The query, its answer in the contract's names.
+ */
+export function useObligations() {
+  return useQuery({
+    queryKey: [OBLIGATIONS_ADDRESS],
+    queryFn: async () => read<Schemas["Obligations"]>(OBLIGATIONS_ADDRESS),
+  });
+}
+
 /** One setting of the catalogue, in the contract's names. */
 export type Setting = Schemas["Setting"];
 
