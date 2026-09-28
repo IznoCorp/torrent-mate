@@ -12,7 +12,7 @@ L22b appends from 13).
   FOR THE OPERATOR'S WORD: `docs/reference/product-intent-map.md` names `features/arrivals` / `harness/arrivals.py`
   (DOIT-1..5, NE-DOIT-PAS-2, NE-DOIT-PAS-3); the steward put (b) — edit the surface/proof columns only, successor by
   successor — to the operator through the auditor. DO NOT touch the map before the word; on it, make the edit, re-run
-  the guard, commit, push (local 22c571079 goes with it). NEXT: the audit2 series' remaining draws (below), then the
+  the guard, commit, push (local 22c571079 goes with it). NEXT: the
   close (file phase-44; F8, F52, F67, C9; B-514 and B-560 `fixing` → `fixed #<PR>`). REBUILD the list from `ls plan/`
   + INDEX's dated lines. Declared oracle list BY SCRIPT before every gate (every state whose `applyState` draws the
   touched page/world, layers included, RULINGS 23). `mutate.sh` ALWAYS under `heavy.sh --class browser`; a new
@@ -20,11 +20,7 @@ L22b appends from 13).
   `no-french` job's static list read by output (steward): check-no-french, check-css-tokens, check-compositor-css,
   check-tailwind-confinement, check-markup-contracts, check-frontend-boundaries, `oracle.py --contracts` — one
   already failing = STOP with its exit and first line.
-- AUDIT2 SERIES (order 48, after 44's R11 fall) STOPPED at the stand-down: branch 1–7 and main 1–6 done, 0 violations
-  each, WHOLE outputs in `44-audit2/{branch,main}-N.out`; REMAINING main-7, branch-8..10, main-8..10. Scripts copied
-  to `44-audit2/audit2run.sh` and `series2.sh` (args `main:7 branch:8 main:8 …`; its pause flag path is the old
-  session's scratchpad — edit it); branch side `/Users/izno/dev/worktrees/reader-l22b` (ed55084bd), main side
-  `control-l22b` (665788a90). Verdict to the ledger ONLY at 10 + 10.
+- AUDIT2 SERIES (order 48): DONE 10 + 10, 0 violations each (verdict in the ledger); outputs in `44-audit2/`.
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (21) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (22) R233 ·
   R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · (38) R239 no_sentence_to_arrivals · (46) R240 levers_stay_live · (47b) R241 arrivals_gone · next free R242. Oracle pin 130. RULINGS: L22b wrote 13–29 and 33, L22a's round 30–32; a new one takes 34.
@@ -524,3 +520,9 @@ L22b appends from 13).
   divergence (declared: none). `48-a11y.log` 0 + light 88/88 (130 states). CI static list 7/7 exit 0. Mutation
   `48-mutation-follows.log`: `refillFollows();` removed at install → panel.py FAIL « a cold panel over a screen leaves
   the screen standing » (×3 holds).
+- 2026-09-28 AUDIT2 SERIES CLOSED (order 48, after 44's R11 fall): branch 1–10 (reader-l22b at ed55084bd) and main 1–10
+  (control-l22b at 665788a90), alternating, load < 6 before each, each under the browser mutex — ALL TWENTY « TOTAL,
+  second pass: 0 violations · 13/13 rules executed », WHOLE outputs in `44-audit2/{branch,main}-{1..10}.out`. The R11
+  fall of `44-final.log` (and of `20-green.log`) is not reproduced in 20 draws on either side: not charged to the code,
+  not set aside as load either — it stays a single unexplained reading, named here. main-8 was delayed ~10 min by the
+  auto-mode classifier's outage (no verdict on any Bash call), nothing ran meanwhile.
