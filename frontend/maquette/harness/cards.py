@@ -42,7 +42,7 @@ URL = "http://127.0.0.1:8899/"
 LIST_POSTER = 84  # two thirds of the card's floor, so a card at that floor is 2:3  # the notch of the card that explains; see refonte.html@60530dbd8
 # RE-AIMED OUT LOUD: `acq-now-idle` left this list — the real world has
 # nothing in flight, so « En cours » draws no card there; « À traiter »'s cards
-# are read instead. RE-AIMED OUT LOUD again: `arr-idle` and `arr-loaded` left
+# are read instead. RE-AIMED OUT LOUD again: the Arrivées page's idle and loaded states left
 # it with the Arrivées page — their cards are « À traiter »'s, in the real world
 # and in the dense one.
 CARD_STATES = [

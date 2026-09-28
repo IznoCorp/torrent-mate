@@ -34,9 +34,7 @@ import type { ReactElement } from "react";
 import { AccountPage } from "../features/account/page";
 import { AcquisitionPage } from "../features/acquisition/page";
 import { acquisitionBadge, useAcquisitionBadgeReads } from "../features/acquisition/queries";
-import { ArrivalsPage } from "../features/arrivals/page";
 import { DiscoverPage } from "../features/acquisition/discover-page";
-import { arrivalsBadge, useArrivalsBadgeReads } from "../features/arrivals/queries";
 import { LibraryPage } from "../features/library/page";
 import { MaintenancePage } from "../features/maintenance/page";
 import { NotFoundPage } from "./not-found";
@@ -138,19 +136,6 @@ export const NAVIGATION: readonly NavigationRow[] = [
     group: "supervision",
     inBar: true,
     slotReplacesTabBar: true,
-  },
-  {
-    id: "arr",
-    path: PAGE_PATHS.arr,
-    Body: ArrivalsPage,
-    root: "body",
-    region: "arrivals/body",
-    labelKey: "navigation.pages.arr",
-    icon: icons.inbox,
-    group: "supervision",
-    inBar: true,
-    badge: arrivalsBadge,
-    useBadgeReads: useArrivalsBadgeReads,
   },
   {
     // « DÉCOUVRIR », A PAGE OF THE BAR: it left

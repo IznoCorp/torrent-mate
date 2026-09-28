@@ -371,7 +371,9 @@ def test_the_committed_reference_carries_a_platform():
     # the two resolution states lay « À traiter » beneath their screen instead of Arrivées.
     # 136 SINCE L22b's phase 42: acq-card-identity-unknown, an arrival in flight whose identity is
     # not known yet, POSED on « Conclave » — added, nothing else moved.
-    assert reference["counts"] == {"states": 136, "regions": 39}
+    # 130 SINCE L22b's phase 47b: the Arrivées page died, and its six arr-* records left the
+    # reference by named deletion — nothing else moved.
+    assert reference["counts"] == {"states": 130, "regions": 39}
 
 
 class TestItRefusesToWriteOverAForeignBuild:

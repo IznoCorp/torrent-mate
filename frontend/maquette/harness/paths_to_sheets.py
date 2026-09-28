@@ -53,7 +53,7 @@ SURFACES = (
     ("acq-follows-list", "a follow row", PAGE),
     ("acq-follows-group", "a follow row, grouped", PAGE),
     ("acq-now-loaded", "an acquisition in flight", PAGE),
-    # RE-AIMED OUT LOUD: `arr-loaded` left with the Arrivées page and takes NO
+    # RE-AIMED OUT LOUD: the Arrivées page's loaded state left with it and takes NO
     # successor. Its folders are « À traiter »'s in the same world, measured
     # there: one row names a medium, the two others wear `data-nonmedia` —
     # nobody identified them, and they owe no sheet — which is under this

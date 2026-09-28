@@ -138,7 +138,7 @@ SHEET_TITLE = "Silo (2023)"
 TITLE_WITHOUT_TRAILER = "Broadchurch"
 
 # `Backrooms.2026.MULTi.2160p.WEB-DL` is the embedded référentiel's own
-# folder waiting to be resolved (`refonte.html@60530dbd8`'s `arr-charge` state opens
+# folder waiting to be resolved (`refonte.html@60530dbd8`'s loaded-arrivals state opens
 # it as the default « Résoudre → » target — `ident.py` walks that exact
 # path) — and the real regression case for `server.py`'s dotted-segment
 # fallback fix: its deepest path segment carries dots of its own, which the

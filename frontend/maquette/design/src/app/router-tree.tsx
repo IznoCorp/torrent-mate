@@ -11,7 +11,6 @@ import { rootRoute } from "./root-route";
 import { accountRoute } from "../routes/account";
 import { acquisitionRoute } from "../routes/acquisition";
 import { addRoute } from "../routes/add";
-import { arrivalsRoute } from "../routes/arrivals";
 import { rootAddressRoute } from "../routes/index";
 import { libraryRoute } from "../routes/library";
 import { maintenanceRoute } from "../routes/maintenance";
@@ -67,7 +66,6 @@ export const router = createRouter({
     rootAddressRoute,
     acquisitionRoute,
     libraryRoute,
-    arrivalsRoute,
     discoverRoute,
     systemRoute,
     maintenanceRoute,

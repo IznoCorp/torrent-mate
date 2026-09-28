@@ -32,13 +32,12 @@ from playwright.async_api import async_playwright
 # draws, and the rule holds that too — it is the other half of the law.
 # « discover » JOINED as a page of the bar, said out loud: « Découvrir » left
 # Acquisition's tabs.
-SHELL_OWNED = ["sys", "maint", "cfg", "arr", "lib", "acq", "discover", "profile", "404"]
+SHELL_OWNED = ["sys", "maint", "cfg", "lib", "acq", "discover", "profile", "404"]
 
 # What each page really emits, less a small margin. Measured, not guessed: one
 # floor for eight pages is either too high for the smallest or too low to notice
-# a page that lost half of itself. « arr » re-measured at 135 once the game
-# folder, never a medium, left the real world's seeds.
-FLOORS = {"sys": 180, "maint": 50, "cfg": 40, "arr": 130, "lib": 150,
+# a page that lost half of itself.
+FLOORS = {"sys": 180, "maint": 50, "cfg": 40, "lib": 150,
           "acq": 55, "discover": 40, "profile": 30, "404": 5}
 # EMPTY, and that is the point of this wave: no page is drawn by the fragment
 # any more. The hold below says so out loud rather than passing over an empty
@@ -165,9 +164,11 @@ async def main():
         # that survives a handover, and it shows up as a page carrying more
         # than it emits. Each page below is reached from two different
         # predecessors, once across each world's boundary.
-        walk = ["lib", "sys", "lib", "arr", "sys", "arr", "acq", "sys", "acq",
-                "maint", "lib", "maint", "cfg", "maint", "sys", "cfg", "arr",
-                "cfg", "sys", "cfg", "lib", "arr", "acq", "arr", "profile",
+        # RE-AIMED OUT LOUD: the Arrivées page left the walk with the page;
+        # every page left is still reached from two predecessors.
+        walk = ["lib", "sys", "lib", "acq", "sys", "acq",
+                "maint", "lib", "maint", "cfg", "maint", "sys", "cfg",
+                "sys", "cfg", "lib", "acq", "profile",
                 "acq", "profile", "404", "lib", "404"]
         signatures: dict[str, set[str]] = {}
         residue = []
@@ -814,7 +815,7 @@ async def main():
 
         # (d-bis) NO RULE DRIVES A PAGE BY MUTATING THE ENGINE'S ALIAS.
         # `state` is a module-global alias onto the store's CURRENT object, so
-        # `state.page = "arr"` mutates that object IN PLACE: its identity never
+        # `state.page = "sys"` mutates that object IN PLACE: its identity never
         # changes, nothing React subscribes to moves, and the page keeps drawing
         # whatever was there before. It was measured rather than reasoned about
         # — the store named one page, `#view` held another page's roots,
@@ -895,7 +896,7 @@ async def main():
 
         # (d-ter) A COLD DEEP ADDRESS LANDS ON THE SHELL-OWNED PAGE. `/` keeps
         # its legacy query and the LEGACY parser keeps owning it, so a link to
-        # `?page=arr` reaches a migrated page only if what that parser reads
+        # `?page=sys` reaches a migrated page only if what that parser reads
         # crosses into the store the component reads. The engine reads it once
         # at boot, through the one in-place write left anywhere
         # (`Object.assign(state, stateFromUrl())`), which is why this is measured
@@ -905,7 +906,7 @@ async def main():
         # first paint does not fell this hold. What fells it is the parser
         # ceasing to read `page`, which is the promise itself.
         cold = await context.new_page()
-        await cold.goto(f"{PROTOTYPE}arrivals", wait_until="load")
+        await cold.goto(f"{PROTOTYPE}system", wait_until="load")
         await cold.evaluate("()=>window.__loadingDone?.()")
         await cold.evaluate("()=>document.querySelector('#toastx')?.click()")
         await cold.wait_for_timeout(500)
@@ -915,11 +916,11 @@ async def main():
             .filter((x) => x.dataset.part !== 'page/heading')
             .map((x) => x.className),
         })""")
-        # RE-AIMED OUT LOUD: the page's launch bar is no longer read here — it
-        # died with « Lancer » and « Arrêter » (OPEN 6); the page's body is.
+        # RE-AIMED OUT LOUD: the address read was Arrivées', which left with
+        # the page; Système's is a deep address whose page draws one body too.
         journal.check(
             "a cold deep address lands on the page it names, drawn by the shell",
-            landed["page"] == "arr" and identities(landed["roots"]) == ["body"],
+            landed["page"] == "sys" and identities(landed["roots"]) == ["body"],
             str(landed))
         await cold.close()
 

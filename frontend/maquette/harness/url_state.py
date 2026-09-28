@@ -171,7 +171,6 @@ from playwright.async_api import async_playwright
 PAGE_WALKS = {
     "acq": ['#nav button[data-page="acq"]'],
     "lib": ['#nav button[data-page="lib"]'],
-    "arr": ['#nav button[data-page="arr"]'],
     "discover": ['#nav button[data-page="discover"]'],
     # RE-AIMED OUT LOUD: Système left the tab bar (ruling 15) — the menu, then
     # its drawer entry.
