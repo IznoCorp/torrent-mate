@@ -752,8 +752,8 @@ candidates screen; Arrivées itself dies as this lot lands.
 **Done when.** The Acquisition page draws the card, its one ladder and the candidates screen as
 the operator's rulings dictate, and Arrivées no longer exists as a destination of its own.
 
-**Design and plan written 2026-09-26, PR #612** — `docs/features/maquette-l22/DESIGN.md`, its plan
-`docs/features/maquette-l22/plan/INDEX.md`; the rulings number fifteen, not nine (the six of 2026-09-26 are in it).
+**Design and plan written 2026-09-26, PR #612** — `docs/features/maquette-l22/DESIGN.md@232a908ca`, its plan
+`docs/features/maquette-l22/plan/INDEX.md@232a908ca`; the rulings number fifteen, not nine (the six of 2026-09-26 are in it).
 **Cut into two sub-lots** (auditor's method decision, 2026-09-26 — L13's precedent): **L22a** = phases 1–14
 plus 14-bis and 14-ter (176 points; the two added on the operator's rulings of 2026-09-26 evening, « En cours »
 holding « En vol » alone — DESIGN § 7.3), **L22b** = phases 15–27 (151 points), stacked on L22a's head at its
