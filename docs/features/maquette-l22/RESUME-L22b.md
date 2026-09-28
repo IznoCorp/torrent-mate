@@ -8,8 +8,8 @@ L22b appends from 13).
 - Branch `feat/maquette-l22b`, worktree `/Users/izno/dev/worktrees/wave-l22b`. #619 (L22a) merged in at 7ca978d5e;
   origin/main 665788a90 (#624) is an ancestor (8a9500c43) — nothing to merge until main moves again. Steward `Orch : TM
   frontend [84baa3]` since the reboot of 2026-09-28 05:00.
-- DONE: 15a–48 and the close's work (register, README, rulings proved, bump 0.98.102 — #625 also carries 0.98.102:
-  if it merges first, merge origin/main and go to 0.98.103, the steward says when). THE OPERATOR RULED (b) on the
+- DONE: 15a–48 and the close's work (register, README, rulings proved); origin/main 5644107ee (#625) merged in,
+  bump 0.98.103; the pre-PR gate done (suite, --a11y, --compare, make lint) — the ledger's last lines. THE OPERATOR RULED (b) on the
   clause map (relayed by the steward, 2026-09-28): the edit of `docs/reference/product-intent-map.md` (surface/proof
   columns of DOIT-1..5, NE-DOIT-PAS-2, -3; the prepared replacements are listed in the ledger's close line) was
   REFUSED by the auto-mode classifier (« Modify Shared Resources ») — it waits for the user's own permission; nothing
@@ -550,4 +550,16 @@ L22b appends from 13).
   the candidates screen, a tap opening it. The walk BY FINGER to the tab: R239 (`no_sentence_to_arrivals.py`) —
   from Système and from a run's screen, a cross-reference lands on « À traiter » (`tab=todo`), standing on the floor.
   Not a STOP.
+- 2026-09-28 THE PRE-PR GATE. `--a11y` (`close-a11y.log`): 0 + light 88/88 (130 states). `--compare`
+  (`close-compare.log`, 175 rules, host started in the same invocation): FAILED read first — entry.py alone (1 hold,
+  Page.goto on the deployed tm-design host; it fell in the full suite too and passed alone twice: an instrument reading
+  another host, not this copy); 20 counts moved, each attributed: the rises are this lot's own holds (cards, four_tabs,
+  season_grab_unfollowed, states …); the falls are said above — one_ladder 51 → 44 (43's weakening), locks 74 → 71 and
+  queued_by_hand 23 → 15 (45a), page_host 43 → 41 and paths_to_sheets 13 → 11 (41, 47b), decision.py 30 → 29 (the
+  « Suivant » progression hold died with the button, 736ee5ca6, OPEN 7), entry 10 → 1 (the fall); 16 rules new. Merge
+  of origin/main 5644107ee (#625, the repair train): 29ce8e6c8, conflicts BUGS.md (union B-556..B-560), the comment
+  record (re-recorded, read 523), the oracle reference (ours, then the train's 130 shell/toast keys accepted in the
+  run's invocation, script proof `merge2-accept-proof.log`: 109 states equal main's value, 21 of this branch take one of
+  main's; HEAD's reference written with those keys only, 43e297bbc); `merge2-check.log` no divergence. Bump 0.98.103
+  eb214ce4f. `make lint` 0 findings; the CI static list + check-bug-register + check-docs-cited-paths all exit 0.
 
