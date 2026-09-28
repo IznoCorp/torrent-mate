@@ -15,9 +15,9 @@ address model, never written here; its body is its own oracle region,
 4. the address opened cold lands on the same page;
 5. its two tabs, « Torrents » then « Trackers », are DIALS of the page: « Trackers »
    is selected when the address names none; a finger's tap on the other ADJUSTS —
-   the address says `?tab=`, `history.length` unchanged — and a back then leaves
+   the address says `?list=`, `history.length` unchanged — and a back then leaves
    the page for the one beneath it rather than stepping between tabs;
-6. the address carries both dials: `?tab=torrents&tracker=<name>` opened cold
+6. the address carries both dials: `?list=torrents&tracker=<name>` opened cold
    lands on that tab, filtered to that tracker.
 
 Red before the move: no such page exists. RE-AIMED OUT LOUD: holds 5 and 6 came
@@ -115,7 +115,7 @@ async def main():
             await page.wait_for_timeout(ACTED)
         switched = await page.evaluate(TABS)
         journal.check("a finger's tap on « Torrents » ADJUSTS: the address names it, history.length unchanged",
-                      switched["dial"] == OTHER and switched["address"] == f"{PAGE_PATHS.get(PAGE)}?tab={OTHER}"
+                      switched["dial"] == OTHER and switched["address"] == f"{PAGE_PATHS.get(PAGE)}?list={OTHER}"
                       and switched["length"] == strip["length"] and after["length"] == strip["length"],
                       f"{strip} -> {switched}")
         # FROM THE ENTRY PAGE the page is PUSHED, so what lies beneath it is
@@ -149,7 +149,7 @@ async def main():
         filtered_context = await browser.new_context(**PHONE)
         filtered = await filtered_context.new_page()
         filtered.on("pageerror", lambda error: errors.append(str(error)))
-        address = f"{PAGE_PATHS.get(PAGE, '/trackers')}?tab={OTHER}&tracker={FILTERED}"
+        address = f"{PAGE_PATHS.get(PAGE, '/trackers')}?list={OTHER}&tracker={FILTERED}"
         await filtered.goto(PROTOTYPE.rstrip("/") + address, wait_until="load")
         await filtered.evaluate("()=>window.__loadingDone?.()")
         await filtered.wait_for_timeout(SETTLED)

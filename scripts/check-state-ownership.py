@@ -69,6 +69,9 @@ INTERFACE_STATE_KEYS = {
     "sugMode", "resolveTarget", "panelOpen", "scen", "pill", "tmdb", "profile",
     "relatedTitle", "panelDescriptor", "kind", "too",
     "notes", "libLens", "libCat", "libMode", "followMode", "maintTopic",
+    # « Trackers »'s open tab and its tracker filter: dials of a page, like
+    # `acqTab` and `libLens` — what the operator chose on screen.
+    "trackersTab", "trackersFilter",
     "sortKey", "sortReversed",
     # WHETHER THE DRAWER IS UP (L15). Its sibling `panelOpen` has been on this
     # list since the sheet moved, and for the same reason: a layer's open state

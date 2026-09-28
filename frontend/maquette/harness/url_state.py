@@ -279,11 +279,13 @@ async def main():
 
     # Read before anything is driven: every hold below is measured against the
     # model, so a model this rule read wrongly would make the rest describe
-    # something else. Six is the count the declaration carries — five dials
+    # something else. Eight is the count the declaration carries — seven dials
     # and the panel parameter — and the number is written down so that adding
     # a dial without telling this rule is a failure rather than a silence.
-    journal.check("the rule reads the model's dials, and the model declares six",
-                  len(DIAL_PARAMETERS) == 6, f"{len(DIAL_PARAMETERS)}: {DIAL_PARAMETERS}")
+    # RE-AIMED OUT LOUD: six became eight when « Trackers » brought its tab and
+    # its tracker filter.
+    journal.check("the rule reads the model's dials, and the model declares eight",
+                  len(DIAL_PARAMETERS) == 8, f"{len(DIAL_PARAMETERS)}: {DIAL_PARAMETERS}")
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")

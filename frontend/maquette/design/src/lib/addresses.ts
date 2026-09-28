@@ -138,7 +138,7 @@ const DIALS = [
   { parameter: "mode", field: "libMode", default: "grid", of: "lib" },
   { parameter: "cat", field: "libCat", default: "all", of: "lib" },
   { parameter: "topic", field: "maintTopic", default: "", of: "maint" },
-  { parameter: "tab", field: "trackersTab", default: "trackers", of: "trackers" },
+  { parameter: "list", field: "trackersTab", default: "trackers", of: "trackers" },
   { parameter: "tracker", field: "trackersFilter", default: "", of: "trackers" },
 ] as const;
 
