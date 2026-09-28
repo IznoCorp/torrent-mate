@@ -418,3 +418,8 @@ L22b appends from 13).
   `44-final.log` (cd5cb6d83): no divergence, but audit2.py R11 fell ONCE (« visible jargon or technical value — 1 »,
   text lost with run.sh's per-rule log; load 5.44, 5-min 7.76; green in gate 2 on the same sources) — NOT set aside:
   order 48's ×10 here and on main, reported to the steward.
+  `44-a11y.log` 0 + light 88/88 (136 states). The steward's decision on R11: audit2 ×10 on this branch AND ×10 on main
+  (the detached worktree `/Users/izno/dev/worktrees/control-l22b`, origin/main 665788a90, only the harness's build written
+  there), alternating pairs, ≤ 5 pairs per heavy invocation, load < 6 before each, WHOLE output kept in
+  `44-audit2/{branch,main}-{1..10}.out`; a fall on the branch alone, or a text from L22b's surfaces = STOP regression;
+  the same text on both sides = one more line on B-546.
