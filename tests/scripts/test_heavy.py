@@ -484,3 +484,69 @@ def test_an_old_lock_whose_holder_is_gone_is_broken(tmp_path: Path) -> None:
     result = run(lock, "sh", "-c", "echo ran", timeout=30)
     assert "ran" in result.stdout
     assert "breaking a stale lock" in result.stderr
+
+
+# ── A holder waiting for room must not keep the lock (auditor's order 71) ────
+# `heavy.sh` used to take the lock and only THEN wait for room, so a holder
+# stuck waiting for load to drop held the lock the whole time it waited — and
+# every run behind it waited too, including a run whose class already fit.
+# Measured: docs-l22 held the lock 27 minutes waiting for load, with a
+# `--class rule` run (ceiling 10) queued behind it.
+
+FAKE_UPTIME_LOAD_EIGHT = "12:00  up 1 day,  1 user, load averages: 8.00 7.50 7.00\n"
+
+
+def test_a_holder_waiting_for_room_does_not_block_a_run_that_already_fits(
+    tmp_path: Path,
+) -> None:
+    """THE DEFECT: a browser-class holder waiting for room must not keep the lock.
+
+    Free memory is stubbed generous (5 706 MB, comfortably above every class's
+    floor) and load is stubbed at 8 — over the browser class's ceiling of 6, but
+    under the rule class's ceiling of 10. The browser-class run therefore waits
+    for room forever; the rule-class run already fits and must take the lock and
+    finish without waiting behind a holder that never started.
+    """
+    stand_in = tmp_path / "bin"
+    stand_in.mkdir()
+    vm_stat = stand_in / "vm_stat"
+    vm_stat.write_text(f"#!/bin/sh\ncat <<'READING'\n{VM_STAT_WITH_SPECULATIVE_PAGES}READING\n")
+    vm_stat.chmod(0o755)
+    uptime = stand_in / "uptime"
+    uptime.write_text(f"#!/bin/sh\necho '{FAKE_UPTIME_LOAD_EIGHT.strip()}'\n")
+    uptime.chmod(0o755)
+
+    lock = tmp_path / "holder"
+    env = {**os.environ, "HEAVY_LOCK": str(lock), "PATH": f"{stand_in}:{os.environ['PATH']}"}
+    env.pop("HEAVY_FREE_FLOOR_MB", None)
+    env.pop("HEAVY_LOAD_CEILING", None)
+
+    waiting_for_room = subprocess.Popen(
+        ["sh", str(SCRIPT), "--class", "browser", "waits-for-room", "sleep", "30"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=env,
+    )
+    try:
+        time.sleep(2)
+        started = time.monotonic()
+        try:
+            already_fits = subprocess.run(
+                ["sh", str(SCRIPT), "--class", "rule", "already-fits", "sh", "-c", "echo ran"],
+                capture_output=True,
+                text=True,
+                timeout=8,
+                env=env,
+            )
+        except subprocess.TimeoutExpired:
+            pytest.fail(
+                "a rule-class run (ceiling 10, load stubbed at 8) waited behind a "
+                "browser-class holder (ceiling 6) still waiting for room — the "
+                "holder must not keep the lock while it waits for room"
+            )
+        assert already_fits.returncode == 0, already_fits.stderr
+        assert "ran" in already_fits.stdout
+        assert time.monotonic() - started < 8
+    finally:
+        waiting_for_room.terminate()
+        waiting_for_room.wait(timeout=15)
