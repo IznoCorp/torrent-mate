@@ -10,20 +10,21 @@ L22b appends from 13).
   [84baa3]` since the reboot of 2026-09-28 05:00 (was [ac1af8]). main has moved (#621, the references' gesture): merge `origin/main` at the next unit boundary — only the
   generated files conflict; regenerate them (oracle by an accept in one invocation + the script proof; ledgers re-read).
 - Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b`.
-- DONE: 15a–19-bis-b, merges of #619/#621/main(#617/#618/#622/#623/#624), the triage's docs commit, 20–30, the MIDPOINT
-  (1 real fall, R207, repaired; audit2 ×10: 0/10), 31 (F5, condition 3 of RULINGS 25), 32 (F6), 33 (F42), 34 (M1, RULINGS 26), 35 (Q1's real half, RULINGS 27), 36 (Q2, RULINGS 28), 37 (« Demandée » + the one-off's « Suivre », R158 hold 5 given back), 38 (the sentences + F54,
-  R239; cut at its opening), 39 (F7: `data-dial`, and the landing home repaired — page-switch `rewind(1 + stacked)`,
-  `countTheEntry`), 40 (F41: acq-todo-loading/-error, R90; the readers' phase cut in three), 41 (the readers; acq-todo-dense, RULINGS 29;
-  R139's B-313 hold SET ASIDE), 42 (the hold given back on « Conclave », identity POSED unknown). NEXT: **43** F53 (Spider-Man out of the seeds and the count, R-L22-g/-j onto Backrooms, doc_fr_2026_final) → 44 the live
+- DONE: 15a–42 (the ledger says each; the MIDPOINT after 30). NEXT: **43** F53, measured at
+  stand-down ≈ 12–14: stuck.json's Spider-Man game row out (the real world's « À traiter » count, so the bar badge of
+  nearly every real-world state diverges — accept by name, script proof); R208 card_without_identity.py (FOLDER picked
+  by « Spider-Man ») and R228 not_a_media.py + state acq-resolution-not-media (tunnel.ts:136, openNotMediaChoice on
+  the game) re-aimed onto a dense-world folder the sort typed film/series that no provider identifies (Backrooms);
+  DESIGN:307/319/638 and phases 6/16 by dated lines; doc_fr_2026_final checked the same way → 44 the live
   rule → 45 (the dead `acq-follows-pause-empty` still in the a11y ledgers) → 46 death of Arrivées (F8) → 47 (+
   engine-data.ts's removal) → 48 close (F8, F52, F67, C9; product-intent-map.md:49).
   Files renumbered twice by `git mv`; 29/30 live in phase-28's file, 33 in phase-32's, 39 in phase-38's, 40–43 in phase-39's
   (44–48 in the files named 40–44). engine-data.ts's removal (the follows' prefetch declared by its feature, drive.ts's
-  `refillEngineData` door re-pointed) is L22b's, at 44.
+  `refillEngineData` door re-pointed) is L22b's, at 47.
   Each re-measured at its opening; > 15 → cut. (The machine rebooted Monday 2026-09-28 05:00: re-verify the state.)
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (21) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (22) R233 ·
-  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · (38) R239 no_sentence_to_arrivals · next free R240. Oracle pin 136. RULINGS: 29 used (L22b's last). RULINGS: L22b writes 13–29 (13–28 used); L22a's repair round wrote 30–32.
+  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · (38) R239 no_sentence_to_arrivals · next free R240. Oracle pin 136. RULINGS: L22b wrote 13–29 (all used; a new one takes 33); L22a's round wrote 30–32.
 - AUDITOR ORDER 48 (amended): a fall set aside as « load » needs the same rule ≥ 10× here and ≥ 10× on `main` at
   comparable load; any gap is a regression.
 - LOGS `~/Library/Logs/tm-l22b/`; mutex `sh scripts/heavy.sh --held`. GATE: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh
@@ -373,3 +374,5 @@ L22b appends from 13).
   new state only (proof `42-accept-proof.log`), accepted 1eeb6378f, pin 136. Mutation `42-mutation.log`: the door keeps
   the identity (`ids: null, ` removed) → R139 FAIL « and it reached a panel whose PRIMARY act leads to the journey ».
   `42-a11y.log` 0 + light 88/88 (136 states).
+- 2026-09-28 stood down after phase 42 (the context hook's gate is 60 %: 50.5 measured + phase 43's ≈ 10 would cross
+  it; the steward's order). Next unit: phase 43 (F53), for a fresh session; its measure is in the STATE.
