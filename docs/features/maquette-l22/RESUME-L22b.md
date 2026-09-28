@@ -13,18 +13,18 @@ L22b appends from 13).
 - DONE: 15a–19-bis-b, merges of #619/#621/main(#617/#618/#622/#623/#624), the triage's docs commit, 20–30, the MIDPOINT
   (1 real fall, R207, repaired; audit2 ×10: 0/10), 31 (F5, condition 3 of RULINGS 25), 32 (F6), 33 (F42), 34 (M1, RULINGS 26), 35 (Q1's real half, RULINGS 27), 36 (Q2, RULINGS 28), 37 (« Demandée » + the one-off's « Suivre », R158 hold 5 given back), 38 (the sentences + F54,
   R239; cut at its opening), 39 (F7: `data-dial`, and the landing home repaired — page-switch `rewind(1 + stacked)`,
-  `countTheEntry`), 40 (F41: acq-todo-loading/-error, R90; the readers' phase cut in three). NEXT: **41** the
-  twelve other readers of `arr-*` + the code sites (states/acquisition.ts:218, states/tunnel.ts:23,32) + busy.py →
-  42 F53 (Spider-Man out of the seeds and the count, R-L22-g/-j onto Backrooms, doc_fr_2026_final) → 43 the live rule →
-  44 (the dead `acq-follows-pause-empty` still in the a11y ledgers) → 45 death of Arrivées (F8) → 46 (+ engine-data.ts's
-  removal) → 47 close (F8, F52, F67, C9; product-intent-map.md:49).
-  Files renumbered twice by `git mv`; 29/30 live in phase-28's file, 33 in phase-32's, 39 in phase-38's, 40–42 in phase-39's
-  (43–47 in the files named 40–44). engine-data.ts's removal (the follows' prefetch declared by its feature, drive.ts's
+  `countTheEntry`), 40 (F41: acq-todo-loading/-error, R90; the readers' phase cut in three), 41 (the readers; acq-todo-dense, RULINGS 29;
+  R139's B-313 hold SET ASIDE). NEXT: **42** at once: R139's hold back on a case POSED on a dense-world arrival in flight
+  (Alabama Solution / Conclave), identity « not yet known », backend read named, named state, mutation → 43 F53 (Spider-Man out of the seeds and the count, R-L22-g/-j onto Backrooms, doc_fr_2026_final) → 44 the live
+  rule → 45 (the dead `acq-follows-pause-empty` still in the a11y ledgers) → 46 death of Arrivées (F8) → 47 (+
+  engine-data.ts's removal) → 48 close (F8, F52, F67, C9; product-intent-map.md:49).
+  Files renumbered twice by `git mv`; 29/30 live in phase-28's file, 33 in phase-32's, 39 in phase-38's, 40–43 in phase-39's
+  (44–48 in the files named 40–44). engine-data.ts's removal (the follows' prefetch declared by its feature, drive.ts's
   `refillEngineData` door re-pointed) is L22b's, at 44.
   Each re-measured at its opening; > 15 → cut. (The machine rebooted Monday 2026-09-28 05:00: re-verify the state.)
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (21) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (22) R233 ·
-  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · (38) R239 no_sentence_to_arrivals · next free R240. Oracle pin 134. RULINGS: L22b writes 13–29 (13–28 used); L22a's repair round wrote 30–32.
+  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · (38) R239 no_sentence_to_arrivals · next free R240. Oracle pin 135. RULINGS: 29 used (L22b's last). RULINGS: L22b writes 13–29 (13–28 used); L22a's repair round wrote 30–32.
 - AUDITOR ORDER 48 (amended): a fall set aside as « load » needs the same rule ≥ 10× here and ≥ 10× on `main` at
   comparable load; any gap is a regression.
 - LOGS `~/Library/Logs/tm-l22b/`; mutex `sh scripts/heavy.sh --held`. GATE: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh
@@ -331,3 +331,25 @@ L22b appends from 13).
   delegated `data-retry` → `refetchQueries({ type: "active" })`, no pending or busy sign; the named state's error is the
   harness dial `phase: "error"`, which no answered read can clear — the same traits as on arr-error: honest, no product
   defect; B-515 stays open with its surface now acq-todo-error (owner L13c), for the closing docs pull request to record.
+- 2026-09-28 phase 41 (the twelve readers + three code sites): the gate on 5f52976c9 (`41-gate.log`) fell ×5 → STOP D:
+  `arr-loaded` (the dense world) had NO successor — `acq-todo-loaded` is the real world, whose staging folders are Top
+  Chef (« Relancer ») and the Spider-Man game F53 removes → RULINGS 29 (a): `acq-todo-dense`, « À traiter » in the dense
+  world. Measured with a TEMPORARY probe (`41-measure.log`, deleted, never committed): actions, add_screen_opens_fresh,
+  audit, ident, resolution_window green there (actions and ident tap the « Résoudre » of a `data-nonmedia` card, the
+  folder nobody identified — the tab also holds the queue's tie); R122 (paths_to_sheets) reads ONE identified row there
+  — the steward's floor of 2 → its `arr-loaded` entry takes no successor, said in the file; the identified arrival is a
+  card of « En cours », read by acq-now-loaded. R139 (panel_label_once): 0 of 25 panels on five surfaces lead to the
+  journey, yet the branch LIVES in the source (`follow-actions.ts:75–83`, `primaryAction`'s last fallback: an arrival in
+  flight the sort has not identified) → its B-313 hold is SET ASIDE (`BRANCH_SET_ASIDE`), given back in phase 42 on a
+  posed case (the file names no phase: check-maquette-comments refuses one in a maquette comment). audit's R10: « Relancer »
+  on the real world's tunnel error SENDS and changes no dial — the snapshot counts answered calls, and R10 walks « À
+  traiter » in both worlds (6301f4cbb) so the count is exercised. Commits e2751fc7d (test), 4b3cd1819 (oracle: 34
+  divergences = acq-todo-dense new + acq-identify / acq-resolution-none / -tie on six regions each, « À traiter » now
+  under their screen; proof `41-accept-proof.log`; pin 135), 6301f4cbb, 2ccc6d6e2 (fix: acq-todo-dense's comment moved
+  above its entry — the no-French arm could not parse the state; the gate before the accept could not see it). Gate
+  `41-gate2.log` 42 rules (24 named) + 26 guards 0 failed. Mutation `41-mutation-r10.log`: « Relancer »'s send removed →
+  R10 « acq-todo-loaded : « Relancer » changes nothing » (it did NOT fall while audit read acq-todo-dense alone, where no
+  « Relancer » is — hence 6301f4cbb). `41-compare.log` (--only the 14 re-aimed, baseline 5e5ecd05): failed none;
+  panel_label_once 3 → 2 and paths_to_sheets 13 → 11 are THIS phase's, said above; cards 68 → 77 and fanout 150 → 152
+  are not attributable against a baseline that old (none of this phase's edits adds a hold there — cards lost two states).
+  actions.py and ident.py print prose, compared on exit only. `41-a11y.log` 0 + light 88/88 (135 states).
