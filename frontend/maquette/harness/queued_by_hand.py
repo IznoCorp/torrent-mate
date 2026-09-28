@@ -13,46 +13,30 @@ not the path. So this walk counts the calls the state door received, from an
 init script installed before the application assigns it, and holds the count at
 zero.
 
-RED AGAINST MAIN DOES NOT EXIST: main has the path. The red is a MUTATION — the
-verb's network call made a no-op — under which holds 4 and 7 fall by name.
+RE-AIMED OUT LOUD (OPEN 6, ruled A): « Lancer » and « Arrêter » a pass died with
+Arrivées' bar, and no lever took them over. The walk that started a pass by a
+finger on that bar now takes the path a hand still has (DESIGN § 6.1): a
+maintenance command started from Maintenance holds the lock, then a season is
+asked. Where the bar's holds went: « Lancer » drawn inactive while its pass runs,
+and a finger on it asking nothing, died with the button; a second pass answered
+409 and a pass queued behind a maintenance run were holds on the bar's own
+operation, which no surface sends any more — the queued pass is Système's
+`levers-queued`, held by levers.py.
 
 WHAT IS READ, in the order a person does it:
 
   1. AT REST THE PIPELINE IS IDLE, read on the layer: an idle machine is the
      premise, or the walk measures a state it did not cause.
-  2. ARRIVÉES IS REACHED BY A FINGER, from the tab bar, hit-tested.
-  3. « LANCER LE PIPELINE » IS PRESSED BY A FINGER, hit-tested.
-  4. THE RUN OPERATION IS ANSWERED — read on the layer's record of what it was
-     asked, and on its status read afterwards. A store write answers nothing,
-     which is exactly the defect.
+  2. MAINTENANCE IS REACHED BY A FINGER, from the menu's drawer.
+  3. A MAINTENANCE COMMAND IS OPENED AND STARTED BY A FINGER, hit-tested.
+  4. THE RUN OPERATION IS ANSWERED, and the lock is held after it — read on the
+     layer's record of what it was asked, and on its locks read afterwards.
   5. THE FOLLOWS ARE REACHED BY A FINGER, tab bar then the tab.
   6. A SEASON WITH A HOLE IS ASKED FOR, from a row a finger raises.
   7. THE PASTILLE IS PRESENT on that season.
   8. AND THE STATE DOOR WAS NEVER OPENED.
-
-A SECOND PASS IS REFUSED, AND THE QUEUE IS THE MAINTENANCE LOCK'S — the backend's
-own answer (DESIGN § 3.2): a second PIPELINE pass is the strict duplicate §6
-permits refusing, and a pass waits only behind a MAINTENANCE run.
-
-  9. WHILE ITS PASS RUNS, « Lancer » IS DRAWN INACTIVE — disabled, and saying
-     « Lancer » rather than offering a pass that would be refused (§ 12: an
-     inactive action looks inactive).
- 10. AND A FINGER PRESSING IT ASKS NOTHING — the run operation was answered once,
-     by the walk's own start.
- 11. AND A SECOND PASS ASKED OF THE LAYER IS ANSWERED 409, the pipeline going on
-     running — not demoted to a queue.
- 12. WITH A MAINTENANCE RUN IN FLIGHT — put there by a finger on Système's
-     « Lancer la veille maintenant », and drawn as a held lock there — Arrivées'
-     « Lancer le pipeline » is answered and the pass is QUEUED, the queued
-     sentence says so, and the bar draws the pass in file. The maintenance run
-     LASTS while the hand walks: a run that ended on its second read would have
-     turned this walk into a plain start.
-
-RE-AIMED OUT LOUD: Système left the bottom bar (ruling 15); it is reached by the
-menu, then its drawer entry.
 """
 import asyncio
-import json
 import pathlib
 import sys
 
@@ -142,41 +126,14 @@ THE_MARK = """()=>[...document.querySelectorAll('[data-part="season/queued"]')].
               ?.querySelector('summary')?.textContent || '').trim())"""
 
 GRAB = '[data-part="season/grab"]'
-START = '[data-part="pipeline"] [data-pipe="start"]'
 
-# THE STATUS EVERY RUN REQUEST WAS ANSWERED WITH, in order.
-RUN_STATUSES = """()=>(window.__mocks?.answered?.() || [])
-  .filter((call) => call.operationId === "runPipeline").map((call) => call.status)"""
+# THE MAINTENANCE COMMAND THE HAND STARTS: a real run of a query, which changes
+# no file and holds the lock while it lasts.
+COMMAND_TOPIC = "query"
+COMMAND = "library-status"
 
 # WHAT THE LAYER SAYS OF THE PIPELINE'S LOCK.
 LOCK_HELD = """async ()=>(await (await fetch('/api/maintenance/locks')).json()).pipelineLock.held"""
-
-# WHAT « Verrou du pipeline » SAYS on Système.
-LOCK_ROW = """(part)=>{
-  const node = document.querySelector(`[data-part="${part}"] [data-part="flux/value"]`);
-  return node ? node.textContent.replace(/\\s+/g, ' ').trim() : null;}"""
-
-# WHAT THE BAR SAYS, whole.
-BAR = """()=>{
-  const node = document.querySelector('[data-part="pipeline"]');
-  return node ? node.textContent.replace(/\\s+/g, ' ').trim() : '';}"""
-
-SAID = """()=>window.__toast?.read()?.message?.message || ''"""
-
-# THE SENTENCES THE INTERFACE SAYS, read from its own resources.
-RESOURCES = json.loads(
-    (pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "i18n" / "fr.json")
-    .read_text(encoding="utf-8"))
-VERB_SENTENCES = RESOURCES["verbs"]["arrivals"]
-SCREEN_SENTENCES = RESOURCES["screens"]["arrivals"]
-
-# THE BAR'S START CONTROL, as drawn.
-START_CONTROL = """()=>{
-  const control = document.querySelector('[data-part="pipeline"] [data-pipe="start"]');
-  return control ? {disabled: control.disabled, text: control.textContent.trim()} : null;}"""
-
-# A SECOND PASS ASKED OF THE LAYER, its operation called directly.
-ASK_AGAIN = """async ()=>(await fetch('/api/pipeline/run', {method: 'POST'})).status"""
 
 
 async def press(journal, page, selector, claim):
@@ -208,23 +165,41 @@ async def walk(journal, page):
         await page.evaluate(PIPELINE_STATE) == "idle",
         str(await page.evaluate(PIPELINE_STATE)))
 
-    if not await press(journal, page, '[data-page="arr"]',
-                       "Arrivées is reached by a finger, from the tab bar"):
+    if not await press(journal, page, '[data-drawer]', "the menu is opened by a finger"):
         return
     await page.wait_for_timeout(SETTLED)
-    if not await press(journal, page, '[data-part="pipeline"] [data-pipe="start"]',
-                       "« Lancer le pipeline » is pressed by a finger"):
+    if not await press(journal, page, '#drawer [data-navgo="maint"]',
+                       "Maintenance is reached by a finger, from the drawer"):
+        return
+    await page.wait_for_timeout(SETTLED)
+    if not await press(journal, page, f'[data-maintopic="{COMMAND_TOPIC}"]',
+                       "its topic is opened by a finger"):
+        return
+    await page.wait_for_timeout(SETTLED)
+    if not await press(journal, page, f'[data-maintact="{COMMAND}"]',
+                       "a maintenance command is opened by a finger"):
+        return
+    await page.wait_for_timeout(PANEL_IN)
+    if not await press(journal, page, '[data-maintenance-run]',
+                       "and its « Lancer » is pressed by a finger"):
         return
     await page.wait_for_timeout(ACTED)
 
-    answered = await page.evaluate(ANSWERED, "runPipeline")
-    state = await page.evaluate(PIPELINE_STATE)
+    answered = await page.evaluate(ANSWERED, "runMaintenanceAction")
+    held = await page.evaluate(LOCK_HELD)
     journal.check(
-        "the RUN OPERATION is answered, and the layer's pipeline is running after "
-        "it — a store write answers nothing",
-        answered == [200] and state == "running",
-        f"runPipeline answered {answered}, status read says {state!r}")
+        "the maintenance command is ANSWERED, and it holds the pipeline's lock after it "
+        "— a store write answers nothing",
+        len(answered) == 1 and answered[0] < 300 and held is True,
+        f"runMaintenanceAction answered {answered}, locks read held={held}")
 
+    # THE PANEL THE COMMAND RAISED COVERS THE TAB BAR, so the hand closes it
+    # first, the way a phone does: Back, until the bar answers a finger again.
+    for _ in range(3):
+        if (await page.evaluate(PRESS_PROBE, '[data-page="acq"]'))["reachable"]:
+            break
+        await page.go_back()
+        await page.wait_for_timeout(PANEL_IN)
     if not await press(journal, page, '[data-page="acq"]',
                        "Acquisition is reached by a finger, from the tab bar"):
         return
@@ -256,98 +231,6 @@ async def walk(journal, page):
         f"{len(marks)} mark(s): {marks}, for season {subject['season']}")
 
 
-async def refused_while_running(journal, page):
-    """Reads « Lancer » while the pass the walk started runs, and asks again.
-
-    RE-AIMED: the control used to be « Relancer ensuite », pressed to read a 409
-    and the refusal's sentence. A drawn action that always refuses is the
-    defect; the control is inactive now, and the 409 is read at the layer.
-
-    Args:
-        journal: The rule's journal.
-        page: The page the walk left, its pipeline running.
-    """
-    # THE PANEL THE WALK RAISED COVERS THE TAB BAR, so the hand closes it first,
-    # the way a phone does: Back, until the bar answers a finger again.
-    for _ in range(3):
-        if (await page.evaluate(PRESS_PROBE, '[data-page="arr"]'))["reachable"]:
-            break
-        await page.go_back()
-        await page.wait_for_timeout(PANEL_IN)
-    if not await press(journal, page, '[data-page="arr"]',
-                       "Arrivées is reached again by a finger, once Back closed the panel"):
-        return
-    await page.wait_for_timeout(SETTLED)
-    drawn = await page.evaluate(START_CONTROL)
-    journal.check(
-        "while the pass runs, « Lancer » is drawn INACTIVE — disabled, and saying « Lancer »",
-        drawn is not None and drawn["disabled"] and drawn["text"] == SCREEN_SENTENCES["start"],
-        f"{drawn}, the label is {SCREEN_SENTENCES.get('start')!r}")
-    await page.evaluate(PRESS, START)
-    await page.wait_for_timeout(ACTED)
-    statuses = await page.evaluate(RUN_STATUSES)
-    journal.check(
-        "and a finger pressing it asks nothing — the run was answered once, by the walk",
-        statuses == [200], f"runPipeline answered {statuses}")
-    again = await page.evaluate(ASK_AGAIN)
-    state = await page.evaluate(PIPELINE_STATE)
-    journal.check(
-        "and a second PIPELINE pass asked of the layer is answered 409, the pipeline "
-        "going on RUNNING — not demoted to a queue",
-        again == 409 and state == "running",
-        f"a second run answered {again}, status read says {state!r}")
-
-
-async def queued_behind_maintenance(journal, page):
-    """Starts a pass while a maintenance run holds the lock.
-
-    Args:
-        journal: The rule's journal.
-        page: A freshly opened page, its pipeline idle.
-    """
-    # RE-AIMED OUT LOUD: Système left the tab bar (ruling 15) — the menu, then
-    # its drawer entry.
-    if not await press(journal, page, '[data-drawer]', "the menu is opened by a finger"):
-        return
-    await page.wait_for_timeout(SETTLED)
-    if not await press(journal, page, '#drawer [data-navgo="sys"]',
-                       "Système is reached by a finger, from the drawer"):
-        return
-    await page.wait_for_timeout(SETTLED)
-    if not await press(journal, page, '[data-part="levers/watch-now"]',
-                       "« Lancer la veille maintenant » is pressed by a finger"):
-        return
-    await page.wait_for_timeout(ACTED)
-    launched = await page.evaluate(ANSWERED, "runDetection")
-    row = await page.evaluate(LOCK_ROW, "locks/pipeline")
-    held = await page.evaluate(LOCK_HELD)
-    journal.check(
-        "the maintenance run the finger launched HOLDS the pipeline's lock, on the layer "
-        "and on « Verrou du pipeline »",
-        launched == [202] and held is True and bool(row) and row.startswith("Pris"),
-        f"runDetection answered {launched}, locks read held={held}, the row says {row!r}")
-    if not await press(journal, page, '[data-page="arr"]',
-                       "with a maintenance run in flight, Arrivées is reached by a finger"):
-        return
-    await page.wait_for_timeout(SETTLED)
-    if not await press(journal, page, START, "and « Lancer le pipeline » is pressed"):
-        return
-    await page.wait_for_timeout(ACTED)
-    statuses = await page.evaluate(RUN_STATUSES)
-    state = await page.evaluate(PIPELINE_STATE)
-    said = await page.evaluate(SAID)
-    bar = await page.evaluate(BAR)
-    mark = SCREEN_SENTENCES["queuedLead"] + SCREEN_SENTENCES["queuedBold"]
-    journal.check(
-        "a pass asked while a MAINTENANCE run holds the lock is answered and QUEUED, "
-        "and the queued sentence says so",
-        statuses == [200] and state == "queued"
-        and said == VERB_SENTENCES["pipelineQueued"],
-        f"runPipeline answered {statuses}, status {state!r}, said « {said} »")
-    journal.check("and the bar draws the pass in file", mark in bar,
-                  f"{mark!r} in {bar!r}")
-
-
 async def fresh_page(browser):
     """Opens the prototype with the state doors counted from the first script.
 
@@ -372,13 +255,11 @@ async def main():
         browser = await playwright.chromium.launch(channel="chrome")
         errors: list[str] = []
         opened: list[str] = []
-        for steps in ((walk, refused_while_running), (queued_behind_maintenance,)):
-            context, page = await fresh_page(browser)
-            page.on("pageerror", lambda error: errors.append(str(error)))
-            for step in steps:
-                await step(journal, page)
-            opened += await page.evaluate("()=>window.__doorsOpened")
-            await context.close()
+        context, page = await fresh_page(browser)
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        await walk(journal, page)
+        opened += await page.evaluate("()=>window.__doorsOpened")
+        await context.close()
 
         journal.check(
             "and no state door was opened on the way — `__go` and `__pipeline` "

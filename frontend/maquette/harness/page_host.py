@@ -716,12 +716,16 @@ async def main():
             moved is not None and counters != after_action,
             f"{counters} → {after_action} after « {moved} » was taken")
 
-        # (c-quinquies) ARRIVÉES' OWN DELEGATION. This page carries the first
-        # migrated control that MUTATES: the pilot's bar writes nothing itself,
-        # it emits `data-pipe` and the document-level handler does the writing.
-        # R66 drives the page through the store and never through a tap, so the
-        # bar's three states were emitted by a component nothing had ever
-        # clicked.
+        # (c-quinquies) A MIGRATED CONTROL THAT MUTATES, through the
+        # document-level handler: it writes nothing itself, it emits a
+        # `data-*` and the delegation does the writing. RE-AIMED OUT LOUD (OPEN
+        # 6, ruled A): the first such control was Arrivées' bar, « Lancer » and
+        # « Arrêter », which died with the bar; its holds now read Système's
+        # levers, « Mettre tout en pause » and « Reprendre », the same
+        # delegation on a page that stays. The bar's third hold, a pass queued
+        # behind a maintenance run, was its own operation's, which no surface
+        # sends any more — Système's `levers-queued` (levers.py) holds the queued
+        # pass.
         # EVERY DIAL NAMED, and the world reset: this block runs after the
         # settings taps, which leave a scenario and a mutated world behind. The
         # crossref hold below is gated on `scen`, so the dependency is real —
@@ -734,44 +738,6 @@ async def main():
                             " scen: 'loaded'})")
         await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(320)
-        refused = await tap("""#view [data-part="pipeline"] [data-pipe='start']""")
-        started = await page.evaluate(
-            "()=>({pipe: window.__queries.getQueryData(['/api/pipeline/status'])?.state,"
-            " controls: [...document.querySelectorAll('#view [data-pipe]')]"
-            ".map((x) => x.dataset.pipe)})")
-        journal.check(
-            "a real tap on « lancer » starts the pipeline",
-            not refused and started["pipe"] == "running"
-            and "stop" in started["controls"],
-            str(started) if not refused else f"data-pipe='start' {refused}")
-
-        # DOIT-4, RE-AIMED: a pass queues behind a MAINTENANCE run (a second ask is refused 409, R185).
-        await page.evaluate("""()=>{document.querySelector("#view [data-pipe='stop']").click(); return fetch('/api/acquisition/detect', {method: 'POST'});}""")
-        refused = await tap("""#view [data-part="pipeline"] [data-pipe='start']""")
-        queued = await page.evaluate(
-            "()=>({pipe: window.__queries.getQueryData(['/api/pipeline/status'])?.state,"
-            """ live: !!document.querySelector('#view [data-part="pipeline"] [data-part="live-activity"]')})""")
-        journal.check(
-            "and asked while a maintenance run holds the lock, the pass is queued, not refused",
-            not refused and queued["pipe"] == "queued" and queued["live"],
-            str(queued) if not refused else f"data-pipe='start' {refused}")
-
-        refused = await tap("""#view [data-part="pipeline"] [data-pipe='stop']""")
-        # The STORE and the DRAWING, because a component that kept drawing the
-        # running bar over a stopped pipeline satisfies the store alone — which
-        # is the half its two siblings above already read.
-        stopped = await page.evaluate("""()=>({
-          pipe: window.__queries.getQueryData(['/api/pipeline/status'])?.state,
-          idle: !!document.querySelector('#view [data-part="pipeline"] [data-part="status-dot"][data-tone="neutral"]'),
-          start: !!document.querySelector('#view [data-part="pipeline"] [data-part="card/foot"][data-solid]'),
-          controls: [...document.querySelectorAll('#view [data-pipe]')]
-            .map((x) => x.dataset.pipe),
-        })""")
-        journal.check(
-            "and a real tap on « arrêter » stops it, and the bar says so",
-            not refused and stopped["pipe"] == "idle" and stopped["idle"]
-            and stopped["start"] and stopped["controls"] == ["start"],
-            str(stopped) if not refused else f"data-pipe='stop' {refused}")
 
         # The crossref leaves the page entirely, and it is the page's own
         # `data-go` — the attribute B-024's containment argument counts. It is
@@ -783,6 +749,36 @@ async def main():
             "a real tap on the crossref lands on Acquisition",
             not refused and landed == "acq",
             f"page={landed}" if not refused else f"data-go='acq' {refused}")
+
+        # THE LEVERS ADMIT A PAUSE ONLY WHILE SOMETHING RUNS: a maintenance
+        # command, asked of the layer, holds the pipeline running.
+        await page.evaluate("""()=>fetch('/api/maintenance/actions/library-status/run',
+            {method: 'POST', headers: {'Content-Type': 'application/json'},
+             body: JSON.stringify({dryRun: false})})""")
+        await page.evaluate("()=>window.__queries.invalidateQueries()")
+        await page.evaluate("()=>window.__store.write({page: 'sys'})")
+        await page.evaluate("()=>window.__store.touch()")
+        await page.wait_for_timeout(600)
+        levers = """()=>({pipe: window.__queries.getQueryData(['/api/pipeline/status'])?.state,
+          controls: [...document.querySelectorAll('#view [data-pipeline-pause], #view [data-pipeline-resume]')]
+            .map((x) => x.dataset.part)})"""
+        refused = await tap("#view [data-pipeline-pause]")
+        await page.wait_for_timeout(320)
+        paused = await page.evaluate(levers)
+        journal.check(
+            "a real tap on « Mettre tout en pause » pauses the pipeline, and the lever says so",
+            not refused and paused["pipe"] == "paused"
+            and paused["controls"] == ["levers/resume"],
+            str(paused) if not refused else f"data-pipeline-pause {refused}")
+        refused = await tap("#view [data-pipeline-resume]")
+        await page.wait_for_timeout(320)
+        resumed = await page.evaluate(levers)
+        journal.check(
+            "and a real tap on « Reprendre » resumes it, and the lever says so",
+            not refused and resumed["pipe"] == "running"
+            and resumed["controls"] == ["levers/pause"],
+            str(resumed) if not refused else f"data-pipeline-resume {refused}")
+        await page.evaluate("()=>window.__reset()")
 
         # (d-quinquies) THE LEGACY'S `render()` IS NEVER CALLED FROM A REACT
         # LIFECYCLE. The handover rests on `window.__releasePage()` being
@@ -918,12 +914,12 @@ async def main():
           roots: [...document.querySelector('#view').children]
             .filter((x) => x.dataset.part !== 'page/heading')
             .map((x) => x.className),
-          bar: !!document.querySelector('#view [data-part="pipeline"] [data-pipe]'),
         })""")
+        # RE-AIMED OUT LOUD: the page's launch bar is no longer read here — it
+        # died with « Lancer » and « Arrêter » (OPEN 6); the page's body is.
         journal.check(
             "a cold deep address lands on the page it names, drawn by the shell",
-            landed["page"] == "arr" and identities(landed["roots"]) == ["body"]
-            and landed["bar"],
+            landed["page"] == "arr" and identities(landed["roots"]) == ["body"],
             str(landed))
         await cold.close()
 
