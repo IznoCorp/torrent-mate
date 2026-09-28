@@ -1,4 +1,4 @@
-# Phase 39 — Readers re-aimed: the page's identity and the launch bar
+# Phase 40 — Readers re-aimed: the page's identity and the launch bar
 
 **Opening measure (2026-09-26, on `94a369879`):**
 

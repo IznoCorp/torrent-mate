@@ -1062,6 +1062,11 @@ card** and **a rung's change of state**, as stream events — the operator amend
 > row is one and none is posed (a posed follow would be invented); (2) `QueueCard` carries its episode as a field — today the
 > maquette reads it off `secondaryLine` to match one item to one card (R238), which a reworded line would break.
 
+> **Amended 2026-09-28 (phase 36, round 10 Q2):** a season taken on an owned, UNFOLLOWED series queues a ONE-OFF acquisition
+> of that season (`Requester.via` = `request`, « demandé par …, pour cette saison ») and begins no follow; the season grab's
+> `newlyFollowed` and its four sentences retire — the demand « starts a follow » is amended accordingly. The card's
+> « Suivre » offer is phase 37.
+
 ### 6.3 The clause-map rows PROPOSED (the operator amends the map; this lot does not)
 
 Six rows of `docs/reference/product-intent-map.md` name `features/arrivals`

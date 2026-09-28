@@ -471,10 +471,10 @@ async def hold_the_screen_act_taken(page, journal):
 # reads — a retyped sentence renders correctly in a rule while the reference is
 # broken.
 SEASON_SENTENCE_KEYS = (
+    # The four « …NewlyFollowed » sentences retired: a season of an unfollowed
+    # series begins no follow (round 10 Q2), so none says one was begun.
     "seasonAsked", "seasonAskedOne", "seasonAskedNone",
-    "seasonAskedNewlyFollowed", "seasonAskedOneNewlyFollowed",
-    "seasonAskedNoneNewlyFollowed",
-    "seasonQueued", "seasonQueuedNewlyFollowed",
+    "seasonQueued",
     "seasonHeld", "seasonRefused",
 )
 MEDIA_SENTENCES = json.loads(

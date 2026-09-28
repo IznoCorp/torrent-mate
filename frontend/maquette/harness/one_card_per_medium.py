@@ -19,6 +19,10 @@ THE EPISODE IS READ OFF THE CARD'S LINE (`secondaryLine`), the only place a
 queue card carries it — fragile, and said: a reworded line would lose it. The
 backend is asked for the field (DESIGN § 6.2).
 
+THE INTERFACE KEEPS ITS OWN JOIN (`inFlightCards`), and it is not dead code: the
+real backend may still answer one item twice until the matching it is asked for
+is served.
+
 THE HALF NOT HELD, and said: a folder added BY HAND that matches a follow once
 identified would join the same way; no real row is one, and none is posed — the
 matching is a demand on the backend (RULINGS 27).

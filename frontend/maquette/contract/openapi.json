@@ -1241,18 +1241,13 @@
                         "null"
                       ],
                       "description": "the run to follow, when one was started. Null when the ask is queued and nothing runs yet."
-                    },
-                    "newlyFollowed": {
-                      "type": "boolean",
-                      "description": "whether THIS act began the follow — true when the medium was not followed before the ask, on the queued path as on the direct one. An owned show with a hole is identified by construction (its sheet, its year, its owned and aired counts), so the library's « Incomplets » lens offers its missing seasons to a medium nobody follows, and taking a season follows it: after the act the address's `followedId` names a follow. The interface CHOOSES its sentence by this field — a follow begun is a second fact, said in a sentence of its own and never appended to another (NE-DOIT-PAS-1)."
                     }
                   },
                   "required": [
                     "season",
                     "absorbedCount",
                     "queued",
-                    "runUid",
-                    "newlyFollowed"
+                    "runUid"
                   ]
                 }
               }
@@ -1297,7 +1292,7 @@
             "description": "the season, 1-based"
           }
         ],
-        "x-unseeded": "an acknowledgement and a queued flag. No fixture covers either: the maquette's engine printed a season as to_grab and offered nothing at all, so there is no recorded answer to seed from. The season number is the request's own and `absorbedCount` is derived from the episodes the fixture holds for that season. `newlyFollowed` is unseeded for the same reason: no fixture records a season asked of a medium nobody followed, because no surface offered one — it is the layer's own reading of whether a follow existed before the act, and the follow it creates is built from the incomplete show the library already holds, never copied off another record."
+        "x-unseeded": "an acknowledgement and a queued flag. No fixture covers either: the maquette's engine printed a season as to_grab and offered nothing at all, so there is no recorded answer to seed from. The season number is the request's own and `absorbedCount` is derived from the episodes the fixture holds for that season. A season of a series nobody follows begins no follow (round 10 Q2): the layer queues a one-off acquisition of that season, built from the incomplete show the library already holds."
       }
     },
     "/api/acquisition/followed/{followedId}/grab": {
@@ -6288,9 +6283,10 @@
             "type": "string",
             "enum": [
               "follow",
-              "qbittorrent"
+              "qbittorrent",
+              "request"
             ],
-            "description": "`follow` when a follow of that account asked for it, `qbittorrent` when it was added directly in the download client"
+            "description": "`follow` when a follow of that account asked for it, `qbittorrent` when it was added directly in the download client `request`: asked once in the application, for one season of a series nobody follows — a one-off acquisition, never a follow."
           }
         },
         "required": [

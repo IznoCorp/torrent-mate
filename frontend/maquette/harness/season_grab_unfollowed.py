@@ -35,12 +35,15 @@ each walked on a freshly seeded layer, for each subject:
   2. THE OPERATION IS CALLED once, for the season the finger was on, answered
      as a success — read on what the LAYER answered, because the mock layer replaces
      `fetch` and no browser request event ever fires for it.
-  3. THE WORLD MOVES: the medium is followed afterwards, when it was not before.
-     A success over an unchanged world is the exact defect of B-378.
-  4. THE SENTENCE IS CHOSEN for a follow begun by the act — one of the
-     `…NewlyFollowed` sentences, read from `fr.json` rather than retyped. That
-     is the only reading of the answer's `newlyFollowed` a rule can take: the
-     layer records a call's status and path, not its body.
+  3. THE WORLD MOVES, AND NO FOLLOW IS BORN: the queue holds a ONE-OFF
+     acquisition of that season, asked by the account, and the medium is still
+     not followed (round 10 Q2 = A). A success over an unchanged world is the
+     exact defect of B-378. RE-AIMED OUT LOUD: this hold read « the medium is
+     followed afterwards » — the act implied the follow until the operator
+     ruled that a season of an unfollowed series is one-off, never a follow.
+  4. THE SENTENCE IS THE SEASON'S OWN, with no follow in it — read from
+     `fr.json`; RE-AIMED OUT LOUD from the `…NewlyFollowed` sentences, which
+     retire with the follow the act no longer begins.
   5. THE SURFACE PRESSED READS DIFFERENTLY afterwards — the one the operator was
      looking at is not the only one that does not know.
   6. NO ERROR IS RAISED.
@@ -79,8 +82,8 @@ named by no other rule and no named state:
   RE-AIMED at the clock then). Once followed its first two seasons are offered the act and the
   third is not.
 
-WHAT IT DOES NOT READ: the QUEUED path of a follow begun by the act — the
-pipeline busy, `seasonQueuedNewlyFollowed` said, the follow created `pending`.
+WHAT IT DOES NOT READ: the QUEUED path of a one-off ask — the pipeline busy,
+`seasonQueued` said.
 R125 holds the queued clause on a medium already followed; this rule walks the
 idle pipeline only.
 
@@ -149,11 +152,7 @@ REACHED_BY = {
 SENTENCES = json.loads(
     (ROOT / "design" / "src" / "i18n" / "fr.json").read_text(encoding="utf-8")
 )["verbs"]["media"]
-NEWLY_FOLLOWED_KEYS = (
-    "seasonAskedNewlyFollowed",
-    "seasonAskedOneNewlyFollowed",
-    "seasonAskedNoneNewlyFollowed",
-)
+SEASON_KEYS = ("seasonAsked", "seasonAskedOne", "seasonAskedNone", "seasonQueued")
 
 ANSWERED = "()=>(window.__mocks?.answered?.() || [])"
 
@@ -306,11 +305,20 @@ SAID = """()=>{
   const held = window.__toast?.read?.();
   return held && held.message ? held.message.message || '' : '';}"""
 
+# A one-off acquisition of one season, in the queue as the layer answers it.
+ONE_OFF = """async ({ title, season }) => {
+  const worlds = await Promise.all(['', '?scenario=loaded'].map(async (query) =>
+    (await fetch('/api/acquisition/to-handle' + query)).json()));
+  const episode = 'S' + String(season).padStart(2, '0');
+  return worlds.some((answer) => Object.values(answer).flat().some((card) => card && card.title === title
+    && card.requester?.via === 'request' && card.secondaryLine.startsWith(episode)));
+}"""
+
 SURFACE_TEXT = "(scope)=>(document.querySelector(scope)?.textContent || '')"
 
 
-def chosen_for_a_follow_begun(said, season, title):
-    """Says whether a message is one of the sentences chosen for a follow begun.
+def the_seasons_own(said, season, title):
+    """Says whether a message is one of the season's own sentences.
 
     Args:
         said: What the interface said.
@@ -320,7 +328,7 @@ def chosen_for_a_follow_begun(said, season, title):
     Returns:
         The matching key, or an empty string.
     """
-    for key in NEWLY_FOLLOWED_KEYS:
+    for key in SEASON_KEYS:
         pieces = re.split(r"(\{\{season\}\}|\{\{count\}\}|\{\{title\}\})", SENTENCES[key])
         pattern = "".join(
             re.escape(str(season)) if piece == "{{season}}"
@@ -396,12 +404,14 @@ async def take_a_season(page, journal, errors, title, surface):
         and 200 <= grabs[0]["status"] < 300,
         str([(call["path"], call["status"]) for call in grabs]))
     after = await page.evaluate(FOLLOWS)
-    journal.check(f"{where}: and the medium IS FOLLOWED afterwards — the act moved the "
-                  "world, it did not answer a success over an unchanged one (B-378)",
-                  title in after, f"status after: {after.get(title)!r}")
+    one_off = await page.evaluate(ONE_OFF, {"title": title, "season": int(number)})
+    journal.check(f"{where}: the act moved the world — a one-off acquisition of that season is "
+                  "queued, asked by the account (B-378)", one_off, f"queued: {one_off}")
+    journal.check(f"{where}: and NO follow is born of it (round 10 Q2)",
+                  title not in after, f"status after: {after.get(title)!r}")
     said = await page.evaluate(SAID)
-    journal.check(f"{where}: the sentence is the one CHOSEN for a follow begun by the act",
-                  bool(chosen_for_a_follow_begun(said, number, title)), repr(said))
+    journal.check(f"{where}: the sentence is the season's own, with no follow in it",
+                  bool(the_seasons_own(said, number, title)), repr(said))
     journal.check(f"{where}: the surface pressed reads differently afterwards",
                   await page.evaluate(SURFACE_TEXT, scope) != looked_at)
     journal.check(f"{where}: tapping raises no error", not errors, str(errors))

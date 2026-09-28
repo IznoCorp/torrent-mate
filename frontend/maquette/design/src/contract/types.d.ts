@@ -1728,10 +1728,10 @@ export interface components {
             /** @description the account's name */
             name: string;
             /**
-             * @description `follow` when a follow of that account asked for it, `qbittorrent` when it was added directly in the download client
+             * @description `follow` when a follow of that account asked for it, `qbittorrent` when it was added directly in the download client `request`: asked once in the application, for one season of a series nobody follows — a one-off acquisition, never a follow.
              * @enum {string}
              */
-            via: "follow" | "qbittorrent";
+            via: "follow" | "qbittorrent" | "request";
         };
         /** @description a staging directory the sort files a NON-MEDIA folder into, as the configuration declares it */
         StagingDestination: {
@@ -2388,8 +2388,6 @@ export interface operations {
                         queued: boolean;
                         /** @description the run to follow, when one was started. Null when the ask is queued and nothing runs yet. */
                         runUid: string | null;
-                        /** @description whether THIS act began the follow — true when the medium was not followed before the ask, on the queued path as on the direct one. An owned show with a hole is identified by construction (its sheet, its year, its owned and aired counts), so the library's « Incomplets » lens offers its missing seasons to a medium nobody follows, and taking a season follows it: after the act the address's `followedId` names a follow. The interface CHOOSES its sentence by this field — a follow begun is a second fact, said in a sentence of its own and never appended to another (NE-DOIT-PAS-1). */
-                        newlyFollowed: boolean;
                     };
                 };
             };

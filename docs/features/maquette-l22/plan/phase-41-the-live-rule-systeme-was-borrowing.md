@@ -1,4 +1,4 @@
-# Phase 40 — The live rule Système was borrowing
+# Phase 41 — The live rule Système was borrowing
 
 **Opening measure (2026-09-26, on `94a369879`):**
 
