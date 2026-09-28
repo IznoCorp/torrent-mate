@@ -95,7 +95,7 @@ re-measurement claimed; a phase re-takes each at its own opening (INDEX.md).
 | 1 | **There is no `app/sign-in.tsx`.** The gate's LOGIC is `app/entry.ts` and its MARKUP is `frontend/maquette/design/index.html` between `login:markup:start` and `login:markup:end`, extracted by `frontend/maquette/serve.py` as the design host's own password page (**F49**) | `git grep -n "login:markup" -- frontend`; `sed -n 1,30p frontend/maquette/design/src/app/entry.ts` |
 | 2 | **The drawer's « identity block » is the host's served identity, not the account** (`lib/served-identity.ts`); the account's identity is the header avatar and its menu (`features/account/panel-account.ts`). L18 edits the drawer's ENTRIES, not an identity block (**F49**) | `git grep -n "servedIdentityLines" -- frontend/maquette/design/src` |
 | 3 | **`readAccount` answers three fields** — `name`, `email`, `avatar` — and the backend's `GET /api/auth/me` answers `{username}`. No account role is served anywhere on this head (fact confirmed again post-merge) | `personalscraper/web/auth/routes.py:182–194` |
-| 4 | **The contract declares a `403` on 62 of its 63 operations** (`takeQueued` is the exception, and F42 may retire it — § 2.1); the mock answers `403` nowhere yet | `git grep -c "refused(" -- frontend/maquette/design/src/mocks ':!*.test.ts'` |
+| 4 | **The contract declares a `403` on 62 of its 63 operations** (`takeQueued` WAS the exception; L22b phase 33 retired it in favour of `grabForFollow`, per-follow, § 2.1) | `git grep -c "refused(" -- frontend/maquette/design/src/mocks ':!*.test.ts'` |
 | 5 | **No surface asks « may this account? ».** No per-row right exists in `app/navigation.ts` on this head; the bar is `NAVIGATION.filter((row) => row.inBar)` | `git grep -n -i -E "rights\|permission\|isOperator\|isAdmin\|\.role\b" -- frontend/maquette/design/src/app frontend/maquette/design/src/features` |
 | 6 | **Read-only exists in the maquette, in miniature** — `SETTINGS_STATE.readOnly`, 24 lines in 12 files, connected to nothing served. Phase 17 kills it (**R-L18-o**) | `git grep -c "readOnly" -- frontend/maquette/design/src ':!*.d.ts' ':!*.json'` |
 | 7 | **The backend's staging role is not read-only for acquisition and decision writes today**, and § 17 (ruling 23) now asks for a PER-INSTANCE list rather than a blanket ceiling — the current `:8711` instance's own list is « every write »; preprod's is `library.delete` alone | `tests/unit/web/routes/test_staging_write_policy.py:14–24`; ruling 23 |
@@ -215,8 +215,8 @@ demands do not name.
 | S6 — the media sheet's cross-seed block | — | **no operation** — demand C (`readMediaCrossSeed`), taken over from L17's own first drawing per **F25**: L18 files it, gated by `trackers.view`, refused `403` when forced |
 | S7 — the ceiling | carried by `readAccount` (demand D) | its shape changes from `{readOnly, restartRequired}` to a forbidden-writes list; `readConfigurationStatus` DROPS `readOnly`, keeps `restartRequired` (**F66**) |
 | S9 — the roster, roles, rights, creation | — | **no operation** — demands F, G, H |
-| the reads' refusal side | — | every VIEW right also gains a `403` on the reads it gates — Système, Maintenance, Trackers, Réglages, the configuration reads (**F30**); no new operation, an edit of existing ones, like `takeQueued`'s |
-| the refusal side, writes | `Problem` responses | 62 of 63 already declare `403`; `takeQueued` gains it, or is retired in favour of the per-follow grab operation the backend already serves (**F42** — an L22b-side fix this lot only reads: row L re-aims at whichever operation survives) |
+| the reads' refusal side | — | every VIEW right also gains a `403` on the reads it gates — Système, Maintenance, Trackers, Réglages, the configuration reads (**F30**); no new operation, an edit of existing ones, like `grabForFollow`'s |
+| the refusal side, writes | `Problem` responses | 62 of 63 already declare `403`; `grabForFollow`, the per-follow grab operation, gains it (**F42** — L22b phase 33 retired `takeQueued` in its favour; row L re-aims at it, settled, not conditional) |
 
 ### 2.2 The mock: identities as ROLES, dials, one guard
 
@@ -593,7 +593,7 @@ proving a right names its TWO halves.**
 | H | `PATCH /api/accounts/{accountId}` / role operations | `updateAccount`, plus role create/rename/set-rights (new) | roles, their rights, role assignment; refuses the last-Admin and last-`auth.password`-holder demotions, and an escalation violation (F2) | 22, 25 |
 | I | `PUT /api/acquisition/…/requester` | `reassignRequester` (new) | moves ONE requester off, one on; keyed for card and follow (F27) | 1 |
 | K | `PUT /api/acquisition/…/quality` | `setAcquisitionQuality` (new) | the per-acquisition, per-requester quality override | 1 |
-| L | `POST /api/acquisition/to-handle/{mediaId}/take` | `takeQueued` (edited, or retired per F42 — re-aimed at whichever operation survives L22b's own fix) | declares `403` | 1 |
+| L | `POST /api/acquisition/followed/{followedId}/grab` | `grabForFollow` (F42 — L22b phase 33 retired `takeQueued` in its favour; row re-aimed, settled) | declares `403` | 1 |
 | P | — (new) | `setAcquisitionPause` (new) | the per-acquisition, per-requester pause preference (round 10 Q6 precision) | 1 |
 | — | every read under `/api/system`, `/api/maintenance`, `/api/trackers`, `/api/config` | (edited, not new) | gains `403` for a non-holder (F30) | new phase before 5 |
 
