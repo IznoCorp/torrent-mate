@@ -54,12 +54,12 @@ from common import ACTED, Journal, PANEL_IN, PANEL_OUT, SETTLED, open_page
 
 from playwright.async_api import async_playwright
 
-# THE BUSY SCENARIO IS COMPOSED, and saying so is the point. `arr-running` has
-# the pipeline running and NOTHING waiting to be taken; `acq-now-loaded` has two
+# THE BUSY SCENARIO IS COMPOSED, and saying so is the point. A running pipeline
+# alone has NOTHING waiting to be taken; `acq-now-loaded` has two
 # media waiting and an idle pipeline. The clause is about a legitimate action
 # ASKED WHILE THE MACHINE IS BUSY, so the walk needs both at once: the state
 # that has something to act on, with the pipeline put to work on top of it.
-# Driving `arr-running` alone would have measured a page with no subject.
+# Driving a running pipeline alone would have measured a page with no subject.
 #
 # WHERE A FOLLOW IS DRAWN. « En cours » lists what is in FLIGHT, so a followed
 # medium that is not currently being acquired has no row there at all — which

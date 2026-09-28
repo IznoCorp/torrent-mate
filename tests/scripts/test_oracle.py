@@ -366,7 +366,10 @@ def test_the_committed_reference_carries_a_platform():
     # follow in flight (RULINGS 26) — added, nothing else moved.
     # 134 SINCE L22b's phase 40: acq-todo-loading and acq-todo-error, « À traiter »'s own
     # loading and error surfaces (R90 reads the error in Arrivées' place) — added, nothing else moved.
-    assert reference["counts"] == {"states": 134, "regions": 39}
+    # 135 SINCE L22b's phase 41: acq-todo-dense, « À traiter » in the dense world, where the rules
+    # that began on the Arrivées page's folders begin now (RULINGS 29) — added; acq-identify and
+    # the two resolution states lay « À traiter » beneath their screen instead of Arrivées.
+    assert reference["counts"] == {"states": 135, "regions": 39}
 
 
 class TestItRefusesToWriteOverAForeignBuild:

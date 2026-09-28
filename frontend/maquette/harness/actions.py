@@ -48,10 +48,14 @@ async def main():
 
     # A folder the providers answered nothing for has NO candidate to pick, and
     # that is the real state of both stuck folders in the calm scenario. The
-    # way out is « Laisser tel quel », which keeps it for later.
-    await pg.evaluate("()=>window.__go('arr-idle')"); await pg.wait_for_timeout(300)
+    # way out is « Laisser tel quel », which keeps it for later. RE-AIMED OUT
+    # LOUD: the walk begins at « À traiter » in the dense world, where the
+    # Arrivées page's folders are.
+    await pg.evaluate("()=>window.__go('acq-todo-dense')"); await pg.wait_for_timeout(300)
     a=await pg.evaluate(cnt); print("\nbefore resolution    :", {k:a[k] for k in ('stuck','moving')})
-    await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card/foot"]')].find(x=>x.textContent.includes('Résoudre')).click()""")
+    # A FOLDER NOBODY IDENTIFIED — `data-nonmedia` — since « À traiter » also
+    # holds the queue's tie, which HAS candidates.
+    await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card"][data-nonmedia] [data-part="card/foot"]')].find(x=>x.textContent.includes('Résoudre')).click()""")
     await pg.wait_for_timeout(450)
     assert await pg.evaluate("()=>document.querySelectorAll('[data-nonmedia=candidat]').length")==0, \
         "a folder with no provider answer must offer no candidate"

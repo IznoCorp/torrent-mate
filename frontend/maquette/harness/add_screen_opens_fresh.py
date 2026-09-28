@@ -37,8 +37,9 @@ from common import ACTED, PANEL_IN, SETTLED, Journal, open_page
 
 from playwright.async_api import async_playwright
 
-# THE ARRIVALS WITH A FOLDER STUCK FOR A RESOLUTION.
-START_STATE = "arr-loaded"
+# « À TRAITER » WITH A FOLDER STUCK FOR A RESOLUTION — RE-AIMED OUT LOUD from
+# the Arrivées page, which dies; the folder is the same kind, the tab its home.
+START_STATE = "acq-todo-dense"
 QUERY = "star wars"
 
 # THE ADD SCREEN AS DRAWN: its mode is in its key, its query in its field.

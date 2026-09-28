@@ -76,8 +76,9 @@ WINDOW_CLOSED = UNDO_WINDOW + ACTED
 # gone. Measured: with the constant at 3 000 the whole rule stayed green.
 LAST_FRAME = 6500
 
-# THE STATE WITH A FOLDER NO PROVIDER ANSWERED, where « Associer » is the way out.
-LOADED_STATE = "arr-loaded"
+# THE STATE WITH A FOLDER NO PROVIDER ANSWERED, where « Associer » is the way out
+# — « À traiter », RE-AIMED OUT LOUD from the Arrivées page, which dies.
+LOADED_STATE = "acq-todo-dense"
 
 # EVERY SEND OF A RESOLVE THE LAYER ANSWERED, by the folder it names.
 SENDS = """()=>(window.__mocks?.answered() || [])
@@ -258,7 +259,7 @@ async def reset_sends_nothing(page, journal):
     screen, _ = await pick_by_finger(page)
     folder = screen["folder"]
     picked = folder not in await page.evaluate(BLOCKED)
-    await page.evaluate("(id)=>window.__go(id)", "arr-idle")
+    await page.evaluate("(id)=>window.__go(id)", "acq-todo-dense")
     await page.wait_for_timeout(WINDOW_CLOSED)
     sends = await page.evaluate(SENDS)
     journal.check("the pick had taken the folder out when the reset came", picked, folder)

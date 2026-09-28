@@ -215,7 +215,7 @@ export function acquisitionStates(): NamedState[] {
       "acq-identify",
       "Recherche en mode IDENTIFIER (depuis une résolution)",
       () => {
-        applyState({ page: "arr", phase: "ready", pipe: "idle" });
+        applyState({ page: "acq", acqTab: "todo", phase: "ready", pipe: "idle" });
         store.write({
           resolveTarget: "Backrooms.2026.MULTi.2160p.WEB-DL",
         });

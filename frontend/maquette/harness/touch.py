@@ -112,7 +112,7 @@ async def main():
         #    one. The indicator has to ARM and then show its spinner; a pull
         #    that travels a few pixels and stops has no loader to show.
         surfaces = ["acq-now-idle", "acq-follows-list", "discover-full",
-                    "lib-grid", "lib-list", "arr-idle", "system"]
+                    "lib-grid", "lib-list", "acq-todo-loaded", "system"]
         without_loading = []
         for state_ in surfaces:
             await pg.evaluate("(s)=>window.__go(s)", state_)

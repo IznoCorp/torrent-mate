@@ -79,7 +79,9 @@ async def main():
     await pg.evaluate("()=>window.__measure(true)")
     await pg.evaluate(COUNTER)
 
-    await pg.evaluate("()=>window.__go('arr-loaded')"); await pg.wait_for_timeout(320)
+    # RE-AIMED OUT LOUD: the walk « Résoudre → no match → manual search » begins
+    # at « À traiter », where « Résoudre → » lives since the Arrivées page died.
+    await pg.evaluate("()=>window.__go('acq-todo-dense')"); await pg.wait_for_timeout(320)
     before = await pg.evaluate("()=>({stuck:(window.__queue?.().stuck||[]).length, moving:(window.__queue?.().moving||[]).length, follows:(window.__followActions?.all()||[]).length})")
     print("starting state           :", before)
     # Where the walk stands BEFORE `/add` — the manual search pops the
@@ -87,7 +89,9 @@ async def main():
     # screen was stacked on, and the one the settlement must land back on.
     start = await where(pg)
 
-    await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card/foot"]')].find(x=>x.textContent.includes('Résoudre')).click()""")
+    # A FOLDER NOBODY IDENTIFIED — `data-nonmedia` — since « À traiter » also
+    # holds the queue's tie, which is not the walk this rule is about.
+    await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card"][data-nonmedia] [data-part="card/foot"]')].find(x=>x.textContent.includes('Résoudre')).click()""")
     await pg.wait_for_timeout(420)
     # The arbitration screen left `#screen` for a real route
     # (`/resolution/$folder`, rendered inside `#coquille`): it answers to its

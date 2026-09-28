@@ -238,7 +238,9 @@ async def warm(page, keys):
     """
     return await page.evaluate(
         """async ({ keys }) => {
-             window.__go("arr-loaded");
+             // RE-AIMED OUT LOUD: the loaded world's Arrivées page died; its
+             // « En cours » is the same world's open surface.
+             window.__go("acq-now-loaded");
              await window.__mocks.quiet();
              await new Promise((r) => setTimeout(r, 200));
              // A RAW `fetch` MAKES NO CACHE ENTRY, and the first version of

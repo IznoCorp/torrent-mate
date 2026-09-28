@@ -13,7 +13,7 @@ from playwright.async_api import async_playwright
 VIEWS = [("acq/now", "acq-now-{s}"), ("acq/follows", "acq-follows-list"),
         ("discover", "discover-full"), ("lib/media", "lib-grid"),
         ("lib/incomplete", "lib-incomplete"), ("lib/recent", "lib-recent"),
-        ("arrivals", "arr-{s}"), ("system", "system")]
+        ("acq/todo", "acq-todo-loaded"), ("system", "system")]
 
 async def main():
   async with async_playwright() as p:

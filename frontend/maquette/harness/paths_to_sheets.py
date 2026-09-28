@@ -53,7 +53,12 @@ SURFACES = (
     ("acq-follows-list", "a follow row", PAGE),
     ("acq-follows-group", "a follow row, grouped", PAGE),
     ("acq-now-loaded", "an acquisition in flight", PAGE),
-    ("arr-loaded", "an arrival", PAGE),
+    # RE-AIMED OUT LOUD: `arr-loaded` left with the Arrivées page and takes NO
+    # successor. Its folders are « À traiter »'s in the same world, measured
+    # there: one row names a medium, the three others wear `data-nonmedia` —
+    # nobody identified them, and they owe no sheet — which is under this
+    # rule's floor of rows. An identified arrival is a card of « En cours »,
+    # read by acq-now-loaded above.
     ("lib-list", "a library row", PAGE),
     ("acq-add-results", "a search result", '[data-region="screen-add/body"]'),
 )

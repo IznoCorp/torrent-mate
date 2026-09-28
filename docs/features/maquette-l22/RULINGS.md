@@ -366,6 +366,19 @@ seen on the surface pressed. **Phase 37 gives it back**: the season's row says �
 the one-off acquisition lives, and R158 holds again « the surface pressed reads differently afterwards » on
 « demandée », mutated. (b), drawing « demandée » in phase 36, was over its measure.
 
+## 29 — `acq-todo-dense`: the Arrivées page's dense world gets its « À traiter » (steward, 2026-09-28; L22b phase 41, STOP D)
+
+**The STOP.** The plan read « each arr-* state they drive has an Acquisition successor by then ». Measured, `arr-loaded`
+has none: it is the dense world (Backrooms, S.W.A.T., doc_fr_2026_final, all « Résoudre »), and no state draws « À
+traiter » there; `acq-todo-loaded` is the real world, whose two staging folders are Top Chef (a tunnel error, « Relancer »)
+and the Spider-Man game, which F53 takes out. The readers aimed there clicked the queue's tie (Lucky) and fell.
+
+**Ruled (a)**, on RULINGS 22 and 24's precedent (existing seeds, no invented title): a named state `acq-todo-dense`, « À
+traiter » in the dense world; the readers of `arr-loaded`'s folders begin there, out loud, and tap the « Résoudre » of a
+card nobody identified (`data-nonmedia`) where their subject is such a folder. R122 takes no successor for `arr-loaded` —
+measured on the new state, one row names a medium, under its floor — and says so. (b), aiming at real-world folders F53
+removes, was refused.
+
 ## 30 — the ladder's figure keeps one meaning; a Plex match waits on its current rung (steward, 2026-09-27; round one, A6)
 
 **The question.** The round's brief asked Star Trek's card to read « 7 sur 8 »; the figure is the current rung's

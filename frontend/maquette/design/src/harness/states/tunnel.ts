@@ -18,18 +18,19 @@ export function tunnelStates(): NamedState[] {
   return [
     [
       "acq-resolution-none",
-      "Arrivées — résolution, aucun candidat",
+      "À traiter — résolution, aucun candidat",
       () => {
-        applyState({ page: "arr", phase: "ready", pipe: "idle" });
+        applyState({ page: "acq", acqTab: "todo", phase: "ready", pipe: "idle" });
         window.__screens.resolution();
       },
     ],
     [
       "acq-resolution-tie",
-      "Arrivées — résolution, candidats à égalité",
+      "À traiter — résolution, candidats à égalité",
       () => {
         applyState({
-          page: "arr",
+          page: "acq",
+          acqTab: "todo",
           scen: "loaded",
           phase: "ready",
           pipe: "idle",
@@ -83,6 +84,15 @@ export function tunnelStates(): NamedState[] {
       "À traiter — chargé",
       () =>
         applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" }),
+    ],
+    [
+      // THE DENSE WORLD'S « À TRAITER »: the folders the Arrivées page drew in
+      // it — Backrooms, S.W.A.T., doc_fr_2026_final — whose readers begin here
+      // since the page died. The real world's holds only one of the staging's.
+      "acq-todo-dense",
+      "À traiter — chargé, monde dense",
+      () =>
+        applyState({ page: "acq", acqTab: "todo", scen: "loaded", phase: "ready" }),
     ],
     [
       "acq-todo-loading",
