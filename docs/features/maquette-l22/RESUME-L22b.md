@@ -9,14 +9,15 @@ L22b appends from 13).
   origin/main 665788a90 (#624) is an ancestor (8a9500c43) — nothing to merge until main moves again. Steward `Orch : TM
   frontend [84baa3]` since the reboot of 2026-09-28 05:00.
 - Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b`.
-- DONE: 15a–46 (the ledger says each). NEXT: **47** the death of Arrivées (file phase-42); B-514 and
+- DONE: 15a–47a (the ledger says each). NEXT: **47b** the death of Arrivées (file phase-42, ≈ 13; see the ledger's
+  47 line for its contents and the order trap); B-514 and
   B-560 are `fixing` → `fixed #<PR>` at the pull request. From 45 on (steward, after 38/43/44 each missed states under a layer):
   the oracle's DECLARED list is built BY SCRIPT before the gate — every state whose `applyState` draws the touched
   page/world (`scen`, page in harness/states/*.ts), layers included (RULINGS 23). AUDIT2 SERIES (order 48, after 44's R11 fall): pilot `series2.sh` in the scratchpad, log
   `44-audit2/series.log`; branch side in `/Users/izno/dev/worktrees/reader-l22b` (ed55084bd), main side in
   `control-l22b` (665788a90); `touch <scratchpad>/series.pause` holds it between runs (a gate of mine starves behind
   it otherwise). At a stand-down: kill the pilot (`ps` proof) and write here where it stopped.
-  The phases (REBUILD from `ls plan/` at every cut, never from memory): 47 the death of Arrivées (phase-42,
+  The phases (REBUILD from `ls plan/` at every cut, never from memory): 47b the death of Arrivées (phase-42,
   F8; R239 reads `navigation.pages.arr` in fr.json at no_sentence_to_arrivals.py:58; page_host.py's 7 « arr » lines) →
   48 the records of a dead page (phase-43) + engine-data.ts's removal (the follows' prefetch declared by its feature,
   drive.ts's `refillEngineData` door re-pointed; R207 named at its gate — the boot re-read may change) + the dead
@@ -466,3 +467,19 @@ L22b appends from 13).
   of Système's exemptions (PipelinePaused, PipelineResumed, StepStarted, StepCompleted); check-live-relay clean, 48/48.
   Gate `46-gate.log` 28 rules (9 named) + 26 guards 0 failed, no divergence (declared: none). Mutation `46-mutation.log`:
   the rule's keys emptied → R240 FAIL ×2 by name.
+- 2026-09-28 phase 47 (file phase-42) re-measured ≈ 18 → CUT (steward approved): 47a the readers without a deletion,
+  47b the death — its files (features/arrivals 7 files, routes/arrivals.tsx, harness/states/arrivals.ts, arrivals.py),
+  the app's lines (navigation row + ArrivalsPage + arrivalsBadge, router-tree, live-updates, panel-contributions,
+  addresses.ts:23, live-rule.ts's comment), fr.json (screens.arrivals 36, navigation.pages.arr, verbs.arrivals's four
+  pipe* keys), page_host.py (SHELL_OWNED, FLOORS, the walk, the cold `/arrivals` address — all while the page exists
+  they must stay), url_state.py's « arr » row, selection_survives_the_tab.py's prose count, R241 (R-L22-o) + R-L22-s
+  re-read at THREE buttons (F8) + three mutations; and THE ORDER TRAP: the six arr-* ids leave the oracle and the three
+  a11y ledgers IN 47b, by named deletion proved by a script, `oracle.py --check` re-read (steward) — deleting the states
+  file removes them. 48 keeps the other records. 47a (eedabfdff): verbs.arrivals.{taken,left,resolved} →
+  verbs.acquisition.* by `rename-identifiers.py --values --whole` (4 sites; diff re-read outside the tool), fr.json moved
+  by hand (verbs.acquisition.taken already said the same sentence); R239 RE-AIMED OUT LOUD: the dead page's name is a
+  literal in the rule (french-ok), it leaves the resources with the page. Gate `47a-gate.log` 34 rules (12 named) + 26
+  guards 0 failed, no divergence (declared: none). NAMED GAP, measured (`47a-mutation-key.log`, applied by hand on a
+  clean committed tree and restored): a message key pointed back at the removed `verbs.arrivals.left` fells NOTHING —
+  no rule reads these three messages and check-i18n-placeholders skips an unresolved key (79 → 78 calls, clean); a
+  wrong key would render the raw key. No new guard (measure 1): said, for the reader round.
