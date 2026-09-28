@@ -79,10 +79,10 @@ named by no other rule and no named state:
   the act is answered, the follow resolves a sheet (the question R156 asks), and
   the follow agrees with the answer: being acquired where the season had
   episodes to get, its status kept where it had none. RE-AIMED, and said here:
-  this hold read « being acquired afterwards » whatever was answered, and the
-  seasons data the layer counts from does not hold « Agent Elvis », so the
-  answer is zero and a status moved over it would be the proxy R160's hold 3
-  was re-aimed away from.
+  this hold read « being acquired afterwards » whatever was answered. RE-AIMED
+  AGAIN: the layer counts a season its family does not carry the way the
+  season surfaces draw it, so « Agent Elvis »'s aired season has episodes to
+  get and the follow is being acquired.
   « Grimsburg » — its third season airs after the page's today, read in the
   page (`window.__today()`, the clock the sheet compares with; it read the
   engine's `TODAY` through the referential until that left the engine, and was
@@ -305,11 +305,15 @@ NOT_YET_AIRED = """(title)=>{
           later: ((sheet && sheet.seasons) || []).filter(
             (season) => today && season.airDate && season.airDate > today).map((season) => season.number)};}"""
 
-# HOW MANY EPISODES A SEASON HAS TO GET, from the seasons data the follow panel
-# reads — the count the layer answers from. A title that data does not hold
-# has nothing to get.
+# HOW MANY EPISODES A SEASON HAS TO GET — the count the layer answers from: the
+# season family's row, and for a season that family does not carry, the row as
+# the season surfaces draw it (aired, less held). RE-AIMED OUT LOUD: a season
+# the family did not carry used to count nothing, so « Agent Elvis », followed
+# with nothing held, was answered « aucun épisode » over ten aired ones.
 MISSING_IN_SEASON = """([title, season])=>{
-  const row = (window.__mocks.seasonFamily()[title] || []).find(([number]) => number === season);
+  const counted = (window.__mocks.seasonFamily()[title] || []).find(([number]) => number === season);
+  const drawn = (window.__mocks.seasons()[title] || []).find(([number]) => number === season);
+  const row = counted || drawn;
   return row ? Math.max(0, (row[1] || 0) - (row[2] || 0)) : 0;}"""
 
 SAID = """()=>{
