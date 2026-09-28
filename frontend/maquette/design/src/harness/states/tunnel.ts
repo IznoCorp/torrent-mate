@@ -54,7 +54,7 @@ export function tunnelStates(): NamedState[] {
       "acq-card-no-identity",
       "Carte — un dossier sans identité",
       () =>
-        applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" }),
+        applyState({ page: "acq", acqTab: "todo", scen: "loaded", phase: "ready" }),
     ],
     [
       "acq-card-waiting",
@@ -123,8 +123,9 @@ export function tunnelStates(): NamedState[] {
       "acq-resolution-not-media",
       "À traiter — « Ce n'est pas un média », le choix des destinations",
       () => {
-        // THE OPERATOR'S OWN CASE: the game folder of the real stuck list.
-        applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" });
+        // A FOLDER THE SORT TYPED AS A MEDIUM that no provider identifies, in
+        // the dense world's stuck list.
+        applyState({ page: "acq", acqTab: "todo", scen: "loaded", phase: "ready" });
         // THE CHOICE ALONE, OPENED AT ONCE and over the tab. ITS BACKDROP IS
         // NOT THE PRODUCT'S: in the product the choice opens over the
         // candidates screen, but that screen arrives through a view transition
@@ -133,7 +134,7 @@ export function tunnelStates(): NamedState[] {
         // walked by finger in R228. Its read is in flight when the state
         // returns, so a measurement waits for the read, then for the panel's
         // own animation.
-        openNotMediaChoice("Marvels.Spider-Man.2.v1.526.0.FRENCH-Mephisto");
+        openNotMediaChoice("Backrooms.2026.MULTi.2160p.WEB-DL");
       },
     ],
     [

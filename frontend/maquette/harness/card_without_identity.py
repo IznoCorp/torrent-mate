@@ -7,8 +7,17 @@ sheet to open and nothing to follow — and NE-DOIT-PAS-9's exception says where
 it leads instead: to the candidates screen, never to a dead link or a sheet that
 does not exist.
 
-Read on the operator's own data: the seed's game folder, whose reason is the
-sort's own sentence (« c'est un jeu, pas un média »).
+Read on the operator's own data: a folder the sort typed as a medium and that no
+provider identifies — « Backrooms.2026.MULTi.2160p.WEB-DL », in the dense world's
+stuck list, its reason the sort's own sentence (« ni TMDB ni TVDB ne renvoient de
+correspondance »).
+
+RE-AIMED OUT LOUD: this rule was read on the real world's game folder, « c'est un
+jeu, pas un média ». The sort files a folder with no video as « autre », and ruling
+1 keeps « autre » out of the acquisitions, so that folder was never a card: it left
+the seeds, and this rule now reads the folder the ruling is about. A last hold says
+it: in neither world does « À traiter » draw a card from a category the sort files
+as no medium — the staging folders of the configuration's non-media destinations.
 """
 import asyncio
 import json
@@ -18,8 +27,12 @@ from common import ACTED, SETTLED, Journal, open_page
 from playwright.async_api import async_playwright
 
 SEEDS = pathlib.Path(__file__).resolve().parents[1] / "design/src/mocks/seeds"
-FOLDER = next(row for row in json.loads((SEEDS / "stuck.json").read_text(encoding="utf-8"))
-              if row["ids"] is None and "Spider-Man" in row["title"])
+FOLDER = next(row for row in json.loads((SEEDS / "stuck-loaded.json").read_text(encoding="utf-8"))
+              if row["ids"] is None and "Backrooms" in row["title"])
+# The staging folders of the destinations the sort files as no medium, named the
+# way the staging area names every category: its id on three digits, then its name.
+NOT_MEDIA_FOLDERS = [f"{row['id']:03d}-{row['name'].upper()}" for row in
+                     json.loads((SEEDS / "staging-destinations.json").read_text(encoding="utf-8"))]
 WORDS = json.loads((pathlib.Path(__file__).resolve().parents[1]
                     / "design/src/i18n/fr.json").read_text(encoding="utf-8"))
 IDENTIFIED = WORDS["surfaces"]["ladder"]["rungs"]["identified"] if "ladder" in WORDS["surfaces"] else None
@@ -62,7 +75,7 @@ async def main():
             """()=>({page: state.page, scen: state.scen, tab: state.acqTab,
                      titles: [...document.querySelectorAll('#view [data-part="card/title"]')].map(e=>e.textContent)})"""))
         card = await page.evaluate(CARD, FOLDER["title"])
-        journal.check("the game folder is a card in acquisition, under its folder's name",
+        journal.check("the folder is a card in acquisition, under its folder's name",
                       card is not None and card["page"] == "acq", str(card or drawn))
         card = card or {}
         journal.check("it is marked as no medium, and draws no poster",
@@ -88,6 +101,18 @@ async def main():
                 """()=>document.querySelector('[data-part="screen"][data-open]')?.dataset.key ?? null""")
             journal.check("a tap on it opens the candidates screen on that folder",
                           opened == f"resolution:{FOLDER['title']}", repr(opened))
+
+        for state in ("acq-todo-loaded", "acq-todo-dense"):
+            await page.evaluate(f"()=>window.__go('{state}')")
+            await page.wait_for_timeout(SETTLED)
+            filed = await page.evaluate(
+                """(folders)=>[...document.querySelectorAll('#view [data-part="card"]')]
+                    .filter(card => folders.some(folder => (card.querySelector('[data-part="card/subtitle"]')
+                        ?.textContent || '').startsWith(folder)))
+                    .map(card => card.querySelector('[data-part="card/title"]')?.textContent)""",
+                NOT_MEDIA_FOLDERS)
+            journal.check(f"{state}: « À traiter » draws no folder the sort filed as no medium",
+                          filed == [], str(filed))
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()

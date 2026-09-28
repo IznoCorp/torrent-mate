@@ -14,21 +14,5 @@
     "ids": null,
     "poster": null,
     "failedStep": "scrape"
-  },
-  {
-    "title": "Marvels.Spider-Man.2.v1.526.0.FRENCH-Mephisto",
-    "secondaryLine": "098-AUTRES · déposé à la main",
-    "droppedByHand": true,
-    "reason": "Aucun fichier vidéo dans le dossier : c'est un jeu, pas un média. Il ne peut pas traverser le pipeline.",
-    "strip": [
-      1,
-      "blocked",
-      0,
-      0,
-      0
-    ],
-    "withoutPoster": true,
-    "ids": null,
-    "poster": null
   }
 ]

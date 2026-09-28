@@ -7,8 +7,11 @@ card leaves the acquisitions: the operator does not see it again. An « Annuler 
 window answers every resolve with its inverse (`backend-demands-architecture.md`
 § 9, demand C).
 
-Walked by finger on the operator's own case, the game folder of the real stuck
-list (« c'est un jeu, pas un média »):
+Walked by finger on a folder the sort typed as a medium and that no provider
+identifies, « Backrooms.2026.MULTi.2160p.WEB-DL », in the dense world's « À
+traiter ». RE-AIMED OUT LOUD: it was walked on the real world's game folder,
+which the sort files as « autre » and ruling 1 keeps out of the acquisitions —
+that folder was never a card, and it left the seeds:
 
 1. « Résoudre → » on its card, then « Ce n'est pas un média » on the screen,
    opens a choice offering exactly the destinations the layer answers — read
@@ -30,8 +33,8 @@ from common import ACTED, SETTLED, Journal, open_page
 from playwright.async_api import async_playwright
 
 SEEDS = pathlib.Path(__file__).resolve().parents[1] / "design/src/mocks/seeds"
-FOLDER = next(row for row in json.loads((SEEDS / "stuck.json").read_text(encoding="utf-8"))
-              if row.get("ids") is None and not row.get("failedStep"))["title"]
+FOLDER = next(row for row in json.loads((SEEDS / "stuck-loaded.json").read_text(encoding="utf-8"))
+              if row.get("ids") is None and "Backrooms" in row["title"])["title"]
 DESTINATIONS = [row["name"] for row in json.loads((SEEDS / "staging-destinations.json").read_text(encoding="utf-8"))]
 CHOSEN = DESTINATIONS[-1]
 
@@ -65,10 +68,10 @@ async def main():
         page.on("pageerror", lambda error: errors.append(str(error)))
 
         answer = await page.evaluate(
-            "()=>{try{window.__go('acq-todo-loaded');return null}catch(error){return String(error)}}")
-        journal.check("the named state acq-todo-loaded exists", answer is None, answer or "")
+            "()=>{try{window.__go('acq-todo-dense');return null}catch(error){return String(error)}}")
+        journal.check("the named state acq-todo-dense exists", answer is None, answer or "")
         await page.wait_for_timeout(SETTLED)
-        journal.check("the game folder is on « À traiter »", FOLDER in await page.evaluate(TITLES), FOLDER)
+        journal.check("the folder is on « À traiter »", FOLDER in await page.evaluate(TITLES), FOLDER)
 
         # ── by finger: « Résoudre → », then « Ce n'est pas un média » ────────
         await page.evaluate("""(title)=>[...document.querySelectorAll('#view [data-part="card/foot"]')]
