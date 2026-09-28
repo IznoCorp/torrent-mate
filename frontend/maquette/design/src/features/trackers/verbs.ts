@@ -30,3 +30,14 @@ fillLandingDoor((page, dial) => {
   if (page !== "trackers") return;
   store.write({ trackersTab: dial !== undefined && TABS.has(dial) ? dial : MEMORY.remembered() });
 });
+
+/* « VOIR LES TORRENTS »: the « Torrents » tab, filtered to the tracker whose entry
+   offered it — both dials of the page set at once, an adjustment like a tab. */
+registerVerb("trackers-filter", (tracker) => {
+  MEMORY.remember("torrents");
+  store.write({ trackersTab: "torrents", trackersFilter: tracker });
+  const port = document.getElementById("port");
+  if (port !== null) port.scrollTop = 0;
+  redraw();
+  replaceAddress?.();
+});

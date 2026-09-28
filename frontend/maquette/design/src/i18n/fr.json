@@ -238,7 +238,13 @@
       },
       "volumes": "Téléchargé {{downloaded}} Go · Envoyé {{uploaded}} Go",
       "empty": "Aucun tracker configuré.",
-      "emptyBody": "Les trackers se déclarent dans la configuration ; chacun apparaîtra ici avec son ratio."
+      "emptyBody": "Les trackers se déclarent dans la configuration ; chacun apparaîtra ici avec son ratio.",
+      "minRatio": "Ratio plancher",
+      "minSeedTime": "Temps de seed minimal",
+      "alertThreshold": "Seuil d'alerte du ratio",
+      "floorGuidance": "Le ratio à partir duquel un torrent peut être retiré sans dette envers le tracker — un plancher, pas une cible.",
+      "policyUnset": "Aucune politique réglée pour ce tracker.",
+      "seeTorrents": "Voir les torrents"
     },
     "releases": {
       "back": "Retour",

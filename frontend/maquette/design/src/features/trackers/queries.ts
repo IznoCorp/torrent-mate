@@ -23,3 +23,23 @@ export function useTrackers() {
     queryFn: async () => read<Tracker[]>(TRACKERS_ADDRESS),
   });
 }
+
+/** One setting of the catalogue, in the contract's names. */
+export type Setting = Schemas["Setting"];
+
+/** The address of the settings catalogue — the one the settings page reads. */
+const CATALOGUE_ADDRESS = "/api/config/schema";
+
+/**
+ * The settings catalogue, flattened: the SAME read the settings page makes,
+ * under the same key, so both pages draw one answer.
+ *
+ * @returns The settings, every topic's in turn, once answered.
+ */
+export function useSettingsCatalogue(): Setting[] | undefined {
+  const { data } = useQuery({
+    queryKey: [CATALOGUE_ADDRESS],
+    queryFn: async () => read<Schemas["SettingsTopic"][]>(CATALOGUE_ADDRESS),
+  });
+  return data?.flatMap((topic) => topic.settings);
+}

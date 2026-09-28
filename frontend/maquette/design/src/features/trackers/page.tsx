@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { useUiState } from "../../lib/store-access";
 import { segment, segmentTab, viewTabs } from "../../ui/variants";
 import { TrackersTab } from "./trackers-tab";
+import { PendingEditsBar } from "../../lib/save-bar-door";
 
 /**
  * The « Trackers » page.
@@ -42,6 +43,8 @@ export function TrackersPage(): ReactElement {
         </div>
       </div>
       {state.trackersTab === "trackers" ? <TrackersTab /> : null}
+      {/* A policy edited here is saved here: the settings' own bar. */}
+      <PendingEditsBar />
     </div>
   );
 }

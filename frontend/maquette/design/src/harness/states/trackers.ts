@@ -30,5 +30,21 @@ export function trackersStates(): NamedState[] {
         applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
       },
     ],
+    [
+      "trackers-entry-open",
+      "Trackers — une entrée ouverte sur sa politique",
+      () => {
+        window.__mocks?.reset();
+        applyState({ page: "trackers", trackersTab: "trackers", trackersFilter: "c411", phase: "ready" });
+      },
+    ],
+    [
+      "trackers-policy-unset",
+      "Trackers — une entrée sans politique",
+      () => {
+        window.__mocks?.reset();
+        applyState({ page: "trackers", trackersTab: "trackers", trackersFilter: "tr4ker", phase: "ready" });
+      },
+    ],
   ];
 }
