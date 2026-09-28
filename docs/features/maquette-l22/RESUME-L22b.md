@@ -12,7 +12,7 @@ L22b appends from 13).
 - DONE: 15a–45a (the ledger says each). NEXT: **45b** (the identity readers: back, sweep, url_state, journey + common's
   ARRIVALS, R138's and R67's sentences; ≈ 7). From 45 on (steward, after 38/43/44 each missed states under a layer):
   the oracle's DECLARED list is built BY SCRIPT before the gate — every state whose `applyState` draws the touched
-  page/world (`scen`, page in harness/states/*.ts), layers included (RULINGS 23). B-559 is `fixing` → `fixed #<PR>` at
+  page/world (`scen`, page in harness/states/*.ts), layers included (RULINGS 23). B-560 is `fixing` → `fixed #<PR>` at
   the pull request. AUDIT2 SERIES (order 48, after 44's R11 fall): pilot `series2.sh` in the scratchpad, log
   `44-audit2/series.log`; branch side in `/Users/izno/dev/worktrees/reader-l22b` (ed55084bd), main side in
   `control-l22b` (665788a90); `touch <scratchpad>/series.pause` holds it between runs (a gate of mine starves behind
@@ -446,3 +446,6 @@ L22b appends from 13).
   now under `heavy.sh --class browser`; 43's and 44's mutations had also run bare (they found the copy free). The
   audit2 series starved my gate (the pilot re-takes the mutex at once): pilot stopped after main-4, restarted from
   branch-5 with a pause flag. Series so far: branch 1–4 and main 1–4, 0 violations each.
+- 2026-09-28 the locks row RENUMBERED B-559 → B-560 (steward): the day's repair train took B-559 (pwa.py Page.goto) and
+  merges first. 7d77f3d8f's message and the ledger line above still say B-559 — history, not rewritten (no rebase);
+  B-560 is the row's number from d52936dd2's successor on.
