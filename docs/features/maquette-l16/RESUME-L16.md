@@ -1,38 +1,42 @@
 # L16 — RESUME
 
-## STATE BLOCK (rewritten at every boundary — 2026-09-28, boundary after phase 5a)
+## STATE BLOCK (rewritten at every boundary — 2026-09-29, boundary after phase 5b)
 
-- **Branch** `feat/maquette-l16`, worktree `/Users/izno/dev/worktrees/wave-l16`. L22b is SQUASHED on `main`
-  (#626 → `232a908ca`); at this boundary the branch is re-based by the auditor's order: `git rebase --onto
-  origin/main f91e4c714`, range-diff, push `--force-with-lease` under the mutex (the ONLY force allowed).
-  From here on, `origin/main` is merged in (`git merge --no-edit`), never re-based, unless the steward says.
-- **Orchestrator** « Orch : TM frontend [79475d] » (succeeded [84baa3]); always write the reference.
-  The gauge script runs here: `context-gauge.sh`, its `context_percent=` and `source=` lines in every report.
-- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a — each gated, mutated, pushed. **Next: 5b** — the `trackersFilter`
-  filter on the Torrents tab, `torrents-list-filtered`, `torrents-empty`, `torrents-empty-filtered` (two new dials
-  in `mocks/trackers-state.ts` beside `setTrackersEmpty`), `screens.torrents.empty` / `.emptyFiltered`; and a dial
-  giving one obligation `satisfiedAt`, so the drawn « obligation terminée » mark (`torrents/obligation-done`)
-  gets a state and a hold (R261).
-- **Remaining** (from `ls plan/`): 5b · 6 · 7 · 8 · 9 · MIDPOINT FULL SUITE · 10 · 11 · 12 · 13 · 14 · 15 · 16 ·
-  17. Known STOP D: 9 (no « vu » precedent), 12 (ratio cause = global `ingest.min_ratio`; the seed),
+- **Branch** `feat/maquette-l16`, worktree `/Users/izno/dev/worktrees/wave-l16`, on `origin/main` by MERGE
+  (`d5c255c57` merged the squash of L22b, `232a908ca`). `origin/main` is merged in at a phase boundary with
+  `git merge --no-edit`; NO force push, ever (the classifier refused one, 2026-09-28). The docs PR #627
+  touches DESIGN.md, plan/INDEX.md, phase-05 and phase-11: merge it when the steward says, keeping both texts.
+- **Orchestrator** « Orch : TM frontend [79475d] »; always write the reference. The gauge script runs here:
+  `context-gauge.sh`, its `context_percent=` and `source=` lines in every report. Exit boundary ~55 %.
+- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b — each gated, mutated, pushed. **Next: phase 6** « Retirer de
+  qBittorrent » (R263, R-L16-c) — re-measure it at its opening (the brief's re-measure said ≈ 16: cut likely).
+- **Remaining** (from `ls plan/`): 6 · 7 · 8 · 9 · MIDPOINT FULL SUITE · 10 · 11 · 12 · 13 · 14 · 15 · 16 · 17.
+  Known STOP D: 9 (no « vu » precedent), 12 (ratio cause = global `ingest.min_ratio`; the seed),
   14 (no read of a config file's content in the maquette's contract).
 - **Rulings** (`RULINGS.md`): 1 — the tab's parameter is `?list=`; 2 — C2, the policy rows raise the settings
-  page's own `setting` panel, the save bar drawn on Trackers through `lib/save-bar-door.tsx`.
-- **Rules** R260 `trackers_page.py` (h) · R261 `trackers_roster.py` (a, re-aimed onto the Torrents tab in 5a) ·
-  R262 `trackers_policy.py` (b); R122 `paths_to_sheets.py` reads `torrents/row` since 5a; `page_host.py`'s walk
-  reaches `trackers`. Still to bind: c R263 (6) · d R264 (8) · g R265 (12) · f R266 (14) · e R267 (16); cuts
-  take R268+. Register rows B-570–B-589, none taken.
-- **Method that held**: rule first, RED by `run.sh --rules <rule>`; ORDER 49 — the static list first, then
-  `run.sh --oracle` ALONE, then the gate `bash -c 'run.sh --contracts --oracle <rules>; oracle.py --accept'` in
-  ONE mutex invocation, declared list built by script into `~/Library/Logs/tm-l16/pNN-declared.json`, then
-  `python3 ~/Library/Logs/tm-l16/tools/accept_by_name.py <declared.json>`; no « final » gate after an
-  acceptance proved by name on a green gate. `--a11y` on every gate that draws. `test_oracle.py`'s pinned
-  count moves with every new state (now 136 states, 38 regions). `check-maquette-comments.py --record`
-  INSIDE the commit whenever a maquette file is added. ORDER 52 — harness lines added ≤ 0.6 × product
-  lines added in this lot, measured at the midpoint and the close; a new check on a surface with a rule
-  is a HOLD in that rule's file. `git fetch` is blocked by a hook on the word: use `git remote update origin`.
-- **Mock state**: `mocks/trackers-state.ts` holds trackers / downloads / obligations; `mocks/index.ts` is at
-  399 non-blank lines — nothing more fits there.
+  page's own `setting` panel, its save bar drawn on Trackers through `lib/save-bar-door.tsx`; 3 — B, the filter
+  line « Filtré sur <tracker> · Tout voir », lifted by the `trackers-filter` verb given no tracker.
+- **Rules** R260 `trackers_page.py` (h) · R261 `trackers_roster.py` (a; holds 1–16, the Torrents tab since 5a,
+  its filter and empties since 5b) · R262 `trackers_policy.py` (b); R122 `paths_to_sheets.py` reads
+  `torrents/row`; `page_host.py`'s walk reaches `trackers`. Still to bind: c R263 (6) · d R264 (8) · g R265
+  (12) · f R266 (14) · e R267 (16); cuts take R268+. Register rows B-570–B-589, none taken.
+- **Gate (orders 49, 58, 59, 65, 70)**: static list first (CI `no-french` job + cheap guards, typecheck) →
+  `run.sh --oracle` ALONE (class browser) → acceptance `bash -c 'run.sh --oracle; oracle.py --accept'` in ONE
+  browser invocation (`--accept` needs the host `run.sh` starts), then `python3
+  ~/Library/Logs/tm-l16/tools/accept_by_name.py <declared.json>` (declared list built by script) → `run.sh
+  --rules <re-aimed rules + the surface's group>` in `--class rule` → `--a11y` (browser) on a drawing gate.
+  NO `--contracts` at a phase gate: it runs at 9 (midpoint full suite), 14 and the close. entry R62 and pwa
+  (R52, R105, R108, R111) are out of phase gates. Single-rule mutations run `--class rule`. Order 48 light:
+  series in `--rules`; a known-unstable rule the phase does not read: 5 draws, stop at 0/5.
+  `test_oracle.py`'s pinned count moves with every new state (140 states, 38 regions).
+  `check-maquette-comments.py --record` INSIDE the commit when a maquette file is added.
+- **Order 52**: harness lines added ≤ 0.6 × `design/src` lines added (`git diff --numstat origin/main...HEAD`);
+  at 5b: 737 / 1452 = 0.51. A new check on a surface with a rule is a HOLD in that rule's file.
+- **Traps**: `git fetch` is blocked by a hook on the word — `git remote update origin`. The driver's reset
+  (`harness/drive.ts`) clears the dials a state can move; a new dial that changes a drawing joins it.
+- **Mock state**: `mocks/trackers-state.ts` holds trackers / downloads / obligations and their dials
+  (`setTrackersEmpty`, `setDownloadsEmpty`, `setTrackerIdle`, `setObligationSatisfied`); `mocks/index.ts` is
+  at 399 non-blank lines — nothing more fits there (the dials spread in without a line).
 - **Logs** `~/Library/Logs/tm-l16/`; the proof tool lives in `tools/` there.
 
 ---
@@ -124,3 +128,17 @@
   Mutations: ratio on the tracker's volume → R261 FAIL « President Curtis on c411: its ratio is its own, 0,42,
   on its own size — never 0,00 on the tracker's volume » (`p05a-mutation1.log`); title path dropped → R122
   FAIL « 6 dead of 6 — carried by none » (`p05a-mutation2.log`). Orders 49 and 52 received.
+- 2026-09-28 — 5a pushed without force: the rebase's `--force-with-lease` push was refused by the classifier
+  (« [Git Destructive] »); steward's option B — `reset --keep bb1135e76`, `git merge origin/main`, the 18
+  conflicts resolved to `bb1135e76`'s tree (main's tree is `f91e4c714`'s, already in it), diff against the
+  re-based `ef04518fe` empty; pushed `d5c255c57`.
+- 2026-09-28 — 5b opening: STOP D (the filter neither seen nor lifted) → RULINGS 3 = B. Orders 58, 59, 65,
+  67a and 70 received (the gate without `--contracts`; the rule class). R261 holds 12–16 RED
+  (`p05b-red.log`, 11 FAIL: four unknown states, the filter unsaid, the address keeping `tracker=c411`).
+- 2026-09-29 — 5b move `0579d44b9`. The oracle alone read `torrents-list` 870 → 270.1: `trackers-policy-unset`
+  left the tracker dial on tr4ker, which now filters the Torrents tab — the driver's reset clears it
+  (`b10457537`), `torrents-list` back to its reference. Four new states accepted by name, 0 keys moved
+  (`p05b-accept-proof.log`); a11y 0 on 140 states; rules R261 56 · R122 13 · R260 27 · R262 14 · page_host 42
+  holds, 0 failed. Mutations: the filter not applied → FAIL « filtered to c411: its rows alone »
+  (`p05b-mutation1.log`); « Tout voir » pushing → FAIL « « Tout voir » drops the tracker from the address and
+  pushes nothing — history.length 7 -> 8 » (`p05b-mutation2.log`).

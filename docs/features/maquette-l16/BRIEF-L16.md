@@ -143,6 +143,12 @@ Each phase is still re-measured at ITS opening on YOUR head; these are the facts
 - **2026-09-28, auditor's order 52**: harness lines added ≤ 0.6 × product lines added in this lot (`git diff --numstat
   origin/main...HEAD`, harness/ against design/src/), measured at the midpoint and the close; a new check on a surface
   that has its rule is a HOLD in that file; above the budget, a CONSOLIDATION phase before READY.
+- **2026-09-28, auditor's orders 58, 59, 65, 67a, 70** (amending § Method): a phase gate is the static list → the
+  oracle ALONE → `run.sh --rules` (the phase's re-aimed rules + the touched surfaces' group) → `--a11y` when it draws;
+  no `--contracts` at a phase gate (it runs at 9, 14, the close and in CI; two contract falls charged to the lot bring
+  it back to every gate); entry R62 and pwa (R52, R105, R108, R111) leave the phase gates; order 48 in `--rules`
+  series, 5 draws for a known-unstable rule the phase does not read; exit boundary ~55 %; a light run (`--rules`, one
+  rule's mutation) is `--class rule`, browser kept for `--oracle` / `--a11y` and full suites.
 - **Your context**: the hook stops you at 60 % — at ~55 %, commit, push, rewrite the RESUME and stand down.
 - **The RESUME**: `docs/features/maquette-l16/RESUME-L16.md` = a STATE BLOCK of at most 40 lines (rewritten at every
   boundary) + an APPEND-ONLY ledger below it. No register row for an unshipped defect: a ledger line on the phase
