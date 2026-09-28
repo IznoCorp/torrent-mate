@@ -9,12 +9,10 @@ L22b appends from 13).
   origin/main 665788a90 (#624) is an ancestor (8a9500c43) — nothing to merge until main moves again. Steward `Orch : TM
   frontend [84baa3]` since the reboot of 2026-09-28 05:00.
 - Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b`.
-- DONE: 15a–43 (the ledger says each; the MIDPOINT after 30). NEXT: **44** (NEW, steward (A) at 43's opening; INDEX's
-  dated line): « doc_fr_2026_final » out of `stuck-loaded.json` — no video file, and `personalscraper/sorter/file_type.py:
-  178–200` types an archive-only folder a film only if its NAME carries a video-release signal, so it is OTHER (ruling 1);
-  its readers re-aimed OUT LOUD: two_picks.py (THIRD_FOLDER), cards.py (42's dense mutation subject), paths_to_sheets.py
-  (« three others wear data-nonmedia »), actions/ident (first nonmedia « Résoudre »), the dense states' oracle; measured
-  ≈ 5–6 — RE-MEASURE at the opening. Then (the steward's correction, 2026-09-28 — the list had LOST the readers phase;
+- DONE: 15a–44 (the ledger says each; the MIDPOINT after 30). NEXT: **45**, see below. From 45 on (steward, after
+  38/43/44 each missed states under a layer): the oracle's DECLARED list is built BY SCRIPT before the gate — every state
+  whose `applyState` draws the touched page/world (`scen`, page in harness/states/*.ts), layers included (RULINGS 23).
+  The phases (the steward's correction, 2026-09-28 — the list had LOST the readers phase;
   REBUILD it from `ls plan/` at every cut, never from memory): 45 readers, identity and launch bar (file phase-40, ≈ 15,
   OPEN 6 = A, nothing done; its own cut rule: journey.py + common.py apart) → 46 the live rule Système was borrowing
   (phase-41; system/live.ts:95–98's exemptions → check-live-relay.py at its gate) → 47 the death of Arrivées (phase-42,
@@ -22,7 +20,6 @@ L22b appends from 13).
   48 the records of a dead page (phase-43) + engine-data.ts's removal (the follows' prefetch declared by its feature,
   drive.ts's `refillEngineData` door re-pointed; R207 named at its gate — the boot re-read may change) + the dead
   `acq-follows-pause-empty` in the a11y ledgers → 49 the close (phase-44; F8, F52, F67, C9; product-intent-map.md:49).
-  Phase 44 has no file (INDEX's dated line and RULINGS 33 are its spec).
   Each re-measured at its opening; > 15 → cut.
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (21) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (22) R233 ·
@@ -402,3 +399,22 @@ L22b appends from 13).
   on the game it would not have fallen); the game row put back → R208 « acq-todo-loaded: « À traiter » draws no folder the
   sort filed as no medium » (`43-mutation-r208.log`). DESIGN §§ 2.2 item 2 and « Ce n'est pas un média » on real data,
   phases 6 and 16: one dated line each.
+- 2026-09-28 phase 44 (NEW, RULINGS 33), re-measured ≈ 7. The steward's correction first: the STATE's list had LOST the
+  readers phase (file phase-40) — rebuilt from `ls plan/` (37697c4e0). R208 gains SORTED_OTHER (the game folder and
+  doc_fr_2026_final, citing personalscraper/sorter/file_type.py:178–200): neither « À traiter » nor « En cours » draws one,
+  either world; red `44-red.log` « acq-todo-dense: … — ['doc_fr_2026_final'] ». R172 two_picks.py t6 RE-AIMED OUT LOUD:
+  THIRD_FOLDER read off the seed (Backrooms); the moved list is now EMPTY, so any index lands right. The steward's
+  condition: a put-back restoring the snapshot taken BEFORE the resolve (`return before ?? now;` in putOneBack's
+  `restored`, queue.ts) must fell t6 — `44-mutation-t6.log`: NO RULE FELL. t6 was BLIND to it before 44 too (it holds
+  « back exactly once » and « nothing sent »; the position is printed, not held; with doc_fr as third, [B,S,d] keeps S
+  once) and (b) would have been as blind → (c), steward approved: t6 gains « and the folder resolved under it stays
+  gone » (95b45734e); `44-mutation-t6b.log` FAIL « … stays gone — [] → ['Backrooms…', 'S.W.A.T.'] ». Commit bd984d4c6
+  (row out, comments tunnel.ts:89 / paths_to_sheets.py:58). Gate `44-gate.log` 50 rules (33 named) + 26 guards 0 failed;
+  STOP A: 12 divergences = 6 states, one card each (−211.5 px, arr-loaded −204): acq-card-follow-error and
+  acq-resolution-tie NOT named in my announcement (under a layer — third time, 38/43/44 → the scripted list above).
+  Gate 2 `44-gate2.log` 0 failed, accept in the invocation, proof `44-accept-proof.log` (exactly the 6), cd5cb6d83, pin
+  136. Mutation R208 `44-mutation-r208.log`: doc_fr's row back → FAIL by name. MY FAULT: the first t6 mutation started
+  at load 6.76 (read in the same call, not gated) — the load is now read in its own call, and waited under 6.
+  `44-final.log` (cd5cb6d83): no divergence, but audit2.py R11 fell ONCE (« visible jargon or technical value — 1 »,
+  text lost with run.sh's per-rule log; load 5.44, 5-min 7.76; green in gate 2 on the same sources) — NOT set aside:
+  order 48's ×10 here and on main, reported to the steward.
