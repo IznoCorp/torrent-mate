@@ -204,6 +204,7 @@ History is not in the tree: a path cited as `` `path@sha` `` is read with `git s
 | The frame's model — its thirteen parts under invariant 10, the 30 mobile-application properties, the survey of what the engine still draws | `docs/reference/frame-model.md` · `docs/reference/frame-survey.md` |
 | Product intent → surface map — every DOIT / NE-DOIT-PAS clause, the surface serving it, its verdict and owner (the operator amends it) | `docs/reference/product-intent-map.md` |
 | Backend demands of ARCHITECTURE — the tunnel per media (§20), the requester and rights (§17), the ratio write, cross-seed — inputs of the future backend brief, unscheduled by design | `docs/reference/backend-demands-architecture.md` |
+| **The implementer's office — the invariants every lot's launch brief cites instead of copying: the phase, the gate, the oracle by name, the mutex classes, the RESUME** | `docs/reference/implementer-office.md` |
 | Frontend steward — the standing audit of that plan. **NOT for the agent implementing a lot**: it is the operator's and the steward's | `docs/reference/frontend-steward.md` |
 
 Everything a merged wave wrote is in git, not in the tree: `git log --all --oneline -- <path>`
