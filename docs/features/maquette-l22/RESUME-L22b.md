@@ -7,20 +7,24 @@ L22b appends from 13).
 
 - Branch `feat/maquette-l22b`, worktree `/Users/izno/dev/worktrees/wave-l22b`. #619 (L22a) merged in at 7ca978d5e
   (re-merged three ways on the real fork point 6f0c987a3: 47 conflicts → 6 unions). Steward `Orch : TM frontend
-  [ac1af8]`. main has moved (#621, the references' gesture): merge `origin/main` at the next unit boundary — only the
+  [84baa3]` since the reboot of 2026-09-28 05:00 (was [ac1af8]). main has moved (#621, the references' gesture): merge `origin/main` at the next unit boundary — only the
   generated files conflict; regenerate them (oracle by an accept in one invocation + the script proof; ledgers re-read).
 - Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b`.
 - DONE: 15a–19-bis-b, merges of #619/#621/main(#617/#618/#622/#623/#624), the triage's docs commit, 20–30, the MIDPOINT
-  (1 real fall, R207, repaired; audit2 ×10: 0/10), 31 (F5, condition 3 of RULINGS 25), 32 (F6), 33 (F42), 34 (M1, RULINGS 26), 35 (Q1's real half, RULINGS 27), 36 (Q2, RULINGS 28), 37 (« Demandée » + the one-off's « Suivre », R158 hold 5 given back). NEXT: **38**
-  sentences (F7, F54, F53) → 39 readers (F41) → 40 → 41 (the dead `acq-follows-pause-empty` still in the a11y ledgers)
-  → 42 death of Arrivées (F8) → 43 (+ engine-data.ts's removal, the steward's placement) → 44 close (F8, F52, F67, C9;
-  product-intent-map.md:49).
-  Files renumbered twice by `git mv`; 29/30 live in phase-28's file, 33 in phase-32's. engine-data.ts's removal (the
-  follows' prefetch declared by its feature, drive.ts's `refillEngineData` door re-pointed) is L22b's, at 43.
+  (1 real fall, R207, repaired; audit2 ×10: 0/10), 31 (F5, condition 3 of RULINGS 25), 32 (F6), 33 (F42), 34 (M1, RULINGS 26), 35 (Q1's real half, RULINGS 27), 36 (Q2, RULINGS 28), 37 (« Demandée » + the one-off's « Suivre », R158 hold 5 given back), 38 (the sentences + F54,
+  R239; cut at its opening). NEXT: **39** F7 (both Système cross-references land on « À traiter » by a dial the control
+  carries — `app/frame-verbs.ts` `go` → `resetLandingDial(page)` today writes the remembered tab; the frame names no tab,
+  the dial's word into code-vocabulary.txt; hold « tab=todo in the landed address », a bare `data-go="acq"` keeps the
+  remembered tab, mutation « the dial removed → falls ») → 40 readers (F41, F53) → 41 → 42 (the dead
+  `acq-follows-pause-empty` still in the a11y ledgers) → 43 death of Arrivées (F8) → 44 (+ engine-data.ts's removal, the
+  steward's placement) → 45 close (F8, F52, F67, C9; product-intent-map.md:49).
+  Files renumbered twice by `git mv`; 29/30 live in phase-28's file, 33 in phase-32's, 39 in phase-38's (40–45 in the
+  files named 39–44). engine-data.ts's removal (the follows' prefetch declared by its feature, drive.ts's
+  `refillEngineData` door re-pointed) is L22b's, at 44.
   Each re-measured at its opening; > 15 → cut. (The machine rebooted Monday 2026-09-28 05:00: re-verify the state.)
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (21) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (22) R233 ·
-  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · next free R239. RULINGS: L22b writes 13–29 (13–28 used); L22a's repair round wrote 30–32.
+  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · (35) R238 one_card_per_medium · (38) R239 no_sentence_to_arrivals · next free R240. RULINGS: L22b writes 13–29 (13–28 used); L22a's repair round wrote 30–32.
 - AUDITOR ORDER 48 (amended): a fall set aside as « load » needs the same rule ≥ 10× here and ≥ 10× on `main` at
   comparable load; any gap is a regression.
 - LOGS `~/Library/Logs/tm-l22b/`; mutex `sh scripts/heavy.sh --held`. GATE: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh
@@ -32,6 +36,8 @@ L22b appends from 13).
   reformatting); bump `tests/scripts/test_oracle.py`'s pin when the state count moves.
 - MUTATIONS `sh scripts/mutate.sh <path> "<expr>" <rule>` on a CLEAN tree — never edit while one runs. PUSH at EVERY
   phase end: `sh scripts/heavy.sh --class test l22b git push -u origin feat/maquette-l22b`, its own command.
+- ORDER (steward [84baa3], 2026-09-28): no heavy gate while the 1-min load (`uptime`) is 6 or above; read it before
+  every heavy run.
 - Traps: `--accept` rewrites the whole reference; a closed `#dlg` / `#sheet` keeps the last box (B-554, RULINGS 7, 13,
   20); the entry page's tab rewinds the stack; read `data-follow` by value; new data-*/identifier words need
   `scripts/code-vocabulary.txt`; a live rule may only name an event the backend emits; zsh does not word-split `$var`
@@ -267,3 +273,19 @@ L22b appends from 13).
   under it — the panel also gains « Suivre » and the one-off's actions, a second visible fact); the panel reads
   arrivals only → R229 FAIL « and its panel offers « Suivre » » (`37-mutation-offer.log`).
 - 2026-09-28 stood down after phase 37: the reboot at 05:00 (nothing opens after 37 tonight). Next unit: phase 38.
+- 2026-09-28 (successor « Agent : l22b 5 », steward [84baa3] since the reboot) phase 38 opened: re-measured ≈ 17 → CUT
+  38 / 39 (F7 needs a landing on a NAMED tab; steward accepted; the rest +1, 40–45). R239 red (`38-red.log`: Système,
+  run-detail, acq-now-loaded, the maintenance toast and screen-profile — F54 — named Arrivées or promised « cherché, rien
+  trouvé »). Commit b0d9dcd2e: five sentences rewritten, the rule note names the follow and « aucun torrent trouvé »,
+  « En cours »'s cross-reference dies with its eight keys and `crossReferenceStrong`, Système's two cross-references
+  land on Acquisition (remembered tab); `toArrivals*` rewritten under new keys `toAcquisition*` (the rename tool reaches
+  no JSON key). Gate 1 (`38-gate.log`) fell on MY read: from a run's screen the landing rewinds to the entry « / », the
+  home page's address — R239 now reads `state.page` and the address leaving /system (amended before any push). STOP A:
+  13 states diverged, 4 unnamed in my announcement — relay-* / pwa-* / startup draw « En cours » under a layer (RULINGS
+  23: my announcement should have named them), signin / signin-error pin no page and inherit the state before (RULINGS
+  20 / 23's precedent) → steward (A): accepted by name. Gate 2 `38-gate2.log` 57 rules (48 named) + 26 guards 0 failed;
+  25 divergences = 12 states × {acquisition/body, shell/page} −94.2 px + screen-profile/body +17.4 px, accepted in the
+  same invocation, script proof `38-accept-proof.log`, a8a8ea558 (pin unchanged). `38-a11y.log` 0 + light 88/88.
+  Mutations: run-screen's `data-go` back to `arr` → R239 FAIL « run-detail: its cross-reference 1 lands on Acquisition,
+  and leaves Système — {'page': 'arr', 'path': '/arrivals'} » (`38-mutation-run.log`); the F54 note back → FAIL
+  « screen-profile: no sentence promises « cherché, rien trouvé » » (`38-mutation-note.log`).
