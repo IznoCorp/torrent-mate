@@ -389,7 +389,10 @@ def test_the_committed_reference_carries_a_platform():
     # 141 SINCE L16's phase 6a: `torrent-remove-confirm-obligation`, the removal's confirmation —
     # added; the three Torrents states with rows grew by the gesture, and 24 states measured after
     # it read the closed dialog's new box (B-554), named in the acceptance commit.
-    assert reference["counts"] == {"states": 141, "regions": 38}
+    # 142 SINCE L16's phase 6b: `torrent-remove-confirm`, the confirmation of an entry owing
+    # nothing — added; the dialog's box grew with the « Supprimer les fichiers » box, on shell/dialog
+    # alone (B-554), named in the acceptance commit.
+    assert reference["counts"] == {"states": 142, "regions": 38}
 
 
 class TestItRefusesToWriteOverAForeignBuild:
