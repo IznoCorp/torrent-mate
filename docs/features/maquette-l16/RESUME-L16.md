@@ -1,49 +1,44 @@
 # L16 — RESUME
 
-## STATE BLOCK (rewritten at every boundary — 2026-09-29, boundary after phase 6b)
+## STATE BLOCK (rewritten at every boundary — 2026-09-29, stand-down after phase 6b, 5c measured)
 
 - **Branch** `feat/maquette-l16`, worktree `/Users/izno/dev/worktrees/wave-l16`, on `origin/main` by MERGE
   (last: `0e523349f`, #627, merged at the 6a boundary — its only conflict the oracle reference, where main moved
   the header alone). `git merge --no-edit` at a phase boundary; NO force push, ever.
 - **Orchestrator** « Orch : TM frontend [79475d] »; always write the reference. The gauge script runs here:
   `context-gauge.sh`, its `context_percent=` and `source=` lines in every report. Exit boundary ~55 %.
-- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 6a · 6b — each gated, mutated, pushed. **Next: 5c** (ruled
-  2026-09-29: after 6b, before 7) — L22 RULINGS 25 inherited through #627 into phase 5: Zinzins (real, from
-  `moving.json`) into the downloads seed, its « En vol » card gone, a hold « Zinzins downloading is readable in
-  Torrents » in R261 with its mutation, R229 `follow_offered.py` re-aimed OUT LOUD with the removed state's
-  successor named; the opening measure counts the READERS of « En vol ». Then 7.
+- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 6a · 6b — each gated, mutated, pushed. **Next: 5c**, opening
+  measure DONE (2026-09-29, ≈ 14 points, nothing written) — steward's ruling: 5c after 6b, before 7; L22 RULINGS
+  25 (read at `232a908ca`, § 25) enters mid-lot under order 69 because it changes the Torrents tab this lot builds.
+  The shape: the server (the mock) sends no direct-add card before « arrivé » — Zinzins leaves `moving.json`
+  (5 cards → 4) and enters `downloads.json`, downloading. Real: title, ids (tvdb 73248), S03E14, progress 0.34
+  (`moving.json`), its sheet in `media-sheets.json` (R1 holds). ABSENT from `acquire.db` (`staging_provenance`,
+  `download_marks`: 0 rows), so COMPOSED and said: infoHash, release name (after `releases.json`'s
+  « Les.Zinzins.de.l.Espace…-JiHEFF »), sizeBytes (1.2 GB, `releases.json`), tracker, origin true, ratio 0,
+  deadline null. READERS of « En vol » to run green before AND after (order 42): requester_line,
+  abandon_quarantines, scroll_keeps_place, audit2, actions, content, now_holds_in_flight, one_card_per_medium,
+  ident, one_ladder, release_take_sentence, follow_offered, release_candidates. R229 `follow_offered.py`:
+  OFFERED = the first unfollowed series of MOVING = Zinzins alone → re-aim OUT LOUD, successor to VERIFY:
+  an ARRIVED unfollowed series of `settled-loaded.json` (« The Bombing of Pan Am 103 », « Smiling Friends »),
+  its « Suivre » foot drawn on `acq-now-loaded`; new hold on Zinzins « never « Suivre » before arrival »; in
+  R261 the hold « Zinzins downloading is readable in Torrents » with a mutation that fells it by name. The
+  oracle: every state drawing « En vol » loses a card — declared by script, layers included.
 - **Remaining** (from `ls plan/`): 5c · 7 · 8 · 9 · MIDPOINT FULL SUITE · 10 · 11 · 12 · 13 · 14 · 15 · 16 · 17.
   Known STOP D: 9 (no « vu » precedent), 12 (ratio cause = global `ingest.min_ratio`; the seed),
   14 (no read of a config file's content in the maquette's contract).
-- **Rulings** (`RULINGS.md`): 1 — the tab's parameter is `?list=`; 2 — C2, the policy rows raise the settings
-  page's own `setting` panel, its save bar drawn on Trackers through `lib/save-bar-door.tsx`; 3 — B, the filter
-  line « Filtré sur <tracker> · Tout voir », lifted by the `trackers-filter` verb given no tracker.
-- **Rules** R260 `trackers_page.py` (h) · R261 `trackers_roster.py` (a; holds 1–16, the Torrents tab since 5a,
-  its filter and empties since 5b) · R262 `trackers_policy.py` (b) · R263 `trackers_removal.py` (c, the single-entry case); R122 `paths_to_sheets.py` reads
-  `torrents/row`; `page_host.py`'s walk reaches `trackers`. Still to bind: d R264 (8) · g R265
-  (12) · f R266 (14) · e R267 (16); cuts take R268+. Register rows B-570–B-589, none taken.
-- **Gate (orders 49, 58, 59, 65, 70)**: static list first (CI `no-french` job + cheap guards, typecheck) →
-  `run.sh --oracle` ALONE (class browser) → acceptance `bash -c 'run.sh --oracle; oracle.py --accept'` in ONE
-  browser invocation (`--accept` needs the host `run.sh` starts), then `python3
-  ~/Library/Logs/tm-l16/tools/accept_by_name.py <declared.json>` (declared list built by script) → `run.sh
-  --rules <re-aimed rules + the surface's group>` in `--class rule` → `--a11y` (browser) on a drawing gate.
-  NO `--contracts` at a phase gate: it runs at 9 (midpoint full suite), 14 and the close. entry R62 and pwa
-  (R52, R105, R108, R111) are out of phase gates. Single-rule mutations run `--class rule`. Order 48 light:
-  series in `--rules`; a known-unstable rule the phase does not read: 5 draws, stop at 0/5.
-  `test_oracle.py`'s pinned count moves with every new state (142 states, 38 regions).
-  `check-maquette-comments.py --record` INSIDE the commit when a maquette file is added.
-- **Order 52**: harness lines added ≤ 0.6 × `design/src` lines added (`git diff --numstat origin/main...HEAD`);
-  at 5b: 737 / 1452 = 0.51. A new check on a surface with a rule is a HOLD in that rule's file.
-- **A phase that adds `data-mediasheet` runs `audit.py` at its gate** (R1 / R1 bis: every sheet behind a
-  tap is filled, a castless one says so). A phase touching `ui/dialog` runs the dialog's readers.
-- **B-554 in practice**: a new dialog moves `shell/dialog` on every state measured after it (24 at 6a); declared
-  by script from the oracle-only reading, all with the same box pair. The light a11y ceiling (88) refuses
-  `.warnbox > b` (the warning block) — say a warning in a paragraph's strong run.
-- **Traps**: `git fetch` is blocked by a hook on the word — `git remote update origin`. The driver's reset
-  (`harness/drive.ts`) clears the dials a state can move; a new dial that changes a drawing joins it.
-- **Mock state**: `mocks/trackers-state.ts` holds trackers / downloads / obligations and their dials
-  (`setTrackersEmpty`, `setDownloadsEmpty`, `setTrackerIdle`, `setObligationSatisfied`); `mocks/index.ts` is
-  at 399 non-blank lines — nothing more fits there (the dials spread in without a line).
+- **Rulings** (`RULINGS.md`) 1 `?list=` · 2 C2, save bar via `lib/save-bar-door.tsx` · 3 B, the filter line · 4 B1,
+  Lanterns's sheet from its NFO + R1 re-aimed (R1 bis).
+- **Rules** R260 `trackers_page.py` · R261 `trackers_roster.py` (holds 1–16) · R262 `trackers_policy.py` · R263
+  `trackers_removal.py` (15); R122 reads `torrents/row`; `audit.py` 14 holds. Next labels: d R264 (8) · g R265 (12) ·
+  f R266 (14) · e R267 (16); cuts R268+. Register B-570–B-589 none taken.
+- **Gate** (orders 49/58/59/65/70, brief § Method): static list → `run.sh --oracle` alone → accept with
+  `bash -c 'run.sh --oracle; oracle.py --accept'` (one browser call) + `tools/accept_by_name.py <declared.json>`
+  (declared by script) → `run.sh --rules` (`--class rule`) → `--a11y` if it draws. The static list AGAIN after any
+  harness edit. `test_oracle.py` pinned 142 states / 38 regions. `--record` comments when a maquette file is added.
+- **Order 52** harness/product added 0.51 at 5b. `data-mediasheet` added ⇒ `audit.py` at the gate; `ui/dialog`
+  touched ⇒ its 13 readers. A new dialog moves `shell/dialog` on ~24 later states (B-554); `.warnbox > b` fails light.
+- **Traps** `git fetch` blocked by a hook (use `git remote update origin`); `markup_anchors.GENRE_SITES` keyed by line.
+- **Mock** `mocks/trackers-state.ts`: trackers/downloads/obligations/removals + dials; `mocks/index.ts` full (399).
 - **Logs** `~/Library/Logs/tm-l16/`; the proof tool lives in `tools/` there.
 
 ---
@@ -181,3 +176,5 @@
   keys `audit.py`'s declared class sites BY LINE, and R1's re-aim moved them 114 → 125, 180 → 191. My slip:
   the static list ran BEFORE `audit.py` was edited and was not re-run after. Re-keyed, fixture followed; the
   three test files 150 passed. Rule kept: the static list runs again after ANY harness edit, before a push.
+- 2026-09-29 — 5c opening measure ≈ 14 (above); stand-down on the steward's word at gauge 43 %, every phase
+  pushed, tree clean. The successor opens 5c on this measure.
