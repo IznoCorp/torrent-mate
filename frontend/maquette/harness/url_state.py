@@ -172,6 +172,7 @@ PAGE_WALKS = {
     "acq": ['#nav button[data-page="acq"]'],
     "lib": ['#nav button[data-page="lib"]'],
     "discover": ['#nav button[data-page="discover"]'],
+    "trackers": ['#nav button[data-page="trackers"]'],
     # RE-AIMED OUT LOUD: Système left the tab bar (ruling 15) — the menu, then
     # its drawer entry.
     "sys": ['[data-drawer]', '#drawer [data-navgo="sys"]'],

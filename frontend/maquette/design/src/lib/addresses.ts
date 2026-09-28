@@ -20,6 +20,7 @@
 export const PAGE_PATHS: Readonly<Record<string, string>> = {
   acq: "/acquisition",
   lib: "/media",
+  trackers: "/trackers",
   discover: "/discover",
   sys: "/system",
   maint: "/maintenance",

@@ -5,10 +5,10 @@
 - **Branch** `feat/maquette-l16`, worktree `/Users/izno/dev/worktrees/wave-l16`, cut from L22b's head
   `a227ad6cb` (PR #626). `origin/main` is NOT merged in — only on the steward's word that L22b is squashed.
 - **Orchestrator** « Orch : TM frontend [84baa3] ». Handshake answered 2026-09-28.
-- **Done** phase 1 (the reads' contract).
-- **Next** phase 2 (the page and its two tabs) — re-measure first; the brief predicts a cut (≈ 19).
-- **Remaining phase list**, rebuilt from `ls plan/`: 2 · 3 · 4 · 5 · 6 · 7 · 8 · 9 · (midpoint full suite) ·
-  10 · 11 · 12 · 13 · 14 · 15 · 16 · 17.
+- **Done** phase 1 (the reads' contract); 2a committed, its gate next.
+- **Next** 2b (the two dials, the tab strip, the tab memory; R260 re-aimed).
+- **Remaining phase list**, rebuilt from `ls plan/`: 2b · 3 · 4 · 5 · 6 · 7 · 8 · 9 · (midpoint full suite) ·
+  10 · 11 · 12 · 13 · 14 · 15 · 16 · 17. Phase 2 was cut 2a / 2b at its opening (≈ 18).
 - **Known STOP D, one message each at its phase's opening**: 4 (how the three policy fields compose),
   9 (no « vu » precedent), 12 (the ratio cause is the global `ingest.min_ratio`; the seed), 14 (no read
   of a config file's content in the maquette's contract).
@@ -45,3 +45,9 @@
   threshold is served from the settings seed, never seeded twice. Register 68→71 required, 21→22
   missing, 47→49 shape, 18→16 unused. `tracker` added to `scripts/code-vocabulary.txt`. Slip: one
   read-only `cd` into `design/src/mocks/seeds` (B-384), left at once, nothing written or run there.
+- 2026-09-28 — phase 2 opening measure on `c261da20d` ≈ 18 → CUT 2a / 2b by kind (steward agreed). R260
+  (`trackers_page.py`) RED by `run.sh --rules` (`p02a-red.log`): 7 FAIL — no table row, no address, no
+  button, no landing, the bar at three, `/trackers` cold → 404. Readers re-aimed: `url_state.py` PAGE_WALKS,
+  `page_host.py` SHELL_OWNED / FLOORS (trackers 2: heading, body, container), R241 `arrivals_gone.py`'s
+  THE_BAR_WANTED (said out loud). Frame-domain ceiling app/ 131 → 139 (+8, the guard with and without).
+  Words `tracker`, `trackers` in the vocabulary.

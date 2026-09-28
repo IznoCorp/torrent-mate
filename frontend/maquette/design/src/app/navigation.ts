@@ -41,6 +41,7 @@ import { NotFoundPage } from "./not-found";
 import { SettingsPage } from "../features/settings/page";
 import { systemBadge, useSystemBadgeReads } from "../features/system/badge";
 import { SystemPage } from "../features/system/page";
+import { TrackersPage } from "../features/trackers/page";
 import { PAGE_PATHS } from "../lib/addresses";
 import { icons } from "./icons";
 
@@ -107,7 +108,9 @@ export type NavigationRow = {
  *
  * THE BAR DRAWS THE BUTTONS PRESENT, each at 1/n of its width, n from 2 to 4 —
  * never an empty slot, and one page draws no bar at all (a frame rule, R232).
- * It holds the places one goes to every day; Système is reached from the drawer
+ * It holds the places one goes to every day, in this order: Acquisition,
+ * Médiathèque, Trackers, Découvrir — four, the most it draws, and the fourth is
+ * Découvrir's, never a free one. Système is reached from the drawer
  * and the menu button carries its badge (ruling 15). Réglages and Maintenance
  * are PAGES and not tabs either: a setting is what one goes to CHANGE and a
  * maintenance command is something one goes to DO. They are reached from
@@ -136,6 +139,20 @@ export const NAVIGATION: readonly NavigationRow[] = [
     group: "supervision",
     inBar: true,
     slotReplacesTabBar: true,
+  },
+  {
+    // « TRACKERS », THE BAR'S THIRD PLACE: inserted between Médiathèque and
+    // Découvrir, never appended after a free slot. Its two tabs are dials of
+    // the page, not pages.
+    id: "trackers",
+    path: PAGE_PATHS.trackers,
+    Body: TrackersPage,
+    root: "body",
+    region: "trackers/body",
+    labelKey: "navigation.pages.trackers",
+    icon: icons.transfer,
+    group: "supervision",
+    inBar: true,
   },
   {
     // « DÉCOUVRIR », A PAGE OF THE BAR: it left

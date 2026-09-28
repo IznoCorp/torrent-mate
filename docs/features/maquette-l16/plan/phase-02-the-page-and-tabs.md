@@ -57,6 +57,8 @@ try/catch, falling back to `"trackers"` — the same mechanism as Acquisition's 
   which the prior phase 2 read as STOP C, are RULED (DESIGN § 5): this phase reads no more than OPEN
   4.
 
+**Cut at its opening (2026-09-28, on `c261da20d`, ≈ 18 > 15, the steward agreeing): 2a — the page, its route, its bar row, its readers, R260's bar holds; 2b — the two dials, the tab strip and the tab memory, R260 re-aimed with the ADJUST holds.**
+
 A BEHAVIOUR change: the page did not exist; it now resolves, has its button in the bar, and its two
 dials read and write.
 
