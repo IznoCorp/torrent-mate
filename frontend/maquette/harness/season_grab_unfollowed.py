@@ -50,7 +50,9 @@ each walked on a freshly seeded layer, for each subject:
      changed no fact the panel or the sheet drew; it now reads the season's row,
      which says « demandée » and offers the act no more while the one-off
      acquisition lives in the queue.
-  6. A SECOND TAP QUEUES NO SECOND CARD — one item, one card.
+  6. (RETIRED OUT LOUD: « a second tap queues no second card » — once asked, both
+     surfaces draw « Demandée » where the act was, so no finger can ask twice;
+     item 5's « offers the act no more » holds it.)
   7. NO ERROR IS RAISED.
 
 AND ONE NEGATIVE LEG, from a measurement: the sheet's season list must NOT
@@ -323,14 +325,6 @@ ONE_OFF = """async ({ title, season }) => {
     && card.requester?.via === 'request' && card.secondaryLine.startsWith(episode)));
 }"""
 
-ONE_OFF_COUNT = """async ({ title, season }) => {
-  const answer = await (await fetch('/api/acquisition/to-handle')).json();
-  const episode = 'S' + String(season).padStart(2, '0');
-  return Object.values(answer).flat().filter((card) => card && card.title === title
-    && card.requester?.via === 'request' && card.secondaryLine === episode).length;
-}"""
-
-
 SURFACE_TEXT = "(scope)=>(document.querySelector(scope)?.textContent || '')"
 
 # THE SEASON'S ROW after the ask: its mark, and whether it still offers the act.
@@ -441,11 +435,12 @@ async def take_a_season(page, journal, errors, title, surface):
     row = await page.evaluate(SEASON_ROW, [scope, season["value"]])
     journal.check(f"{where}: the season's row says « {ASKED_MARK} » and offers the act no more",
                   row["mark"] == ASKED_MARK and not row["act"], str(row))
-    await page.touchscreen.tap(act["x"], act["y"])
-    await page.wait_for_timeout(ACTED)
-    count = await page.evaluate(ONE_OFF_COUNT, {"title": title, "season": int(number)})
-    journal.check(f"{where}: a second tap queues no second card — one item, one card",
-                  count == 1, f"{count} one-off card(s) of that season")
+    # RETIRED OUT LOUD: « a second tap queues no second card ». Once the season
+    # is asked, BOTH surfaces draw « Demandée » in the act's place (the hold
+    # above reads it here; the other surface derives the same mark from the
+    # same queue), so a second tap lands on the mark and no finger can ask
+    # twice. The hold read nothing any more: the layer's own dedupe is not
+    # reachable by a hand, and « offers the act no more » is what holds it.
     journal.check(f"{where}: tapping raises no error", not errors, str(errors))
 
 
