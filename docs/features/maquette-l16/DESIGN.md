@@ -45,7 +45,7 @@ sub-surface, both folded into § 4.2 and § 4.5 below.
 
 **Where L16 opens in the order, and why.** L16 lands **after L22b**: L22b's phase 19 takes Système
 out of the bar, its phase 25 deletes the `arr` row, and its own porting of round 8's Q20 puts
-Découvrir in the bar as the third button (`docs/features/maquette-l22/plan/INDEX.md`; L22a = phases
+Découvrir in the bar as the third button (`docs/features/maquette-l22/plan/INDEX.md@232a908ca`; L22a = phases
 1–14, L22b = phases 15–27). **At that point the bar already reads `acq · lib · discover`, three
 buttons** — this is the tree L16 opens on, corrected from the first two readings, which believed
 the bar stood at two (F10). L16 **inserts Trackers between Médiathèque and Découvrir**: an account
@@ -77,7 +77,7 @@ interface, must read as gone, never as an anomaly) but its surface changes: § 4
 And one register row this lot is named against directly: **DOIT-2**'s ratio half — « a torrent
 deferred for ratio or space ». Its surface is the acquisition card, not Arrivées: after L22 the page
 Arrivées does not exist, and the map's proposed DOIT-2 surface is `features/acquisition` — « a card
-says why it waits » (`docs/features/maquette-l22/DESIGN.md` § 6.3). The card never draws the
+says why it waits » (`docs/features/maquette-l22/DESIGN.md@232a908ca` § 6.3). The card never draws the
 ratio-specific reason today, and the audit found the first drawing's own answer wrong in its source,
 not only in its surface (F14, § 4.6). **No proposed decision anywhere in this design**: § 18's own
 words, « l'interface expose ; l'opérateur juge », hold for every screen below.
@@ -85,7 +85,7 @@ words, « l'interface expose ; l'opérateur juge », hold for every screen below
 ### 0.1 The rulings this design is read against, and what each moved
 
 The rulings are the operator's and are not reopened here. « Organisation ruling N » is his entry in
-`docs/reference/operator-method.md`, numbered as `docs/features/maquette-l22/DESIGN.md` § 0 numbers
+`docs/reference/operator-method.md`, numbered as `docs/features/maquette-l22/DESIGN.md@232a908ca` § 0 numbers
 1–15 and this design's own re-read continues from 16.
 
 | Ruling / question | What it dictates | What it moved in this design |
@@ -220,6 +220,11 @@ it).
    cross-seed of it (the colour ruling 18 asks for). A torrent cross-seeded onto several trackers has
    ONE ROW PER ENTRY — the shape `AcquisitionDownload` already has, per active qBittorrent entry, not
    per underlying file — so this is an EXTENSION of an existing field set, not a new list.
+
+   **Amended 2026-09-27 18:1x (L23 round 11, OPEN 5 = B):** the origin-colour mark gains a THIRD value,
+   « publié par vous », beside « the original grab » and « a cross-seed of it » — read on a torrent this
+   application itself created and published on that tracker (`docs/features/maquette-l23/DESIGN.md` § 7 OPEN 5;
+   `review-archive/l23/rulings-round11.md`).
 4. **A ratio-derived field on `TrackerResult`**, so a `RankingCriterion` with `field:
    "tracker_ratio_state"` (or equivalent) can score it exactly as `field: "provider"` already
    does — `rank()`'s `getattr(r, c.field, None)` (§ 2.1) needs nothing else.
@@ -355,7 +360,7 @@ where one is proposed; none is retyped where a key already exists.
 `inBar: true`, `group: "supervision"` (the group of the pages one goes to SEE — Acquisition,
 Médiathèque, Découvrir), `root: "body"`, `region: "trackers/body"`, and, from the alert's phase,
 `badge: trackersBadge` — a function the feature exports and the frame names once, never its counter
-(`docs/features/maquette-l22/DESIGN.md` § 3.6). The row is the page's whole declaration; the tabs
+(`docs/features/maquette-l22/DESIGN.md@232a908ca` § 3.6). The row is the page's whole declaration; the tabs
 draw what the two dials say.
 
 **The bar around it (ruling 20, F10).** Once L22b lands, the bar already reads `acq · lib ·

@@ -269,6 +269,9 @@ needs no new surface beyond S1 (§ 2.3), drawn on an existing row; B needs a new
 `features/trackers` (the library, or the media sheet), a new eligibility read, and a new confirmation naming why a
 file with no active torrent is safe to publish — a materially larger lot.
 
+**Ruled 2026-09-27 17:4x (round 11) = A.** Only a torrent ACTIVE in qBittorrent, complete and seeding, from its
+own row in « Torrents » — never reading B (`review-archive/l23/rulings-round11.md`, OPEN 1).
+
 **OPEN 2 — to which trackers.** *Reading A*: any tracker whose EXISTING cross-seed switch (L17's own, DESIGN §
 3.2) is ON — upload rides the same per-tracker gate as ordinary cross-seed, no new switch. *Reading B*: a SEPARATE
 per-tracker « accepts uploads » switch, because a tracker may welcome being cross-seeded onto (an injection it did
@@ -277,6 +280,10 @@ require an uploader of record, or forbid duplicate uploads by non-staff). **Cost
 configuration; B needs one new per-tracker boolean — a new Réglages row, mirrored on the tracker's own entry, the
 SAME « one write, two doors » pattern L16/L17 already use (cheap in KIND, but a new key nonetheless), and the
 named state `tracker-upload-disabled` (§ 3, state 6) becomes real rather than merely proposed.
+
+**Ruled 2026-09-27 18:0x (round 11) = B.** A SEPARATE « accepte les uploads » switch, distinct from the existing
+cross-seed switch, in Réglages and on the tracker's own entry (one write, two doors); `tracker-upload-disabled`
+becomes real (`review-archive/l23/rulings-round11.md`, OPEN 2).
 
 **OPEN 3 — what the tracker's rules require.** *Reading A*: the maquette draws NOTHING of a tracker's own upload
 rules (category, private flag, source tag, a minimum ratio to be ALLOWED to upload) — the backend enforces them
@@ -287,6 +294,10 @@ A is the D7 discipline this codebase already holds everywhere — no new read, n
 B needs a new per-tracker rule read, a new mock shape, and a form — a materially bigger surface for a case
 NE-DOIT-PAS-8 already treats as the backend's to enforce, and named state 7 (§ 3) becomes real only under B.
 
+**Ruled 2026-09-27 18:0x (round 11) = A.** The interface pre-validates nothing; the backend applies the tracker's
+publication rules and returns a reasoned refusal, read on the torrent's own row
+(`review-archive/l23/rulings-round11.md`, OPEN 3).
+
 **OPEN 4 — what a failed or refused publication leaves behind.** *Reading A*: NOTHING beyond the pair's own row
 reading « erreur de cross-seed » with its reason (§ 2.2) — no temporary file, no partial record, ever surfaces;
 the same discipline as an ordinary cross-seed refusal. *Reading B*: a failed attempt is recorded on the TRACKER's
@@ -296,6 +307,10 @@ account's uploads is a signal worth accumulating, unlike an ordinary search miss
 what L17 already draws; B repeats a mechanism L16 already had to build once (a new sub-disclosure, a new « vu »
 write, a new demand) — not a new KIND of cost, but a second instance of one, and named state 8 (§ 3) becomes real
 only under B.
+
+**Ruled 2026-09-27 18:1x (round 11) = A** (operator typed « TA », confirmed A). Only the torrent's own row remains,
+« erreur de cross-seed » with the refusal's reason, counted in the badge while in error; no counter on the
+tracker; named state 8 stays proposed, never real (`review-archive/l23/rulings-round11.md`, OPEN 4).
 
 **OPEN 5 — how the ratio counts an uploaded torrent.** *Reading A*: EXACTLY like any other cross-seed entry (L16's
 own rule, ruling 18) — the ratio on that tracker is computed on the torrent's own SIZE, never a division by zero,
@@ -309,3 +324,8 @@ application's own hand. **Cost**: A costs nothing beyond what L16/L17 already ca
 EXISTING field, touching the one place S3's own colour mark is drawn (L16's, read never amended by this document)
 — cheap in the writing, but a value nothing today anticipates, and it is the one reading among the five that
 reaches INTO another lot's own field rather than adding a field of L23's own.
+
+**Ruled 2026-09-27 18:1x (round 11) = B.** The ratio is computed like any torrent's, on its size (Reading A's
+mechanism stands); the origin mark gains a THIRD value, « publié par vous », beside « téléchargé ici » and
+« cross-seed » — L23 lays the value, `docs/features/maquette-l16/DESIGN.md` § 2.3 item 3 gets its own dated line
+(`review-archive/l23/rulings-round11.md`, OPEN 5). ROUND 11 COMPLETE 5/5.

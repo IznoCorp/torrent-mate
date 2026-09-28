@@ -112,7 +112,7 @@ points, cut into two.**
 
 | # | Phase | What it lands | Rules | Points |
 | ---: | --- | --- | --- | ---: |
-| 1 | [The contract](phase-01-contract.md) | `readAccount` re-shaped; `signInWithPlex`, `reassignRequester` (keyed card+follow), `setAcquisitionQuality`, `setAcquisitionPause` declared; `takeQueued` gains `403` or is re-aimed per F42; `Follow`/`QueueCard` gain `requesters: AccountId[]` (F27); register regenerated | — | 14 |
+| 1 | [The contract](phase-01-contract.md) | `readAccount` re-shaped; `signInWithPlex`, `reassignRequester` (keyed card+follow), `setAcquisitionQuality`, `setAcquisitionPause` declared; `grabForFollow` re-aimed per F42 (`takeQueued` retired by L22b phase 33, already declares `403`); `Follow`/`QueueCard` gain `requesters: AccountId[]` (F27); register regenerated — opening measure re-taken at phase open | — | 14 |
 | 2 | [The identities in the mock](phase-02-identities-in-the-mock.md) | `seeds/accounts.json` — six seed ROLES, not per-account options (DESIGN § 2.2); `MockDials` with `setForbiddenWrites(list)` replacing `setCeiling(bool)`; resting maquette proved whole | a | 14 |
 | 3 | [The model](phase-03-the-model.md) | `features/account/rights.ts` — role → rights over the full 18-row table (DESIGN § 1.2), Admin's bypass, Default's seed, the unit table | b | 15 |
 | 4 | [The refusal — the guard mechanism](phase-04-the-refusal-guard-mechanism.md) | `route()` names a right; one guard in the mock; the original write families (acquisition, pipeline, configuration, accounts) named | c | 14 |

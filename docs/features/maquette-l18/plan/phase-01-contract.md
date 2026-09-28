@@ -18,6 +18,11 @@ start against the head it actually opens on.
 - **Points ≈ 12.** three operations declared new — `signInWithPlex`, `reassignRequester`, `setAcquisitionQuality` (6) + two operations edited — `readAccount` re-shaped, `takeQueued` gains its `403` (2) + the `Account` schema and its small shared schemas, ≈ 30 new lines (3) + the register regenerated, `--write` then `--check` (1).
 - **What to cut if the opening measure exceeds 15.** If the card's identity is two (mediaId and followedId), `reassignRequester` is two rows (+2 → 14, still under 15).
 
+**Amended (steward, L22's close, 2026-09-28): `takeQueued` is GONE.** L22b phase 33 retired it in favour of
+`grabForFollow` (`POST /api/acquisition/followed/{followedId}/grab`), which already declares its own `403` — this
+opening measure's « `takeQueued` gains its `403` » edit and its point are stale; **re-take the whole measure when
+this phase opens**, since the contract has grown past 63 operations since it was last read (`docs/features/maquette-l18/DESIGN.md` § 6.2 row L, § 2.1 — both re-aimed at `grabForFollow`, settled, not conditional).
+
 The contract comes first because `scripts/compare-contracts.py --check` refuses the artefacts apart and because the demands are what make the design's proposals decisions rather than discoveries. **DESIGN § 6.2 rows D, E, I, K, L.** `readAccount` gains the role (operator, household member, guest, none), the two options, the Plex link's state and the instance's ceiling (carried by the one read — one path, NE-DOIT-PAS-7). Demand F (`readAccounts`) is filed by phase 10, G and H by phase 22: **a demand is filed where its surface is drawn**.
 
 ## Red today
