@@ -177,3 +177,7 @@
   (`p06b-mutation-r1bis.log`); the obligation paragraph dropped → R263 FAIL « the box unchecked, the running
   obligation on c411 is still named » (`p06b-mutation2.log`; the naming is static, independent of the box by
   construction). Rules audit 14 · audit2 13 · R263 15 · R261 56 · R122 13, 0 failed; oracle no divergence.
+- 2026-09-29 — 6b push refused by the pre-push: `test_check_markup_contracts` (3 FAILED) — `scripts/markup_anchors.py`
+  keys `audit.py`'s declared class sites BY LINE, and R1's re-aim moved them 114 → 125, 180 → 191. My slip:
+  the static list ran BEFORE `audit.py` was edited and was not re-run after. Re-keyed, fixture followed; the
+  three test files 150 passed. Rule kept: the static list runs again after ANY harness edit, before a push.
