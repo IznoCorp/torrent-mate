@@ -369,7 +369,9 @@ def test_the_committed_reference_carries_a_platform():
     # 135 SINCE L22b's phase 41: acq-todo-dense, « À traiter » in the dense world, where the rules
     # that began on the Arrivées page's folders begin now (RULINGS 29) — added; acq-identify and
     # the two resolution states lay « À traiter » beneath their screen instead of Arrivées.
-    assert reference["counts"] == {"states": 135, "regions": 39}
+    # 136 SINCE L22b's phase 42: acq-card-identity-unknown, an arrival in flight whose identity is
+    # not known yet, POSED on « Conclave » — added, nothing else moved.
+    assert reference["counts"] == {"states": 136, "regions": 39}
 
 
 class TestItRefusesToWriteOverAForeignBuild:

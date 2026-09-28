@@ -59,15 +59,12 @@ from playwright.async_api import async_playwright
 # `acq-follows-paused`, the same list with its paused fold opened: the paused
 # follows' panels are addressed from inside the fold, which a closed fold hides
 # from the finger.
-SURFACES = ["acq-todo-dense", "acq-follows-paused"]
-
-# B-313'S OWN BRANCH IS SET ASIDE, SAID OUT LOUD. The panel whose primary act
-# falls through to the journey is `primaryAction`'s last branch: an arrival in
-# flight the sort has not identified yet. Only the Arrivées page drew one; no
-# seed reaches it anywhere else (25 panels opened on five surfaces, none). The
-# hold below is given back on a case POSED on a real in-flight arrival, and
-# until then it is not asserted.
-BRANCH_SET_ASIDE = True
+#
+# AND B-313'S OWN BRANCH — the panel whose primary act falls through to the
+# journey, `primaryAction`'s last branch — is an arrival in flight the sort has
+# not identified yet. No seed draws one outside the dead Arrivées page, so it is
+# read on a case POSED on a real arrival in flight, « Conclave », and said so.
+SURFACES = ["acq-todo-dense", "acq-follows-paused", "acq-card-identity-unknown"]
 
 # THE DISTINCT PANELS A SURFACE ADDRESSES. A card offers the same panel from
 # its folder button and from its body; both are the same descriptor, so the
@@ -169,15 +166,14 @@ async def main():
 
         # ── AND IT REACHED THE BRANCH THE DEFECT LIVED IN ──────────────────
         subjects = [one for one in raised if one["leadsToJourney"]]
-        if not BRANCH_SET_ASIDE:
-            journal.check(
-                "and it reached a panel whose PRIMARY act leads to the journey — "
-                "B-313's own branch, a medium with no sheet that nothing is "
-                "chasing. Held by the destination and never by the word, so "
-                "retouching the copy cannot silently empty this walk",
-                bool(subjects),
-                f"{len(subjects)} such panel(s): "
-                + ", ".join(one["address"] for one in subjects))
+        journal.check(
+            "and it reached a panel whose PRIMARY act leads to the journey — "
+            "B-313's own branch, a medium with no sheet that nothing is "
+            "chasing. Held by the destination and never by the word, so "
+            "retouching the copy cannot silently empty this walk",
+            bool(subjects),
+            f"{len(subjects)} such panel(s): "
+            + ", ".join(one["address"] for one in subjects))
 
         # ── THE RULE ITSELF ────────────────────────────────────────────────
         offenders = [

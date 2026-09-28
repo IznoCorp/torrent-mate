@@ -172,6 +172,18 @@ export function tunnelStates(): NamedState[] {
       },
     ],
     [
+      "acq-card-identity-unknown",
+      "En cours — une arrivée en vol dont l'identité n'est pas encore connue, POSÉE sur Conclave (le back-end lira le rung « identifié » en cours)",
+      () => {
+        // A DERIVATION, SHOWN AS ONE: every seeded arrival in flight is
+        // identified, so « not known yet » is posed on a real one.
+        window.__mocks?.poseUnknownIdentity("Conclave");
+        window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
+        window.__queries?.removeQueries({ queryKey: ["/api/staging/media"] });
+        applyState({ page: "acq", acqTab: "now", scen: "loaded", phase: "ready" });
+      },
+    ],
+    [
       "acq-card-follow-error",
       "À traiter — une erreur de tunnel sur la carte d'un SUIVI, POSÉE sur Furious (le back-end lira l'étape en échec du suivi — RULINGS 26)",
       () => {
