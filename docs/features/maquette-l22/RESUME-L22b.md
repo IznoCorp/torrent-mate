@@ -353,3 +353,13 @@ L22b appends from 13).
   panel_label_once 3 → 2 and paths_to_sheets 13 → 11 are THIS phase's, said above; cards 68 → 77 and fanout 150 → 152
   are not attributable against a baseline that old (none of this phase's edits adds a hold there — cards lost two states).
   actions.py and ident.py print prose, compared on exit only. `41-a11y.log` 0 + light 88/88 (135 states).
+- 2026-09-28 cards / fanout ATTRIBUTED (the steward's demand, before phase 42): a fresh base on cdb19a7c4 (just before
+  41), taken by `git checkout cdb19a7c4 -- frontend/maquette` in this tree (no file added since:
+  `git diff --name-only --diff-filter=A cdb19a7c4 HEAD -- frontend/maquette` empty; the served copy rebuilt by run.sh;
+  restored, `git status` empty; the tool dates the record at HEAD since it reads HEAD — scratchpad only):
+  `42-baseline-cdb.log` cards 75, fanout 152. fanout: unchanged by 41. cards: 77 after 41, a net +2 HIDING A FALL OF
+  MINE — CARD_STATES lost arr-idle AND arr-loaded (R41/R42, cards.py:165–187, 3 holds per state plus its inline items)
+  and only the first had a successor already read; the dense world's cards were read by no card state. Repaired
+  1639f7d61 (acq-todo-dense in CARD_STATES, out loud): `42-cards-compare.log` cards 84 (+7: the state's 3 + 4 inline
+  items), fanout 152. Mutation `42-mutation-dense.log`, the dense-only folder « doc_fr_2026_final »'s body without
+  `data-panel` → cards FAIL « R46 acq-todo-dense « doc_fr_2026_final »: a folder addresses no panel ».
