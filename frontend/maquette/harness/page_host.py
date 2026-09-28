@@ -191,6 +191,9 @@ async def main():
         compared = {name: len(hits) for name, hits in signatures.items()}
         walked_twice = [name for name in signatures
                         if walk.count(name) < 2]
+        # AND EVERY PAGE THE SHELL OWNS IS IN THE WALK, or a page added to the
+        # table is never walked and this hold is green over it.
+        walked_twice += [name for name in SHELL_OWNED if name not in signatures]
         journal.check(
             "every page in the walk was reached from two different predecessors",
             not walked_twice and not absent,
