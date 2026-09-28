@@ -44,8 +44,11 @@ each walked on a freshly seeded layer, for each subject:
   4. THE SENTENCE IS THE SEASON'S OWN, with no follow in it — read from
      `fr.json`; RE-AIMED OUT LOUD from the `…NewlyFollowed` sentences, which
      retire with the follow the act no longer begins.
-  5. THE SURFACE PRESSED READS DIFFERENTLY afterwards — the one the operator was
-     looking at is not the only one that does not know.
+  5. A SECOND TAP QUEUES NO SECOND CARD — one item, one card.
+     RE-AIMED OUT LOUD, AND TEMPORARILY (RULINGS 28): this hold read « the surface
+     pressed reads differently afterwards ». A one-off ask changes no fact the
+     panel or the sheet draws, so the hold is set aside until the season's row
+     says « demandée » and withdraws the act — the next phase gives it back.
   6. NO ERROR IS RAISED.
 
 AND ONE NEGATIVE LEG, from a measurement: the sheet's season list must NOT
@@ -314,7 +317,13 @@ ONE_OFF = """async ({ title, season }) => {
     && card.requester?.via === 'request' && card.secondaryLine.startsWith(episode)));
 }"""
 
-SURFACE_TEXT = "(scope)=>(document.querySelector(scope)?.textContent || '')"
+ONE_OFF_COUNT = """async ({ title, season }) => {
+  const answer = await (await fetch('/api/acquisition/to-handle')).json();
+  const episode = 'S' + String(season).padStart(2, '0');
+  return Object.values(answer).flat().filter((card) => card && card.title === title
+    && card.requester?.via === 'request' && card.secondaryLine === episode).length;
+}"""
+
 
 
 def the_seasons_own(said, season, title):
@@ -387,7 +396,6 @@ async def take_a_season(page, journal, errors, title, surface):
     if not (act["found"] and act["reachable"]):
         return
     number = season["value"].split("|")[-1]
-    looked_at = await page.evaluate(SURFACE_TEXT, scope)
     mark = len(await page.evaluate(ANSWERED))
     errors.clear()
     await page.touchscreen.tap(act["x"], act["y"])
@@ -412,8 +420,11 @@ async def take_a_season(page, journal, errors, title, surface):
     said = await page.evaluate(SAID)
     journal.check(f"{where}: the sentence is the season's own, with no follow in it",
                   bool(the_seasons_own(said, number, title)), repr(said))
-    journal.check(f"{where}: the surface pressed reads differently afterwards",
-                  await page.evaluate(SURFACE_TEXT, scope) != looked_at)
+    await page.touchscreen.tap(act["x"], act["y"])
+    await page.wait_for_timeout(ACTED)
+    count = await page.evaluate(ONE_OFF_COUNT, {"title": title, "season": int(number)})
+    journal.check(f"{where}: a second tap queues no second card — one item, one card",
+                  count == 1, f"{count} one-off card(s) of that season")
     journal.check(f"{where}: tapping raises no error", not errors, str(errors))
 
 

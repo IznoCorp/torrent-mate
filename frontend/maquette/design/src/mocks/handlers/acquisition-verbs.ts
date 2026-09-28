@@ -198,8 +198,10 @@ export function acquisitionVerbRoutes(): MockRoute[] {
         // moves the world — never a success over an unchanged one (B-378) — by
         // queueing ONE acquisition of that season, asked by the account, and it
         // begins no follow. Both worlds hold it, as the flight lists do.
-        if (found === undefined) {
-          const card = oneOff(title, season);
+        // ONE ITEM, ONE CARD: a second ask of the same season queues nothing more.
+        const card = oneOff(title, season);
+        const held = (one: Schemas["QueueCard"]) => one.title === card.title && one.secondaryLine === card.secondaryLine;
+        if (found === undefined && !state.inFlight.some(held)) {
           state.inFlightReel = [card, ...state.inFlightReel];
           state.inFlight = [card, ...state.inFlight];
         }

@@ -354,6 +354,18 @@ field on `QueueCard`. **The hand-added half gets NO posed subject** — posing a
 nobody made: it stays a DEMAND (matching by identity after identification), with a dated line saying why no rule holds
 it.
 
+## 28 — a one-off season: R158's hold 5 set aside for one phase, given back on « demandée » (steward, 2026-09-28; L22b phase 36, STOP)
+
+**The STOP.** Once a season of an unfollowed series is a one-off acquisition (round 10 Q2), the act changes no fact
+the follow panel or the media sheet draws — it reads in « En vol » — so R158's hold 5, « the surface pressed reads
+differently afterwards », fell ×4; and the act stayed offered, so a second tap would queue a second card.
+
+**Ruled (a).** In phase 36: the layer never queues the same season twice (« a second tap queues no second card »,
+held and mutated), and hold 5 is RE-AIMED OUT LOUD — **temporarily**. The hold defends a standing rule: a gesture is
+seen on the surface pressed. **Phase 37 gives it back**: the season's row says « demandée » and withdraws the act while
+the one-off acquisition lives, and R158 holds again « the surface pressed reads differently afterwards » on
+« demandée », mutated. (b), drawing « demandée » in phase 36, was over its measure.
+
 ## 30 — the ladder's figure keeps one meaning; a Plex match waits on its current rung (steward, 2026-09-27; round one, A6)
 
 **The question.** The round's brief asked Star Trek's card to read « 7 sur 8 »; the figure is the current rung's
