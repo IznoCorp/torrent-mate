@@ -7,9 +7,10 @@
 // own row, never a second list.
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
-import { chip, factDetail, factList, factName, factRow, factRowBody, factValue, statusDot } from "../../ui/variants";
+import { chip, factDetail, factList, factRow, factRowBody, factValue, statusDot } from "../../ui/variants";
 import { dayOf, written } from "./format";
 import { useDownloads, useObligations, type Download, type Obligation } from "./queries";
+import { torrentTitle } from "./variants";
 
 /**
  * The obligation one entry owes on its own tracker.
@@ -63,7 +64,7 @@ function TorrentRow({ entry, obligation }: { entry: Download; obligation: Obliga
         />
         <span className={factRowBody()}>
           {/* THE TITLE IS A PATH: its sheet, or its resolution when nobody identified it. */}
-          <button className={factName()} data-part="torrents/title" data-mediasheet={entry.title}>
+          <button className={torrentTitle()} data-part="torrents/title" data-mediasheet={entry.title}>
             {code === "" ? entry.title : `${entry.title} · ${code}`}
           </button>
           <span className={factDetail()} data-part="torrents/tracker">{entry.tracker}</span>
