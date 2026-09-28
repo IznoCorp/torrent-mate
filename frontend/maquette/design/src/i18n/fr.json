@@ -227,7 +227,18 @@
   "screens": {
     "trackers": {
       "tabTorrents": "Torrents",
-      "tabTrackers": "Trackers"
+      "tabTrackers": "Trackers",
+      "ratio": "Ratio {{ratio}}",
+      "ratioUnknown": "Ratio inconnu",
+      "trend": "Tendance : {{trend}}",
+      "trends": {
+        "up": "en hausse",
+        "stable": "stable",
+        "down": "en baisse"
+      },
+      "volumes": "Téléchargé {{downloaded}} Go · Envoyé {{uploaded}} Go",
+      "empty": "Aucun tracker configuré.",
+      "emptyBody": "Les trackers se déclarent dans la configuration ; chacun apparaîtra ici avec son ratio."
     },
     "releases": {
       "back": "Retour",

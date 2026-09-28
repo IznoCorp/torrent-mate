@@ -8,6 +8,7 @@ import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 import { useUiState } from "../../lib/store-access";
 import { segment, segmentTab, viewTabs } from "../../ui/variants";
+import { TrackersTab } from "./trackers-tab";
 
 /**
  * The « Trackers » page.
@@ -40,6 +41,7 @@ export function TrackersPage(): ReactElement {
           ))}
         </div>
       </div>
+      {state.trackersTab === "trackers" ? <TrackersTab /> : null}
     </div>
   );
 }

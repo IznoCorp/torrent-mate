@@ -1,11 +1,9 @@
 // The ratio, tracker by tracker: the configured trackers as their own subject,
 // the download client's entries one per tracker they run on, and the seeding
 // obligations those entries owe.
-import DOWNLOADS from "../seeds/downloads.json";
-import OBLIGATIONS from "../seeds/obligations.json";
-import TRACKERS from "../seeds/trackers.json";
 import { GET, route } from "./shared";
 import { mockState } from "../state";
+import { trackersState } from "../trackers-state";
 import type { MockRoute } from "../router";
 import type { components } from "../../contract/types";
 
@@ -36,17 +34,17 @@ function alertThresholdOf(tracker: string): number | null {
 export function trackerRoutes(): MockRoute[] {
   return [
     route("readTrackers", GET, "/api/trackers", (): Schemas["Tracker"][] =>
-      (TRACKERS as Schemas["Tracker"][]).map((tracker) => ({
+      trackersState().trackers.map((tracker) => ({
         ...tracker,
         alertThreshold: alertThresholdOf(tracker.name),
       })),
     ),
     route("readDownloads", GET, "/api/acquisition/downloads", (): Schemas["Downloads"] => ({
       clientAvailable: true,
-      downloads: DOWNLOADS as Schemas["Download"][],
+      downloads: trackersState().downloads,
     })),
     route("readObligations", GET, "/api/acquisition/obligations", (): Schemas["Obligations"] => ({
-      items: OBLIGATIONS as Schemas["Obligation"][],
+      items: trackersState().obligations,
     })),
   ];
 }

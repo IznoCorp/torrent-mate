@@ -456,6 +456,7 @@ generation
 geometry
 gesture
 get
+gigabyte
 give
 go
 going
@@ -758,6 +759,7 @@ overview
 owed
 own
 owned
+owner
 ownership
 owns
 page
@@ -865,6 +867,7 @@ rank
 ratifies
 ratify
 rating
+ratio
 raw
 react
 read
@@ -959,6 +962,7 @@ ring
 risk
 room
 root
+roster
 route
 router
 routes
@@ -1219,6 +1223,7 @@ transition
 translate
 travel
 travelled
+trend
 trim
 tunnel
 tuples
@@ -1309,6 +1314,7 @@ virtualised
 virtualizer
 visible
 visit
+volumes
 vsw
 waiters
 waiting

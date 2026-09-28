@@ -13,5 +13,22 @@ export function trackersStates(): NamedState[] {
       "Trackers — la page",
       () => applyState({ page: "trackers", phase: "ready" }),
     ],
+    [
+      "trackers-roster",
+      "Trackers — un par tracker",
+      () => {
+        window.__mocks?.reset();
+        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+      },
+    ],
+    [
+      "trackers-roster-empty",
+      "Trackers — aucun tracker configuré",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.setTrackersEmpty(true);
+        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+      },
+    ],
   ];
 }

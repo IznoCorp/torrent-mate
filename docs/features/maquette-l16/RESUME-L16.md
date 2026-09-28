@@ -5,9 +5,9 @@
 - **Branch** `feat/maquette-l16`, worktree `/Users/izno/dev/worktrees/wave-l16`, cut from L22b's head
   `a227ad6cb` (PR #626). `origin/main` is NOT merged in — only on the steward's word that L22b is squashed.
 - **Orchestrator** « Orch : TM frontend [84baa3] ». Handshake answered 2026-09-28.
-- **Done** phase 1; 2a; 2b (pushed `151aa6b56`); 2c committed, its gate next.
-- **Next** phase 3 (the « Trackers » tab, one entry per tracker; R261).
-- **Remaining phase list**, rebuilt from `ls plan/`: 3 · 4 · 5 · 6 · 7 · 8 · 9 · (midpoint full suite) ·
+- **Done** phases 1, 2 (2a · 2b · 2c, pushed `8051b49ca`); 3 committed, its gate next.
+- **Next** phase 4 (the policy and the alert threshold; STOP D on how the three fields compose).
+- **Remaining phase list**, rebuilt from `ls plan/`: 4 · 4 · 5 · 6 · 7 · 8 · 9 · (midpoint full suite) ·
   10 · 11 · 12 · 13 · 14 · 15 · 16 · 17. Phase 2 was cut 2a / 2b at its opening (≈ 18), 2b re-cut 2b / 2c at its own (≈ 17).
 - **Known STOP D, one message each at its phase's opening**: 4 (how the three policy fields compose),
   9 (no « vu » precedent), 12 (the ratio cause is the global `ingest.min_ratio`; the seed), 14 (no read
@@ -77,3 +77,12 @@
   brings its key), Acquisition's memory reads it, the landing door made plural, the boot asks every
   page of the table for its dial (Acquisition receives the very call it received). Words `memory`,
   `doors`. Frame-domain unchanged (lib/ 31, app/ 146).
+- 2026-09-28 — 2c closed: Acquisition's readers 16 · 29 · 16 · 103 · 10 holds, green before AND after;
+  mutations « memory forgotten » (R260 FAIL « a tab tapped is the one the next cold entry opens ») and
+  « Acquisition's door unplugged » (R202 7 FAIL). Pushed `8051b49ca`.
+- 2026-09-28 — phase 3 opening ≈ 13 (the plan's figure holds; +1 for the trackers' mock state module).
+  R261 (`trackers_roster.py`) RED (`p03-red.log`, 11 FAIL). `mocks/trackers-state.ts` holds the roster,
+  the entries and the obligations, keyed on `mockState()`'s object so `reset()` renews it without a line of
+  its own (`mocks/index.ts` 397 → 399, `state.ts` untouched); its dial `setTrackersEmpty`. The feature
+  reads the contract through `lib/contract-schemas` (fan-in ceiling 4 on `contract/types.d.ts`). Words
+  `gigabyte`, `owner`, `trend`, `volumes`, `ratio`, `roster`.
