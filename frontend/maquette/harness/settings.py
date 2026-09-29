@@ -292,7 +292,7 @@ async def main():
         await pg.wait_for_timeout(700)
         check("the save bar is really there to be tapped", saved)
         conflicted = await pg.evaluate(r"""()=>{
-          const banners = [...document.querySelectorAll('[data-part="load-error"]')]
+          const banners = [...document.querySelectorAll('[data-part="settings/banner"]')]
             .map((one) => ({text: one.textContent.replace(/\s+/g,' ').trim(),
                             actions: [...one.querySelectorAll('button')]
                               .map((b) => b.textContent.trim())}));

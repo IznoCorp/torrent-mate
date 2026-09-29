@@ -245,7 +245,7 @@ must not follow a drag.
 ### 1.7 S7 — The tracker roster: the switch, the failure, the longer list (point 9)
 
 **The row.** Name, then the activation switch at the row's end — `toggleSwitch` (`ui/variants/controls.ts:145`),
-`role="switch"`, `aria-checked`, the one the settings panel draws (`features/settings/panel-field.tsx:74`). Under the
+`role="switch"`, `aria-checked`, the one the settings panel draws (`features/settings/panel-field.tsx:74`). **Corrected 2026-09-30 (the conformity train, phase 6):** when this was written the settings panel drew its own `fieldToggle` + `fieldKnob`, not `toggleSwitch`; the train made `toggleSwitch` the app's one switch, the settings field included, so the sentence is true from that phase on — § 1.8's « the activation switch → `toggleSwitch` » reuses that one switch. Under the
 name, L16's facts: ratio, trend, volumes, and the chips. **The form of the row**, per DECIDED 3 (§ 5): the body opens
 the BOTTOM PANEL (settings, cross-seed and upload switches, broken obligations) — like the torrent card, S5; the
 activation switch stays on the row, never moved into the panel.

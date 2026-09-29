@@ -97,23 +97,6 @@ export const fieldUnit = cva("fieldunit flex-none text-3 text-muted-foreground")
 /** The label of a field that has no input of its own. */
 export const fieldLabel = cva("fieldlabel text-4 text-muted-foreground");
 
-/** The switch IS the whole field: nothing to type, nothing to validate. */
-export const fieldToggle = cva(
-  "fieldtoggle flex-none w-[48px] h-[28px] p-1 [border:0] rounded-full flex " +
-    "transition-[background-color] duration-200 ease-standard",
-  {
-    variants: {
-      active: { true: "active bg-primary justify-end", false: "bg-muted" },
-    },
-    defaultVariants: { active: false },
-  },
-);
-
-/** Its knob. */
-export const fieldKnob = cva(
-  "fieldknob w-[22px] h-[22px] rounded-full bg-white transition-[transform] duration-200 ease-standard",
-);
-
 /** One entry of a list field. */
 export const listItem = cva(
   "litem flex items-center gap-4 py-4 px-6 rounded-3 border border-border bg-background text-4 " +
@@ -141,12 +124,6 @@ export const saveBar = cva(
     "gap-5 py-5 px-7 border-t border-border bg-background " +
     "[&_.sn]:flex-1 [&_.sn]:min-w-0 [&_.sn]:text-3 [&_.sn]:leading-[1.35] [&_.sn]:text-muted-foreground " +
     "[&_.sn_b]:block [&_.sn_b]:text-foreground [&_.sn_b]:text-4",
-);
-
-/** Its action. */
-export const saveAction = cva(
-  "flex-none [border:0] rounded-3 py-5 px-7 [font:600_var(--text-4)_'Geist',system-ui,sans-serif] " +
-    "bg-primary text-primary-foreground disabled:opacity-50",
 );
 
 /** « Relire le classement »: the conflict's way out, at a finger's height. */

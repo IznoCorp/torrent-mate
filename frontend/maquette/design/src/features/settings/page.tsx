@@ -30,6 +30,7 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../../ui/icon";
+import { TopicRow } from "../../ui/topic-row";
 import { Chip } from "../../ui/chip";
 import { type Setting, type SettingsTopic } from "../../features/settings/types";
 import { SETTINGS_STATE, changedFiles, fileName } from "./state";
@@ -37,7 +38,7 @@ import { useStoreContent } from "../../lib/store-access";
 import { settingInWords } from "./format";
 import { useConfigurationStatus, useSecrets, useSettings } from "./queries";
 import { settingLabel } from "../../features/settings/labels";
-import { backAction, emptyNote, factsPanel, loadError, loadErrorAction, qualityHint, searchClear, searchField, searchInput, sectionHeading, topicRow } from "../../ui/variants";
+import { backAction, emptyNote, factsPanel, loadError, loadErrorAction, qualityHint, searchClear, searchField, searchInput, sectionHeading } from "../../ui/variants";
 import { SaveBar, SettingsBanners } from "./banners";
 import { flattenSettings, settingIdentifier } from "./catalog";
 import { settingsRow } from "./variants";
@@ -90,7 +91,7 @@ function SearchField(): ReactElement {
   const { icons } = useEngineDrawing();
   const { t } = useTranslation();
   return (
-    <div className={searchField()} style={{ marginBottom: 12 }}>
+    <div className={`${searchField()} mb-6`}>
       <Icon paths={icons.search} />
       <input
         className={searchInput()}
@@ -116,6 +117,7 @@ function SearchField(): ReactElement {
 
 function TopicView({ topic }: { topic: SettingsTopic }): ReactElement {
   const { t } = useTranslation();
+  const { icons } = useEngineDrawing();
   const byFile = new Map<string, Setting[]>();
   for (const setting of topic.settings) {
     if (!byFile.has(setting.file)) byFile.set(setting.file, []);
@@ -134,13 +136,14 @@ function TopicView({ topic }: { topic: SettingsTopic }): ReactElement {
         data-part="screen/back"
         onClick={() => bridge.back()}
       >
+        <Icon paths={icons.left} />
         {t("screens.settings.allTopics")}
       </button>
       <h2 className={sectionHeading()} data-part="heading">{topic.title}</h2>
       <p className={qualityHint()}>{topic.secondaryLine}</p>
       {[...byFile.entries()].map(([file, settings]) => (
         <Fragment key={file}>
-          <h2 className={sectionHeading()} data-part="heading" style={{ marginTop: 16 }}>
+          <h2 className={`${sectionHeading()} mt-7`} data-part="heading">
             <code>{file}.json5</code>
           </h2>
           <div className={factsPanel()} data-part="panel">
@@ -160,6 +163,7 @@ export function SettingsPage(): ReactElement | null {
   // re-read the object it never owns.
   useStoreContent((content) => content.version);
   const { t } = useTranslation();
+  const { icons } = useEngineDrawing();
   // FROM THE CACHE (invariant 4). The panel says a value from what the
   // setting HOLDS — B-090 — so the read has to carry it.
   const { data: SETTINGS = [] } = useSettings();
@@ -176,6 +180,7 @@ export function SettingsPage(): ReactElement | null {
           data-part="screen/back"
           onClick={() => bridge.back()}
         >
+          <Icon paths={icons.left} />
           {t("screens.settings.allTopics")}
         </button>
         <h2 className={sectionHeading()} data-part="heading">{t("screens.settings.secretsTitle")}</h2>
@@ -283,32 +288,13 @@ export function SettingsPage(): ReactElement | null {
       <SearchField />
       <SettingsBanners />
       {SETTINGS.map((topic) => (
-        <button className={topicRow()} data-part="topic" data-topic={topic.id} key={topic.id}>
-          <span style={{ minWidth: 0, flex: 1 }}>
-            <span className="rt" data-part="topic/title">{topic.title}</span>
-            <span className="rs" data-part="topic/subtitle">{topic.secondaryLine}</span>
-          </span>
-          <span className="rn" data-part="topic/count">{topic.settings.length}</span>
-        </button>
+        <TopicRow key={topic.id} title={topic.title} subtitle={topic.secondaryLine}
+          value={String(topic.settings.length)} target={{ "data-topic": topic.id }} />
       ))}
-      <button className={topicRow()} data-part="topic" data-topic="secrets">
-        <span style={{ minWidth: 0, flex: 1 }}>
-          <span className="rt" data-part="topic/title">{t("screens.settings.secretsTitle")}</span>
-          <span className="rs" data-part="topic/subtitle">
-            {t("screens.settings.secretsSubtitle")}
-          </span>
-        </span>
-        <span className="rn" data-part="topic/count">{SECRETS.length}</span>
-      </button>
-      <button className={topicRow()} data-part="topic" data-profile="global">
-        <span style={{ minWidth: 0, flex: 1 }}>
-          <span className="rt" data-part="topic/title">{t("screens.settings.rankingTitle")}</span>
-          <span className="rs" data-part="topic/subtitle">
-            {t("screens.settings.rankingSubtitle")}
-          </span>
-        </span>
-        <span className="rn" data-part="topic/count">{t("screens.settings.arrow")}</span>
-      </button>
+      <TopicRow title={t("screens.settings.secretsTitle")} subtitle={t("screens.settings.secretsSubtitle")}
+        value={String(SECRETS.length)} target={{ "data-topic": "secrets" }} />
+      <TopicRow title={t("screens.settings.rankingTitle")} subtitle={t("screens.settings.rankingSubtitle")}
+        value={t("screens.settings.arrow")} target={{ "data-profile": "global" }} />
       <div className="note" data-part="note">
         <b>{t("screens.settings.mapNoteLead")}</b>
         {t("screens.settings.mapNoteRest")}

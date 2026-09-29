@@ -7,7 +7,7 @@
 //
 // IT KNOWS NO DOMAIN. Where a tap leads is the `data-*` attributes the caller
 // hands in, read by the page's own verb.
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { topicRow } from "./variants";
 
 /**
@@ -25,7 +25,7 @@ export function TopicRow({ title, subtitle, value, target }: {
   /** What it holds. */
   subtitle?: string;
   /** What sits at its end. */
-  value?: string;
+  value?: ReactNode;
   /** The `data-*` attributes a tap carries. */
   target: Record<`data-${string}`, string>;
 }): ReactElement {
@@ -35,7 +35,7 @@ export function TopicRow({ title, subtitle, value, target }: {
         <span className="rt" data-part="topic/title">{title}</span>
         {subtitle ? <span className="rs" data-part="topic/subtitle">{subtitle}</span> : null}
       </span>
-      {value ? <span className="rn" data-part="topic/count">{value}</span> : null}
+      {value !== undefined ? <span className="rn" data-part="topic/count">{value}</span> : null}
     </button>
   );
 }

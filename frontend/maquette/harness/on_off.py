@@ -6,7 +6,8 @@ among the locks — and the app had seven pairs of words for « on » and « off
 The operator ruled one row, beside its control, the chip at its end, and ONE
 pair: « actif » / « inactif ».
 
-WHAT IT READS, on `levers-idle` (on) and `levers-trigger-off` (off):
+WHAT IT READS, on `levers-idle` (on) and `levers-trigger-off` (off), then the
+settings' boolean field, which says the same pair:
   - the processing's row is a fact row whose value is a CHIP, read from the
     chip, saying the pair's word for the state, in the pair's tone;
   - the page names the mechanism ONCE — its label appears in exactly one row;
@@ -18,7 +19,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import Journal, SETTLED, chrome_launch_args, open_page
+from common import Journal, PANEL_IN, SETTLED, chrome_launch_args, open_page
 from playwright.async_api import async_playwright
 
 FRENCH = json.loads((pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "i18n" / "fr.json")
@@ -61,6 +62,14 @@ async def main():
                           f"{read['named']} row(s) named « {LABEL} »")
             old = [one for one in OLD_WORDS if one in read["text"]]
             journal.check(f"{state}: no word of the retired pairs is drawn", not old, f"{old}")
+        # THE SETTINGS FIELD SAYS THE SAME PAIR beside its switch.
+        await page.evaluate("(id)=>window.__go(id)", "settings-field-boolean")
+        await page.wait_for_timeout(PANEL_IN)
+        said = await page.evaluate("""()=>{
+          const field = document.querySelector('#sheetin [data-part="field"]');
+          return field ? field.textContent.replace(/\\s+/g, ' ').trim() : null;}""")
+        journal.check("settings-field-boolean: the field says the pair's word",
+                      said in (STATES["active"], STATES["inactive"]), f"{said!r}")
         await context.close()
         await browser.close()
     journal.summary()
