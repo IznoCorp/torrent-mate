@@ -6,11 +6,11 @@ a library row's title as `title`, where they were the engine's short keys. The
 holds and what they compare are unchanged.
 """
 import asyncio
-from common import shot
+from common import shot, chrome_launch_args
 from playwright.async_api import async_playwright
 async def main():
   async with async_playwright() as p:
-    b=await p.chromium.launch(channel="chrome")
+    b=await p.chromium.launch(channel="chrome", args=chrome_launch_args())
     c=await b.new_context(viewport={"width":390,"height":844},device_scale_factor=2,is_mobile=True,has_touch=True)
     pg=await c.new_page(); errs=[]; ko=[]
     pg.on("pageerror", lambda e: errs.append(str(e)))

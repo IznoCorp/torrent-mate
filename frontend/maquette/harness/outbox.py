@@ -31,7 +31,7 @@ had stopped sending the key at all.
 import asyncio
 import sys
 
-from common import Journal, PROTOTYPE, open_page
+from common import Journal, PROTOTYPE, open_page, chrome_launch_args
 from playwright.async_api import async_playwright
 
 # The mutation driven throughout: it is idempotent in the domain sense (a title
@@ -75,7 +75,7 @@ async def main():
     """
     journal = Journal("R107 — a mutation issued offline departs exactly once (P8)")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         context, page = await open_page(browser)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))

@@ -44,7 +44,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import Journal, SETTLED, open_page
+from common import Journal, SETTLED, open_page, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -66,7 +66,7 @@ FOLLOWS_AND_SHEETS = """()=>{
 async def main():
     journal = Journal("R156 — a follow without a media sheet is refused")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         context, page = await open_page(browser)
 
         await page.evaluate("(id)=>window.__go(id)", FOLLOWS_STATE)

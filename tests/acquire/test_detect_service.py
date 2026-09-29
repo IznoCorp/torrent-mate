@@ -979,3 +979,120 @@ def test_detect_backfill_is_capped_per_run(store: ConcreteAcquireStore, monkeypa
 
     service.run(series=None, dry_run=False, today=date(2024, 1, 2), now=200)
     assert _original_title_of(store, fid_b) == "Original", "the next run drains the remainder"
+
+
+# ---------------------------------------------------------------------------
+# TVDB-only show heal — a follow named in the ORIGINAL language (One Punch Man)
+# ---------------------------------------------------------------------------
+
+#: The TVDB search card's ``name`` for tvdb 293088: the ORIGINAL-language title.
+_ORIGINAL_LANGUAGE_TITLE = "\u30ef\u30f3\u30d1\u30f3\u30de\u30f3"  # ワンパンマン
+#: TVDB's by-id details in the configured language for the same series.
+_LOCALIZED_TITLE = "One-Punch Man"
+#: A real c411 release of that season (the pack the operator pointed at).
+_REAL_SEASON_ONE_PACK = "One.Punch.Man.2015.S01.OAV.MULTI.VFF.1080p.BluRay.EAC3.2.0.x265-ASKO"
+
+
+class _FakeTvdb:
+    """TVDB stand-in answering ``get_tv`` with a localized title."""
+
+    def __init__(self, title: str) -> None:
+        self._title = title
+        self.tv_calls: list[int] = []
+
+    def get_tv(self, tv_id: int) -> SimpleNamespace:
+        self.tv_calls.append(tv_id)
+        return SimpleNamespace(title=self._title, original_title="")
+
+
+def _registry_with_tvdb(tvdb: _FakeTvdb) -> MagicMock:
+    """A registry that knows only TVDB (``get('tmdb')`` raises, as with no TMDB id)."""
+    registry = MagicMock()
+    registry.get.side_effect = lambda name: tvdb if name == "tvdb" else (_ for _ in ()).throw(KeyError(name))
+    return registry
+
+
+def _tvdb_only_show(store: ConcreteAcquireStore) -> int:
+    """Persist the production row shape: TVDB id only, original-language title, no original_title."""
+    return store.follow.add(
+        FollowedSeries(
+            media_ref=MediaRef(tvdb_id=293088),
+            title=_ORIGINAL_LANGUAGE_TITLE,
+            added_at=1,
+            kind="show",
+        )
+    )
+
+
+def test_detect_heals_tvdb_only_show_named_in_original_language(store: ConcreteAcquireStore) -> None:
+    """A TVDB-only show named in its original language gets the localized name.
+
+    The web add-by-search stored the TVDB card's ``name`` (« ワンパンマン »),
+    and the TMDB-only heal never reached a follow with no TMDB id: every
+    season search sent « ワンパンマン S01 » and the season identity guard,
+    comparing the real « One.Punch.Man… » packs to the Japanese title alone,
+    dropped them all (no_matching_season). The heal gives the follow the TVDB
+    name in the configured language as its title and keeps the original one,
+    so the query and the guard carry both spellings.
+    """
+    from personalscraper.acquire._filters import filter_to_season
+    from personalscraper.api._units import ByteSize
+    from personalscraper.api.tracker._base import TrackerResult
+
+    fid = _tvdb_only_show(store)
+    tvdb = _FakeTvdb(_LOCALIZED_TITLE)
+    service = DetectService(
+        store=store,
+        ownership=_StubOwnership(set()),
+        registry=_registry_with_tvdb(tvdb),
+        event_bus=EventBus(),
+        config=_config(),
+    )
+
+    with patch("personalscraper.acquire.detect.poll_catalog", return_value=[]):
+        service.run(series=None, dry_run=False, today=date(2024, 1, 1), now=100)
+
+    healed = store.follow.get(fid)
+    assert healed is not None
+    assert tvdb.tv_calls == [293088], "the heal queries TVDB with its OWN id"
+    assert healed.title == _LOCALIZED_TITLE
+    assert healed.original_title == _ORIGINAL_LANGUAGE_TITLE
+
+    real_pack = TrackerResult(
+        provider="c411",
+        tracker_id="t1",
+        title=_REAL_SEASON_ONE_PACK,
+        size=ByteSize(10_236_174_467),
+        seeders=50,
+        leechers=0,
+        resolution="1080p",
+        info_hash="06e151c768f488ce5dfb36ada03dc30f51643e0d",
+        download_url="https://c411.test/torrent/1",
+    )
+    kept = filter_to_season([real_pack], 1, expected_count=12, titles=[healed.title, healed.original_title])
+    assert kept == [real_pack], "the season guard must keep the real pack once the follow carries both names"
+
+
+def test_detect_heal_of_tvdb_only_show_with_same_name_keeps_title(store: ConcreteAcquireStore) -> None:
+    """When the localized name IS the stored title, only original_title heals (VERBATIM rule)."""
+    fid = store.follow.add(
+        FollowedSeries(media_ref=MediaRef(tvdb_id=350665), title="The Rookie", added_at=1, kind="show")
+    )
+    tvdb = _FakeTvdb("The Rookie")
+    service = DetectService(
+        store=store,
+        ownership=_StubOwnership(set()),
+        registry=_registry_with_tvdb(tvdb),
+        event_bus=EventBus(),
+        config=_config(),
+    )
+
+    with patch("personalscraper.acquire.detect.poll_catalog", return_value=[]):
+        service.run(series=None, dry_run=False, today=date(2024, 1, 1), now=100)
+        service.run(series=None, dry_run=False, today=date(2024, 1, 2), now=200)
+
+    healed = store.follow.get(fid)
+    assert healed is not None
+    assert healed.title == "The Rookie"
+    assert healed.original_title == "The Rookie"
+    assert tvdb.tv_calls == [350665], "a healed row is never refetched"

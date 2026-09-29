@@ -75,6 +75,33 @@ def resolve_deployed_host_locally(host_url):
     return [f"--host-resolver-rules=MAP {urlparse(host_url).hostname} 127.0.0.1"]
 
 
+# EVERY HARNESS CHROME TAKES THIS, and it is one function rather than one
+# constant, because two rules already compose their own launch arguments
+# (`resolve_deployed_host_locally`'s mapping) and a helper answering only the
+# mock-keychain question would have left them choosing between that earlier
+# convention and this one, dropping silently whichever they did not choose.
+#
+# `--use-mock-keychain` is a genuine Chromium switch, the one its own test
+# suites pass for the same reason: an ephemeral profile that still talks to
+# the real OS keychain asks it to hold a device-bound session key it will
+# never be asked to remove, and a harness launching Chrome hundreds of times
+# a run leaves hundreds of such keys behind it, in a keychain group nothing
+# else in the group's access class ever prunes. The mock keychain answers
+# ephemeral with ephemeral: the key lives in the run's own process and dies
+# with it.
+def chrome_launch_args(extra=None):
+    """Chrome launch arguments every harness rule's `chromium.launch` takes.
+
+    Args:
+        extra: Any per-rule arguments (e.g. `resolve_deployed_host_locally`'s
+            host-resolver mapping), appended after the mock-keychain flag.
+
+    Returns:
+        The `args` list `chromium.launch` accepts.
+    """
+    return ["--use-mock-keychain", *(extra or [])]
+
+
 # THE NAME BOTH RULES HOLD THIS UNDER, so a mutation that defeats the mapping
 # is read by NAME rather than by a crash: a `Page.goto` timeout proves only
 # that something failed, never that the mapping did — the router being

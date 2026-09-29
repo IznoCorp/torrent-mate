@@ -648,6 +648,7 @@ second slot after L18**, per the operator's own separation of that function from
 and plan, written 2026-09-27, name it L23: the order is now L14 · L19 · L21 · L13 · L20 · L22 · L16 ·
 L17 · L18 · L23**, and no dependency already written moved. **L24 (the orphans), drawn 2026-09-29, follows L23;
 after it, the desktop milestone** (operator, 2026-09-29, L24's OPEN 6) — the final entry of this section, not a lot.
+**L16-bis (the Trackers page's correction and Découvrir's header, on the operator's feedback of 2026-09-29), drawn 2026-09-29, is inserted between L16 and L17, which draws on its torrent rows: the order is now L14 · L19 · L21 · L13 · L20 · L22 · L16 · L16-bis · L17 · L18 · L23 · L24** — `docs/features/maquette-l16bis/DESIGN.md`, `docs/features/maquette-l16bis/plan/INDEX.md`. **Amended 2026-09-29 (the operator's nine rulings, PR #637): L16-bis *depends on the conformity train*** — the train builds the app's one tab component first, on the existing validated tab bars (Acquisition first), then arms the guard; L16-bis's own code waits for the train and then uses the component for Trackers, never building it — the phase that once built it here is removed (DESIGN § 5, DECIDED 7).
 
 **C1 — the settings save bar, placed AFTER L16 (operator, 2026-09-29, ruling C1, verbatim: « On parle de toutes les
 pages de réglages ? Si oui alors oui. Si on veux quitter réglages un message de confirmation s'affiche, avec

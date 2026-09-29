@@ -20,7 +20,7 @@ Red before the move: paused follows sit in the list, and the filter exists.
 """
 import asyncio
 
-from common import ACTED, SETTLED, Journal, open_page
+from common import ACTED, SETTLED, Journal, open_page, chrome_launch_args
 from playwright.async_api import async_playwright
 
 SECTION = '[data-part="section/paused"]'
@@ -59,7 +59,7 @@ RESUME = f"""(title) => {{
 async def main():
     journal = Journal("R233 — paused follows fold at the end of « Suivis »")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         context, page = await open_page(browser)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))

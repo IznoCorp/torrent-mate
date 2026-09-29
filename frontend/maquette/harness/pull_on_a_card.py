@@ -21,7 +21,7 @@ never opens.
 """
 import asyncio
 
-from common import SETTLED, Journal, open_page
+from common import SETTLED, Journal, open_page, chrome_launch_args
 from playwright.async_api import async_playwright
 
 STATES = ("acq-follows-list", "acq-now-loaded", "acq-todo-loaded", "lib-list", "lib-grid")
@@ -94,7 +94,7 @@ async def pull_from_the_card(page):
 async def main():
     journal = Journal("R235 — a pull begun on a card refreshes")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         for state in STATES:
             context, page = await open_page(browser)
             errors = []

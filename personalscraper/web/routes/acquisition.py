@@ -145,7 +145,8 @@ def _resolve_follow_metadata(request: Request, body: CreateFollowRequest, media_
     """Resolve the card metadata for a create/reactivate, enriching what is missing.
 
     The client candidate wins; the providers are only consulted for the fields
-    it left out, so a POST carrying a full candidate makes ZERO provider calls.
+    it left out, so a full movie candidate makes ZERO provider calls. A TVDB
+    show is the exception: its title and overview are localized (one call).
     Fail-soft end to end: a registry that cannot be built is logged at WARNING
     and the follow keeps whatever the client sent — the 201 is never at risk
     (plan §7 « Fail-soft, jamais bloquant »).
@@ -178,7 +179,9 @@ def _resolve_follow_metadata(request: Request, body: CreateFollowRequest, media_
         # rather than storing a nameless follow.
         title=body.title if body.title else None,
     )
-    if known.is_complete:
+    # A TVDB show card is in the ORIGINAL language (One Punch Man → « ワンパンマン »):
+    # even a complete card makes one by-id call to localize title and overview.
+    if known.is_complete and not (body.kind == "show" and media_ref.tvdb_id is not None):
         return known
     try:
         with scoped_provider_clients(request) as (tmdb_client, tvdb_client):
@@ -188,6 +191,7 @@ def _resolve_follow_metadata(request: Request, body: CreateFollowRequest, media_
                 tmdb_client=tmdb_client,
                 tvdb_client=tvdb_client,
                 existing=known,
+                localize_show=True,
             )
     except Exception as exc:  # noqa: BLE001 — incl. the HTTPException(502) the builder raises
         # Fail-soft end to end (plan §7): the follow keeps whatever the client
@@ -1007,11 +1011,6 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
             return item
 
         # A series followed by TMDB/IMDB alone has no tvdb_id, but episode
-        # detection (poll_known) needs one — resolve it now so the follow is
-        # detectable, keeping TVDB the detection primary. Films use the §5 title
-        # lifecycle and never need a TVDB id. Fail-soft NON silencieux (§méthode):
-        # if unresolved, follow anyway but flag it so the UI warns.
-        # A series followed by TMDB/IMDB alone has no tvdb_id, but episode
         # detection needs one — resolve it now so the follow is detectable. When
         # unresolved, the follow is still created; ``tvdb_unresolved`` is DERIVED
         # from the stored state by the item builder (honest on every surface),
@@ -1035,11 +1034,11 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
         # Card metadata FIRST: it carries the provider's title, and the row is
         # written with it. Resolving after the insert (as this did) is why an
         # add-by-ID produced a NAMELESS follow — blank in the list and blank in
-        # its own sheet (operator report 2026-08-08). The client's title still
-        # wins; « Sans titre » only when BOTH are silent, so the row can at
-        # least be found and removed.
+        # its own sheet (operator report 2026-08-08). The metadata title is the
+        # client's, or the localized TVDB name for a show; « Sans titre » only
+        # when both are silent, so the row can at least be found and removed.
         metadata = _resolve_follow_metadata(request, body, media_ref)
-        resolved_title = title or metadata.title or "Sans titre"
+        resolved_title = metadata.title or title or "Sans titre"
 
         # New follow. The kind ('movie'|'show') starts the §5 film lifecycle:
         # detect will produce one movie wanted row and auto-unfollow once acquired.

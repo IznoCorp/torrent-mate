@@ -33,7 +33,7 @@ still the rule that catches the regression.
 import asyncio
 import sys
 
-from common import Journal
+from common import Journal, chrome_launch_args
 from playwright.async_api import async_playwright
 from server import start_server
 
@@ -149,7 +149,7 @@ async def main():
     journal = Journal("R109 / R110 — standalone, and the back-forward cache")
     errors = []
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
 
         # --- R109 (P27) — standalone hides what only a browser justifies -----
         #

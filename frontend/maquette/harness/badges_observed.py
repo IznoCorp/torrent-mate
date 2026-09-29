@@ -39,7 +39,7 @@ rights model, and mutated there.
 """
 import asyncio
 
-from common import PHONE, PROTOTYPE, SETTLED, Journal
+from common import PHONE, PROTOTYPE, SETTLED, Journal, chrome_launch_args
 from playwright.async_api import async_playwright
 
 LIBRARY = "media"
@@ -91,7 +91,7 @@ def said(count):
 async def main():
     journal = Journal("R236 — a navigation badge reads an answer the frame keeps observed")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         context = await browser.new_context(**PHONE)
         page = await context.new_page()
         errors = []

@@ -41,7 +41,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, Journal, PANEL_IN, SETTLED, open_page
+from common import ACTED, Journal, PANEL_IN, SETTLED, open_page, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -252,7 +252,7 @@ async def fresh_page(browser):
 async def main():
     journal = Journal("R185 — the queued mark is reached by the path a hand takes")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         errors: list[str] = []
         opened: list[str] = []
         context, page = await fresh_page(browser)
