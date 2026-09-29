@@ -649,6 +649,20 @@ and plan, written 2026-09-27, name it L23: the order is now L14 · L19 · L21 ·
 L17 · L18 · L23**, and no dependency already written moved. **L24 (the orphans), drawn 2026-09-29, follows L23;
 after it, the desktop milestone** (operator, 2026-09-29, L24's OPEN 6) — the final entry of this section, not a lot.
 
+**C1 — the settings save bar, placed AFTER L16 (operator, 2026-09-29, ruling C1, verbatim: « On parle de toutes les
+pages de réglages ? Si oui alors oui. Si on veux quitter réglages un message de confirmation s'affiche, avec
+enregistrer, abandonné les modif, ou fermer rester sur réglages »; on Trackers: « Oui »).** The save bar becomes a
+FRAME part, visible on every Settings page while a change waits (never on every app page, refused); leaving
+Settings or Trackers with a change waiting opens ONE confirmation with three choices — « Enregistrer » / «
+Abandonner les modifications » / « Rester sur Réglages ». **A MICRO-WAVE, not a lot** — unrelated to L17's own
+scope (cross-seed) and small enough by § 0's own selection rule to take nobody's turn, on the pattern of
+`maquette-settings` and the other same-scale corrections of § 4's history. Runs before L17 opens or beside it, never
+inside its plan. **Named states (proposed, not built): `settings-save-bar-frame`** (the bar drawn by the frame
+itself, replacing L16's `lib/save-bar-door.tsx` door — C2's own compromise, superseded) **and `settings-leave-confirm`**
+(the three-choice confirmation). **One rule**, holding both. **The existing pending-edits signal is REUSED** — the
+door's `onEditsWritten` / `editsWritten` pair (`frontend/maquette/design/src/lib/save-bar-door.tsx`) already knows
+whether a change waits; the leave confirmation reads THAT, never a second dirty-tracker.
+
 #### L14 — The surfaces that outgrew their file · *depends on L07, L09*
 
 **Landed** — PR #547, squash `9ce9b0508`. The four feature files over the 400-line ceiling are decomposed back under it, by domain. Body: `docs/reference/frontend-architecture.md@6a47304a4` § L14.

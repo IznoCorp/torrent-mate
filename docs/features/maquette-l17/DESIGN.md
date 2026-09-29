@@ -619,6 +619,28 @@ engine's — § 3.1 and § 3.2 say both.
 Trackers compte les ÉCHECS de cross-seed seulement … et un échec d'UPLOAD … comptera comme un échec. » § 2.2's
 grouping and § 3.6 carry it, with the reserved slot round 8 Q18 named.
 
+### 7.3 Two DESIGN contradictions inherited from L16 — recorded, not chosen
+
+Found by reader C16 (`review-archive/l16/round-1-C16/r1-C16.md`, finding C17 c, d), left unrepaired at L16's close
+(the decided list did not take them). Neither asks anything of the backend, so neither belongs in
+`backend-demands-architecture.md`; both land here because L17 is the next lot to touch their surfaces — **no
+reading is chosen for either.**
+
+- **`TrackerAuthFailed` vs « all four … through `live.ts` ».** L16's DESIGN § 4.5 claims all four of the ratio
+  alert's components (threshold, breach, refused identifier, unseen broken obligation) are "refreshed through this
+  lot's `live.ts`", while the SAME paragraph keeps `TrackerAuthFailed` — the event the refused-identifier component
+  reads — named in `acquisitionLiveExemptions`, never live. The refused-identifier unit is therefore NOT live as
+  claimed. L16's own text names the event's future owner as "L17's, and the system feature's" — this lot's phase
+  that touches `features/trackers/live.ts` (§ 3.6) is where the reading is chosen: wire `TrackerAuthFailed` in, or
+  correct § 4.5's claim.
+- **The removal confirmation's checkbox cannot gate its own confirmation.** L16's DESIGN § 4.4 says the qBittorrent
+  removal confirmation with its « Supprimer les fichiers » checkbox does not open at all when the checkbox WOULD
+  read unchecked and nothing else is at stake — but the checkbox lives INSIDE that same confirmation, so its state
+  cannot be read before the confirmation opens to show it. The two sentences cannot both be drawn. This lot's own
+  cross-seed cut (§ 3.3, « Couper le cross-seed sur ce tracker ») confirms a different, checkbox-less act on the
+  same Torrents tab; whoever next touches the qBittorrent removal flow chooses whether the checkbox moves outside
+  the confirmation or the « no confirmation » clause is dropped.
+
 ---
 
 ## 8. What this design believes the contract gets wrong
