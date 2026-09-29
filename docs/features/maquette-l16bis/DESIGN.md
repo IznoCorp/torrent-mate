@@ -463,8 +463,7 @@ one; the harness at 369 px — order 60. **Not drawn**: a push notification (L16
 what qBittorrent's own list shows — they move every second; the maquette draws them from the read, refreshed at the
 page's existing live cadence (NE-DOIT-PAS-8: no polling added). *Reading B*: the VOLUMES this entry received and sent
 (« ↓ 766 Mo · ↑ 1,2 Go ») — stable, and what the ratio is made of. **Cost**: both are a PROPOSED demand (§ 2.1) and one
-seed column; A adds a stream demand (rates on `TorrentProgress`) and a state « à l'arrêt » for a zero rate, ≈ 2 points
-more.
+seed column; A adds a stream demand (rates on `TorrentProgress`), ≈ 1 point more (phase 1).
 
 **OPEN 2 — what stands at an UNLINKED torrent's left.** *Reading A*: the media card's own non-medium side — the folder
 icon and its word (`cardFolder`, `features/acquisition/card-markup.ts:223–229`), which opens the panel; the same card
@@ -474,18 +473,20 @@ média … »); a `cardMarkup` side made optional. **Cost**: A is none; B is one
 **OPEN 3 — the tracker row: a fold, or a row that opens a panel?** *Reading A*: the fold L16 drew
 (`ui/Disclosure`), with the app's one chevron (OPEN 4) — the policy, the cross-seed and upload switches, the broken
 obligations unfold in place. *Reading B*: a list row like the torrent card's — its body opens the bottom panel holding
-the same content; one interaction for both tabs, the native settings row. **Cost**: A is ≈ 3 points (the chevron);
-B is ≈ 10 (a panel subject, the policy rows re-homed in it — RULINGS 2's door unchanged — two states re-aimed).
+the same content; one interaction for both tabs, the native settings row. **Cost** (phase 15): A is ≈ 5 points (the
+chevron, two states re-read); B is ≈ 13 (a panel subject, the policy rows re-homed in it — RULINGS 2's door
+unchanged — two states and two rules re-aimed).
 
 **OPEN 4 — which fold chevron is the app's.** Measured (§ 0.1 item 3): `▸` / `▾` in `ui/Disclosure` (4 files) and
 « par identifiant » (1); `›` in a muted chip, turned 90°, on the seasons (2) — the one the operator reads as
 « ce qu'on peut voir ailleurs ». *Reading A*: the seasons' chevron becomes `ui/Disclosure`'s only drawing; every fold
 takes it. *Reading B*: `ui/Disclosure`'s `▸` / `▾` stays; the seasons and « par identifiant » are brought to it.
-**Cost**: equal (≈ 3 points, in the train with the guard arm); the difference is the look.
+**Cost**: equal — 1 point in `ui/Disclosure` (phase 15), the other sites the conformity train's with its guard
+arm; the difference is the look.
 
 **OPEN 5 — where the legend sits.** *Reading A*: inline, over the list, only the codes present — the season legend's
 own place; always visible, ≈ 1–2 lines of height. *Reading B*: behind a « Légende » control in the filter row, opening
-the bottom panel; no height taken, one tap to read. **Cost**: equal (≈ 4 points).
+the bottom panel; no height taken, one tap to read. **Cost**: equal (phase 7, ≈ 9 points either way).
 
 **OPEN 6 — does a tracker off by FAILURE count in the Trackers badge?** *Reading A*: yes, one unit per tracker —
 it generalises the refused identifier's unit (round 9 Q1, M5) to every failure; it leaves the count when the operator
@@ -495,25 +496,25 @@ hold (≈ 3 points); B is none.
 
 **OPEN 7 — who builds the one tab component.** *Reading A*: L16-bis builds it in `ui/` and brings « Trackers » onto
 it; the conformity train brings Acquisition and Médiathèque and arms the guard. *Reading B*: the train builds it
-first; L16-bis waits, or opens with Trackers' tabs untouched and converts them after. **Cost**: A ≈ 6 points in this
-lot; B moves them to the train and makes L16-bis depend on its order.
+first; L16-bis waits, or opens with Trackers' tabs untouched and converts them after. **Cost**: A ≈ 11 points in this
+lot (phase 5); B moves them to the train and makes L16-bis's strip depend on its order.
 
 **OPEN 8 — what Découvrir's header says instead.** Three proposals, each on a datum:
 *Reading A* — « 12 nouvelles depuis votre dernière visite »: what changed, the reason to scroll. Datum: a
 `Suggestion.addedAt` (PROPOSED — the engine has no suggestions route, `readSuggestions` is already a demand) and the
-last visit kept on the device (`lib/tab-memory.ts`'s mechanism). ≈ 7 points.
+last visit kept on the device (`lib/tab-memory.ts`'s mechanism). ≈ 3 points beyond the move (phase 17: 12).
 *Reading B* — « D'après vos 23 suivis et 1 863 titres »: where the suggestions come from (DOIT-1). Datum: the follows
 read (`readFollows`, answered by the engine's `followed_series`) and the library's total (`readLibraryCategories`) —
-no demand. ≈ 3 points.
+no demand. Nothing beyond the move (phase 17: 9).
 *Reading C* — « Réserve remplie il y a 2 h · prochaine à 15 h 20 »: whether the list is fresh (§ 8). Datum: the
-reserve's `filledAt` / `nextFillAt` on the suggestions read (PROPOSED). ≈ 5 points.
+reserve's `filledAt` / `nextFillAt` on the suggestions read (PROPOSED). ≈ 3 points beyond the move (phase 17: 12).
 Readings combine only as two short parts on one line (A + C, or B alone); the operator picks.
 
 **OPEN 9 — the swipe's cross-seed side before L17.** *Reading A*: absent — the row travels one way until L17 adds the
 left drawer with its verb; nothing is drawn that does nothing (the B-298 lesson: a promise is a defect). *Reading B*:
 drawn now, its action DISABLED with its reason (« Disponible avec le cross-seed ») — the panel's own `desactive` /
 `mention` pattern (`ui/panel/contract.ts`, `Action`), § 6's « une action indisponible dit pourquoi ». **Cost**: A is
-none; B is one drawer and one state, ≈ 2 points, re-aimed by L17.
+none; B is one drawer and one state, ≈ 3 points (phase 11), re-aimed by L17.
 
 ---
 
