@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest";
 import {
   actionButton, cardStrip, disclosure, drawerEntryCount, iconButton, loadErrorAction, loadFooterAction, moreButton,
-  segmentCount, segmentTab, stripDot, stripStep, tabBarBadge, viewSwitchButton,
+  chip, segmentCount, segmentTab, statusDot, stripDot, stripStep, surfaceError, tabBarBadge, viewSwitchButton,
 } from "./variants";
 import { cardMarkup } from "./card-markup";
 
@@ -193,5 +193,22 @@ describe("one drawing per need, placed or sized", () => {
     expect(disclosure()).toContain(chevron);
     expect(disclosure({ kind: "season" })).toContain(chevron);
     expect(disclosure()).not.toContain("▸");
+  });
+});
+
+describe("tones the states carry", () => {
+  // AN UPCOMING STATE HAD A COLOUR AND NO TONE: its dots and cells were drawn
+  // apart. It is a tone of the dot and of the chip now, in the scale's tokens.
+  it("offers an upcoming tone on the dot and the chip", () => {
+    expect(statusDot({ tone: "upcoming" })).toContain("bg-upcoming");
+    expect(chip({ tone: "upcoming" })).toContain("var(--color-upcoming-text)");
+  });
+
+  // ONE NOTICE, THREE TONES: the tone changes the colours and nothing else.
+  it("draws a notice in three tones from one base", () => {
+    const tones = (["danger", "warning", "info"] as const).map((tone) => surfaceError({ tone }));
+    for (const drawn of tones) expect(drawn).toContain("rounded-3 p-7");
+    expect(new Set(tones).size).toBe(3);
+    expect(surfaceError()).toBe(surfaceError({ tone: "danger" }));
   });
 });

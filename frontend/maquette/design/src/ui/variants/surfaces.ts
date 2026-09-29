@@ -26,6 +26,7 @@ export const statusDot = cva("pip w-[8px] h-[8px] rounded-full flex-none", {
       waiting: "waiting bg-waiting",
       success: "success bg-success",
       neutral: "neutral bg-neutral-signal",
+      upcoming: "upcoming bg-upcoming",
     },
   },
   // A DEFAULT, BECAUSE `VariantProps` MAKES THE PROP OPTIONAL. Without one,
@@ -75,6 +76,8 @@ export const chip = cva(
           "info [--chip-background:color-mix(in_oklab,var(--color-info)_20%,transparent)] [--chip-foreground:var(--color-info-text)]",
         waiting:
           "waiting [--chip-background:color-mix(in_oklab,var(--color-waiting)_20%,transparent)] [--chip-foreground:var(--color-waiting-text)]",
+        upcoming:
+          "upcoming [--chip-background:color-mix(in_oklab,var(--color-upcoming)_20%,transparent)] [--chip-foreground:var(--color-upcoming-text)]",
         neutral: "neutral",
       },
     },
@@ -174,18 +177,6 @@ export const skeleton = cva(
     },
     defaultVariants: { shape: "line" },
   },
-);
-
-/** A surface in error: it names the cause and offers a retry. */
-export const surfaceError = cva(
-  "surferr [border:1px_solid_color-mix(in_oklab,var(--color-danger)_45%,transparent)] " +
-    "[background:color-mix(in_oklab,var(--color-danger)_8%,transparent)] " +
-    "rounded-3 p-7 text-3 leading-[1.5] " +
-    // THE CAUSE LEADS AND THE RETRY SPANS, wherever the surface draws them.
-    "[&_b]:block [&_b]:text-danger-text [&_b]:mb-2 " +
-    "[&_button]:mt-5 [&_button]:w-full [&_button]:[border:1px_solid_var(--color-border)] " +
-    "[&_button]:bg-transparent [&_button]:text-foreground [&_button]:text-3 " +
-    "[&_button]:font-semibold [&_button]:p-4 [&_button]:rounded-2",
 );
 
 /**

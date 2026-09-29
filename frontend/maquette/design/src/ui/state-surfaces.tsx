@@ -19,7 +19,7 @@
 // THE RETRY STAYS DELEGATED until a surface has a query to re-ask. See the
 // note on `SurfaceError`: a callback was written here and taken back in the
 // same phase, because it made a component write a server-state key.
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { skeleton, skeletonLine, surfaceError } from "./variants";
 
@@ -72,8 +72,30 @@ export function SkeletonLine({
   return <span className={`${skeleton({ shape: "line" })} ${skeletonLine({ width })}`} data-skeleton="" aria-hidden="true" />;
 }
 
+/** A read that failed: the error surface's own words, and a retry. */
+type FailedRead = {
+  /** What could not be loaded, in the interface's own words. */
+  subject: string;
+  /** What the server said, if it said anything. Data, never copy. */
+  detail?: string;
+  /** Re-asks the caller's own read. Without one, the retry stays delegated. */
+  onRetry?: () => void;
+};
+
+/** A notice: the caller's words, in a tone — warning and info are never alerts. */
+type Notice = {
+  /** What the notice says. */
+  children: ReactNode;
+  /** What it means: a failure, something to heed, something to know. */
+  tone: "danger" | "warning" | "info";
+  /** The name a rule reads the notice by. */
+  part: string;
+};
+
 /**
- * What a surface shows when its data could not be loaded at all.
+ * What a surface shows when its data could not be loaded at all — or, given a
+ * tone and its words, a notice that is not a failure (TMDB disconnected, a
+ * folder to identify, a read-only setting): the one notice of the app.
  *
  * IT OWNS ITS OUTER ELEMENT, which the six call sites drew themselves in two
  * different ways: five through the typed variant, and the library through the
@@ -112,15 +134,19 @@ export function SkeletonLine({
  * B-031 SHRINKS BY ONE SURFACE and is not closed: « Réessayer on every error
  * surface is inert » stays true of every surface without a read to re-ask.
  */
-export function SurfaceError({ subject, detail, onRetry }: {
-  /** What could not be loaded, in the interface's own words. */
-  subject: string;
-  /** What the server said, if it said anything. Data, never copy. */
-  detail?: string;
-  /** Re-asks the caller's own read. Without one, the retry stays delegated. */
-  onRetry?: () => void;
-}): ReactElement {
+export function SurfaceError(props: FailedRead | Notice): ReactElement {
   const { t } = useTranslation();
+  // A NOTICE IS THE SAME SURFACE IN ANOTHER TONE. It says what the caller
+  // hands it; only the danger tone is an alert, because only a failure is one.
+  if ("children" in props) {
+    return (
+      <div className={surfaceError({ tone: props.tone })} data-part={props.part}
+        role={props.tone === "danger" ? "alert" : undefined}>
+        {props.children}
+      </div>
+    );
+  }
+  const { subject, detail, onRetry } = props;
   return (
     <div className={surfaceError()} data-part="surface-error" role="alert">
       <b>{t("surfaces.error.lead", { subject })}</b>

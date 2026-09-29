@@ -24,6 +24,8 @@ export * from "./variants/layout";
 export * from "./variants/controls";
 export * from "./variants/tabs";
 export * from "./variants/surfaces";
+export * from "./variants/notice";
+export * from "./variants/legend";
 export * from "./variants/card";
 export * from "./variants/tile";
 export * from "./variants/rows";

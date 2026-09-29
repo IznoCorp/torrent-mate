@@ -276,6 +276,7 @@
     --color-success-text: var(--color-success);
     --color-warning-text: var(--color-warning);
     --color-waiting-text: var(--color-waiting);
+    --color-upcoming-text: var(--color-upcoming);
     --color-info: oklch(0.68 0.125 225);
     --color-waiting: oklch(0.74 0.16 345);
     --color-upcoming: oklch(0.72 0.145 285);
@@ -332,6 +333,8 @@
   /* The waiting tone's own text, like the four above: the mark itself reads
      ≈ 3:1 on its tint over a light card, this one ≈ 6:1. */
   --color-waiting-text: oklch(0.48 0.14 345);
+  /* The upcoming tone's text, on the same reasoning as the waiting one. */
+  --color-upcoming-text: oklch(0.45 0.16 290);
   --color-info: oklch(0.62 0.115 225);
   --color-waiting: oklch(0.65 0.14 345);
   --color-upcoming: oklch(0.55 0.16 290);
