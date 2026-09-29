@@ -14,9 +14,10 @@ supports its phase's cut is STOP D.
 
 - **STOP A** — the oracle diverging on a state the phase did not name.
 - **STOP B** — the pull request.
-- **STOP C — the operator's round.** D.1 #2 (OPEN 1 = A) the state words (OPEN 2 = A) and the notice (OPEN 3 = A) were RULED 2026-09-29 and are phases 7, 8 and 11; #7 (the status dot, OPEN 9),
-  #14 (the segmented choice, OPEN 4) and #15 (the primary buttons, OPEN 8) wait for the rulings the orchestrator
-  sends; they are NOT phases of this plan until then. Reaching them first is a STOP, said.
+- **STOP C — the operator's round.** RULED 2026-09-29 and in this plan: D.1 #2 (OPEN 1 = A) → phase 7, the state
+  words (OPEN 2 = A) → phase 8, the notice (OPEN 3 = A) → phase 11, D.1 #14 (OPEN 4 = A) → phase 17. Still waiting
+  for the orchestrator's rulings, NOT phases until then: D.1 #7 (the status dot, OPEN 9) and #15 (the primary
+  buttons, OPEN 8). Reaching them first is a STOP, said.
 - **STOP D** — a measurement that contradicts a home. Near already (non-blank lines, `grep -cv '^\s*$'`, ceiling
   400): `ui/variants/controls.ts` **397**, `ui/variants/frame.ts` **397**, `ui/variants/surfaces.ts` **373**,
   `features/media/season-list.tsx` **390**. A phase landing in one of them moves lines OUT in the same commit or
@@ -49,9 +50,10 @@ new rule with its mutation 3; a rule re-aimed 1; a guard arm with its test 3; a 
 | 14 | [The legend](phase-14-the-legend.md) | conversion | #9 | l | 10 |
 | 15 | [The topic row](phase-15-the-topic-row.md) | conversion | #11 | m | 11 |
 | 16 | [The tokens](phase-16-the-tokens.md) | conversion | #16 | n | 13 |
-| 17 | [The close](phase-17-the-close.md) | close | — | — | 6 |
+| 17 | [The segmented choice](phase-17-the-segmented-choice.md) | conversion | #14 | o | 9 |
+| 18 | [The close](phase-18-the-close.md) | close | — | — | 6 |
 
-`python3 -c "print(14+9+14+12+11+12+13+14+8+7+12+6+10+10+11+13+6)"` → **182 points over 17 phases, mean ≈ 10.7, max 14**.
+`python3 -c "print(14+9+14+12+11+12+13+14+8+7+12+6+10+10+11+13+9+6)"` → **191 points over 18 phases, mean ≈ 10.6, max 14**.
 **The midpoint** — `--contracts` and the full suite, its real falls repaired before phase 9 opens — sits after
 phase 8. **The responsive full sweep** runs at phase 1 (its cost measured there), at the close and in CI; between,
 each phase runs it on the states of the surfaces it touches (phase 1 fixes the flag that selects them).
