@@ -290,6 +290,7 @@ delivering
 delivery
 delsel
 delta
+design
 dense
 depart
 departing
