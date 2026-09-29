@@ -2,7 +2,7 @@
 
 **No STOP C.**
 
-**Opening measure (2026-09-29, on `e65130ab1`):**
+**Opening measure (2026-09-29, on `77e7b8436`):**
 
 - **Commands.** `grep -cv '^\s*$' frontend/maquette/design/src/mocks/handlers/{decisions,staging,system,acquisition}.ts`
   → **112, 399, 31, 348**. `staging.ts` sits one line under the ceiling: no line lands there.
@@ -14,7 +14,7 @@
 
 ## Red today
 
-None — the rules that read these answers are written in phases 4, 7 and 13, red against this phase's mocks.
+None — the rules that read these answers are written in phases 4, 7 and 14, red against this phase's mocks.
 
 ## Move
 

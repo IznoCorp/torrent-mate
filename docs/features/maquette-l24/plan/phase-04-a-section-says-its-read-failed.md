@@ -2,7 +2,7 @@
 
 **No STOP C.**
 
-**Opening measure (2026-09-29, on `e65130ab1`):**
+**Opening measure (2026-09-29, on `77e7b8436`):**
 
 - **Commands.** `grep -n "= \[\] } = use" frontend/maquette/design/src/features/system/page.tsx` → lines **44, 46,
   48, 49, 50**: every list defaults to empty on a failed read. `grep -cv '^\s*$' …/features/system/page.tsx` → **129**.
