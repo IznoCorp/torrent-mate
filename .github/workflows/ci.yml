@@ -395,8 +395,13 @@ jobs:
       # redirect that, and its only reader went with `parity-probe.py` — setting
       # it here would be green by accident of the runner shipping Chrome, which
       # is the failure `tests/conftest.py` was just fixed for.
+      # R-conformity-a (`responsive.py`, order 85) is in the subset: every named
+      # state at seven widths, ≈ 5 minutes at two pages at a time — the fan-out
+      # is NAMED, never the runner's processor count.
       - run: frontend/maquette/harness/run.sh --contracts
         if: needs.changes.outputs.maquette == 'true'
+        env:
+          TM_HARNESS_JOBS: "2"
       # The accessibility tier, as its own step and not folded into the subset
       # above: the contracts answer « did a NAME move without all of its ends? »
       # and an accessibility violation is not that question. Cheap enough for a
