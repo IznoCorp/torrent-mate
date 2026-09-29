@@ -129,5 +129,34 @@ export function trackersStates(): NamedState[] {
         applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
       },
     ],
+    [
+      "tracker-alert-active",
+      "Trackers — un tracker sous son propre seuil d'alerte, le seuil saisi par l'opérateur",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.poseAlertThreshold("c411", 1.5);
+        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+      },
+    ],
+    [
+      "tracker-identifier-refused",
+      "Trackers — un tracker qui refuse l'identifiant configuré, POSÉ sur tr4ker (le back-end lira le refus)",
+      () => {
+        // A DERIVATION, SHOWN AS ONE: no real tracker refuses its identifier.
+        window.__mocks?.reset();
+        window.__mocks?.poseIdentifierRefused("tr4ker");
+        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+      },
+    ],
+    [
+      "torrent-obligation-breached",
+      "Torrents — une obligation rompue, le torrent toujours actif, POSÉE sur Star Trek: Strange New Worlds (le back-end lira la rupture)",
+      () => {
+        // A DERIVATION, SHOWN AS ONE: no real obligation has been broken.
+        window.__mocks?.reset();
+        window.__mocks?.setObligationBreached("8d51568b1a4f46e1fb7e7b535b52a5203312fc28");
+        applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+      },
+    ],
   ];
 }

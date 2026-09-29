@@ -79,3 +79,41 @@ export function useSettingsCatalogue(): Setting[] | undefined {
   });
   return data?.flatMap((topic) => topic.settings);
 }
+
+/** What the ratio alert says of the page's answers: per tracker, and per entry. */
+export type Alert = {
+  /** The trackers under their own alert threshold. */
+  under: Set<string>;
+  /** The trackers refusing the configured identifier — one unit each. */
+  refused: Set<string>;
+  /** The entries, `hash:tracker`, whose obligation is broken while they are still active. */
+  breached: Set<string>;
+};
+
+/**
+ * The ratio alert — ONE derivation, read by every place it is drawn (§ 13).
+ *
+ * A tracker is in alert under its OWN threshold, never another's; a refused
+ * identifier is the tracker's, counted once for it, never once per torrent it
+ * affects (the cause lives on the tracker); an obligation is in breach when it
+ * is broken, neither met nor released, on an entry still in the client.
+ *
+ * @param trackers The trackers' summary.
+ * @param downloads The client's entries.
+ * @param obligations The seeding obligations.
+ * @returns What is in alert.
+ */
+export function alertOf(trackers: Tracker[], downloads: Download[], obligations: Obligation[]): Alert {
+  const active = new Set(downloads.map((entry) => `${entry.infoHash}:${entry.tracker}`));
+  return {
+    under: new Set(trackers.filter((tracker) => tracker.alertThreshold !== null && tracker.ratio !== null
+      && tracker.ratio < tracker.alertThreshold).map((tracker) => tracker.name)),
+    refused: new Set(trackers.filter((tracker) => tracker.identifierRefusedSince !== null)
+      .map((tracker) => tracker.name)),
+    breached: new Set(obligations
+      .filter((obligation) => obligation.breachedAt !== null && obligation.satisfiedAt === null
+        && obligation.releasedAt === null)
+      .map((obligation) => `${obligation.infoHash}:${obligation.sourceTracker}`)
+      .filter((key) => active.has(key))),
+  };
+}

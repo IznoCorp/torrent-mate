@@ -9,6 +9,7 @@ import OBLIGATIONS from "./seeds/obligations.json";
 import TRACKERS from "./seeds/trackers.json";
 import { mockState } from "./state";
 import { forgetLadder } from "./handlers/ladder";
+import { scenario } from "./scenario";
 import type { components } from "../contract/types";
 
 type Schemas = components["schemas"];
@@ -52,8 +53,29 @@ export type TrackerDials = {
   setObligationSatisfied: (infoHash: string) => void;
   poseArrived: (title: string) => void;
   poseExternalRemoval: (infoHash: string) => void;
+  poseAlertThreshold: (tracker: string, threshold: number) => void;
+  poseIdentifierRefused: (tracker: string) => void;
+  setObligationBreached: (infoHash: string) => void;
   trackerRemovals: () => TrackersHeld["removals"];
 };
+
+// WHERE A TRACKER'S ALERT THRESHOLD IS SET: its own key in the tracker's
+// economy block, beside the floor and the target, written through the same
+// settings write as they are.
+const SETTING_PREFIX = "tracker.providers.";
+const ALERT_THRESHOLD_SUFFIX = ".economy.alert_threshold";
+
+/**
+ * The settings key of one tracker's alert threshold.
+ *
+ * @param tracker The tracker's configured name.
+ * @returns The key.
+ */
+export function alertThresholdKey(tracker: string): string {
+  return SETTING_PREFIX + tracker + ALERT_THRESHOLD_SUFFIX;
+}
+// The milliseconds in a second: the layer dates in Unix-epoch seconds.
+const MILLISECONDS_PER_SECOND = 1000;
 
 // A download complete: its files are all there, and the client seeds it.
 const DOWNLOAD_DONE = "seeding";
@@ -102,6 +124,33 @@ export const trackerDials: TrackerDials = {
     subject.downloads = subject.downloads.filter((entry) => entry.infoHash !== infoHash);
     for (const obligation of subject.obligations) {
       if (obligation.infoHash === infoHash) obligation.releasedAt = obligation.addedAt;
+    }
+  },
+  poseAlertThreshold: (tracker: string, threshold: number) => {
+    // THE OPERATOR'S OWN SETTING, posed where the settings write puts it: the
+    // summary reads it there, never from a copy.
+    const key = alertThresholdKey(tracker);
+    for (const setting of mockState().settings.flatMap((topic) => topic.settings)) {
+      if (setting.key !== key) continue;
+      setting.raw = threshold;
+      setting.displayedValue = String(threshold);
+    }
+  },
+  poseIdentifierRefused: (tracker: string) => {
+    // A DERIVATION, SHOWN AS ONE: the tracker refuses the configured identifier
+    // since the layer's frozen now. No real tracker refuses it.
+    const since = Math.floor(Date.parse(scenario().now) / MILLISECONDS_PER_SECOND);
+    for (const held of trackersState().trackers) {
+      if (held.name === tracker) held.identifierRefusedSince = since;
+    }
+  },
+  setObligationBreached: (infoHash: string) => {
+    // A DERIVATION, SHOWN AS ONE: an obligation BROKEN at its own deadline, its
+    // torrent still active. No real obligation has been broken.
+    for (const obligation of trackersState().obligations) {
+      if (obligation.infoHash === infoHash) {
+        obligation.breachedAt = obligation.addedAt + obligation.minimumSeedTimeSeconds;
+      }
     }
   },
   setObligationSatisfied: (infoHash: string) => {

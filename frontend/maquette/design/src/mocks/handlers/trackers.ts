@@ -3,18 +3,11 @@
 // obligations those entries owe.
 import { DELETE, GET, field, route } from "./shared";
 import { mockState } from "../state";
-import { trackersState } from "../trackers-state";
+import { alertThresholdKey, trackersState } from "../trackers-state";
 import type { MockRoute } from "../router";
 import type { components } from "../../contract/types";
 
 type Schemas = components["schemas"];
-
-// WHERE A TRACKER'S ALERT THRESHOLD IS SET: its own key in the tracker's
-// economy block, beside the floor and the target, written through the same
-// settings write as they are. The summary READS it there rather than carrying
-// a second copy that could disagree with what the settings page shows.
-const SETTING_PREFIX = "tracker.providers.";
-const ALERT_THRESHOLD_SUFFIX = ".economy.alert_threshold";
 
 // The milliseconds in a second: a removal is dated in Unix-epoch seconds.
 const MILLISECONDS_PER_SECOND = 1000;
@@ -26,7 +19,9 @@ const MILLISECONDS_PER_SECOND = 1000;
  * @returns The threshold, or null when no setting names one.
  */
 function alertThresholdOf(tracker: string): number | null {
-  const key = SETTING_PREFIX + tracker + ALERT_THRESHOLD_SUFFIX;
+  // READ WHERE THE SETTINGS WRITE PUTS IT, rather than from a second copy
+  // that could disagree with what the settings page shows.
+  const key = alertThresholdKey(tracker);
   const setting = mockState()
     .settings.flatMap((topic) => topic.settings)
     .find((candidate) => candidate.key === key);

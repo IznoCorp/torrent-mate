@@ -398,7 +398,9 @@ def test_the_committed_reference_carries_a_platform():
     # 145 SINCE L16's phase 7: `torrent-remove-confirm-shared` and `torrents-external-removal` —
     # added; the removal's confirmation of shared files grew by its consequence, on shell/dialog
     # (B-554), named in the acceptance commit.
-    assert reference["counts"] == {"states": 145, "regions": 38}
+    # 148 SINCE L16's phase 8: `tracker-alert-active`, `tracker-identifier-refused` and
+    # `torrent-obligation-breached` — added, nothing else moved.
+    assert reference["counts"] == {"states": 148, "regions": 38}
 
 
 class TestItRefusesToWriteOverAForeignBuild:

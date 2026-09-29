@@ -11,10 +11,12 @@ import { FactRows } from "../../ui/fact-rows";
 import { Markup, emptyNoteMarkup } from "../../ui/markup";
 import { useUiState } from "../../lib/store-access";
 import {
-  crossReference, emptyNote, factDetail, factList, factName, factRow, factRowBody, factValue, guidance,
+  chip, crossReference, emptyNote, factDetail, factList, factName, factRow, factRowBody, factValue, guidance,
 } from "../../ui/variants";
 import { written } from "./format";
-import { useSettingsCatalogue, useTrackers, type Setting, type Tracker } from "./queries";
+import {
+  alertOf, useDownloads, useObligations, useSettingsCatalogue, useTrackers, type Alert, type Setting, type Tracker,
+} from "./queries";
 
 // THE POLICY IS THE TRACKER'S ECONOMY BLOCK, in the tracker's configuration
 // file: the floor, the seed time and the alert threshold, in that order.
@@ -72,10 +74,12 @@ function TrackerPolicy({ tracker, settings }: { tracker: string; settings: Setti
  * @param props.open Whether the address opened it.
  * @returns The entry.
  */
-function TrackerEntry({ tracker, settings, open }: { tracker: Tracker; settings: Setting[]; open: boolean }): ReactElement {
+function TrackerEntry(
+  { tracker, settings, open, alert }: { tracker: Tracker; settings: Setting[]; open: boolean; alert: Alert },
+): ReactElement {
   return (
     <li data-part="trackers/entry" data-tracker={tracker.name}>
-      <Disclosure open={open} summary={<TrackerSummary tracker={tracker} />}>
+      <Disclosure open={open} summary={<TrackerSummary tracker={tracker} alert={alert} />}>
         <TrackerPolicy tracker={tracker.name} settings={settings} />
       </Disclosure>
     </li>
@@ -83,12 +87,15 @@ function TrackerEntry({ tracker, settings, open }: { tracker: Tracker; settings:
 }
 
 /**
- * What a closed entry says: the tracker, its trend, its volumes, its ratio.
+ * What a closed entry says: the tracker, its trend, its volumes, its ratio —
+ * and, when it is in alert, why: under its own threshold, or its identifier
+ * refused.
  *
  * @param props.tracker The tracker, as its own answer carries it.
+ * @param props.alert The page's one alert derivation.
  * @returns The entry's summary.
  */
-function TrackerSummary({ tracker }: { tracker: Tracker }): ReactElement {
+function TrackerSummary({ tracker, alert }: { tracker: Tracker; alert: Alert }): ReactElement {
   const { t } = useTranslation();
   return (
     <span className={factRow()}>
@@ -103,6 +110,16 @@ function TrackerSummary({ tracker }: { tracker: Tracker }): ReactElement {
             uploaded: written(tracker.uploadedBytes / GIGABYTE, 1),
           })}
         </span>
+        {alert.under.has(tracker.name) ? (
+          <span className={chip({ tone: "warning" })} data-part="trackers/alert">
+            {t("screens.trackers.alertBelowThreshold", { threshold: written(tracker.alertThreshold ?? 0, 2) })}
+          </span>
+        ) : null}
+        {alert.refused.has(tracker.name) ? (
+          <span className={chip({ tone: "danger" })} data-part="trackers/identifier-refused">
+            {t("screens.trackers.identifierRefused")}
+          </span>
+        ) : null}
       </span>
       <span className={factValue()} data-part="trackers/ratio">
         {tracker.ratio === null ? t("screens.trackers.ratioUnknown") : t("screens.trackers.ratio", { ratio: written(tracker.ratio, 2) })}
@@ -120,8 +137,11 @@ export function TrackersTab(): ReactElement | null {
   const { t } = useTranslation();
   const state = useUiState();
   const { data: trackers } = useTrackers();
+  const { data: downloads } = useDownloads();
+  const { data: obligations } = useObligations();
   const settings = useSettingsCatalogue() ?? [];
   if (!trackers) return null;
+  const alert = alertOf(trackers, downloads?.downloads ?? [], obligations?.items ?? []);
   if (trackers.length === 0) {
     return (
       <Markup
@@ -134,7 +154,7 @@ export function TrackersTab(): ReactElement | null {
     <ol className={factList()} data-part="trackers/roster">
       {trackers.map((tracker) => (
         <TrackerEntry
-          key={tracker.name} tracker={tracker} settings={settings}
+          key={tracker.name} tracker={tracker} settings={settings} alert={alert}
           open={state.trackersFilter === tracker.name}
         />
       ))}

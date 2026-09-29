@@ -11,7 +11,7 @@ import { Markup, emptyNoteMarkup } from "../../ui/markup";
 import { useUiState } from "../../lib/store-access";
 import { chip, emptyNote, factDetail, factList, factRow, factRowBody, factValue, statusDot } from "../../ui/variants";
 import { dayOf, written } from "./format";
-import { useDownloads, useObligations, type Download, type Obligation } from "./queries";
+import { alertOf, useDownloads, useObligations, useTrackers, type Download, type Obligation } from "./queries";
 import { torrentFilter, torrentFilterClear, torrentRemove, torrentTitle } from "./variants";
 
 /**
@@ -44,9 +44,12 @@ function episodeCode(entry: Download): string {
  *
  * @param props.entry The download client's entry.
  * @param props.obligation The obligation it owes, when it owes one.
+ * @param props.breached Whether the page's alert reads its obligation broken.
  * @returns The row.
  */
-function TorrentRow({ entry, obligation }: { entry: Download; obligation: Obligation | undefined }): ReactElement {
+function TorrentRow(
+  { entry, obligation, breached }: { entry: Download; obligation: Obligation | undefined; breached: boolean },
+): ReactElement {
   const { t } = useTranslation();
   const code = episodeCode(entry);
   // RUNNING: nothing has closed it — neither met, nor broken, nor released.
@@ -78,6 +81,12 @@ function TorrentRow({ entry, obligation }: { entry: Download; obligation: Obliga
           {running ? (
             <span className={chip({ tone: "info" })} data-part="torrents/obligation-open">
               {t("screens.torrents.obligationOpen")}
+            </span>
+          ) : null}
+          {/* BROKEN, THE TORRENT STILL HERE: the alert's own reading, never recomputed on the row. */}
+          {breached ? (
+            <span className={chip({ tone: "danger" })} data-part="torrents/obligation-breached">
+              {t("screens.torrents.obligationBreached")}
             </span>
           ) : null}
           {done ? (
@@ -136,7 +145,9 @@ export function TorrentsTab(): ReactElement | null {
   const state = useUiState();
   const { data: downloads } = useDownloads();
   const { data: obligations } = useObligations();
+  const { data: trackers } = useTrackers();
   if (!downloads || !obligations) return null;
+  const alert = alertOf(trackers ?? [], downloads.downloads, obligations.items);
   const tracker = typeof state.trackersFilter === "string" ? state.trackersFilter : "";
   const entries = tracker === "" ? downloads.downloads : downloads.downloads.filter((entry) => entry.tracker === tracker);
   const filter = tracker === "" ? null : <FilterLine tracker={tracker} />;
@@ -161,6 +172,7 @@ export function TorrentsTab(): ReactElement | null {
             key={`${entry.infoHash}:${entry.tracker}`}
             entry={entry}
             obligation={owedBy(entry, obligations.items)}
+            breached={alert.breached.has(`${entry.infoHash}:${entry.tracker}`)}
           />
         ))}
       </ol>
