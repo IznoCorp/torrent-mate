@@ -86,3 +86,10 @@ The steward's rulings on this lot's STOPs, numbered, one per STOP. The operator'
     read read-only (no key, token or secret in it — the steward checked), its path and date of reading in
     the fixture register. Cut 14a (the read, the screen, R266's read half) / 14b (B-298's two sites, the
     screen walk, loading/error states, B-298's closure).
+12. **2026-09-29, phase 14b, STOP A — the rubric opened the global quality profile.** « Classement des
+    releases » in Réglages carries `data-profile="global"` (`/quality/global`, held by `page_host.py`);
+    B-298's « leads nowhere » was inexact — the promise was the global profile's « Poids du classement »
+    toast. Readings: A (the rubric to the editor, Réglages losing the global profile), B (the rubric kept,
+    the weights button to the editor), C (a new row). **Ruled B**: no product change outside the phase;
+    page_host green without a re-aim; R266 hold 4 re-aimed OUT LOUD onto the real path, proved by a finger;
+    B-298 closed by its real half, its text corrected in the register.

@@ -361,7 +361,7 @@ when the defect comes back.
 | B-295 | React 19 assigns `innerHTML` on the prop OBJECT's identity, string unchanged or not — so every re-render of a page subscribed to the store's version recreates its engine-drawn children | by L14   | `fixed #547` |
 | B-296 | The raw log of an execution has no surface; the passage's narrative is per media and the log lines are folded in the run's detail | by survey | `fixed #603` |
 | B-297 | The locks — pipeline lock, pause sentinel, watcher pause, tmp-orphan sweep — have no surface, and three of them are the state of L20's levers | by survey | `fixed #603` |
-| B-298 | The ranking editor is a promise: a settings rubric that leads nowhere and a toast saying it will exist | by survey | `open` |
+| B-298 | The ranking editor is a promise: a settings rubric that leads nowhere and a toast saying it will exist | by survey | `to confirm` |
 | B-299 | `SettingsState.conflict` is declared, set to `false` at boot, and never raised, drawn or copied — the conflict the contract answers has no surface | by survey | `to confirm` |
 | B-300 | « Redémarrer maintenant » restarts on the tap, with no confirmation, while a restart cuts the service for the whole household | by survey | `to confirm` |
 | B-301 | The seasons panel prints a season as `to_grab` and offers no verb; the season grab operation is uncalled | by survey | `fixed #572` |
@@ -2461,6 +2461,19 @@ c'est un écran à part » and its row leads nowhere; the quality screen's « Po
 /api/acquisition/ranking/preview`, uncalled by the maquette). Placed 2026-09-02 with **L16**: §18
 makes the ranking follow the ratio, and the editor is where that term is set; it is drawn as the
 screen the rubric promises, with the live preview.
+
+**Corrected at L16 phase 14b (2026-09-29, RULINGS 12 = B):** the rubric did NOT lead nowhere — it
+opens the GLOBAL quality profile (`/quality/global`, held by `page_host.py`); the promise was that
+profile's « Poids du classement (global) » toast. The rubric keeps its route; the weights button now
+carries the verb `ranking-editor` and lands on `/settings/ranking`, the editor listing
+`ranking.json5`'s own criteria (L16 phase 14a), its copy `screens.profile.rankingToast` removed.
+**Escaped from**: a survey that read the rubric's words, not its route; **why**: no rule walked the
+rubric; **family repaired by** R266 (`frontend/maquette/harness/ranking_editor.py`) holds 4–5, a
+finger from Réglages through the global profile to the editor, and from any quality screen. Red before
+the move: « from a quality screen, « Poids du classement (global) → » lands on the editor … 'toast':
+"Dans l'app, ce bouton mènera à /conf… » (`p14b-red.log`); mutation: the button toasting again →
+FAIL « and there « Poids du classement (global) → » lands on the editor, as an arrival —
+{'path': '/quality/global' …} ». The live preview is L16 phase 16's.
 
 <sub>`grep -n "rankingToast\|rankingTitle" frontend/maquette/design/src/i18n/fr.json` · `grep -rn "ranking/preview" -g '*.ts' frontend/maquette/design/src` → none</sub>
 

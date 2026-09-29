@@ -1,45 +1,38 @@
 # L16 — RESUME
 
-## STATE BLOCK (rewritten at every boundary — 2026-09-29, after phase 5d)
+## STATE BLOCK (rewritten at every boundary — 2026-09-29, stand-down after phase 14b)
 
 - **Branch** `feat/maquette-l16`, worktree `/Users/izno/dev/worktrees/wave-l16`, on `origin/main` by MERGE
-  (last: `e65130ab1`, #629, merged at the 5c opening, no conflict). `git merge --no-edit` at a phase boundary; NO
-  force push, ever.
-- **Orchestrator** « Orch : TM frontend [79475d] »; always write the reference. Gauge:
-  `context-gauge.sh`, its `context_percent=` and `source=` lines in every report. Context gate 80 %, exit ~75 %
-  (the brief's dated line of 2026-09-29).
-- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 5c · 5d · 6a · 6b · 7 · 8 · 9 · 10 · 11 · 12a · 12b · 13 · 14a — each gated, pushed. MIDPOINT read. **Next: 14b**
-  (RULINGS 11: B-298's two sites — the settings rubric `features/settings/page.tsx` gets its path to
-  `/settings/ranking`, the quality screen's `rankingToast` (`features/releases/quality-screen.tsx`) is replaced by
-  that path —, `screen_addresses.py`'s walk, `ranking-editor-loading` / `-error`, B-298 closed with its mutation).
-- **Remaining** (from `ls plan/`): 14b · 15 · 16 · 17.
-  Known STOP D: none left in the plan. (ratio cause = global `ingest.min_ratio`; the seed),
-  14 (no read of a config file's content in the maquette's contract).
-- **Rulings** (`RULINGS.md`) 1 `?list=` · 2 C2, save bar via `lib/save-bar-door.tsx` · 3 B, the filter line · 4 B1,
-  Lanterns's sheet from its NFO + R1 bis · 5 B, `poseArrived` (Zinzins end to end) · 6 B, `poseExternalRemoval` (Ted Lasso) · 7 posed dials replace composed seeds
-  (STANDING: announce, no STOP, unless no real subject or a product behaviour changes) · 8 A, « Vu » · 9 the sheet reads « Veille »; L22's note to phase 17 · 10 A, the tracker's own threshold (a demand) · 11 A, `readConfigurationFile` + the real ranking.json5.
-- **Rules** R260 `trackers_page.py` · R261 `trackers_roster.py` (holds 1–17) · R262 `trackers_policy.py` · R263
-  `trackers_removal.py` (21, holds 1–10); R122 reads `torrents/row`; `audit.py` 14 holds; R229 re-aimed at 5d (16 holds); R264 `trackers_alert.py` (27, holds 1–11); R91 `fanout.py` 170; R265 `deferred_reason.py` (16, holds 1–6); R266 `ranking_editor.py` (22, the read half).
-  Next labels: · f R266 (14) · e R267 (16); cuts R268+. Register B-570 taken (check-live-relay's
-  constant-key blind spot, `open`); next B-571.
-- **Gate** (office § The gate): static list = CI's no-french job AND run.sh's 26 cheap guards (the scratchpad
-  `static.sh` reads them from `REPOSITORY_GUARDS`; a 12b spread escaped a narrower list) → `run.sh --oracle` alone → accept with
+  (last: `e65130ab1`, #629, at 5c's opening). `git merge --no-edit` at a phase boundary; NO force push, ever.
+- **Orchestrator** « Orch : TM frontend [79475d] »; always write the reference. Gauge: `context-gauge.sh` as the
+  LAST tool call before any message carrying a figure. Context gate 80 %, exit ~75 % (brief's dated line).
+- **Done** 1 · 2a–c · 3 · 4 · 5a–d · 6a · 6b · 7 · 8 · 9 · MIDPOINT · 10 · 11 · 12a · 12b · 13 · 14a · 14b — each
+  gated, mutated, pushed. **Next: 15** (`plan/phase-15-ranking-editor-saves.md`), not opened — re-measure it.
+- **Remaining** (from `ls plan/`): 15 · 16 · 17 (then the close's full suite + `--compare`, PR). No known STOP D.
+- **Rulings** (`RULINGS.md`) 1 `?list=` · 2 C2 save bar door · 3 B filter line · 4 B1 Lanterns · 5 B `poseArrived` ·
+  6 B `poseExternalRemoval` · 7 posed dials replace composed seeds (STANDING: announce, no STOP) · 8 A « Vu » ·
+  9 « Veille », L22's note to phase 17 · 10 A tracker's own threshold (demand) · 11 A `readConfigurationFile` +
+  the real ranking.json5 · 12 B the rubric keeps /quality/global, the weights button leads to the editor.
+- **Rules** R260 trackers_page · R261 trackers_roster (17 holds) · R262 trackers_policy · R263 trackers_removal (10) ·
+  R264 trackers_alert (11) · R265 deferred_reason (6) · R266 ranking_editor (6, read half: 22→27 holds) · R229
+  re-aimed at 5d; R91 fanout reads trackers/live.ts. Next label: e R267 (16); cuts R268+. Register: B-570 taken
+  (live-relay guard's constant-key blind spot, `open`); B-298 `to confirm`; next B-571.
+- **Gate** (office § The gate): the scratchpad `static.sh` = CI's no-french job + run.sh's 26 cheap guards (read
+  from `REPOSITORY_GUARDS`) — a successor rebuilds it the same way; → `run.sh --oracle` alone → accept with
   `bash -c 'run.sh --oracle; oracle.py --accept'` + `tools/accept_by_name.py <declared.json>` (declared BY SCRIPT
-  from `states/*.ts`) → `run.sh --rules` (`--class rule`) → `--a11y` if it draws. The static list AGAIN after any
-  harness edit. `test_oracle.py` pinned 155 states / 38 regions. Maquette vitest: `vitest run --root
-  frontend/maquette/design` (from the root it runs the production app's tests).
-- **B-554 list** the 25 `shell/dialog` readers = `p06b-declared.json`'s (reused at 7, identical).
-- **Order 73** a rule red 3× in a row for a non-product reason → a register row naming its MECHANISM before READY,
-  or the rule leaves the gates and the row stays open (entry/pwa excluded: the router hairpin, a train's).
-- **Git** the index lock is sometimes held by a concurrent reader (a session hook): `git add` then `git commit
-  -F <file>` with a bounded retry; never delete the lock.
-- **Size watch** `mocks/handlers/staging.ts` 399, `mocks/index.ts` 399 (ceiling 400): no new line there.
-- **Order 52** harness/product added 0.51 at 5b. `data-mediasheet` added ⇒ `audit.py` at the gate; `ui/dialog`
-  touched ⇒ its 13 readers. A new dialog moves `shell/dialog` on ~24 later states (B-554); `.warnbox > b` fails light.
-- **Traps** `git fetch` blocked by a hook (use `git remote update origin`); `markup_anchors.GENRE_SITES` keyed by line;
-  a `[data-follow]` selector in a rule is refused by `check-markup-contracts` (read the attribute's value);
-  a maquette comment naming a lot, a phase or a date is refused (`check-maquette-comments.py`).
-- **Mock** `mocks/trackers-state.ts`: trackers/downloads/obligations/removals + dials (`poseArrived` among them).
+  from `states/*.ts`) → `run.sh --rules` (`--class rule`) → `--a11y`. `test_oracle.py` pinned 157 / 38. Maquette
+  vitest: `vitest run --root frontend/maquette/design`. The RULE is read RED BEFORE the move (14a slipped).
+- **Order 52** at the midpoint 0.56; **Order 73**: a rule red 3× for a non-product reason → a register row naming
+  its mechanism before READY (entry/pwa excluded: the router hairpin, a train's).
+- **Phase 17 carries**: L22's DESIGN § 1.7 note (RULINGS 9); B-298 `to confirm`; the closing full suite + `--a11y` +
+  `--compare`; the 390 px screenshots of both Trackers tabs.
+- **Traps** `git fetch` blocked (use `git remote update origin`); the git index lock is held by a concurrent reader
+  — `git add` then `git commit -F <file>` with bounded retries, never delete the lock; BSD `sed` has no `\b`;
+  zsh does not split `$VAR` (use `xargs`); a `[data-follow]` selector is refused (read the value); a maquette
+  comment naming a lot/phase/date is refused; Playwright `has_text` is case-free (another row may quote it).
+- **Size watch** `mocks/handlers/staging.ts` 399, `mocks/index.ts` 399 (ceiling 400). Frame-domain app/ 153.
+- **Mock** `mocks/trackers-state.ts` (roster, downloads, obligations, removals + dials), `mocks/configuration-files.ts`
+  (the files' content, per layer state), `mocks/handlers/ranking.ts` (the preview), `posed-deferral.ts`.
 - **Logs** `~/Library/Logs/tm-l16/`; the proof tool lives in `tools/` there.
 
 ---
@@ -343,3 +336,16 @@
   url_state 106 (it reads the new screen address) · screen_addresses 61, 0 failed; a11y dark 0, light 88. Mutation:
   a constant list (one criterion, weight 1) → FAIL « one row per criterion of the file … — ['resolution'] against
   [9] » (`p14a-mutation1.log`).
+- 2026-09-29 — 14b: R266 holds 4–6 RED first (`p14b-red.log`: the rubric stays on /settings, the quality foot
+  toasts its promise, the two states unknown). The move (`cee542f68`): the verb `ranking-editor`, the editor's
+  skeletons and surface error, states `ranking-editor-loading` / `-error` (the read held back / answered 500),
+  `rankingToast` removed. page_host FELL — the rubric opened /quality/global → STOP A → RULINGS 12 = B: the
+  rubric keeps `data-profile="global"`, the weights button alone leads to the editor; hold 4 re-aimed OUT LOUD
+  onto rubric → global profile → weights → editor. The « settings row intercepting the tap » I reported was MY
+  locator: `has_text` is case-free and the tracker topic's subtitle quotes « le classement des releases » —
+  the rule now finds the rubric by `[data-profile]`.
+- 2026-09-29 — 14b gate: 28 static checks, typecheck 0. Oracle alone: the 2 new states only, 0 key moved, proved;
+  `test_oracle.py` 155 → 157. Rules R266 27 · page_host 42 · settings 68 · settings_editing 15 · screen_addresses
+  61, 0 failed; a11y dark 0, light 88. Mutation: the weights button toasting again → FAIL « and there « Poids du
+  classement (global) → » lands on the editor … {'path': '/quality/global'} » (`p14b-mutation1.log`). B-298 →
+  `to confirm`, its text corrected. Stand-down at gauge 65 % (measured), the steward's word (successor takes 15).
