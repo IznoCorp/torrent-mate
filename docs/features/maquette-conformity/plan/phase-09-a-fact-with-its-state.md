@@ -1,4 +1,4 @@
-# Phase 8 — A fact with its state at the row's end (D.1 #6)
+# Phase 9 — A fact with its state at the row's end (D.1 #6)
 
 **Opening measure (2026-09-29, on `660049325`):**
 
@@ -7,13 +7,13 @@
   127–132, 155–160, 217–220`; the Incomplets count line's `statusDot` + inline `b` at `features/library/page.tsx:51–54`,
   its `marginLeft: 12` at `:89`.
 - **Points ≈ 8.** Four rows onto the chip at the row's end (≈ 16 lines, 3); the count line's count part (1); the
-  inline styles go (1); R-conformity-f (3).
+  inline styles go (1); R-conformity-g (3).
 - **Readers.** `acted_surface_redraws.py`, `requester_line.py`, `one_ladder.py` read `status-dot` — on other
   surfaces; the rule's opening re-reads them against this diff.
 
 ## Red today
 
-R-conformity-f on `mediasheet-movie` and `mediasheet-series`: the ownership row's state is a chip at the row's end,
+R-conformity-g on `mediasheet-movie` and `mediasheet-series`: the ownership row's state is a chip at the row's end,
 never a dot and a bare word — falls.
 
 ## Mutation

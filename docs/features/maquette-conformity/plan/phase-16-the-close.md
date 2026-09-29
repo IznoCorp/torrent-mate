@@ -1,4 +1,4 @@
-# Phase 15 — The close
+# Phase 16 — The close
 
 **Points ≈ 6.** `git merge --no-edit origin/main`; the patch bump above `main`; the gate; the pull request READY;
 the RESUME's state block closed.

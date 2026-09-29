@@ -1,4 +1,4 @@
-# Phase 14 — The tokens (D.1 #16)
+# Phase 15 — The tokens (D.1 #16)
 
 **Opening measure (2026-09-29, on `660049325`):**
 
@@ -8,12 +8,12 @@
   `rg -n 'from "class-variance-authority"' -g '*.ts' frontend/maquette/design/src` → `features/system/variants.ts:8`
   and `ui/cva.ts`; `rg -n "'Geist'" -g '*.ts' frontend/maquette/design/src/features` → `features/settings/variants.ts:148`.
 - **Points ≈ 13.** Inline `style` onto steps, the off-scale ones first (≈ 40 lines, 8); `text-<tone>` → `text-<tone>-text`
-  on text in feature variants (2); `ui/cva` import (1); the `'Geist'` literal goes (1); R-conformity-l (the count held
+  on text in feature variants (2); `ui/cva` import (1); the `'Geist'` literal goes (1); R-conformity-m (the count held
   at its new floor) (1). Above 15 at the opening: cut by directory, the orchestrator told.
 
 ## Red today
 
-R-conformity-l: the inline-style count above its floor; the off-scale steps.
+R-conformity-m: the inline-style count above its floor; the off-scale steps.
 
 ## The one visible change
 

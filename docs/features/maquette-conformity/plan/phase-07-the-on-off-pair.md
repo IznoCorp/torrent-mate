@@ -35,10 +35,6 @@ Put the bare word back → falls by name; restore the locks' row → the « once
 Every Système state drawing the levers or the locks, the settings boolean states, `maintenance-topic`, the media
 sheet states drawing « suivi » (built by script) — the rename and the removed row accepted by name.
 
-## Midpoint (after this phase)
-
-`--contracts` and the full suite; real falls repaired before phase 8; harness budget read (office, order 52).
-
 ## Commit
 
 `feat(maquette-conformity): one on/off pair, « actif / inactif », and the watcher named by what it does`

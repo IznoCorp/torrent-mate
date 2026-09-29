@@ -14,7 +14,7 @@ supports its phase's cut is STOP D.
 
 - **STOP A** — the oracle diverging on a state the phase did not name.
 - **STOP B** — the pull request.
-- **STOP C — the operator's round.** D.1 #2 was RULED 2026-09-29 (OPEN 1 = A) and is phase 7; #7 (the status dot, OPEN 9),
+- **STOP C — the operator's round.** D.1 #2 (OPEN 1 = A) and the state words (OPEN 2 = A) were RULED 2026-09-29 and are phases 7 and 8; #7 (the status dot, OPEN 9),
   #14 (the segmented choice, OPEN 4) and #15 (the primary buttons, OPEN 8) wait for the rulings the orchestrator
   sends; they are NOT phases of this plan until then. Reaching them first is a STOP, said.
 - **STOP D** — a measurement that contradicts a home. Near already (non-blank lines, `grep -cv '^\s*$'`, ceiling
@@ -40,18 +40,19 @@ new rule with its mutation 3; a rule re-aimed 1; a guard arm with its test 3; a 
 | 5 | [The switch](phase-05-the-switch.md) | conversion | #4 | c + switch arm | 11 |
 | 6 | [The status chip](phase-06-the-status-chip.md) | conversion | #5 | d | 12 |
 | 7 | [« actif / inactif »](phase-07-the-on-off-pair.md) | behaviour, ruled | #2 | e | 13 |
-| 8 | [A fact with its state](phase-08-a-fact-with-its-state.md) | conversion | #6 | f | 8 |
-| 9 | [The empty surface](phase-09-the-empty-surface.md) | conversion | #10 | g | 7 |
-| 10 | [The back control](phase-10-the-back-control.md) | conversion | #12 | h | 6 |
-| 11 | [The count badge](phase-11-the-count-badge.md) | conversion | #8 | i | 10 |
-| 12 | [The legend](phase-12-the-legend.md) | conversion | #9 | j | 10 |
-| 13 | [The topic row](phase-13-the-topic-row.md) | conversion | #11 | k | 11 |
-| 14 | [The tokens](phase-14-the-tokens.md) | conversion | #16 | l | 13 |
-| 15 | [The close](phase-15-the-close.md) | close | — | — | 6 |
+| 8 | [The state words](phase-08-the-state-words.md) | behaviour, ruled | OPEN 2 | f | 14 |
+| 9 | [A fact with its state](phase-09-a-fact-with-its-state.md) | conversion | #6 | g | 8 |
+| 10 | [The empty surface](phase-10-the-empty-surface.md) | conversion | #10 | h | 7 |
+| 11 | [The back control](phase-11-the-back-control.md) | conversion | #12 | i | 6 |
+| 12 | [The count badge](phase-12-the-count-badge.md) | conversion | #8 | j | 10 |
+| 13 | [The legend](phase-13-the-legend.md) | conversion | #9 | k | 10 |
+| 14 | [The topic row](phase-14-the-topic-row.md) | conversion | #11 | l | 11 |
+| 15 | [The tokens](phase-15-the-tokens.md) | conversion | #16 | m | 13 |
+| 16 | [The close](phase-16-the-close.md) | close | — | — | 6 |
 
-`python3 -c "print(14+9+14+12+11+12+13+8+7+6+10+10+11+13+6)"` → **156 points over 15 phases, mean ≈ 10.4, max 14**.
-**The midpoint** — `--contracts` and the full suite, its real falls repaired before phase 8 opens — sits after
-phase 7. **The responsive full sweep** runs at phase 1 (its cost measured there), at the close and in CI; between,
+`python3 -c "print(14+9+14+12+11+12+13+14+8+7+6+10+10+11+13+6)"` → **170 points over 16 phases, mean ≈ 10.6, max 14**.
+**The midpoint** — `--contracts` and the full suite, its real falls repaired before phase 9 opens — sits after
+phase 8. **The responsive full sweep** runs at phase 1 (its cost measured there), at the close and in CI; between,
 each phase runs it on the states of the surfaces it touches (phase 1 fixes the flag that selects them).
 
 ## Why this order
