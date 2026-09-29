@@ -8,7 +8,7 @@ FIRST and the tracker's OWN switch state is said SECOND on the same line, never 
 plan, already re-drawn on `5e5ecd052`):**
 
 - **Commands.** `ls frontend/maquette/design/src/features/trackers` → **no such directory**;
-  `docs/features/maquette-l16/plan/phase-03-trackers-tab.md` places the collapsed entry in
+  `docs/features/maquette-l16/plan/phase-03-trackers-tab.md@f3d8fed01` places the collapsed entry in
   `features/trackers/trackers-tab.tsx` (one row = name, ratio, trend, volumes, the refused-identifier fact, the
   policy disclosure). `grep -cve '^[[:space:]]*$' frontend/maquette/design/src/features/account/page.tsx` → **79**
   (the analogue for the size of a list page). `sed -n 1,30p frontend/maquette/design/src/app/tab-bar.tsx` — the bar

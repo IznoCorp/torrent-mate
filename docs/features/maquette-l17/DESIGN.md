@@ -89,13 +89,13 @@ new fact is added at the amendment.
 | --- | --- | --- |
 | 1–15 | Unchanged from the first drawing — the engine's 797 lines, its two events, the closed twelve-code reason set, the eight skip reasons with no event, every default `False`, the live seed's three switches off, the existing write, no route in either contract, the two events exempted from live rules, the registers' disagreement on the stream, no account role in either contract, the media sheet's composition (now L18's), the colour vocabulary, the stream mock's 399 lines, the contract's counters | see the first drawing's own commands, re-taken at each phase's opening — none of these facts changed at the amendment |
 | 16 | **The engine stops at the FIRST verified injection, though its search walks every tracker** — F26 | `sed -n 220,260p personalscraper/acquire/cross_seed.py` → the loop returns on the first accepted candidate; nothing in the engine tries a SECOND eligible, switched-on tracker once one has succeeded. **The interface's own per-tracker state (clause 3) needs a state on EVERY eligible tracker, not only the one the engine happened to try first** — demand B (§ 6.2) asks the backend to attempt every eligible, switched-on tracker and keep a state per (torrent, tracker) pair; the cost is extra `.torrent` fetches, rechecks and seed obligations, never extra searches or quota units (the daily quota counts SEARCHES, not trackers tried per search) |
-| 17 | **L16's `AcquisitionDownload` already carries `info_hash` per entry** (`docs/features/maquette-l16/DESIGN.md` § 2.1) | the identity F60 asks for is **already answered** by L16's own extension — this amendment adds nothing to the shape for it, and phase 1 says so rather than re-declaring a field that already exists |
+| 17 | **L16's `AcquisitionDownload` already carries `info_hash` per entry** (`docs/features/maquette-l16/DESIGN.md@f3d8fed01` § 2.1) | the identity F60 asks for is **already answered** by L16's own extension — this amendment adds nothing to the shape for it, and phase 1 says so rather than re-declaring a field that already exists |
 
 ---
 
 ## 1. What L17 builds on, and does not redraw
 
-L16's re-drawn design is the base (`docs/features/maquette-l16/DESIGN.md`, plan `plan/INDEX.md`). This lot **adds to
+L16's re-drawn design is the base (`docs/features/maquette-l16/DESIGN.md@f3d8fed01`, plan `plan/INDEX.md@f3d8fed01`). This lot **adds to
 it and never redraws it**. The extension points, each named by the L16 phase that creates it:
 
 | L16 gives (file, per L16's plan) | L17 adds |
@@ -248,7 +248,7 @@ leave it alone). `data-part` names are English (D4).
 (the roster's line, on the Trackers tab), `/trackers?tab=torrents` (the mark, on a torrent's own row). **What DIES
 at the amendment**: `/trackers/$name` never existed to begin with on this head, and the first drawing's own
 `§ 3.0` line about it is corrected here rather than left standing — L16's redraw killed the address before L17
-could use it (`docs/features/maquette-l16/DESIGN.md` § 3). A FEED (OPEN 4) would have been a second view of
+could use it (`docs/features/maquette-l16/DESIGN.md@f3d8fed01` § 3). A FEED (OPEN 4) would have been a second view of
 `/trackers`; it is not drawn (OPEN 4 = A).
 
 ### 3.1 S1 — The roster's line (Trackers tab)

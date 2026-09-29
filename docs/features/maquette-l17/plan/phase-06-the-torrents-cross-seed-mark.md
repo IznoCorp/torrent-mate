@@ -7,7 +7,7 @@ virtual window their growth costs (F24) is its own phase (16); this phase is dra
 **Opening measure (2026-09-27, on `1d1282567` — the Torrents tab does not exist on this head; figures are from
 L16's plan, re-drawn on `5e5ecd052`):**
 
-- **Commands.** `ls frontend/maquette/design/src/features/trackers` → none; `docs/features/maquette-l16/plan/phase-05-torrents-tab.md`
+- **Commands.** `ls frontend/maquette/design/src/features/trackers` → none; `docs/features/maquette-l16/plan/phase-05-torrents-tab.md@f3d8fed01`
   places the row in `features/trackers/torrents-tab.tsx` (≈ 55 lines: title as a path, tracker, ratio on size,
   deadline, origin colour, up to three obligation marks). The nested-disclosure analogue: `sed -n 1,40p
   frontend/maquette/design/src/ui/disclosure.tsx` (`<Disclosure summary={…}>`, used by L16's policy panel).

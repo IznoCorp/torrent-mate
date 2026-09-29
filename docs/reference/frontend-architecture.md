@@ -819,7 +819,7 @@ the quality screen's toast is gone (B-298).
 
 **Design and plan written 2026-09-15, re-read against the organisation rulings 2026-09-26 (PR #614);
 RE-DRAWN 2026-09-27 against organisation rulings 18–20 and rounds 7–9 of the coherence audit, this
-docs pull request.** `docs/features/maquette-l16/DESIGN.md` and `plan/INDEX.md` (16 phases, mean
+docs pull request.** `docs/features/maquette-l16/DESIGN.md@f3d8fed01` and `plan/INDEX.md@f3d8fed01` (16 phases, mean
 ≈ 11.4). Its prior OPEN 1–3 are ruled (Trackers in the bar at L16 with the ratio alone; no right
 declared before L18; the badge's three components — threshold, breach, and, since round 9 Q1, a
 refused identifier); one new OPEN question is born of ruling 19 itself (which tab opens by default,

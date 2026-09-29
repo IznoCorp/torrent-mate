@@ -39,7 +39,7 @@ questions (§ 7) have no answer yet, and a plan cut from this document before th
 this document is forbidden to make, or leave every phase provisional. **The frontend-architecture.md entry this
 PR proposes (§ 6) carries the note explicitly**, and `docs/features/maquette-l23/plan/INDEX.md` is cut to the
 questions' COST, not to their answer — every phase that a reading would change says so, names both readings, and
-is amended in one line once the operator rules (the same discipline `docs/features/maquette-l16/DESIGN.md` § 0
+is amended in one line once the operator rules (the same discipline `docs/features/maquette-l16/DESIGN.md@f3d8fed01` § 0
 used for its own three first-drawing OPEN questions, before they were ruled).
 
 ### 0.1 What L23 builds on, and does not redraw
@@ -327,5 +327,5 @@ reaches INTO another lot's own field rather than adding a field of L23's own.
 
 **Ruled 2026-09-27 18:1x (round 11) = B.** The ratio is computed like any torrent's, on its size (Reading A's
 mechanism stands); the origin mark gains a THIRD value, « publié par vous », beside « téléchargé ici » and
-« cross-seed » — L23 lays the value, `docs/features/maquette-l16/DESIGN.md` § 2.3 item 3 gets its own dated line
+« cross-seed » — L23 lays the value, `docs/features/maquette-l16/DESIGN.md@f3d8fed01` § 2.3 item 3 gets its own dated line
 (`review-archive/l23/rulings-round11.md`, OPEN 5). ROUND 11 COMPLETE 5/5.
