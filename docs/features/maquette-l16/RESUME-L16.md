@@ -1,26 +1,26 @@
 # L16 — RESUME
 
-## STATE BLOCK (rewritten at every boundary — 2026-09-29, stand-down after phase 14b)
+## STATE BLOCK (rewritten at every boundary — 2026-09-29, after phase 15)
 
 - **Branch** `feat/maquette-l16`, worktree `/Users/izno/dev/worktrees/wave-l16`, on `origin/main` by MERGE
-  (last: `e65130ab1`, #629, at 5c's opening). `git merge --no-edit` at a phase boundary; NO force push, ever.
+  (last: `77e7b8436`, #631, at 15's opening). `git merge --no-edit` at a phase boundary; NO force push, ever.
 - **Orchestrator** « Orch : TM frontend [79475d] »; always write the reference. Gauge: `context-gauge.sh` as the
   LAST tool call before any message carrying a figure. Context gate 80 %, exit ~75 % (brief's dated line).
-- **Done** 1 · 2a–c · 3 · 4 · 5a–d · 6a · 6b · 7 · 8 · 9 · MIDPOINT · 10 · 11 · 12a · 12b · 13 · 14a · 14b — each
-  gated, mutated, pushed. **Next: 15** (`plan/phase-15-ranking-editor-saves.md`), not opened — re-measure it.
-- **Remaining** (from `ls plan/`): 15 · 16 · 17 (then the close's full suite + `--compare`, PR). No known STOP D.
+- **Done** 1 · 2a–c · 3 · 4 · 5a–d · 6a · 6b · 7 · 8 · 9 · MIDPOINT · 10 · 11 · 12a · 12b · 13 · 14a · 14b · 15 —
+  each gated, mutated, pushed. **Next: 16** (`plan/phase-16-live-preview.md`), not opened — re-measure it.
+- **Remaining** (from `ls plan/`): 16 · 17 (then the close's full suite + `--compare`, PR). No known STOP D.
 - **Rulings** (`RULINGS.md`) 1 `?list=` · 2 C2 save bar door · 3 B filter line · 4 B1 Lanterns · 5 B `poseArrived` ·
   6 B `poseExternalRemoval` · 7 posed dials replace composed seeds (STANDING: announce, no STOP) · 8 A « Vu » ·
   9 « Veille », L22's note to phase 17 · 10 A tracker's own threshold (demand) · 11 A `readConfigurationFile` +
   the real ranking.json5 · 12 B the rubric keeps /quality/global, the weights button leads to the editor.
 - **Rules** R260 trackers_page · R261 trackers_roster (17 holds) · R262 trackers_policy · R263 trackers_removal (10) ·
-  R264 trackers_alert (11) · R265 deferred_reason (6) · R266 ranking_editor (6, read half: 22→27 holds) · R229
+  R264 trackers_alert (11) · R265 deferred_reason (6) · R266 ranking_editor (11 holds, 32 checks; save half at 15) · R229
   re-aimed at 5d; R91 fanout reads trackers/live.ts. Next label: e R267 (16); cuts R268+. Register: B-570 taken
   (live-relay guard's constant-key blind spot, `open`); B-298 `to confirm`; next B-571.
 - **Gate** (office § The gate): the scratchpad `static.sh` = CI's no-french job + run.sh's 26 cheap guards (read
   from `REPOSITORY_GUARDS`) — a successor rebuilds it the same way; → `run.sh --oracle` alone → accept with
   `bash -c 'run.sh --oracle; oracle.py --accept'` + `tools/accept_by_name.py <declared.json>` (declared BY SCRIPT
-  from `states/*.ts`) → `run.sh --rules` (`--class rule`) → `--a11y`. `test_oracle.py` pinned 157 / 38. Maquette
+  from `states/*.ts`) → `run.sh --rules` (`--class rule`) → `--a11y`. `test_oracle.py` pinned 159 / 38. Maquette
   vitest: `vitest run --root frontend/maquette/design`. The RULE is read RED BEFORE the move (14a slipped).
 - **Order 52** at the midpoint 0.56; **Order 73**: a rule red 3× for a non-product reason → a register row naming
   its mechanism before READY (entry/pwa excluded: the router hairpin, a train's).
@@ -32,7 +32,7 @@
   comment naming a lot/phase/date is refused; Playwright `has_text` is case-free (another row may quote it).
 - **Size watch** `mocks/handlers/staging.ts` 399, `mocks/index.ts` 399 (ceiling 400). Frame-domain app/ 153.
 - **Mock** `mocks/trackers-state.ts` (roster, downloads, obligations, removals + dials), `mocks/configuration-files.ts`
-  (the files' content, per layer state), `mocks/handlers/ranking.ts` (the preview), `posed-deferral.ts`.
+  (the files' content, per layer state; `writeFileContent` — a whole file under its digest), `mocks/handlers/ranking.ts` (the preview), `posed-deferral.ts`.
 - **Logs** `~/Library/Logs/tm-l16/`; the proof tool lives in `tools/` there.
 
 ---
@@ -349,3 +349,28 @@
   61, 0 failed; a11y dark 0, light 88. Mutation: the weights button toasting again → FAIL « and there « Poids du
   classement (global) → » lands on the editor … {'path': '/quality/global'} » (`p14b-mutation1.log`). B-298 →
   `to confirm`, its text corrected. Stand-down at gauge 65 % (measured), the steward's word (successor takes 15).
+- 2026-09-29 — successor session (« Agent : l16 4 »): handshake (gauge 11 %); merged `origin/main` `77e7b8436` (#630,
+  #631): one conflict, BUGS.md's index — B-564 (main) and B-570 (ours) both kept; `check-bug-register` clean; pushed
+  `d24c6a6c0`. The scratchpad `static.sh` rebuilt from `REPOSITORY_GUARDS` + the CI's two (28 checks; macOS bash 3.2
+  has no `mapfile`).
+- 2026-09-29 — phase 15 opening ≈ 10, no cut. The write's body for a WHOLE file is `{values, digest}` — the digest the
+  read answered is the precondition; the maquette's contract answers a conflict as `200 {conflict: true}`
+  (`queries.ts:102`), not 412. The settings' identity-keyed write unchanged. R266 hold 2 RE-AIMED OUT LOUD (the weight
+  read as the field's value), holds 7–10 new; RED (`p15-red.log`: 31 holds, hold 2 ×9, 7, 8 named).
+- 2026-09-29 — 15 move `62a135990`: a weight field per criterion (`weightInput`), « Enregistrer » (closed while
+  nothing valid is typed, « Enregistrement… » while in flight), the conflict banner in `screens.settings.conflictLead /
+  Rest` with « Relire le classement » (the edits kept until then); `writeFileContent` in the mock (refuses a stale
+  digest, gives the written file a new one); states `ranking-editor-saving` (the write held back), `-save-conflict`
+  (`setConfigurationConflict`), a finger typing +2 and tapping save; words `conflict`, `digest`, `saving`. Slip: a
+  `rename-identifiers.py` run on `whole` renamed that local across 15 harness files — every file outside the phase
+  restored from HEAD before the commit, the rename re-done on a unique name.
+- 2026-09-29 — 15 gate: static 28/28, typecheck 0, vitest 142. Oracle alone: the 2 new states only (24 divergences,
+  all theirs), declared by script (every state entering the ranking screen), 0 key moved, proved
+  (`p15-accept-proof.log`); `test_oracle.py` 157 → 159. Rules R266 32 · settings 68 · settings_editing 15 ·
+  seeds_at_rest 23 · page_host 42 · screen_addresses 61 · trackers_policy 14, 0 failed; a11y dark 0, light 88. Hold 11
+  added after the gate's rules (the digest precondition was held by nothing): a stale-digest write is refused.
+  Mutations: the save answered without the call → FAIL « « Enregistrer » writes ranking.json5 through
+  updateConfigurationFile, once, and says so — … [] · toast 'Enregistré — ranking.json5.' »; the mock keeping no
+  content → FAIL « the NEXT read answers the saved weight 6 … — {'resolution': '4' …} »; the digest not compared →
+  FAIL « a second editor holding the digest read before the save is refused … — conflict False · read 4 »
+  (`p15-mutation1–3.log`).
