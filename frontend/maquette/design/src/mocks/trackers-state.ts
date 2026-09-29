@@ -57,6 +57,7 @@ export type TrackerDials = {
   poseIdentifierRefused: (tracker: string) => void;
   setObligationBreached: (infoHash: string) => void;
   poseBrokenObligation: (infoHash: string) => void;
+  poseTrackerRatio: (tracker: string, ratio: number) => void;
   trackerRemovals: () => TrackersHeld["removals"];
 };
 
@@ -167,6 +168,13 @@ export const trackerDials: TrackerDials = {
       tracker?.brokenObligations.push({ infoHash, title: obligation.title ?? "", brokenAt, seen: false });
     }
     subject.downloads = subject.downloads.filter((entry) => entry.infoHash !== infoHash);
+  },
+  poseTrackerRatio: (tracker: string, ratio: number) => {
+    // THE RATIO MEASURED ANEW on the server, before the event announcing it: a
+    // rule then delivers `RatioMeasured` and reads what the page makes of it.
+    for (const held of trackersState().trackers) {
+      if (held.name === tracker) held.ratio = ratio;
+    }
   },
   setObligationSatisfied: (infoHash: string) => {
     // AN OBLIGATION MET, at its seed time, the torrent still seeding.

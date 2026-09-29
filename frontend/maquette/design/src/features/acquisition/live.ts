@@ -184,17 +184,12 @@ export const acquisitionLiveRules: readonly LiveRule[] = [
  * component that draws it — and that remains a demand. What is not a demand is
  * a card stuck on « Téléchargement 68 % » for the life of the tab.
  *
- * `RatioMeasured` and the seed-obligation events are the same shape, one order
- * of magnitude slower: they belong to a ratio surface that has no page yet
- * (B-144), and claiming them here would put them on a list that does not show
- * them.
+ * `RatioMeasured` and the seed-obligation events are claimed by the « Trackers »
+ * page, whose reads they move (`features/trackers/live.ts`); the cross-seed
+ * events belong to a surface that has no page yet.
  */
 export const acquisitionLiveExemptions: LiveExemptions = {
   types: [
-    "RatioMeasured",
-    "SeedObligationRecorded",
-    "SeedObligationSatisfied",
-    "SeedObligationBreached",
     "CrossSeedInjected",
     "CrossSeedRejected",
     "TrackerAuthFailed",
@@ -203,11 +198,11 @@ export const acquisitionLiveExemptions: LiveExemptions = {
   /* a search is a QUESTION the reader just asked, not a resource that ages: refreshing it behind them would replace the results they are reading with different ones, which is the one thing a search must not do */
   /* the status carries the grab SCHEDULE, which is configuration: it changes when the operator edits it, and no backend event announces a schedule change */
   because:
-    "the ratio and cross-seed events belong to surfaces that have no page yet, "
-    + "and claiming them here would refresh a list that does not show them. "
+    "the cross-seed events belong to a surface that has no page yet, and "
+    + "claiming them here would refresh a list that does not show them. "
     + "`TrackerAuthFailed` is neither: it is a FAILURE, and it is claimed by "
     + "the system feature's errors read — named here so that « acquisition does "
     + "not refresh on it » is a decision rather than an omission, and not "
-    + "because the sentence about ratio events describes it. The acquisition "
+    + "because the sentence about cross-seed events describes it. The acquisition "
     + "status carries the grab schedule, which is configuration no event announces",
 };

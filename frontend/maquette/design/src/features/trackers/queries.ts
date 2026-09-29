@@ -3,14 +3,17 @@
 // DECLARED BY THE FEATURE, never by the frame: the page's reads are its own,
 // and the frame names the page once, in its navigation row.
 import { useQuery } from "@tanstack/react-query";
-import { read } from "../../lib/query-client";
+import { read, sharedQueryClient } from "../../lib/query-client";
 import type { Schemas } from "../../lib/contract-schemas";
 
 /** One configured tracker, in the contract's names. */
 export type Tracker = Schemas["Tracker"];
 
-/** The address of the trackers' summary. */
-const TRACKERS_ADDRESS = "/api/trackers";
+// THE CACHE KEYS, SPELLED AS LITERALS AND EXPORTED: the live relay's rules and
+// the bar's badge key on them, and the relay's guard reads a key only where it
+// is written out.
+/** The key of the trackers' summary. */
+export const trackersKey = ["/api/trackers"];
 
 /**
  * Every configured tracker, its ratio, volumes, trend and health.
@@ -19,8 +22,8 @@ const TRACKERS_ADDRESS = "/api/trackers";
  */
 export function useTrackers() {
   return useQuery({
-    queryKey: [TRACKERS_ADDRESS],
-    queryFn: async () => read<Tracker[]>(TRACKERS_ADDRESS),
+    queryKey: trackersKey,
+    queryFn: async () => read<Tracker[]>(trackersKey[0]),
   });
 }
 
@@ -30,11 +33,11 @@ export type Download = Schemas["Download"];
 /** One seeding obligation an entry owes its tracker. */
 export type Obligation = Schemas["Obligation"];
 
-/** The address of the download client's entries. */
-const DOWNLOADS_ADDRESS = "/api/acquisition/downloads";
+/** The key of the download client's entries. */
+export const downloadsKey = ["/api/acquisition/downloads"];
 
-/** The address of the seeding obligations. */
-const OBLIGATIONS_ADDRESS = "/api/acquisition/obligations";
+/** The key of the seeding obligations. */
+export const obligationsKey = ["/api/acquisition/obligations"];
 
 /**
  * Every entry the download client holds, one per tracker it runs on.
@@ -43,8 +46,8 @@ const OBLIGATIONS_ADDRESS = "/api/acquisition/obligations";
  */
 export function useDownloads() {
   return useQuery({
-    queryKey: [DOWNLOADS_ADDRESS],
-    queryFn: async () => read<Schemas["Downloads"]>(DOWNLOADS_ADDRESS),
+    queryKey: downloadsKey,
+    queryFn: async () => read<Schemas["Downloads"]>(downloadsKey[0]),
   });
 }
 
@@ -55,8 +58,8 @@ export function useDownloads() {
  */
 export function useObligations() {
   return useQuery({
-    queryKey: [OBLIGATIONS_ADDRESS],
-    queryFn: async () => read<Schemas["Obligations"]>(OBLIGATIONS_ADDRESS),
+    queryKey: obligationsKey,
+    queryFn: async () => read<Schemas["Obligations"]>(obligationsKey[0]),
   });
 }
 
@@ -123,4 +126,29 @@ export function alertOf(trackers: Tracker[], downloads: Download[], obligations:
       tracker.name, tracker.brokenObligations.filter((row) => !row.seen).length,
     ])),
   };
+}
+
+/**
+ * The Trackers tab's badge: every unit of the alert, summed — the page's own
+ * derivation read from the cache, never a second count (ruling 12, § 13).
+ *
+ * @returns How many things are in alert, 0 before the reads have answered.
+ */
+export function trackersBadge(): number {
+  const trackers = sharedQueryClient?.getQueryData<Tracker[]>(trackersKey) ?? [];
+  const downloads = sharedQueryClient?.getQueryData<Schemas["Downloads"]>(downloadsKey)?.downloads ?? [];
+  const obligations = sharedQueryClient?.getQueryData<Schemas["Obligations"]>(obligationsKey)?.items ?? [];
+  const alert = alertOf(trackers, downloads, obligations);
+  const unseen = [...alert.unseen.values()].reduce((total, count) => total + count, 0);
+  return alert.under.size + alert.refused.size + alert.breached.size + unseen;
+}
+
+/**
+ * The reads the badge derives from, OBSERVED on every page the bar is drawn on,
+ * so a live event refetches them and the badge moves without the page open.
+ */
+export function useTrackersBadgeReads(): void {
+  useTrackers();
+  useDownloads();
+  useObligations();
 }

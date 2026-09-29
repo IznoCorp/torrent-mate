@@ -42,6 +42,7 @@ import { SettingsPage } from "../features/settings/page";
 import { systemBadge, useSystemBadgeReads } from "../features/system/badge";
 import { SystemPage } from "../features/system/page";
 import { TrackersPage } from "../features/trackers/page";
+import { trackersBadge, useTrackersBadgeReads } from "../features/trackers/queries";
 import { PAGE_PATHS } from "../lib/addresses";
 import { icons } from "./icons";
 
@@ -153,6 +154,8 @@ export const NAVIGATION: readonly NavigationRow[] = [
     icon: icons.transfer,
     group: "supervision",
     inBar: true,
+    badge: trackersBadge,
+    useBadgeReads: useTrackersBadgeReads,
   },
   {
     // « DÉCOUVRIR », A PAGE OF THE BAR: it left

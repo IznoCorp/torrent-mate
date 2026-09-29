@@ -32,6 +32,16 @@ tracker's entry until the operator marks it seen, and seen is not gone.
 9. a finger on « Vu » asks the write ONCE for that obligation; the row STAYS,
    saying « Vue », and the count drops by one in the render that follows.
 
+RE-AIMED OUT LOUD — the alert's FOURTH READER, the bar (ruling 12: the tab that
+carries a thing takes its badge):
+
+10. on every state that poses a component, and on `bar-trackers-alert` away from
+    the page, the bar's Trackers tab counts exactly the sum of the components
+    the served answers hold — trackers under their threshold, refused
+    identifiers, breaches on active entries, unseen broken obligations;
+11. the ratio measured anew above the threshold, a `RatioMeasured` event moves
+    the badge in the render that follows — the stream is claimed.
+
 The threshold is the operator's own setting, posed by the same settings write
 the entry makes. The refused identifier and the breach are DERIVATIONS, POSED
 and shown as such (`poseIdentifierRefused`, `setObligationBreached`): no real
@@ -58,6 +68,23 @@ ALERTED = TRACKERS[0]["name"]
 REFUSED = TRACKERS[-1]["name"]
 BREACHED = next(entry for entry in DOWNLOADS if entry["title"] == "Star Trek: Strange New Worlds")
 SEEN_OPERATION = "markBrokenObligationSeen"
+BADGE = """() => document.querySelector('[data-part="shell/tab-bar"] [data-page="trackers"] [data-part="shell/tab-badge"]')
+  ?.textContent.trim() ?? null"""
+# The sum the badge must draw, computed here from the three answers the layer serves.
+SUM = """() => {
+  const get = (address) => window.__queries?.getQueryData([address]);
+  const trackers = get("/api/trackers") ?? [];
+  const downloads = get("/api/acquisition/downloads")?.downloads ?? [];
+  const obligations = get("/api/acquisition/obligations")?.items ?? [];
+  const active = new Set(downloads.map((entry) => `${entry.infoHash}:${entry.tracker}`));
+  const under = trackers.filter((one) => one.alertThreshold !== null && one.ratio !== null
+    && one.ratio < one.alertThreshold).length;
+  const refused = trackers.filter((one) => one.identifierRefusedSince !== null).length;
+  const breached = obligations.filter((one) => one.breachedAt !== null && one.satisfiedAt === null
+    && one.releasedAt === null && active.has(`${one.infoHash}:${one.sourceTracker}`)).length;
+  const unseen = trackers.reduce((total, one) => total + one.brokenObligations.filter((row) => !row.seen).length, 0);
+  return { under, refused, breached, unseen, total: under + refused + breached + unseen };
+}"""
 BROKEN_WORDS = SCREENS["trackers"]
 
 ENTRIES = """() => [...document.querySelectorAll('#view [data-part="trackers/entry"]')].map(entry => ({
@@ -218,6 +245,25 @@ async def main():
         journal.check("the count of the unseen drops by one in the render that follows",
                       str(left + 1) in before and (str(left) in after if left else after == ""),
                       f"{before!r} -> {after!r}")
+
+        # ── the fourth reader: the bar ──────────────────────────────────────
+        for state in ("tracker-alert-active", "tracker-identifier-refused", "torrent-obligation-breached",
+                      "tracker-broken-obligations", "bar-trackers-alert"):
+            answer = await enter(page, state)
+            wanted = await page.evaluate(SUM)
+            badge = await page.evaluate(BADGE)
+            journal.check(f"{state}: the bar's Trackers tab counts the sum of the components, {wanted['total']}",
+                          answer is None and wanted["total"] > 0 and badge == str(wanted["total"]),
+                          f"{answer or ''} badge {badge!r} · served {wanted}")
+        ratio = next(tracker["ratio"] for tracker in TRACKERS if tracker["name"] == ALERTED)
+        await page.evaluate(f"()=>window.__mocks?.poseTrackerRatio?.('{ALERTED}', {ratio * 4})")
+        await page.evaluate("()=>window.__mocks?.stream.emit('RatioMeasured', {})")
+        await page.wait_for_timeout(SETTLED)
+        wanted = await page.evaluate(SUM)
+        badge = await page.evaluate(BADGE)
+        journal.check("a RatioMeasured event above the threshold moves the badge in the render that follows",
+                      wanted["under"] == 0 and badge == (str(wanted["total"]) if wanted["total"] else None),
+                      f"badge {badge!r} · served {wanted}")
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()

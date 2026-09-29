@@ -6,6 +6,7 @@ import { registerVerb } from "../../lib/verbs";
 import { fillLandingDoor, redraw, replaceAddress } from "../../lib/shell-doors";
 import { send, sharedQueryClient } from "../../lib/query-client";
 import { store } from "../../lib/store-access";
+import { trackersKey } from "./queries";
 import { tabMemory } from "../../lib/tab-memory";
 // « Retirer de qBittorrent » declares its own verb.
 import "./remove-verb";
@@ -54,5 +55,5 @@ registerVerb("obligation-seen", (value) => {
   void send(
     "POST",
     `/api/trackers/${encodeURIComponent(tracker)}/broken-obligations/${encodeURIComponent(infoHash)}/seen`,
-  ).then(() => sharedQueryClient?.invalidateQueries({ queryKey: ["/api/trackers"] }));
+  ).then(() => sharedQueryClient?.invalidateQueries({ queryKey: trackersKey }));
 });

@@ -11,9 +11,10 @@ import { dialog, toast } from "../../lib/shell-doors";
 import { read, send, sharedQueryClient } from "../../lib/query-client";
 import type { DialogBlock } from "../../ui/dialog/contract";
 import type { Schemas } from "../../lib/contract-schemas";
+import { downloadsKey, obligationsKey } from "./queries";
 
 /** The two reads a removal moves: the client's entries, and their obligations. */
-const REFRESHED = [["/api/acquisition/downloads"], ["/api/acquisition/obligations"]];
+const REFRESHED = [downloadsKey, obligationsKey];
 
 /**
  * The words of the confirmation, in the interface's language.
