@@ -6,7 +6,7 @@
   `/Users/izno/dev/worktrees/maquette-conformity`.
 - **Design** `/Users/izno/dev/review-archive/conformity-80/REPORT.md` § B, § D (cited, not copied). **Plan**
   `plan/INDEX.md`, 14 phases, 143 points.
-- **Phase 0 (the plan) — done.** Next: phase 1, the responsive rule, `plan/phase-01-the-responsive-rule.md`.
+- **Phase 0 (the plan) — done; amended with phase 7 (OPEN 1 ruled).** Next: phase 1, the responsive rule, `plan/phase-01-the-responsive-rule.md`.
 - **Rules born** (letter → file): none yet.
 - **Owed list of the responsive rule**: not yet read.
 - **Waiting for the operator's round** (not phases): D.1 #2 (OPEN 1), #7 (OPEN 9), #14 (OPEN 4), #15 (OPEN 8).

@@ -26,10 +26,6 @@ Restore `queuedMark` → falls by name.
 
 The media sheet and follow sheet states drawing a season mark, `run-detail` (built by script).
 
-## Midpoint (after this phase)
-
-`--contracts` and the full suite; real falls repaired before phase 7; harness budget read (office, order 52).
-
 ## Commit
 
 `refactor(maquette-conformity): every state pill is the chip — seasons, run outcome, follow tones`

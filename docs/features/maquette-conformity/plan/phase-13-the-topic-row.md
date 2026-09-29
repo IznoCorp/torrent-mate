@@ -1,4 +1,4 @@
-# Phase 12 — The topic row (D.1 #11)
+# Phase 13 — The topic row (D.1 #11)
 
 **Opening measure (2026-09-29, on `660049325`):**
 
@@ -7,12 +7,12 @@
   `features/settings/page.tsx:287, 295, 304`, one composition spanning two); `rg -n "\"rt\"|\"rs\"|\"rn\""
   -g '*.tsx'` → the bare classes.
 - **Points ≈ 11.** `ui` `TopicRow` (title, subtitle, trailing value) ≈ 35 lines new (4); six compositions converted
-  (≈ 25 lines, 5); R-conformity-j (the count → 0, geometry held by the oracle's region comparison) (2).
+  (≈ 25 lines, 5); R-conformity-k (the count → 0, geometry held by the oracle's region comparison) (2).
 - **Readers.** `topics.py`, `settings.py`, `machine.py`, `levers.py`, `locks.py` and others read `topic` parts — kept.
 
 ## Red today
 
-R-conformity-j: `minWidth: 0, flex: 1` outside `ui/` → **5**.
+R-conformity-k: `minWidth: 0, flex: 1` outside `ui/` → **5**.
 
 ## Mutation
 
