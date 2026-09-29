@@ -229,7 +229,8 @@
       "title": "Classement des releases",
       "back": "Réglages",
       "weight": "× {{weight}}",
-      "threshold": "≥ {{at}} → {{score}}"
+      "threshold": "≥ {{at}} → {{score}}",
+      "errorSubject": "le classement des releases"
     },
     "trackers": {
       "tabTorrents": "Torrents",
@@ -416,7 +417,6 @@
       "scope": "Portée",
       "scopeThisFollow": "ce suivi seulement",
       "scopeAllFollows": "tous les suivis",
-      "rankingToast": "Dans l'app, ce bouton mènera à /config ?tab=classement — l'éditeur de classement existe déjà.",
       "rankingWeights": "Poids du classement (global) →",
       "rulenote": "Un profil qui n'accepte plus rien se dit : le suivi le dit, et sa recherche en direct répond « aucun torrent trouvé », jamais un silence (§8).",
       "saveToast": "Profil enregistré — la prochaine recherche l'appliquera.",

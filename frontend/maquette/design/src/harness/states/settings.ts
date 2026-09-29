@@ -8,6 +8,9 @@ import { applyState, type NamedState } from "../drive";
 import { resetSettings } from "../settings-reset";
 import { SETTINGS_STATE } from "../../features/settings/state";
 
+// Long enough that a read held back is still in flight when the state is measured.
+const HELD_BACK = 60000;
+
 export function settingsStates(): NamedState[] {
   // The catalogue a field state searches is the seed the served read answers
   // from, because the driver clears the cache before a state is built.
@@ -127,6 +130,28 @@ export function settingsStates(): NamedState[] {
       "ranking-editor",
       "Réglages — le classement des releases, tel que ranking.json5 le tient",
       () => {
+        applyState({ page: "cfg", phase: "ready" });
+        window.__screens.ranking();
+      },
+    ],
+    [
+      "ranking-editor-loading",
+      "Réglages — le classement des releases, pendant la lecture du fichier",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.setOperationOutcome("readConfigurationFile", { latencyMilliseconds: HELD_BACK });
+        window.__queries?.removeQueries({ queryKey: ["/api/config/files/ranking.json5"] });
+        applyState({ page: "cfg", phase: "ready" });
+        window.__screens.ranking();
+      },
+    ],
+    [
+      "ranking-editor-error",
+      "Réglages — le classement des releases, la lecture du fichier en échec",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.setOperationOutcome("readConfigurationFile", { status: 500 });
+        window.__queries?.removeQueries({ queryKey: ["/api/config/files/ranking.json5"] });
         applyState({ page: "cfg", phase: "ready" });
         window.__screens.ranking();
       },

@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Icon } from "../../ui/icon";
+import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { useEngineDrawing } from "../../lib/engine-drawing";
 import { bridge } from "../../lib/shell-doors";
 import { read } from "../../lib/query-client";
@@ -56,7 +57,7 @@ function scoring(criterion: Criterion, t: (key: string, values: Record<string, u
 export function RankingScreen(): ReactElement {
   const { t } = useTranslation();
   const { icons } = useEngineDrawing();
-  const { data: file } = useRankingFile();
+  const { data: file, isPending, isError } = useRankingFile();
   const ranking = (file?.values as { ranking?: { criteria?: Criterion[] } } | undefined)?.ranking;
   const criteria = ranking?.criteria ?? [];
   return (
@@ -71,6 +72,9 @@ export function RankingScreen(): ReactElement {
       <div className={scrollport()} data-part="viewport">
         <div className={body()} data-part="surface/body">
           <h1 className={factName()}>{t("screens.ranking.title")}</h1>
+          {/* THE READ IN FLIGHT, OR FAILED, IS SAID — never an empty list standing for either. */}
+          {isPending ? <Skeletons count={4} shape="card" /> : null}
+          {isError ? <SurfaceError subject={t("screens.ranking.errorSubject")} /> : null}
           <ol className={factList()} data-part="ranking/criteria">
             {criteria.map((criterion) => (
               <li key={criterion.field} className={factRow()} data-part="ranking/criterion" data-field={criterion.field}>

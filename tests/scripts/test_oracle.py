@@ -409,7 +409,9 @@ def test_the_committed_reference_carries_a_platform():
     # else moved.
     # 155 SINCE L16's phase 14a: `ranking-editor`, the ranking file's criteria on their own screen —
     # added, nothing else moved.
-    assert reference["counts"] == {"states": 155, "regions": 38}
+    # 157 SINCE L16's phase 14b: `ranking-editor-loading` and `ranking-editor-error` — added; the
+    # settings rubric and the quality foot lead to the editor, named in the acceptance commit.
+    assert reference["counts"] == {"states": 157, "regions": 38}
 
 
 class TestItRefusesToWriteOverAForeignBuild:
