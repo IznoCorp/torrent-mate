@@ -34,6 +34,14 @@ line clamp), an element hidden by `visibility`, `opacity: 0` or `display`, a
 designed horizontal row (a scroll port that does not also scroll vertically),
 and anything outside `#device`.
 
+WHICH ARM READS WHAT, MEASURED. The page CLIPS on x (its scroll ports are
+`overflow-x: hidden`), so a block wider than the page falls as `cut`, never as
+`overflow`: a list widened past its page read `cut · flux`, a header widened
+past a desktop window read `outside · shell/header`. `overflow` reads today only
+through its preformatted-text branch (the raw log); its document and vertical-
+port branches read nothing on this tree and stay as the net for a page that
+stops clipping.
+
 SUBSETS. `TM_RESPONSIVE_STATES` (comma-separated ids) and `TM_RESPONSIVE_WIDTHS`
 narrow a run to the states a change touches; a narrowed run never judges the owed
 list's staleness, since it did not read what the list covers.
