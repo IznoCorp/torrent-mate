@@ -648,6 +648,7 @@ second slot after L18**, per the operator's own separation of that function from
 and plan, written 2026-09-27, name it L23: the order is now L14 · L19 · L21 · L13 · L20 · L22 · L16 ·
 L17 · L18 · L23**, and no dependency already written moved. **L24 (the orphans), drawn 2026-09-29, follows L23;
 after it, the desktop milestone** (operator, 2026-09-29, L24's OPEN 6) — the final entry of this section, not a lot.
+**L16-bis (the Trackers page's correction and Découvrir's header, on the operator's feedback of 2026-09-29), drawn 2026-09-29, is inserted between L16 and L17, which draws on its torrent rows: the order is now L14 · L19 · L21 · L13 · L20 · L22 · L16 · L16-bis · L17 · L18 · L23 · L24** — `docs/features/maquette-l16bis/DESIGN.md`, `docs/features/maquette-l16bis/plan/INDEX.md`.
 
 #### L14 — The surfaces that outgrew their file · *depends on L07, L09*
 
