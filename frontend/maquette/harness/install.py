@@ -22,7 +22,7 @@ iPhone. Neither can be observed on a desktop headless run any other way.
 """
 import asyncio
 
-from common import Journal
+from common import Journal, chrome_launch_args
 from playwright.async_api import async_playwright
 
 IPHONE = ("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
@@ -79,7 +79,7 @@ async def main():
     _journal = Journal("R51 — the invitation to install")
 
     async with async_playwright() as p:
-        b = await p.chromium.launch(channel="chrome")
+        b = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
 
         # ── Android / desktop: the event is captured, kept, and replayed ────
         ctx, pg = await open_proto(b)

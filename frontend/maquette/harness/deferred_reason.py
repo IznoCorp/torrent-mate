@@ -37,7 +37,7 @@ import asyncio
 import json
 import pathlib
 
-from common import SETTLED, Journal, open_page
+from common import SETTLED, Journal, chrome_launch_args, open_page
 from playwright.async_api import async_playwright
 
 SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
@@ -96,7 +96,7 @@ def written(number):
 async def main():
     journal = Journal("R265 — a deferred medium says why, for each of DOIT-2's three causes")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         context, page = await open_page(browser)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))

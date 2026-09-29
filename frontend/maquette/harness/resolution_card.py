@@ -71,7 +71,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, SETTLED, Journal, open_page
+from common import ACTED, SETTLED, Journal, open_page, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -301,7 +301,7 @@ async def main():
     journal.check("the resource holds the pill's word", bool(CHOOSE),
                   f"screens.resolution.choose = {CHOOSE!r}")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         context, page = await open_page(browser)
         errors: list[str] = []
         page.on("pageerror", lambda error: errors.append(str(error)))

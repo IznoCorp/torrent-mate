@@ -12,7 +12,7 @@ screen; it now says whether a screen is open. The hold count is unchanged.
 """
 import asyncio
 
-from common import shot
+from common import shot, chrome_launch_args
 from playwright.async_api import async_playwright
 
 # Every popstate the document receives, counted from the page itself: a
@@ -67,7 +67,7 @@ TYPE = """(text)=>{
 
 async def main():
   async with async_playwright() as p:
-    b=await p.chromium.launch(channel="chrome")
+    b=await p.chromium.launch(channel="chrome", args=chrome_launch_args())
     c=await b.new_context(viewport={"width":390,"height":844},device_scale_factor=2,is_mobile=True,has_touch=True)
     pg=await c.new_page(); errs=[]
     pg.on("pageerror", lambda e: errs.append(str(e)))

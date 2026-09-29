@@ -21,7 +21,7 @@ import json
 import pathlib
 from urllib.parse import unquote
 
-from common import ACTED, SETTLED, Journal, open_page
+from common import ACTED, SETTLED, Journal, open_page, chrome_launch_args
 from playwright.async_api import async_playwright
 
 WORDS = json.loads((pathlib.Path(__file__).resolve().parents[1]
@@ -84,7 +84,7 @@ async def search(page, title):
 async def main():
     journal = Journal("R237 — « Chercher maintenant » searches, and says what it found")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         context, page = await open_page(browser)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))

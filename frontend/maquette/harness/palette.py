@@ -24,7 +24,7 @@ import asyncio
 import pathlib
 import re
 
-from common import Journal, design_source, open_page, without_comments
+from common import Journal, design_source, open_page, without_comments, chrome_launch_args
 from playwright.async_api import async_playwright
 
 
@@ -87,7 +87,7 @@ async def main():
              ", ".join(f"{k} ×{v}" for k, v in sorted(missing.items())))
 
     async with async_playwright() as p:
-        b = await p.chromium.launch(channel="chrome")
+        b = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
         ctx, pg = await open_page(b)
         errors = []
         pg.on("pageerror", lambda e: errors.append(str(e)))

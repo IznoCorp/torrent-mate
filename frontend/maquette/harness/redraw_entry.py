@@ -30,7 +30,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, PROTOTYPE, Journal  # noqa: E402
+from common import PHONE, PROTOTYPE, Journal, chrome_launch_args  # noqa: E402
 
 from playwright.async_api import async_playwright  # noqa: E402
 
@@ -49,7 +49,7 @@ READ = """()=>({length: history.length,
 
 async def main():
     async with async_playwright() as p:
-        browser = await p.chromium.launch(channel="chrome")
+        browser = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
         context = await browser.new_context(**PHONE)
         page = await context.new_page()
         errors = []

@@ -46,7 +46,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ROOT, Journal, open_page
+from common import ROOT, Journal, open_page, chrome_launch_args
 from desktop_frame import CHECKBOX, DESKTOP, DEVICE, LABEL  # noqa: E402 - the path line above must run first
 
 # The one name the two ends share: the control's script writes it, and this
@@ -243,7 +243,7 @@ async def hold(journal):
     """
     hold_the_key_is_the_harness(journal)
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         await measure_desktop(browser, journal)
         await measure_phone(browser, journal)
         await browser.close()

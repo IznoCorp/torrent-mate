@@ -25,7 +25,7 @@ is unchanged.
 """
 import asyncio
 
-from common import Journal
+from common import Journal, chrome_launch_args
 from playwright.async_api import async_playwright
 
 # HOW LONG A PRESS TAKES IS READ FROM THE PAGE, never typed here. A probe
@@ -86,7 +86,7 @@ async def drag(cdp, x0, y0, steps, dx, dy):
 
 async def main():
     async with async_playwright() as p:
-        b = await p.chromium.launch(channel="chrome")
+        b = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
         ctx = await b.new_context(viewport={"width": 390, "height": 844},
                                   device_scale_factor=2, is_mobile=True, has_touch=True)
         pg = await ctx.new_page()

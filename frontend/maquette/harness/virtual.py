@@ -32,7 +32,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, PROTOTYPE, Journal
+from common import PHONE, PROTOTYPE, Journal, chrome_launch_args
 
 # The list mode: one lane, so the window is small enough that a difference in
 # node count is unambiguous. The gallery's three lanes fit its whole fixture in
@@ -967,7 +967,7 @@ async def hold(journal):
     """Counts the window, then scrolls it with a real finger and counts again."""
     errors = []
     async with async_playwright() as play:
-        browser = await play.chromium.launch(channel="chrome")
+        browser = await play.chromium.launch(channel="chrome", args=chrome_launch_args())
         await hold_the_lanes_are_measured(journal, browser)
         await hold_rows_keep_their_identity(journal, browser)
         await hold_the_gallery_keeps_its_ORDER(journal, browser)
