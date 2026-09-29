@@ -455,3 +455,10 @@
   failed; oracle 45 keys (21 trackers states × shell/page + trackers/body, 3 ranking states × screen-ranking/body),
   declared by script (`c16-declared.json`), proved (`c16-accept-proof.log`); a11y dark 0, light 88. Mutations 23/23
   fell by name (`c16-mutations.log`).
+- 2026-09-29 — C16 close gate (on `c049eb7a1`): `make lint` 0; `run.sh --contracts` 23 rules + 26 guards green; the full
+  suite through `harness-hold-counts.py --record` to the scratchpad (never the tracked baseline), compared by script
+  against the close's table (`c16-holds-compare.txt`): `failed` = `entry.py`, `pwa.py` (B-571, unchanged); holds
+  3941 → 3960, moved only R265 16 → 17, R266 32 → 34, R267 4 → 5, R264 27 → 30, R260 31 → 34, R262 14 → 19, R263
+  21 → 23, R261 64 → 66. Version 0.98.106 kept (`main` 0.98.105). Order 52: budget 0,602 at correction C16 (+471
+  lines of holds the decided list requires, against 201 product lines), the debt carried to order 64's
+  consolidation programme (steward's ruling A).
