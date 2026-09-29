@@ -982,9 +982,11 @@ seven rows' owed halves are proved by a rule each, and their new reading is prop
 state holds at a desktop width, the galleries widening; the three questions the rulings raised (OPEN 7–9) are ruled,
 each amended into the design in one line.
 
-**Design and plan written 2026-09-29, on `e65130ab1`; re-cut the same day on the six rulings, on `77e7b8436`** —
-`docs/features/maquette-l24/DESIGN.md`, `plan/INDEX.md` (20 phases, 165 points at the larger reading of OPEN 7–9, mean
-≈ 8.3); three open questions the rulings raised, none chosen. The version before the rulings is
+**Design and plan written 2026-09-29, on `e65130ab1`; re-cut the same day on the six rulings, on `77e7b8436`; amended
+a second time, same day, on the operator's second round** (`review-archive/l24/rulings-2026-09-29.md`) —
+`docs/features/maquette-l24/DESIGN.md`, `plan/INDEX.md` (20 phases, 151 points, mean ≈ 7.6); the three open questions
+the rulings raised (OPEN 7–9) are now ALL RULED = A, plus the no-backward-compatibility PRINCIPLE (OPEN 9), which
+kills S4's redirect table and its five states. The version before the rulings is
 `docs/features/maquette-l24/DESIGN.md@e6d63bffe`.
 
 ### Phase 6 — The finish

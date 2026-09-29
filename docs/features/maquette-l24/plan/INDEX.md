@@ -17,9 +17,9 @@ phase's cut is STOP D.
 
 - **STOP A** — the oracle diverging on a state the phase did not name.
 - **STOP B** — the pull request.
-- **STOP C — LIVE for three questions.** The six of 2026-09-29 are ruled; OPEN 7, 8 and 9 (DESIGN § 5) are raised by
-  the rulings and not answered. A phase naming one is not begun before it is ruled; the answer is written into
-  DESIGN § 5 and into that phase's file in ONE dated line each. Phases 7, 8 and 10 carry one; the others none.
+- **STOP C — NONE LEFT.** All nine OPEN questions are RULED (the six of 2026-09-29's first round, then OPEN 7, 8
+  and 9 the rulings themselves raised, ruled in the second round — `review-archive/l24/rulings-2026-09-29.md`).
+  Phases 7, 8 and 10 each carried one; each now opens with its answer written in, no phase begins on an open choice.
 - **STOP D** — a measurement that contradicts a home the design decided. Two are near already: `lib/addresses.ts`
   holds 395 non-blank lines of 400 (phase 10 adds at most 3), and `mocks/handlers/staging.ts` holds 399 (so no
   phase adds to it — phase 3's enqueue lives in `mocks/handlers/decisions.ts`, 112).
@@ -44,10 +44,10 @@ A phase whose re-measure at its opening exceeds 15 is cut there, never begun, an
 | 4 | [A section says its read failed](phase-04-a-section-says-its-read-failed.md) | behaviour (S2) | c | 9 | — |
 | 5 | [A decision on the journey sheet](phase-05-a-decision-on-the-journey-sheet.md) | surface (S1) | a | 13 | — |
 | 6 | [The same block on the Médiathèque sheet](phase-06-the-same-block-on-the-library-sheet.md) | surface (S1) | b | 7 | — |
-| 7 | [« Corriger » arrives with candidates](phase-07-correct-arrives-with-candidates.md) | surface (S5) | e | 15 / 12 | OPEN 7 |
-| 8 | [« Corriger » on the Médiathèque sheet](phase-08-correct-on-the-library-sheet.md) | surface | e (+ hold) | 8 / 0 | OPEN 8 |
+| 7 | [« Corriger » arrives with candidates](phase-07-correct-arrives-with-candidates.md) | surface (S5) | e | 12 | — |
+| 8 | [« Corriger » on the Médiathèque sheet](phase-08-correct-on-the-library-sheet.md) | surface | e (+ hold) | 8 | — |
 | 9 | [The continuation is seen](phase-09-the-continuation-is-seen.md) | proof | f | 5 | — |
-| 10 | [The former addresses](phase-10-the-former-addresses.md) | surface (S4) | d | 15 / 13 | OPEN 9 |
+| 10 | [The former addresses answer not-found](phase-10-the-former-addresses.md) | proof (S4) | d | 4 | — |
 | 11 | [Identification, read on the card](phase-11-identification-read-on-the-card.md) | proof (S3) | l | 4 | — |
 | 12 | [A filling disk on the badge](phase-12-a-filling-disk-on-the-badge.md) | behaviour (S2) | m | 5 | — |
 | 13 | [The sheet says what it is](phase-13-the-sheet-says-what-it-is.md) | proof | h | 4 | — |
@@ -59,12 +59,13 @@ A phase whose re-measure at its opening exceeds 15 is cut there, never begun, an
 | 19 | [The records](phase-19-the-records.md) | records | — | 6 | — |
 | 20 | [The close](phase-20-the-close.md) | close | — | 6 | — |
 
-**Where a reading changes the cost, both are written, larger first**, and neither is chosen. **At the larger reading
-of OPEN 7, 8 and 9: 165 points over 20 phases, mean ≈ 8.3, max 15** (phases 7 and 10). At the smaller: 152 points
-over 19 phases (phase 8 drops), mean 8.0, max 13. **The rulings removed** the journal's two phases (27 points) and
+**OPEN 7, 8 and 9 are all RULED (2026-09-29, second round)**: **151 points over 20 phases, mean ≈ 7.6, max 13**
+(phases 2 and 5). OPEN 9's principle also killed phase 10's redirect table and its five named states — the
+not-found fallback `destinationOf` already answers every dead production path, measured with no code added; phase
+10 is now a PROOF (4 points), not a surface. **The rulings removed** the journal's two phases (27 points) and
 Système's « en ce moment » (8), and added the block on two sheets (phases 5–6) and « Corriger » on the Médiathèque
-sheet under OPEN 8 A. **The desktop milestone after the drawn lots is not in this plan**: no points, no phases, its
-contour the operator's (`docs/reference/frontend-architecture.md` § 4).
+sheet (phase 8, OPEN 8 = A, kept — not dropped). **The desktop milestone after the drawn lots is not in this plan**:
+no points, no phases, its contour the operator's (`docs/reference/frontend-architecture.md` § 4).
 
 ---
 
@@ -74,9 +75,9 @@ contour the operator's (`docs/reference/frontend-architecture.md` § 4).
 seeds second** (2), **the mocks third** (3): a handler with no seed answers nothing. **Système's failed section** (4)
 touches one page already drawn and one mock scenario, the smallest behaviour first. **The block before its act**
 (5, 6 before 7, 8): « Corriger » is drawn in the block. **The continuation after « Corriger »** (9): its proof walks a
-resolution from « Corriger » as well as from « À traiter ». **The addresses after the block** (10), because OPEN 9's
-reading B lands `/media?decision=` on it. **The proofs last** (11–18), each reading surfaces already drawn; **the
-records** (19) and **the close** (20) end it.
+resolution from « Corriger » as well as from « À traiter ». **The addresses' proof last among behaviour phases**
+(10) — no dependency on the block now that OPEN 9 = A merely drops the query. **The proofs last** (11–18), each
+reading surfaces already drawn; **the records** (19) and **the close** (20) end it.
 
 ---
 

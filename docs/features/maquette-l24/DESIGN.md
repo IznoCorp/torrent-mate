@@ -8,12 +8,14 @@ This document is written for a session that has none of the context it was produ
 numbers.
 
 **Written 2026-09-29, on `main` at `e65130ab1`; amended the same day, on `77e7b8436`, on the operator's six rulings
-of 2026-09-29** (§ 5). The version before the rulings is `docs/features/maquette-l24/DESIGN.md@e6d63bffe`. The plan's
-order is `L14 · L19 · L21 · L13 · L20 · L22 · L16 · L17 · L18 · L23`; L24 opens after L23, and the desktop milestone
-(§ 1.6) follows L24. Unlike L16–L23, nothing here was decided by the constitution for this document to transcribe:
-the subjects below are what the mission of 2026-08-19 says must be redrawn and no lot names. Where a reading splits
-and no ruling answers it, it is an OPEN question in § 5, never a choice made here (auditor's order 72) — the six the
-operator ruled, and three the rulings themselves raised.
+of 2026-09-29; amended a second time, same day, on the operator's second round** (§ 5,
+`review-archive/l24/rulings-2026-09-29.md`) **— all nine OPEN questions are now RULED.** The version before the
+rulings is `docs/features/maquette-l24/DESIGN.md@e6d63bffe`. The plan's order is `L14 · L19 · L21 · L13 · L20 · L22 ·
+L16 · L17 · L18 · L23`; L24 opens after L23, and the desktop milestone (§ 1.6) follows L24. Unlike L16–L23, nothing
+here was decided by the constitution for this document to transcribe: the subjects below are what the mission of
+2026-08-19 says must be redrawn and no lot names. Where a reading splits and no ruling answers it, it is an OPEN
+question in § 5, never a choice made here (auditor's order 72) — the six the operator ruled first, and the three the
+rulings themselves raised (OPEN 7–9), ruled in the second round.
 
 ---
 
@@ -24,7 +26,7 @@ operator ruled, and three the rulings themselves raised.
 | a | Production's « Décisions » tab (`/media`, third tab) — every decision, its state, its outcome | mission 2026-08-19; § 15 « la maquette doit TOUTES les pages que la production sert » | **S1** — a settled decision lives on its medium's card: a block of the journey sheet and of the Médiathèque sheet (surface; OPEN 1 = C) | § 1.1 |
 | b1 | Contrôle's « Santé » (disks, index, Redis, providers) | `IMPLEMENTATION.md`, the « Next » row | **S2** — Système's sections that say their own read failed, and a filling disk on the menu's badge (surface; OPEN 2 = A) | § 1.2 |
 | b2 | Contrôle's « Activité scraping » (what is being identified now, how many wait) | same | **S3** — per medium, a PROOF (OPEN 3 = A) | § 1.3 |
-| b3 | The addresses `/control`, `/pipeline` and the other former production paths | § 15; § 16 rule 3; D1 | **S4** — the former addresses answer their successor (surface; OPEN 4 = A) | § 1.4 |
+| b3 | The addresses `/control`, `/pipeline` and the other former production paths | § 15; § 16 rule 3; D1 | **S4 DIES** — a former address answers not-found, no successor, no alias (PROOF only; OPEN 4 = A, OPEN 9 = A + the no-backward-compatibility PRINCIPLE) | § 1.4 |
 | c | The seven owed halves of `partly` rows whose owner has merged (DOIT-1, 5, 7, 9, 11, NE-DOIT-PAS-1 — L19; NE-DOIT-PAS-6 — L15) | `docs/reference/product-intent-map.md` | one surface (**S5**, DOIT-7, « Corriger »), one unfold (DOIT-1, OPEN 5 = B) and five proofs | § 1.5 |
 | d | DOIT-9's desktop half — « le desktop reste pleinement fonctionnel » | DOIT-9; § 12 | a PROOF over every named state (OPEN 6 = A); the desktop layouts are a milestone after the drawn lots | § 1.6 |
 
@@ -132,23 +134,20 @@ Measured: `grep -n "\"/control\|\"/pipeline" frontend/maquette/design/src/lib/ad
 written there: « A rename that 404s the address it renamed is a break wearing a rename's clothes » — the addresses
 live in the operator's bookmarks and in the PWA's cache.
 
-**What S4 draws: a table of former addresses, each answering its successor.** The navigation REPLACES (a redirect is
-not an arrival, § 16 rule 1), and the successor's parent is synthesised as for any cold link (§ 16 rule 3).
+**S4 DIES as drawn.** It proposed a table of former addresses each answering a named successor (a soft redirect).
+**RULED (operator, 2026-09-29, OPEN 9 = A + PRINCIPLE, verbatim « A, pas de gestion de rétro-compatibilité ! »)**:
+the new version handles **NO backward compatibility of former addresses or links — no alias, no redirect**
+(precedents `/arrivals`, the French addresses of OPEN 4 = A). Every dead production path answers the not-found page,
+with no successor named anywhere in code or in this design.
 
-| Former address | Successor | Why |
+| Former address | Lands on | Why |
 | --- | --- | --- |
-| `/control` | the account's entry page (§ 16 rule 2, 2026-09-27) | Contrôle was the home; the home is now the entry page. « À traiter » opens there by default when not empty (organisation ruling 10) |
-| `/pipeline` | `/system` | the levers and the history live in Système's « Pipeline » section (operator, 2026-09-12, Q1 = B) |
-| `/pipeline?run=<uid>`, `/maintenance?run=<uid>` | `/run/$runUid` | the passage's own screen (L20) |
-| `/config` | `/settings` | the same page, renamed |
-| `/media?decision=<id>` | **OPEN 9** | the journal it opened no longer exists (OPEN 1 = C) |
-| `/media?media=<id>`, `/system?tab=<name>` | the same path, the query dropped | the dials production had there are not the maquette's; an unknown dial is ignored, never an error (D1) |
-| `/scraping`, `/registry` | `/media`, `/system` | production's own aliases, carried one hop further |
-| `/medias`, `/systeme`, `/controle` | **none — the not-found page** | ruled OPEN 4 = A: they die at the switchover, no redirect (precedent `/arrivals`) |
+| `/control`, `/pipeline`, `/pipeline?run=<uid>`, `/maintenance?run=<uid>`, `/config`, `/scraping`, `/registry`, `/medias`, `/systeme`, `/controle` | **none — the not-found page** | the operator's principle (2026-09-29): a former address answers not-found, never a named successor. `destinationOf` ALREADY does this today for every path outside `PAGE_PATHS` (`lib/addresses.ts:357`, measured) — nothing is added |
+| `/media?media=<id>`, `/system?tab=<name>`, `/media?decision=<id>` | the same LIVE path, the query dropped | these are not former addresses — `/media` and `/system` exist today; the dials production had there are not the maquette's, an unknown dial is ignored, never an error (D1). OPEN 9 = A places `/media?decision=<id>` here: the id is ignored, the journal it once opened no longer exists (OPEN 1 = C) |
 
-The table lives beside the address model, not in it: `lib/addresses.ts` holds **395** non-blank lines against the
-400-line ceiling (`grep -cv '^\s*$' frontend/maquette/design/src/lib/addresses.ts`), so the table is its own module
-under `lib/`, read by `destinationOf` before it falls to the not-found page.
+No table, no module under `lib/`: the not-found fallback `destinationOf` already gives every dead path is the whole
+of S4 now. `lib/addresses.ts` stays at **395** non-blank lines against the 400-line ceiling
+(`grep -cv '^\s*$' frontend/maquette/design/src/lib/addresses.ts`) — nothing is added to it.
 
 ### 1.5 (c) The seven owed halves, row by row
 
@@ -156,7 +155,7 @@ under `lib/`, read by `destinationOf` before it falls to the not-found page.
 | --- | --- | --- | --- |
 | **DOIT-1** (L19) | the pipeline's own states, per medium, in the tunnel | the journey sheet draws the eight rungs and, under « rangé », three steps « trié · enrichi · rangé » (L22 OPEN 4 = B, 2026-09-26) | **Ruled OPEN 5 = B** (2026-09-29, verbatim « B »): on the journey sheet « enrichi » unfolds into **métadonnées**, **posters récupérés**, **bande-annonce**, each with its state; the card ladder keeps its eight rungs (round 5 Q4 unchanged) — one seed shape, one state `sheet-journey-enriched-unfolded`, one rule, which also reads every rung and step word from the one ladder's vocabulary |
 | **DOIT-5** (L19) | the continuation's progress to the library | after « Choisir », the message says « le pipeline reprend jusqu'à la médiathèque » (`verbs.acquisition.resolved`); no rule reads the CARD advancing afterwards | **PROOF**: after a choice, the card leaves « À traiter » and its rung passes « identifié », read on the card within the visit — walked from « À traiter » and from « Corriger » |
-| **DOIT-7** (L19) | the step that CREATES a decision with its candidates (`POST /api/staging/media/{id}/enqueue`) is uncalled | `grep -rn "enqueue" frontend/maquette/design/src/features` → nothing; the contract declares no such operation | **SURFACE — S5, « Corriger »**, the act of S1's block (the ruling's own word): on a medium the engine identified alone, it creates the decision (`enqueueForResolution`), then opens `/resolution/$folder` with candidates, or the pre-filled manual search when none — § 3's invariant. Whether it is also the act on an operator-settled decision, and whether the journey sheet keeps a separate third act, is **OPEN 7**; what it does on the Médiathèque sheet is **OPEN 8** |
+| **DOIT-7** (L19) | the step that CREATES a decision with its candidates (`POST /api/staging/media/{id}/enqueue`) is uncalled | `grep -rn "enqueue" frontend/maquette/design/src/features` → nothing; the contract declares no such operation | **SURFACE — S5, « Corriger »**, the act of S1's block (the ruling's own word): **RULED OPEN 7 = A** — ONE act for both authors: on a medium the engine identified alone, it creates the decision (`enqueueForResolution`) and opens `/resolution/$folder` with candidates, or the pre-filled manual search when none (§ 3's invariant); on an operator-settled decision, the SAME act re-opens that choice by its id (demand D); no third act on the journey sheet, R126 unchanged. **RULED OPEN 8 = A** — « Corriger » is drawn on the Médiathèque sheet of a shelved medium too, re-opening its decision by id; the re-identification of a shelved medium is recorded as a demand on the engine (mission point 4) |
 | **DOIT-9** (L19) | § 12's card composition (title alone on line 1) is read by a print in an unnumbered script | `harness/follows.py:28` still PRINTS « title alone » over four follow cards | **PROOF**: a rule over every card of every gallery and list |
 | **DOIT-11** (L19) | the sheet's CONTENT is unproved; « complétude par saison » — `GET /api/acquisition/followed/{id}/completeness` is uncalled | the hero draws year and trailer with their failure words (`media-hero.tsx:69–74, 149`); R119 (`harness/priming.py`) reads the sheet's parts in flight, R63 (`content.py`) the library rows' synopsis — no rule reads DOIT-11's fields on the sheet at rest | **PROOF** for the content; the completeness half is NE-DOIT-PAS-1's source change, below |
 | **NE-DOIT-PAS-1** (L19) | the executable completeness the backend answers is uncalled | `grep -rn "completeness\"" frontend/maquette/design/src/mocks` → nothing; the sheet computes its own | **SOURCE CHANGE + PROOF**: for a followed medium, the season figures read the completeness operation, and the sheet and the follow sheet agree (§ 13) |
@@ -202,8 +201,11 @@ former addresses are the interface's alone.
 
 ## 3. Named states
 
-Every id is PROPOSED; none exists. **Twenty-one were proposed at `@e6d63bffe`; nine are removed by the rulings and
-four are new, for sixteen — and one more under OPEN 8 reading A.**
+Every id is PROPOSED; none exists. **Twenty-one were proposed at `@e6d63bffe`; fourteen are removed by the
+rulings** (the original nine, plus the five S4 former-address states `former-control`, `former-pipeline`,
+`former-pipeline-run`, `former-config`, `former-decision` — OPEN 9's no-backward-compatibility PRINCIPLE kills the
+whole family, the not-found state answering in their place) **and four are new, for twelve** — `media-sheet-decision-corrected`
+now RULED IN unconditionally (OPEN 8 = A), no longer conditional.
 
 | # | id | What is on the screen | Ruling |
 | --- | --- | --- | --- |
@@ -214,10 +216,9 @@ four are new, for sixteen — and one more under OPEN 8 reading A.**
 | 5 | `system-disks-unavailable` | « Disques » says its read failed; the other sections drawn | — |
 | 6 | `system-index-unavailable` · `system-dependencies-unavailable` | the same, per section | — |
 | 7 | `system-disk-filling` | a disk « bientôt plein » counted in the menu's badge | OPEN 2 = A (kept) |
-| 8 | `former-control` · `former-pipeline` · `former-pipeline-run` · `former-config` · `former-decision` | each former address, landed on its successor with its parent under it — `former-decision`'s successor is OPEN 9 | — |
-| 9 | `acq-resolution-enqueued` · `acq-resolution-enqueue-failed` | S5: the screen opened on a freshly created decision; the creation refused, its reason | — |
-| 10 | `sheet-journey-enriched-unfolded` | « enrichi » unfolded into métadonnées, posters, bande-annonce | OPEN 5 = B (kept) |
-| 11 | `media-sheet-decision-corrected` | « Corriger » on the Médiathèque sheet, the arbitration opened on a shelved medium | conditional: OPEN 8, reading A |
+| 8 | `acq-resolution-enqueued` · `acq-resolution-enqueue-failed` | S5: the screen opened on a freshly created decision; the creation refused, its reason | — |
+| 9 | `sheet-journey-enriched-unfolded` | « enrichi » unfolded into métadonnées, posters, bande-annonce | OPEN 5 = B (kept) |
+| 10 | `media-sheet-decision-corrected` | « Corriger » on the Médiathèque sheet, the arbitration opened on a shelved medium | OPEN 8 = A (kept, unconditional) |
 
 **Removed, each with its ruling**:
 
@@ -225,7 +226,8 @@ four are new, for sixteen — and one more under OPEN 8 reading A.**
 | --- | --- |
 | `decisions-all` · `decisions-filtered` · `decisions-empty` · `decisions-loading` · `decisions-error` · `decision-dismissed-open` | OPEN 1 = C — no global list, no « Décisions » screen; replaced by states 1–4 |
 | `system-scraping-now` · `system-scraping-idle` | OPEN 3 = A — no global « en ce moment » |
-| `former-french-alias` | OPEN 4 = A — the three French addresses answer the not-found page, whose state `not-found` already exists |
+| `former-french-alias` | OPEN 4 = A — the French addresses answer the not-found page, whose state `not-found` already exists |
+| `former-control` · `former-pipeline` · `former-pipeline-run` · `former-config` · `former-decision` | OPEN 9 = A + the no-backward-compatibility PRINCIPLE — S4's whole redirect-table premise dies; every former address answers `not-found`, the same state `former-french-alias` already used |
 
 The desktop proof (§ 1.6) adds no state: it walks the existing ones at another width.
 
@@ -295,31 +297,32 @@ verbatim « A dans un premier temps, mais prévoir une phase final d'adaptation 
 agréable sur desktop. On en décidera des contours en temps et en heure quand la maquette sera prête ». Consequence:
 L24's desktop half is the proof R-L24-k alone; the desktop adaptation is a milestone after the drawn lots (§ 1.6).
 
-### Three questions the rulings raise — each with its two readings, and NO choice
+### Three questions the rulings raised — ALL THREE NOW RULED (operator, 2026-09-29, second round;
+`review-archive/l24/rulings-2026-09-29.md`)
 
-**OPEN 7 — « Corriger » and S5's act: one act or two?** The block's « Corriger » (OPEN 1 = C) and the journey
-sheet's act for a doubted engine match (S5, proposed at `@e6d63bffe` as a third act « Choisir un autre média »)
-answer the same doubt. *Reading A*: one act — « Corriger » is S5, on the block, for both authors: on an engine
-identification it creates the decision (`enqueueForResolution`), on an operator's choice it re-opens that decision
-by its id (demand D); no third act on the journey sheet. *Reading B*: two acts — S5 stays the journey sheet's third
-act beside « Remettre en file » and « Re-scraper » for an engine identification not yet « rangé », and « Corriger »
-sits on an operator-settled block only, re-opening its decision by id. **Cost**: A is one act and R126
-(`harness/journey_verbs.py`) unchanged; B is two acts, R126 re-aimed from two acts to three, ≈ 2½ points more.
+**OPEN 7 — RULED = A** (~11:0x, verbatim « A »). The block's « Corriger » (OPEN 1 = C) and the journey sheet's act
+for a doubted engine match (S5, proposed at `@e6d63bffe` as a third act « Choisir un autre média ») answered the
+same doubt with two readings; **A chosen**: ONE act — « Corriger » is S5, on the block, for both authors: on an
+engine identification it creates the decision (`enqueueForResolution`), on an operator's choice it re-opens that
+decision by its id (demand D); no third act on the journey sheet, R126 (`harness/journey_verbs.py`) unchanged.
+**Refused: B** (two acts, R126 re-aimed to three). **Consequence**: 12 points (phase 7's reading A), no STOP C left
+in that phase.
 
-**OPEN 8 — « Corriger » on the Médiathèque sheet.** The ruling says the block « reads » the same once the medium
-leaves Acquisition; the candidates screen is addressed by a STAGING folder (`/resolution/$folder`), which a shelved
-medium no longer has, and no declared operation re-identifies a shelved medium. *Reading A*: « Corriger » is drawn
-there too and opens the arbitration on the medium's decision by its id; the re-identification of a shelved medium is
-recorded as a demand on the backend (mission point 4: the backend follows). *Reading B*: the Médiathèque block reads
-without « Corriger »; a shelved medium's correction stays the sheet's existing « Re-scraper »
-(`rescrapeMedia`, `features/media/media-verbs.ts:67`). **Cost**: A is one act, one declared operation, one mock
-route, one state (`media-sheet-decision-corrected`), ≈ 8 points; B is nothing.
+**OPEN 8 — RULED = A** (~11:3x, verbatim « A »). The candidates screen is addressed by a STAGING folder
+(`/resolution/$folder`), which a shelved medium no longer has, and no declared operation re-identified one; **A
+chosen**: « Corriger » is drawn on the Médiathèque sheet too, opening the arbitration on the medium's decision by
+its id; the re-identification of a shelved medium is recorded as a demand on the engine (mission point 4).
+**Refused: B** (the Médiathèque block reads without « Corriger », the phase dropped). **Consequence**: 8 points
+(phase 8's reading A), the state `media-sheet-decision-corrected` unconditional, no STOP C left in that phase.
 
-**OPEN 9 — where `/media?decision=<id>` lands.** Its successor was the journal's root, which OPEN 1 = C removed.
-*Reading A*: the query dropped, `/media` (Médiathèque), as for `/media?media=<id>` (D1 — an unknown dial is
-ignored). *Reading B*: the id read (demand D) and the address lands on that decision's medium — its journey sheet
-while in Acquisition, its Médiathèque sheet once shelved — its parent synthesised (§ 16 rule 3). **Cost**: A is one
-table row; B is one lookup over the settled read, ≈ 2 points more.
+**OPEN 9 — RULED = A + PRINCIPLE** (~11:4x, verbatim « A, pas de gestion de rétro-compatibilité ! »). Where
+`/media?decision=<id>` lands, its successor the journal's root OPEN 1 = C removed; **A chosen**: the query dropped,
+`/media` (Médiathèque), exactly as for `/media?media=<id>` (D1 — an unknown dial is ignored). **Refused: B** (the id
+read, landing on the decision's medium). **GENERAL PRINCIPLE, stated with it**: the new version handles NO backward
+compatibility of former addresses or links — no alias, no redirect (precedents `/arrivals`, the French addresses).
+**Consequence for S4** (§ 1.4): the whole redirect-table premise dies with its five states `former-control`,
+`former-pipeline`, `former-pipeline-run`, `former-config`, `former-decision` — a former address answers not-found,
+which `destinationOf` already does today; phase 10 is now a PROOF, not a surface, and carries no STOP C.
 
 ---
 
