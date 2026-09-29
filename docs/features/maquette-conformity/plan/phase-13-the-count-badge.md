@@ -1,4 +1,4 @@
-# Phase 12 — The count badge (D.1 #8)
+# Phase 13 — The count badge (D.1 #8)
 
 **Opening measure (2026-09-29, on `660049325`):**
 
@@ -7,13 +7,13 @@
   `app/tab-bar.tsx:87`, `app/menu-badge.tsx:38`, `app/drawer.tsx:150`, the tab bars; `grep -cv '^\s*$'
   frontend/maquette/design/src/ui/variants/frame.ts` → **397 / 400** (STOP D near: lines move OUT).
 - **Points ≈ 10.** One badge variant with a `placement` (corner / inline) (≈ 15 lines, 3); three callers (1);
-  `drawerEntryCount` and `segmentCount` die (1); R-conformity-j (3); the RESUME (1); the frame.ts count held (1).
+  `drawerEntryCount` and `segmentCount` die (1); R-conformity-k (3); the RESUME (1); the frame.ts count held (1).
 - **Readers.** `badges_observed.py`, `trackers_alert.py`, `trackers_policy.py`, `audit2.py`, `actions.py`,
   `set_aside_is_later.py`, `four_tabs.py` — the parts are kept.
 
 ## Red today
 
-R-conformity-j on `menu-system-badge`, `drawer-navigation`, `acq-todo-loaded`: the three badges share size, fill and
+R-conformity-k on `menu-system-badge`, `drawer-navigation`, `acq-todo-loaded`: the three badges share size, fill and
 type — falls.
 
 ## Mutation
