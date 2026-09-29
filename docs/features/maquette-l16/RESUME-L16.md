@@ -1,40 +1,27 @@
 # L16 — RESUME
 
-## STATE BLOCK (rewritten at every boundary — 2026-09-29, after phase 16)
+## STATE BLOCK (rewritten at every boundary — 2026-09-29, the close: pull request READY)
 
 - **Branch** `feat/maquette-l16`, worktree `/Users/izno/dev/worktrees/wave-l16`, on `origin/main` by MERGE
-  (last: `77e7b8436`, #631, at 15's opening). `git merge --no-edit` at a phase boundary; NO force push, ever.
+  (last: `77e7b8436`, #631). NO force push, ever. Version 0.98.106.
 - **Orchestrator** « Orch : TM frontend [79475d] »; always write the reference. Gauge: `context-gauge.sh` as the
-  LAST tool call before any message carrying a figure. Context gate 80 %, exit ~75 % (brief's dated line).
-- **Done** 1 · 2a–c · 3 · 4 · 5a–d · 6a · 6b · 7 · 8 · 9 · MIDPOINT · 10 · 11 · 12a · 12b · 13 · 14a · 14b · 15 · 16
-  — each gated, mutated, pushed. **Next: 17** (`plan/phase-17-close.md`), the close — re-measure it.
-- **Remaining** (from `ls plan/`): 17 (the close's full suite + `--a11y` + `--compare`, order 52, PR). No STOP D.
-- **Rulings** (`RULINGS.md`) 1 `?list=` · 2 C2 save bar door · 3 B filter line · 4 B1 Lanterns · 5 B `poseArrived` ·
-  6 B `poseExternalRemoval` · 7 posed dials replace composed seeds (STANDING: announce, no STOP) · 8 A « Vu » ·
-  9 « Veille », L22's note to phase 17 · 10 A tracker's own threshold (demand) · 11 A `readConfigurationFile` +
-  the real ranking.json5 · 12 B the rubric keeps /quality/global, the weights button leads to the editor.
-- **Rules** R260 trackers_page · R261 trackers_roster (17 holds) · R262 trackers_policy · R263 trackers_removal (10) ·
-  R264 trackers_alert (11) · R265 deferred_reason (6) · R266 ranking_editor (11 holds, 32 checks; save half at 15) ·
-  R267 ranking_preview (3 holds) · R229
-  re-aimed at 5d; R91 fanout reads trackers/live.ts. Next label R268 (cuts only). Register: B-570 taken
-  (live-relay guard's constant-key blind spot, `open`); B-298 `to confirm`; next B-571.
-- **Gate** (office § The gate): the scratchpad `static.sh` = CI's no-french job + run.sh's 26 cheap guards (read
-  from `REPOSITORY_GUARDS`) — a successor rebuilds it the same way; → `run.sh --oracle` alone → accept with
-  `bash -c 'run.sh --oracle; oracle.py --accept'` + `tools/accept_by_name.py <declared.json>` (declared BY SCRIPT
-  from `states/*.ts`) → `run.sh --rules` (`--class rule`) → `--a11y`. `test_oracle.py` pinned 159 / 38. Maquette
-  vitest: `vitest run --root frontend/maquette/design`. The RULE is read RED BEFORE the move (14a slipped).
-- **Order 52** at the midpoint 0.56; **Order 73**: a rule red 3× for a non-product reason → a register row naming
-  its mechanism before READY (entry/pwa excluded: the router hairpin, a train's).
-- **Phase 17 carries**: L22's DESIGN § 1.7 note (RULINGS 9); B-298 `to confirm` → `fixed #<L16's PR>` once
-  the PR exists (never guessed; its body already says both halves); the closing full suite + `--a11y` +
-  `--compare`; the 390 px screenshots of both Trackers tabs.
+  LAST tool call before any message carrying a figure, the figure IN the message.
+- **Done** 1 · 2a–c · 3 · 4 · 5a–d · 6a · 6b · 7 · 8 · 9 · MIDPOINT · 10 · 11 · 12a · 12b · 13 · 14a · 14b · 15 · 16 ·
+  17a · 17 — each gated, mutated, pushed. The pull request is READY (its number in the ledger's last line).
+- **Remaining**: the reader round (measure 2) — a fresh session with a resume brief, not this one; then B-144 and
+  B-298 `to confirm` → `fixed #<PR>` (never guessed), and L22's DESIGN § 1.7 note in the steward's docs PR.
+- **Rulings** (`RULINGS.md`) 1–12, and 13 = A (phase 17a: the page's wait and failure).
+- **Rules** R260 trackers_page (9 holds, 31 checks) · R261 trackers_roster (64) · R262 trackers_policy (14) · R263
+  trackers_removal (21) · R264 trackers_alert (27) · R265 deferred_reason (16) · R266 ranking_editor (32) · R267
+  ranking_preview (4). Register: B-570 `open`, B-571 `open` (entry/pwa after #631); next B-572; next label R268.
+- **Close figures** full suite 182/184 (entry, pwa: B-571, out of the gates by order 59); contracts tier 23 rules +
+  26 guards green; `--a11y` 161 states, dark 0, light 88; `--compare` refused (main's baseline names `3f105df9`,
+  squashed away) → recorded to the scratchpad and compared by script (`close-compare-manual.log`); order 52 0.50;
+  `test_oracle.py` 161 / 39; DESIGN's states 28 / 28.
 - **Traps** `git fetch` blocked (use `git remote update origin`); the git index lock is held by a concurrent reader
-  — `git add` then `git commit -F <file>` with bounded retries, never delete the lock; BSD `sed` has no `\b`;
-  zsh does not split `$VAR` (use `xargs`); a `[data-follow]` selector is refused (read the value); a maquette
-  comment naming a lot/phase/date is refused; Playwright `has_text` is case-free (another row may quote it).
-- **Size watch** `mocks/handlers/staging.ts` 399, `mocks/index.ts` 399 (ceiling 400). Frame-domain app/ 153.
-- **Mock** `mocks/trackers-state.ts` (roster, downloads, obligations, removals + dials), `mocks/configuration-files.ts`
-  (the files' content, per layer state; `writeFileContent` — a whole file under its digest), `mocks/handlers/ranking.ts` (the preview), `posed-deferral.ts`.
+  — bounded retries; a Bash command carrying the word « fetch » is blocked by a hook — write the script to a file;
+  `rename-identifiers.py` renames a word EVERYWHERE (restore every file outside the phase); `harness-hold-counts.py`
+  needs 8899 up — chain it after `run.sh --contracts` in one mutex call.
 - **Logs** `~/Library/Logs/tm-l16/`; the proof tool lives in `tools/` there.
 
 ---
@@ -419,4 +406,12 @@
   § Method). README cut table: « A tracker in trouble (ratio, obligation) → Trackers » (C9). B-144 body closed,
   `to confirm`; B-143, B-145 untouched (L18's, L17's). Version 0.98.106. L22's DESIGN § 1.7 note (RULINGS 9): the
   folder died at #627 — carried to the steward's closing docs pull request.
-
+- 2026-09-29 — the close's gate (on `59888d911`): full suite 182/184 — `entry.py`, `pwa.py` `Page.goto` 30 s; 3
+  `--rules` draws 0/2, 2/2, 1/2; the deployed host loads 10/10 in 0.1 s through 127.0.0.1 (`close-probe-deployed.log`)
+  → B-571 `open`, the steward's ruling: order 73 held, not blocking READY (order 59). `--a11y` 161 states, 0 / 88.
+  Contracts tier green. `--compare` refused on main's dangling baseline pointer → the table recorded to the
+  scratchpad after `run.sh --contracts`, compared by script: `failed` = entry, pwa; 8 new rules; moved: states
+  130 → 161, url_state 102 → 106, fanout 152 → 170, chrome 260 → 322, follow_offered 13 → 16, one_ladder 44 → 40
+  (5d, said), audit 13 → 14 (R1 bis), page_host 41 → 42, journey 70 → 72, drawer 30 → 33, paths_to_sheets 11 → 13,
+  cards 79 → 78 (78 already before phase 12 — not the lot's). `make lint` 0; `check-bug-register`,
+  `check-intent-map`, `check-docs-cited-paths` clean.
