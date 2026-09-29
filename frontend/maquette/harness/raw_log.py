@@ -21,9 +21,10 @@ WHAT IS READ, and each hold is a different claim:
   3. `outputTail: null` DRAWS THE SENTENCE, never an empty box. A run recorded
      before output capture existed has no log, and an empty frame reads as
      « nothing happened » — §14 asks the interface to say « inconnue » instead.
-  4. THE BLOCK SCROLLS SIDEWAYS AND THE PAGE DOES NOT. A raw line is wider than
-     390 px; DOIT-9 allows exactly one thing to scroll horizontally — a code
-     block in its own container — and refuses the page doing it.
+  4. NOTHING SCROLLS SIDEWAYS, THE LOG INCLUDED. A raw line is wider than
+     390 px, and it WRAPS, broken anywhere: § 12 grants no exception to a log.
+     RE-AIMED, said out loud: this hold read « the log block is the one allowed
+     to scroll sideways » until the operator ruled the log wraps.
   5. EVERY DOOR ON THE PASSAGE'S PATH IS A FINGER'S SIZE (B-535). The fold's
      summary, the screen's « Retour », and the not-found screen's door back
      to the passages each measure at least 44 px tall at 390 px, read by
@@ -108,7 +109,7 @@ ANSWERED_TAIL = """async ()=>{
   return detail ? detail.outputTail : null;
 }"""
 
-# WHO SCROLLS SIDEWAYS: the block may, and nothing around it may. The screen
+# WHO SCROLLS SIDEWAYS: nothing may, the block included. The screen
 # scrolls inside its own viewport, so « the page » is read twice — the document
 # and the screen's viewport — and either one spilling sideways is the defect.
 SCROLLS = """(part)=>{
@@ -190,10 +191,10 @@ async def main():
                       f"shown {len(shown or '')} characters, answered {len(whole)}; "
                       f"first difference at {next((index for index, (left, right) in enumerate(zip(shown or '', whole)) if left != right), min(len(shown or ''), len(whole)))}")
 
-        # 4 — THE BLOCK SCROLLS SIDEWAYS, THE PAGE DOES NOT.
+        # 4 — NOTHING SCROLLS SIDEWAYS, THE LOG INCLUDED: its lines wrap.
         scrolling = await page.evaluate(SCROLLS, LOG)
-        journal.check("the log block is the one allowed to scroll sideways",
-                      scrolling["blockCanScroll"] is True, f"{scrolling}")
+        journal.check("the log wraps: its block neither scrolls nor spills sideways",
+                      scrolling["blockCanScroll"] is False and scrolling["block"] is False, f"{scrolling}")
         journal.check("and the page itself does not",
                       scrolling["viewport"] and scrolling["page"] is False, f"{scrolling}")
 

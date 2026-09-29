@@ -47,6 +47,7 @@ RE-AIMED OUT LOUD: Système left the bottom bar (ruling 15); each walk to it ope
 the menu, then taps its drawer entry, by a finger.
 """
 import asyncio
+import json
 import pathlib
 import sys
 
@@ -66,7 +67,10 @@ ORPHANS = "locks-orphans"
 
 # THE FOUR ROWS, by the `data-part` each carries. Named here so a failure says
 # which fact was missing rather than « the block is wrong ».
-ROWS = ("locks/pipeline", "locks/pause-sentinel", "locks/watcher-sentinel", "locks/sweep")
+# RE-AIMED: the automatic processing's row left this block — the page says that
+# fact ONCE, in the levers, beside its control — so the trigger's reading below
+# reads `levers/watcher-state`, its successor.
+ROWS = ("locks/pipeline", "locks/pause-sentinel", "locks/sweep")
 
 # WHAT A ROW SAYS, as the two things a fact row IS: a name and a value, read
 # from the emitter's own parts rather than from the row's concatenated text.
@@ -184,8 +188,9 @@ REACHABLE = """(selector)=>{
 
 # THE WORD A HELD LOCK AND AN ACTIVE PAUSE WEAR, the interface's own.
 HELD_SAID = "Pris"
-PAUSE_SAID = "Activée"
-WATCHER_PAUSED_SAID = "Désactivé"
+# ONE PAIR FOR EVERY MECHANISM ON OR OFF — read whole, since « actif » is inside « inactif ».
+STATES = json.loads((pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "i18n" / "fr.json")
+                    .read_text(encoding="utf-8"))["states"]
 
 # WHAT COUNTS THE STATE DOORS, installed before the application assigns them.
 COUNT_THE_DOORS = """(() => {
@@ -260,11 +265,11 @@ async def agrees(journal, page, moment):
     """
     lock = await page.evaluate(ROW_FACT, "locks/pipeline")
     pause = await page.evaluate(ROW_FACT, "locks/pause-sentinel")
-    watcher = await page.evaluate(ROW_FACT, "locks/watcher-sentinel")
+    watcher = await page.evaluate(ROW_FACT, "levers/watcher-state")
     layer = await page.evaluate(LAYER)
     said_held = bool(lock) and HELD_SAID in lock["value"]
-    said_pause = bool(pause) and PAUSE_SAID in pause["value"]
-    said_watcher_paused = bool(watcher) and WATCHER_PAUSED_SAID in watcher["value"]
+    said_pause = bool(pause) and pause["value"] == STATES["active"]
+    said_watcher_paused = bool(watcher) and watcher["value"] == STATES["inactive"]
     journal.check(f"{moment}: « Verrou du pipeline » says what the locks read answers",
                   bool(lock) and said_held is layer["held"], f"{lock!r}, layer {layer}")
     journal.check(f"{moment}: the layer's lock agrees with the pipeline's own state",
@@ -415,7 +420,7 @@ async def main():
             if not await drive(journal, page, state):
                 continue
             fact = await page.evaluate(ROW_FACT, "locks/pause-sentinel")
-            said_on = bool(fact) and "Activée" in fact["value"]
+            said_on = bool(fact) and fact["value"] == STATES["active"]
             journal.check(f"{state}: the pause sentinel reads as the state says",
                           said_on is sentinel_on, f"{fact!r}")
             journal.check(f"{state}: the lever offered agrees with that sentinel",

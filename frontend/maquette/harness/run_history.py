@@ -57,14 +57,17 @@ DEGRADED = "runs-degraded"
 
 # WHAT THE SECTION AND ITS ROWS CARRY.
 SECTION = "runs"
-ROW = "runs/row"
+# A PASSAGE'S ROW IS THE SHARED FACT ROW, and its control is the button carrying
+# the run it opens — RE-AIMED from the list's own `runs/row` part, which went
+# with the list's own drawing; the row is found by the run it stands for.
+ROW = "[data-run]"
 DEGRADED_LINE = "runs/degraded"
 EMPTY_LINE = "runs/empty"
 
 # PRESSED AT ITS OWN CENTRE, after scrolling to it — a finger scrolls first, and
 # `elementFromPoint` answers null outside the viewport.
-PRESS_FIRST_ROW = """(part)=>{
-  const row = document.querySelector(`[data-part="${part}"]`);
+PRESS_FIRST_ROW = """(selector)=>{
+  const row = document.querySelector(selector);
   if (!row) return {found: false, pressed: false, covered: ''};
   row.scrollIntoView({block: 'center'});
   const box = row.getBoundingClientRect();
@@ -115,7 +118,7 @@ ROWS_SAID = """async ()=>{
     };
     return {runUid: run.runUid, command: run.command, outcome: run.outcome,
             detected: ((run.steps || [])[0] || {}).counts?.detected ?? null,
-            word: said('runs/outcome'), line: said('runs/line')};
+            word: said('flux/value'), line: said('flux/detail')};
   });
 }"""
 
@@ -123,8 +126,11 @@ ROWS_SAID = """async ()=>{
 SENTENCES = json.loads(
     (pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "i18n" / "fr.json")
     .read_text(encoding="utf-8"))["screens"]["system"]
-OUTCOME_WORDS = {"success": "runSucceeded", "error": "runFailed", "running": "runRunning",
-                 "killed": "runKilled", "paused": "runPaused"}
+# ONE WORD PER OUTCOME, the run screen's: RE-AIMED from the list's own five
+# keys, which said « arrêté » where the run's own screen said « interrompu ».
+OUTCOME_WORDS = json.loads(
+    (pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "i18n" / "fr.json")
+    .read_text(encoding="utf-8"))["screens"]["run"]["outcome"]
 
 ROW_TEXT = """(runUid)=>{
   const row = document.querySelector(`[data-run="${runUid}"]`);
@@ -136,14 +142,14 @@ ROW_TEXT = """(runUid)=>{
 DRAWN_ORDER = """async ()=>{
   const answer = await (await fetch('/api/pipeline/history')).json();
   const started = new Map((answer.runs || []).map((run) => [run.runUid, run.startedAt]));
-  return [...document.querySelectorAll('[data-part="runs/row"]')].map((row) => ({
+  return [...document.querySelectorAll('[data-run]')].map((row) => ({
     runUid: row.dataset.run || '',
     at: started.has(row.dataset.run) ? Date.parse(started.get(row.dataset.run)) : null,
     text: (row.textContent || '').replace(/\\s+/g, ' ').trim()}));
 }"""
 
 # HOW MANY ROWS ARE DRAWN.
-ROW_COUNT = """(part)=>document.querySelectorAll(`[data-part="${part}"]`).length"""
+ROW_COUNT = """(selector)=>document.querySelectorAll(selector).length"""
 
 # THE STATES OF A PASSAGE'S SCREEN.
 DETAIL = "run-detail"
@@ -295,7 +301,7 @@ async def main():
                       and order[0]["at"] > order[1]["at"],
                       f"{[(row['runUid'][:12], row['text'][:14]) for row in order[:2]]}")
         for row in going + [row for row in rows if row["outcome"] != "running"][:1]:
-            expected = SENTENCES.get(OUTCOME_WORDS[row["outcome"]])
+            expected = OUTCOME_WORDS.get(row["outcome"])
             journal.check(f"the {row['outcome']} row {row['runUid'][:8]} says its own outcome word",
                           bool(expected) and row["word"] == expected,
                           f"said {row['word']!r}, expected {expected!r}")

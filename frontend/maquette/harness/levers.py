@@ -130,6 +130,13 @@ SKELETON = """(part)=>{
 }"""
 
 # WHAT A PART SAYS, alone.
+# THE STATE WORD A FACT ROW WEARS: its chip, never the row's whole text — the
+# row also says since when, under it.
+STATE_WORD = """(part)=>{
+  const node = document.querySelector(`[data-part="${part}"] [data-part="flux/value"]`);
+  return node ? (node.textContent || '').replace(/\\s+/g, ' ').trim() : null;
+}"""
+
 TEXT = """(part)=>{
   const node = document.querySelector(`[data-part="${part}"]`);
   return node ? (node.textContent || '').replace(/\\s+/g, ' ').trim() : null;
@@ -167,6 +174,8 @@ WATCHER_ENABLED = """async ()=>(await (await fetch('/api/pipeline/status')).json
 
 # THE INTERFACE'S OWN SENTENCES, read from its resources rather than retyped.
 DESIGN = pathlib.Path(__file__).resolve().parent.parent / "design" / "src"
+# ONE PAIR FOR EVERY MECHANISM ON OR OFF, from the interface's own resources.
+STATES = json.loads((DESIGN / "i18n" / "fr.json").read_text(encoding="utf-8"))["states"]
 SENTENCES = json.loads((DESIGN / "i18n" / "fr.json").read_text(encoding="utf-8"))["screens"]["system"]
 
 # THE BOUND'S OWN SETTING, named by the key the section reads, and what the
@@ -254,20 +263,18 @@ async def main():
         journal.check("pressing it CALLS setWatcher", bool(called), f"{called}")
         enabled = await page.evaluate(WATCHER_ENABLED)
         label = await page.evaluate(TEXT, WATCHER)
-        said = await page.evaluate(TEXT, WATCHER_STATE)
+        said = await page.evaluate(STATE_WORD, WATCHER_STATE)
         journal.check("and the trigger is OFF afterwards, on the layer, on its state and on the control",
-                      enabled is False and said is not None
-                      and said.endswith(SENTENCES["triggerOff"])
+                      enabled is False and said == STATES["inactive"]
                       and label == SENTENCES["turnTriggerOn"],
                       f"watcherEnabled={enabled}, state says {said!r}, control says {label!r}")
         await page.evaluate(PRESS, WATCHER)
         await page.wait_for_timeout(ACTED)
         enabled = await page.evaluate(WATCHER_ENABLED)
         label = await page.evaluate(TEXT, WATCHER)
-        said = await page.evaluate(TEXT, WATCHER_STATE)
+        said = await page.evaluate(STATE_WORD, WATCHER_STATE)
         journal.check("and a second press turns it back ON, on the layer, on its state and on the control",
-                      enabled is True and said is not None
-                      and said.endswith(SENTENCES["triggerOn"])
+                      enabled is True and said == STATES["active"]
                       and label == SENTENCES["turnTriggerOff"],
                       f"watcherEnabled={enabled}, state says {said!r}, control says {label!r}")
 

@@ -16,6 +16,7 @@
 import { describe, expect, it } from "vitest";
 import i18next from "i18next";
 import FRENCH from "../../i18n/fr.json";
+import { factTone } from "./state-words";
 import SCHEDULERS from "../../mocks/seeds/schedulers.json";
 import { withOneRowDown, type OverdueWords } from "./fault";
 import type { Schemas } from "../../lib/contract-schemas";
@@ -33,7 +34,7 @@ await i18next.init({
 
 const words: OverdueWords = {
   label: i18next.t("screens.system.schedulerLateLabel"),
-  value: i18next.t("screens.system.schedulerLateValue"),
+  state: "late",
   secondaryLine: i18next.t("screens.system.schedulerLateLine"),
 };
 
@@ -66,7 +67,7 @@ describe("the corpus these claims are made about", () => {
 describe("the fault falls on the named row, in any order", () => {
   for (const [order, list] of [["as answered", healthy], ["reversed", reversed]] as const) {
     it(`draws exactly one row late — ${order}`, () => {
-      const late = withOneRowDown(list, words).filter((row) => row.tone === "alert");
+      const late = withOneRowDown(list, words).filter((row) => factTone(row) === "alert");
       expect(late).toHaveLength(1);
       expect(late[0].label).toBe(words.label);
     });
@@ -80,10 +81,10 @@ describe("the fault falls on the named row, in any order", () => {
     // row's own healthy cadence is what sees a cadence transplanted.
     it(`gives the late row ITS OWN cadence, not another job's — ${order}`, () => {
       const drawn = withOneRowDown(list, words);
-      const late = drawn.find((row) => row.tone === "alert") as Fact;
+      const late = drawn.find((row) => row.state === "late") as Fact;
       const healthyRow = list.find((row) => row.label === late.label) as Fact;
       expect(cadence(late)).toBe(cadence(healthyRow));
-      expect(late.value).toBe(words.value);
+      expect(late.state).toBe(words.state);
     });
 
     it(`leaves every other row exactly as it arrived — ${order}`, () => {

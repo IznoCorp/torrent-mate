@@ -17,7 +17,9 @@ import "./lever-verbs";
 import { useTranslation } from "react-i18next";
 import { Skeletons } from "../../ui/state-surfaces";
 import { actionButton } from "../../ui/variants/controls";
-import { guidance, topicRow } from "../../ui/variants";
+import { factList, guidance, topicRow } from "../../ui/variants";
+import { FactRows } from "../../ui/fact-rows";
+import { ageInWords } from "./locks";
 import { WatchBlock } from "./watch";
 import { useLocks } from "./locks-queries";
 import { useBoundSetting, usePipelineState } from "./queries";
@@ -96,10 +98,16 @@ export function Levers(): ReactElement {
 
       {/* THE CONTROL NAMES THE ACT, THE ROW SAYS THE STATE. A label reading
           « actif » does not say whether a press turns it on or off. */}
-      <div className={topicRow()} data-part="levers/watcher-state">
-        <span>{t("screens.system.automaticTrigger")}</span>
-        <span>{pipeline.watcherEnabled ? t("screens.system.triggerOn") : t("screens.system.triggerOff")}</span>
-      </div>
+      {/* ONE ROW FOR ONE FACT: the automatic processing is said here, beside
+          the control that moves it, and nowhere else on the page. */}
+      <ol className={factList()} data-part="levers/watcher-state">
+        <FactRows rows={[{
+          label: t("screens.system.automaticTrigger"),
+          value: pipeline.watcherEnabled ? t("states.active") : t("states.inactive"),
+          tone: pipeline.watcherEnabled ? "success" : "alert",
+          secondaryLine: pipeline.watcherEnabled ? undefined : ageInWords(locks.sentinels.watcherPausedAgeS, t),
+        }]} />
+      </ol>
       <button
         className={actionButton({ kind: "cardFoot" })}
         data-part="levers/watcher"

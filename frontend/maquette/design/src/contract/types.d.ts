@@ -1269,11 +1269,16 @@ export interface components {
             /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
             label: string;
             /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
-            tone: string;
+            tone?: string;
             /** @description the fact itself. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
-            value: string;
+            value?: string;
             /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             secondaryLine?: string;
+            /**
+             * @description the state a fact is in, as a CODE: the interface says it in its own words (one word per state, `states` in fr.json) and derives its tone. A row that is a quantity carries `value` and `tone` instead.
+             * @enum {string}
+             */
+            state?: "reachable" | "on_time" | "room" | "nearly_full" | "succeeded" | "none" | "to_clean" | "offline" | "late";
         };
         /** @description A library row as a LISTING shows it. The recents carry no category — that is what the fixture holds — so the category lives on LibraryItem below rather than here. */
         LibraryRow: {

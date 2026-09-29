@@ -52,7 +52,18 @@ const CHIP_TONE: Record<string, ChipTone> = {
   alert: "danger",
   warning: "warning",
   info: "info",
+  neutral: "neutral",
 };
+
+/**
+ * The chip tone for one of the operator's tone words.
+ *
+ * @param word success, alert, warning, info or neutral.
+ * @returns The chip's own tone.
+ */
+export function chipTone(word: string): ChipTone {
+  return CHIP_TONE[word] ?? "neutral";
+}
 
 /**
  * The rows of one fact list.

@@ -246,7 +246,7 @@ async def main():
         await run_page.wait_for_timeout(500)
         floor = await run_page.evaluate("()=>history.length")
         uid = await run_page.evaluate(
-            """()=>{const row=document.querySelector('[data-part="runs/row"]');
+            """()=>{const row=document.querySelector('[data-run]');
                     if(!row) return null; row.scrollIntoView({block:'center'}); row.click();
                     return row.dataset.run;}""")
         await run_page.wait_for_timeout(700)

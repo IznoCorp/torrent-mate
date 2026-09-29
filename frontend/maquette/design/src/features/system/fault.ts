@@ -34,11 +34,11 @@ import type { Schemas } from "../../lib/contract-schemas";
 
 type Fact = Schemas["Fact"];
 
-/** The name of the row drawn down, and the three words it wears while down.
- * All four come from the interface's own resources. */
+/** The name of the row drawn down, the state it is in while down, and its sub-line.
+ * The words come from the interface's own resources. */
 export type OverdueWords = {
   label: string;
-  value: string;
+  state: "offline" | "late";
   secondaryLine: string;
 };
 
@@ -63,8 +63,7 @@ export function withOneRowDown(
     scheduler.label === overdue.label
       ? {
           ...scheduler,
-          tone: "alert",
-          value: overdue.value,
+          state: overdue.state,
           secondaryLine: overdue.secondaryLine,
         }
       : scheduler,
@@ -84,7 +83,7 @@ export function useSchedulersDown(schedulers: Fact[]): Fact[] {
   const { t } = useTranslation();
   return withOneRowDown(schedulers, {
     label: t("screens.system.schedulerLateLabel"),
-    value: t("screens.system.schedulerLateValue"),
+    state: "late",
     secondaryLine: t("screens.system.schedulerLateLine"),
   });
 }
@@ -104,7 +103,7 @@ export function useSchedulersDown(schedulers: Fact[]): Fact[] {
 export function serviceDownWords(t: (key: string) => string): OverdueWords {
   return {
     label: t("screens.system.serviceDownLabel"),
-    value: t("screens.system.serviceDownValue"),
+    state: "offline",
     secondaryLine: t("screens.system.serviceDownLine"),
   };
 }

@@ -14,9 +14,10 @@
 // is drawn may be missing rows: printing it as a complete list is the clause
 // NE-DOIT-PAS-5 names, and the sentence sits ABOVE the rows it qualifies.
 import { useTranslation } from "react-i18next";
-import { crossReference, crossReferenceLink, factList, sectionHeading } from "../../ui/variants";
-import { runHead, runLine, runRow } from "./variants";
+import { crossReference, crossReferenceLink, emptyNote, factList, sectionHeading } from "../../ui/variants";
+import { FactRows } from "../../ui/fact-rows";
 import { guidance } from "../../ui/variants/layout";
+import { OUTCOME_TONE, outcomeWord } from "./outcome";
 import { usePipelineHistory } from "./queries";
 import "./run-verbs";
 import type { ReactElement } from "react";
@@ -37,19 +38,6 @@ const VERIFY = "verify";
 const MAINTENANCE = "maintenance";
 /** The command a veille runs, as the history records it. */
 const DETECTION_COMMAND = "follow-detect";
-
-/**
- * THE WORD EACH OUTCOME WEARS, one per outcome (NE-DOIT-PAS-1): a run still
- * going, stopped or paused is not « réussi », and a map with two words for five
- * outcomes is how it came to say so.
- */
-const OUTCOME_WORDS: Record<components["schemas"]["RunOutcome"], string> = {
-  success: "screens.system.runSucceeded",
-  error: "screens.system.runFailed",
-  running: "screens.system.runRunning",
-  killed: "screens.system.runKilled",
-  paused: "screens.system.runPaused",
-};
 
 /**
  * When a passage ran, as the row says it.
@@ -158,26 +146,23 @@ export function RunList(): ReactElement {
       ) : null}
 
       {history !== undefined && runs.length === 0 ? (
-        <div className={guidance()} data-part="runs/empty">{t("screens.system.noRuns")}</div>
+        <div data-part="runs/empty">
+          <p className={emptyNote()} data-part="empty-state">{t("screens.system.noRuns")}</p>
+        </div>
       ) : null}
 
       <ol className={factList()} data-part="flux">
-        {runs.map((run) => (
-          <li key={run.runUid}>
-            <button className={runRow()} data-part="runs/row" data-run={run.runUid}>
-              <span className={runHead()}>
-                <span data-part="runs/when">{whenItRan(run)}</span>
-                <span data-part="runs/trigger">
-                  {run.kind === MAINTENANCE && run.command
-                    ? t("screens.system.runCommand", { command: run.command })
-                    : t(`screens.system.trigger.${run.trigger}`, { defaultValue: run.trigger })}
-                </span>
-                <span data-part="runs/outcome">{run.outcome ? t(OUTCOME_WORDS[run.outcome]) : null}</span>
-              </span>
-              <span className={runLine()} data-part="runs/line">{whatItDid(run, t)}</span>
-            </button>
-          </li>
-        ))}
+        <FactRows
+          rows={runs.map((run) => ({
+            label: `${whenItRan(run)} · ${run.kind === MAINTENANCE && run.command
+              ? t("screens.system.runCommand", { command: run.command })
+              : t(`screens.system.trigger.${run.trigger}`, { defaultValue: run.trigger })}`,
+            value: run.outcome ? t(outcomeWord(run.outcome)) : "",
+            tone: run.outcome ? OUTCOME_TONE[run.outcome] : undefined,
+            secondaryLine: whatItDid(run, t),
+            target: { run: run.runUid },
+          }))}
+        />
       </ol>
 
       <button className={crossReference()} data-part="cross-reference" data-go="acq" data-dial="todo">

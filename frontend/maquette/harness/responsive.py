@@ -79,11 +79,9 @@ PARALLEL = int(os.environ.get("TM_HARNESS_JOBS", "3"))
 OWED: dict[tuple[str, str], str] = {
     # Reds with a named owner and a repair to come: each entry leaves the
     # list in the commit that repairs it, and the rule then holds it.
-    ("bevel", "runs/row"): "maquette-conformity phase 5",
     ("bevel", "shell/connection-notice"): "maquette-conformity phase 10 (R1's family)",
     ("cut", "card/requester"): "maquette-conformity phase 7",
     ("cut", "shell/tab-bar"): "maquette-conformity phase 10",
-    ("overflow", "run/log"): "maquette-conformity phase 5 (the operator's OPEN 10)",
     ("cut", "card/title"): "maquette-conformity phase 8 (§ 12)",
     ("cut", "card/subtitle"): "maquette-conformity phase 8 (§ 12)",
     ("cut", "tile/title"): "maquette-conformity phase 8 (§ 12's family)",

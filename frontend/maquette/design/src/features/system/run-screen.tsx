@@ -10,6 +10,9 @@
 // got to some steps and not others: the ones it has not got to are drawn as
 // « — », never as « pas faite », and carry no count. A run nobody holds is
 // said, with a way back, never drawn as an empty passage.
+import { Chip } from "../../ui/chip";
+import { chipTone } from "../../ui/fact-rows";
+import { OUTCOME_TONE, outcomeWord } from "./outcome";
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
@@ -19,12 +22,10 @@ import { useEngineDrawing } from "../../lib/engine-drawing";
 import {
   runError,
   runLog,
-  runOutcome,
   runReason,
   runStep,
   runStepCounts,
   runStepHead,
-  runStepStatus,
   runSummary,
 } from "./variants";
 import {
@@ -37,6 +38,7 @@ import {
   screenBar,
   scrollport,
   sectionHeading,
+  type ChipTone,
 } from "../../ui/variants";
 import { guidance } from "../../ui/variants/layout";
 import { Disclosure } from "../../ui/disclosure";
@@ -112,17 +114,13 @@ function countsInWords(step: StepTiming, say: Translate): string {
     : say("screens.run.nothingCounted");
 }
 
-/**
- * The tone a run's outcome is drawn in.
- *
- * @param run The run.
- * @returns The tone.
- */
-function outcomeTone(run: RunDetail): "success" | "danger" | "neutral" {
-  if (run.outcome === "success") return "success";
-  if (run.outcome === "error" || run.outcome === "killed") return "danger";
-  return "neutral";
-}
+/** The tone each step status wears: a step that failed is loud, one running is news. */
+const STEP_TONE: Record<string, ChipTone> = {
+  success: "success",
+  error: "danger",
+  running: "info",
+  skipped: "neutral",
+};
 
 /**
  * One step, drawn: its name, its status, its counts, its reasons.
@@ -144,12 +142,15 @@ function StepRow({
         <span>
           {t(`screens.run.step.${step.name}`, { defaultValue: step.name })}
         </span>
-        <span className={runStepStatus()} data-part="run/step-status">
-          {known
-            ? t(`screens.run.stepStatus.${step.status}`, {
-                defaultValue: step.status,
-              })
-            : t("screens.run.stepStatus.unknown")}
+        <span data-part="run/step-status">
+          {known ? (
+            <Chip
+              tone={STEP_TONE[step.status as string] ?? "neutral"}
+              label={t(`screens.run.stepStatus.${step.status}`, { defaultValue: step.status })}
+            />
+          ) : (
+            t("screens.run.stepStatus.unknown")
+          )}
         </span>
       </span>
       {known && !live ? (
@@ -186,11 +187,8 @@ function RunBody({ run }: { run: RunDetail }): ReactElement {
   return (
     <>
       <div className={runSummary()}>
-        <span
-          className={runOutcome({ tone: outcomeTone(run) })}
-          data-part="run/outcome"
-        >
-          {t(`screens.run.outcome.${run.outcome ?? RUNNING}`)}
+        <span data-part="run/outcome">
+          <Chip tone={chipTone(OUTCOME_TONE[run.outcome ?? RUNNING])} label={t(outcomeWord(run.outcome))} />
         </span>
         <span data-part="run/trigger">
           {run.kind === "maintenance" && run.command
@@ -248,8 +246,8 @@ function RunBody({ run }: { run: RunDetail }): ReactElement {
             <span data-part="run/log-toggle">{t("screens.run.rawLog")}</span>
           }
         >
-          {/* FOCUSABLE, because it scrolls sideways: a keyboard reaches a line
-              wider than the screen only through a region it can focus. */}
+          {/* FOCUSABLE, because it scrolls: a keyboard reaches the lines below
+              its height only through a region it can focus. */}
           <pre className={runLog()} data-part="run/log" tabIndex={0}>
             {run.outputTail}
           </pre>
