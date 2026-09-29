@@ -1,4 +1,4 @@
-# Phase 5 — One `Tabs`, built from Acquisition's bar (D.1 #1)
+# Phase 6 — One `Tabs`, built from Acquisition's bar (D.1 #1)
 
 **Opening measure (2026-09-29, on `660049325`):**
 
@@ -8,7 +8,7 @@
   declared in two features; `grep -cv '^\s*$' frontend/maquette/design/src/ui/variants/controls.ts` → **397 / 400**.
 - **Points ≈ 14.** `ui/tabs.tsx` ≈ 50 lines new (5); three callers converted ≈ 30 lines edited (6); `fingerTab`,
   `trackersTab` die, the floor INTO `segmentTab` (1); the tablist arm of `scripts/check-component-once.py` with its
-  test (the operator's 17:17 order and order 80 — authorised despite measure 1) (2, shared with phase 6's file).
+  test (the operator's 17:17 order and order 80 — authorised despite measure 1) (2, shared with phase 7's file).
 - **Readers.** `four_tabs.py`, `trackers_page.py`, `audit2.py`, `set_aside_is_later.py`, `now_holds_in_flight.py`
   (`segment/count`), `scroll.py`, `selection.py`, `page_host.py`, `touch.py` (`segment`) — the parts are kept.
 

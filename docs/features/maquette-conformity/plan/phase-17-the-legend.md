@@ -1,4 +1,4 @@
-# Phase 16 — The legend moves to `ui/`, and is drawn over the season list (D.1 #9)
+# Phase 17 — The legend moves to `ui/`, and is drawn over the season list (D.1 #9)
 
 **Opening measure (2026-09-29, on `660049325`):**
 

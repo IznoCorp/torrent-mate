@@ -1,9 +1,9 @@
-# Phase 15 — The count badge (D.1 #8)
+# Phase 16 — The count badge (D.1 #8)
 
 **Opening measure (2026-09-29, on `660049325`):**
 
 - **Commands.** `rg -n "tabBarBadge|drawerEntryCount|segmentCount" -g '*.ts' -g '*.tsx' frontend/maquette/design/src`
-  → `ui/variants/frame.ts:133, 318`, `ui/variants/controls.ts:418` (moved by phase 5 — re-taken); uses at
+  → `ui/variants/frame.ts:133, 318`, `ui/variants/controls.ts:418` (moved by phase 6 — re-taken); uses at
   `app/tab-bar.tsx:87`, `app/menu-badge.tsx:38`, `app/drawer.tsx:150`, the tab bars; `grep -cv '^\s*$'
   frontend/maquette/design/src/ui/variants/frame.ts` → **397 / 400** (STOP D near: lines move OUT).
 - **Points ≈ 10.** One badge variant with a `placement` (corner / inline) (≈ 15 lines, 3); three callers (1);

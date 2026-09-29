@@ -1,4 +1,4 @@
-# Phase 8 — The status chip (D.1 #5)
+# Phase 9 — The status chip (D.1 #5)
 
 **Opening measure (2026-09-29, on `660049325`):**
 
