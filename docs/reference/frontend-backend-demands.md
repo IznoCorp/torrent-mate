@@ -19,14 +19,14 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 74 |
+| operations the interface requires | 75 |
 | operations the backend has | 65 |
 | required and missing | 24 |
-| declared by both, different response shape | 50 |
+| declared by both, different response shape | 51 |
 | declared by both, path parameter spelled differently | 15 |
 | declared by both, answered with a different status | 10 |
 | fields carried pre-formatted | 25 |
-| the backend has and the interface does not use | 15 |
+| the backend has and the interface does not use | 14 |
 
 ---
 
@@ -75,6 +75,7 @@ reports a difference for every optional field and drowns the real findings.
 | `GET /api/acquisition/to-handle` (`readAcquisitionQueue`) | `arrivals`, `blocked`, `chip`, `droppedByHand`, `failedStep`, `ids`, `inFlight`, `ladder`, `minimumRatio`, `name`, `plexMatch`, `poster`, `requester`, `rung`, `secondaryLine`, `state`, `steps`, `strip`, `takeable`, `text`, `tone`, `tracker`, `via`, `when`, `withoutPoster` | `candidates_count`, `created_at`, `decision_id`, `degraded`, `episode`, `followed_id`, `info_hash`, `items`, `kind`, `orphan_count`, `season`, `stage`, `year` |
 | `GET /api/auth/me` (`readAccount`) | `avatar`, `email`, `name` | — |
 | `GET /api/config/files` (`readConfigurationFiles`) | `changed` | `files`, `mtime`, `owned_keys`, `sha256`, `shadowed_keys`, `size` |
+| `GET /api/config/files/{name}` (`readConfigurationFile`) | `digest`, `shadowedKeys` | `sha256`, `shadowed_keys` |
 | `GET /api/config/schema` (`readSettings`) | `displayedValue`, `file`, `fileNames`, `id`, `key`, `name`, `note`, `precision`, `raw`, `secondaryLine`, `settings`, `title`, `type` | `json_schema`, `ownership`, `restart_impact` |
 | `GET /api/config/secrets` (`readSecrets`) | `defined`, `label` | `description`, `is_set`, `secrets` |
 | `GET /api/config/status` (`readConfigurationStatus`) | `readOnly`, `restartRequired` | `read_only`, `restart_configured`, `restart_required`, `role`, `stale_files` |
@@ -217,7 +218,6 @@ production app, by a script, or by the operator.
 - `GET /api/acquisition/overview`
 - `GET /api/acquisition/stalled-grabs`
 - `GET /api/acquisition/wanted`
-- `GET /api/config/files/{name}`
 - `GET /api/decisions/activity`
 - `GET /api/decisions/{decision_id}`
 - `GET /api/health`

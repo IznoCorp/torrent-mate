@@ -123,5 +123,13 @@ export function settingsStates(): NamedState[] {
         applyState({ page: "cfg", phase: "ready" });
       },
     ],
+    [
+      "ranking-editor",
+      "Réglages — le classement des releases, tel que ranking.json5 le tient",
+      () => {
+        applyState({ page: "cfg", phase: "ready" });
+        window.__screens.ranking();
+      },
+    ],
   ];
 }

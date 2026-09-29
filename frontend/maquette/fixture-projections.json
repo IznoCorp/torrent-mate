@@ -204,6 +204,10 @@
     "RANKING_SAMPLES": {
       "answers": "RankingSample[]",
       "file": "ranking-samples"
+    },
+    "CONFIGURATION_FILES": {
+      "answers": "ConfigurationFileContent[]",
+      "file": "configuration-files"
     }
   }
 }

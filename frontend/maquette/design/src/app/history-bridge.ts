@@ -69,6 +69,8 @@ type Screens = {
   add: (q?: string, mode?: string, replace?: boolean) => void;
   // One passage, by its identifier — an arrival from the passages' list.
   run: (runUid: string) => void;
+  // The ranking editor, under the settings page.
+  ranking: () => void;
 };
 
 declare global {
@@ -319,5 +321,6 @@ fillScreensDoor({
     );
   },
   run: (runUid: string) => go({ to: "/run/$runUid", params: { runUid } }),
+  ranking: () => go({ to: "/settings/ranking" }),
 });
 }

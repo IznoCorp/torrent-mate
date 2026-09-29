@@ -65,7 +65,9 @@ const KNOWN_VALUE: Record<string, string> = {
   actionId: "library-status",
   settingId: "paths.torrent_complete_dir",
   key: "paths.torrent_complete_dir",
-  name: "personalscraper-search",
+  // A configuration file the layer holds the content of: the read answers it,
+  // and the write names it.
+  name: "ranking.json5",
   id: "1",
   runUid: "2b598104071b470fb27ea0dd2c357a0f",
 };

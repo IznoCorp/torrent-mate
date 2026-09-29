@@ -1,0 +1,133 @@
+[
+  {
+    "name": "ranking.json5",
+    "values": {
+      "ranking": {
+        "criteria": [
+          {
+            "field": "resolution",
+            "weight": 4,
+            "values": {
+              "2160p": 8,
+              "1080p": 20,
+              "720p": 12
+            }
+          },
+          {
+            "field": "codec",
+            "weight": 3,
+            "values": {
+              "x265": 10,
+              "HEVC": 10,
+              "x264": 5
+            }
+          },
+          {
+            "field": "format",
+            "weight": 2,
+            "values": {
+              "MKV": 10,
+              "MP4": 5
+            }
+          },
+          {
+            "field": "audio",
+            "weight": 2,
+            "values": {
+              "TrueHD": 12,
+              "DTS-HD": 10,
+              "DTS": 8,
+              "AC3": 4
+            }
+          },
+          {
+            "field": "language",
+            "weight": 2,
+            "values": {
+              "MULTI": 20,
+              "VFF": 18,
+              "VFQ": 15,
+              "TRUEFRENCH": 12,
+              "FRENCH": 10,
+              "VOSTFR": 6
+            }
+          },
+          {
+            "field": "source",
+            "weight": 2,
+            "values": {
+              "BluRay": 15,
+              "WEB-DL": 10
+            }
+          },
+          {
+            "field": "seeders",
+            "weight": 2,
+            "prefer": "higher",
+            "thresholds": [
+              {
+                "at": 0,
+                "score": 0
+              },
+              {
+                "at": 1,
+                "score": 3
+              },
+              {
+                "at": 5,
+                "score": 8
+              },
+              {
+                "at": 20,
+                "score": 14
+              },
+              {
+                "at": 50,
+                "score": 18
+              },
+              {
+                "at": 100,
+                "score": 22
+              }
+            ]
+          },
+          {
+            "field": "size",
+            "weight": 1,
+            "prefer": "higher",
+            "thresholds": [
+              {
+                "at": 0,
+                "score": 0
+              },
+              {
+                "at": "1GB",
+                "score": 5
+              },
+              {
+                "at": "5GB",
+                "score": 10
+              }
+            ]
+          },
+          {
+            "field": "provider",
+            "weight": 1,
+            "values": {
+              "tr4ker": 10,
+              "c411": 10
+            }
+          }
+        ],
+        "bonuses": {
+          "freeleech": 100,
+          "silverleech": 50
+        },
+        "min_seeders": 1,
+        "size_thresholds_by_type": null
+      }
+    },
+    "digest": "228f036687022df939d24a685d4edbb5e822d570c3cae40a9b54bdb89a87c9f2",
+    "shadowedKeys": []
+  }
+]

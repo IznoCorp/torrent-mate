@@ -407,7 +407,9 @@ def test_the_committed_reference_carries_a_platform():
     # the acceptance commit.
     # 154 SINCE L16's phase 12a: `acq-card-deferred-ratio`, `-space` and `-missing` — added, nothing
     # else moved.
-    assert reference["counts"] == {"states": 154, "regions": 38}
+    # 155 SINCE L16's phase 14a: `ranking-editor`, the ranking file's criteria on their own screen —
+    # added, nothing else moved.
+    assert reference["counts"] == {"states": 155, "regions": 38}
 
 
 class TestItRefusesToWriteOverAForeignBuild:

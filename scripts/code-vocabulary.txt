@@ -244,6 +244,7 @@ count
 counted
 cover
 create
+criteria
 criterion
 cron
 cross
@@ -355,6 +356,7 @@ economy
 edge
 edit
 edited
+editor
 edits
 element
 emit
@@ -882,6 +884,7 @@ quiet
 radius
 ranges
 rank
+ranking
 ratifies
 ratify
 rating
@@ -1011,6 +1014,7 @@ schemas
 scheme
 score
 scored
+scoring
 screen
 screens
 screenshots

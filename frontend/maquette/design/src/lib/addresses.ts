@@ -75,6 +75,7 @@ export const SCREEN_PARENTS: Readonly<Record<string, string>> = {
   "/releases/$title": "acq",
   "/resolution/$folder": "acq",
   "/run/$runUid": "sys",
+  "/settings/ranking": "cfg",
 };
 
 /** The screen paths alone, for the readers that need the list rather than the

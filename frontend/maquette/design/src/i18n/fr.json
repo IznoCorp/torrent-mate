@@ -225,6 +225,12 @@
     }
   },
   "screens": {
+    "ranking": {
+      "title": "Classement des releases",
+      "back": "Réglages",
+      "weight": "× {{weight}}",
+      "threshold": "≥ {{at}} → {{score}}"
+    },
     "trackers": {
       "tabTorrents": "Torrents",
       "tabTrackers": "Trackers",

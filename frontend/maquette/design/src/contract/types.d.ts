@@ -934,7 +934,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Read one configuration file's content
+         * @description A configuration file, parsed — the read its editors open on (the ranking editor opens `ranking.json5`). The backend answers it already; the maquette's contract declared only the write.
+         */
+        get: operations["readConfigurationFile"];
         /** Write one configuration file */
         put: operations["updateConfigurationFile"];
         post?: never;
@@ -2086,6 +2090,19 @@ export interface components {
             ranked: components["schemas"]["RankingPreviewRelease"][];
             /** @description the configured trackers — the values a tracker-keyed criterion is offered */
             knownTrackers: string[];
+        };
+        /** @description one configuration file's content, as the file holds it */
+        ConfigurationFileContent: {
+            /** @description the file's name */
+            name: string;
+            /** @description its parsed JSON5 content, keyed by its top-level keys */
+            values: {
+                [key: string]: unknown;
+            };
+            /** @description the SHA-256 of the file as it lies on disk — what a write compares against */
+            digest: string;
+            /** @description the keys of this file overridden by `local.json5` */
+            shadowedKeys: string[];
         };
     };
     responses: {
@@ -3891,6 +3908,33 @@ export interface operations {
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
+        };
+    };
+    readConfigurationFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the file's name */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the file's content */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigurationFileContent"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
         };
     };
     updateConfigurationFile: {

@@ -2,7 +2,11 @@
 import { GET, POST, PUT, route } from "./shared";
 import type { components } from "../../contract/types";
 import { mockState } from "../state";
-import type { MockRoute } from "../router";
+import { refused, type MockRoute } from "../router";
+import { configurationFiles } from "../configuration-files";
+
+// Why a file's read is refused: the layer holds no content under that name.
+const UNKNOWN_FILE = "no configuration file carries that name";
 
 /** The contract's own shapes, as every module that names one reads them. */
 type Schemas = components["schemas"];
@@ -46,6 +50,10 @@ export function configurationRoutes(): MockRoute[] {
       held.restartRequired = true;
       return { restartRequired: held.restartRequired };
     }),
+    // ONE FILE'S CONTENT, as the layer holds it — what an editor opens on.
+    route("readConfigurationFile", GET, "/api/config/files/{name}", (request) =>
+      configurationFiles().find((file) => file.name === request.parameters.name)
+        ?? refused(404, UNKNOWN_FILE)),
     // Derived from the seeded settings, whose topics name their own files.
     route("readConfigurationFiles", GET, "/api/config/files", () => {
       const held = mockState();

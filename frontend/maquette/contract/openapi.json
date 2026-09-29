@@ -3552,6 +3552,52 @@
       }
     },
     "/api/config/files/{name}": {
+      "get": {
+        "operationId": "readConfigurationFile",
+        "summary": "Read one configuration file's content",
+        "description": "A configuration file, parsed — the read its editors open on (the ranking editor opens `ranking.json5`). The backend answers it already; the maquette's contract declared only the write.",
+        "x-seeded-from": [
+          "CONFIGURATION_FILES"
+        ],
+        "tags": [
+          "configuration"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the file's name"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the file's content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigurationFileContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
       "put": {
         "operationId": "updateConfigurationFile",
         "summary": "Write one configuration file",
@@ -7366,6 +7412,38 @@
         "required": [
           "ranked",
           "knownTrackers"
+        ]
+      },
+      "ConfigurationFileContent": {
+        "type": "object",
+        "description": "one configuration file's content, as the file holds it",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "the file's name"
+          },
+          "values": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "its parsed JSON5 content, keyed by its top-level keys"
+          },
+          "digest": {
+            "type": "string",
+            "description": "the SHA-256 of the file as it lies on disk — what a write compares against"
+          },
+          "shadowedKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "the keys of this file overridden by `local.json5`"
+          }
+        },
+        "required": [
+          "name",
+          "values",
+          "digest",
+          "shadowedKeys"
         ]
       }
     },

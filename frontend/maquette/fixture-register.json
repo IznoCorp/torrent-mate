@@ -66,6 +66,12 @@
       "seed": null,
       "converted": "L09 phase 6 — the Médiathèque reads /api/library/categories"
     },
+    "CONFIGURATION_FILES": {
+      "class": "served",
+      "why": "the operator's own `ranking.json5`, read read-only on 2026-09-29 from the canonical configuration `~/.torrentmate/config/ranking.json5` (2231 bytes; no key, token or secret in it — the steward's check), parsed with json5, its SHA-256 the file's own",
+      "seed": null,
+      "converted": "L16 phase 14a — born with `readConfigurationFile`"
+    },
     "DECISIONS_REGLEES": {
       "class": "served",
       "why": "the decisions already settled, with how each was reached",
