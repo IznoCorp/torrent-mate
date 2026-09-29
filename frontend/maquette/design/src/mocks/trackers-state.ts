@@ -51,6 +51,7 @@ export type TrackerDials = {
   setTrackerIdle: (tracker: string) => void;
   setObligationSatisfied: (infoHash: string) => void;
   poseArrived: (title: string) => void;
+  poseExternalRemoval: (infoHash: string) => void;
   trackerRemovals: () => TrackersHeld["removals"];
 };
 
@@ -92,6 +93,16 @@ export const trackerDials: TrackerDials = {
       return arrived;
     });
     forgetLadder(title);
+  },
+  poseExternalRemoval: (infoHash: string) => {
+    // A DERIVATION, SHOWN AS ONE: the entry is removed BY HAND in the download
+    // client, and the engine releases its obligation cleanly on its next read —
+    // no removal asked by the interface. No real obligation has been released.
+    const subject = trackersState();
+    subject.downloads = subject.downloads.filter((entry) => entry.infoHash !== infoHash);
+    for (const obligation of subject.obligations) {
+      if (obligation.infoHash === infoHash) obligation.releasedAt = obligation.addedAt;
+    }
   },
   setObligationSatisfied: (infoHash: string) => {
     // AN OBLIGATION MET, at its seed time, the torrent still seeding.

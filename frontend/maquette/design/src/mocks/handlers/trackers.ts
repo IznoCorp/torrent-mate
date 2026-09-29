@@ -55,11 +55,15 @@ export function trackerRoutes(): MockRoute[] {
       const held = trackersState();
       const entryHash = request.parameters.infoHash;
       held.removals.push({ infoHash: entryHash, deleteFiles: field(request.body, "deleteFiles") === true });
-      const removed = held.downloads.filter((entry) => entry.infoHash === entryHash).map((entry) => entry.infoHash);
-      held.downloads = held.downloads.filter((entry) => entry.infoHash !== entryHash);
+      // EVERY ENTRY SHARING ITS FILES LEAVES WITH IT, in the same answer — a
+      // cross-seed of the same content is the same files under another entry.
+      const files = new Set(held.downloads.filter((entry) => entry.infoHash === entryHash).map((entry) => entry.name));
+      const leaving = new Set(held.downloads.filter((entry) => files.has(entry.name)).map((entry) => entry.infoHash));
+      const removed = [...leaving];
+      held.downloads = held.downloads.filter((entry) => !leaving.has(entry.infoHash));
       const now = Math.floor(Date.now() / MILLISECONDS_PER_SECOND);
       for (const obligation of held.obligations) {
-        if (obligation.infoHash === entryHash && obligation.releasedAt === null) obligation.releasedAt = now;
+        if (leaving.has(obligation.infoHash) && obligation.releasedAt === null) obligation.releasedAt = now;
       }
       return { removed };
     }),

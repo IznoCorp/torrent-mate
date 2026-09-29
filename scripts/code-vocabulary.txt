@@ -381,6 +381,7 @@ exhausted
 exists
 exit
 expanded
+external
 fab
 fact
 facts
@@ -927,6 +928,7 @@ remaining
 remember
 remembered
 remount
+removal
 remove
 removed
 rename

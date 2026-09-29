@@ -1415,6 +1415,7 @@
         "bodyOn": " quitte qBittorrent sur ",
         "bodyFiles": ".",
         "deleteFiles": "Supprimer les fichiers",
+        "shared": "Les mêmes fichiers sont partagés sur {{trackers}} : ce partage prend fin aussi.",
         "obligation": "Obligation en cours sur {{tracker}}.",
         "obligationBody": " La retirer maintenant la clôt avant qu'elle soit remplie.",
         "confirm": "Retirer",

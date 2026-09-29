@@ -109,5 +109,25 @@ export function trackersStates(): NamedState[] {
         openRemoveConfirm("66e23ab395c438b7db4f7c855bd451d8bb1f0046", "c411");
       },
     ],
+    [
+      "torrent-remove-confirm-shared",
+      "Torrents — « Retirer de qBittorrent » sur une entrée dont un autre tracker partage les fichiers, sous obligation",
+      () => {
+        window.__mocks?.reset();
+        applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+        openRemoveConfirm("7c1e0b2f95c438b7db4f7c855bd451d8bb1f0046", "tr4ker");
+      },
+    ],
+    [
+      "torrents-external-removal",
+      "Torrents — une entrée retirée À LA MAIN dans qBittorrent, son obligation libérée, POSÉ sur Ted Lasso (le back-end lira la libération)",
+      () => {
+        // A DERIVATION, SHOWN AS ONE: no real obligation has been released, so
+        // a removal by hand is posed on a real entry.
+        window.__mocks?.reset();
+        window.__mocks?.poseExternalRemoval("e1af6819d9e3159e0aa191b534b6a66af4344788");
+        applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+      },
+    ],
   ];
 }

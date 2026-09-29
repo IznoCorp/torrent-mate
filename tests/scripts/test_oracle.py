@@ -395,7 +395,10 @@ def test_the_committed_reference_carries_a_platform():
     # 143 SINCE L16's phase 5d: `acq-now-direct-arrived`, a direct add's arrival posed on the
     # series it was downloading — added; the dense world's « En vol » lost that card, named in
     # the acceptance commit.
-    assert reference["counts"] == {"states": 143, "regions": 38}
+    # 145 SINCE L16's phase 7: `torrent-remove-confirm-shared` and `torrents-external-removal` —
+    # added; the removal's confirmation of shared files grew by its consequence, on shell/dialog
+    # (B-554), named in the acceptance commit.
+    assert reference["counts"] == {"states": 145, "regions": 38}
 
 
 class TestItRefusesToWriteOverAForeignBuild:

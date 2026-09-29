@@ -12,7 +12,8 @@ the confirmation calls the operation.
 3. a finger on a row's « Retirer de qBittorrent », then the confirmation: the
    removal is answered on the network for THAT entry, its files deleted;
 4. the row has left the tab — and the same files' other entry, on its other
-   tracker, is still there (the grouped removal is not this rule's);
+   tracker, has left it in the SAME render: a removal takes every entry sharing
+   its files, never one left behind;
 5. the obligation that entry owed reads `releasedAt` set, never `breachedAt`
    alone.
 6. `torrent-remove-confirm` — an entry owing no running obligation — carries
@@ -21,6 +22,20 @@ the confirmation calls the operation.
    KEPT;
 8. with a running obligation, the box unchecked, the confirmation still names
    the obligation and its tracker (round 10 M4 — whatever the box reads).
+9. `torrent-remove-confirm-shared` — an entry owing nothing, whose files another
+   entry seeds on another tracker under a running obligation — names the
+   consequence (that other tracker's share ends too) and that tracker's running
+   obligation.
+10. `torrents-external-removal` — an entry removed BY HAND in qBittorrent, its
+    obligation released cleanly — reads as simply GONE: no row, no word of it
+    on the tab, its obligation `releasedAt` set, and no removal ever asked by
+    the interface. The subject is POSED by `poseExternalRemoval`, a derivation
+    shown as one: no real obligation has been released.
+
+RE-AIMED OUT LOUD: hold 4 read « the same files' other entry is still there »,
+the grouped removal being left for later. It is now this rule's — round 9 Q7:
+the gesture takes every entry sharing the files with it, both gone from the tab
+in the same render the operation answers, never one left behind in error.
 
 Red before the move: no row carries the gesture.
 """
@@ -40,6 +55,8 @@ OPERATION = "removeDownload"
 # The entry removed: the first, which owes a running obligation and whose files
 # a second entry seeds on another tracker.
 REMOVED = DOWNLOADS[0]
+# The entry an external removal is posed on: its files shared with no other.
+EXTERNAL = next(entry for entry in DOWNLOADS if entry["title"] == "Ted Lasso")
 # The entry whose obligation is met: it owes nothing running.
 FREE = DOWNLOADS[1]
 SIBLING = next(entry for entry in DOWNLOADS[1:] if entry["name"] == REMOVED["name"])
@@ -118,7 +135,7 @@ async def main():
                       f"confirmed {confirmed}, answered {answered}, removals {removals}")
         rows = await page.evaluate(ROWS)
         journal.check("the row has left the tab", key not in rows, str(rows))
-        journal.check(f"the same files on {SIBLING['tracker']} are another entry, still there", sibling in rows,
+        journal.check(f"the same files on {SIBLING['tracker']} left with it, in the same render", sibling not in rows,
                       str(rows))
         owed = await page.evaluate(OBLIGATION, REMOVED["infoHash"])
         journal.check("its obligation is closed: releasedAt set, never breachedAt alone",
@@ -159,6 +176,32 @@ async def main():
         journal.check(f"the box unchecked, the running obligation on {REMOVED['tracker']} is still named",
                       box is not None and box["checked"] == "false"
                       and obligation in text and REMOVED["tracker"] in text, f"box {box!r} · {text!r}")
+
+        # ── shared files: the consequence, and the other tracker's obligation ─
+        answer = await enter(page, "torrent-remove-confirm-shared")
+        journal.check("the named state torrent-remove-confirm-shared exists", answer is None, answer or "")
+        text = await page.evaluate(DIALOG) or ""
+        consequence = WORDS_REMOVE.get("shared", "<no copy>").split("{{")[0].strip()
+        journal.check(f"removing it from {SIBLING['tracker']} says the share on {REMOVED['tracker']} ends too",
+                      SIBLING["title"] in text and consequence in text and REMOVED["tracker"] in text, repr(text))
+        journal.check(f"and names the running obligation on {REMOVED['tracker']}",
+                      obligation in text and f"{obligation} {REMOVED['tracker']}" in text.replace("\xa0", " "),
+                      repr(text))
+
+        # ── an external removal reads as gone ────────────────────────────────
+        answer = await enter(page, "torrents-external-removal")
+        journal.check("the named state torrents-external-removal exists", answer is None, answer or "")
+        rows = await page.evaluate(ROWS)
+        tab = await page.evaluate("()=>document.querySelector('#view')?.textContent ?? ''")
+        owed = await page.evaluate(OBLIGATION, EXTERNAL["infoHash"])
+        journal.check(f"« {EXTERNAL['title']} », removed by hand, is simply gone: no row, no word of it",
+                      f"{EXTERNAL['infoHash']}:{EXTERNAL['tracker']}" not in rows and EXTERNAL["title"] not in tab,
+                      f"{len(rows)} row(s)")
+        journal.check("its obligation reads releasedAt set, and the interface asked no removal",
+                      owed is not None and owed.get("releasedAt") is not None
+                      and not await page.evaluate(ANSWERED, OPERATION)
+                      and not await page.evaluate("()=>window.__mocks?.trackerRemovals?.() ?? []"),
+                      repr(owed))
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()

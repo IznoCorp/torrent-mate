@@ -59,23 +59,38 @@ export function openRemoveConfirm(infoHash: string, tracker: string): void {
     held<Schemas["Obligations"]>("/api/acquisition/obligations"),
   ]).then(([downloads, obligations]) => {
     const entry = downloads.downloads.find((one) => one.infoHash === infoHash && one.tracker === tracker);
-    if (entry !== undefined) openConfirm(entry, obligations.items);
+    if (entry !== undefined) openConfirm(entry, downloads.downloads, obligations.items);
   });
 }
 
 /**
- * Opens the confirmation, the entry and its obligations in hand.
+ * Whether an entry owes a running obligation on its own tracker.
  *
  * @param entry The entry.
  * @param obligations Every obligation.
+ * @returns True while one is neither met nor released.
  */
-function openConfirm(entry: Schemas["Download"], obligations: Schemas["Obligation"][]): void {
-  const tracker = entry.tracker;
-  // A RUNNING OBLIGATION IS NAMED: removing now closes it before it is met.
-  const running = obligations.some(
-    (obligation) => obligation.infoHash === entry.infoHash && obligation.sourceTracker === tracker
+function hasRunningObligation(entry: Schemas["Download"], obligations: Schemas["Obligation"][]): boolean {
+  return obligations.some(
+    (obligation) => obligation.infoHash === entry.infoHash && obligation.sourceTracker === entry.tracker
       && obligation.satisfiedAt === null && obligation.releasedAt === null,
   );
+}
+
+/**
+ * Opens the confirmation, the entry, its siblings and its obligations in hand.
+ *
+ * @param entry The entry.
+ * @param downloads Every entry of the client: those holding its files leave with it.
+ * @param obligations Every obligation.
+ */
+function openConfirm(
+  entry: Schemas["Download"], downloads: Schemas["Download"][], obligations: Schemas["Obligation"][],
+): void {
+  const tracker = entry.tracker;
+  // THE SAME FILES UNDER ANOTHER ENTRY leave with this one: the removal ends
+  // every share of them, and the confirmation says which.
+  const sameFiles = downloads.filter((one) => one.name === entry.name && one !== entry);
   const body: DialogBlock[] = [
     {
       type: "paragraph",
@@ -87,12 +102,18 @@ function openConfirm(entry: Schemas["Download"], obligations: Schemas["Obligatio
       ],
     },
   ];
-  // A PARAGRAPH, not the warning box: the box's bold line fails contrast in
-  // the light theme, a debt this confirmation must not add to.
-  if (running) {
+  if (sameFiles.length > 0) {
+    const trackers = [...new Set(sameFiles.map((one) => one.tracker))].join(", ");
+    body.push({ type: "paragraph", runs: [{ text: say("shared", { trackers }) }] });
+  }
+  // A RUNNING OBLIGATION IS NAMED, on every tracker the removal ends a share on:
+  // removing now closes it before it is met. A PARAGRAPH, not the warning box:
+  // the box's bold line fails contrast in the light theme, a debt this
+  // confirmation must not add to.
+  for (const bound of [entry, ...sameFiles].filter((one) => hasRunningObligation(one, obligations))) {
     body.push({
       type: "paragraph",
-      runs: [{ text: say("obligation", { tracker }), strong: true }, { text: say("obligationBody") }],
+      runs: [{ text: say("obligation", { tracker: bound.tracker }), strong: true }, { text: say("obligationBody") }],
     });
   }
   // THE FILES GO BY DEFAULT, and the box is where the operator keeps them.
