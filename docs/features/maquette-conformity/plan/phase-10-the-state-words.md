@@ -1,4 +1,4 @@
-# Phase 8 — Système's state words leave the seeds (the operator's OPEN 2 = A)
+# Phase 10 — Système's state words leave the seeds (the operator's OPEN 2 = A)
 
 **Ruled 2026-09-29** (`/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md` § Q2, verbatim « A »):
 Système's state words leave the seeds; the data carry a state CODE, the app takes the word from `fr.json` — ONE word
@@ -34,7 +34,7 @@ Every Système state (built by script: page `sys`) — the unified words accepte
 
 ## Midpoint (after this phase)
 
-`--contracts` and the full suite; real falls repaired before phase 9; harness budget read (office, order 52).
+`--contracts` and the full suite; real falls repaired before phase 11; harness budget read (office, order 52).
 
 ## Commit
 

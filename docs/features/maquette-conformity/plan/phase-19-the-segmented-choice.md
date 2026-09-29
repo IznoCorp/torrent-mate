@@ -1,4 +1,4 @@
-# Phase 17 — One segmented choice: `segmentSmall` into `viewSwitch` (D.1 #14, the operator's OPEN 4 = A)
+# Phase 19 — One segmented choice: `segmentSmall` into `viewSwitch` (D.1 #14, the operator's OPEN 4 = A)
 
 **Ruled 2026-09-29** (`/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md` § Q4, verbatim « A »):
 `segmentSmall` merges into `viewSwitch`, which gains a « text » size; its three uses are rewired; the acquisition
@@ -10,7 +10,7 @@ feature's declaration goes. A conversion.
   `features/acquisition/variants.ts:101`, used at `features/acquisition/add-screen.tsx:256, 344` and
   `app/drawer.tsx:163` — the FRAME importing a feature's variant (`app/drawer.tsx:48`); `viewSwitch` /
   `viewSwitchButton` at `ui/variants/controls.ts:369–372` (**397 / 400** non-blank lines — STOP D near: the size
-  variant lands only if phase 3 moved lines out of that file; otherwise the two variants move with it, said).
+  variant lands only if phase 5 moved lines out of that file; otherwise the two variants move with it, said).
 - **Points ≈ 9.** A `size: { icon, text }` on `viewSwitch` / `viewSwitchButton` (≈ 8 lines, 2); three uses rewired
   (≈ 8 lines, 2); `segmentSmall` and its import from `app/` gone (1); `alignSelf` inline style at `add-screen.tsx:344`
   → the variant (1); R-conformity-o (3).

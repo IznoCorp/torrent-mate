@@ -1,4 +1,4 @@
-# Phase 15 — The topic row (D.1 #11)
+# Phase 17 — The topic row (D.1 #11)
 
 **Opening measure (2026-09-29, on `660049325`):**
 

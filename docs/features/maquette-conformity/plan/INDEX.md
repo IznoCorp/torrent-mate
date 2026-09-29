@@ -14,8 +14,8 @@ supports its phase's cut is STOP D.
 
 - **STOP A** — the oracle diverging on a state the phase did not name.
 - **STOP B** — the pull request.
-- **STOP C — the operator's round.** RULED 2026-09-29 and in this plan: D.1 #2 (OPEN 1 = A) → phase 7, the state
-  words (OPEN 2 = A) → phase 8, the notice (OPEN 3 = A) → phase 11, D.1 #14 (OPEN 4 = A) → phase 17. Still waiting
+- **STOP C — the operator's round.** RULED 2026-09-29 and in this plan: D.1 #2 (OPEN 1 = A) → phase 9, the state
+  words (OPEN 2 = A) → phase 10, the notice (OPEN 3 = A) → phase 13, D.1 #14 (OPEN 4 = A) → phase 19. Still waiting
   for the orchestrator's rulings, NOT phases until then: D.1 #7 (the status dot, OPEN 9) and #15 (the primary
   buttons, OPEN 8). Reaching them first is a STOP, said.
 - **STOP D** — a measurement that contradicts a home. Near already (non-blank lines, `grep -cv '^\s*$'`, ceiling
@@ -36,34 +36,36 @@ new rule with its mutation 3; a rule re-aimed 1; a guard arm with its test 3; a 
 | ---: | --- | --- | --- | --- | ---: |
 | 1 | [The responsive rule](phase-01-the-responsive-rule.md) | rule | — (order 85) | a | 14 |
 | 2 | [The runs list](phase-02-the-runs-list.md) | conversion | #13 | a green on `runs-list` | 9 |
-| 3 | [The tabs](phase-03-the-tabs.md) | conversion | #1 | b + tablist arm | 14 |
-| 4 | [The fold chevron](phase-04-the-fold-chevron.md) | conversion | #3 | chevron arm | 12 |
-| 5 | [The switch](phase-05-the-switch.md) | conversion | #4 | c + switch arm | 11 |
-| 6 | [The status chip](phase-06-the-status-chip.md) | conversion | #5 | d | 12 |
-| 7 | [« actif / inactif »](phase-07-the-on-off-pair.md) | behaviour, ruled | #2 | e | 13 |
-| 8 | [The state words](phase-08-the-state-words.md) | behaviour, ruled | OPEN 2 | f | 14 |
-| 9 | [A fact with its state](phase-09-a-fact-with-its-state.md) | conversion | #6 | g | 8 |
-| 10 | [The empty surface](phase-10-the-empty-surface.md) | conversion | #10 | h | 7 |
-| 11 | [The notice](phase-11-the-notice.md) | behaviour, ruled | OPEN 3 | i | 12 |
-| 12 | [The back control](phase-12-the-back-control.md) | conversion | #12 | j | 6 |
-| 13 | [The count badge](phase-13-the-count-badge.md) | conversion | #8 | k | 10 |
-| 14 | [The legend](phase-14-the-legend.md) | conversion | #9 | l | 10 |
-| 15 | [The topic row](phase-15-the-topic-row.md) | conversion | #11 | m | 11 |
-| 16 | [The tokens](phase-16-the-tokens.md) | conversion | #16 | n | 13 |
-| 17 | [The segmented choice](phase-17-the-segmented-choice.md) | conversion | #14 | o | 9 |
-| 18 | [The close](phase-18-the-close.md) | close | — | — | 6 |
+| 3 | [The requester line](phase-03-the-requester-line.md) | defect | found by a | a | 8 |
+| 4 | [The bar's label at 320 px](phase-04-the-bar-label.md) | defect | found by a | a | 7 |
+| 5 | [The tabs](phase-05-the-tabs.md) | conversion | #1 | b + tablist arm | 14 |
+| 6 | [The fold chevron](phase-06-the-fold-chevron.md) | conversion | #3 | chevron arm | 12 |
+| 7 | [The switch](phase-07-the-switch.md) | conversion | #4 | c + switch arm | 11 |
+| 8 | [The status chip](phase-08-the-status-chip.md) | conversion | #5 | d | 12 |
+| 9 | [« actif / inactif »](phase-09-the-on-off-pair.md) | behaviour, ruled | #2 | e | 13 |
+| 10 | [The state words](phase-10-the-state-words.md) | behaviour, ruled | OPEN 2 | f | 14 |
+| 11 | [A fact with its state](phase-11-a-fact-with-its-state.md) | conversion | #6 | g | 8 |
+| 12 | [The empty surface](phase-12-the-empty-surface.md) | conversion | #10 | h | 7 |
+| 13 | [The notice](phase-13-the-notice.md) | behaviour, ruled | OPEN 3 | i | 12 |
+| 14 | [The back control](phase-14-the-back-control.md) | conversion | #12 | j | 6 |
+| 15 | [The count badge](phase-15-the-count-badge.md) | conversion | #8 | k | 10 |
+| 16 | [The legend](phase-16-the-legend.md) | conversion | #9 | l | 10 |
+| 17 | [The topic row](phase-17-the-topic-row.md) | conversion | #11 | m | 11 |
+| 18 | [The tokens](phase-18-the-tokens.md) | conversion | #16 | n | 13 |
+| 19 | [The segmented choice](phase-19-the-segmented-choice.md) | conversion | #14 | o | 9 |
+| 20 | [The close](phase-20-the-close.md) | close | — | — | 6 |
 
-`python3 -c "print(14+9+14+12+11+12+13+14+8+7+12+6+10+10+11+13+9+6)"` → **191 points over 18 phases, mean ≈ 10.6, max 14**.
-**The midpoint** — `--contracts` and the full suite, its real falls repaired before phase 9 opens — sits after
-phase 8. **The responsive full sweep** runs at phase 1 (its cost measured there), at the close and in CI; between,
+`python3 -c "print(14+9+8+7+14+12+11+12+13+14+8+7+12+6+10+10+11+13+9+6)"` → **206 points over 20 phases, mean ≈ 10.3, max 14**.
+**The midpoint** — `--contracts` and the full suite, its real falls repaired before phase 11 opens — sits after
+phase 10. **The responsive full sweep** runs at phase 1 (its cost measured there), at the close and in CI; between,
 each phase runs it on the states of the surfaces it touches (phase 1 fixes the flag that selects them).
 
 ## Why this order
 
 The brief's, which is the operator's: **the rule first** (1), read RED on the runs list, so every later phase is
-measured at every width; **the runs list** (2) is that red's own repair and the operator's 17:04 report; **the tabs**
-(3) are the operator's 17:17 order (« un seul composant qu'on adapte ») and the component L16-bis waits for
-(DECIDED 7); **the chevron and the switch** (4, 5) carry the two guard arms L16-bis § 1.9 specified for this train;
+measured at every width; **the runs list** (2) is that red's own repair and the operator's 17:04 report; **the two defects**
+the rule's first pass found (3, 4) are the train's own, by the orchestrator's ruling; **the tabs** (5) are the operator's 17:17 order (« un seul composant qu'on adapte ») and the component L16-bis waits for
+(DECIDED 7); **the chevron and the switch** (6, 7) carry the two guard arms L16-bis § 1.9 specified for this train;
 then the conversions by how many surfaces they touch. One kind of change per phase: a conversion proves « nothing
 observable changed » through the oracle's region comparison, except the ONE visible change the report names for it.
 
