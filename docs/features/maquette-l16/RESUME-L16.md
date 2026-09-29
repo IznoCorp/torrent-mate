@@ -8,10 +8,10 @@
 - **Orchestrator** « Orch : TM frontend [79475d] »; always write the reference. Gauge:
   `context-gauge.sh`, its `context_percent=` and `source=` lines in every report. Context gate 80 %, exit ~75 %
   (the brief's dated line of 2026-09-29).
-- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 5c · 5d · 6a · 6b · 7 · 8 · 9 · 10 · 11 · 12a · 12b — each gated, pushed. MIDPOINT read. **Next: 13**
-  (`plan/phase-13-ranking-contract.md`), not opened — re-measure it on this head.
-- **Remaining** (from `ls plan/`): 13 · 14 · 15 · 16 · 17.
-  Known STOP D: (ratio cause = global `ingest.min_ratio`; the seed),
+- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 5c · 5d · 6a · 6b · 7 · 8 · 9 · 10 · 11 · 12a · 12b · 13 — each gated, pushed. MIDPOINT read. **Next: 14**
+  (`plan/phase-14-ranking-editor-reads.md`), not opened — its STOP D is known (no read of a config file's content).
+- **Remaining** (from `ls plan/`): 14 · 15 · 16 · 17.
+  Known STOP D: 14 (no read of a config file's content in the maquette's contract). (ratio cause = global `ingest.min_ratio`; the seed),
   14 (no read of a config file's content in the maquette's contract).
 - **Rulings** (`RULINGS.md`) 1 `?list=` · 2 C2, save bar via `lib/save-bar-door.tsx` · 3 B, the filter line · 4 B1,
   Lanterns's sheet from its NFO + R1 bis · 5 B, `poseArrived` (Zinzins end to end) · 6 B, `poseExternalRemoval` (Ted Lasso) · 7 posed dials replace composed seeds
@@ -20,8 +20,8 @@
   `trackers_removal.py` (21, holds 1–10); R122 reads `torrents/row`; `audit.py` 14 holds; R229 re-aimed at 5d (16 holds); R264 `trackers_alert.py` (27, holds 1–11); R91 `fanout.py` 170; R265 `deferred_reason.py` (16, holds 1–6).
   Next labels: · f R266 (14) · e R267 (16); cuts R268+. Register B-570 taken (check-live-relay's
   constant-key blind spot, `open`); next B-571.
-- **Gate** (office § The gate): static list (`check-no-french`, css-tokens, compositor, tailwind, markup-contracts,
-  boundaries, `oracle.py --contracts`, + frame-domain, mock-seeds) → `run.sh --oracle` alone → accept with
+- **Gate** (office § The gate): static list = CI's no-french job AND run.sh's 26 cheap guards (the scratchpad
+  `static.sh` reads them from `REPOSITORY_GUARDS`; a 12b spread escaped a narrower list) → `run.sh --oracle` alone → accept with
   `bash -c 'run.sh --oracle; oracle.py --accept'` + `tools/accept_by_name.py <declared.json>` (declared BY SCRIPT
   from `states/*.ts`) → `run.sh --rules` (`--class rule`) → `--a11y` if it draws. The static list AGAIN after any
   harness edit. `test_oracle.py` pinned 154 states / 38 regions. Maquette vitest: `vitest run --root
@@ -314,3 +314,13 @@
   kept → FAIL « a finger on « Voir le tracker » lands on the Trackers tab … — {'path': '/' …} »; the global
   `ingest.min_ratio` read instead → FAIL « it names c411 and its own threshold 1, never the global 0 — '… seuil de
   0.' » (`p12b-mutation1–2.log`).
+- 2026-09-29 — phase 13 (≈ 9, no rule, as planned): `previewRanking` declared with its schemas (maquette names);
+  `trackerRatioState` on the scored release a DEMAND; seed `ranking-samples.json` = the backend's own twelve
+  `_ranking_preview_samples`, family RANKING_SAMPLES `served` (fixture-register + projections); the mock
+  (`mocks/handlers/ranking.ts`) ranks with `rank()`'s semantics, nothing dropped. Types + register regenerated,
+  `compare-contracts --check` 0, `check-mock-seeds` clean. Words criterion, economy, lower, met, points, preview,
+  scored. The contracts tier FELL on `check-state-ownership`: 12b's conditional spread inside `store.write` —
+  ESCAPED FROM 12b's gate; WHY: the guard sits in run.sh's cheap guards, not in the CI static list my gate ran;
+  FAMILY: every cheap guard of the tier — the static list now runs all 26 (`p13-contracts.log` red,
+  `p13-contracts2.log` green). Fixed by two writes (`03e148b51`); R265 16 · R260 27 · default_tab 16 green.
+  Oracle alone: no divergence (154 × 38).
