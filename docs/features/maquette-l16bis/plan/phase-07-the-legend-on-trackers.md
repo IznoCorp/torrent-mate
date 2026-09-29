@@ -1,6 +1,7 @@
 # Phase 7 — The legend on Trackers
 
-**STOP C: OPEN 5** (inline over the list, or behind a « Légende » control).
+**STOP C: DECIDED 5** (2026-09-29, PR #637 — DESIGN § 5): inline, above the list — the season legend's own place,
+REUSED as is. Behind a « Légende » control is refused.
 
 **Opening measure (2026-09-29, on `f3d8fed01`):**
 
@@ -10,7 +11,6 @@
   tones join it without a second edit.
 - **Points ≈ 9.** R-L16bis-c 3; one tone map per tab, the rows and the legend reading it (≈ 25 lines) 2; the words in
   `fr.json` (≈ 10) 1; three states (`torrents-legend`, `torrents-legend-partial`, `trackers-legend`) re-using seeds 3.
-  Under reading B, the panel subject replaces the inline drawing at the same cost.
 - **Readers.** None reads a legend on this page today.
 
 ## Red today

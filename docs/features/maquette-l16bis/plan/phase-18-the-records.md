@@ -9,8 +9,8 @@
   | wc -l` → the states declared, against DESIGN § 3's **62** (conditional ones by their rulings).
 - **Points ≈ 7.** Four register rows (DESIGN § 6's defects: escaped from / why / family repaired by) 4; the states
   confronted with DESIGN § 3 by script — all present, each with its French label (the catalogue's, order 76) 1;
-  the demands T1–T4 written in `docs/reference/frontend-backend-demands.md` by regeneration, counters before and
-  after 1; the fixture register re-read (composed rows declared) 1.
+  the demands T1–T3 (T4 withdrawn, DECIDED 8) written in `docs/reference/frontend-backend-demands.md` by
+  regeneration, counters before and after 1; the fixture register re-read (composed rows declared) 1.
 
 ## Red today
 

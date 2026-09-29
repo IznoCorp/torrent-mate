@@ -2,7 +2,8 @@
 
 **No STOP C.**
 
-**Opening measure — re-taken at this phase's opening** (phases 5–15 move the answer).
+**Opening measure — re-taken at this phase's opening** (phases 6–15 move the answer; phase 5 is the conformity
+train's, DECIDED 7).
 
 - **Commands.** `grep -n "^export const" frontend/maquette/design/src/features/trackers/variants.ts` → **9** factories
   on `f3d8fed01` (`torrentTitle`, `torrentFilter`, `torrentFilterClear`, `torrentHead`, `torrentChipLine`,

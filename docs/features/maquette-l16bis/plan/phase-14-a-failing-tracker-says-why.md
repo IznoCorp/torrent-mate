@@ -1,17 +1,18 @@
 # Phase 14 — A failing tracker says why
 
-**STOP C: OPEN 6** (does a tracker off by failure count in the Trackers badge).
+**STOP C: DECIDED 6** (2026-09-29, PR #637 — DESIGN § 5): a tracker off by FAILURE counts ONE in the Trackers badge,
+like the refused identifier — the existing badge mechanism ADAPTED, not rebuilt.
 
 **Opening measure (2026-09-29, on `f3d8fed01`):**
 
 - **Commands.** `grep -n "identifierRefusedSince" -r frontend/maquette/design/src/features/trackers` → the alert's
   reads (`queries.ts`, `trackers-tab.tsx:190–192`); `grep -n "refused" frontend/maquette/harness/trackers_alert.py | head`
   → R-L16-d's unit hold (M5).
-- **Points ≈ 13 / 10.** R-L16bis-h 3; « Désactivé — <raison> depuis le … » under an off-by-failure row 1; the
+- **Points ≈ 13.** R-L16bis-h 3; « Désactivé — <raison> depuis le … » under an off-by-failure row 1; the
   re-activation's refusal drawn under the row, in the engine's words, staying (≈ 15 lines) 2; the alert's reads moved
   from `identifierRefusedSince` to `disabled` 1; R-L16-d re-aimed OUT LOUD (the unit read on `disabled.reason`) 1;
-  states `tracker-off-by-failure`, `tracker-reactivate-refused` 2; under OPEN 6 A, the badge's term for a tracker
-  off by failure, and its hold 3.
+  states `tracker-off-by-failure`, `tracker-reactivate-refused` 2; the badge's term extended to every `disabled`
+  tracker (`by: failure`, whatever the `reason`; `by: operator` excluded — DECIDED 6), and its hold 3.
 - **Readers.** `harness/trackers_alert.py` (R-L16-d) and the bar's badge (`bar-trackers-alert`).
 
 ## Red today
@@ -33,7 +34,8 @@ None.
 
 ## Oracle: states that diverge, declared by name
 
-`tracker-identifier-refused` (its words now the engine's reason), `bar-trackers-alert` under OPEN 6 A; the new states.
+`tracker-identifier-refused` (its words now the engine's reason), `bar-trackers-alert` (DECIDED 6's extended count);
+the new states.
 
 ## Commit
 

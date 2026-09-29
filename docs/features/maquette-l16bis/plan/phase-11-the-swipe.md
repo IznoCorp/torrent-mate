@@ -1,6 +1,7 @@
 # Phase 11 — The swipe
 
-**STOP C: OPEN 9** (the cross-seed side before L17: absent, or drawn disabled with its reason).
+**STOP C: DECIDED 9** (2026-09-29, PR #637 — DESIGN § 5): the cross-seed side is ABSENT before L17 — nothing is drawn
+that does nothing.
 
 **Opening measure (2026-09-29, on `f3d8fed01`):**
 
@@ -8,11 +9,10 @@
   → the follow row's two drawers (**153–159**); `grep -n "export function openRemoveConfirm"
   frontend/maquette/design/src/features/trackers/remove-verb.ts` → the confirmation's one door;
   `grep -cv '^\s*$' frontend/maquette/design/src/lib/swipe-arbitration.ts` → **226** (read, not edited).
-- **Points ≈ 11 / 8.** R-L16bis-f 3; each card wrapped in `swipeRowMarkup`, its right drawer « Retirer »
+- **Points ≈ 8.** R-L16bis-f 3; each card wrapped in `swipeRowMarkup`, its right drawer « Retirer »
   (`tone: remove`, the trash icon) calling the SAME verb as the panel's action (≈ 12 lines) 2; the text « Retirer »
   of the row deleted 1; `torrent-swipe-remove` 1; the three L16 confirmations reached from the swipe, by a finger walk
-  1; under OPEN 9 B, the left drawer disabled with « Disponible avec le cross-seed » and `torrent-swipe-cross-seed`
-  3.
+  1. The left drawer is not drawn (DECIDED 9) — L17 adds it.
 - **Readers.** `harness/trackers_removal.py` (R-L16-c's holds) opens the confirmation — its finger walk gains the
   swipe as a second door, never replacing the panel's.
 

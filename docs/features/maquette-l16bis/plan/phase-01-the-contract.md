@@ -1,6 +1,7 @@
 # Phase 1 — The contract
 
-**STOP C: OPEN 1** (rates or volumes) — the two fields of down / up are named only once it is ruled.
+**STOP C: DECIDED 1** (2026-09-29, PR #637 — DESIGN § 5): the card is neither rates alone nor volumes alone — default
+volumes, a download rate while downloading, an upload rate while uploading. BOTH sets of fields are named.
 
 **Opening measure (2026-09-29, on `f3d8fed01`):**
 
@@ -10,12 +11,13 @@
   `swarmSeeds`, a rate or a volume; `Tracker` → 8 fields, `identifierRefusedSince` among them, no `enabled`.
   The engine: `grep -n "added_on\|swarm_seeds" personalscraper/api/torrent/_base.py` → lines **48, 77**;
   `AcquisitionDownload` in `frontend/openapi.json` carries neither.
-- **Points ≈ 9 / 8.** `Download` edited — `addedAt`, `swarmSeeds`, `swarmLeechers`, the two down / up fields — 1;
-  `Tracker` edited — `enabled`, `disabled {by, reason, message, since}`, `identifierRefusedSince` folded into it — 1;
-  the `422` refusal of `updateConfigurationFile` described (its `Problem.detail` the engine's words) 1; every
-  description saying which field the engine HAS and which it is asked for (DESIGN § 2.1) 2; the register regenerated,
-  counters before and after 1; the types regenerated 1; the report 1; under OPEN 1 A, the rates' stream demand on
-  `TorrentProgress` 1.
+- **Points ≈ 9.** `Download` edited — `addedAt`, `swarmSeeds`, `swarmLeechers`, `downloadedBytes`, `uploadedBytes`,
+  `downloadRate`, `uploadRate` — 1; `Tracker` edited — `enabled`, `disabled {by, reason, message, since}`,
+  `identifierRefusedSince` folded into it — 1; the `422` refusal of `updateConfigurationFile` described (its
+  `Problem.detail` the engine's words) 1; every description saying which field the engine HAS and which it is asked
+  for (DESIGN § 2.1) 2; the register regenerated, counters before and after 1; the types regenerated 1; the report 1;
+  the rates' stream demand on `TorrentProgress` (DECIDED 1 needs both the rates and the volumes, not one or the
+  other) 1.
 - **Readers.** `identifierRefusedSince` is read by `features/trackers/queries.ts` (`alertOf`), `trackers-tab.tsx:190–192`
   and `harness/trackers_alert.py` — the fold is typed here; phase 14 moves the reads.
 

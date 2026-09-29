@@ -50,7 +50,7 @@ A phase whose re-measure at its opening exceeds 15 is cut there, never begun, an
 | 6 | [The legend moves to ui](phase-06-the-legend-moves-to-ui.md) | move | — | 4 | — |
 | 7 | [The legend on Trackers](phase-07-the-legend-on-trackers.md) | surface (S3) | c | 9 | DECIDED 5 |
 | 8 | [The torrent card](phase-08-the-torrent-card.md) | surface (S4) | d | 14 | — |
-| 9 | [The card's facts](phase-09-the-cards-facts.md) | surface (S4) | d (+ holds) | 16 | DECIDED 1 |
+| 9 | [The card's facts](phase-09-the-cards-facts.md) | surface (S4) | d (+ holds) | 15 | DECIDED 1 |
 | 10 | [The poster and the panel](phase-10-the-poster-and-the-panel.md) | surface (S4, S5) | e | 12 | DECIDED 2 |
 | 11 | [The swipe](phase-11-the-swipe.md) | gesture (S6) | f | 8 | DECIDED 9 |
 | 12 | [The tracker selector](phase-12-the-tracker-selector.md) | surface (S2) | b | 13 | — |
@@ -62,10 +62,11 @@ A phase whose re-measure at its opening exceeds 15 is cut there, never begun, an
 | 18 | [The records](phase-18-the-records.md) | records | — | 7 | — |
 | 19 | [The close](phase-19-the-close.md) | close | — | 6 | — |
 
-**Re-measured 2026-09-29** (`python3 -c "print(9+12+12+5+4+9+14+16+12+8+13+12+13+13+7+9+7+6)"` → **181**): **181
-points over 18 phases, mean ≈ 10.1, max 16** (phase 9 — DECIDED 1's progress bar and its three named states). Phase 5
-(the tab component) is REMOVED, its ≈ 11 points gone with it (DECIDED 7 — the conformity train's). **The midpoint** —
-the full suite, its falls repaired before the next phase — stays after phase 10.
+**Re-measured 2026-09-29** (`python3 -c "print(9+12+12+5+4+9+14+15+12+8+13+12+13+13+7+9+7+6)"` → **180**): **180
+points over 18 phases, mean ≈ 10.0, max 15** (phase 9 — DECIDED 1's three-way switch, its progress bar and its three
+named states; at the plan's own ceiling, not past it). Phase 5 (the tab component) is REMOVED, its ≈ 11 points gone
+with it (DECIDED 7 — the conformity train's). **The midpoint** — the full suite, its falls repaired before the next
+phase — stays after phase 10.
 
 ---
 
