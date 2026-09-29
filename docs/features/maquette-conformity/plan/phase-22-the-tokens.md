@@ -1,4 +1,4 @@
-# Phase 23 — The tokens (D.1 #16)
+# Phase 22 — The tokens (D.1 #16)
 
 **Opening measure (2026-09-29, on `660049325`):**
 

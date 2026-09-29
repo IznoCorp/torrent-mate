@@ -31,7 +31,7 @@ Every fall prints `state · width · arm · data-part · rect`. The verdict coun
 R1 first: `runs-list` — the runs list « cut on the right » (arm 4 at every width, and arm 3 if the list clips).
 Every OTHER red the rule finds that this train does not repair goes into the rule's **owed list**, keyed by
 `arm · data-part` (never by a whole state), each with its OWNER — § 12's card title (R2, the report's D.2),
-L16-bis (R3), the tabs (R4, phase 9), the chip (R5), R6–R14 each to its named owner or to the orchestrator. The
+L16-bis (R3), the tabs (R4, phase 8), the chip (R5), R6–R14 each to its named owner or to the orchestrator. The
 owed list is data in the rule's file, read by name; nothing is silenced by a width or a class.
 
 ## Cost
@@ -44,8 +44,8 @@ said in the commit body.
 ## Mutation
 
 One per arm, each read on a state it reds: widen a `factList` child past its list (arm 3), a fixed 400 px block
-(arms 1, 2), a bevelled border (arm 4) — each falls by name. After phase 4, restoring `runRow` fells `runs-list`
-(phase 4's mutation).
+(arms 1, 2), a bevelled border (arm 4) — each falls by name. After phase 3, restoring `runRow` fells `runs-list`
+(phase 3's mutation).
 
 ## Oracle
 

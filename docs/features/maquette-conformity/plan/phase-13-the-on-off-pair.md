@@ -1,4 +1,4 @@
-# Phase 14 — « actif / inactif », one row per mechanism (D.1 #2, the operator's OPEN 1 = A)
+# Phase 13 — « actif / inactif », one row per mechanism (D.1 #2, the operator's OPEN 1 = A)
 
 **Ruled 2026-09-29** (`/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md` § Q1, verbatim « A »): the
 watcher switch (`pipeline.watcherEnabled`) is KEPT and RENAMED by what it does — the word in `fr.json`, never

@@ -1,4 +1,4 @@
-# Phase 5 — The requester line drawn at zero width (a defect, owned by this train)
+# Phase 4 — The requester line drawn at zero width (a defect, owned by this train)
 
 **Found 2026-09-29** by R-conformity-a's first full pass (254 s, 161 states × 7 widths): `cut · card/requester`, box
 **[107, 107]** — zero wide, its text invisible — at EVERY width, 320 to 1280 px, on `acq-card-blocked`,

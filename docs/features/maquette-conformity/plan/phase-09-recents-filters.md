@@ -1,4 +1,4 @@
-# Phase 10 — « Récents » and « Incomplets » get the category filters (the operator's surface decisions)
+# Phase 9 — « Récents » and « Incomplets » get the category filters (the operator's surface decisions)
 
 **Decided 2026-09-29** (the operator, relayed by the orchestrator, order 69), verbatim: « Mediathèque sur l'onglet
 recents, on peut aussi mettre les filtres Tout/Films/séries. » « Récents » gets the SAME filters as the category lens

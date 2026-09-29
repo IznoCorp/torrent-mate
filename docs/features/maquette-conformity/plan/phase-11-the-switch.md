@@ -1,4 +1,4 @@
-# Phase 12 — One switch (D.1 #4), and L16-bis § 1.7 / § 1.8 corrected
+# Phase 11 — One switch (D.1 #4), and L16-bis § 1.7 / § 1.8 corrected
 
 **Opening measure (2026-09-29, on `660049325`):**
 

@@ -1,4 +1,4 @@
-# Phase 13 — The status chip (D.1 #5)
+# Phase 12 — The status chip (D.1 #5)
 
 **Opening measure (2026-09-29, on `660049325`):**
 
@@ -9,7 +9,7 @@
   `features/acquisition/follows-tab.tsx:252`.
 - **Points ≈ 12.** Seven media call sites onto `chip` tones (≈ 14 lines, 3); `seasonShortfall` on an air date → text
   (1); three variants die (1); the run screen's outcome and step status → the chip, one tone map with the list
-  (phase 4) (2); `muted` → `neutral` (1); `sectionInnerMarkup` at `follows-tab.tsx:252` (1); R-conformity-d (3).
+  (phase 3) (2); `muted` → `neutral` (1); `sectionInnerMarkup` at `follows-tab.tsx:252` (1); R-conformity-d (3).
 - **Readers.** `queued_by_hand.py`, `season_family.py`, `season_grab.py`, `queued_ask_mark.py` and four others read
   `season/queued|asked|missing` — the parts stay, only the class changes.
 

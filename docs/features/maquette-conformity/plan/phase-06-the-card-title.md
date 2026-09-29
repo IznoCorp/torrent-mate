@@ -1,4 +1,4 @@
-# Phase 7 — A card's title is never cut (§ 12, a defect owned by this train)
+# Phase 6 — A card's title is never cut (§ 12, a defect owned by this train)
 
 **Ruled 2026-09-29** (the orchestrator, on the constitution): `product-intent.md` § 12 already decides it — « Rien
 d'essentiel n'est tronqué. Un titre coupé … n'est pas un titre : c'est une devinette. Si la place manque, c'est la

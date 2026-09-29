@@ -20,13 +20,13 @@ Today only `drag.py` launches WebKit (`p.webkit.launch()`, **:80**); installed:
 
 ## Red today
 
-The WebKit pass's first red is expected to be the hamburger (phase 3's defect); every other WebKit red goes to the
+The WebKit pass's first red is expected to be the hamburger (the defects fast lane's, owed to it by name); every other WebKit red goes to the
 owed list with its owner, told to the orchestrator.
 
 ## Mutation
 
 Paint the hamburger's drawing the background's colour → the visibility hold falls by name in light and in dark;
-drop the WebKit pass → the phase 3 red disappears (the pass is what reads it).
+drop the WebKit pass → the hamburger's red disappears (the pass is what reads it).
 
 ## Oracle
 
