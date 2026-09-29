@@ -49,6 +49,8 @@ there and closed here:
 - **`R229` (`frontend/maquette/harness/follow_offered.py`) re-aimed on a real subject.** Zinzins, downloading and
   real, becomes the rule's own case for « never proposes « Suivre » before a series has arrived » — the phase-17
   offer's hold, until now proved on no real row, is proved on this one.
+- **2026-09-29, served as 5c / 5d:** the card leaves the SERVED staging answer (`arrivedOnly`), the seed row stays;
+  R229's holds 2 and 4 keep a subject only through a POSED arrival, `poseArrived` (RULINGS 5).
 
 ## The proof FIRST
 

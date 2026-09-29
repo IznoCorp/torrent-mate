@@ -1,44 +1,36 @@
 # L16 — RESUME
 
-## STATE BLOCK (rewritten at every boundary — 2026-09-29, stand-down after phase 6b, 5c measured)
+## STATE BLOCK (rewritten at every boundary — 2026-09-29, after phase 5d)
 
 - **Branch** `feat/maquette-l16`, worktree `/Users/izno/dev/worktrees/wave-l16`, on `origin/main` by MERGE
-  (last: `0e523349f`, #627, merged at the 6a boundary — its only conflict the oracle reference, where main moved
-  the header alone). `git merge --no-edit` at a phase boundary; NO force push, ever.
-- **Orchestrator** « Orch : TM frontend [79475d] »; always write the reference. The gauge script runs here:
-  `context-gauge.sh`, its `context_percent=` and `source=` lines in every report. Exit boundary ~55 %.
-- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 6a · 6b — each gated, mutated, pushed. **Next: 5c**, opening
-  measure DONE (2026-09-29, ≈ 14 points, nothing written) — steward's ruling: 5c after 6b, before 7; L22 RULINGS
-  25 (read at `232a908ca`, § 25) enters mid-lot under order 69 because it changes the Torrents tab this lot builds.
-  The shape: the server (the mock) sends no direct-add card before « arrivé » — Zinzins leaves `moving.json`
-  (5 cards → 4) and enters `downloads.json`, downloading. Real: title, ids (tvdb 73248), S03E14, progress 0.34
-  (`moving.json`), its sheet in `media-sheets.json` (R1 holds). ABSENT from `acquire.db` (`staging_provenance`,
-  `download_marks`: 0 rows), so COMPOSED and said: infoHash, release name (after `releases.json`'s
-  « Les.Zinzins.de.l.Espace…-JiHEFF »), sizeBytes (1.2 GB, `releases.json`), tracker, origin true, ratio 0,
-  deadline null. READERS of « En vol » to run green before AND after (order 42): requester_line,
-  abandon_quarantines, scroll_keeps_place, audit2, actions, content, now_holds_in_flight, one_card_per_medium,
-  ident, one_ladder, release_take_sentence, follow_offered, release_candidates. R229 `follow_offered.py`:
-  OFFERED = the first unfollowed series of MOVING = Zinzins alone → re-aim OUT LOUD, successor to VERIFY:
-  an ARRIVED unfollowed series of `settled-loaded.json` (« The Bombing of Pan Am 103 », « Smiling Friends »),
-  its « Suivre » foot drawn on `acq-now-loaded`; new hold on Zinzins « never « Suivre » before arrival »; in
-  R261 the hold « Zinzins downloading is readable in Torrents » with a mutation that fells it by name. The
-  oracle: every state drawing « En vol » loses a card — declared by script, layers included.
-- **Remaining** (from `ls plan/`): 5c · 7 · 8 · 9 · MIDPOINT FULL SUITE · 10 · 11 · 12 · 13 · 14 · 15 · 16 · 17.
+  (last: `e65130ab1`, #629, merged at the 5c opening, no conflict). `git merge --no-edit` at a phase boundary; NO
+  force push, ever.
+- **Orchestrator** « Orch : TM frontend [79475d] »; always write the reference. Gauge:
+  `context-gauge.sh`, its `context_percent=` and `source=` lines in every report. Context gate 80 %, exit ~75 %
+  (the brief's dated line of 2026-09-29).
+- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 5c · 5d · 6a · 6b — each gated, mutated, pushed. **Next: 7**
+  (`plan/phase-07-remove-shared-files.md`), not opened — re-measure it on this head.
+- **Remaining** (from `ls plan/`): 7 · 8 · 9 · MIDPOINT FULL SUITE · 10 · 11 · 12 · 13 · 14 · 15 · 16 · 17.
   Known STOP D: 9 (no « vu » precedent), 12 (ratio cause = global `ingest.min_ratio`; the seed),
   14 (no read of a config file's content in the maquette's contract).
 - **Rulings** (`RULINGS.md`) 1 `?list=` · 2 C2, save bar via `lib/save-bar-door.tsx` · 3 B, the filter line · 4 B1,
-  Lanterns's sheet from its NFO + R1 re-aimed (R1 bis).
-- **Rules** R260 `trackers_page.py` · R261 `trackers_roster.py` (holds 1–16) · R262 `trackers_policy.py` · R263
-  `trackers_removal.py` (15); R122 reads `torrents/row`; `audit.py` 14 holds. Next labels: d R264 (8) · g R265 (12) ·
-  f R266 (14) · e R267 (16); cuts R268+. Register B-570–B-589 none taken.
-- **Gate** (orders 49/58/59/65/70, brief § Method): static list → `run.sh --oracle` alone → accept with
-  `bash -c 'run.sh --oracle; oracle.py --accept'` (one browser call) + `tools/accept_by_name.py <declared.json>`
-  (declared by script) → `run.sh --rules` (`--class rule`) → `--a11y` if it draws. The static list AGAIN after any
-  harness edit. `test_oracle.py` pinned 142 states / 38 regions. `--record` comments when a maquette file is added.
+  Lanterns's sheet from its NFO + R1 bis · 5 B, `poseArrived` (Zinzins end to end).
+- **Rules** R260 `trackers_page.py` · R261 `trackers_roster.py` (holds 1–17) · R262 `trackers_policy.py` · R263
+  `trackers_removal.py` (15); R122 reads `torrents/row`; `audit.py` 14 holds; R229 re-aimed at 5d (16 holds).
+  Next labels: d R264 (8) · g R265 (12) · f R266 (14) · e R267 (16); cuts R268+. Register B-570–B-589 none taken.
+- **Gate** (office § The gate): static list (`check-no-french`, css-tokens, compositor, tailwind, markup-contracts,
+  boundaries, `oracle.py --contracts`, + frame-domain, mock-seeds) → `run.sh --oracle` alone → accept with
+  `bash -c 'run.sh --oracle; oracle.py --accept'` + `tools/accept_by_name.py <declared.json>` (declared BY SCRIPT
+  from `states/*.ts`) → `run.sh --rules` (`--class rule`) → `--a11y` if it draws. The static list AGAIN after any
+  harness edit. `test_oracle.py` pinned 143 states / 38 regions. Maquette vitest: `vitest run --root
+  frontend/maquette/design` (from the root it runs the production app's tests).
+- **Size watch** `mocks/handlers/staging.ts` 399, `mocks/index.ts` 399 (ceiling 400): no new line there.
 - **Order 52** harness/product added 0.51 at 5b. `data-mediasheet` added ⇒ `audit.py` at the gate; `ui/dialog`
   touched ⇒ its 13 readers. A new dialog moves `shell/dialog` on ~24 later states (B-554); `.warnbox > b` fails light.
-- **Traps** `git fetch` blocked by a hook (use `git remote update origin`); `markup_anchors.GENRE_SITES` keyed by line.
-- **Mock** `mocks/trackers-state.ts`: trackers/downloads/obligations/removals + dials; `mocks/index.ts` full (399).
+- **Traps** `git fetch` blocked by a hook (use `git remote update origin`); `markup_anchors.GENRE_SITES` keyed by line;
+  a `[data-follow]` selector in a rule is refused by `check-markup-contracts` (read the attribute's value);
+  a maquette comment naming a lot, a phase or a date is refused (`check-maquette-comments.py`).
+- **Mock** `mocks/trackers-state.ts`: trackers/downloads/obligations/removals + dials (`poseArrived` among them).
 - **Logs** `~/Library/Logs/tm-l16/`; the proof tool lives in `tools/` there.
 
 ---
@@ -198,3 +190,23 @@
   re-read as its opening. Rules R261 64 · R263 15 · R122 13 · audit 14 · audit2 13 · R260 27 · R262 14 · page_host
   42, 0 failed; a11y dark 0, light 88. Mutation Zinzins's row dropped → FAIL « « Les Zinzins de l'Espace »,
   downloading, is a row of « Torrents » under its own title — None » (`p05c-mutation.log`). Pushed `3b822cf55`.
+- 2026-09-29 — 5d: R229 re-aimed OUT LOUD (holds 2 and 4: successor = the same real series, read off
+  `downloads.json`, absent from « En vol » before arrival, offered after), RED (`p05d-red.log`, 6 FAIL: Zinzins a
+  card of « En vol », `acq-now-direct-arrived` unknown). The move: the staging lists are SERVED through
+  `arrivedOnly` (`mocks/handlers/staged-folders.ts`; `staging.ts` stays at 399 — no new line), a direct add the
+  client still downloads is no card, a follow's card kept; dial `poseArrived` (`mocks/trackers-state.ts`: the
+  download completes, the progress chip goes); state `acq-now-direct-arrived` (`states/tunnel.ts`, beside its
+  precedents). `moving.json` keeps the row (the served answer goes 5 → 4); its line « S03E14 · suivi » for a series
+  nobody follows → « qBittorrent (manuel) ». Slips: my `[data-follow]` selector refused by `check-markup-contracts`
+  (re-read by value); one `rg` over the tree hung, stopped at once — every `rg` names a type or a PATH.
+- 2026-09-29 — 5d gate: static list 10/10, typecheck 0, vitest 141 passed. Oracle alone: 8 keys, 4 states ×
+  (`shell/page`, `acquisition/body`) lose the card + the new state; declared by script (scen loaded, Now tab),
+  proved (`p05d-accept-proof.log`); `test_oracle.py` 142 → 143. Readers AFTER (`p05d-readers-after.log`):
+  requester_line 14 · abandon_quarantines 15 · scroll_keeps_place 40 · audit2 13 · content 27 · now_holds_in_flight
+  8 · one_card_per_medium 6 · one_ladder 40 · release_take_sentence 5 · follow_offered 16 · release_candidates 4 ·
+  R261 64 · R122 13 · audit 14, 0 failed. `one_ladder` 44 → 40: its four per-card holds on Zinzins's card go with
+  the card; SUCCESSOR: the direct add's ladder still read on Alabama Solution and Conclave, Zinzins arrived read by
+  R229. a11y dark 0, light 88. Mutations: filter off → FAIL « before it arrives, « Les Zinzins de l'Espace » is no
+  card of « En vol » »; `poseArrived` inert → FAIL « once arrived, … carries the offer » (+ panel, tap); a
+  `data-follow` on the Torrents title → FAIL « … offered no « Suivre » there — {'follow': 1} » (`p05d-mutation1–3`;
+  a first M1 expression broke the build, no verdict, re-run).
