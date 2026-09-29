@@ -226,6 +226,10 @@
       "selector": "[data-region=\"screen-resolution/body\"]",
       "note": "resolving a stuck folder"
     },
+    "screen-ranking/body": {
+      "selector": "[data-region=\"screen-ranking/body\"]",
+      "note": "the ranking editor's content — its criteria and weights, the save, and the live preview"
+    },
     "system/locks": {
       "selector": "[data-region=\"system/locks\"]",
       "note": "the pipeline's lock, the two sentinels and the sweep"

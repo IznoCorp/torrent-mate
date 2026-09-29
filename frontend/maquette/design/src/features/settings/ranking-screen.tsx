@@ -139,7 +139,7 @@ export function RankingScreen(): ReactElement {
         </button>
       </div>
       <div className={scrollport()} data-part="viewport">
-        <div className={body()} data-part="surface/body">
+        <div className={body()} data-part="surface/body" data-region="screen-ranking/body">
           <h1 className={factName()}>{t("screens.ranking.title")}</h1>
           {/* THE READ IN FLIGHT, OR FAILED, IS SAID — never an empty list standing for either. */}
           {isPending ? <Skeletons count={4} shape="card" /> : null}
