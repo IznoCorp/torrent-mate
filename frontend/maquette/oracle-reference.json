@@ -1,6 +1,6 @@
 {
   "$comment": "The recorded oracle's reference — `frontend/maquette/oracle.py`. One entry per (named state x region): a bounding rectangle rounded to one decimal, and the computed properties of `regions.json`'s `probe.computedStyleSubset`. `null` means the region's selector matched nothing in that state, which is data rather than an omission. Regenerate with `--record`; ratify a REVIEWED change with `--accept`, never from a gate.",
-  "baseCommit": "b7d77ea329eb9650a64222b32a2095dc00dbdc71",
+  "baseCommit": "51355b720682c20279e8acf7568bfbbbef6713c3",
   "platform": "Darwin/arm64",
   "counts": {
     "states": 161,
@@ -50089,7 +50089,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2282.4
+          "height": 2272.4
         },
         "style": {
           "position": "static",
@@ -50271,7 +50271,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2282.4
+          "height": 2272.4
         },
         "style": {
           "position": "static",
@@ -50299,9 +50299,9 @@
         "matches": 1,
         "rect": {
           "x": 0,
-          "y": 728,
+          "y": 646.3,
           "width": 390,
-          "height": 58
+          "height": 139.8
         },
         "style": {
           "position": "absolute",
@@ -50507,7 +50507,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2609.9
+          "height": 2603.9
         },
         "style": {
           "position": "static",
@@ -50689,7 +50689,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2609.9
+          "height": 2603.9
         },
         "style": {
           "position": "static",
@@ -50896,7 +50896,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2282.4
+          "height": 2272.4
         },
         "style": {
           "position": "static",
@@ -51078,7 +51078,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2282.4
+          "height": 2272.4
         },
         "style": {
           "position": "static",
@@ -51285,7 +51285,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2282.4
+          "height": 2272.4
         },
         "style": {
           "position": "static",
@@ -51467,7 +51467,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2282.4
+          "height": 2272.4
         },
         "style": {
           "position": "static",
@@ -51674,7 +51674,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2609.9
+          "height": 2603.9
         },
         "style": {
           "position": "static",
@@ -51856,7 +51856,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2609.9
+          "height": 2603.9
         },
         "style": {
           "position": "static",
@@ -52063,7 +52063,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2609.9
+          "height": 2603.9
         },
         "style": {
           "position": "static",
@@ -52245,7 +52245,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2609.9
+          "height": 2603.9
         },
         "style": {
           "position": "static",
@@ -52452,7 +52452,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2609.9
+          "height": 2603.9
         },
         "style": {
           "position": "static",
@@ -52634,7 +52634,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2609.9
+          "height": 2603.9
         },
         "style": {
           "position": "static",
@@ -52841,7 +52841,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 638.5
+          "height": 636.5
         },
         "style": {
           "position": "static",
@@ -53023,7 +53023,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 638.5
+          "height": 636.5
         },
         "style": {
           "position": "static",
@@ -53230,7 +53230,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2609.9
+          "height": 2603.9
         },
         "style": {
           "position": "static",
@@ -53412,7 +53412,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2609.9
+          "height": 2603.9
         },
         "style": {
           "position": "static",
@@ -53619,7 +53619,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2609.9
+          "height": 2603.9
         },
         "style": {
           "position": "static",
@@ -53801,7 +53801,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2609.9
+          "height": 2603.9
         },
         "style": {
           "position": "static",
@@ -54008,7 +54008,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2282.4
+          "height": 2272.4
         },
         "style": {
           "position": "static",
@@ -54190,7 +54190,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2282.4
+          "height": 2272.4
         },
         "style": {
           "position": "static",
@@ -54397,7 +54397,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 951.5
+          "height": 982.7
         },
         "style": {
           "position": "static",
@@ -54579,7 +54579,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 951.5
+          "height": 982.7
         },
         "style": {
           "position": "static",
@@ -54786,7 +54786,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 994.8
+          "height": 1028.7
         },
         "style": {
           "position": "static",
@@ -54968,7 +54968,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 994.8
+          "height": 1028.7
         },
         "style": {
           "position": "static",
@@ -55953,7 +55953,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2282.4
+          "height": 2272.4
         },
         "style": {
           "position": "static",
@@ -56135,7 +56135,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2282.4
+          "height": 2272.4
         },
         "style": {
           "position": "static",

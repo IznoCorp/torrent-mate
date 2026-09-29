@@ -2,18 +2,30 @@
 
 ## State block (rewritten at every boundary)
 
-- **Branch** `feat/maquette-conformity`, cut from `origin/main` `660049325` (#640). Worktree
-  `/Users/izno/dev/worktrees/maquette-conformity`.
-- **Design** `/Users/izno/dev/review-archive/conformity-80/REPORT.md` § B, § D (cited, not copied); the operator's
-  rulings `/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md`. **Plan** `plan/INDEX.md`, 12
-  phases, one per surface (orders 98, 99) — rebuilt from `ls plan/`, never from memory.
-- **Phases 1–2 DONE.** Phase 2 gate: static guards green, merge of `origin/main` (#644) clean, oracle « no
-  divergence », R-conformity-a 173 holds 0 failed — Chromium × 7 widths + WebKit 390 px light and dark, 423 s at
-  `TM_HARNESS_JOBS=2` (WebKit adds ≈ 80 s: it runs at every gate). **Re-cut by surface** (orders 98, 99): phases 3–12, one per
-  surface, `plan/INDEX.md`; the auditor verifies the re-cut before phase 3's code.
-- **Rules born** (letter → file): a → `frontend/maquette/harness/responsive.py` (contract subset, CI).
-- **Owed list**: `OWED` in the rule (arm · part → owner); the menu's WebKit red is the defects fast lane's.
-- **Every browser run** names `TM_HARNESS_JOBS=2` (order 88); pytest `-n 2`.
+- **Branch** `feat/maquette-conformity` (worktree `/Users/izno/dev/worktrees/maquette-conformity`), merged with
+  `origin/main` at `431bc6179` (#644). **Orchestrator**: `Orch : TM frontend [077751]`.
+- **Design** `/Users/izno/dev/review-archive/conformity-80/REPORT.md` § B, § D; the operator's rulings
+  `/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md`. **Plan** `plan/INDEX.md` — 12 phases, one per
+  surface (orders 98, 99): read its correspondence table and each page before a phase.
+- **DONE: phases 1–6.** 1 the responsive rule · 2 its WebKit pass · 3 components I · 4 components II · 5 Système ·
+  6 Réglages and Maintenance. **NEXT: phase 7, Acquisition** (`plan/phase-07-acquisition.md`), then the MIDPOINT
+  (`--contracts` + the full responsive sweep, once).
+- **The phase gate (order 99)**: static guards on the files touched; each new rule read RED on the old code first
+  (`scripts/mutate.sh` with a targeted expression — an old file that no longer compiles cannot be restored whole);
+  the oracle ALONE, then `oracle.py --accept` through the scratchpad's accept script (build, publish, host, accept),
+  and a script proving ONLY the declared states' keys moved; `run.sh --rules` on the touched surfaces' rules;
+  R-conformity-a with `TM_RESPONSIVE_STATES` built BY SCRIPT from `harness/states/<surface>.ts` (mind the
+  `.map`-built ids: `settings-field-<type>`). Every browser run names `TM_HARNESS_JOBS=2`; pytest `-n 2`.
+- **Traps paid for**: the markup arm reads only LITERAL `data-part="…"` — a part passed as a prop or built by
+  `FactRows` is invisible to it (emit it literally on a wrapper); `check-frame-domain` refuses a domain word in
+  `ui/`; a new maquette file needs `check-maquette-comments.py --record` in its commit; a merge of `main` moves the
+  corpus floor too; the git index lock is taken by another process now and then — retry the commit.
+- **Rules born** (letter → file): a `responsive.py` · c `one_switch.py` · e `on_off.py` · f `state_words.py` ·
+  h `empty_place.py` · j `back_control.py`. **Owed list** (`OWED` in `responsive.py`): requester → 7; card/title,
+  subtitle, tile/title, cast, segment, segment/count → 8; shell/tab-bar, connection-notice bevel → 10; the menu's
+  WebKit « unseen » → the defects fast lane.
+- **To confirm by the operator** (choices said in the commits): « joignable » the one word of the reachable code;
+  the pause « actif » when engaged; the stopped processing in danger.
 
 ## Ledger (append-only)
 
@@ -46,3 +58,9 @@
   watcher's part emitted literally on its list. Gate: 13 rules green (machine.py re-aimed after its first fall on
   the seeds' tones), oracle 27 Système states moved, accepted by name, proved by script. Vocabulary choices to
   confirm: « joignable » for the reachable code; the pause reads « actif » when engaged.
+- 2026-09-30 — phase 6 (Réglages and Maintenance): the settings field draws `toggleSwitch` (L16-bis DESIGN § 1.7
+  corrected, dated), « actif / inactif » at the field and at « à blanc », five TopicRows, the back controls' icon,
+  « ← » out of the copy, the banners as notices wrapped in `settings/banner`, the save as `actionButton` submit,
+  12/16 px margins to steps. Red first: one_switch (c), back_control (j). Gate: 9 rules green; my first state list
+  took the `.map` type names for ids (an instrument error, rebuilt); oracle 14 settings states moved, accepted by
+  name, proved by script. Stood down at 72 % context before phase 7 (≈ 12 points would pass the 80 % gate).
