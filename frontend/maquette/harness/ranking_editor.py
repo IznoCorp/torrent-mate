@@ -23,7 +23,9 @@ very seed the layer answers from, so a list drawn from anywhere else falls.
 9. `ranking-editor-saving` keeps the typed weight and says the save is under
    way, its button closed to a second tap;
 10. `ranking-editor-save-conflict` says the file moved, in the settings' own
-   words, and the next read answers the file's weight: nothing was written.
+   words, and the next read answers the file's weight: nothing was written;
+11. a second editor still holding the digest read BEFORE a save is refused —
+   the write answers a conflict and the next read keeps the saved weight.
 
 RE-AIMED OUT LOUD: hold 4 first read « the rubric lands on the editor ». The
 rubric opens the global quality profile — a route of its own, held by
@@ -46,7 +48,8 @@ from playwright.async_api import async_playwright
 
 SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
 FILES = json.loads((SOURCE / "mocks/seeds/configuration-files.json").read_text(encoding="utf-8"))
-RANKING = next(file for file in FILES if file["name"] == "ranking.json5")["values"]["ranking"]
+SEEDED = next(file for file in FILES if file["name"] == "ranking.json5")
+RANKING = SEEDED["values"]["ranking"]
 
 SETTINGS_WORDS = json.loads((SOURCE / "i18n/fr.json").read_text(encoding="utf-8"))["screens"]
 RUBRIC = SETTINGS_WORDS["settings"]["rankingTitle"]
@@ -55,6 +58,8 @@ SAVING = SETTINGS_WORDS["ranking"]["saving"]
 CONFLICT = SETTINGS_WORDS["settings"]["conflictLead"]
 REREAD = """()=>{window.__queries?.removeQueries({queryKey: ['/api/config/files/ranking.json5']});
   window.__screens.ranking()}"""
+STALE_WRITE = """async ({values, digest}) => (await (await fetch('/api/config/files/ranking.json5',
+  {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({values, digest})})).json())"""
 STORED = """async (field) => (await (await fetch('/api/config/files/ranking.json5')).json())
   .values.ranking.criteria.find((one) => one.field === field)?.weight ?? null"""
 WEIGHTS = SETTINGS_WORDS["profile"]["rankingWeights"]
@@ -180,6 +185,12 @@ async def main():
         journal.check(f"the NEXT read answers the saved weight {typed} for {target['field']}, the others as they were",
                       {field: number(float(value)) if value else "" for field, value in readAgain.items()} == wanted,
                       f"{readAgain} against {wanted}")
+
+        stale = await page.evaluate(STALE_WRITE, {"values": SEEDED["values"], "digest": SEEDED["digest"]})
+        kept = await page.evaluate(STORED, target["field"])
+        journal.check("a second editor holding the digest read before the save is refused: a conflict, "
+                      f"and the next read keeps the saved {typed}",
+                      stale.get("conflict") is True and kept == typed, f"answered {stale} · read {kept!r}")
 
         answer = await enter("ranking-editor-saving")
         seen = await page.evaluate(f"""()=>({{field: document.querySelector('{weight}')?.value ?? null,
