@@ -15,9 +15,9 @@ supports its phase's cut is STOP D.
 - **STOP A** — the oracle diverging on a state the phase did not name.
 - **STOP B** — the pull request.
 - **STOP C — the operator's round.** RULED 2026-09-29 and in this plan: D.1 #2 (OPEN 1 = A) → phase 10, the state
-  words (OPEN 2 = A) → phase 11, the notice (OPEN 3 = A) → phase 14, D.1 #14 (OPEN 4 = A) → phase 20. Still waiting
-  for the orchestrator's rulings, NOT phases until then: D.1 #7 (the status dot, OPEN 9) and #15 (the primary
-  buttons, OPEN 8). Reaching them first is a STOP, said.
+  words (OPEN 2 = A) → phase 11, the notice (OPEN 3 = A) → phase 14, D.1 #14 (OPEN 4 = A) → phase 20, D.1 #15
+  (OPEN 8 = A) → phase 21. OPEN 7 (Découvrir's swipe) goes to L16-bis, not here. Still waiting, NOT a phase until
+  ruled: D.1 #7 (the status dot, OPEN 9). Reaching them first is a STOP, said.
 - **STOP D** — a measurement that contradicts a home. Near already (non-blank lines, `grep -cv '^\s*$'`, ceiling
   400): `ui/variants/controls.ts` **397**, `ui/variants/frame.ts` **397**, `ui/variants/surfaces.ts` **373**,
   `features/media/season-list.tsx` **390**. A phase landing in one of them moves lines OUT in the same commit or
@@ -54,9 +54,10 @@ new rule with its mutation 3; a rule re-aimed 1; a guard arm with its test 3; a 
 | 18 | [The topic row](phase-18-the-topic-row.md) | conversion | #11 | m | 11 |
 | 19 | [The tokens](phase-19-the-tokens.md) | conversion | #16 | n | 13 |
 | 20 | [The segmented choice](phase-20-the-segmented-choice.md) | conversion | #14 | o | 9 |
-| 21 | [The close](phase-21-the-close.md) | close | — | — | 6 |
+| 21 | [The primary buttons](phase-21-the-primary-buttons.md) | conversion, ruled | #15 | p | 8 |
+| 22 | [The close](phase-22-the-close.md) | close | — | — | 6 |
 
-`python3 -c "print(14+9+8+7+12+14+12+11+12+13+14+8+7+12+6+10+10+11+13+9+6)"` → **218 points over 21 phases, mean ≈ 10.4, max 14**.
+`python3 -c "print(14+9+8+7+12+14+12+11+12+13+14+8+7+12+6+10+10+11+13+9+8+6)"` → **226 points over 22 phases, mean ≈ 10.3, max 14**.
 **The midpoint** — `--contracts` and the full suite, its real falls repaired before phase 12 opens — sits after
 phase 11. **The responsive full sweep** runs at phase 1 (its cost measured there), at the close and in CI; between,
 each phase runs it on the states of the surfaces it touches (phase 1 fixes the flag that selects them).
