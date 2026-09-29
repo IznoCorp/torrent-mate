@@ -1,4 +1,12 @@
 {
+  "harness": {
+    "scenarioToggle": {
+      "toDense": "Passer au monde dense",
+      "toReal": "Revenir au monde réel",
+      "toastDense": "Monde dense — pour juger la densité.",
+      "toastReal": "Monde réel — l'état calme du système."
+    }
+  },
   "server": {
     "login": {
       "title": "TorrentMate Design — connexion"
