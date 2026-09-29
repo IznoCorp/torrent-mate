@@ -33,3 +33,7 @@
   `ui/variants/tabs.ts` and the badge to `ui/variants/badge.ts`. Gate: guards green, 8 rules green (responsive on 45
   touched states, owed only), oracle 19 states moved — all the library page's, by the floor — accepted by name,
   proved by script (no other key moved). Orchestrator succession: `Orch : TM frontend [077751]`.
+- 2026-09-30 — phase 4 (components II): the notice's variant to `ui/variants/notice.ts`, the legend to
+  `ui/variants/legend.ts`, `--color-upcoming-text` declared in both themes, `SurfaceError` takes a tone and its
+  words, `ui/topic-row.tsx`. Gate: guards green (two reds of mine repaired first: a stale build for the new token,
+  a double import), oracle « no divergence », 5 rules green incl. responsive on 9 states.
