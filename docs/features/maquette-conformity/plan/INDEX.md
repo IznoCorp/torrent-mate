@@ -44,7 +44,7 @@ new rule with its mutation 3; a rule re-aimed 1; a guard arm with its test 3; a 
 | 7 | [The card's title](phase-07-the-card-title.md) | defect, § 12 | B.5 R2 | a | 12 |
 | 8 | [The raw log](phase-08-the-raw-log.md) | defect, ruled | B.5 R13, OPEN 10 | a | 7 |
 | 9 | [The tabs](phase-09-the-tabs.md) | conversion | #1 | b + tablist arm | 14 |
-| 10 | [« Récents » filtered](phase-10-recents-filters.md) | behaviour, decided | the operator's | s | 10 |
+| 10 | [« Récents », « Incomplets » filtered](phase-10-recents-filters.md) | behaviour, decided | the operator's, Q20 | s | 13 |
 | 11 | [The fold chevron](phase-11-the-fold-chevron.md) | conversion | #3 | chevron arm | 12 |
 | 12 | [The switch](phase-12-the-switch.md) | conversion | #4 | c + switch arm | 11 |
 | 13 | [The status chip](phase-13-the-status-chip.md) | conversion | #5 | d | 12 |
@@ -65,7 +65,7 @@ new rule with its mutation 3; a rule re-aimed 1; a guard arm with its test 3; a 
 | 28 | [The status dot](phase-28-the-status-dot.md) | conversion, ruled | #7 | r | 11 |
 | 29 | [The close](phase-29-the-close.md) | close | — | — | 6 |
 
-`python3 -c "print(14+12+8+9+8+7+12+7+14+10+12+11+12+13+14+8+7+12+6+10+10+11+13+9+9+8+13+11+6)"` → **296 points over 29 phases, mean ≈ 10.2, max 14**.
+`python3 -c "print(14+12+8+9+8+7+12+7+14+13+12+11+12+13+14+8+7+12+6+10+10+11+13+9+9+8+13+11+6)"` → **299 points over 29 phases, mean ≈ 10.3, max 14**.
 **The midpoint** — `--contracts` and the full suite, its real falls repaired before phase 16 opens — sits after
 phase 15. **The responsive full sweep** runs at phase 1 (its cost measured there), at the close and in CI; between,
 each phase runs it on the states of the surfaces it touches (phase 1 fixes the flag that selects them).
