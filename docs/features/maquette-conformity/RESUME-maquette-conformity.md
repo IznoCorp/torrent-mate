@@ -5,12 +5,12 @@
 - **Branch** `feat/maquette-conformity`, cut from `origin/main` `660049325` (#640). Worktree
   `/Users/izno/dev/worktrees/maquette-conformity`.
 - **Design** `/Users/izno/dev/review-archive/conformity-80/REPORT.md` § B, § D (cited, not copied); the operator's
-  rulings `/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md`. **Plan** `plan/INDEX.md`, 29
-  phases, 299 points — rebuilt from `ls plan/`, never from memory.
+  rulings `/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md`. **Plan** `plan/INDEX.md`, 12
+  phases, one per surface (orders 98, 99) — rebuilt from `ls plan/`, never from memory.
 - **Phases 1–2 DONE.** Phase 2 gate: static guards green, merge of `origin/main` (#644) clean, oracle « no
   divergence », R-conformity-a 173 holds 0 failed — Chromium × 7 widths + WebKit 390 px light and dark, 423 s at
-  `TM_HARNESS_JOBS=2` (WebKit adds ≈ 80 s: it runs at every gate). **STOPPED for the re-cut by surface** (auditor's
-  order 98) — phases 3–26 are rewritten on the orchestrator's approval, before any code.
+  `TM_HARNESS_JOBS=2` (WebKit adds ≈ 80 s: it runs at every gate). **Re-cut by surface** (orders 98, 99): phases 3–12, one per
+  surface, `plan/INDEX.md`; the auditor verifies the re-cut before phase 3's code.
 - **Rules born** (letter → file): a → `frontend/maquette/harness/responsive.py` (contract subset, CI).
 - **Owed list**: `OWED` in the rule (arm · part → owner); the menu's WebKit red is the defects fast lane's.
 - **Every browser run** names `TM_HARNESS_JOBS=2` (order 88); pytest `-n 2`.

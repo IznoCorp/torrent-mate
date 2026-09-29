@@ -1,89 +1,87 @@
 # maquette-conformity — one need, one component; every state at every width · PLAN
 
-Design: the conformity reading, `/Users/izno/dev/review-archive/conformity-80/REPORT.md` — § B (the deviations, B.5
-the responsive risks), § D.1 (the sixteen conversions, their files and their oracle), § D.2 (what is NOT a
-conversion). It is cited, never copied. The implementer is held to `docs/reference/implementer-office.md`; this plan
-carries only what is the train's own. Orders served: 80 (one need, one component) and 85 (the responsive rule, which
-replaces order 60).
+Design: the conformity reading, `/Users/izno/dev/review-archive/conformity-80/REPORT.md` (§ B, § D), and the
+operator's rulings, `/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md` — cited, never copied. The
+implementer is held to `docs/reference/implementer-office.md`, AMENDED by the auditor's orders 98 and 99 (below).
+Orders served: 80 (one need, one component), 85 (the responsive rule), 89 (the iPhone's engine).
 
-**Written 2026-09-29, on `main` at `660049325`** (#640). Every figure below was taken by a command on `660049325`;
-each phase RE-TAKES its figures at its real opening — a figure that moved is re-taken, a figure that no longer
-supports its phase's cut is STOP D.
+**Re-cut 2026-09-30 BY SURFACE** (orders 98, 99, approved by the orchestrator): phases 1–2 (the rule, its WebKit
+pass) are done; the 24 phases that followed are replaced by ten, one per surface. The old plan is
+`docs/features/maquette-conformity/plan/INDEX.md@f36b54795`; its correspondence is the last table.
+
+## The operator's principles, and how this plan answers them (order 97)
+
+| Principle, his words | Where this plan holds it |
+| --- | --- |
+| « 1 design système, 1 composant, de la cohérence ! » | phases 3–4 build each shared need ONCE in `ui/`; the surfaces consume it; phase 12 arms the guards |
+| « on crée pas de nouveau composant on adapte » | every component is an ADAPTED existing one (`segmentTab`, `Disclosure`, `tabBarBadge`, `viewSwitch`, `chip`, `SurfaceError`) — `TopicRow` and `Tabs` compose existing variants |
+| « l'existant est ce qui est validé » | `Tabs` is Acquisition's bar as it stands; Trackers and Médiathèque come to it |
+| « tout doit être responsive … sur tous ! » | R-conformity-a: every state at 320 → 1280 px, and in WebKit light and dark, at every phase gate |
+| « Rien d'essentiel n'est tronqué » (§ 12) | phase 8: titles, tiles, cast names wrap; phase 5: the raw log wraps |
+| « Il faut uniformiser les comportements. Sauf exception volontaire de ma part. » | one pair « actif / inactif », one word per state, one back control, one pick button; exceptions: none declared |
+| « Mes retours sont des corrections sur ce qui est attendu » | each ruling and each defect found lands in the surface phase that already touches it, never a phase of its own |
+| « trop de gates, trop de harnais, trop de sécurité » | ten phases, one light gate each; the heavy checks once per lot (below) |
+
+## The phases — one surface each, sized by the context (gauge + cost ≤ 80), no point cap
+
+| # | Surface | Page |
+| ---: | --- | --- |
+| 1 | The responsive rule — DONE (`eef05f5d7`) | [phase-01](phase-01-the-responsive-rule.md) |
+| 2 | Its WebKit pass — DONE (`f36b54795`) | [phase-02](phase-02-the-webkit-pass.md) |
+| 3 | Components I — tabs, chevron, badge, segmented size | [phase-03](phase-03-components-one.md) |
+| 4 | Components II — tones, notice, legend, topic row | [phase-04](phase-04-components-two.md) |
+| 5 | Système and the run screen | [phase-05](phase-05-system.md) |
+| 6 | Réglages and Maintenance | [phase-06](phase-06-settings-and-maintenance.md) |
+| 7 | Acquisition — then the MIDPOINT | [phase-07](phase-07-acquisition.md) |
+| 8 | Médiathèque | [phase-08](phase-08-library.md) |
+| 9 | The media sheet and the seasons | [phase-09](phase-09-media-sheet.md) |
+| 10 | The frame and the menu | [phase-10](phase-10-frame-and-menu.md) |
+| 11 | Découvrir and Trackers | [phase-11](phase-11-discover-and-trackers.md) |
+| 12 | The close — the guard arms, the lot's gate, the PR | [phase-12](phase-12-close.md) |
+
+## The gates (order 99, amending the office's « The gate »)
+
+- **A phase gate**: the static guards on the files touched; the oracle ALONE, accepting only the states the page
+  names; `run.sh --rules` on the rules of the surfaces touched — each item's rule read RED on the old code first,
+  then green (that is its proof: no per-phase mutation, no per-phase a11y); R-conformity-a on the touched surfaces'
+  states (`TM_RESPONSIVE_STATES`, built by script).
+- **The midpoint, after phase 7**: `--contracts` and the full responsive sweep (Chromium + WebKit), once.
+- **The close, phase 12**: the full suite, `--a11y`, the full sweep, the hold counts; the ten random mutations, the
+  finger walk and the principles check are the reader round's.
+- Every browser run names `TM_HARNESS_JOBS=2` (order 88); every pytest `-n 2`.
 
 ## The stops
 
-- **STOP A** — the oracle diverging on a state the phase did not name.
-- **STOP B** — the pull request.
-- **STOP C — the operator's round, CLOSED 2026-09-29.** In this plan: D.1 #2 (OPEN 1 = A) → phase 13, the state
-  words (OPEN 2 = A) → 14, the notice (OPEN 3 = A) → 17, D.1 #14 (OPEN 4 = A) → 23, D.1 #15 (OPEN 8 = A) → 24,
-  D.1 #7 (OPEN 9 = A) → 25, the raw log (OPEN 10 = A) → 7, « Récents » and « Incomplets » filtered (Q20) → 9, the
-  WebKit pass (auditor's order 89) → 2. OPEN 7 (Découvrir's swipe) went to L16-bis. The operator's own defects
-  (the iPhone hamburger, the Appearance selector, the candidate's poster) went to the **defects fast lane**, a wagon
-  with its own pull request (the steward's decision, 2026-09-29) — the hamburger's red stays in the rule's owed list
-  with that owner.
-- **STOP D** — a measurement that contradicts a home. Near already (non-blank lines, `grep -cv '^\s*$'`, ceiling
-  400): `ui/variants/controls.ts` **397**, `ui/variants/frame.ts` **397**, `ui/variants/surfaces.ts` **373**,
-  `features/media/season-list.tsx` **390**. A phase landing in one of them moves lines OUT in the same commit or
-  lands in a module of its own.
-- Anything outside this plan and the report's § D.1: STOP, and ask the orchestrator first.
+**STOP A** — the oracle diverging on a state the page did not name. **STOP B** — the pull request. **STOP D** — a
+ceiling: `ui/variants/controls.ts` and `frame.ts` **397 / 400**, `surfaces.ts` **373**, `features/media/season-list.tsx`
+**390** (`grep -cv '^\s*$'`): a phase landing there moves lines out. Anything outside these pages: STOP, ask.
 
-**Rules** are lettered `R-conformity-a` … in birth order (the RESUME maps letter → file); a hold on a surface an
-existing rule owns is a HOLD in that rule's file (office, order 52).
+## Correspondence — every element of the old plan, every decision, every owed red → its phase
 
-## Points, and the mean
-
-L23's scale (`docs/features/maquette-l23/plan/INDEX.md` « Points »): a line edited 1 per 5, written new 1 per 10; a
-new rule with its mutation 3; a rule re-aimed 1; a guard arm with its test 3; a sentence rewritten 1.
-
-| # | Phase | Kind | D.1 | Rule / arm | Points |
-| ---: | --- | --- | --- | --- | ---: |
-| 1 | [The responsive rule](phase-01-the-responsive-rule.md) | rule | — (order 85) | a | 14 |
-| 2 | [The WebKit pass](phase-02-the-webkit-pass.md) | rule | order 89 | a | 12 |
-| 3 | [The runs list](phase-03-the-runs-list.md) | conversion | #13 | a green on `runs-list` | 9 |
-| 4 | [The requester line](phase-04-the-requester-line.md) | defect | found by a | a | 8 |
-| 5 | [The bar's label at 320 px](phase-05-the-bar-label.md) | defect | found by a | a | 7 |
-| 6 | [The card's title](phase-06-the-card-title.md) | defect, § 12 | B.5 R2 | a | 12 |
-| 7 | [The raw log](phase-07-the-raw-log.md) | defect, ruled | B.5 R13, OPEN 10 | a | 7 |
-| 8 | [The tabs](phase-08-the-tabs.md) | conversion | #1 | b + tablist arm | 14 |
-| 9 | [« Récents », « Incomplets » filtered](phase-09-recents-filters.md) | behaviour, decided | the operator's, Q20 | s | 13 |
-| 10 | [The fold chevron](phase-10-the-fold-chevron.md) | conversion | #3 | chevron arm | 12 |
-| 11 | [The switch](phase-11-the-switch.md) | conversion | #4 | c + switch arm | 11 |
-| 12 | [The status chip](phase-12-the-status-chip.md) | conversion | #5 | d | 12 |
-| 13 | [« actif / inactif »](phase-13-the-on-off-pair.md) | behaviour, ruled | #2 | e | 13 |
-| 14 | [The state words](phase-14-the-state-words.md) | behaviour, ruled | OPEN 2 | f | 14 |
-| 15 | [A fact with its state](phase-15-a-fact-with-its-state.md) | conversion | #6 | g | 8 |
-| 16 | [The empty surface](phase-16-the-empty-surface.md) | conversion | #10 | h | 7 |
-| 17 | [The notice](phase-17-the-notice.md) | behaviour, ruled | OPEN 3 | i | 12 |
-| 18 | [The back control](phase-18-the-back-control.md) | conversion | #12 | j | 6 |
-| 19 | [The count badge](phase-19-the-count-badge.md) | conversion | #8 | k | 10 |
-| 20 | [The legend](phase-20-the-legend.md) | conversion | #9 | l | 10 |
-| 21 | [The topic row](phase-21-the-topic-row.md) | conversion | #11 | m | 11 |
-| 22 | [The tokens](phase-22-the-tokens.md) | conversion | #16 | n | 13 |
-| 23 | [The segmented choice](phase-23-the-segmented-choice.md) | conversion | #14 | o | 9 |
-| 24 | [The primary buttons](phase-24-the-primary-buttons.md) | conversion, ruled | #15 | p | 8 |
-| 25 | [The status dot](phase-25-the-status-dot.md) | conversion, ruled | #7 | r | 11 |
-| 26 | [The close](phase-26-the-close.md) | close | — | — | 6 |
-
-`python3 -c "print(14+12+9+8+7+12+7+14+13+12+11+12+13+14+8+7+12+6+10+10+11+13+9+8+11+6)"` → **269 points over 26 phases, mean ≈ 10.3, max 14**.
-**The midpoint** — `--contracts` and the full suite, its real falls repaired before phase 15 opens — sits after
-phase 14. **The responsive full sweep** runs at phase 1 (its cost measured there), at the close and in CI; between,
-each phase runs it on the states of the surfaces it touches (phase 1 fixes the flag that selects them).
-
-## Why this order
-
-The brief's, which is the operator's: **the rule first** (1), read RED on the runs list, so every later phase is
-measured at every width; **its WebKit pass** (2) reads the iPhone's engine; **the runs list** (3) is the first red's
-own repair and the operator's 17:04 report; **the defects the rule found** (4, 5, 6 — § 12's title — and 7, the raw
-log) are the train's own, by the orchestrator's ruling; **the tabs** (8) are the operator's 17:17 order (« un seul
-composant qu'on adapte ») and the component L16-bis waits for (DECIDED 7), and « Récents » filtered (9) rebuilds the
-same head; **the chevron and the switch** (10, 11) carry the two guard arms L16-bis § 1.9 specified for this train;
-then the conversions by how many surfaces they touch. One kind of change per phase: a conversion proves « nothing
-observable changed » through the oracle's region comparison, except the ONE visible change the report names for it.
-
-## What this train does not do
-
-Report § D.2 in full (the silent loading / error drawings, every missing case, the notice component, Découvrir's
-swipe, NAVIGATION, the season recovery; § 12's card title, ruled the train's own, is phase 6); « Found in passing » except L16-bis DESIGN
-§ 1.7 / § 1.8's switch, corrected in phase 11; production `frontend/src`; the backend. A named state the report's
-oracle names but the tree lacks (`acq-add-by-id`, `mediasheet-season-not-detailed`) is the case catalogue's
-(#35, #76): the hold drives the case by finger inside its rule instead.
+| Element | → |
+| --- | --- |
+| old 3 runs list (D.1 #13), B-576 · old 7 raw log (Q10) · old 13 on/off pair (D.1 #2, Q1) · old 14 state words (Q2) | 5 |
+| old 4 requester line · old 24 primary buttons (D.1 #15, Q8): the pick · the save | 7 · 6 |
+| old 5 bar label 320 px | 10 |
+| old 6 card title, R8 tile, R9 cast (§ 12) · old 9 « Récents » / « Incomplets » filters (the operator's decision, Q20) | 8 |
+| old 8 tabs (D.1 #1): the component · the bars of Acquisition, Médiathèque, Trackers | 3 · 7, 8, 11 |
+| old 10 chevron (D.1 #3, DECIDED 4): component · add screen · seasons · guard arm | 3 · 7 · 9 · 12 |
+| old 11 switch (D.1 #4) + L16-bis § 1.7/1.8 correction · guard arm | 6 · 12 |
+| old 12 status chip (D.1 #5): run outcome · muted → neutral · season marks | 5 · 7 · 9 |
+| old 15 fact with its state (D.1 #6): count line · media facts | 8 · 9 |
+| old 16 empty surface (D.1 #10): runs · media | 5 · 9 |
+| old 17 notice (Q3): component · banners · identify · TMDB | 4 · 6 · 7 · 11 |
+| old 18 back control (D.1 #12) | 6 |
+| old 19 count badge (D.1 #8): component · bar, menu, drawer | 3 · 10 |
+| old 20 legend (D.1 #9): moved to `ui/` · drawn on the season list | 4 · 9 |
+| old 21 topic row (D.1 #11): component · Système · Réglages, Maintenance | 4 · 5 · 6 |
+| old 22 tokens (D.1 #16): system `cva` · settings · add screen · media · the rest | 5 · 6 · 7 · 9 · 12 |
+| old 23 segmented choice (D.1 #14, Q4): size · add screen · drawer | 3 · 7 · 10 |
+| old 25 status dot (D.1 #7, Q9): tone · veille's dot · episode dots | 4 · 5 · 9 |
+| old 26 close | 12 |
+| Q5, Q6 (the season recovery) · Q7 (Découvrir's swipe) · Q11, Q12 (navigation) | not this lot: `maquette-season-recovery` · L16-bis · the navigation lot |
+| The operator's defects: the candidate's poster B-578, the iPhone hamburger B-579, the Appearance selector B-580 | the defects fast lane (owed `unseen · menu` stays in the rule) |
+| Owed `bevel · runs/row` · `overflow · run/log` | 5 |
+| Owed `cut · card/requester` | 7 |
+| Owed `cut · card/title`, `card/subtitle`, `tile/title`, `cast`, `segment`, `segment/count` | 8 |
+| Owed `cut · shell/tab-bar` · `bevel · shell/connection-notice` | 10 |
