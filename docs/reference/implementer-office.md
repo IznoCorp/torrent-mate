@@ -80,11 +80,14 @@ every pytest (`PYTEST_XDIST_AUTO_NUM_WORKERS=3`) and every `git push` — its OW
 - Handshake first; a report at every gate and STOP (evidence, proposal, then WAIT), in French; unanswered after
   fifteen minutes, re-sent after a fresh `ListAgents` to the NAME. **Never stop between phases to report one done.**
   Long runs are waited for inside their call, output to a FILE, exit code read there, never `| tail -N`.
-- Kill what you start, delete what you build, prove it with `ps`; never `/tmp/tm-refonte` or 8899 by hand; never `cd`
-  into `frontend/maquette/design/src`; every `rg` carries a type filter; no `git stash`.
+- Kill what you start, delete what you build, prove it with `ps`; never `/tmp/tm-refonte` or 8899 by hand; every `rg`
+  carries a type filter; no `git stash`.
 
 ## Fixed non-goals and delivery
 
+- **No backward compatibility of former addresses or links** — no alias, no redirect; a former address answers
+  not-found, an unknown query is ignored (operator, 2026-09-29, verbatim: « A, pas de gestion de rétro-compatibilité
+  ! »).
 - No new guard, arm or tool (measure 1; a phase's own rule is none). No redrawing beyond a phase's move: STOP A. No
   `--no-verify`, force-push, rebase, self-merge, branch or worktree deletion; no delegate that writes or judges.
   Anything outside the brief: STOP and ask the orchestrator.

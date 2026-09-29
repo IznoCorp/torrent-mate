@@ -3,10 +3,11 @@
 Design: `docs/features/maquette-l23/DESIGN.md`. Contract: `docs/reference/frontend-architecture.md` § 4, entry
 `#### L23 — §19 point 5, upload to a tracker` (its « Where it lives » and « Done when » lines, once written).
 
-**Written 2026-09-27, on `main` at `7d40969f4`**, before L23 itself is next in the order — L16, L17 and L18 have
-each landed as a design-and-plan pull request, none yet as code (`docs/features/maquette-l16/`,
-`-l17/`, `-l18/` are all still on the tree; `docs/reference/frontend-architecture.md` § 4, « Landed, in order » does
-not name any of them). **Every figure this plan cites about a file `features/trackers/` will hold is taken from
+**Written 2026-09-27, on `main` at `7d40969f4`**, before L23 itself is next in the order — at the time, L16, L17 and
+L18 had each landed as a design-and-plan pull request, none yet as code (`docs/features/maquette-l16/`, `-l17/`,
+`-l18/` were all still on the tree; `docs/reference/frontend-architecture.md` § 4, « Landed, in order » named none of
+them). **L16 has since landed as code** (PR #634, squash `f3d8fed01`) and its folder is gone (`docs/features/maquette-l16/plan/INDEX.md@f3d8fed01` reads its own plan); `-l17/` and `-l18/` remain design-only, still on the tree.
+**Every figure this plan cites about a file `features/trackers/` will hold is taken from
 L17's OWN plan** (`docs/features/maquette-l17/plan/`, already written and merged), never from a file this worktree
 can read today — `ls frontend/maquette/design/src/features/trackers` answers no such directory, measured at this
 plan's own opening. **The implementer of L23's OWN execution wave re-takes every figure below at the moment each

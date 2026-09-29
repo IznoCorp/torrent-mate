@@ -8,7 +8,7 @@ drawn, and phase 1 could not carry it without crossing the ceiling.
 - **Commands.** `python3 -c "import json;d=json.load(open('frontend/openapi.json'));print(json.dumps(d['components']['schemas']['ObligationItem'])[:700])"`
   → `ObligationItem` carries `source_tracker`, `min_ratio`, `min_seed_time_s`, `observed_ratio`, `added_at`,
   `breached_at` / `satisfied_at` / `released_at`, `title` — **and no field that says the obligation is a cross-seed's**
-  (`grep -c -i 'cross.seed' frontend/openapi.json` → 0, B-145's own command). `docs/features/maquette-l16/DESIGN.md`
+  (`grep -c -i 'cross.seed' frontend/openapi.json` → 0, B-145's own command). `docs/features/maquette-l16/DESIGN.md@f3d8fed01`
   § 2.1 declares that read for the maquette in L16's phase 1 and draws the obligation's mark on the Torrents tab's
   row (L16 phase 5). The engine persists the obligation on injection (`sed -n 353,366p
   personalscraper/acquire/events.py`, « emit-after-persist »), so a cross-seed's obligation exists on the backend

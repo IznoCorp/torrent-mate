@@ -8,7 +8,7 @@ counted) — DESIGN § 2.2, which is exactly what the badge's derivation (phase 
 
 - **Commands.** `sed -n 386,411p personalscraper/acquire/events.py` → the twelve reason codes; `grep -n
   'skip_reason = ' personalscraper/acquire/cross_seed.py` → seven assignments, eight values, **none an event** (a
-  skip is logged, never emitted — DESIGN fact 4); `grep -n 'in clear French' docs/features/maquette-l16/DESIGN.md` →
+  skip is logged, never emitted — DESIGN fact 4); `grep -n 'in clear French' docs/features/maquette-l16/DESIGN.md@f3d8fed01` →
   the backend's `stalled-grabs` already answers a `reason` in clear French (L16's own precedent for a sentence, not
   a code).
 - **Points ≈ 10.** The refusal row's opened form ≈ 30 lines new 3; the kind-of-trouble line ≈ 12 lines new 1½; two

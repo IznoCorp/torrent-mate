@@ -10,7 +10,7 @@ leaves on a state change alone, no « seen » gesture** — the first drawing al
 
 - **Commands.** `sed -n 70,95p frontend/maquette/design/src/app/tab-bar.tsx` → the bar draws `row.badge ? row.badge()
   : 0` with `tabBarBadge()`; the file is **94** non-blank lines and « KNOWS NOTHING of what a badge counts ».
-  `docs/features/maquette-l16/DESIGN.md` § 4.5 → `trackersBadge` (L16's file) counts FOUR components already: the
+  `docs/features/maquette-l16/DESIGN.md@f3d8fed01` § 4.5 → `trackersBadge` (L16's file) counts FOUR components already: the
   threshold, the breach, the refused identifier, the unseen broken obligation. **This phase adds a FIFTH — the
   cross-seed failure — not a second**, and the demand's OWN field (`crossSeed.failed`, phase 1) is already narrowed
   to the two counted families, so the function needs no client-side kind filter of its own (F22's own cost

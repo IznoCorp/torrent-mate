@@ -89,13 +89,13 @@ new fact is added at the amendment.
 | --- | --- | --- |
 | 1–15 | Unchanged from the first drawing — the engine's 797 lines, its two events, the closed twelve-code reason set, the eight skip reasons with no event, every default `False`, the live seed's three switches off, the existing write, no route in either contract, the two events exempted from live rules, the registers' disagreement on the stream, no account role in either contract, the media sheet's composition (now L18's), the colour vocabulary, the stream mock's 399 lines, the contract's counters | see the first drawing's own commands, re-taken at each phase's opening — none of these facts changed at the amendment |
 | 16 | **The engine stops at the FIRST verified injection, though its search walks every tracker** — F26 | `sed -n 220,260p personalscraper/acquire/cross_seed.py` → the loop returns on the first accepted candidate; nothing in the engine tries a SECOND eligible, switched-on tracker once one has succeeded. **The interface's own per-tracker state (clause 3) needs a state on EVERY eligible tracker, not only the one the engine happened to try first** — demand B (§ 6.2) asks the backend to attempt every eligible, switched-on tracker and keep a state per (torrent, tracker) pair; the cost is extra `.torrent` fetches, rechecks and seed obligations, never extra searches or quota units (the daily quota counts SEARCHES, not trackers tried per search) |
-| 17 | **L16's `AcquisitionDownload` already carries `info_hash` per entry** (`docs/features/maquette-l16/DESIGN.md` § 2.1) | the identity F60 asks for is **already answered** by L16's own extension — this amendment adds nothing to the shape for it, and phase 1 says so rather than re-declaring a field that already exists |
+| 17 | **L16's `AcquisitionDownload` already carries `info_hash` per entry** (`docs/features/maquette-l16/DESIGN.md@f3d8fed01` § 2.1) | the identity F60 asks for is **already answered** by L16's own extension — this amendment adds nothing to the shape for it, and phase 1 says so rather than re-declaring a field that already exists |
 
 ---
 
 ## 1. What L17 builds on, and does not redraw
 
-L16's re-drawn design is the base (`docs/features/maquette-l16/DESIGN.md`, plan `plan/INDEX.md`). This lot **adds to
+L16's re-drawn design is the base (`docs/features/maquette-l16/DESIGN.md@f3d8fed01`, plan `plan/INDEX.md@f3d8fed01`). This lot **adds to
 it and never redraws it**. The extension points, each named by the L16 phase that creates it:
 
 | L16 gives (file, per L16's plan) | L17 adds |
@@ -248,7 +248,7 @@ leave it alone). `data-part` names are English (D4).
 (the roster's line, on the Trackers tab), `/trackers?tab=torrents` (the mark, on a torrent's own row). **What DIES
 at the amendment**: `/trackers/$name` never existed to begin with on this head, and the first drawing's own
 `§ 3.0` line about it is corrected here rather than left standing — L16's redraw killed the address before L17
-could use it (`docs/features/maquette-l16/DESIGN.md` § 3). A FEED (OPEN 4) would have been a second view of
+could use it (`docs/features/maquette-l16/DESIGN.md@f3d8fed01` § 3). A FEED (OPEN 4) would have been a second view of
 `/trackers`; it is not drawn (OPEN 4 = A).
 
 ### 3.1 S1 — The roster's line (Trackers tab)
@@ -618,6 +618,28 @@ engine's — § 3.1 and § 3.2 say both.
 **OPEN 8 — which refusals the badge counts, and when they leave it — ruled A, failures only.** « le badge de
 Trackers compte les ÉCHECS de cross-seed seulement … et un échec d'UPLOAD … comptera comme un échec. » § 2.2's
 grouping and § 3.6 carry it, with the reserved slot round 8 Q18 named.
+
+### 7.3 Two DESIGN contradictions inherited from L16 — recorded, not chosen
+
+Found by reader C16 (`review-archive/l16/round-1-C16/r1-C16.md`, finding C17 c, d), left unrepaired at L16's close
+(the decided list did not take them). Neither asks anything of the backend, so neither belongs in
+`backend-demands-architecture.md`; both land here because L17 is the next lot to touch their surfaces — **no
+reading is chosen for either.**
+
+- **`TrackerAuthFailed` vs « all four … through `live.ts` ».** L16's DESIGN § 4.5 claims all four of the ratio
+  alert's components (threshold, breach, refused identifier, unseen broken obligation) are "refreshed through this
+  lot's `live.ts`", while the SAME paragraph keeps `TrackerAuthFailed` — the event the refused-identifier component
+  reads — named in `acquisitionLiveExemptions`, never live. The refused-identifier unit is therefore NOT live as
+  claimed. L16's own text names the event's future owner as "L17's, and the system feature's" — this lot's phase
+  that touches `features/trackers/live.ts` (§ 3.6) is where the reading is chosen: wire `TrackerAuthFailed` in, or
+  correct § 4.5's claim.
+- **The removal confirmation's checkbox cannot gate its own confirmation.** L16's DESIGN § 4.4 says the qBittorrent
+  removal confirmation with its « Supprimer les fichiers » checkbox does not open at all when the checkbox WOULD
+  read unchecked and nothing else is at stake — but the checkbox lives INSIDE that same confirmation, so its state
+  cannot be read before the confirmation opens to show it. The two sentences cannot both be drawn. This lot's own
+  cross-seed cut (§ 3.3, « Couper le cross-seed sur ce tracker ») confirms a different, checkbox-less act on the
+  same Torrents tab; whoever next touches the qBittorrent removal flow chooses whether the checkbox moves outside
+  the confirmation or the « no confirmation » clause is dropped.
 
 ---
 

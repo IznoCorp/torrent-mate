@@ -650,6 +650,20 @@ L17 · L18 · L23**, and no dependency already written moved. **L24 (the orphans
 after it, the desktop milestone** (operator, 2026-09-29, L24's OPEN 6) — the final entry of this section, not a lot.
 **L16-bis (the Trackers page's correction and Découvrir's header, on the operator's feedback of 2026-09-29), drawn 2026-09-29, is inserted between L16 and L17, which draws on its torrent rows: the order is now L14 · L19 · L21 · L13 · L20 · L22 · L16 · L16-bis · L17 · L18 · L23 · L24** — `docs/features/maquette-l16bis/DESIGN.md`, `docs/features/maquette-l16bis/plan/INDEX.md`. **Amended 2026-09-29 (the operator's nine rulings, PR #637): L16-bis *depends on the conformity train*** — the train builds the app's one tab component first, on the existing validated tab bars (Acquisition first), then arms the guard; L16-bis's own code waits for the train and then uses the component for Trackers, never building it — the phase that once built it here is removed (DESIGN § 5, DECIDED 7).
 
+**C1 — the settings save bar, placed AFTER L16 (operator, 2026-09-29, ruling C1, verbatim: « On parle de toutes les
+pages de réglages ? Si oui alors oui. Si on veux quitter réglages un message de confirmation s'affiche, avec
+enregistrer, abandonné les modif, ou fermer rester sur réglages »; on Trackers: « Oui »).** The save bar becomes a
+FRAME part, visible on every Settings page while a change waits (never on every app page, refused); leaving
+Settings or Trackers with a change waiting opens ONE confirmation with three choices — « Enregistrer » / «
+Abandonner les modifications » / « Rester sur Réglages ». **A MICRO-WAVE, not a lot** — unrelated to L17's own
+scope (cross-seed) and small enough by § 0's own selection rule to take nobody's turn, on the pattern of
+`maquette-settings` and the other same-scale corrections of § 4's history. Runs before L17 opens or beside it, never
+inside its plan. **Named states (proposed, not built): `settings-save-bar-frame`** (the bar drawn by the frame
+itself, replacing L16's `lib/save-bar-door.tsx` door — C2's own compromise, superseded) **and `settings-leave-confirm`**
+(the three-choice confirmation). **One rule**, holding both. **The existing pending-edits signal is REUSED** — the
+door's `onEditsWritten` / `editsWritten` pair (`frontend/maquette/design/src/lib/save-bar-door.tsx`) already knows
+whether a change waits; the leave confirmation reads THAT, never a second dirty-tracker.
+
 #### L14 — The surfaces that outgrew their file · *depends on L07, L09*
 
 **Landed** — PR #547, squash `9ce9b0508`. The four feature files over the 400-line ceiling are decomposed back under it, by domain. Body: `docs/reference/frontend-architecture.md@6a47304a4` § L14.
@@ -820,7 +834,7 @@ the quality screen's toast is gone (B-298).
 
 **Design and plan written 2026-09-15, re-read against the organisation rulings 2026-09-26 (PR #614);
 RE-DRAWN 2026-09-27 against organisation rulings 18–20 and rounds 7–9 of the coherence audit, this
-docs pull request.** `docs/features/maquette-l16/DESIGN.md` and `plan/INDEX.md` (16 phases, mean
+docs pull request.** `docs/features/maquette-l16/DESIGN.md@f3d8fed01` and `plan/INDEX.md@f3d8fed01` (16 phases, mean
 ≈ 11.4). Its prior OPEN 1–3 are ruled (Trackers in the bar at L16 with the ratio alone; no right
 declared before L18; the badge's three components — threshold, breach, and, since round 9 Q1, a
 refused identifier); one new OPEN question is born of ruling 19 itself (which tab opens by default,
@@ -983,9 +997,11 @@ seven rows' owed halves are proved by a rule each, and their new reading is prop
 state holds at a desktop width, the galleries widening; the three questions the rulings raised (OPEN 7–9) are ruled,
 each amended into the design in one line.
 
-**Design and plan written 2026-09-29, on `e65130ab1`; re-cut the same day on the six rulings, on `77e7b8436`** —
-`docs/features/maquette-l24/DESIGN.md`, `plan/INDEX.md` (20 phases, 165 points at the larger reading of OPEN 7–9, mean
-≈ 8.3); three open questions the rulings raised, none chosen. The version before the rulings is
+**Design and plan written 2026-09-29, on `e65130ab1`; re-cut the same day on the six rulings, on `77e7b8436`; amended
+a second time, same day, on the operator's second round** (`review-archive/l24/rulings-2026-09-29.md`) —
+`docs/features/maquette-l24/DESIGN.md`, `plan/INDEX.md` (20 phases, 151 points, mean ≈ 7.6); the three open questions
+the rulings raised (OPEN 7–9) are now ALL RULED = A, plus the no-backward-compatibility PRINCIPLE (OPEN 9), which
+kills S4's redirect table and its five states. The version before the rulings is
 `docs/features/maquette-l24/DESIGN.md@e6d63bffe`.
 
 ### Phase 6 — The finish

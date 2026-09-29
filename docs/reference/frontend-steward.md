@@ -476,11 +476,6 @@ a plugin-cache `.in_use/` marker) — read `ls -A <dir> | wc -l`, never `cat` on
 idle subscription taken on a session already idle fires at once and never reports its exit** —
 subscribe while the session is busy, or read `ps -p <pid>` when the decision needs the exit.
 
-**Never `cd` into `frontend/maquette/design/src`, from any session** (filed B-384: the
-command-logging hook writes its log under the current directory, and `vite.config.mjs`'s
-`buildIdentity()` hashes all of `src/`, log included — the build id can move with no source
-change). Absolute paths from the repository root until it closes.
-
 **Three traps of 2026-09-12, each paid once.** `gh pr merge --delete-branch` REMOVES the worktree
 checked out on that branch — remove the worktree by hand first, then delete the branch. A kill by
 the WRAPPER's name (`pkill -f "heavy.sh <wave>"`) kills every run of that wave, its own push

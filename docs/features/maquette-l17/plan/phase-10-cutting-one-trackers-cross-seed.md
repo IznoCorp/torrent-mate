@@ -10,7 +10,7 @@ exactly as L16's removal does.
   str(d['paths']), 'remove' in str(d['paths']).lower())"` → `False False` — no release and no removal operation in
   the backend's contract; the same on `frontend/maquette/contract/openapi.json` before L16's phase 6 declares its
   OWN removal (a different operation, a different subject). `sed -n 1,45p
-  docs/features/maquette-l16/plan/phase-06-remove-from-qbittorrent.md` → L16's removal is single-entry,
+  docs/features/maquette-l16/plan/phase-06-remove-from-qbittorrent.md@f3d8fed01` → L16's removal is single-entry,
   files-deleted-by-default, confirmed, closing an obligation « libérée » — the SAME closing discipline this cut
   reuses on a NARROWER subject (one tracker's entry, never the whole torrent, never touching files). `grep -n
   'registerVerb' frontend/maquette/design/src/features/acquisition/follow-verbs.ts` — the verb pattern followed.
