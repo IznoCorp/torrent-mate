@@ -32,6 +32,7 @@ as an index opens the panel of whatever film happens to sit at that rank.
 import asyncio
 import sys
 
+from common import chrome_launch_args
 from playwright.async_api import async_playwright
 
 URL = "http://127.0.0.1:8899/"
@@ -145,7 +146,7 @@ async def main():
     failures = []
     executed = 0
     async with async_playwright() as p:
-        b = await p.chromium.launch(channel="chrome")
+        b = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
         ctx = await b.new_context(
             viewport={"width": 390, "height": 844},
             device_scale_factor=2,

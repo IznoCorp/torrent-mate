@@ -221,6 +221,7 @@ REPOSITORY_GUARDS=(
   "scripts/check-intent-map.py"
   "scripts/check-docs-cited-paths.py"
   "scripts/compare-contracts.py --check"
+  "scripts/check-mock-keychain.py"
 )
 REPOSITORY_ROOT="$(cd "$HERE/../../.." && pwd)"
 

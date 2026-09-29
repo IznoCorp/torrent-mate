@@ -56,7 +56,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, PAGE_PATHS, PHONE, PROTOTYPE, SETTLED, Journal, open_page  # noqa: E402
+from common import ACTED, PAGE_PATHS, PHONE, PROTOTYPE, SETTLED, Journal, open_page, chrome_launch_args  # noqa: E402
 
 # The desktop the operator reads the prototype on, out of the frame (B-344).
 # Two contexts per width, because a context that declares touch is not the
@@ -279,7 +279,7 @@ async def hold(journal):
     )
     errors = []
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         for width, contexts, out_of_frame, paths in frames:
             for kind in ("finger", "wheel"):
                 for path in paths:

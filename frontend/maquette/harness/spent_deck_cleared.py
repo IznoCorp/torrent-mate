@@ -55,7 +55,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, Journal, SETTLED, open_page
+from common import ACTED, Journal, SETTLED, open_page, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -207,7 +207,7 @@ async def hold_the_end_mark(page, journal):
 async def main():
     journal = Journal("R155 — a spent pile does not outlive its mode")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         context, page = await open_page(browser)
         errors: list[str] = []
         page.on("pageerror", lambda error: errors.append(str(error)))

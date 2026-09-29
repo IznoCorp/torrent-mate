@@ -53,7 +53,7 @@ import asyncio
 import json
 import pathlib
 
-from common import ACTED, PANEL_IN, SETTLED, Journal, open_page
+from common import ACTED, PANEL_IN, SETTLED, Journal, open_page, chrome_launch_args
 from playwright.async_api import async_playwright
 
 # The ruled order of the ladder, by the keys its names are written under.
@@ -171,7 +171,7 @@ def step_name(key):
 async def main():
     journal = Journal("R207 — one ladder, read by the card and the journey sheet")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         context, page = await open_page(browser)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))

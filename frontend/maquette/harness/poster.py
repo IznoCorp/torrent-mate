@@ -32,7 +32,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, PROTOTYPE, Journal
+from common import PHONE, PROTOTYPE, Journal, chrome_launch_args
 
 # The gallery: the surface that draws the most posters at once.
 STATE = "lib-grid"
@@ -50,7 +50,7 @@ async def hold(journal):
     """Withholds every poster, records the layout, releases, and compares."""
     errors = []
     async with async_playwright() as play:
-        browser = await play.chromium.launch(channel="chrome")
+        browser = await play.chromium.launch(channel="chrome", args=chrome_launch_args())
         # THE SERVICE WORKER IS BLOCKED, or the hold-back below holds nothing.
         # A request the worker answers is fetched from INSIDE the worker, and
         # `page.route` never sees it: the posters then decode at once, and

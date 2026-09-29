@@ -122,7 +122,7 @@ import re
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, PANEL_IN, ROOT, SETTLED, Journal, open_page
+from common import ACTED, PANEL_IN, ROOT, SETTLED, Journal, open_page, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -521,7 +521,7 @@ async def follow_from_its_sheet(page, journal, errors, title):
 async def main():
     journal = Journal("R158 — a season is taken from « Incomplets » by someone who does not follow the show")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         context, page = await open_page(browser)
         errors: list[str] = []
         page.on("pageerror", lambda error: errors.append(str(error)))

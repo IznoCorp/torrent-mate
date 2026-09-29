@@ -48,7 +48,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import Journal, SETTLED, open_page
+from common import Journal, SETTLED, open_page, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -128,7 +128,7 @@ THE_BUTTON = """()=>{
 async def main():
     journal = Journal("R136 — « charger plus » is drawn at the footer's scale")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         context, page = await open_page(browser)
         errors: list[str] = []
         page.on("pageerror", lambda error: errors.append(str(error)))

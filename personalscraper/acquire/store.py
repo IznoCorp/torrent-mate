@@ -441,6 +441,26 @@ class _FollowSubStore:
                 (followed_id,),
             )
 
+    def set_titles(self, followed_id: int, *, title: str, original_title: str) -> None:
+        """Replace a follow's display title and original title together.
+
+        The one writer that may REPLACE a non-empty title (``merge_metadata``
+        only fills an empty one): the detect heal of a TVDB-only show stored
+        under its original-language name moves that name to ``original_title``
+        and gives the row its configured-language title, in one transaction so
+        the original name is never lost between two writes.
+
+        Args:
+            followed_id: Rowid of the ``followed_series`` row.
+            title: The display title (the configured-language name).
+            original_title: The original-language title.
+        """
+        with _write_tx(self._conn):
+            self._conn.execute(
+                "UPDATE followed_series SET title = ?, original_title = ? WHERE id = ?",
+                (title, original_title, followed_id),
+            )
+
     def set_kind(self, followed_id: int, kind: str) -> None:
         """Update the ``kind`` ('movie'|'show') of a ``followed_series`` row.
 

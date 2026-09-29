@@ -451,6 +451,12 @@ racine de la Médiathèque et non dans la fiche. Un natif iOS restaurerait la fi
 sans ; on ne l'ajoutera que si l'usage réel le réclame, parce qu'un écran qui se rouvre
 ailleurs qu'à sa racine surprend autant qu'il rend service.
 
+**Les pages du menu latéral ne relèvent pas de cette règle** (dicté le 2026-09-29) : Système, Réglages,
+Maintenance, Comptes, Profil et les autres pages que le menu ouvre **empilent**, et Retour refait le
+chemin d'arrivée — « Les retours se font toujours par le même chemin d'arrivé. Si je passe par système
+je repasse par systèmes, sinon non. » Les pages de la barre du bas gardent la règle ci-dessus, pour
+l'instant.
+
 ### 3. Sans pile, elle se synthétise depuis la hiérarchie
 
 Un lien ouvert depuis l'extérieur — un message, un signet, un onglet restauré — n'a pas de pile

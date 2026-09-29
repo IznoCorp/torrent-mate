@@ -68,7 +68,7 @@ import datetime
 import json
 import pathlib
 
-from common import ACTED, PAGE_PATHS, PROTOTYPE, SETTLED, Journal, open_page
+from common import ACTED, PAGE_PATHS, PROTOTYPE, SETTLED, Journal, chrome_launch_args, open_page
 from playwright.async_api import async_playwright
 
 SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
@@ -289,7 +289,7 @@ async def downloading(page, journal):
 async def main():
     journal = Journal("R261 — the « Trackers » tab: one entry per tracker, never averaged")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         context, page = await open_page(browser)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
