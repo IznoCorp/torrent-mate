@@ -39,7 +39,7 @@ import os
 import pathlib
 import re
 
-from common import Journal, open_page
+from common import Journal, open_page, chrome_launch_args
 from playwright.async_api import async_playwright
 
 WEB = pathlib.Path(os.path.expanduser("~/.torrentmate/config/web.json5"))
@@ -79,7 +79,7 @@ async def main():
     journal = Journal("R68 — an unknown address, and an account that is not invented")
 
     async with async_playwright() as p:
-        b = await p.chromium.launch(channel="chrome")
+        b = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
         ctx, pg = await open_page(b)
         errors = []
         pg.on("pageerror", lambda e: errors.append(str(e)))

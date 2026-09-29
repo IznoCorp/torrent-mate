@@ -26,7 +26,7 @@ exactly what was wrong on it.
 """
 import asyncio
 
-from common import Journal, open_page
+from common import Journal, open_page, chrome_launch_args
 from playwright.async_api import async_playwright
 
 
@@ -76,7 +76,7 @@ async def main():
     async with async_playwright() as p:
         # ── the geometry, on both engines ──────────────────────────────────
         measures = {}
-        for name, launch in (("Chromium", lambda: p.chromium.launch(channel="chrome")),
+        for name, launch in (("Chromium", lambda: p.chromium.launch(channel="chrome", args=chrome_launch_args())),
                            ("WebKit", lambda: p.webkit.launch())):
             b, _, pg = await on_the_list(p, launch)
             measures[name] = await pg.evaluate(GEOMETRY)
@@ -99,7 +99,7 @@ async def main():
                  f"{chrome and chrome['right']} vs {webkit and webkit['right']}")
 
         # ── the behaviour, under a real finger ─────────────────────────────
-        b, ctx, pg = await on_the_list(p, lambda: p.chromium.launch(channel="chrome"))
+        b, ctx, pg = await on_the_list(p, lambda: p.chromium.launch(channel="chrome", args=chrome_launch_args()))
         cdp = await ctx.new_cdp_session(pg)
         errors = []
         pg.on("pageerror", lambda e: errors.append(str(e)))

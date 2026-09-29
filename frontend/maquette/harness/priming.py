@@ -88,7 +88,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, PROTOTYPE, Journal, open_page
+from common import PHONE, PROTOTYPE, Journal, open_page, chrome_launch_args
 
 TITLE = "Broadchurch"
 # A SERIES THE LIBRARY DOES NOT OWN, for the walk that lands the two reads
@@ -527,7 +527,7 @@ async def main():
         len(ASSERTIONS) >= 8,
         f"{len(ASSERTIONS)} answer(s): {ASSERTIONS[:3]}…")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         address = await address_of(browser)
 
         # ─── The thinned walk: the case the real backend produces ─────────

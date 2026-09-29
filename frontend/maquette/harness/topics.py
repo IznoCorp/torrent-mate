@@ -36,7 +36,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import HOME, PHONE, PROTOTYPE, Journal
+from common import HOME, PHONE, PROTOTYPE, Journal, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -114,7 +114,7 @@ async def main():
     journal = Journal("R165 — a rubric can be left")
 
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         for page_under_test in PAGES:
             address, verb = page_under_test["address"], page_under_test["verb"]
             context, page, errors = await open_at(browser, address)

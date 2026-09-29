@@ -5,11 +5,12 @@ and a gesture that only answers a finger is a gesture half the sessions cannot
 reach.
 """
 import asyncio
+from common import chrome_launch_args
 from playwright.async_api import async_playwright
 
 async def main():
   async with async_playwright() as p:
-    b = await p.chromium.launch(channel="chrome")
+    b = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
     # No touch at all: a plain desktop browser, at a phone width.
     ctx = await b.new_context(viewport={"width":390,"height":844}, has_touch=False, is_mobile=False)
     pg = await ctx.new_page(); errs = []; failures = []

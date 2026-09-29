@@ -21,7 +21,7 @@ import asyncio
 import pathlib
 import re
 
-from common import SETTLED, Journal, open_page
+from common import SETTLED, Journal, open_page, chrome_launch_args
 from playwright.async_api import async_playwright
 
 SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
@@ -46,7 +46,7 @@ MEASURE = """() => {
 async def main():
     journal = Journal("R232 — the bar draws its buttons at 1/n, 2 to 4, no empty slot")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         context, page = await open_page(browser)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
