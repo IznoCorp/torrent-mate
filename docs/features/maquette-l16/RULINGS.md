@@ -66,3 +66,9 @@ The steward's rulings on this lot's STOPs, numbered, one per STOP. The operator'
    « marked seen individually »). **Ruled A**: « Vu » / « Vue » in `fr.json`; the hold reads the row
    staying, the unseen count down by one, and the write asked once; the mutation « success without the
    write » falls by name. `poseBrokenObligation` announced under RULINGS 7.
+9. **2026-09-29, phase 11, STOP A / STOP D.** (1) The « ⋮ » sheet's title « Veille et obligations » would
+   promise what the sheet no longer shows once its two ratio facts leave. **Ruled A**: the title reads
+   « Veille », `meta` unchanged (NE-DOIT-PAS-1); the oracle divergence is the panel's own state, declared
+   by name. (2) The plan's dated line in L22's DESIGN cannot land: `docs/features/maquette-l22/` died at
+   #627. **Ruled**: a ledger line and a dated line in phase 11's plan; phase 17 carries it, the steward
+   brings it to L16's closing docs pull request if needed.

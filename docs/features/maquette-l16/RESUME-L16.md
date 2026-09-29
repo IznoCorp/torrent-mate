@@ -8,14 +8,14 @@
 - **Orchestrator** « Orch : TM frontend [79475d] »; always write the reference. Gauge:
   `context-gauge.sh`, its `context_percent=` and `source=` lines in every report. Context gate 80 %, exit ~75 %
   (the brief's dated line of 2026-09-29).
-- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 5c · 5d · 6a · 6b · 7 · 8 · 9 · 10 — each gated, mutated, pushed. MIDPOINT read. **Next: 11**
-  (`plan/phase-11-panel-more-drops-ratio.md`), not opened — re-measure it on this head.
-- **Remaining** (from `ls plan/`): 11 · 12 · 13 · 14 · 15 · 16 · 17.
+- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 5c · 5d · 6a · 6b · 7 · 8 · 9 · 10 · 11 — each gated, pushed. MIDPOINT read. **Next: 12**
+  (`plan/phase-12-card-deferred-reason.md`), not opened — its STOP D is known (see below).
+- **Remaining** (from `ls plan/`): 12 · 13 · 14 · 15 · 16 · 17.
   Known STOP D: 12 (ratio cause = global `ingest.min_ratio`; the seed),
   14 (no read of a config file's content in the maquette's contract).
 - **Rulings** (`RULINGS.md`) 1 `?list=` · 2 C2, save bar via `lib/save-bar-door.tsx` · 3 B, the filter line · 4 B1,
   Lanterns's sheet from its NFO + R1 bis · 5 B, `poseArrived` (Zinzins end to end) · 6 B, `poseExternalRemoval` (Ted Lasso) · 7 posed dials replace composed seeds
-  (STANDING: announce, no STOP, unless no real subject or a product behaviour changes) · 8 A, « Vu ».
+  (STANDING: announce, no STOP, unless no real subject or a product behaviour changes) · 8 A, « Vu » · 9 the sheet reads « Veille »; L22's note to phase 17.
 - **Rules** R260 `trackers_page.py` · R261 `trackers_roster.py` (holds 1–17) · R262 `trackers_policy.py` · R263
   `trackers_removal.py` (21, holds 1–10); R122 reads `torrents/row`; `audit.py` 14 holds; R229 re-aimed at 5d (16 holds); R264 `trackers_alert.py` (27, holds 1–11); R91 `fanout.py` 170.
   Next labels: g R265 (12) · f R266 (14) · e R267 (16); cuts R268+. Register B-570 taken (check-live-relay's
@@ -281,3 +281,10 @@
   Trackers tab counts the sum of the components, 2 »; the rules unregistered → R91 FAIL « trackers: RatioMeasured
   refreshes something — 0 of 56 »; RatioMeasured unclaimed → FAIL « a RatioMeasured event above the threshold moves
   the badge » (`p10-mutation1–3.log`). Order 73 received.
+- 2026-09-29 — phase 11 (≈ 4, no rule, as planned): STOP A (the title would lie) + STOP D (L22's DESIGN is gone)
+  → RULINGS 9. « Ratio global » / « Obligations en cours » removed from `panel-more.ts` and `fr.json`, the title
+  « Veille », the header rewritten (why the facts left). Static 10/10, typecheck 0. Oracle alone: `sheet-more` on
+  `shell/sheet-content` only, declared by script, proved. Rules producers 48 · panel 60; a11y dark 0, light 88.
+  NOTE FOR PHASE 17: L22's DESIGN § 1.7 (`docs/features/maquette-l22/DESIGN.md@232a908ca`, l. 258) should read
+  « the panel's ratio facts leave at L16 (§ 18, phase 10) » — its folder died at #627. Slip: a gauge figure
+  written into a STOP message before it was measured (the measure then read the same 46).

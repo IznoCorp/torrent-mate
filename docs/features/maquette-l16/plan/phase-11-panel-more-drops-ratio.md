@@ -27,6 +27,9 @@ surface with its own badge, the constants have no reason left to stand: this pha
 
 A CLEAN-UP change: a fixture is removed once its replacement exists; nothing new is drawn.
 
+- **2026-09-29, served:** the title reads « Veille » (RULINGS 9); the note in L22's DESIGN cannot land — its folder
+  died at #627 — so it is carried by phase 17 and, if needed, the steward's closing docs pull request.
+
 ## No rule in this phase, and that is stated rather than skipped
 
 Removing two hard-coded lines from an existing panel proves nothing new — the panel's own existing
