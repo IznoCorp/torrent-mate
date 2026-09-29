@@ -150,6 +150,8 @@ Each phase is still re-measured at ITS opening on YOUR head; these are the facts
   series, 5 draws for a known-unstable rule the phase does not read; exit boundary ~55 %; a light run (`--rules`, one
   rule's mutation) is `--class rule`, browser kept for `--oracle` / `--a11y` and full suites.
 - **Your context**: the hook stops you at 60 % — at ~55 %, commit, push, rewrite the RESUME and stand down.
+  **2026-09-29, the steward's word**: the gate is 80 % (this worktree's `ORCHESTRATOR_CONTEXT_GATE=80`) — the
+  « ~55 % » and « 60 % » above no longer hold; stand down at ~75 %.
 - **The RESUME**: `docs/features/maquette-l16/RESUME-L16.md` = a STATE BLOCK of at most 40 lines (rewritten at every
   boundary) + an APPEND-ONLY ledger below it. No register row for an unshipped defect: a ledger line on the phase
   instead; a register row a phase closes is closed in that phase, with the rule's red reading and its mutation.

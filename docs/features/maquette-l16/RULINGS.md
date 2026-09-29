@@ -34,3 +34,12 @@ The steward's rulings on this lot's STOPs, numbered, one per STOP. The operator'
    OUT LOUD, not weakened — a sheet is filled with an overview and genres — and a new hold R1 bis reads
    that a castless sheet draws no cast strip and says « Distribution inconnue. » (condition 2 corrected by
    the steward: saying the absence is an answer, § 8). No product change, no new state.
+5. **2026-09-29, phase 5c, STOP D — R229's « arrived unfollowed series » loses its only subject.** With Zinzins
+   out of `moving.json`, « En vol » holds two followed series and two films; the settled series stand past
+   « rangé » and are never drawn there. Readings: A (holds 2 and 4 re-aimed on the one-off season), B (A's
+   Zinzins before arrival, plus a POSED arrival of the same real subject), C (a composed `moving` row).
+   **Ruled B**: `poseArrived` follows `poseTunnelError` / `poseUnknownIdentity`, a derivation declared as one in
+   its state and in R229's docstring, never a new seed; Zinzins end to end — before arrival in « Torrents »,
+   without « Suivre », absent from « En vol »; after, an « En vol » card with its « Suivre » foot, a tap +1 once;
+   holds 2 and 4 re-aimed out loud with their successor named; hold 6 unchanged. C refused: a row the real data
+   does not hold. Cut 5c / 5d, each ≤ 15.

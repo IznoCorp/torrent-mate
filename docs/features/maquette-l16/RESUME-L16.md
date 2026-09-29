@@ -178,3 +178,23 @@
   three test files 150 passed. Rule kept: the static list runs again after ANY harness edit, before a push.
 - 2026-09-29 — 5c opening measure ≈ 14 (above); stand-down on the steward's word at gauge 43 %, every phase
   pushed, tree clean. The successor opens 5c on this measure.
+- 2026-09-29 — successor session (« Agent : l16 3 »): handshake; the brief's « § Amendment 23:27 » is its « orders
+  58, 59, 65, 67a, 70 » paragraph (steward's word), context gate 80 %, exit ~75 %. Merged `origin/main` `e65130ab1`
+  (#628 office, #629 heavy), no conflict, pushed `041830709`. Slip B-384: one read-only `cd` into
+  `design/src/mocks/seeds` chained in a command, nothing written or run there — the rule: no `cd` into design/src,
+  even read-only, even chained.
+- 2026-09-29 — 5c opening: the predecessor's R229 successor (« Pan Am 103 », « Smiling Friends ») is FALSE — a
+  settled folder stands at « verified » pending (`staging.ts` SETTLED_AT), « rangé » done, so `slotArrivals` keeps it
+  out of « En vol », and the offer is drawn on « En vol » alone (`now-tab.tsx`). STOP D → RULINGS 5 = B
+  (`poseArrived`). Cut 5c (Torrents side) / 5d (« En vol » side), announced. « En vol » readers GREEN before
+  (`p05c-readers-before.log`): requester_line 14 · abandon_quarantines 15 · scroll_keeps_place 40 · audit2 13 ·
+  content 27 · now_holds_in_flight 8 · one_card_per_medium 6 · one_ladder 44 · release_take_sentence 5 ·
+  follow_offered 13 · release_candidates 4; `actions.py`, `ident.py` print no hold count, not counted.
+- 2026-09-29 — 5c: R261 hold 17 RED (`p05c-red.log`: « the seeds hold an entry the client is still downloading —
+  ['seeding'] »). Zinzins COMPOSED into `downloads.json` (real: title, ids, S03E14, 0.34; composed: infoHash = sha1
+  of the name, release name, 1.2 GB, c411, origin, ratio 0, no deadline, no eta). Oracle alone: 10 keys, 5 states ×
+  (`shell/page`, `trackers/body`), one row taller; declared by script (7 states, `trackersTab: "torrents"`),
+  proved (`p05c-accept-proof.log`). Hold 17 first read the title by equality — the row draws « title · S03E14 »;
+  re-read as its opening. Rules R261 64 · R263 15 · R122 13 · audit 14 · audit2 13 · R260 27 · R262 14 · page_host
+  42, 0 failed; a11y dark 0, light 88. Mutation Zinzins's row dropped → FAIL « « Les Zinzins de l'Espace »,
+  downloading, is a row of « Torrents » under its own title — None » (`p05c-mutation.log`). Pushed `3b822cf55`.
