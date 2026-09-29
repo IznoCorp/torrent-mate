@@ -186,7 +186,9 @@ reaches him.
    completes in seconds, live since order 35.
 5. **One repair train per day** — one brief, one worktree, one agent, one gate for the day's repairs — never one micro-wave
    per bug.
-6. **Two agents in parallel at most** on this 16 GB machine.
+6. **Three agents at most, ONE on the harness lock at a time** — the other two without it (drawing, reading,
+   documents); back to two while load > 8 or free memory < 2 GB with a third running (amended 2026-09-29, operator,
+   « A »; order 68: L22b measured 1.27 phase/h alone against 0.81–0.87 beside another harness agent).
 7. **L13 — the engine's death — is next**, once the in-flight waves land.
 8. **The agents' gate is 80 %, not the skill's ~60 %** — measured with `orchestrator:context-gauge`, never estimated,
    and read before every dispatch: an implementer past it is rotated at its unit boundary rather than
@@ -238,6 +240,14 @@ reaches him.
     `--compare` + the pre-push pytest. Measured: 11 259 tests ran three times before #596 for 0 defects
     outside the harness. This crosses `CLAUDE.md` § Phase Gate Checklist item 3 (« `make check` ») as
     written for the `implement:phase` flow — amended there for maquette waves, dated the same word.
+21. **Auto-merge is armed by the steward, never waited on** — the moment a pull request is open and its diff
+    verified on the artifact, `gh pr merge <n> --auto --squash --match-head-commit <sha>`, re-armed if the head
+    moves; never wait for CI to merge by hand. `allow_auto_merge` is `true` on the repository (enabled
+    2026-09-29). An implementer does not arm it (order 56, amended 2026-09-29 ~19:10, operator, verbatim, said
+    three times: « pourquoi on attend, on est en PR auto merge […] je souhaite que le problème soit réglé
+    maintenant et une fois pour toute pour l'auto merge des PRs »).
+22. **A lot's scope freezes at its opening** — a ruling that arrives during the lot goes to the next lot, unless
+    it changes a surface under construction or unblocks a STOP (order 69).
 
 **Order 42's own fate (auditor, on L13c, 2026-09-15/16).** Nine opening measures written ahead of the
 first phase's spawn, one per phase (c·1 ≈ 6 … c·9 ≈ 5, mean ≈ 6.9, none past measure 11's 15-point
