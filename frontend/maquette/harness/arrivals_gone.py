@@ -16,7 +16,12 @@ WHAT IS READ:
   4. `/arrivals` loaded cold draws the not-found page, and the address stays as
      typed — no redirect;
   5. the bar draws exactly the pages the table puts in it — Acquisition, the
-     Médiathèque and « Découvrir » — and R232 holds each at a third.
+     Médiathèque, « Trackers » and « Découvrir » — and R232 holds each at a
+     quarter.
+
+RE-AIMED OUT LOUD: hold 5 read a bar of three, and « Trackers »
+joins it between the Médiathèque and « Découvrir » (organisation ruling 20). What
+this rule holds is unchanged — the bar is the table's, and Arrivées is in neither.
 """
 import asyncio
 import json
@@ -34,7 +39,7 @@ SHIPPED = [path for path in SOURCE.rglob("*") if path.suffix in {".ts", ".tsx"}
 ROW_IDS = re.findall(r'\bid: "([^"]+)",', TABLE)
 IN_BAR = [identifier for identifier, flag
           in re.findall(r'\bid: "([^"]+)",.*?\binBar: (true|false)', TABLE, re.S) if flag == "true"]
-THE_BAR_WANTED = ["acq", "lib", "discover"]
+THE_BAR_WANTED = ["acq", "lib", "trackers", "discover"]
 
 FRAME = """()=>({
   bar: [...document.querySelectorAll('#nav button[data-page]')].map((one) => one.dataset.page),
@@ -64,7 +69,7 @@ async def main():
         await page.evaluate("()=>document.querySelector('[data-drawer]')?.click()")
         await page.wait_for_timeout(SETTLED)
         frame = await page.evaluate(FRAME)
-        journal.check("the bar offers no « arr » button, and draws exactly the table's three",
+        journal.check("the bar offers no « arr » button, and draws exactly the table's four",
                       frame["bar"] == THE_BAR_WANTED, str(frame["bar"]))
         journal.check("the drawer offers no « arr » entry", "arr" not in frame["drawer"],
                       str(frame["drawer"]))

@@ -934,7 +934,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Read one configuration file's content
+         * @description A configuration file, parsed — the read its editors open on (the ranking editor opens `ranking.json5`). The backend answers it already; the maquette's contract declared only the write.
+         */
+        get: operations["readConfigurationFile"];
         /** Write one configuration file */
         put: operations["updateConfigurationFile"];
         post?: never;
@@ -1104,6 +1108,117 @@ export interface paths {
          * @description Demand E (OPEN 9, ruled B), the Plex match's correction verb: only a match that DISAGREES with the identity held waits in « À traiter ». « Confirmer » says the match is the medium: the card leaves « À traiter » and « vérifié dans Plex » is done. « Corriger » sends the correction carrying the identity HELD — no candidates screen — and the card stays in « À traiter », its last rung not done, until Plex's corrected match is checked. IN THE MAQUETTE THE DISAGREEMENT IS POSED, NOT READ (RULINGS 24): the backend compares Plex's real match with the identity held.
          */
         post: operations["resolvePlexMatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/acquisition/obligations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every seeding obligation, open or ended */
+        get: operations["readObligations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/acquisition/downloads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every entry the download client holds, one per tracker it is active on */
+        get: operations["readDownloads"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/acquisition/downloads/{infoHash}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove one entry from the download client, its files deleted or kept
+         * @description « Retirer de qBittorrent » (organisation ruling 18; round 10 Q3 = B): the operator's own gesture on a torrent's entry, replacing any release of an obligation. `deleteFiles` is checked by default in the confirmation. A running obligation the entry owed is CLOSED — its `releasedAt` set, never left reading in breach (round 10 M4).
+         */
+        delete: operations["removeDownload"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/trackers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every configured tracker, its ratio, volumes, trend, alert threshold and health */
+        get: operations["readTrackers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/trackers/{tracker}/broken-obligations/{infoHash}/seen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark one broken obligation of a tracker seen
+         * @description « Vu » on a broken obligation (round 10 Q4): the engine broke it and its torrent has already left the client. Marked seen, it leaves the alert's count and stays listed on its tracker's entry — seen is not gone.
+         */
+        post: operations["markBrokenObligationSeen"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/acquisition/ranking/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Score the preview's fixed sample set under a candidate ranking
+         * @description The ranking editor's live preview: read-only and pure — the backend's fixed, representative sample set scored under the POSTed ranking, every sample kept visible, the ones under `minSeeders` flagged `excluded` and sunk last.
+         */
+        post: operations["previewRanking"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1543,8 +1658,12 @@ export interface components {
             state: "done" | "now" | "waiting" | "blocked" | "aside" | "skipped" | "pending";
             /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             when: string;
-            /** @description why the rung is blocked or waiting, as a token, when it is */
+            /** @description why the rung is blocked or waiting, as a token, when it is — among them the engine's three deferral causes of a finished torrent not taken in (DOIT-2): `ratio_below_threshold`, `insufficient_space`, `content_missing` */
             reason?: string;
+            /** @description for a ratio deferral, the tracker whose ratio is under its own threshold. A DEMAND: `classify_deferrals` (personalscraper/ingest/deferral.py) answers the cause alone */
+            tracker?: string | null;
+            /** @description for a ratio deferral, THAT tracker's own threshold (its economy block's `min_ratio`). A DEMAND: the engine defers on the global `ingest.min_ratio` (deferral.py:73); the next version reads the tracker's own, which is what the interface names */
+            minimumRatio?: number | null;
             /** @description the pipeline steps this rung merges, in order — carried by « rangé » alone */
             steps?: components["schemas"]["JourneyStage"][];
         };
@@ -1754,6 +1873,236 @@ export interface components {
         PlexMatch: {
             title: string;
             ids?: components["schemas"]["ProviderIds"] | null;
+        };
+        /** @description a seeding obligation a grab owes the tracker it came from — the backend's `ObligationItem`, field for field; its three terminal instants are the MARKS a torrent's own row carries, never a second list */
+        Obligation: {
+            /** @description the torrent the obligation is owed on */
+            infoHash: string;
+            /** @description the tracker the obligation is owed to */
+            sourceTracker: string;
+            /** @description the title the engine composes for it, or null when it resolves none */
+            title: string | null;
+            /** @description where the dispatch put the files, or null before it did */
+            dispatchedPath: string | null;
+            /** @description the ratio floor owed, read from the tracker's economy when the grab happened */
+            minimumRatio: number;
+            /** @description the seed time owed, in seconds */
+            minimumSeedTimeSeconds: number;
+            /** @description the tracker's ratio as last observed, or null when never observed */
+            observedRatio: number | null;
+            /** @description the seed time accumulated so far, or null when never observed */
+            accumulatedSeedTimeSeconds: number | null;
+            /** @description the tracker's hit-and-run count as last observed, or null when never observed */
+            hitAndRunCount: number | null;
+            /** @description when the obligation began, Unix-epoch seconds */
+            addedAt: number;
+            /** @description when it was met, Unix-epoch seconds, or null */
+            satisfiedAt: number | null;
+            /** @description when it was broken, Unix-epoch seconds, or null */
+            breachedAt: number | null;
+            /** @description when it ended early — a removal confirmed in the app always sets this — Unix-epoch seconds, or null */
+            releasedAt: number | null;
+        };
+        /** @description every seeding obligation the engine holds */
+        Obligations: {
+            /** @description the obligations, newest first */
+            items: components["schemas"]["Obligation"][];
+        };
+        /** @description one qBittorrent ENTRY on one tracker — a torrent cross-seeded onto two trackers is two entries. The backend's `AcquisitionDownload` extended with the tracker it runs on, its ratio there, its deadline and whether it is the origin grab (a demand: none of the four exists) */
+        Download: {
+            /** @description the entry's own hash */
+            infoHash: string;
+            /** @description the torrent's name in the client */
+            name: string;
+            /** @description the medium's title */
+            title: string;
+            /**
+             * @description what the entry carries
+             * @enum {string}
+             */
+            kind: "movie" | "episode" | "season";
+            /** @description the season, or null for a movie */
+            season: number | null;
+            /** @description the episode, or null for a movie or a season pack */
+            episode: number | null;
+            /**
+             * @description the client's state, in the backend's own tokens
+             * @enum {string}
+             */
+            state: "downloading" | "stalled" | "seeding" | "paused" | "queued" | "in_client" | "missing" | "errored";
+            /** @description how much is downloaded, from 0 to 1 */
+            progress: number;
+            /** @description the torrent's size */
+            sizeBytes: number;
+            /** @description the time left to download, or null when none is running */
+            etaSeconds: number | null;
+            /** @description why the client refuses it, or null */
+            errorReason: string | null;
+            /** @description the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it */
+            ids: components["schemas"]["ProviderIds"] | null;
+            /** @description the tracker this entry is active on */
+            tracker: string;
+            /** @description true for the torrent's origin grab, false for a cross-seed of the same files */
+            origin: boolean;
+            /** @description the entry's ratio on THIS tracker, computed on the torrent's own size — so a cross-seed never divides by zero */
+            ratio: number;
+            /** @description when the obligation on this entry is met by seed time, Unix-epoch seconds, or null when none is owed */
+            deadline: number | null;
+        };
+        /** @description every entry the download client holds */
+        Downloads: {
+            /** @description whether the client answered */
+            clientAvailable: boolean;
+            /** @description one per entry, never folded */
+            downloads: components["schemas"]["Download"][];
+        };
+        /** @description an obligation the ENGINE broke whose torrent has already left the client — kept, never lost, until the operator marks it seen */
+        BrokenObligation: {
+            /** @description the torrent it was owed on */
+            infoHash: string;
+            /** @description the title the engine composes for it */
+            title: string;
+            /** @description when it was broken, Unix-epoch seconds */
+            brokenAt: number;
+            /** @description whether the operator marked it seen; seen is not gone */
+            seen: boolean;
+        };
+        /** @description one configured tracker as its own subject — nothing in the backend answers a tracker today (a demand) */
+        Tracker: {
+            /** @description the tracker's configured name */
+            name: string;
+            /** @description the account's ratio on this tracker, never averaged with another, or null before anything was downloaded there */
+            ratio: number | null;
+            /** @description the account's Download volume on this tracker */
+            downloadedBytes: number;
+            /** @description the account's Upload volume on this tracker */
+            uploadedBytes: number;
+            /**
+             * @description where the ratio is heading
+             * @enum {string}
+             */
+            trend: "up" | "stable" | "down";
+            /** @description the ratio under which the tracker is in alert — its own setting, distinct from the floor and the target — or null when none is set */
+            alertThreshold: number | null;
+            /** @description since when the tracker refuses the configured identifier, Unix-epoch seconds, or null when it accepts it */
+            identifierRefusedSince: number | null;
+            /** @description the obligations the engine broke on this tracker, their torrent gone */
+            brokenObligations: components["schemas"]["BrokenObligation"][];
+        };
+        /** @description a size-or-count threshold and the score it awards */
+        RankingThreshold: {
+            /** @description the threshold — bytes for a size, a count for seeders */
+            at: number;
+            /** @description the score awarded when the field meets it */
+            score: number;
+        };
+        /** @description ONE criterion of the acquisition ranking: the field it scores, its weight, and either a score per value (a categorical field) or thresholds (a numeric one) */
+        RankingCriterion: {
+            /** @description the release field it scores — `resolution`, `codec`, `language`, `source`, `provider`, `seeders`, `sizeBytes`, or `trackerRatioState` */
+            field: string;
+            /** @description the multiplier applied to its score */
+            weight: number;
+            /** @description a score per value, for a categorical field, matched without regard to case */
+            values?: {
+                [key: string]: number;
+            } | null;
+            /** @description ordered thresholds, for a numeric field */
+            thresholds?: components["schemas"]["RankingThreshold"][] | null;
+            /**
+             * @description for thresholds, whether higher or lower is better
+             * @enum {string|null}
+             */
+            prefer?: "higher" | "lower" | null;
+        };
+        /** @description points added for a release's economy */
+        RankingBonuses: {
+            /** @description added to a freeleech release */
+            freeleech: number;
+            /** @description added to a silverleech release */
+            silverleech: number;
+        };
+        /** @description the acquisition ranking: its criteria, the seeders under which a release is excluded, and the bonuses */
+        RankingConfig: {
+            /** @description every criterion, in order */
+            criteria: components["schemas"]["RankingCriterion"][];
+            /** @description a release with fewer seeders is excluded */
+            minSeeders: number;
+            bonuses: components["schemas"]["RankingBonuses"];
+        };
+        /** @description one release of the preview's FIXED, representative set — the backend's own `_ranking_preview_samples`, as the trackers would parse it */
+        RankingSample: {
+            /** @description the release's title */
+            title: string;
+            /** @description the tracker it stands for */
+            provider: string;
+            /** @description its size */
+            sizeBytes: number;
+            /** @description its seeders */
+            seeders: number;
+            /** @description its leechers */
+            leechers: number;
+            /** @description whether it is freeleech */
+            freeleech: boolean;
+            /** @description its resolution token */
+            resolution: string | null;
+            /** @description its video codec token */
+            codec: string | null;
+            /** @description its media source token */
+            source: string | null;
+            /** @description its language marker */
+            language: string | null;
+        };
+        /** @description one sample release scored under the ranking asked for */
+        RankingPreviewRelease: {
+            /** @description the release's title */
+            title: string;
+            /** @description the tracker it stands for */
+            provider: string;
+            /** @description its size */
+            sizeBytes: number;
+            /** @description its seeders */
+            seeders: number;
+            /** @description its leechers */
+            leechers: number;
+            /** @description whether it is freeleech */
+            freeleech: boolean;
+            /** @description its resolution token */
+            resolution: string | null;
+            /** @description its video codec token */
+            codec: string | null;
+            /** @description its media source token */
+            source: string | null;
+            /** @description its language marker */
+            language: string | null;
+            /** @description its score under that ranking */
+            score: number;
+            /** @description whether it has fewer seeders than the ranking's `minSeeders` — shown, sunk last, never dropped */
+            excluded: boolean;
+            /**
+             * @description where its tracker's ratio stands against that tracker's own economy — under its floor (`min_ratio`), under its target, or comfortable; null when the tracker has no policy. A DEMAND: `TrackerResult` carries no ratio-derived field (personalscraper/api/tracker/_base.py:58), so no criterion can score it today; `rank()` needs nothing else, a criterion naming this field scores it the way `provider` is scored
+             * @enum {string|null}
+             */
+            trackerRatioState: "under_floor" | "under_target" | "comfortable" | null;
+        };
+        /** @description the sample set, scored and ordered: the releases kept by score, the excluded ones last */
+        RankingPreview: {
+            /** @description every sample, scored, in the order the ranking puts them */
+            ranked: components["schemas"]["RankingPreviewRelease"][];
+            /** @description the configured trackers — the values a tracker-keyed criterion is offered */
+            knownTrackers: string[];
+        };
+        /** @description one configuration file's content, as the file holds it */
+        ConfigurationFileContent: {
+            /** @description the file's name */
+            name: string;
+            /** @description its parsed JSON5 content, keyed by its top-level keys */
+            values: {
+                [key: string]: unknown;
+            };
+            /** @description the SHA-256 of the file as it lies on disk — what a write compares against */
+            digest: string;
+            /** @description the keys of this file overridden by `local.json5` */
+            shadowedKeys: string[];
         };
     };
     responses: {
@@ -3561,6 +3910,33 @@ export interface operations {
             503: components["responses"]["Problem"];
         };
     };
+    readConfigurationFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the file's name */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the file's content */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigurationFileContent"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+        };
+    };
     updateConfigurationFile: {
         parameters: {
             query?: never;
@@ -3915,6 +4291,183 @@ export interface operations {
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
+        };
+    };
+    readObligations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the obligations */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Obligations"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    readDownloads: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the entries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Downloads"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    removeDownload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the entry's own hash */
+                infoHash: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description whether the entry's files leave the disk with it */
+                    deleteFiles: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description it has left the client */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description the hashes of the entries that left the client */
+                        removed: string[];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    readTrackers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the trackers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Tracker"][];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    markBrokenObligationSeen: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the tracker's configured name */
+                tracker: string;
+                /** @description the torrent the obligation was owed on */
+                infoHash: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description it is marked seen */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrokenObligation"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+        };
+    };
+    previewRanking: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RankingConfig"];
+            };
+        };
+        responses: {
+            /** @description the samples, scored and ordered */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RankingPreview"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
         };
     };
 }

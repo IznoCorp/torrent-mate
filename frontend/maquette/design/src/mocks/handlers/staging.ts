@@ -3,7 +3,7 @@
 import DESTINATIONS from "../seeds/staging-destinations.json";
 import { DELETE, GET, POST, route, text } from "./shared";
 import { mockState } from "../state";
-import { FROM_BLOCKED, FROM_DENSE, FROM_REAL, SOURCE_LISTS, copiesOf, takeOutOfStaging } from "./staged-folders";
+import { FROM_BLOCKED, FROM_DENSE, FROM_REAL, SOURCE_LISTS, arrivedOnly, copiesOf, takeOutOfStaging } from "./staged-folders";
 import { scenario } from "../scenario";
 import { refused, type MockRequest, type MockRoute } from "../router";
 import { confirmInPlex, forgetLadder, ladderOf, rungIndex, stripPosition, type Origin, type Position } from "./ladder";
@@ -216,7 +216,7 @@ export function poseDisagreement(title: string, match: NonNullable<QueueCard["pl
 export function arrivalsOf(dense: boolean): QueueCard[] {
   const state = mockState();
   const lists: [QueueCard[], (card: QueueCard) => Position | undefined][] = dense
-    ? [[state.stuckLoaded, () => STUCK_AT], [state.moving, moving], [state.settledLoaded, settled]]
+    ? [[state.stuckLoaded, () => STUCK_AT], [arrivedOnly(state.moving), moving], [state.settledLoaded, settled]]
     : [[state.stuck, () => STUCK_AT], [state.movingReel, moving], [state.settled, settled]];
   // A TUNNEL ERROR IS A STEP NO PICK UNBLOCKS: a row a pending decision names
   // is resolved by that decision, whatever step it stopped at.
@@ -275,7 +275,7 @@ export function stagingRoutes(): MockRoute[] {
       if (request.query.get("scenario") === LOADED) {
         return {
           stuck: state.stuckLoaded,
-          moving: state.moving,
+          moving: arrivedOnly(state.moving),
           settled: state.settledLoaded.map(served),
         };
       }

@@ -50,6 +50,8 @@ and mocked (F11), and this phase's first job is establishing that rather than as
   the STOP D above, on the SAME question moved one level: not « what address », but « what composes »
   (DESIGN § 3).
 
+**STOP D ruled 2026-09-28 (RULINGS 2 = C2):** each field is a row raising the settings page's own `setting` panel; the settings save bar is drawn on « Trackers » through `lib/save-bar-door.tsx`, which the settings feature fills — no `trackers/policy-save` of the entry's own, and `trackers-policy-unset` is the tr4ker entry, which has no economy block (no new seed row for it).
+
 A BEHAVIOUR change: no surface offers these three fields together anywhere today; this phase is the
 first to draw them beside the ratio they govern.
 

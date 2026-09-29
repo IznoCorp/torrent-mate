@@ -280,7 +280,7 @@ export function QualityScreen() {
           <button
             className={actionButton({ kind: "cardFoot" })}
             data-part="card/foot"
-            data-toast={t("screens.profile.rankingToast")}
+            data-ranking-editor=""
           >
             <Icon paths={icons.sort} />
             {t("screens.profile.rankingWeights")}

@@ -1,5 +1,6 @@
-// The settings' own words, held against the 160 the seed holds — 159 when the
-// engine rendered them, and the seventh scheduler since (B-327).
+// The settings' own words, held against the 161 the seed holds — 159 when the
+// engine rendered them, the seventh scheduler since (B-327), and a tracker's
+// alert threshold, the setting the « Trackers » page offers beside its floor.
 //
 // WHAT MAKES THIS NON-VACUOUS. The expected values are the `displayedValue`
 // strings COMMITTED IN THE SEED — extracted from `engine/legacy.js@c0a5062ac` by a declared
@@ -61,7 +62,7 @@ const WITH_PRECISION = new Set([
 
 describe("settingInWords", () => {
   it("has a corpus to compare", () => {
-    expect(FIELDS.length).toBe(160);
+    expect(FIELDS.length).toBe(161);
   });
 
   it("says every field exactly as the engine did", () => {

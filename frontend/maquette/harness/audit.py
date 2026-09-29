@@ -13,6 +13,13 @@ its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
 `__carriedFor` — the seed the served read answers from, published by the harness
 driver — and the hold count is unchanged.
 
+RE-AIMED OUT LOUD, and not weakened: R1's filled-in sheet no longer demands a
+cast. A provider can hold none — the real NFO of « Lanterns » carries a plot and
+genres and no <actor> at all, and the interface reads that NFO. A sheet is FILLED
+when it has an overview and genres; and a new hold, R1 bis, reads what a sheet
+without a cast draws: no cast strip (`[data-part="cast"]`) and the sentence that
+says the cast is unknown (`[data-part="no-info"]`) — an answer, never a hole.
+
 RE-AIMED when the follows took the contract's names: a follow's title, kind and
 status are read as `title`, `kind` and `status` (and `owned`), where they were
 the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
@@ -50,10 +57,11 @@ async def main():
     executed = set()
     def ran(*rules):
         executed.update(rules)
-    EXPECTED_RULES = 13
+    EXPECTED_RULES = 14
 
     print(f"{BAR}\nAdversarial review — {len(states)} states\n{BAR}")
 
+    castless = set()
     for e in states:
         await pg.evaluate("(i)=>window.__go(i)", e); await pg.wait_for_timeout(280)
         ran('R1','R2','R3','R4','R4bis','R5','R6','R6bis','R7','R22','R23')
@@ -81,7 +89,10 @@ async def main():
 
           // R1 — every tappable poster leads to a FILLED-IN sheet
           R.hollowSheets = [...root.querySelectorAll('[data-mediasheet]')].map(el=>el.dataset.mediasheet)
-            .filter(t=>{const f=window.__sheetOf(t); return !f || !f.overview || !f.genres || !(f.cast||[]).length;});
+            .filter(t=>{const f=window.__sheetOf(t); return !f || !f.overview || !f.genres;});
+          // R1 bis's subjects: a filled-in sheet whose cast is empty.
+          R.castless = [...root.querySelectorAll('[data-mediasheet]')].map(el=>el.dataset.mediasheet)
+            .filter(t=>{const f=window.__sheetOf(t); return f && f.overview && f.genres && !(f.cast||[]).length;});
 
           // R2 — HARDENED: a button must have a declared DESTINATION, not
           // merely a known class. Whitelisting by class blessed every sheet
@@ -256,6 +267,8 @@ async def main():
           }
           return R;
         }""", e)
+        for title in r.pop("castless", []):
+            castless.add(title)
         for k, v in r.items():
             if k == "irregularOptions":
                 for x in v: note("R23 inconsistent option group", f"{e} : {x}")
@@ -332,6 +345,22 @@ async def main():
       return out;}""")
     ran('R10')
     for x in inert: note("R10 action with no effect", x)
+
+    # R1 bis — a sheet with no cast SAYS so: no cast strip, the no-info sentence.
+    ran('R1bis')
+    if not castless:
+        note("R1 bis a sheet without cast says so", "no sheet without a cast was drawn: the hold has no subject")
+    for title in sorted(castless)[:3]:
+        drawn = await pg.evaluate("""async (title)=>{
+          window.__screens.mediaSheet(title, window.__carriedFor(title) ?? undefined);
+          await new Promise(r=>setTimeout(r,700));
+          const screen = document.querySelector('[data-part="screen"][data-open][data-key]');
+          return screen === null ? null : {
+            strip: screen.querySelector('[data-part="cast"]') !== null,
+            said: screen.querySelector('[data-part="no-info"]') !== null };
+        }""", title)
+        if not drawn or drawn["strip"] or not drawn["said"]:
+            note("R1 bis a sheet without cast says so", f"« {title} » : {drawn}")
 
     print()
     if not violations and not errs:

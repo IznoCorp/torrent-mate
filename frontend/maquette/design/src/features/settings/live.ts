@@ -18,6 +18,7 @@ export const settingsLiveExemptions: LiveExemptions = {
     "/api/config/schema",
     "/api/config/secrets",
     "/api/config/status",
+    "/api/config/files/ranking.json5",
   ],
   because:
     "the configuration changes when someone edits it, and the interface that "
@@ -26,5 +27,6 @@ export const settingsLiveExemptions: LiveExemptions = {
     + "forbids more strongly than it asks for freshness. The STATUS is the "
     + "same answer one level up — whether this instance may write, and whether "
     + "a restart is owed — and it moves for one reason only: a write this "
-    + "interface just made, which invalidates it where it is made",
+    + "interface just made, which invalidates it where it is made. A file's "
+    + "content (the ranking editor's) is the same configuration, read whole",
 };

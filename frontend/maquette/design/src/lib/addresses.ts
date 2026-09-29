@@ -20,6 +20,7 @@
 export const PAGE_PATHS: Readonly<Record<string, string>> = {
   acq: "/acquisition",
   lib: "/media",
+  trackers: "/trackers",
   discover: "/discover",
   sys: "/system",
   maint: "/maintenance",
@@ -74,6 +75,7 @@ export const SCREEN_PARENTS: Readonly<Record<string, string>> = {
   "/releases/$title": "acq",
   "/resolution/$folder": "acq",
   "/run/$runUid": "sys",
+  "/settings/ranking": "cfg",
 };
 
 /** The screen paths alone, for the readers that need the list rather than the
@@ -137,6 +139,8 @@ const DIALS = [
   { parameter: "mode", field: "libMode", default: "grid", of: "lib" },
   { parameter: "cat", field: "libCat", default: "all", of: "lib" },
   { parameter: "topic", field: "maintTopic", default: "", of: "maint" },
+  { parameter: "list", field: "trackersTab", default: "trackers", of: "trackers" },
+  { parameter: "tracker", field: "trackersFilter", default: "", of: "trackers" },
 ] as const;
 
 /** The parameter the addressed panel travels under — D1's second tier. It

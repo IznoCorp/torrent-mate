@@ -53,8 +53,20 @@ export let followedTitles: (() => string[]) | undefined;
 export let replaceAddress: (() => boolean) | undefined;
 /** Opening the panel an element addresses — the press reads it while the gesture is still the engine's. */
 export let openAddressedPanel: ((element: Element) => void) | undefined;
-/** What a page puts back at its default when a landing arrives on it — or at the dial the landing names — filled by the page's own feature. */
-export let resetLandingDial: ((page: string, dial?: string) => void) | undefined;
+/* Every feature's landing door, in the order they were filled. */
+const landingDoors: ((page: string, dial?: string) => void)[] = [];
+
+/**
+ * What a page puts back at its default when a landing arrives on it — or at the
+ * dial the landing names — asked of every feature that filled a landing door;
+ * each answers for its own pages and ignores the others.
+ *
+ * @param page The page landed on.
+ * @param dial The dial the landing names, if any.
+ */
+export function resetLandingDial(page: string, dial?: string): void {
+  for (const door of landingDoors) door(page, dial);
+}
 /** The history primitives the navigation logic speaks through. */
 export let bridge: Window["__bridge"];
 /** The screen openers. */
@@ -139,7 +151,7 @@ export function fillAddressedPanelDoor(open: (element: Element) => void): void {
  *     with the dial the landing names, if any.
  */
 export function fillLandingDoor(land: (page: string, dial?: string) => void): void {
-  resetLandingDial = land;
+  landingDoors.push(land);
 }
 
 /**

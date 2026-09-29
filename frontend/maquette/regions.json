@@ -182,6 +182,10 @@
       "selector": "[data-region=\"discover/body\"]",
       "note": "the « Découvrir » page: what is proposed to follow, as posters, a list or a deck"
     },
+    "trackers/body": {
+      "selector": "[data-region=\"trackers/body\"]",
+      "note": "the « Trackers » page: its two tabs, « Torrents » and « Trackers »"
+    },
     "system/body": {
       "selector": "[data-region=\"system/body\"]",
       "note": "services, schedulers, disks, index, dependencies, code errors"
@@ -221,6 +225,10 @@
     "screen-resolution/body": {
       "selector": "[data-region=\"screen-resolution/body\"]",
       "note": "resolving a stuck folder"
+    },
+    "screen-ranking/body": {
+      "selector": "[data-region=\"screen-ranking/body\"]",
+      "note": "the ranking editor's content — its criteria and weights, the save, and the live preview"
     },
     "system/locks": {
       "selector": "[data-region=\"system/locks\"]",

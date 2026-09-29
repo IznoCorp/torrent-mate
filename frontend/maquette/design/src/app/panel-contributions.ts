@@ -52,6 +52,8 @@ import "../features/acquisition/add-verbs";
 // And the library's verbs: the lens, the category, the layout, the sort, the
 // search's clear cross, the selection and the removals.
 import "../features/library/verbs";
+// And the « Trackers » page's: its tab, a setting of the page.
+import "../features/trackers/verbs";
 // And Configuration contributes verbs beside its panels: the rubric one,
 // moved off the engine's own delegation with the branch that answered it
 // (B-332), and the secrets' three — replacing a key, asking before cutting

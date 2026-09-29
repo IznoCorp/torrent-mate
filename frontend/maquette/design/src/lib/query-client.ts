@@ -242,6 +242,26 @@ export async function read<Result>(
 }
 
 /**
+ * Reads an answer the contract carries by POST, because its question is a body.
+ *
+ * A READ, NOT A MUTATION: it changes nothing, so it never enters the outbox and
+ * carries no idempotency key — held offline, it would answer a question nobody
+ * is asking any more. It fails as `read` does, with the layer's real reason.
+ *
+ * @param path The contract address.
+ * @param question What the answer is computed from.
+ * @returns The parsed body.
+ * @throws RequestFailure When the layer refuses, carrying its real reason.
+ */
+export async function readByPost<Result>(path: ContractPath | (string & {}), question: unknown): Promise<Result> {
+  const answer = await globalThis.fetch(path, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(question) });
+  const body = await answer.json();
+  if (!answer.ok) throw body as RequestFailure;
+  return body as Result;
+}
+
+/**
  * Sends one mutation to an address the contract declares.
  *
  * @param method The method, upper case.

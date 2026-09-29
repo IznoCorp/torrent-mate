@@ -17,9 +17,11 @@ import { maintenanceRoute } from "../routes/maintenance";
 import { settingsRoute } from "../routes/settings";
 import { systemRoute } from "../routes/system";
 import { discoverRoute } from "../routes/discover";
+import { trackersRoute } from "../routes/trackers";
 import { mediaRoute } from "../routes/media-sheet";
 import { runRoute } from "../routes/run";
 import { qualityRoute } from "../routes/quality";
+import { rankingRoute } from "../routes/ranking";
 import { releasesRoute } from "../routes/releases";
 import { resolutionRoute } from "../routes/resolution";
 
@@ -66,6 +68,7 @@ export const router = createRouter({
     rootAddressRoute,
     acquisitionRoute,
     libraryRoute,
+    trackersRoute,
     discoverRoute,
     systemRoute,
     maintenanceRoute,
@@ -73,6 +76,7 @@ export const router = createRouter({
     accountRoute,
     // The screens, which do render.
     qualityRoute,
+    rankingRoute,
     runRoute,
     addRoute,
     mediaRoute,

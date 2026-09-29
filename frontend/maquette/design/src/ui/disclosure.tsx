@@ -16,16 +16,19 @@ import { disclosure } from "./variants";
  *
  * @param props.summary What the closed disclosure says — the control itself.
  * @param props.children What it folds away.
+ * @param props.open Whether it is drawn open.
  * @returns The disclosure.
  */
-export function Disclosure({ summary, children }: {
+export function Disclosure({ summary, children, open }: {
   /** What the closed disclosure says. */
   summary: ReactNode;
   /** What it folds away. */
   children: ReactNode;
+  /** Whether it is drawn open — an address may open it; a finger still folds it. */
+  open?: boolean;
 }): ReactElement {
   return (
-    <details className={disclosure()}>
+    <details className={disclosure()} open={open}>
       <summary>{summary}</summary>
       {children}
     </details>

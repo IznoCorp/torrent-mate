@@ -42,6 +42,11 @@ a route this lot's query can call), with the surface that names it (INDEX, « Wh
 A BEHAVIOUR change on an existing surface: the card says why it waits, for any of the three reasons,
 and where — for the ratio one.
 
+- **2026-09-29, corrected:** the opening measure above is WRONG — `deferral.py:73` reads the GLOBAL
+  `ingest.min_ratio` (RULINGS 10, a demand in the contract); « Voir le tracker » goes to
+  `/trackers?list=trackers&tracker=$name` (RULINGS 1), not `?tab=`; served as 12a (the causes) / 12b (the path);
+  the three causes are POSED on « This City Is Ours », the one card of « En vol » not yet arrived.
+
 ## The proof FIRST
 
 Its label R-L16-g is bound to the next free number, re-taken against `origin/main`.

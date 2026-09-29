@@ -19,6 +19,15 @@ export function drawerStates(): NamedState[] {
         openDrawer();
       },
     ],
+    [
+      "bar-trackers-alert",
+      "La barre — l'onglet Trackers porte le badge de l'alerte, hors de sa page, seuil POSÉ sur c411 (economy.alert_threshold : une demande, la clé manque au moteur)",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.poseAlertThreshold("c411", 1.5);
+        applyState({ page: "acq", acqTab: "follows", phase: "ready" });
+      },
+    ],
   ];
 }
 

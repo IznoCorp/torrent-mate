@@ -51,6 +51,10 @@
     {
       "name": "configuration",
       "description": "the settings and the secrets"
+    },
+    {
+      "name": "trackers",
+      "description": "the ratio, tracker by tracker"
     }
   ],
   "paths": {
@@ -3548,6 +3552,52 @@
       }
     },
     "/api/config/files/{name}": {
+      "get": {
+        "operationId": "readConfigurationFile",
+        "summary": "Read one configuration file's content",
+        "description": "A configuration file, parsed — the read its editors open on (the ranking editor opens `ranking.json5`). The backend answers it already; the maquette's contract declared only the write.",
+        "x-seeded-from": [
+          "CONFIGURATION_FILES"
+        ],
+        "tags": [
+          "configuration"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the file's name"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the file's content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigurationFileContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
       "put": {
         "operationId": "updateConfigurationFile",
         "summary": "Write one configuration file",
@@ -4220,6 +4270,329 @@
           }
         },
         "x-unseeded": "an acknowledgement naming the outcome the request asked for."
+      }
+    },
+    "/api/acquisition/obligations": {
+      "get": {
+        "operationId": "readObligations",
+        "summary": "Every seeding obligation, open or ended",
+        "tags": [
+          "trackers"
+        ],
+        "responses": {
+          "200": {
+            "description": "the obligations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Obligations"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "OBLIGATIONS"
+        ]
+      }
+    },
+    "/api/acquisition/downloads": {
+      "get": {
+        "operationId": "readDownloads",
+        "summary": "Every entry the download client holds, one per tracker it is active on",
+        "tags": [
+          "trackers"
+        ],
+        "responses": {
+          "200": {
+            "description": "the entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Downloads"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "DOWNLOADS"
+        ]
+      }
+    },
+    "/api/acquisition/downloads/{infoHash}": {
+      "delete": {
+        "operationId": "removeDownload",
+        "summary": "Remove one entry from the download client, its files deleted or kept",
+        "description": "« Retirer de qBittorrent » (organisation ruling 18; round 10 Q3 = B): the operator's own gesture on a torrent's entry, replacing any release of an obligation. `deleteFiles` is checked by default in the confirmation. A running obligation the entry owed is CLOSED — its `releasedAt` set, never left reading in breach (round 10 M4).",
+        "tags": [
+          "trackers"
+        ],
+        "parameters": [
+          {
+            "name": "infoHash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the entry's own hash"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "deleteFiles": {
+                    "type": "boolean",
+                    "description": "whether the entry's files leave the disk with it"
+                  }
+                },
+                "required": [
+                  "deleteFiles"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "it has left the client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "removed": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "the hashes of the entries that left the client"
+                    }
+                  },
+                  "required": [
+                    "removed"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "an acknowledgement naming the entries that left the client. Derived from the request."
+      }
+    },
+    "/api/trackers": {
+      "get": {
+        "operationId": "readTrackers",
+        "summary": "Every configured tracker, its ratio, volumes, trend, alert threshold and health",
+        "tags": [
+          "trackers"
+        ],
+        "responses": {
+          "200": {
+            "description": "the trackers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Tracker"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "TRACKERS"
+        ]
+      }
+    },
+    "/api/trackers/{tracker}/broken-obligations/{infoHash}/seen": {
+      "post": {
+        "operationId": "markBrokenObligationSeen",
+        "x-unseeded": "the broken obligation as it now reads, marked seen. Derived from the layer's own state.",
+        "summary": "Mark one broken obligation of a tracker seen",
+        "description": "« Vu » on a broken obligation (round 10 Q4): the engine broke it and its torrent has already left the client. Marked seen, it leaves the alert's count and stays listed on its tracker's entry — seen is not gone.",
+        "tags": [
+          "trackers"
+        ],
+        "parameters": [
+          {
+            "name": "tracker",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the tracker's configured name"
+          },
+          {
+            "name": "infoHash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the torrent the obligation was owed on"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "it is marked seen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrokenObligation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/api/acquisition/ranking/preview": {
+      "post": {
+        "operationId": "previewRanking",
+        "summary": "Score the preview's fixed sample set under a candidate ranking",
+        "description": "The ranking editor's live preview: read-only and pure — the backend's fixed, representative sample set scored under the POSTed ranking, every sample kept visible, the ones under `minSeeders` flagged `excluded` and sunk last.",
+        "x-seeded-from": [
+          "RANKING_SAMPLES"
+        ],
+        "tags": [
+          "trackers"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RankingConfig"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "the samples, scored and ordered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RankingPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
       }
     }
   },
@@ -5657,7 +6030,21 @@
           },
           "reason": {
             "type": "string",
-            "description": "why the rung is blocked or waiting, as a token, when it is"
+            "description": "why the rung is blocked or waiting, as a token, when it is — among them the engine's three deferral causes of a finished torrent not taken in (DOIT-2): `ratio_below_threshold`, `insufficient_space`, `content_missing`"
+          },
+          "tracker": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "for a ratio deferral, the tracker whose ratio is under its own threshold. A DEMAND: `classify_deferrals` (personalscraper/ingest/deferral.py) answers the cause alone"
+          },
+          "minimumRatio": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "for a ratio deferral, THAT tracker's own threshold (its economy block's `min_ratio`). A DEMAND: the engine defers on the global `ingest.min_ratio` (deferral.py:73); the next version reads the tracker's own, which is what the interface names"
           },
           "steps": {
             "type": "array",
@@ -6374,6 +6761,689 @@
         },
         "required": [
           "title"
+        ]
+      },
+      "Obligation": {
+        "type": "object",
+        "description": "a seeding obligation a grab owes the tracker it came from — the backend's `ObligationItem`, field for field; its three terminal instants are the MARKS a torrent's own row carries, never a second list",
+        "properties": {
+          "infoHash": {
+            "type": "string",
+            "description": "the torrent the obligation is owed on"
+          },
+          "sourceTracker": {
+            "type": "string",
+            "description": "the tracker the obligation is owed to"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the title the engine composes for it, or null when it resolves none"
+          },
+          "dispatchedPath": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "where the dispatch put the files, or null before it did"
+          },
+          "minimumRatio": {
+            "type": "number",
+            "description": "the ratio floor owed, read from the tracker's economy when the grab happened"
+          },
+          "minimumSeedTimeSeconds": {
+            "type": "integer",
+            "description": "the seed time owed, in seconds"
+          },
+          "observedRatio": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "the tracker's ratio as last observed, or null when never observed"
+          },
+          "accumulatedSeedTimeSeconds": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "the seed time accumulated so far, or null when never observed"
+          },
+          "hitAndRunCount": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "the tracker's hit-and-run count as last observed, or null when never observed"
+          },
+          "addedAt": {
+            "type": "number",
+            "description": "when the obligation began, Unix-epoch seconds"
+          },
+          "satisfiedAt": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "when it was met, Unix-epoch seconds, or null"
+          },
+          "breachedAt": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "when it was broken, Unix-epoch seconds, or null"
+          },
+          "releasedAt": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "when it ended early — a removal confirmed in the app always sets this — Unix-epoch seconds, or null"
+          }
+        },
+        "required": [
+          "accumulatedSeedTimeSeconds",
+          "addedAt",
+          "breachedAt",
+          "dispatchedPath",
+          "hitAndRunCount",
+          "infoHash",
+          "minimumRatio",
+          "minimumSeedTimeSeconds",
+          "observedRatio",
+          "releasedAt",
+          "satisfiedAt",
+          "sourceTracker",
+          "title"
+        ]
+      },
+      "Obligations": {
+        "type": "object",
+        "description": "every seeding obligation the engine holds",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Obligation"
+            },
+            "description": "the obligations, newest first"
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "Download": {
+        "type": "object",
+        "description": "one qBittorrent ENTRY on one tracker — a torrent cross-seeded onto two trackers is two entries. The backend's `AcquisitionDownload` extended with the tracker it runs on, its ratio there, its deadline and whether it is the origin grab (a demand: none of the four exists)",
+        "properties": {
+          "infoHash": {
+            "type": "string",
+            "description": "the entry's own hash"
+          },
+          "name": {
+            "type": "string",
+            "description": "the torrent's name in the client"
+          },
+          "title": {
+            "type": "string",
+            "description": "the medium's title"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "movie",
+              "episode",
+              "season"
+            ],
+            "description": "what the entry carries"
+          },
+          "season": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "the season, or null for a movie"
+          },
+          "episode": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "the episode, or null for a movie or a season pack"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "downloading",
+              "stalled",
+              "seeding",
+              "paused",
+              "queued",
+              "in_client",
+              "missing",
+              "errored"
+            ],
+            "description": "the client's state, in the backend's own tokens"
+          },
+          "progress": {
+            "type": "number",
+            "description": "how much is downloaded, from 0 to 1"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "description": "the torrent's size"
+          },
+          "etaSeconds": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "the time left to download, or null when none is running"
+          },
+          "errorReason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "why the client refuses it, or null"
+          },
+          "ids": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ProviderIds"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it"
+          },
+          "tracker": {
+            "type": "string",
+            "description": "the tracker this entry is active on"
+          },
+          "origin": {
+            "type": "boolean",
+            "description": "true for the torrent's origin grab, false for a cross-seed of the same files"
+          },
+          "ratio": {
+            "type": "number",
+            "description": "the entry's ratio on THIS tracker, computed on the torrent's own size — so a cross-seed never divides by zero"
+          },
+          "deadline": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "when the obligation on this entry is met by seed time, Unix-epoch seconds, or null when none is owed"
+          }
+        },
+        "required": [
+          "deadline",
+          "episode",
+          "errorReason",
+          "etaSeconds",
+          "ids",
+          "infoHash",
+          "kind",
+          "name",
+          "origin",
+          "progress",
+          "ratio",
+          "season",
+          "sizeBytes",
+          "state",
+          "title",
+          "tracker"
+        ]
+      },
+      "Downloads": {
+        "type": "object",
+        "description": "every entry the download client holds",
+        "properties": {
+          "clientAvailable": {
+            "type": "boolean",
+            "description": "whether the client answered"
+          },
+          "downloads": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Download"
+            },
+            "description": "one per entry, never folded"
+          }
+        },
+        "required": [
+          "clientAvailable",
+          "downloads"
+        ]
+      },
+      "BrokenObligation": {
+        "type": "object",
+        "description": "an obligation the ENGINE broke whose torrent has already left the client — kept, never lost, until the operator marks it seen",
+        "properties": {
+          "infoHash": {
+            "type": "string",
+            "description": "the torrent it was owed on"
+          },
+          "title": {
+            "type": "string",
+            "description": "the title the engine composes for it"
+          },
+          "brokenAt": {
+            "type": "number",
+            "description": "when it was broken, Unix-epoch seconds"
+          },
+          "seen": {
+            "type": "boolean",
+            "description": "whether the operator marked it seen; seen is not gone"
+          }
+        },
+        "required": [
+          "brokenAt",
+          "infoHash",
+          "seen",
+          "title"
+        ]
+      },
+      "Tracker": {
+        "type": "object",
+        "description": "one configured tracker as its own subject — nothing in the backend answers a tracker today (a demand)",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "the tracker's configured name"
+          },
+          "ratio": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "the account's ratio on this tracker, never averaged with another, or null before anything was downloaded there"
+          },
+          "downloadedBytes": {
+            "type": "integer",
+            "description": "the account's Download volume on this tracker"
+          },
+          "uploadedBytes": {
+            "type": "integer",
+            "description": "the account's Upload volume on this tracker"
+          },
+          "trend": {
+            "type": "string",
+            "enum": [
+              "up",
+              "stable",
+              "down"
+            ],
+            "description": "where the ratio is heading"
+          },
+          "alertThreshold": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "the ratio under which the tracker is in alert — its own setting, distinct from the floor and the target — or null when none is set"
+          },
+          "identifierRefusedSince": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "since when the tracker refuses the configured identifier, Unix-epoch seconds, or null when it accepts it"
+          },
+          "brokenObligations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BrokenObligation"
+            },
+            "description": "the obligations the engine broke on this tracker, their torrent gone"
+          }
+        },
+        "required": [
+          "alertThreshold",
+          "brokenObligations",
+          "downloadedBytes",
+          "identifierRefusedSince",
+          "name",
+          "ratio",
+          "trend",
+          "uploadedBytes"
+        ]
+      },
+      "RankingThreshold": {
+        "type": "object",
+        "description": "a size-or-count threshold and the score it awards",
+        "properties": {
+          "at": {
+            "type": "number",
+            "description": "the threshold — bytes for a size, a count for seeders"
+          },
+          "score": {
+            "type": "integer",
+            "description": "the score awarded when the field meets it"
+          }
+        },
+        "required": [
+          "at",
+          "score"
+        ]
+      },
+      "RankingCriterion": {
+        "type": "object",
+        "description": "ONE criterion of the acquisition ranking: the field it scores, its weight, and either a score per value (a categorical field) or thresholds (a numeric one)",
+        "properties": {
+          "field": {
+            "type": "string",
+            "description": "the release field it scores — `resolution`, `codec`, `language`, `source`, `provider`, `seeders`, `sizeBytes`, or `trackerRatioState`"
+          },
+          "weight": {
+            "type": "number",
+            "description": "the multiplier applied to its score"
+          },
+          "values": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "a score per value, for a categorical field, matched without regard to case"
+          },
+          "thresholds": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/RankingThreshold"
+            },
+            "description": "ordered thresholds, for a numeric field"
+          },
+          "prefer": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "higher",
+              "lower",
+              null
+            ],
+            "description": "for thresholds, whether higher or lower is better"
+          }
+        },
+        "required": [
+          "field",
+          "weight"
+        ]
+      },
+      "RankingBonuses": {
+        "type": "object",
+        "description": "points added for a release's economy",
+        "properties": {
+          "freeleech": {
+            "type": "integer",
+            "description": "added to a freeleech release"
+          },
+          "silverleech": {
+            "type": "integer",
+            "description": "added to a silverleech release"
+          }
+        },
+        "required": [
+          "freeleech",
+          "silverleech"
+        ]
+      },
+      "RankingConfig": {
+        "type": "object",
+        "description": "the acquisition ranking: its criteria, the seeders under which a release is excluded, and the bonuses",
+        "properties": {
+          "criteria": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RankingCriterion"
+            },
+            "description": "every criterion, in order"
+          },
+          "minSeeders": {
+            "type": "integer",
+            "description": "a release with fewer seeders is excluded"
+          },
+          "bonuses": {
+            "$ref": "#/components/schemas/RankingBonuses"
+          }
+        },
+        "required": [
+          "criteria",
+          "minSeeders",
+          "bonuses"
+        ]
+      },
+      "RankingSample": {
+        "type": "object",
+        "description": "one release of the preview's FIXED, representative set — the backend's own `_ranking_preview_samples`, as the trackers would parse it",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "the release's title"
+          },
+          "provider": {
+            "type": "string",
+            "description": "the tracker it stands for"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "description": "its size"
+          },
+          "seeders": {
+            "type": "integer",
+            "description": "its seeders"
+          },
+          "leechers": {
+            "type": "integer",
+            "description": "its leechers"
+          },
+          "freeleech": {
+            "type": "boolean",
+            "description": "whether it is freeleech"
+          },
+          "resolution": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "its resolution token"
+          },
+          "codec": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "its video codec token"
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "its media source token"
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "its language marker"
+          }
+        },
+        "required": [
+          "title",
+          "provider",
+          "sizeBytes",
+          "seeders",
+          "leechers",
+          "freeleech",
+          "resolution",
+          "codec",
+          "source",
+          "language"
+        ]
+      },
+      "RankingPreviewRelease": {
+        "type": "object",
+        "description": "one sample release scored under the ranking asked for",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "the release's title"
+          },
+          "provider": {
+            "type": "string",
+            "description": "the tracker it stands for"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "description": "its size"
+          },
+          "seeders": {
+            "type": "integer",
+            "description": "its seeders"
+          },
+          "leechers": {
+            "type": "integer",
+            "description": "its leechers"
+          },
+          "freeleech": {
+            "type": "boolean",
+            "description": "whether it is freeleech"
+          },
+          "resolution": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "its resolution token"
+          },
+          "codec": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "its video codec token"
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "its media source token"
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "its language marker"
+          },
+          "score": {
+            "type": "integer",
+            "description": "its score under that ranking"
+          },
+          "excluded": {
+            "type": "boolean",
+            "description": "whether it has fewer seeders than the ranking's `minSeeders` — shown, sunk last, never dropped"
+          },
+          "trackerRatioState": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "under_floor",
+              "under_target",
+              "comfortable",
+              null
+            ],
+            "description": "where its tracker's ratio stands against that tracker's own economy — under its floor (`min_ratio`), under its target, or comfortable; null when the tracker has no policy. A DEMAND: `TrackerResult` carries no ratio-derived field (personalscraper/api/tracker/_base.py:58), so no criterion can score it today; `rank()` needs nothing else, a criterion naming this field scores it the way `provider` is scored"
+          }
+        },
+        "required": [
+          "title",
+          "provider",
+          "sizeBytes",
+          "seeders",
+          "leechers",
+          "freeleech",
+          "resolution",
+          "codec",
+          "source",
+          "language",
+          "score",
+          "excluded",
+          "trackerRatioState"
+        ]
+      },
+      "RankingPreview": {
+        "type": "object",
+        "description": "the sample set, scored and ordered: the releases kept by score, the excluded ones last",
+        "properties": {
+          "ranked": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RankingPreviewRelease"
+            },
+            "description": "every sample, scored, in the order the ranking puts them"
+          },
+          "knownTrackers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "the configured trackers — the values a tracker-keyed criterion is offered"
+          }
+        },
+        "required": [
+          "ranked",
+          "knownTrackers"
+        ]
+      },
+      "ConfigurationFileContent": {
+        "type": "object",
+        "description": "one configuration file's content, as the file holds it",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "the file's name"
+          },
+          "values": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "its parsed JSON5 content, keyed by its top-level keys"
+          },
+          "digest": {
+            "type": "string",
+            "description": "the SHA-256 of the file as it lies on disk — what a write compares against"
+          },
+          "shadowedKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "the keys of this file overridden by `local.json5`"
+          }
+        },
+        "required": [
+          "name",
+          "values",
+          "digest",
+          "shadowedKeys"
         ]
       }
     },

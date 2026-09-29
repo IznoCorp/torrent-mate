@@ -20,6 +20,7 @@ import { SETTINGS_STATE, changedFiles, fileName } from "./state";
 import { useConfigurationStatus } from "./queries";
 import { loadError, loadErrorAction } from "../../ui/variants";
 import { saveAction, saveBar } from "./variants";
+import { fillSaveBarDoor } from "../../lib/save-bar-door";
 
 // The save bar lives BESIDE the view rather than inside it, so scrolling the
 // settings never scrolls it away — and it exists only when there is something to
@@ -112,3 +113,7 @@ export function SaveBar(): ReactElement | null {
     device,
   );
 }
+
+// THE BAR IS OFFERED to every page that lets a setting be edited: a pending
+// edit is saved from where it was made, never from a page one has to go to.
+fillSaveBarDoor(SaveBar);
