@@ -29,6 +29,11 @@ where the component already has callers.
 - `run.sh --rules` on the rules reading those parts: `follow_seasons.py`, `season_family.py`, `badges_observed.py`,
   `four_tabs.py`, plus R-conformity-a on the states the oracle names.
 
+**2026-09-30, at the gate** — the floor inside `segmentTab` reaches Médiathèque's bar at once (it already draws
+`segmentTab`): its 44 px floor, planned for phase 8, lands HERE; the oracle moved on exactly the 19 states that draw
+the library page (`library/tabs` 59.5 → 70 px and what sits under it), accepted by name; the chevron and the badges
+moved no measured region.
+
 ## Commit
 
 `feat(maquette-conformity): components I — one tab bar, one chevron, one badge, a text-sized segmented choice`

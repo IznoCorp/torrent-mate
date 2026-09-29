@@ -29,3 +29,7 @@
   `oklch(…)`); its first full sweep read 28 states « unseen » that a pushed screen, the startup or sign-in screen or
   an `inert` page covered on purpose — skipped by name. Its one real red: the menu icon drawn 0 × 0 in WebKit, light
   and dark. Mutation: the bottom bar's ink = its background → unseen · bottom-bar, both schemes.
+- 2026-09-30 — phase 3 (components I): `controls.ts` and `frame.ts` at their ceilings, so the tab variants moved to
+  `ui/variants/tabs.ts` and the badge to `ui/variants/badge.ts`. Gate: guards green, 8 rules green (responsive on 45
+  touched states, owed only), oracle 19 states moved — all the library page's, by the floor — accepted by name,
+  proved by script (no other key moved). Orchestrator succession: `Orch : TM frontend [077751]`.
