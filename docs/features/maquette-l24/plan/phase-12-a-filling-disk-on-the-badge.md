@@ -1,14 +1,14 @@
-# Phase 11 — A filling disk on the badge
+# Phase 12 — A filling disk on the badge (S2)
 
-**STOP C: OPEN 2.** Reading A (5 points): a disk « bientôt plein » and index anomalies count in the menu's badge.
-Reading B: the phase is dropped, and phase 19 records it.
+**No STOP C.** Ruled OPEN 2 = A (2026-09-29): a disk « bientôt plein » and a library-index anomaly count in the
+menu button's badge (Système).
 
-**Opening measure (2026-09-29, on `e65130ab1`):**
+**Opening measure (2026-09-29, on `77e7b8436`):**
 
 - **Commands.** `grep -n "_KEY = " frontend/maquette/design/src/features/system/badge.ts` → **LOCKS, SERVICES,
-  DEPENDENCIES** — the badge reads three answers, no disk, no index; `grep -cv '^\s*$' …/badge.ts` → **83**;
-  the seed already carries a filling disk (`disks.json`, « Disk2 — bientôt plein »).
-- **Points ≈ 5.** The rule 3; two terms in `systemBadge()` (≈ 8 lines) 1; `system-disk-filling` re-using the seed 1.
+  DEPENDENCIES** — the badge reads three answers, no disk, no index; `grep -cv '^\s*$' …/badge.ts` → **83**; the
+  seed already carries a filling disk (`disks.json`, « Disk2 — bientôt plein »).
+- **Points ≈ 5.** R-L24-m 3; two terms in `systemBadge()` (≈ 8 lines) 1; `system-disk-filling` re-using the seed 1.
 - **Readers.** `menu-system-badge` and `menu-clear` (the named states of L22's badge rule) — `menu-clear` must stay
   at zero; if the seed's filling disk makes it non-zero, that is STOP D (a seed row to move, reported first).
 
