@@ -127,16 +127,6 @@ export const tabBarIconDrawing = cva("w-[20px] h-[20px] flex-none");
 
 export const tabBarLabel = cva("lb overflow-hidden text-ellipsis whitespace-nowrap max-w-full");
 
-/* PRIMARY, not danger: red is reserved for the « ? » of an unavailable
-   counter. The outline is the sidebar's colour so the badge reads as lifted off
-   the bar rather than punched into it. */
-export const tabBarBadge = cva(
-  "navbadge absolute right-[-10px] top-[-6px] inline-flex h-[18px] min-w-[18px] "
-    + "items-center justify-center px-2 rounded-full bg-primary text-primary-foreground "
-    + "text-2 font-semibold leading-none [font-variant-numeric:tabular-nums] "
-    + "[box-shadow:var(--mq-shadow-badge)] [outline:2px_solid_var(--color-sidebar)]",
-);
-
 /* ── The action button ───────────────────────────────────────────────
    Anchored to the frame's bottom-right corner, ABOVE the published bar height
    and never at a distance to an edge. Its classes came verbatim from
@@ -314,12 +304,6 @@ export const drawerEntry = cva(
 );
 
 export const drawerEntryDrawing = cva("w-[20px] h-[20px] flex-none");
-
-export const drawerEntryCount = cva(
-  "count ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center "
-    + "px-2 rounded-full bg-primary text-primary-foreground text-2 font-semibold "
-    + "[font-variant-numeric:tabular-nums]",
-);
 
 export const drawerIdentity = cva(
   "ver border-t border-border pt-6 px-7 "

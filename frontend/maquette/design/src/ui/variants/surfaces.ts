@@ -400,9 +400,28 @@ export const resultCount = cva("rescount pt-6 px-7 pb-0 text-2 text-muted-foregr
  * affordance reads the same on every platform.
  */
 export const disclosure = cva(
-  "block [&>summary]:flex [&>summary]:items-center [&>summary]:gap-2 [&>summary]:min-h-[44px] " +
-    "[&>summary]:cursor-pointer [&>summary]:text-3 [&>summary]:font-semibold " +
-    "[&>summary]:text-primary-text [&>summary]:list-none " +
+  "block [&>summary]:flex [&>summary]:items-center [&>summary]:cursor-pointer [&>summary]:list-none " +
     "[&>summary::-webkit-details-marker]:hidden " +
-    "[&>summary::before]:content-['▸'] open:[&>summary::before]:content-['▾']",
+    // THE ONE CHEVRON, the seasons' own: a `›` in a chip, turning a quarter
+    // when the fold opens — every fold of the app wears it.
+    "[&>summary::before]:content-['›'] [&>summary::before]:grid [&>summary::before]:place-items-center " +
+    "[&>summary::before]:flex-[0_0_auto] [&>summary::before]:w-[20px] [&>summary::before]:h-[20px] " +
+    "[&>summary::before]:rounded-2 [&>summary::before]:bg-muted [&>summary::before]:text-foreground " +
+    "[&>summary::before]:text-5 [&>summary::before]:font-bold [&>summary::before]:[line-height:1] " +
+    "[&>summary::before]:[transition:transform_var(--duration-2)_var(--ease-standard)] " +
+    "open:[&>summary::before]:[transform:rotate(90deg)]",
+  {
+    variants: {
+      kind: {
+        // An action folded in place: a primary-coloured summary at the finger's floor.
+        plain: "[&>summary]:gap-2 [&>summary]:min-h-[44px] [&>summary]:text-3 [&>summary]:font-semibold " +
+          "[&>summary]:text-primary-text",
+        // A season of a series: the rule between seasons, an uppercase summary.
+        season: "season [border-top:1px_solid_var(--color-border)] first-of-type:[border-top:0] py-4 " +
+          "[&>summary]:gap-4 [&>summary]:py-2 [&>summary]:text-2 [&>summary]:font-bold " +
+          "[&>summary]:uppercase [&>summary]:[letter-spacing:0.06em] [&>summary]:text-muted-foreground",
+      },
+    },
+    defaultVariants: { kind: "plain" },
+  },
 );

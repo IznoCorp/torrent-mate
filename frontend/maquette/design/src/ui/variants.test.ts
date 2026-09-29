@@ -5,7 +5,10 @@
 // relationship between two entries of the catalogue, which is true or false in
 // the source and nowhere else.
 import { describe, expect, it } from "vitest";
-import { actionButton, cardStrip, iconButton, loadErrorAction, loadFooterAction, stripDot, stripStep } from "./variants";
+import {
+  actionButton, cardStrip, disclosure, drawerEntryCount, iconButton, loadErrorAction, loadFooterAction, moreButton,
+  segmentCount, segmentTab, stripDot, stripStep, tabBarBadge, viewSwitchButton,
+} from "./variants";
 import { cardMarkup } from "./card-markup";
 
 /** The utilities that set a control's SIZE, as opposed to its mood. */
@@ -155,5 +158,40 @@ describe("the card strip counts its cells", () => {
     }
     expect(waiting).not.toBe(stripDot({ state: "pending" }));
     expect(aside).not.toBe(stripDot({ state: "pending" }));
+  });
+});
+
+describe("one drawing per need, placed or sized", () => {
+  // THE FINGER'S FLOOR IS THE TAB'S OWN: a page that draws a tab bar cannot
+  // forget it, because no page declares it.
+  it("puts the 44 px floor inside the tab and the « more » button", () => {
+    expect(segmentTab()).toContain("min-h-[44px]");
+    expect(moreButton()).toContain("w-[44px] h-[44px]");
+  });
+
+  // THREE BADGES WERE THREE DRAWINGS; one fill, one size, one type now, and
+  // only where it sits differs.
+  it("draws every count badge from one base, three placements apart", () => {
+    const base = ["h-[18px]", "min-w-[18px]", "bg-primary", "text-primary-foreground", "text-2", "font-semibold"];
+    for (const badge of [tabBarBadge(), drawerEntryCount(), segmentCount()]) {
+      for (const utility of base) expect(badge).toContain(utility);
+    }
+    expect(tabBarBadge()).toContain("absolute");
+    expect(drawerEntryCount()).toContain("ml-auto");
+    expect(segmentCount()).toContain("ml-2");
+  });
+
+  it("sizes the segmented choice for an icon or for a word", () => {
+    expect(viewSwitchButton()).toContain("w-[32px] h-[28px]");
+    expect(viewSwitchButton({ size: "text" })).toContain("px-6");
+    expect(viewSwitchButton({ size: "text" })).toContain("aria-pressed:bg-background");
+  });
+
+  // ONE CHEVRON, whatever the fold: the kinds change the summary, never it.
+  it("wears the same chevron in every kind of fold", () => {
+    const chevron = "[&>summary::before]:content-['›']";
+    expect(disclosure()).toContain(chevron);
+    expect(disclosure({ kind: "season" })).toContain(chevron);
+    expect(disclosure()).not.toContain("▸");
   });
 });

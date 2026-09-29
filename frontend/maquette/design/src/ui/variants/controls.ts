@@ -369,9 +369,18 @@ export const viewSwitchWrap = cva(
 export const viewSwitch = cva("vsw flex gap-1 p-1 bg-muted rounded-3");
 
 /** One button of the view switch. */
-export const viewSwitchButton = cva(
-  "w-[32px] h-[28px] [border:0] rounded-2 bg-transparent text-muted-foreground grid place-items-center",
-);
+export const viewSwitchButton = cva("[border:0] rounded-2 bg-transparent text-muted-foreground", {
+  variants: {
+    // An ICON picks a view (a list, a grid); TEXT picks a value in place (a
+    // kind, a provider, an appearance) — one segmented control, two sizes.
+    size: {
+      icon: "w-[32px] h-[28px] grid place-items-center",
+      text: "text-3 font-semibold py-3 px-6 aria-pressed:bg-background aria-pressed:text-foreground "
+        + "aria-pressed:[box-shadow:var(--mq-shadow-vsw)]",
+    },
+  },
+  defaultVariants: { size: "icon" },
+});
 
 /** The « N titles » line under the filters. */
 export const countLine = cva(
@@ -382,45 +391,4 @@ export const countLine = cva(
 export const countLineAction = cva(
   "ml-auto [border:0] bg-transparent text-primary-text text-2 font-semibold " +
     "flex items-center gap-2 p-0",
-);
-
-/**
- * The view tabs' row: a segmented control and, sometimes, a « more » button.
- *
- * Sticky at the top of its scrollport, so the lens a page is read through
- * stays reachable while the list under it scrolls.
- */
-export const viewTabs = cva(
-  "viewtabs flex gap-4 items-center pt-5 px-7 pb-4 sticky top-0 z-30 bg-background",
-);
-
-/** The segmented control itself. */
-export const segment = cva(
-  "seg flex-auto flex gap-2 p-2 bg-muted rounded-3 min-w-0",
-);
-
-/**
- * One tab of the segment.
- *
- * The selected state is an `aria-selected` VARIANT rather than a class: the
- * attribute is already there for assistive technology, and a second name for
- * the same fact is a second thing to keep in step.
- */
-export const segmentTab = cva(
-  "flex-1 min-w-0 [border:0] py-4 px-0 rounded-2 text-4 font-semibold " +
-    "bg-transparent text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis " +
-    "transition-[background-color,color] duration-200 ease-standard " +
-    "aria-selected:bg-background aria-selected:text-foreground " +
-    "aria-selected:[box-shadow:var(--mq-shadow-seg)]",
-);
-
-/** The count a tab carries. */
-export const segmentCount = cva(
-  "n text-2 font-bold ml-2 py-1 px-2 rounded-full bg-primary text-primary-foreground",
-);
-
-/** The « more » button beside the segment. */
-export const moreButton = cva(
-  "more flex-none w-[40px] h-[40px] rounded-3 border border-border bg-transparent " +
-    "text-muted-foreground grid place-items-center",
 );
