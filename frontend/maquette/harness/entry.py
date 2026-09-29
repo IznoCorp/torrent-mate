@@ -25,7 +25,12 @@ import asyncio
 import pathlib
 import re
 
-from common import Journal, resolve_deployed_host_locally
+from common import (
+    READ_THROUGH_LOCALHOST,
+    Journal,
+    read_through_localhost,
+    resolve_deployed_host_locally,
+)
 from playwright.async_api import async_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -90,7 +95,9 @@ async def main():
 
         pg = await ctx.new_page()
         pg.on("pageerror", lambda e: errors.append(f"host: {e}"))
-        await pg.goto(HOST, wait_until="load")
+        response = await pg.goto(HOST, wait_until="load")
+        ok, ip_address = read_through_localhost(await response.server_addr())
+        check(READ_THROUGH_LOCALHOST, ok, str(ip_address))
         await pg.wait_for_timeout(500)
         arrival = await pg.evaluate(READ)
 

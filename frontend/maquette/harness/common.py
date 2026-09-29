@@ -75,6 +75,30 @@ def resolve_deployed_host_locally(host_url):
     return [f"--host-resolver-rules=MAP {urlparse(host_url).hostname} 127.0.0.1"]
 
 
+# THE NAME BOTH RULES HOLD THIS UNDER, so a mutation that defeats the mapping
+# is read by NAME rather than by a crash: a `Page.goto` timeout proves only
+# that something failed, never that the mapping did — the router being
+# healthy at the moment a mutation runs answers just as well as the local
+# Caddy, and a hold that only watched the page load would stay green over a
+# mapping doing nothing at all.
+READ_THROUGH_LOCALHOST = "the deployed host is read through 127.0.0.1, never the router"
+
+
+def read_through_localhost(address):
+    """Whether a navigation's own `Response.server_addr()` names the local Caddy.
+
+    Args:
+        address: The `dict` `server_addr()` returns (`{"ipAddress": ..., "port":
+            ...}`), or `None` when the response carries none.
+
+    Returns:
+        `(ok, ip_address)` — `ok` when 127.0.0.1 answered, and the address
+        actually read, for the failure message.
+    """
+    ip_address = (address or {}).get("ipAddress")
+    return ip_address == "127.0.0.1", ip_address
+
+
 BAR = "─" * 62
 
 # WHICH BUILD THIS RULE STARTED AGAINST (B-256). Read once, at import, because
