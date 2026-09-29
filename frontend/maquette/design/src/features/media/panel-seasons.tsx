@@ -41,8 +41,8 @@ declare module "../../ui/panel/contract" {
 }
 
 // Lifecycle order for the season legend, as the operator reads it — keyed on
-// the same six states `episodeStateLabel` says; each state's swatch is
-// `legendSwatch`'s variant.
+// the same six states `episodeStateLabel` says, each with the tone its swatch
+// wears in the shared legend.
 const EP_ORDER = [
   "unverified",
   "announced",
@@ -51,6 +51,14 @@ const EP_ORDER = [
   "acquiring",
   "in_library",
 ] as const;
+const EP_TONE = {
+  unverified: "unknown",
+  announced: "upcoming",
+  pending: "waiting",
+  to_grab: "warning",
+  acquiring: "info",
+  in_library: "success",
+} as const;
 
 type EpisodeCatalog = { number: number; airDate?: string | null }[];
 
@@ -272,7 +280,7 @@ function SeasonsBlock({
       <div className={legend()} data-part="legend">
         {EP_ORDER.filter((state) => statesPresent.has(state)).map((state) => (
           <span key={state}>
-            <i className={legendSwatch({ state })} />
+            <i className={legendSwatch({ tone: EP_TONE[state] })} />
             {episodeStateLabel(state)}
           </span>
         ))}
