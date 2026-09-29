@@ -1,6 +1,6 @@
 # L16 — RESUME
 
-## STATE BLOCK (rewritten at every boundary — 2026-09-29, the close: pull request READY)
+## STATE BLOCK (rewritten at every boundary — 2026-09-29, correction round C16)
 
 - **Branch** `feat/maquette-l16`, worktree `/Users/izno/dev/worktrees/wave-l16`, on `origin/main` by MERGE
   (last: `77e7b8436`, #631). NO force push, ever. Version 0.98.106.
@@ -8,8 +8,9 @@
   LAST tool call before any message carrying a figure, the figure IN the message.
 - **Done** 1 · 2a–c · 3 · 4 · 5a–d · 6a · 6b · 7 · 8 · 9 · MIDPOINT · 10 · 11 · 12a · 12b · 13 · 14a · 14b · 15 · 16 ·
   17a · 17 — each gated, mutated, pushed. The pull request is READY (its number in the ledger's last line).
-- **Remaining**: the reader round (measure 2) — a fresh session with a resume brief, not this one; then B-144 and
-  B-298 `to confirm` → `fixed #<PR>` (never guessed), and L22's DESIGN § 1.7 note in the steward's docs PR.
+- **Reader round C16** (`review-archive/l16/round-1-C16/r1-C16.md`, brief `BRIEF-L16-round1.md`): the decided list
+  repaired in `055acba03`, 23 mutations fallen by name (`c16-mut-*.log`); the round's close gate, then the PR body's
+  « Correction round C16 » section. Left: L22's DESIGN § 1.7 note and C17 (c), (d) — the steward's docs PR.
 - **Rulings** (`RULINGS.md`) 1–12, and 13 = A (phase 17a: the page's wait and failure).
 - **Rules** R260 trackers_page (9 holds, 31 checks) · R261 trackers_roster (64) · R262 trackers_policy (14) · R263
   trackers_removal (21) · R264 trackers_alert (27) · R265 deferred_reason (16) · R266 ranking_editor (32) · R267
@@ -420,3 +421,37 @@
   « ■ R12 context measured by nothing — 1 » (its five contexts are reached after fixed 220–400 ms waits; which one
   missed is filtered out of the log); no such fall on any branch in the last 40 runs; locally 0/5
   (`close-audit2-{1..5}.log`); the failed job re-run → all 14 jobs green. One fall, not three: a ledger line (order 73).
+- 2026-09-29 — correction round C16 (« Agent : l16 5 », brief `review-archive/l16/BRIEF-L16-round1.md`): handshake;
+  the decided list read against r1-C16. C1 — the two acceptances' states, computed by script from the reference's
+  diff against each commit's parent: `3b822cf55` moved `torrents-list`, `torrents-list-filtered`,
+  `torrents-obligation-done`, `torrent-remove-confirm`, `torrent-remove-confirm-obligation` (shell/page,
+  trackers/body — Zinzins's row); `33283269f` moved `settings-edited`, `settings-field-duration`,
+  `settings-field-empty`, `settings-one`, `settings-topic` (settings/body, shell/page — the tracker rubric's row) and
+  `trackers-page`, `trackers-roster` (the entry's height), and added `trackers-entry-open`, `trackers-policy-unset`.
+  C12 — `cards` 79 → 78 IS the lot's (my figure « not the lot's » was false): R43's per-foot hold over
+  `acq-now-loaded` lost Zinzins's « Suivre » foot when its card left « En vol » at 5d; SUCCESSOR: R229
+  (`follow_offered.py`) reads that foot AND its panel's « Suivre » on `acq-now-direct-arrived`. C5's contract
+  divergence, recorded, not repaired: the backend answers a ranking conflict with HTTP 412
+  (`personalscraper/web/routes/config.py`), the maquette's contract with `200 {conflict: true}` — a real 412 now
+  reaches R266 hold 12's path (the refusal said, the edits kept).
+- 2026-09-29 — C16 RED on `b9be1f512`'s product (`c16-red.log`, `c16-red2.log` — the product set aside by a tar, never
+  a stash): R260 strip 34 px, « ⋮ » « veille et obligations »; R261 mark [0, 0] and every ratio off its line; R262
+  « Voir les torrents » 39 px, « alert threshold », chip None / badge None after a save, « Aucune politique » in
+  flight and failed; R263 « Obligation en cours » on a breach, « a quitté qBittorrent » offline; R264 the Réglages
+  save stale, no « depuis le », « Obligation rompue », « Vu » [14, 44]; R265 « seuil de 0 »; R266 39/35 px,
+  « Enregistrement… » stuck (+ the unhandled rejection); R267 minSeeders 0. Held green on the old product, felled
+  by mutation only (their subjects were right): R261 month (M4), R263 hold 8 (M3), R264 several entries (M1) and
+  the Breached event (M2), R265 whole sentence (M5); R260 hold 11 read red as mutation c17b (the landing keeps c411).
+- 2026-09-29 — C16 move `055acba03`: `lib/save-bar-door.tsx` gains `onEditsWritten` / `editsWritten` (a save heard
+  by the page that draws what the setting governs; frame-domain lib/ stays 31); the rows composed as designed
+  (`torrentHead`, `torrentChipLine`, « Vu » in the value's place); `useSettingsCatalogue` returns its wait and
+  failure; `send`'s `HELD` read by the removal; `hasRunningObligation` excludes `breachedAt`; 44 px variants;
+  `ratioWithoutThreshold`; the preview's engine minimum 1. C13: the three alert/met states and the dial say POSÉ and
+  the demand; `fixture-register.json` DOWNLOADS names its seven entries and Zinzins's composed values. R260 hold 11
+  runs in a fresh page (the rule's accumulated history made a landing's settling leave the app — probe
+  `c16-probe.log`). Gate: static 28/28, typecheck 0, vitest 142; rules green (`c16-green1.log`, `c16-green2.log`);
+  readers page_host 42 · fanout 170 · settings 68 · settings_editing 15 · cards 78 · follow_offered 16 · audit 14 ·
+  url_state 106 · one_ladder 40 · badges_observed 9 · bar_places 13 · seeds_at_rest 23 · screen_addresses 61, 0
+  failed; oracle 45 keys (21 trackers states × shell/page + trackers/body, 3 ranking states × screen-ranking/body),
+  declared by script (`c16-declared.json`), proved (`c16-accept-proof.log`); a11y dark 0, light 88. Mutations 23/23
+  fell by name (`c16-mutations.log`).
