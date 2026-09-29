@@ -200,6 +200,10 @@
     "TRACKERS": {
       "answers": "Tracker[]",
       "file": "trackers"
+    },
+    "RANKING_SAMPLES": {
+      "answers": "RankingSample[]",
+      "file": "ranking-samples"
     }
   }
 }

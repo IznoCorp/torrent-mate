@@ -4501,6 +4501,53 @@
           }
         }
       }
+    },
+    "/api/acquisition/ranking/preview": {
+      "post": {
+        "operationId": "previewRanking",
+        "summary": "Score the preview's fixed sample set under a candidate ranking",
+        "description": "The ranking editor's live preview: read-only and pure — the backend's fixed, representative sample set scored under the POSTed ranking, every sample kept visible, the ones under `minSeeders` flagged `excluded` and sunk last.",
+        "x-seeded-from": [
+          "RANKING_SAMPLES"
+        ],
+        "tags": [
+          "trackers"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RankingConfig"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "the samples, scored and ordered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RankingPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -7020,6 +7067,305 @@
           "ratio",
           "trend",
           "uploadedBytes"
+        ]
+      },
+      "RankingThreshold": {
+        "type": "object",
+        "description": "a size-or-count threshold and the score it awards",
+        "properties": {
+          "at": {
+            "type": "number",
+            "description": "the threshold — bytes for a size, a count for seeders"
+          },
+          "score": {
+            "type": "integer",
+            "description": "the score awarded when the field meets it"
+          }
+        },
+        "required": [
+          "at",
+          "score"
+        ]
+      },
+      "RankingCriterion": {
+        "type": "object",
+        "description": "ONE criterion of the acquisition ranking: the field it scores, its weight, and either a score per value (a categorical field) or thresholds (a numeric one)",
+        "properties": {
+          "field": {
+            "type": "string",
+            "description": "the release field it scores — `resolution`, `codec`, `language`, `source`, `provider`, `seeders`, `sizeBytes`, or `trackerRatioState`"
+          },
+          "weight": {
+            "type": "number",
+            "description": "the multiplier applied to its score"
+          },
+          "values": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "a score per value, for a categorical field, matched without regard to case"
+          },
+          "thresholds": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/RankingThreshold"
+            },
+            "description": "ordered thresholds, for a numeric field"
+          },
+          "prefer": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "higher",
+              "lower",
+              null
+            ],
+            "description": "for thresholds, whether higher or lower is better"
+          }
+        },
+        "required": [
+          "field",
+          "weight"
+        ]
+      },
+      "RankingBonuses": {
+        "type": "object",
+        "description": "points added for a release's economy",
+        "properties": {
+          "freeleech": {
+            "type": "integer",
+            "description": "added to a freeleech release"
+          },
+          "silverleech": {
+            "type": "integer",
+            "description": "added to a silverleech release"
+          }
+        },
+        "required": [
+          "freeleech",
+          "silverleech"
+        ]
+      },
+      "RankingConfig": {
+        "type": "object",
+        "description": "the acquisition ranking: its criteria, the seeders under which a release is excluded, and the bonuses",
+        "properties": {
+          "criteria": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RankingCriterion"
+            },
+            "description": "every criterion, in order"
+          },
+          "minSeeders": {
+            "type": "integer",
+            "description": "a release with fewer seeders is excluded"
+          },
+          "bonuses": {
+            "$ref": "#/components/schemas/RankingBonuses"
+          }
+        },
+        "required": [
+          "criteria",
+          "minSeeders",
+          "bonuses"
+        ]
+      },
+      "RankingSample": {
+        "type": "object",
+        "description": "one release of the preview's FIXED, representative set — the backend's own `_ranking_preview_samples`, as the trackers would parse it",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "the release's title"
+          },
+          "provider": {
+            "type": "string",
+            "description": "the tracker it stands for"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "description": "its size"
+          },
+          "seeders": {
+            "type": "integer",
+            "description": "its seeders"
+          },
+          "leechers": {
+            "type": "integer",
+            "description": "its leechers"
+          },
+          "freeleech": {
+            "type": "boolean",
+            "description": "whether it is freeleech"
+          },
+          "resolution": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "its resolution token"
+          },
+          "codec": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "its video codec token"
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "its media source token"
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "its language marker"
+          }
+        },
+        "required": [
+          "title",
+          "provider",
+          "sizeBytes",
+          "seeders",
+          "leechers",
+          "freeleech",
+          "resolution",
+          "codec",
+          "source",
+          "language"
+        ]
+      },
+      "RankingPreviewRelease": {
+        "type": "object",
+        "description": "one sample release scored under the ranking asked for",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "the release's title"
+          },
+          "provider": {
+            "type": "string",
+            "description": "the tracker it stands for"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "description": "its size"
+          },
+          "seeders": {
+            "type": "integer",
+            "description": "its seeders"
+          },
+          "leechers": {
+            "type": "integer",
+            "description": "its leechers"
+          },
+          "freeleech": {
+            "type": "boolean",
+            "description": "whether it is freeleech"
+          },
+          "resolution": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "its resolution token"
+          },
+          "codec": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "its video codec token"
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "its media source token"
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "its language marker"
+          },
+          "score": {
+            "type": "integer",
+            "description": "its score under that ranking"
+          },
+          "excluded": {
+            "type": "boolean",
+            "description": "whether it has fewer seeders than the ranking's `minSeeders` — shown, sunk last, never dropped"
+          },
+          "trackerRatioState": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "under_floor",
+              "under_target",
+              "comfortable",
+              null
+            ],
+            "description": "where its tracker's ratio stands against that tracker's own economy — under its floor (`min_ratio`), under its target, or comfortable; null when the tracker has no policy. A DEMAND: `TrackerResult` carries no ratio-derived field (personalscraper/api/tracker/_base.py:58), so no criterion can score it today; `rank()` needs nothing else, a criterion naming this field scores it the way `provider` is scored"
+          }
+        },
+        "required": [
+          "title",
+          "provider",
+          "sizeBytes",
+          "seeders",
+          "leechers",
+          "freeleech",
+          "resolution",
+          "codec",
+          "source",
+          "language",
+          "score",
+          "excluded",
+          "trackerRatioState"
+        ]
+      },
+      "RankingPreview": {
+        "type": "object",
+        "description": "the sample set, scored and ordered: the releases kept by score, the excluded ones last",
+        "properties": {
+          "ranked": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RankingPreviewRelease"
+            },
+            "description": "every sample, scored, in the order the ranking puts them"
+          },
+          "knownTrackers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "the configured trackers — the values a tracker-keyed criterion is offered"
+          }
+        },
+        "required": [
+          "ranked",
+          "knownTrackers"
         ]
       }
     },

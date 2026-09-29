@@ -244,6 +244,7 @@ count
 counted
 cover
 create
+criterion
 cron
 cross
 crossed
@@ -350,6 +351,7 @@ duration
 dx
 each
 ease
+economy
 edge
 edit
 edited
@@ -666,6 +668,7 @@ membership
 memory
 menu
 message
+met
 meta
 method
 methods
@@ -819,6 +822,7 @@ platform
 play
 plex
 point
+points
 policy
 pong
 pop
@@ -840,6 +844,7 @@ presence
 present
 press
 pressing
+preview
 previous
 primary
 problem
@@ -1005,6 +1010,7 @@ schedulers
 schemas
 scheme
 score
+scored
 screen
 screens
 screenshots
@@ -1307,6 +1313,7 @@ launch
 launched
 levers
 locks
+lower
 month
 off
 oldest

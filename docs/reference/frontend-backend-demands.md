@@ -19,14 +19,14 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 73 |
+| operations the interface requires | 74 |
 | operations the backend has | 65 |
 | required and missing | 24 |
-| declared by both, different response shape | 49 |
+| declared by both, different response shape | 50 |
 | declared by both, path parameter spelled differently | 15 |
 | declared by both, answered with a different status | 10 |
 | fields carried pre-formatted | 25 |
-| the backend has and the interface does not use | 16 |
+| the backend has and the interface does not use | 15 |
 
 ---
 
@@ -99,6 +99,7 @@ reports a difference for every optional field and drowns the real findings.
 | `POST /api/acquisition/follows/{followedId}/seasons/{season}/grab` (`grabSeasonForFollow`) | `absorbedCount`, `queued`, `runUid` | `absorbed_count`, `reused`, `run_started`, `run_uid`, `season_wanted_id` |
 | `POST /api/acquisition/journeys/{infoHash}/requeue` (`requeueJourney`) | `queued`, `runUid` | `run_uid` |
 | `POST /api/acquisition/journeys/{infoHash}/rescrape` (`rescrapeJourney`) | `queued`, `runUid` | `run_uid` |
+| `POST /api/acquisition/ranking/preview` (`previewRanking`) | `freeleech`, `knownTrackers`, `sizeBytes`, `trackerRatioState` | `is_freeleech`, `known_trackers` |
 | `POST /api/auth/login` (`signIn`) | `avatar`, `email`, `name` | — |
 | `POST /api/auth/logout` (`signOut`) | `ok` | — |
 | `POST /api/config/restart-web` (`restartWeb`) | `ok` | `status` |
@@ -223,6 +224,5 @@ production app, by a script, or by the operator.
 - `GET /api/pipeline/stages`
 - `GET /api/registry/status`
 - `GET /api/staging/media/{media_id}/poster`
-- `POST /api/acquisition/ranking/preview`
 - `POST /api/config/validate`
 - `POST /api/staging/media/{media_id}/enqueue`

@@ -1201,6 +1201,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/ranking/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Score the preview's fixed sample set under a candidate ranking
+         * @description The ranking editor's live preview: read-only and pure — the backend's fixed, representative sample set scored under the POSTed ranking, every sample kept visible, the ones under `minSeeders` flagged `excluded` and sunk last.
+         */
+        post: operations["previewRanking"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1964,6 +1984,108 @@ export interface components {
             identifierRefusedSince: number | null;
             /** @description the obligations the engine broke on this tracker, their torrent gone */
             brokenObligations: components["schemas"]["BrokenObligation"][];
+        };
+        /** @description a size-or-count threshold and the score it awards */
+        RankingThreshold: {
+            /** @description the threshold — bytes for a size, a count for seeders */
+            at: number;
+            /** @description the score awarded when the field meets it */
+            score: number;
+        };
+        /** @description ONE criterion of the acquisition ranking: the field it scores, its weight, and either a score per value (a categorical field) or thresholds (a numeric one) */
+        RankingCriterion: {
+            /** @description the release field it scores — `resolution`, `codec`, `language`, `source`, `provider`, `seeders`, `sizeBytes`, or `trackerRatioState` */
+            field: string;
+            /** @description the multiplier applied to its score */
+            weight: number;
+            /** @description a score per value, for a categorical field, matched without regard to case */
+            values?: {
+                [key: string]: number;
+            } | null;
+            /** @description ordered thresholds, for a numeric field */
+            thresholds?: components["schemas"]["RankingThreshold"][] | null;
+            /**
+             * @description for thresholds, whether higher or lower is better
+             * @enum {string|null}
+             */
+            prefer?: "higher" | "lower" | null;
+        };
+        /** @description points added for a release's economy */
+        RankingBonuses: {
+            /** @description added to a freeleech release */
+            freeleech: number;
+            /** @description added to a silverleech release */
+            silverleech: number;
+        };
+        /** @description the acquisition ranking: its criteria, the seeders under which a release is excluded, and the bonuses */
+        RankingConfig: {
+            /** @description every criterion, in order */
+            criteria: components["schemas"]["RankingCriterion"][];
+            /** @description a release with fewer seeders is excluded */
+            minSeeders: number;
+            bonuses: components["schemas"]["RankingBonuses"];
+        };
+        /** @description one release of the preview's FIXED, representative set — the backend's own `_ranking_preview_samples`, as the trackers would parse it */
+        RankingSample: {
+            /** @description the release's title */
+            title: string;
+            /** @description the tracker it stands for */
+            provider: string;
+            /** @description its size */
+            sizeBytes: number;
+            /** @description its seeders */
+            seeders: number;
+            /** @description its leechers */
+            leechers: number;
+            /** @description whether it is freeleech */
+            freeleech: boolean;
+            /** @description its resolution token */
+            resolution: string | null;
+            /** @description its video codec token */
+            codec: string | null;
+            /** @description its media source token */
+            source: string | null;
+            /** @description its language marker */
+            language: string | null;
+        };
+        /** @description one sample release scored under the ranking asked for */
+        RankingPreviewRelease: {
+            /** @description the release's title */
+            title: string;
+            /** @description the tracker it stands for */
+            provider: string;
+            /** @description its size */
+            sizeBytes: number;
+            /** @description its seeders */
+            seeders: number;
+            /** @description its leechers */
+            leechers: number;
+            /** @description whether it is freeleech */
+            freeleech: boolean;
+            /** @description its resolution token */
+            resolution: string | null;
+            /** @description its video codec token */
+            codec: string | null;
+            /** @description its media source token */
+            source: string | null;
+            /** @description its language marker */
+            language: string | null;
+            /** @description its score under that ranking */
+            score: number;
+            /** @description whether it has fewer seeders than the ranking's `minSeeders` — shown, sunk last, never dropped */
+            excluded: boolean;
+            /**
+             * @description where its tracker's ratio stands against that tracker's own economy — under its floor (`min_ratio`), under its target, or comfortable; null when the tracker has no policy. A DEMAND: `TrackerResult` carries no ratio-derived field (personalscraper/api/tracker/_base.py:58), so no criterion can score it today; `rank()` needs nothing else, a criterion naming this field scores it the way `provider` is scored
+             * @enum {string|null}
+             */
+            trackerRatioState: "under_floor" | "under_target" | "comfortable" | null;
+        };
+        /** @description the sample set, scored and ordered: the releases kept by score, the excluded ones last */
+        RankingPreview: {
+            /** @description every sample, scored, in the order the ranking puts them */
+            ranked: components["schemas"]["RankingPreviewRelease"][];
+            /** @description the configured trackers — the values a tracker-keyed criterion is offered */
+            knownTrackers: string[];
         };
     };
     responses: {
@@ -4273,6 +4395,34 @@ export interface operations {
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+        };
+    };
+    previewRanking: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RankingConfig"];
+            };
+        };
+        responses: {
+            /** @description the samples, scored and ordered */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RankingPreview"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
         };
     };

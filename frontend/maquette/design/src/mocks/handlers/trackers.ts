@@ -5,6 +5,7 @@ import { DELETE, GET, POST, field, route } from "./shared";
 import { mockState } from "../state";
 import { alertThresholdKey, trackersState } from "../trackers-state";
 import { refused, type MockRoute } from "../router";
+import { previewOf } from "./ranking";
 import type { components } from "../../contract/types";
 
 type Schemas = components["schemas"];
@@ -48,6 +49,10 @@ export function trackerRoutes(): MockRoute[] {
       broken.seen = true;
       return broken;
     }),
+    // THE RANKING EDITOR'S LIVE PREVIEW: read-only and pure, the fixed sample set
+    // scored under the ranking the request carries.
+    route("previewRanking", POST, "/api/acquisition/ranking/preview",
+          (request) => previewOf(request.body as Schemas["RankingConfig"])),
     route("readDownloads", GET, "/api/acquisition/downloads", (): Schemas["Downloads"] => ({
       clientAvailable: true,
       downloads: trackersState().downloads,

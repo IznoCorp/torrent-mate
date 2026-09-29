@@ -294,6 +294,12 @@
       "seed": null,
       "converted": "L12 phase 3 — moved with the arbitration into `lib/press-arbitration.ts` as `PRESS_TOLERANCE_PIXELS`. R112 measures it under a real mouse, which is the only instrument that can: under touch the compositor cancels the press at the same distances whether or not the tolerance exists"
     },
+    "RANKING_SAMPLES": {
+      "class": "served",
+      "why": "the ranking preview's FIXED, representative release set — the backend's own `_ranking_preview_samples` (personalscraper/web/routes/acquisition_ranking.py), its twelve releases as the trackers would parse them",
+      "seed": null,
+      "converted": "L16 phase 13 — born with `previewRanking`"
+    },
     "REASON_DETAIL": {
       "class": "interface",
       "why": "the sentence that explains each reason",
