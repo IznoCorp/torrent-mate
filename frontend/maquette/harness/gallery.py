@@ -6,6 +6,7 @@ vocabularies for the same picture.
 """
 import asyncio
 
+from common import chrome_launch_args
 from playwright.async_api import async_playwright
 
 GALLERIES = [
@@ -18,7 +19,7 @@ GALLERIES = [
 
 async def main():
   async with async_playwright() as p:
-    b = await p.chromium.launch(channel="chrome")
+    b = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
     failures = []
     for touch in (True, False):
       ctx = await b.new_context(viewport={"width":390,"height":844},

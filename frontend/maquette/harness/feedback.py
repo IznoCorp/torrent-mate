@@ -38,7 +38,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, PROTOTYPE, Journal
+from common import PHONE, PROTOTYPE, Journal, chrome_launch_args
 
 # HOW LONG PAST THE PRESS TO READ. The press delay itself is READ from
 # `window.__gestures`, never re-typed — the mark lives 200ms after the timer
@@ -485,7 +485,7 @@ async def hold(journal):
     """Drives the acknowledgement under both preferences, and the pressed state."""
     errors = []
     async with async_playwright() as play:
-        browser = await play.chromium.launch(channel="chrome")
+        browser = await play.chromium.launch(channel="chrome", args=chrome_launch_args())
         await hold_the_acknowledgement(journal, browser, "no-preference")
         await hold_the_acknowledgement(journal, browser, "reduce")
         await hold_the_pressed_state(journal, browser)

@@ -30,7 +30,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, SETTLED, Journal, open_page
+from common import PHONE, SETTLED, Journal, open_page, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -63,7 +63,7 @@ async def main():
     """Reads the strip in each context."""
     journal = Journal("R198 — the kind chips scroll without showing a scrollbar")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         for label, options in READINGS:
             context, page = await open_page(browser, **options)
             await page.evaluate("(id)=>window.__go(id)", LIBRARY_STATE)

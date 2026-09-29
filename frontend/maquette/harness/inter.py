@@ -1,7 +1,7 @@
 """Interaction holds: what a tap, a long press and a drag must do."""
 
 import asyncio
-from common import shot
+from common import shot, chrome_launch_args
 from playwright.async_api import async_playwright
 
 # Pointer events of type « touch »: the handlers serve finger, mouse and pen
@@ -21,7 +21,7 @@ SW = """([sel,dir,n]) => new Promise(res => {
 
 async def main():
   async with async_playwright() as p:
-    b=await p.chromium.launch(channel="chrome")
+    b=await p.chromium.launch(channel="chrome", args=chrome_launch_args())
     ctx=await b.new_context(viewport={"width":390,"height":844},device_scale_factor=2,is_mobile=True,has_touch=True)
     pg=await ctx.new_page(); errs=[]
     pg.on("pageerror", lambda e: errs.append(str(e)))

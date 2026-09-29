@@ -39,7 +39,7 @@ rest (the folded section, its reason, the count, the panel).
 """
 import asyncio
 
-from common import Journal, open_page
+from common import Journal, open_page, chrome_launch_args
 from playwright.async_api import async_playwright
 
 # The engine's own words. None of them may reach a screen.
@@ -115,7 +115,7 @@ async def main():
     _journal = Journal("R57 — the resolution screen")
 
     async with async_playwright() as p:
-        b = await p.chromium.launch(channel="chrome")
+        b = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
         ctx, pg = await open_page(b)
         errors = []
         pg.on("pageerror", lambda e: errors.append(str(e)))

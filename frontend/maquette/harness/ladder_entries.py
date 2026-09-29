@@ -36,7 +36,7 @@ right medium is the sheet's own rules' business; this one holds the LADDER.
 """
 import asyncio
 
-from common import PROTOTYPE, Journal
+from common import PROTOTYPE, Journal, chrome_launch_args
 from playwright.async_api import async_playwright
 
 journal = Journal("R188 — one ladder shape for what a panel opens")
@@ -73,7 +73,7 @@ async def open_the_panel(page, title):
 
 async def main():
     async with async_playwright() as p:
-        browser = await p.chromium.launch(channel="chrome")
+        browser = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
         context = await browser.new_context(
             viewport={"width": 390, "height": 844},
             device_scale_factor=2, is_mobile=True, has_touch=True)

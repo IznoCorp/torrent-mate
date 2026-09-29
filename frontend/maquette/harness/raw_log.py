@@ -34,7 +34,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, PROTOTYPE, Journal, SETTLED, open_page
+from common import ACTED, PROTOTYPE, Journal, SETTLED, open_page, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -150,7 +150,7 @@ async def main():
     journal = Journal("R183 — B-296: a passage's raw output is folded, and what "
                       "is absent is said")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         context, page = await open_page(browser)
 
         # 1 — AT REST, THE LINES ARE NOT RENDERED.

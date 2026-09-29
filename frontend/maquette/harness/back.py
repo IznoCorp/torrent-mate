@@ -38,7 +38,7 @@ read on `history.length` and not on the address alone.
 """
 import asyncio
 
-from common import Journal, open_page
+from common import Journal, open_page, chrome_launch_args
 from playwright.async_api import async_playwright
 
 _journal = None
@@ -87,7 +87,7 @@ async def main():
     _journal = Journal("R59 — the back gesture follows the path")
 
     async with async_playwright() as p:
-        b = await p.chromium.launch(channel="chrome")
+        b = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
         ctx, pg = await open_page(b)
         errors = []
         pg.on("pageerror", lambda e: errors.append(str(e)))

@@ -53,7 +53,7 @@ import json
 import pathlib
 import re
 
-from common import PHONE, PROTOTYPE, Journal, design_source, open_page
+from common import PHONE, PROTOTYPE, Journal, design_source, open_page, chrome_launch_args
 from playwright.async_api import async_playwright
 
 # WHAT THE VEILLE'S VERB SAYS WHEN IT IS ACCEPTED, read from the resources.
@@ -307,7 +307,7 @@ async def main():
     check("there really are block kinds", len(declared) >= 5, f"{len(declared)} kinds")
 
     async with async_playwright() as p:
-        b = await p.chromium.launch(channel="chrome")
+        b = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
         ctx, pg = await open_page(b)
         errors = []
         pg.on("pageerror", lambda e: errors.append(str(e)))

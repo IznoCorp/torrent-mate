@@ -107,7 +107,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, PANEL_IN, SETTLED, Journal, open_page
+from common import ACTED, PANEL_IN, SETTLED, Journal, open_page, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -469,7 +469,7 @@ async def show_over(page, state, wait):
 async def main():
     journal = Journal("R159 — a message said while a layer is open is seen and takes a finger")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         context, page = await open_page(browser)
 
         # ── PAINT ────────────────────────────────────────────────────────────
