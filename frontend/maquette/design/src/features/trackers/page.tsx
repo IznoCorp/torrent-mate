@@ -8,6 +8,7 @@ import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 import { useUiState } from "../../lib/store-access";
 import { segment, segmentTab, viewTabs } from "../../ui/variants";
+import { trackersTab } from "./variants";
 import { TorrentsTab } from "./torrents-tab";
 import { TrackersTab } from "./trackers-tab";
 import { PendingEditsBar } from "../../lib/save-bar-door";
@@ -32,7 +33,7 @@ export function TrackersPage(): ReactElement {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              className={segmentTab()}
+              className={`${segmentTab()} ${trackersTab()}`}
               role="tab"
               aria-selected={state.trackersTab === tab.id}
               data-part="trackers/tab"

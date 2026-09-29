@@ -11,12 +11,17 @@ since a live preview that silently drops a row hides what the ranking discards.
 2. a typed weight re-scores it — the rows drawn are the operation's answer for
    the ranking AS TYPED, the scores moved, and nothing was written;
 3. with a minimum of seeders the samples do not all meet, every sample is still
-   a row, the excluded ones last, each flagged.
+   a row, the excluded ones last, each flagged;
+4. a file that sets no `min_seeders` is previewed under the ENGINE's own
+   default, 1 (`personalscraper/conf/models/_ranking.py`) — never 0.
 
 THE MINIMUM IS POSED, a derivation the real file does not hold: the operator's
 `ranking.json5` sets `min_seeders` at 1 and every sample has more. The hold
 raises it through the file's own write — the operation the editor saves by,
 under the digest the read answered — then the screen reads the file again.
+
+Hold 4 came with correction round C16, red while the preview defaulted to 0.
+The key is REMOVED through the same write, under the digest the read answered.
 
 Red before the move: no preview is drawn.
 """
@@ -34,6 +39,21 @@ RANKING = FILE["values"]["ranking"]
 SAMPLES = json.loads((SOURCE / "mocks/seeds/ranking-samples.json").read_text(encoding="utf-8"))
 WORDS = json.loads((SOURCE / "i18n/fr.json").read_text(encoding="utf-8"))["screens"]["ranking"]
 POSED_MINIMUM = 10
+# The engine's default when the file sets no minimum.
+ENGINE_DEFAULT_MINIMUM = 1
+DROP_MINIMUM = """async () => {
+  const read = await (await fetch('/api/config/files/ranking.json5')).json();
+  const {min_seeders: _dropped, ...ranking} = read.values.ranking;
+  return (await (await fetch('/api/config/files/ranking.json5', {method: 'PUT',
+    headers: {'Content-Type': 'application/json'}, body: JSON.stringify({values: {...read.values, ranking},
+    digest: read.digest})})).json());
+}"""
+# The minimum the screen's LAST preview asked the operation for, read off its own query key.
+ASKED_MINIMUM = """() => {
+  const queries = window.__queries?.getQueryCache().findAll({queryKey: ['/api/acquisition/ranking/preview']}) ?? [];
+  const last = queries.sort((a, b) => b.state.dataUpdatedAt - a.state.dataUpdatedAt)[0];
+  return last ? last.queryKey[1]?.minSeeders ?? null : null;
+}"""
 
 ROWS = """() => [...document.querySelectorAll('[data-part="ranking/preview"] [data-part="ranking/preview-row"]')]
   .map(row => ({title: row.dataset.title, score: row.querySelector('[data-part="ranking/preview-score"]')
@@ -129,6 +149,17 @@ async def main():
                       and all(WORDS["previewExcluded"] in row["text"] for row in flagged),
                       f"write {raised} · {len(drawn)} rows · flagged {[row['title'][:24] for row in flagged]}"
                       f" against {[title[:24] for title in excluded]}")
+
+        # ── no minimum in the file: the engine's own default ──────────────
+        await page.evaluate("()=>{window.__go('ranking-editor')}")
+        await page.wait_for_timeout(SETTLED)
+        dropped = await page.evaluate(DROP_MINIMUM)
+        await page.evaluate(REREAD)
+        await page.wait_for_timeout(SETTLED)
+        asked = await page.evaluate(ASKED_MINIMUM)
+        journal.check(f"a file setting no min_seeders is previewed under the engine's default {ENGINE_DEFAULT_MINIMUM}, never 0",
+                      dropped.get("conflict") is False and asked == ENGINE_DEFAULT_MINIMUM,
+                      f"write {dropped} · asked minSeeders {asked!r}")
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()

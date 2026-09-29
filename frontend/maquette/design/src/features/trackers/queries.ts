@@ -69,18 +69,33 @@ export type Setting = Schemas["Setting"];
 /** The address of the settings catalogue — the one the settings page reads. */
 const CATALOGUE_ADDRESS = "/api/config/schema";
 
+/** The settings catalogue's read: its answer once there, and whether it failed. */
+export type Catalogue = {
+  /** The settings, every topic's in turn — undefined while the read is under way. */
+  settings: Setting[] | undefined;
+  /** Whether the read failed. */
+  isError: boolean;
+  /** Asks the read again. */
+  retry: () => void;
+};
+
 /**
  * The settings catalogue, flattened: the SAME read the settings page makes,
- * under the same key, so both pages draw one answer.
+ * under the same key, so both pages draw one answer. ITS WAIT AND ITS FAILURE
+ * TRAVEL WITH IT: a caller must be able to tell « not yet » from « none ».
  *
- * @returns The settings, every topic's in turn, once answered.
+ * @returns The catalogue's read.
  */
-export function useSettingsCatalogue(): Setting[] | undefined {
-  const { data } = useQuery({
+export function useSettingsCatalogue(): Catalogue {
+  const query = useQuery({
     queryKey: [CATALOGUE_ADDRESS],
     queryFn: async () => read<Schemas["SettingsTopic"][]>(CATALOGUE_ADDRESS),
   });
-  return data?.flatMap((topic) => topic.settings);
+  return {
+    settings: query.data?.flatMap((topic) => topic.settings),
+    isError: query.isError,
+    retry: () => void query.refetch(),
+  };
 }
 
 /** What the ratio alert says of the page's answers: per tracker, and per entry. */

@@ -18,9 +18,20 @@ left waiting where the operator cannot see it (NE-DOIT-PAS-2).
    through `updateConfigurationFile`, and the entry, read again, shows the value
    the layer now answers;
 5. « Voir les torrents » lands on « Torrents » filtered to that tracker, as an
-   adjustment.
+   adjustment, and it is a finger's target, at least 44 px high;
+6. the alert threshold's panel, raised from the entry, is titled in the
+   interface's words — never the key's raw English, « alert threshold »;
+7. from « Trackers », a finger sets the alert threshold above the tracker's
+   ratio and saves: the entry's alert chip AND the bar's badge move in the
+   render that follows — the rule refreshes nothing, the save does;
+8. while the settings catalogue is being read, the policy says so — never
+   « Aucune politique réglée », which is an answer, not a wait;
+9. when that read failed, the policy says it failed, naming what — never
+   « Aucune politique réglée » either.
 
-Red before the move: no entry opens.
+Red before the move: no entry opens. Holds 6–9 came with correction round C16,
+red while the save left `/api/trackers` stale, the policy read `?? []`, the
+panel fell back to the key's own words and « Voir les torrents » stood at 39 px.
 """
 import asyncio
 import json
@@ -38,6 +49,23 @@ WITH_POLICY = TRACKERS[0]["name"]
 WITHOUT_POLICY = TRACKERS[1]["name"]
 FIELDS = ("min_ratio", "min_seed_time", "alert_threshold")
 FLOOR = f"tracker:tracker.providers.{WITH_POLICY}.economy.min_ratio"
+ALERT = f"tracker:tracker.providers.{WITH_POLICY}.economy.alert_threshold"
+# A threshold far above any seeded ratio, so the tracker can only be under it.
+THRESHOLD = "9"
+LABELS = json.loads((SOURCE / "i18n/fr.json").read_text(encoding="utf-8"))["settings"]["labels"]
+ALERT_LABEL = LABELS.get("alert_threshold", "<no copy>")
+SURFACE_ERROR = json.loads((SOURCE / "i18n/fr.json").read_text(encoding="utf-8"))["surfaces"]["error"]["lead"]
+FINGER = 44
+BADGE = """() => document.querySelector('[data-part="shell/tab-bar"] [data-page="trackers"] [data-part="shell/tab-badge"]')
+  ?.textContent.trim() ?? null"""
+POLICY = """(name) => {
+  const policy = document.querySelector(`#view [data-part="trackers/entry"][data-tracker="${name}"] [data-part="trackers/policy"]`);
+  return policy === null ? null : {
+    skeletons: policy.querySelectorAll('[data-skeleton]').length,
+    failure: policy.querySelector('[data-part="surface-error"]')?.textContent.trim() ?? null,
+    unset: policy.querySelector('[data-part="trackers/policy-unset"]') !== null,
+  };
+}"""
 # A floor no seed carries, so what is read back can only be what was typed.
 TYPED = "1.7"
 
@@ -154,12 +182,53 @@ async def main():
         await enter(page, "trackers-entry-open")
         start = await page.evaluate("()=>history.length")
         see = f'#view [data-part="trackers/entry"][data-tracker="{WITH_POLICY}"] [data-part="trackers/see-torrents"]'
+        height = await page.evaluate(
+            f"""()=>Math.round(document.querySelector('{see}')?.getBoundingClientRect().height ?? 0)""")
         await tapped(page, see)
         landed = await page.evaluate(
             "()=>({tab: window.state?.trackersTab, filter: window.state?.trackersFilter, length: history.length})")
         journal.check("« Voir les torrents » lands on « Torrents » filtered to the tracker, as an adjustment",
                       landed["tab"] == "torrents" and landed["filter"] == WITH_POLICY and landed["length"] == start,
                       f"{landed} from {start}")
+
+        journal.check(f"« Voir les torrents » is a finger's target, at least {FINGER} px high", height >= FINGER,
+                      f"{height} px")
+
+        # ── the alert threshold, set from « Trackers », moves the alert ──────
+        await enter(page, "trackers-entry-open")
+        walked = {"row": await tapped(page, f'#view [data-part="trackers/policy"] [data-setting="{ALERT}"]')}
+        title = await page.evaluate("()=>document.querySelector('#sheetin')?.textContent.slice(0, 160) ?? ''")
+        journal.check(f"the alert threshold's panel is titled « {ALERT_LABEL} », never « alert threshold »",
+                      ALERT_LABEL in title and "alert threshold" not in title.lower(), repr(title))
+        walked["field"] = await tapped(page, '#sheetin [data-part="field/input"]')
+        if walked["field"]:
+            await page.keyboard.press("Meta+A")
+            await page.keyboard.type(THRESHOLD)
+        walked["commit"] = await tapped(page, "#sheetin [data-commitsetting]")
+        await page.go_back()
+        await page.wait_for_timeout(ACTED)
+        walked["save"] = await tapped(page, "#savebar [data-save]")
+        await page.wait_for_timeout(SETTLED)
+        chip = await page.evaluate(
+            f"""()=>document.querySelector('#view [data-part="trackers/entry"][data-tracker="{WITH_POLICY}"] [data-part="trackers/alert"]')
+                ?.textContent.trim() ?? null""")
+        badge = await page.evaluate(BADGE)
+        journal.check(f"the threshold saved at {THRESHOLD} from « Trackers » moves {WITH_POLICY}'s alert chip "
+                      "and the bar's badge — the rule refreshing nothing",
+                      chip is not None and badge is not None and int(badge) >= 1, f"walked {walked}: chip {chip!r} · badge {badge!r}")
+
+        # ── the policy's own wait and failure ────────────────────────────
+        for outcome, label in (("{latencyMilliseconds: 60000}", "in flight"), ("{status: 500}", "failed")):
+            await enter(page, "trackers-entry-open")
+            # NOT AWAITED: the held-back read answers in a minute, and the wait is what is read.
+            await page.evaluate(f"""()=>{{window.__mocks.setOperationOutcome('readSettings', {outcome});
+                void window.__queries?.resetQueries({{queryKey: ['/api/config/schema']}}).catch(() => null);}}""")
+            await page.wait_for_timeout(SETTLED)
+            policy = await page.evaluate(POLICY, WITH_POLICY)
+            said = (policy or {}).get("skeletons", 0) > 0 if label == "in flight" else (
+                (policy or {}).get("failure") is not None and SURFACE_ERROR.split("{{")[0].strip() in policy["failure"])
+            journal.check(f"the catalogue's read {label}: the policy says so, never « {WORDS.get('policyUnset')} »",
+                          policy is not None and said and not policy["unset"], str(policy))
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()

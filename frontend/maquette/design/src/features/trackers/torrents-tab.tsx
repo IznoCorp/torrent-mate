@@ -13,7 +13,7 @@ import { useUiState } from "../../lib/store-access";
 import { chip, emptyNote, factDetail, factList, factRow, factRowBody, factValue, statusDot } from "../../ui/variants";
 import { dayOf, written } from "./format";
 import { alertOf, useDownloads, useObligations, useTrackers, type Download, type Obligation } from "./queries";
-import { torrentFilter, torrentFilterClear, torrentRemove, torrentTitle } from "./variants";
+import { torrentFilter, torrentFilterClear, torrentHead, torrentChipLine, torrentRemove, torrentTitle } from "./variants";
 
 /**
  * The obligation one entry owes on its own tracker.
@@ -59,35 +59,46 @@ function TorrentRow(
   // MET AND STILL SEEDING: the entry kept going past its own requirement.
   const done = obligation !== undefined && obligation.satisfiedAt !== null && obligation.releasedAt === null;
   return (
-    <li data-part="torrents/row" data-entry={entry.infoHash} data-tracker={entry.tracker}>
-      <span className={factRow()}>
-        <span
-          className={statusDot({ tone: entry.origin ? "info" : "waiting" })}
-          data-part="torrents/origin"
-          data-origin={entry.origin ? "origin" : "cross"}
-          role="img"
-          aria-label={t(entry.origin ? "screens.torrents.origin" : "screens.torrents.crossSeed")}
-        />
-        <span className={factRowBody()}>
+    // THE ROW IS COMPOSED AS DESIGNED: the row, its body's grid holding the
+    // head (mark and title) and the ratio on ONE line, the sub-lines under —
+    // never the ratio a sibling of the grid, floating between two rows.
+    <li className={factRow()} data-part="torrents/row" data-entry={entry.infoHash} data-tracker={entry.tracker}>
+      <div className={factRowBody()}>
+        <span className={torrentHead()}>
+          <span
+            className={statusDot({ tone: entry.origin ? "info" : "waiting" })}
+            data-part="torrents/origin"
+            data-origin={entry.origin ? "origin" : "cross"}
+            role="img"
+            aria-label={t(entry.origin ? "screens.torrents.origin" : "screens.torrents.crossSeed")}
+          />
           {/* THE TITLE IS A PATH: its sheet, or its resolution when nobody identified it. */}
           <button className={torrentTitle()} data-part="torrents/title" data-mediasheet={entry.title}>
             {code === "" ? entry.title : `${entry.title} · ${code}`}
           </button>
-          <span className={factDetail()} data-part="torrents/tracker">{entry.tracker}</span>
+        </span>
+        <span className={factValue()} data-part="torrents/ratio">
+          {t("screens.trackers.ratio", { ratio: written(entry.ratio, 2) })}
+        </span>
+        <span className={factDetail()} data-part="torrents/tracker">{entry.tracker}</span>
           <span className={factDetail()} data-part="torrents/deadline">
             {entry.deadline === null
               ? t("screens.torrents.noDeadline")
               : t("screens.torrents.deadline", { date: dayOf(entry.deadline) })}
           </span>
+        <span className={torrentChipLine()}>
           {running ? (
             <span className={chip({ tone: "info" })} data-part="torrents/obligation-open">
               {t("screens.torrents.obligationOpen")}
             </span>
           ) : null}
-          {/* BROKEN, THE TORRENT STILL HERE: the alert's own reading, never recomputed on the row. */}
+          {/* BROKEN, THE TORRENT STILL HERE: the alert's own reading, never recomputed on
+              the row — « en infraction », never S2's « rompue », which names the torrent gone. */}
           {breached ? (
             <span className={chip({ tone: "danger" })} data-part="torrents/obligation-breached">
-              {t("screens.torrents.obligationBreached")}
+              {t("screens.torrents.obligationBreached", {
+                date: obligation?.breachedAt ? dayOf(obligation.breachedAt) : "",
+              })}
             </span>
           ) : null}
           {done ? (
@@ -103,10 +114,7 @@ function TorrentRow(
             {t("screens.torrents.remove")}
           </button>
         </span>
-        <span className={factValue()} data-part="torrents/ratio">
-          {t("screens.trackers.ratio", { ratio: written(entry.ratio, 2) })}
-        </span>
-      </span>
+      </div>
     </li>
   );
 }

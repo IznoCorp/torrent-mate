@@ -20,6 +20,7 @@ import { dialog, panel, toast, redraw, icons } from "../../lib/shell-doors";
 import { settingLabels } from "./labels";
 import { changeSetting } from "./pending-edits";
 import { SETTINGS_STATE, changedFiles, fileName, typedValue } from "./state";
+import { editsWritten } from "../../lib/save-bar-door";
 
 // THE ICONS COME THROUGH THE ENGINE'S DRAWING SLICE, not by importing
 // `app/icons.ts`, and it is invariant 8 that decides. `app/icons.ts` is outside
@@ -240,6 +241,9 @@ async function saveEdits(): Promise<void> {
   await sharedQueryClient?.invalidateQueries({ queryKey: settingsQuery.queryKey });
   await sharedQueryClient?.invalidateQueries({
     queryKey: configurationStatusQuery.queryKey });
+  // AND WHAT A SETTING GOVERNS ELSEWHERE re-reads it: a tracker's threshold
+  // moves its alert in the render that follows, whichever door saved it.
+  editsWritten();
   redraw();
   toast?.show({
     message: i18next.t("panels.setting.savedToast", {

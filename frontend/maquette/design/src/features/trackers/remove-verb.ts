@@ -8,7 +8,7 @@
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { dialog, toast } from "../../lib/shell-doors";
-import { read, send, sharedQueryClient } from "../../lib/query-client";
+import { HELD, read, send, sharedQueryClient } from "../../lib/query-client";
 import type { DialogBlock } from "../../ui/dialog/contract";
 import type { Schemas } from "../../lib/contract-schemas";
 import { downloadsKey, obligationsKey } from "./queries";
@@ -34,7 +34,11 @@ function say(key: string, values: Record<string, string> = {}): string {
  * @param deleteFiles Whether its files leave the disk with it.
  */
 async function removeEntry(entry: Schemas["Download"], deleteFiles: boolean): Promise<void> {
-  await send("DELETE", `/api/acquisition/downloads/${encodeURIComponent(entry.infoHash)}`, { deleteFiles });
+  const answered = await send("DELETE", `/api/acquisition/downloads/${encodeURIComponent(entry.infoHash)}`, { deleteFiles });
+  // HELD IS NOT DONE: the outbox keeps the removal and says so; the entry has
+  // not left qBittorrent, and asking the reads again offline would replace the
+  // tab with a failure. Nothing more is said until it departs.
+  if (answered === HELD) return;
   // BOTH READS ASKED AGAIN TOGETHER, so the row leaves with the answer.
   await Promise.all(REFRESHED.map((queryKey) => sharedQueryClient?.invalidateQueries({ queryKey })));
   toast?.show({ message: say("done", { title: entry.title }) });
@@ -69,12 +73,13 @@ export function openRemoveConfirm(infoHash: string, tracker: string): void {
  *
  * @param entry The entry.
  * @param obligations Every obligation.
- * @returns True while one is neither met nor released.
+ * @returns True while one is neither met, broken nor released — a BROKEN
+ *     obligation is not running, and is never announced as one.
  */
 function hasRunningObligation(entry: Schemas["Download"], obligations: Schemas["Obligation"][]): boolean {
   return obligations.some(
     (obligation) => obligation.infoHash === entry.infoHash && obligation.sourceTracker === entry.tracker
-      && obligation.satisfiedAt === null && obligation.releasedAt === null,
+      && obligation.satisfiedAt === null && obligation.breachedAt === null && obligation.releasedAt === null,
   );
 }
 

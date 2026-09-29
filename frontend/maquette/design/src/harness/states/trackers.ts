@@ -131,7 +131,7 @@ export function trackersStates(): NamedState[] {
     ],
     [
       "torrents-obligation-done",
-      "Torrents — une obligation terminée, le torrent toujours en seed",
+      "Torrents — une obligation terminée, POSÉE sur American Dad! (le back-end lira satisfied_at), le torrent toujours en seed",
       () => {
         window.__mocks?.reset();
         window.__mocks?.setObligationSatisfied("e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb");
@@ -140,7 +140,7 @@ export function trackersStates(): NamedState[] {
     ],
     [
       "torrent-remove-confirm",
-      "Torrents — « Retirer de qBittorrent » sur un torrent qui ne doit plus rien",
+      "Torrents — « Retirer de qBittorrent » sur un torrent qui ne doit plus rien, son obligation terminée POSÉE (le back-end lira satisfied_at)",
       () => {
         window.__mocks?.reset();
         window.__mocks?.setObligationSatisfied("e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb");
@@ -179,7 +179,7 @@ export function trackersStates(): NamedState[] {
     ],
     [
       "tracker-alert-active",
-      "Trackers — un tracker sous son propre seuil d'alerte, le seuil saisi par l'opérateur",
+      "Trackers — un tracker sous son propre seuil d'alerte, seuil POSÉ sur c411 (economy.alert_threshold : une demande, la clé manque au moteur)",
       () => {
         window.__mocks?.reset();
         window.__mocks?.poseAlertThreshold("c411", 1.5);

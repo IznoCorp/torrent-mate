@@ -7,6 +7,7 @@ import { fillLandingDoor, redraw, replaceAddress } from "../../lib/shell-doors";
 import { send, sharedQueryClient } from "../../lib/query-client";
 import { store } from "../../lib/store-access";
 import { trackersKey } from "./queries";
+import { onEditsWritten } from "../../lib/save-bar-door";
 import { tabMemory } from "../../lib/tab-memory";
 // « Retirer de qBittorrent » declares its own verb.
 import "./remove-verb";
@@ -38,8 +39,15 @@ fillLandingDoor((page, dial) => {
   if (page !== "trackers") return;
   const [tab, tracker] = (dial ?? "").split(DIAL_SEPARATOR);
   store.write({ trackersTab: TABS.has(tab) ? tab : MEMORY.remembered() });
-  if (tracker) store.write({ trackersFilter: tracker });
+  // A LANDING THAT NAMES NO TRACKER LANDS UNFILTERED: a filter left from before
+  // is not carried into an arrival that did not ask for it.
+  store.write({ trackersFilter: tracker || "" });
 });
+
+/* A SETTING SAVED, from Réglages or from this page: the trackers' summary carries
+   each tracker's alert threshold, so it is asked again — the chip and the bar's
+   badge move in the render that follows, never at the next ratio measured. */
+onEditsWritten(() => void sharedQueryClient?.invalidateQueries({ queryKey: trackersKey }));
 
 /* « VOIR LES TORRENTS »: the « Torrents » tab, filtered to the tracker whose entry
    offered it — both dials of the page set at once, an adjustment like a tab. */

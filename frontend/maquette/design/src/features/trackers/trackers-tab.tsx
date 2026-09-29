@@ -15,9 +15,9 @@ import {
   chip, crossReference, emptyNote, factDetail, factList, factName, factRow, factRowBody, factValue, guidance,
 } from "../../ui/variants";
 import { dayOf, written } from "./format";
-import { torrentRemove } from "./variants";
+import { seeTorrents, seenControl } from "./variants";
 import {
-  alertOf, useDownloads, useObligations, useSettingsCatalogue, useTrackers, type Alert, type Setting, type Tracker,
+  alertOf, useDownloads, useObligations, useSettingsCatalogue, useTrackers, type Alert, type Catalogue, type Tracker,
 } from "./queries";
 
 // THE POLICY IS THE TRACKER'S ECONOMY BLOCK, in the tracker's configuration
@@ -37,11 +37,29 @@ const GIGABYTE = 1_000_000_000;
  * and a tap raises that setting's own panel — one write, whichever door.
  *
  * @param props.tracker The tracker's name.
- * @param props.settings The settings catalogue.
- * @returns The policy, or the sentence saying none is set.
+ * @param props.catalogue The settings catalogue's read.
+ * @returns The policy, or the sentence saying none is set; while the catalogue
+ *     is read, its skeletons, and when the read failed, the failure.
  */
-function TrackerPolicy({ tracker, settings }: { tracker: string; settings: Setting[] }): ReactElement {
+function TrackerPolicy({ tracker, catalogue }: { tracker: string; catalogue: Catalogue }): ReactElement {
   const { t } = useTranslation();
+  // THE CATALOGUE'S WAIT AND FAILURE ARE SAID — « no policy » is an answer,
+  // never a stand-in for a read still under way or one that failed.
+  if (catalogue.isError) {
+    return (
+      <div data-part="trackers/policy">
+        <SurfaceError subject={t("screens.trackers.policyErrorSubject")} onRetry={catalogue.retry} />
+      </div>
+    );
+  }
+  if (catalogue.settings === undefined) {
+    return (
+      <div data-part="trackers/policy">
+        <Skeletons count={3} shape="card" />
+      </div>
+    );
+  }
+  const settings = catalogue.settings;
   const rows = POLICY_FIELDS.flatMap(({ field, label }) => {
     const key = `tracker.providers.${tracker}.economy.${field}`;
     const setting = settings.find((candidate) => candidate.file === POLICY_FILE && candidate.key === key);
@@ -61,7 +79,7 @@ function TrackerPolicy({ tracker, settings }: { tracker: string; settings: Setti
           <p className={guidance()} data-part="trackers/policy-guidance">{t("screens.trackers.floorGuidance")}</p>
         </>
       )}
-      <button className={crossReference()} data-part="trackers/see-torrents" data-trackers-filter={tracker}>
+      <button className={`${crossReference()} ${seeTorrents()}`} data-part="trackers/see-torrents" data-trackers-filter={tracker}>
         {t("screens.trackers.seeTorrents")}
       </button>
     </div>
@@ -83,25 +101,26 @@ function BrokenObligations({ tracker }: { tracker: Tracker }): ReactElement {
       <ol className={factList()}>
         {tracker.brokenObligations.map((row) => (
           <li key={row.infoHash} className={factRow()} data-part="trackers/broken-obligation-row" data-entry={row.infoHash}>
+            {/* « VU » IN THE VALUE'S PLACE, on the title's line — a finger's target. */}
             <span className={factRowBody()}>
               <span className={factName()} data-part="trackers/broken-obligation-title">{row.title}</span>
+              {row.seen ? (
+                <span className={factValue()} data-part="trackers/broken-obligation-seen-mark">
+                  {t("screens.trackers.seenMark")}
+                </span>
+              ) : (
+                <button
+                  className={seenControl()}
+                  data-part="trackers/broken-obligation-seen"
+                  data-obligation-seen={`${tracker.name}:${row.infoHash}`}
+                >
+                  {t("screens.trackers.seen")}
+                </button>
+              )}
               <span className={factDetail()} data-part="trackers/broken-obligation-date">
                 {t("screens.trackers.brokenOn", { date: dayOf(row.brokenAt) })}
               </span>
             </span>
-            {row.seen ? (
-              <span className={factDetail()} data-part="trackers/broken-obligation-seen-mark">
-                {t("screens.trackers.seenMark")}
-              </span>
-            ) : (
-              <button
-                className={torrentRemove()}
-                data-part="trackers/broken-obligation-seen"
-                data-obligation-seen={`${tracker.name}:${row.infoHash}`}
-              >
-                {t("screens.trackers.seen")}
-              </button>
-            )}
           </li>
         ))}
       </ol>
@@ -113,17 +132,17 @@ function BrokenObligations({ tracker }: { tracker: Tracker }): ReactElement {
  * One tracker's entry: its summary, folding away its policy.
  *
  * @param props.tracker The tracker, as its own answer carries it.
- * @param props.settings The settings catalogue.
+ * @param props.catalogue The settings catalogue's read.
  * @param props.open Whether the address opened it.
  * @returns The entry.
  */
 function TrackerEntry(
-  { tracker, settings, open, alert }: { tracker: Tracker; settings: Setting[]; open: boolean; alert: Alert },
+  { tracker, catalogue, open, alert }: { tracker: Tracker; catalogue: Catalogue; open: boolean; alert: Alert },
 ): ReactElement {
   return (
     <li data-part="trackers/entry" data-tracker={tracker.name}>
       <Disclosure open={open} summary={<TrackerSummary tracker={tracker} alert={alert} />}>
-        <TrackerPolicy tracker={tracker.name} settings={settings} />
+        <TrackerPolicy tracker={tracker.name} catalogue={catalogue} />
         {tracker.brokenObligations.length > 0 ? <BrokenObligations tracker={tracker} /> : null}
       </Disclosure>
     </li>
@@ -142,9 +161,13 @@ function TrackerEntry(
 function TrackerSummary({ tracker, alert }: { tracker: Tracker; alert: Alert }): ReactElement {
   const { t } = useTranslation();
   return (
-    <span className={factRow()}>
-      <span className={factRowBody()}>
-        <span className={factName()}>{tracker.name}</span>
+    // THE NAME AND THE RATIO ON ONE LINE of the body's grid, as a fact row is
+    // designed — the ratio never a sibling of the grid, floating under it.
+    <span className={factRowBody()}>
+      <span className={factName()} data-part="trackers/name">{tracker.name}</span>
+      <span className={factValue()} data-part="trackers/ratio">
+        {tracker.ratio === null ? t("screens.trackers.ratioUnknown") : t("screens.trackers.ratio", { ratio: written(tracker.ratio, 2) })}
+      </span>
         <span className={factDetail()} data-part="trackers/trend">
           {t("screens.trackers.trend", { trend: t(`screens.trackers.trends.${tracker.trend}`) })}
         </span>
@@ -166,13 +189,9 @@ function TrackerSummary({ tracker, alert }: { tracker: Tracker; alert: Alert }):
         ) : null}
         {alert.refused.has(tracker.name) ? (
           <span className={chip({ tone: "danger" })} data-part="trackers/identifier-refused">
-            {t("screens.trackers.identifierRefused")}
+            {t("screens.trackers.identifierRefused", { date: dayOf(tracker.identifierRefusedSince ?? 0) })}
           </span>
         ) : null}
-      </span>
-      <span className={factValue()} data-part="trackers/ratio">
-        {tracker.ratio === null ? t("screens.trackers.ratioUnknown") : t("screens.trackers.ratio", { ratio: written(tracker.ratio, 2) })}
-      </span>
     </span>
   );
 }
@@ -190,7 +209,7 @@ export function TrackersTab(): ReactElement {
   const trackers = read.data;
   const { data: downloads } = useDownloads();
   const { data: obligations } = useObligations();
-  const settings = useSettingsCatalogue() ?? [];
+  const catalogue = useSettingsCatalogue();
   // THE READ IN FLIGHT, OR FAILED, IS SAID — never an empty tab standing for either.
   if (read.isError) {
     return <SurfaceError subject={t("screens.trackers.errorSubject")} onRetry={() => void read.refetch()} />;
@@ -209,7 +228,7 @@ export function TrackersTab(): ReactElement {
     <ol className={factList()} data-part="trackers/roster">
       {trackers.map((tracker) => (
         <TrackerEntry
-          key={tracker.name} tracker={tracker} settings={settings} alert={alert}
+          key={tracker.name} tracker={tracker} catalogue={catalogue} alert={alert}
           open={state.trackersFilter === tracker.name}
         />
       ))}

@@ -28,13 +28,21 @@ address model, never written here; its body is its own oracle region,
    then « Torrents » under a finger — says so with its skeletons: no row, and no
    sentence of absence standing for the wait;
 9. `trackers-error`: the reads answered a failure, and each tab says it, naming
-   what it could not load — never an empty body, never « nothing here ».
+   what it could not load — never an empty body, never « nothing here »;
+10. every tab of its strip is a finger's target, at least 44 px high — as tall
+    as Acquisition's own tabs;
+11. a landing that names no tracker lands UNFILTERED: a filter left from
+    before is not carried into an arrival that did not ask for it;
+12. Acquisition's « ⋮ » no longer promises the obligations in its accessible
+    name: they left its sheet for this page.
 
 Red before the move: no such page exists. RE-AIMED OUT LOUD: holds 5 and 6 came
 with the page's tabs, red on the page that had none; hold 7 with the tab memory,
 red while a bare address always opened « Trackers ». Holds 8 and 9 came with the
 wait and the failure DESIGN § 4.1 names and no phase drew, red while both tabs
-drew nothing at all.
+drew nothing at all. Holds 10–12 came with correction round C16, red while the
+strip stood at 34 px, a bare landing kept the last filter, and « ⋮ » still read
+« veille et obligations ».
 """
 import asyncio
 import json
@@ -92,6 +100,20 @@ FIRST = "trackers"
 OTHER = "torrents"
 # A tracker the configuration declares, read off the seed the page reads.
 FILTERED = json.loads((SOURCE / "mocks/seeds/trackers.json").read_text(encoding="utf-8"))[0]["name"]
+
+# A finger's target: the floor every control of the page is held to.
+FINGER = 44
+MORE_LABEL = """() => document.querySelector('#view [data-more]')?.getAttribute('aria-label') ?? null"""
+HEIGHTS = """(selector) => [...document.querySelectorAll(selector)].map(tab => Math.round(tab.getBoundingClientRect().height))"""
+LANDING_CONTROL = '#view [data-go="trackers"]:not([data-dial])'
+PLANT_LANDING = """() => { const control = document.createElement('button');
+  control.dataset.go = 'trackers'; control.textContent = 'Trackers';
+  control.style.cssText = 'min-height:44px;min-width:44px';
+  document.querySelector('#view')?.prepend(control); control.scrollIntoView(); }"""
+LANDED = """() => ({page: window.state?.page ?? null, filter: window.state?.trackersFilter ?? null,
+  search: location.search, line: document.querySelector('#view [data-part="torrents/filter"]') !== null})"""
+# The word the obligations went by in the sheet's promise.
+OBLIGATIONS_WORD = "obligations"
 
 # The storage key the tab is remembered under, and what a tab reads as selected.
 KEY = "trackers-tab"
@@ -283,6 +305,41 @@ async def main():
                     journal.check(f"{state}: « {tab} » says « {FAILED[tab]} », no row, no absence",
                                   answer is None and quiet and surface["failure"] is not None
                                   and FAILED[tab] in surface["failure"], f"{answer or ''} {surface}")
+
+        # ── a finger's target, a bare landing, and « ⋮ » ─────────────────
+        await page.evaluate("()=>window.__go('trackers-roster')")
+        await page.wait_for_timeout(SETTLED)
+        heights = await page.evaluate(HEIGHTS, '#view [data-trackers-tab]')
+        await page.evaluate("()=>window.__go('acq-now-loaded')")
+        await page.wait_for_timeout(SETTLED)
+        theirs = await page.evaluate(HEIGHTS, '#view [data-acqtab]')
+        label = await page.evaluate(MORE_LABEL)
+        journal.check(f"every tab of the strip is at least {FINGER} px high, as tall as Acquisition's",
+                      len(heights) == len(ORDER) and bool(theirs) and min(heights) >= FINGER
+                      and min(heights) >= min(theirs), f"trackers {heights} · acquisition {theirs}")
+        journal.check(f"Acquisition's « ⋮ » promises no « {OBLIGATIONS_WORD} » any more",
+                      label is not None and OBLIGATIONS_WORD not in label.lower(), repr(label))
+        # A LANDING THAT NAMES NO DIAL: the `go` verb every `data-go` control rides,
+        # given none. No control of the tree lands on « Trackers » without naming
+        # its dial today, so the rule places ONE such control and taps it — the
+        # verb's contract, read where a future control will rely on it.
+        # IN A FRESH PAGE: the holds above leave a history whose entries a
+        # landing's settling may step back through; the landing is read alone.
+        probe_context, probe = await open_page(browser)
+        probe.on("pageerror", lambda error: errors.append(str(error)))
+        await probe.evaluate("()=>window.__go('torrents-list-filtered')")
+        await probe.wait_for_timeout(SETTLED)
+        await probe.tap('#nav button[data-page="acq"]')
+        await probe.wait_for_timeout(ACTED)
+        await probe.evaluate(PLANT_LANDING)
+        if await probe.locator(LANDING_CONTROL).count() == 1:
+            await probe.tap(LANDING_CONTROL)
+            await probe.wait_for_timeout(ACTED)
+        landed = await probe.evaluate(LANDED)
+        await probe_context.close()
+        journal.check("a landing that names no tracker lands unfiltered",
+                      landed["page"] == PAGE and not landed["filter"] and "tracker=" not in landed["search"]
+                      and not landed["line"], str(landed))
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()

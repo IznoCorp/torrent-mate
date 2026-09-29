@@ -110,7 +110,7 @@
     },
     "DOWNLOADS": {
       "class": "served",
-      "why": "the download client's entries, one per tracker — the same five torrents as OBLIGATIONS, their names from `acquire.db`'s `seed_obligation` and `staging_provenance`, read read-only on 2026-09-28, their sizes from `library.db`'s `media_file`; the per-entry ratio and the tr4ker cross-seed (hash included) are composed for the drawing, since no engine route reads an entry's upload or tracker (DESIGN § 2.3 item 3)",
+      "why": "the download client's entries, one per tracker — SEVEN entries: the five torrents of OBLIGATIONS, their names from `acquire.db`'s `seed_obligation` and `staging_provenance`, read read-only on 2026-09-28, their sizes from `library.db`'s `media_file`; the per-entry ratio and the tr4ker cross-seed of President Curtis (hash included) are composed for the drawing, since no engine route reads an entry's upload or tracker (DESIGN § 2.3 item 3); and « Les Zinzins de l'Espace » S03E14, still downloading, whose title, ids, episode and progress (0.34) are the real `moving.json` row's, while its infoHash (the sha1 of its name), its release name (`…-JiHEFF`), its size (1.2 GB), its tracker (c411), its origin mark and its ratio (0) are COMPOSED (L16 phase 5c)",
       "seed": null,
       "converted": "L16 phase 1 — born with `readDownloads`"
     },

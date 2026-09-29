@@ -177,7 +177,9 @@ export const trackerDials: TrackerDials = {
     }
   },
   setObligationSatisfied: (infoHash: string) => {
-    // AN OBLIGATION MET, at its seed time, the torrent still seeding.
+    // A DERIVATION, SHOWN AS ONE: an obligation MET at its seed time, the
+    // torrent still seeding. No real obligation is met — `acquire.db`'s
+    // `seed_obligation` holds no satisfied row; the backend reads `satisfied_at`.
     for (const obligation of trackersState().obligations) {
       if (obligation.infoHash === infoHash) {
         obligation.satisfiedAt = obligation.addedAt + obligation.minimumSeedTimeSeconds;

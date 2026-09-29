@@ -8,6 +8,9 @@
 import type { ComponentType, ReactElement } from "react";
 
 let bar: ComponentType | undefined;
+// WHO HEARS A SAVE: a page drawing what a setting governs re-reads it once the
+// setting is written, whichever page wrote it — the door names no feature.
+const saveListeners: (() => void)[] = [];
 
 /**
  * Fills the door, from the feature that owns the pending edits.
@@ -16,6 +19,20 @@ let bar: ComponentType | undefined;
  */
 export function fillSaveBarDoor(component: ComponentType): void {
   bar = component;
+}
+
+/**
+ * Asks to hear every save of the pending edits.
+ *
+ * @param listener Called once a save has landed.
+ */
+export function onEditsWritten(listener: () => void): void {
+  saveListeners.push(listener);
+}
+
+/** Says a save of the pending edits has landed, from the feature that saved them. */
+export function editsWritten(): void {
+  for (const listener of saveListeners) listener();
 }
 
 /**

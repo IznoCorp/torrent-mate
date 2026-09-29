@@ -11,7 +11,9 @@ carries — compared here against the very seed the layer serves.
    on no entry whose own ratio differs from it;
 3. each entry's trend is said in words, its own tracker's;
 4. each entry's volumes are its own tracker's, Download and Upload;
-5. `trackers-roster-empty` — no tracker configured — draws no entry and says so.
+5. `trackers-roster-empty` — no tracker configured — draws no entry and says so;
+5 bis. each entry's ratio sits on its name's own line, inside its own row —
+   never floating under it, where it reads as the next tracker's.
 
 RE-AIMED OUT LOUD (the « Torrents » tab): the same clause, read on the other
 tab. A torrent's ratio is ITS OWN on the tracker the entry runs on, computed on
@@ -22,8 +24,11 @@ division a cross-seed would make by zero. So, on `torrents-list`:
    trackers is two rows;
 7. each row names its own tracker, and draws its own ratio, never one computed
    on the tracker's volume;
-8. each row's deadline is its own, or says there is none;
-9. each row's origin mark says origin grab or cross-seed, as its entry does;
+8. each row's deadline is its own — its day AND its month — or says there is
+   none;
+9. each row's origin mark says origin grab or cross-seed, as its entry does,
+   and is DRAWN — a box a finger's eye can see, never 0×0 — and its ratio sits
+   on its title's own line, inside its own row;
 10. an open obligation is a MARK on its own row, never on a row that owes none;
 11. a finger on a row's title lands on its medium's sheet, by provider id.
 12. `torrents-list-filtered` draws the named tracker's rows alone, and SAYS the
@@ -45,6 +50,17 @@ entry the client is still downloading.
 17. the downloading entry is a row of `torrents-list`, under its own title, and
     a finger on that title lands on its medium's sheet, by provider id.
 
+RE-AIMED OUT LOUD (hold 9, correction round C16): it read the mark's
+`data-origin` alone, and stayed green over a mark drawn at 0×0 px and a ratio
+floating between two rows; it now reads the mark's box and the ratio's line.
+Hold 8 read the day alone, and a deadline a month late kept it green; it now
+reads the month too.
+
+`torrents-obligation-done` and `torrent-remove-confirm` read an obligation MET
+that the real data does not hold (`acquire.db` has no satisfied row): it is
+POSED by `setObligationSatisfied`, a derivation shown as one in both states;
+the backend reads `seed_obligation.satisfied_at`.
+
 Red before the move: the tab draws no entry.
 """
 import asyncio
@@ -64,13 +80,24 @@ WORDS = SCREENS["trackers"]
 TORRENT_WORDS = SCREENS.get("torrents", {})
 # A billion bytes, the « Go » the interface writes volumes in.
 GIGABYTE = 1_000_000_000
+# The months as the interface writes a date, « 18 octobre ».
+MONTHS = ("janvier", "février", "mars", "avril", "mai", "juin", "juillet",  # french-ok: the rendered date
+          "août", "septembre", "octobre", "novembre", "décembre")  # french-ok: the rendered date
 
+# Whether one box sits on another's line: their vertical extents overlap, and it
+# lies to the right of it — the name and its value on one line.
+ON_LINE = """(value, name) => {
+  if (!value || !name) return false;
+  const v = value.getBoundingClientRect(), n = name.getBoundingClientRect();
+  return v.width > 0 && v.top < n.bottom && v.bottom > n.top && v.left >= n.right - 1;
+}"""
 ENTRIES = """() => [...document.querySelectorAll('#view [data-part="trackers/entry"]')].map(entry => ({
   name: entry.dataset.tracker,
+  onLine: (%s)(entry.querySelector('[data-part="trackers/ratio"]'), entry.querySelector('[data-part="trackers/name"]')),
   ratio: entry.querySelector('[data-part="trackers/ratio"]')?.textContent.trim() ?? null,
   trend: entry.querySelector('[data-part="trackers/trend"]')?.textContent.trim() ?? null,
   volumes: entry.querySelector('[data-part="trackers/volumes"]')?.textContent.trim() ?? null,
-}))"""
+}))""" % ON_LINE
 ROWS = """() => [...document.querySelectorAll('#view [data-part="torrents/row"]')].map(row => {
   const text = (part) => row.querySelector(`[data-part="${part}"]`)?.textContent.trim() ?? null;
   return {
@@ -79,10 +106,13 @@ ROWS = """() => [...document.querySelectorAll('#view [data-part="torrents/row"]'
     ratio: text("torrents/ratio"),
     deadline: text("torrents/deadline"),
     origin: row.querySelector('[data-part="torrents/origin"]')?.dataset.origin ?? null,
+    mark: (() => { const box = row.querySelector('[data-part="torrents/origin"]')?.getBoundingClientRect();
+      return box ? [Math.round(box.width), Math.round(box.height)] : null; })(),
+    onLine: (%s)(row.querySelector('[data-part="torrents/ratio"]'), row.querySelector('[data-part="torrents/title"]')),
     open: row.querySelector('[data-part="torrents/obligation-open"]') !== null,
     done: row.querySelector('[data-part="torrents/obligation-done"]') !== null,
   };
-})"""
+})""" % ON_LINE
 FILTER = """() => {
   const line = document.querySelector('#view [data-part="torrents/filter"]');
   return line === null ? null : {
@@ -141,11 +171,15 @@ async def torrents(page, journal):
             journal.check(f"{name}: it owes no deadline, and says so",
                           TORRENT_WORDS.get("noDeadline", "<no copy>") in deadline, repr(deadline))
         else:
-            day = str(datetime.datetime.fromtimestamp(entry["deadline"]).day)
-            journal.check(f"{name}: its deadline is its own, the {day}",
+            moment = datetime.datetime.fromtimestamp(entry["deadline"])
+            day = f"{moment.day} {MONTHS[moment.month - 1]}"
+            journal.check(f"{name}: its deadline is its own, the {day} — day and month",
                           prefix in deadline and day in deadline, repr(deadline))
-        journal.check(f"{name}: its origin mark says {'origin grab' if entry['origin'] else 'cross-seed'}",
-                      row.get("origin") == ("origin" if entry["origin"] else "cross"), repr(row.get("origin")))
+        journal.check(f"{name}: its origin mark says {'origin grab' if entry['origin'] else 'cross-seed'}, "
+                      "drawn with a box, and its ratio sits on its title's own line",
+                      row.get("origin") == ("origin" if entry["origin"] else "cross")
+                      and bool(row.get("mark")) and min(row["mark"]) > 0 and row.get("onLine") is True,
+                      f"{row.get('origin')!r} · mark {row.get('mark')} · on its line {row.get('onLine')}")
         obligation = owed(entry)
         running = obligation is not None and not any(
             obligation[field] for field in ("breachedAt", "satisfiedAt", "releasedAt"))
@@ -274,6 +308,8 @@ async def main():
             ratio = entry.get("ratio") or ""
             journal.check(f"{tracker['name']}: its ratio is its own, {own}, never the mean {mean}",
                           own in ratio and (mean == own or mean not in ratio), repr(ratio))
+            journal.check(f"{tracker['name']}: its ratio sits on its name's own line, inside its row",
+                          entry.get("onLine") is True, repr(entry.get("onLine")))
             word = WORDS.get("trends", {}).get(tracker["trend"], "<no word>")
             journal.check(f"{tracker['name']}: its trend is said in words, « {word} »",
                           word in (entry.get("trend") or ""), repr(entry.get("trend")))

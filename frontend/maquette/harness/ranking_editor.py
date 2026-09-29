@@ -25,7 +25,15 @@ very seed the layer answers from, so a list drawn from anywhere else falls.
 10. `ranking-editor-save-conflict` says the file moved, in the settings' own
    words, and the next read answers the file's weight: nothing was written;
 11. a second editor still holding the digest read BEFORE a save is refused —
-   the write answers a conflict and the next read keeps the saved weight.
+   the write answers a conflict and the next read keeps the saved weight;
+12. a save the layer REFUSES (a 500) leaves « Enregistrement… », reopens the
+   button and SAYS the refusal — never a save left spinning;
+13. every control the editor adds is a finger's target: each weight field and
+   « Relire le classement » at least 44 px high.
+
+The layer's CONFLICT is the maquette contract's `200 {conflict: true}`; the
+backend answers a conflict with HTTP 412 instead — a divergence recorded in the
+lot's ledger, not repaired here, and a real 412 reaches hold 12's path.
 
 RE-AIMED OUT LOUD: hold 4 first read « the rubric lands on the editor ». The
 rubric opens the global quality profile — a route of its own, held by
@@ -35,6 +43,9 @@ a toast. The rubric keeps its route; the path to the editor runs through it.
 RE-AIMED OUT LOUD: hold 2 first read the weight as the row's text. The weight
 became the field the operator types it into, so it is read as that field's
 value — the same number, the file's.
+
+Holds 12–13 came with correction round C16, red while `send`'s rethrow skipped
+`setSaving(false)` and the fields stood at 39 and 35 px.
 
 Red before the move: no screen answers `/settings/ranking`; holds 7–10: no
 weight can be typed and nothing saves.
@@ -56,6 +67,14 @@ RUBRIC = SETTINGS_WORDS["settings"]["rankingTitle"]
 SAVE = SETTINGS_WORDS["ranking"]["save"]
 SAVING = SETTINGS_WORDS["ranking"]["saving"]
 CONFLICT = SETTINGS_WORDS["settings"]["conflictLead"]
+REFUSED = SETTINGS_WORDS["ranking"].get("saveRefused", "<no copy>")
+FINGER = 44
+HEIGHTS = """(selector) => [...document.querySelectorAll(selector)].map(one => Math.round(one.getBoundingClientRect().height))"""
+# EVERY toast shown, kept as it is shown: a later one replacing it must not hide it.
+WATCH_TOASTS = """() => { window.__seenToasts = [];
+  const toast = document.getElementById('toast');
+  if (toast) new MutationObserver(() => window.__seenToasts.push(toast.textContent.trim()))
+    .observe(toast, {childList: true, subtree: true, characterData: true}); }"""
 REREAD = """()=>{window.__queries?.removeQueries({queryKey: ['/api/config/files/ranking.json5']});
   window.__screens.ranking()}"""
 STALE_WRITE = """async ({values, digest}) => (await (await fetch('/api/config/files/ranking.json5',
@@ -210,6 +229,30 @@ async def main():
                       f"{number(target['weight'])}: nothing was written",
                       answer is None and banner is not None and CONFLICT in banner
                       and stored == target["weight"], f"{answer or ''} banner {banner!r} · read {stored!r}")
+        again = await page.evaluate(HEIGHTS, '[data-part="ranking/read-again"]')
+
+        # ── a refused save is said, and lets go ──────────────────────────
+        await enter("ranking-editor")
+        fields = await page.evaluate(HEIGHTS, '[data-part="ranking/weight"]')
+        journal.check(f"each weight field and « Relire le classement » is at least {FINGER} px high",
+                      bool(fields) and bool(again) and min(fields + again) >= FINGER,
+                      f"fields {sorted(set(fields))} · read again {again}")
+        await page.evaluate("()=>window.__mocks.setOperationOutcome('updateConfigurationFile', {status: 500})")
+        await page.evaluate(WATCH_TOASTS)
+        if await page.locator(weight).count():
+            await page.locator(weight).first.tap()
+            await page.keyboard.press("Meta+A")
+            await page.keyboard.type(str(typed))
+        if await page.locator('[data-part="ranking/save"]').count():
+            await page.locator('[data-part="ranking/save"]').first.tap()
+        await page.wait_for_timeout(SETTLED)
+        seen = await page.evaluate(f"""()=>({{save: document.querySelector('[data-part="ranking/save"]')?.textContent.trim() ?? null,
+            closed: document.querySelector('[data-part="ranking/save"]')?.disabled ?? null,
+            field: document.querySelector('{weight}')?.value ?? null,
+            toasts: (window.__seenToasts || []).join(' | ')}})""")
+        journal.check(f"a refused save leaves « {SAVING} », reopens the button, keeps the weight and says « {REFUSED} »",
+                      seen["save"] == SAVE and seen["closed"] is False and seen["field"] == str(typed)
+                      and REFUSED in seen["toasts"], str(seen))
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()

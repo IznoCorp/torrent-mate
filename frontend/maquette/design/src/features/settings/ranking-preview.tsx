@@ -20,6 +20,8 @@ import {
 const PREVIEW_PATH = "/api/acquisition/ranking/preview";
 /** The file's key for the seeders under which a release is excluded — the engine's spelling. */
 const FILE_MINIMUM_KEY = "min_seeders";
+/** The engine's own minimum when the file sets none (`RankingConfig.min_seeders`). */
+const ENGINE_MINIMUM = 1;
 
 /** The ranking as `ranking.json5` holds it: its criteria and bonuses, and its other keys as written. */
 export type RankingFileBlock = {
@@ -37,7 +39,7 @@ export type RankingFileBlock = {
 function rankingOf(block: RankingFileBlock): Schemas["RankingConfig"] {
   return {
     criteria: block.criteria ?? [],
-    minSeeders: typeof block[FILE_MINIMUM_KEY] === "number" ? block[FILE_MINIMUM_KEY] : 0,
+    minSeeders: typeof block[FILE_MINIMUM_KEY] === "number" ? block[FILE_MINIMUM_KEY] : ENGINE_MINIMUM,
     bonuses: block.bonuses ?? { freeleech: 0, silverleech: 0 },
   };
 }

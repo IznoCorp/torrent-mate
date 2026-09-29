@@ -21,7 +21,12 @@ the confirmation calls the operation.
 7. unchecked by a finger, then confirmed, the removal is answered with the files
    KEPT;
 8. with a running obligation, the box unchecked, the confirmation still names
-   the obligation and its tracker (round 10 M4 — whatever the box reads).
+   the obligation ON ITS OWN tracker, in the obligation's own sentence (round 10
+   M4 — whatever the box reads);
+8 bis. an obligation already BROKEN is never announced as running: the
+   confirmation on its entry names no « Obligation en cours »;
+8 ter. a removal the network cannot take is HELD, and never said done: no
+   « a quitté qBittorrent », the row still there.
 9. `torrent-remove-confirm-shared` — an entry owing nothing, whose files another
    entry seeds on another tracker under a running obligation — names the
    consequence (that other tracker's share ends too) and that tracker's running
@@ -36,6 +41,12 @@ RE-AIMED OUT LOUD: hold 4 read « the same files' other entry is still there »,
 the grouped removal being left for later. It is now this rule's — round 9 Q7:
 the gesture takes every entry sharing the files with it, both gone from the tab
 in the same render the operation answers, never one left behind in error.
+
+RE-AIMED OUT LOUD (correction round C16): hold 8 found the tracker's name
+anywhere in the dialog — the first paragraph already names it, so a sentence
+« Obligation en cours sur . » stayed green; it now reads the obligation's own
+sentence. Holds 8 bis and 8 ter are new, red while `hasRunningObligation`
+ignored `breachedAt` and the removal ignored `HELD`.
 
 Red before the move: no row carries the gesture.
 """
@@ -59,6 +70,16 @@ REMOVED = DOWNLOADS[0]
 EXTERNAL = next(entry for entry in DOWNLOADS if entry["title"] == "Ted Lasso")
 # The entry whose obligation is met: it owes nothing running.
 FREE = DOWNLOADS[1]
+BREACHED = next(entry for entry in DOWNLOADS if entry["title"] == "Star Trek: Strange New Worlds")
+HELD_SUBJECT = next(entry for entry in DOWNLOADS if entry["title"] == "Lanterns")
+# What the done toast says after the title it names.
+DONE_WORDS = WORDS_REMOVE.get("done", "<no copy>").split("}}")[-1].strip(" »")
+# EVERY toast shown, kept as it is shown: a later one replacing it must not hide it.
+WATCH_TOASTS = """() => { window.__seenToasts = [];
+  const toast = document.getElementById('toast');
+  if (toast) new MutationObserver(() => window.__seenToasts.push(toast.textContent.trim()))
+    .observe(toast, {childList: true, subtree: true, characterData: true}); }"""
+TOASTS = """() => (window.__seenToasts || []).join(' | ')"""
 SIBLING = next(entry for entry in DOWNLOADS[1:] if entry["name"] == REMOVED["name"])
 
 ROWS = """() => [...document.querySelectorAll('#view [data-part="torrents/row"]')]
@@ -173,9 +194,42 @@ async def main():
             await page.wait_for_timeout(ACTED)
         box = await page.evaluate(BOX)
         text = await page.evaluate(DIALOG) or ""
-        journal.check(f"the box unchecked, the running obligation on {REMOVED['tracker']} is still named",
+        journal.check(f"the box unchecked, the running obligation on {REMOVED['tracker']} is still named, in its own sentence",
                       box is not None and box["checked"] == "false"
-                      and obligation in text and REMOVED["tracker"] in text, f"box {box!r} · {text!r}")
+                      and f"{obligation} {REMOVED['tracker']}" in text.replace("\xa0", " "), f"box {box!r} · {text!r}")
+
+        # ── a BROKEN obligation is not a running one ─────────────────────────
+        await enter(page, "torrent-obligation-breached")
+        gesture = page.locator(
+            f'#view [data-part="torrents/row"][data-entry="{BREACHED["infoHash"]}"]'
+            f'[data-tracker="{BREACHED["tracker"]}"] [data-part="torrents/remove"]')
+        if await gesture.count():
+            await gesture.first.tap()
+            await page.wait_for_timeout(ACTED)
+        text = await page.evaluate(DIALOG) or ""
+        journal.check(f"« {BREACHED['title']} », its obligation broken, is never announced « {obligation} … »",
+                      BREACHED["title"] in text and obligation not in text, repr(text))
+        await page.evaluate(PRESS, False)
+
+        # ── a removal HELD offline is never said done ────────────────────────
+        await enter(page, "torrents-list")
+        await page.evaluate("()=>window.__mocks.setOffline(true)")
+        gesture = page.locator(
+            f'#view [data-part="torrents/row"][data-entry="{HELD_SUBJECT["infoHash"]}"] [data-part="torrents/remove"]')
+        if await gesture.count():
+            await gesture.first.tap()
+            await page.wait_for_timeout(ACTED)
+        await page.evaluate(WATCH_TOASTS)
+        confirmed = await page.evaluate(PRESS, True)
+        await page.wait_for_timeout(SETTLED)
+        toasts = await page.evaluate(TOASTS)
+        rows = await page.evaluate(ROWS)
+        await page.evaluate("()=>window.__mocks.setOffline(false)")
+        journal.check(f"offline, « {HELD_SUBJECT['title']} »'s removal is held and never said « {DONE_WORDS} », "
+                      "its row still there",
+                      confirmed and DONE_WORDS not in toasts
+                      and f"{HELD_SUBJECT['infoHash']}:{HELD_SUBJECT['tracker']}" in rows,
+                      f"confirmed {confirmed} · toasts {toasts!r} · {len(rows)} row(s)")
 
         # ── shared files: the consequence, and the other tracker's obligation ─
         answer = await enter(page, "torrent-remove-confirm-shared")

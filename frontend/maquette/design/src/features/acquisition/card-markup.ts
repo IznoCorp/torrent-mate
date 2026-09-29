@@ -150,10 +150,14 @@ function ladderMarkup(ladder: Rung[]) {
     setAside: setAside ? i18next.t("surfaces.ladder.setAside", { day: dayOf(ladder[current].when ?? "") }) : undefined,
     // THE REASON THE LADDER KNOWS, said in words, for a card whose row carries none
     // — a ratio deferral naming its tracker and THAT tracker's own threshold.
-    reason: reason === undefined ? undefined : i18next.t(`surfaces.ladder.reasons.${reason}`, {
-      tracker: ladder[current].tracker ?? "",
-      minimum: new Intl.NumberFormat(i18next.language).format(ladder[current].minimumRatio ?? 0),
-    }),
+    // A TRACKER WITH NO THRESHOLD OF ITS OWN is said to have none — never an
+    // invented « 0 ».
+    reason: reason === undefined ? undefined : reason === RATIO_DEFERRAL && ladder[current].minimumRatio == null
+      ? i18next.t("surfaces.ladder.ratioWithoutThreshold", { tracker: ladder[current].tracker ?? "" })
+      : i18next.t(`surfaces.ladder.reasons.${reason}`, {
+        tracker: ladder[current].tracker ?? "",
+        minimum: new Intl.NumberFormat(i18next.language).format(ladder[current].minimumRatio ?? 0),
+      }),
     fraction: i18next.t("surfaces.ladder.figure", { position: current + 1, count: ladder.length }),
     chip: {
       tone: reason === TO_CONFIRM ? RUNG_TONE.waiting : RUNG_TONE[ladder[current].state],

@@ -19,7 +19,14 @@ of the engine no longer reads.
 6. a finger on it lands on the Trackers tab with that tracker's entry open —
    `/trackers?tracker=<name>` read on the address, the « Trackers » tab being the
    page's default and so never written (`list=` names only « Torrents ») — as an
-   arrival (the history grows by one).
+   arrival (the history grows by one);
+7. a ratio deferral on a tracker with NO threshold of its own says it has none —
+   never an invented « seuil de 0 ».
+
+RE-AIMED OUT LOUD (correction round C16): hold 1 found the threshold's digits
+anywhere in the reason — « 1 » is already in « c411 », so a wrong threshold
+stayed green; it now reads the whole sentence, the tracker and ITS threshold in
+their places. Hold 7 is new, red while a tracker with no `min_ratio` read « 0 ».
 
 The deferrals are DERIVATIONS, POSED and shown as such (`poseDeferral`): no card
 of the real data is deferred.
@@ -34,7 +41,13 @@ from common import SETTLED, Journal, open_page
 from playwright.async_api import async_playwright
 
 SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
-REASONS = json.loads((SOURCE / "i18n/fr.json").read_text(encoding="utf-8"))["surfaces"]["ladder"]["reasons"]
+LADDER = json.loads((SOURCE / "i18n/fr.json").read_text(encoding="utf-8"))["surfaces"]["ladder"]
+REASONS = LADDER["reasons"]
+# The tracker with no threshold of its own: its policy is unset in the seeds.
+UNSET = "tr4ker"
+# The reads a card's ladder is drawn from, as the posed states drop them.
+QUEUE = "['/api/acquisition/to-handle']"
+STAGED = "['/api/staging/media']"
 SETTINGS = json.loads((SOURCE / "mocks/seeds/settings.json").read_text(encoding="utf-8"))
 
 # Each posed state, the card it poses on, and the cause's token. A deferral
@@ -100,10 +113,9 @@ async def main():
             journal.check(f"« {title} » says it is deferred, « {opening(token)} … »",
                           opening(token) in card["reason"], repr(card["reason"]))
             if token == "ratio_below_threshold":
-                journal.check(f"it names {TRACKER} and its own threshold {written(OWN)}, never the global {written(GLOBAL)}",
-                              TRACKER in card["reason"] and written(OWN) in card["reason"]
-                              and f" {written(GLOBAL)}" not in card["reason"].replace(written(OWN), ""),
-                              repr(card["reason"]))
+                sentence = REASONS[token].replace("{{tracker}}", TRACKER).replace("{{minimum}}", written(OWN))
+                journal.check(f"it names {TRACKER} and its own threshold {written(OWN)}, never the global {written(GLOBAL)}"
+                              f" — « {sentence} »", sentence in card["reason"], repr(card["reason"]))
             ladder = await page.evaluate(
                 """(title)=>{const queue=window.__queries?.getQueryData(['/api/acquisition/to-handle','loaded'])||{};
                   const card=[...(queue.inFlight||[]),...(queue.arrivals||[])].find(one=>one.title===title);
@@ -131,6 +143,18 @@ async def main():
                       where["path"].endswith("/trackers") and where["tab"] == "true"
                       and "list=torrents" not in where["search"] and f"tracker={TRACKER}" in where["search"] and where["open"] and where["length"] == before + 1,
                       f"{where} · history.length {before}")
+
+        # ── a tracker with no threshold of its own ─────────────────────────
+        await page.evaluate("()=>window.__go('acq-card-deferred-ratio')")
+        await page.wait_for_timeout(SETTLED)
+        await page.evaluate(f"""async ()=>{{window.__mocks?.poseDeferral('{SUBJECT}', 'ratio_below_threshold', '{UNSET}');
+            await window.__queries?.invalidateQueries({{queryKey: {QUEUE}}});
+            await window.__queries?.invalidateQueries({{queryKey: {STAGED}}});}}""")
+        await page.wait_for_timeout(SETTLED)
+        card = next((one for one in await page.evaluate(CARDS) if one["title"] == SUBJECT), {"reason": ""})
+        sentence = LADDER.get("ratioWithoutThreshold", "<no copy>").replace("{{tracker}}", UNSET)
+        journal.check(f"deferred on {UNSET}, which has no threshold, the card says so — « {sentence} », never « seuil de 0 »",
+                      sentence in card["reason"] and "seuil de 0" not in card["reason"], repr(card["reason"]))
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()

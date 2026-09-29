@@ -21,7 +21,7 @@ import {
   screen, screenBar, scrollport,
 } from "../../ui/variants";
 import { configurationStatusQuery, writeConfigurationFile } from "./queries";
-import { weightInput } from "./variants";
+import { readAgainAction, weightInput } from "./variants";
 import { RankingPreview, type RankingFileBlock } from "./ranking-preview";
 
 type Criterion = Schemas["RankingCriterion"];
@@ -107,12 +107,21 @@ export function RankingScreen(): ReactElement {
   // THE SAVE ASKS THE LAYER and draws what it answers. A write the outbox held
   // has not landed, so it keeps the edits and says nothing; a conflict keeps
   // them too — the operator's work is not thrown away on top of the surprise.
+  // A REFUSAL lets the button go and SAYS it, the edits kept: « Enregistrement… »
+  // never outlives the write it names.
   const save = async () => {
     if (file === undefined) return;
     setSaving(true);
-    const answered = await writeConfigurationFile(
-      file.name, { values: withTyped(file.values, typed), digest: file.digest });
-    setSaving(false);
+    let answered: Awaited<ReturnType<typeof writeConfigurationFile>>;
+    try {
+      answered = await writeConfigurationFile(
+        file.name, { values: withTyped(file.values, typed), digest: file.digest });
+    } catch {
+      toast?.show({ message: t("screens.ranking.saveRefused") });
+      return;
+    } finally {
+      setSaving(false);
+    }
     if (answered === HELD || answered === undefined) return;
     if (answered.conflict) {
       setConflict(true);
@@ -148,7 +157,7 @@ export function RankingScreen(): ReactElement {
             <div className={loadError()} data-part="load-error">
               <b>{t("screens.settings.conflictLead")}</b>
               {t("screens.settings.conflictRest")}{" "}
-              <button className={loadErrorAction()} data-part="ranking/read-again" onClick={readAgain}>
+              <button className={`${loadErrorAction()} ${readAgainAction()}`} data-part="ranking/read-again" onClick={readAgain}>
                 {t("screens.ranking.conflictReload")}
               </button>
             </div>
