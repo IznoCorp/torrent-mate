@@ -39,6 +39,7 @@ import json
 import pathlib
 import sys
 
+from common import resolve_deployed_host_locally
 from playwright.async_api import async_playwright
 from server import start_server
 
@@ -451,7 +452,7 @@ async def main():
     failures = []
     executed = 0
     async with async_playwright() as p:
-        b = await p.chromium.launch(channel="chrome")
+        b = await p.chromium.launch(channel="chrome", args=resolve_deployed_host_locally(HOST))
         ctx = await b.new_context(
             viewport={"width": 390, "height": 844},
             device_scale_factor=2,

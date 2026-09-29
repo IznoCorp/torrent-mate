@@ -20,6 +20,7 @@ transcribes, and a transcription drifts.
 import os
 import pathlib
 import re
+from urllib.parse import urlparse
 
 import served_copy
 
@@ -54,6 +55,25 @@ if os.environ.get(PROTOTYPE_URL_VARIABLE) and not os.environ.get(served_copy.ROO
         "  The served-copy stamp would vouch for a build this run never read.\n"
         f"  Set {served_copy.ROOT_VARIABLE} to the directory that URL serves."
     )
+
+# FROM THIS MACHINE, THE DEPLOYED HOST'S OWN PUBLIC ADDRESS CAN CROSS THE
+# ROUTER'S NAT LOOPBACK — a hairpin, and an intermittent one: QUIC and the
+# large post-quantum TLS ClientHello both die there, while a small plain TCP
+# hello survives, so a rule reading the deployed host can time out on
+# `Page.goto` for no reason the deployed build owns. Mapped to 127.0.0.1, the
+# request reaches the same certificate and the same build through the local
+# Caddy instead, with no router in the path at all — whatever state it is in.
+def resolve_deployed_host_locally(host_url):
+    """Chrome launch args mapping HOST_URL's hostname to the local Caddy.
+
+    Args:
+        host_url: The rule's own HOST constant.
+
+    Returns:
+        The `args` list `chromium.launch` accepts.
+    """
+    return [f"--host-resolver-rules=MAP {urlparse(host_url).hostname} 127.0.0.1"]
+
 
 BAR = "─" * 62
 
