@@ -3,7 +3,7 @@
 THE DEFECT THIS ENDS. Every other rule measures at ONE width, `PHONE` in
 `common.py` — 390 px — and the frame fixes it there. The operator's phone is
 not 390 px wide, and a phone that is not the harness's reads a list « cut on
-the right » that every rule passed (Système's runs, 2026-09-29). So this rule
+the right » that every rule passed (Système's runs). So this rule
 opens every named state at seven widths and refuses, over the whole device:
 
   overflow  — the document, a VERTICAL scroll port, or preformatted text in a
@@ -35,7 +35,7 @@ designed horizontal row (a scroll port that does not also scroll vertically),
 and anything outside `#device`.
 
 SUBSETS. `TM_RESPONSIVE_STATES` (comma-separated ids) and `TM_RESPONSIVE_WIDTHS`
-narrow a run to the states a phase touches; a narrowed run never judges the owed
+narrow a run to the states a change touches; a narrowed run never judges the owed
 list's staleness, since it did not read what the list covers.
 """
 import asyncio
@@ -54,10 +54,9 @@ HEIGHT = 844
 PARALLEL = int(os.environ.get("TM_HARNESS_JOBS", "3"))
 
 # arm · data-part → its owner. Every entry is a fall read on this tree and
-# repaired by someone else; the owner is who, and where it is written down.
+# repaired by its owner, named beside it — never silenced.
 OWED: dict[tuple[str, str], str] = {
-    # Reds this train repairs in a later phase of its own plan
-    # (docs/features/maquette-conformity/plan/INDEX.md): each entry leaves the
+    # Reds with a named owner and a repair to come: each entry leaves the
     # list in the commit that repairs it, and the rule then holds it.
     ("bevel", "runs/row"): "maquette-conformity phase 4",
     ("bevel", "shell/connection-notice"): "maquette-conformity phase 4 (R1's family)",
@@ -105,7 +104,7 @@ MEASURE = """(width) => {
         && element.scrollHeight > element.clientHeight + 1 && element.scrollWidth > element.clientWidth + 1)
       push('overflow', element, rect);
     // Preformatted text that scrolls sideways is a page read sideways, not a
-    // designed row of chips: § 12 grants no exception (the operator's OPEN 10).
+    // designed row of chips: § 12 grants no exception.
     else if (scrolls(style) && style.whiteSpace === 'pre' && element.scrollWidth > element.clientWidth + 1)
       push('overflow', element, rect);
     const painted = ['Top', 'Right', 'Bottom', 'Left'].some((side) =>
@@ -209,8 +208,8 @@ async def main():
         started = time.monotonic()
         results = await asyncio.gather(*(one(width) for width in widths))
         await browser.close()
-    # The cost is printed on every run: the plan decides from it where the
-    # whole sweep may run (docs/features/maquette-conformity/plan/phase-01-the-responsive-rule.md).
+    # The cost is printed on every run: where the whole sweep may run is
+    # decided from it.
     print(f"measured in {time.monotonic() - started:.0f} s")
     per_state: dict[str, list[str]] = {}
     owed_seen: dict[tuple[str, str], set[str]] = {}
