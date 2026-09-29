@@ -51,3 +51,11 @@ The steward's rulings on this lot's STOPs, numbered, one per STOP. The operator'
    row absent, `releasedAt` set and no `removeDownload` call, and a mutation leaving the row falls by name.
    R263 hold 4's re-aim cites its source (round 9 Q7; the plan's « BOTH entries gone … in the SAME
    render »). The `shell/dialog` moves (B-554) and the new states declared by script, accepted by name.
+7. **2026-09-29, phase 8, STOP D — two composed seed rows the real data does not hold.** No real tracker
+   carries an alert threshold or a refused identifier, and no real obligation is breached. **Ruled** as
+   proposed: the threshold is the operator's own setting, posed where the settings write puts it
+   (`poseAlertThreshold`); `poseIdentifierRefused` and `setObligationBreached` are dials declared as
+   derivations; no seed. **Standing rule for the rest of L16** (steward): when the plan asks for a composed
+   seed row for a case the real data does not hold, a dial POSED on a real subject in `trackers-state.ts`,
+   declared as a derivation, replaces it — ANNOUNCED in the phase report and the ledger, no STOP. A STOP
+   remains only when no real subject can carry the derivation, or when it changes a product behaviour.
