@@ -25,7 +25,12 @@ import asyncio
 import pathlib
 import re
 
-from common import Journal
+from common import (
+    READ_THROUGH_LOCALHOST,
+    Journal,
+    read_through_localhost,
+    resolve_deployed_host_locally,
+)
 from playwright.async_api import async_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -83,14 +88,16 @@ async def main():
           not forbidden, str(sorted(set(forbidden))))
 
     async with async_playwright() as p:
-        b = await p.chromium.launch(channel="chrome")
+        b = await p.chromium.launch(channel="chrome", args=resolve_deployed_host_locally(HOST))
         ctx = await b.new_context(viewport={"width": 390, "height": 844},
                                   device_scale_factor=2, is_mobile=True, has_touch=True)
         errors = []
 
         pg = await ctx.new_page()
         pg.on("pageerror", lambda e: errors.append(f"host: {e}"))
-        await pg.goto(HOST, wait_until="load")
+        response = await pg.goto(HOST, wait_until="load")
+        ok, ip_address = read_through_localhost(await response.server_addr())
+        check(READ_THROUGH_LOCALHOST, ok, str(ip_address))
         await pg.wait_for_timeout(500)
         arrival = await pg.evaluate(READ)
 

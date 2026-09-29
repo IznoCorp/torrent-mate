@@ -39,6 +39,7 @@ import json
 import pathlib
 import sys
 
+from common import READ_THROUGH_LOCALHOST, read_through_localhost, resolve_deployed_host_locally
 from playwright.async_api import async_playwright
 from server import start_server
 
@@ -451,7 +452,7 @@ async def main():
     failures = []
     executed = 0
     async with async_playwright() as p:
-        b = await p.chromium.launch(channel="chrome")
+        b = await p.chromium.launch(channel="chrome", args=resolve_deployed_host_locally(HOST))
         ctx = await b.new_context(
             viewport={"width": 390, "height": 844},
             device_scale_factor=2,
@@ -461,7 +462,11 @@ async def main():
         pg = await ctx.new_page()
 
         # --- the gate, which is all a phone sees before signing in ----------
-        await pg.goto(HOST, wait_until="load")
+        response = await pg.goto(HOST, wait_until="load")
+        executed += 1
+        ok, ip_address = read_through_localhost(await response.server_addr())
+        if not ok:
+            failures.append(f"R52 {READ_THROUGH_LOCALHOST}: read through {ip_address}")
         declare = await pg.evaluate(
             """()=>({
               manifest: document.querySelector('link[rel="manifest"]')?.href||null,
