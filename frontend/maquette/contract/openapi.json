@@ -5937,7 +5937,21 @@
           },
           "reason": {
             "type": "string",
-            "description": "why the rung is blocked or waiting, as a token, when it is"
+            "description": "why the rung is blocked or waiting, as a token, when it is — among them the engine's three deferral causes of a finished torrent not taken in (DOIT-2): `ratio_below_threshold`, `insufficient_space`, `content_missing`"
+          },
+          "tracker": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "for a ratio deferral, the tracker whose ratio is under its own threshold. A DEMAND: `classify_deferrals` (personalscraper/ingest/deferral.py) answers the cause alone"
+          },
+          "minimumRatio": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "for a ratio deferral, THAT tracker's own threshold (its economy block's `min_ratio`). A DEMAND: the engine defers on the global `ingest.min_ratio` (deferral.py:73); the next version reads the tracker's own, which is what the interface names"
           },
           "steps": {
             "type": "array",

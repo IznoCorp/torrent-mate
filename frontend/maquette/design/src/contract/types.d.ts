@@ -1634,8 +1634,12 @@ export interface components {
             state: "done" | "now" | "waiting" | "blocked" | "aside" | "skipped" | "pending";
             /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             when: string;
-            /** @description why the rung is blocked or waiting, as a token, when it is */
+            /** @description why the rung is blocked or waiting, as a token, when it is — among them the engine's three deferral causes of a finished torrent not taken in (DOIT-2): `ratio_below_threshold`, `insufficient_space`, `content_missing` */
             reason?: string;
+            /** @description for a ratio deferral, the tracker whose ratio is under its own threshold. A DEMAND: `classify_deferrals` (personalscraper/ingest/deferral.py) answers the cause alone */
+            tracker?: string | null;
+            /** @description for a ratio deferral, THAT tracker's own threshold (its economy block's `min_ratio`). A DEMAND: the engine defers on the global `ingest.min_ratio` (deferral.py:73); the next version reads the tracker's own, which is what the interface names */
+            minimumRatio?: number | null;
             /** @description the pipeline steps this rung merges, in order — carried by « rangé » alone */
             steps?: components["schemas"]["JourneyStage"][];
         };

@@ -405,7 +405,9 @@ def test_the_committed_reference_carries_a_platform():
     # 151 SINCE L16's phase 10: `bar-trackers-alert`, the Trackers tab's badge away from its page —
     # added; the states that pose an alert component draw the badge on shell/bottom-bar, named in
     # the acceptance commit.
-    assert reference["counts"] == {"states": 151, "regions": 38}
+    # 154 SINCE L16's phase 12a: `acq-card-deferred-ratio`, `-space` and `-missing` — added, nothing
+    # else moved.
+    assert reference["counts"] == {"states": 154, "regions": 38}
 
 
 class TestItRefusesToWriteOverAForeignBuild:

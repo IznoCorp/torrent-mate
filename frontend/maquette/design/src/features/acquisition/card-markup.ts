@@ -22,6 +22,17 @@ import { richTextMarkup } from "./rich-text";
 import { originRow, footRow } from "./variants";
 import { currentRung } from "../../lib/current-rung";
 
+
+/** One rung of a card's ladder, as the card reads it. */
+type Rung = {
+  rung: string;
+  state: StripState;
+  reason?: string;
+  when?: string;
+  /** For a ratio deferral, the tracker it is under, and that tracker's own threshold. */
+  tracker?: string | null;
+  minimumRatio?: number | null;
+};
 /** A medium as an acquisition list holds one, in the engine's field names. */
 export type MediumCard = {
   title: string;
@@ -41,7 +52,7 @@ export type MediumCard = {
   /** Put in the staging area by hand: nobody asked, and its subtitle says so. */
   droppedByHand?: boolean;
   /** The medium's ladder — the same list its journey sheet reads. */
-  ladder?: { rung: string; state: StripState; reason?: string; when?: string }[];
+  ladder?: Rung[];
   withoutPoster?: boolean;
   overview?: string;
   panel?: string;
@@ -108,7 +119,7 @@ function dayOf(date: string): string {
  * @param ladder The medium's rungs.
  * @returns The strip, the figure and the current rung's chip.
  */
-function ladderMarkup(ladder: { rung: string; state: StripState; reason?: string; when?: string }[]) {
+function ladderMarkup(ladder: Rung[]) {
   const current = currentRung(ladder);
   const strip: StripCell[] = ladder.map((rung) => ({ state: rung.state }));
   const reason = ladder[current].reason;
@@ -120,8 +131,12 @@ function ladderMarkup(ladder: { rung: string; state: StripState; reason?: string
     // never a constant (§13). It outranks the row's own reason: the folder is
     // waiting for him now, not for the step that stopped it.
     setAside: setAside ? i18next.t("surfaces.ladder.setAside", { day: dayOf(ladder[current].when ?? "") }) : undefined,
-    // THE REASON THE LADDER KNOWS, said in words, for a card whose row carries none.
-    reason: reason === undefined ? undefined : i18next.t(`surfaces.ladder.reasons.${reason}`),
+    // THE REASON THE LADDER KNOWS, said in words, for a card whose row carries none
+    // — a ratio deferral naming its tracker and THAT tracker's own threshold.
+    reason: reason === undefined ? undefined : i18next.t(`surfaces.ladder.reasons.${reason}`, {
+      tracker: ladder[current].tracker ?? "",
+      minimum: new Intl.NumberFormat(i18next.language).format(ladder[current].minimumRatio ?? 0),
+    }),
     fraction: i18next.t("surfaces.ladder.figure", { position: current + 1, count: ladder.length }),
     chip: {
       tone: reason === TO_CONFIRM ? RUNG_TONE.waiting : RUNG_TONE[ladder[current].state],

@@ -172,6 +172,7 @@ catch
 categories
 category
 cats
+cause
 ceil
 cell
 cells
@@ -268,6 +269,8 @@ decomposed
 deep
 default
 defaults
+deferral
+deferred
 degraded
 degree
 del

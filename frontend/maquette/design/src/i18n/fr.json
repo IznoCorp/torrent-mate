@@ -1049,7 +1049,10 @@
       "toConfirm": "{{rung}} — à confirmer",
       "reasons": {
         "queued": "En file — ce passage attend que la maintenance en cours se termine.",
-        "confirmation": "Le match Plex attend votre confirmation."
+        "confirmation": "Le match Plex attend votre confirmation.",
+        "ratio_below_threshold": "Différé : le ratio sur {{tracker}} est sous son seuil de {{minimum}}.",
+        "insufficient_space": "Différé : pas assez d'espace pour le recevoir.",
+        "content_missing": "Différé : une partie du contenu manque encore."
       }
     }
   },
