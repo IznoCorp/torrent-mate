@@ -8,6 +8,7 @@ import DOWNLOADS from "./seeds/downloads.json";
 import OBLIGATIONS from "./seeds/obligations.json";
 import TRACKERS from "./seeds/trackers.json";
 import { mockState } from "./state";
+import { forgetLadder } from "./handlers/ladder";
 import type { components } from "../contract/types";
 
 type Schemas = components["schemas"];
@@ -49,8 +50,13 @@ export type TrackerDials = {
   setDownloadsEmpty: (empty: boolean) => void;
   setTrackerIdle: (tracker: string) => void;
   setObligationSatisfied: (infoHash: string) => void;
+  poseArrived: (title: string) => void;
   trackerRemovals: () => TrackersHeld["removals"];
 };
+
+// A download complete: its files are all there, and the client seeds it.
+const DOWNLOAD_DONE = "seeding";
+const COMPLETE = 1;
 
 /** Those dials, over the trackers' subject. */
 export const trackerDials: TrackerDials = {
@@ -70,6 +76,23 @@ export const trackerDials: TrackerDials = {
   // NOT A DIAL — a reading: the removals the layer was asked for, and whether
   // each took its files with it.
   trackerRemovals: () => structuredClone(trackersState().removals),
+  poseArrived: (title: string) => {
+    // A DERIVATION, SHOWN AS ONE: the medium a direct add is still downloading
+    // ARRIVES — its download completes, so the staging area serves its card; the
+    // card loses the chip that said the download's progress. No seed holds an
+    // arrived direct add of a series nobody follows.
+    for (const entry of trackersState().downloads) {
+      if (entry.title === title) Object.assign(entry, { state: DOWNLOAD_DONE, progress: COMPLETE, etaSeconds: null });
+    }
+    const state = mockState();
+    state.moving = state.moving.map((card) => {
+      if (card.title !== title) return card;
+      const { chip, ...arrived } = card;
+      void chip;
+      return arrived;
+    });
+    forgetLadder(title);
+  },
   setObligationSatisfied: (infoHash: string) => {
     // AN OBLIGATION MET, at its seed time, the torrent still seeding.
     for (const obligation of trackersState().obligations) {

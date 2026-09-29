@@ -392,7 +392,10 @@ def test_the_committed_reference_carries_a_platform():
     # 142 SINCE L16's phase 6b: `torrent-remove-confirm`, the confirmation of an entry owing
     # nothing — added; the dialog's box grew with the « Supprimer les fichiers » box, on shell/dialog
     # alone (B-554), named in the acceptance commit.
-    assert reference["counts"] == {"states": 142, "regions": 38}
+    # 143 SINCE L16's phase 5d: `acq-now-direct-arrived`, a direct add's arrival posed on the
+    # series it was downloading — added; the dense world's « En vol » lost that card, named in
+    # the acceptance commit.
+    assert reference["counts"] == {"states": 143, "regions": 38}
 
 
 class TestItRefusesToWriteOverAForeignBuild:
