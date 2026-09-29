@@ -16,6 +16,9 @@ pull request's title and §§, and any amendment — which names the line of thi
 - **Re-aims are said out loud** (the rule's docstring, the commit body); a state removed from a rule's list names its
   successor, read from your diff; the remaining phases are rebuilt from `ls plan/`, never from memory.
 - **Navigation is proved by a finger walk**, never by a posed state alone.
+- **A lot's scope freezes at its opening** — a ruling that arrives during the lot goes to the next lot, unless it
+  changes a surface under construction or unblocks a STOP (order 69; `docs/reference/operator-method.md`, rules
+  table, row « ordre 69 »).
 
 ## The gate (auditor's order 58)
 
@@ -82,6 +85,31 @@ every pytest (`PYTEST_XDIST_AUTO_NUM_WORKERS=3`) and every `git push` — its OW
   Long runs are waited for inside their call, output to a FILE, exit code read there, never `| tail -N`.
 - Kill what you start, delete what you build, prove it with `ps`; never `/tmp/tm-refonte` or 8899 by hand; every `rg`
   carries a type filter; no `git stash`.
+
+## Design-system coherence and responsive — the operator's principles of 2026-09-29
+
+- **Reuse the design system; native mobile ergonomics** (17:1x, operator, verbatim: « Le design doit
+  être le plus cohérent possible on réutilise au maximum le design système existant et les actions
+  et l'ergonomie existante. On oublie surtout pas le maitre mot, design et ergonomie d'application
+  mobile natif. »).
+- **Coherence everywhere** (18:2x, operator, verbatim: « design, ergonomie, geste, composant, design
+  system, je veux de la cohérence partout ! »).
+- **A design-system component is REUSED, never copied nor redone beside it** — ONE source module per
+  need (legend, chevron, tabs, switch, status pill, bottom panel), imported everywhere; a guard
+  refuses a duplicate (18:2x, operator, verbatim: « les composants sont réutiliser, si un jour je
+  change un composant ça change partout, c'est le design système ! »).
+- **Two similar mechanisms behave the same — ADAPT the existing component, never recreate** — keep
+  the design system (`theme.css`, the `variants.ts`) up to date; each adaptation is written in the
+  lot's DESIGN (18:3x, operator, verbatim: « 2 mécanismes similaires de l'application devrait avoir
+  le même comportement, on crée pas de nouveau composant on adapte »). **The EXISTING VALIDATED
+  rendering is the reference** — « l'existant est ce qui est validé » (L16-bis DECIDED 7). **Every
+  case of a surface is drawn in the maquette**, if not already there (16:35). **Retour replays the
+  arrival path for side-menu pages** — constitution § 16 as amended by #635, a pointer, not a copy.
+- **Everything must be responsive, not only his phone** (2026-09-29 21:2x, operator, verbatim: « Non
+  tout doit être responsive, ça doit pas fonctionné que sur mon téléphone, mais sur tous ! »); the
+  rule that measures it is order 85, which replaces order 60 — its lens is `docs/reference/reader-office.md`'s.
+
+Full verbatims: `docs/reference/operator-method.md` § 1, the principles table.
 
 ## Fixed non-goals and delivery
 

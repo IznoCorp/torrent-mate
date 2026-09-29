@@ -59,12 +59,14 @@ de décision R, question q ; « ruling N » = ruling d'organisation N (numérota
 | 09-28 | Mettre en place sans l'attendre, avec soin | « évite d'attendre après moi pour […] mettre en place des choses. Vas-y, […] fonce […]. Fais attention […] à la qualité du code et […] à l'avancement et au respect du plan » |
 | 09-29 | Plus de notification à chaque version de tm-design | « C'est bon tu peux arrêter de me prévenir à chaque nouvelle version de TM design. » |
 | 09-29 | Pas de rétro-compatibilité | « A, pas de gestion de rétro-compatibilité ! » (l'app n'a que deux utilisateurs, 09-26 : « l'app n'est utilisée que par 2 personnes pour l'instant. ») |
+| 09-29 | Responsive partout : l'interface fonctionne sur tous les appareils, pas seulement le sien | « Non tout doit être responsive, ça doit pas fonctionné que sur mon téléphone, mais sur tous ! » |
 | 09-29 | Chaque cas se voit dans la maquette | « Comment tester tout les cas, si j'ai pas un exemple de chaque cas ? » ; « seule une maquette montrant tout les cas possibles est utile. » |
 | 09-29 | Design et ergonomie d'application mobile native, le design système réutilisé au maximum | « Le design doit être le plus cohérent possible on réutilise au maximum le design système existant et les actions et l'ergonomie existante. On oublie surtout pas le maitre mot, design et ergonomie d'application mobile natif. » |
 | 09-29 | Le respect du design système est surveillé et corrigé | « Le respect du design système est un critère important qu'il faut surveillé (et corriger !) » |
 | 09-29 | La cohérence partout | « design, ergonomie, geste, composant, design system, je veux de la cohérence partout ! » |
 | 09-29 | Un composant est réutilisé, jamais recopié | « les composants sont réutiliser, si un jour je change un composant ça change partout, c'est le design système ! » |
 | 09-29 | Deux mécanismes semblables se comportent pareil ; on adapte l'existant au lieu d'en créer | « 2 mécanismes similaires de l'application devrait avoir le même comportement, on crée pas de nouveau composant on adapte » |
+| 09-29 | Les comportements sont uniformes dans toute l'app, sauf exception qu'il décide | « Il faut uniformiser les comportements. Sauf exception volontaire de ma part. » (toucher l'affiche d'un candidat l'a choisi au lieu d'ouvrir sa fiche « comme pour le reste de l'app ») |
 | 09-29 | L'existant validé d'abord, et c'est le nouveau qui s'y conforme | « là où on en as besoin c'est d'abord l'existant ! » ; « c'est tracker qui doit ressembler aux autres systèmes d'onglet, l'existant est ce qui est validé. » |
 
 ## 2. Les règles de méthode en vigueur
@@ -114,7 +116,7 @@ jusqu'à 82, sont dans l'archive). Une règle qui meurt sort de cette table le j
 | ordre 56 (amendé 09-29 ~19:10, son mot) | Dès qu'une PR est ouverte et son diff vérifié sur l'artefact, le steward arme `gh pr merge <n> --auto --squash --match-head-commit <sha>` (réarmé si la tête bouge) ; jamais attendre la CI pour fusionner à la main ; `allow_auto_merge` activé sur le dépôt ; écrit en tête de chaque brief de steward | trois fois dite (09-13, 09-28, 09-29) : « pourquoi on attend, on est en PR auto merge » — le réglage du dépôt était à `false` | une PR verte non fusionnée faute d'armement |
 | ordre 57 | Chaque bug signalé par l'opérateur : test vu rouge, et dans BUGS.md « échappé de », « pourquoi », « famille réparée par » | son principe du 09-28 | un bug de la même famille qui revient |
 | ordre 59 | entry et pwa (hôte déployé) se contrôlent après déploiement, hors de la porte | 8 chutes sur 8 = délais du réseau | — |
-| ordre 60 | Le harnais mesure à 369 px, la largeur de son téléphone | 6 défauts échappés à 390 px, dont B-557 | un défaut de largeur vu par lui seul |
+| ordre 85 (remplace l'ordre 60, sur son mot du 09-29) | L'interface tient à TOUTES les largeurs : une règle « responsive » passe chaque état nommé à 320, 360, 369, 390, 412, 768 et 1280 px et refuse tout débordement ou coupure (bordure, tableau, texte, bouton hors de l'écran) ; à mi-lot, à la clôture et en CI, et à chaque phase sur les états des surfaces touchées ; les autres règles gardent leur largeur | 6 défauts de largeur échappés, dont B-557 et le tableau des exécutions coupé à droite (09-29 17:04) | un défaut de largeur signalé par lui, à n'importe quelle largeur |
 | ordre 61 | Le tour de lecture marche au doigt, à 369 px sur tm-design, les surfaces du lot (à froid, depuis l'état précédent, et les voisins des correctifs) | 22 des 33 échappés dans des familles qu'aucune porte ne lit | défauts qu'il signale par lot |
 | ordre 62 | Pas de fusion avec un majeur produit connu visible à 369 px sans son mot | B-557 | — |
 | ordre 63 | Les familles récidivistes (tirer-pour-rafraîchir, défilement après retour, éclair) ont chacune une règle de famille | — | une récidive |
@@ -156,6 +158,9 @@ d'audit en cours.
 - 09-26 · Rd 5 Q5 : `/arrivals` devient une adresse inconnue (page « introuvable »).
 - 09-29 · Rd Q8 (L24 OPEN 4) : `/medias`, `/systeme`, `/controle` répondent « introuvable » à la bascule, sans redirection.
 - 09-29 · amendement du § 16 règle 2 (son « oui vas-y ») : les pages du menu latéral empilent et Retour refait le chemin d'arrivée ; les pages de la barre du bas remplacent, Retour → page d'entrée.
+- 09-29 · Rd conformité Q11 = A : la règle se lit par DESTINATION — une page de la barre du bas (Acquisition, Médiathèque, Trackers, Découvrir) garde la règle de la barre même ouverte depuis le menu latéral (elle remplace, Retour → page d'entrée).
+- 09-29 · Rd conformité Q12 = A : un lien DANS une page empile, même vers la page d'entrée (Système › « … laissés derrière → » vers Acquisition) — Retour ramène d'où l'on vient ; la garde de sortie ne s'arme que si la page d'entrée est au fond de la pile.
+- 09-29 · Rd conformité Q13 = A : les précisions de Q11 (par destination) et Q12 (un lien interne empile, même vers la page d'entrée) sont écrites au § 16 de `product-intent.md`, à la fin du paragraphe du menu latéral, tel que proposé.
 - 09-29 · Rd Q10 (L24 OPEN 6) : le grand écran reste mobile d'abord, avec une phase finale « bureau » au plan.
 - 09-12 · A6 : « × » veut dire « vu » partout ; la sortie est « Annuler », visible et distincte.
 
@@ -184,7 +189,9 @@ d'audit en cours.
 - 09-29 · Rd 2 Q1 (L24 OPEN 7) : un seul geste, « Corriger », sur le bloc de décision.
 - 09-29 · Rd Q7 (L24 OPEN 3) : pas de compteur global de l'identification ; elle se lit sur chaque carte.
 - 09-29 · la récupération d'une saison entière se VOIT (lancée, en cours) et aucun épisode de cette saison ne part en parallèle (règle du moteur, demandée au back-end).
-- 09-14 · Rd Q1 : la carte candidate de résolution porte une pastille « Choisir » (44 px), aucune coche avant le choix.
+- 09-14 · Rd Q1 : la carte candidate de résolution porte un « Choisir » primaire (44 px), aucune coche avant le choix ; 09-29 Rd conformité Q8 = A : ce « Choisir » est le bouton d'action STANDARD du design système en ton primaire — la gélule dessinée à part disparaît.
+- 09-29 · défaut signalé (« j'ai cliqué sur le poster d'un candidat en espérant en savoir plus sur ce candidat et il semble que ça l'a choisi, le comportement attendu était ouverture d'une fiche média pour en savoir plus ») : sur l'écran de résolution, toucher l'affiche ou la carte d'un candidat OUVRE SA FICHE (Retour ramène à l'écran de résolution) ; seul le bouton « Choisir » choisit. Aujourd'hui toute la carte est un seul bouton qui choisit (`resolution-cards.tsx:84`).
+- 09-29 · Rd conformité Q10 = A : sur l'écran d'une exécution, les lignes du journal brut reviennent à la ligne dans la largeur de l'écran — plus de défilement de côté, aucune exception au § 12 ni à la règle « responsive ».
 - 09-15 · Rd Q4 : après le choix d'un candidat, l'écran de résolution se ferme ; « Identifié comme … · Annuler ».
 - 09-15 · Rd Q2 : le dialogue de suppression multiple garde le repli « et N autres ».
 - 09-12 · Rd 4/4 Q3 : les étapes du pipeline se lisent par média, sur la carte.
@@ -200,6 +207,7 @@ d'audit en cours.
 
 - 09-27 · Rd 8 Q20 : Découvrir est une page de la barre du bas, à la quatrième place.
 - 09-29 · Rd 3 Q8 : le message de tête dit « n séries et m films à découvrir », à côté des boutons de vue.
+- 09-29 · Rd conformité Q7 = SON MOT (« Glissé à droite et à gauche à le même comportement que glissé une carte du mode deck de decouvrir, rejet, ou passé […] la carte disparait, notification pour annulé si rejet […] c'est un nouveau comportement propre à découvrir qu'on pourra réutiliser dans un autre cas », puis « vers gauche = passer / vers la droite = rejet ») : en liste ET en deck, glisser à GAUCHE = passer (disparaît sans notification, peut revenir plus tard), à DROITE = rejeter (disparaît, notification avec « Annuler ») ; un geste propre à Découvrir, déclaré au design système pour être réutilisé. Aujourd'hui les deux sens du deck font la même chose (« écarté »).
 
 ### Trackers, ratio, cross-seed, upload
 
@@ -240,6 +248,12 @@ d'audit en cours.
 - 09-29 · Système devient une page d'index comme les réglages d'un téléphone (une ligne par section, avec son badge ; Maintenance en est une ligne) ; le découpage lui revient en OPEN.
 - 09-29 · Rd Q4 (C1) : la barre d'enregistrement sur toutes les pages de Réglages ; quitter Réglages ou Trackers avec des changements demande une confirmation à trois choix.
 - 09-29 · Système au design système : puce « actif / inactif » en fin de ligne, pas « coupé » ; le tableau des exécutions ne se coupe pas à droite sur mobile.
+- 09-29 · Rd conformité Q1 = A : l'interrupteur qui laisse chaque téléchargement terminé démarrer seul son traitement (ex-« Déclenchement automatique », la veille) est gardé, RENOMMÉ par ce qu'il fait, sur une seule ligne du bloc des leviers (puce « actif / inactif » en fin de ligne, avec son bouton) ; la ligne des verrous disparaît ; « actif / inactif » pour les sept mécanismes marche/arrêt, « en pause » gardé pour le pipeline en pause.
+- 09-29 · Rd conformité Q2 = A : les mots d'état de Système (« en ligne », « joignable », « à l'heure », « bientôt plein »…) quittent les données simulées — les données portent un CODE d'état, l'application prend le mot dans son dictionnaire (un mot par état, vu par la garde du vocabulaire) ; le moteur enverra des codes (demande au back-end).
+- 09-29 · Rd conformité Q3 = A : un seul composant d'AVIS, adapté du panneau d'erreur, à trois tons — danger (l'erreur d'aujourd'hui, seule annoncée comme alerte), avertissement, information ; « TMDB déconnecté », « à identifier », lecture seule, redémarrage requis y passent.
+- 09-29 · Rd conformité Q4 = A : le sélecteur segmenté n'a qu'une déclaration — le commutateur de vue du design système gagne une taille « texte », la version d'Acquisition (écran d'ajout, menu latéral) y est rebranchée et disparaît.
+- 09-29 · Rd conformité Q5 = A : la ligne d'une saison dont la récupération entière est lancée dit « Demandée » (fiche de la série et fiche du suivi), suivie ou non, jusqu'à l'arrivée en médiathèque ; l'avancement se lit sur la carte de la saison dans « En cours ».
+- 09-29 · Rd conformité Q6 = A : pendant la récupération d'une saison entière, la carte d'acquisition d'un épisode seul de cette saison (dans « En cours ») est ABSORBÉE — elle disparaît, la carte de la saison la couvre, son parcours renvoie à la saison ; le moteur refuse de lancer l'épisode à part (demande au back-end).
 
 ### Comptes, rôles, droits (L18)
 
@@ -264,6 +278,7 @@ d'audit en cours.
 - 09-27 · Rd 8 Q19 : `--color-waiting-text` déclaré dans `theme.css` comme les quatre autres tons.
 - 09-29 · un seul composant d'onglets, adaptable, pour toutes les pages à onglets, avec une garde statique ; sa référence est l'existant validé (Acquisition en tête), Trackers s'y conforme (Rd 3 Q7).
 - 09-29 · Rd 3 Q4 : le chevron des saisons est la seule flèche de pliage de l'application.
+- 09-29 · Rd conformité Q9 = A : un ton « à venir » est ajouté au point coloré et à la puce du design système, avec la couleur existante (`--color-upcoming`) ; les endroits qui le dessinaient à part y sont rebranchés.
 
 ### Documents et carte d'intention
 
