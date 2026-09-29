@@ -8,25 +8,27 @@
 - **Orchestrator** « Orch : TM frontend [79475d] »; always write the reference. Gauge:
   `context-gauge.sh`, its `context_percent=` and `source=` lines in every report. Context gate 80 %, exit ~75 %
   (the brief's dated line of 2026-09-29).
-- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 5c · 5d · 6a · 6b · 7 · 8 · 9 — each gated, mutated, pushed. MIDPOINT read. **Next: 10**
-  (`plan/phase-10-alert-on-bar.md`), opened on the midpoint's live-relay fall as its RED (steward, A).
-- **Remaining** (from `ls plan/`): 10 · 11 · 12 · 13 · 14 · 15 · 16 · 17.
+- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 5c · 5d · 6a · 6b · 7 · 8 · 9 · 10 — each gated, mutated, pushed. MIDPOINT read. **Next: 11**
+  (`plan/phase-11-panel-more-drops-ratio.md`), not opened — re-measure it on this head.
+- **Remaining** (from `ls plan/`): 11 · 12 · 13 · 14 · 15 · 16 · 17.
   Known STOP D: 12 (ratio cause = global `ingest.min_ratio`; the seed),
   14 (no read of a config file's content in the maquette's contract).
 - **Rulings** (`RULINGS.md`) 1 `?list=` · 2 C2, save bar via `lib/save-bar-door.tsx` · 3 B, the filter line · 4 B1,
   Lanterns's sheet from its NFO + R1 bis · 5 B, `poseArrived` (Zinzins end to end) · 6 B, `poseExternalRemoval` (Ted Lasso) · 7 posed dials replace composed seeds
   (STANDING: announce, no STOP, unless no real subject or a product behaviour changes) · 8 A, « Vu ».
 - **Rules** R260 `trackers_page.py` · R261 `trackers_roster.py` (holds 1–17) · R262 `trackers_policy.py` · R263
-  `trackers_removal.py` (21, holds 1–10); R122 reads `torrents/row`; `audit.py` 14 holds; R229 re-aimed at 5d (16 holds); R264 `trackers_alert.py` (21, holds 1–9).
+  `trackers_removal.py` (21, holds 1–10); R122 reads `torrents/row`; `audit.py` 14 holds; R229 re-aimed at 5d (16 holds); R264 `trackers_alert.py` (27, holds 1–11); R91 `fanout.py` 170.
   Next labels: g R265 (12) · f R266 (14) · e R267 (16); cuts R268+. Register B-570 taken (check-live-relay's
   constant-key blind spot, `open`); next B-571.
 - **Gate** (office § The gate): static list (`check-no-french`, css-tokens, compositor, tailwind, markup-contracts,
   boundaries, `oracle.py --contracts`, + frame-domain, mock-seeds) → `run.sh --oracle` alone → accept with
   `bash -c 'run.sh --oracle; oracle.py --accept'` + `tools/accept_by_name.py <declared.json>` (declared BY SCRIPT
   from `states/*.ts`) → `run.sh --rules` (`--class rule`) → `--a11y` if it draws. The static list AGAIN after any
-  harness edit. `test_oracle.py` pinned 150 states / 38 regions. Maquette vitest: `vitest run --root
+  harness edit. `test_oracle.py` pinned 151 states / 38 regions. Maquette vitest: `vitest run --root
   frontend/maquette/design` (from the root it runs the production app's tests).
 - **B-554 list** the 25 `shell/dialog` readers = `p06b-declared.json`'s (reused at 7, identical).
+- **Order 73** a rule red 3× in a row for a non-product reason → a register row naming its MECHANISM before READY,
+  or the rule leaves the gates and the row stays open (entry/pwa excluded: the router hairpin, a train's).
 - **Size watch** `mocks/handlers/staging.ts` 399, `mocks/index.ts` 399 (ceiling 400): no new line there.
 - **Order 52** harness/product added 0.51 at 5b. `data-mediasheet` added ⇒ `audit.py` at the gate; `ui/dialog`
   touched ⇒ its 13 readers. A new dialog moves `shell/dialog` on ~24 later states (B-554); `.warnbox > b` fails light.
@@ -262,3 +264,20 @@
   10's gate AND name /api/trackers, /api/acquisition/downloads, /api/acquisition/obligations. The blind spot: B-570
   `open` (not repaired, measure 1). Order 52 at the midpoint: harness 1286 / product 2301 = 0.56. My slip: a report
   claimed the oracle green in this suite — corrected at once, it is not in it.
+- 2026-09-29 — phase 10 opening ≈ 13.5 (+ `useBadgeReads`). R264 re-aimed OUT LOUD (holds 10–11, the bar), RED
+  (`p10-red.log`, 6 FAIL) with the live-relay fall (`p10-red-relay.log`). The move: `trackersBadge` and
+  `useTrackersBadgeReads` in `queries.ts`, the row's `badge` + `useBadgeReads` in `app/navigation.ts`;
+  `features/trackers/live.ts` (RatioMeasured → summary; SeedObligationRecorded/Satisfied → obligations;
+  SeedObligationBreached → both; Download* → downloads), registered in `app/live-updates.ts`; the four ratio names
+  leave `acquisitionLiveExemptions`, its `because` rewritten; the reads key on exported literal keys `trackersKey`,
+  `downloadsKey`, `obligationsKey` (the guard reads `\w*[Kk]ey` only — an upper-case `TRACKERS_KEY` was still
+  invisible, caught by asking the guard's own `read_addresses()`); dial `poseTrackerRatio`; state
+  `bar-trackers-alert` (frame.ts, beside drawer-navigation); frame-domain app/ 146 → 152 (baseline `_why`); word
+  `unseen`. Slips: a BSD `sed` with `\b` that changed nothing (caught by a grep, redone in Python).
+- 2026-09-29 — phase 10 gate: static 10/10, relay 0 with the three addresses READ (32 read, 24 refreshed), typecheck
+  0. Oracle alone: `bar-trackers-alert` only, 0 key moved, proved; `test_oracle.py` 150 → 151. Rules R264 27 · R91
+  170 · R261 64 · R263 21 · R260 27 · page_host 42 · badges_observed 9 · bar_places 13 · bar_shares 14, 0 failed;
+  a11y dark 0, light 88. Mutations: the badge dropping the unseen → FAIL « tracker-broken-obligations: the bar's
+  Trackers tab counts the sum of the components, 2 »; the rules unregistered → R91 FAIL « trackers: RatioMeasured
+  refreshes something — 0 of 56 »; RatioMeasured unclaimed → FAIL « a RatioMeasured event above the threshold moves
+  the badge » (`p10-mutation1–3.log`). Order 73 received.

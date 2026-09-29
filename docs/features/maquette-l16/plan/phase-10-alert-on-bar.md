@@ -36,6 +36,10 @@ must move without a refetch, the stream's ratio and obligation events are claime
 A BEHAVIOUR change on the frame's own region: the bar's fourth button gains its badge, and a ratio or
 obligation event now refreshes the page's reads.
 
+- **2026-09-29, served:** the row carries `useBadgeReads` too (L22b's mechanism); the reads key on exported LITERAL
+  keys the relay guard reads (the midpoint's live-relay fall, repaired here, B-570); the Download* events claimed for
+  the downloads read; frame-domain app/ 146 → 152; the oracle reason's « phase 9 » reads « phase 10 ».
+
 ## The proof FIRST
 
 R-L16-d re-aimed (the label was bound in phase 2); R91 re-aimed.
