@@ -280,3 +280,22 @@ L20-8).
   `"movie" | "show"`, because the contract types `PendingDecision.kind` as a plain string. A demand
   for the backend, not a product change: the two values the product already narrows it to are the
   whole of the field's range (`docs/features/maquette-l13/RESUME-L13r.md@08400a22a`, r·7).
+
+## 14. A season recovery is exclusive of its own episodes — §20 (operator, 2026-09-29 17:4x)
+
+- **What the interface will show** (a drawing queue item, not this file's): the season row and one
+  « En vol » card for the SEASON as a whole, while its recovery runs.
+- **What the engine must guarantee.** While a season recovery is in progress for a followed series,
+  no episode of that season is grabbed in parallel — the operator's verbatim: « on doit s'assuré
+  qu'aucun téléchargement d'épisode de la saison se lance en parallèle ». This settles, for the
+  season case, part of §20's open question on a series' granularity — episode, season, or release:
+  a season-level tunnel EXCLUDES the per-episode grab path for its own episodes while it runs.
+- **It must honour the existing season-pack guards, not bypass them**: the series-title guard on a
+  season pack (the Groos/Groot incident, PR #489, `filter_to_season`) and the incomplete-pack
+  fallback that re-enqueues exactly the episodes a closed season journey is still short of (#542).
+  The exclusion and these guards act on the same subject — a season's episodes — and the brief
+  designs how they compose: an episode a fallback re-enqueues is not a violation of the exclusion
+  when the season recovery that owns it is the one re-enqueuing it.
+- Open for the brief: what marks a season "being recovered" (a tunnel state, a flag the per-episode
+  grab path reads), and what happens to an episode of that season already queued when the season
+  recovery starts.
