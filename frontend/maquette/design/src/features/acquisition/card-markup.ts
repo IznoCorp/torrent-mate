@@ -22,6 +22,17 @@ import { richTextMarkup } from "./rich-text";
 import { originRow, footRow } from "./variants";
 import { currentRung } from "../../lib/current-rung";
 
+
+/** One rung of a card's ladder, as the card reads it. */
+type Rung = {
+  rung: string;
+  state: StripState;
+  reason?: string;
+  when?: string;
+  /** For a ratio deferral, the tracker it is under, and that tracker's own threshold. */
+  tracker?: string | null;
+  minimumRatio?: number | null;
+};
 /** A medium as an acquisition list holds one, in the engine's field names. */
 export type MediumCard = {
   title: string;
@@ -41,7 +52,7 @@ export type MediumCard = {
   /** Put in the staging area by hand: nobody asked, and its subtitle says so. */
   droppedByHand?: boolean;
   /** The medium's ladder — the same list its journey sheet reads. */
-  ladder?: { rung: string; state: StripState; reason?: string; when?: string }[];
+  ladder?: Rung[];
   withoutPoster?: boolean;
   overview?: string;
   panel?: string;
@@ -83,6 +94,12 @@ const RUNG_TONE: Record<StripState, string> = {
 
 // The reason a rung waits for the operator's answer rather than for his hand.
 const TO_CONFIRM = "confirmation";
+// The engine's token for a ratio deferral, and where its path lands: the
+// Trackers page, its « Trackers » tab, the tracker named after the separator.
+const RATIO_DEFERRAL = "ratio_below_threshold";
+const TRACKERS_PAGE = "trackers";
+const TRACKERS_TAB = "trackers";
+const DIAL_SEPARATOR = ":";
 
 /**
  * A date, as a sentence says it: the day and the month.
@@ -108,7 +125,18 @@ function dayOf(date: string): string {
  * @param ladder The medium's rungs.
  * @returns The strip, the figure and the current rung's chip.
  */
-function ladderMarkup(ladder: { rung: string; state: StripState; reason?: string; when?: string }[]) {
+/**
+ * The tracker a ratio deferral is under, when the rung the card stands on is one.
+ *
+ * @param ladder The medium's rungs.
+ * @returns The tracker's name, or undefined for any other rung.
+ */
+function ratioDeferralTracker(ladder: Rung[]): string | undefined {
+  const rung = ladder[currentRung(ladder)];
+  return rung.reason === RATIO_DEFERRAL && rung.tracker ? rung.tracker : undefined;
+}
+
+function ladderMarkup(ladder: Rung[]) {
   const current = currentRung(ladder);
   const strip: StripCell[] = ladder.map((rung) => ({ state: rung.state }));
   const reason = ladder[current].reason;
@@ -120,8 +148,16 @@ function ladderMarkup(ladder: { rung: string; state: StripState; reason?: string
     // never a constant (§13). It outranks the row's own reason: the folder is
     // waiting for him now, not for the step that stopped it.
     setAside: setAside ? i18next.t("surfaces.ladder.setAside", { day: dayOf(ladder[current].when ?? "") }) : undefined,
-    // THE REASON THE LADDER KNOWS, said in words, for a card whose row carries none.
-    reason: reason === undefined ? undefined : i18next.t(`surfaces.ladder.reasons.${reason}`),
+    // THE REASON THE LADDER KNOWS, said in words, for a card whose row carries none
+    // — a ratio deferral naming its tracker and THAT tracker's own threshold.
+    // A TRACKER WITH NO THRESHOLD OF ITS OWN is said to have none — never an
+    // invented « 0 ».
+    reason: reason === undefined ? undefined : reason === RATIO_DEFERRAL && ladder[current].minimumRatio == null
+      ? i18next.t("surfaces.ladder.ratioWithoutThreshold", { tracker: ladder[current].tracker ?? "" })
+      : i18next.t(`surfaces.ladder.reasons.${reason}`, {
+        tracker: ladder[current].tracker ?? "",
+        minimum: new Intl.NumberFormat(i18next.language).format(ladder[current].minimumRatio ?? 0),
+      }),
     fraction: i18next.t("surfaces.ladder.figure", { position: current + 1, count: ladder.length }),
     chip: {
       tone: reason === TO_CONFIRM ? RUNG_TONE.waiting : RUNG_TONE[ladder[current].state],
@@ -169,6 +205,14 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot | Med
     : posterArtworkMarkup(posterArtwork(icons, medium.poster, title, medium.k));
   const stages = i18next.t("surfaces.card.stages", { returnObjects: true }) as string[];
   const onLadder = medium.ladder ? ladderMarkup(medium.ladder) : null;
+  // A RATIO DEFERRAL IS A PATH to the tracker it is under: « Voir le tracker »
+  // lands on the Trackers tab, that tracker's entry open. An ADDRESS the page
+  // reads through its own landing door — never an import of that page's feature.
+  const deferredOn = medium.ladder ? ratioDeferralTracker(medium.ladder) : undefined;
+  const footOptions = [...(foot === undefined ? [] : Array.isArray(foot) ? foot : [foot]), ...(deferredOn === undefined ? [] : [{
+    label: i18next.t("screens.acquisition.ratioReasonTracker"),
+    attributes: { "data-go": TRACKERS_PAGE, "data-dial": `${TRACKERS_TAB}${DIAL_SEPARATOR}${deferredOn}` },
+  }])];
   return cardMarkup({
     title,
     // french-ok: the non-medium marker R46 reads, a contract value
@@ -205,9 +249,9 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot | Med
     // happened — never from a constant (§13).
     requester: originLine(medium),
     strip: onLadder ? onLadder.strip : medium.strip?.map((value, index) => ({ state: stageState(value), label: stages[index] })),
-    foot: foot === undefined
+    foot: footOptions.length === 0
       ? undefined
-      : (Array.isArray(foot) ? foot : [foot]).map((one) => ({ label: one.label, solid: one.solid, attributes: one.attributes ?? {} })),
+      : footOptions.map((one: MediumCardFoot) => ({ label: one.label, solid: one.solid, attributes: one.attributes ?? {} })),
      footRow: footRow(),
      originRow: originRow(),
   });

@@ -101,6 +101,7 @@
       "target_ratio": "Ratio de partage visé",
       "min_ratio": "Ratio de partage minimal",
       "min_seed_time": "Durée de partage minimale",
+      "alert_threshold": "Seuil d'alerte du ratio",
       "hit_and_run_grace": "Tolérance avant de considérer un abandon",
       "cross_seed": "Partage croisé",
       "verify_seed_pure": "Vérifier qu'un partage reste intact",
@@ -225,6 +226,71 @@
     }
   },
   "screens": {
+    "ranking": {
+      "title": "Classement des releases",
+      "back": "Réglages",
+      "threshold": "≥ {{at}} → {{score}}",
+      "errorSubject": "le classement des releases",
+      "weightLabel": "Poids du critère {{field}}",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "saveRefused": "Enregistrement refusé par le serveur — les poids saisis sont gardés.",
+      "conflictReload": "Relire le classement",
+      "previewTitle": "Aperçu en direct",
+      "previewLead": "Les releases types, classées comme les poids affichés les classeraient — avant tout enregistrement.",
+      "previewScore": "{{score}} points",
+      "previewExcluded": "Écartée",
+      "previewExcludedReason": "{{seeders}} seeders, sous le minimum de {{minimum}}",
+      "previewErrorSubject": "l'aperçu du classement"
+    },
+    "trackers": {
+      "tabTorrents": "Torrents",
+      "tabTrackers": "Trackers",
+      "errorSubject": "les trackers",
+      "ratio": "Ratio {{ratio}}",
+      "ratioUnknown": "Ratio inconnu",
+      "trend": "Tendance : {{trend}}",
+      "trends": {
+        "up": "en hausse",
+        "stable": "stable",
+        "down": "en baisse"
+      },
+      "volumes": "Téléchargé {{downloaded}} Go · Envoyé {{uploaded}} Go",
+      "empty": "Aucun tracker configuré.",
+      "emptyBody": "Les trackers se déclarent dans la configuration ; chacun apparaîtra ici avec son ratio.",
+      "minRatio": "Ratio plancher",
+      "minSeedTime": "Temps de seed minimal",
+      "alertBelowThreshold": "Sous le seuil d'alerte de {{threshold}}",
+      "identifierRefused": "Identifiant refusé depuis le {{date}}",
+      "brokenObligations_one": "{{count}} obligation rompue",
+      "brokenObligations_other": "{{count}} obligations rompues",
+      "brokenList": "Obligations rompues, torrent parti",
+      "brokenOn": "Rompue le {{date}}",
+      "seen": "Vu",
+      "seenMark": "Vue",
+      "alertThreshold": "Seuil d'alerte du ratio",
+      "floorGuidance": "Le ratio à partir duquel un torrent peut être retiré sans dette envers le tracker — un plancher, pas une cible.",
+      "policyUnset": "Aucune politique réglée pour ce tracker.",
+      "policyErrorSubject": "la politique de ce tracker",
+      "seeTorrents": "Voir les torrents"
+    },
+    "torrents": {
+      "errorSubject": "les torrents",
+      "origin": "Téléchargé ici en premier",
+      "crossSeed": "Cross-seed d'un torrent déjà présent",
+      "deadline": "Échéance le {{date}}",
+      "noDeadline": "Aucune échéance",
+      "obligationOpen": "Obligation en cours",
+      "obligationBreached": "En infraction depuis le {{date}}",
+      "obligationDone": "Obligation terminée",
+      "filtered": "Filtré sur {{tracker}}",
+      "showAll": "Tout voir",
+      "empty": "Rien en cours sur aucun tracker.",
+      "emptyBody": "Un torrent apparaît ici dès que le client le télécharge ou le partage.",
+      "emptyFiltered": "Rien en cours sur ce tracker.",
+      "emptyFilteredBody": "D'autres trackers peuvent en avoir : « Tout voir » lève le filtre.",
+      "remove": "Retirer de qBittorrent"
+    },
     "releases": {
       "back": "Retour",
       "noteTitle": "Écran neuf.",
@@ -365,7 +431,6 @@
       "scope": "Portée",
       "scopeThisFollow": "ce suivi seulement",
       "scopeAllFollows": "tous les suivis",
-      "rankingToast": "Dans l'app, ce bouton mènera à /config ?tab=classement — l'éditeur de classement existe déjà.",
       "rankingWeights": "Poids du classement (global) →",
       "rulenote": "Un profil qui n'accepte plus rien se dit : le suivi le dit, et sa recherche en direct répond « aucun torrent trouvé », jamais un silence (§8).",
       "saveToast": "Profil enregistré — la prochaine recherche l'appliquera.",
@@ -742,11 +807,12 @@
       "tabNow": "En cours",
       "tabFollows": "Suivis",
       "tabTodo": "À traiter",
-      "moreLabel": "Plus — veille et obligations",
+      "moreLabel": "Plus — veille",
       "errorNow": "ce qui vous attend",
       "errorTodo": "ce qui attend votre main",
       "errorFollows": "vos suivis",
       "errorSuggestions": "les suggestions",
+      "ratioReasonTracker": "Voir le tracker",
       "nowEmpty": "Rien en cours.",
       "blocked": "À traiter",
       "blockedFoot": "Résoudre →",
@@ -1002,9 +1068,13 @@
       },
       "step": "· {{name}}",
       "toConfirm": "{{rung}} — à confirmer",
+      "ratioWithoutThreshold": "Différé : le ratio sur {{tracker}} est trop bas, et ce tracker n'a aucun seuil réglé.",
       "reasons": {
         "queued": "En file — ce passage attend que la maintenance en cours se termine.",
-        "confirmation": "Le match Plex attend votre confirmation."
+        "confirmation": "Le match Plex attend votre confirmation.",
+        "ratio_below_threshold": "Différé : le ratio sur {{tracker}} est sous son seuil de {{minimum}}.",
+        "insufficient_space": "Différé : pas assez d'espace pour le recevoir.",
+        "content_missing": "Différé : une partie du contenu manque encore."
       }
     }
   },
@@ -1067,6 +1137,7 @@
       "acq": "Acquisition",
       "lib": "Médiathèque",
       "discover": "Découvrir",
+      "trackers": "Trackers",
       "sys": "Système",
       "maint": "Maintenance",
       "cfg": "Réglages",
@@ -1176,12 +1247,10 @@
       "meta": "Où ranger « {{folder}} » ? Il quitte les acquisitions."
     },
     "standby": {
-      "title": "Veille et obligations",
+      "title": "Veille",
       "meta": "Second rang — consulté, pas surveillé.",
       "lastPass": "Dernier passage",
       "nextPass": "Prochain passage",
-      "globalRatio": "Ratio global",
-      "obligations": "Obligations en cours",
       "runNow": "Lancer la veille maintenant"
     },
     "suggestion": {
@@ -1371,6 +1440,20 @@
       "held": "Commande demandée — en attente du réseau, elle partira au retour.",
       "dryHeld": "Essai à blanc demandé — en attente du réseau.",
       "refused": "La commande n'a pas abouti."
+    },
+    "trackers": {
+      "remove": {
+        "heading": "Retirer de qBittorrent ?",
+        "bodyOn": " quitte qBittorrent sur ",
+        "bodyFiles": ".",
+        "deleteFiles": "Supprimer les fichiers",
+        "shared": "Les mêmes fichiers sont partagés sur {{trackers}} : ce partage prend fin aussi.",
+        "obligation": "Obligation en cours sur {{tracker}}.",
+        "obligationBody": " La retirer maintenant la clôt avant qu'elle soit remplie.",
+        "confirm": "Retirer",
+        "cancel": "Annuler",
+        "done": "« {{title}} » a quitté qBittorrent."
+      }
     }
   },
   "discover": {

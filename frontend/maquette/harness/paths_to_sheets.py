@@ -3,7 +3,7 @@
 THE CLAUSE. « ne jamais afficher un média sans chemin vers sa fiche ».
 `product-intent-map.md` reads it `partly`: the FIVE poster galleries
 `harness/gallery.py` names are served, and the LIST ROWS — a follow row, an
-arrival row, a search result — and the galleries outside those five are
+arrival row, a search result, a torrent's row — and the galleries outside those five are
 **unproved**. This rule is that instrument, written with the producers that draw them.
 
 WHAT A « PATH » IS, and this is the whole difficulty. It is not one attribute.
@@ -61,17 +61,23 @@ SURFACES = (
     # read by acq-now-loaded above.
     ("lib-list", "a library row", PAGE),
     ("acq-add-results", "a search result", '[data-region="screen-add/body"]'),
+    # RE-AIMED OUT LOUD: the « Torrents » tab of « Trackers » draws one row per
+    # download entry, and each names a medium — its title is a path like any
+    # other list row's.
+    ("torrents-list", "a torrent's row", PAGE),
 )
 
 # A ROW THAT NAMES A MEDIUM. Read from the markup's own vocabulary rather than
 # from a class: `data-panel` and `data-mediasheet` carry a TITLE, `data-tile`
 # and `data-add` name a medium by position in a list the page draws.
 NAMING = """(scope)=>{
-  // `card` AND `tile`, and no third: `[data-part="row"]` is emitted nowhere in
-  // this tree, and `check-markup-contracts` refused it — a value selected and
-  // emitted nowhere is a rule selecting nothing.
+  // `card`, `tile` AND `torrents/row` — RE-AIMED OUT LOUD, from « card and
+  // tile, and no third »: the « Torrents » tab's row is the third, a row that
+  // names a medium. A bare `[data-part="row"]` is still emitted nowhere, and
+  // `check-markup-contracts` refuses it — a value selected and emitted nowhere
+  // is a rule selecting nothing.
   const rows = [...document.querySelectorAll(
-    `${scope} [data-part="card"], ${scope} [data-part="tile"]`)];
+    `${scope} [data-part="card"], ${scope} [data-part="tile"], ${scope} [data-part="torrents/row"]`)];
   // WHICH BRANCH CARRIED THE ROW, not merely whether one did. A disjunction
   // reports the same green whether all four of its arms answer or only one
   // does, and « only one does » is a rule that has quietly narrowed to a single
@@ -101,7 +107,8 @@ NAMING = """(scope)=>{
   return {
     drawn: named.length,
     kinds: {card: rows.filter((n) => n.dataset.part === "card").length,
-            tile: rows.filter((n) => n.dataset.part === "tile").length},
+            tile: rows.filter((n) => n.dataset.part === "tile").length,
+            row: rows.filter((n) => n.dataset.part === "torrents/row").length},
     by,
     // THE COUNT AND THE SAMPLE ARE TWO THINGS. They used to be one: the list
     // was sliced to four and its length was then printed as the number of dead
@@ -135,7 +142,7 @@ async def main():
                 f"{state} really draws rows, so « {what} » has a subject",
                 read["drawn"] >= 3,
                 f"{read['drawn']} row(s) — card {read['kinds']['card']}, "
-                f"tile {read['kinds']['tile']}")
+                f"tile {read['kinds']['tile']}, row {read['kinds']['row']}")
             journal.check(
                 f"every {what} carries a path to its sheet (NE-DOIT-PAS-9)",
                 not read["deadCount"],

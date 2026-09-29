@@ -147,8 +147,11 @@ async def walk_a_page(page):
              // RE-AIMED OUT LOUD: Système left the bar (ruling 15). The walk
              // leaves for another top-level tab READ OFF THE BAR — neither the
              // library nor the entry page, whose tap rewinds the stack.
+             // RE-AIMED OUT LOUD, again: « Trackers » joined the bar third, and
+             // the walk needs a page long enough to hold an offset, so it leaves
+             // by the bar's LAST such tab, « Découvrir », rather than the first.
              const away = [...document.querySelectorAll('#nav [data-page]')]
-               .map((button) => button.dataset.page).find((one) => one !== "lib" && one !== "acq");
+               .map((button) => button.dataset.page).filter((one) => one !== "lib" && one !== "acq").pop();
              if (!away) return { reached: null, why: "the bar offers no third tab to leave by" };
              tab(away).click();
              await window.__mocks.quiet();

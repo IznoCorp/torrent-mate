@@ -14,7 +14,7 @@ import { store } from "./store-access";
 /* The dials an entry carries beside its page, in the order it writes them —
    written ONCE, because the entry is written in one place and read back in
    another, and two lists of one fact are one list waiting to lose a member. */
-const ENTRY_DIALS = ["acqTab", "libLens", "libMode", "libCat", "maintTopic"] as const;
+const ENTRY_DIALS = ["acqTab", "libLens", "libMode", "libCat", "maintTopic", "trackersTab", "trackersFilter"] as const;
 
 /* WHAT A TAP KNEW about the item it opened, and nothing else: its title, its
    poster and its provider identity. The screen it opens reads them while its own

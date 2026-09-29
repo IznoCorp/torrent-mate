@@ -17,6 +17,7 @@ import { mediaStates } from "./states/media";
 import { relayStates } from "./states/relay";
 import { settingsStates } from "./states/settings";
 import { systemStates } from "./states/system";
+import { trackersStates } from "./states/trackers";
 import { tunnelStates } from "./states/tunnel";
 
 /**
@@ -41,6 +42,7 @@ function namedStates(): NamedState[] {
     ...systemStates(),
     ...notFoundStates(),
     ...accountStates(),
+    ...trackersStates(),
     ...maintenanceStates(),
     ...settingsStates(),
     ...relayStates(),

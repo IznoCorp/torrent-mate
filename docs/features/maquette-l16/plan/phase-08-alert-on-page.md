@@ -32,6 +32,9 @@ platform demand, filed (DESIGN § 4.5, § 5).
 A BEHAVIOUR change: values already answered (the threshold from phase 4's write, the refused fact from
 phase 1's read) are surfaced where existing readers already look — never a write, never a new list.
 
+- **2026-09-29, served:** the three states are POSED by dials, no seed row (RULINGS 7); R-L16-d = R264
+  `trackers_alert.py`; `alertOf` in `queries.ts` as written; the breach copy `screens.torrents.obligationBreached`.
+
 ## The proof FIRST
 
 Its label R-L16-d is bound to the next free number, re-taken against `origin/main`.

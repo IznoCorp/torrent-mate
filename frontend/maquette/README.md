@@ -782,13 +782,18 @@ matters: it asks the server, afterwards, whether the session is still accepted.
 
 ## The cut is by the nature of the trouble
 
-Four surfaces, and what decides which one a panel belongs to is not the page it came from:
+Five surfaces, and what decides which one a panel belongs to is not the page it came from:
 
-| A medium in trouble               | **Acquisition › « À traiter »** |
-| --------------------------------- | ------------------------------- |
-| A machine in trouble              | **Système**                     |
-| A setting                         | **Configuration**               |
-| A command run against the library | **Maintenance**                 |
+| A medium in trouble                      | **Acquisition › « À traiter »** |
+| ---------------------------------------- | ------------------------------- |
+| A tracker in trouble (ratio, obligation) | **Trackers**                    |
+| A machine in trouble                     | **Système**                     |
+| A setting                                | **Configuration**               |
+| A command run against the library        | **Maintenance**                 |
+
+A tracker's trouble speaks where the tracker lives — its ratio under its own threshold, a refused
+identifier, a broken obligation — and the badge on the bar's « Trackers » tab says it (organisation
+ruling 12: each thing speaks where it lives, one badge per tab, no notification box).
 
 `Contrôle` does not survive this cut **as it is**. Production stacks blocked media on top of disk
 and provider health with nothing saying why they share a page; each of its **eight** panels

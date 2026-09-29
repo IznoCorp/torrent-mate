@@ -85,6 +85,8 @@ function restorePage(patch: Record<string, unknown>): void {
     libMode: patch.libMode,
     libCat: patch.libCat,
     maintTopic: patch.maintTopic,
+    trackersTab: patch.trackersTab,
+    trackersFilter: patch.trackersFilter,
   } as Parameters<typeof store.write>[0]);
   if (patch.page || patch.libLens) {
     const port = document.querySelector("#port");

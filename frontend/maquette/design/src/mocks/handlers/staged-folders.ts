@@ -4,6 +4,11 @@
 // ITS OWN MODULE because the staging handlers are at their size ceiling; the
 // lists are declared here so the handlers import them, never the reverse.
 import { mockState } from "../state";
+import { trackersState } from "../trackers-state";
+import type { components } from "../../contract/types";
+
+type QueueCard = components["schemas"]["QueueCard"];
+type Identifiers = Record<string, unknown> | null | undefined;
 
 // Which of the staging worlds a card came from. Named because the pairing with
 // the list it goes to is the decision, not the spelling.
@@ -66,4 +71,39 @@ export function takeOutOfStaging(asked: string): boolean {
     if (state[list].length !== before) return true;
   }
   return false;
+}
+
+// The download client's word for an entry whose files are still coming.
+const STILL_COMING = "downloading";
+// The episode a card's subtitle opens with, when it names one: season, episode.
+const EPISODE = /S(\d+)E(\d+)/;
+
+/** Whether two identities share one provider identifier, whatever its spelling. */
+function sharedIdentifier(one: Identifiers, other: Identifiers): boolean {
+  if (one == null || other == null) return false;
+  return Object.entries(one).some(([provider, value]) => value != null
+    && other[provider] != null && String(other[provider]) === String(value));
+}
+
+/**
+ * The cards of a staging list that have ARRIVED — the list as it is served.
+ *
+ * A DIRECT ADD IS A CARD ONLY ONCE IT HAS ARRIVED: while the download client is
+ * still downloading its medium, nothing but the client asked for it, and the
+ * client's own entry is where it is read. A follow's card is kept — the follow
+ * asked, so its card lives every rung from « demandé ».
+ *
+ * @param cards A staging list.
+ * @returns Its cards, less the direct adds still downloading.
+ */
+export function arrivedOnly(cards: QueueCard[]): QueueCard[] {
+  const coming = trackersState().downloads.filter((entry) => entry.state === STILL_COMING);
+  const follows = mockState().follows;
+  return cards.filter((card) => {
+    const ids = card.ids as Identifiers;
+    if (follows.some((follow) => sharedIdentifier(ids, follow.ids as Identifiers))) return true;
+    const [, season, episode] = card.secondaryLine.match(EPISODE) ?? [];
+    return !coming.some((entry) => sharedIdentifier(ids, entry.ids as Identifiers)
+      && (entry.kind !== "episode" || (Number(season) === entry.season && Number(episode) === entry.episode)));
+  });
 }

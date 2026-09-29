@@ -7,11 +7,11 @@
     "unserved": "not served, with the reason written out"
   },
   "$counts": {
-    "served": 41,
+    "served": 44,
     "asset": 5,
     "interface": 29,
     "unserved": 6,
-    "total": 81
+    "total": 84
   },
   "$anonymous": {
     "count": 0,
@@ -66,6 +66,12 @@
       "seed": null,
       "converted": "L09 phase 6 — the Médiathèque reads /api/library/categories"
     },
+    "CONFIGURATION_FILES": {
+      "class": "served",
+      "why": "the operator's own `ranking.json5`, read read-only on 2026-09-29 from the canonical configuration `~/.torrentmate/config/ranking.json5` (2231 bytes; no key, token or secret in it — the steward's check), parsed with json5, its SHA-256 the file's own",
+      "seed": null,
+      "converted": "L16 phase 14a — born with `readConfigurationFile`"
+    },
     "DECISIONS_REGLEES": {
       "class": "served",
       "why": "the decisions already settled, with how each was reached",
@@ -101,6 +107,12 @@
       "why": "NO READER SINCE ROUND 7: « Cherché, rien trouvé » and « Rangé aujourd'hui » left « En cours » (the operator, 2026-09-26) — what was not found reads on its follow, what arrived in the Médiathèque's « Récents ». The family, its seed and its contract field were removed rather than kept for nobody (the coherence triage's F40); the engine's side is the backend brief's",
       "seed": null,
       "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario; L22b phase 25 — removed (F40)"
+    },
+    "DOWNLOADS": {
+      "class": "served",
+      "why": "the download client's entries, one per tracker — SEVEN entries: the five torrents of OBLIGATIONS, their names from `acquire.db`'s `seed_obligation` and `staging_provenance`, read read-only on 2026-09-28, their sizes from `library.db`'s `media_file`; the per-entry ratio and the tr4ker cross-seed of President Curtis (hash included) are composed for the drawing, since no engine route reads an entry's upload or tracker (DESIGN § 2.3 item 3); and « Les Zinzins de l'Espace » S03E14, still downloading, whose title, ids, episode and progress (0.34) are the real `moving.json` row's, while its infoHash (the sha1 of its name), its release name (`…-JiHEFF`), its size (1.2 GB), its tracker (c411), its origin mark and its ratio (0) are COMPOSED (L16 phase 5c)",
+      "seed": null,
+      "converted": "L16 phase 1 — born with `readDownloads`"
     },
     "EP_LABEL": {
       "class": "interface",
@@ -234,6 +246,12 @@
       "seed": null,
       "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario; L22b phase 25 — removed (F40)"
     },
+    "OBLIGATIONS": {
+      "class": "served",
+      "why": "the seeding obligations the engine holds — five real c411 rows of `acquire.db`'s `seed_obligation` and `staging_provenance`, read read-only on 2026-09-28, titled by the backend's own join (`obligation_titles.py`)",
+      "seed": null,
+      "converted": "L16 phase 1 — born with `readObligations`"
+    },
     "OWNED": {
       "class": "served",
       "why": "owned episode numbers, season by season, for 247 series",
@@ -281,6 +299,12 @@
       "why": "how far a finger may travel and still be a press",
       "seed": null,
       "converted": "L12 phase 3 — moved with the arbitration into `lib/press-arbitration.ts` as `PRESS_TOLERANCE_PIXELS`. R112 measures it under a real mouse, which is the only instrument that can: under touch the compositor cancels the press at the same distances whether or not the tolerance exists"
+    },
+    "RANKING_SAMPLES": {
+      "class": "served",
+      "why": "the ranking preview's FIXED, representative release set — the backend's own `_ranking_preview_samples` (personalscraper/web/routes/acquisition_ranking.py), its twelve releases as the trackers would parse them",
+      "seed": null,
+      "converted": "L16 phase 13 — born with `previewRanking`"
     },
     "REASON_DETAIL": {
       "class": "interface",
@@ -455,6 +479,12 @@
       "why": "THE PROTOTYPE'S FROZEN CLOCK, and it is the determinism device rather than data. A server does not send today's date. It is not seeded — the mock layer declares its own instant (D-L08-8) and R85 holds that the two AGREE, because every date-derived state moves the moment they do not",
       "seed": null,
       "converted": "L13r phase r·2 — the engine's literal died; `lib/clock.ts` `today()`, filled at boot with the mock scenario's instant (ruling 100 Q2)"
+    },
+    "TRACKERS": {
+      "class": "served",
+      "why": "the configured trackers as their own subject, in the configuration's order (c411, tr4ker); their volumes and trend are composed for the drawing, since no engine route reads a tracker's account (DESIGN § 2.1), and the ratio is those volumes' quotient. The alert threshold is a SETTING: the layer serves the settings seed's `tracker.providers.<name>.economy.alert_threshold`, never this seed's null",
+      "seed": null,
+      "converted": "L16 phase 1 — born with `readTrackers`"
     },
     "TRIS": {
       "class": "interface",

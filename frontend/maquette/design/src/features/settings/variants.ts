@@ -81,6 +81,16 @@ export const fieldInput = cva(
   },
 );
 
+/**
+ * A ranking criterion's weight, typed in its row. The settings' own field, sized
+ * to a number: 16px for the same reason, narrow because a weight is short.
+ */
+export const weightInput = cva(
+  "fieldinput flex-none w-[72px] min-h-[44px] py-4 px-5 rounded-3 border border-border bg-background " +
+    "text-foreground text-right [font-family:inherit] [font-weight:inherit] text-6 " +
+    "focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-1",
+);
+
 /** The unit a numeric field carries. */
 export const fieldUnit = cva("fieldunit flex-none text-3 text-muted-foreground");
 
@@ -138,3 +148,6 @@ export const saveAction = cva(
   "flex-none [border:0] rounded-3 py-5 px-7 [font:600_var(--text-4)_'Geist',system-ui,sans-serif] " +
     "bg-primary text-primary-foreground disabled:opacity-50",
 );
+
+/** « Relire le classement »: the conflict's way out, at a finger's height. */
+export const readAgainAction = cva("min-h-[44px]");

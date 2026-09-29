@@ -324,6 +324,8 @@ Ruling 19 removes the content-tier screen the first two readings gave the tracke
 | « Retirer de qBittorrent »'s confirmation | transient | **no URL** — D1b rule 1, adjusting a surface, never arriving; a confirmation carries no address anywhere else in this codebase |
 | the ranking editor | content | its own path under the settings page — `/settings/ranking` (D1: it is identified, and DOIT-10 owes it a URL; unchanged from the prior read) |
 
+**Amended 2026-09-28 (L16 phase 2b, RULINGS 1):** the maquette writes the tab's parameter as `list` — `/trackers?list=torrents|trackers&tracker=$name` — where this table names `tab`, because the address model holds « one parameter, one page » (`lib/addresses.test.ts`) and `tab` is Acquisition's.
+
 **What DIES here.** `/trackers/$name` and its `SCREEN_PARENTS` entry, drawn by the first two
 readings' phase 4, never land: ruling 19's two-tab page answers everything the content-tier screen
 would have, without a second address to keep in agreement with the first. This ALSO helps `lib/addresses.ts`,
@@ -481,7 +483,9 @@ operation.
 row per qBittorrent entry active on ANY tracker** — a torrent cross-seeded onto two trackers is TWO
 rows, never folded into one (ruling 18: « je veux voir tous les torrents peu importe le tracker »).
 The `tracker` dial, when set, FILTERS the rows client-side to that tracker; it never re-fetches (the
-same list answers filtered or not).
+same list answers filtered or not). *(2026-09-28, STOP D 5b = B, steward [79475d]: when set, a line « Filtré sur <tracker> · Tout voir »
+(`torrents/filter`, `torrents/filter-clear`) says it above the rows, and « Tout voir » lifts it through the same
+`trackers-filter` verb given no tracker — RULINGS 3.)*
 
 **What a row carries (ORGANISATION RULING 18, replacing the first two readings' two lists —
 round 9 Q3).** The title, as a PATH to `/media/:provider/:id` (or to `/resolution/$folder` when the

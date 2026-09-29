@@ -14,10 +14,12 @@ carries a TVDB identifier (the series provider), a follow is matched by any
 shared provider identifier — never by a title written here.
 
 1. the arrivals changed the follows list by NOTHING;
-2. the unfollowed arrived series (« Les Zinzins de l'Espace ») carries the
-   offer, and its panel offers « Suivre »;
+2. BEFORE IT ARRIVES, the series a direct add is still downloading is no card
+   of « En vol », and its « Torrents » row offers no « Suivre »;
 3. no film, no card without identity, no followed series carries it;
-4. a tap changes the follows list by exactly ONE, and the offer goes;
+4. ONCE IT HAS ARRIVED (`acq-now-direct-arrived`), the same series carries the
+   offer and its panel offers « Suivre »; a tap changes the follows list by
+   exactly ONE, and the offer goes;
 5. « Suivis » draws no card born of an arrival: no requester line, no ladder;
 6. a ONE-OFF season (round 10 Q2: a season asked of a series nobody follows,
    `Requester.via` = `request`) is offered « Suivre » the same way — its card
@@ -25,7 +27,17 @@ shared provider identifier — never by a title written here.
    incomplete show of the seeds that is a series nobody follows with a hole
    the seasons data holds, asked through the season's own operation.
 
-Red before the move: an arrival card carries no offer.
+RE-AIMED OUT LOUD: holds 2 and 4 read « the unfollowed arrived series of the
+dense staging world ». That series was a direct add still DOWNLOADING, and a
+direct add is a card only once it has arrived — so the dense world holds no
+unfollowed series in flight any more (the settled ones stand past « rangé » and
+are never drawn in « En vol »). Their SUCCESSOR is the same real series, read
+off the download client's entries: absent before its arrival, offered after.
+Its arrival is a DERIVATION, POSED by `poseArrived` and shown as one — the
+download completes; no seed holds an arrived direct add of an unfollowed series.
+
+Red before the move: the downloading series is a card of « En vol », and the
+named state of its arrival does not exist.
 """
 import asyncio
 import json
@@ -37,6 +49,7 @@ from playwright.async_api import async_playwright
 SEEDS = pathlib.Path(__file__).resolve().parents[1] / "design/src/mocks/seeds"
 FOLLOWS = json.loads((SEEDS / "follows.json").read_text(encoding="utf-8"))
 MOVING = json.loads((SEEDS / "moving.json").read_text(encoding="utf-8"))
+DOWNLOADS = json.loads((SEEDS / "downloads.json").read_text(encoding="utf-8"))
 INCOMPLETE = json.loads((SEEDS / "incomplete-shows.json").read_text(encoding="utf-8"))
 
 
@@ -48,10 +61,14 @@ def followed(ids):
                if value is not None and ids.get(key) is not None)
 
 
-SERIES = [row["title"] for row in MOVING if (row.get("ids") or {}).get("tvdb") and not followed(row.get("ids"))]
+# The series a direct add is still downloading: nobody follows it, so nothing
+# asked for it but the download client itself.
+ARRIVING = [row["title"] for row in DOWNLOADS if row["state"] == "downloading"
+            and (row.get("ids") or {}).get("tvdb") and not followed(row.get("ids"))]
 FILMS = [row["title"] for row in MOVING if row.get("ids") and not row["ids"].get("tvdb")]
 FOLLOWED = [row["title"] for row in MOVING if followed(row.get("ids"))]
-OFFERED = SERIES[0] if SERIES else None
+OFFERED = ARRIVING[0] if ARRIVING else None
+ARRIVED_STATE = "acq-now-direct-arrived"
 
 CARDS = """() => [...document.querySelectorAll('#view [data-part="card"]')].map(card => ({
   title: card.querySelector('[data-part="card/title"]').textContent,
@@ -87,8 +104,8 @@ async def main():
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
 
-        journal.check("the seeds hold an unfollowed arrived series, a film and a followed series",
-                      OFFERED is not None and FILMS and FOLLOWED, f"{SERIES} / {FILMS} / {FOLLOWED}")
+        journal.check("the seeds hold a downloading unfollowed series, a film and a followed series",
+                      OFFERED is not None and FILMS and FOLLOWED, f"{ARRIVING} / {FILMS} / {FOLLOWED}")
         answer = await page.evaluate(
             "()=>{try{window.__go('acq-now-loaded');return null}catch(error){return String(error)}}")
         journal.check("the named state acq-now-loaded exists", answer is None, answer or "")
@@ -98,7 +115,7 @@ async def main():
                       before == len(FOLLOWS), f"{before} follows, {len(FOLLOWS)} seeded")
 
         cards = {card["title"]: card["offer"] for card in await page.evaluate(CARDS)}
-        journal.check(f"« {OFFERED} » carries the offer", cards.get(OFFERED) is True, str(cards))
+        journal.check(f"before it arrives, « {OFFERED} » is no card of « En vol »", OFFERED not in cards, str(cards))
         wrongly = [title for title in FILMS + FOLLOWED if cards.get(title)]
         journal.check("no film and no followed series carries it",
                       all(title in cards for title in FILMS + FOLLOWED) and not wrongly,
@@ -107,6 +124,24 @@ async def main():
             .filter(card => [...card.querySelectorAll('[data-part="card/foot"]')]
               .some(foot => (foot.getAttribute('data-follow') || '') !== '')).length""")
         journal.check("no card without identity carries it", without_identity == 0, str(without_identity))
+
+        # ── before it arrives: its « Torrents » row, and no offer there ─────
+        await page.evaluate("()=>window.__go('torrents-list')")
+        await page.wait_for_timeout(SETTLED)
+        row = await page.evaluate("""(title)=>{const row=[...document.querySelectorAll('#view [data-part="torrents/row"]')]
+            .find(one => (one.querySelector('[data-part="torrents/title"]')?.textContent || '').startsWith(title));
+            return row ? {follow: [...row.querySelectorAll('*')]
+              .filter(one => one.getAttribute('data-follow') === title).length} : null;}""", OFFERED)
+        journal.check(f"before it arrives, « {OFFERED} » is read in « Torrents », and offered no « Suivre » there",
+                      row is not None and row["follow"] == 0, str(row))
+
+        # ── once it has arrived (posed): its card, and the offer ────────────
+        answer = await page.evaluate(
+            f"()=>{{try{{window.__go('{ARRIVED_STATE}');return null}}catch(error){{return String(error)}}}}")
+        journal.check(f"the named state {ARRIVED_STATE} exists", answer is None, answer or "")
+        await page.wait_for_timeout(SETTLED)
+        cards = {card["title"]: card["offer"] for card in await page.evaluate(CARDS)}
+        journal.check(f"once arrived, « {OFFERED} » carries the offer", cards.get(OFFERED) is True, str(cards))
 
         # ── its panel offers « Suivre » ────────────────────────────────────
         await page.evaluate("""(title)=>[...document.querySelectorAll('#view [data-part="card"]')]

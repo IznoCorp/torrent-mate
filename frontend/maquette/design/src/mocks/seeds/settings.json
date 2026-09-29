@@ -659,6 +659,14 @@
       },
       {
         "file": "tracker",
+        "key": "tracker.providers.c411.economy.alert_threshold",
+        "type": "number",
+        "raw": null,
+        "name": "alert_threshold",
+        "displayedValue": "non défini"
+      },
+      {
+        "file": "tracker",
         "key": "tracker.providers.tr4ker.enabled",
         "type": "boolean",
         "raw": true,

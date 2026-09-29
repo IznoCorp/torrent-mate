@@ -16,7 +16,11 @@ export type DialogBlock =
   | { type: "dryRun"; text: string }
   /* EXACTLY WHAT WOULD BE TOUCHED, line by line, with its figure. */
   | { type: "manifest"; entries: { text: string; value: string }[] }
-  | { type: "warning"; strong: string; text: string };
+  | { type: "warning"; strong: string; text: string }
+  /* ONE CHOICE THE CONFIRMATION CARRIES, with its default: a box the operator
+     may uncheck before confirming. The producer keeps the value — `toggle` tells
+     it — so the act it confirms reads what the box says. */
+  | { type: "check"; label: string; checked: boolean; toggle: (checked: boolean) => void };
 
 export type DialogAction = {
   text: string;

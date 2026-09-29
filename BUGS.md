@@ -207,7 +207,7 @@ when the defect comes back.
 | B-141 | Ten elements carry no class at all, in a prototype that imports no preflight | by audit | `fixed #516` |
 | B-142 | Nothing measures the interface against the constitution: three DOIT clauses have no surface | by audit | `fixed #528` |
 | B-143 | §17 (accounts, rights, Plex SSO) has no surface, no contract operation and no lot | by audit | `open` |
-| B-144 | §18 (ratio per tracker) needs three operations the backend already answers and nothing calls | by audit | `open` |
+| B-144 | §18 (ratio per tracker) needs three operations the backend already answers and nothing calls | by audit | `fixed #634` |
 | B-145 | §19 (cross-seed) has no route in either contract, and its events reach no stream | by audit | `open` |
 | B-146 | D11 is decided and nothing styles a scrollbar yet; the change may move the oracle | by audit | `fixed #516` |
 | B-147 | Nine steward findings were stacked on five unmerged branches and collided with a wave | by audit | `fixed #511` |
@@ -361,7 +361,7 @@ when the defect comes back.
 | B-295 | React 19 assigns `innerHTML` on the prop OBJECT's identity, string unchanged or not — so every re-render of a page subscribed to the store's version recreates its engine-drawn children | by L14   | `fixed #547` |
 | B-296 | The raw log of an execution has no surface; the passage's narrative is per media and the log lines are folded in the run's detail | by survey | `fixed #603` |
 | B-297 | The locks — pipeline lock, pause sentinel, watcher pause, tmp-orphan sweep — have no surface, and three of them are the state of L20's levers | by survey | `fixed #603` |
-| B-298 | The ranking editor is a promise: a settings rubric that leads nowhere and a toast saying it will exist | by survey | `open` |
+| B-298 | The ranking editor is a promise: a settings rubric that leads nowhere and a toast saying it will exist | by survey | `fixed #634` |
 | B-299 | `SettingsState.conflict` is declared, set to `false` at boot, and never raised, drawn or copied — the conflict the contract answers has no surface | by survey | `to confirm` |
 | B-300 | « Redémarrer maintenant » restarts on the tap, with no confirmation, while a restart cuts the service for the whole household | by survey | `to confirm` |
 | B-301 | The seasons panel prints a season as `to_grab` and offers no verb; the season grab operation is uncalled | by survey | `fixed #572` |
@@ -526,6 +526,8 @@ when the defect comes back.
 | B-562 | A one-off season ask's own confirmation carries no sentence of its own: read by reader B22 as a disagreement — « Récupérer la saison 5 » on an unfollowed show answered « Saison 5 de « Les Animaniacs » demandée — aucun épisode à récupérer. » while « En cours » drew the one-off card reading « 0/23 · 23 manquants » — fixed in #626 (`2b7b17d06`, `episodesMissingFromSeason` now counts a season `SEASON_COUNT` does not carry the way the season surfaces draw it, `seasonsAnswer`), so the two now agree. What is NOT fixed, by the fix's own commit body (« a sentence of its own for the one-off is a copy decision, left to the steward's docs PR »): the toast still reuses the FOLLOW family's generic `seasonAsked`/`seasonAskedOne`/`seasonAskedNone` (`i18n/fr.json`) for a one-off acquisition too, unlike `taken`'s own « … suivez-le dans « En vol ». » — no sentence says where a one-off went. Owner: none — the design owes the one-off's own copy | reader B22, `review-archive/l22/round-1-B22/r1-B22.md` § B5; fixed in part #626 | `open` |
 | B-563 | `frontend/maquette/resync.py`'s `ENGINE` constant still points at `design/src/engine/legacy.js`, deleted whole at L13r (`08400a22a`, #605, 2026-09-15) — `main()` calls `ENGINE.read_text()` unconditionally and CRASHES with an uncaught `FileNotFoundError` before reaching the graceful path its own header comment describes (« a stale path here would not corrupt anything — main reports « FOLLOWS block not found » and writes nothing »): that graceful message only fires when the file EXISTS but lacks the block, never when the path itself is gone. Reproduced 2026-09-28 on this branch: `python3 frontend/maquette/resync.py` — traceback, `FileNotFoundError: [Errno 2] No such file or directory: '…/design/src/engine/legacy.js'`. Broken since L13r (thirteen days), silently, because nothing in `make check` or CI runs this tool — it is invoked by hand only, when the suite names a counter drift. Owner: none — the tool needs a new source for the FOLLOWS block and the drawer footer it also rewrites, now that neither lives in the engine. **The same death took the seed-rebuild command with it**: `scripts/build-mock-seeds.py@c0a5062ac` and `scripts/extract-maquette-fixtures.mjs@c0a5062ac`, both instructed by `README.md`'s own mock-layer section, do not exist in `git ls-files` — deleted at the same L13r commit, `build-mock-seeds.py` alongside `legacy.js` itself. `check-mock-seeds.py` (still live) now validates seeds against the contract schema and a register/contract provenance correspondence, never against a fixture it rebuilds from — the README's own commands were left pointing at a rebuild step that no longer exists | found while correcting `frontend/maquette/README.md`'s own stale references to `legacy.js`, at L22's close | `open` |
 | B-564 | `entry.py` (R62) and `pwa.py` (R52, R105, R108, R111) read the design host by its public address, `tm-design.iznogoudatall.xyz`; from this machine that address can cross the router's own NAT loopback — a hairpin — where QUIC and the large post-quantum TLS ClientHello both die silently and `Page.goto` times out at 30 s, with no mechanism the deployed build owns. Escaped from: classed « timeout / infra » in 13 logs since 2026-09-16. Why: no mechanism named. Family repaired by: order 73. Named 2026-09-29 (`review-archive/tm-design-load-diagnosis-2026-09-29.md`): RED on both rules, `Page.goto: Timeout 30000ms exceeded` (`~/Library/Logs/tm-l16/midpoint-o48-{1,4,5}.log`, 04:19–04:22). **The defect is INTERMITTENT, the router's own state**: the same navigation by public DNS answered in 0.08 s at 04:40, minutes later — confirmed by two independent probes. Repaired: both rules launch Chrome with `--host-resolver-rules=MAP <host> 127.0.0.1` through `common.resolve_deployed_host_locally(HOST)`, reading the same certificate and the same deployed build through the local Caddy with no router in the path, whatever its state. GREEN both (`run.sh --rules entry.py pwa.py`, 2 named, 0 failed, 0 timed out). A new hold in both rules, `read_through_localhost` (`common.py`), reads the navigation's own `Response.server_addr()` and holds it at 127.0.0.1 — named « the deployed host is read through 127.0.0.1, never the router » — because a `Page.goto` timeout alone proves a fall, never that the MAPPING caused the pass: with the router healthy, a mutation that only watched the page load would stay green over a mapping doing nothing at all. Mutation: the mapping pointed at the router's own public address, `82.65.171.191` — the page loads (the router is healthy right now), and the hold falls BY NAME on the address actually read (`scripts/mutate.sh frontend/maquette/harness/common.py 't.replace("hostname} 127.0.0.1\"", "hostname} 82.65.171.191\"")' frontend/maquette/harness/entry.py frontend/maquette/harness/pwa.py`): `FAIL the deployed host is read through 127.0.0.1, never the router — 82.65.171.191` (entry.py) and `FAIL R52 the deployed host is read through 127.0.0.1, never the router: read through 82.65.171.191` (pwa.py), `mutate.sh` exit 0 on both (`~/Library/Logs/tm-repair-0929/mutation-address.log`). Kept as supplementary, not as proof: pointed at `127.0.0.2` (nothing listens there), both rules crash on `Page.goto: Timeout 30000ms exceeded` — a crash, not a named FAIL, so `mutate.sh` itself reads it « proved neither way » (`~/Library/Logs/tm-repair-0929/mutation.log`) | steward diagnosis, 2026-09-29 ~04:3x | `fixed #631` |
+| B-570 | `scripts/check-live-relay.py`'s map-completeness arm reads an address only where it is SPELLED as a literal (`read_addresses`, `check-live-relay.py:522`: `queryKey: ["…"]`, an exported `…Key` constant, `useSystemRead("…")`, `prefetchQuery`, a `key:` table). A feature keying its reads on a module constant — `queryKey: [TRACKERS_ADDRESS]` in `features/trackers/queries.ts` — is invisible to it, so `/api/trackers`, `/api/acquisition/downloads` and `/api/acquisition/obligations` were read by a surface, refreshed by no event and exempted nowhere, while the guard printed green. **Escaped from**: every gate of L16 phases 1–8 (the guard runs among the cheap guards of the full suite only); **why**: the corpus is a list of spellings, not the cache's own keys — the shape « Guards green over what they do not read » counts; read at L16's midpoint suite (2026-09-29) only because phase 9's « Vu » verb spelled `queryKey: ["/api/trackers"]` as a literal. **Family**: every arm that collects identifiers by spelling. The three addresses themselves are refreshed at L16 phase 10 (`features/trackers/live.ts`); the guard is not repaired in L16 (measure 1). Owner: none | L16 midpoint suite | `open` |
+| B-571 | `entry.py` (R62) and `pwa.py` (R52, R105, R108, R111) still fall at random on `Page.goto: Timeout 30000ms exceeded` after B-564's repair (#631): in L16's closing suite (`~/Library/Logs/tm-l16/close-suite.log`, both) and in 2 of 3 `--rules entry.py pwa.py` draws (`close-o48-{1,2,3}.log`: 0/2, 2/2, 1/2). The hairpin is NOT the mechanism any more: launched with the rules' own `resolve_deployed_host_locally`, the deployed host loads 10 times of 10 in 0.1 s, `server_addr` 127.0.0.1:443, status 401 (`close-probe-deployed.log`), `torrentmate-design` online with 0 restarts. Which `goto` expires is NOT known: `run.sh:522` keeps 12 lines matching `FAIL|Error|Traceback…` and drops the `File …, line N` frame, so the deployed host (`entry.py:98`, `pwa.py:465`) and the harness host (`entry.py:106`, three in `pwa.py`) cannot be told apart. The rules read the deployed host and 8899, not the branch: L16 touches neither rule nor the sign-in. **Escaped from**: a repair (#631) proved on the hairpin alone; **why**: the timeout is one symptom for several causes, and the trace that would name the goto is filtered away; **family**: order 73 — next measure the steward's (a `run.sh` that keeps the whole trace, then 10 against 10 on `main`). | L16 closing suite | `open` |
 
 **B-420 — the wrapped index row is refused for the wrong reason, and the corpus falls in silence.**
 
@@ -2461,6 +2463,29 @@ c'est un écran à part » and its row leads nowhere; the quality screen's « Po
 /api/acquisition/ranking/preview`, uncalled by the maquette). Placed 2026-09-02 with **L16**: §18
 makes the ranking follow the ratio, and the editor is where that term is set; it is drawn as the
 screen the rubric promises, with the live preview.
+
+**Corrected at L16 phase 14b (2026-09-29, RULINGS 12 = B):** the rubric did NOT lead nowhere — it
+opens the GLOBAL quality profile (`/quality/global`, held by `page_host.py`); the promise was that
+profile's « Poids du classement (global) » toast. The rubric keeps its route; the weights button now
+carries the verb `ranking-editor` and lands on `/settings/ranking`, the editor listing
+`ranking.json5`'s own criteria (L16 phase 14a), its copy `screens.profile.rankingToast` removed.
+**Escaped from**: a survey that read the rubric's words, not its route; **why**: no rule walked the
+rubric; **family repaired by** R266 (`frontend/maquette/harness/ranking_editor.py`) holds 4–5, a
+finger from Réglages through the global profile to the editor, and from any quality screen. Red before
+the move: « from a quality screen, « Poids du classement (global) → » lands on the editor … 'toast':
+"Dans l'app, ce bouton mènera à /conf… » (`p14b-red.log`); mutation: the button toasting again →
+FAIL « and there « Poids du classement (global) → » lands on the editor, as an arrival —
+{'path': '/quality/global' …} ». The live preview is L16 phase 16's.
+
+**Kept in full at L16 phases 15 and 16 (2026-09-29):** the editor SAVES — each weight a field,
+« Enregistrer » writing `ranking.json5` through `updateConfigurationFile` under the digest the read
+answered, a stale digest refused as a conflict (R266 holds 7–11; mutation « the save answered without
+the call » → FAIL « « Enregistrer » writes ranking.json5 through updateConfigurationFile, once, and says so
+— … [] ») — and PREVIEWS live through `POST /api/acquisition/ranking/preview`, the ranking as typed,
+every sample kept, the excluded ones sunk last and flagged (R267, `frontend/maquette/harness/ranking_preview.py`;
+red « … 12 rows in its order … drawn [] » (`p16-red.log`); mutation « the excluded rows hidden » → FAIL
+« under a minimum of 10 seeders, every sample is still a row … 7 rows »). The status turns `fixed` with
+L16's pull request.
 
 <sub>`grep -n "rankingToast\|rankingTitle" frontend/maquette/design/src/i18n/fr.json` · `grep -rn "ranking/preview" -g '*.ts' frontend/maquette/design/src` → none</sub>
 
@@ -10950,6 +10975,17 @@ still counted due by the tracker is NE-DOIT-PAS-1 with the account as the price.
 <sub>`grep -rn 'min_ratio\|min_seed_time' personalscraper/acquire/*.py` · `grep -n 'obligations' personalscraper/web/routes/acquisition.py` · `docs/reference/frontend-backend-demands.md` § 4</sub>
 
 > **PLACED, 2026-08-29 (L10-ter): L16**, first of the three, after L19 — so its per-tracker panel is written in the React producer template rather than the engine's. `features/trackers/`; the three operations wired, the policy write a demand, the ratio events claimed by its `live.ts`.
+
+**Kept at L16 (2026-09-29).** The three reads are declared and called — `readTrackers`,
+`readDownloads`, `readObligations` (phase 1) — and the « Trackers » page draws them: each tracker's
+ratio, trend and volumes (R260, R261), its policy set from its own entry through the settings' write
+(R262), the « Torrents » tab with each torrent's ratio on its own size and its obligation marks (R261),
+« Retirer de qBittorrent » across shared entries (R263), the alert under the tracker's OWN threshold,
+the refused identifier and the broken obligations « Vu » one by one (R264), the badge on the bar's tab
+(R264 holds 10–11, R91), a deferred card naming its tracker and that tracker's threshold (R265).
+**Escaped from**: a demands register that listed the operations with no verdict column; **why**: no
+lot owned §18 until the constitution did; **family repaired by** R260–R265, each read red before its
+move and felled by its mutation (RESUME-L16 ledger). The status turns `fixed #634` with L16's pull request.
 
 **B-145 — 797 lines of engine that inject torrents at third parties, and no way to know it happened.**
 The operator dictated **§19 — Le cross-seed se voit et se décide** on 2026-08-26, with `DOIT-14`.

@@ -12,7 +12,7 @@
 // CLOSED IS A CLASS, NEVER AN ABSENCE: the transition that carries it in and
 // out needs both states on the same element, and the engine's `#dlg` likewise
 // kept its content after closing.
-import type { ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 
 import {
   refuseDialogBlock,
@@ -33,7 +33,41 @@ import {
   dialogManifestValue,
   dialogParagraph,
   dialogWarning,
+  option,
+  optionLabel,
+  optionMark,
 } from "../variants";
+
+/**
+ * A choice the confirmation carries: a box, checked or not.
+ *
+ * THE VALUE BELONGS TO THIS BLOCK, never to the layer: the closed `#dlg` keeps
+ * its content, so a value held across descriptors would open the next
+ * confirmation on the last one's choice. A new block starts from its own default.
+ *
+ * @param props.block The block.
+ * @returns The box.
+ */
+function CheckBlock({ block }: { block: Extract<DialogBlock, { type: "check" }> }): ReactElement {
+  const [held, setHeld] = useState({ block, checked: block.checked });
+  const checked = held.block === block ? held.checked : block.checked;
+  return (
+    <button
+      type="button"
+      className={`${option()} check`}
+      data-part="dialog/check"
+      role="checkbox"
+      aria-checked={checked}
+      onClick={() => {
+        setHeld({ block, checked: !checked });
+        block.toggle(!checked);
+      }}
+    >
+      <span className={optionMark({ kind: "check" })} />
+      <span className={optionLabel()}>{block.label}</span>
+    </button>
+  );
+}
 
 function Block({ block }: { block: DialogBlock }): ReactElement {
   switch (block.type) {
@@ -69,6 +103,8 @@ function Block({ block }: { block: DialogBlock }): ReactElement {
           <b>{block.strong}</b> {block.text}
         </div>
       );
+    case "check":
+      return <CheckBlock block={block} />;
     default:
       return refuseDialogBlock(block);
   }

@@ -30,6 +30,7 @@ import { libraryLiveRules } from "../features/library/live";
 import { maintenanceLiveRules } from "../features/maintenance/live";
 import { mediaLiveRules } from "../features/media/live";
 import { systemLiveRules } from "../features/system/live";
+import { trackersLiveRules } from "../features/trackers/live";
 
 // HOW MANY UNCLAIMED EVENTS ARE KEPT. The list is a diagnostic — an event
 // nobody can COUNT is how a map silently stops covering its subject — and it
@@ -79,6 +80,7 @@ export function installLiveUpdates(queryClient: QueryClient): void {
     ...maintenanceLiveRules,
     ...mediaLiveRules,
     ...systemLiveRules,
+    ...trackersLiveRules,
   ];
   // Built once, not per event: a lookup rebuilt on every frame would turn a
   // replay burst into N table constructions.

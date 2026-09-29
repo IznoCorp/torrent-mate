@@ -375,7 +375,47 @@ def test_the_committed_reference_carries_a_platform():
     # reference by named deletion — nothing else moved.
     # 37 regions SINCE L22b's phase 48: the page's two regions (arrivals/pilot-bar,
     # arrivals/body) left regions.json and every state's record, all null — nothing else moved.
-    assert reference["counts"] == {"states": 130, "regions": 37}
+    # 131 states and 38 regions SINCE L16's phase 2a: `trackers-page`, the « Trackers » page of
+    # the bar, and `trackers/body`, its body — the reference GREW, not one existing key moved.
+    # 133 SINCE L16's phase 3: `trackers-roster` and `trackers-roster-empty`, the « Trackers » tab
+    # with its entries and with none configured — added; `trackers-page` alone moved, its default
+    # tab now drawing the roster.
+    # 135 SINCE L16's phase 4: `trackers-entry-open` and `trackers-policy-unset`, a tracker's
+    # entry opened on its policy and on none — added; heights alone moved elsewhere.
+    # 136 SINCE L16's phase 5a: `torrents-list`, the « Torrents » tab's rows — added, nothing
+    # else moved.
+    # 140 SINCE L16's phase 5b: `torrents-list-filtered`, `torrents-empty`, `torrents-empty-filtered`
+    # and `torrents-obligation-done` — added, nothing else moved.
+    # 141 SINCE L16's phase 6a: `torrent-remove-confirm-obligation`, the removal's confirmation —
+    # added; the three Torrents states with rows grew by the gesture, and 24 states measured after
+    # it read the closed dialog's new box (B-554), named in the acceptance commit.
+    # 142 SINCE L16's phase 6b: `torrent-remove-confirm`, the confirmation of an entry owing
+    # nothing — added; the dialog's box grew with the « Supprimer les fichiers » box, on shell/dialog
+    # alone (B-554), named in the acceptance commit.
+    # 143 SINCE L16's phase 5d: `acq-now-direct-arrived`, a direct add's arrival posed on the
+    # series it was downloading — added; the dense world's « En vol » lost that card, named in
+    # the acceptance commit.
+    # 145 SINCE L16's phase 7: `torrent-remove-confirm-shared` and `torrents-external-removal` —
+    # added; the removal's confirmation of shared files grew by its consequence, on shell/dialog
+    # (B-554), named in the acceptance commit.
+    # 148 SINCE L16's phase 8: `tracker-alert-active`, `tracker-identifier-refused` and
+    # `torrent-obligation-breached` — added, nothing else moved.
+    # 150 SINCE L16's phase 9: `tracker-broken-obligations` and `tracker-broken-obligations-open` —
+    # added, nothing else moved.
+    # 151 SINCE L16's phase 10: `bar-trackers-alert`, the Trackers tab's badge away from its page —
+    # added; the states that pose an alert component draw the badge on shell/bottom-bar, named in
+    # the acceptance commit.
+    # 154 SINCE L16's phase 12a: `acq-card-deferred-ratio`, `-space` and `-missing` — added, nothing
+    # else moved.
+    # 155 SINCE L16's phase 14a: `ranking-editor`, the ranking file's criteria on their own screen —
+    # added, nothing else moved.
+    # 157 SINCE L16's phase 14b: `ranking-editor-loading` and `ranking-editor-error` — added; the
+    # settings rubric and the quality foot lead to the editor, named in the acceptance commit.
+    # 159 SINCE L16's phase 15: `ranking-editor-saving` and `ranking-editor-save-conflict` — added,
+    # nothing else moved. 39 regions SINCE L16's phase 17: `screen-ranking/body`, the ranking editor
+    # L16 created and no region measured — drawn on its five states alone.
+    # 161 SINCE L16's phase 17a: `trackers-loading` and `trackers-error` — added, nothing else moved.
+    assert reference["counts"] == {"states": 161, "regions": 39}
 
 
 class TestItRefusesToWriteOverAForeignBuild:

@@ -36,6 +36,9 @@ surface that calls it.
 A BEHAVIOUR change: a fact the engine already owns (a broken obligation) is surfaced for the first
 time, with the ONE write this lot still owes — marking it seen.
 
+- **2026-09-29, served:** the « vu » control is RULINGS 8's (A); the broken obligations are POSED
+  (`poseBrokenObligation`, RULINGS 7), no seed row; the write `markBrokenObligationSeen`; R264 re-aimed.
+
 ## The proof FIRST
 
 R-L16-d re-aimed (its label was bound in phase 8).

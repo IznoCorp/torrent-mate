@@ -1,16 +1,17 @@
-// « Veille et obligations » — the « ⋮ » sheet of the Acquisition page.
+// « Veille » — the « ⋮ » sheet of the Acquisition page.
 //
 // Second rank, and it says so: what is consulted rather than watched. It lives
 // with Acquisitions because that is what makes it change — when the watch last
-// ran, what the ratio stands at, what is still owed to a tracker.
+// ran, and when it runs next.
 //
-// ITS FOUR FACTS ARE A FIXTURE, and this producer does not pretend otherwise.
-// `GET /api/acquisition/obligations`, `/stalled-grabs` and `/downloads` all
-// ANSWER on the backend and are called by nothing — `product-intent-map.md`
-// reads DOIT-13 « to draw » and hands the ratio surface to the lot that wires
-// it. Reading them here would be drawing §18 in a conversion lot's clothes.
-// So the four values stay declared, in one place, with the operations
-// that will replace them named beside each.
+// THE RATIO AND THE OBLIGATIONS ARE NOT HERE: they have their own page, the
+// « Trackers » one, per tracker and per torrent, with its badge on the bar
+// (§ 18). A global figure here would be a second answer to a question that
+// page already answers — and a ratio averaged across trackers, which § 18 refuses.
+//
+// ITS TWO FACTS ARE A FIXTURE, and this producer does not pretend otherwise:
+// the values stay declared, in one place, with the operation that will replace
+// them named beside each.
 //
 // « Lancer la veille maintenant » is the trigger DOIT-6 names, and it is
 // unchanged: a producer here offers exactly what it offered.
@@ -27,10 +28,6 @@ const WATCH_FACTS = {
   // → GET /api/pipeline/history — when the watch last ran and when it runs next
   lastPass: "il y a 22 min", // french-ok: a rendered duration, the layer's value to answer
   nextPass: "dans 38 min", // french-ok: a rendered duration, the layer's value to answer
-  // → GET /api/acquisition/downloads — the ratio across every tracker
-  globalRatio: "2,41",
-  // → GET /api/acquisition/obligations — what is still owed to a tracker
-  obligations: "3 torrents", // french-ok: a rendered count, the layer's value to answer
 } as const;
 
 /**
@@ -51,15 +48,6 @@ function standbyPanel(): PanelDescriptor {
         lignes: [
           { c: translate("panels.standby.lastPass"), v: WATCH_FACTS.lastPass },
           { c: translate("panels.standby.nextPass"), v: WATCH_FACTS.nextPass },
-          {
-            c: translate("panels.standby.globalRatio"),
-            v: WATCH_FACTS.globalRatio,
-            pipValue: "success",
-          },
-          {
-            c: translate("panels.standby.obligations"),
-            v: WATCH_FACTS.obligations,
-          },
         ],
       },
       {
