@@ -1222,12 +1222,10 @@
       "meta": "Où ranger « {{folder}} » ? Il quitte les acquisitions."
     },
     "standby": {
-      "title": "Veille et obligations",
+      "title": "Veille",
       "meta": "Second rang — consulté, pas surveillé.",
       "lastPass": "Dernier passage",
       "nextPass": "Prochain passage",
-      "globalRatio": "Ratio global",
-      "obligations": "Obligations en cours",
       "runNow": "Lancer la veille maintenant"
     },
     "suggestion": {
