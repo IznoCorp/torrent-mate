@@ -8,22 +8,23 @@
 - **Orchestrator** « Orch : TM frontend [79475d] »; always write the reference. Gauge:
   `context-gauge.sh`, its `context_percent=` and `source=` lines in every report. Context gate 80 %, exit ~75 %
   (the brief's dated line of 2026-09-29).
-- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 5c · 5d · 6a · 6b — each gated, mutated, pushed. **Next: 7**
-  (`plan/phase-07-remove-shared-files.md`), not opened — re-measure it on this head.
-- **Remaining** (from `ls plan/`): 7 · 8 · 9 · MIDPOINT FULL SUITE · 10 · 11 · 12 · 13 · 14 · 15 · 16 · 17.
+- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 5c · 5d · 6a · 6b · 7 — each gated, mutated, pushed. **Next: 8**
+  (`plan/phase-08-alert-on-page.md`), not opened — re-measure it on this head.
+- **Remaining** (from `ls plan/`): 8 · 9 · MIDPOINT FULL SUITE · 10 · 11 · 12 · 13 · 14 · 15 · 16 · 17.
   Known STOP D: 9 (no « vu » precedent), 12 (ratio cause = global `ingest.min_ratio`; the seed),
   14 (no read of a config file's content in the maquette's contract).
 - **Rulings** (`RULINGS.md`) 1 `?list=` · 2 C2, save bar via `lib/save-bar-door.tsx` · 3 B, the filter line · 4 B1,
-  Lanterns's sheet from its NFO + R1 bis · 5 B, `poseArrived` (Zinzins end to end).
+  Lanterns's sheet from its NFO + R1 bis · 5 B, `poseArrived` (Zinzins end to end) · 6 B, `poseExternalRemoval` (Ted Lasso).
 - **Rules** R260 `trackers_page.py` · R261 `trackers_roster.py` (holds 1–17) · R262 `trackers_policy.py` · R263
-  `trackers_removal.py` (15); R122 reads `torrents/row`; `audit.py` 14 holds; R229 re-aimed at 5d (16 holds).
+  `trackers_removal.py` (21, holds 1–10); R122 reads `torrents/row`; `audit.py` 14 holds; R229 re-aimed at 5d (16 holds).
   Next labels: d R264 (8) · g R265 (12) · f R266 (14) · e R267 (16); cuts R268+. Register B-570–B-589 none taken.
 - **Gate** (office § The gate): static list (`check-no-french`, css-tokens, compositor, tailwind, markup-contracts,
   boundaries, `oracle.py --contracts`, + frame-domain, mock-seeds) → `run.sh --oracle` alone → accept with
   `bash -c 'run.sh --oracle; oracle.py --accept'` + `tools/accept_by_name.py <declared.json>` (declared BY SCRIPT
   from `states/*.ts`) → `run.sh --rules` (`--class rule`) → `--a11y` if it draws. The static list AGAIN after any
-  harness edit. `test_oracle.py` pinned 143 states / 38 regions. Maquette vitest: `vitest run --root
+  harness edit. `test_oracle.py` pinned 145 states / 38 regions. Maquette vitest: `vitest run --root
   frontend/maquette/design` (from the root it runs the production app's tests).
+- **B-554 list** the 25 `shell/dialog` readers = `p06b-declared.json`'s (reused at 7, identical).
 - **Size watch** `mocks/handlers/staging.ts` 399, `mocks/index.ts` 399 (ceiling 400): no new line there.
 - **Order 52** harness/product added 0.51 at 5b. `data-mediasheet` added ⇒ `audit.py` at the gate; `ui/dialog`
   touched ⇒ its 13 readers. A new dialog moves `shell/dialog` on ~24 later states (B-554); `.warnbox > b` fails light.
@@ -210,3 +211,17 @@
   card of « En vol » »; `poseArrived` inert → FAIL « once arrived, … carries the offer » (+ panel, tap); a
   `data-follow` on the Torrents title → FAIL « … offered no « Suivre » there — {'follow': 1} » (`p05d-mutation1–3`;
   a first M1 expression broke the build, no verdict, re-run).
+- 2026-09-29 — phase 7 opening ≈ 12: `acquire.db` `seed_obligation` 60 rows, 0 released/breached/satisfied →
+  STOP D → RULINGS 6 = B. The shared subject is already seeded (President Curtis c411 / tr4ker, same `name`), so
+  `torrent-remove-confirm-obligation` itself gains the consequence. R263 hold 4 re-aimed OUT LOUD (round 9 Q7),
+  holds 9, 10 new; RED (`p07-red.log`, 6 FAIL). The move: the mock's removal takes every entry of the same
+  `name`, releasing each running obligation; the confirmation says the share ends on the other trackers and names
+  each running obligation there; dial `poseExternalRemoval`; states `torrent-remove-confirm-shared`,
+  `torrents-external-removal`; words `external`, `removal`. Slips: names `owesRunning`, `sharing`, `owing`
+  refused by the vocabulary arm — renamed.
+- 2026-09-29 — phase 7 gate: static 10/10, typecheck 0. Oracle alone: 2 new states + 25 `shell/dialog` keys
+  (6b's B-554 list, identical), proved (`p07-accept-proof.log`); `test_oracle.py` 143 → 145. Rules R263 21 · R261
+  64 · R260 27 · R262 14 · R122 13 · audit 14 · page_host 42, 0 failed; a11y dark 0, light 88. Mutations: the
+  removal not grouped → FAIL « the same files on tr4ker left with it, in the same render »; the posed removal
+  leaving the row → FAIL « « Ted Lasso », removed by hand, is simply gone … — 7 row(s) »; the consequence dropped
+  → FAIL « removing it from tr4ker says the share on c411 ends too » (`p07-mutation1–3.log`).

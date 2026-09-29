@@ -43,3 +43,11 @@ The steward's rulings on this lot's STOPs, numbered, one per STOP. The operator'
    without « Suivre », absent from « En vol »; after, an « En vol » card with its « Suivre » foot, a tap +1 once;
    holds 2 and 4 re-aimed out loud with their successor named; hold 6 unchanged. C refused: a row the real data
    does not hold. Cut 5c / 5d, each ≤ 15.
+6. **2026-09-29, phase 7, STOP D — the clean external removal has no real row.** `acquire.db`'s
+   `seed_obligation` holds 60 rows, none released, breached or satisfied; the plan asked for a new seed
+   row. Readings: A (a composed released obligation, as the plan says) and B (a POSED removal by hand).
+   **Ruled B**, in line with RULINGS 4 and 5: `poseExternalRemoval(infoHash)`, a dial declared as a
+   derivation in its state and in R263's docstring, no seed; subject Ted Lasso on c411; the hold reads the
+   row absent, `releasedAt` set and no `removeDownload` call, and a mutation leaving the row falls by name.
+   R263 hold 4's re-aim cites its source (round 9 Q7; the plan's « BOTH entries gone … in the SAME
+   render »). The `shell/dialog` moves (B-554) and the new states declared by script, accepted by name.

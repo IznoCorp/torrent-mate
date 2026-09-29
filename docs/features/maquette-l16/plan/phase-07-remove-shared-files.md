@@ -41,6 +41,10 @@ persists on the tracker).
 A BEHAVIOUR change on a state the interface must recognise without ever having caused it, and an
 extension of phase 6's own hold to more than one entry.
 
+- **2026-09-29, served:** the external case is POSED (`poseExternalRemoval`, RULINGS 6), not a seed row; the
+  shared-files copy lives beside phase 6's, `verbs.trackers.remove.shared`; the shared subject needs no new seed
+  (President Curtis on c411 / tr4ker).
+
 ## The proof FIRST
 
 R-L16-c re-aimed (its label was bound in phase 2).
