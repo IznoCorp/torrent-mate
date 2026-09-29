@@ -17,8 +17,9 @@ of the engine no longer reads.
 5. the ratio cause offers « Voir le tracker » on its card, and neither other
    cause does;
 6. a finger on it lands on the Trackers tab with that tracker's entry open —
-   `/trackers?list=trackers&tracker=<name>` read on the address — as an arrival
-   (the history grows by one).
+   `/trackers?tracker=<name>` read on the address, the « Trackers » tab being the
+   page's default and so never written (`list=` names only « Torrents ») — as an
+   arrival (the history grows by one).
 
 The deferrals are DERIVATIONS, POSED and shown as such (`poseDeferral`): no card
 of the real data is deferred.
@@ -124,10 +125,11 @@ async def main():
             await foot.first.tap()
             await page.wait_for_timeout(SETTLED)
         where = await page.evaluate("""()=>({path: location.pathname, search: location.search, length: history.length,
+            tab: document.querySelector('[data-trackers-tab="trackers"]')?.getAttribute('aria-selected'),
             open: document.querySelector(`#view [data-part="trackers/entry"][data-tracker="c411"] details[open]`) !== null})""")
         journal.check(f"a finger on « {PATH_WORDS} » lands on the Trackers tab, {TRACKER}'s entry open, as an arrival",
-                      where["path"].endswith("/trackers") and "list=trackers" in where["search"]
-                      and f"tracker={TRACKER}" in where["search"] and where["open"] and where["length"] == before + 1,
+                      where["path"].endswith("/trackers") and where["tab"] == "true"
+                      and "list=torrents" not in where["search"] and f"tracker={TRACKER}" in where["search"] and where["open"] and where["length"] == before + 1,
                       f"{where} · history.length {before}")
 
         journal.check("no JS error", not errors, str(errors))
