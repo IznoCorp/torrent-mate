@@ -1,4 +1,4 @@
-# Phase 18 — The records
+# Phase 19 — The records
 
 **No STOP C.**
 
@@ -6,7 +6,7 @@
 
 - **Commands.** `python3 scripts/harness-hold-counts.py --compare frontend/maquette/hold-counts-baseline.json`
   (`failed` read FIRST); `frontend/maquette/harness/run.sh --a11y`; `frontend/maquette/oracle.py` over the states
-  phases 4–17 declared.
+  phases 4–18 declared.
 - **Points ≈ 6.** The oracle's accept, by the declared list built BY SCRIPT (office § « The oracle ») 2; the
   accessibility pass over every new state 1; `regions.json` for the new surfaces 1; the hold-count baseline 1; the
   harness budget read (`git diff --numstat origin/main...HEAD`, ≤ 0.6) 1.

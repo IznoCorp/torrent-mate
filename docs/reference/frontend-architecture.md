@@ -646,7 +646,8 @@ L16 · L17 · L18, and no dependency already written moved. L16 opens after L22b
 head. **Extended on 2026-09-27 (round 8 Q18): an upload-to-tracker lot, drawn ahead of time in the
 second slot after L18**, per the operator's own separation of that function from L17. **Its design
 and plan, written 2026-09-27, name it L23: the order is now L14 · L19 · L21 · L13 · L20 · L22 · L16 ·
-L17 · L18 · L23**, and no dependency already written moved.
+L17 · L18 · L23**, and no dependency already written moved. **L24 (the orphans), drawn 2026-09-29, follows L23;
+after it, the desktop milestone** (operator, 2026-09-29, L24's OPEN 6) — the final entry of this section, not a lot.
 
 #### L14 — The surfaces that outgrew their file · *depends on L07, L09*
 
@@ -958,22 +959,33 @@ Système (R67) save each section saying its own read failed, and « Activité sc
 the former production addresses `/control`, `/pipeline` and their siblings, which reach the maquette on the day of
 the switchover; the seven owed halves of the map's `partly` rows whose owner has merged (DOIT-1, 5, 7, 9, 11 and
 NE-DOIT-PAS-1 — L19; NE-DOIT-PAS-6 — L15); and DOIT-9's desktop half (« pleinement fonctionnel »). One surface for
-DOIT-7 (a doubted match sent to arbitration, `enqueue`), six proofs for the rest.
+DOIT-7 (« Corriger », a doubted match sent to arbitration, `enqueue`), the rest proofs.
 
-**Where it lives (invariant 10).** `features/acquisition/` (the journal as a screen — or Système's history, OPEN 1 —
-and the journey sheet's third act); `features/system/` (the failed sections, and the badge or the « en ce moment »
-row if ruled); a table of former addresses in `lib/`, beside `lib/addresses.ts` (395 non-blank lines of 400), read by
-`destinationOf` before the not-found fall.
+**Ruled by the operator on 2026-09-29, the six open questions of its design.** OPEN 1 = C: a settled decision lives
+on its medium's card — no « Décisions » screen, no global list, nothing on Système; pending decisions stay « À
+traiter » cards. OPEN 2 = A: a filling disk and an index anomaly count in the menu's Système badge. OPEN 3 = A: no
+global « en ce moment », the activity is read on each card. OPEN 4 = A: `/medias`, `/systeme`, `/controle` answer the
+not-found page. OPEN 5 = B: « enrichi » unfolds on the journey sheet. OPEN 6 = A: the desktop half is a proof only;
+the desktop adaptation is the milestone after the drawn lots.
 
-**Done when.** Every production route answers a maquette page or a named successor; the journal lists every decision
-with its state and its exit; a Système section whose read failed says so; a resolution opened on a medium with no
-decision arrives with candidates; the seven rows' owed halves are proved by a rule each, and their new reading is
-proposed to the operator; every named state holds at a desktop width; the six open questions are ruled, each amended
-into the design in one line.
+**Where it lives (invariant 10).** `features/acquisition/` (the decision block of the journey sheet with its
+« Corriger », and the unfolded « enrichi »); `features/media/` (the same block on the Médiathèque sheet);
+`features/system/` (the failed sections, and the badge's two terms); a table of former addresses in `lib/`, beside
+`lib/addresses.ts` (395 non-blank lines of 400), read by `destinationOf` before the not-found fall. No new page and no
+new screen address.
 
-**Design and plan written 2026-09-29, on `e65130ab1`** — `docs/features/maquette-l24/DESIGN.md`, `plan/INDEX.md` (19
-phases, 159 points at the larger reading of each open question, mean ≈ 8.4); six open questions, none chosen, four of
-them meeting a ruling already written (organisation ruling 12, D12 and § 20 point 3, the language rule, L22's ladder).
+**Done when.** Every production route answers a maquette page, a named successor or — for the three French aliases —
+the not-found page; a settled decision reads on its medium's journey sheet and Médiathèque sheet — what was chosen,
+among how many candidates, by whom, when, with « Corriger »; a Système section whose read failed says so, and a
+filling disk counts in the badge; « Corriger » on a medium the engine identified alone arrives with candidates; the
+seven rows' owed halves are proved by a rule each, and their new reading is proposed to the operator; every named
+state holds at a desktop width, the galleries widening; the three questions the rulings raised (OPEN 7–9) are ruled,
+each amended into the design in one line.
+
+**Design and plan written 2026-09-29, on `e65130ab1`; re-cut the same day on the six rulings, on `77e7b8436`** —
+`docs/features/maquette-l24/DESIGN.md`, `plan/INDEX.md` (20 phases, 165 points at the larger reading of OPEN 7–9, mean
+≈ 8.3); three open questions the rulings raised, none chosen. The version before the rulings is
+`docs/features/maquette-l24/DESIGN.md@e6d63bffe`.
 
 ### Phase 6 — The finish
 
@@ -1064,6 +1076,16 @@ holds mutation-tested, and `residue.py`'s reader half moved to `harness/factorie
 **L13 is LANDED, COMPLETE** — its four squashes: L13a (PR #596, version 0.98.92), L13b (PR #601,
 version 0.98.94), L13r (squash `08400a22a`, PR #605, version 0.98.96), L13c (squash `763f15cf9`,
 PR #607, version 0.98.98, merged 2026-09-16).
+
+### After the drawn lots
+
+#### Desktop adaptation of the screens — a milestone, not a lot
+
+**Dictated by the operator on 2026-09-29** (L24's OPEN 6), verbatim: « A dans un premier temps, mais prévoir une
+phase final d'adaptation des écrans pour une utilisation plus agréable sur desktop. On en décidera des contours en
+temps et en heure quand la maquette sera prête ». It follows every drawn lot, L24 included.
+
+**« Contour à décider par l'opérateur quand la maquette sera prête. »**
 
 ---
 

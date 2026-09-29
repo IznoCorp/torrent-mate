@@ -1,8 +1,8 @@
-# Phase 16 — No destruction without consent (NE-DOIT-PAS-6)
+# Phase 17 — No destruction without consent (NE-DOIT-PAS-6)
 
 **No STOP C.** A PROOF over every destructive verb, where one hold reads the library alone.
 
-**Opening measure (2026-09-29, on `e65130ab1`):**
+**Opening measure (2026-09-29, on `77e7b8436`):**
 
 - **Commands.** `git grep -ln "dialog?\.open" -- frontend/maquette/design/src/features` → **6** files
   (`acquisition/abandon-verb.ts`, `add-verbs.ts`, `delete-set-aside-verb.ts`, `library/delete-dialog.ts`,
@@ -28,7 +28,7 @@ Fire the staged folder's deletion before its dialog → the network hold falls b
 
 ## Register
 
-The map's NE-DOIT-PAS-6 owed half is discharged by #528; the whole-clause proof lands here; proposed at phase 19.
+The map's NE-DOIT-PAS-6 owed half is discharged by #528; the whole-clause proof lands here; proposed at phase 20.
 
 ## Oracle: states that diverge, declared by name
 
