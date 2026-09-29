@@ -1,4 +1,4 @@
-# Phase 7 — The one fold chevron (D.1 #3, DECIDED 4)
+# Phase 8 — The one fold chevron (D.1 #3, DECIDED 4)
 
 **Opening measure (2026-09-29, on `660049325`):**
 

@@ -1,4 +1,4 @@
-# Phase 14 — One notice with a tone, adapted from `SurfaceError` (the operator's OPEN 3 = A)
+# Phase 15 — One notice with a tone, adapted from `SurfaceError` (the operator's OPEN 3 = A)
 
 **Ruled 2026-09-29** (`/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md` § Q3, verbatim « A »): ONE
 notice component, ADAPTED from `SurfaceError` (never a new one), three tones — danger (today's error surface, the

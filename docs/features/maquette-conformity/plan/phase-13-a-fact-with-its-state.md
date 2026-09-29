@@ -1,4 +1,4 @@
-# Phase 12 — A fact with its state at the row's end (D.1 #6)
+# Phase 13 — A fact with its state at the row's end (D.1 #6)
 
 **Opening measure (2026-09-29, on `660049325`):**
 

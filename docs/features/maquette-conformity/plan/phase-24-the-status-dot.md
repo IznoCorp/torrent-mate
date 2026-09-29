@@ -1,4 +1,4 @@
-# Phase 23 — One status dot, with an « upcoming » tone (D.1 #7, the operator's OPEN 9 = A)
+# Phase 24 — One status dot, with an « upcoming » tone (D.1 #7, the operator's OPEN 9 = A)
 
 **Ruled 2026-09-29** (`/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md` § Q9, « A »): an
 « upcoming » tone is added to `statusDot` and `chip` (the existing `--color-upcoming`); the places drawing it apart

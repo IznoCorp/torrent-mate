@@ -31,7 +31,7 @@ Every fall prints `state · width · arm · data-part · rect`. The verdict coun
 R1 first: `runs-list` — the runs list « cut on the right » (arm 4 at every width, and arm 3 if the list clips).
 Every OTHER red the rule finds that this train does not repair goes into the rule's **owed list**, keyed by
 `arm · data-part` (never by a whole state), each with its OWNER — § 12's card title (R2, the report's D.2),
-L16-bis (R3), the tabs (R4, phase 6), the chip (R5), R6–R14 each to its named owner or to the orchestrator. The
+L16-bis (R3), the tabs (R4, phase 7), the chip (R5), R6–R14 each to its named owner or to the orchestrator. The
 owed list is data in the rule's file, read by name; nothing is silenced by a width or a class.
 
 ## Cost
