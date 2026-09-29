@@ -182,7 +182,7 @@ LIBRARY_AT_REST = """async()=>{
   };
 }"""
 
-BANNERS = """()=>[...document.querySelectorAll('[data-part="settings/banner"]')]
+BANNERS = """()=>[...document.querySelectorAll('[data-part="settings/notice"]')]
   .map((one) => one.textContent.replace(/\\s+/g, ' ').trim())"""
 
 

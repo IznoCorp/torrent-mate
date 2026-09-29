@@ -60,7 +60,7 @@
   confirm: « joignable » for the reachable code; the pause reads « actif » when engaged.
 - 2026-09-30 — phase 6 (Réglages and Maintenance): the settings field draws `toggleSwitch` (L16-bis DESIGN § 1.7
   corrected, dated), « actif / inactif » at the field and at « à blanc », five TopicRows, the back controls' icon,
-  « ← » out of the copy, the banners as notices wrapped in `settings/banner`, the save as `actionButton` submit,
+  « ← » out of the copy, the banners as notices wrapped in `settings/notice`, the save as `actionButton` submit,
   12/16 px margins to steps. Red first: one_switch (c), back_control (j). Gate: 9 rules green; my first state list
   took the `.map` type names for ids (an instrument error, rebuilt); oracle 14 settings states moved, accepted by
   name, proved by script. Stood down at 72 % context before phase 7 (≈ 12 points would pass the 80 % gate).

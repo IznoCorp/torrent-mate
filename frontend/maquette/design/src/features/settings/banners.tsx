@@ -47,7 +47,7 @@ export function SettingsBanners(): ReactElement {
   return (
     <>
       {SETTINGS_STATE.readOnly ? (
-        <div data-part="settings/banner"><SurfaceError tone="info" part="notice">
+        <div data-part="settings/notice"><SurfaceError tone="info" part="notice">
           <b>{t("screens.settings.readOnlyLead")}</b>
           {t("screens.settings.readOnlyRest")}
         </SurfaceError></div>
@@ -59,7 +59,7 @@ export function SettingsBanners(): ReactElement {
           surprise would be the second loss, and reloading is offered as a
           decision rather than taken as one. */}
       {SETTINGS_STATE.conflict ? (
-        <div data-part="settings/banner"><SurfaceError tone="warning" part="notice">
+        <div data-part="settings/notice"><SurfaceError tone="warning" part="notice">
           <b>{t("screens.settings.conflictLead")}</b>
           {t("screens.settings.conflictRest")}{" "}
           <button className={loadErrorAction()} data-reloadsettings="1">
@@ -68,7 +68,7 @@ export function SettingsBanners(): ReactElement {
         </SurfaceError></div>
       ) : null}
       {restartOwed ? (
-        <div data-part="settings/banner"><SurfaceError tone="warning" part="notice">
+        <div data-part="settings/notice"><SurfaceError tone="warning" part="notice">
           <b>{t("screens.settings.restartLead")}</b>{" "}
           {changedFiles().join(", ") ||
             t("screens.settings.restartSomeSettings")}

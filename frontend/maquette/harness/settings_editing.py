@@ -77,7 +77,7 @@ STANDING = r"""()=>({
   bar: !!document.querySelector('#savebar [data-save]'),
   panel: (document.querySelector('#sheetin') || {}).textContent || '',
   field: (document.querySelector('#sheetin [data-part="field/input"]') || {}).value || '',
-  banners: [...document.querySelectorAll('[data-part="settings/banner"]')]
+  banners: [...document.querySelectorAll('[data-part="settings/notice"]')]
     .map((one) => one.textContent.replace(/\s+/g, ' ').trim())})"""
 
 # Every row of the open rubric, with the value it prints.
