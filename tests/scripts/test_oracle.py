@@ -414,7 +414,8 @@ def test_the_committed_reference_carries_a_platform():
     # 159 SINCE L16's phase 15: `ranking-editor-saving` and `ranking-editor-save-conflict` — added,
     # nothing else moved. 39 regions SINCE L16's phase 17: `screen-ranking/body`, the ranking editor
     # L16 created and no region measured — drawn on its five states alone.
-    assert reference["counts"] == {"states": 159, "regions": 39}
+    # 161 SINCE L16's phase 17a: `trackers-loading` and `trackers-error` — added, nothing else moved.
+    assert reference["counts"] == {"states": 161, "regions": 39}
 
 
 class TestItRefusesToWriteOverAForeignBuild:
