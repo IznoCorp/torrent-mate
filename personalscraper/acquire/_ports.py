@@ -110,6 +110,10 @@ class FollowSubStore(Protocol):
         """Update the ``kind`` ('movie'|'show') of a ``followed_series`` row."""
         ...
 
+    def set_titles(self, followed_id: int, *, title: str, original_title: str) -> None:
+        """Replace a follow's display title and original title together."""
+        ...
+
 
 @runtime_checkable
 class WantedSubStore(Protocol):

@@ -330,10 +330,22 @@ class DetectService:
         ``--series``-filtered or dry-run invocation heals accordingly less, and
         a paused follow heals on its first detect after reactivation (always
         before that same run's enqueue pass).
+
+        A show keyed on TVDB alone heals through TVDB instead (One Punch Man,
+        2026-09-29): the web add-by-search stored the TVDB card's ``name``, which
+        is in the ORIGINAL language (« ワンパンマン »), so every search ran in
+        Japanese and the season guard dropped the real « One.Punch.Man » packs.
+        See :meth:`_heal_tvdb_only_show`.
         """
-        unhealed = [
-            mf for mf in follows if mf.original_title is None and mf.media_ref.tmdb_id is not None and mf.id is not None
+        unhealed = [mf for mf in follows if mf.original_title is None and mf.id is not None]
+        tvdb_only = [
+            mf
+            for mf in unhealed
+            if mf.kind == "show" and mf.media_ref.tmdb_id is None and mf.media_ref.tvdb_id is not None
         ]
+        for mf in tvdb_only[:_ORIGINAL_TITLE_BACKFILL_CAP]:
+            self._heal_tvdb_only_show(mf)
+        unhealed = [mf for mf in unhealed if mf.media_ref.tmdb_id is not None]
         if not unhealed:
             return
         try:
@@ -378,6 +390,48 @@ class DetectService:
                     title=mf.title,
                     error=str(exc),
                 )
+
+    def _heal_tvdb_only_show(self, mf: "FollowedSeries") -> None:
+        """Give a TVDB-only show its configured-language title, keeping the stored one.
+
+        TVDB's by-id details come back in the configured language. When that
+        name differs from the stored title, the stored one (the search card's
+        original-language ``name``) becomes ``original_title`` and the localized
+        name becomes the title: the first query then uses the name releases
+        carry, the original-title retry keeps the other, and the season and
+        episode identity guards accept both. When the names agree, only
+        ``original_title`` is written (VERBATIM rule: non-NULL means healed).
+        Fail-soft like every heal here: a failure logs and leaves the row NULL
+        for the next run.
+
+        Args:
+            mf: An active show follow with a ``tvdb_id``, no ``tmdb_id`` and a
+                NULL ``original_title``.
+        """
+        assert mf.id is not None and mf.media_ref.tvdb_id is not None  # noqa: S101 — filtered by the caller
+        try:
+            details = self._registry.get("tvdb").get_tv(mf.media_ref.tvdb_id)  # type: ignore[attr-defined]
+            localized = getattr(details, "title", None)
+            if isinstance(localized, str) and localized.strip() and localized != mf.title:
+                self._store.follow.set_titles(mf.id, title=localized, original_title=mf.title)
+            else:
+                localized = mf.title
+                self._store.follow.merge_metadata(
+                    mf.id, poster_url=None, overview=None, year=None, original_title=mf.title
+                )
+            log.info(
+                "acquire.detect.tvdb_title_healed",
+                followed_id=mf.id,
+                title=localized,
+                original_title=mf.title,
+            )
+        except Exception as exc:  # noqa: BLE001 — a nicety is never worth aborting detect
+            log.warning(
+                "acquire.detect.tvdb_title_heal_failed",
+                followed_id=mf.id,
+                title=mf.title,
+                error=str(exc),
+            )
 
     def _persist_aired_cache(
         self, aired: "list[AiredEpisode]", by_ref: "dict[MediaRef, FollowedSeries]", *, now: int

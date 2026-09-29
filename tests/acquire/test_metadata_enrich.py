@@ -224,3 +224,63 @@ def test_details_without_original_title_degrade_to_none() -> None:
     result = enrich_follow_metadata(MediaRef(tmdb_id=_TMDB_ID), "movie", tmdb_client=tmdb, tvdb_client=None)
 
     assert result.original_title is None
+
+
+_ORIGINAL_LANGUAGE_TITLE = "\u30ef\u30f3\u30d1\u30f3\u30de\u30f3"  # ワンパンマン
+_ORIGINAL_LANGUAGE_OVERVIEW = "\u8da3\u5473\u3067\u30d2\u30fc\u30ed\u30fc"  # 趣味でヒーロー
+
+
+def test_tvdb_show_card_in_original_language_is_localized() -> None:
+    """A TVDB card named in its original language takes the localized name and overview.
+
+    The TVDB search card carries ``name`` in the ORIGINAL language
+    (« ワンパンマン ») and a Japanese overview; releases are named
+    « One.Punch.Man… », so a follow stored with that title queried trackers in
+    Japanese and its season guard dropped every real pack. The by-id details in
+    the configured language win for title and overview; the card's name is
+    kept as the original title.
+    """
+    tvdb = _RecordingClient(_Details(year=2015, overview="Saitama is a hero for fun.", title="One-Punch Man"))
+    card = FollowMetadata(
+        poster_url="https://c/card.jpg", overview=_ORIGINAL_LANGUAGE_OVERVIEW, year=2015, title=_ORIGINAL_LANGUAGE_TITLE
+    )
+
+    result = enrich_follow_metadata(
+        MediaRef(tvdb_id=293088), "show", tmdb_client=None, tvdb_client=tvdb, existing=card, localize_show=True
+    )
+
+    assert tvdb.calls == [("get_series", 293088)], "one TVDB call, with its OWN id"
+    assert result.title == "One-Punch Man"
+    assert result.original_title == _ORIGINAL_LANGUAGE_TITLE
+    assert result.overview == "Saitama is a hero for fun."
+    assert result.poster_url == "https://c/card.jpg", "the card's poster still wins"
+    assert result.year == 2015
+
+
+def test_tvdb_show_localization_keeps_card_overview_when_provider_has_none() -> None:
+    """A localized answer with no overview keeps the card's; a same-name title sets no original."""
+    tvdb = _RecordingClient(_Details(year=2018, overview="", title="The Rookie"))
+    card = FollowMetadata(poster_url="https://c/card.jpg", overview="Card overview.", year=2018, title="The Rookie")
+
+    result = enrich_follow_metadata(
+        MediaRef(tvdb_id=350665), "show", tmdb_client=None, tvdb_client=tvdb, existing=card, localize_show=True
+    )
+
+    assert result.title == "The Rookie"
+    assert result.original_title is None
+    assert result.overview == "Card overview."
+
+
+def test_tvdb_show_localization_failure_keeps_the_card() -> None:
+    """A TVDB outage during localization keeps the card untouched (fail-soft)."""
+    tvdb = _RecordingClient(boom=ApiError(provider="tvdb", http_status=500, message="tvdb down"))
+    card = FollowMetadata(
+        poster_url="https://c/card.jpg", overview=_ORIGINAL_LANGUAGE_OVERVIEW, year=2015, title=_ORIGINAL_LANGUAGE_TITLE
+    )
+
+    result = enrich_follow_metadata(
+        MediaRef(tvdb_id=293088), "show", tmdb_client=None, tvdb_client=tvdb, existing=card, localize_show=True
+    )
+
+    assert result == card
+    assert tvdb.calls == [("get_series", 293088)], "a failed localization is not retried in the same call"

@@ -141,6 +141,7 @@ def enrich_follow_metadata(
     tmdb_client: object | None,
     tvdb_client: object | None,
     existing: FollowMetadata | None = None,
+    localize_show: bool = False,
 ) -> FollowMetadata:
     """Fill the missing card fields of a follow from the metadata providers.
 
@@ -148,24 +149,43 @@ def enrich_follow_metadata(
     soon as every field is filled — a show whose TVDB record answers all three
     never touches TMDB.
 
+    With *localize_show*, a TVDB-keyed show first makes ONE by-id TVDB call
+    whatever *existing* holds: the TVDB search card carries the series
+    ``name`` and overview in the ORIGINAL language (« ワンパンマン » for One
+    Punch Man), while releases are named after the localized title. The
+    configured-language title and overview win, and the card's name is kept
+    as the original title — a follow stored under the original-language name
+    alone queried trackers in that language, and its season guard dropped
+    every real release.
+
     Args:
         media_ref: The follow's provider IDs.  Each provider is queried with
             its OWN id only (no cross-contamination).
         kind: ``"movie"`` or ``"show"`` — selects which provider is primary.
         tmdb_client: The TMDB client, or ``None`` when unavailable.
         tvdb_client: The TVDB client, or ``None`` when unavailable.
-        existing: Values already known (client candidate, DB row).  They always
-            win over the provider.
+        existing: Values already known (client candidate, DB row).  They win
+            over the provider, except a localized show's title and overview.
+        localize_show: Localize a TVDB-keyed show's title and overview (the
+            web add-by-search path, whose card is in the original language).
 
     Returns:
         A :class:`FollowMetadata` carrying *existing* plus whatever the
         providers could add.  Never raises.
     """
     resolved = existing if existing is not None else FollowMetadata()
+    localized = localize_show and kind == "show" and tvdb_client is not None and media_ref.tvdb_id is not None
+    if localized:
+        assert media_ref.tvdb_id is not None  # noqa: S101 — checked just above; narrows for mypy
+        details = _fetch_details(tvdb_client, "get_series", media_ref.tvdb_id)
+        if details is not None:
+            resolved = _prefer_localized(resolved, _extract(details))
     if resolved.is_complete:
         return resolved
 
     for client, method_name, provider_id in _sources(media_ref, kind, tmdb_client, tvdb_client):
+        if localized and client is tvdb_client:
+            continue  # already asked once above — a failed call is not retried here
         details = _fetch_details(client, method_name, provider_id)
         if details is None:
             continue
@@ -173,6 +193,33 @@ def enrich_follow_metadata(
         if resolved.is_complete:
             break
     return resolved
+
+
+def _prefer_localized(card: FollowMetadata, localized: FollowMetadata) -> FollowMetadata:
+    """Merge a show's configured-language details over its search card.
+
+    The localized title and overview win when the provider has them; the card's
+    title becomes the original title when it differs from the localized one
+    (the card's is the original-language ``name``). Every other field keeps the
+    card-first rule of :meth:`FollowMetadata.fill_from`.
+
+    Args:
+        card: The values the client posted (the TVDB search card).
+        localized: The by-id details in the configured language.
+
+    Returns:
+        The merged :class:`FollowMetadata`.
+    """
+    title = localized.title if localized.title is not None else card.title
+    original_title = card.original_title
+    if original_title is None and card.title is not None and card.title != title:
+        original_title = card.title
+    return replace(
+        card.fill_from(localized),
+        title=title,
+        overview=localized.overview if localized.overview is not None else card.overview,
+        original_title=original_title if original_title is not None else localized.original_title,
+    )
 
 
 def _sources(
