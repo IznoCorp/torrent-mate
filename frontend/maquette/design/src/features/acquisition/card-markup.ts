@@ -94,6 +94,12 @@ const RUNG_TONE: Record<StripState, string> = {
 
 // The reason a rung waits for the operator's answer rather than for his hand.
 const TO_CONFIRM = "confirmation";
+// The engine's token for a ratio deferral, and where its path lands: the
+// Trackers page, its « Trackers » tab, the tracker named after the separator.
+const RATIO_DEFERRAL = "ratio_below_threshold";
+const TRACKERS_PAGE = "trackers";
+const TRACKERS_TAB = "trackers";
+const DIAL_SEPARATOR = ":";
 
 /**
  * A date, as a sentence says it: the day and the month.
@@ -119,6 +125,17 @@ function dayOf(date: string): string {
  * @param ladder The medium's rungs.
  * @returns The strip, the figure and the current rung's chip.
  */
+/**
+ * The tracker a ratio deferral is under, when the rung the card stands on is one.
+ *
+ * @param ladder The medium's rungs.
+ * @returns The tracker's name, or undefined for any other rung.
+ */
+function ratioDeferralTracker(ladder: Rung[]): string | undefined {
+  const rung = ladder[currentRung(ladder)];
+  return rung.reason === RATIO_DEFERRAL && rung.tracker ? rung.tracker : undefined;
+}
+
 function ladderMarkup(ladder: Rung[]) {
   const current = currentRung(ladder);
   const strip: StripCell[] = ladder.map((rung) => ({ state: rung.state }));
@@ -184,6 +201,14 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot | Med
     : posterArtworkMarkup(posterArtwork(icons, medium.poster, title, medium.k));
   const stages = i18next.t("surfaces.card.stages", { returnObjects: true }) as string[];
   const onLadder = medium.ladder ? ladderMarkup(medium.ladder) : null;
+  // A RATIO DEFERRAL IS A PATH to the tracker it is under: « Voir le tracker »
+  // lands on the Trackers tab, that tracker's entry open. An ADDRESS the page
+  // reads through its own landing door — never an import of that page's feature.
+  const deferredOn = medium.ladder ? ratioDeferralTracker(medium.ladder) : undefined;
+  const footOptions = [...(foot === undefined ? [] : Array.isArray(foot) ? foot : [foot]), ...(deferredOn === undefined ? [] : [{
+    label: i18next.t("screens.acquisition.ratioReasonTracker"),
+    attributes: { "data-go": TRACKERS_PAGE, "data-dial": `${TRACKERS_TAB}${DIAL_SEPARATOR}${deferredOn}` },
+  }])];
   return cardMarkup({
     title,
     // french-ok: the non-medium marker R46 reads, a contract value
@@ -220,9 +245,9 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot | Med
     // happened — never from a constant (§13).
     requester: originLine(medium),
     strip: onLadder ? onLadder.strip : medium.strip?.map((value, index) => ({ state: stageState(value), label: stages[index] })),
-    foot: foot === undefined
+    foot: footOptions.length === 0
       ? undefined
-      : (Array.isArray(foot) ? foot : [foot]).map((one) => ({ label: one.label, solid: one.solid, attributes: one.attributes ?? {} })),
+      : footOptions.map((one: MediumCardFoot) => ({ label: one.label, solid: one.solid, attributes: one.attributes ?? {} })),
      footRow: footRow(),
      originRow: originRow(),
   });

@@ -792,6 +792,7 @@
       "errorTodo": "ce qui attend votre main",
       "errorFollows": "vos suivis",
       "errorSuggestions": "les suggestions",
+      "ratioReasonTracker": "Voir le tracker",
       "nowEmpty": "Rien en cours.",
       "blocked": "À traiter",
       "blockedFoot": "Résoudre →",

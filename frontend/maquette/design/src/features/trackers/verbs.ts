@@ -15,6 +15,8 @@ import "./remove-verb";
 // rule every tabbed page follows, through the memory they share.
 const TABS = new Set(["torrents", "trackers"]);
 const MEMORY = tabMemory("trackers-tab", "trackers", TABS);
+// Between a landing dial's tab and the tracker it names.
+const DIAL_SEPARATOR = ":";
 
 /* A TAB IS A SETTING OF THE PAGE, never an arrival: its address REPLACES the
    entry it is on, so a back leaves the page rather than stepping between tabs,
@@ -29,10 +31,16 @@ registerVerb("trackers-tab", (tab) => {
 });
 
 /* ARRIVING AT THIS PAGE OPENS THE TAB OPENED LAST, « Trackers » the first time —
-   whoever asked for it. A control that NAMES the tab it lands on is obeyed. */
+   whoever asked for it. A control that NAMES the tab it lands on is obeyed, and
+   one naming a tracker after it (`trackers:c411`, a deferred card's path) lands
+   with that tracker's entry open. */
 fillLandingDoor((page, dial) => {
   if (page !== "trackers") return;
-  store.write({ trackersTab: dial !== undefined && TABS.has(dial) ? dial : MEMORY.remembered() });
+  const [tab, tracker] = (dial ?? "").split(DIAL_SEPARATOR);
+  store.write({
+    trackersTab: TABS.has(tab) ? tab : MEMORY.remembered(),
+    ...(tracker ? { trackersFilter: tracker } : {}),
+  });
 });
 
 /* « VOIR LES TORRENTS »: the « Torrents » tab, filtered to the tracker whose entry

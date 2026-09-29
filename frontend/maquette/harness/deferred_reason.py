@@ -13,7 +13,12 @@ of the engine no longer reads.
 2. `acq-card-deferred-space` — the card says there is too little space;
 3. `acq-card-deferred-missing` — the card says content is still missing;
 4. on each, the cause drawn is the one the served ladder carries, and no other
-   card of « En vol » names a deferral.
+   card of « En vol » names a deferral;
+5. the ratio cause offers « Voir le tracker » on its card, and neither other
+   cause does;
+6. a finger on it lands on the Trackers tab with that tracker's entry open —
+   `/trackers?list=trackers&tracker=<name>` read on the address — as an arrival
+   (the history grows by one).
 
 The deferrals are DERIVATIONS, POSED and shown as such (`poseDeferral`): no card
 of the real data is deferred.
@@ -52,6 +57,12 @@ def setting(key):
 OWN = setting(f"tracker.providers.{TRACKER}.economy.min_ratio")
 GLOBAL = setting("ingest.min_ratio")
 
+WORDS = json.loads((SOURCE / "i18n/fr.json").read_text(encoding="utf-8"))["screens"]["acquisition"]
+PATH_WORDS = WORDS.get("ratioReasonTracker", "<no copy>")
+PATH = """(title) => [...document.querySelectorAll('#view [data-part="card"]')]
+  .filter(card => card.querySelector('[data-part="card/title"]')?.textContent.trim() === title)
+  .flatMap(card => [...card.querySelectorAll('[data-part="card/foot"]')])
+  .filter(foot => foot.textContent.trim() === %s).length""" % json.dumps(PATH_WORDS, ensure_ascii=False)
 CARDS = """() => [...document.querySelectorAll('#view [data-part="card"]')].map(card => ({
   title: card.querySelector('[data-part="card/title"]')?.textContent.trim() ?? '',
   reason: card.querySelector('[data-part="card/reason"]')?.textContent.trim() ?? '',
@@ -96,10 +107,28 @@ async def main():
                 """(title)=>{const queue=window.__queries?.getQueryData(['/api/acquisition/to-handle','loaded'])||{};
                   const card=[...(queue.inFlight||[]),...(queue.arrivals||[])].find(one=>one.title===title);
                   return ((card&&card.ladder)||[]).map(rung=>rung.reason).filter(Boolean);}""", title)
+            offered = await page.evaluate(PATH, title)
+            journal.check(f"{state}: « {PATH_WORDS} » is offered {'on the ratio cause' if token == 'ratio_below_threshold' else 'on no other cause'}",
+                          offered == (1 if token == "ratio_below_threshold" else 0), str(offered))
             others = [one["title"] for one in cards if one["title"] != title
                       and any(cause in one["reason"] for cause in causes)]
             journal.check(f"{state}: the cause drawn is the one the ladder carries, and no other card names a deferral",
                           token in ladder and not others, f"ladder {ladder} · others {others}")
+
+        # ── a finger on « Voir le tracker » ───────────────────────────────
+        await page.evaluate("()=>window.__go('acq-card-deferred-ratio')")
+        await page.wait_for_timeout(SETTLED)
+        before = await page.evaluate("()=>history.length")
+        foot = page.locator('#view [data-part="card/foot"]', has_text=PATH_WORDS)
+        if await foot.count():
+            await foot.first.tap()
+            await page.wait_for_timeout(SETTLED)
+        where = await page.evaluate("""()=>({path: location.pathname, search: location.search, length: history.length,
+            open: document.querySelector(`#view [data-part="trackers/entry"][data-tracker="c411"] details[open]`) !== null})""")
+        journal.check(f"a finger on « {PATH_WORDS} » lands on the Trackers tab, {TRACKER}'s entry open, as an arrival",
+                      where["path"].endswith("/trackers") and "list=trackers" in where["search"]
+                      and f"tracker={TRACKER}" in where["search"] and where["open"] and where["length"] == before + 1,
+                      f"{where} · history.length {before}")
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()
