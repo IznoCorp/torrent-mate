@@ -8,22 +8,23 @@
 - **Orchestrator** « Orch : TM frontend [79475d] »; always write the reference. Gauge:
   `context-gauge.sh`, its `context_percent=` and `source=` lines in every report. Context gate 80 %, exit ~75 %
   (the brief's dated line of 2026-09-29).
-- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 5c · 5d · 6a · 6b · 7 · 8 — each gated, mutated, pushed. **Next: 9**
-  (`plan/phase-09-broken-obligations.md`), not opened — re-measure it on this head.
-- **Remaining** (from `ls plan/`): 9 · MIDPOINT FULL SUITE · 10 · 11 · 12 · 13 · 14 · 15 · 16 · 17.
-  Known STOP D: 9 (no « vu » precedent), 12 (ratio cause = global `ingest.min_ratio`; the seed),
+- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 5c · 5d · 6a · 6b · 7 · 8 · 9 — each gated, mutated, pushed. **Next: the MIDPOINT FULL SUITE**
+  (contracts tier included, order 58; falls re-read under order 48/65; real falls repaired before 10 opens;
+  a report to the steward before AND after), then 10.
+- **Remaining** (from `ls plan/`): MIDPOINT FULL SUITE · 10 · 11 · 12 · 13 · 14 · 15 · 16 · 17.
+  Known STOP D: 12 (ratio cause = global `ingest.min_ratio`; the seed),
   14 (no read of a config file's content in the maquette's contract).
 - **Rulings** (`RULINGS.md`) 1 `?list=` · 2 C2, save bar via `lib/save-bar-door.tsx` · 3 B, the filter line · 4 B1,
   Lanterns's sheet from its NFO + R1 bis · 5 B, `poseArrived` (Zinzins end to end) · 6 B, `poseExternalRemoval` (Ted Lasso) · 7 posed dials replace composed seeds
-  (STANDING: announce, no STOP, unless no real subject or a product behaviour changes).
+  (STANDING: announce, no STOP, unless no real subject or a product behaviour changes) · 8 A, « Vu ».
 - **Rules** R260 `trackers_page.py` · R261 `trackers_roster.py` (holds 1–17) · R262 `trackers_policy.py` · R263
-  `trackers_removal.py` (21, holds 1–10); R122 reads `torrents/row`; `audit.py` 14 holds; R229 re-aimed at 5d (16 holds); R264 `trackers_alert.py` (14).
+  `trackers_removal.py` (21, holds 1–10); R122 reads `torrents/row`; `audit.py` 14 holds; R229 re-aimed at 5d (16 holds); R264 `trackers_alert.py` (21, holds 1–9).
   Next labels: g R265 (12) · f R266 (14) · e R267 (16); cuts R268+. Register B-570–B-589 none taken.
 - **Gate** (office § The gate): static list (`check-no-french`, css-tokens, compositor, tailwind, markup-contracts,
   boundaries, `oracle.py --contracts`, + frame-domain, mock-seeds) → `run.sh --oracle` alone → accept with
   `bash -c 'run.sh --oracle; oracle.py --accept'` + `tools/accept_by_name.py <declared.json>` (declared BY SCRIPT
   from `states/*.ts`) → `run.sh --rules` (`--class rule`) → `--a11y` if it draws. The static list AGAIN after any
-  harness edit. `test_oracle.py` pinned 148 states / 38 regions. Maquette vitest: `vitest run --root
+  harness edit. `test_oracle.py` pinned 150 states / 38 regions. Maquette vitest: `vitest run --root
   frontend/maquette/design` (from the root it runs the production app's tests).
 - **B-554 list** the 25 `shell/dialog` readers = `p06b-declared.json`'s (reused at 7, identical).
 - **Size watch** `mocks/handlers/staging.ts` 399, `mocks/index.ts` 399 (ceiling 400): no new line there.
@@ -239,3 +240,14 @@
   Mutations: the entry reading a stale threshold (null) → FAIL « tracker-alert-active: every entry's alert agrees
   with the summary served »; the refusal joined to every torrent of its tracker → FAIL « no « Torrents » row of
   tr4ker carries the refusal — one unit for its tracker » (`p08-mutation1–2.log`).
+- 2026-09-29 — phase 9 opening ≈ 13.5: STOP D (the « vu » precedent absent) → RULINGS 8 = A; broken obligations
+  POSED (`poseBrokenObligation`, Lanterns + Ted Lasso on c411), announced under RULINGS 7. R264 re-aimed OUT LOUD
+  (holds 7–9), RED (`p09-red.log`, 7 FAIL). The move: `markBrokenObligationSeen` declared (`x-unseeded`), types and
+  demands register regenerated (`compare-contracts.py --write`, `--check` 0); the mock flips `seen`; `alertOf`
+  gains `unseen` per tracker; the entry's count chip, the nested fold (`BrokenObligations`), « Vu » / « Vue »; verb
+  `obligation-seen` in `verbs.ts`; states `tracker-broken-obligations`, `…-open` (the fold opened by a finger,
+  `OPEN_AFTER`); word `broken`. Slip: a guessed hash for Lanterns, caught by reading the seed before the run.
+- 2026-09-29 — phase 9 gate: static 10/10, typecheck 0. Oracle alone: the 2 new states only, 0 key moved, proved;
+  `test_oracle.py` 148 → 150. Rules R264 21 · R261 64 · R263 21 · R262 14 · R260 27, 0 failed; a11y dark 0, light
+  88. Mutations: « Vu » without the write → FAIL « « Vu » asks the write once for that obligation — [] » (+ stays,
+  count); the write removing the row → FAIL « the row seen STAYS, and says it » (`p09-mutation1–2.log`).

@@ -59,3 +59,10 @@ The steward's rulings on this lot's STOPs, numbered, one per STOP. The operator'
    seed row for a case the real data does not hold, a dial POSED on a real subject in `trackers-state.ts`,
    declared as a derivation, replaces it — ANNOUNCED in the phase report and the ledger, no STOP. A STOP
    remains only when no real subject can carry the derivation, or when it changes a product behaviour.
+8. **2026-09-29, phase 9, STOP D — the « vu » control has no precedent.** The prototype's only per-row
+   dismissals (`dismissDecision`, a suggestion swept away) make the row LEAVE; the contract says of a
+   broken obligation « seen is not gone ». Readings: A (a text control « Vu » per row, the row staying and
+   saying « Vue »), B (the sweep reused — refused: the row would leave), C (unfolding marks all — refused:
+   « marked seen individually »). **Ruled A**: « Vu » / « Vue » in `fr.json`; the hold reads the row
+   staying, the unseen count down by one, and the write asked once; the mutation « success without the
+   write » falls by name. `poseBrokenObligation` announced under RULINGS 7.
