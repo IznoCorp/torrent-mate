@@ -411,7 +411,9 @@ def test_the_committed_reference_carries_a_platform():
     # added, nothing else moved.
     # 157 SINCE L16's phase 14b: `ranking-editor-loading` and `ranking-editor-error` — added; the
     # settings rubric and the quality foot lead to the editor, named in the acceptance commit.
-    assert reference["counts"] == {"states": 157, "regions": 38}
+    # 159 SINCE L16's phase 15: `ranking-editor-saving` and `ranking-editor-save-conflict` — added,
+    # nothing else moved.
+    assert reference["counts"] == {"states": 159, "regions": 38}
 
 
 class TestItRefusesToWriteOverAForeignBuild:
