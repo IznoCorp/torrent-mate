@@ -15,7 +15,15 @@ opens every named state at seven widths and refuses, over the whole device:
               clipped in place (the ellipsis);
   bevel     — a border drawn `outset`, `inset`, `groove` or `ridge`: the design
               system draws none, so it is a browser default no class reset — the
-              runs list's buttons, whose right edge shades into the background.
+              runs list's buttons, whose right edge shades into the background;
+  unseen    — in WebKit only, a frame control a finger must find (the menu
+              button, the bottom bar's buttons, a tab) that is outside the
+              window, covered at its centre, drawn at no size, or inked under
+              3:1 against the colour beneath it — in light AND in dark.
+
+THE iPHONE'S ENGINE. The harness is Chromium and an iPhone is WebKit, so the
+same states are read once more in WebKit at 390 px, in both colour schemes: a
+defect only one engine draws is a defect a Chromium harness never sees.
 
 THE WIDTHS. 320, 360, 369, 390 and 412 are phones, measured as phones (touch,
 mobile). 768 and 1280 are windows, measured OUT of the harness's phone frame —
@@ -42,8 +50,8 @@ through its preformatted-text branch (the raw log); its document and vertical-
 port branches read nothing on this tree and stay as the net for a page that
 stops clipping.
 
-SUBSETS. `TM_RESPONSIVE_STATES` (comma-separated ids) and `TM_RESPONSIVE_WIDTHS`
-narrow a run to the states a change touches; a narrowed run never judges the owed
+SUBSETS. `TM_RESPONSIVE_STATES` (comma-separated ids), `TM_RESPONSIVE_WIDTHS`
+(Chromium's widths) and `TM_RESPONSIVE_ENGINES` (`chromium`, `webkit`) narrow a run to the states a change touches; a narrowed run never judges the owed
 list's staleness, since it did not read what the list covers.
 """
 import asyncio
@@ -57,6 +65,8 @@ from playwright.async_api import async_playwright
 PHONES = (320, 360, 369, 390, 412)
 WINDOWS = (768, 1280)
 HEIGHT = 844
+# The iPhone's format, measured in the iPhone's engine.
+IPHONE = 390
 # Three pages at a time, one per width, the harness's own ceiling
 # (`TM_HARNESS_JOBS=3`, docs/reference/implementer-office.md § the mutex).
 PARALLEL = int(os.environ.get("TM_HARNESS_JOBS", "3"))
@@ -66,17 +76,19 @@ PARALLEL = int(os.environ.get("TM_HARNESS_JOBS", "3"))
 OWED: dict[tuple[str, str], str] = {
     # Reds with a named owner and a repair to come: each entry leaves the
     # list in the commit that repairs it, and the rule then holds it.
-    ("bevel", "runs/row"): "maquette-conformity phase 4",
-    ("bevel", "shell/connection-notice"): "maquette-conformity phase 4 (R1's family)",
-    ("cut", "card/requester"): "maquette-conformity phase 5",
-    ("cut", "shell/tab-bar"): "maquette-conformity phase 6",
-    ("overflow", "run/log"): "maquette-conformity phase 8 (the operator's OPEN 10)",
-    ("cut", "card/title"): "maquette-conformity phase 7 (§ 12)",
-    ("cut", "card/subtitle"): "maquette-conformity phase 7 (§ 12)",
-    ("cut", "tile/title"): "maquette-conformity phase 7 (§ 12's family)",
-    ("cut", "cast"): "maquette-conformity phase 7 (§ 12's family)",
-    ("cut", "segment"): "maquette-conformity phase 9",
-    ("cut", "segment/count"): "maquette-conformity phase 9",
+    ("bevel", "runs/row"): "maquette-conformity phase 3",
+    ("bevel", "shell/connection-notice"): "maquette-conformity phase 3 (R1's family)",
+    ("cut", "card/requester"): "maquette-conformity phase 4",
+    ("cut", "shell/tab-bar"): "maquette-conformity phase 5",
+    ("overflow", "run/log"): "maquette-conformity phase 7 (the operator's OPEN 10)",
+    ("cut", "card/title"): "maquette-conformity phase 6 (§ 12)",
+    ("cut", "card/subtitle"): "maquette-conformity phase 6 (§ 12)",
+    ("cut", "tile/title"): "maquette-conformity phase 6 (§ 12's family)",
+    ("cut", "cast"): "maquette-conformity phase 6 (§ 12's family)",
+    ("cut", "segment"): "maquette-conformity phase 8",
+    ("cut", "segment/count"): "maquette-conformity phase 8",
+    # WebKit draws the menu button's icon at no size, in light and in dark.
+    ("unseen", "menu"): "defects fast lane",
 }
 
 MEASURE = """(width) => {
@@ -145,42 +157,97 @@ MEASURE = """(width) => {
 }"""
 
 
-def context_for(width):
-    """Builds the browser context a width is measured in.
+# The frame's controls a finger must find on every state, read only when no
+# layer covers the page (a sheet or the drawer covers them on purpose): the
+# menu button, the bottom bar's buttons, and every tab of a tab bar.
+VISIBLE = """(width) => {
+  if (document.querySelector('#dlg[data-open], #sheet[data-open], #drawer[data-open]')) return [];
+  const falls = [];
+  // ANY CSS colour to sRGB bytes through a canvas: an engine may answer a
+  // computed colour as `oklch(…)` or `color(srgb …)`, and a regex over its
+  // numbers reads a lightness as a red.
+  const paint = document.createElement('canvas').getContext('2d', {willReadFrequently: true});
+  const colour = (text) => {
+    paint.clearRect(0, 0, 1, 1);
+    paint.fillStyle = '#000'; paint.fillStyle = text; paint.fillRect(0, 0, 1, 1);
+    const [r, g, b, a] = paint.getImageData(0, 0, 1, 1).data;
+    return [r, g, b, a / 255];
+  };
+  const luminance = ([r, g, b]) => [r, g, b].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; })
+    .reduce((sum, v, index) => sum + v * [0.2126, 0.7152, 0.0722][index], 0);
+  const ratio = (a, b) => { const [x, y] = [luminance(a), luminance(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+  const under = (element) => {
+    for (let node = element; node; node = node.parentElement) {
+      const value = colour(getComputedStyle(node).backgroundColor);
+      if (value[3] > 0.5) return value;
+    }
+    return [0, 0, 0, 1];
+  };
+  const controls = [
+    ['menu', document.querySelector('[data-part="shell/header"] [data-drawer]')],
+    ...[...document.querySelectorAll('[data-part="shell/tab-bar"] button')].map((button) => ['bottom-bar', button]),
+    ...[...document.querySelectorAll('#view [role="tab"], [data-part="screen"][data-open] [role="tab"]')].map((tab) => ['tab', tab]),
+  ];
+  for (const [name, control] of controls) {
+    if (!control) { falls.push({arm: 'unseen', part: name, rect: null}); continue; }
+    if (name !== 'menu' && !control.checkVisibility()) continue;
+    const box = control.getBoundingClientRect();
+    const inside = box.width >= 1 && box.height >= 1 && box.left >= -0.5 && box.right <= width + 0.5 && box.top >= -0.5
+      && box.bottom <= innerHeight + 0.5;
+    const found = inside && control.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2));
+    // The DRAWING, not the button: an icon is its svg, a label its text.
+    const drawing = control.querySelector('svg') || control;
+    const drawn = drawing.getBoundingClientRect();
+    const style = getComputedStyle(drawing);
+    const ink = colour(drawing.tagName.toLowerCase() === 'svg' && style.stroke !== 'none' ? style.stroke : style.color);
+    const contrast = ink[3] > 0 ? ratio(ink, under(control)) : 0;
+    if (!found || drawn.width < 1 || drawn.height < 1 || contrast < 3)
+      falls.push({arm: 'unseen', part: name, rect: [Math.round(drawn.width), Math.round(drawn.height), +contrast.toFixed(2)]});
+  }
+  return falls;
+}"""
+
+
+def context_for(width, scheme="dark"):
+    """Builds the browser context one pass is measured in.
 
     Args:
         width: The window's width in CSS pixels.
+        scheme: The colour scheme the document is asked to follow.
 
     Returns:
         The context options — a phone below the frame's breakpoint, a desktop
         window out of the frame above it.
     """
     if width in PHONES:
-        return {**PHONE, "viewport": {"width": width, "height": HEIGHT}}
+        return {**PHONE, "viewport": {"width": width, "height": HEIGHT}, "color_scheme": scheme}
     return {"viewport": {"width": width, "height": HEIGHT}, "device_scale_factor": 1,
-            "is_mobile": False, "has_touch": False, "color_scheme": "dark"}
+            "is_mobile": False, "has_touch": False, "color_scheme": scheme}
 
 
-async def read_width(browser, width, wanted):
-    """Opens the prototype at one width and measures every wanted state.
+async def read_pass(browser, label, width, wanted, engine, scheme):
+    """Opens the prototype for one pass and measures every wanted state.
 
     Args:
-        browser: A launched Playwright browser.
+        browser: A launched Playwright browser of the pass's engine.
+        label: How the pass is named in every fall it reads.
         width: The width to measure at.
         wanted: The state ids asked for, or None for every declared one.
+        engine: The engine's name, which decides whether the controls' visibility is held.
+        scheme: The colour scheme of the pass.
 
     Returns:
         A dict state id → the falls read there, and the JS errors seen.
     """
-    served_copy.assert_unchanged(STARTED_AGAINST, f"opening the prototype at {width} px")
-    context = await browser.new_context(**context_for(width))
+    served_copy.assert_unchanged(STARTED_AGAINST, f"opening the prototype for {label}")
+    context = await browser.new_context(**context_for(width, scheme))
     if width in WINDOWS:
         # Before the document parses, so the harness's own inline script reads
         # it exactly as it reads the operator's remembered choice.
         await context.add_init_script("try{localStorage.setItem('tm-desktop-switch','out-of-the-frame')}catch(e){}")
     page = await context.new_page()
     errors = []
-    page.on("pageerror", lambda error: errors.append(f"{width}px: {error}"))
+    page.on("pageerror", lambda error: errors.append(f"{label}: {error}"))
     await page.goto(PROTOTYPE, wait_until="load")
     await page.evaluate("()=>window.__loadingDone?.()")
     await page.evaluate("()=>document.querySelector('#toastx')?.click()")
@@ -194,44 +261,67 @@ async def read_width(browser, width, wanted):
             continue
         await page.wait_for_timeout(SETTLED)
         readings[state] = await page.evaluate(MEASURE, width)
+        if engine == "webkit":
+            readings[state] += await page.evaluate(VISIBLE, width)
     await context.close()
     return readings, errors
 
 
-async def main():
-    """Measures every named state at every width and judges the falls."""
-    wanted = [state for state in os.environ.get("TM_RESPONSIVE_STATES", "").split(",") if state] or None
+def passes_asked():
+    """Lists the passes a run makes, narrowed by the environment.
+
+    Returns:
+        The (label, engine, width, scheme) of each pass: Chromium at every width
+        in the reference appearance, then WebKit at the iPhone's width in both.
+    """
     widths = tuple(int(width) for width in os.environ.get("TM_RESPONSIVE_WIDTHS", "").split(",") if width) \
         or PHONES + WINDOWS
-    whole = wanted is None and widths == PHONES + WINDOWS
-    journal = Journal("R-conformity-a — every named state at every width: no overflow, no cut, no bevel")
+    engines = [engine for engine in os.environ.get("TM_RESPONSIVE_ENGINES", "chromium,webkit").split(",") if engine]
+    passes = [(f"{width}px", "chromium", width, "dark") for width in widths] if "chromium" in engines else []
+    if "webkit" in engines:
+        passes += [(f"webkit-{scheme}@{IPHONE}px", "webkit", IPHONE, scheme) for scheme in ("light", "dark")]
+    return passes
+
+
+async def main():
+    """Measures every named state in every pass and judges the falls."""
+    wanted = [state for state in os.environ.get("TM_RESPONSIVE_STATES", "").split(",") if state] or None
+    passes = passes_asked()
+    whole = wanted is None and passes == passes_everything()
+    journal = Journal("R-conformity-a — every named state at every width and in the iPhone's engine: "
+                      "no overflow, no cut, no bevel, every frame control seen")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browsers = {}
+        if any(engine == "chromium" for _, engine, *_ in passes):
+            browsers["chromium"] = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        if any(engine == "webkit" for _, engine, *_ in passes):
+            browsers["webkit"] = await playwright.webkit.launch()
         gate = asyncio.Semaphore(PARALLEL)
 
-        async def one(width):
+        async def one(label, engine, width, scheme):
             async with gate:
-                return width, await read_width(browser, width, wanted)
+                return label, await read_pass(browsers[engine], label, width, wanted, engine, scheme)
 
         started = time.monotonic()
-        results = await asyncio.gather(*(one(width) for width in widths))
-        await browser.close()
+        results = await asyncio.gather(*(one(*each) for each in passes))
+        for browser in browsers.values():
+            await browser.close()
     # The cost is printed on every run: where the whole sweep may run is
     # decided from it.
     print(f"measured in {time.monotonic() - started:.0f} s")
     per_state: dict[str, list[str]] = {}
     owed_seen: dict[tuple[str, str], set[str]] = {}
     errors = []
-    for width, (readings, width_errors) in sorted(results):
-        errors += width_errors
+    for label, (readings, pass_errors) in results:
+        errors += pass_errors
         for state, falls in readings.items():
             for fall in falls:
                 key = (fall["arm"], fall["part"])
                 if key in OWED:
-                    owed_seen.setdefault(key, set()).add(f"{state}@{width}")
+                    owed_seen.setdefault(key, set()).add(f"{state}@{label}")
                     continue
                 per_state.setdefault(state, [])
-                line = f"{width}px {fall['arm']} {fall['part']} {fall['rect']}"
+                line = f"{label} {fall['arm']} {fall['part']} {fall['rect']}"
                 if line not in per_state[state]:
                     per_state[state].append(line)
     states = sorted({state for _, (readings, _) in results for state in readings})
@@ -240,13 +330,13 @@ async def main():
     report = os.environ.get("TM_RESPONSIVE_REPORT")
     if report:
         with open(report, "w", encoding="utf-8") as handle:
-            json.dump({"widths": list(widths), "states": len(states), "falls": per_state,
+            json.dump({"passes": [label for label, *_ in passes], "states": len(states), "falls": per_state,
                        "owed": {f"{arm} · {part}": sorted(seen) for (arm, part), seen in owed_seen.items()}},
                       handle, ensure_ascii=False, indent=1)
-    print(f"{len(states)} state(s) × {len(widths)} width(s) {list(widths)}\n")
+    print(f"{len(states)} state(s) × {len(passes)} pass(es) {[label for label, *_ in passes]}\n")
     for state in states:
         falls = per_state.get(state, [])
-        journal.check(f"{state} at every width", not falls, "; ".join(falls))
+        journal.check(f"{state} in every pass", not falls, "; ".join(falls))
     for key, owner in OWED.items():
         seen = owed_seen.get(key, set())
         print(f"  OWED {key[0]} · {key[1]} → {owner} — {len(seen)} reading(s)"
@@ -254,6 +344,16 @@ async def main():
         if whole:
             journal.check(f"owed {key[0]} · {key[1]} still falls", seen, "an owed entry that no longer falls leaves the list")
     journal.summary(errors)
+
+
+def passes_everything():
+    """The passes of an unnarrowed run, against which a run is judged whole.
+
+    Returns:
+        Every pass `passes_asked` makes when the environment narrows nothing.
+    """
+    return [(f"{width}px", "chromium", width, "dark") for width in PHONES + WINDOWS] \
+        + [(f"webkit-{scheme}@{IPHONE}px", "webkit", IPHONE, scheme) for scheme in ("light", "dark")]
 
 
 if __name__ == "__main__":
