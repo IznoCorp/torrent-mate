@@ -10,6 +10,29 @@ import { SETTINGS_STATE } from "../../features/settings/state";
 
 // Long enough that a read held back is still in flight when the state is measured.
 const HELD_BACK = 60000;
+// Long enough that the ranking file's read has answered and its fields are drawn.
+const TYPE_AFTER = 250;
+// Long enough that the typed weight has been rendered and the save opened.
+const SAVE_AFTER = 50;
+
+/**
+ * Types a weight two above the first criterion's and taps « Enregistrer », as a
+ * finger would once the file is read.
+ */
+function saveTypedWeight(): void {
+  window.setTimeout(() => {
+    const field = document.querySelector<HTMLInputElement>(
+      '[data-part="ranking/criterion"] [data-part="ranking/weight"]');
+    if (field === null) return;
+    // THE NATIVE SETTER, so the controlled field hears the input event as typing.
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set
+      ?.call(field, String(Number(field.value) + 2));
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    window.setTimeout(() => {
+      document.querySelector<HTMLElement>('[data-part="ranking/save"]')?.click();
+    }, SAVE_AFTER);
+  }, TYPE_AFTER);
+}
 
 export function settingsStates(): NamedState[] {
   // The catalogue a field state searches is the seed the served read answers
@@ -154,6 +177,30 @@ export function settingsStates(): NamedState[] {
         window.__queries?.removeQueries({ queryKey: ["/api/config/files/ranking.json5"] });
         applyState({ page: "cfg", phase: "ready" });
         window.__screens.ranking();
+      },
+    ],
+    [
+      "ranking-editor-saving",
+      "Réglages — le classement des releases, un poids enregistré, l'écriture en cours",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.setOperationOutcome("updateConfigurationFile", { latencyMilliseconds: HELD_BACK });
+        window.__queries?.removeQueries({ queryKey: ["/api/config/files/ranking.json5"] });
+        applyState({ page: "cfg", phase: "ready" });
+        window.__screens.ranking();
+        saveTypedWeight();
+      },
+    ],
+    [
+      "ranking-editor-save-conflict",
+      "Réglages — le classement des releases, le fichier a changé sous l'édition",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.setConfigurationConflict(true);
+        window.__queries?.removeQueries({ queryKey: ["/api/config/files/ranking.json5"] });
+        applyState({ page: "cfg", phase: "ready" });
+        window.__screens.ranking();
+        saveTypedWeight();
       },
     ],
   ];

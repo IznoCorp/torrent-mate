@@ -228,9 +228,12 @@
     "ranking": {
       "title": "Classement des releases",
       "back": "Réglages",
-      "weight": "× {{weight}}",
       "threshold": "≥ {{at}} → {{score}}",
-      "errorSubject": "le classement des releases"
+      "errorSubject": "le classement des releases",
+      "weightLabel": "Poids du critère {{field}}",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "conflictReload": "Relire le classement"
     },
     "trackers": {
       "tabTorrents": "Torrents",

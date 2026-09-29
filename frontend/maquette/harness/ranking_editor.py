@@ -15,14 +15,27 @@ very seed the layer answers from, so a list drawn from anywhere else falls.
 5. from a quality screen, a finger on « Poids du classement » lands on the
    editor, and says no promise in a toast (B-298);
 6. `ranking-editor-loading` draws no criterion while the file is read, and
-   `ranking-editor-error` says the read failed rather than an empty list.
+   `ranking-editor-error` says the read failed rather than an empty list;
+7. a weight typed and « Enregistrer » tapped writes `ranking.json5` through
+   `updateConfigurationFile`, once, and says so;
+8. the NEXT read of the file — the screen entered again on a fresh read —
+   answers the saved weight, and every other weight as it was;
+9. `ranking-editor-saving` keeps the typed weight and says the save is under
+   way, its button closed to a second tap;
+10. `ranking-editor-save-conflict` says the file moved, in the settings' own
+   words, and the next read answers the file's weight: nothing was written.
 
 RE-AIMED OUT LOUD: hold 4 first read « the rubric lands on the editor ». The
 rubric opens the global quality profile — a route of its own, held by
 `page_host.py` — and the promise B-298 names was that profile's weights button,
 a toast. The rubric keeps its route; the path to the editor runs through it.
 
-Red before the move: no screen answers `/settings/ranking`.
+RE-AIMED OUT LOUD: hold 2 first read the weight as the row's text. The weight
+became the field the operator types it into, so it is read as that field's
+value — the same number, the file's.
+
+Red before the move: no screen answers `/settings/ranking`; holds 7–10: no
+weight can be typed and nothing saves.
 """
 import asyncio
 import json
@@ -37,10 +50,17 @@ RANKING = next(file for file in FILES if file["name"] == "ranking.json5")["value
 
 SETTINGS_WORDS = json.loads((SOURCE / "i18n/fr.json").read_text(encoding="utf-8"))["screens"]
 RUBRIC = SETTINGS_WORDS["settings"]["rankingTitle"]
+SAVE = SETTINGS_WORDS["ranking"]["save"]
+SAVING = SETTINGS_WORDS["ranking"]["saving"]
+CONFLICT = SETTINGS_WORDS["settings"]["conflictLead"]
+REREAD = """()=>{window.__queries?.removeQueries({queryKey: ['/api/config/files/ranking.json5']});
+  window.__screens.ranking()}"""
+STORED = """async (field) => (await (await fetch('/api/config/files/ranking.json5')).json())
+  .values.ranking.criteria.find((one) => one.field === field)?.weight ?? null"""
 WEIGHTS = SETTINGS_WORDS["profile"]["rankingWeights"]
 ROWS = """() => [...document.querySelectorAll('[data-part="ranking/criterion"]')].map(row => ({
   field: row.dataset.field,
-  weight: row.querySelector('[data-part="ranking/weight"]')?.textContent.trim() ?? '',
+  weight: row.querySelector('[data-part="ranking/weight"]')?.value ?? '',
   scoring: row.querySelector('[data-part="ranking/scoring"]')?.textContent.trim() ?? '',
 }))"""
 
@@ -124,6 +144,61 @@ async def main():
             journal.check(f"{state}: no criterion, and {'the read is shown under way' if wanted == 'loading' else 'the failure is said'}",
                           answer is None and seen["rows"] == 0 and (seen["skeleton"] if wanted == "loading" else seen["error"]),
                           f"{answer or ''} {seen}")
+
+        # ── the save, and the read that follows it (F16) ─────────────────
+        async def enter(state):
+            answer = await page.evaluate(
+                f"()=>{{try{{window.__go('{state}');return null}}catch(error){{return String(error)}}}}")
+            await page.wait_for_timeout(SETTLED)
+            return answer
+
+        target = criteria[0]
+        typed = target["weight"] + 2
+        weight = f'[data-part="ranking/criterion"][data-field="{target["field"]}"] [data-part="ranking/weight"]'
+        await enter("ranking-editor")
+        calls = await page.evaluate("()=>window.__mocks.answered().length")
+        walked = {"field": await page.locator(weight).count(), "save": await page.locator('[data-part="ranking/save"]').count()}
+        if walked["field"]:
+            await page.locator(weight).first.tap()
+            await page.keyboard.press("Meta+A")
+            await page.keyboard.type(str(typed))
+        if walked["save"]:
+            await page.locator('[data-part="ranking/save"]').first.tap()
+            await page.wait_for_timeout(SETTLED)
+        written = await page.evaluate(
+            """(n)=>window.__mocks.answered().slice(n).filter((one) => one.operationId === 'updateConfigurationFile')
+                 .map((one) => one.path)""", calls)
+        toast = await page.evaluate("()=>document.querySelector('#toast[data-shown]')?.textContent.trim() || null")
+        journal.check("« Enregistrer » writes ranking.json5 through updateConfigurationFile, once, and says so",
+                      len(written) == 1 and written[0].endswith("/ranking.json5") and toast is not None
+                      and "ranking.json5" in toast, f"walked {walked}: {written} · toast {toast!r}")
+        await page.evaluate(REREAD)
+        await page.wait_for_timeout(SETTLED)
+        readAgain = {row["field"]: row["weight"] for row in await page.evaluate(ROWS)}
+        wanted = {criterion["field"]: number(criterion["weight"]) for criterion in criteria}
+        wanted[target["field"]] = number(typed)
+        journal.check(f"the NEXT read answers the saved weight {typed} for {target['field']}, the others as they were",
+                      {field: number(float(value)) if value else "" for field, value in readAgain.items()} == wanted,
+                      f"{readAgain} against {wanted}")
+
+        answer = await enter("ranking-editor-saving")
+        seen = await page.evaluate(f"""()=>({{field: document.querySelector('{weight}')?.value ?? null,
+            save: document.querySelector('[data-part="ranking/save"]')?.textContent.trim() ?? null,
+            closed: document.querySelector('[data-part="ranking/save"]')?.disabled ?? null}})""")
+        journal.check(f"ranking-editor-saving keeps the typed weight and says « {SAVING} », the button closed",
+                      answer is None and seen["field"] == str(typed) and seen["save"] == SAVING and seen["closed"] is True,
+                      f"{answer or ''} {seen}")
+
+        answer = await enter("ranking-editor-save-conflict")
+        banner = await page.evaluate("""()=>document.querySelector('[data-part="screen"] [data-part="load-error"]')
+            ?.textContent.trim() ?? null""")
+        # THE LAYER, not the screen: after a conflict the screen keeps the typed
+        # weight on purpose — the operator's work is not thrown away.
+        stored = await page.evaluate(STORED, target["field"])
+        journal.check(f"ranking-editor-save-conflict says « {CONFLICT} », and the next read answers the file's "
+                      f"{number(target['weight'])}: nothing was written",
+                      answer is None and banner is not None and CONFLICT in banner
+                      and stored == target["weight"], f"{answer or ''} banner {banner!r} · read {stored!r}")
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()

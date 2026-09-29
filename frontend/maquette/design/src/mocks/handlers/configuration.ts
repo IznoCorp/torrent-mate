@@ -3,7 +3,7 @@ import { GET, POST, PUT, route } from "./shared";
 import type { components } from "../../contract/types";
 import { mockState } from "../state";
 import { refused, type MockRoute } from "../router";
-import { configurationFiles } from "../configuration-files";
+import { configurationFiles, writeFileContent } from "../configuration-files";
 
 // Why a file's read is refused: the layer holds no content under that name.
 const UNKNOWN_FILE = "no configuration file carries that name";
@@ -91,8 +91,16 @@ export function configurationRoutes(): MockRoute[] {
       // saving a setting that lives in it.
       const changedOnDisk = held.conflict || held.movedFiles.includes(name);
       if (changedOnDisk) return { restartRequired: held.restartRequired, conflict: true };
-      if (!held.changedFiles.includes(name)) held.changedFiles = [...held.changedFiles, name];
       const asked = request.body;
+      // A WHOLE FILE travels with the digest its editor read it at — the
+      // precondition — and replaces the content the next read answers.
+      const fileBody = asked as { values?: Record<string, unknown>; digest?: unknown } | null;
+      if (typeof fileBody?.digest === "string" && typeof fileBody.values === "object" && fileBody.values !== null) {
+        if (!writeFileContent(name, fileBody.values, fileBody.digest)) {
+          return { restartRequired: held.restartRequired, conflict: true };
+        }
+      }
+      if (!held.changedFiles.includes(name)) held.changedFiles = [...held.changedFiles, name];
       if (typeof asked === "object" && asked !== null) {
         // The body is keyed by the setting's own identity — `<file>:<key>`,
         // the spelling the row, the address and the save all use — so the

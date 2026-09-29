@@ -221,6 +221,7 @@ configuration
 confirm
 confirmadd
 confirmrestart
+conflict
 conflicted
 connect
 connected
@@ -309,6 +310,7 @@ dial
 dialog
 dials
 diffuses
+digest
 digits
 direct
 direction
@@ -1002,6 +1004,7 @@ same
 sample
 save
 savebar
+saving
 say
 saying
 says
