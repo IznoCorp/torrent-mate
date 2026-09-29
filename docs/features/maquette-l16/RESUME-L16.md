@@ -8,27 +8,31 @@
 - **Orchestrator** « Orch : TM frontend [79475d] »; always write the reference. Gauge:
   `context-gauge.sh`, its `context_percent=` and `source=` lines in every report. Context gate 80 %, exit ~75 %
   (the brief's dated line of 2026-09-29).
-- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 5c · 5d · 6a · 6b · 7 · 8 · 9 · 10 · 11 · 12a · 12b · 13 — each gated, pushed. MIDPOINT read. **Next: 14**
-  (`plan/phase-14-ranking-editor-reads.md`), not opened — its STOP D is known (no read of a config file's content).
-- **Remaining** (from `ls plan/`): 14 · 15 · 16 · 17.
-  Known STOP D: 14 (no read of a config file's content in the maquette's contract). (ratio cause = global `ingest.min_ratio`; the seed),
+- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 5c · 5d · 6a · 6b · 7 · 8 · 9 · 10 · 11 · 12a · 12b · 13 · 14a — each gated, pushed. MIDPOINT read. **Next: 14b**
+  (RULINGS 11: B-298's two sites — the settings rubric `features/settings/page.tsx` gets its path to
+  `/settings/ranking`, the quality screen's `rankingToast` (`features/releases/quality-screen.tsx`) is replaced by
+  that path —, `screen_addresses.py`'s walk, `ranking-editor-loading` / `-error`, B-298 closed with its mutation).
+- **Remaining** (from `ls plan/`): 14b · 15 · 16 · 17.
+  Known STOP D: none left in the plan. (ratio cause = global `ingest.min_ratio`; the seed),
   14 (no read of a config file's content in the maquette's contract).
 - **Rulings** (`RULINGS.md`) 1 `?list=` · 2 C2, save bar via `lib/save-bar-door.tsx` · 3 B, the filter line · 4 B1,
   Lanterns's sheet from its NFO + R1 bis · 5 B, `poseArrived` (Zinzins end to end) · 6 B, `poseExternalRemoval` (Ted Lasso) · 7 posed dials replace composed seeds
-  (STANDING: announce, no STOP, unless no real subject or a product behaviour changes) · 8 A, « Vu » · 9 the sheet reads « Veille »; L22's note to phase 17 · 10 A, the tracker's own threshold (a demand).
+  (STANDING: announce, no STOP, unless no real subject or a product behaviour changes) · 8 A, « Vu » · 9 the sheet reads « Veille »; L22's note to phase 17 · 10 A, the tracker's own threshold (a demand) · 11 A, `readConfigurationFile` + the real ranking.json5.
 - **Rules** R260 `trackers_page.py` · R261 `trackers_roster.py` (holds 1–17) · R262 `trackers_policy.py` · R263
-  `trackers_removal.py` (21, holds 1–10); R122 reads `torrents/row`; `audit.py` 14 holds; R229 re-aimed at 5d (16 holds); R264 `trackers_alert.py` (27, holds 1–11); R91 `fanout.py` 170; R265 `deferred_reason.py` (16, holds 1–6).
+  `trackers_removal.py` (21, holds 1–10); R122 reads `torrents/row`; `audit.py` 14 holds; R229 re-aimed at 5d (16 holds); R264 `trackers_alert.py` (27, holds 1–11); R91 `fanout.py` 170; R265 `deferred_reason.py` (16, holds 1–6); R266 `ranking_editor.py` (22, the read half).
   Next labels: · f R266 (14) · e R267 (16); cuts R268+. Register B-570 taken (check-live-relay's
   constant-key blind spot, `open`); next B-571.
 - **Gate** (office § The gate): static list = CI's no-french job AND run.sh's 26 cheap guards (the scratchpad
   `static.sh` reads them from `REPOSITORY_GUARDS`; a 12b spread escaped a narrower list) → `run.sh --oracle` alone → accept with
   `bash -c 'run.sh --oracle; oracle.py --accept'` + `tools/accept_by_name.py <declared.json>` (declared BY SCRIPT
   from `states/*.ts`) → `run.sh --rules` (`--class rule`) → `--a11y` if it draws. The static list AGAIN after any
-  harness edit. `test_oracle.py` pinned 154 states / 38 regions. Maquette vitest: `vitest run --root
+  harness edit. `test_oracle.py` pinned 155 states / 38 regions. Maquette vitest: `vitest run --root
   frontend/maquette/design` (from the root it runs the production app's tests).
 - **B-554 list** the 25 `shell/dialog` readers = `p06b-declared.json`'s (reused at 7, identical).
 - **Order 73** a rule red 3× in a row for a non-product reason → a register row naming its MECHANISM before READY,
   or the rule leaves the gates and the row stays open (entry/pwa excluded: the router hairpin, a train's).
+- **Git** the index lock is sometimes held by a concurrent reader (a session hook): `git add` then `git commit
+  -F <file>` with a bounded retry; never delete the lock.
 - **Size watch** `mocks/handlers/staging.ts` 399, `mocks/index.ts` 399 (ceiling 400): no new line there.
 - **Order 52** harness/product added 0.51 at 5b. `data-mediasheet` added ⇒ `audit.py` at the gate; `ui/dialog`
   touched ⇒ its 13 readers. A new dialog moves `shell/dialog` on ~24 later states (B-554); `.warnbox > b` fails light.
@@ -324,3 +328,18 @@
   FAMILY: every cheap guard of the tier — the static list now runs all 26 (`p13-contracts.log` red,
   `p13-contracts2.log` green). Fixed by two writes (`03e148b51`); R265 16 · R260 27 · default_tab 16 green.
   Oracle alone: no divergence (154 × 38).
+- 2026-09-29 — phase 14 opening ≈ 19 → STOP D (the content read absent) → RULINGS 11 = A; cut 14a/14b.
+- 2026-09-29 — 14a: `readConfigurationFile` + `ConfigurationFileContent` declared; seed `configuration-files.json` =
+  the operator's `ranking.json5` (9 criteria), provenance in fixture-register; `mocks/configuration-files.ts` (held
+  per layer state) + the route; `/settings/ranking` (`routes/ranking.tsx`, router tree, SCREEN_PARENTS → cfg,
+  `__screens.ranking`); `features/settings/ranking-screen.tsx` lists field, scoring, weight from the file; state
+  `ranking-editor`; the settings exemption names the file's key; conformance test's known `name` → `ranking.json5`
+  (said out loud); frame-domain app/ 152 → 153; words criteria, editor, ranking, scoring. METHOD SLIP: the move
+  was written BEFORE R266 — its red was then read on HEAD with the route unplugged (`p14a-red.log`: « one row per
+  criterion … — [] against [9] »), a first try restoring the parent's files broke the build (no verdict) and a
+  zsh unsplit variable made an earlier try run on HEAD (R266 crashed there on a string threshold « 1GB », fixed).
+- 2026-09-29 — 14a gate: 28 static checks green, typecheck 0, vitest green. Oracle alone: `ranking-editor` only, 0
+  key moved, proved; `test_oracle.py` 154 → 155. Rules R266 22 · settings 68 · settings_editing 15 · page_host 42 ·
+  url_state 106 (it reads the new screen address) · screen_addresses 61, 0 failed; a11y dark 0, light 88. Mutation:
+  a constant list (one criterion, weight 1) → FAIL « one row per criterion of the file … — ['resolution'] against
+  [9] » (`p14a-mutation1.log`).

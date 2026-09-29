@@ -79,3 +79,10 @@ The steward's rulings on this lot's STOPs, numbered, one per STOP. The operator'
     contract's descriptions (the contract carries no `x-demand` key; its demands live in descriptions, the
     `Download` precedent), never drawn around; the threshold mutation is kept. Cut 12a / 12b approved; the
     path is `?list=` (RULINGS 1). No real card is deferred: `poseDeferral` announced under RULINGS 7.
+11. **2026-09-29, phase 14, STOP D (known) — no read of a config file's content.** The maquette's contract
+    declared `/api/config/files/{name}` as a `put` alone; the plan read `readConfigurationFiles` (names only)
+    as answering a file's content. **Ruled A**: `readConfigurationFile` is declared — a hole in the contract,
+    not a demand (the backend answers it, `FileContent`); its seed is the operator's REAL `ranking.json5`,
+    read read-only (no key, token or secret in it — the steward checked), its path and date of reading in
+    the fixture register. Cut 14a (the read, the screen, R266's read half) / 14b (B-298's two sites, the
+    screen walk, loading/error states, B-298's closure).

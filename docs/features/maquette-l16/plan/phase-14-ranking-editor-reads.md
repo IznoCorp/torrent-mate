@@ -43,6 +43,10 @@ the quality screen's toast — B-298's own two symptoms — close in this same c
 A BEHAVIOUR change: two existing sites (a rubric that leads nowhere, a toast promising a screen) both
 resolve to a real screen that reads a real file, in this one phase.
 
+- **2026-09-29, corrected:** `readConfigurationFiles` lists NAMES; the content read is `readConfigurationFile`,
+  declared at 14a (RULINGS 11); the screen lives in `features/settings/ranking-screen.tsx` (no new feature name);
+  R-L16-f = R266 `ranking_editor.py`; served as 14a / 14b.
+
 ## The proof FIRST
 
 Its label R-L16-f is bound to the next free number, re-taken against `origin/main`.
