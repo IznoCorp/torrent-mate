@@ -950,6 +950,31 @@ third event; the five open questions are ruled, each amended into the design in 
 phases, mean ≈ 7.8); five open questions, none chosen — the design states each one's two readings and
 their cost, and no phase depending on one opens before the operator rules it.
 
+#### L24 — the orphans, what no lot draws · *depends on L22, L20, L16, L18*
+
+**Objective.** What the mission of 2026-08-19 says must be redrawn and no lot names: production's « Décisions » tab
+(the journal of every decision, every state), Contrôle's two panels — « Santé », measured drawn in substance on
+Système (R67) save each section saying its own read failed, and « Activité scraping », read per medium on the card —
+the former production addresses `/control`, `/pipeline` and their siblings, which reach the maquette on the day of
+the switchover; the seven owed halves of the map's `partly` rows whose owner has merged (DOIT-1, 5, 7, 9, 11 and
+NE-DOIT-PAS-1 — L19; NE-DOIT-PAS-6 — L15); and DOIT-9's desktop half (« pleinement fonctionnel »). One surface for
+DOIT-7 (a doubted match sent to arbitration, `enqueue`), six proofs for the rest.
+
+**Where it lives (invariant 10).** `features/acquisition/` (the journal as a screen — or Système's history, OPEN 1 —
+and the journey sheet's third act); `features/system/` (the failed sections, and the badge or the « en ce moment »
+row if ruled); a table of former addresses in `lib/`, beside `lib/addresses.ts` (395 non-blank lines of 400), read by
+`destinationOf` before the not-found fall.
+
+**Done when.** Every production route answers a maquette page or a named successor; the journal lists every decision
+with its state and its exit; a Système section whose read failed says so; a resolution opened on a medium with no
+decision arrives with candidates; the seven rows' owed halves are proved by a rule each, and their new reading is
+proposed to the operator; every named state holds at a desktop width; the six open questions are ruled, each amended
+into the design in one line.
+
+**Design and plan written 2026-09-29, on `e65130ab1`** — `docs/features/maquette-l24/DESIGN.md`, `plan/INDEX.md` (19
+phases, 159 points at the larger reading of each open question, mean ≈ 8.4); six open questions, none chosen, four of
+them meeting a ruling already written (organisation ruling 12, D12 and § 20 point 3, the language rule, L22's ladder).
+
 ### Phase 6 — The finish
 
 #### L13 — The engine's residue · *depends on L07, L09, L12, L15, L19*
