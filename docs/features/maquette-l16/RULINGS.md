@@ -72,3 +72,10 @@ The steward's rulings on this lot's STOPs, numbered, one per STOP. The operator'
    by name. (2) The plan's dated line in L22's DESIGN cannot land: `docs/features/maquette-l22/` died at
    #627. **Ruled**: a ledger line and a dated line in phase 11's plan; phase 17 carries it, the steward
    brings it to L16's closing docs pull request if needed.
+10. **2026-09-29, phase 12, STOP D (known) — the engine defers on the GLOBAL threshold.**
+    `personalscraper/ingest/deferral.py:73` reads `config.ingest.min_ratio`; the plan's opening measure said
+    the obligation's own. **Ruled A**: the maquette draws the next version — the card names the tracker and
+    THAT tracker's own threshold (DESIGN § 4.6); the engine's limit is RECORDED as a demand in the
+    contract's descriptions (the contract carries no `x-demand` key; its demands live in descriptions, the
+    `Download` precedent), never drawn around; the threshold mutation is kept. Cut 12a / 12b approved; the
+    path is `?list=` (RULINGS 1). No real card is deferred: `poseDeferral` announced under RULINGS 7.

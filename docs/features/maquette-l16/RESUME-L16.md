@@ -8,23 +8,23 @@
 - **Orchestrator** « Orch : TM frontend [79475d] »; always write the reference. Gauge:
   `context-gauge.sh`, its `context_percent=` and `source=` lines in every report. Context gate 80 %, exit ~75 %
   (the brief's dated line of 2026-09-29).
-- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 5c · 5d · 6a · 6b · 7 · 8 · 9 · 10 · 11 — each gated, pushed. MIDPOINT read. **Next: 12**
-  (`plan/phase-12-card-deferred-reason.md`), not opened — its STOP D is known (see below).
-- **Remaining** (from `ls plan/`): 12 · 13 · 14 · 15 · 16 · 17.
-  Known STOP D: 12 (ratio cause = global `ingest.min_ratio`; the seed),
+- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 5c · 5d · 6a · 6b · 7 · 8 · 9 · 10 · 11 · 12a — each gated, pushed. MIDPOINT read. **Next: 12b**
+  (« Voir le tracker », the path `?list=trackers&tracker=`, its finger and the path + threshold mutations).
+- **Remaining** (from `ls plan/`): 12b · 13 · 14 · 15 · 16 · 17.
+  Known STOP D: (ratio cause = global `ingest.min_ratio`; the seed),
   14 (no read of a config file's content in the maquette's contract).
 - **Rulings** (`RULINGS.md`) 1 `?list=` · 2 C2, save bar via `lib/save-bar-door.tsx` · 3 B, the filter line · 4 B1,
   Lanterns's sheet from its NFO + R1 bis · 5 B, `poseArrived` (Zinzins end to end) · 6 B, `poseExternalRemoval` (Ted Lasso) · 7 posed dials replace composed seeds
-  (STANDING: announce, no STOP, unless no real subject or a product behaviour changes) · 8 A, « Vu » · 9 the sheet reads « Veille »; L22's note to phase 17.
+  (STANDING: announce, no STOP, unless no real subject or a product behaviour changes) · 8 A, « Vu » · 9 the sheet reads « Veille »; L22's note to phase 17 · 10 A, the tracker's own threshold (a demand).
 - **Rules** R260 `trackers_page.py` · R261 `trackers_roster.py` (holds 1–17) · R262 `trackers_policy.py` · R263
-  `trackers_removal.py` (21, holds 1–10); R122 reads `torrents/row`; `audit.py` 14 holds; R229 re-aimed at 5d (16 holds); R264 `trackers_alert.py` (27, holds 1–11); R91 `fanout.py` 170.
-  Next labels: g R265 (12) · f R266 (14) · e R267 (16); cuts R268+. Register B-570 taken (check-live-relay's
+  `trackers_removal.py` (21, holds 1–10); R122 reads `torrents/row`; `audit.py` 14 holds; R229 re-aimed at 5d (16 holds); R264 `trackers_alert.py` (27, holds 1–11); R91 `fanout.py` 170; R265 `deferred_reason.py` (12, 12a).
+  Next labels: · f R266 (14) · e R267 (16); cuts R268+. Register B-570 taken (check-live-relay's
   constant-key blind spot, `open`); next B-571.
 - **Gate** (office § The gate): static list (`check-no-french`, css-tokens, compositor, tailwind, markup-contracts,
   boundaries, `oracle.py --contracts`, + frame-domain, mock-seeds) → `run.sh --oracle` alone → accept with
   `bash -c 'run.sh --oracle; oracle.py --accept'` + `tools/accept_by_name.py <declared.json>` (declared BY SCRIPT
   from `states/*.ts`) → `run.sh --rules` (`--class rule`) → `--a11y` if it draws. The static list AGAIN after any
-  harness edit. `test_oracle.py` pinned 151 states / 38 regions. Maquette vitest: `vitest run --root
+  harness edit. `test_oracle.py` pinned 154 states / 38 regions. Maquette vitest: `vitest run --root
   frontend/maquette/design` (from the root it runs the production app's tests).
 - **B-554 list** the 25 `shell/dialog` readers = `p06b-declared.json`'s (reused at 7, identical).
 - **Order 73** a rule red 3× in a row for a non-product reason → a register row naming its MECHANISM before READY,
@@ -288,3 +288,17 @@
   NOTE FOR PHASE 17: L22's DESIGN § 1.7 (`docs/features/maquette-l22/DESIGN.md@232a908ca`, l. 258) should read
   « the panel's ratio facts leave at L16 (§ 18, phase 10) » — its folder died at #627. Slip: a gauge figure
   written into a STOP message before it was measured (the measure then read the same 46).
+- 2026-09-29 — phase 12 opening ≈ 16 → STOP D (the engine's global threshold) → RULINGS 10 = A; cut 12a/12b.
+  Card readers GREEN before (`p12-readers-before.log`): follow_offered 16 · set_aside_is_later 13 · plex_match 15 ·
+  one_ladder 40 · cards 78 · content 27 · requester_line 14 · card_without_identity 13 · todo_holds 11.
+- 2026-09-29 — 12a: R265 `deferred_reason.py` RED (`p12a-red.log`, 10 FAIL). A deferral is BEFORE « arrivé »: the
+  first subjects (Curtis, Furious) were already in staging — re-aimed before the move onto « This City Is Ours »,
+  the one card of « En vol » not arrived, all three causes posed on it. The move: `JourneyStage.tracker` /
+  `.minimumRatio` (demands in their descriptions), types and register regenerated (`--check` 0); the reason's
+  sentence takes the tracker and its own threshold (`Intl.NumberFormat(i18next.language)`); `poseDeferral` in
+  `mocks/handlers/posed-deferral.ts` (the threshold read from the tracker's economy block, c411 = 1, the global
+  `ingest.min_ratio` = 0); three states in `tunnel.ts`; words `cause`, `deferral`, `deferred`.
+- 2026-09-29 — 12a gate: static 10/10, typecheck 0. Oracle alone: the 3 new states only, 0 key moved, proved;
+  `test_oracle.py` 151 → 154. Rules R265 12 and the nine card readers AFTER, the same counts, 0 failed; a11y dark 0,
+  light 88. Mutation: every cause drawn as « space » → FAIL « « This City Is Ours » says it is deferred, « Différé :
+  le ratio sur … » » (`p12a-mutation1.log`).
