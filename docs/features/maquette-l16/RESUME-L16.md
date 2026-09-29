@@ -8,16 +8,16 @@
 - **Orchestrator** « Orch : TM frontend [79475d] »; always write the reference. Gauge:
   `context-gauge.sh`, its `context_percent=` and `source=` lines in every report. Context gate 80 %, exit ~75 %
   (the brief's dated line of 2026-09-29).
-- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 5c · 5d · 6a · 6b · 7 · 8 · 9 · 10 · 11 · 12a — each gated, pushed. MIDPOINT read. **Next: 12b**
-  (« Voir le tracker », the path `?list=trackers&tracker=`, its finger and the path + threshold mutations).
-- **Remaining** (from `ls plan/`): 12b · 13 · 14 · 15 · 16 · 17.
+- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 5c · 5d · 6a · 6b · 7 · 8 · 9 · 10 · 11 · 12a · 12b — each gated, pushed. MIDPOINT read. **Next: 13**
+  (`plan/phase-13-ranking-contract.md`), not opened — re-measure it on this head.
+- **Remaining** (from `ls plan/`): 13 · 14 · 15 · 16 · 17.
   Known STOP D: (ratio cause = global `ingest.min_ratio`; the seed),
   14 (no read of a config file's content in the maquette's contract).
 - **Rulings** (`RULINGS.md`) 1 `?list=` · 2 C2, save bar via `lib/save-bar-door.tsx` · 3 B, the filter line · 4 B1,
   Lanterns's sheet from its NFO + R1 bis · 5 B, `poseArrived` (Zinzins end to end) · 6 B, `poseExternalRemoval` (Ted Lasso) · 7 posed dials replace composed seeds
   (STANDING: announce, no STOP, unless no real subject or a product behaviour changes) · 8 A, « Vu » · 9 the sheet reads « Veille »; L22's note to phase 17 · 10 A, the tracker's own threshold (a demand).
 - **Rules** R260 `trackers_page.py` · R261 `trackers_roster.py` (holds 1–17) · R262 `trackers_policy.py` · R263
-  `trackers_removal.py` (21, holds 1–10); R122 reads `torrents/row`; `audit.py` 14 holds; R229 re-aimed at 5d (16 holds); R264 `trackers_alert.py` (27, holds 1–11); R91 `fanout.py` 170; R265 `deferred_reason.py` (12, 12a).
+  `trackers_removal.py` (21, holds 1–10); R122 reads `torrents/row`; `audit.py` 14 holds; R229 re-aimed at 5d (16 holds); R264 `trackers_alert.py` (27, holds 1–11); R91 `fanout.py` 170; R265 `deferred_reason.py` (16, holds 1–6).
   Next labels: · f R266 (14) · e R267 (16); cuts R268+. Register B-570 taken (check-live-relay's
   constant-key blind spot, `open`); next B-571.
 - **Gate** (office § The gate): static list (`check-no-french`, css-tokens, compositor, tailwind, markup-contracts,
@@ -302,3 +302,15 @@
   `test_oracle.py` 151 → 154. Rules R265 12 and the nine card readers AFTER, the same counts, 0 failed; a11y dark 0,
   light 88. Mutation: every cause drawn as « space » → FAIL « « This City Is Ours » says it is deferred, « Différé :
   le ratio sur … » » (`p12a-mutation1.log`).
+- 2026-09-29 — 12b: R265 holds 5–6 RED (`p12b-red.log`, 2 FAIL). The move: « Voir le tracker » at the foot of a card
+  whose rung stands on a ratio deferral — `data-go="trackers"`, `data-dial="trackers:<tracker>"` — read by the
+  Trackers page's own landing door (tab, then the tracker whose entry opens); no import across features. Hold 6
+  RE-AIMED OUT LOUD before the gate: it read `list=trackers` on the address, but the « Trackers » tab is the default
+  and never written (`lib/addresses.ts:141`) — it reads the tab selected, no `list=torrents`, `tracker=c411`. Name
+  `feet` refused by the vocabulary arm → `footOptions`.
+- 2026-09-29 — 12b gate: static 10/10, typecheck 0. Oracle alone: `acq-card-deferred-ratio` on (acquisition/body,
+  shell/page), the foot's line, declared by script, proved. Rules R265 16 · cards 78 · follow_offered 16 · R260 27 ·
+  R262 14 · url_state 103 · default_tab 16, 0 failed; a11y dark 0, light 88. Mutations: the path dropped, the words
+  kept → FAIL « a finger on « Voir le tracker » lands on the Trackers tab … — {'path': '/' …} »; the global
+  `ingest.min_ratio` read instead → FAIL « it names c411 and its own threshold 1, never the global 0 — '… seuil de
+  0.' » (`p12b-mutation1–2.log`).
