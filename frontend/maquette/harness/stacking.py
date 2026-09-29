@@ -35,7 +35,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import Journal, open_page
+from common import Journal, open_page, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -60,7 +60,7 @@ AT = """([selector, fraction]) => {
 async def main():
     journal = Journal("R101 — one ranked order, and the top layer answers the finger")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         context, page = await open_page(browser)
         errors: list[str] = []
         page.on("pageerror", lambda error: errors.append(str(error)))

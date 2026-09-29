@@ -26,6 +26,7 @@ import shutil
 import sys
 import tempfile
 
+from common import chrome_launch_args
 from playwright.async_api import async_playwright
 from server import start_server
 
@@ -66,7 +67,7 @@ async def main():
         running = json.loads(stamp.read_text())["build"]
 
         async with async_playwright() as playwright:
-            browser = await playwright.chromium.launch(channel="chrome")
+            browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
             context = await browser.new_context(**PHONE)
             page = await context.new_page()
             loads = []

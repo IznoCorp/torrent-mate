@@ -32,7 +32,7 @@ import pathlib
 import re
 import sqlite3
 
-from common import Journal, open_page
+from common import Journal, open_page, chrome_launch_args
 from playwright.async_api import async_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -71,7 +71,7 @@ async def main():
     _journal = Journal("R63 — what a card says")
 
     async with async_playwright() as p:
-        b = await p.chromium.launch(channel="chrome")
+        b = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
         ctx, pg = await open_page(b)
         errors = []
         pg.on("pageerror", lambda e: errors.append(str(e)))

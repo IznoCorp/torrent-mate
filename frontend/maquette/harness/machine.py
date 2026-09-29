@@ -35,7 +35,7 @@ import pathlib
 import subprocess
 import sys
 
-from common import Journal, open_page
+from common import Journal, open_page, chrome_launch_args
 from playwright.async_api import async_playwright
 
 # THE TREE THIS FILE LIVES IN, never a path typed out. It read
@@ -420,7 +420,7 @@ async def main():
     journal = Journal("R67 — Système is the machine, Maintenance is what one does to it")
 
     async with async_playwright() as p:
-        b = await p.chromium.launch(channel="chrome")
+        b = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
         ctx, pg = await open_page(b)
         errors = []
         pg.on("pageerror", lambda e: errors.append(str(e)))

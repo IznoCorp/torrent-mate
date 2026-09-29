@@ -91,7 +91,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, PROTOTYPE, Journal, open_page
+from common import PHONE, PROTOTYPE, Journal, open_page, chrome_launch_args
 
 # The press must be held longer than the arbitration's own delay for the timer
 # to fire at all. Read from the page rather than re-typed — see the docstring's
@@ -731,7 +731,7 @@ async def hold(journal):
     """Drives the two halves under a real finger and a real mouse."""
     errors = []
     async with async_playwright() as play:
-        browser = await play.chromium.launch(channel="chrome")
+        browser = await play.chromium.launch(channel="chrome", args=chrome_launch_args())
         await hold_the_tolerance(journal, browser)
         await hold_the_pull_threshold(journal, browser)
         await hold_the_swallow_is_by_point(journal, browser)

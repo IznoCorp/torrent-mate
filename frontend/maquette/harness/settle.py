@@ -73,7 +73,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, Journal, open_page
+from common import PHONE, Journal, open_page, chrome_launch_args
 
 # What `oracle.py` gives the signal before it goes on without it. Named here so
 # the two cannot drift silently: a rule that measured a latency ABOVE this
@@ -103,7 +103,7 @@ PROBE_ADDRESS = "/api/library/categories"
 async def hold(journal):
     """Exercises the quiet signal against real requests."""
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         _context, page = await open_page(browser, **PHONE)
         # R93 collects these and this rule did not. An uncaught exception
         # thrown inside the delivery path is reported to the page and was

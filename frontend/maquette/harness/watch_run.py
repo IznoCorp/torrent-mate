@@ -32,7 +32,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, Journal, PANEL_IN, SETTLED, open_page
+from common import ACTED, Journal, PANEL_IN, SETTLED, open_page, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -168,7 +168,7 @@ async def main():
     journal = Journal("R180 — DOIT-6: the veille says what it found, from either "
                       "place it is asked")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         context, page = await open_page(browser)
 
         # IDLE — THE LAST VEILLE, FROM THE HISTORY. The block at rest says when

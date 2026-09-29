@@ -48,7 +48,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, PANEL_IN, SETTLED, Journal, open_page
+from common import ACTED, PANEL_IN, SETTLED, Journal, open_page, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -176,7 +176,7 @@ async def main():
     """Walks every writer of the listing's question over a selection."""
     journal = Journal("R195 — the selection survives every change of what the listing shows")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         context, page = await open_page(browser)
         errors: list[str] = []
         page.on("pageerror", lambda error: errors.append(str(error)))

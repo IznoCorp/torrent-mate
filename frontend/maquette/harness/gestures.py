@@ -49,7 +49,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, PROTOTYPE, Journal, open_page
+from common import PHONE, PROTOTYPE, Journal, open_page, chrome_launch_args
 
 # The band widths the gestures declare, so a rule and a variant read one number
 # rather than two spellings of it.
@@ -548,7 +548,7 @@ async def hold(journal):
     """Drives both gestures on a phone frame."""
     errors = []
     async with async_playwright() as play:
-        browser = await play.chromium.launch(channel="chrome")
+        browser = await play.chromium.launch(channel="chrome", args=chrome_launch_args())
         await hold_the_drawer(journal, browser)
         await hold_the_sheet(journal, browser)
         await hold_the_close_is_never_painted_open(journal, browser)

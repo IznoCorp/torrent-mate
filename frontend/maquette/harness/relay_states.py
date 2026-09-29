@@ -70,7 +70,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, Journal, open_page
+from common import PHONE, Journal, open_page, chrome_launch_args
 
 # The word each condition draws in the header. Read off `i18n/fr.json`, never
 # guessed: a first version of R90's own list invented two state ids that did not
@@ -202,7 +202,7 @@ async def read_condition(page, state):
 async def hold(journal):
     """Drives every drawn condition and reads what a reader would see."""
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome")
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         context, page = await open_page(browser, **PHONE)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))

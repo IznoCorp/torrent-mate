@@ -96,6 +96,7 @@ from common import (
     PAGE_PATHS,
     PHONE,
     PROTOTYPE,
+    chrome_launch_args,
 )
 from playwright.async_api import async_playwright
 
@@ -198,7 +199,7 @@ async def main():
     journal = Journal("R82 — Back retraces the path taken")
 
     async with async_playwright() as p:
-        b = await p.chromium.launch(channel="chrome")
+        b = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
 
         # ── 1. the floor under a page opened cold ──────────────────────────
         # The entry beneath a top-level page is the home page's own, so one

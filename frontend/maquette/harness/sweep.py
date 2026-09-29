@@ -1,7 +1,7 @@
 """A sweep across every state, looking for what stopped rendering."""
 
 import asyncio
-from common import shot
+from common import shot, chrome_launch_args
 from playwright.async_api import async_playwright
 
 # The LABEL is a name this tool prints and now also writes as a capture's file
@@ -20,7 +20,7 @@ VIEWS = [("acq/now",'[data-page="acq"]'), ("acq/follows",'[data-acqtab="follows"
 
 async def main():
   async with async_playwright() as p:
-    b=await p.chromium.launch(channel="chrome")
+    b=await p.chromium.launch(channel="chrome", args=chrome_launch_args())
     ctx=await b.new_context(viewport={"width":390,"height":844},device_scale_factor=2,is_mobile=True,has_touch=True)
     pg=await ctx.new_page(); errs=[]
     pg.on("pageerror", lambda e: errs.append(str(e)))
