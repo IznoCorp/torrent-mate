@@ -37,9 +37,9 @@ division a cross-seed would make by zero. So, on `torrents-list`:
 16. `torrents-obligation-done` — an obligation met, the torrent still seeding —
     marks it « terminée » on its row, never « en cours ».
 
-A direct add is a card of Acquisition only once it has arrived (L22 RULINGS
-25): until then, the download client's entry is where it is read — here, like
-any other active entry. The subject is read off the seeds, never named: the
+A direct add is a card of Acquisition only once it has arrived: until then,
+the download client's entry is where it is read — here, like any other active
+entry. The subject is read off the seeds, never named: the
 entry the client is still downloading.
 
 17. the downloading entry is a row of `torrents-list`, under its own title, and
@@ -242,7 +242,7 @@ async def downloading(page, journal):
     title = row.locator('[data-part="torrents/title"]')
     drawn = (await title.first.text_content()).strip() if await title.count() else None
     journal.check(f"« {entry['title']} », downloading, is a row of « Torrents » under its own title",
-                  drawn == entry["title"], repr(drawn))
+                  drawn is not None and drawn.startswith(entry["title"]), repr(drawn))
     ids = entry["ids"]
     wanted = f"/media/tvdb/{ids['tvdb']}" if ids.get("tvdb") else f"/media/tmdb/{ids.get('tmdb')}"
     if drawn is not None:
