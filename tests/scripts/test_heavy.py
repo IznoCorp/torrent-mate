@@ -1221,3 +1221,46 @@ def test_two_short_runs_queue_behind_each_other_not_behind_the_browser_holder(tm
     finally:
         holder.terminate()
         holder.wait(timeout=15)
+
+
+def test_the_holder_reports_its_own_total_preempted_time_on_exit(tmp_path: Path) -> None:
+    """THE KNOWN LIMIT, MADE VISIBLE: a SIGSTOPped process's own wall-clock waits keep counting down.
+
+    Nothing outside the holder's process can add back the seconds a `timeout(1)`
+    wrapper or a Playwright deadline lost while frozen — a rule preempted for
+    long enough can surface a timeout the instant it resumes, for a pause, not
+    a hang. What this proves: the holder's own exit line names how long it was
+    preempted, so a reader can tell the two apart.
+    """
+    lock = tmp_path / "holder"
+    holder_hb = tmp_path / "holder_heartbeat"
+    holder_hb.write_text("")
+    short_hb = tmp_path / "short_heartbeat"
+    short_hb.write_text("")
+
+    holder = subprocess.Popen(
+        ["sh", str(SCRIPT), "--class", "browser", "browser-holder", "sh", "-c", _HEARTBEAT_LOOP.format(n=30)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=_classed_env(tmp_path, lock, HB=str(holder_hb)),
+    )
+    try:
+        assert _wait_until(lambda: holder_hb.stat().st_size > 0, timeout=15), "the holder never started"
+
+        short_run = subprocess.run(
+            ["sh", str(SCRIPT), "--class", "test", "short-run", "sh", "-c", _HEARTBEAT_LOOP.format(n=15)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=_classed_env(tmp_path, lock, HB=str(short_hb)),
+        )
+        assert short_run.returncode == 0, short_run.stdout + short_run.stderr
+
+        holder_stderr = holder.communicate(timeout=20)[1]
+        assert "preempted for" in holder_stderr, holder_stderr
+        assert "not a hang" in holder_stderr, holder_stderr
+    finally:
+        if holder.poll() is None:
+            holder.terminate()
+            holder.wait(timeout=15)

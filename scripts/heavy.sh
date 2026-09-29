@@ -188,6 +188,25 @@ heavy_resume_tree() {
     done
 }
 
+# A SIGSTOPped process's own wall-clock waits (a `timeout(1)` wrapper's alarm,
+# Playwright's navigation timeout, anything measuring elapsed real time rather
+# than CPU time) keep counting down while it is frozen — the kernel's real-time
+# timers are not paused by SIGSTOP, only the process's own execution is. A rule
+# preempted for long enough can therefore surface a timeout error the instant
+# it resumes, for a pause, not a hang. This cannot be fixed from outside the
+# process without cooperation from every tool it might run — a rule's own
+# `page.goto(timeout=…)` cannot be told to add back the frozen seconds. What IS
+# done: every preemption's length is appended here, beside the lock, so the
+# holder's OWN log line at exit says how long it was paused and by how much —
+# the fact a reader needs to tell a real hang from an artifact of this guard.
+heavy_log_preemption() {
+    [ -d "$LOCK" ] && printf '%s\n' "$1" >> "$LOCK/preempted_seconds" 2>/dev/null || true
+}
+
+heavy_total_preempted_seconds() {
+    [ -f "$LOCK/preempted_seconds" ] && awk '{sum += $1} END {print sum + 0}' "$LOCK/preempted_seconds" || echo 0
+}
+
 free_megabytes() {
     # macOS first, then Linux, and NOTHING when neither answers. A wrapper that
     # runs on one operating system is a wrapper the repository's own CI cannot
@@ -313,13 +332,14 @@ if [ "$RUN_CLASS" = "rule" ] || [ "$RUN_CLASS" = "test" ]; then
                 "$@" &
                 preempt_child=$!
                 set +m
-                trap 'heavy_resume_tree "$holder_child"; kill -TERM -"$preempt_child" 2>/dev/null || kill -TERM "$preempt_child" 2>/dev/null; rm -rf "$PREEMPT_LOCK"; exit 130' INT TERM
+                trap 'heavy_log_preemption "$(($(date +%s) - preempt_started))"; heavy_resume_tree "$holder_child"; kill -TERM -"$preempt_child" 2>/dev/null || kill -TERM "$preempt_child" 2>/dev/null; rm -rf "$PREEMPT_LOCK"; exit 130' INT TERM
 
                 while kill -0 "$preempt_child" 2>/dev/null; do
                     sleep 1
                     if [ "$preempt_resumed" -eq 0 ] &&
                         [ "$(($(date +%s) - preempt_started))" -ge "$PREEMPT_CAP_SECONDS" ]; then
                         echo "heavy: $WHO past ${PREEMPT_CAP_SECONDS}s — resuming $holder_name early, waits as normal from here" >&2
+                        heavy_log_preemption "$(($(date +%s) - preempt_started))"
                         heavy_resume_tree "$holder_child"
                         preempt_resumed=1
                     fi
@@ -328,6 +348,7 @@ if [ "$RUN_CLASS" = "rule" ] || [ "$RUN_CLASS" = "test" ]; then
                 preempt_status=$?
                 if [ "$preempt_resumed" -eq 0 ]; then
                     echo "heavy: $WHO done — resuming $holder_name" >&2
+                    heavy_log_preemption "$(($(date +%s) - preempt_started))"
                     heavy_resume_tree "$holder_child"
                 fi
                 trap - INT TERM EXIT
@@ -527,5 +548,10 @@ done
 
 wait "$child"
 status=$?
-echo "heavy: $WHO done (exit $status)" >&2
+preempted_total=$(heavy_total_preempted_seconds)
+if [ "$preempted_total" -gt 0 ] 2>/dev/null; then
+    echo "heavy: $WHO done (exit $status) — preempted for ${preempted_total}s total by short run(s); a timeout right after a pause may be an artifact of it, not a hang" >&2
+else
+    echo "heavy: $WHO done (exit $status)" >&2
+fi
 exit $status
