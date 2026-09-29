@@ -62,8 +62,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[3]
 # it deserves is stated here instead, once, and a disagreement is a defect —
 # whichever side wandered.
 VOCABULARY = {
-    "success": {"en ligne", "à l'heure", "réussi", "connecté", "joignable",
-                "disponibles", "de la place", "aucune"},
+    "success": {"à l'heure", "réussi", "joignable", "de la place", "aucune"},
     "alert": {"hors ligne", "en retard", "échoué", "des erreurs"},
     "warning": {"bientôt plein", "à nettoyer"},
 }
@@ -304,9 +303,20 @@ async def declared_tones(page, source):
     except Exception:  # noqa: BLE001 — a source that never arrives is a verdict
         return None, "never answered"
     try:
-        return await page.evaluate(f"()=>{source}.map((x) => x.tone)"), None
+        return await page.evaluate(f"(codes)=>{source}.map((x) => x.state ? codes[x.state] : x.tone)",
+                                   CODE_TONE), None
     except Exception:  # noqa: BLE001 — it answered, and with the wrong thing
         return None, "answered with something that is not a list of facts"
+
+
+# THE TONE A STATE CODE DECLARES. RE-AIMED: the seeds carry a state CODE now,
+# not a word and a colour (the operator's ruling — one word per state, from the
+# interface's vocabulary), so the declared tone of a coded row is its code's,
+# stated here once as the word-to-tone table above is; a row with no code is a
+# quantity and declares its own.
+CODE_TONE = {"reachable": "success", "on_time": "success", "room": "success", "succeeded": "success",
+             "none": "success", "nearly_full": "warning", "to_clean": "warning", "offline": "alert",
+             "late": "alert"}
 
 
 # WHAT « Système » DRAWS FOR EACH PROCESS THE MACHINE RUNS — the join, and the
@@ -489,8 +499,9 @@ async def main():
                          all("dernier passage" in x["s"]
                              for x in (sys_view["schedulers"] or [])),
                          str([x["s"][:40] for x in (sys_view["schedulers"] or [])]))
+        # RE-AIMED: « en ligne » became the one word for a reachable state.
         journal.check("a service is judged on whether it RUNS",
-                         all("ligne" in x["v"] for x in (sys_view["services"] or [])),
+                         all(x["v"] in ("joignable", "hors ligne") for x in (sys_view["services"] or [])),
                          str([x["v"] for x in (sys_view["services"] or [])]))
 
         # 3. Everything shown really runs.
