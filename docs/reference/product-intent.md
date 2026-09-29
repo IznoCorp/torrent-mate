@@ -456,6 +456,11 @@ Maintenance, Comptes, Profil et les autres pages que le menu ouvre **empilent**,
 chemin d'arrivée — « Les retours se font toujours par le même chemin d'arrivé. Si je passe par système
 je repasse par systèmes, sinon non. » Les pages de la barre du bas gardent la règle ci-dessus, pour
 l'instant.
+Les pages de la barre du bas gardent cette règle **d'où qu'on les ouvre** : ouverte depuis le menu latéral,
+une page de la barre remplace comme depuis la barre — la règle se lit par destination. **Un lien placé dans
+une page empile, même quand il mène à la page d'entrée** (« … laissés derrière → » sur Système) : Retour
+ramène d'où l'on vient, et la garde de sortie ne s'arme que lorsque la page d'entrée est au fond de la pile.
+(tranché le 2026-09-29)
 
 ### 3. Sans pile, elle se synthétise depuis la hiérarchie
 
