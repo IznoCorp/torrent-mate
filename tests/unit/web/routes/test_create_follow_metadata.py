@@ -386,12 +386,13 @@ class TestCreateFollowMetadata:
         tmp_path: Path,
         mock_provider_boundary: MagicMock,
     ) -> None:
-        """POST carries poster_url/overview/year → row keeps the client values.
+        """POST carries poster_url/overview/year → row keeps the client poster and year.
 
-        The provider boundary is NOT called — the operator validated the search
-        candidate visually; re-querying the provider wastes an API call and
-        risks a wrong result (provider search vs provider-by-id are different
-        endpoints).
+        Re-aimed for the One Punch Man incident: a TVDB show card carries the
+        series ``name`` and overview in the ORIGINAL language, so the server now
+        makes ONE by-id TVDB call to localize the title and the overview. The
+        client's poster and year still win, and an answer with no title keeps
+        the client's title. Before, this test pinned « zero provider calls ».
         """
         resp = client.post(
             "/api/acquisition/followed",
@@ -416,19 +417,16 @@ class TestCreateFollowMetadata:
         row = _read_follow_row(tmp_path / "acquire.db", follow_id)
         assert row is not None
         assert row["poster_url"] == _CLIENT_POSTER, f"Client poster_url must win; got {row['poster_url']!r}"
-        assert row["overview"] == _CLIENT_OVERVIEW, f"Client overview must win; got {row['overview']!r}"
+        assert row["overview"] == _PROVIDER_OVERVIEW, f"The localized overview must win; got {row['overview']!r}"
         assert row["year"] == _CLIENT_YEAR, f"Client year must win; got {row['year']!r}"
+        assert row["title"] == "Furious", "a localization with no title keeps the client's"
 
-        # The provider boundary MUST NOT be called — the client supplied the
-        # candidate.  Phase 7.2 added the enrichment path, but it must still
-        # skip the provider when the client already supplied the metadata.
-        assert mock_provider_boundary.call_count == 0, (
-            "Provider boundary must NOT be called when the client supplies a candidate"
-        )
+        # One lookup, and only to localize the TVDB card.
+        assert mock_provider_boundary.call_count == 1
 
-        # The response echoes the client values.
+        # The response echoes the stored values.
         assert data["poster_url"] == _CLIENT_POSTER
-        assert data["overview"] == _CLIENT_OVERVIEW
+        assert data["overview"] == _PROVIDER_OVERVIEW
         assert data["year"] == _CLIENT_YEAR
 
     def test_reactivation_backfills_missing_metadata(
@@ -488,3 +486,59 @@ class TestCreateFollowMetadata:
         assert row["poster_url"] == _PROVIDER_POSTER, f"Reactivation must backfill poster; got {row['poster_url']!r}"
         assert row["overview"] == _PROVIDER_OVERVIEW, f"Reactivation must backfill overview; got {row['overview']!r}"
         assert row["year"] == _PROVIDER_YEAR, f"Reactivation must backfill year; got {row['year']!r}"
+
+
+_ORIGINAL_LANGUAGE_TITLE = "\u30ef\u30f3\u30d1\u30f3\u30de\u30f3"  # ワンパンマン
+_ORIGINAL_LANGUAGE_OVERVIEW = "\u8da3\u5473\u3067\u30d2\u30fc\u30ed\u30fc"  # 趣味でヒーロー
+_LOCALIZED_OVERVIEW = "Saitama is a hero for fun."
+
+
+def test_tvdb_card_named_in_original_language_is_stored_localized(
+    client: TestClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A follow added from a TVDB card named in Japanese is stored under its localized name.
+
+    Production row 53 (One Punch Man, tvdb 293088): the card posted the
+    Japanese title with a full candidate, so the server made no provider call,
+    stored the Japanese title with no original title, and every season search
+    in Japanese ended ``no_matching_season``.
+    """
+    import personalscraper.web.routes.acquisition as acq_routes
+
+    class _LocalizedTvdb:
+        """TVDB by-id details in the configured language."""
+
+        def get_series(self, series_id: int) -> Any:
+            assert series_id == 293088
+            details = {"title": "One-Punch Man", "overview": _LOCALIZED_OVERVIEW, "year": 2015, "images": []}
+            return type("Details", (), details)()
+
+    @contextmanager
+    def _fake_scope(_request: Any) -> Iterator[tuple[object, object]]:
+        yield MagicMock(), _LocalizedTvdb()
+
+    monkeypatch.setattr(acq_routes, "scoped_provider_clients", _fake_scope)
+
+    resp = client.post(
+        "/api/acquisition/followed",
+        json={
+            "tvdb_id": 293088,
+            "kind": "show",
+            "title": _ORIGINAL_LANGUAGE_TITLE,
+            "poster_url": _CLIENT_POSTER,
+            "overview": _ORIGINAL_LANGUAGE_OVERVIEW,
+            "year": 2015,
+        },
+        cookies=_auth_cookies(),
+        headers=_xrw_headers(),
+    )
+
+    assert resp.status_code == 201, resp.text
+    row = _read_follow_row(tmp_path / "acquire.db", resp.json()["id"])
+    assert row is not None
+    assert row["title"] == "One-Punch Man"
+    assert row["original_title"] == _ORIGINAL_LANGUAGE_TITLE
+    assert row["overview"] == _LOCALIZED_OVERVIEW
+    assert row["poster_url"] == _CLIENT_POSTER
