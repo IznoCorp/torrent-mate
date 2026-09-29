@@ -1,4 +1,4 @@
-# Phase 17 — The count badge (D.1 #8)
+# Phase 18 — The count badge (D.1 #8)
 
 **Opening measure (2026-09-29, on `660049325`):**
 

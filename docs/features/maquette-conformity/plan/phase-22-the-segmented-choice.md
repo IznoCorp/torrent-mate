@@ -1,4 +1,4 @@
-# Phase 21 — One segmented choice: `segmentSmall` into `viewSwitch` (D.1 #14, the operator's OPEN 4 = A)
+# Phase 22 — One segmented choice: `segmentSmall` into `viewSwitch` (D.1 #14, the operator's OPEN 4 = A)
 
 **Ruled 2026-09-29** (`/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md` § Q4, verbatim « A »):
 `segmentSmall` merges into `viewSwitch`, which gains a « text » size; its three uses are rewired; the acquisition
