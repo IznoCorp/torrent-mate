@@ -8,10 +8,9 @@
 - **Orchestrator** « Orch : TM frontend [79475d] »; always write the reference. Gauge:
   `context-gauge.sh`, its `context_percent=` and `source=` lines in every report. Context gate 80 %, exit ~75 %
   (the brief's dated line of 2026-09-29).
-- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 5c · 5d · 6a · 6b · 7 · 8 · 9 — each gated, mutated, pushed. **Next: the MIDPOINT FULL SUITE**
-  (contracts tier included, order 58; falls re-read under order 48/65; real falls repaired before 10 opens;
-  a report to the steward before AND after), then 10.
-- **Remaining** (from `ls plan/`): MIDPOINT FULL SUITE · 10 · 11 · 12 · 13 · 14 · 15 · 16 · 17.
+- **Done** 1 · 2a · 2b · 2c · 3 · 4 · 5a · 5b · 5c · 5d · 6a · 6b · 7 · 8 · 9 — each gated, mutated, pushed. MIDPOINT read. **Next: 10**
+  (`plan/phase-10-alert-on-bar.md`), opened on the midpoint's live-relay fall as its RED (steward, A).
+- **Remaining** (from `ls plan/`): 10 · 11 · 12 · 13 · 14 · 15 · 16 · 17.
   Known STOP D: 12 (ratio cause = global `ingest.min_ratio`; the seed),
   14 (no read of a config file's content in the maquette's contract).
 - **Rulings** (`RULINGS.md`) 1 `?list=` · 2 C2, save bar via `lib/save-bar-door.tsx` · 3 B, the filter line · 4 B1,
@@ -19,7 +18,8 @@
   (STANDING: announce, no STOP, unless no real subject or a product behaviour changes) · 8 A, « Vu ».
 - **Rules** R260 `trackers_page.py` · R261 `trackers_roster.py` (holds 1–17) · R262 `trackers_policy.py` · R263
   `trackers_removal.py` (21, holds 1–10); R122 reads `torrents/row`; `audit.py` 14 holds; R229 re-aimed at 5d (16 holds); R264 `trackers_alert.py` (21, holds 1–9).
-  Next labels: g R265 (12) · f R266 (14) · e R267 (16); cuts R268+. Register B-570–B-589 none taken.
+  Next labels: g R265 (12) · f R266 (14) · e R267 (16); cuts R268+. Register B-570 taken (check-live-relay's
+  constant-key blind spot, `open`); next B-571.
 - **Gate** (office § The gate): static list (`check-no-french`, css-tokens, compositor, tailwind, markup-contracts,
   boundaries, `oracle.py --contracts`, + frame-domain, mock-seeds) → `run.sh --oracle` alone → accept with
   `bash -c 'run.sh --oracle; oracle.py --accept'` + `tools/accept_by_name.py <declared.json>` (declared BY SCRIPT
@@ -251,3 +251,14 @@
   `test_oracle.py` 148 → 150. Rules R264 21 · R261 64 · R263 21 · R262 14 · R260 27, 0 failed; a11y dark 0, light
   88. Mutations: « Vu » without the write → FAIL « « Vu » asks the write once for that obligation — [] » (+ stays,
   count); the write removing the row → FAIL « the row seen STAYS, and says it » (`p09-mutation1–2.log`).
+- 2026-09-29 — MIDPOINT FULL SUITE (`midpoint-suite.log`, `run.sh` no flag: 181 rules + 26 guards; the oracle is its
+  own tier, not in it): 179/181 rules, 25/26 guards. `entry.py`, `pwa.py`: `Page.goto` 30 s on the DEPLOYED
+  `tm-design` (an HTTP probe answers 401 in 0.04 s, pm2 online, 0 restarts), 5/5 draws each
+  (`midpoint-o48-1…5.log`) — charged to the ENVIRONMENT by the steward, no 10-against-10 (they read the deployed
+  host, not the branch); the `load` diagnosis is the steward's. `check-live-relay` [map-completeness]:
+  `/api/trackers` read, refreshed by no event, exempted nowhere — a REAL fall dating from phases 1–3, invisible to
+  the guard (it reads literal keys only; the Trackers reads key on constants) until phase 9's « Vu » spelled the
+  key → steward: A, phase 10 repairs it by its substance and opens on it as its RED; the guard must read green at
+  10's gate AND name /api/trackers, /api/acquisition/downloads, /api/acquisition/obligations. The blind spot: B-570
+  `open` (not repaired, measure 1). Order 52 at the midpoint: harness 1286 / product 2301 = 0.56. My slip: a report
+  claimed the oracle green in this suite — corrected at once, it is not in it.
