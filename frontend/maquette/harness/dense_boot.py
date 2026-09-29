@@ -24,7 +24,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, Journal, chrome_launch_args
+from common import PHONE, PROTOTYPE, Journal, chrome_launch_args
 from playwright.async_api import async_playwright
 from server import start_server
 
@@ -127,7 +127,7 @@ async def main() -> None:
             # THE REAL WORLD, COLD — the harness's own build, unmodified: the
             # rule that keeps `run.sh`'s copy and the unit suite untouched by
             # this switch.
-            real = await boot_cold(browser, "http://127.0.0.1:8899/")
+            real = await boot_cold(browser, PROTOTYPE)
             journal.check(
                 "a cold real-world boot lands on Acquisition › En cours, "
                 "scen still real, no JS error",
