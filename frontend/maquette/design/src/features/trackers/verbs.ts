@@ -37,10 +37,8 @@ registerVerb("trackers-tab", (tab) => {
 fillLandingDoor((page, dial) => {
   if (page !== "trackers") return;
   const [tab, tracker] = (dial ?? "").split(DIAL_SEPARATOR);
-  store.write({
-    trackersTab: TABS.has(tab) ? tab : MEMORY.remembered(),
-    ...(tracker ? { trackersFilter: tracker } : {}),
-  });
+  store.write({ trackersTab: TABS.has(tab) ? tab : MEMORY.remembered() });
+  if (tracker) store.write({ trackersFilter: tracker });
 });
 
 /* « VOIR LES TORRENTS »: the « Torrents » tab, filtered to the tracker whose entry
