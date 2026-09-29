@@ -8,6 +8,7 @@
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 import { Markup, emptyNoteMarkup } from "../../ui/markup";
+import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { useUiState } from "../../lib/store-access";
 import { chip, emptyNote, factDetail, factList, factRow, factRowBody, factValue, statusDot } from "../../ui/variants";
 import { dayOf, written } from "./format";
@@ -138,15 +139,26 @@ function FilterLine({ tracker }: { tracker: string }): ReactElement {
  * the page asks the server the same thing.
  *
  * @returns Every entry's row — the filtered tracker's alone when the dial names
- *     one — or the sentence saying there is none.
+ *     one — or the sentence saying there is none; while the reads are in flight,
+ *     their skeletons, and when one failed, the failure.
  */
-export function TorrentsTab(): ReactElement | null {
+export function TorrentsTab(): ReactElement {
   const { t } = useTranslation();
   const state = useUiState();
-  const { data: downloads } = useDownloads();
-  const { data: obligations } = useObligations();
+  const downloadsRead = useDownloads();
+  const obligationsRead = useObligations();
+  const downloads = downloadsRead.data;
+  const obligations = obligationsRead.data;
   const { data: trackers } = useTrackers();
-  if (!downloads || !obligations) return null;
+  // THE READS IN FLIGHT, OR FAILED, ARE SAID — never an empty tab standing for either.
+  if (downloadsRead.isError || obligationsRead.isError) {
+    const retry = () => {
+      void downloadsRead.refetch();
+      void obligationsRead.refetch();
+    };
+    return <SurfaceError subject={t("screens.torrents.errorSubject")} onRetry={retry} />;
+  }
+  if (!downloads || !obligations) return <Skeletons count={3} shape="card" />;
   const alert = alertOf(trackers ?? [], downloads.downloads, obligations.items);
   const tracker = typeof state.trackersFilter === "string" ? state.trackersFilter : "";
   const entries = tracker === "" ? downloads.downloads : downloads.downloads.filter((entry) => entry.tracker === tracker);

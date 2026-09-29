@@ -8,6 +8,7 @@ import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 import { Disclosure } from "../../ui/disclosure";
 import { FactRows } from "../../ui/fact-rows";
+import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { Markup, emptyNoteMarkup } from "../../ui/markup";
 import { useUiState } from "../../lib/store-access";
 import {
@@ -179,16 +180,22 @@ function TrackerSummary({ tracker, alert }: { tracker: Tracker; alert: Alert }):
 /**
  * The « Trackers » tab.
  *
- * @returns The roster, or the sentence saying none is configured.
+ * @returns The roster, or the sentence saying none is configured; while the read
+ *     is in flight, its skeletons, and when it failed, the failure.
  */
-export function TrackersTab(): ReactElement | null {
+export function TrackersTab(): ReactElement {
   const { t } = useTranslation();
   const state = useUiState();
-  const { data: trackers } = useTrackers();
+  const read = useTrackers();
+  const trackers = read.data;
   const { data: downloads } = useDownloads();
   const { data: obligations } = useObligations();
   const settings = useSettingsCatalogue() ?? [];
-  if (!trackers) return null;
+  // THE READ IN FLIGHT, OR FAILED, IS SAID — never an empty tab standing for either.
+  if (read.isError) {
+    return <SurfaceError subject={t("screens.trackers.errorSubject")} onRetry={() => void read.refetch()} />;
+  }
+  if (!trackers) return <Skeletons count={3} shape="card" />;
   const alert = alertOf(trackers, downloads?.downloads ?? [], obligations?.items ?? []);
   if (trackers.length === 0) {
     return (

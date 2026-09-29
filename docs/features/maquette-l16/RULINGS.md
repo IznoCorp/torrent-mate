@@ -93,3 +93,12 @@ The steward's rulings on this lot's STOPs, numbered, one per STOP. The operator'
     the weights button to the editor), C (a new row). **Ruled B**: no product change outside the phase;
     page_host green without a re-aim; R266 hold 4 re-aimed OUT LOUD onto the real path, proved by a finger;
     B-298 closed by its real half, its text corrected in the register.
+13. **2026-09-29, phase 17, STOP D — the page's wait and failure, declared and never drawn.** DESIGN § 4.1
+    names `trackers-loading` (the skeleton) and `trackers-error` (`SurfaceError`); no phase carried them, and
+    both tabs drew an EMPTY body while their reads were in flight or failed (`torrents-tab.tsx`: `return null`).
+    Readings: A (a phase 17a before the close), B (reported only), C (a register row for a later lot). **Ruled
+    A**: B and C would ship the lot with a false « Done when » — an empty body standing for a wait or a failure
+    is NE-DOIT-PAS-1 (§ 8). The exact model of `ranking-editor-loading` / `-error`; the subject named in
+    `SurfaceError`; R260's holds read RED first; a mutation « the failure drawn empty » falls by name; the two
+    states declared by script, accepted by name. Then a script confronts DESIGN's states with the shipped
+    ones: 28/28, or the list of what is missing.

@@ -244,6 +244,7 @@
     "trackers": {
       "tabTorrents": "Torrents",
       "tabTrackers": "Trackers",
+      "errorSubject": "les trackers",
       "ratio": "Ratio {{ratio}}",
       "ratioUnknown": "Ratio inconnu",
       "trend": "Tendance : {{trend}}",
@@ -271,6 +272,7 @@
       "seeTorrents": "Voir les torrents"
     },
     "torrents": {
+      "errorSubject": "les torrents",
       "origin": "Téléchargé ici en premier",
       "crossSeed": "Cross-seed d'un torrent déjà présent",
       "deadline": "Échéance le {{date}}",

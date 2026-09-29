@@ -23,11 +23,18 @@ address model, never written here; its body is its own oracle region,
    opened last on this device — the same rule, and the same mechanism, as
    Acquisition's: storage empty, refused or holding no tab opens « Trackers »; an
    address naming its tab wins; a tab tapped is the next cold entry's, and the
-   next landing's from the bar, the address then naming it.
+   next landing's from the bar, the address then naming it;
+8. `trackers-loading`: while the page's reads are in flight, each tab — « Trackers »,
+   then « Torrents » under a finger — says so with its skeletons: no row, and no
+   sentence of absence standing for the wait;
+9. `trackers-error`: the reads answered a failure, and each tab says it, naming
+   what it could not load — never an empty body, never « nothing here ».
 
 Red before the move: no such page exists. RE-AIMED OUT LOUD: holds 5 and 6 came
 with the page's tabs, red on the page that had none; hold 7 with the tab memory,
-red while a bare address always opened « Trackers ».
+red while a bare address always opened « Trackers ». Holds 8 and 9 came with the
+wait and the failure DESIGN § 4.1 names and no phase drew, red while both tabs
+drew nothing at all.
 """
 import asyncio
 import json
@@ -49,6 +56,19 @@ AFTER = "discover"
 START = "lib-grid"
 # A width a quarter may miss by: sub-pixel layout, never a missing button.
 TOLERANCE = 1.5
+WORDS = json.loads((SOURCE / "i18n/fr.json").read_text(encoding="utf-8"))
+# What each tab says it could not load, in the failure's own sentence.
+FAILED = {tab: WORDS["surfaces"]["error"]["lead"].replace("{{subject}}", WORDS["screens"][tab]["errorSubject"])
+          for tab in ("trackers", "torrents")}
+SURFACE = """() => {
+  const page = document.querySelector('#view [data-part="trackers"]');
+  return {
+    skeletons: page?.querySelectorAll('[data-skeleton]').length ?? 0,
+    failure: page?.querySelector('[data-part="surface-error"]')?.textContent.trim() ?? null,
+    rows: page?.querySelectorAll('[data-part="trackers/entry"], [data-part="torrents/row"]').length ?? 0,
+    absence: page?.querySelector('[data-part="empty-state"]') !== null && page !== null,
+  };
+}"""
 
 DRAWN = """() => ({
   page: window.state?.page ?? null,
@@ -241,6 +261,28 @@ async def main():
                       str(dials))
         await filtered_context.close()
         await cold.close()
+
+        # ── the wait and the failure, on both tabs ───────────────────────
+        for state in ("trackers-loading", "trackers-error"):
+            answer = await page.evaluate(
+                f"()=>{{try{{window.__go('{state}');return null}}catch(error){{return String(error)}}}}")
+            await page.wait_for_timeout(SETTLED)
+            seen = {"trackers": await page.evaluate(SURFACE)}
+            torrents = page.locator('#view [data-trackers-tab="torrents"]')
+            if await torrents.count():
+                await torrents.first.tap()
+                await page.wait_for_timeout(ACTED)
+            seen["torrents"] = await page.evaluate(SURFACE)
+            for tab, surface in seen.items():
+                quiet = surface["rows"] == 0 and not surface["absence"]
+                if state == "trackers-loading":
+                    journal.check(f"{state}: « {tab} » says its reads are under way — skeletons, no row, no absence",
+                                  answer is None and quiet and surface["skeletons"] > 0 and surface["failure"] is None,
+                                  f"{answer or ''} {surface}")
+                else:
+                    journal.check(f"{state}: « {tab} » says « {FAILED[tab]} », no row, no absence",
+                                  answer is None and quiet and surface["failure"] is not None
+                                  and FAILED[tab] in surface["failure"], f"{answer or ''} {surface}")
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()

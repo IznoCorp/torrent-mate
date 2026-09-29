@@ -9,6 +9,28 @@ import { openRemoveConfirm } from "../../features/trackers/remove-verb";
 
 // How long a fold waits for the entry it sits in to be drawn before a finger opens it.
 const OPEN_AFTER = 300;
+// Long enough that a read held back is still in flight when the state is measured.
+const HELD_BACK = 60000;
+// The page's three reads, by operation and by the address its cache keys on.
+const PAGE_READS: [string, string][] = [
+  ["readTrackers", "/api/trackers"],
+  ["readDownloads", "/api/acquisition/downloads"],
+  ["readObligations", "/api/acquisition/obligations"],
+];
+
+/**
+ * Sets every read of the page to one outcome, its cached answer dropped so the
+ * page asks again.
+ *
+ * @param outcome Held back, or answered with a failure.
+ */
+function poseReads(outcome: { latencyMilliseconds: number } | { status: number }): void {
+  window.__mocks?.reset();
+  for (const [operation, address] of PAGE_READS) {
+    window.__mocks?.setOperationOutcome(operation, outcome);
+    window.__queries?.removeQueries({ queryKey: [address] });
+  }
+}
 
 /** Poses two broken obligations on c411 whose torrents are gone: a derivation, shown as one. */
 function poseTwoBrokenObligations(): void {
@@ -23,6 +45,22 @@ export function trackersStates(): NamedState[] {
       "trackers-page",
       "Trackers — la page",
       () => applyState({ page: "trackers", phase: "ready" }),
+    ],
+    [
+      "trackers-loading",
+      "Trackers — la page, ses lectures en cours",
+      () => {
+        poseReads({ latencyMilliseconds: HELD_BACK });
+        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+      },
+    ],
+    [
+      "trackers-error",
+      "Trackers — la page, ses lectures en échec",
+      () => {
+        poseReads({ status: 500 });
+        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+      },
     ],
     [
       "trackers-roster",
