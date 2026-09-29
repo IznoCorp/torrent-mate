@@ -207,7 +207,7 @@ when the defect comes back.
 | B-141 | Ten elements carry no class at all, in a prototype that imports no preflight | by audit | `fixed #516` |
 | B-142 | Nothing measures the interface against the constitution: three DOIT clauses have no surface | by audit | `fixed #528` |
 | B-143 | §17 (accounts, rights, Plex SSO) has no surface, no contract operation and no lot | by audit | `open` |
-| B-144 | §18 (ratio per tracker) needs three operations the backend already answers and nothing calls | by audit | `open` |
+| B-144 | §18 (ratio per tracker) needs three operations the backend already answers and nothing calls | by audit | `to confirm` |
 | B-145 | §19 (cross-seed) has no route in either contract, and its events reach no stream | by audit | `open` |
 | B-146 | D11 is decided and nothing styles a scrollbar yet; the change may move the oracle | by audit | `fixed #516` |
 | B-147 | Nine steward findings were stacked on five unmerged branches and collided with a wave | by audit | `fixed #511` |
@@ -10974,6 +10974,17 @@ still counted due by the tracker is NE-DOIT-PAS-1 with the account as the price.
 <sub>`grep -rn 'min_ratio\|min_seed_time' personalscraper/acquire/*.py` · `grep -n 'obligations' personalscraper/web/routes/acquisition.py` · `docs/reference/frontend-backend-demands.md` § 4</sub>
 
 > **PLACED, 2026-08-29 (L10-ter): L16**, first of the three, after L19 — so its per-tracker panel is written in the React producer template rather than the engine's. `features/trackers/`; the three operations wired, the policy write a demand, the ratio events claimed by its `live.ts`.
+
+**Kept at L16 (2026-09-29).** The three reads are declared and called — `readTrackers`,
+`readDownloads`, `readObligations` (phase 1) — and the « Trackers » page draws them: each tracker's
+ratio, trend and volumes (R260, R261), its policy set from its own entry through the settings' write
+(R262), the « Torrents » tab with each torrent's ratio on its own size and its obligation marks (R261),
+« Retirer de qBittorrent » across shared entries (R263), the alert under the tracker's OWN threshold,
+the refused identifier and the broken obligations « Vu » one by one (R264), the badge on the bar's tab
+(R264 holds 10–11, R91), a deferred card naming its tracker and that tracker's threshold (R265).
+**Escaped from**: a demands register that listed the operations with no verdict column; **why**: no
+lot owned §18 until the constitution did; **family repaired by** R260–R265, each read red before its
+move and felled by its mutation (RESUME-L16 ledger). The status turns `fixed` with L16's pull request.
 
 **B-145 — 797 lines of engine that inject torrents at third parties, and no way to know it happened.**
 The operator dictated **§19 — Le cross-seed se voit et se décide** on 2026-08-26, with `DOIT-14`.

@@ -391,3 +391,32 @@
   Mutations: a constant weight → FAIL « ranking-editor draws the preview the operation answers for the file's
   ranking … » (and the typed hold); the excluded rows hidden → FAIL « under a minimum of 10 seeders, every sample is
   still a row … 7 rows » (`p16-mutation1–2.log`). B-298's body: kept in full; status at the PR.
+- 2026-09-29 — phase 17 opening, the steward's order: « no region measures the ranking screen » is a HOLE, not an
+  absence of divergence. ESCAPED FROM: no region for a new screen (the oracle saw nothing of 14a–16); WHY: a screen
+  added without its `data-region`, no rule asking for one; FAMILY: every screen a lot creates receives its region at
+  its creating phase. Checked by script (`p17-screen-regions.log`): every `data-part="screen"` and every page body
+  carries a declared region — the ranking editor alone did not (Trackers and its « Torrents » tab: `trackers/body`).
+  `screen-ranking/body` added (`2eedeac3e`); oracle alone: 5 divergences, the five ranking-editor states alone;
+  accepted by name, the key `null` on the 154 others, proved against HEAD (`p17-accept-proof.log`); `test_oracle.py`
+  39 regions; oracle again: no divergence.
+- 2026-09-29 — phase 17a (RULINGS 13 = A): DESIGN § 4.1's `trackers-loading` / `trackers-error` had no phase —
+  both tabs drew an EMPTY body while their reads were in flight or failed (`torrents-tab.tsx`: `return null`).
+  ESCAPED FROM: a state declared in DESIGN with no phase to carry it; WHY: the plan was cut from the DESIGN's
+  behaviours, not from its states table, and no gate confronted the two; FAMILY: the close confronts DESIGN's
+  states with the shipped ones by script (`p17a-design-states.log`). R260 holds 8–9 RED against the unchanged page
+  (`p17a-red2.log`: « skeletons 0, failure None, rows 0 » on both tabs) → the move `b842eac51` (Skeletons while in
+  flight, `SurfaceError` naming « les trackers » / « les torrents » with a retry) → green 31. Oracle alone: the 2 new
+  states only, 0 key moved, proved (`p17a-accept-proof.log`); `test_oracle.py` 161 / 39. Rules R260 31 · R261 64 ·
+  R262 14 · R263 21 · R264 27 · page_host 42 · badges_observed 9, 0 failed; a11y dark 0, light 88. Mutation « the
+  failure drawn empty » → FAIL « trackers-error: « torrents » says « Impossible de charger les torrents. », no row,
+  no absence » (`p17a-mutation1.log`). DESIGN confronted by script: it quotes 31 state names; 29 shipped; the two
+  others are not this lot's — `bar-todo-badge` (L22's row, DESIGN l. 604) and `acq-card-ratio-reason` (the
+  superseded single state, split into the three deferred ones, l. 636); `drawer-navigation` is L22's anchor. L16's
+  own: 28 / 28.
+- 2026-09-29 — phase 17: order 52 at the close 1835 / 3642 = 0.50 (harness/ against design/src/,
+  `p17-order52.log`, read before 17a) — under 0.6, no consolidation phase. Named states 130 → 161. The map's rows
+  DOIT-13, DOIT-2, DOIT-3 are PROPOSED in the pull request, not written: `docs/reference/*` is not the lot's (brief
+  § Method). README cut table: « A tracker in trouble (ratio, obligation) → Trackers » (C9). B-144 body closed,
+  `to confirm`; B-143, B-145 untouched (L18's, L17's). Version 0.98.106. L22's DESIGN § 1.7 note (RULINGS 9): the
+  folder died at #627 — carried to the steward's closing docs pull request.
+
