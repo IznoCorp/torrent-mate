@@ -233,7 +233,13 @@
       "weightLabel": "Poids du critère {{field}}",
       "save": "Enregistrer",
       "saving": "Enregistrement…",
-      "conflictReload": "Relire le classement"
+      "conflictReload": "Relire le classement",
+      "previewTitle": "Aperçu en direct",
+      "previewLead": "Les releases types, classées comme les poids affichés les classeraient — avant tout enregistrement.",
+      "previewScore": "{{score}} points",
+      "previewExcluded": "Écartée",
+      "previewExcludedReason": "{{seeders}} seeders, sous le minimum de {{minimum}}",
+      "previewErrorSubject": "l'aperçu du classement"
     },
     "trackers": {
       "tabTorrents": "Torrents",

@@ -22,6 +22,7 @@ import {
 } from "../../ui/variants";
 import { configurationStatusQuery, writeConfigurationFile } from "./queries";
 import { weightInput } from "./variants";
+import { RankingPreview, type RankingFileBlock } from "./ranking-preview";
 
 type Criterion = Schemas["RankingCriterion"];
 
@@ -98,6 +99,10 @@ export function RankingScreen(): ReactElement {
   const ranking = (file?.values as { ranking?: { criteria?: Criterion[] } } | undefined)?.ranking;
   const criteria = ranking?.criteria ?? [];
   const saveOpen = Object.keys(typed).length > 0 && Object.values(typed).every(isWeight) && !saving;
+  // THE PREVIEW SCORES WHAT IS TYPED, as far as it reads as a weight: a field
+  // half-typed keeps the file's own until it does.
+  const previewBlock = file === undefined ? undefined : withTyped(file.values,
+    Object.fromEntries(Object.entries(typed).filter(([, value]) => isWeight(value)))).ranking as RankingFileBlock;
 
   // THE SAVE ASKS THE LAYER and draws what it answers. A write the outbox held
   // has not landed, so it keeps the edits and says nothing; a conflict keeps
@@ -171,6 +176,7 @@ export function RankingScreen(): ReactElement {
               {saving ? t("screens.ranking.saving") : t("screens.ranking.save")}
             </button>
           ) : null}
+          {previewBlock !== undefined && criteria.length > 0 ? <RankingPreview block={previewBlock} /> : null}
         </div>
       </div>
     </section>

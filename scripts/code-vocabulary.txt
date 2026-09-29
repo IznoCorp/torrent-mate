@@ -385,6 +385,7 @@ events
 ever
 every
 everything
+excluded
 exec
 executions
 exemptions
@@ -679,6 +680,7 @@ methods
 migrated
 milliseconds
 min
+minimum
 minute
 missing
 mobile
