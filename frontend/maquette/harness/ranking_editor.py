@@ -94,7 +94,9 @@ async def main():
             return await page.evaluate("""()=>({path: location.pathname, length: history.length,
                 rows: document.querySelectorAll('[data-part="ranking/criterion"]').length,
                 toast: document.querySelector('#toast[data-shown]')?.textContent.trim() || null})"""), before
-        where, before = await lands("settings", '#view [data-part="topic"]', RUBRIC)
+        # THE RUBRIC BY WHAT IT IS, not by its words: another topic's subtitle
+        # quotes « Classement des releases ».
+        where, before = await lands("settings", '#view [data-part="topic"][data-profile]', RUBRIC)
         journal.check(f"from Réglages, « {RUBRIC} » opens the global quality profile",
                       where["path"].endswith("/quality/global"), str(where))
         weights = page.locator('[data-part="card/foot"]', has_text=WEIGHTS)
