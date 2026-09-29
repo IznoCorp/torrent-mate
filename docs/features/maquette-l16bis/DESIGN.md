@@ -10,8 +10,9 @@ This document is written for a session that has none of the context it was produ
 numbers. Every figure carries the command that produced it.
 
 **Written 2026-09-29, on `main` at `f3d8fed01`** (L16 merged, #634). The plan's order becomes `… L22 · L16 · L16-bis ·
-L17 · L18 · L23 · L24`. Where the feedback leaves a choice, it is an OPEN question in § 5 with its two readings and no
-choice made here; the operator rules them in one round before the lot opens.
+L17 · L18 · L23 · L24`. **Amended 2026-09-29**, PR #637's correction round: § 5's nine OPEN questions are DECIDED, the
+operator's own words in `/Users/izno/dev/review-archive/l16bis/rulings-2026-09-29.md` — nothing left open in this
+document.
 
 ---
 
@@ -116,8 +117,9 @@ tab opened last on this device. Two values change: `tabMemory`'s first tab (`ver
 then the last opened, local memory, try/catch) is kept; its first tab is « Torrents ». A landing that NAMES a tab
 (`trackers:c411`, the deferred card's « Voir le tracker ») is obeyed, unchanged.
 
-**The one tab component (point 10).** No component exists (§ 0.1 item 2). The DESIGN specifies it; who builds it is
-OPEN 7.
+**The one tab component (point 10).** No component exists (§ 0.1 item 2). The DESIGN specifies it; the CONFORMITY
+TRAIN builds it, on the existing validated bars (Acquisition first) as its reference (DECIDED 7, § 5) — L16-bis's
+code waits for the train, then uses the component for Trackers. No phase of this plan builds it.
 
 - **Where**: `ui/`, one component `Tabs`, knowing no domain (invariant 10), composed from the variants that exist —
   `viewTabs`, `segment`, `segmentTab`, `segmentCount`, `moreButton` — with the 44 px floor INSIDE `segmentTab`, so no
@@ -166,7 +168,7 @@ values) and each chip tone with the words of the chips it colours. The legend RE
 from — one derivation (§ 13): a colour added to a row without its legend entry is what R-L16bis-c fells.
 
 **Its component.** The season legend, MOVED to `ui/` (invariant 7), unchanged in drawing; `features/media` imports it
-from there. **Where it sits** is OPEN 5.
+from there. **Where it sits**: inline, above the list (DECIDED 5, § 5) — the season legend's own place, REUSED as is.
 
 ### 1.4 S4 — The torrent card (points 4, 5)
 
@@ -185,9 +187,13 @@ button for a title and a text « Retirer » in danger colour) is replaced.
    with its tone — `downloading` `info`, `seeding` `success`, `stalled` `warning`, `errored` / `missing` `danger`,
    `paused` / `queued` / `in_client` `neutral`), then the size (« 766 Mo », `sizeBytes`, the interface's unit words),
    then the ratio on this tracker (L16's, unchanged).
-3. **Line 3 — the annotations** (`cardAnnotations`): down / up (OPEN 1 says which), the popularity
-   (« 12 sources », `swarmSeeds`; « sources inconnues » when the client does not say — never « 0 », which means a dead
-   swarm, `_base.py:57`), the date added (« ajouté le 26 septembre », `addedAt`).
+3. **Line 3 — the annotations** (`cardAnnotations`): down / up, per DECIDED 1 (§ 5) — THREE named states, not one
+   drawing: **default** (nothing active) shows the received/sent VOLUMES (« ↓ 766 Mo · ↑ 1,2 Go »,
+   `torrent-card-volumes`); **while downloading**, a PROGRESS BAR with the download RATE (« ↓ 2,4 Mo/s »,
+   `torrent-card-downloading-progress`); **while uploading**, no bar, the upload RATE alone (« ↑ 310 Ko/s »,
+   `torrent-card-uploading-rate`) — then the popularity (« 12 sources », `swarmSeeds`; « sources inconnues » when the
+   client does not say — never « 0 », which means a dead swarm, `_base.py:57`), the date added (« ajouté le
+   26 septembre », `addedAt`).
 4. **The marks** (L16's, unchanged): the tracker's name, the obligation chips (`info` / `success` / `danger`), the
    deadline.
 
@@ -200,8 +206,10 @@ Curtis »), and the name already holds it (§ 12 « pas de redondance »).
   (`data-mediasheet`, the media card's attribute, `features/acquisition/card-markup.ts:218–221`). NE-DOIT-PAS-9's
   path to the sheet. An entry linked but without artwork draws the poster fallback (its initials,
   `posterFallback`) — still a path to the sheet, the card's own rule.
-- **Unlinked** (`ids` null): no poster. What stands in its place is OPEN 2. An unlinked entry's path to resolution
-  (NE-DOIT-PAS-9's exception) is in its panel (S5), never on a dead poster.
+- **Unlinked** (`ids` null): no poster. What stands in its place, per DECIDED 2 (§ 5): the media card's own
+  non-medium side, the folder icon and its word (`cardFolder`) — the same card anatomy as every other row, a tap
+  opening the panel. An unlinked entry's path to resolution (NE-DOIT-PAS-9's exception) is in its panel (S5), never
+  on a dead poster.
 - **The rest of the card** opens the torrent's bottom panel (S5): `data-panel`, the body's attribute.
 
 ### 1.5 S5 — The torrent's bottom panel (point 5)
@@ -211,8 +219,9 @@ Curtis »), and the name already holds it (§ 12 « pas de redondance »).
 
 **The details**, one fact each, every one said when absent (« inconnu », never blank — § 8): the full name, the
 medium (its title and a path to its sheet when linked), the tracker and the origin (the legend's word), the state,
-the size, the progress when downloading, down / up (OPEN 1), the popularity, the date added, the ratio on this
-tracker, the obligation (running until / met on / broken on) and its deadline.
+the size, the progress when downloading, down / up (DECIDED 1, § 5 — the same three states as the card: volumes by
+default, the download rate while downloading, the upload rate while uploading), the popularity, the date added, the
+ratio on this tracker, the obligation (running until / met on / broken on) and its deadline.
 
 **The actions**: « Voir la fiche » (linked) or « Identifier » (unlinked, an entry whose staging folder the engine
 holds — `/resolution/$folder`; an entry with none says « Aucun dossier à identifier. »); « Retirer de qBittorrent »
@@ -230,18 +239,19 @@ must not follow a drag.
   its own removal). Its tap is the SAME verb as the panel's « Retirer de qBittorrent », so it ALWAYS opens L16's
   confirmation (round 9 Q7, organisation ruling 18, round 10 M4): a swipe never removes by itself.
 - **Travel right → the left drawer: the manual cross-seed**, the row's one « for » action (the arbitration's own
-  wording: « the left one holds the single thing the row is FOR »). Its verb is L17's; what L16-bis draws in the
-  meantime is OPEN 9.
+  wording: « the left one holds the single thing the row is FOR »). Its verb is L17's; per DECIDED 9 (§ 5), L16-bis
+  draws NOTHING in the meantime — the drawer does not exist until L17 adds it; nothing is drawn that does nothing.
 
 ### 1.7 S7 — The tracker roster: the switch, the failure, the longer list (point 9)
 
 **The row.** Name, then the activation switch at the row's end — `toggleSwitch` (`ui/variants/controls.ts:145`),
 `role="switch"`, `aria-checked`, the one the settings panel draws (`features/settings/panel-field.tsx:74`). Under the
-name, L16's facts: ratio, trend, volumes, and the chips. The form of the row — a fold or a row opening a panel — is
-OPEN 3.
+name, L16's facts: ratio, trend, volumes, and the chips. **The form of the row**, per DECIDED 3 (§ 5): the body opens
+the BOTTOM PANEL (settings, cross-seed and upload switches, broken obligations) — like the torrent card, S5; the
+activation switch stays on the row, never moved into the panel.
 
 **Which switch where.** ON THE ROW: **activation** alone — the operator's « facilement ». In the tracker's detail (its
-fold or its panel, OPEN 3): **cross-seed** (L17 § 3.2, round 8 Q2 — « activation is not cross-seed ») and **accepts
+panel, DECIDED 3): **cross-seed** (L17 § 3.2, round 8 Q2 — « activation is not cross-seed ») and **accepts
 uploads** (L23, round 11 Q2 = B), each its own row, never merged into activation.
 
 **One write, two doors (round 9 Q1).** The switch writes `tracker.providers.<name>.enabled` through
@@ -260,8 +270,8 @@ toggles the pending value; the save bar writes it.
 **Re-activating a failed tracker.** A tap on its switch asks the engine; while the tracker still fails, the answer is
 a REFUSAL and the switch stays off, the refusal said under the row in the engine's own words — « Identifiant refusé
 par le tracker (HTTP 403) », « Tracker injoignable » — never a code alone (NE-DOIT-PAS-4) and never a toast that
-leaves (NE-DOIT-PAS-5). The refusal is a state (`tracker-reactivate-refused`). Whether an off-by-failure tracker
-counts in the Trackers badge is OPEN 6.
+leaves (NE-DOIT-PAS-5). The refusal is a state (`tracker-reactivate-refused`). Per DECIDED 6 (§ 5), an off-by-failure tracker counts ONE in
+the Trackers badge, exactly like the refused identifier — the same counting mechanism, adapted (§ 2.2).
 
 **The longer list (composed rows).** `v3x.club`, `draupnirr.xyz`, `digitalcore.club` do not exist in the engine; their
 rows are COMPOSED, declared so in `frontend/maquette/fixture-register.json` (« composé — tracker demandé, absent du
@@ -271,22 +281,29 @@ give every case one subject.
 
 ### 1.8 The design system, element by element (point 7)
 
+**Binding constraints, the operator's own words, this round (§ 5, DECIDED 3/5/6)**: coherence everywhere — design,
+ergonomics, gesture, component, design system; a component is REUSED, never copied — one design system, one
+component, and changing it changes everywhere it is used; two similar mechanisms of the app behave the same way — no
+new component is created where an existing one can be ADAPTED (only when adapting is not reasonably possible is a new
+one justified), and every adaptation is written into the design system, kept up to date. These bind every row below.
+
 Every element of the Trackers page after L16-bis, and of Découvrir's header, against the component or variant it
 uses. **A NEW part is written only with its justification**; everything else REUSES.
 
 | Element | Today (L16) | After L16-bis | New? |
 | --- | --- | --- | --- |
-| the tab strip | `segment` + `segmentTab` + `trackersTab` inline | `ui` `Tabs` (§ 1.1) | the component (justified: point 10, three bars) |
+| the tab strip | `segment` + `segmentTab` + `trackersTab` inline | `ui` `Tabs`, built by the conformity train (§ 1.1, DECIDED 7) | no (this lot draws none of it) |
 | the tracker selector | — (RULINGS 3's line, `torrentFilter` / `torrentFilterClear`) | `filterZone`, `pillBar`, `filterPill`, `filterPillCount`; the panel's `optionList` / `option` | no |
 | the legend | — | the season legend, MOVED to `ui/` | no (moved) |
 | a torrent | `factRow` + `torrentHead` + `torrentTitle` + `torrentChipLine` + `torrentRemove` | `cardMarkup` in `swipeRowMarkup` | a `wrap` value on the card title (justified: § 0.1 item 6) |
 | the origin mark | `statusDot` | `statusDot`, unchanged | no |
 | the state, the obligation | — / `chip` | `chip` | no |
 | down / up, popularity, date | — | `cardAnnotations`, `cardCaption` | no |
+| the download progress bar | — | a new fill variant | yes (justified: DECIDED 1, § 5 — no byte-progress component exists; `cardStrip` is a stage strip, a different mechanism, not redrawn) |
 | the torrent's detail | — | `ui/panel` facts + actions | no |
 | « Retirer » (row) | `torrentRemove`, a text button in danger colour | `swipeAction({ tone: "remove" })` + the panel's action | no |
-| a tracker row | `Disclosure` + `factRowBody` | OPEN 3 (A: `Disclosure` with the app's chevron; B: a list row → `ui/panel`) | no |
-| the fold chevron | `ui/Disclosure`'s `▸` / `▾` | the ONE chevron of OPEN 4, in `ui/Disclosure` only | no |
+| a tracker row | `Disclosure` + `factRowBody` | a list row → `ui/panel` (DECIDED 3, § 5) | no |
+| the fold chevron | `ui/Disclosure`'s `▸` / `▾` | the seasons' chevron, the app's ONE (DECIDED 4, § 5), in `ui/Disclosure` only | no |
 | the activation switch | — | `toggleSwitch` | no |
 | policy rows | `FactRows` → the `setting` panel (RULINGS 2) | unchanged | no |
 | « Voir les torrents » | `crossReference` + `seeTorrents` | `crossReference` (the floor moved into it) | no |
@@ -328,8 +345,10 @@ allowed to, because it is secondary and its whole is on its tap (the bottom pane
 down** into the body if the row's place is ever taken — the operator's own words; a note in the component, not a
 rule.
 
-**(b) The content.** The count and the TMDB ids excluded go (§ 0.1 item 10: they were not even read). What replaces
-them is OPEN 8, three proposals, each resting on a datum named.
+**(b) The content.** The count and the TMDB ids excluded go (§ 0.1 item 10: they were not even read). Per DECIDED 8
+(§ 5), what replaces them is « n séries et m films à découvrir » (`screens.discover.headerCount`) — both numbers
+counted from the suggestions already read (the same list the tab already renders, split by media type), no new
+field and no engine demand.
 
 **The TMDB-disconnected warning** (`discover-tab.tsx:162–184`) stays in the body: it is a state with an action, not a
 header message.
@@ -349,7 +368,8 @@ uploadedBytes, trend, alertThreshold, identifierRefusedSince, brokenObligations`
 | `addedAt` (epoch s, null) | the date added | HAS it (`TorrentItem.added_on`), not routed — an extension of `AcquisitionDownload` |
 | `swarmSeeds` (int, null) | the popularity | HAS it (`TorrentItem.swarm_seeds`), not routed |
 | `swarmLeechers` (int, null) | the popularity's second half | qBittorrent answers `num_incomplete`; the engine's mapper does not read it — PROPOSED |
-| OPEN 1 A: `downloadRate`, `uploadRate` (bytes/s) · B: `downloadedBytes`, `uploadedBytes` | down / up | neither is read by the engine — PROPOSED either way |
+| `downloadedBytes`, `uploadedBytes` (bytes, null) | down / up, default state (DECIDED 1, § 5) | neither is read by the engine — PROPOSED |
+| `downloadRate`, `uploadRate` (bytes/s, null) | down / up, while downloading / while uploading (DECIDED 1, § 5) | neither is read by the engine — PROPOSED, a stream demand on `TorrentProgress` |
 
 ### 2.2 `Tracker` — extended, and the activation's refusal
 
@@ -400,30 +420,34 @@ codes) · `trackers-legend` (the roster's codes).
 `torrent-card-unlinked` · `torrent-card-no-artwork` (linked, initials) · `torrent-card-no-popularity` ·
 `torrent-card-downloading` · `torrent-card-stalled` · `torrent-card-paused` · `torrent-card-queued` ·
 `torrent-card-errored` · `torrent-card-missing` · `torrent-card-cross-seed` · `torrents-obligation-done` (kept) ·
-`torrent-obligation-breached` (kept) · `torrents-external-removal` (kept).
+`torrent-obligation-breached` (kept) · `torrents-external-removal` (kept) · `torrent-card-volumes` (DECIDED 1,
+default — received/sent) · `torrent-card-downloading-progress` (DECIDED 1 — the progress bar and the download rate)
+· `torrent-card-uploading-rate` (DECIDED 1 — no bar, the upload rate alone).
 
 **S5 — the panel**: `torrent-panel` (linked) · `torrent-panel-unlinked` (« Identifier ») ·
 `torrent-panel-unlinked-no-folder` · `torrent-panel-partial` (every « inconnu »).
 
 **S6 — the swipe**: `torrent-swipe-remove` (the right drawer open) · `torrent-remove-confirm` ·
-`torrent-remove-confirm-obligation` · `torrent-remove-confirm-shared` (kept — reached from the swipe too) ·
-`torrent-swipe-cross-seed` (the left drawer — only under OPEN 9 B).
+`torrent-remove-confirm-obligation` · `torrent-remove-confirm-shared` (kept — reached from the swipe too). No
+cross-seed state (DECIDED 9, § 5): the left drawer is not drawn until L17.
 
 **S7 — the roster**: `trackers-roster` (kept — six trackers) · `trackers-roster-one` · `trackers-roster-empty`
 (kept) · `tracker-active` · `tracker-off-by-operator` · `tracker-off-by-failure` · `tracker-reactivate-refused` ·
-`tracker-switch-pending` (the save bar up) · `tracker-switch-write-failed` · `trackers-entry-open` (kept, or its
-panel under OPEN 3 B) · `trackers-policy-unset` (kept) · `tracker-alert-active` · `tracker-identifier-refused` ·
+`tracker-switch-pending` (the save bar up) · `tracker-switch-write-failed` · `trackers-entry-open` (kept — now the
+panel, DECIDED 3) · `trackers-policy-unset` (kept) · `tracker-alert-active` · `tracker-identifier-refused` ·
 `tracker-broken-obligations` · `tracker-broken-obligations-open` (kept) · `tracker-composed` (a composed row, its
 declaration readable in the catalogue label).
 
-**S8 — Découvrir's header**: `discover-header` (the message on the view row, each mode — list, posters, deck) ·
-`discover-header-narrow` (369 px, ellipsised, its tap opening the sentence) · `discover-header-loading` ·
-`discover-header-unavailable` (its datum's read failed — said, never blank) · the content states of OPEN 8's chosen
-reading (A: `discover-header-new-none` for « rien de neuf depuis votre visite »; C: `discover-header-stale`).
+**S8 — Découvrir's header**: `discover-header` (« n séries et m films à découvrir », each view mode — list, posters,
+deck) · `discover-header-narrow` (369 px, ellipsised, its tap opening the sentence) · `discover-header-loading` ·
+`discover-header-unavailable` (its datum's read failed — said, never blank). No conditional content state: DECIDED 8
+(§ 5) needs none of readings A or C.
 
-**Counted** (by script over this section): **62** ids — every one of L16's 21 kept, **41 new**, of which three are
-conditional: `torrent-swipe-cross-seed` (OPEN 9 B), `discover-header-new-none` (OPEN 8 A), `discover-header-stale`
-(OPEN 8 C).
+**Counted** (by script over this section): **62** ids — every one of L16's 21 kept, **41 new**, none conditional: the
+three ids that were conditional on an OPEN reading (`torrent-swipe-cross-seed`, `discover-header-new-none`,
+`discover-header-stale`) are dropped with the readings that did not survive (DECIDED 9, DECIDED 8), replaced one for
+one by DECIDED 1's three card states (`torrent-card-volumes`, `torrent-card-downloading-progress`,
+`torrent-card-uploading-rate`).
 
 ---
 
@@ -436,14 +460,18 @@ Labels, never numbers: they bind to the range the steward reserves in the lot's 
 | **R-L16bis-a** — the landing (point 1) | a cold `/trackers` opens « Torrents »; after « Trackers » is opened, the next cold entry opens « Trackers »; storage refused opens « Torrents »; a named landing obeys — by a finger walk | first tab back to `trackers` → falls |
 | **R-L16bis-b** — the selector (point 2) | the pill names the filter and is pressed; the panel lists every roster tracker in order with its count; a choice filters and pushes nothing (`history.length`); « Tous les trackers » lifts it | drop a tracker from the choices → falls; push on choice → falls |
 | **R-L16bis-c** — the legend is complete (point 3) | every tone and dot value drawn on the tab has its legend entry, and no entry names a code absent from the tab | add a tone to a row without its entry → falls |
-| **R-L16bis-d** — the card says it all, whole (point 4) | the name equals `Download.name` in full (no ellipsis, no clipping, at 369 px), then state, size, down / up, popularity, date — each from its field, each absence said | ellipsise the title → falls; draw `0` for a null popularity → falls |
+| **R-L16bis-d** — the card says it all, whole (point 4) | the name equals `Download.name` in full (no ellipsis, no clipping, at 369 px), then state, size, down / up (DECIDED 1's three states: volumes by default, the bar and the download rate while downloading, the upload rate alone while uploading), popularity, date — each from its field, each absence said | ellipsise the title → falls; draw `0` for a null popularity → falls; draw a rate outside its state → falls |
 | **R-L16bis-e** — the card's taps (point 5) | poster → the medium's sheet (linked); no poster (unlinked); the body → the torrent's panel; the panel's facts equal the entry's fields | open the panel from the poster → falls |
 | **R-L16bis-f** — the swipe removes only through its confirmation | the right drawer's action opens L16's confirmation; nothing is removed before « Confirmer » (the network read) | call the removal from the drawer → falls |
 | **R-L16bis-g** — the switch, one write two doors (point 9) | the row's switch and Réglages' row write the same key through `updateConfigurationFile`, and each reads the other's value in the next render | write a second key → the agreement falls |
 | **R-L16bis-h** — a failing tracker says why (point 9) | off by failure reads its reason; re-activating it answers the refusal, the switch stays off, the engine's words drawn under the row and staying | turn the switch on before the answer → falls; toast the refusal → falls |
 | **R-L16bis-i** — the design system is reused (point 7) | the page's parts come from `ui/`: the card parts, the swipe row, the tab component, the switch, the legend; no `features/trackers` variant draws a title, a filter or a removal | re-add `torrentRemove` → falls |
-| **R-L16bis-j** — one tab component (point 10) | the three tab bars are the `ui` `Tabs`; each tab is ≥ 44 px, same height on the three pages | give one bar its own height → falls |
 | **R-L16bis-k** — Découvrir's header (point 8) | the message is in the view row, not the body; every figure it draws comes from a read (never a `fr.json` literal) | draw the literal back → falls |
+
+**R-L16bis-j WITHDRAWN** (DECIDED 7, § 5): « one tab component, the three bars at the same height » is the conformity
+train's rule, over Acquisition, Médiathèque and Trackers together — L16-bis builds none of the component and cannot
+hold a rule over pages it does not touch. R-L16bis-i still reads that Trackers' own strip is the `ui` `Tabs`, once
+the train has landed it.
 
 L16's R-L16-d re-aim (the refused identifier read from `disabled`, § 2.2) is said out loud in its docstring.
 
@@ -457,64 +485,86 @@ page — **L18**; the conformity of Système, Acquisition, Médiathèque, Régla
 train** (order 80), which also builds the two guard arms of § 1.9; Système's index — its own design, queued after this
 one; the harness at 369 px — order 60. **Not drawn**: a push notification (L16 § 5); a mean ratio anywhere.
 
-### OPEN questions — each with its readings, and NO choice
+### DECIDED — the operator's nine rulings, 2026-09-29 (round of PR #637)
 
-**OPEN 1 — « Réception / Envoi »: rates or volumes?** *Reading A*: the current RATES (« ↓ 2,4 Mo/s · ↑ 310 Ko/s »),
-what qBittorrent's own list shows — they move every second; the maquette draws them from the read, refreshed at the
-page's existing live cadence (NE-DOIT-PAS-8: no polling added). *Reading B*: the VOLUMES this entry received and sent
-(« ↓ 766 Mo · ↑ 1,2 Go ») — stable, and what the ratio is made of. **Cost**: both are a PROPOSED demand (§ 2.1) and one
-seed column; A adds a stream demand (rates on `TorrentProgress`), ≈ 1 point more (phase 1).
+Every OPEN question of this section is now closed. Each item below quotes the operator verbatim (in « guillemets »,
+`/Users/izno/dev/review-archive/l16bis/rulings-2026-09-29.md`), gives its English meaning, and states what changes
+against the reading that was costed above. Nothing here is re-argued.
 
-**OPEN 2 — what stands at an UNLINKED torrent's left.** *Reading A*: the media card's own non-medium side — the folder
-icon and its word (`cardFolder`, `features/acquisition/card-markup.ts:223–229`), which opens the panel; the same card
-anatomy for every row. *Reading B*: nothing — the card starts at its text, as the operator wrote (« on à pas de fiche
-média … »); a `cardMarkup` side made optional. **Cost**: A is none; B is one variant of the card, ≈ 2 points.
+**DECIDED 1 (was OPEN 1) — « Réception / Envoi ».** Verbatim: « Les 2, B par défaut. Mais lors du téléchargement la
+carte affiche une barre de progression du téléchargement avec le débit de download. Lors d'un upload en cours pas de
+barre, mais l'affichage du débit d'upload. » Meaning: the card is neither reading A (rates) nor reading B (volumes)
+alone — it is THREE named states. Default (nothing active): the received/sent VOLUMES (reading B). While
+downloading: a PROGRESS BAR with the download RATE (reading A's datum, on the state reading A described). While
+uploading: no bar, the upload RATE alone. **Cost**: both demands are needed, not one or the other — `downloadedBytes`
+/ `uploadedBytes` (volumes) AND `downloadRate` / `uploadRate` (the stream demand on `TorrentProgress`), ≈ 1 point more
+than either reading alone (phase 1); three named states join § 3, S4 (`torrent-card-volumes`,
+`torrent-card-downloading-progress`, `torrent-card-uploading-rate`).
 
-**OPEN 3 — the tracker row: a fold, or a row that opens a panel?** *Reading A*: the fold L16 drew
-(`ui/Disclosure`), with the app's one chevron (OPEN 4) — the policy, the cross-seed and upload switches, the broken
-obligations unfold in place. *Reading B*: a list row like the torrent card's — its body opens the bottom panel holding
-the same content; one interaction for both tabs, the native settings row. **Cost** (phase 15): A is ≈ 5 points (the
-chevron, two states re-read); B is ≈ 13 (a panel subject, the policy rows re-homed in it — RULINGS 2's door
-unchanged — two states and two rules re-aimed).
+**DECIDED 2 (was OPEN 2) — an UNLINKED torrent's left.** Verbatim: « A ». Meaning: reading A — the media card's own
+non-medium side, the folder icon and its word (`cardFolder`), the same card anatomy for every row; a tap opens the
+panel. Reading B (no side, `CardSide` made optional) is refused. **Cost**: unchanged from reading A — none; phase 10
+drops reading B's variant.
 
-**OPEN 4 — which fold chevron is the app's.** Measured (§ 0.1 item 3): `▸` / `▾` in `ui/Disclosure` (4 files) and
-« par identifiant » (1); `›` in a muted chip, turned 90°, on the seasons (2) — the one the operator reads as
-« ce qu'on peut voir ailleurs ». *Reading A*: the seasons' chevron becomes `ui/Disclosure`'s only drawing; every fold
-takes it. *Reading B*: `ui/Disclosure`'s `▸` / `▾` stays; the seasons and « par identifiant » are brought to it.
-**Cost**: equal — 1 point in `ui/Disclosure` (phase 15), the other sites the conformity train's with its guard
-arm; the difference is the look.
+**DECIDED 3 (was OPEN 3) — the tracker row.** Verbatim: « B effectivement, design, ergonomie, geste, composant,
+design system, je veux de la cohérence partout ! » Meaning: reading B — a row that opens the BOTTOM PANEL (settings,
+cross-seed and upload switches, broken obligations), like the torrent card; the activation switch stays on the row.
+Reading A (the fold) is refused. **Cost**: reading B's ≈ 13 points (phase 15) — a panel subject, the policy rows
+re-homed in it (RULINGS 2's door unchanged), two states and two rules re-aimed.
 
-**OPEN 5 — where the legend sits.** *Reading A*: inline, over the list, only the codes present — the season legend's
-own place; always visible, ≈ 1–2 lines of height. *Reading B*: behind a « Légende » control in the filter row, opening
-the bottom panel; no height taken, one tap to read. **Cost**: equal (phase 7, ≈ 9 points either way).
+**DECIDED 4 (was OPEN 4) — the fold chevron.** Verbatim: « A ». Meaning: reading A — the seasons' chevron (`›`, in a
+pill, turning a quarter) becomes `ui/Disclosure`'s ONLY drawing; every fold takes it, including « par identifiant ».
+Reading B (keep `▸` / `▾`) is refused. Held by order 79 (3)'s chevron guard (§ 1.9). **Cost**: unchanged — 1 point in
+`ui/Disclosure` (phase 15); the other four sites are the conformity train's, under the guard arm.
 
-**OPEN 6 — does a tracker off by FAILURE count in the Trackers badge?** *Reading A*: yes, one unit per tracker —
-it generalises the refused identifier's unit (round 9 Q1, M5) to every failure; it leaves the count when the operator
-switches it back on successfully or leaves it off knowingly by a tap. *Reading B*: no — the off switch and its reason
-on the row are the signal; only the refused identifier counts, as today. **Cost**: A is one badge term and its
-hold (≈ 3 points); B is none.
+**DECIDED 5 (was OPEN 5) — where the legend sits.** Verbatim: « Rappel, les composants sont réutiliser, si un jour je
+change un composant ça change partout, c'est le design système ! A, encore une fois, 1 design système, 1 composant,
+de la cohérence ! » Meaning: reading A — inline, above the list, only the codes present; the season legend's own
+place, IMPORTED, never copied. Reading B (behind a « Légende » control) is refused. **Cost**: unchanged — ≈ 9 points
+(phase 7), equal either way.
 
-**OPEN 7 — who builds the one tab component.** *Reading A*: L16-bis builds it in `ui/` and brings « Trackers » onto
-it; the conformity train brings Acquisition and Médiathèque and arms the guard. *Reading B*: the train builds it
-first; L16-bis waits, or opens with Trackers' tabs untouched and converts them after. **Cost**: A ≈ 11 points in this
-lot (phase 5); B moves them to the train and makes L16-bis's strip depend on its order.
+**DECIDED 6 (was OPEN 6) — a tracker off by FAILURE in the Trackers badge.** Verbatim: « 2 mécanismes similaires de
+l'application devrait avoir le même comportement, on crée pas de nouveau composant on adapte (autant que faire ce
+peux bien-sûr, si c'est trop compliqué on fait pas), mais on adapte le composant pour qu'il puisse prendre en compte
+les particularités de son nouvelle usage, on ne recrée pas de composant et on tiens à jour le design système. A »
+Meaning: reading A — yes, one unit per tracker, generalising the refused identifier's unit (round 9 Q1, M5) to every
+failure; the existing badge mechanism is ADAPTED to the new case, never rebuilt. **Cost**: reading A's ≈ 3 points
+(phase 14) — one badge term and its hold. The adaptation itself: the badge already counts one unit per
+`disabled.reason: identifierRefused` tracker (§ 2.2); it is extended to count one unit per any `disabled` tracker
+(`by: operator` excluded — an operator's own choice is not a fault — `by: failure` counted, whatever the `reason`),
+same counting mechanism, same drawing, one more predicate.
 
-**OPEN 8 — what Découvrir's header says instead.** Three proposals, each on a datum:
-*Reading A* — « 12 nouvelles depuis votre dernière visite »: what changed, the reason to scroll. Datum: a
-`Suggestion.addedAt` (PROPOSED — the engine has no suggestions route, `readSuggestions` is already a demand) and the
-last visit kept on the device (`lib/tab-memory.ts`'s mechanism). ≈ 3 points beyond the move (phase 17: 12).
-*Reading B* — « D'après vos 23 suivis et 1 863 titres »: where the suggestions come from (DOIT-1). Datum: the follows
-read (`readFollows`, answered by the engine's `followed_series`) and the library's total (`readLibraryCategories`) —
-no demand. Nothing beyond the move (phase 17: 9).
-*Reading C* — « Réserve remplie il y a 2 h · prochaine à 15 h 20 »: whether the list is fresh (§ 8). Datum: the
-reserve's `filledAt` / `nextFillAt` on the suggestions read (PROPOSED). ≈ 3 points beyond the move (phase 17: 12).
-Readings combine only as two short parts on one line (A + C, or B alone); the operator picks.
+**DECIDED 7 (was OPEN 7) — who builds the one tab component.** Verbatim: « B, là où on en as besoin c'est d'abord
+l'existant ! » and, on the reference: « C'est pas les autres systèmes d'onglet qui doivent resemblé à tracker mais
+tracker qui doit ressembler aux autres systèmes d'onglet, l'existant est ce qui est validé. » Meaning: reading B —
+the CONFORMITY TRAIN builds the single tabs component first, on the EXISTING validated tab bars (Acquisition first,
+then Médiathèque, then any other tabbed page) as its reference; it arms the guard. L16-bis's CODE WAITS for that
+train, then USES the component for Trackers; Trackers conforms to the existing bars, never the reverse. Reading A
+(L16-bis builds it) is refused. **Harness queue** (operator, verbatim): « #636 keychain → #635 → conformity train
+(tabs first, then the 369 px width red rule) → catalogue 76 → L16-bis code → L17 »; the conformity reading and
+inventory (orders 80, 77.3, 81) come BEFORE the train. **Cost**: phase 5 (which built the component) is REMOVED from
+this plan — see `plan/INDEX.md`'s header and `docs/reference/frontend-architecture.md`'s entry for the dependency.
 
-**OPEN 9 — the swipe's cross-seed side before L17.** *Reading A*: absent — the row travels one way until L17 adds the
-left drawer with its verb; nothing is drawn that does nothing (the B-298 lesson: a promise is a defect). *Reading B*:
-drawn now, its action DISABLED with its reason (« Disponible avec le cross-seed ») — the panel's own `desactive` /
-`mention` pattern (`ui/panel/contract.ts`, `Action`), § 6's « une action indisponible dit pourquoi ». **Cost**: A is
-none; B is one drawer and one state, ≈ 3 points (phase 11), re-aimed by L17.
+**DECIDED 8 (was OPEN 8) — Découvrir's header content.** Verbatim: « D: "n Séries et m Fims à découvrir" ». Meaning:
+none of the three costed proposals (A, B, C — all three explicitly refused) — a fourth reading, the operator's own:
+the message reads « n séries et m films à découvrir », beside the view-switch buttons, both numbers drawn from the
+suggestions already read (no new field, no new route — the same list Découvrir already renders is counted by media
+type). **No engine demand**: T4 is REMOVED from § 6's demand table and from phase 18's register — `readSuggestions`
+remains an existing demand (§ 0.1 item 10), unrelated to this count. **Cost**: the move alone (phase 17, ≈ 9 points,
+reading B's figure — no field declared, no seed column, no new demand); the three conditional states tied to
+readings A and C (`discover-header-new-none`, `discover-header-stale`) are dropped from § 3.
+
+**DECIDED 9 (was OPEN 9) — the swipe's cross-seed side before L17.** Verbatim: « A ». Meaning: reading A — absent;
+the row travels one way until L17 adds the left drawer with its verb; nothing is drawn that does nothing. Reading B
+(drawn now, disabled) is refused. **Cost**: unchanged — none; phase 11 drops reading B's drawer and its state
+(`torrent-swipe-cross-seed`), dropped from § 3.
+
+**The operator's binding principles, this round** (verbatim, DECIDED 3/5/6 above): coherence everywhere, across
+design, ergonomics, gesture, component and design system; a component is REUSED, never copied — one design system,
+one component, changing it changes everywhere it is used; two similar mechanisms of the app behave the same way — no
+new component is created where one can be adapted (only when adapting is not reasonably possible is a new one
+justified), and the design system is kept up to date with the adaptation. Written once here; applied at § 1.8 as the
+lot's binding constraint, and by DECIDED 6 above as its own worked example.
 
 ---
 
@@ -527,7 +577,7 @@ themselves come with the lot (`BUGS.md` is not edited here).
 | --- | --- | --- | --- |
 | The Trackers page draws seven colour codes and explains none | L16's reader round and its states | no layer reads that a colour carries a word; the dot's `aria-label` satisfied the a11y pass | R-L16bis-c (every code has its legend entry) and the legend read by the rule, not by eye |
 | The Trackers page redrew a title, a filter line, a removal and a tab floor that `ui/` already had; its fold chevron is not the app's | L16's phases and reader round | no layer reads design-system reuse; family: a component redrawn | the reader's design-system lens (order 79 (2)), R-L16bis-i, and the guard arms of § 1.9 in the conformity train |
-| Three tab bars at two heights | L20, L22, L16 each composing the variants inline | no component, so no single place for the floor | the `ui` `Tabs` (§ 1.1) and its guard arm |
+| Three tab bars at two heights | L20, L22, L16 each composing the variants inline | no component, so no single place for the floor | the `ui` `Tabs`, built by the conformity train (§ 1.1, DECIDED 7) and its guard arm |
 | Découvrir's header draws four `fr.json` literals as figures | L08-bis / L22's move of the surface | a figure in copy passes every guard: `check-no-french` exempts `fr.json`, no rule reads the strip | R-L16bis-k (a figure comes from a read) |
 
 **RULINGS of L16 touched**: **3** — reversed in form (§ 1.2); **2** (the second door) kept and extended to
@@ -540,8 +590,10 @@ untouched.
 | --- | --- | --- | --- |
 | **T1 — three more trackers** | support `v3x.club`, `draupnirr.xyz` and `digitalcore.club` as tracker providers (search, grab, ratio, cross-seed), each with the `enabled` / `cross_seed` / `economy` block `c411` has | operator, 2026-09-29 16:58: « le but est d'en ajouter … notamment v3x.club et draupnirr.xyz, mais aussi digitalcore.club » | S7's composed rows become real |
 | **T2 — a failing tracker switches itself off, with its reason** | on a persistent failure (a refused credential, 401/403; an unreachable host — the circuit open past a threshold), set `enabled: false` with `disabled: { by: failure, reason, message, since }`; refuse `enabled: true` while the failure persists, answering the reason; emit an event so the roster moves live | operator, 2026-09-29 16:58: « Si un tracker fonctionne plus le toggle passe en désactivé et affiche un message avec l'erreur si j'essaye de le réactiver » — and `lacale`, switched off by hand for exactly this (§ 0.1 item 9) | S7's three states and the refusal |
-| **T3 — the entry says more** | route `added_on`, `swarm_seeds`, `num_incomplete` and, per OPEN 1, the rates or the volumes on `AcquisitionDownload` | operator, 2026-09-29 16:4x (4) | S4, S5 |
-| **T4 — Découvrir's header datum** | per OPEN 8: A `addedAt` on a suggestion; C the reserve's `filledAt` / `nextFillAt` | operator, 2026-09-29 16:52 | S8 |
+| **T3 — the entry says more** | route `added_on`, `swarm_seeds`, `num_incomplete` and, per DECIDED 1 (§ 5), BOTH the rates and the volumes on `AcquisitionDownload` (a stream demand for the rates) | operator, 2026-09-29 16:4x (4) and 2026-09-29 (Q1) | S4, S5 |
+
+T4 (Découvrir's header datum) is WITHDRAWN: DECIDED 8 (§ 5) draws the header from the suggestions already read — no
+engine demand.
 
 **`docs/reference/product-intent-map.md`**, read, not edited: DOIT-13 (`served` by L16) and DOIT-2 are unchanged in
 verdict; the lot adds proofs under DOIT-9 (§ 12's card and « rien d'essentiel n'est tronqué », R-L16bis-d) and
