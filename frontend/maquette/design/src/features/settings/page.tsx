@@ -300,7 +300,7 @@ export function SettingsPage(): ReactElement | null {
         </span>
         <span className="rn" data-part="topic/count">{SECRETS.length}</span>
       </button>
-      <button className={topicRow()} data-part="topic" data-ranking-editor="">
+      <button className={topicRow()} data-part="topic" data-profile="global">
         <span style={{ minWidth: 0, flex: 1 }}>
           <span className="rt" data-part="topic/title">{t("screens.settings.rankingTitle")}</span>
           <span className="rs" data-part="topic/subtitle">

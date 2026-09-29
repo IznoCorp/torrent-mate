@@ -9,12 +9,18 @@ very seed the layer answers from, so a list drawn from anywhere else falls.
 1. `ranking-editor` draws one row per criterion of the file, in the file's order;
 2. each row's weight is the file's;
 3. each row's scoring names every value the file scores, or every threshold;
-4. from Réglages, a finger on « Classement des releases » lands on the editor —
-   the rubric that led nowhere (B-298) — as an arrival;
+4. from Réglages, a finger on « Classement des releases » opens the GLOBAL
+   quality profile, and there a finger on « Poids du classement » lands on the
+   editor, as an arrival;
 5. from a quality screen, a finger on « Poids du classement » lands on the
    editor, and says no promise in a toast (B-298);
 6. `ranking-editor-loading` draws no criterion while the file is read, and
    `ranking-editor-error` says the read failed rather than an empty list.
+
+RE-AIMED OUT LOUD: hold 4 first read « the rubric lands on the editor ». The
+rubric opens the global quality profile — a route of its own, held by
+`page_host.py` — and the promise B-298 names was that profile's weights button,
+a toast. The rubric keeps its route; the path to the editor runs through it.
 
 Red before the move: no screen answers `/settings/ranking`.
 """
@@ -89,9 +95,17 @@ async def main():
                 rows: document.querySelectorAll('[data-part="ranking/criterion"]').length,
                 toast: document.querySelector('#toast[data-shown]')?.textContent.trim() || null})"""), before
         where, before = await lands("settings", '#view [data-part="topic"]', RUBRIC)
-        journal.check(f"from Réglages, « {RUBRIC} » lands on the editor, as an arrival",
+        journal.check(f"from Réglages, « {RUBRIC} » opens the global quality profile",
+                      where["path"].endswith("/quality/global"), str(where))
+        weights = page.locator('[data-part="card/foot"]', has_text=WEIGHTS)
+        if await weights.count():
+            await weights.first.tap()
+            await page.wait_for_timeout(SETTLED)
+        where = await page.evaluate("""()=>({path: location.pathname, length: history.length,
+            rows: document.querySelectorAll('[data-part="ranking/criterion"]').length})""")
+        journal.check(f"and there « {WEIGHTS} » lands on the editor, as an arrival",
                       where["path"].endswith("/settings/ranking") and where["rows"] == len(criteria)
-                      and where["length"] == before + 1, f"{where} · history.length {before}")
+                      and where["length"] == before + 2, f"{where} · history.length {before}")
         where, before = await lands("screen-profile", '[data-part="card/foot"]', WEIGHTS)
         journal.check(f"from a quality screen, « {WEIGHTS} » lands on the editor, with no promise in a toast",
                       where["path"].endswith("/settings/ranking") and where["rows"] == len(criteria)

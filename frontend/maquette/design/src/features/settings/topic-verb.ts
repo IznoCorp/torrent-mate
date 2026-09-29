@@ -85,8 +85,7 @@ function leaveTopic(): void {
    side effect is named whatever it is. The listener is added once, for the
    life of the document, exactly as the tap registry's own is. */
 registerVerb("topic", openTopic);
-/* « CLASSEMENT DES RELEASES » AND « POIDS DU CLASSEMENT »: the ranking editor,
-   a screen under Réglages — one verb, whichever control names it. */
+/* « POIDS DU CLASSEMENT »: the ranking editor, a screen under Réglages. */
 registerVerb("ranking-editor", () => screens?.ranking());
 window.addEventListener("popstate", leaveTopic);
 /* AND THE ENTRY IS GIVEN BACK BEFORE THE PAGE CHANGES. The switch beneath was
