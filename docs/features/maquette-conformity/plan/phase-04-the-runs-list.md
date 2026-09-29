@@ -1,4 +1,4 @@
-# Phase 2 — The runs list becomes `FactRows` (D.1 #13)
+# Phase 4 — The runs list becomes `FactRows` (D.1 #13)
 
 **Opening measure (2026-09-29, on `660049325`):**
 

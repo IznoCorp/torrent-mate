@@ -59,17 +59,17 @@ OWED: dict[tuple[str, str], str] = {
     # Reds this train repairs in a later phase of its own plan
     # (docs/features/maquette-conformity/plan/INDEX.md): each entry leaves the
     # list in the commit that repairs it, and the rule then holds it.
-    ("bevel", "runs/row"): "maquette-conformity phase 2",
-    ("bevel", "shell/connection-notice"): "maquette-conformity phase 2 (R1's family)",
-    ("cut", "card/requester"): "maquette-conformity phase 3",
-    ("cut", "shell/tab-bar"): "maquette-conformity phase 4",
-    ("overflow", "run/log"): "maquette-conformity phase 6 (the operator's OPEN 10)",
-    ("cut", "card/title"): "maquette-conformity phase 5 (§ 12)",
-    ("cut", "card/subtitle"): "maquette-conformity phase 5 (§ 12)",
-    ("cut", "tile/title"): "maquette-conformity phase 5 (§ 12's family)",
-    ("cut", "cast"): "maquette-conformity phase 5 (§ 12's family)",
-    ("cut", "segment"): "maquette-conformity phase 7",
-    ("cut", "segment/count"): "maquette-conformity phase 7",
+    ("bevel", "runs/row"): "maquette-conformity phase 4",
+    ("bevel", "shell/connection-notice"): "maquette-conformity phase 4 (R1's family)",
+    ("cut", "card/requester"): "maquette-conformity phase 5",
+    ("cut", "shell/tab-bar"): "maquette-conformity phase 6",
+    ("overflow", "run/log"): "maquette-conformity phase 8 (the operator's OPEN 10)",
+    ("cut", "card/title"): "maquette-conformity phase 7 (§ 12)",
+    ("cut", "card/subtitle"): "maquette-conformity phase 7 (§ 12)",
+    ("cut", "tile/title"): "maquette-conformity phase 7 (§ 12's family)",
+    ("cut", "cast"): "maquette-conformity phase 7 (§ 12's family)",
+    ("cut", "segment"): "maquette-conformity phase 9",
+    ("cut", "segment/count"): "maquette-conformity phase 9",
 }
 
 MEASURE = """(width) => {

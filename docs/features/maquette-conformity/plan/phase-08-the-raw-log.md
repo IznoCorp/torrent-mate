@@ -1,4 +1,4 @@
-# Phase 6 — The run's raw log wraps: no sideways scroll (a responsive defect, the operator's OPEN 10 = A)
+# Phase 8 — The run's raw log wraps: no sideways scroll (a responsive defect, the operator's OPEN 10 = A)
 
 **Ruled 2026-09-29** (`/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md` § Q10, « A »): the run
 screen's raw log goes `whitespace-pre-wrap`, breaking anywhere — no horizontal scroll, no exception to § 12 nor to

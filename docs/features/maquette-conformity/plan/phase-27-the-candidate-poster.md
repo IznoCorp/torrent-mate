@@ -1,9 +1,9 @@
-# Phase 24 — The candidate's poster opens its sheet; only « Choisir » picks (a defect, the operator's)
+# Phase 27 — The candidate's poster opens its sheet; only « Choisir » picks (a defect, the operator's)
 
 **Reported 2026-09-29, 22:2x** (`/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md` § « DEFECT +
 PRINCIPLE »): touching a candidate's poster on the resolution screen PICKS it; expected, as everywhere else in the app,
 its media sheet. The operator's principle: « Il faut uniformiser les comportements. Sauf exception volontaire de ma
-part. » **Kind: defect.** Same card as phase 23, so right after it.
+part. » **Kind: defect.** Same card as phase 26, so right after it.
 
 **Opening measure (2026-09-29, on `660049325`):**
 

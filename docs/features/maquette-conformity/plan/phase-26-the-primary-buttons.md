@@ -1,4 +1,4 @@
-# Phase 23 — The primary buttons are `actionButton` (D.1 #15, the operator's OPEN 8 = A)
+# Phase 26 — The primary buttons are `actionButton` (D.1 #15, the operator's OPEN 8 = A)
 
 **Ruled 2026-09-29** (`/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md` § Q8, verbatim « A »):
 `candidatePick` (the rounded-full pill) goes; « Choisir » becomes `actionButton({ kind: "panelAction", tone:

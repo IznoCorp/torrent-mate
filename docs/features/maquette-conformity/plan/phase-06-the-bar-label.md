@@ -1,4 +1,4 @@
-# Phase 4 — The bottom bar's label cut at 320 px (a responsive defect, owned by this train)
+# Phase 6 — The bottom bar's label cut at 320 px (a responsive defect, owned by this train)
 
 **Found 2026-09-29** by R-conformity-a's first full pass: `cut · shell/tab-bar`, box **[86, 154]**, at **320 px**
 on every state — a label of the bottom bar ellipsised. Owner: this train, the orchestrator's ruling of 2026-09-29.
