@@ -37,3 +37,12 @@
   `ui/variants/legend.ts`, `--color-upcoming-text` declared in both themes, `SurfaceError` takes a tone and its
   words, `ui/topic-row.tsx`. Gate: guards green (two reds of mine repaired first: a stale build for the new token,
   a double import), oracle « no divergence », 5 rules green incl. responsive on 9 states.
+- 2026-09-30 — phase 5 (Système): runs list → FactRows + outcome chip (B-576), one outcome map, the raw log wraps,
+  the watcher renamed « Traitement automatique des téléchargements » as one levers row with « actif / inactif », the
+  locks' row gone, the pause on the same pair, the seeds carry state codes (`Fact.state`, the demands doc rewritten
+  by `compare-contracts.py --write`), runs empty → the empty note, the veille's dot drawn, `TopicRow`. Red first on
+  the old code: on_off (e), state_words (f), empty_place (h), raw_log's re-aimed hold. The markup arm refused
+  computed parts twice (FactRows `parts`, the watcher's part on its row): the readers re-aimed to `[data-run]`, the
+  watcher's part emitted literally on its list. Gate: 13 rules green (machine.py re-aimed after its first fall on
+  the seeds' tones), oracle 27 Système states moved, accepted by name, proved by script. Vocabulary choices to
+  confirm: « joignable » for the reachable code; the pause reads « actif » when engaged.
