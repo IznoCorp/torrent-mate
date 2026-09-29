@@ -1,21 +1,22 @@
 # L16 — RESUME
 
-## STATE BLOCK (rewritten at every boundary — 2026-09-29, after phase 15)
+## STATE BLOCK (rewritten at every boundary — 2026-09-29, after phase 16)
 
 - **Branch** `feat/maquette-l16`, worktree `/Users/izno/dev/worktrees/wave-l16`, on `origin/main` by MERGE
   (last: `77e7b8436`, #631, at 15's opening). `git merge --no-edit` at a phase boundary; NO force push, ever.
 - **Orchestrator** « Orch : TM frontend [79475d] »; always write the reference. Gauge: `context-gauge.sh` as the
   LAST tool call before any message carrying a figure. Context gate 80 %, exit ~75 % (brief's dated line).
-- **Done** 1 · 2a–c · 3 · 4 · 5a–d · 6a · 6b · 7 · 8 · 9 · MIDPOINT · 10 · 11 · 12a · 12b · 13 · 14a · 14b · 15 —
-  each gated, mutated, pushed. **Next: 16** (`plan/phase-16-live-preview.md`), not opened — re-measure it.
-- **Remaining** (from `ls plan/`): 16 · 17 (then the close's full suite + `--compare`, PR). No known STOP D.
+- **Done** 1 · 2a–c · 3 · 4 · 5a–d · 6a · 6b · 7 · 8 · 9 · MIDPOINT · 10 · 11 · 12a · 12b · 13 · 14a · 14b · 15 · 16
+  — each gated, mutated, pushed. **Next: 17** (`plan/phase-17-close.md`), the close — re-measure it.
+- **Remaining** (from `ls plan/`): 17 (the close's full suite + `--a11y` + `--compare`, order 52, PR). No STOP D.
 - **Rulings** (`RULINGS.md`) 1 `?list=` · 2 C2 save bar door · 3 B filter line · 4 B1 Lanterns · 5 B `poseArrived` ·
   6 B `poseExternalRemoval` · 7 posed dials replace composed seeds (STANDING: announce, no STOP) · 8 A « Vu » ·
   9 « Veille », L22's note to phase 17 · 10 A tracker's own threshold (demand) · 11 A `readConfigurationFile` +
   the real ranking.json5 · 12 B the rubric keeps /quality/global, the weights button leads to the editor.
 - **Rules** R260 trackers_page · R261 trackers_roster (17 holds) · R262 trackers_policy · R263 trackers_removal (10) ·
-  R264 trackers_alert (11) · R265 deferred_reason (6) · R266 ranking_editor (11 holds, 32 checks; save half at 15) · R229
-  re-aimed at 5d; R91 fanout reads trackers/live.ts. Next label: e R267 (16); cuts R268+. Register: B-570 taken
+  R264 trackers_alert (11) · R265 deferred_reason (6) · R266 ranking_editor (11 holds, 32 checks; save half at 15) ·
+  R267 ranking_preview (3 holds) · R229
+  re-aimed at 5d; R91 fanout reads trackers/live.ts. Next label R268 (cuts only). Register: B-570 taken
   (live-relay guard's constant-key blind spot, `open`); B-298 `to confirm`; next B-571.
 - **Gate** (office § The gate): the scratchpad `static.sh` = CI's no-french job + run.sh's 26 cheap guards (read
   from `REPOSITORY_GUARDS`) — a successor rebuilds it the same way; → `run.sh --oracle` alone → accept with
@@ -24,7 +25,8 @@
   vitest: `vitest run --root frontend/maquette/design`. The RULE is read RED BEFORE the move (14a slipped).
 - **Order 52** at the midpoint 0.56; **Order 73**: a rule red 3× for a non-product reason → a register row naming
   its mechanism before READY (entry/pwa excluded: the router hairpin, a train's).
-- **Phase 17 carries**: L22's DESIGN § 1.7 note (RULINGS 9); B-298 `to confirm`; the closing full suite + `--a11y` +
+- **Phase 17 carries**: L22's DESIGN § 1.7 note (RULINGS 9); B-298 `to confirm` → `fixed #<L16's PR>` once
+  the PR exists (never guessed; its body already says both halves); the closing full suite + `--a11y` +
   `--compare`; the 390 px screenshots of both Trackers tabs.
 - **Traps** `git fetch` blocked (use `git remote update origin`); the git index lock is held by a concurrent reader
   — `git add` then `git commit -F <file>` with bounded retries, never delete the lock; BSD `sed` has no `\b`;
@@ -374,3 +376,18 @@
   content → FAIL « the NEXT read answers the saved weight 6 … — {'resolution': '4' …} »; the digest not compared →
   FAIL « a second editor holding the digest read before the save is refused … — conflict False · read 4 »
   (`p15-mutation1–3.log`).
+- 2026-09-29 — phase 16 opening ≈ 9, no cut. The real file's `min_seeders` is 1 and every sample has more: no
+  excluded row → the hold POSES a minimum of 10 through the file's own write (PUT under the read digest), announced
+  under RULINGS 7 — no new dial, no seed. No POST-read precedent: `readByPost` in `lib/query-client.ts` (never the
+  outbox). R267 `ranking_preview.py` RED (`p16-red.log`: 3 FAIL, « drawn [] »); a first draft counted its own
+  witness request as the screen's call — re-ordered before the move.
+- 2026-09-29 — 16 move `8883483a3`: `features/settings/ranking-preview.tsx` (the file's block → `RankingConfig`,
+  the typed weights that read as one, `keepPreviousData`), rows `ranking/preview-row` with score and « Écartée »
+  + the seeders against the minimum; words `excluded`, `minimum`. R267's re-read first removed the query (the
+  mounted screen did not read again) → `invalidateQueries`.
+- 2026-09-29 — 16 gate: static 28/28, typecheck 0, vitest 142. Oracle alone: NO divergence — the plan expected
+  `ranking-editor` to grow, but no region measures the ranking screen; nothing accepted. Rules R267 4 · R266 32 ·
+  settings 68 · settings_editing 15 · page_host 42 · screen_addresses 61, 0 failed; a11y dark 0, light 88.
+  Mutations: a constant weight → FAIL « ranking-editor draws the preview the operation answers for the file's
+  ranking … » (and the typed hold); the excluded rows hidden → FAIL « under a minimum of 10 seeders, every sample is
+  still a row … 7 rows » (`p16-mutation1–2.log`). B-298's body: kept in full; status at the PR.

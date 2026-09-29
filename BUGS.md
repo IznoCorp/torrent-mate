@@ -2476,6 +2476,16 @@ the move: « from a quality screen, « Poids du classement (global) → » lands
 FAIL « and there « Poids du classement (global) → » lands on the editor, as an arrival —
 {'path': '/quality/global' …} ». The live preview is L16 phase 16's.
 
+**Kept in full at L16 phases 15 and 16 (2026-09-29):** the editor SAVES — each weight a field,
+« Enregistrer » writing `ranking.json5` through `updateConfigurationFile` under the digest the read
+answered, a stale digest refused as a conflict (R266 holds 7–11; mutation « the save answered without
+the call » → FAIL « « Enregistrer » writes ranking.json5 through updateConfigurationFile, once, and says so
+— … [] ») — and PREVIEWS live through `POST /api/acquisition/ranking/preview`, the ranking as typed,
+every sample kept, the excluded ones sunk last and flagged (R267, `frontend/maquette/harness/ranking_preview.py`;
+red « … 12 rows in its order … drawn [] » (`p16-red.log`); mutation « the excluded rows hidden » → FAIL
+« under a minimum of 10 seeders, every sample is still a row … 7 rows »). The status turns `fixed` with
+L16's pull request.
+
 <sub>`grep -n "rankingToast\|rankingTitle" frontend/maquette/design/src/i18n/fr.json` · `grep -rn "ranking/preview" -g '*.ts' frontend/maquette/design/src` → none</sub>
 
 **B-299 — the settings' version conflict is declared and never drawn.** `SettingsState.conflict:
