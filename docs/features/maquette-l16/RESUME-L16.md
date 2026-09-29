@@ -415,3 +415,8 @@
   (5d, said), audit 13 → 14 (R1 bis), page_host 41 → 42, journey 70 → 72, drawer 30 → 33, paths_to_sheets 11 → 13,
   cards 79 → 78 (78 already before phase 12 — not the lot's). `make lint` 0; `check-bug-register`,
   `check-intent-map`, `check-docs-cited-paths` clean.
+- 2026-09-29 — PR #634 READY (`d6972b4e8`), B-144 / B-298 → `fixed #634` (`fe372244d`); `main` moved (#632, #633,
+  docs only) → merged `47bf57c6f`, docs guards 0. CI run 36541875332: `harness-contracts` FELL once on `audit2.py`
+  « ■ R12 context measured by nothing — 1 » (its five contexts are reached after fixed 220–400 ms waits; which one
+  missed is filtered out of the log); no such fall on any branch in the last 40 runs; locally 0/5
+  (`close-audit2-{1..5}.log`); the failed job re-run → all 14 jobs green. One fall, not three: a ledger line (order 73).
