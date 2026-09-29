@@ -207,7 +207,7 @@ when the defect comes back.
 | B-141 | Ten elements carry no class at all, in a prototype that imports no preflight | by audit | `fixed #516` |
 | B-142 | Nothing measures the interface against the constitution: three DOIT clauses have no surface | by audit | `fixed #528` |
 | B-143 | §17 (accounts, rights, Plex SSO) has no surface, no contract operation and no lot | by audit | `open` |
-| B-144 | §18 (ratio per tracker) needs three operations the backend already answers and nothing calls | by audit | `to confirm` |
+| B-144 | §18 (ratio per tracker) needs three operations the backend already answers and nothing calls | by audit | `fixed #634` |
 | B-145 | §19 (cross-seed) has no route in either contract, and its events reach no stream | by audit | `open` |
 | B-146 | D11 is decided and nothing styles a scrollbar yet; the change may move the oracle | by audit | `fixed #516` |
 | B-147 | Nine steward findings were stacked on five unmerged branches and collided with a wave | by audit | `fixed #511` |
@@ -361,7 +361,7 @@ when the defect comes back.
 | B-295 | React 19 assigns `innerHTML` on the prop OBJECT's identity, string unchanged or not — so every re-render of a page subscribed to the store's version recreates its engine-drawn children | by L14   | `fixed #547` |
 | B-296 | The raw log of an execution has no surface; the passage's narrative is per media and the log lines are folded in the run's detail | by survey | `fixed #603` |
 | B-297 | The locks — pipeline lock, pause sentinel, watcher pause, tmp-orphan sweep — have no surface, and three of them are the state of L20's levers | by survey | `fixed #603` |
-| B-298 | The ranking editor is a promise: a settings rubric that leads nowhere and a toast saying it will exist | by survey | `to confirm` |
+| B-298 | The ranking editor is a promise: a settings rubric that leads nowhere and a toast saying it will exist | by survey | `fixed #634` |
 | B-299 | `SettingsState.conflict` is declared, set to `false` at boot, and never raised, drawn or copied — the conflict the contract answers has no surface | by survey | `to confirm` |
 | B-300 | « Redémarrer maintenant » restarts on the tap, with no confirmation, while a restart cuts the service for the whole household | by survey | `to confirm` |
 | B-301 | The seasons panel prints a season as `to_grab` and offers no verb; the season grab operation is uncalled | by survey | `fixed #572` |
@@ -10985,7 +10985,7 @@ the refused identifier and the broken obligations « Vu » one by one (R264), th
 (R264 holds 10–11, R91), a deferred card naming its tracker and that tracker's threshold (R265).
 **Escaped from**: a demands register that listed the operations with no verdict column; **why**: no
 lot owned §18 until the constitution did; **family repaired by** R260–R265, each read red before its
-move and felled by its mutation (RESUME-L16 ledger). The status turns `fixed` with L16's pull request.
+move and felled by its mutation (RESUME-L16 ledger). The status turns `fixed #634` with L16's pull request.
 
 **B-145 — 797 lines of engine that inject torrents at third parties, and no way to know it happened.**
 The operator dictated **§19 — Le cross-seed se voit et se décide** on 2026-08-26, with `DOIT-14`.
