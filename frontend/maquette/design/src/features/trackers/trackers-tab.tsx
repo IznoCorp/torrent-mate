@@ -13,7 +13,8 @@ import { useUiState } from "../../lib/store-access";
 import {
   chip, crossReference, emptyNote, factDetail, factList, factName, factRow, factRowBody, factValue, guidance,
 } from "../../ui/variants";
-import { written } from "./format";
+import { dayOf, written } from "./format";
+import { torrentRemove } from "./variants";
 import {
   alertOf, useDownloads, useObligations, useSettingsCatalogue, useTrackers, type Alert, type Setting, type Tracker,
 } from "./queries";
@@ -67,6 +68,47 @@ function TrackerPolicy({ tracker, settings }: { tracker: string; settings: Setti
 }
 
 /**
+ * The obligations the engine broke on a tracker, their torrent gone — folded
+ * under its entry, each marked seen on its own. SEEN IS NOT GONE: a row seen
+ * stays listed and says so; it only leaves the alert's count.
+ *
+ * @param props.tracker The tracker, its broken obligations included.
+ * @returns The fold.
+ */
+function BrokenObligations({ tracker }: { tracker: Tracker }): ReactElement {
+  const { t } = useTranslation();
+  return (
+    <Disclosure summary={<span data-part="trackers/broken-obligations-toggle">{t("screens.trackers.brokenList")}</span>}>
+      <ol className={factList()}>
+        {tracker.brokenObligations.map((row) => (
+          <li key={row.infoHash} className={factRow()} data-part="trackers/broken-obligation-row" data-entry={row.infoHash}>
+            <span className={factRowBody()}>
+              <span className={factName()} data-part="trackers/broken-obligation-title">{row.title}</span>
+              <span className={factDetail()} data-part="trackers/broken-obligation-date">
+                {t("screens.trackers.brokenOn", { date: dayOf(row.brokenAt) })}
+              </span>
+            </span>
+            {row.seen ? (
+              <span className={factDetail()} data-part="trackers/broken-obligation-seen-mark">
+                {t("screens.trackers.seenMark")}
+              </span>
+            ) : (
+              <button
+                className={torrentRemove()}
+                data-part="trackers/broken-obligation-seen"
+                data-obligation-seen={`${tracker.name}:${row.infoHash}`}
+              >
+                {t("screens.trackers.seen")}
+              </button>
+            )}
+          </li>
+        ))}
+      </ol>
+    </Disclosure>
+  );
+}
+
+/**
  * One tracker's entry: its summary, folding away its policy.
  *
  * @param props.tracker The tracker, as its own answer carries it.
@@ -81,6 +123,7 @@ function TrackerEntry(
     <li data-part="trackers/entry" data-tracker={tracker.name}>
       <Disclosure open={open} summary={<TrackerSummary tracker={tracker} alert={alert} />}>
         <TrackerPolicy tracker={tracker.name} settings={settings} />
+        {tracker.brokenObligations.length > 0 ? <BrokenObligations tracker={tracker} /> : null}
       </Disclosure>
     </li>
   );
@@ -113,6 +156,11 @@ function TrackerSummary({ tracker, alert }: { tracker: Tracker; alert: Alert }):
         {alert.under.has(tracker.name) ? (
           <span className={chip({ tone: "warning" })} data-part="trackers/alert">
             {t("screens.trackers.alertBelowThreshold", { threshold: written(tracker.alertThreshold ?? 0, 2) })}
+          </span>
+        ) : null}
+        {(alert.unseen.get(tracker.name) ?? 0) > 0 ? (
+          <span className={chip({ tone: "danger" })} data-part="trackers/broken-obligations">
+            {t("screens.trackers.brokenObligations", { count: alert.unseen.get(tracker.name) })}
           </span>
         ) : null}
         {alert.refused.has(tracker.name) ? (

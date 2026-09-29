@@ -56,6 +56,7 @@ export type TrackerDials = {
   poseAlertThreshold: (tracker: string, threshold: number) => void;
   poseIdentifierRefused: (tracker: string) => void;
   setObligationBreached: (infoHash: string) => void;
+  poseBrokenObligation: (infoHash: string) => void;
   trackerRemovals: () => TrackersHeld["removals"];
 };
 
@@ -152,6 +153,20 @@ export const trackerDials: TrackerDials = {
         obligation.breachedAt = obligation.addedAt + obligation.minimumSeedTimeSeconds;
       }
     }
+  },
+  poseBrokenObligation: (infoHash: string) => {
+    // A DERIVATION, SHOWN AS ONE: the engine BROKE the obligation at its own
+    // deadline, then its torrent left the client — kept on its tracker, unseen.
+    // No real obligation has been broken.
+    const subject = trackersState();
+    for (const obligation of subject.obligations) {
+      if (obligation.infoHash !== infoHash) continue;
+      const brokenAt = obligation.addedAt + obligation.minimumSeedTimeSeconds;
+      obligation.breachedAt = brokenAt;
+      const tracker = subject.trackers.find((one) => one.name === obligation.sourceTracker);
+      tracker?.brokenObligations.push({ infoHash, title: obligation.title ?? "", brokenAt, seen: false });
+    }
+    subject.downloads = subject.downloads.filter((entry) => entry.infoHash !== infoHash);
   },
   setObligationSatisfied: (infoHash: string) => {
     // AN OBLIGATION MET, at its seed time, the torrent still seeding.

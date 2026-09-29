@@ -400,7 +400,9 @@ def test_the_committed_reference_carries_a_platform():
     # (B-554), named in the acceptance commit.
     # 148 SINCE L16's phase 8: `tracker-alert-active`, `tracker-identifier-refused` and
     # `torrent-obligation-breached` — added, nothing else moved.
-    assert reference["counts"] == {"states": 148, "regions": 38}
+    # 150 SINCE L16's phase 9: `tracker-broken-obligations` and `tracker-broken-obligations-open` —
+    # added, nothing else moved.
+    assert reference["counts"] == {"states": 150, "regions": 38}
 
 
 class TestItRefusesToWriteOverAForeignBuild:

@@ -1,13 +1,16 @@
 // The ratio, tracker by tracker: the configured trackers as their own subject,
 // the download client's entries one per tracker they run on, and the seeding
 // obligations those entries owe.
-import { DELETE, GET, field, route } from "./shared";
+import { DELETE, GET, POST, field, route } from "./shared";
 import { mockState } from "../state";
 import { alertThresholdKey, trackersState } from "../trackers-state";
-import type { MockRoute } from "../router";
+import { refused, type MockRoute } from "../router";
 import type { components } from "../../contract/types";
 
 type Schemas = components["schemas"];
+
+// Why « Vu » is refused: the tracker holds no broken obligation on that torrent.
+const NO_BROKEN_OBLIGATION = "no broken obligation of that tracker is owed on that torrent";
 
 // The milliseconds in a second: a removal is dated in Unix-epoch seconds.
 const MILLISECONDS_PER_SECOND = 1000;
@@ -37,6 +40,14 @@ export function trackerRoutes(): MockRoute[] {
         alertThreshold: alertThresholdOf(tracker.name),
       })),
     ),
+    route("markBrokenObligationSeen", POST, "/api/trackers/{tracker}/broken-obligations/{infoHash}/seen", (request) => {
+      // SEEN IS NOT GONE: the row stays on its tracker, and leaves the alert's count.
+      const tracker = trackersState().trackers.find((one) => one.name === request.parameters.tracker);
+      const broken = tracker?.brokenObligations.find((row) => row.infoHash === request.parameters.infoHash);
+      if (broken === undefined) return refused(404, NO_BROKEN_OBLIGATION);
+      broken.seen = true;
+      return broken;
+    }),
     route("readDownloads", GET, "/api/acquisition/downloads", (): Schemas["Downloads"] => ({
       clientAvailable: true,
       downloads: trackersState().downloads,

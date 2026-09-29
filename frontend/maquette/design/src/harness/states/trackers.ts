@@ -7,6 +7,16 @@
 import { applyState, type NamedState } from "../drive";
 import { openRemoveConfirm } from "../../features/trackers/remove-verb";
 
+// How long a fold waits for the entry it sits in to be drawn before a finger opens it.
+const OPEN_AFTER = 300;
+
+/** Poses two broken obligations on c411 whose torrents are gone: a derivation, shown as one. */
+function poseTwoBrokenObligations(): void {
+  window.__mocks?.reset();
+  window.__mocks?.poseBrokenObligation("0ff265e478d97d9eae4d1cabd13748e23b9e6cba");
+  window.__mocks?.poseBrokenObligation("e1af6819d9e3159e0aa191b534b6a66af4344788");
+}
+
 export function trackersStates(): NamedState[] {
   return [
     [
@@ -156,6 +166,27 @@ export function trackersStates(): NamedState[] {
         window.__mocks?.reset();
         window.__mocks?.setObligationBreached("8d51568b1a4f46e1fb7e7b535b52a5203312fc28");
         applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+      },
+    ],
+    [
+      "tracker-broken-obligations",
+      "Trackers — deux obligations rompues, leur torrent parti, POSÉES sur Lanterns et Ted Lasso (le back-end lira la rupture)",
+      () => {
+        // A DERIVATION, SHOWN AS ONE: no real obligation has been broken.
+        poseTwoBrokenObligations();
+        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+      },
+    ],
+    [
+      "tracker-broken-obligations-open",
+      "Trackers — les obligations rompues de c411 dépliées, chacune avec « Vu »",
+      () => {
+        poseTwoBrokenObligations();
+        applyState({ page: "trackers", trackersTab: "trackers", trackersFilter: "c411", phase: "ready" });
+        // THE FOLD OPENED THE WAY A FINGER OPENS IT, once the entry is drawn.
+        window.setTimeout(() => {
+          document.querySelector<HTMLElement>('[data-part="trackers/broken-obligations-toggle"]')?.click();
+        }, OPEN_AFTER);
       },
     ],
   ];

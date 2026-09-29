@@ -19,9 +19,9 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 72 |
+| operations the interface requires | 73 |
 | operations the backend has | 65 |
-| required and missing | 23 |
+| required and missing | 24 |
 | declared by both, different response shape | 49 |
 | declared by both, path parameter spelled differently | 15 |
 | declared by both, answered with a different status | 10 |
@@ -57,6 +57,7 @@ than a blank page.
 | `POST /api/acquisition/journeys/{infoHash}/plex-match` | `resolvePlexMatch` | Confirm or correct the match Plex made for a medium — the Plex match's CORRECTION VERB, OPEN 9's fifth demand; the disagreement is POSED in the maquette (RULINGS 24), the backend compares Plex's real match with the identity held |
 | `POST /api/media/{provider}/{providerId}/rescrape` | `rescrapeMedia` | Ask the providers for one medium's metadata again |
 | `POST /api/staging/media/{mediaId}/reclassify` | `reclassifyStagedMedia` | File a folder that is not a medium where the sort files its kind |
+| `POST /api/trackers/{tracker}/broken-obligations/{infoHash}/seen` | `markBrokenObligationSeen` | Mark one broken obligation of a tracker seen |
 
 ## 2. Operations both declare, whose response carries different property names
 

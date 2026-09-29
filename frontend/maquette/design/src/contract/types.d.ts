@@ -1181,6 +1181,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/trackers/{tracker}/broken-obligations/{infoHash}/seen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark one broken obligation of a tracker seen
+         * @description « Vu » on a broken obligation (round 10 Q4): the engine broke it and its torrent has already left the client. Marked seen, it leaves the alert's count and stays listed on its tracker's entry — seen is not gone.
+         */
+        post: operations["markBrokenObligationSeen"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4219,6 +4239,37 @@ export interface operations {
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
+        };
+    };
+    markBrokenObligationSeen: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the tracker's configured name */
+                tracker: string;
+                /** @description the torrent the obligation was owed on */
+                infoHash: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description it is marked seen */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrokenObligation"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
         };
     };
 }

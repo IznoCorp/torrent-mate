@@ -88,6 +88,8 @@ export type Alert = {
   refused: Set<string>;
   /** The entries, `hash:tracker`, whose obligation is broken while they are still active. */
   breached: Set<string>;
+  /** Per tracker, its broken obligations whose torrent is gone and that nobody has seen yet. */
+  unseen: Map<string, number>;
 };
 
 /**
@@ -96,7 +98,9 @@ export type Alert = {
  * A tracker is in alert under its OWN threshold, never another's; a refused
  * identifier is the tracker's, counted once for it, never once per torrent it
  * affects (the cause lives on the tracker); an obligation is in breach when it
- * is broken, neither met nor released, on an entry still in the client.
+ * is broken, neither met nor released, on an entry still in the client; a
+ * broken obligation whose torrent is gone counts until it is marked seen, one
+ * unit each.
  *
  * @param trackers The trackers' summary.
  * @param downloads The client's entries.
@@ -115,5 +119,8 @@ export function alertOf(trackers: Tracker[], downloads: Download[], obligations:
         && obligation.releasedAt === null)
       .map((obligation) => `${obligation.infoHash}:${obligation.sourceTracker}`)
       .filter((key) => active.has(key))),
+    unseen: new Map(trackers.map((tracker) => [
+      tracker.name, tracker.brokenObligations.filter((row) => !row.seen).length,
+    ])),
   };
 }

@@ -4,6 +4,7 @@
 // `app/panel-contributions.ts`, like its neighbours.
 import { registerVerb } from "../../lib/verbs";
 import { fillLandingDoor, redraw, replaceAddress } from "../../lib/shell-doors";
+import { send, sharedQueryClient } from "../../lib/query-client";
 import { store } from "../../lib/store-access";
 import { tabMemory } from "../../lib/tab-memory";
 // « Retirer de qBittorrent » declares its own verb.
@@ -42,4 +43,16 @@ registerVerb("trackers-filter", (tracker) => {
   if (port !== null) port.scrollTop = 0;
   redraw();
   replaceAddress?.();
+});
+
+/* « VU » ON A BROKEN OBLIGATION: the write marks it seen, then the summary is
+   asked again — the row stays, saying it was seen, and leaves the alert's count
+   in the render that follows. Seen is not gone. */
+registerVerb("obligation-seen", (value) => {
+  const [tracker, infoHash] = value.split(":");
+  if (!tracker || !infoHash) return;
+  void send(
+    "POST",
+    `/api/trackers/${encodeURIComponent(tracker)}/broken-obligations/${encodeURIComponent(infoHash)}/seen`,
+  ).then(() => sharedQueryClient?.invalidateQueries({ queryKey: ["/api/trackers"] }));
 });

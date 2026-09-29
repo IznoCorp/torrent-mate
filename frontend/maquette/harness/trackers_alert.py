@@ -21,10 +21,22 @@ draws is compared here against those answers.
    its torrent is still active, never as running, and no other row;
 6. every row's breach mark agrees with the obligations served.
 
+RE-AIMED OUT LOUD — the alert's FOURTH component (round 10 Q4): an obligation
+the engine broke whose torrent has already left the client is kept on its
+tracker's entry until the operator marks it seen, and seen is not gone.
+
+7. `tracker-broken-obligations` — its entry counts the UNSEEN broken obligations
+   the summary serves for it, and no entry without one carries a count;
+8. `tracker-broken-obligations-open` unfolds one row per broken obligation, its
+   title and its date, each with « Vu »;
+9. a finger on « Vu » asks the write ONCE for that obligation; the row STAYS,
+   saying « Vue », and the count drops by one in the render that follows.
+
 The threshold is the operator's own setting, posed by the same settings write
 the entry makes. The refused identifier and the breach are DERIVATIONS, POSED
 and shown as such (`poseIdentifierRefused`, `setObligationBreached`): no real
-tracker refuses its identifier, and no real obligation has been broken.
+tracker refuses its identifier, and no real obligation has been broken — nor one broken whose torrent is gone
+(`poseBrokenObligation`).
 
 Red before the move: no entry and no row carries an alert.
 """
@@ -45,6 +57,8 @@ SCREENS = json.loads((SOURCE / "i18n/fr.json").read_text(encoding="utf-8"))["scr
 ALERTED = TRACKERS[0]["name"]
 REFUSED = TRACKERS[-1]["name"]
 BREACHED = next(entry for entry in DOWNLOADS if entry["title"] == "Star Trek: Strange New Worlds")
+SEEN_OPERATION = "markBrokenObligationSeen"
+BROKEN_WORDS = SCREENS["trackers"]
 
 ENTRIES = """() => [...document.querySelectorAll('#view [data-part="trackers/entry"]')].map(entry => ({
   name: entry.dataset.tracker,
@@ -58,6 +72,21 @@ ROWS = """() => [...document.querySelectorAll('#view [data-part="torrents/row"]'
   open: row.querySelector('[data-part="torrents/obligation-open"]') !== null,
   refused: row.querySelectorAll('[data-part="trackers/identifier-refused"]').length,
 }))"""
+COUNTS = """() => Object.fromEntries([...document.querySelectorAll('#view [data-part="trackers/entry"]')]
+  .map(entry => [entry.dataset.tracker,
+    entry.querySelector('[data-part="trackers/broken-obligations"]')?.textContent.trim() ?? null]))"""
+BROKEN_ROWS = """(tracker) => [...document.querySelectorAll(
+    `#view [data-part="trackers/entry"][data-tracker="${tracker}"] [data-part="trackers/broken-obligation-row"]`)]
+  .map(row => ({
+    hash: row.dataset.entry ?? null,
+    title: row.querySelector('[data-part="trackers/broken-obligation-title"]')?.textContent.trim() ?? '',
+    date: row.querySelector('[data-part="trackers/broken-obligation-date"]')?.textContent.trim() ?? '',
+    control: row.querySelector('[data-part="trackers/broken-obligation-seen"]') !== null,
+    seen: row.querySelector('[data-part="trackers/broken-obligation-seen-mark"]') !== null,
+  }))"""
+ANSWERED = """(operation) => (window.__mocks?.answered() || [])
+  .filter(call => call.operationId === operation && call.status === 200)
+  .map(call => decodeURIComponent(call.path))"""
 SERVED = """(address) => window.__queries?.getQueryData([address]) ?? null"""
 REFRESH = """async (address) => { await window.__queries?.invalidateQueries({queryKey: [address]}); }"""
 
@@ -151,6 +180,44 @@ async def main():
         journal.check("every row's breach mark agrees with the obligations served",
                       bool(broken) and all((row["breached"] == 1) is (row_key in broken) for row_key, row in rows.items()),
                       f"broken {sorted(broken)} · marked {[k for k, row in rows.items() if row['breached']]}")
+
+        # ── the broken obligations, unseen then seen ───────────────────────
+        answer = await enter(page, "tracker-broken-obligations")
+        journal.check("the named state tracker-broken-obligations exists", answer is None, answer or "")
+        served = await page.evaluate(SERVED, "/api/trackers") or []
+        unseen = {tracker["name"]: sum(1 for row in tracker.get("brokenObligations", []) if not row["seen"])
+                  for tracker in served}
+        counts = await page.evaluate(COUNTS)
+        journal.check("each entry counts the UNSEEN broken obligations served for it, and none without one",
+                      any(unseen.values()) and all(
+                          (counts.get(name) is None) if number == 0 else (str(number) in (counts.get(name) or ""))
+                          for name, number in unseen.items()),
+                      f"served {unseen} · drawn {counts}")
+
+        answer = await enter(page, "tracker-broken-obligations-open")
+        journal.check("the named state tracker-broken-obligations-open exists", answer is None, answer or "")
+        owner = next((tracker for tracker in served if tracker.get("brokenObligations")), {"name": "", "brokenObligations": []})
+        rows = await page.evaluate(BROKEN_ROWS, owner["name"])
+        journal.check(f"{owner['name']}'s list unfolds one row per broken obligation, its title and its date, each with « Vu »",
+                      len(rows) == len(owner["brokenObligations"]) > 0
+                      and all(row["title"] and row["date"] and row["control"] for row in rows),
+                      str(rows))
+        before = (await page.evaluate(COUNTS)).get(owner["name"]) or ""
+        first = owner["brokenObligations"][0]["infoHash"] if owner["brokenObligations"] else ""
+        control = page.locator(f'#view [data-part="trackers/broken-obligation-seen"][data-obligation-seen="{owner["name"]}:{first}"]')
+        if await control.count():
+            await control.first.tap()
+            await page.wait_for_timeout(SETTLED)
+        asked = [path for path in await page.evaluate(ANSWERED, SEEN_OPERATION) if first and first in path]
+        rows = await page.evaluate(BROKEN_ROWS, owner["name"])
+        after = (await page.evaluate(COUNTS)).get(owner["name"]) or ""
+        left = len(owner["brokenObligations"]) - 1
+        journal.check("« Vu » asks the write once for that obligation", len(asked) == 1, str(asked))
+        journal.check("the row seen STAYS, and says it", any(row["hash"] == first and row["seen"] for row in rows)
+                      and len(rows) == len(owner["brokenObligations"]), str(rows))
+        journal.check("the count of the unseen drops by one in the render that follows",
+                      str(left + 1) in before and (str(left) in after if left else after == ""),
+                      f"{before!r} -> {after!r}")
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()

@@ -4440,6 +4440,67 @@
           "TRACKERS"
         ]
       }
+    },
+    "/api/trackers/{tracker}/broken-obligations/{infoHash}/seen": {
+      "post": {
+        "operationId": "markBrokenObligationSeen",
+        "x-unseeded": "the broken obligation as it now reads, marked seen. Derived from the layer's own state.",
+        "summary": "Mark one broken obligation of a tracker seen",
+        "description": "« Vu » on a broken obligation (round 10 Q4): the engine broke it and its torrent has already left the client. Marked seen, it leaves the alert's count and stays listed on its tracker's entry — seen is not gone.",
+        "tags": [
+          "trackers"
+        ],
+        "parameters": [
+          {
+            "name": "tracker",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the tracker's configured name"
+          },
+          {
+            "name": "infoHash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the torrent the obligation was owed on"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "it is marked seen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrokenObligation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
     }
   },
   "components": {
