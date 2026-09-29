@@ -35,8 +35,8 @@ pull request's title and §§, and any amendment — which names the line of thi
   `main` at comparable load only if ≥ 1/5. A green re-run alone proves nothing.
 - **A rule red three runs in a row for a reason classed outside the product** (timeout, infra, load) opens a register
   row in the lot's range with its MECHANISM to name, named before the pull request is READY — otherwise the rule
-  leaves the gates and the row stays open (order 73). Story: `review-archive/audits/2026-09-15-TM-refonte/REPORT.md`,
-  2026-09-29 04:43 — thirteen falls of the deployed-host rules classed « timeout » with no mechanism named (#631).
+  leaves the gates and the row stays open (order 73). Story: the deployed-host rules, classed « timeout » thirteen
+  times with no mechanism named, until #631 named it (auditor's order 73, 2026-09-29).
 - **Harness budget** (order 52): harness lines added ≤ 0.6 × product lines added (`git diff --numstat
   origin/main...HEAD`), read at the midpoint and the close; a new check on a surface with a rule is a HOLD in that
   rule's file; over budget, the close carries a consolidation phase, every merged hold still falling under its
