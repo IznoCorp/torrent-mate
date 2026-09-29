@@ -19,7 +19,10 @@ opens every named state at seven widths and refuses, over the whole device:
   unseen    — in WebKit only, a frame control a finger must find (the menu
               button, the bottom bar's buttons, a tab) that is outside the
               window, covered at its centre, drawn at no size, or inked under
-              3:1 against the colour beneath it — in light AND in dark.
+              3:1 against the colour beneath it — in light AND in dark. A
+              control a surface covers ON PURPOSE is not unseen: under a pushed
+              screen, the startup or the sign-in screen, or inside a page made
+              `inert` by a layer above it.
 
 THE iPHONE'S ENGINE. The harness is Chromium and an iPhone is WebKit, so the
 same states are read once more in WebKit at 390 px, in both colour schemes: a
@@ -183,6 +186,7 @@ VISIBLE = """(width) => {
     }
     return [0, 0, 0, 1];
   };
+  const COVERS = '[data-part="screen"][data-open], #splash, #login, #sheet[data-open], #dlg[data-open], #drawer[data-open]';
   const controls = [
     ['menu', document.querySelector('[data-part="shell/header"] [data-drawer]')],
     ...[...document.querySelectorAll('[data-part="shell/tab-bar"] button')].map((button) => ['bottom-bar', button]),
@@ -191,10 +195,18 @@ VISIBLE = """(width) => {
   for (const [name, control] of controls) {
     if (!control) { falls.push({arm: 'unseen', part: name, rect: null}); continue; }
     if (name !== 'menu' && !control.checkVisibility()) continue;
+    // Made unreachable on purpose: a layer above marks the page `inert`, and
+    // WebKit's hit test then passes through it to the document itself.
+    if (control.closest('[inert]')) continue;
     const box = control.getBoundingClientRect();
     const inside = box.width >= 1 && box.height >= 1 && box.left >= -0.5 && box.right <= width + 0.5 && box.top >= -0.5
       && box.bottom <= innerHeight + 0.5;
-    const found = inside && control.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2));
+    const hit = inside ? document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2) : null;
+    // COVERED ON PURPOSE is not unseen: a screen pushed over the page, the
+    // startup screen and the sign-in screen cover the frame by design, and
+    // what sits under them is the page's state to hold, not this one's.
+    if (hit && !control.contains(hit) && hit.closest(COVERS)) continue;
+    const found = Boolean(hit) && control.contains(hit);
     // The DRAWING, not the button: an icon is its svg, a label its text.
     const drawing = control.querySelector('svg') || control;
     const drawn = drawing.getBoundingClientRect();
@@ -202,7 +214,8 @@ VISIBLE = """(width) => {
     const ink = colour(drawing.tagName.toLowerCase() === 'svg' && style.stroke !== 'none' ? style.stroke : style.color);
     const contrast = ink[3] > 0 ? ratio(ink, under(control)) : 0;
     if (!found || drawn.width < 1 || drawn.height < 1 || contrast < 3)
-      falls.push({arm: 'unseen', part: name, rect: [Math.round(drawn.width), Math.round(drawn.height), +contrast.toFixed(2)]});
+      falls.push({arm: 'unseen', part: name, rect: [Math.round(drawn.width), Math.round(drawn.height), +contrast.toFixed(2),
+        Math.round(box.top), hit ? (hit.closest('[data-part]')?.getAttribute('data-part') ?? hit.tagName) : 'outside']});
   }
   return falls;
 }"""
