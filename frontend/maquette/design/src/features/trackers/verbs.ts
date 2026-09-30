@@ -4,15 +4,18 @@
 // `app/panel-contributions.ts`, like its neighbours.
 import { registerVerb } from "../../lib/verbs";
 import { fillLandingDoor, panel, redraw, replaceAddress } from "../../lib/shell-doors";
-import { send, sharedQueryClient } from "../../lib/query-client";
+import { read, send, sharedQueryClient } from "../../lib/query-client";
 import { store } from "../../lib/store-access";
-import { trackersKey } from "./queries";
+import { trackersKey, type Tracker } from "./queries";
+import { pendingEdits } from "../../lib/save-bar-door";
+import { activationSetting } from "./trackers-tab";
 import { onEditsWritten } from "../../lib/save-bar-door";
 import { tabMemory } from "../../lib/tab-memory";
 // « Retirer de qBittorrent » declares its own verb, and a torrent's panel its producer.
 import "./remove-verb";
 import "./panel-torrent";
 import "./panel-selector";
+import "./panel-tracker";
 
 // « TORRENTS » THE FIRST TIME, THEN THE TAB OPENED LAST on this device — the
 // rule every tabbed page follows, through the memory they share.
@@ -44,6 +47,35 @@ fillLandingDoor((page, dial) => {
   // A LANDING THAT NAMES NO TRACKER LANDS UNFILTERED: a filter left from before
   // is not carried into an arrival that did not ask for it.
   store.write({ trackersFilter: tracker || "" });
+  // A LANDING THAT NAMES A TRACKER ON « Trackers » OPENS ITS PANEL, once the
+  // roster has answered — the row it names, open for the one who asked.
+  if (tab === "trackers" && tracker) void openTrackerWhenRead(tracker);
+});
+
+/**
+ * Opens one tracker's panel once the roster holds it.
+ *
+ * @param tracker The tracker's configured name.
+ */
+async function openTrackerWhenRead(tracker: string): Promise<void> {
+  await sharedQueryClient?.ensureQueryData({ queryKey: trackersKey, queryFn: async () => read<Tracker[]>(trackersKey[0]) });
+  panel.produce("tracker", tracker);
+}
+
+/* A ROW'S BODY opens its tracker's panel. */
+registerVerb("tracker-open", (tracker) => panel.produce("tracker", tracker));
+
+/* THE ROW'S SWITCH files the pending edit Réglages files for the same setting:
+   nothing is written until the save bar is used, and the switch draws the
+   pending value meanwhile. */
+registerVerb("tracker-switch", (tracker) => {
+  const door = pendingEdits();
+  if (door === undefined) return;
+  const identity = activationSetting(tracker);
+  const served = sharedQueryClient?.getQueryData<Tracker[]>(trackersKey)?.find((one) => one.name === tracker);
+  const pending = door.pending(identity);
+  const on = pending === undefined ? served?.enabled === true : pending.value === true;
+  door.file(identity, !on);
 });
 
 /* A SETTING SAVED, from Réglages or from this page: the trackers' summary carries
@@ -86,14 +118,16 @@ registerVerb("trackers-choose", (tracker) => {
   filterTo(tracker);
 });
 
-/* « VU » ON A BROKEN OBLIGATION: the write marks it seen, then the summary is
-   asked again — the row stays, saying it was seen, and leaves the alert's count
-   in the render that follows. Seen is not gone. */
+/* « VU » ON A BROKEN OBLIGATION, in its tracker's panel: the write marks it
+   seen, then the summary is asked again — the row stays, saying it was seen, and
+   leaves the alert's count in the render that follows. Seen is not gone. */
 registerVerb("obligation-seen", (value) => {
   const [tracker, infoHash] = value.split(":");
   if (!tracker || !infoHash) return;
   void send(
     "POST",
     `/api/trackers/${encodeURIComponent(tracker)}/broken-obligations/${encodeURIComponent(infoHash)}/seen`,
-  ).then(() => sharedQueryClient?.invalidateQueries({ queryKey: trackersKey }));
+  ).then(() => sharedQueryClient?.invalidateQueries({ queryKey: trackersKey }))
+    // THE PANEL IT WAS TAPPED IN is drawn again from the answer: the row says « vue ».
+    .then(() => panel.redraw());
 });

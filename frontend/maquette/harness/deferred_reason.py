@@ -16,10 +16,10 @@ of the engine no longer reads.
    card of « En vol » names a deferral;
 5. the ratio cause offers « Voir le tracker » on its card, and neither other
    cause does;
-6. a finger on it lands on the Trackers tab with that tracker's entry open —
-   `/trackers?tracker=<name>` read on the address, the « Trackers » tab being the
-   page's default and so never written (`list=` names only « Torrents ») — as an
-   arrival (the history grows by one);
+6. a finger on it lands on the Trackers tab with that tracker's panel open —
+   `/trackers?list=trackers&tracker=<name>` read on the address, the « Torrents »
+   tab being the page's default — as an arrival (the history grows by one, and
+   the panel's layer by one more);
 7. a ratio deferral on a tracker with NO threshold of its own says it has none —
    never an invented « seuil de 0 ».
 
@@ -30,6 +30,10 @@ their places. Hold 7 is new, red while a tracker with no `min_ratio` read « 0 �
 
 The deferrals are DERIVATIONS, POSED and shown as such (`poseDeferral`): no card
 of the real data is deferred.
+
+RE-AIMED OUT LOUD (L16-bis, the operator's Q3): hold 6 read the tracker's entry
+unfolded; a row opens its PANEL now, so the landing opens it — the arrival's
+entry, then the panel's layer above it (Back closes the panel first).
 
 Red before the move: no card names any of the three causes.
 """
@@ -138,10 +142,10 @@ async def main():
             await page.wait_for_timeout(SETTLED)
         where = await page.evaluate("""()=>({path: location.pathname, search: location.search, length: history.length,
             tab: document.querySelector('[data-trackers-tab="trackers"]')?.getAttribute('aria-selected'),
-            open: document.querySelector(`#view [data-part="trackers/entry"][data-tracker="c411"] details[open]`) !== null})""")
-        journal.check(f"a finger on « {PATH_WORDS} » lands on the Trackers tab, {TRACKER}'s entry open, as an arrival",
+            open: document.querySelector('#sheet[data-open] [data-part="sheet/title"]')?.textContent.trim() === "c411"})""")
+        journal.check(f"a finger on « {PATH_WORDS} » lands on the Trackers tab, {TRACKER}'s panel open, as an arrival",
                       where["path"].endswith("/trackers") and where["tab"] == "true"
-                      and "list=torrents" not in where["search"] and f"tracker={TRACKER}" in where["search"] and where["open"] and where["length"] == before + 1,
+                      and "list=torrents" not in where["search"] and f"tracker={TRACKER}" in where["search"] and where["open"] and where["length"] == before + 2,
                       f"{where} · history.length {before}")
 
         # ── a tracker with no threshold of its own ─────────────────────────

@@ -7,8 +7,9 @@ import { cva } from "../cva";
 /** The legend over a drawing: only the codes present, each with its swatch. */
 export const legend = cva(
   "legend flex flex-wrap gap-y-2 gap-x-6 mb-6 text-2 text-muted-foreground " +
-    "[&_span]:inline-flex [&_span]:items-center [&_span]:gap-2 [&_span]:whitespace-nowrap " +
-    "[&_i]:w-[9px] [&_i]:h-[9px] [&_i]:rounded-1 [&_i]:block",
+    // AN ENTRY WRAPS, never runs out of the page: a tone may say several meanings.
+    "[&_span]:inline-flex [&_span]:items-center [&_span]:gap-2 [&_span]:min-w-0 " +
+    "[&_i]:w-[9px] [&_i]:h-[9px] [&_i]:rounded-1 [&_i]:block [&_i]:flex-none",
 );
 
 /**

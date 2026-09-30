@@ -9,6 +9,8 @@ import { openRemoveConfirm } from "../../features/trackers/remove-verb";
 
 // How long a fold waits for the entry it sits in to be drawn before a finger opens it.
 const OPEN_AFTER = 300;
+// The settings catalogue's address, the one Réglages and the switch read.
+const SETTINGS_ADDRESS = "/api/config/schema";
 // Long enough that a read held back is still in flight when the state is measured.
 const HELD_BACK = 60000;
 // The page's three reads, by operation and by the address its cache keys on.
@@ -26,6 +28,7 @@ const PAGE_READS: [string, string][] = [
  */
 function poseReads(outcome: { latencyMilliseconds: number } | { status: number }): void {
   window.__mocks?.reset();
+  dropReads();
   for (const [operation, address] of PAGE_READS) {
     window.__mocks?.setOperationOutcome(operation, outcome);
     window.__queries?.removeQueries({ queryKey: [address] });
@@ -123,6 +126,8 @@ function openTorrentPanel(infoHash: string, tracker: string): void {
 /** The page's reads, forgotten: the next render asks again and reads what is posed. */
 function dropReads(): void {
   for (const [, address] of PAGE_READS) window.__queries?.removeQueries({ queryKey: [address] });
+  // AND THE SETTINGS the switch writes, which a state before may have moved.
+  window.__queries?.removeQueries({ queryKey: [SETTINGS_ADDRESS] });
 }
 
 /** Drags the first card left by a finger's travel, once drawn, so its right drawer rests open. */
@@ -141,9 +146,36 @@ function swipeFirstCardOpen(): void {
   }, OPEN_AFTER);
 }
 
+/**
+ * Leaves one tracker in the roster and lands on the « Trackers » tab: the row IS the state.
+ *
+ * @param tracker The tracker kept.
+ */
+function oneTracker(tracker: string): void {
+  window.__mocks?.reset();
+  dropReads();
+  window.__mocks?.poseOneTracker(tracker);
+  applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+}
+
+/**
+ * Turns one tracker's switch as a finger does, once its row is drawn — and, when
+ * asked, saves through the save bar.
+ *
+ * @param tracker The tracker whose switch is turned.
+ * @param save Whether the save bar's « Enregistrer » is then pressed.
+ */
+function turnSwitch(tracker: string, save: boolean): void {
+  window.setTimeout(() => {
+    document.querySelector<HTMLElement>(`#view [data-tracker-switch="${tracker}"]`)?.click();
+    if (save) window.setTimeout(() => document.querySelector<HTMLElement>("[data-save]")?.click(), OPEN_AFTER);
+  }, OPEN_AFTER);
+}
+
 /** Poses two broken obligations on c411 whose torrents are gone: a derivation, shown as one. */
 function poseTwoBrokenObligations(): void {
   window.__mocks?.reset();
+  dropReads();
   window.__mocks?.poseBrokenObligation("0ff265e478d97d9eae4d1cabd13748e23b9e6cba");
   window.__mocks?.poseBrokenObligation("e1af6819d9e3159e0aa191b534b6a66af4344788");
 }
@@ -160,6 +192,7 @@ export function trackersStates(): NamedState[] {
       "Trackers — une seconde visite, « Trackers » ouvert en dernier sur cet appareil",
       () => {
         window.__mocks?.reset();
+        dropReads();
         try {
           window.localStorage.setItem("trackers-tab", "trackers");
         } catch {
@@ -173,6 +206,7 @@ export function trackersStates(): NamedState[] {
       "Trackers — « Voir le tracker » d'une carte différée, qui nomme trackers:c411",
       () => {
         window.__mocks?.reset();
+        dropReads();
         applyState({ page: "trackers", trackersTab: "trackers", trackersFilter: "c411", phase: "ready" });
       },
     ],
@@ -238,6 +272,7 @@ export function trackersStates(): NamedState[] {
       "Trackers — un par tracker",
       () => {
         window.__mocks?.reset();
+        dropReads();
         applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
       },
     ],
@@ -246,24 +281,89 @@ export function trackersStates(): NamedState[] {
       "Trackers — aucun tracker configuré",
       () => {
         window.__mocks?.reset();
+        dropReads();
         window.__mocks?.setTrackersEmpty(true);
         applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
       },
     ],
     [
       "trackers-entry-open",
-      "Trackers — une entrée ouverte sur sa politique",
+      "Trackers — le panneau d'un tracker : ses faits, sa politique, ses torrents",
       () => {
         window.__mocks?.reset();
-        applyState({ page: "trackers", trackersTab: "trackers", trackersFilter: "c411", phase: "ready" });
+        dropReads();
+        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+        window.setTimeout(() => window.__panel.produce("tracker", "c411"), OPEN_AFTER);
       },
     ],
     [
       "trackers-policy-unset",
-      "Trackers — une entrée sans politique",
+      "Trackers — le panneau d'un tracker sans politique",
       () => {
         window.__mocks?.reset();
-        applyState({ page: "trackers", trackersTab: "trackers", trackersFilter: "tr4ker", phase: "ready" });
+        dropReads();
+        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+        window.setTimeout(() => window.__panel.produce("tracker", "tr4ker"), OPEN_AFTER);
+      },
+    ],
+    [
+      "trackers-roster-one",
+      "Trackers — un seul tracker configuré (les autres retirés, POSÉ)",
+      () => oneTracker("c411"),
+    ],
+    [
+      "tracker-active",
+      "Trackers — un tracker activé : son interrupteur allumé, ses faits",
+      () => oneTracker("c411"),
+    ],
+    [
+      "tracker-off-by-operator",
+      "Trackers — draupnirr.xyz, désactivé par vous (COMPOSÉ, un tracker demandé, absent du moteur)",
+      () => oneTracker("draupnirr.xyz"),
+    ],
+    [
+      "tracker-off-by-failure",
+      "Trackers — lacale, désactivé après une panne : injoignable (réel, la configuration de l'opérateur ; date COMPOSÉE)",
+      () => oneTracker("lacale"),
+    ],
+    [
+      "tracker-reactivate-refused",
+      "Trackers — digitalcore.club rallumé puis enregistré : le moteur refuse, ses mots sous la ligne, l'interrupteur éteint (COMPOSÉ)",
+      () => {
+        oneTracker("digitalcore.club");
+        turnSwitch("digitalcore.club", true);
+      },
+    ],
+    [
+      "tracker-switch-pending",
+      "Trackers — draupnirr.xyz rallumé, pas encore enregistré : la barre d'enregistrement levée",
+      () => {
+        oneTracker("draupnirr.xyz");
+        turnSwitch("draupnirr.xyz", false);
+      },
+    ],
+    [
+      "tracker-switch-write-failed",
+      "Trackers — l'enregistrement de l'interrupteur échoue : dit sous la ligne, la modification toujours en attente",
+      () => {
+        oneTracker("draupnirr.xyz");
+        window.__mocks?.setOperationOutcome("updateConfigurationFile", { status: 500 });
+        turnSwitch("draupnirr.xyz", true);
+      },
+    ],
+    [
+      "tracker-composed",
+      "Trackers — v3x.club, une ligne COMPOSÉE : tracker demandé, absent du moteur (demande T1), activé, rien en cours",
+      () => oneTracker("v3x.club"),
+    ],
+    [
+      "trackers-legend",
+      "Trackers — la légende des codes de la liste : désactivé par vous, désactivé par une panne, sous le seuil, obligations rompues (POSÉS)",
+      () => {
+        poseTwoBrokenObligations();
+        window.__mocks?.poseAlertThreshold("c411", 1.5);
+        dropReads();
+        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
       },
     ],
     [
@@ -271,6 +371,7 @@ export function trackersStates(): NamedState[] {
       "Torrents — une ligne par entrée, tous trackers",
       () => {
         window.__mocks?.reset();
+        dropReads();
         applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
       },
     ],
@@ -279,6 +380,7 @@ export function trackersStates(): NamedState[] {
       "Torrents — filtrés sur un tracker",
       () => {
         window.__mocks?.reset();
+        dropReads();
         applyState({ page: "trackers", trackersTab: "torrents", trackersFilter: "c411", phase: "ready" });
       },
     ],
@@ -287,6 +389,7 @@ export function trackersStates(): NamedState[] {
       "Torrents — rien en cours nulle part",
       () => {
         window.__mocks?.reset();
+        dropReads();
         window.__mocks?.setDownloadsEmpty(true);
         applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
       },
@@ -296,6 +399,7 @@ export function trackersStates(): NamedState[] {
       "Torrents — rien en cours sur le tracker filtré",
       () => {
         window.__mocks?.reset();
+        dropReads();
         window.__mocks?.setTrackerIdle("tr4ker");
         applyState({ page: "trackers", trackersTab: "torrents", trackersFilter: "tr4ker", phase: "ready" });
       },
@@ -441,6 +545,7 @@ export function trackersStates(): NamedState[] {
       "Torrents — une carte glissée à gauche, son tiroir « Retirer » ouvert",
       () => {
         window.__mocks?.reset();
+        dropReads();
         applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
         swipeFirstCardOpen();
       },
@@ -450,6 +555,7 @@ export function trackersStates(): NamedState[] {
       "Torrents — une obligation terminée, POSÉE sur American Dad! (le back-end lira satisfied_at), le torrent toujours en seed",
       () => {
         window.__mocks?.reset();
+        dropReads();
         window.__mocks?.setObligationSatisfied("e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb");
         applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
       },
@@ -459,6 +565,7 @@ export function trackersStates(): NamedState[] {
       "Torrents — « Retirer de qBittorrent » sur un torrent qui ne doit plus rien, son obligation terminée POSÉE (le back-end lira satisfied_at)",
       () => {
         window.__mocks?.reset();
+        dropReads();
         window.__mocks?.setObligationSatisfied("e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb");
         applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
         openRemoveConfirm("e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb", "c411");
@@ -469,6 +576,7 @@ export function trackersStates(): NamedState[] {
       "Torrents — « Retirer de qBittorrent » sur un torrent qui doit une obligation",
       () => {
         window.__mocks?.reset();
+        dropReads();
         applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
         openRemoveConfirm("66e23ab395c438b7db4f7c855bd451d8bb1f0046", "c411");
       },
@@ -478,6 +586,7 @@ export function trackersStates(): NamedState[] {
       "Torrents — « Retirer de qBittorrent » sur une entrée dont un autre tracker partage les fichiers, sous obligation",
       () => {
         window.__mocks?.reset();
+        dropReads();
         applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
         openRemoveConfirm("7c1e0b2f95c438b7db4f7c855bd451d8bb1f0046", "tr4ker");
       },
@@ -489,6 +598,7 @@ export function trackersStates(): NamedState[] {
         // A DERIVATION, SHOWN AS ONE: no real obligation has been released, so
         // a removal by hand is posed on a real entry.
         window.__mocks?.reset();
+        dropReads();
         window.__mocks?.poseExternalRemoval("e1af6819d9e3159e0aa191b534b6a66af4344788");
         applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
       },
@@ -498,6 +608,7 @@ export function trackersStates(): NamedState[] {
       "Trackers — un tracker sous son propre seuil d'alerte, seuil POSÉ sur c411 (economy.alert_threshold : une demande, la clé manque au moteur)",
       () => {
         window.__mocks?.reset();
+        dropReads();
         window.__mocks?.poseAlertThreshold("c411", 1.5);
         applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
       },
@@ -508,6 +619,7 @@ export function trackersStates(): NamedState[] {
       () => {
         // A DERIVATION, SHOWN AS ONE: no real tracker refuses its identifier.
         window.__mocks?.reset();
+        dropReads();
         window.__mocks?.poseIdentifierRefused("tr4ker");
         applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
       },
@@ -518,6 +630,7 @@ export function trackersStates(): NamedState[] {
       () => {
         // A DERIVATION, SHOWN AS ONE: no real obligation has been broken.
         window.__mocks?.reset();
+        dropReads();
         window.__mocks?.setObligationBreached("8d51568b1a4f46e1fb7e7b535b52a5203312fc28");
         applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
       },
@@ -533,13 +646,13 @@ export function trackersStates(): NamedState[] {
     ],
     [
       "tracker-broken-obligations-open",
-      "Trackers — les obligations rompues de c411 dépliées, chacune avec « Vu »",
+      "Trackers — le panneau de c411 et ses obligations rompues, chacune avec « Vu »",
       () => {
         poseTwoBrokenObligations();
-        applyState({ page: "trackers", trackersTab: "trackers", trackersFilter: "c411", phase: "ready" });
-        // THE FOLD OPENED THE WAY A FINGER OPENS IT, once the entry is drawn.
+        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+        // THE ROW OPENED THE WAY A FINGER OPENS IT, once drawn: its panel lists them.
         window.setTimeout(() => {
-          document.querySelector<HTMLElement>('[data-part="trackers/broken-obligations-toggle"]')?.click();
+          document.querySelector<HTMLElement>('#view [data-tracker-open="c411"]')?.click();
         }, OPEN_AFTER);
       },
     ],

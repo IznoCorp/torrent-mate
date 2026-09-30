@@ -43,7 +43,7 @@ export const ORIGIN_TONE = { origin: "info", cross: "waiting" } as const;
 export type Code = { kind: "chip" | "dot"; tone: LegendTone; word: string };
 
 /** A mark, and — when its label carries a date — the word its legend entry says. */
-type Coded = CardMark & { word?: string };
+type MarkWithWord = CardMark & { word?: string };
 
 /** What an entry's transfer says: which of the three states, and its words. */
 export type Transfer = { mode: "downloading" | "uploading" | "volumes"; text: string };
@@ -144,7 +144,7 @@ export function torrentPanelAddress(entry: Download): string {
  * @param breached Whether the page's alert reads its obligation broken.
  * @returns The marks, in the order they are read.
  */
-function marksOf(entry: Download, obligation: Obligation | undefined, breached: boolean): Coded[] {
+function marksOf(entry: Download, obligation: Obligation | undefined, breached: boolean): MarkWithWord[] {
   const say = (key: string, values: Record<string, string> = {}) => i18next.t(`screens.torrents.${key}`, values);
   // RUNNING: nothing has closed it — neither met, nor broken, nor released.
   const running = obligation !== undefined
@@ -152,7 +152,7 @@ function marksOf(entry: Download, obligation: Obligation | undefined, breached: 
   // MET AND STILL SEEDING: the entry kept going past its own requirement.
   const done = obligation !== undefined && obligation.satisfiedAt !== null && obligation.releasedAt === null;
   const origin = entry.origin ? "origin" : "cross";
-  const marks: Coded[] = [
+  const marks: MarkWithWord[] = [
     {
       label: say(entry.origin ? "origin" : "crossSeed"),
       dot: ORIGIN_TONE[origin],

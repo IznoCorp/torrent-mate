@@ -269,8 +269,15 @@ export const factRow = cva("fx [.fx+&]:border-t [.fx+&]:border-t-border", {
     empty: { true: "fempty", false: "" },
     blocked: { true: "fblocked", false: "" },
     withTarget: { true: "fclick", false: "" },
+    // A ROW WITH A CONTROL AT ITS END — a switch beside the body that opens the
+    // row's subject: the body takes the line's room, the control keeps its own,
+    // and a notice about the row (a refusal) wraps under both, inset as the body is.
+    withControl: {
+      true: "fctl flex flex-wrap items-center gap-x-4 pr-5 [&>.fw]:w-auto [&>.fw]:flex-1 [&>.fw]:min-w-0 [&>.surferr]:basis-full [&>.surferr]:ml-5 [&>.surferr]:mb-4",
+      false: "",
+    },
   },
-  defaultVariants: { empty: false, blocked: false, withTarget: false },
+  defaultVariants: { empty: false, blocked: false, withTarget: false, withControl: false },
 });
 
 /**

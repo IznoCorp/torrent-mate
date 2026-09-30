@@ -31,6 +31,9 @@ export type SettingsState = {
   q: string;
   readOnly: boolean;
   conflict: boolean;
+  /** Per setting, the failure its last write earned — its status and the layer's
+   * words — kept until it is written again. */
+  refused: Map<string, { status: number; detail: string }>;
 };
 
 // One settings RUBRIC — the heading one navigates BY WHAT ONE WANTS TO CHANGE,

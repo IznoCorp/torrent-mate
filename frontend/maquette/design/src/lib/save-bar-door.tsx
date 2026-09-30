@@ -44,3 +44,35 @@ export function PendingEditsBar(): ReactElement | null {
   const Bar = bar;
   return Bar === undefined ? null : <Bar />;
 }
+
+/** What another page may ask of the pending edits, through the feature that owns them. */
+export type PendingEditsDoor = {
+  /** The value a setting will be written as, when an edit of it is pending. */
+  pending: (identifier: string) => { value: unknown } | undefined;
+  /** Files an edit of one setting — the same edit Réglages files. */
+  file: (identifier: string, value: unknown) => void;
+  /** The failure the last write of a setting earned — its status and the layer's
+   * words — until it is written again. */
+  refusal: (identifier: string) => { status: number; detail: string } | undefined;
+};
+
+let edits: PendingEditsDoor | undefined;
+
+/**
+ * Fills the pending edits' door, from the feature that owns them.
+ *
+ * @param door What the pending edits answer.
+ */
+export function fillPendingEditsDoor(door: PendingEditsDoor): void {
+  edits = door;
+}
+
+/**
+ * The pending edits, as another page asks them — ONE table of edits whichever
+ * door files into it, so a setting offered on two pages is written once.
+ *
+ * @returns The door, or undefined before the owning feature has filled it.
+ */
+export function pendingEdits(): PendingEditsDoor | undefined {
+  return edits;
+}

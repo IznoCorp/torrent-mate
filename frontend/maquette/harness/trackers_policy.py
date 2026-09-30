@@ -11,7 +11,7 @@ left waiting where the operator cannot see it (NE-DOIT-PAS-2).
    their settings, `<file>:<key>`, and show the values the catalogue answers; a
    guidance line says what the floor is; « Voir les torrents » is offered;
 2. `trackers-policy-unset` opens a tracker with no policy, which says so;
-3. a finger opening an entry ADJUSTS: `history.length` unchanged;
+3. a finger on a row opens its panel, a layer above the roster;
 4. from « Trackers », a finger edits the floor in the setting's panel, taps
    « Valider » and shuts the panel: the save bar APPEARS on « Trackers » — the
    page never left; its « Enregistrer » writes
@@ -28,6 +28,13 @@ left waiting where the operator cannot see it (NE-DOIT-PAS-2).
    « Aucune politique réglée », which is an answer, not a wait;
 9. when that read failed, the policy says it failed, naming what — never
    « Aucune politique réglée » either.
+
+RE-AIMED OUT LOUD (L16-bis, the operator's Q3 — a tracker's row opens a bottom
+panel, like a torrent's card): the policy rows, the guidance, « Voir les
+torrents », the wait and the failure are read in the tracker's PANEL, never in a
+fold; opening it is a layer above the roster (Back closes it), no longer an
+adjustment of the page. RULINGS 2's door is unchanged: a policy row raises the
+setting's own panel.
 
 Red before the move: no entry opens. Holds 6–9 came with correction round C16,
 red while the save left `/api/trackers` stale, the policy read `?? []`, the
@@ -58,30 +65,31 @@ SURFACE_ERROR = json.loads((SOURCE / "i18n/fr.json").read_text(encoding="utf-8")
 FINGER = 44
 BADGE = """() => document.querySelector('[data-part="shell/tab-bar"] [data-page="trackers"] [data-part="shell/tab-badge"]')
   ?.textContent.trim() ?? null"""
+# THE POLICY, AS THE TRACKER'S PANEL SAYS IT: its note — the guidance, « none
+# set », the wait or the failure.
 POLICY = """(name) => {
-  const policy = document.querySelector(`#view [data-part="trackers/entry"][data-tracker="${name}"] [data-part="trackers/policy"]`);
-  return policy === null ? null : {
-    skeletons: policy.querySelectorAll('[data-skeleton]').length,
-    failure: policy.querySelector('[data-part="surface-error"]')?.textContent.trim() ?? null,
-    unset: policy.querySelector('[data-part="trackers/policy-unset"]') !== null,
-  };
-}"""
+  const sheet = document.querySelector('#sheet[data-open]');
+  if (!sheet || sheet.querySelector('[data-part="sheet/title"]')?.textContent.trim() !== name) return null;
+  const notes = [...sheet.querySelectorAll('p')].map(note => note.textContent.trim());
+  return {notes, unset: notes.includes(UNSET)};
+}""".replace("UNSET", json.dumps(WORDS.get("policyUnset")))
 # A floor no seed carries, so what is read back can only be what was typed.
 TYPED = "1.7"
 
 OPEN = """(name) => {
-  const entry = document.querySelector(`#view [data-part="trackers/entry"][data-tracker="${name}"]`);
-  const fold = entry?.querySelector('details');
+  const sheet = document.querySelector('#sheet[data-open]');
+  const mine = sheet && sheet.querySelector('[data-part="sheet/title"]')?.textContent.trim() === name;
+  const notes = mine ? [...sheet.querySelectorAll('p')].map(note => note.textContent.trim()) : [];
   return {
-    open: !!fold?.open,
-    rows: [...(entry?.querySelectorAll('[data-part="trackers/policy"] [data-setting]') ?? [])]
-      .map(row => ({setting: row.dataset.setting, text: row.textContent.replace(/\\s+/g, ' ').trim()})),
-    guidance: entry?.querySelector('[data-part="trackers/policy-guidance"]')?.textContent.trim() ?? null,
-    unset: entry?.querySelector('[data-part="trackers/policy-unset"]')?.textContent.trim() ?? null,
-    see: !!entry?.querySelector('[data-part="trackers/see-torrents"]'),
+    open: !!mine,
+    rows: mine ? [...sheet.querySelectorAll('[data-part="sheet/action"][data-setting]')]
+      .map(row => ({setting: row.dataset.setting, text: row.textContent.replace(/\\s+/g, ' ').trim()})) : [],
+    guidance: notes.includes(GUIDANCE) ? GUIDANCE : null,
+    unset: notes.includes(UNSET) ? UNSET : null,
+    see: mine && !!sheet.querySelector(`[data-part="sheet/action"][data-trackers-choose="${name}"]`),
     length: history.length,
   };
-}"""
+}""".replace("GUIDANCE", json.dumps(WORDS.get("floorGuidance"))).replace("UNSET", json.dumps(WORDS.get("policyUnset")))
 CATALOGUE = """(id) => {
   const topics = window.__queries?.getQueryData(['/api/config/schema']) || [];
   const one = topics.flatMap((topic) => topic.settings).find((s) => (s.file + ':' + s.key) === id);
@@ -100,6 +108,15 @@ async def tapped(page, selector):
         return False
     await page.wait_for_timeout(ACTED)
     return True
+
+
+async def close_layers(page):
+    """Backs out of every panel still open, as a finger's back gesture does."""
+    for _ in range(3):
+        if not await page.evaluate("()=>document.querySelector('#sheet')?.hasAttribute('data-open') ?? false"):
+            return
+        await page.go_back()
+        await page.wait_for_timeout(ACTED)
 
 
 async def enter(page, state):
@@ -140,15 +157,14 @@ async def main():
 
         await enter(page, "trackers-roster")
         before = await page.evaluate(OPEN, WITH_POLICY)
-        summary = f'#view [data-part="trackers/entry"][data-tracker="{WITH_POLICY}"] summary'
-        folded = await tapped(page, summary)
+        opened_by = await tapped(page, f'#view [data-tracker-open="{WITH_POLICY}"]')
         opened = await page.evaluate(OPEN, WITH_POLICY)
-        journal.check("a finger opening the entry ADJUSTS: history.length unchanged",
-                      opened["open"] and not before["open"] and opened["length"] == before["length"],
-                      f"tapped {folded}: {before['open']}/{before['length']} -> {opened['open']}/{opened['length']}")
+        journal.check("a finger on the row opens its panel, a layer above the roster",
+                      opened["open"] and not before["open"] and opened["length"] == before["length"] + 1,
+                      f"tapped {opened_by}: {before['open']}/{before['length']} -> {opened['open']}/{opened['length']}")
 
         calls = await page.evaluate("()=>window.__mocks.answered().length")
-        row = f'#view [data-part="trackers/policy"] [data-setting="{FLOOR}"]'
+        row = f'#sheet[data-open] [data-part="sheet/action"][data-setting="{FLOOR}"]'
         walked = {"row": await tapped(page, row)}
         walked["field"] = await tapped(page, '#sheetin [data-part="field/input"]')
         if walked["field"]:
@@ -159,6 +175,9 @@ async def main():
         # the operator then shuts the panel, by the back gesture, to reach the bar.
         await page.go_back()
         await page.wait_for_timeout(ACTED)
+        # BACK REOPENS the tracker's panel the setting's panel was raised from;
+        # one more back closes it onto the roster, where the save bar stands.
+        await close_layers(page)
         bar = await page.evaluate(
             "()=>({page: window.state?.page, bar: !!document.querySelector('#savebar [data-save]'),"
             " sheet: document.querySelector('#sheetin')?.textContent.slice(0, 120) ?? null})")
@@ -174,6 +193,8 @@ async def main():
         journal.check("« Enregistrer » writes through updateConfigurationFile, and the layer answers the value",
                       written > 0 and answered is not None and str(answered["raw"]) == TYPED,
                       f"save tapped {saved}: {written} write(s) · {answered}")
+        await page.evaluate(f"()=>window.__panel.produce('tracker', {json.dumps(WITH_POLICY)})")
+        await page.wait_for_timeout(ACTED)
         reread = await page.evaluate(OPEN, WITH_POLICY)
         floor = next((row["text"] for row in reread["rows"] if row["setting"] == FLOOR), "")
         journal.check("and the entry, read again, shows the value the layer now answers",
@@ -181,7 +202,7 @@ async def main():
 
         await enter(page, "trackers-entry-open")
         start = await page.evaluate("()=>history.length")
-        see = f'#view [data-part="trackers/entry"][data-tracker="{WITH_POLICY}"] [data-part="trackers/see-torrents"]'
+        see = f'#sheet[data-open] [data-part="sheet/action"][data-trackers-choose="{WITH_POLICY}"]'
         height = await page.evaluate(
             f"""()=>Math.round(document.querySelector('{see}')?.getBoundingClientRect().height ?? 0)""")
         await tapped(page, see)
@@ -196,7 +217,7 @@ async def main():
 
         # ── the alert threshold, set from « Trackers », moves the alert ──────
         await enter(page, "trackers-entry-open")
-        walked = {"row": await tapped(page, f'#view [data-part="trackers/policy"] [data-setting="{ALERT}"]')}
+        walked = {"row": await tapped(page, f'#sheet[data-open] [data-part="sheet/action"][data-setting="{ALERT}"]')}
         title = await page.evaluate("()=>document.querySelector('#sheetin')?.textContent.slice(0, 160) ?? ''")
         journal.check(f"the alert threshold's panel is titled « {ALERT_LABEL} », never « alert threshold »",
                       ALERT_LABEL in title and "alert threshold" not in title.lower(), repr(title))
@@ -207,6 +228,7 @@ async def main():
         walked["commit"] = await tapped(page, "#sheetin [data-commitsetting]")
         await page.go_back()
         await page.wait_for_timeout(ACTED)
+        await close_layers(page)
         walked["save"] = await tapped(page, "#savebar [data-save]")
         await page.wait_for_timeout(SETTLED)
         chip = await page.evaluate(
@@ -224,9 +246,13 @@ async def main():
             await page.evaluate(f"""()=>{{window.__mocks.setOperationOutcome('readSettings', {outcome});
                 void window.__queries?.resetQueries({{queryKey: ['/api/config/schema']}}).catch(() => null);}}""")
             await page.wait_for_timeout(SETTLED)
+            # THE PANEL ASKED FOR AGAIN, as a finger on the row asks it.
+            await page.evaluate(f"()=>window.__panel.produce('tracker', {json.dumps(WITH_POLICY)})")
+            await page.wait_for_timeout(SETTLED)
             policy = await page.evaluate(POLICY, WITH_POLICY)
-            said = (policy or {}).get("skeletons", 0) > 0 if label == "in flight" else (
-                (policy or {}).get("failure") is not None and SURFACE_ERROR.split("{{")[0].strip() in policy["failure"])
+            notes = " ".join((policy or {}).get("notes", []))
+            said = WORDS.get("policyLoading", "<no copy>") in notes if label == "in flight" else (
+                SURFACE_ERROR.split("{{")[0].strip() in notes)
             journal.check(f"the catalogue's read {label}: the policy says so, never « {WORDS.get('policyUnset')} »",
                           policy is not None and said and not policy["unset"], str(policy))
 

@@ -14,6 +14,7 @@ export const SETTINGS_STATE: SettingsState = {
   q: "",
   readOnly: false,
   conflict: false,
+  refused: new Map(),
 };
 
 /**

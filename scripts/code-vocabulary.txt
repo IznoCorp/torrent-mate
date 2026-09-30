@@ -47,6 +47,7 @@ acquisition
 act
 action
 actions
+activation
 active
 activity
 add
@@ -188,6 +189,7 @@ checked
 child
 chip
 choice
+choices
 choose
 chosen
 claimed
@@ -215,6 +217,7 @@ commit
 common
 compare
 complete
+composed
 condition
 conditions
 config
@@ -318,6 +321,7 @@ digits
 direct
 direction
 directions
+disabled
 disagreement
 disagrees
 disarm
@@ -768,6 +772,7 @@ opened
 opener
 opening
 operation
+operator
 option
 options
 order
@@ -906,6 +911,7 @@ rating
 ratio
 raw
 react
+reactivate
 read
 reader
 ready

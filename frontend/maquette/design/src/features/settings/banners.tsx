@@ -15,6 +15,7 @@
 // over whatever branch is showing.
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
+import { useStoreContent } from "../../lib/store-access";
 import type { ReactElement } from "react";
 import { SETTINGS_STATE, changedFiles, fileName } from "./state";
 import { useConfigurationStatus } from "./queries";
@@ -84,6 +85,9 @@ export function SettingsBanners(): ReactElement {
 
 export function SaveBar(): ReactElement | null {
   const { t } = useTranslation();
+  // A PENDING EDIT IS A STORE BUMP, filed from whichever page drew the setting:
+  // the bar follows it itself, never the redraw of the page that hosts it.
+  useStoreContent((content) => content.version);
   const pending = SETTINGS_STATE.modifs.size;
   if (pending === 0) return null;
   const device = document.getElementById("device");

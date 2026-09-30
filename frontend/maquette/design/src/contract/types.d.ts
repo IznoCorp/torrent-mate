@@ -2016,10 +2016,12 @@ export interface components {
             trend: "up" | "stable" | "down";
             /** @description the ratio under which the tracker is in alert — its own setting, distinct from the floor and the target — or null when none is set */
             alertThreshold: number | null;
-            /** @description since when the tracker refuses the configured identifier, Unix-epoch seconds, or null when it accepts it */
-            identifierRefusedSince: number | null;
             /** @description the obligations the engine broke on this tracker, their torrent gone */
             brokenObligations: components["schemas"]["BrokenObligation"][];
+            /** @description whether the tracker is switched on — read from the SAME setting the roster's switch and Réglages write, `tracker.providers.<name>.enabled`, so the two agree (a demand: nothing in the backend answers a tracker) */
+            enabled: boolean;
+            /** @description null while the tracker is on; otherwise who switched it off and why. A refused identifier is `reason: identifierRefused` here — one field per fact (a demand, T2: the engine switches nothing off by itself today) */
+            disabled: components["schemas"]["TrackerDisabled"] | null;
         };
         /** @description a size-or-count threshold and the score it awards */
         RankingThreshold: {
@@ -2135,6 +2137,23 @@ export interface components {
             digest: string;
             /** @description the keys of this file overridden by `local.json5` */
             shadowedKeys: string[];
+        };
+        /** @description why a tracker is off: the operator's own choice, or a failure the engine switched it off for (a demand, T2) */
+        TrackerDisabled: {
+            /**
+             * @description who switched it off
+             * @enum {string}
+             */
+            by: "operator" | "failure";
+            /**
+             * @description the failure's kind, or null when the operator switched it off
+             * @enum {string|null}
+             */
+            reason: "identifierRefused" | "unreachable" | "other" | null;
+            /** @description the engine's own sentence for the failure, or null when the operator switched it off */
+            message: string | null;
+            /** @description since when it is off by failure, Unix-epoch seconds, or null when the operator switched it off */
+            since: number | null;
         };
     };
     responses: {
@@ -4003,6 +4022,7 @@ export interface operations {
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
         };

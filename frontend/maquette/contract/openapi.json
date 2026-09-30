@@ -3645,6 +3645,9 @@
           },
           "503": {
             "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
           }
         },
         "parameters": [
@@ -7200,26 +7203,35 @@
             ],
             "description": "the ratio under which the tracker is in alert — its own setting, distinct from the floor and the target — or null when none is set"
           },
-          "identifierRefusedSince": {
-            "type": [
-              "number",
-              "null"
-            ],
-            "description": "since when the tracker refuses the configured identifier, Unix-epoch seconds, or null when it accepts it"
-          },
           "brokenObligations": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/BrokenObligation"
             },
             "description": "the obligations the engine broke on this tracker, their torrent gone"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "whether the tracker is switched on — read from the SAME setting the roster's switch and Réglages write, `tracker.providers.<name>.enabled`, so the two agree (a demand: nothing in the backend answers a tracker)"
+          },
+          "disabled": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TrackerDisabled"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null while the tracker is on; otherwise who switched it off and why. A refused identifier is `reason: identifierRefused` here — one field per fact (a demand, T2: the engine switches nothing off by itself today)"
           }
         },
         "required": [
           "alertThreshold",
           "brokenObligations",
+          "disabled",
           "downloadedBytes",
-          "identifierRefusedSince",
+          "enabled",
           "name",
           "ratio",
           "trend",
@@ -7555,6 +7567,53 @@
           "values",
           "digest",
           "shadowedKeys"
+        ]
+      },
+      "TrackerDisabled": {
+        "type": "object",
+        "description": "why a tracker is off: the operator's own choice, or a failure the engine switched it off for (a demand, T2)",
+        "properties": {
+          "by": {
+            "type": "string",
+            "enum": [
+              "operator",
+              "failure"
+            ],
+            "description": "who switched it off"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "identifierRefused",
+              "unreachable",
+              "other",
+              null
+            ],
+            "description": "the failure's kind, or null when the operator switched it off"
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the engine's own sentence for the failure, or null when the operator switched it off"
+          },
+          "since": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "since when it is off by failure, Unix-epoch seconds, or null when the operator switched it off"
+          }
+        },
+        "required": [
+          "by",
+          "message",
+          "reason",
+          "since"
         ]
       }
     },

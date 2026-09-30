@@ -35,7 +35,7 @@ export function trackersState(): TrackersHeld {
   let subject = held.get(owner);
   if (subject === undefined) {
     subject = {
-      trackers: structuredClone(TRACKERS) as Schemas["Tracker"][],
+      trackers: structuredClone(TRACKERS) as unknown as Schemas["Tracker"][],
       downloads: structuredClone(DOWNLOADS) as Schemas["Download"][],
       obligations: structuredClone(OBLIGATIONS) as Schemas["Obligation"][],
       removals: [],
@@ -55,6 +55,8 @@ export type TrackerDials = {
   poseExternalRemoval: (infoHash: string) => void;
   poseAlertThreshold: (tracker: string, threshold: number) => void;
   poseIdentifierRefused: (tracker: string) => void;
+  poseRecovered: (tracker: string) => void;
+  poseOneTracker: (tracker: string) => void;
   setObligationBreached: (infoHash: string) => void;
   poseBrokenObligation: (infoHash: string) => void;
   poseTrackerRatio: (tracker: string, ratio: number) => void;
@@ -68,6 +70,7 @@ export type TrackerDials = {
 // settings write as they are.
 const SETTING_PREFIX = "tracker.providers.";
 const ALERT_THRESHOLD_SUFFIX = ".economy.alert_threshold";
+const ENABLED_SUFFIX = ".enabled";
 
 /**
  * The settings key of one tracker's alert threshold.
@@ -78,6 +81,36 @@ const ALERT_THRESHOLD_SUFFIX = ".economy.alert_threshold";
 export function alertThresholdKey(tracker: string): string {
   return SETTING_PREFIX + tracker + ALERT_THRESHOLD_SUFFIX;
 }
+// The engine's words for a refused identifier — the sentence the switch's refusal
+// says — read off the seeded tracker that refuses one, never retyped here.
+const IDENTIFIER_REFUSED = (TRACKERS as { disabled: { reason: string | null; message: string | null } | null }[])
+  .find((tracker) => tracker.disabled?.reason === "identifierRefused")?.disabled?.message ?? null;
+
+/**
+ * The settings key of one tracker's activation — the one the roster's switch
+ * and Réglages both write.
+ *
+ * @param tracker The tracker's configured name.
+ * @returns The key.
+ */
+export function enabledKey(tracker: string): string {
+  return SETTING_PREFIX + tracker + ENABLED_SUFFIX;
+}
+
+/**
+ * Turns one tracker's activation setting on or off, where the settings write puts it.
+ *
+ * @param tracker The tracker's configured name.
+ * @param enabled Whether it is on.
+ */
+function setEnabled(tracker: string, enabled: boolean): void {
+  const key = enabledKey(tracker);
+  for (const setting of mockState().settings.flatMap((topic) => topic.settings)) {
+    if (setting.key !== key) continue;
+    setting.raw = enabled;
+  }
+}
+
 // The milliseconds in a second: the layer dates in Unix-epoch seconds.
 const MILLISECONDS_PER_SECOND = 1000;
 
@@ -89,7 +122,7 @@ const COMPLETE = 1;
 export const trackerDials: TrackerDials = {
   setTrackersEmpty: (empty: boolean) => {
     // NO TRACKER CONFIGURED, which a configuration can hold: a real answer, empty.
-    trackersState().trackers = empty ? [] : (structuredClone(TRACKERS) as Schemas["Tracker"][]);
+    trackersState().trackers = empty ? [] : (structuredClone(TRACKERS) as unknown as Schemas["Tracker"][]);
   },
   setDownloadsEmpty: (empty: boolean) => {
     // NOTHING ACTIVE ANYWHERE, the client reachable: a real answer, empty.
@@ -142,10 +175,26 @@ export const trackerDials: TrackerDials = {
   },
   poseIdentifierRefused: (tracker: string) => {
     // A DERIVATION, SHOWN AS ONE: the tracker refuses the configured identifier
-    // since the layer's frozen now. No real tracker refuses it.
+    // since the layer's frozen now, and the engine switches it off for it — its
+    // setting turned off where the settings write puts it. No real tracker refuses it.
     const since = Math.floor(Date.parse(scenario().now) / MILLISECONDS_PER_SECOND);
     for (const held of trackersState().trackers) {
-      if (held.name === tracker) held.identifierRefusedSince = since;
+      if (held.name !== tracker) continue;
+      held.disabled = { by: "failure", reason: "identifierRefused", message: IDENTIFIER_REFUSED, since };
+    }
+    setEnabled(tracker, false);
+  },
+  poseOneTracker: (tracker: string) => {
+    // ONE TRACKER LEFT IN THE CONFIGURATION, a seeded one: the roster at its smallest.
+    const held = trackersState();
+    held.trackers = held.trackers.filter((one) => one.name === tracker);
+  },
+  poseRecovered: (tracker: string) => {
+    // A DERIVATION, SHOWN AS ONE: the failure that switched the tracker off is
+    // over — it answers again — so switching it back on is accepted. Its setting
+    // stays off until the operator turns it on.
+    for (const held of trackersState().trackers) {
+      if (held.name === tracker) held.disabled = null;
     }
   },
   setObligationBreached: (infoHash: string) => {

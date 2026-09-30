@@ -123,7 +123,11 @@ export const saveBar = cva(
   "savebar absolute left-0 right-0 bottom-[var(--tm-bottom-bar-h,0px)] z-40 flex items-center " +
     "gap-5 py-5 px-7 border-t border-border bg-background " +
     "[&_.sn]:flex-1 [&_.sn]:min-w-0 [&_.sn]:text-3 [&_.sn]:leading-[1.35] [&_.sn]:text-muted-foreground " +
-    "[&_.sn_b]:block [&_.sn_b]:text-foreground [&_.sn_b]:text-4",
+    "[&_.sn_b]:block [&_.sn_b]:text-foreground [&_.sn_b]:text-4 " +
+    // THE BUTTON KEEPS ITS WORD'S WIDTH: a submit is `w-full` and `flex-none`,
+    // which in this row took the whole width and crushed the sentence beside it
+    // to a word per line at 320 px.
+    "[&>button]:w-auto",
 );
 
 /** « Relire le classement »: the conflict's way out, at a finger's height. */

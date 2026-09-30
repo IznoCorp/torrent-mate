@@ -60,6 +60,11 @@ that the real data does not hold (`acquire.db` has no satisfied row): it is
 POSED by `setObligationSatisfied`, a derivation shown as one in both states;
 the backend reads `seed_obligation.satisfied_at`.
 
+RE-AIMED OUT LOUD (L16-bis, the roster grows — successor R-L16bis-g/h in
+`trackers_switch.py`): the roster holds six trackers, one with nothing measured
+(its ratio said unknown, never counted in the mean) and three switched off, which
+say so under their name in place of their trend and volumes.
+
 RE-AIMED OUT LOUD (L16-bis, the selector — successor R-L16bis-b in
 `trackers_selector_legend.py`): holds 12 to 15 read RULINGS 3's line « Filtré sur
 <tracker> · Tout voir »; the operator's selector replaces it, its pill SAYS the
@@ -233,7 +238,9 @@ async def filtered(page, journal):
                   and words.get("empty", "<no copy>") in note and await page.evaluate(FILTER) is None,
                   repr(note))
 
-    idle = TRACKERS[-1]["name"]
+    # THE TRACKER `torrents-empty-filtered` EMPTIES: the second of the seeds, the
+    # last one entries run on — the roster's later rows run nothing at all.
+    idle = TRACKERS[1]["name"]
     answer = await enter(page, "torrents-empty-filtered")
     journal.check("the named state torrents-empty-filtered exists", answer is None, answer or "")
     note = await page.evaluate(EMPTY)
@@ -293,16 +300,26 @@ async def main():
         journal.check("one entry per tracker, in the answer's order",
                       [entry["name"] for entry in drawn] == [tracker["name"] for tracker in TRACKERS],
                       f"{[entry['name'] for entry in drawn]} against {[t['name'] for t in TRACKERS]}")
-        mean = french(sum(t["ratio"] for t in TRACKERS) / len(TRACKERS), 2) if TRACKERS else None
+        measured = [t["ratio"] for t in TRACKERS if t["ratio"] is not None]
+        mean = french(sum(measured) / len(measured), 2) if measured else None
         by_name = {entry["name"]: entry for entry in drawn}
         for tracker in TRACKERS:
             entry = by_name.get(tracker["name"], {})
-            own = french(tracker["ratio"], 2)
             ratio = entry.get("ratio") or ""
-            journal.check(f"{tracker['name']}: its ratio is its own, {own}, never the mean {mean}",
-                          own in ratio and (mean == own or mean not in ratio), repr(ratio))
+            if tracker["ratio"] is None:
+                journal.check(f"{tracker['name']}: nothing measured, its ratio is said unknown, never a mean",
+                              ratio == WORDS.get("ratioUnknown") and (mean is None or mean not in ratio), repr(ratio))
+            else:
+                own = french(tracker["ratio"], 2)
+                journal.check(f"{tracker['name']}: its ratio is its own, {own}, never the mean {mean}",
+                              own in ratio and (mean == own or mean not in ratio), repr(ratio))
             journal.check(f"{tracker['name']}: its ratio sits on its name's own line, inside its row",
                           entry.get("onLine") is True, repr(entry.get("onLine")))
+            if not tracker["enabled"]:
+                # AN OFF TRACKER SAYS IT IS OFF under its name, in place of its facts.
+                journal.check(f"{tracker['name']}: off, it says so under its name in place of its trend and volumes",
+                              entry.get("trend") is None and entry.get("volumes") is None, repr(entry))
+                continue
             word = WORDS.get("trends", {}).get(tracker["trend"], "<no word>")
             journal.check(f"{tracker['name']}: its trend is said in words, « {word} »",
                           word in (entry.get("trend") or ""), repr(entry.get("trend")))
