@@ -12,6 +12,7 @@ import type { components } from "../../contract/types";
 import { stagesOf } from "./acquisition-verbs";
 import { withAcquisitionFacts, withRequesters } from "./requesters";
 import { mockState } from "../state";
+import { claimRequest } from "../identity";
 import { refused, type MockRequest, type MockRoute } from "../router";
 
 // How many suggestions one batch of the deck carries. The engine's own batch
@@ -118,6 +119,13 @@ export function acquisitionRoutes(): MockRoute[] {
       const provider = field(request.body, "provider");
       const providerId = field(request.body, "providerId");
       const source = followedFrom(title);
+      // A MEDIUM ANOTHER ACCOUNT ALREADY FOLLOWS is joined, never duplicated:
+      // the caller becomes one more of its requesters (round 9 Q16).
+      const followed = state.follows.find((follow) => follow.title === title);
+      if (followed !== undefined) {
+        claimRequest(title, true);
+        return withAcquisitionFacts([followed])[0];
+      }
       // THE MEDIUM'S IDENTITY: the request's own AND the joined identity of the
       // entry it was followed from, MERGED. A create naming neither is REFUSED
       // (B-366): a follow with no identity has no sheet to open, and a follow
@@ -156,7 +164,8 @@ export function acquisitionRoutes(): MockRoute[] {
         poster: source?.poster ?? null,
       };
       state.follows = [added, ...state.follows];
-      return added;
+      claimRequest(title, false);
+      return withAcquisitionFacts([added])[0];
     }),
     route(
       "updateFollow",

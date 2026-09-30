@@ -10,13 +10,14 @@ import {
   requestersOf,
   rightsOfAccount,
   signedInId,
+  signedInRights,
   type Preference,
 } from "../identity";
 import { mockState } from "../state";
 import { refused, type MockRoute } from "../router";
 import { POST, PUT, field, route, text } from "./shared";
 import type { components } from "../../contract/types";
-import type { Right } from "../../features/account/rights";
+import type { Right } from "../../lib/rights";
 
 type Schemas = components["schemas"];
 
@@ -34,7 +35,13 @@ const NO_SUCH = "no acquisition carries that title, or that requester";
  * @returns The same rows, each carrying `requesters`.
  */
 export function withRequesters<Row extends { title: string }>(rows: Row[]): (Row & { requesters: Schemas["AccountRef"][] })[] {
-  return rows.map((row) => ({ ...row, requesters: requestersOf(row.title) }));
+  // THE CALLER'S SUBSET, unless its role sees everyone's (§ 17: « par défaut,
+  // pas les acquisitions qu'il n'a pas demandées »). A filter on a 200, never a
+  // 403: an account with no acquisition right reads an empty list.
+  const sees = signedInRights().holds("acquisition.see.others");
+  return rows
+    .map((row) => ({ ...row, requesters: requestersOf(row.title) }))
+    .filter((row) => sees || row.requesters.some((one) => one.id === signedInId()));
 }
 
 /**

@@ -48,6 +48,7 @@ export const icons = {
     clap: '<path d="M3 8h18v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="m3 8 2-5 16 2-2 3"/><path d="m8 3 1.5 4M14 4l1.5 4"/>',
     cards:
       '<rect x="3" y="7" width="13" height="14" rx="2"/><path d="M8 3h10a2 2 0 0 1 2 2v10"/>',
+    lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
     user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
     logout:
       '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',

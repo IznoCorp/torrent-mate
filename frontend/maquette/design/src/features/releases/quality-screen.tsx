@@ -19,6 +19,10 @@ import { Switch } from "../../ui/switch";
 import { qualityGroup } from "../../features/releases/variants";
 import { bridge } from "../../lib/shell-doors";
 import { baseTitle } from "../../lib/titles";
+import { sharedQueryClient } from "../../lib/query-client";
+import { useRights } from "../../lib/account";
+import { isOwn } from "../../lib/rights";
+import { setOwnQuality, useFollowOf } from "../../lib/own-quality";
 
 // The resolution floors a follow may set, lowest first.
 const RESOLUTIONS: Resolution[] = ["720p", "1080p", "2160p"];
@@ -75,6 +79,11 @@ export function QualityScreen() {
   // other title's releases counted what this medium was never offered.
   const { data: RELEASES = [] } = useReleases(title ? baseTitle(title) : "");
   const kept = countKept(profile, RELEASES);
+  // WHAT IS IN FORCE is the server's: the highest floor among the requesters
+  // whose role holds the right — never this screen's own guess.
+  const rights = useRights();
+  const follow = useFollowOf(title);
+  const settable = follow !== undefined && rights.holds("acquisition.quality.own") && isOwn(follow, rights);
 
   function writeProfile(patch: Partial<QualityProfile>): void {
     writeUiState({ profile: { ...profile, ...patch } });
@@ -82,6 +91,9 @@ export function QualityScreen() {
 
   function pickResolution(reso: Resolution | null): void {
     writeProfile({ min_resolution: reso });
+    // THE FLOOR IS THE ACCOUNT'S OWN ON THIS ACQUISITION (round 10 Q6): written
+    // to the server under `acquisition.quality.own`, on a follow it asked for.
+    if (settable && sharedQueryClient !== undefined) void setOwnQuality(sharedQueryClient, title, reso);
   }
 
   function toggleAudio(key: string): void {
@@ -128,6 +140,12 @@ export function QualityScreen() {
             <b>{t("screens.profile.leadEmphasis")}</b>{" "}
             {t("screens.profile.leadAfter")}
           </p>
+
+          {follow ? (
+            <p className={qualityHint()} data-part="quality/in-force">
+              {t("screens.profile.inForce", { floor: follow.quality ?? t("screens.profile.inForceDefault") })}
+            </p>
+          ) : null}
 
           <div className={qualityGroup()}>
             <h2 className={sectionHeading()} data-part="heading">{t("screens.profile.minResolution")}</h2>

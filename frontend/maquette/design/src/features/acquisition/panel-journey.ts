@@ -16,9 +16,12 @@
 //
 // A PER-SUBJECT READ, so its need is a FUNCTION of the subject: a journey is
 // read per medium and a boot cannot know which one will be asked for.
+import { heldAcquisition, offeredActs } from "./act-rights";
+import { reassignAction } from "./reassign";
+import { accountQuery, heldRights } from "../../lib/account";
 import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";
-import { registerProducer, type PanelCache, type PanelDescriptor, type PanelNeed } from "../../ui/panel/contract";
+import { registerProducer, type Action, type PanelCache, type PanelDescriptor, type PanelNeed } from "../../ui/panel/contract";
 import { read } from "../../lib/query-client";
 import type { Schemas } from "../../lib/contract-schemas";
 
@@ -105,7 +108,9 @@ function journeyPanel(title: string, cache: PanelCache): PanelDescriptor | null 
       { type: "note", text: translate("panels.journey.provenanceNote") },
       {
         type: "actions",
-        actions: [
+        // OWN TUNNEL (§ 17): the tunnel's verbs are offered on an acquisition
+        // the account asked for, or to one that pilots every acquisition.
+        actions: offeredActs<Action | null>([
           // THE TUNNEL'S OWN VERBS (B-302, §20: it « reprend là où il s'est
           // arrêté, par l'opérateur »). Their `data-*` names are answered by
           // `lib/verbs`: a verb that never existed in the engine had no branch
@@ -126,7 +131,9 @@ function journeyPanel(title: string, cache: PanelCache): PanelDescriptor | null 
             icone: icons.eye,
             target: { mediasheet: title },
           },
-        ],
+          // « RÉAFFECTER… », to whoever holds the right (round 8 Q13 = A).
+          heldRights().holds("acquisition.reassign") ? reassignAction("card", title) : null,
+        ], heldAcquisition(title), heldRights()),
       },
     ],
   };
@@ -134,5 +141,5 @@ function journeyPanel(title: string, cache: PanelCache): PanelDescriptor | null 
 
 registerProducer("journey", {
   produce: journeyPanel,
-  needs: (subject) => [journeyQuery(subject)],
+  needs: (subject) => [journeyQuery(subject), accountQuery],
 });

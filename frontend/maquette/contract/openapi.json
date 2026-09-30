@@ -4870,6 +4870,46 @@
         },
         "x-unseeded": "invented: the engine has no per-acquisition pause (demand P)"
       }
+    },
+    "/api/accounts": {
+      "get": {
+        "operationId": "readAccounts",
+        "summary": "Every account and every role",
+        "tags": [
+          "authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "the roster",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Roster"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "invented: no account but the Plex owner exists yet (demand F); read by « Comptes » and, narrowly, by the reassign chooser"
+      }
     }
   },
   "components": {
@@ -8022,6 +8062,56 @@
         "required": [
           "id",
           "name"
+        ]
+      },
+      "AccountSummary": {
+        "type": "object",
+        "description": "ONE ACCOUNT OF THE ROSTER, as « Comptes » and the reassign chooser read it: its name, its mandatory e-mail, its ONE role (ruling 20) and its Plex link.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "plexLinked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "email",
+          "id",
+          "name",
+          "plexLinked",
+          "role"
+        ]
+      },
+      "Roster": {
+        "type": "object",
+        "description": "Every account and every role (demand F).",
+        "properties": {
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountSummary"
+            }
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Role"
+            }
+          }
+        },
+        "required": [
+          "accounts",
+          "roles"
         ]
       }
     },

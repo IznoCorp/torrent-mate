@@ -531,7 +531,9 @@
         "VF": "Piste française (VF, VFF, VFQ, TRUEFRENCH)",
         "VOSTFR": "Sous-titres français",
         "VO": "Version originale"
-      }
+      },
+      "inForce": "En vigueur : {{floor}} — la plus haute qualité demandée par ceux qui peuvent la choisir.",
+      "inForceDefault": "le profil par défaut"
     },
     "add": {
       "back": "Retour",
@@ -1103,6 +1105,10 @@
       "restartConfirmCancel": "Annuler",
       "restartDone": "Service redémarré — les réglages sont pris en compte.",
       "allTopics": "Tous les réglages"
+    },
+    "noAccess": {
+      "title": "Ce compte n'ouvre aucune page.",
+      "body": " Son rôle ne lui donne aucun droit ici : l'administrateur peut lui en attribuer un autre dans « Comptes »."
     }
   },
   "surfaces": {
@@ -1237,7 +1243,8 @@
       "maint": "Maintenance",
       "cfg": "Réglages",
       "profile": "Profil et préférences",
-      "404": "Adresse introuvable"
+      "404": "Adresse introuvable",
+      "noAccess": "Aucun accès"
     },
     "groups": {
       "supervision": "Supervision",
@@ -1389,7 +1396,18 @@
       "foundNextPassAt": "Trouvé, récupéré à la prochaine passe, à {{at}}.",
       "foundNextPass": "Trouvé, récupéré à la prochaine passe.",
       "filmLeavesNote": "Une fois acquis, ce film quittera automatiquement votre liste (§5).",
-      "grabSeason": "Récupérer la saison {{season}}"
+      "grabSeason": "Récupérer la saison {{season}}",
+      "readOnly": "Cette acquisition est celle d'un autre compte : elle se lit ici, elle ne se pilote pas.",
+      "pauseOwn": "Mettre en pause pour moi",
+      "resumeOwn": "Reprendre pour moi",
+      "pausedForAll": "En pause : chaque demandeur qui peut la mettre en pause l'a demandé.",
+      "pauseWaitsForOthers": "Votre pause est notée ; l'acquisition continue tant que les autres demandeurs ne l'ont pas mise en pause."
+    },
+    "reassign": {
+      "act": "Réaffecter…",
+      "title": "Réaffecter « {{title}} »",
+      "note": "La demande de {{name}} passe au compte choisi. Seuls les comptes qui voient cette acquisition sont proposés.",
+      "empty": "Aucun autre compte ne voit cette acquisition."
     }
   },
   "verbs": {
@@ -1546,6 +1564,15 @@
         "cancel": "Annuler",
         "done": "« {{title}} » a quitté qBittorrent."
       }
+    },
+    "reassign": {
+      "done": "Demande réaffectée à {{name}}.",
+      "refused": "La réaffectation a été refusée."
+    },
+    "acquisitionSettings": {
+      "paused": "Pause notée pour vous.",
+      "resumed": "Pause levée pour vous.",
+      "refused": "Ce réglage a été refusé."
     }
   },
   "discover": {
@@ -1564,5 +1591,100 @@
     "airDateUnknown": "Date de diffusion inconnue.",
     "airsOn": "Sortie prévue le {{date}}",
     "airedOn": "Diffusé le {{date}}"
+  },
+  "access": {
+    "reservedTag": "Réservé",
+    "reservedTitle": "{{page}} — réservé.",
+    "reservedBody": "Ce compte n'a pas le droit de {{right}}.",
+    "rights": {
+      "library": {
+        "read": "voir la médiathèque",
+        "delete": "supprimer de la médiathèque",
+        "rescrape": "re-scraper un média"
+      },
+      "acquisition": {
+        "request": "demander un média",
+        "follow": "gérer ses suivis",
+        "pilot": {
+          "own": "piloter ses propres acquisitions",
+          "any": "piloter toutes les acquisitions"
+        },
+        "see": {
+          "others": "voir les acquisitions des autres"
+        },
+        "quality": {
+          "own": "choisir la qualité de ses acquisitions"
+        },
+        "pause": {
+          "own": "mettre ses acquisitions en pause"
+        },
+        "reassign": "réaffecter une acquisition"
+      },
+      "pipeline": {
+        "control": "piloter le traitement"
+      },
+      "trackers": {
+        "view": "voir les trackers",
+        "control": "agir sur les trackers"
+      },
+      "system": {
+        "view": "voir Système et Maintenance"
+      },
+      "configuration": {
+        "view": "voir les réglages",
+        "write": "modifier les réglages"
+      },
+      "accounts": {
+        "manage": "gérer les comptes"
+      },
+      "auth": {
+        "password": "se connecter par mot de passe"
+      }
+    },
+    "holders": {
+      "library": {
+        "read": "Tous les rôles le détiennent par défaut.",
+        "delete": "Par défaut, seul le rôle Admin le détient.",
+        "rescrape": "Par défaut, seul le rôle Admin le détient."
+      },
+      "acquisition": {
+        "request": "Par défaut : Admin, Membre du foyer et Invité Plex.",
+        "follow": "Par défaut : Admin, Membre du foyer et Invité Plex.",
+        "pilot": {
+          "own": "Par défaut : Admin, Membre du foyer et Invité Plex.",
+          "any": "Par défaut, seul le rôle Admin le détient."
+        },
+        "see": {
+          "others": "Par défaut, seul le rôle Admin le détient."
+        },
+        "quality": {
+          "own": "Par défaut : Admin et Membre du foyer."
+        },
+        "pause": {
+          "own": "Par défaut : Admin et Membre du foyer."
+        },
+        "reassign": "Par défaut, seul le rôle Admin le détient."
+      },
+      "pipeline": {
+        "control": "Par défaut, seul le rôle Admin le détient."
+      },
+      "trackers": {
+        "view": "Par défaut, seul le rôle Admin le détient.",
+        "control": "Par défaut, seul le rôle Admin le détient."
+      },
+      "system": {
+        "view": "Par défaut, seul le rôle Admin le détient."
+      },
+      "configuration": {
+        "view": "Par défaut, seul le rôle Admin le détient.",
+        "write": "Par défaut, seul le rôle Admin le détient."
+      },
+      "accounts": {
+        "manage": "Par défaut, seul le rôle Admin le détient."
+      },
+      "auth": {
+        "password": "Par défaut, seul le rôle Admin le détient."
+      }
+    }
   }
 }

@@ -18,6 +18,7 @@ import { ActionButton } from "./action-button";
 import { BadgeReads } from "./badge-reads";
 import { BottomSlot } from "./bottom-slot";
 import { NavigationDrawer } from "./drawer";
+import { EntryPage } from "./entry-page";
 import { installAppearance } from "./appearance";
 import { DialogLayer } from "./dialog-layer";
 import { installDialogHost } from "./dialog-host";
@@ -47,6 +48,7 @@ installAppearance();
 export function Frame(): ReactElement {
   return (
     <>
+      <EntryPage />
       <BadgeReads />
       <MenuBadge />
       <ActionButton />

@@ -1,6 +1,8 @@
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
+import { offeredFeet } from "./act-rights";
+import { useRights } from "../../lib/account";
 import { mediumCardMarkup } from "./card-markup";
 import { inFlightCards } from "./arrival-slots";
 import { followOffered } from "./follow-offer";
@@ -18,6 +20,8 @@ import { Markup, emptyNoteMarkup, sectionInnerMarkup } from "../../ui/markup";
 export function NowTab(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
+  // THE ACTS ARE THE ACCOUNT'S (§ 17): a card it may only read draws no foot.
+  const rights = useRights();
 
   if (state.phase !== "ready") {
     return (
@@ -60,10 +64,10 @@ export function NowTab(): ReactElement {
             t("screens.acquisition.inflight"),
             String(inflight.length),
             // « Suivre », PROPOSED on an arrived series nobody follows (ruling 1).
-            inflight.map((card) => mediumCardMarkup(card, followOffered(card, follows ?? []) ? {
+            inflight.map((card) => mediumCardMarkup(card, offeredFeet(followOffered(card, follows ?? []) ? {
               label: t("screens.acquisition.followFoot"),
               attributes: { "data-follow": card.title, "data-follow-ids": JSON.stringify(card.ids) },
-            } : undefined)).join(""),
+            } : undefined, card, rights))).join(""),
           )}
         />
       ) : null}

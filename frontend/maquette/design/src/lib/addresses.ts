@@ -26,6 +26,7 @@ export const PAGE_PATHS: Readonly<Record<string, string>> = {
   maint: "/maintenance",
   cfg: "/settings",
   profile: "/account",
+  "no-access": "/no-access",
 };
 
 /** The page an address names, for every path the table above declares. */
@@ -35,6 +36,22 @@ export const PAGE_OF_PATH: Readonly<Record<string, string>> = Object.fromEntries
 
 /** The page the bare root stands for — `/` redirects onto its path. */
 export const HOME_PAGE = "acq";
+
+// THE ENTRY PAGE OF THE ACCOUNT SIGNED IN (round 10 Q7): the first page of its
+// bar, set by the frame once the account's rights are read. The owner's is
+// `HOME_PAGE`; a role without Acquisition enters elsewhere, and Back, the exit
+// guard and the bare root all read it from here.
+let entryPage = HOME_PAGE;
+
+/**
+ * Sets the entry page of the account signed in.
+ *
+ * Args:
+ *     page: The page id — the first its role opens, in bar order.
+ */
+export function setEntryPage(page: string): void {
+  entryPage = page;
+}
 
 /** The page an address nobody serves lands on. */
 export const NOT_FOUND_PAGE = "404";
@@ -350,7 +367,7 @@ export function addressOf(
  *     address in the bar.
  */
 export function destinationOf(pathname: string, search: string): Destination {
-  if (pathname === SIGN_IN_PATH) return { page: HOME_PAGE, dials: {}, signIn: true };
+  if (pathname === SIGN_IN_PATH) return { page: entryPage, dials: {}, signIn: true };
   const query = new URLSearchParams(search);
   // The panel tier is independent of which page shows — a panel opens over
   // whichever surface is underneath, a screen included.
@@ -358,7 +375,7 @@ export function destinationOf(pathname: string, search: string): Destination {
   const parent = screenParentOf(pathname);
   if (parent !== undefined) return { page: parent, dials: {}, panel, screen: true };
   const page =
-    PAGE_OF_PATH[pathname] ?? (pathname === "/" ? HOME_PAGE : NOT_FOUND_PAGE);
+    PAGE_OF_PATH[pathname] ?? (pathname === "/" ? entryPage : NOT_FOUND_PAGE);
   const dials: Record<string, string> = {};
   for (const dial of DIALS) {
     if (dial.of !== page) continue;
@@ -436,7 +453,9 @@ export type AddressSeam = {
  */
 export const addressSeam: AddressSeam = {
   signInPath: SIGN_IN_PATH,
-  homePage: HOME_PAGE,
+  get homePage() {
+    return entryPage;
+  },
   panelParameter: PANEL_PARAMETER,
   withoutPanel: withoutPanel,
   compose: (state) => addressOf(String(state.page ?? ""), state),

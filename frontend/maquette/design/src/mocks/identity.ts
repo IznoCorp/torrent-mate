@@ -12,7 +12,7 @@
 import ACCOUNT from "./seeds/account.json";
 import ACCOUNTS from "./seeds/accounts.json";
 import type { components } from "../contract/types";
-import { rightsOf, type Right, type Rights } from "../features/account/rights";
+import { rightsOf, type Right, type Rights } from "../lib/rights";
 import { accountName } from "./account";
 import { mockState } from "./state";
 
@@ -29,6 +29,8 @@ type Dialled = {
   moved: Record<string, string[]>;
   /** Each requester's own quality and pause on an acquisition, by title then account. */
   preferences: Record<string, Record<string, Preference>>;
+  /** Roles whose rights were set since the seed, by role id. */
+  roleRights: Record<string, Right[]>;
 };
 
 /** One requester's own settings on one acquisition (round 10 Q6). */
@@ -49,6 +51,7 @@ function dials(): Dialled {
       inventedRequests: false,
       moved: {},
       preferences: structuredClone(ACCOUNTS.preferences) as Record<string, Record<string, Preference>>,
+      roleRights: {},
     };
     dialled.set(held, found);
   }
@@ -57,7 +60,9 @@ function dials(): Dialled {
 
 /** Every role the layer holds. */
 export function roles(): Role[] {
-  return ACCOUNTS.roles as Role[];
+  const edited = dials().roleRights;
+  return (ACCOUNTS.roles as Role[]).map((role) =>
+    edited[role.id] ? { ...role, rights: [...edited[role.id]] } : role);
 }
 
 /** The role one id names. */
@@ -161,6 +166,20 @@ export function moveRequester(title: string, from: string, to: string): Schemas[
 }
 
 /**
+ * Records the signed-in account as a requester of an acquisition — its first,
+ * when it creates one; one more, when it asks for one another account already
+ * follows (round 9 Q16: a follow keeps a table of requesters).
+ *
+ * @param title The acquisition, by its title.
+ * @param existing Whether the acquisition was already there.
+ */
+export function claimRequest(title: string, existing: boolean): void {
+  const ids = existing ? requestersOf(title).map((one) => one.id) : [];
+  if (!ids.includes(dials().identity)) ids.push(dials().identity);
+  dials().moved[title] = ids;
+}
+
+/**
  * What one account may do — its role's rights under the instance's ceiling.
  *
  * @param id The account.
@@ -199,6 +218,8 @@ export type IdentityDials = {
   setPlexReachable: (reachable: boolean) => void;
   /** Whether the invented accounts' requests join the owner's on the lists. */
   setInventedRequests: (on: boolean) => void;
+  /** Sets one role's rights, as « Comptes » would, until the layer is next reset. */
+  setRoleRights: (roleId: string, rights: Right[]) => void;
 };
 
 /** Those dials, over the layer's own state. */
@@ -210,4 +231,8 @@ export const identityDials: IdentityDials = {
   setForbiddenWrites: (rights) => { dials().forbiddenWrites = [...rights]; },
   setPlexReachable: (reachable) => { dials().plexReachable = reachable; },
   setInventedRequests: (on) => { dials().inventedRequests = on; },
+  setRoleRights: (roleId, rights) => {
+    roleFor(roleId);
+    dials().roleRights[roleId] = [...rights];
+  },
 };

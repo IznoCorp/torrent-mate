@@ -20,7 +20,10 @@ import type { ReactElement } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useUiState } from "../lib/store-access";
-import { NAVIGATION, rowFor } from "./navigation";
+import { NAVIGATION, opensFor, rowFor } from "./navigation";
+import { NotFoundPage } from "./not-found";
+import { ReservedPlace } from "./reserved-place";
+import { useRights } from "../lib/account";
 import { body } from "../ui/variants";
 
 // THE TABLE IS `app/navigation.ts`'s, and this file no longer keeps one.
@@ -76,6 +79,7 @@ export function PageHost(): ReactElement | null {
   const page = useUiState().page as string | undefined;
   const phase = useUiState().phase as string | undefined;
   const migrated = rowFor(page);
+  const rights = useRights();
 
   // `aria-busy` ON THE MAIN REGION, from the ONE place that knows every page's
   // phase. Marked on each page instead, it would be eight call sites and the
@@ -92,7 +96,18 @@ export function PageHost(): ReactElement | null {
   if (!migrated) return null;
   const view = document.getElementById("view");
   if (!view) return null;
-  const { Body, root, region } = migrated;
+  // A PAGE ASKING FOR A RIGHT WAITS FOR THE ACCOUNT, so nothing it offers is
+  // drawn to an account that will turn out not to hold it. Held, it draws; not
+  // held, a reserved page explains itself in its place and an absent one is an
+  // address this account does not have (DESIGN maquette-l18 § 3.3, § 3.4).
+  if (migrated.opens && !rights.known) return null;
+  const held = opensFor(migrated, rights);
+  const { root, region } = migrated;
+  const Body = held
+    ? migrated.Body
+    : migrated.lacking === "reserved"
+      ? () => <ReservedPlace row={migrated} />
+      : NotFoundPage;
   return createPortal(
     <>
       <PageHeading page={page as string} />

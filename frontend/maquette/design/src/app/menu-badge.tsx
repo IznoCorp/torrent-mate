@@ -11,7 +11,8 @@
 import type { ReactElement } from "react";
 import { createPortal } from "react-dom";
 
-import { NAVIGATION } from "./navigation";
+import { NAVIGATION, opensFor } from "./navigation";
+import { useRights } from "../lib/account";
 import { useServerStateVersion } from "../lib/query-client";
 import { useUiState } from "../lib/store-access";
 import { tabBarBadge } from "../ui/variants";
@@ -31,7 +32,10 @@ export function MenuBadge(): ReactElement | null {
   useServerStateVersion();
   useUiState();
   const button = document.querySelector(MENU_BUTTON);
-  const count = NAVIGATION.filter((row) => !row.inBar && row.group !== undefined)
+  // BY RIGHTS, the same filter as the bar (M3: « le badge du menu compte par
+  // droits »): a row the account cannot open adds nothing.
+  const rights = useRights();
+  const count = NAVIGATION.filter((row) => !row.inBar && row.group !== undefined && opensFor(row, rights))
     .reduce((sum, row) => sum + (row.badge ? row.badge() : 0), 0);
   if (!button || !count) return null;
   return createPortal(

@@ -26,8 +26,8 @@ import { mockDials, mockState, resetMockState, type MockDials } from "./state";
 import { trackerDials, type TrackerDials } from "./trackers-state";
 import { installMockStream, resetStream, type StreamDriver } from "./stream";
 import { routes } from "./handlers";
-import { identityDials, signedInRights, type IdentityDials } from "./identity";
-import { OPERATION_RIGHTS, allowed } from "./operation-rights";
+import { identityDials, requestersOf, signedInRights, type IdentityDials } from "./identity";
+import { OPERATION_RIGHTS, OWN_SCOPED, allowed, subjectOf } from "./operation-rights";
 
 /** The signature this module replaces. */
 type NetworkCall = typeof globalThis.fetch;
@@ -160,7 +160,10 @@ async function answer(input: RequestInfo | URL, options?: RequestInit): Promise<
   // answers before the scenario does, and is recorded, so a forced call reads
   // as the 403 it was.
   const asks = OPERATION_RIGHTS[found.route.operationId] ?? null;
-  if (!allowed(asks, signedInRights().holdsAny)) {
+  const rights = signedInRights();
+  const foreign = OWN_SCOPED.has(found.route.operationId) && !rights.holds("acquisition.pilot.any")
+    && !requestersOf(subjectOf(found.parameters, address.searchParams)).some((one) => one.id === rights.id);
+  if (!allowed(asks, rights.holdsAny) || foreign) {
     recordAnswered({ operationId: found.route.operationId, method, path: address.pathname, status: FORBIDDEN });
     return problem(
       FORBIDDEN,

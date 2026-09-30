@@ -10,6 +10,7 @@ import { SkeletonLine } from "../../ui/state-surfaces";
 import type { Follow } from "./sheet-fields";
 import { actionButton, factKey, factsPanel, keyValueRow, sectionHeading, sheetActions } from "../../ui/variants";
 import { dateLabel } from "./format";
+import { useRights } from "../../lib/account";
 
 export function MediaDetails({
   title,
@@ -42,6 +43,13 @@ export function MediaDetails({
 }) {
   const { icons } = useEngineDrawing();
   const { t } = useTranslation();
+  // THE LIBRARY'S WRITES AND THE REQUEST ARE RIGHTS (§ 17): absent, never
+  // greyed, for an account that does not hold them — the library is whole to
+  // read, so nothing missing needs explaining (§ 3.0).
+  const rights = useRights();
+  const rescrape = rights.holds("library.rescrape");
+  const remove = rights.holds("library.delete");
+  const request = rights.holds("acquisition.request");
   return (
     <>
       <div>
@@ -115,6 +123,7 @@ export function MediaDetails({
                 metadata would be re-fetched over a world in which nothing had
                 been asked. `data-rescrape` is the verb both surfaces share —
                 this one and the follow panel's — and it calls the operation. */}
+            {rescrape ? (
             <button
               className={actionButton({ kind: "panelAction" })}
               data-part="sheet/action"
@@ -122,11 +131,14 @@ export function MediaDetails({
             >
               <Icon paths={icons.refresh} />
               {t("screens.media.rescrape")}
-            </button>{" "}
+            </button>
+            ) : null}{" "}
+            {remove ? (
             <button className={actionButton({ kind: "panelAction", tone: "danger" })} data-part="sheet/action" data-tone="danger" data-del={title}>
               <Icon paths={icons.trash} />
               {t("screens.media.delete")}
             </button>
+            ) : null}
           </>
         ) : isFilm === null ? (
           // THE FOLLOW'S VERB IS THE KIND: one word for a series, another for a
@@ -150,7 +162,7 @@ export function MediaDetails({
             <Icon paths={icons.check} />
             {isFilm ? t("screens.media.added") : t("screens.media.followed")}
           </button>
-        ) : (
+        ) : !request ? null : (
           // No sheet-refresh attribute: the legacy button asked the sheet to
           // REOPEN itself so the label would flip under the finger. This
           // screen re-renders from the store instead — the follow act

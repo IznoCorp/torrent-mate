@@ -122,12 +122,15 @@
   ],
   "requests": {
     "household-member": [
-      "The Hawk",
+      "Wicker",
+      "Kyma, l'onde mystérieuse",
       "President Curtis",
-      "Kyma, l'onde mystérieuse"
+      "Star Trek: Strange New Worlds",
+      "Star Trek: Strange New Worlds (2022)"
     ],
     "household-member-sees-all": [
-      "President Curtis"
+      "Silo",
+      "Star Trek: Strange New Worlds (2022)"
     ],
     "guest": [
       "Lucky",

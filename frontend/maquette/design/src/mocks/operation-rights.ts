@@ -15,7 +15,7 @@
 // acquisitions reads its own subset on a 200 (`acquisition.see.others` is a
 // filter, never a 403), and an account with no acquisition right reads an empty
 // one.
-import type { Right } from "../features/account/rights";
+import type { Right } from "../lib/rights";
 
 /** What one operation asks for: a right, any of several, or nothing. */
 export type Asked = Right | readonly Right[] | null;
@@ -33,6 +33,8 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   signOut: null,
   signInWithPlex: null,
   readVersion: null,
+  // The roster: « Comptes » manages it; the reassign chooser reads it narrowly (F46).
+  readAccounts: ["accounts.manage", "acquisition.reassign"],
 
   readLibraryItems: "library.read",
   readLibraryCategories: "library.read",
@@ -125,4 +127,31 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
 export function allowed(asked: Asked, holdsAny: (rights: readonly Right[]) => boolean): boolean {
   if (asked === null) return true;
   return holdsAny(typeof asked === "string" ? [asked] : asked);
+}
+
+/**
+ * The operations that act on ONE acquisition and ask it to be the caller's own
+ * (§ 17's own tunnel, F27): `acquisition.pilot.own` opens them on an
+ * acquisition the caller is among the requesters of, `acquisition.pilot.any` on
+ * every one.
+ */
+export const OWN_SCOPED: ReadonlySet<string> = new Set([
+  "searchForFollow",
+  "grabForFollow",
+  "grabSeasonForFollow",
+  "requeueJourney",
+  "rescrapeJourney",
+  "updateFollow",
+  "deleteFollow",
+]);
+
+/**
+ * The acquisition one call acts on, by its title.
+ *
+ * @param parameters What the path template captured.
+ * @param query The request's query.
+ * @returns The title — a follow's id and a journey's subject are its title here.
+ */
+export function subjectOf(parameters: Record<string, string>, query: URLSearchParams): string {
+  return parameters.followedId ?? parameters.infoHash ?? query.get("title") ?? "";
 }

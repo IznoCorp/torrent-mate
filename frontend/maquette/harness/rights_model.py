@@ -1,11 +1,11 @@
-"""R280 — one derivation of what an account may do, and its refusal side everywhere (§ 17).
+"""R420 — one derivation of what an account may do, and its refusal side everywhere (§ 17).
 
 DESIGN maquette-l18 § 1.2, § 2.2, § 5 (R-L18-a, R-L18-b, R-L18-c).
 
 1. R-L18-a — THE RESTING MAQUETTE IS THE OWNER'S: with no dial turned, `readAccount`
    answers the owner on the Admin role, no forbidden write, and every follow and queue
    card names him alone as its requester — no invented account is readable at rest.
-2. R-L18-b — NO SURFACE COMPARES A ROLE: outside the model (`features/account/rights.ts`)
+2. R-L18-b — NO SURFACE COMPARES A ROLE: outside the model (`lib/rights.ts`)
    no product source compares a role's kind, name or id. The source is read, never a
    rendering, because a comparison that happens to agree with the model today draws
    exactly the same screen.
@@ -36,7 +36,7 @@ SESSION = {"POST /api/auth/login", "POST /api/auth/logout", "POST /api/auth/plex
 GATED_READ = re.compile(r"^GET /api/(system|maintenance|pipeline|trackers|acquisition/(downloads|obligations)"
                         r"|config/(secrets|files))")
 ACQUISITION_LISTS = ("GET /api/acquisition/followed", "GET /api/acquisition/to-handle")
-MODEL = "features/account/rights.ts"
+MODEL = "lib/rights.ts"
 ROLE_COMPARED = re.compile(r"(\brole\??\.(kind|name|id)|\broleName)\s*[!=]==|[!=]==\s*[\"'](admin|default)[\"']")
 
 FORCE = """async (identity) => {
@@ -78,7 +78,7 @@ def product_sources():
 
 
 async def main():
-    journal = Journal("R280 — one derivation of what an account may do, refused everywhere else")
+    journal = Journal("R420 — one derivation of what an account may do, refused everywhere else")
 
     compared = [f"{name}:{number}" for name, text in product_sources()
                 for number, line in enumerate(text.splitlines(), 1) if ROLE_COMPARED.search(line)]

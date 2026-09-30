@@ -3,6 +3,8 @@
 // THE QUEUE ITSELF IS `lib/queue.ts` — two surfaces read it, and invariant 7
 // forbids one feature importing another. What is here is this surface's alone:
 // the reserve of suggestions its deck draws, and the follows it lists.
+import { heldRights } from "../../lib/account";
+import { isOwn } from "../../lib/rights";
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { HELD, read, send, sharedQueryClient } from "../../lib/query-client";
 import type { Schemas } from "../../lib/contract-schemas";
@@ -358,7 +360,9 @@ export function acquisitionBadge(): number {
   // THE ANSWER AS IT WAS READ, arrivals included: « À traiter » holds them too.
   const scenario = String(store.read().state.scen ?? "") === "loaded" ? "loaded" : "";
   const queue = sharedQueryClient?.getQueryData<AcquisitionQueue>(queueKey(scenario));
-  return queue ? todoCards(queue).length : 0;
+  // THE ACCOUNT'S OWN CARDS, as the tab counts them (R-L18-g).
+  const rights = heldRights();
+  return queue ? todoCards(queue).filter((card) => isOwn(card, rights)).length : 0;
 }
 
 /**

@@ -266,4 +266,4 @@ one dated line under the L18 heading of `docs/reference/frontend-architecture.md
   13); **5** quality and pause per acquisition (15, 16); **6** the library read-only (17); **7** the forbidden-writes
   list (19, 20); **8** Profil (21, 22); **9** the sign-in gate (23–25); **10** « Comptes » (26–32); **11** the media
   sheet's cross-seed block (33, 34); **12** the close (35, 36). Retired with the reset: the oracle, the mutation
-  script, the « seven widths », the midpoint, dispatch records. Rule labels R-L18-a…z are bound to R280 onwards.
+  script, the « seven widths », the midpoint, dispatch records. Rule labels R-L18-a…z are bound to R420 onwards (the range the orchestrator reserved).

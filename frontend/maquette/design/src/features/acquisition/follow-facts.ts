@@ -156,7 +156,11 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
     hasSheet: (follow.ids ?? heldIdentity(title)?.ids) != null,
     // THE SAME OFFER THE CARD'S FOOT MAKES, from the same derivation (R43).
     followOffer: offered !== undefined && followOffered(offered, followed) ? offered.ids ?? null : null,
-    origin: acquisition ? originLine(acquisition) ?? null : null,
+    // AND A FOLLOW SEVERAL ACCOUNTS ASKED FOR says who (round 9 Q16), where no
+    // card of it stands in a list to say it.
+    origin: acquisition
+      ? originLine(acquisition) ?? null
+      : (follow.requesters?.length ?? 0) > 1 ? originLine({ requesters: follow.requesters }) ?? null : null,
     // ONE DERIVATION: the card's fraction, the header's, and the sum of the
     // season headers all read this computation.
     fraction: isFilm

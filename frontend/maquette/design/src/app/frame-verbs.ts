@@ -203,6 +203,7 @@ function openAddressedPanel(address: string): void {
   if (kind === "sug") panel?.produce("suggestion", reference);
   else if (kind === "add") panel?.produce("add", reference);
   else if (kind === "torrent") panel?.produce("torrent", reference);
+  else if (kind === "reassign") panel?.produce("reassign", reference);
   else panel?.produce("follow", reference);
 }
 

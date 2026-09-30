@@ -1296,6 +1296,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every account and every role */
+        get: operations["readAccounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2266,6 +2283,19 @@ export interface components {
         AccountRef: {
             id: string;
             name: string;
+        };
+        /** @description ONE ACCOUNT OF THE ROSTER, as « Comptes » and the reassign chooser read it: its name, its mandatory e-mail, its ONE role (ruling 20) and its Plex link. */
+        AccountSummary: {
+            id: string;
+            name: string;
+            email: string;
+            role: components["schemas"]["Role"];
+            plexLinked: boolean;
+        };
+        /** @description Every account and every role (demand F). */
+        Roster: {
+            accounts: components["schemas"]["AccountSummary"][];
+            roles: components["schemas"]["Role"][];
         };
     };
     responses: {
@@ -4766,6 +4796,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Follow"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    readAccounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the roster */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Roster"];
                 };
             };
             400: components["responses"]["Problem"];

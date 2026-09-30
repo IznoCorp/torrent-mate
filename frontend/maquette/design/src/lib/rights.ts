@@ -1,5 +1,7 @@
 // WHAT THIS ACCOUNT MAY DO — one derivation from the answer, and every surface
-// reads it (§ 17; DESIGN maquette-l18 § 1.2).
+// reads it (§ 17; DESIGN maquette-l18 § 1.2). In `lib/`, not in the account
+// feature, because every feature reads it and invariant 7 forbids a feature
+// importing another.
 //
 // ITS INPUT IS WHAT THE SERVER ANSWERED: the role the account holds, the rights
 // that role carries, and the instance's forbidden writes (ruling 23). Its output
@@ -15,7 +17,7 @@
 // PURE, AND IMPORTED BY THE MOCK'S GUARD TOO: the offer side (a surface draws
 // the act) and the refusal side (the call answers 403) read ONE derivation, so
 // they cannot disagree about who may do what.
-import type { Schemas } from "../../lib/contract-schemas";
+import type { Schemas } from "./contract-schemas";
 
 /** One right of the ACL, in the contract's own names. */
 export type Right = Schemas["Right"];
@@ -32,6 +34,8 @@ type Account = Schemas["Account"];
 export type Rights = {
   /** Whether the account has been read at all. */
   readonly known: boolean;
+  /** The account's key — what a requester list names it by. */
+  readonly id: string;
   /** The role's name, for display — never compared. */
   readonly roleName: string;
   /** The instance's forbidden writes, for the ceiling's own sentence. */
@@ -56,6 +60,7 @@ export type Rights = {
 /** The rights of an account nobody has read yet: none. */
 export const NO_RIGHTS: Rights = {
   known: false,
+  id: "",
   roleName: "",
   forbidden: [],
   holds: () => false,
@@ -80,9 +85,28 @@ export function rightsOf(account: Account | undefined): Rights {
     !forbidden.includes(right) && (bypass || carried.has(right));
   return {
     known: true,
+    id: account.id,
     roleName: account.role.name,
     forbidden,
     holds,
     holdsAny: (rights) => rights.some(holds),
   };
+}
+
+/** What an acquisition says of who asked for it. */
+type Requested = { requesters?: readonly { id: string }[] };
+
+/**
+ * Whether an acquisition is the account's own to act on (§ 17: « own tunnel »).
+ *
+ * MEMBERSHIP, NOT SINGLE OWNERSHIP (F27): the account is AMONG its requesters —
+ * or holds `acquisition.pilot.any`, which makes every card its own.
+ *
+ * @param acquisition A follow or a queue card.
+ * @param rights What the account may do.
+ * @returns True when the account may act on it.
+ */
+export function isOwn(acquisition: Requested, rights: Rights): boolean {
+  if (rights.holds("acquisition.pilot.any")) return true;
+  return (acquisition.requesters ?? []).some((one) => one.id === rights.id);
 }

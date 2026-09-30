@@ -26,7 +26,10 @@ import {
 } from "./appearance";
 import { installDrawerDismissGesture } from "./drawer-gesture";
 import { registerLayer, unwindLayer } from "./layers";
-import { NAVIGATION, type NavigationGroup, type NavigationRow } from "./navigation";
+import { NAVIGATION, absentFor, opensFor, type NavigationGroup, type NavigationRow } from "./navigation";
+import { icons } from "./icons";
+import { useRights } from "../lib/account";
+import type { Rights } from "../lib/rights";
 import { Drawer } from "../ui/drawer";
 import { Icon } from "../ui/icon";
 import { useServerStateVersion } from "../lib/query-client";
@@ -38,6 +41,7 @@ import {
   drawerEntry,
   drawerEntryCount,
   drawerEntryDrawing,
+  drawerEntryReserved,
   drawerGroup,
   drawerGroupTitle,
   drawerHead,
@@ -50,11 +54,11 @@ import {
   viewSwitchButton,
 } from "../ui/variants";
 
-/** The groups, in the order the table first names them. */
-function grouped(): { key: NavigationGroup; rows: NavigationRow[] }[] {
+/** The groups, in the order the table first names them — minus what is absent for this account. */
+function grouped(rights: Rights): { key: NavigationGroup; rows: NavigationRow[] }[] {
   const groups: { key: NavigationGroup; rows: NavigationRow[] }[] = [];
   for (const row of NAVIGATION) {
-    if (!row.group) continue;
+    if (!row.group || absentFor(row, rights)) continue;
     const seen = groups.find((candidate) => candidate.key === row.group);
     if (seen) seen.rows.push(row);
     else groups.push({ key: row.group, rows: [row] });
@@ -77,6 +81,7 @@ export function NavigationDrawer(): ReactElement {
   // (`store.touch()`): the choice lives in `localStorage`, not in the state, so
   // a subscription to the state alone never redrew the pressed control (B-580).
   useStoreContent((content) => content.version);
+  const rights = useRights();
   const identity = servedIdentityLines();
   const appearance = currentAppearance();
   const closing = useRef(false);
@@ -136,23 +141,33 @@ export function NavigationDrawer(): ReactElement {
         </span>
       </div>
       <nav className={drawerNavigation()}>
-        {grouped().map((group) => (
+        {grouped(rights).map((group) => (
           <div key={group.key} className={drawerGroup()}>
             <p className={drawerGroupTitle()}>
               {t(`navigation.groups.${group.key}`)}
             </p>
             {group.rows.map((row) => {
-              const badge = row.badge ? row.badge() : 0;
+              // A MARKED ROW CARRIES NO COUNT (F29): it would be a live number
+              // the account cannot open the page to explain.
+              const reserved = !opensFor(row, rights);
+              const badge = !reserved && row.badge ? row.badge() : 0;
               return (
                 <a
                   key={row.id}
                   href="#"
                   data-navgo={row.id}
+                  data-reserved={reserved || undefined}
                   aria-current={page === row.id ? "page" : undefined}
-                  className={drawerEntry({ current: page === row.id })}
+                  className={drawerEntry({ current: page === row.id, reserved })}
                 >
                   <Icon paths={row.icon} className={drawerEntryDrawing()} />
                   <span>{t(row.labelKey)}</span>
+                  {reserved ? (
+                    <span className={drawerEntryReserved()} data-part="shell/drawer-reserved">
+                      <Icon paths={icons.lock} className={drawerEntryDrawing()} />
+                      {t("access.reservedTag")}
+                    </span>
+                  ) : null}
                   {badge ? (
                     <span className={drawerEntryCount()} data-part="shell/drawer-count">
                       {badge}

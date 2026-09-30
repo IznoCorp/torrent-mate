@@ -1,10 +1,10 @@
 // The model, read on every seeded role: the rights a role carries, Admin's
 // bypass, and the instance's forbidden writes subtracted from every role.
 import { describe, expect, it } from "vitest";
-import ACCOUNTS from "../../mocks/seeds/accounts.json";
-import contract from "../../../../contract/openapi.json";
+import ACCOUNTS from "../mocks/seeds/accounts.json";
+import contract from "../../../contract/openapi.json";
 import { NO_RIGHTS, rightsOf, type Right } from "./rights";
-import type { Schemas } from "../../lib/contract-schemas";
+import type { Schemas } from "./contract-schemas";
 
 const EVERY = (contract as unknown as { components: { schemas: { Right: { enum: Right[] } } } })
   .components.schemas.Right.enum;
