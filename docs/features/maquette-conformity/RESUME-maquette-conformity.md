@@ -17,12 +17,11 @@
   oracle « no divergence », every merged hold still falling under the mutation that proved it). **The budget**, as
   the orchestrator ruled it: harness = lines added under `frontend/maquette/harness/**`; product = lines added under
   `frontend/maquette/design/src/**` minus `*.test.*`; baselines and docs on neither side; its command is on the phase
-  page; measured ONCE, at the gate, on the final head, target ≤ 0.60. **Open with the orchestrator**: the harness
-  added is ≈ 1 560 lines (responsive.py 362; the 13 new small rules ≈ 800; resolution_card +64; re-aims ≈ 120) —
-  merging the small rules into the rules that read their surfaces, their reading factored in `common.py`, saves
-  ≈ 40–50 %, which likely does not reach 0.60 without removing holds; the predecessor asked whether to (a) accept
-  the reached figure, said, or (b) count responsive.py (order 85's instrument) outside the lot. No hold is removed
-  without the orchestrator's word.
+  page; measured ONCE, at the gate, on the final head, target ≤ 0.60. **Ruled (a)** by the orchestrator after the
+  predecessor's inventory (≈ 1 560 harness lines added: responsive.py 362, the 13 small rules ≈ 800): fold the 13
+  small rules into holds of the rules that read their surfaces, factor the page read / state loop / journal into
+  `common.py` as far as a conversion goes, measure ONCE, accept the figure reached, said as it is, the residual a
+  debt to order 64's consolidation (L16 precedent 0.602). (b) refused: responsive.py stays counted. No hold removed.
 - **Then phase 13, the close** (`plan/phase-13-close.md`): the guard arms, the last tokens, the version bump, the
   full gate once, the PR (READY, auto-merge NOT armed). At the close each of **B-576, B-578, B-580, B-583, B-584,
   B-585** turns `fixed #<PR>` (each row already carries escaped from / why / family).

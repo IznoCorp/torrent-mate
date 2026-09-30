@@ -15,6 +15,14 @@ git diff --numstat origin/main...HEAD | awk '
   END {printf "harness +%d, product +%d, budget %.2f\n", harness, product, harness / product}'
 ```
 
+**The orchestrator's ruling on the target (2026-09-30, after the predecessor's inventory — ≈ 1 560 harness lines
+added, the small rules' merge saving ≈ 40–50 %):** (a). The phase folds the 13 small rules into holds of existing
+rules and factors the page read, the state loop and the journal into `harness/common.py`, as far as a conversion
+goes, every merged hold still falling under its mutation; then it measures ONCE with the definition above and
+ACCEPTS the figure reached, said as it is, the residual named as a debt to the consolidation of order 64 (the L16
+precedent, 0.602). (b) — counting `responsive.py` outside the lot — is refused: redefining the budget after reading
+the figure would be gaming it. No hold is removed.
+
 ## What changes
 
 1. **The harness lines this lot added are brought under the budget**, target **≤ 0.60** measured at this phase's
