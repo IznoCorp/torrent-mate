@@ -35,12 +35,16 @@ import { bridge } from "../lib/shell-doors";
 // `<section data-part="screen">` with no id at all, so an id selector would
 // silently ignore every one of them. This was the shape of the first version
 // of this file.
+const SCREEN = '[data-part="screen"]';
 const LAYERS = [
   "#drawer",
-  '[data-part="screen"]',
+  SCREEN,
   "#sheet",
   "#dlg",
 ] as const;
+
+// The tab bar, by the part its markup names.
+const TAB_BAR = '[data-part="shell/tab-bar"]';
 
 // A layer's own named entry point, asked for FIRST and on its own.
 //
@@ -132,6 +136,16 @@ function setBackgroundInert(layer: Element | null): void {
       // and took no finger, so its close and its « Annuler » were controls that
       // did nothing while the layer that caused them was still open (B-381).
       if (node.id === "toast") {
+        node.removeAttribute("inert");
+        continue;
+      }
+      // THE TAB BAR IS NOT A SCREEN'S BACKGROUND. It is ranked ABOVE a screen
+      // (50 over 45, `ui/variants/frame.ts`) and drawn over it, so marked inert
+      // it painted on top and took no finger: on a media sheet opened from a
+      // torrent's poster, a tap on « Acquisition » reached the cast's avatars
+      // under it (B-609, C1's reader, 2026-09-30). Under the drawer, the sheet
+      // and the confirmation — all ranked above it — it stays background.
+      if (layer?.matches(SCREEN) && node.matches(TAB_BAR)) {
         node.removeAttribute("inert");
         continue;
       }

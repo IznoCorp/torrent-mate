@@ -1111,7 +1111,13 @@
       "restartConfirmGo": "Redémarrer",
       "restartConfirmCancel": "Annuler",
       "restartDone": "Service redémarré — les réglages sont pris en compte.",
-      "allTopics": "Tous les réglages"
+      "allTopics": "Tous les réglages",
+      "leaveHeading": "Modifications non enregistrées",
+      "leaveBodyOne": "{{count}} modification attend d'être enregistrée. Que faire avant de quitter {{page}} ?",
+      "leaveBodyMany": "{{count}} modifications attendent d'être enregistrées. Que faire avant de quitter {{page}} ?",
+      "leaveSave": "Enregistrer",
+      "leaveAbandon": "Abandonner les modifications",
+      "leaveStay": "Rester sur {{page}}"
     }
   },
   "surfaces": {
