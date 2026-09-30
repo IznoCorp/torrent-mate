@@ -319,6 +319,49 @@ async def main():
             f"film says it: {'quittera' in (said['film']['body'] or '')} · "
             f"series says it: {'quittera' in (said['series']['body'] or '')}")
 
+        # 5b. A FILM THE LIBRARY HOLDS IS A FILM IN ITS PANEL (B-581). A
+        # library item nobody follows reaches this panel with no follow to
+        # read its kind from, and the panel called every one of them a
+        # series: « Série · — épisodes », « À jour » and the no-season-data
+        # note over « On l'appelait Robin des Bois », a film. The kind is the
+        # library's own answer for that very title (the membership read,
+        # whole-library, so a film on no loaded page and one opened from
+        # « Récents » are films too) — a film of the animation category as
+        # much as one of `movies` — and a series of the library keeps its
+        # series panel.
+        async def library_panel(state=None, title=None):
+            if state:
+                await page.evaluate("(id)=>window.__go(id)", state)
+                await page.wait_for_timeout(SETTLED)
+            else:
+                await page.evaluate("()=>window.__panel.close()")
+                await page.wait_for_timeout(PANEL_OUT)
+                await page.evaluate("(t)=>window.__panel.produce('follow', t)", title)
+                await page.wait_for_timeout(PANEL_IN)
+            return await page.evaluate("""()=>({
+              title: (document.querySelector('#sheetin [data-part="sheet/title"]') || {}).textContent,
+              meta: (document.querySelector('#sheetin [data-part="sheet/meta"]') || {}).textContent || '',
+              chip: (document.querySelector('#sheetin [data-part="chip"]') || {}).textContent || '',
+              seasons: document.querySelectorAll('#sheetin [data-part="season"]').length,
+              body: document.querySelector('#sheetin')?.textContent || ''})""")
+        film_word = await page.evaluate("()=>window.__i18n.t('panels.follow.film')")
+        series_word = await page.evaluate("()=>window.__i18n.t('panels.follow.series')")
+        # What a series' panel says of its seasons and episodes, in the
+        # interface's own words: none of it belongs on a film's.
+        series_only = await page.evaluate("""()=>['episodesSuffix', 'noSeasonData']
+          .map((key) => window.__i18n.t('panels.follow.' + key).trim())""")
+        for how, subject in (("state", "lib-film-panel"), ("title", "Super Mario Galaxy, le film")):
+            said = await library_panel(**{how: subject})
+            journal.check(
+                f"a library film's panel ({subject}) names it a film, with no seasons or episodes (B-581)",
+                film_word in said["meta"] and series_word not in said["meta"] and not said["seasons"]
+                and not any(words in said["body"] for words in series_only),
+                f"meta {said['meta']!r} · chip {said['chip']!r} · body {said['body'][:160]!r}")
+        said = await library_panel(title="The Hawk")
+        journal.check(
+            "and a library series' panel still names it a series (B-581's control)",
+            series_word in said["meta"], f"meta {said['meta']!r}")
+
         # 6. THE HOLDER, both ways.
         for kind, real, invented in HOLDS:
             journal.check(

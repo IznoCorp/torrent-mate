@@ -13,6 +13,11 @@ import { GET, route } from "./shared";
 import { mockState } from "../state";
 import type { MockRequest, MockRoute } from "../router";
 
+/* THE ENGINE'S FILM CATEGORIES — its move rules' own list: a film folder is
+   replaced, a series folder is merged. A library row carries its category,
+   and the category is what tells a film from a series. */
+const FILM_CATEGORIES = new Set(["movies", "movies_animation", "movies_documentary", "standup", "theater"]);
+
 /* The year a library row states, read off its secondary line (« 2026 · Film »). */
 const LEADING_YEAR = /^(\d\d\d\d)/;
 
@@ -33,7 +38,7 @@ function sameYear(line: string | undefined, year: number | null): boolean {
  * Answers what the library holds of one exact title.
  *
  * @param request The request, its `title` and optional `year` in the query.
- * @returns Whether it is held, how many rows name it, whether it is incomplete, and its identity.
+ * @returns Whether it is held, how many rows name it, whether it is incomplete, its kind and its identity.
  */
 function membership(request: MockRequest) {
   const state = mockState();
@@ -54,6 +59,7 @@ function membership(request: MockRequest) {
     inLibrary: row !== undefined || show !== undefined,
     rows: rows.length,
     incomplete: show !== undefined,
+    kind: row !== undefined ? (FILM_CATEGORIES.has(row.category) ? "movie" : "show") : show !== undefined ? "show" : null,
     ids: row?.ids ?? show?.ids ?? null,
   };
 }

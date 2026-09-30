@@ -39,6 +39,17 @@ export function libraryStates(): NamedState[] {
         }),
     ],
     [
+      "lib-film-panel",
+      "Médiathèque · Médias — le panneau d'un film (sa variante FILM : ni saisons ni épisodes)",
+      () => {
+        applyState({ page: "lib", libLens: "cat", libMode: "grid", q: "", phase: "ready", selMode: false });
+        // A FILM THE LIBRARY HOLDS AND NOBODY FOLLOWS: its panel is the one
+        // whose kind is read from the library's own item, not from a follow.
+        // french-ok: a media title, which is data.
+        window.__panel.produce("follow", "On l'appelait Robin des Bois");
+      },
+    ],
+    [
       "lib-search-empty",
       "Médiathèque — recherche sans résultat",
       () =>

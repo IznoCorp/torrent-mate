@@ -152,16 +152,17 @@ function followPanel(title: string, cache: PanelCache): PanelDescriptor | null {
       { type: "actions", actions: [primaryAction(facts)] },
       taken ? { type: "note", text: taken } : null,
       facts.origin ? { type: "note", text: facts.origin } : null,
-      seasons.length
-        ? { type: "saisons", follow, seasons }
-        : {
-            type: "note",
-            text: translate(isFilm
-              ? "panels.follow.noEpisodeCatalogue"
-              : "panels.follow.noSeasonData"),
-          },
-      { type: "actions", secondary: true, actions: secondaryActions(facts) },
+      // A FILM'S VARIANT draws no seasons and no episodes, not even a note
+      // saying it has none (operator, 09-29): it is acquired or it is not.
       isFilm
+        ? null
+        : seasons.length
+          ? { type: "saisons", follow, seasons }
+          : { type: "note", text: translate("panels.follow.noSeasonData") },
+      { type: "actions", secondary: true, actions: secondaryActions(facts) },
+      // Only a film someone FOLLOWS leaves the list once acquired; one the
+      // library already holds is in no list to leave.
+      isFilm && facts.isFollowed
         ? { type: "note", text: translate("panels.follow.filmLeavesNote") }
         : null,
     ],

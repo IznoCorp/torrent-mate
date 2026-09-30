@@ -108,7 +108,10 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
         title: show.title, kind: "show", year: "", status: "to_grab", owned: show.owned, aired: show.aired,
       }))
       .find((one) => one.title === title) ??
-    { title, kind: "show", year: "", status: "up_to_date" };
+    // THE KIND IS THE MEDIUM'S OWN, as the library answers it for this very
+    // title — a film nobody follows was drawn as a series (B-581) — and a
+    // series only when the library does not hold it either.
+    { title, kind: membership.kind ?? "show", year: "", status: "up_to_date" };
   const address = providerAddress(follow.ids ?? heldIdentity(title)?.ids);
   const seasonsAnswer = address
     ? cache.held<SeasonsAnswer>(seasonsQuery(address.provider, address.id).queryKey)

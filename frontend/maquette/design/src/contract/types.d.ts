@@ -1337,6 +1337,8 @@ export interface components {
             incomplete: boolean;
             /** @description the held medium's provider identity, or null when the library does not hold it or no sheet identifies it */
             ids: components["schemas"]["ProviderIds"] | null;
+            /** @description whether the held medium is a film or a series, from the category it is filed under, or null when the library does not hold it — a panel about a medium nobody follows has no other source for its kind */
+            kind: ("movie" | "show") | null;
         };
         Follow: {
             title: string;
