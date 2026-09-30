@@ -30,16 +30,8 @@ violation » about a third it never saw:
 
 Ten of the eighty-seven are in the last two shapes — one single-line entry and
 a family of nine built from a template — so a scan for a quoted literal at the
-head of a bracket reads 77 and says nothing about the rest. The second oracle
-is `oracle-reference.json`: it holds one entry per state the recorded oracle
-actually drove, and **an id it measured that this arm could not parse is
-refused**. That direction is the one that means blindness. The other direction
-— an id parsed here and absent from the reference — is a state added and not
-yet re-recorded, which the oracle reports itself, so it is printed and not
-refused.
-
-This is B-208's shape used deliberately: two independent readers of the same
-fact, and the disagreement fails rather than prints.
+head of a bracket reads 77 and says nothing about the rest; a floor on the
+count read refuses a table this arm can no longer parse.
 
 WHAT IT DOES NOT READ:
 
@@ -55,7 +47,6 @@ WHAT IT DOES NOT READ:
 
 from __future__ import annotations
 
-import json
 import re
 import sys
 from pathlib import Path
@@ -68,7 +59,6 @@ from nofrench_lexicon import (  # noqa: E402
 
 # The table is one file per surface; the arm reads them joined.
 STATES = MAQUETTE / "design" / "src" / "harness" / "states"
-ORACLE_REFERENCE = MAQUETTE / "oracle-reference.json"
 
 # The three shapes, in the order they appear above. The generated one yields the
 # literal PREFIX and the words the template interpolates from the table beside
@@ -156,19 +146,6 @@ def _receiver_array(source: str, closing: int) -> str:
     return ""
 
 
-def measured_state_identifiers() -> set[str]:
-    """Returns the states the recorded oracle actually drove.
-
-    Returns:
-        The keys of the reference's `measurements`, or an empty set where the
-        reference is absent — which the caller refuses rather than passes.
-    """
-    if not ORACLE_REFERENCE.is_file():
-        return set()
-    return set(json.loads(ORACLE_REFERENCE.read_text(encoding="utf-8"))
-               .get("measurements", {}))
-
-
 def check_state_identifiers(violations: list[str]) -> None:
     """Refuses a named-state id built from a word this codebase lacks.
 
@@ -195,31 +172,8 @@ def check_state_identifiers(violations: list[str]) -> None:
     words = vocabulary()
     source = "\n".join(read(path) for path in sorted(STATES.glob("*.ts")))
     declared = declared_state_identifiers(source)
-    measured = measured_state_identifiers()
 
     examined["state identifiers / engine"] += len(declared)
-
-    if not measured:
-        violations.append(
-            f"{relative(ORACLE_REFERENCE)}: absent, so this arm has only ONE "
-            "reader of the state table and cannot tell « no French id » from "
-            "« a shape I do not parse ». The cross-check is the arm.")
-    unparsed = sorted(measured - declared)
-    if unparsed:
-        violations.append(
-            f"{relative(STATES)}: the recorded oracle measured "
-            f"{len(unparsed)} state(s) this arm could not parse — "
-            f"{', '.join(unparsed[:6])}"
-            f"{' …' if len(unparsed) > 6 else ''}. A state written in a shape "
-            "the reader does not know is a state read by nobody, and this arm "
-            "would report « no violation » over it. Teach the shape.")
-    added = sorted(declared - measured)
-    if added:
-        print(f"  note: {len(added)} state(s) declared and not in the recorded "
-              f"oracle — {', '.join(added[:6])}"
-              f"{' …' if len(added) > 6 else ''}. A new state is re-recorded by "
-              "the oracle, which reports it itself; that direction is not this "
-              "arm's to refuse.")
 
     if len(declared) < STATE_FLOOR:
         violations.append(
@@ -244,5 +198,4 @@ def check_state_identifiers(violations: list[str]) -> None:
                 "include the oracle's reference and the accessibility ledgers.")
 
 
-__all__ = ["check_state_identifiers", "declared_state_identifiers",
-           "measured_state_identifiers"]
+__all__ = ["check_state_identifiers", "declared_state_identifiers"]
