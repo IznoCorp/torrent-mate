@@ -26,9 +26,12 @@ function selectorPanel(_subject: string, cache: PanelCache): PanelDescriptor | n
   const say = (key: string, values: Record<string, string | number> = {}) =>
     i18next.t(`screens.torrents.${key}`, values);
   const current = String(store.read().state.trackersFilter ?? "");
-  const choice = (name: string, label: string, count: number): Choice => ({
+  const choice = (name: string, label: string, count: number, off: string | null = null): Choice => ({
     text: label,
-    hint: say("selectorCount", { count }),
+    // A TRACKER SWITCHED OFF SAYS SO beside its name, in the roster's own words.
+    hint: off === null
+      ? say("selectorCount", { count })
+      : say("selectorCountOff", { count: say("selectorCount", { count }), state: off }),
     checked: current === name,
     target: { "trackers-choose": name },
   });
@@ -43,11 +46,28 @@ function selectorPanel(_subject: string, cache: PanelCache): PanelDescriptor | n
         options: [
           choice("", say("selectorAll"), downloads.length),
           ...trackers.map((tracker) =>
-            choice(tracker.name, tracker.name, downloads.filter((entry) => entry.tracker === tracker.name).length)),
+            choice(tracker.name, tracker.name, downloads.filter((entry) => entry.tracker === tracker.name).length,
+              offWord(tracker))),
         ],
       },
     ],
   };
+}
+
+/**
+ * What the roster says of a tracker switched off: off by you, or off and why.
+ *
+ * @param tracker The tracker, as its own answer carries it.
+ * @returns The words, or null while it is on.
+ */
+function offWord(tracker: Tracker): string | null {
+  const off = tracker.disabled;
+  if (off === null) return null;
+  if (off.by !== "failure") return i18next.t("screens.trackers.legendOperator");
+  return i18next.t("screens.trackers.panel.stateWithReason", {
+    state: i18next.t("screens.trackers.disabledByOperator"),
+    reason: i18next.t(`screens.trackers.failureReasons.${off.reason ?? "other"}`),
+  });
 }
 
 registerProducer("trackers-selector", {
