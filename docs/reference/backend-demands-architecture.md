@@ -307,10 +307,12 @@ L20-8).
 
   | Demand | What the engine must do | Why |
   | --- | --- | --- |
-  | **SR1 — the pointer on the card** | serve, on each queue card, `season`, `episode` and `absorbedBy` (the covering acquisition), from the wanted row's own columns | the card is absorbed and its journey points to the season's; the engine already holds `absorbed_by` |
+  | **SR1 — the pointer on the card** | serve, on each queue card, `season`, `episode` and `absorbedBy` (the covering acquisition), from the wanted row's own columns — extended by DECIDED 5 (Q18 = A): the interface reads the served link as is and compares no label | the card is absorbed and its journey points to the season's; the engine already holds `absorbed_by` |
   | **SR2 — a grabbed episode at the ask** | decide and serve what a season ask does to an episode already `grabbed` (absorbed with its torrent left running, or cancelled), and mark it absorbed either way | « aucun téléchargement … en parallèle »; R5 covers only open wanteds |
   | **SR3 — the per-episode path refuses** | while a season wanted is open, the per-episode enqueue and grab paths skip that season's episodes — including an episode with no wanted row at the ask | this section's own bullet above, made precise: `detect.py`'s episode path reads no season row |
-  | **SR4 — a journey per acquisition** (decided, OPEN 1 = A) | the journey read keyed by the acquisition (wanted row), not the title, with the release it followed | the season-recovery design's own § 0.1 |
+  | **SR4 — a journey per acquisition** (decided, OPEN 1 = A) | the journey read keyed by the acquisition (wanted row), not the title, with the release it followed and its own rung times; the card serves that release as `release` (the season's pack for a season, the episode's own for an episode; null until one is taken) | the season-recovery design's own § 0.1; the reader's round of 2026-09-30 found two journeys naming one constant release with one set of times |
+  | **SR5 — who launched it** (DECIDED 6, Q19) | record on the wanted row whether a person's ask or the engine's rule (R4, `detect.py:655–740`) created it, and serve it on the card as `trigger` (`manual` / `automatic` / null) | Q19: « pour pas que je me demande qui à demandé la saison entière alors que c'était un process auto »; the engine records no such column today |
+  | **SR6 — a release names its season and episode** | serve `season` and `episode` on each row of the release read (`GET /api/acquisition/releases`), parsed once by the engine | the picker refuses a release a season's recovery covers, and today reads its episode off the release's NAME (`SxxEyy`) — the interface parsing a name is a label compared, which DECIDED 5 refuses |
 
 ## 15. Système's facts are state CODES, the interface owns the words — conformity OPEN 2 = A (operator, 2026-09-29 21:5x)
 
