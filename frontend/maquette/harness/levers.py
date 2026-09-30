@@ -60,6 +60,7 @@ RUNNING = "levers-running"
 PAUSED = "levers-paused"
 QUEUED = "levers-queued"
 TRIGGER_OFF = "levers-trigger-off"
+TRIGGER_DOWN = "levers-trigger-down"
 LOADING = "levers-loading"
 
 # THE CONTROLS, by the `data-part` each carries.
@@ -392,9 +393,9 @@ async def hold_one_pair(browser, journal):
 
     Système said the automatic processing twice (a bare word beside its lever,
     a chip among the locks) and the app had seven pairs for « on » and « off ».
-    On `levers-idle` (on) and `levers-trigger-off` (off): the processing's row
-    is a fact row whose value is a chip saying the pair's word in the pair's
-    tone, the page names the mechanism once, and no retired word is drawn; the
+    On `levers-idle` (on), `levers-trigger-off` (off by a person, orange) and
+    `levers-trigger-down` (off by a fault, red): the processing's row is a fact
+    row whose value is a chip saying the pair's word in its tone, the page names the mechanism once, and no retired word is drawn; the
     settings' boolean field says the same pair.
 
     Args:
@@ -403,7 +404,10 @@ async def hold_one_pair(browser, journal):
     """
     label = SENTENCES["automaticTrigger"]
     context, page = await open_page(browser)
-    for state, word, tone in ((IDLE, STATES["active"], "success"), (TRIGGER_OFF, STATES["inactive"], "danger")):
+    # OFF BY A PERSON IS ORANGE, OFF BY A FAULT IS RED — his words (09-30):
+    # « orange si c'est en pause, rouge si c'est un problème technique ».
+    for state, word, tone in ((IDLE, STATES["active"], "success"), (TRIGGER_OFF, STATES["inactive"], "warning"),
+                              (TRIGGER_DOWN, STATES["inactive"], "danger")):
         read = await read_at(page, state, ONE_ROW, label)
         journal.check(f"{state}: the processing's row wears the chip « {word} »",
                       read["chip"] == word, f"chip {read['chip']!r}")

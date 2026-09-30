@@ -611,7 +611,8 @@
       "automaticTrigger": "Traitement automatique des téléchargements",
       "turnTriggerOn": "Activer le traitement automatique",
       "turnTriggerOff": "Désactiver le traitement automatique",
-      "automaticTriggerOff": "Les téléchargements terminés n'ouvrent plus de passage tout seuls.",
+      "automaticTriggerDown": "Arrêté par une panne technique : il ne répond pas.",
+    "automaticTriggerOff": "Les téléchargements terminés n'ouvrent plus de passage tout seuls.",
       "watchIdle": "Veille : jamais lancée.",
       "watchLast": "Dernière veille : {{when}} —",
       "detectedCount_one": "{{count}} détecté",
@@ -1073,6 +1074,7 @@
   "states": {
     "active": "actif",
     "inactive": "inactif",
+    "paused": "en pause",
     "reachable": "joignable",
     "on_time": "à l'heure",
     "room": "de la place",

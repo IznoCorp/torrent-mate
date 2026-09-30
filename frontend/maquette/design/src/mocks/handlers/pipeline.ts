@@ -237,6 +237,7 @@ export function pipelineRoutes(): MockRoute[] {
         ...state.pipeline,
         state: state.pipelineState,
         watcherEnabled: state.watcherEnabled,
+        watcherDown: state.watcherDown,
       };
     }),
     // THE BACKEND'S OWN ANSWER. A second pipeline pass asked while one is

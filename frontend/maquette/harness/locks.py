@@ -268,7 +268,11 @@ async def agrees(journal, page, moment):
     watcher = await page.evaluate(ROW_FACT, "levers/watcher-state")
     layer = await page.evaluate(LAYER)
     said_held = bool(lock) and HELD_SAID in lock["value"]
-    said_pause = bool(pause) and pause["value"] == STATES["active"]
+    # ENGAGED, THE PAUSE SAYS « en pause » — his word (09-30), not « actif »:
+    # a pause that is on is a pause, and off it is « inactif ».
+    said_pause = bool(pause) and pause["value"] == STATES["paused"]
+    journal.check(f"{moment}: the pause sentinel says « {STATES['paused']} » or « {STATES['inactive']} », no other word",
+                  bool(pause) and pause["value"] in (STATES["paused"], STATES["inactive"]), f"{pause!r}")
     said_watcher_paused = bool(watcher) and watcher["value"] == STATES["inactive"]
     journal.check(f"{moment}: « Verrou du pipeline » says what the locks read answers",
                   bool(lock) and said_held is layer["held"], f"{lock!r}, layer {layer}")
@@ -420,7 +424,7 @@ async def main():
             if not await drive(journal, page, state):
                 continue
             fact = await page.evaluate(ROW_FACT, "locks/pause-sentinel")
-            said_on = bool(fact) and fact["value"] == STATES["active"]
+            said_on = bool(fact) and fact["value"] == STATES["paused"]
             journal.check(f"{state}: the pause sentinel reads as the state says",
                           said_on is sentinel_on, f"{fact!r}")
             journal.check(f"{state}: the lever offered agrees with that sentinel",

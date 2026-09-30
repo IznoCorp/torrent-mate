@@ -86,10 +86,10 @@ export function LocksBlock(): ReactElement {
       secondaryLine: lock.stale ? t("screens.system.lockStaleLine") : undefined,
     },
     {
-      // THE PAUSE IS A MECHANISM, on or off: the app's one pair says it, and
-      // since when stands under it.
+      // THE PAUSE, ENGAGED, IS SAID « en pause » — the state it puts the
+      // pipeline in, not the pair's « actif » — and since when stands under it.
       label: t("screens.system.pauseSentinel"),
-      value: sentinels.pause ? t("states.active") : t("states.inactive"),
+      value: sentinels.pause ? t("states.paused") : t("states.inactive"),
       tone: sentinels.pause ? "warning" : "success",
       secondaryLine: sentinels.pause ? ageInWords(sentinels.pauseAgeS, t) : undefined,
     },

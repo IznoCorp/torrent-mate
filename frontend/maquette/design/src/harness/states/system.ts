@@ -106,6 +106,15 @@ export function systemStates(): NamedState[] {
       },
     ],
     [
+      "levers-trigger-down",
+      "Leviers — déclenchement automatique en panne (activé, mais son processus ne répond pas)",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.setWatcherDown(true);
+        applyState({ page: "sys", phase: "ready", fault: false });
+      },
+    ],
+    [
       "levers-loading",
       "Leviers — chargement",
       () => {

@@ -58,6 +58,8 @@ export function Levers(): ReactElement {
   const paused = pipeline.state === "paused" || locks.sentinels.pause;
   const queued = pipeline.state === "queued";
   const idle = !running && !paused && !queued;
+  // THE AUTOMATIC TRIGGER IS WATCHING only when it is on AND its process answers.
+  const watching = pipeline.watcherEnabled === true && pipeline.watcherDown !== true;
 
   return (
     <div data-part="levers" data-region="system/levers">
@@ -100,12 +102,19 @@ export function Levers(): ReactElement {
           « actif » does not say whether a press turns it on or off. */}
       {/* ONE ROW FOR ONE FACT: the automatic processing is said here, beside
           the control that moves it, and nowhere else on the page. */}
+      {/* OFF BY A PERSON IS ORANGE, OFF BY A FAULT IS RED: a pause someone
+          chose is not a failure, and a failure nobody chose must not read as
+          a pause. */}
       <ol className={factList()} data-part="levers/watcher-state">
         <FactRows rows={[{
           label: t("screens.system.automaticTrigger"),
-          value: pipeline.watcherEnabled ? t("states.active") : t("states.inactive"),
-          tone: pipeline.watcherEnabled ? "success" : "alert",
-          secondaryLine: pipeline.watcherEnabled ? undefined : ageInWords(locks.sentinels.watcherPausedAgeS, t),
+          value: watching ? t("states.active") : t("states.inactive"),
+          tone: watching ? "success" : pipeline.watcherEnabled ? "alert" : "warning",
+          secondaryLine: watching
+            ? undefined
+            : pipeline.watcherEnabled
+              ? t("screens.system.automaticTriggerDown")
+              : ageInWords(locks.sentinels.watcherPausedAgeS, t),
         }]} />
       </ol>
       <button
@@ -115,7 +124,7 @@ export function Levers(): ReactElement {
       >
         {pipeline.watcherEnabled ? t("screens.system.turnTriggerOff") : t("screens.system.turnTriggerOn")}
       </button>
-      {pipeline.watcherEnabled ? null : (
+      {watching ? null : (
         <div className={guidance()} data-part="levers/trigger-consequence">
           {t("screens.system.automaticTriggerOff")}
         </div>
