@@ -210,7 +210,8 @@ SHEET_STATE = """() => {
     title: (screen?.querySelector('h2[data-part="hero/title"]') || {}).textContent ?? null,
     body: (screen?.querySelector('[data-part="surface/body"]') || {}).textContent ?? '',
     bar: (screen?.querySelector('[data-part="screen/bar"]') || {}).textContent ?? '',
-    noinfos: [...document.querySelectorAll('[data-part="screen"][data-open] p[data-part="no-info"]')].map(
+    // RE-AIMED: a no-info place is the empty note in its place — a block, no longer a paragraph.
+    noinfos: [...document.querySelectorAll('[data-part="screen"][data-open] [data-part="no-info"]')].map(
       (p) => p.textContent),
     pathname: location.pathname,
   };
