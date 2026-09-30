@@ -146,6 +146,10 @@ default (outside heavy.sh) stays 2.
   rule that measures it is order 85, which replaces order 60 — its lens is `docs/reference/reader-office.md`'s.
   **Its cadence**: at a phase gate, the states of the surfaces that phase TOUCHED; the full pass (every
   named state, all seven widths) at mid-lot, at close and in CI.
+- **Uniformise behaviour, unless he says otherwise** (2026-09-29 22:2x, operator, verbatim: « Il faut
+  uniformiser les comportements. Sauf exception volontaire de ma part. »): one element behaves the
+  SAME everywhere it appears; an exception is never assumed — only the operator declares one. The
+  readers' lens is `docs/reference/reader-office.md`'s.
 
 Full verbatims: `docs/reference/operator-method.md` § 1, the principles table.
 

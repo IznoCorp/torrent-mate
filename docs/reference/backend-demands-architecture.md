@@ -299,3 +299,26 @@ L20-8).
 - Open for the brief: what marks a season "being recovered" (a tunnel state, a flag the per-episode
   grab path reads), and what happens to an episode of that season already queued when the season
   recovery starts.
+- **Resolved, conformity OPEN 6 = A (operator, 2026-09-29 22:0x).** During a whole-season recovery,
+  a single episode's own acquisition card of that season is ABSORBED by the season's card — its
+  journey points to the season's — and the engine refuses to grab that episode on its own. The
+  season-recovery design's own proposed rows land here as the demand
+  (`docs/features/maquette-season-recovery/DESIGN.md` § 6, cited, not copied):
+
+  | Demand | What the engine must do | Why |
+  | --- | --- | --- |
+  | **SR1 — the pointer on the card** | serve, on each queue card, `season`, `episode` and `absorbedBy` (the covering acquisition), from the wanted row's own columns | the card is absorbed and its journey points to the season's; the engine already holds `absorbed_by` |
+  | **SR2 — a grabbed episode at the ask** | decide and serve what a season ask does to an episode already `grabbed` (absorbed with its torrent left running, or cancelled), and mark it absorbed either way | « aucun téléchargement … en parallèle »; R5 covers only open wanteds |
+  | **SR3 — the per-episode path refuses** | while a season wanted is open, the per-episode enqueue and grab paths skip that season's episodes — including an episode with no wanted row at the ask | this section's own bullet above, made precise: `detect.py`'s episode path reads no season row |
+  | **SR4 — a journey per acquisition** (decided, OPEN 1 = A) | the journey read keyed by the acquisition (wanted row), not the title, with the release it followed | the season-recovery design's own § 0.1 |
+
+## 15. Système's facts are state CODES, the interface owns the words — conformity OPEN 2 = A (operator, 2026-09-29 21:5x)
+
+- The engine sends STATE CODES for Système's own facts (reachable, on time, nearly full, and every
+  fact of that shape) — never a rendered sentence of its own.
+- The interface is the ONLY place that owns the words: `fr.json` gives each code its one word, so a
+  Système fact renders through the SAME i18n path every other engine-sent code already does.
+- This is a decision, not yet a served demand: no route Système reads today separates a fact's CODE
+  from its rendered word. The operation-level shape belongs in the fitting register
+  (`frontend-backend-demands.md` or its stream counterpart, § 8 above) once one is drafted; this
+  file states the decision the drafting is held to.

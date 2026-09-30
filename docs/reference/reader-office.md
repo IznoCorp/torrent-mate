@@ -32,6 +32,10 @@ dated journal before 2026-09-12.
   redrawing the existing is a defect (row « ordre 79 »).
 - **Navigation paths, order 81**: every navigation path walked by finger against constitution § 16
   as amended by #635; every departure from it is filed as a defect (row « ordre 81 »).
+- **Behaviour uniformity** (operator, 2026-09-29 22:2x, verbatim: « Il faut uniformiser les
+  comportements. Sauf exception volontaire de ma part. »): one element, one behaviour, across every
+  surface it appears on; an exception is never assumed — only the operator declares one
+  (`docs/reference/operator-method.md` § 1, the principles table).
 
 A ruling is not a finding; a figure that contradicts the round's own measurement IS. What is
 already known — a prior round's RULINGS, a filed register row of a family this round is not
