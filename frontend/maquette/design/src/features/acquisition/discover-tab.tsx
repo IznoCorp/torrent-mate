@@ -111,8 +111,8 @@ export function DiscoverTab(): ReactElement {
     <div className={filterZone()} data-region="acquisition/filters">
       <div className={pillBar()}>
         {/* THE HEADER'S MESSAGE, in the row's free place beside the view switch —
-            one line, its whole on a tap. It comes down into the body if the
-            place is ever taken. */}
+            wrapping where the room is short, never cut; a tap opens it in a
+            panel. It comes down into the body if the place is ever taken. */}
         <div className={pillScroll()} data-part="pill/list">
           <button className={liveStrip({ inline: true })} data-part="discover/header" data-discover-header="">
             <span className={liveDot()}></span>
