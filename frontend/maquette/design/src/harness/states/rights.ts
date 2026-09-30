@@ -8,6 +8,7 @@
 // `run` builds the state.
 import { applyState, type NamedState } from "../drive";
 import { openDrawer } from "../../app/frame-verbs";
+import { WRITE_RIGHTS, type Right } from "../../lib/rights";
 
 /**
  * Signs one invented account in, until the next state resets the layer.
@@ -30,6 +31,12 @@ export function as(identity: string): void {
 function reread(): void {
   void window.__queries?.resetQueries();
 }
+
+/** Every WRITE right — what today's read-only instance forbids (ruling 23). */
+export const EVERY_WRITE: Right[] = [...WRITE_RIGHTS];
+
+// A title the library holds, whose sheet offers the library's writes.
+const OWNED = "American Dad!";
 
 // A follow four accounts asked for, each with its own settings in the seed.
 const SHARED_FOLLOW = "Kyma, l'onde mystérieuse";
@@ -153,6 +160,25 @@ export function rightsStates(): NamedState[] {
         as("guest");
         applyState({ page: "acq", acqTab: "follows", phase: "ready" });
         window.__panel.produce("follow", SHARED_FOLLOW);
+      },
+    ],
+    [
+      "ceiling-operator",
+      "Droits — l'instance en lecture seule : toute écriture absente, pour l'Admin aussi, et dite une fois",
+      () => {
+        window.__mocks?.setForbiddenWrites(EVERY_WRITE);
+        reread();
+        applyState({ page: "acq", acqTab: "follows", phase: "ready" });
+      },
+    ],
+    [
+      "ceiling-preprod",
+      "Droits — la préproduction : seule la suppression de la médiathèque est interdite, et nommée",
+      () => {
+        window.__mocks?.setForbiddenWrites(["library.delete"]);
+        reread();
+        applyState({ page: "lib", phase: "ready" });
+        window.__screens.mediaSheet(OWNED, window.__carriedFor(OWNED) ?? undefined);
       },
     ],
     [

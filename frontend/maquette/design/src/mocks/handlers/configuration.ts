@@ -139,7 +139,7 @@ export function configurationRoutes(): MockRoute[] {
     }),
     route("readConfigurationStatus", GET, "/api/config/status", () => {
       const held = mockState();
-      return { readOnly: held.readOnly, restartRequired: held.restartRequired };
+      return { restartRequired: held.restartRequired };
     }),
   ];
 }

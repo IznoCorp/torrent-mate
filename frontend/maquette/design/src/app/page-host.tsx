@@ -23,6 +23,7 @@ import { useUiState } from "../lib/store-access";
 import { NAVIGATION, opensFor, rowFor } from "./navigation";
 import { NotFoundPage } from "./not-found";
 import { ReservedPlace } from "./reserved-place";
+import { CeilingNotice } from "./ceiling-notice";
 import { useRights } from "../lib/account";
 import { body } from "../ui/variants";
 
@@ -121,10 +122,14 @@ export function PageHost(): ReactElement | null {
           className={root === "body" ? body() : root}
           data-region={region}
         >
+          <CeilingNotice />
           <Body />
         </div>
       ) : (
-        <Body />
+        <>
+          <CeilingNotice />
+          <Body />
+        </>
       )}
     </>,
     view,

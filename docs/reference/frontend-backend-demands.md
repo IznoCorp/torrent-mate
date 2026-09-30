@@ -83,7 +83,7 @@ reports a difference for every optional field and drowns the real findings.
 | `GET /api/config/files/{name}` (`readConfigurationFile`) | `digest`, `shadowedKeys` | `sha256`, `shadowed_keys` |
 | `GET /api/config/schema` (`readSettings`) | `displayedValue`, `file`, `fileNames`, `id`, `key`, `name`, `note`, `precision`, `raw`, `secondaryLine`, `settings`, `title`, `type` | `json_schema`, `ownership`, `restart_impact` |
 | `GET /api/config/secrets` (`readSecrets`) | `defined`, `label` | `description`, `is_set`, `secrets` |
-| `GET /api/config/status` (`readConfigurationStatus`) | `readOnly`, `restartRequired` | `read_only`, `restart_configured`, `restart_required`, `role`, `stale_files` |
+| `GET /api/config/status` (`readConfigurationStatus`) | `restartRequired` | `read_only`, `restart_configured`, `restart_required`, `role`, `stale_files` |
 | `GET /api/decisions/` (`readDecisions`) | `candidates`, `choice`, `folder`, `kind`, `overview`, `pending`, `poster`, `provider`, `reason`, `score`, `settled`, `state`, `title`, `via`, `when`, `withoutPoster`, `year` | `candidates_count`, `created_at`, `extracted_title`, `extracted_year`, `items`, `media_kind`, `page`, `page_size`, `pending_count`, `staging_path`, `status`, `total`, `trigger` |
 | `GET /api/maintenance/actions` (`readMaintenanceActions`) | `dryRun`, `group`, `long` | `actions`, `category`, `category_counts`, `default`, `dry_run`, `enum_values`, `help`, `long_running`, `name`, `options`, `required`, `title`, `type` |
 | `GET /api/maintenance/destructive-log` (`readDeletionJournal`) | `label`, `rows`, `secondaryLine`, `total`, `value` | `actor`, `detail`, `entries`, `op`, `path`, `run_uid`, `ts` |

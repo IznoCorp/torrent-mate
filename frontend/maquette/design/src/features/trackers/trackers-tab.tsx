@@ -12,6 +12,7 @@
 // one write, two doors. A tracker a failure switched off says why; switching it
 // back on while the failure persists is REFUSED by the engine, and the refusal
 // stays under the row, in the engine's words, never a toast that leaves.
+import { useRights } from "../../lib/account";
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 import i18next from "i18next";
@@ -113,6 +114,7 @@ function TrackerRow({ tracker, alert }: { tracker: Tracker; alert: Alert }): Rea
   const pending = pendingEdits()?.pending(identity);
   const on = pending === undefined ? tracker.enabled : pending.value === true;
   const refusal = pendingEdits()?.refusal(identity);
+  const control = useRights().holds("trackers.control");
   const marks = rosterMarks(tracker, alert);
   return (
     <li className={factRow({ withControl: true })} data-part="trackers/entry" data-tracker={tracker.name}
@@ -150,8 +152,9 @@ function TrackerRow({ tracker, alert }: { tracker: Tracker; alert: Alert }): Rea
           </span>
         ) : null}
       </button>
-      <Switch checked={on} label={t("screens.trackers.switchLabel", { tracker: tracker.name })}
-        data-part="trackers/switch" data-tracker-switch={tracker.name} />
+      {/* THE SWITCH IS A WRITE (`trackers.control`): the entry still says its state. */}
+      {control ? <Switch checked={on} label={t("screens.trackers.switchLabel", { tracker: tracker.name })}
+        data-part="trackers/switch" data-tracker-switch={tracker.name} /> : null}
       {refusal === undefined ? null : (
         // A REFUSAL (422) IS THE ENGINE'S ANSWER; any other failure left the edit pending.
         <p className={surfaceError({ tone: "danger" })} role="status" data-part="trackers/refusal"

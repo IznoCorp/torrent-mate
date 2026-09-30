@@ -13,6 +13,7 @@
 // section draws its PLACE and no values: a bound printed as `0`, or a lock
 // printed « Libre », before the answer arrives is a lie the reader cannot tell
 // from a fact.
+import { useRights } from "../../lib/account";
 import "./lever-verbs";
 import { useTranslation } from "react-i18next";
 import { Skeletons } from "../../ui/state-surfaces";
@@ -42,6 +43,9 @@ export function Levers(): ReactElement {
   const { data: locks } = useLocks();
   const { data: pipeline } = usePipelineState();
   const bound = useBoundSetting();
+  // THE LEVERS ARE WRITES (`pipeline.control`): absent for an account that does
+  // not hold it, and under a ceiling that forbids it — the rows still say the state.
+  const control = useRights().holds("pipeline.control");
 
   // NEITHER READ HAS ANSWERED: the place is drawn and nothing else. The parts
   // below are what the values will land in, so their names exist only once the
@@ -75,12 +79,12 @@ export function Levers(): ReactElement {
 
       {/* THE ONE THE STATE ADMITS. Pause while a run is going, resume while it
           is held, and when nothing runs the reason rather than a dead control. */}
-      {paused ? (
+      {control && paused ? (
         <button className={actionButton({ kind: "cardFoot" })} data-part="levers/resume" data-pipeline-resume="">
           {t("screens.system.resumeAll")}
         </button>
       ) : null}
-      {(running || queued) && !paused ? (
+      {control && (running || queued) && !paused ? (
         <button className={actionButton({ kind: "cardFoot" })} data-part="levers/pause" data-pipeline-pause="">
           {t("screens.system.pauseAll")}
         </button>
@@ -117,13 +121,13 @@ export function Levers(): ReactElement {
               : ageInWords(locks.sentinels.watcherPausedAgeS, t),
         }]} />
       </ol>
-      <button
+      {control ? <button
         className={actionButton({ kind: "cardFoot" })}
         data-part="levers/watcher"
         data-watcher={pipeline.watcherEnabled ? TURN_OFF : TURN_ON}
       >
         {pipeline.watcherEnabled ? t("screens.system.turnTriggerOff") : t("screens.system.turnTriggerOn")}
-      </button>
+      </button> : null}
       {watching ? null : (
         <div className={guidance()} data-part="levers/trigger-consequence">
           {t("screens.system.automaticTriggerOff")}

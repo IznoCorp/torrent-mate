@@ -975,7 +975,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Whether the configuration is read-only, and whether a restart is owed */
+        /** Whether a restart is owed */
         get: operations["readConfigurationStatus"];
         put?: never;
         post?: never;
@@ -4213,7 +4213,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        readOnly: boolean;
                         restartRequired: boolean;
                     };
                 };

@@ -3728,7 +3728,7 @@
     "/api/config/status": {
       "get": {
         "operationId": "readConfigurationStatus",
-        "summary": "Whether the configuration is read-only, and whether a restart is owed",
+        "summary": "Whether a restart is owed",
         "tags": [
           "configuration"
         ],
@@ -3740,15 +3740,11 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "readOnly": {
-                      "type": "boolean"
-                    },
                     "restartRequired": {
                       "type": "boolean"
                     }
                   },
                   "required": [
-                    "readOnly",
                     "restartRequired"
                   ]
                 }
@@ -3774,7 +3770,7 @@
             "$ref": "#/components/responses/Problem"
           }
         },
-        "x-unseeded": "whether the configuration is read-only and whether a restart is owed. Both are layer state the engine holds in its STORE, not in a fixture."
+        "x-unseeded": "whether a restart is owed: layer state the engine holds in its STORE, not in a fixture. The instance's read-only ceiling left this answer: it is the account's forbidden writes (ruling 23, F66)."
       }
     },
     "/api/version": {
