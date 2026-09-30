@@ -35,10 +35,13 @@ screen; it now says whether a screen is open. The hold count is unchanged.
 EXTENDED (R215) to the candidates screen, which is Acquisition's: opening it from
 a blocked card of « À traiter » is an ARRIVAL, so it stacks exactly one entry,
 read on `history.length` and not on the address alone.
+
+R-conformity-j — ONE BACK CONTROL (`hold_one_back_control`, in its own context):
+every drawn « Retour » is an icon and a word.
 """
 import asyncio
 
-from common import Journal, open_page, chrome_launch_args
+from common import Journal, open_page, read_at, chrome_launch_args
 from playwright.async_api import async_playwright
 
 _journal = None
@@ -309,9 +312,40 @@ async def main():
         await fourth.close()
 
         check("no JS error", not errors, str(errors))
+        await hold_one_back_control(b, _journal)
         await b.close()
 
     _journal.summary()
+
+
+BACK_STATES = ("maintenance-topic", "settings-edited", "settings-secrets", "screen-profile", "run-detail",
+               "mediasheet-movie")
+ARROWS = "←⟵⬅"
+BACK_CONTROLS = """()=>[...document.querySelectorAll('[data-part="screen/back"]')]
+  .filter((node) => node.getBoundingClientRect().width > 0)
+  .map((node) => ({icon: !!node.querySelector('svg'), text: node.textContent.trim()}))"""
+
+
+async def hold_one_back_control(browser, journal):
+    """R-conformity-j — one back control: an icon and a word.
+
+    Seven screens drew « Retour » as `backAction` with the left icon;
+    Maintenance wrote its arrow into the copy and Réglages drew none. On every
+    state below, each drawn `screen/back` carries an icon (an `svg`) and no
+    arrow glyph in its text.
+
+    Args:
+        browser: The launched browser; the holds read a context of their own.
+        journal: The rule's journal.
+    """
+    context, page = await open_page(browser)
+    for state in BACK_STATES:
+        controls = await read_at(page, state, BACK_CONTROLS)
+        journal.check(f"{state}: a back control is drawn", bool(controls), f"{controls}")
+        journal.check(f"{state}: each is an icon and a word, no arrow in the copy",
+                      all(one["icon"] and not any(arrow in one["text"] for arrow in ARROWS) for one in controls),
+                      f"{controls}")
+    await context.close()
 
 
 if __name__ == "__main__":

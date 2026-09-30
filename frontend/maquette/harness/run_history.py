@@ -39,6 +39,9 @@ WHAT THE DETAIL IS HELD TO:
      under way, and every step the run has not reached is drawn as unknown
      (« — ») — never « pas faite », never a count. §13: a part not yet known is
      not printed as an answer.
+
+R-conformity-h — AN EMPTY PLACE IS THE ONE EMPTY NOTE (`hold_empty_places`, in
+its own context): the empty list of passages, and a media sheet's empty place.
 """
 import asyncio
 import json
@@ -46,7 +49,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, Journal, SETTLED, open_page, chrome_launch_args
+from common import ACTED, Journal, SETTLED, open_page, read_at, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -388,8 +391,37 @@ async def main():
                       f"{[(row['name'], row['status']) for row in ahead]}")
 
         await context.close()
+        await hold_empty_places(browser, journal)
         await browser.close()
     journal.summary()
+
+
+# The state, and the empty part it draws.
+EMPTY_PLACES = (("runs-empty", "runs/empty"), ("mediasheet-no-trailer", "no-info"))
+EMPTY_NOTE = """(part)=>{
+  const node = document.querySelector(`[data-part="${part}"] [data-part="empty-state"]`);
+  if (!node) return null;
+  const box = node.getBoundingClientRect();
+  return {note: true, drawn: box.width > 0 && box.height > 0, text: node.textContent.trim().length};
+}"""
+
+
+async def hold_empty_places(browser, journal):
+    """R-conformity-h — an empty place is the one empty note.
+
+    Each empty place below draws `empty-state` inside its own part, drawn and
+    saying something — never a bare sentence of its own.
+
+    Args:
+        browser: The launched browser; the holds read a context of their own.
+        journal: The rule's journal.
+    """
+    context, page = await open_page(browser)
+    for state, part in EMPTY_PLACES:
+        read = await read_at(page, state, EMPTY_NOTE, part)
+        journal.check(f"{state}: « {part} » is the empty note, drawn and saying something",
+                      bool(read) and read["note"] and read["drawn"] and read["text"] > 0, f"{read}")
+    await context.close()
 
 
 if __name__ == "__main__":

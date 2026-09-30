@@ -27,12 +27,15 @@ reaches (the follows of a whole library run to hundreds):
 5. with its count lit and at three digits, every counted tab (« En cours »,
    « À traiter ») keeps its label whole and its count badge inside its own box —
    never clipped by the tab's edge.
+
+R-conformity-b — ONE TAB BAR (`hold_one_tab_bar`, in its own context): the bars
+of Médiathèque and Trackers are Acquisition's.
 """
 import asyncio
 import json
 import pathlib
 
-from common import SETTLED, Journal, open_page, chrome_launch_args
+from common import SETTLED, Journal, open_page, read_at, chrome_launch_args
 from playwright.async_api import async_playwright
 
 WORDS = json.loads((pathlib.Path(__file__).resolve().parents[1]
@@ -140,8 +143,73 @@ async def main():
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()
+        await hold_one_tab_bar(browser, journal)
         await browser.close()
     journal.summary()
+
+
+# The reference bar first: every other bar is read against it.
+REFERENCE_BAR = "acq-follows-list"
+BAR_STATES = (REFERENCE_BAR, "lib-grid", "trackers-page")
+BAR_SIGNATURE = """()=>{
+  const bar = document.querySelector('#view [role="tablist"]');
+  if (!bar) return null;
+  const pick = (style, names) => Object.fromEntries(names.map((name) => [name, style[name]]));
+  const tabs = [...bar.querySelectorAll('[role="tab"]')];
+  const count = bar.querySelector('[data-part="segment/count"]');
+  const barStyle = getComputedStyle(bar);
+  return {
+    heights: tabs.map((tab) => Math.round(tab.getBoundingClientRect().height)),
+    signature: {
+      bar: {height: Math.round(bar.getBoundingClientRect().height),
+            ...pick(barStyle, ['paddingTop', 'paddingLeft', 'borderRadius', 'backgroundColor', 'gap'])},
+      tab: tabs[0] ? pick(getComputedStyle(tabs[0]), ['fontSize', 'fontWeight', 'borderRadius', 'paddingTop']) : null,
+      count: count ? pick(getComputedStyle(count), ['fontSize', 'fontWeight', 'borderRadius', 'backgroundColor', 'color']) : null,
+    },
+  };
+}"""
+
+
+def agrees(signature: dict, reference: dict) -> bool:
+    """Whether a bar's signature is the reference's — a count is compared only where both draw one.
+
+    Args:
+        signature: The bar's box, a tab's type and a count's drawing.
+        reference: The same, read on the reference bar.
+
+    Returns:
+        True when the two bars are one drawing.
+    """
+    if signature["bar"] != reference["bar"] or signature["tab"] != reference["tab"]:
+        return False
+    return signature["count"] is None or reference["count"] is None or signature["count"] == reference["count"]
+
+
+async def hold_one_tab_bar(browser, journal):
+    """R-conformity-b — one tab bar: the same height, composition and count on every page.
+
+    Acquisition, Médiathèque and Trackers each drew their own bar, at three
+    heights; `ui/tabs.tsx` is Acquisition's as it stood. On each state below
+    every tab is at least a finger tall and all are one height, and the bar's
+    box, a tab's type and a count's drawing are Acquisition's.
+
+    Args:
+        browser: The launched browser; the holds read a context of their own.
+        journal: The rule's journal.
+    """
+    context, page = await open_page(browser)
+    bars = {state: await read_at(page, state, BAR_SIGNATURE) for state in BAR_STATES}
+    await context.close()
+    reference = bars[REFERENCE_BAR]
+    if not journal.check(f"{REFERENCE_BAR}: the reference bar is drawn", reference is not None, "no tab bar"):
+        return
+    for state in BAR_STATES:
+        bar = bars[state]
+        held = (bar is not None and min(bar["heights"], default=0) >= TOUCH_TARGET
+                and len(set(bar["heights"])) == 1 and agrees(bar["signature"], reference["signature"]))
+        detail = f"{bar}" if state == REFERENCE_BAR else f"{bar} against {reference['signature']}"
+        journal.check(f"{state}: every tab at least {TOUCH_TARGET} px, one height, the reference's drawing",
+                      held, detail)
 
 
 if __name__ == "__main__":

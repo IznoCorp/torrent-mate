@@ -36,10 +36,13 @@ THE BADGES COUNT WITHOUT RIGHTS, and that is said rather than left to be found:
 no right exists yet. The rights half — a row the account cannot open registers
 no observer, sends no read and adds nothing to the button — is written with the
 rights model, and mutated there.
+
+R-conformity-k — ONE COUNT BADGE (`hold_one_badge`, in its own context): every
+placement of the badge reads one drawing.
 """
 import asyncio
 
-from common import PHONE, PROTOTYPE, SETTLED, Journal, chrome_launch_args
+from common import PHONE, PROTOTYPE, SETTLED, Journal, chrome_launch_args, open_page, read_at
 from playwright.async_api import async_playwright
 
 LIBRARY = "media"
@@ -152,8 +155,43 @@ async def main():
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()
+        await hold_one_badge(browser, journal)
         await browser.close()
     journal.summary()
+
+
+BADGE_STATES = ("menu-system-badge", "drawer-navigation", "acq-todo-loaded")
+BADGE_PARTS = ("shell/tab-badge", "shell/menu-badge", "shell/drawer-count", "segment/count")
+BADGE_DRAWINGS = """(parts)=>parts.flatMap((part) => [...document.querySelectorAll(`[data-part="${part}"]`)]
+  .filter((badge) => badge.getBoundingClientRect().height > 0)
+  .map((badge) => {
+    const style = getComputedStyle(badge);
+    return {part, drawing: [Math.round(badge.getBoundingClientRect().height), style.backgroundColor, style.color,
+                            style.fontSize, style.fontWeight].join(' ')};
+  }))"""
+
+
+async def hold_one_badge(browser, journal):
+    """R-conformity-k — one count badge, wherever a count is drawn.
+
+    The bar's tab, the menu button, the drawer's entry and a tab bar's count
+    each read, on the states that draw them, one height, fill, ink and type.
+
+    Args:
+        browser: The launched browser; the holds read a context of their own.
+        journal: The rule's journal.
+    """
+    seen = {}
+    context, page = await open_page(browser)
+    for state in BADGE_STATES:
+        for badge in await read_at(page, state, BADGE_DRAWINGS, list(BADGE_PARTS)):
+            seen.setdefault(badge["part"], set()).add(badge["drawing"])
+    await context.close()
+    journal.check("every placement of the badge is drawn somewhere", set(seen) == set(BADGE_PARTS),
+                  f"drawn: {sorted(seen)}")
+    drawings = set().union(*seen.values()) if seen else set()
+    journal.check("and every one reads one height, fill, ink and type", len(drawings) == 1,
+                  f"{ {part: sorted(values) for part, values in seen.items()} }")
 
 
 if __name__ == "__main__":

@@ -39,13 +39,16 @@ settings are read as `settings` (and its title as `title`), a setting's file,
 key and raw value as `file`, `key` and `raw`, a secret's key, label and
 definition as `key`, `label` and `defined`, where they were the engine's short
 keys. The holds and what they compare are unchanged.
+
+R-conformity-c — ONE SWITCH, whatever it turns on (`hold_one_switch`, in its own
+context): the settings field's switch is the quality profile's.
 """
 import asyncio
 import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, PROTOTYPE, Journal, chrome_launch_args
+from common import PANEL_IN, PHONE, PROTOTYPE, Journal, chrome_launch_args, open_page, read_at
 
 from playwright.async_api import async_playwright
 
@@ -276,8 +279,47 @@ async def main():
 
         journal.check("no JS error over the whole walk", not errors, str(errors))
         await context.close()
+        await hold_one_switch(browser, journal)
         await browser.close()
     journal.summary()
+
+
+SWITCH = """(selector)=>{
+  const node = document.querySelector(selector);
+  if (!node) return null;
+  const box = node.getBoundingClientRect();
+  const style = getComputedStyle(node);
+  return {width: Math.round(box.width), height: Math.round(box.height), radius: style.borderTopLeftRadius,
+          children: node.children.length, role: node.getAttribute('role')};
+}"""
+
+
+async def hold_one_switch(browser, journal):
+    """R-conformity-c — one switch, whatever it turns on.
+
+    The settings panel drew its own switch — a 48 px track with a child knob —
+    beside the quality profile's `toggleSwitch`: two switches for one need.
+    The settings field's switch (`field/toggle`, on `settings-field-boolean`)
+    and the profile's (`switch`, on `screen-profile`) have one geometry, draw
+    their knob with no child element, and are both switches to assistive
+    technology.
+
+    Args:
+        browser: The launched browser; the holds read a context of their own.
+        journal: The rule's journal.
+    """
+    context, page = await open_page(browser)
+    profile = await read_at(page, "screen-profile", SWITCH, '[data-part="screen"][data-open] [data-part="switch"]')
+    field = await read_at(page, "settings-field-boolean", SWITCH, '#sheetin [data-part="field/toggle"]',
+                          wait=PANEL_IN)
+    journal.check("both switches are drawn", bool(profile) and bool(field), f"profile {profile}, field {field}")
+    if profile and field:
+        same = {key: (profile[key], field[key]) for key in ("width", "height", "radius", "children")}
+        journal.check("the settings switch is the design system's switch: one geometry, one knob",
+                      all(one == other for one, other in same.values()), f"{same}")
+        journal.check("both are switches to assistive technology",
+                      profile["role"] == field["role"] == "switch", f"{profile['role']}, {field['role']}")
+    await context.close()
 
 
 if __name__ == "__main__":

@@ -24,13 +24,18 @@ on a desktop pointer too: the headless browser this harness runs paints overlay
 bars, which take no height, so that hold could never fall. And the computed
 `scrollbar-width` is the reading that decides: a browser that honours it
 ignores `::-webkit-scrollbar` entirely once it is not `auto`.
+
+R-conformity-s — THE CATEGORY PILLS ON EVERY LENS (`hold_lens_pills`, in its own
+context): « Récents » and « Incomplets » draw the pills, and a pressed pill
+filters and counts what is drawn.
 """
 import asyncio
+import json
 import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, SETTLED, Journal, open_page, chrome_launch_args
+from common import PHONE, ROOT, SETTLED, Journal, open_page, read_at, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -103,8 +108,63 @@ async def main():
                       cast is not None and cast["scrollbarWidth"] == "none",
                       f"scrollbar-width {(cast or {}).get('scrollbarWidth')}")
         await context.close()
+        await hold_lens_pills(browser, journal)
         await browser.close()
     journal.summary()
+
+
+MOVIE_CATEGORY = "movies"
+LENS = """()=>{
+  const view = document.querySelector('#view');
+  const pills = [...view.querySelectorAll('[data-part="pill"][data-cat]')];
+  const pressed = pills.filter((pill) => pill.getAttribute('aria-pressed') === 'true');
+  const body = view.querySelector('[data-part="surface/body"]');
+  // A skeleton stands for a row still loading; it is not a row drawn.
+  const rows = body ? [...body.querySelectorAll('[data-part="tile"], [data-part="card"]')]
+    .filter((row) => !row.hasAttribute('data-skeleton')) : [];
+  return {
+    pills: pills.length,
+    pressed: pressed.map((pill) => pill.dataset.cat),
+    figure: pressed.length === 1 ? Number(pressed[0].lastElementChild?.textContent ?? NaN) : null,
+    titles: rows.map((row) => (row.querySelector('[data-part="tile/title"], [data-part="card/title"]')
+      ?.textContent ?? '').trim()),
+    empty: !!body?.querySelector('[data-part="empty-state"]'),
+  };
+}"""
+
+
+async def hold_lens_pills(browser, journal):
+    """R-conformity-s — the category pills on every lens.
+
+    « Récents » and « Incomplets » draw the pills with one pressed; « Films »
+    pressed draws films only; the pressed pill counts the rows drawn, and a
+    lens with nothing in its category says it is empty.
+
+    Args:
+        browser: The launched browser; the holds read a context of their own.
+        journal: The rule's journal.
+    """
+    items = json.loads((ROOT / "design" / "src" / "mocks" / "seeds" / "library-items.json").read_text(encoding="utf-8"))
+    movies = {item["title"] for item in items if item.get("category") == MOVIE_CATEGORY}
+    context, page = await open_page(browser)
+    for state in ("lib-recent", "lib-incomplete"):
+        seen = await read_at(page, state, LENS)
+        journal.check(f"{state}: the pills are drawn, one of them pressed",
+                      seen["pills"] >= 2 and len(seen["pressed"]) == 1, f"{seen}")
+    seen = await read_at(page, "lib-recent-movies", LENS)
+    journal.check("lib-recent-movies: « Films » is pressed, and every title drawn is a film",
+                  seen["pressed"] == [MOVIE_CATEGORY] and bool(seen["titles"])
+                  and all(title in movies for title in seen["titles"]),
+                  f"pressed {seen['pressed']}; not movies: "
+                  f"{[title for title in seen['titles'] if title not in movies][:3]} of {len(seen['titles'])}")
+    for state, empty in (("lib-incomplete", False), ("lib-incomplete-movies", True)):
+        seen = await read_at(page, state, LENS)
+        journal.check(f"{state}: the pressed pill counts the rows drawn",
+                      seen["figure"] == len(seen["titles"]) and bool(seen["titles"]) != empty,
+                      f"figure {seen['figure']} for {len(seen['titles'])} rows")
+        if empty:
+            journal.check(f"{state}: and the lens says it is empty", seen["empty"], f"{seen}")
+    await context.close()
 
 
 if __name__ == "__main__":

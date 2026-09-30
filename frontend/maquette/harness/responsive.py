@@ -269,16 +269,19 @@ async def read_pass(browser, label, width, wanted, engine, scheme):
     return readings, errors
 
 
-def passes_asked():
+def passes_asked(environment=os.environ):
     """Lists the passes a run makes, narrowed by the environment.
+
+    Args:
+        environment: Where the narrowing is read — an empty one names every pass.
 
     Returns:
         The (label, engine, width, scheme) of each pass: Chromium at every width
         in the reference appearance, then WebKit at the iPhone's width in both.
     """
-    widths = tuple(int(width) for width in os.environ.get("TM_RESPONSIVE_WIDTHS", "").split(",") if width) \
+    widths = tuple(int(width) for width in environment.get("TM_RESPONSIVE_WIDTHS", "").split(",") if width) \
         or PHONES + WINDOWS
-    engines = [engine for engine in os.environ.get("TM_RESPONSIVE_ENGINES", "chromium,webkit").split(",") if engine]
+    engines = [engine for engine in environment.get("TM_RESPONSIVE_ENGINES", "chromium,webkit").split(",") if engine]
     passes = [(f"{width}px", "chromium", width, "dark") for width in widths] if "chromium" in engines else []
     if "webkit" in engines:
         passes += [(f"webkit-{scheme}@{IPHONE}px", "webkit", IPHONE, scheme) for scheme in ("light", "dark")]
@@ -289,7 +292,7 @@ async def main():
     """Measures every named state in every pass and judges the falls."""
     wanted = [state for state in os.environ.get("TM_RESPONSIVE_STATES", "").split(",") if state] or None
     passes = passes_asked()
-    whole = wanted is None and passes == passes_everything()
+    whole = wanted is None and passes == passes_asked({})
     journal = Journal("R-conformity-a — every named state at every width and in the iPhone's engine: "
                       "no overflow, no cut, no bevel, every frame control seen")
     async with async_playwright() as playwright:
@@ -346,16 +349,6 @@ async def main():
         if whole:
             journal.check(f"owed {key[0]} · {key[1]} still falls", seen, "an owed entry that no longer falls leaves the list")
     journal.summary(errors)
-
-
-def passes_everything():
-    """The passes of an unnarrowed run, against which a run is judged whole.
-
-    Returns:
-        Every pass `passes_asked` makes when the environment narrows nothing.
-    """
-    return [(f"{width}px", "chromium", width, "dark") for width in PHONES + WINDOWS] \
-        + [(f"webkit-{scheme}@{IPHONE}px", "webkit", IPHONE, scheme) for scheme in ("light", "dark")]
 
 
 if __name__ == "__main__":

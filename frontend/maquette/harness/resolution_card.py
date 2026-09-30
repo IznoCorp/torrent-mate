@@ -10,7 +10,7 @@ THE SECOND RULING (B-500). A check mark on every candidate read as « already
 selected », and nothing said the card was there to be chosen. The operator chose
 the affordance: « Choisir » on every candidate — primary, a finger's height —
 and no check mark before the pick. It is the interface's primary action button
-(R-conformity-p, `primary_action.py`), no longer a pill of its own.
+(R-conformity-p, `hold_one_primary_action` below), no longer a pill of its own.
 
 WHAT IT READS, and each hold fails differently:
 
@@ -74,6 +74,9 @@ the queue, which the pick does at once.
 RE-AIMED when the queue's cards took the contract's names: a card's title is
 read as `title` (it was the engine's `t`). The holds and what they compare are
 unchanged.
+
+R-conformity-p — ONE PRIMARY ACTION (`hold_one_primary_action`, in its own
+context): the pick and the settings' save are one button.
 """
 import asyncio
 import json
@@ -81,7 +84,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, SETTLED, Journal, open_page, chrome_launch_args
+from common import ACTED, SETTLED, Journal, open_page, read_at, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -444,8 +447,54 @@ async def main():
         journal.check("and the tap takes the folder out of « À traiter »",
                       folder in before and folder not in after, f"{before} → {after}")
 
+        await hold_one_primary_action(browser, journal)
         await browser.close()
     journal.summary(errors)
+
+
+# state → the primary actions it offers.
+PRIMARY_ACTIONS = {
+    "acq-resolution-tie": '[data-part="screen"][data-open] [data-part="card/pick"]',
+    "settings-edited": '#savebar [data-save]',
+}
+PRIMARY = """(selector)=>{
+  const probe = document.createElement('span');
+  probe.className = 'bg-primary';
+  document.body.appendChild(probe);
+  const primary = getComputedStyle(probe).backgroundColor;
+  probe.remove();
+  return [...document.querySelectorAll(selector)].map((action) => {
+    const style = getComputedStyle(action);
+    return {height: Math.round(action.getBoundingClientRect().height),
+            primary: style.backgroundColor === primary,
+            drawing: [style.fontSize, style.fontWeight, style.borderRadius].join(' ')};
+  });
+}"""
+
+
+async def hold_one_primary_action(browser, journal):
+    """R-conformity-p — one primary action: the pick and the save are one button.
+
+    « Choisir » was a pill of its own beside the primary action button the
+    settings' save already is. On `acq-resolution-tie` every candidate's pick,
+    on `settings-edited` the save: each at least a finger tall, in the primary
+    ground, and all of them one drawing — type, weight, corner.
+
+    Args:
+        browser: The launched browser; the holds read a context of their own.
+        journal: The rule's journal.
+    """
+    drawings = set()
+    context, page = await open_page(browser)
+    for state, selector in PRIMARY_ACTIONS.items():
+        actions = await read_at(page, state, PRIMARY, selector)
+        journal.check(f"{state}: the primary action is drawn", bool(actions), selector)
+        journal.check(f"{state}: at least {TOUCH_FLOOR} px, in the primary ground",
+                      bool(actions) and all(one["height"] >= TOUCH_FLOOR and one["primary"] for one in actions),
+                      f"{actions[:2]}")
+        drawings.update(one["drawing"] for one in actions)
+    await context.close()
+    journal.check("the pick and the save read one drawing", len(drawings) == 1, f"{sorted(drawings)}")
 
 
 if __name__ == "__main__":

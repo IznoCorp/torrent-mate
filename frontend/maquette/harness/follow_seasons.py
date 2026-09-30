@@ -16,6 +16,11 @@ eyes on a phone: the same season count on both surfaces.
 WHAT IT DOES NOT HOLD: which episodes each row marks, the season grab, or the
 queued mark — each has its own rule. It holds that the panel and the sheet ask
 the same question of the same answer.
+
+AND HOW THE SHEET AND THE PANEL DRAW WHAT THEY SAY, each in its own context:
+R-conformity-d, every state pill is the chip (`hold_state_chips`);
+R-conformity-g, a fact's state is the chip at its row's end (`hold_fact_states`);
+R-conformity-l, every coloured episode state is in its legend (`hold_legends`).
 """
 import asyncio
 import json
@@ -23,7 +28,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ROOT, Journal, open_page, chrome_launch_args  # noqa: E402
+from common import ROOT, SETTLED, Journal, open_page, read_at, chrome_launch_args  # noqa: E402
 
 from playwright.async_api import async_playwright  # noqa: E402
 
@@ -105,8 +110,100 @@ async def main():
                       compared >= 5, f"{compared} compared")
         journal.check("no error was raised", not errors, " · ".join(errors[:3]))
         await context.close()
+        await hold_state_chips(browser)
+        await hold_fact_states(browser)
+        await hold_legends(browser)
         await browser.close()
     journal.summary()
+
+
+CHIP_STATES = ("followsheet-gaps", "mediasheet-series", "run-detail")
+MARKS = ("season/queued", "season/asked", "season/missing", "chip")
+MARK_DRAWINGS = """(marks)=>[...document.querySelectorAll(marks.map((part) => `[data-part="${part}"]`).join(','))]
+  .filter((mark) => mark.getBoundingClientRect().width > 0)
+  .map((mark) => {
+    const dot = getComputedStyle(mark, '::before');
+    return {part: mark.dataset.part, text: mark.textContent.trim().slice(0, 24),
+            round: parseFloat(getComputedStyle(mark).borderTopLeftRadius) >= 999,
+            dot: dot.content !== 'none' && dot.width === '6px'};
+  })"""
+
+
+async def hold_state_chips(browser):
+    """R-conformity-d — every state pill is the chip: round, led by its dot.
+
+    Args:
+        browser: The launched browser; the holds read a context of their own.
+    """
+    context, page = await open_page(browser)
+    for state in CHIP_STATES:
+        marks = await read_at(page, state, MARK_DRAWINGS, list(MARKS))
+        journal.check(f"{state}: state marks are drawn", bool(marks), "none")
+        journal.check(f"{state}: every one is the chip — round, led by its dot",
+                      bool(marks) and all(mark["round"] and mark["dot"] for mark in marks),
+                      str([mark for mark in marks if not (mark["round"] and mark["dot"])][:3]))
+    await context.close()
+
+
+MEDIA_WORDS = json.loads((ROOT / "design" / "src" / "i18n" / "fr.json").read_text(encoding="utf-8"))["screens"]["media"]
+# The labels of the rows whose value is a state.
+STATE_ROWS = [MEDIA_WORDS[key] for key in ("inLibrary", "owned", "follow", "completeness")]
+FACT_ROWS = """(labels)=>{
+  const screen = document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
+  const rows = screen ? [...screen.querySelectorAll('[data-part="key-value"]')] : [];
+  return {
+    stated: rows.filter((row) => labels.includes(row.firstElementChild?.textContent.trim()))
+      .map((row) => ({label: row.firstElementChild.textContent.trim(),
+                      chip: !!row.lastElementChild?.querySelector('[data-part="chip"]')})),
+    bareDots: rows.filter((row) => row.querySelector('[data-part="status-dot"]')).length,
+  };
+}"""
+
+
+async def hold_fact_states(browser):
+    """R-conformity-g — on each media sheet, a fact's state is the chip at its row's end, never a bare dot.
+
+    Args:
+        browser: The launched browser; the holds read a context of their own.
+    """
+    context, page = await open_page(browser)
+    for state in ("mediasheet-movie", "mediasheet-series"):
+        read = await read_at(page, state, FACT_ROWS, STATE_ROWS)
+        journal.check(f"{state}: its state rows end on a chip", bool(read["stated"])
+                      and all(row["chip"] for row in read["stated"]), f"{read['stated']}")
+        journal.check(f"{state}: and no fact row draws a bare dot", read["bareDots"] == 0,
+                      f"{read['bareDots']} row(s) with a bare dot")
+    await context.close()
+
+
+EPISODE_STATES = """()=>{
+  const layer = document.querySelector('#sheet[data-open]')
+    ?? document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
+  if (!layer) return null;
+  layer.querySelectorAll('details').forEach((fold) => { fold.open = true; });
+  const drawn = [...layer.querySelectorAll('[data-part="episode"][data-state], [data-part="episode/row"][data-state]')]
+    .map((episode) => episode.dataset.state);
+  const legend = [...layer.querySelectorAll('[data-part="legend"] [data-state]')].map((entry) => entry.dataset.state);
+  return {drawn: [...new Set(drawn)].sort(), legend: [...new Set(legend)].sort()};
+}"""
+
+
+async def hold_legends(browser):
+    """R-conformity-l — on the sheet and the panel, the legend names exactly the episode states drawn.
+
+    Args:
+        browser: The launched browser; the holds read a context of their own.
+    """
+    context, page = await open_page(browser)
+    for state in ("mediasheet-series", "followsheet-gaps"):
+        # The folds open on the first read; the second reads them open.
+        await read_at(page, state, EPISODE_STATES)
+        await page.wait_for_timeout(SETTLED)
+        read = await page.evaluate(EPISODE_STATES)
+        journal.check(f"{state}: episodes are drawn in states", bool(read) and bool(read["drawn"]), f"{read}")
+        journal.check(f"{state}: the legend names exactly the states drawn",
+                      bool(read) and read["drawn"] == read["legend"], f"{read}")
+    await context.close()
 
 
 if __name__ == "__main__":

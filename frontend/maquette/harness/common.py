@@ -530,6 +530,24 @@ async def open_page(browser, **kwargs):
     return ctx, pg
 
 
+async def read_at(page, state, script, argument=None, wait=SETTLED):
+    """Asks for a named state, lets it settle, and reads it.
+
+    Args:
+        page: The Playwright page.
+        state: The named state's id, as `window.__go` takes it.
+        script: The reading, evaluated once the state has settled.
+        argument: What the reading takes, if anything.
+        wait: How long the state is let settle — `PANEL_IN` for one opening a panel.
+
+    Returns:
+        The reading's answer.
+    """
+    await page.evaluate("(id)=>window.__go(id)", state)
+    await page.wait_for_timeout(wait)
+    return await page.evaluate(script, argument)
+
+
 async def shot(pg, name):
     """Captures the page into the harness's one screenshot directory.
 

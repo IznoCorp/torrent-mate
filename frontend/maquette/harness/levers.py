@@ -37,6 +37,11 @@ R181 — §13, NO ANSWER THAT IS NOT HELD. Under the `loading` phase the bound, 
 lock and the trigger carry no printed value: not a zero, not a default, not
 « Libre » before the read answered. A bound printed as `0` while its read is in
 flight is a lie in waiting.
+
+R-conformity-e and R-conformity-f — the page's words, each read in its own
+context below (`hold_one_pair`, `hold_state_words`): the automatic processing is
+one row with the app's one on/off pair, and a state is a code in the seeds and
+one word on the page.
 """
 import asyncio
 import json
@@ -45,7 +50,7 @@ import re
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, Journal, SETTLED, open_page, chrome_launch_args
+from common import ACTED, Journal, PANEL_IN, SETTLED, open_page, read_at, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -356,8 +361,104 @@ async def main():
                           text in (None, ""), f"{text!r}")
 
         await context.close()
+        await hold_one_pair(browser, journal)
+        await hold_state_words(browser, journal)
         await browser.close()
     journal.summary()
+
+
+# The words the one pair replaced — none may be drawn again.
+RETIRED_WORDS = ("coupé", "Désactivé", "Activée")  # french-ok: the retired words this rule refuses
+ONE_ROW = """(label)=>{
+  const row = document.querySelector('[data-part="levers/watcher-state"]');
+  const chip = row && row.querySelector('[data-part="flux/value"] [data-part="chip"]');
+  const view = document.querySelector('#view');
+  const text = (view && view.textContent) || '';
+  return {
+    chip: chip ? chip.textContent.replace(/\\s+/g, ' ').trim() : null,
+    tone: chip ? chip.dataset.tone || null : null,
+    named: [...document.querySelectorAll('#view [data-part="flux/name"], #view [data-part="topic/title"]')]
+      .filter((node) => node.textContent.trim() === label).length,
+    text,
+  };
+}"""
+FIELD_WORD = """()=>{
+  const field = document.querySelector('#sheetin [data-part="field"]');
+  return field ? field.textContent.replace(/\\s+/g, ' ').trim() : null;}"""
+
+
+async def hold_one_pair(browser, journal):
+    """R-conformity-e — one mechanism, one row, and the app's one on/off pair.
+
+    Système said the automatic processing twice (a bare word beside its lever,
+    a chip among the locks) and the app had seven pairs for « on » and « off ».
+    On `levers-idle` (on) and `levers-trigger-off` (off): the processing's row
+    is a fact row whose value is a chip saying the pair's word in the pair's
+    tone, the page names the mechanism once, and no retired word is drawn; the
+    settings' boolean field says the same pair.
+
+    Args:
+        browser: The launched browser; the holds read a context of their own.
+        journal: The rule's journal.
+    """
+    label = SENTENCES["automaticTrigger"]
+    context, page = await open_page(browser)
+    for state, word, tone in ((IDLE, STATES["active"], "success"), (TRIGGER_OFF, STATES["inactive"], "danger")):
+        read = await read_at(page, state, ONE_ROW, label)
+        journal.check(f"{state}: the processing's row wears the chip « {word} »",
+                      read["chip"] == word, f"chip {read['chip']!r}")
+        journal.check(f"{state}: in the pair's tone, {tone}", read["tone"] == tone, f"tone {read['tone']!r}")
+        journal.check(f"{state}: the page names the mechanism once", read["named"] == 1,
+                      f"{read['named']} row(s) named « {label} »")
+        old = [one for one in RETIRED_WORDS if one in read["text"]]
+        journal.check(f"{state}: no word of the retired pairs is drawn", not old, f"{old}")
+    said = await read_at(page, "settings-field-boolean", FIELD_WORD, wait=PANEL_IN)
+    journal.check("settings-field-boolean: the field says the pair's word",
+                  said in (STATES["active"], STATES["inactive"]), f"{said!r}")
+    await context.close()
+
+
+SEEDS = ("services", "schedulers", "disks", "index-health", "dependencies")
+QUANTITY_TONE = "info"
+VALUES = """()=>Object.fromEntries([...document.querySelectorAll('#view [data-part="flux/row"], #view li')]
+  .map((row) => [row.querySelector('[data-part="flux/name"]')?.textContent.trim(),
+                 row.querySelector('[data-part="flux/value"]')?.textContent.replace(/\\s+/g, ' ').trim()])
+  .filter(([name]) => name))"""
+
+
+async def hold_state_words(browser, journal):
+    """R-conformity-f — a state is a code in the data and ONE word in the interface.
+
+    Système's seeds carried their state words themselves, where no guard over
+    the interface's resources could see them. The five seeds Système draws its
+    facts from carry no state WORD — a row is a `state` code, or a quantity in
+    the `info` tone — and on `system` every coded row says `states.<code>`, one
+    word per code.
+
+    Args:
+        browser: The launched browser; the holds read a context of their own.
+        journal: The rule's journal.
+    """
+    rows = []
+    for name in SEEDS:
+        for row in json.loads((DESIGN / "mocks" / "seeds" / f"{name}.json").read_text(encoding="utf-8")):
+            rows.append(row)
+            if "state" not in row:
+                journal.check(f"{name} · {row['label']}: a row with no code is a quantity",
+                              row.get("tone") == QUANTITY_TONE, f"{row}")
+    coded = [row for row in rows if "state" in row]
+    journal.check("the seeds carry codes at all", len(coded) >= 20, f"{len(coded)} coded row(s)")
+    context, page = await open_page(browser)
+    drawn = await read_at(page, "system", VALUES)
+    words: dict[str, set[str]] = {}
+    for row in coded:
+        said = drawn.get(row["label"])
+        words.setdefault(row["state"], set()).add(said or "")
+        journal.check(f"« {row['label']} » says its state in the interface's word",
+                      said == STATES.get(row["state"]), f"said {said!r}, code {row['state']!r}")
+    for code, said in sorted(words.items()):
+        journal.check(f"every row in state {code} says ONE word", len(said) == 1, f"{sorted(said)}")
+    await context.close()
 
 
 if __name__ == "__main__":
