@@ -21,7 +21,7 @@ import { Markup, emptyNoteMarkup } from "../../ui/markup";
 import { Legend } from "../../ui/legend";
 import { Switch } from "../../ui/switch";
 import { useStoreContent } from "../../lib/store-access";
-import { pendingEdits } from "../../lib/save-bar-door";
+import { pendingEdits } from "../../lib/pending-edits-door";
 import {
   chip, emptyNote, factDetail, factList, factName, factRow, factRowBody, factValue, surfaceError, type ChipTone,
 } from "../../ui/variants";

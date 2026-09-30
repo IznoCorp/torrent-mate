@@ -22,7 +22,7 @@ import { settingLabels } from "./labels";
 import { settingInWords } from "./format";
 import { changeSetting } from "./pending-edits";
 import { SETTINGS_STATE, changedFiles, fileName, typedValue } from "./state";
-import { editsWritten } from "../../lib/save-bar-door";
+import { editsWritten } from "../../lib/pending-edits-door";
 
 // THE ICONS COME THROUGH THE ENGINE'S DRAWING SLICE, not by importing
 // `app/icons.ts`, and it is invariant 8 that decides. `app/icons.ts` is outside

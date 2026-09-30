@@ -24,7 +24,7 @@ export type DialogBlock =
 
 export type DialogAction = {
   text: string;
-  tone?: "danger" | "ghost";
+  tone?: "danger" | "dangerOutline" | "primary" | "ghost";
   /** The `data-*` the document-level delegation reads. It moves at L19. */
   target?: Record<string, string>;
   /** What the act IS, where the producer keeps it as a closure. */

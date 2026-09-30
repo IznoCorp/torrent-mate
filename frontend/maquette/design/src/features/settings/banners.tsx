@@ -1,5 +1,5 @@
-// The two pieces Configuration draws BESIDE its own flow: the banners, and the
-// save bar.
+// The two pieces drawn BESIDE Configuration's own flow: the banners, and the
+// save bar — which the frame draws since C1, over every page with edits waiting.
 //
 // THEY ARE ON EVERY BRANCH OF THE PAGE. All three banners were written inline
 // in the RUBRIC LIST alone, so a read-only instance said so on the list and
@@ -11,10 +11,9 @@
 // ceiling rather than taste: `page.tsx` stands against a 400-line hard block a
 // wave may only move DOWNWARD, and what this wave added to that page — a way
 // out of a rubric, on two branches — is the page's own subject. These two are
-// not: one is a portal into the frame's own host, the other is a strip drawn
-// over whatever branch is showing.
+// not: one is a strip drawn over whatever branch is showing, the other a part of
+// the frame's bottom slot.
 import { useRights } from "../../lib/account";
-import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useStoreContent } from "../../lib/store-access";
 import type { ReactElement } from "react";
@@ -23,12 +22,7 @@ import { useConfigurationStatus } from "./queries";
 import { actionButton, loadErrorAction } from "../../ui/variants";
 import { SurfaceError } from "../../ui/state-surfaces";
 import { saveBar } from "./variants";
-import { fillSaveBarDoor } from "../../lib/save-bar-door";
 
-// The save bar lives BESIDE the view rather than inside it, so scrolling the
-// settings never scrolls it away — and it exists only when there is something to
-// save. Its host is `#device`, a sibling of the page's own container, so this
-// page has a second portal: the one piece of it that renders outside its host.
 // THE THREE BANNERS THE COPY NAMES, in one place and drawn on every branch of
 // this page.
 //
@@ -86,6 +80,15 @@ export function SettingsBanners(): ReactElement {
   );
 }
 
+/**
+ * The save bar — a FRAME part since C1: `app/bottom-slot.tsx` draws it over
+ * every page that holds pending edits (Réglages, Trackers), never over another.
+ *
+ * It lives BESIDE the view rather than inside it, so scrolling a page never
+ * scrolls it away — and it exists only when there is something to save.
+ *
+ * @returns The bar, or nothing while no edit waits.
+ */
 export function SaveBar(): ReactElement | null {
   const { t } = useTranslation();
   // A PENDING EDIT IS A STORE BUMP, filed from whichever page drew the setting:
@@ -93,10 +96,8 @@ export function SaveBar(): ReactElement | null {
   useStoreContent((content) => content.version);
   const pending = SETTINGS_STATE.modifs.size;
   if (pending === 0) return null;
-  const device = document.getElementById("device");
-  if (!device) return null;
   const files = changedFiles().map(fileName).join(", ");
-  return createPortal(
+  return (
     <div
       className={saveBar()}
       id="savebar"
@@ -117,11 +118,6 @@ export function SaveBar(): ReactElement | null {
       <button className={actionButton({ kind: "submit" })} data-save="1">
         {t("screens.settings.save")}
       </button>
-    </div>,
-    device,
+    </div>
   );
 }
-
-// THE BAR IS OFFERED to every page that lets a setting be edited: a pending
-// edit is saved from where it was made, never from a page one has to go to.
-fillSaveBarDoor(SaveBar);

@@ -13,7 +13,6 @@ import { body } from "../../ui/variants";
 import { TorrentsTab } from "./torrents-tab";
 import { TrackersTab } from "./trackers-tab";
 import { TrackerSelector } from "./tracker-selector";
-import { PendingEditsBar } from "../../lib/save-bar-door";
 
 /**
  * The « Trackers » page.
@@ -35,8 +34,6 @@ export function TrackersPage(): ReactElement {
       {state.trackersTab === "trackers" ? null : <TrackerSelector />}
       <div className={body()} data-part="trackers" data-region="trackers/body">
         {state.trackersTab === "trackers" ? <TrackersTab /> : <TorrentsTab />}
-        {/* A policy edited here is saved here: the settings' own bar. */}
-        <PendingEditsBar />
       </div>
     </>
   );

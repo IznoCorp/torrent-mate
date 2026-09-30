@@ -262,6 +262,16 @@
   width: 17px;
   height: 17px;
 }
+
+/* THE BROWSER'S OWN SEARCH CROSS, and its decoration, are not drawn. Every
+   search field offers its own clear cross (`searchClear`) once a word is typed,
+   and Chrome drew a second one beside it — blue, in no token of ours (B-610,
+   C1's reader, 2026-09-30). A pseudo-element of the field is out of any
+   utility's reach, hence a rule; it holds for the whole family of fields. */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+  appearance: none;
+}
 .hero .hn svg {
   width: 13px;
   height: 13px;

@@ -22,7 +22,7 @@ import { useUiState } from "../lib/store-access";
 import { feedback } from "../lib/feedback";
 import { PanelContent } from "../ui/panel";
 import type { PanelDescriptor } from "../ui/panel/contract";
-import { bottomSheet, sheetDragBand, sheetGrab, sheetScrim, sheetViewport } from "./variants";
+import { bottomSheet, dialogScrim, sheetDragBand, sheetGrab, sheetScrim, sheetViewport } from "./variants";
 
 // How far the sheet must travel before the lift closes it — the legacy
 // `SEUIL_FERMETURE`, unchanged.
@@ -126,7 +126,7 @@ export function Sheet({
         data-part="scrim"
         aria-hidden="true"
         data-open={scrimOpen || undefined}
-        className={sheetScrim({ open: scrimOpen })}
+        className={(state.dialogOpen === true ? dialogScrim : sheetScrim)({ open: scrimOpen })}
         // The scrim is shared ground: the drawer and the dialog raise it
         // themselves and a tap on it closes whichever of the three is up. The
         // ladder owns that decision (`app/layers.ts`) — reproduced here by

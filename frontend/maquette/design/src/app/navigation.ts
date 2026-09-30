@@ -86,6 +86,13 @@ export type NavigationRow = {
   /** Whether it offers the frame's floating action button. */
   actionButton?: boolean;
   /**
+   * Whether it holds the settings' pending edits (C1, operator 2026-09-29):
+   * the frame draws the save bar over it while an edit waits, and leaving it
+   * with one waiting asks first (`app/leave-confirm.ts`). Réglages, and
+   * Trackers, whose switches file the same edits.
+   */
+  holdsEdits?: boolean;
+  /**
    * What awaits the operator on this page, or nothing.
    *
    * A FUNCTION the row points at, never a number: the count is server state
@@ -173,6 +180,7 @@ export const NAVIGATION: readonly NavigationRow[] = [
     icon: icons.transfer,
     group: "supervision",
     inBar: true,
+    holdsEdits: true,
     badge: trackersBadge,
     useBadgeReads: useTrackersBadgeReads,
   },
@@ -229,6 +237,7 @@ export const NAVIGATION: readonly NavigationRow[] = [
     icon: icons.sort,
     group: "configuration",
     inBar: false,
+    holdsEdits: true,
   },
   {
     // « COMPTES », A FIRST-LEVEL PAGE OF THE MENU, beside Réglages (round 8 Q9 =

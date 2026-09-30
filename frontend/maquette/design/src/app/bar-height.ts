@@ -56,3 +56,39 @@ export function publishBarHeight(): void {
   if (typeof ResizeObserver !== "undefined")
     new ResizeObserver(publish).observe(bar);
 }
+
+// THE SAVE BAR'S HEIGHT, while it shows (C1). The bar sits over the scrolling
+// port, above the tab bar, and the port reserves its height as it reserves the
+// tab bar's (`index.html`'s `#port`): without it, a page scrolled to its bottom
+// kept its last control UNDER the bar — C1's reader, 2026-09-30, on Réglages
+// and on Trackers. A measurement for the same reason as the tab bar's: the bar
+// wraps at 320 px. ONE publisher, like that one.
+let saveBarObserver: ResizeObserver | null = null;
+
+/**
+ * Publishes the save bar's measured height — zero while it is not drawn — and
+ * keeps it current while it is.
+ *
+ * Called from the bottom slot's layout effect whenever the bar comes or goes,
+ * so the value is the drawn bar's, before the paint.
+ */
+export function publishSaveBarHeight(): void {
+  saveBarObserver?.disconnect();
+  saveBarObserver = null;
+  const bar = document.querySelector<HTMLElement>("#savebar");
+  const publish = () => {
+    const height = bar ? Math.ceil(bar.getBoundingClientRect().height) : 0;
+    const cur =
+      document.documentElement.style.getPropertyValue("--tm-save-bar-h");
+    if (cur !== height + "px")
+      document.documentElement.style.setProperty(
+        "--tm-save-bar-h",
+        height + "px",
+      );
+  };
+  publish();
+  if (bar && typeof ResizeObserver !== "undefined") {
+    saveBarObserver = new ResizeObserver(publish);
+    saveBarObserver.observe(bar);
+  }
+}

@@ -31,7 +31,8 @@ import { cva } from "../cva";
      51  the bottom slot's bar   `selectionBar` (ui/variants/frame.ts)
      52  the bottom sheet        `bottomSheet` (ui/variants/layout.ts)
      53  the harness's buttons   `.hbtn` (styles/harness.css)
-     55  the drawer `drawer` (ui/variants/frame.ts) · the install proposal `.installbar` (index.html)
+     54  the drawer `drawer` (ui/variants/frame.ts) · the install proposal `.installbar` (index.html)
+     55  the scrim under a confirmation `dialogScrim` (ui/variants/layout.ts)
      56  the confirmation        `dialog` (ui/variants/frame.ts)
      57  the message             `messageHost` (ui/variants/frame.ts)
      60  the popover `popover` (ui/variants/frame.ts) · the skip link `.skip-link` (styles/base.css) · the sign-in gate `.loginscreen` (styles/base.css, the entry block)
@@ -246,7 +247,7 @@ export const messageUndo = cva(
    `index.html`, together at last: the engine wrote the drawer's children and
    the document declared its box, so its styling stood in two places. */
 export const drawer = cva(
-  "drawer absolute inset-y-0 left-0 right-auto w-[288px] max-w-[86%] z-[55] "
+  "drawer absolute inset-y-0 left-0 right-auto w-[288px] max-w-[86%] z-[54] "
     + "bg-sidebar border-r border-border flex flex-col "
     + "duration-300 ease-standard touch-pan-y "
     + "[&_a]:select-none [&_a]:[-webkit-user-drag:none]",
@@ -425,6 +426,11 @@ export const dialogButton = cva(
       // is luck, not a rule, and the third did not.
       tone: {
         danger: "danger bg-danger-fill border-danger-fill text-white",
+        // The action button's own `panelAction` colours (`variants/controls.ts`):
+        // its filled primary, and its danger OUTLINE — a destructive act offered
+        // beside a save, which is the confirmation's first choice (C1).
+        primary: "primary bg-primary border-primary text-primary-foreground",
+        dangerOutline: "danger bg-transparent border-border text-danger",
         ghost: "ghost bg-transparent border-transparent text-muted-foreground",
         neutral: "bg-transparent border-border text-foreground",
       },

@@ -34,6 +34,9 @@ type Bridge = {
   // saying `back()` twice in the same task. `n` counts ENTRIES, and the
   // traversal is announced to the engine before it is issued.
   rewind: (n: number) => void;
+  // Stepping forward onto the entry a Back has just left, announced like a
+  // rewind — how a Retour the interface HOLDS is undone (`app/leave-confirm.ts`).
+  forward: () => void;
   // The callback is handed the entry's state AND the direction the
   // traversal came from: the same entry means opposite things stepped onto
   // forwards and stepped back onto, and only the caller of `subscribe` can
@@ -184,6 +187,11 @@ fillBridgeDoor({
     history.flush();
     announceEntries(n);
     history.go(-n);
+  },
+  forward: () => {
+    history.flush();
+    announceEntries(1);
+    history.go(1);
   },
   onBack: (
     callback: (state: unknown, direction: "BACK" | "FORWARD" | "GO") => void,
