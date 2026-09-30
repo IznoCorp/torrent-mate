@@ -7,6 +7,7 @@
 import { acquisitionRoutes } from "./acquisition";
 import { acquisitionVerbRoutes } from "./acquisition-verbs";
 import { authenticationRoutes } from "./authentication";
+import { completenessRoutes } from "./completeness";
 import { configurationRoutes } from "./configuration";
 import { decisionRoutes } from "./decisions";
 import { libraryRoutes } from "./library";
@@ -28,6 +29,7 @@ export function routes(): MockRoute[] {
     ...mediaRoutes(),
     ...acquisitionRoutes(),
     ...acquisitionVerbRoutes(),
+    ...completenessRoutes(),
     ...stagingRoutes(),
     ...pipelineRoutes(),
     ...decisionRoutes(),

@@ -16,7 +16,7 @@
 // answers to one question, and they part company on the first change (§13).
 import { heldIdentity, providerAddress } from "../../lib/held-identity";
 import { membershipQuery, type Membership } from "../../lib/membership";
-import { seasonsQuery, seasonsHeld, type SeasonsAnswer } from "../../lib/season-rows";
+import { completenessHeld, completenessQuery, seasonsQuery, seasonsHeld, type FollowCompleteness, type SeasonsAnswer } from "../../lib/season-rows";
 import { queueKey, queueNow, type AcquisitionQueue } from "../../lib/queue";
 import { store } from "../../lib/store-access";
 import type { PanelCache } from "../../ui/panel/contract";
@@ -116,12 +116,18 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
   const seasonsAnswer = address
     ? cache.held<SeasonsAnswer>(seasonsQuery(address.provider, address.id).queryKey)
     : undefined;
-  const seasons = seasonsHeld(seasonsAnswer)
+  const isFollowed = followed.some((one) => one.title === title);
+  // A FOLLOWED SERIES READS THE ENGINE'S OWN COMPLETENESS (NE-DOIT-PAS-1): the
+  // Médiathèque sheet reads the same answer, so the two cannot disagree. A
+  // medium nobody follows keeps the figures its seasons read crosses.
+  const completeness = isFollowed
+    ? cache.held<FollowCompleteness>(completenessQuery(title).queryKey)
+    : undefined;
+  const seasons = (isFollowed ? completenessHeld(completeness) : seasonsHeld(seasonsAnswer))
     .slice()
     .sort((one, other) => other[0] - one[0]);
   const isFilm = follow.kind === "movie";
   const incomplete = incompleteShows.some((show) => show.title === title);
-  const isFollowed = followed.some((one) => one.title === title);
   const inLibrary = incomplete || membership.inLibrary;
   const queue = queueNow();
   const toTake = queue.takeable.some((one) => one.title === title);
@@ -141,7 +147,7 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
   return {
     follow,
     seasons,
-    seasonsPending: address !== null && seasonsAnswer === undefined,
+    seasonsPending: (address !== null && seasonsAnswer === undefined) || (isFollowed && completeness === undefined),
     isFilm,
     incomplete,
     isFollowed,

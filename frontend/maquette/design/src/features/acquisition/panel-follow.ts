@@ -22,7 +22,7 @@ import { heldIdentity, providerAddress } from "../../lib/held-identity";
 import { membershipQuery } from "../../lib/membership";
 import { sharedQueryClient } from "../../lib/query-client";
 import { panel } from "../../lib/shell-doors";
-import { seasonsQuery } from "../../lib/season-rows";
+import { completenessQuery, seasonsQuery } from "../../lib/season-rows";
 import { store } from "../../lib/store-access";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 import { followFacts, type Follow } from "./follow-facts";
@@ -83,14 +83,19 @@ function redrawOnIdentityArrival(title: string): void {
  * Returns:
  *     The query to ask for, or null when nothing is out.
  */
-function pendingSeasons(title: string) {
+function pendingSeasons(title: string): { queryKey: readonly unknown[]; queryFn: () => Promise<unknown> } | null {
   if (sharedQueryClient === undefined) return null;
   const followed = sharedQueryClient.getQueryData<Follow[]>(followsQuery.queryKey) ?? [];
   const ids = followed.find((one) => one.title === title)?.ids ?? heldIdentity(title)?.ids;
   const address = providerAddress(ids);
   if (address === null) return null;
   const query = seasonsQuery(address.provider, address.id);
-  return sharedQueryClient.getQueryData(query.queryKey) === undefined ? query : null;
+  if (sharedQueryClient.getQueryData(query.queryKey) === undefined) return query;
+  // AND A FOLLOW'S COMPLETENESS, which a followed series' season figures read
+  // (NE-DOIT-PAS-1): the panel waits for it as it waits for the seasons.
+  const completeness = completenessQuery(title);
+  const followedHere = followed.some((one) => one.title === title);
+  return followedHere && sharedQueryClient.getQueryData(completeness.queryKey) === undefined ? completeness : null;
 }
 
 /**
