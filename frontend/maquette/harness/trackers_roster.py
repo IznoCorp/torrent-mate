@@ -28,9 +28,9 @@ division a cross-seed would make by zero. So, on `torrents-list`:
    none;
 9. each row's origin mark says origin grab or cross-seed, as its entry does,
    and is DRAWN — a box a finger's eye can see, never 0×0 — and its ratio sits
-   on its title's own line, inside its own row;
+   on its state's own line, inside its own card;
 10. an open obligation is a MARK on its own row, never on a row that owes none;
-11. a finger on a row's title lands on its medium's sheet, by provider id.
+11. a finger on a card's poster lands on its medium's sheet, by provider id.
 12. `torrents-list-filtered` draws the named tracker's rows alone, and SAYS the
     filter: « Filtré sur <tracker> », with « Tout voir »;
 13. a finger on « Tout voir », landed cold on a filtered address, draws every
@@ -60,6 +60,12 @@ reads the month too.
 that the real data does not hold (`acquire.db` has no satisfied row): it is
 POSED by `setObligationSatisfied`, a derivation shown as one in both states;
 the backend reads `seed_obligation.satisfied_at`.
+
+RE-AIMED OUT LOUD (L16-bis, the torrent card — successor R-L16bis-e in
+`trackers_card.py`): holds 9, 11 and 17 read the old row's title, a text button
+to the sheet (`torrents/title`). The row is a media card now: its name is the
+card's title, the path to the sheet is its POSTER, and the ratio sits on the
+state line, after the state's chip.
 
 Red before the move: the tab draws no entry.
 """
@@ -108,7 +114,7 @@ ROWS = """() => [...document.querySelectorAll('#view [data-part="torrents/row"]'
     origin: row.querySelector('[data-part="torrents/origin"]')?.dataset.origin ?? null,
     mark: (() => { const box = row.querySelector('[data-part="torrents/origin"]')?.getBoundingClientRect();
       return box ? [Math.round(box.width), Math.round(box.height)] : null; })(),
-    onLine: (%s)(row.querySelector('[data-part="torrents/ratio"]'), row.querySelector('[data-part="torrents/title"]')),
+    onLine: (%s)(row.querySelector('[data-part="torrents/ratio"]'), row.querySelector('[data-part="card/meta"] [data-part="chip"]')),
     open: row.querySelector('[data-part="torrents/obligation-open"]') !== null,
     done: row.querySelector('[data-part="torrents/obligation-done"]') !== null,
   };
@@ -176,7 +182,7 @@ async def torrents(page, journal):
             journal.check(f"{name}: its deadline is its own, the {day} — day and month",
                           prefix in deadline and day in deadline, repr(deadline))
         journal.check(f"{name}: its origin mark says {'origin grab' if entry['origin'] else 'cross-seed'}, "
-                      "drawn with a box, and its ratio sits on its title's own line",
+                      "drawn with a box, and its ratio sits on its state's own line",
                       row.get("origin") == ("origin" if entry["origin"] else "cross")
                       and bool(row.get("mark")) and min(row["mark"]) > 0 and row.get("onLine") is True,
                       f"{row.get('origin')!r} · mark {row.get('mark')} · on its line {row.get('onLine')}")
@@ -189,12 +195,12 @@ async def torrents(page, journal):
     # A FINGER, not a posed screen: the title is a path, read on the address.
     first = DOWNLOADS[0]["ids"]
     wanted = f"/media/tvdb/{first['tvdb']}" if first.get("tvdb") else f"/media/tmdb/{first.get('tmdb')}"
-    title = page.locator('#view [data-part="torrents/row"] [data-part="torrents/title"]').first
-    if await title.count():
-        await title.tap()
+    poster = page.locator('#view [data-part="torrents/row"] [data-part="card/poster"]').first
+    if await poster.count():
+        await poster.tap()
         await page.wait_for_timeout(ACTED)
     where = await page.evaluate("()=>location.pathname")
-    journal.check(f"a finger on the first row's title lands on its sheet, {wanted}", where == wanted, where)
+    journal.check(f"a finger on the first card's poster lands on its sheet, {wanted}", where == wanted, where)
 
 
 async def filtered(page, journal):
@@ -273,17 +279,18 @@ async def downloading(page, journal):
     await enter(page, "torrents-list")
     hash_value = entry["infoHash"]
     row = page.locator(f'#view [data-part="torrents/row"][data-entry="{hash_value}"]')
-    title = row.locator('[data-part="torrents/title"]')
+    title = row.locator('[data-part="card/title"]')
+    poster = row.locator('[data-part="card/poster"]')
     drawn = (await title.first.text_content()).strip() if await title.count() else None
-    journal.check(f"« {entry['title']} », downloading, is a row of « Torrents » under its own title",
-                  drawn is not None and drawn.startswith(entry["title"]), repr(drawn))
+    journal.check(f"« {entry['title']} », downloading, is a card of « Torrents » under its own name",
+                  drawn == entry["name"], repr(drawn))
     ids = entry["ids"]
     wanted = f"/media/tvdb/{ids['tvdb']}" if ids.get("tvdb") else f"/media/tmdb/{ids.get('tmdb')}"
-    if drawn is not None:
-        await title.first.tap()
+    if drawn is not None and await poster.count():
+        await poster.first.tap()
         await page.wait_for_timeout(ACTED)
     where = await page.evaluate("()=>location.pathname")
-    journal.check(f"a finger on « {entry['title']} » lands on its sheet, {wanted}", where == wanted, where)
+    journal.check(f"a finger on « {entry['title']} »'s poster lands on its sheet, {wanted}", where == wanted, where)
 
 
 async def main():

@@ -9,8 +9,9 @@ import { store } from "../../lib/store-access";
 import { trackersKey } from "./queries";
 import { onEditsWritten } from "../../lib/save-bar-door";
 import { tabMemory } from "../../lib/tab-memory";
-// « Retirer de qBittorrent » declares its own verb.
+// « Retirer de qBittorrent » declares its own verb, and a torrent's panel its producer.
 import "./remove-verb";
+import "./panel-torrent";
 
 // « TRACKERS » THE FIRST TIME, THEN THE TAB OPENED LAST on this device — the
 // rule every tabbed page follows, through the memory they share.

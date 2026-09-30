@@ -230,7 +230,10 @@ export const factsPanel = cva("panel border border-border bg-card rounded-3 py-1
 export const keyValueRow = cva(
   "kv flex justify-between gap-6 py-4 px-0 border-b border-border text-3 last:border-b-0 " +
     "[&_span:first-child]:text-muted-foreground " +
-    "[&_span:last-child]:flex [&_span:last-child]:items-center [&_span:last-child]:gap-3",
+    "[&_span:last-child]:flex [&_span:last-child]:items-center [&_span:last-child]:gap-3 " +
+    // A VALUE IS NEVER CUT (§ 12): a release name has no space to break at, so it
+    // breaks anywhere and the row grows, rather than running out of the panel.
+    "[&>span:last-child]:min-w-0 [&>span:last-child]:[overflow-wrap:anywhere]",
   {
     variants: {
       withPip: {

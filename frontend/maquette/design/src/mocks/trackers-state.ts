@@ -58,6 +58,8 @@ export type TrackerDials = {
   setObligationBreached: (infoHash: string) => void;
   poseBrokenObligation: (infoHash: string) => void;
   poseTrackerRatio: (tracker: string, ratio: number) => void;
+  poseEntry: (infoHash: string, fields: Partial<Schemas["Download"]>) => void;
+  poseOneEntry: (infoHash: string) => void;
   trackerRemovals: () => TrackersHeld["removals"];
 };
 
@@ -175,6 +177,19 @@ export const trackerDials: TrackerDials = {
     for (const held of trackersState().trackers) {
       if (held.name === tracker) held.ratio = ratio;
     }
+  },
+  poseEntry: (infoHash: string, fields: Partial<Schemas["Download"]>) => {
+    // A DERIVATION, SHOWN AS ONE: a real entry given what no seed holds — the
+    // client's figures (its one read was never taken), another engine state, a
+    // long real name, no medium. The named state that calls it says what it poses.
+    for (const entry of trackersState().downloads) {
+      if (entry.infoHash === infoHash) Object.assign(entry, fields);
+    }
+  },
+  poseOneEntry: (infoHash: string) => {
+    // ONE ENTRY LEFT IN THE CLIENT, a real one: the list at its smallest.
+    const held = trackersState();
+    held.downloads = held.downloads.filter((entry) => entry.infoHash === infoHash).slice(0, 1);
   },
   setObligationSatisfied: (infoHash: string) => {
     // A DERIVATION, SHOWN AS ONE: an obligation MET at its seed time, the

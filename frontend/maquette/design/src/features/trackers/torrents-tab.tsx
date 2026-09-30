@@ -1,123 +1,19 @@
 // The « Torrents » tab: every entry the download client runs, once per tracker.
 //
-// ONE ROW PER ENTRY, never folded: a torrent cross-seeded onto two trackers is
-// two rows, each with ITS OWN ratio on ITS tracker — the ratio the answer
+// ONE CARD PER ENTRY, never folded: a torrent cross-seeded onto two trackers is
+// two cards, each with ITS OWN ratio on ITS tracker — the ratio the answer
 // carries, computed on the torrent's own size, never on the tracker's download
 // volume (§ 18, NE-DOIT-PAS-1). The obligation an entry owes is a MARK on its
-// own row, never a second list.
+// own card, never a second list.
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 import { Markup, emptyNoteMarkup } from "../../ui/markup";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { useUiState } from "../../lib/store-access";
-import { chip, emptyNote, factDetail, factList, factRow, factRowBody, factValue, statusDot } from "../../ui/variants";
-import { dayOf, written } from "./format";
-import { alertOf, useDownloads, useObligations, useTrackers, type Download, type Obligation } from "./queries";
-import { torrentFilter, torrentFilterClear, torrentHead, torrentChipLine, torrentRemove, torrentTitle } from "./variants";
-
-/**
- * The obligation one entry owes on its own tracker.
- *
- * @param entry The download client's entry.
- * @param obligations Every obligation.
- * @returns The obligation, or undefined when the entry owes none.
- */
-function owedBy(entry: Download, obligations: Obligation[]): Obligation | undefined {
-  return obligations.find(
-    (obligation) => obligation.infoHash === entry.infoHash && obligation.sourceTracker === entry.tracker,
-  );
-}
-
-/**
- * What an entry carries, said after its title: the season and the episode.
- *
- * @param entry The download client's entry.
- * @returns The episode's code, or an empty string for a movie.
- */
-function episodeCode(entry: Download): string {
-  const twoDigits = (value: number) => String(value).padStart(2, "0");
-  if (entry.season === null) return "";
-  return entry.episode === null ? `S${twoDigits(entry.season)}` : `S${twoDigits(entry.season)}E${twoDigits(entry.episode)}`;
-}
-
-/**
- * One entry's row.
- *
- * @param props.entry The download client's entry.
- * @param props.obligation The obligation it owes, when it owes one.
- * @param props.breached Whether the page's alert reads its obligation broken.
- * @returns The row.
- */
-function TorrentRow(
-  { entry, obligation, breached }: { entry: Download; obligation: Obligation | undefined; breached: boolean },
-): ReactElement {
-  const { t } = useTranslation();
-  const code = episodeCode(entry);
-  // RUNNING: nothing has closed it — neither met, nor broken, nor released.
-  const running = obligation !== undefined
-    && obligation.satisfiedAt === null && obligation.breachedAt === null && obligation.releasedAt === null;
-  // MET AND STILL SEEDING: the entry kept going past its own requirement.
-  const done = obligation !== undefined && obligation.satisfiedAt !== null && obligation.releasedAt === null;
-  return (
-    // THE ROW IS COMPOSED AS DESIGNED: the row, its body's grid holding the
-    // head (mark and title) and the ratio on ONE line, the sub-lines under —
-    // never the ratio a sibling of the grid, floating between two rows.
-    <li className={factRow()} data-part="torrents/row" data-entry={entry.infoHash} data-tracker={entry.tracker}>
-      <div className={factRowBody()}>
-        <span className={torrentHead()}>
-          <span
-            className={statusDot({ tone: entry.origin ? "info" : "waiting" })}
-            data-part="torrents/origin"
-            data-origin={entry.origin ? "origin" : "cross"}
-            role="img"
-            aria-label={t(entry.origin ? "screens.torrents.origin" : "screens.torrents.crossSeed")}
-          />
-          {/* THE TITLE IS A PATH: its sheet, or its resolution when nobody identified it. */}
-          <button className={torrentTitle()} data-part="torrents/title" data-mediasheet={entry.title}>
-            {code === "" ? entry.title : `${entry.title} · ${code}`}
-          </button>
-        </span>
-        <span className={factValue()} data-part="torrents/ratio">
-          {t("screens.trackers.ratio", { ratio: written(entry.ratio, 2) })}
-        </span>
-        <span className={factDetail()} data-part="torrents/tracker">{entry.tracker}</span>
-          <span className={factDetail()} data-part="torrents/deadline">
-            {entry.deadline === null
-              ? t("screens.torrents.noDeadline")
-              : t("screens.torrents.deadline", { date: dayOf(entry.deadline) })}
-          </span>
-        <span className={torrentChipLine()}>
-          {running ? (
-            <span className={chip({ tone: "info" })} data-part="torrents/obligation-open">
-              {t("screens.torrents.obligationOpen")}
-            </span>
-          ) : null}
-          {/* BROKEN, THE TORRENT STILL HERE: the alert's own reading, never recomputed on
-              the row — « en infraction », never S2's « rompue », which names the torrent gone. */}
-          {breached ? (
-            <span className={chip({ tone: "danger" })} data-part="torrents/obligation-breached">
-              {t("screens.torrents.obligationBreached", {
-                date: obligation?.breachedAt ? dayOf(obligation.breachedAt) : "",
-              })}
-            </span>
-          ) : null}
-          {done ? (
-            <span className={chip({ tone: "success" })} data-part="torrents/obligation-done">
-              {t("screens.torrents.obligationDone")}
-            </span>
-          ) : null}
-          <button
-            className={torrentRemove()}
-            data-part="torrents/remove"
-            data-torrent-remove={`${entry.infoHash}:${entry.tracker}`}
-          >
-            {t("screens.torrents.remove")}
-          </button>
-        </span>
-      </div>
-    </li>
-  );
-}
+import { emptyNote, section } from "../../ui/variants";
+import { alertOf, useDownloads, useObligations, useTrackers } from "./queries";
+import { owedBy, torrentItemMarkup } from "./torrent-card";
+import { torrentFilter, torrentFilterClear } from "./variants";
 
 /**
  * The line saying which tracker the list is filtered to, and lifting it.
@@ -186,16 +82,13 @@ export function TorrentsTab(): ReactElement {
   return (
     <>
       {filter}
-      <ol className={factList()} data-part="torrents">
-        {entries.map((entry) => (
-          <TorrentRow
-            key={`${entry.infoHash}:${entry.tracker}`}
-            entry={entry}
-            obligation={owedBy(entry, obligations.items)}
-            breached={alert.breached.has(`${entry.infoHash}:${entry.tracker}`)}
-          />
-        ))}
-      </ol>
+      {/* ONE CARD PER ENTRY, each in its swipe row: the media card's anatomy and taps. */}
+      <Markup
+        className={section()} data-part="torrents"
+        html={entries.map((entry) => torrentItemMarkup(
+          entry, owedBy(entry, obligations.items), alert.breached.has(`${entry.infoHash}:${entry.tracker}`),
+        )).join("")}
+      />
     </>
   );
 }

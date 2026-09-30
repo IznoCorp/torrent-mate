@@ -1962,6 +1962,24 @@ export interface components {
             ratio: number;
             /** @description when the obligation on this entry is met by seed time, Unix-epoch seconds, or null when none is owed */
             deadline: number | null;
+            /** @description when the client added the entry, Unix-epoch seconds, or null when the client does not say. The backend HAS it on its client item (`TorrentItem.added_on`) and does not route it (a demand, T3) */
+            addedAt: number | null;
+            /** @description how many complete sources the swarm counts, or null when the client does not say — never 0 for an unknown, 0 is a dead swarm. The backend HAS it (`TorrentItem.swarm_seeds`, qBittorrent's `num_complete`) and does not route it (a demand, T3) */
+            swarmSeeds: number | null;
+            /** @description how many incomplete peers the swarm counts, or null when the client does not say. qBittorrent answers `num_incomplete`; the backend does not read it (a demand, T3) */
+            swarmLeechers: number | null;
+            /** @description how much this entry has received, or null when the client does not say. Not read by the backend (a demand, T3) */
+            downloadedBytes: number | null;
+            /** @description how much this entry has sent, or null when the client does not say. Not read by the backend (a demand, T3) */
+            uploadedBytes: number | null;
+            /** @description the entry's download rate in bytes per second, or null when the client does not say. Not read by the backend (a demand, T3 — a stream demand on `TorrentProgress`) */
+            downloadRate: number | null;
+            /** @description the entry's upload rate in bytes per second, or null when the client does not say. Not read by the backend (a demand, T3 — a stream demand on `TorrentProgress`) */
+            uploadRate: number | null;
+            /** @description the poster of the medium the entry is linked to, or null when it has none or no medium is linked (a demand: the backend's entry carries no artwork) */
+            poster: string | null;
+            /** @description the staging folder the engine holds for this entry — the path to its resolution when no medium is linked — or null when it holds none (a demand) */
+            folder: string | null;
         };
         /** @description every entry the download client holds */
         Downloads: {

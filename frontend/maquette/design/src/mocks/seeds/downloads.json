@@ -19,7 +19,16 @@
     "tracker": "c411",
     "origin": true,
     "ratio": 0.42,
-    "deadline": 1790860805
+    "deadline": 1790860805,
+    "addedAt": null,
+    "swarmSeeds": null,
+    "swarmLeechers": null,
+    "downloadedBytes": null,
+    "uploadedBytes": null,
+    "downloadRate": null,
+    "uploadRate": null,
+    "folder": null,
+    "poster": "assets/posters/1d48eb5b.webp"
   },
   {
     "infoHash": "e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb",
@@ -41,7 +50,16 @@
     "tracker": "c411",
     "origin": true,
     "ratio": 1.31,
-    "deadline": 1790558403
+    "deadline": 1790558403,
+    "addedAt": null,
+    "swarmSeeds": null,
+    "swarmLeechers": null,
+    "downloadedBytes": null,
+    "uploadedBytes": null,
+    "downloadRate": null,
+    "uploadRate": null,
+    "folder": null,
+    "poster": "assets/posters/c5f2f023.webp"
   },
   {
     "infoHash": "8d51568b1a4f46e1fb7e7b535b52a5203312fc28",
@@ -63,7 +81,16 @@
     "tracker": "c411",
     "origin": true,
     "ratio": 0.88,
-    "deadline": 1790515201
+    "deadline": 1790515201,
+    "addedAt": null,
+    "swarmSeeds": null,
+    "swarmLeechers": null,
+    "downloadedBytes": null,
+    "uploadedBytes": null,
+    "downloadRate": null,
+    "uploadRate": null,
+    "folder": null,
+    "poster": "assets/posters/25415753.webp"
   },
   {
     "infoHash": "e1af6819d9e3159e0aa191b534b6a66af4344788",
@@ -85,7 +112,16 @@
     "tracker": "c411",
     "origin": true,
     "ratio": 1.07,
-    "deadline": 1790428801
+    "deadline": 1790428801,
+    "addedAt": null,
+    "swarmSeeds": null,
+    "swarmLeechers": null,
+    "downloadedBytes": null,
+    "uploadedBytes": null,
+    "downloadRate": null,
+    "uploadRate": null,
+    "folder": null,
+    "poster": "assets/posters/36c680ea.webp"
   },
   {
     "infoHash": "0ff265e478d97d9eae4d1cabd13748e23b9e6cba",
@@ -105,7 +141,16 @@
     "tracker": "c411",
     "origin": true,
     "ratio": 0.19,
-    "deadline": 1790212801
+    "deadline": 1790212801,
+    "addedAt": null,
+    "swarmSeeds": null,
+    "swarmLeechers": null,
+    "downloadedBytes": null,
+    "uploadedBytes": null,
+    "downloadRate": null,
+    "uploadRate": null,
+    "folder": null,
+    "poster": null
   },
   {
     "infoHash": "7c1e0b2f95c438b7db4f7c855bd451d8bb1f0046",
@@ -127,7 +172,16 @@
     "tracker": "tr4ker",
     "origin": false,
     "ratio": 0.06,
-    "deadline": null
+    "deadline": null,
+    "addedAt": null,
+    "swarmSeeds": null,
+    "swarmLeechers": null,
+    "downloadedBytes": null,
+    "uploadedBytes": null,
+    "downloadRate": null,
+    "uploadRate": null,
+    "folder": null,
+    "poster": "assets/posters/1d48eb5b.webp"
   },
   {
     "infoHash": "c44e8cd75bec37a8337175c6580e85d4e2079da3",
@@ -149,6 +203,15 @@
     "tracker": "c411",
     "origin": true,
     "ratio": 0.0,
-    "deadline": null
+    "deadline": null,
+    "addedAt": null,
+    "swarmSeeds": null,
+    "swarmLeechers": null,
+    "downloadedBytes": null,
+    "uploadedBytes": null,
+    "downloadRate": null,
+    "uploadRate": null,
+    "folder": null,
+    "poster": "assets/posters/26bb5d9b.webp"
   }
 ]
