@@ -10,14 +10,16 @@
 // same tags, same classes, same `data-*`, so the document-level delegation
 // (`.ep[data-ep]`) keeps working unchanged.
 import { useTranslation } from "react-i18next";
+import { Disclosure } from "../../ui/disclosure";
 import { today } from "../../lib/clock";
 import { useQueryClient } from "@tanstack/react-query";
 import { heldIdentity, providerAddress } from "../../lib/held-identity";
 import { useServerStateVersion } from "../../lib/query-client";
 import { ownedSeason, useMediaSeasons, useMediaSheet, type MediaSeasons } from "./queries";
 import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
-import { queuedMark, seasonGrabSpacing, seasonGrabTaken, episodeCell, episodeSet, seasonDisclosure, seasonFraction, seasonShortfall, type EpisodeState } from "./variants";
-import { actionButton, legend, legendSwatch } from "../../ui/variants";
+import { seasonGrabSpacing, seasonGrabTaken, episodeCell, episodeSet, seasonFraction, type EpisodeState } from "./variants";
+import { actionButton, chip } from "../../ui/variants";
+import { EpisodeLegend } from "./episode-legend";
 import { askForSeason, useAskedInFlight } from "./season-grab";
 import { episodeStateLabel } from "./format";
 import { useQueuedSeasons } from "./queued-seasons";
@@ -39,26 +41,6 @@ declare module "../../ui/panel/contract" {
     saisons: { follow: Follow; seasons: Season[] };
   }
 }
-
-// Lifecycle order for the season legend, as the operator reads it — keyed on
-// the same six states `episodeStateLabel` says, each with the tone its swatch
-// wears in the shared legend.
-const EP_ORDER = [
-  "unverified",
-  "announced",
-  "pending",
-  "to_grab",
-  "acquiring",
-  "in_library",
-] as const;
-const EP_TONE = {
-  unverified: "unknown",
-  announced: "upcoming",
-  pending: "waiting",
-  to_grab: "warning",
-  acquiring: "info",
-  in_library: "success",
-} as const;
 
 type EpisodeCatalog = { number: number; airDate?: string | null }[];
 
@@ -138,6 +120,7 @@ function SeasonDetails({
         key={number}
         className={episodeCell({ state: state as EpisodeState })}
         data-part="episode"
+        data-state={state}
         data-announced={state === "announced" || undefined}
         data-in-library={state === "in_library" || undefined}
         data-ep={`${follow.title}|${num}|${number}|${state}`}
@@ -148,8 +131,7 @@ function SeasonDetails({
     );
   });
   return (
-    <details className={seasonDisclosure()} data-part="season" open={!complete}>
-      <summary>
+    <Disclosure kind="season" data-part="season" open={!complete} summary={<>
         {/* The blanks between these children are NOT decoration: the legacy
             `saisonsHTML` carried a line break at each of them, and JSX drops
             the whitespace it finds between an expression and an element. Left
@@ -180,26 +162,26 @@ function SeasonDetails({
             fact stated on only one of two surfaces is a fact the reader has to
             know where to look for. */}
         {waiting.includes(num) ? (
-          <span className={queuedMark()} data-part="season/queued">
+          <span className={chip({ tone: "info" })} data-part="season/queued" data-tone="info">
             {t("screens.media.seasonWaitingOnPipeline")}
           </span>
         ) : null}{" "}
         {/* « DEMANDÉE » WHILE A ONE-OFF ACQUISITION OF THE SEASON LIVES, and the
             act below is withdrawn: the surface pressed says what the ask did. */}
         {askedOnce ? (
-          <span className={queuedMark()} data-part="season/asked" data-asked-season={`${follow.title}|${num}`}>
+          <span className={chip({ tone: "info" })} data-tone="info" data-part="season/asked" data-asked-season={`${follow.title}|${num}`}>
             {t("screens.media.seasonAskedOnce")}
           </span>
         ) : null}{" "}
         {/* A shortfall is an episode that AIRED and is not held — never one
             of a medium nobody holds, nor of a count nobody knows. */}
         {complete || !owns || rawAired === null ? null : (
-          <span className={seasonShortfall()} data-part="season/missing">
+          <span className={chip({ tone: "warning" })} data-part="season/missing" data-tone="warning">
             {missing}{" "}
             {missing > 1 ? t("common.missingPlural") : t("common.missing")}
           </span>
         )}
-      </summary>
+      </>}>
       <div className={episodeSet()} data-part="episode/set">
         {cells}
       </div>
@@ -234,7 +216,7 @@ function SeasonDetails({
           {t("panels.follow.grabSeason", { season: num })}
         </button>
       )}
-    </details>
+    </Disclosure>
   );
 }
 
@@ -277,14 +259,7 @@ function SeasonsBlock({
   ]);
   return (
     <>
-      <div className={legend()} data-part="legend">
-        {EP_ORDER.filter((state) => statesPresent.has(state)).map((state) => (
-          <span key={state}>
-            <i className={legendSwatch({ tone: EP_TONE[state] })} />
-            {episodeStateLabel(state)}
-          </span>
-        ))}
-      </div>
+      <EpisodeLegend present={statesPresent} />
       {seasons.map((season) => (
         <SeasonDetails
           key={season[0]}

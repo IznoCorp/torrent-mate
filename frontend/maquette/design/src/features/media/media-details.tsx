@@ -2,12 +2,14 @@
 // delete for what is owned, follow or add for what is not.
 import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useTranslation } from "react-i18next";
+import { Chip } from "../../ui/chip";
+import { sheetHeadingPlace } from "./variants";
+import { NoInfo } from "./no-info";
 import { Icon } from "../../ui/icon";
 import { SkeletonLine } from "../../ui/state-surfaces";
 import type { Follow } from "./sheet-fields";
-import { actionButton, factsPanel, keyValueRow, sectionHeading, sheetActions } from "../../ui/variants";
+import { actionButton, factKey, factsPanel, keyValueRow, sectionHeading, sheetActions } from "../../ui/variants";
 import { dateLabel } from "./format";
-import { noInfo } from "./variants";
 
 export function MediaDetails({
   title,
@@ -43,7 +45,7 @@ export function MediaDetails({
   return (
     <>
       <div>
-        <h2 className={sectionHeading()} data-part="heading" style={{ marginBottom: "6px" }}>
+        <h2 className={`${sectionHeading()} ${sheetHeadingPlace()}`} data-part="heading">
           {t("screens.media.information")}
         </h2>
         <div className={factsPanel()} data-part="panel">
@@ -55,13 +57,14 @@ export function MediaDetails({
                 through `baseTitle` on BOTH sides — a follow recorded
                 under a different year suffix reads « actif » there and
                 « non suivi » here. Transplanted as found. */}
+            {/* THE APP'S ONE ON/OFF PAIR, « actif / inactif », in its chip. */}
             <span>
               {follows.some(
                 (follow) =>
                   follow.title === title || follow.title === title.split(" (")[0],
               )
-                ? t("screens.media.followActive")
-                : t("screens.media.followInactive")}
+                ? <Chip tone="success" label={t("states.active")} />
+                : <Chip tone="neutral" label={t("states.inactive")} />}
             </span>
           </div>
           {inFlight && Object.keys(prov).length === 0 ? (
@@ -73,12 +76,7 @@ export function MediaDetails({
           {Object.entries(prov).map(([key, value]) => (
             <div className={keyValueRow()} data-part="key-value" key={key}>
               <span>{key.toUpperCase()}</span>
-              <span
-                style={{
-                  fontFamily: "ui-monospace,Menlo,monospace",
-                  fontSize: "11px",
-                }}
-              >
+              <span className={factKey()}>
                 {String(value)}
               </span>
             </div>
@@ -145,9 +143,7 @@ export function MediaDetails({
           inFlight ? (
             <SkeletonLine width="half" />
           ) : (
-            <p className={noInfo()} data-part="no-info">
-              {t("screens.media.followWaitsForKind")}
-            </p>
+            <NoInfo>{t("screens.media.followWaitsForKind")}</NoInfo>
           )
         ) : followed ? (
           <button className={actionButton({ kind: "add", tone: "done" })} data-part="media/add" disabled>

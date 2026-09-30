@@ -18,10 +18,12 @@ import { disclosure } from "./variants";
  * @param props.children What it folds away.
  * @param props.open Whether it is drawn open.
  * @param props.kind An action folded in place, or a season.
- * @param props.part The fold's part, for the rules that read it.
+ * @param props.data-part The fold's part, for the rules that read it — written at the
+ *   call site under the attribute's own name, so the markup guard reads the value
+ *   where it is chosen.
  * @returns The disclosure.
  */
-export function Disclosure({ summary, children, open, kind, part }: {
+export function Disclosure({ summary, children, open, kind, "data-part": part }: {
   /** What the closed disclosure says. */
   summary: ReactNode;
   /** What it folds away. */
@@ -31,7 +33,7 @@ export function Disclosure({ summary, children, open, kind, part }: {
   /** An action folded in place (the default), or a season of a series. */
   kind?: "plain" | "season";
   /** The name a rule reads the fold by — the caller's, as every part is. */
-  part?: string;
+  "data-part"?: string;
 }): ReactElement {
   return (
     <details className={disclosure({ kind })} data-part={part} open={open}>

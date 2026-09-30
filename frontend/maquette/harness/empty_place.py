@@ -2,7 +2,8 @@
 
 THE DEFECT THIS ENDS. « Nothing here » was drawn three ways: the shared empty
 note, a dashed box the media sheet redrew, and a line of guidance on Système's
-runs. One need, one drawing: the empty note (`emptyNote`, anchored `empty`).
+runs. One need, one drawing: the empty note (`emptyNote`, anchored `empty`). The
+media sheet's places (`no-info`) hold it too.
 
 WHAT IT READS: on each state below, the named empty place holds the empty
 note (`empty-state`, the part every empty note carries), drawn and saying
@@ -17,7 +18,7 @@ from common import Journal, SETTLED, chrome_launch_args, open_page
 from playwright.async_api import async_playwright
 
 # The state, and the empty part it draws.
-PLACES = (("runs-empty", "runs/empty"),)
+PLACES = (("runs-empty", "runs/empty"), ("mediasheet-no-trailer", "no-info"))
 
 READ = """(part)=>{
   const node = document.querySelector(`[data-part="${part}"] [data-part="empty-state"]`);

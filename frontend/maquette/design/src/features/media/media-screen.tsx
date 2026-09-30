@@ -20,6 +20,7 @@
 import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { sheetAddress, sheetHeadingPlace, synopsisText } from "./variants";
 import { type MediaSheet, type Trailer } from "../../features/media/types";
 import { useStoreContent } from "../../lib/store-access";
 import { isRequestFailure } from "../../lib/query-client";
@@ -227,13 +228,7 @@ export function MediaScreen({ readFollows }: MediaScreenProperties) {
           <Icon paths={icons.left} />
           {t("screens.media.back")}
         </button>{" "}
-        <span
-          style={{
-            marginLeft: "auto",
-            fontSize: "11px",
-            color: "var(--color-muted-foreground)",
-          }}
-        >
+        <span className={sheetAddress()}>
           {url ?? t("screens.media.unidentified")}
         </span>
       </div>
@@ -269,17 +264,10 @@ export function MediaScreen({ readFollows }: MediaScreenProperties) {
           <MediaHero title={title} sheet={sheet} isFilm={isFilm} artwork={artwork} trailer={trailer} inFlight={inFlight} failed={failed} />
 
           <div>
-            <h2 className={sectionHeading()} data-part="heading" style={{ marginBottom: "6px" }}>
+            <h2 className={`${sectionHeading()} ${sheetHeadingPlace()}`} data-part="heading">
               {t("screens.media.synopsis")}
             </h2>
-            <p
-              style={{
-                margin: 0,
-                fontSize: "var(--text-3)",
-                lineHeight: 1.55,
-                color: "var(--color-muted-foreground)",
-              }}
-            >
+            <p className={synopsisText()}>
               {sheet?.overview
                 ? sheet.overview
                 : inFlight

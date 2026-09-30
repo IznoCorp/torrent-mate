@@ -1,11 +1,12 @@
 // The people of a media sheet: the director or the creator, then the cast
 // strip — or the sentence that says the cast is unknown.
 import { useTranslation } from "react-i18next";
+import { NoInfo } from "./no-info";
 import { SkeletonLine } from "../../ui/state-surfaces";
 import type { MediaSheet } from "./types";
 import type { MediaSheetFields } from "./sheet-fields";
 import { factsPanel, keyValueRow, sectionHeading } from "../../ui/variants";
-import { castCaption, castFigure, castList, castPortrait, noInfo } from "./variants";
+import { castCaption, castFigure, castList, castPortrait, noInfo, sheetHeadingPlace, sheetPanelPlace } from "./variants";
 import { initials } from "../../lib/titles";
 
 export function MediaCast({
@@ -27,7 +28,7 @@ export function MediaCast({
   const portraits = (sheet?.castPortraits ?? {}) as Record<string, string>;
   return (
     <div>
-      <h2 className={sectionHeading()} data-part="heading" style={{ marginBottom: "8px" }}>
+      <h2 className={`${sectionHeading()} ${sheetHeadingPlace()}`} data-part="heading">
         {/* A WAIT THAT NEVER ENDS IS NOT A WAIT. With the read landed on
             nothing — a stale bookmark — the kind is unknown for good, and a
             shimmering line over it says « any moment now » forever, on a screen
@@ -48,7 +49,7 @@ export function MediaCast({
           t("screens.media.castHeadingSeries")
         )}
       </h2>
-      <div className={factsPanel()} data-part="panel" style={{ marginBottom: "10px" }}>
+      <div className={`${factsPanel()} ${sheetPanelPlace()}`} data-part="panel">
         <div className={keyValueRow()} data-part="key-value">
           <span>
             {isFilm === null ? (
@@ -106,9 +107,7 @@ export function MediaCast({
       ) : inFlight ? (
         <p className={noInfo()}><SkeletonLine width="half" /></p>
       ) : (
-        <p className={noInfo()} data-part="no-info">
-          {t(failed ? "screens.media.castUnread" : "screens.media.castUnknown")}
-        </p>
+        <NoInfo>{t(failed ? "screens.media.castUnread" : "screens.media.castUnknown")}</NoInfo>
       )}
     </div>
   );

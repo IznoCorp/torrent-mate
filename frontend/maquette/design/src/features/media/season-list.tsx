@@ -2,10 +2,13 @@
 // from the owned numbers or from the catalogue, with the episode matrix
 // underneath when the numbers are known.
 import { useTranslation } from "react-i18next";
+import { NoInfo } from "./no-info";
+import { Disclosure } from "../../ui/disclosure";
 import { today } from "../../lib/clock";
 import { SkeletonLine } from "../../ui/state-surfaces";
-import { actionButton, factsPanel } from "../../ui/variants";
-import { queuedMark, seasonGrabSpacing, seasonGrabTaken, upcomingMark, episodeCell, episodeDate, episodeDot, episodeNumber, episodeRow, episodeSet, episodeTitle, missingList, noInfo, seasonDisclosure, seasonFraction, seasonShortfall } from "./variants";
+import { actionButton, chip, factsPanel, statusDot } from "../../ui/variants";
+import { seasonGrabSpacing, seasonGrabTaken, upcomingMark, episodeCell, episodeDate, episodeNumber, episodeRow, episodeSet, episodeTitle, missingList, noInfo, noInfoPlace, seasonFraction, seasonListPlace } from "./variants";
+import { EPISODE_DOT, EpisodeLegend } from "./episode-legend";
 import { useQueuedSeasons } from "./queued-seasons";
 import { useAskedSeasons } from "./asked-seasons";
 import { askForSeason, useAskedInFlight } from "./season-grab";
@@ -95,9 +98,10 @@ export function SeasonList({
         air: season.airDate,
       }));
   if (!rows.length) return null;
-  return (
-    <div style={{ marginTop: "10px" }}>
-      {rows.map((row) => {
+  // THE STATES THE LIST DRAWS, gathered as it is built, so the legend above it
+  // names those and no other.
+  const present = new Set<string>();
+  const drawn = rows.map((row) => {
         const list = eps[String(row.n)] ?? null;
         // THE OWNED NUMBERS ARE AN ANSWER ABOUT OWNERSHIP, so they wait for
         // ownership to be known — and reading them one line lower than the
@@ -147,7 +151,7 @@ export function SeasonList({
               ).filter((from) => !held.has(from))
             : [];
         const body = list ? (
-          <div className={factsPanel()} data-part="panel" style={{ marginTop: "8px" }}>
+          <div className={`${factsPanel()} ${noInfoPlace()}`} data-part="panel">
             {list.map((episode) => {
               /* SUBTLE state colour: a 6px dot and the number in the
                  tone. The title stays neutral — it is what one reads
@@ -164,6 +168,7 @@ export function SeasonList({
                   : held.has(episode.number)
                     ? "in_library"
                     : "to_grab";
+              present.add(episodeState);
               return (
                 // Same blanks as the season summary, same reason: the row is
                 // a flex container (they draw nothing) and its `textContent`
@@ -171,11 +176,12 @@ export function SeasonList({
                 <div
                   className={episodeRow({ state: episodeState })}
                   data-part="episode/row"
+                  data-state={episodeState}
                   data-announced={episodeState === "announced" || undefined}
                   data-in-library={episodeState === "in_library" || undefined}
                   key={episode.number}
                 >
-                  <span className={episodeDot({ state: episodeState })}></span>{" "}
+                  <span className={statusDot({ tone: EPISODE_DOT[episodeState] })} data-part="status-dot"></span>{" "}
                   <span className={episodeNumber({ state: episodeState })} data-part="episode/number">
                     E{String(episode.number).padStart(2, "0")}
                   </span>{" "}
@@ -201,17 +207,18 @@ export function SeasonList({
             <div
               className={episodeSet()}
               data-part="episode/set"
-              style={{ marginTop: "8px" }}
             >
               {Array.from({ length: bound }, (ignored, index) => {
                 const number = index + 1;
                 const episodeState = held.has(number)
                   ? "in_library"
                   : "to_grab";
+                present.add(episodeState);
                 return (
                   <span
                     className={episodeCell({ state: episodeState })}
                     data-part="episode"
+                    data-state={episodeState}
                     data-in-library={episodeState === "in_library" || undefined}
                     key={number}
                     aria-label={t("screens.media.episodeAria", {
@@ -228,9 +235,7 @@ export function SeasonList({
               })}
             </div>
             {row.aired == null ? (
-              <p className={noInfo()} data-part="no-info" style={{ marginTop: "6px" }}>
-                {t("screens.media.beyondEpisode", { n: bound })}
-              </p>
+              <NoInfo>{t("screens.media.beyondEpisode", { n: bound })}</NoInfo>
             ) : (
               ""
             )}
@@ -240,26 +245,15 @@ export function SeasonList({
           // that read has landed: a skeleton over it would be waiting for a
           // thing already known — the same defect with its sign turned round.
           // It precedes the sheet's flight deliberately.
-          <p className={noInfo()} data-part="no-info" style={{ marginTop: "8px" }}>
-            {t("screens.media.seasonAnnounced")}
-          </p>
+          <NoInfo>{t("screens.media.seasonAnnounced")}</NoInfo>
         ) : sheetInFlight ? (
-          <p className={noInfo()} style={{ marginTop: "8px" }}>
-            <SkeletonLine width="half" />
-          </p>
+          <p className={`${noInfo()} ${noInfoPlace()}`}><SkeletonLine width="half" /></p>
         ) : (
-          <p className={noInfo()} data-part="no-info" style={{ marginTop: "8px" }}>
-            {t("screens.media.episodesNotDetailed")}
-          </p>
+          <NoInfo>{t("screens.media.episodesNotDetailed")}</NoInfo>
         );
         return (
-          <details
-            className={seasonDisclosure()}
-            data-part="season"
-            key={row.n}
-            open={ownershipKnown && !(complete || !owns)}
-          >
-            <summary>
+          <Disclosure kind="season" data-part="season" key={row.n}
+            open={ownershipKnown && !(complete || !owns)} summary={<>
               {/* The blanks between these children are NOT decoration: the
                   legacy template carried a line break at each of them, and a
                   reader of `summary.textContent` — the rule that derives the
@@ -293,14 +287,14 @@ export function SeasonList({
                   IT SITS BEFORE THE SHORTFALL, because it is the newer fact and
                   the one that explains why the shortfall has not moved. */}
               {waiting.includes(row.n) ? (
-                <span className={queuedMark()} data-part="season/queued">
+                <span className={chip({ tone: "info" })} data-part="season/queued" data-tone="info">
                   {t("screens.media.seasonWaitingOnPipeline")}
                 </span>
               ) : (
                 ""
               )}{" "}
               {ownershipKnown && owns && missing != null && missing > 0 ? (
-                <span className={seasonShortfall()} data-part="season/missing">
+                <span className={chip({ tone: "warning" })} data-part="season/missing" data-tone="warning">
                   {missing}{" "}
                   {missing > 1
                     ? t("common.missingPlural")
@@ -314,23 +308,18 @@ export function SeasonList({
                 : ""}{" "}
               {!owns && row.air ? (
                 <span
-                  // ITS OWN NAME. It wore `season/missing` — the name of the
-                  // chip that counts what a reader is short of — and a date is
-                  // not a shortfall: a rule counting « missing chips » read
-                  // seven of them on a sheet missing nothing.
-                  className={seasonShortfall()} data-part="season/aired-on"
-                  style={{
-                    background: "transparent",
-                    color: "var(--color-muted-foreground)",
-                    fontWeight: 400,
-                  }}
+                  // ITS OWN NAME, and TEXT: a date is when something comes out,
+                  // the same kind of fact as « à venir », and not a shortfall —
+                  // a rule counting « missing chips » read seven of them on a
+                  // sheet missing nothing.
+                  className={upcomingMark()} data-part="season/aired-on"
                 >
                   {dateLabel(row.air)}
                 </span>
               ) : (
                 ""
               )}
-            </summary>
+            </>}>
             {missingNums.length ? (
               <p className={missingList()} data-part="season/missing-list">
                 {t("screens.media.missingList", {
@@ -369,7 +358,7 @@ export function SeasonList({
             {/* « DEMANDÉE » WHILE A ONE-OFF ACQUISITION OF THE SEASON LIVES, in
                 the act's place: the same fact the follow panel draws. */}
             {askedOnce.includes(row.n) ? (
-              <span className={queuedMark()} data-part="season/asked" data-asked-season={`${followTitle}|${row.n}`}>
+              <span className={chip({ tone: "info" })} data-tone="info" data-part="season/asked" data-asked-season={`${followTitle}|${row.n}`}>
                 {t("screens.media.seasonAskedOnce")}
               </span>
             ) : (owns || followed) && !complete && !seasonUpcoming ? (
@@ -386,9 +375,13 @@ export function SeasonList({
                 {t("panels.follow.grabSeason", { season: row.n })}
               </button>
             ) : null}
-          </details>
+          </Disclosure>
         );
-      })}
+      });
+  return (
+    <div className={seasonListPlace()}>
+      <EpisodeLegend present={present} />
+      {drawn}
     </div>
   );
 }

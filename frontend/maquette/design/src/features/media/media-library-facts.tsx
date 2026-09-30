@@ -4,11 +4,13 @@
 import { useEngineDrawing } from "../../lib/engine-drawing";
 import type { MediaSeasons } from "./queries";
 import { useTranslation } from "react-i18next";
+import { sheetHeadingPlace } from "./variants";
 import { type MediaSheet } from "./types";
 import { SkeletonLine } from "../../ui/state-surfaces";
 import { SeasonList } from "./season-list";
 import type { CatalogSeason, MediaSheetFields } from "./sheet-fields";
-import { factsPanel, keyValueRow, sectionHeading, statusDot } from "../../ui/variants";
+import { factKey, factsPanel, keyValueRow, sectionHeading } from "../../ui/variants";
+import { Chip } from "../../ui/chip";
 import { baseTitle } from "../../lib/titles";
 
 export function MediaLibraryFacts({
@@ -79,7 +81,7 @@ export function MediaLibraryFacts({
   const { t } = useTranslation();
   return (
     <div>
-      <h2 className={sectionHeading()} data-part="heading" style={{ marginBottom: "6px" }}>
+      <h2 className={`${sectionHeading()} ${sheetHeadingPlace()}`} data-part="heading">
         {t("screens.media.library")}
       </h2>
       <div className={factsPanel()} data-part="panel">
@@ -117,26 +119,20 @@ export function MediaLibraryFacts({
           // it stood three blocks above a « Supprimer de la médiathèque ».
           <div className={keyValueRow()} data-part="key-value">
             <span>{t("screens.media.inLibrary")}</span>
-            <span>
-              <span className={statusDot({ tone: "success" })} data-part="status-dot"></span>
-              {t("screens.media.yes")}
-            </span>
+            <span><Chip tone="success" label={t("screens.media.yes")} /></span>
           </div>
         ) : !owns ? (
           <>
             <div className={keyValueRow()} data-part="key-value">
               <span>{t("screens.media.inLibrary")}</span>
-              <span>
-                <span className={statusDot({ tone: "neutral" })} data-part="status-dot"></span>
-                {t("screens.media.no")}
-              </span>
+              <span><Chip tone="neutral" label={t("screens.media.no")} /></span>
             </div>
             <div className={keyValueRow()} data-part="key-value">
               <span>{t("screens.media.follow")}</span>
+              {/* THE APP'S ONE ON/OFF PAIR, « actif / inactif », as Système says it. */}
               <span>
-                {followed
-                  ? t("screens.media.followActive")
-                  : t("screens.media.followInactive")}
+                <Chip tone={followed ? "success" : "neutral"}
+                  label={followed ? t("states.active") : t("states.inactive")} />
               </span>
             </div>
             {catalog.length ? (
@@ -154,19 +150,11 @@ export function MediaLibraryFacts({
           <>
             <div className={keyValueRow()} data-part="key-value">
               <span>{t("screens.media.owned")}</span>
-              <span>
-                <span className={statusDot({ tone: "success" })} data-part="status-dot"></span>
-                {t("screens.media.yes")}
-              </span>
+              <span><Chip tone="success" label={t("screens.media.yes")} /></span>
             </div>
             <div className={keyValueRow()} data-part="key-value">
               <span>{t("screens.media.file")}</span>
-              <span
-                style={{
-                  fontFamily: "ui-monospace,Menlo,monospace",
-                  fontSize: "11px",
-                }}
-              >
+              <span className={factKey()}>
                 {`${baseTitle(title)}.${sheet?.year ?? "2026"}.MULTi.1080p.mkv`}
               </span>
             </div>
@@ -214,14 +202,10 @@ export function MediaLibraryFacts({
                     an answer beside a wait: « neutral » said about a
                     completeness nobody has computed yet. It waits with the
                     value it qualifies. */}
-                {seasonsInFlight && pct === null ? null : (
-                  <span
-                    className={statusDot({ tone: pct === 100 ? "success" : pct === null ? "neutral" : "warning" })} data-part="status-dot"
-                  ></span>
+                {pct === null && seasonsInFlight ? <SkeletonLine width="short" /> : (
+                  <Chip tone={pct === 100 ? "success" : pct === null ? "neutral" : "warning"}
+                    label={pct === null ? t("screens.media.unknownFeminine") : pct + " %"} />
                 )}
-                {pct === null
-                  ? seasonsInFlight ? <SkeletonLine width="short" /> : t("screens.media.unknownFeminine")
-                  : pct + " %"}
               </span>
             </div>
           </>

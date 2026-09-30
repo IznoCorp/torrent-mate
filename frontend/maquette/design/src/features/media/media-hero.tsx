@@ -3,11 +3,13 @@
 // none. The element carrying `data-part="hero"` is this one and no other.
 import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useTranslation } from "react-i18next";
+import { NoInfo } from "./no-info";
 import { Icon } from "../../ui/icon";
 import { SkeletonLine } from "../../ui/state-surfaces";
 import { type MediaSheet, type Trailer } from "./types";
 import type { MediaSheetFields } from "./sheet-fields";
-import { heroImage, heroMeta, heroNote, heroText, heroTitle, heroWrap, trailerPlay, trailerRow, trailerSource, noInfo } from "./variants";
+import { heroImage, heroMeta, heroNote, heroText, heroTitle, heroWrap, noInfo, ratingSource, trailerPlay, trailerRow, trailerSourcePlace } from "./variants";
+import { chip } from "../../ui/variants";
 
 export function MediaHero({
   title,
@@ -125,12 +127,7 @@ export function MediaHero({
             <span className={heroNote()}>
               <Icon paths={icons.star} />
               {String(sheet.rating).replace(".", ",")}
-              <span
-                style={{
-                  color: "var(--color-muted-foreground)",
-                  fontWeight: 400,
-                }}
-              >
+              <span className={ratingSource()}>
                 {" "}
                 {t("screens.media.ratingSource")}
               </span>
@@ -162,9 +159,11 @@ export function MediaHero({
             {t("screens.media.trailer")}
             <small>{trailer.name}</small>
           </span>{" "}
-          <span className={trailerSource()}>
-            <Icon paths={icons.ext} />
-            YouTube
+          <span className={trailerSourcePlace()}>
+            <span className={chip({ tone: "neutral" })} data-tone="neutral">
+              <Icon paths={icons.ext} />
+              YouTube
+            </span>
           </span>
         </a>
       ) : inFlight ? (
@@ -174,9 +173,7 @@ export function MediaHero({
         // read that never reached it. « Aucune bande-annonce fournie par le
         // provider » is an answer; after a failure the honest word is that
         // nobody knows.
-        <p className={noInfo()} data-part="no-info">
-          {t(failed ? "screens.media.trailerUnread" : "screens.media.noTrailer")}
-        </p>
+        <NoInfo>{t(failed ? "screens.media.trailerUnread" : "screens.media.noTrailer")}</NoInfo>
       )}
     </>
   );
