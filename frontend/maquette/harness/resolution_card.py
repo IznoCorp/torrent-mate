@@ -29,16 +29,24 @@ WHAT IT READS, and each hold fails differently:
       inside the card's button would be invalid markup and a control nobody can
       name. And no pill carries a drawing: the check mark inside it is the
       « already selected » the ruling removed, whatever else the pill says.
+  h12. A FINGER ON A CANDIDATE'S POSTER OPENS ITS SHEET, AND PICKS NOTHING
+      (B-578). The operator touched a candidate's poster « en espérant en savoir
+      plus » and it picked it: « Comme pour le reste de l'app. » The finger at
+      the poster's centre lands on a button carrying the candidate's title in
+      `data-mediasheet`, the tap opens the medium's sheet, and the folder is
+      still in « À traiter » after it.
   h10. EVERY CARD IS AT LEAST A FINGER TALL. The act is the whole card now, so
       the card IS the touch target and it owes the 44 px every other one in this
       harness owes. It measures 126, and a floor is written for the day the room
       goes: nothing else in the suite would have caught a card of 20 px.
-  h11. AND EACH HOLDS EXACTLY ONE FOCUSABLE ELEMENT — ITSELF. A second one
-      inside a button is a control the card's own tap swallows, and on the mark
-      it would be worse: `aria-hidden` and focusable is a stop on the keyboard's
-      path that no assistive technology can name. Counted, not asserted: the
-      card itself plus every focusable descendant, `tabindex="-1"` and disabled
-      controls left out because neither takes a tab.
+  h11. AND EACH HOLDS EXACTLY TWO FOCUSABLE ELEMENTS — ITS POSTER AND ITS PICK.
+      RE-AIMED with B-578, and said so: the card was one button and held
+      exactly one. Now the poster opens the sheet and the body picks; a third
+      would be a control nobody asked for, and on the mark it would be worse:
+      `aria-hidden` and focusable is a stop on the keyboard's path that no
+      assistive technology can name. Counted, not asserted: every focusable
+      inside the card, `tabindex="-1"` and disabled controls left out because
+      neither takes a tab.
   h9. EVERY CARD IS ANNOUNCED BY ITS TITLE AND ITS YEAR, and by nothing longer.
       The card being the button, its name used to be its whole text — up to 521
       characters, opening on the poster fallback's initial where the provider
@@ -108,8 +116,10 @@ CANDIDATES = """() => {
     cards: cards.map((card) => ({
       title: (card.querySelector('[data-part="card/title"]') || {}).textContent || '',
       confidence: (card.querySelector('[data-part="chip"]') || {}).textContent || null,
-      tag: card.tagName,
-      resolve: card.dataset.resolve ?? null,
+      // THE PICK IS THE BUTTON CARRYING `data-resolve` — the card's body since
+      // B-578, the card itself before it.
+      tag: (card.matches('[data-resolve]') ? card : card.querySelector('[data-resolve]'))?.tagName ?? null,
+      resolve: (card.matches('[data-resolve]') ? card : card.querySelector('[data-resolve]'))?.dataset.resolve ?? null,
     })),
   };
 }"""
@@ -135,6 +145,7 @@ AIM = """([index, part]) => {
   return {found: true, x, y,
           inside: !!hit && card.contains(hit),
           resolve: button?.dataset.resolve ?? null,
+          sheet: button?.dataset.mediasheet ?? null,
           buttonPart: button?.dataset.part ?? null,
           covering: hit === null ? 'nothing'
             : hit.tagName + '[' + (hit.dataset?.part || '') + ']'};
@@ -144,7 +155,7 @@ AIM = """([index, part]) => {
 # identity, then the cards, because a candidate card exists on other screens too
 # and the protocol answers a document-wide query.
 CANDIDATE_CARDS = ('[data-part="screen"][data-open][data-key^="resolution:"] '
-                   '[data-part="card"][data-nonmedia="candidat"]')
+                   '[data-part="card"][data-nonmedia="candidat"] [data-resolve]')
 
 # WHAT EACH CANDIDATE SHOULD BE ANNOUNCED BY, read from the card itself. The
 # year is the subtitle's first segment; the kind and the provider that follow it
@@ -178,6 +189,8 @@ CARD_BOXES = """() => {
       height: box.height, width: box.width,
       tag: card.tagName,
       focusable: (card.matches(FOCUSABLE) ? 1 : 0) + inside.length,
+      sheet: !!card.querySelector('button[data-mediasheet]'),
+      pick: !!card.querySelector('button[data-resolve]'),
       within: inside.map((one) => one.tagName + '[' + (one.dataset.part || '') + ']'),
     };
   });
@@ -360,12 +373,12 @@ async def main():
         journal.check("every card is at least a finger tall",
                       bool(boxes) and all(one["height"] >= TOUCH_FLOOR for one in boxes),
                       f"{[round(one['height']) for one in boxes]} against {TOUCH_FLOOR}")
-        journal.check("and each holds exactly one focusable element — itself",
-                      bool(boxes) and all(one["focusable"] == 1 and one["tag"] == "BUTTON"
-                                          for one in boxes),
+        two_ways = [one["focusable"] == 2 and one["sheet"] and one["pick"] for one in boxes]
+        journal.check("and each holds exactly two focusable elements — its poster and its pick",
+                      bool(boxes) and all(two_ways),
                       str([{"tag": one["tag"], "focusable": one["focusable"],
                             "within": one["within"]}
-                           for one in boxes if one["focusable"] != 1 or one["tag"] != "BUTTON"][:2]))
+                           for one, held in zip(boxes, two_ways) if not held][:2]))
 
         # ── h9: what the card is announced by ─────────────────────────────
         # THE NAME IS COMPUTED BY THE BROWSER, never read off an attribute: a
@@ -382,6 +395,27 @@ async def main():
                       bool(heard) and all(0 < len(one) <= NAME_CEILING for one in heard),
                       str(sorted((len(one) for one in heard), reverse=True))
                       + f" against {NAME_CEILING}")
+
+        # ── h12: a finger on a candidate's poster opens its sheet (B-578) ─
+        await page.evaluate("(id)=>window.__go(id)", TIED_STATE)
+        await page.wait_for_timeout(SETTLED)
+        before = await page.evaluate(BLOCKED)
+        first = cards[0]["title"] if cards else None
+        aim = await aim_at(page, 0, "card/poster")
+        journal.check("the finger on a candidate's poster lands on the button naming its sheet",
+                      first is not None and aim.get("sheet") == first and aim.get("resolve") is None,
+                      f"lands on {aim.get('covering')}, sheet {aim.get('sheet')!r}, "
+                      f"pick {aim.get('resolve')!r} for {first!r}")
+        if aim.get("found"):
+            await page.touchscreen.tap(aim["x"], aim["y"])
+        await page.wait_for_timeout(ACTED)
+        opened = await page.evaluate(
+            """()=>document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]')?.dataset.key ?? null""")
+        after = await page.evaluate(BLOCKED)
+        journal.check("and the tap opens the candidate's sheet, the folder still to be resolved",
+                      opened is not None and first is not None and first in opened
+                      and set(before) == set(after),
+                      f"sheet {opened!r}; « À traiter » {before} → {after}")
 
         # ── h1: a finger on the card's body resolves the folder ───────────
         before = await page.evaluate(BLOCKED)

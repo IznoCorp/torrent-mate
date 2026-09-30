@@ -13,7 +13,7 @@
 3. **« Récents » and « Incomplets » get the category filters** (the operator's surface decision, and Q20 = A): the
    pills of `library-head.tsx:124` drawn for the `recent` and `inc` lenses too — the same component, the same
    remembered `libCat`, counts of their own from the rows drawn; « Films » on « Incomplets » (shows only) reads
-   EMPTY and says so by the empty note. Named states `lib-recent-films`, `lib-incomplete-films`.
+   EMPTY and says so by the empty note. Named states `lib-recent-movies`, `lib-incomplete-movies` (the plan wrote `-films`; the vocabulary speaks `movies`, as the category ids do).
 4. **The Incomplets count line** (D.1 #6): its `statusDot` + inline `b` and `marginLeft: 12` (`page.tsx:51–54, 89`)
    → `countLine`'s own count part; the residue class `linkbtn` checked and removed.
 5. **B-578 — a candidate's poster opens its sheet** (moved into the train by the orchestrator, order 97(2)): on the

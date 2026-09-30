@@ -382,9 +382,9 @@ export const viewSwitchButton = cva("[border:0] rounded-2 bg-transparent text-mu
   defaultVariants: { size: "icon" },
 });
 
-/** The « N titles » line under the filters. */
+/** The « N titles » line under the filters; its actions sit together, at its own gap. */
 export const countLine = cva(
-  "countline flex items-center gap-3 pt-4 px-7 pb-0 text-2 text-muted-foreground",
+  "countline flex items-center gap-3 pt-4 px-7 pb-0 text-2 text-muted-foreground [&>button+button]:ml-0",
 );
 
 /** The action at the end of the count line. */

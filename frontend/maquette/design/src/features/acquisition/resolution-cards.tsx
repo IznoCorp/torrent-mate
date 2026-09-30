@@ -19,7 +19,7 @@ import {
 import { Chip } from "../../ui/chip";
 import { PosterArtwork } from "../../ui/poster";
 import { posterArtwork, useEngineDrawing } from "../../lib/engine-drawing";
-import { candidateCard, pickPlace } from "./variants";
+import { candidateCard, pickPlace, pickRow, pickText } from "./variants";
 import { REASON_TONE, decisionState, decisionStateDetail, reasonLabel, viaLabel } from "./decision-vocabulary";
 
 // A RELEASE is not a medium, and its card is deliberately a different object.
@@ -57,69 +57,69 @@ export function ReleaseCard({
   const reference = useEngineDrawing();
   const { icons } = reference;
   const { t } = useTranslation();
-  // THE CARD IS THE GESTURE: one tap anywhere on it picks the candidate. It is a
-  // BUTTON because the engine's delegation answers `button` and nothing else —
-  // a `div` carrying `data-resolve` is reached by no finger — and the attribute
-  // sits on the element tapped, never on a child. Its top row is a `span`
-  // because a button holds phrasing content only. What stays at the right edge
-  // is a MARK, never a control: a button inside this one would be invalid
-  // markup and a control nobody can name. Pressed, it
-  // wears the base layer's `:active`, like every button. THE MARK SAYS
-  // « Choisir » and draws no check: a check on every card read as « already
-  // selected » (B-500).
+  // TWO GESTURES, AS ON EVERY CARD OF THE APP (B-578). The poster opens the
+  // candidate's sheet — « en savoir plus », what a poster does everywhere else —
+  // and the body picks it: one tap anywhere on the title, the year, the synopsis
+  // or the « Choisir » mark carries the candidate's title in `data-resolve`.
+  // Both are BUTTONS because the engine's delegation answers `button` and
+  // nothing else, and they are siblings: a button holds phrasing content only,
+  // so neither can hold the other. The mark at the body's right edge is a MARK,
+  // never a control of its own, and draws no check: a check on every card read
+  // as « already selected » (B-500).
   //
-  // AND IT IS NAMED FROM ITS DATA. A button's accessible name is its whole text
-  // when nothing else says otherwise, so the card announced itself with its
-  // subtitle, its synopsis and — where the provider has no picture — the poster
-  // fallback's initial, up to 524 characters opening on a stray letter. What
-  // identifies a candidate to a listener is the title and the year, and both
-  // arrive here as data: the label is assembled from them, never typed. The
-  // year is a prop of its own rather than a slice of `meta`, because re-parsing
-  // a display string to recover a datum the caller already holds is how the two
-  // drift apart. The poster is `aria-hidden`: an image with an empty `alt` is
-  // already silent, its initials fallback is not, and neither is part of a name.
+  // EACH IS NAMED FROM ITS DATA. The pick is announced by the title and the
+  // year, never by its whole text — up to 524 characters opening on the
+  // poster fallback's initial where the provider had no picture; the year is a
+  // prop of its own rather than a slice of `meta`, because re-parsing a display
+  // string to recover a datum the caller already holds is how the two drift
+  // apart. The poster is announced as the sheet it opens.
   return (
-    <Card
-      as="button"
-      type="button"
-      className={candidateCard()}
-      data-nonmedia={opts.genre || "release"}
-      data-resolve={title || undefined}
-      aria-label={year ? `${title} ${year}` : title}
-    >
-      <CardTop as="span">
+    <Card data-nonmedia={opts.genre || "release"}>
+      <CardTop>
         <CardPoster
-          aria-hidden="true"
+          as="button"
+          type="button"
+          data-mediasheet={title || undefined}
+          aria-label={t("surfaces.card.sheetOf", { title })}
           title={
             opts.noPoster ? t("screens.resolution.noPosterTitle") : undefined
           }
         >
           <PosterArtwork artwork={posterArtwork(icons, opts.poster, title, opts.k)} />
         </CardPoster>
-        <CardBody as="span">
-          <CardTitle>{title}</CardTitle>
-          <CardSubtitle>{meta}</CardSubtitle>
-          {/* The synopsis is what actually SEPARATES four series with nearly
-              the same name, so it belongs on the card that asks to choose
-              between them. It is an `overview`, not a reason: it clamps
-              (R48 — a reason wraps and the card grows, a synopsis does not).
-              Carrying it here is also what makes leaving the screen
-              unnecessary: an arbitration that sends you to a full sheet to
-              decide loses the queue you were working through. */}
-          {opts.overview ? <CardOverview>{opts.overview}</CardOverview> : ""}
-          {confidence ? (
-            <CardMeta>
-              <Chip tone="info" label={<>{t("screens.resolution.confidence")} {confidence}</>} />
-            </CardMeta>
-          ) : (
-            ""
-          )}
-        </CardBody>
-        <span className={pickPlace()}>
-          <span className={actionButton({ kind: "panelAction", tone: "primary" })} data-part="card/pick" aria-hidden="true">
-            {t("screens.resolution.choose")}
+        <CardBody
+          type="button"
+          className={candidateCard()}
+          data-resolve={title || undefined}
+          aria-label={year ? `${title} ${year}` : title}
+        >
+          <span className={pickRow()}>
+            <span className={pickText()}>
+              <CardTitle>{title}</CardTitle>
+              <CardSubtitle>{meta}</CardSubtitle>
+              {/* The synopsis is what actually SEPARATES four series with nearly
+                  the same name, so it belongs on the card that asks to choose
+                  between them. It is an `overview`, not a reason: it clamps
+                  (R48 — a reason wraps and the card grows, a synopsis does not).
+                  Carrying it here is also what makes leaving the screen
+                  unnecessary: an arbitration that sends you to a full sheet to
+                  decide loses the queue you were working through. */}
+              {opts.overview ? <CardOverview>{opts.overview}</CardOverview> : ""}
+              {confidence ? (
+                <CardMeta>
+                  <Chip tone="info" label={<>{t("screens.resolution.confidence")} {confidence}</>} />
+                </CardMeta>
+              ) : (
+                ""
+              )}
+            </span>
+            <span className={pickPlace()}>
+              <span className={actionButton({ kind: "panelAction", tone: "primary" })} data-part="card/pick" aria-hidden="true">
+                {t("screens.resolution.choose")}
+              </span>
+            </span>
           </span>
-        </span>
+        </CardBody>
       </CardTop>
     </Card>
   );

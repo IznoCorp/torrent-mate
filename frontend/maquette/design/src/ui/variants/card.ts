@@ -33,13 +33,15 @@ export const cardTop = cva("ctop flex min-w-0 items-center gap-5");
  */
 export const cardBody = cva("cbody min-w-0 flex-1 text-left [border:0] [background:transparent] p-0 block");
 
-/** The title, on one line: the identity everything else is addressed by. */
-export const cardTitle = cva("ctitle block text-4 font-semibold whitespace-nowrap overflow-hidden text-ellipsis");
+/**
+ * The title: the identity everything else is addressed by. It is NEVER cut
+ * (§ 12, « Rien d'essentiel n'est tronqué »): it wraps, takes its whole line,
+ * and the card grows.
+ */
+export const cardTitle = cva("ctitle block text-4 font-semibold [overflow-wrap:anywhere]");
 
-/** The sub-line, on one line. */
-export const cardSubtitle = cva(
-  "csub block mt-1 text-2 text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis",
-);
+/** The sub-line, whole: it wraps as the title does. */
+export const cardSubtitle = cva("csub block mt-1 text-2 text-muted-foreground [overflow-wrap:anywhere]");
 
 /**
  * The reason a card is where it is. It NEVER truncates (§12, R48): it is what

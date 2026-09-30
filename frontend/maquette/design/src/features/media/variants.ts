@@ -131,12 +131,10 @@ export const castPortrait = cva(
     "[&_img]:w-full [&_img]:h-full [&_img]:object-cover [&_img]:block",
 );
 
-/** Their name and their role. */
+/** Their name and their role, whole: each wraps rather than being cut (§ 12). */
 export const castCaption = cva(
-  "mt-3 text-2 leading-[1.35] " +
-    "[&_b]:block [&_b]:font-semibold [&_b]:overflow-hidden [&_b]:text-ellipsis [&_b]:whitespace-nowrap " +
-    "[&_span]:block [&_span]:text-muted-foreground [&_span]:overflow-hidden " +
-    "[&_span]:text-ellipsis [&_span]:whitespace-nowrap",
+  "mt-3 text-2 leading-[1.35] [overflow-wrap:anywhere] " +
+    "[&_b]:block [&_b]:font-semibold [&_span]:block [&_span]:text-muted-foreground",
 );
 
 /** The trailer's row. THE DESTINATION IS INFORMATION: this control LEAVES the application. */

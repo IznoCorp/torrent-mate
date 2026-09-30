@@ -210,13 +210,14 @@ export const deckHint = cva(
 );
 
 /**
- * A resolution candidate's card, which IS the button that picks it.
+ * A resolution candidate's body, which IS the button that picks it; its poster
+ * beside it opens the candidate's sheet.
  *
  * THE BUTTON'S OWN DEFAULTS ARE UNDONE HERE, because this prototype carries no
  * preflight: a `<button>` arrives with the browser's small control font, its
- * control text colour, a padding and centred text, while the card's box comes
- * from `card()`, worn beside this factory. Only what makes a button read as the
- * card it was is written here, and so it claims no anchor of its own.
+ * control text colour, a padding and centred text, while the body's box comes
+ * from `cardBody()`, worn beside this factory. Only what makes a button read as
+ * the text it holds is written here, and so it claims no anchor of its own.
  */
 export const candidateCard = cva("text-left p-0 [font:inherit] text-inherit");
 
@@ -226,6 +227,12 @@ export const candidateCard = cva("text-left p-0 [font:inherit] text-inherit");
  *  decorative: the card is the button. An action button fills its row by
  *  default; here it takes its label's width. */
 export const pickPlace = cva("flex-none self-center mr-5 [&>span]:w-auto");
+
+/** The candidate's pick: its words, then the « Choisir » mark at its right edge. */
+export const pickRow = cva("flex items-center gap-5");
+
+/** The pick's words, which take what the mark leaves. */
+export const pickText = cva("block min-w-0 flex-1");
 
 /**
  * Two feet on one line. A card of « À traiter » that offers two answers —

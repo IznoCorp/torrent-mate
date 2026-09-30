@@ -9,7 +9,8 @@
       "imdb": "tt0499407",
       "tvdb": 85561
     },
-    "poster": "assets/posters/89ca7fd3.webp"
+    "poster": "assets/posters/89ca7fd3.webp",
+    "category": "tv_programs"
   },
   {
     "title": "Les Animaniacs",
@@ -21,7 +22,8 @@
       "imdb": "tt0105941",
       "tvdb": 72879
     },
-    "poster": "assets/posters/71d7d9ed.webp"
+    "poster": "assets/posters/71d7d9ed.webp",
+    "category": "tv_shows_animation"
   },
   {
     "title": "La cour de récré",
@@ -33,7 +35,8 @@
       "imdb": "tt0126170",
       "tvdb": 71780
     },
-    "poster": "assets/posters/b18c0617.webp"
+    "poster": "assets/posters/b18c0617.webp",
+    "category": "tv_shows_animation"
   },
   {
     "title": "Les Zinzins de l'Espace",
@@ -45,7 +48,8 @@
       "imdb": "tt0118343",
       "tvdb": 73248
     },
-    "poster": "assets/posters/26bb5d9b.webp"
+    "poster": "assets/posters/26bb5d9b.webp",
+    "category": "tv_shows_animation"
   },
   {
     "title": "Les aventures de Tintin",
@@ -57,7 +61,8 @@
       "tmdb": "1570",
       "imdb": "tt0179552"
     },
-    "poster": "assets/posters/439bae83.webp"
+    "poster": "assets/posters/439bae83.webp",
+    "category": "tv_shows_animation"
   },
   {
     "title": "Earl",
@@ -69,7 +74,8 @@
       "imdb": "tt0460091",
       "tvdb": 75397
     },
-    "poster": "assets/posters/d680852f.webp"
+    "poster": "assets/posters/d680852f.webp",
+    "category": "tv_shows"
   },
   {
     "title": "Stargate SG-1",
@@ -81,7 +87,8 @@
       "imdb": "tt0118480",
       "tvdb": 72449
     },
-    "poster": "assets/posters/daf7fdb9.webp"
+    "poster": "assets/posters/daf7fdb9.webp",
+    "category": "tv_shows"
   },
   {
     "title": "Parks and Recreation",
@@ -93,7 +100,8 @@
       "imdb": "tt1266020",
       "tvdb": 84912
     },
-    "poster": "assets/posters/05fd8d7f.webp"
+    "poster": "assets/posters/05fd8d7f.webp",
+    "category": "tv_shows"
   },
   {
     "title": "Regular Show",
@@ -105,7 +113,8 @@
       "imdb": "tt1710308",
       "tvdb": 188401
     },
-    "poster": "assets/posters/3aa5f7c6.webp"
+    "poster": "assets/posters/3aa5f7c6.webp",
+    "category": "tv_shows_animation"
   },
   {
     "title": "Friends",
@@ -117,7 +126,8 @@
       "imdb": "tt0108778",
       "tvdb": 79168
     },
-    "poster": "assets/posters/83d037db.webp"
+    "poster": "assets/posters/83d037db.webp",
+    "category": "tv_shows"
   },
   {
     "title": "Monk",
@@ -129,7 +139,8 @@
       "imdb": "tt0312172",
       "tvdb": 78490
     },
-    "poster": "assets/posters/13e2582b.webp"
+    "poster": "assets/posters/13e2582b.webp",
+    "category": "tv_shows"
   },
   {
     "title": "Farscape",
@@ -141,6 +152,7 @@
       "imdb": "tt0187636",
       "tvdb": 70522
     },
-    "poster": "assets/posters/53728ccc.webp"
+    "poster": "assets/posters/53728ccc.webp",
+    "category": "tv_shows"
   }
 ]

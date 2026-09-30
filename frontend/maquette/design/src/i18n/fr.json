@@ -763,6 +763,8 @@
       "emptyCategoryFallback": "cette vue",
       "emptyCategoryMiddle": "Votre médiathèque en compte ",
       "emptyCategoryEnd": ", mais cette maquette n'embarque que les 260 titres les plus récents — cette catégorie n'y figure pas.",
+      "emptyIncompleteLead": "Aucun média incomplet dans {{category}}.",
+      "emptyIncompleteBody": " « Incomplets » ne liste que les séries dont des épisodes manquent.",
       "endMark": "Fin de l'échantillon — cette maquette charge {{count}} titres réels sur les 1 861 de votre médiathèque. En vrai, le défilement continuerait jusqu'au bout.",
       "loadErrorLead": "Impossible de charger la suite.",
       "loadErrorRest": " La connexion a été perdue pendant la requête. Les {{count}} médias déjà affichés restent valides.",

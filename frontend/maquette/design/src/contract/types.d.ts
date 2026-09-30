@@ -1322,6 +1322,8 @@ export interface components {
             ids: components["schemas"]["ProviderIds"] | null;
             /** @description the poster's address, or null when none is known */
             poster: string | null;
+            /** @description the engine's category id the show is stored under (a LibraryCategory's `includes` names these), so the lens can be filtered by the same pills as the listing */
+            category: string;
         };
         LibraryMembership: {
             /** @description whether the library holds the title */

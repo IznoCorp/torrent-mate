@@ -4,7 +4,9 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { type IncompleteShow } from "./types";
 import { useUiState } from "../../lib/store-access";
-import { body, posterGrid, section } from "../../ui/variants";
+import { body, emptyNote, posterGrid, section } from "../../ui/variants";
+import { useLibraryCategories } from "./queries";
+import { incompleteIn } from "./incomplete-filter";
 import { posterArtwork, useEngineDrawing } from "../../lib/engine-drawing";
 import { libraryCardMarkup } from "./card-markup";
 import { tileMarkup } from "../../ui/tile";
@@ -24,7 +26,11 @@ export function IncompleteLens({ rows }: {
   const state = useUiState();
   const { t } = useTranslation();
   const reference = useEngineDrawing();
-  const INCOMPLETE = rows;
+  const { data: CATS = [] } = useLibraryCategories();
+  const category = CATS.find((entry) => entry.id === state.libCat);
+  // THE SAME REMEMBERED PILL AS THE LISTING'S, and what it keeps is counted by
+  // the head from the same function, so the pill's figure is the rows drawn.
+  const INCOMPLETE = incompleteIn(rows, category);
   return (
     <div className={body()} data-part="surface/body" data-region="library/body">
       <div className="note" data-part="note">
@@ -35,7 +41,16 @@ export function IncompleteLens({ rows }: {
         <code>{t("screens.library.incompleteInvented")}</code>
         {t("screens.library.incompleteNoteEnd")}
       </div>
-      {state.libMode === "grid" ? (
+      {INCOMPLETE.length === 0 ? (
+        <div className={emptyNote()} data-part="empty-state">
+          <b>
+            {t("screens.library.emptyIncompleteLead", {
+              category: category?.label.toLowerCase() ?? t("screens.library.emptyCategoryFallback"),
+            })}
+          </b>
+          {t("screens.library.emptyIncompleteBody")}
+        </div>
+      ) : state.libMode === "grid" ? (
         <Markup
           className={posterGrid()} data-part="grid"
           html={INCOMPLETE.map((show: IncompleteShow) =>

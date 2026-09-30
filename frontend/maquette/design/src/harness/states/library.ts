@@ -55,6 +55,16 @@ export function libraryStates(): NamedState[] {
       () => applyState({ page: "lib", libLens: "rec", phase: "ready" }),
     ],
     [
+      "lib-recent-movies",
+      "Médiathèque · Récents — Films",
+      () => applyState({ page: "lib", libLens: "rec", libCat: "movies", phase: "ready" }),
+    ],
+    [
+      "lib-incomplete-movies",
+      "Médiathèque · Incomplets — Films (vide : que des séries)",
+      () => applyState({ page: "lib", libLens: "inc", libCat: "movies", phase: "ready" }),
+    ],
+    [
       "lib-selection",
       "Médiathèque — mode sélection",
       () => {

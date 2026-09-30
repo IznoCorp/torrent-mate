@@ -697,6 +697,7 @@ motion
 mount
 move
 movie
+movies
 moving
 mq
 ms

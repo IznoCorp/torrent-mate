@@ -4904,10 +4904,15 @@
               "null"
             ],
             "description": "the poster's address, or null when none is known"
+          },
+          "category": {
+            "type": "string",
+            "description": "the engine's category id the show is stored under (a LibraryCategory's `includes` names these), so the lens can be filtered by the same pills as the listing"
           }
         },
         "required": [
           "aired",
+          "category",
           "ids",
           "owned",
           "poster",

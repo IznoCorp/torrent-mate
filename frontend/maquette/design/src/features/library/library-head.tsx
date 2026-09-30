@@ -5,9 +5,11 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Icon } from "../../ui/icon";
 import { redraw } from "../../lib/shell-doors";
-import { useLibraryCategories } from "./queries";
+import { useLibraryCategories, useLibraryIncomplete } from "./queries";
 import { useUiState, writeUiState } from "../../lib/store-access";
-import { filterPill, filterPillCount, filterZone, pillBar, pillScroll, searchClear, searchField, searchInput, segment, segmentCount, segmentTab, viewSwitch, viewSwitchButton, viewSwitchWrap, viewTabs } from "../../ui/variants";
+import { filterPill, filterPillCount, filterZone, pillBar, pillScroll, searchClear, searchField, searchInput, viewSwitch, viewSwitchButton, viewSwitchWrap } from "../../ui/variants";
+import { Tabs } from "../../ui/tabs";
+import { incompleteIn } from "./incomplete-filter";
 
 // The three lenses, in the order the tab bar draws them.
 //
@@ -30,6 +32,9 @@ export function LibraryHead(): ReactElement {
   const { t } = useTranslation();
   const { icons } = useEngineDrawing();
   const { data: CATS = [] } = useLibraryCategories();
+  // The page's own read of « Incomplets », shared by the query cache: the same
+  // answer the lens draws, never a second one.
+  const { data: INCOMPLETE = [] } = useLibraryIncomplete();
   const lenses = [
     { id: "cat", label: t("screens.library.lensMedia") },
     { id: "rec", label: t("screens.library.lensRecent") },
@@ -37,22 +42,7 @@ export function LibraryHead(): ReactElement {
   ];
   return (
     <>
-      <div className={viewTabs()} data-region="library/tabs">
-        <div className={segment()} data-part="segment" role="tablist">
-          {lenses.map((lens) => (
-            <button
-              key={lens.id}
-              className={segmentTab()}
-            role="tab"
-              aria-selected={state.libLens === lens.id}
-              data-lens={lens.id}
-            >
-              {lens.label}
-              {lens.count ? <span className={segmentCount()} data-part="segment/count">{lens.count}</span> : null}
-            </button>
-          ))}
-        </div>
-      </div>
+      <Tabs tabs={lenses} selected={String(state.libLens)} attribute="data-lens" data-region="library/tabs" />
       <div className={filterZone()} data-region="library/filters">
         <div className={searchField()}>
           <Icon paths={icons.search} />
@@ -121,20 +111,24 @@ export function LibraryHead(): ReactElement {
         </div>
         <div className={pillBar()}>
           <div className={pillScroll()} data-part="pill/list">
-            {state.libLens === "cat"
-              ? CATS.map((category) => (
-                  <button
-                    key={category.id}
-                    className={filterPill()}
-                    data-part="pill"
-                    aria-pressed={state.libCat === category.id}
-                    data-cat={category.id}
-                  >
-                    {category.label}
-                    <span className={filterPillCount()}>{category.count}</span>
-                  </button>
-                ))
-              : null}
+            {/* EVERY LENS IS FILTERED BY THE SAME PILLS, and the category is the
+                same remembered one: « Récents » draws the listing, so its counts
+                are the listing's; « Incomplets » draws its own rows, so it counts
+                them — a « Films » there reads 0, and the lens says why. */}
+            {CATS.map((category) => (
+              <button
+                key={category.id}
+                className={filterPill()}
+                data-part="pill"
+                aria-pressed={state.libCat === category.id}
+                data-cat={category.id}
+              >
+                {category.label}
+                <span className={filterPillCount()}>
+                  {state.libLens === "inc" ? incompleteIn(INCOMPLETE, category).length : category.count}
+                </span>
+              </button>
+            ))}
           </div>
           <div className={viewSwitchWrap()}>
             <div className={viewSwitch()} data-part="view/switch">

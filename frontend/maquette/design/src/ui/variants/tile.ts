@@ -48,8 +48,8 @@ export const tilePoster = cva(
   { variants: { muted: { true: "opacity-[0.42]" } } },
 );
 
-/** The title, on one line. */
-export const tileTitle = cva("nm block text-2 mt-2 whitespace-nowrap overflow-hidden text-ellipsis", {
+/** The title, whole: it wraps under the poster rather than being cut (§ 12). */
+export const tileTitle = cva("nm block text-2 mt-2 [overflow-wrap:anywhere]", {
   variants: { muted: { true: "opacity-[0.55]" } },
 });
 
