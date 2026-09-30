@@ -10,6 +10,7 @@
 import {
   carryingState,
   layerEntry,
+  TRAIL_KEY,
   type CarriedIdentity,
   type LayerRecord,
 } from "../lib/navigation-entry";
@@ -96,6 +97,22 @@ declare global {
 // instance BELOW, once window.__startEngine is called, so the entry the
 // shell mounts on is written once, by the single writer, in the right order.
 export const history = createBrowserHistory();
+
+/* EVERY ENTRY CARRIES THE TRAIL OF THE PAGE IT STANDS ON (`lib/navigation-entry.ts`),
+   and a writer that does not name one inherits the entry it is written from:
+   a screen, a layer or a rubric opened over a page stands on that page's trail,
+   and a setting that replaces an entry keeps it. Said HERE, once, because the
+   router writes this instance too, and a screen's entry is the router's. */
+const pushEntry = history.push;
+const replaceEntry = history.replace;
+const withTrail = (state: unknown): unknown => {
+  const own = state as Record<string, unknown> | undefined;
+  if (own && TRAIL_KEY in own) return state;
+  const standing = (history.location.state as unknown as Record<string, unknown> | undefined)?.[TRAIL_KEY];
+  return Array.isArray(standing) ? { ...own, [TRAIL_KEY]: standing } : state;
+};
+history.push = (path, state, options) => pushEntry(path, withTrail(state) as typeof state, options);
+history.replace = (path, state, options) => replaceEntry(path, withTrail(state) as typeof state, options);
 
 /**
  * Installs the history primitives the legacy nav cluster calls.

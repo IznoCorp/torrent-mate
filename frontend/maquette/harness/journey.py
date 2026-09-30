@@ -85,19 +85,41 @@ driver — and the hold count is unchanged.
 
 RE-AIMED OUT LOUD: Système left the bottom bar (ruling 15); the page-switch
 walks read the bar's own pages off the bar instead of a written list.
+
+RE-AIMED OUT LOUD, § 16 AS AMENDED (#635, #643; the navigation lot): « the
+entry page plus at most one » is the shape the BAR's pages keep, and only
+theirs. The menu's pages and every link inside a page STACK, and a page
+revisited moves to the top of the trail (DECIDED 1, 2026-09-30). Two holds say
+so, and they are the lot's:
+
+- R-navigation-b (B-577): cold `/system`, a finger on the Réglages row, ONE
+  Retour lands on Système — red on `c6291e416`, where the row REPLACED.
+- R-navigation-a: every edge of `docs/features/maquette-navigation/DESIGN.md`
+  § 1, walked by finger from a cold address (the table is `navigation_edges.py`,
+  one copy), and where each Retour lands; an edge a later phase repairs is
+  asserted as it lands TODAY, and marked owed. Its completeness holds read the
+  source: an emitter of a page switch no edge names fails it, and so does a
+  `page` written into the store outside the three verbs. The named states that
+  lay a trail replay it on Retour.
 """
 import asyncio
 import json
+import re
 
 from common import (
+    ACTED,
     HOME,
     HOME_PAGE,
     LIBRARY,
     PAGE_PATHS,
+    PANEL_IN,
     PHONE,
     PROTOTYPE,
+    ROOT,
+    SETTLED,
     chrome_launch_args,
 )
+from navigation_edges import DESIGN_EDGES, EDGES, NAMED_TRAILS, PAGE_WRITES_OWED
 from playwright.async_api import async_playwright
 
 # THE BAR'S OWN PAGES, the entry page left out: which pages are tabs is the
@@ -191,6 +213,246 @@ def path(url):
 def query(url):
     """The query part of an address, or '' when it carries none."""
     return url.split("?", 1)[1] if "?" in url else ""
+
+
+# ── R-navigation-a and R-navigation-b — every edge, and where its Retour lands ──
+
+# DESIGN § 0.2's command, read from the source: every line that names a page a
+# tap leads to, or writes one into the store. A comment line is no emitter.
+EMITTER_LINE = re.compile(
+    r'(data-(page|go|navgo)=|"data-(page|go|navgo)"|target: \{ go: |store\.write\(\{ page|writeUiState\(\{ page)')
+EMITTER_VALUE = (
+    re.compile(r'data-(page|go|navgo)=\{?"?([\w.]+)'),
+    re.compile(r'"data-(page|go|navgo)":\s*"?([\w.]+)'),
+    re.compile(r'target: \{ (go): "(\w+)"'),
+    re.compile(r'(?:store\.write|writeUiState)\(\{ page(?::\s*"(\w+)")?'),
+)
+# The three verbs that switch a page; their own writes are the switch itself.
+VERBS_FILE = "app/frame-verbs.ts"
+
+
+def emitters():
+    """Every emitter under `design/src`, as `<path>:<kind>=<value>`, sorted.
+
+    Returns:
+        The names; a page write is `write=<page>`, the verbs' own `write=`.
+    """
+    found = []
+    source = ROOT / "design" / "src"
+    for path in sorted(source.rglob("*.ts*")):
+        relative = path.relative_to(source).as_posix()
+        if ".test." in relative or relative.startswith("harness/"):
+            continue
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not EMITTER_LINE.search(line) or re.match(r"\s*//", line):
+                continue
+            for pattern in EMITTER_VALUE:
+                match = pattern.search(line)
+                if match is None:
+                    continue
+                if pattern is EMITTER_VALUE[-1]:
+                    found.append(f"{relative}:write={match.group(1) or ''}")
+                else:
+                    found.append(f"{relative}:{match.group(1)}={match.group(2)}")
+                break
+    return sorted(found)
+
+
+STOP = """() => ({address: location.pathname, query: location.search, page: state.page,
+  armed: Boolean(window.armedExit), sheet: Boolean(window.__panel?.isOpen?.())})"""
+
+
+def stop_matches(wanted, seen):
+    """Whether a landing read off the page is the stop a row expects.
+
+    Args:
+        wanted: `(address, page, armed[, sheet])` — see `navigation_edges`.
+        seen: What `STOP` read, or None when the document was left.
+
+    Returns:
+        The verdict.
+    """
+    if seen is None:
+        return False
+    address, page, armed, *sheet = wanted
+    if address.endswith("*"):
+        where = seen["address"].startswith(address[:-1])
+    elif address.endswith("?"):
+        where = seen["address"] == address[:-1] and seen["query"] == ""
+    else:
+        where = seen["address"] == address
+    return (where and seen["page"] == page and seen["armed"] == armed
+            and (not sheet or seen["sheet"] == sheet[0]))
+
+
+def said(seen):
+    """A landing, in one short line."""
+    if seen is None:
+        return "the document was left"
+    return (f"{seen['address']}{seen['query']} page={seen['page']}"
+            f"{' ARMED' if seen['armed'] else ''}{' +panel' if seen['sheet'] else ''}")
+
+
+async def step(pg, instruction):
+    """Makes one finger step of a walk — the vocabulary is `navigation_edges`'."""
+    kind, _, argument = instruction.partition(":")
+    if kind == "bar":
+        await pg.tap(f'#nav button[data-page="{argument}"]')
+        await pg.wait_for_timeout(ACTED)
+    elif kind == "menu":
+        await pg.tap("[data-drawer]")
+        await pg.wait_for_timeout(PANEL_IN)
+        await pg.tap(f'#drawer [data-navgo="{argument}"]')
+        await pg.wait_for_timeout(ACTED)
+    elif kind == "tap":
+        await pg.locator(argument).first.tap(timeout=6000)
+        await pg.wait_for_timeout(ACTED)
+    elif kind == "tapif":
+        if await pg.locator(argument).count():
+            await pg.locator(argument).first.tap(timeout=6000)
+            await pg.wait_for_timeout(ACTED)
+    elif kind == "press":
+        box = await pg.locator(argument).first.bounding_box()
+        await pg.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+        await pg.mouse.down()
+        await pg.wait_for_timeout(
+            await pg.evaluate("()=>window.__gestures.press.milliseconds") + 200)
+        await pg.mouse.up()
+        await pg.wait_for_timeout(PANEL_IN)
+    elif kind == "fill":
+        selector, _, text = argument.partition("|")
+        await pg.fill(selector, text)
+        await pg.wait_for_timeout(ACTED)
+    elif kind == "js":
+        await pg.evaluate(f"()=>{argument}")
+        await pg.wait_for_timeout(SETTLED)
+    else:
+        raise ValueError(f"no such step: {instruction}")
+
+
+async def walk_edge(b, row, stops):
+    """Walks one row from its cold address, then Retour as many times as it has stops.
+
+    Args:
+        b: The browser.
+        row: The row, from `navigation_edges.EDGES`.
+        stops: How many Retours to read.
+
+    Returns:
+        `(landing, seen, trouble)`: the landing of the last step, the landing
+        after each Retour, and what went wrong on the way (a JS error, a failed
+        navigation write, a step that could not be made), or "".
+    """
+    ctx, pg, errors = await open_page(b, PROTOTYPE + row.get("start", HOME.lstrip("/")))
+    trouble = ""
+    landing, seen = None, []
+    try:
+        for instruction in row["walk"]:
+            await step(pg, instruction)
+        landing = await pg.evaluate(STOP)
+        for _ in range(stops):
+            await pg.go_back()
+            await pg.wait_for_timeout(ACTED)
+            seen.append(await pg.evaluate(STOP) if pg.url.startswith(PROTOTYPE) else None)
+            if seen[-1] is None:
+                break
+        if pg.url.startswith(PROTOTYPE) and await pg.evaluate("()=>window.__navEchec"):
+            trouble = "a navigation write failed"
+    except Exception as error:  # a step the finger could not make is the verdict
+        trouble = f"{type(error).__name__}: {str(error).splitlines()[0]}"
+    if errors:
+        trouble = f"{trouble} JS errors {errors}".strip()
+    await ctx.close()
+    return landing, seen, trouble
+
+
+async def hold_b577(b, journal):
+    """R-navigation-b — Système → Réglages → Retour lands on Système (B-577)."""
+    ctx, pg, errors = await open_page(b, PROTOTYPE + PAGE_PATHS["sys"].lstrip("/"))
+    await pg.locator('[data-part="topic"][data-page="cfg"]').first.tap()
+    await pg.wait_for_timeout(ACTED)
+    drawn = await pg.evaluate(STOP)
+    await pg.go_back()
+    await pg.wait_for_timeout(ACTED)
+    back = await pg.evaluate(STOP) if pg.url.startswith(PROTOTYPE) else None
+    journal.check(
+        "R-navigation-b (B-577): a finger on Système's Réglages row, then ONE Retour, "
+        "lands on Système drawn — never Acquisition, the guard untouched",
+        drawn["page"] == "cfg" and stop_matches((PAGE_PATHS["sys"], "sys", False), back),
+        f"Réglages drawn: {drawn['page'] == 'cfg'} · Retour → {said(back)}")
+    journal.check("R-navigation-b: no JS error", not errors, str(errors))
+    await ctx.close()
+
+
+async def hold_the_named_trails(b, journal):
+    """R-navigation-a — a named state that lays a trail replays it on Retour."""
+    for state_id, expected in NAMED_TRAILS:
+        ctx, pg, errors = await open_page(b)
+        await pg.evaluate("(id)=>window.__go(id)", state_id)
+        await pg.wait_for_timeout(ACTED)
+        seen = []
+        for _ in expected:
+            await pg.go_back()
+            await pg.wait_for_timeout(ACTED)
+            seen.append(await pg.evaluate(STOP) if pg.url.startswith(PROTOTYPE) else None)
+            if seen[-1] is None:
+                break
+        journal.check(
+            f"R-navigation-a: « {state_id} » replays its trail on Retour",
+            not errors and len(seen) == len(expected)
+            and all(got is None if want is None else stop_matches(want, got)
+                    for want, got in zip(expected, seen)),
+            " → ".join(said(one) for one in seen) + (f" · {errors}" if errors else ""))
+        await ctx.close()
+
+
+async def hold_the_edges(b, journal):
+    """R-navigation-a — every edge of DESIGN § 1 walked, and where each Retour lands."""
+    named = {row["edge"] for row in EDGES}
+    journal.check(
+        "R-navigation-a: every edge DESIGN § 1 classifies has a walk",
+        set(DESIGN_EDGES) <= named, f"missing {sorted(set(DESIGN_EDGES) - named)}")
+    found = [name for name in emitters() if not name.startswith(f"{VERBS_FILE}:")]
+    claimed = {name for row in EDGES for name in row["emits"]}
+    journal.check(
+        "R-navigation-a: every emitter of a page switch is an edge the table names",
+        set(found) <= claimed, f"unclassified {sorted(set(found) - claimed)}")
+    journal.check(
+        "R-navigation-a: every emitter the table names is still in the source",
+        claimed <= set(found), f"gone {sorted(claimed - set(found))}")
+    writes = [name for name in found if ":write=" in name]
+    owed_phase, owed_writes = PAGE_WRITES_OWED
+    journal.check(
+        f"R-navigation-a: nothing but the three verbs writes `page` — {owed_writes} "
+        f"write(s) outside them owed to phase {owed_phase}" if owed_writes else
+        "R-navigation-a: nothing but the three verbs writes `page` into the store",
+        len(writes) == owed_writes, f"{writes}")
+    for row in EDGES:
+        owed = row.get("owed")
+        if owed and owed[1] is None:
+            landing, seen, trouble = await walk_edge(b, row, 0)
+            journal.check(
+                f"R-navigation-a {row['edge']} (owed to phase {owed[0]}: TODAY) "
+                f"the finger cannot make the walk {' → '.join(row['walk'])}",
+                bool(trouble), trouble or f"it made it: landing {said(landing)}")
+            continue
+        expected = owed[1] if owed else row["stops"]
+        landing, seen, trouble = await walk_edge(b, row, len(expected))
+        landed = "landing" not in row or stop_matches(row["landing"], landing)
+        walked = " → ".join(row["walk"]) or "cold"
+        start = row.get("start", HOME.lstrip("/"))
+        name = (f"R-navigation-a {row['edge']} (owed to phase {owed[0]}: TODAY) " if owed
+                else f"R-navigation-a {row['edge']}: ")
+        journal.check(
+            f"{name}/{start} · {walked} — Retour lands on "
+            + " → ".join(said(dict(zip(("address", "query", "page", "armed", "sheet"),
+                                       (stop[0], "", stop[1], stop[2],
+                                        stop[3] if len(stop) > 3 else False))))
+                         for stop in expected),
+            not trouble and landed and len(seen) == len(expected)
+            and all(stop_matches(want, got) for want, got in zip(expected, seen)),
+            f"landing {said(landing)} · Retour → {' → '.join(said(one) for one in seen)}"
+            + (f" · {trouble}" if trouble else ""))
 
 
 async def main():
@@ -815,6 +1077,10 @@ async def main():
         journal.check("no JS error on the evicted addressed reopen", not errors,
                       str(errors))
         await reopen_context.close()
+
+        await hold_b577(b, journal)
+        await hold_the_edges(b, journal)
+        await hold_the_named_trails(b, journal)
 
         await b.close()
 

@@ -8,7 +8,7 @@
 // move.
 import type { Store } from "./store";
 import { addressSeam } from "../lib/addresses";
-import { navigationState } from "../lib/navigation-entry";
+import { entryIndex, navigationState, TRAIL_KEY, type TrailStop } from "../lib/navigation-entry";
 import { bridge, redraw, resetLandingDial } from "../lib/shell-doors";
 import { reopenAddressedPanel } from "./addressed-panels";
 import { entry, loadingDone } from "./entry";
@@ -198,7 +198,7 @@ export function installArrival(store: Store): void {
      can be inserted below the entry a document opens on, so the guard has to BE
      that entry. */
   try {
-    bridge.replace({ tm: "garde" }); // french-ok: the exit guard's entry marker, matched by the ladder and the harness
+    bridge.replace({ tm: "garde", [TRAIL_KEY]: [] }); // french-ok: the exit guard's entry marker, matched by the ladder and the harness
   } catch (error) {
     console.error("boot: writing the exit guard failed", error);
     window.__navEchec = true;
@@ -223,10 +223,16 @@ export function installArrival(store: Store): void {
   /* AND AN ARRIVAL WITH NO FLOOR UNDER IT IS RECORDED AS SUCH, because a Back can
      then go under the one a later switch lays. */
   if (arrival.notFound) walk.arrivalWithoutFloor = true;
+  /* EACH ENTRY CARRIES ITS TRAIL — the pages beneath it with their indexes —
+     so the first switch made from the arrival knows where its floor lies. A
+     screen stands on its page's trail; an address nobody serves has none. */
+  const trail: TrailStop[] = [];
+  const nextIndex = () => entryIndex(history.state) + 1;
   for (const under of beneath) {
+    trail.push({ page: under, at: nextIndex() });
     try {
       bridge.record(
-        Object.assign(navigationState(), { page: under }),
+        Object.assign(navigationState(), { page: under, [TRAIL_KEY]: [...trail] }),
         addressSeam.compose(Object.assign({}, store.read().state, { page: under })),
       );
       /* AND THE FLOOR FLAG FOLLOWS THE WRITE, not the plan: a push that was
@@ -240,8 +246,12 @@ export function installArrival(store: Store): void {
   /* Pushed with the address one ARRIVED at rather than with the one the state
      now implies: rendering an unknown id moves the state onto the not-found
      surface, and deriving the address from it would rewrite a mistyped link. */
+  if (!arrival.notFound && !arrival.screen) trail.push({ page: arrival.page, at: nextIndex() });
   try {
-    bridge.record(navigationState(), arrivalAddress);
+    bridge.record(
+      arrival.notFound ? navigationState() : { ...navigationState(), [TRAIL_KEY]: [...trail] },
+      arrivalAddress,
+    );
     /* ARRIVING ON THE HOME PAGE, the entry just written IS the floor. */
     if (arrival.page === homePage) walk.homeFloorExists = true;
   } catch (error) {

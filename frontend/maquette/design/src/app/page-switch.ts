@@ -30,10 +30,11 @@
 // when a Back lands, and the boot on arrival. An importer can write a property;
 // it can never write a binding.
 import { addressSeam } from "../lib/addresses";
-import { navigationState } from "../lib/navigation-entry";
+import { navigationState, trailOf, TRAIL_KEY, type TrailStop } from "../lib/navigation-entry";
 import { bridge, fillReplaceAddressDoor } from "../lib/shell-doors";
 import { stackedSurfaces } from "../lib/stacked-surface";
 import { store } from "../lib/store-access";
+import { standingIndex, standingTrail, writeTrail } from "./trail";
 
 /** How long an armed exit waits for the second Back, in milliseconds. */
 export const BACK_WINDOW = 5000;
@@ -122,6 +123,10 @@ window.__navEchec = false;
  * to avoid. A write that fails must not fail silently (B-026): the URL and the
  * interface would then disagree with nothing on record.
  *
+ * Args:
+ *     trail: The trail the entry stands on, when the caller knows it; left
+ *         out, the entry inherits the one it is written from.
+ *
  * Returns:
  *     Whether the entry was really written. The floor flag follows the WRITES,
  *     so a caller that lays a home entry down has to be able to tell a write
@@ -129,10 +134,11 @@ window.__navEchec = false;
  *     nobody wrote is the stale true that spends the guard. Driving the
  *     interface writes nothing, and answers so.
  */
-export function recordPath(): boolean {
+export function recordPath(trail?: TrailStop[]): boolean {
   if (walk.driven) return false;
   try {
-    bridge.record(navigationState(), addressSeam.compose(currentState()));
+    const state = trail ? { ...navigationState(), [TRAIL_KEY]: trail } : navigationState();
+    bridge.record(state, addressSeam.compose(currentState()));
     return true;
   } catch (error) {
     // ENGLISH, and not in `fr.json`: a console message is a tool message.
@@ -153,15 +159,20 @@ export function recordPath(): boolean {
  * WRITTEN: a setting belongs in the URL, it simply does not belong in the path
  * one walked.
  *
+ * Args:
+ *     trail: The trail the entry stands on, when the caller knows it; left
+ *         out, the entry keeps its own.
+ *
  * Returns:
  *     Whether the entry was really rewritten, for the same reason `recordPath`
  *     answers: a replace can hand the reader a home entry too, and the floor
  *     flag may only follow a write that happened.
  */
-export function replacePath(): boolean {
+export function replacePath(trail?: TrailStop[]): boolean {
   if (walk.driven) return false;
   try {
-    bridge.replace(navigationState(), addressSeam.compose(currentState()));
+    const state = trail ? { ...navigationState(), [TRAIL_KEY]: trail } : navigationState();
+    bridge.replace(state, addressSeam.compose(currentState()));
     return true;
   } catch (error) {
     console.error("replacePath: writing the navigation failed", error);
@@ -170,85 +181,145 @@ export function replacePath(): boolean {
   }
 }
 
+/** How a page switch lands — decided by the verb, which knows where the tap came from. */
+export type Landing =
+  /* A BAR PAGE (or the entry page) chosen from the bar or the menu: the trail
+     is unwound onto the floor, from any depth (§ 16 rule 2, Q11). */
+  | "unwind"
+  /* A LINK INSIDE A PAGE, a screen or a panel: it stacks on whatever it was
+     tapped on (Q12), which is what a Retour then gives back. */
+  | "stack"
+  /* A MENU PAGE chosen from the menu or the account sheet: it stacks on the
+     PAGE left, the layer and any rubric above it given back first (DECIDED 3). */
+  | "stackOnPage";
+
+/**
+ * Writes the entries of a trail from one history index up (`writeTrail`).
+ *
+ * Reaching `from` from higher up is a traversal, and a write issued in the same
+ * task would be overtaken by it: the writes are then left to the ladder's latch
+ * (`walk.afterUnwind`), which fires them once the traversal has landed.
+ *
+ * Args:
+ *     kept: The stops left as they are, floor first.
+ *     pages: The pages to write above them, the arriving one last.
+ *     from: The history index the first of `pages` is written at.
+ */
+function layTrail(kept: TrailStop[], pages: string[], from: number): void {
+  const write = (): boolean => {
+    const written = writeTrail(kept, pages, from);
+    if (written) walk.homeFloorExists = true;
+    return written;
+  };
+  const standing = standingIndex();
+  if (standing <= from) {
+    write();
+    return;
+  }
+  try {
+    bridge.rewind(standing - from);
+    walk.afterUnwind = write;
+  } catch (error) {
+    // ENGLISH, and not in `fr.json`: a console message is a tool message.
+    console.error("layTrail: stepping back down the trail failed", error);
+    window.__navEchec = true;
+  }
+}
+
 /**
  * Settles history for a top-level page switch the interface has ALREADY applied.
  *
- * § 16 rule 2: the main pages are destinations, not steps of a journey, so
- * visiting them stacks nothing. Under any of them the stack is the entry page
- * plus at most one, which is what makes Retour from anywhere land on the entry
- * page and Retour from the entry page arm the exit guard.
+ * § 16 AS AMENDED (#635, #643) and the rulings of 2026-09-29/30. Three facts
+ * decide, and the entry's trail says where everything lies:
+ * · a bar page (or the entry page) chosen from the bar or the menu UNWINDS the
+ *   trail onto the floor — Retour from it lands on the entry page, and the
+ *   entry page's own Retour arms the exit guard;
+ * · a link inside a page, and a menu page from the menu, STACK — Retour gives
+ *   back the page (or the screen, or the panel) it was tapped on;
+ * · a page ALREADY on the trail is moved to its top, never stacked twice
+ *   (DECIDED 1): Retour walks the path back with each page once, in the order
+ *   it was last left, and with nothing left under a page lands on the floor.
+ * The page one is already on is not an arrival: the entry is replaced.
  *
- * Three verbs, and which applies is decided by the page one came FROM:
- * · from the entry page, the destination is PUSHED — the floor has to stay
- *   beneath it, and replacing would send the first Retour into the guard;
- * · to the entry page, the floor is already one entry down, so it is stepped
- *   BACK onto: pushing or replacing would leave two of it, and a Retour that
- *   changes nothing;
- * · between two other pages, the top of the stack is REPLACED.
- * Tapping the page one is already on replaces too — it is not an arrival.
- *
- * A LAYER'S ENTRY ON TOP is a shape this does not settle: `switchPageFromLayer`
- * does, and the two `data-*` sites that can be tapped over a layer route there.
+ * An arrival with NO FLOOR under it — an address nobody serves — is kept as
+ * typed, and the switches made from it lay the floor (`switchWithoutFloor`).
  *
  * Args:
  *     leaving: The page id the interface was on before the caller rendered the
  *         destination — read at the call site because the store already holds
  *         the destination by the time history is settled.
+ *     landing: How the tap lands, decided by the verb from where it was made.
  */
-export function switchPage(leaving: string): void {
+export function switchPage(leaving: string, landing: Landing = "stack"): void {
   if (walk.driven) return;
-  const arriving = currentState().page;
-  /* A LAYER'S ENTRY ON TOP, reached from a site that does not route to
-     `switchPageFromLayer` — which today means the tab bar, and only through
-     `node.click()`: hit-tested at the design's own viewport, every layer kind
-     covers the centre of every tab button, so no finger arrives here with a
-     layer up. The arm stays: it keeps the stack honest for the next surface
-     that offers a page switch over a layer. */
-  const onLayer = Boolean(history.state && history.state.layer);
+  const arriving = String(currentState().page);
+  const homePage = addressSeam.homePage;
   if (arriving === leaving) {
     replacePath();
     return;
   }
-  if (leaving === addressSeam.homePage) {
-    /* PUSHED FROM HOME, so the entry this one is laid on IS the floor, whatever
-       the boot did or did not lay. */
-    if (recordPath()) walk.homeFloorExists = true;
+  if (!walk.homeFloorExists) {
+    switchWithoutFloor(leaving, arriving);
     return;
   }
-  if (arriving === addressSeam.homePage && !onLayer) {
-    /* NO FLOOR, NO STEP BACK. The entry one down is then the exit guard, and
-       stepping onto it arms the exit from an arrival nobody made as a back. The
-       switch RECORDS instead — the address as typed stays one back away — AND
-       THE ENTRY IT WRITES IS A HOME ENTRY, so the next switch away from home
-       stacks on a floor. Left false here, every later switch took this branch
-       again and the depth grew with every tab tapped. */
-    if (!walk.homeFloorExists) {
-      if (recordPath()) walk.homeFloorExists = true;
-      return;
-    }
-    /* THE STEP BACK IS ANNOUNCED, and the floor then takes the destination as
-       the state holds it — the gesture `switchPageFromLayer` makes arriving
-       home. An unannounced back was read as the operator's own, and the floor
-       re-read its own address over the tab the landing had just opened.
-       THE COUNT IS ONE ENTRY PLUS WHAT STACKS: no layer is up, and between two
-       other pages the top is replaced, so the page's entry sits on the floor.
-       A surface that gives its entry back in capture (a rubric) counts 0 here —
-       it is closed by the time its tap is replayed; a surface that only counts
-       its entry (a screen whose control dies with it) counts 1. */
-    try {
-      bridge.rewind(1 + stackedSurfaces());
-      walk.afterUnwind = replacePath;
-    } catch (error) {
-      console.error("switchPage: stepping back onto the entry page failed", error);
-      window.__navEchec = true;
-    }
+  const trail = standingTrail(leaving);
+  const floor = trail[0];
+  if (landing === "unwind") {
+    if (arriving === homePage) layTrail([], [homePage], floor.at);
+    else layTrail([floor], [arriving], floor.at + 1);
     return;
   }
-  /* Arriving home over a LAYER is the one way this last write hands the reader
-     a home entry — the layer's own entry takes the destination. Between two
-     other pages it swaps one page for another. */
-  if (replacePath() && arriving === addressSeam.homePage)
-    walk.homeFloorExists = true;
+  const revisited = trail.findIndex((stop, index) => index > 0 && stop.page === arriving);
+  if (revisited > 0) {
+    const kept = trail.slice(0, revisited);
+    let pages = [...trail.slice(revisited + 1).map((stop) => stop.page), arriving];
+    /* THE ENTRY PAGE MOVED DOWN ONTO THE FLOOR IS THE FLOOR: two of it in a
+       row would be a Retour that changes nothing. */
+    if (kept.length === 1 && pages[0] === homePage) pages = pages.slice(1);
+    if (pages.length === 0) layTrail([], [homePage], floor.at);
+    else layTrail(kept, pages, trail[revisited].at);
+    return;
+  }
+  const top = trail[trail.length - 1];
+  layTrail(trail, [arriving], landing === "stackOnPage" ? top.at + 1 : standingIndex() + 1);
+}
+
+/**
+ * Lays a trail of pages under the one drawn, from the floor up — for a named
+ * state that shows WHERE Retour goes, so the path replays on a finger.
+ *
+ * A named state is driven and writes no history; this is the one write it
+ * makes, AFTER the drive (`harness/drive.ts`, `poseTrail`).
+ *
+ * Args:
+ *     pages: The pages from the entry page up, the page drawn last.
+ */
+export function layNamedTrail(pages: string[]): void {
+  const floor = trailOf(history.state, addressSeam.homePage, String(currentState().page))[0];
+  layTrail([], pages, Math.max(floor.at, 1));
+}
+
+/**
+ * The page switch of a session that arrived at an address nobody serves.
+ *
+ * NO FLOOR, NO STEP BACK: the entry under the arrival is the exit guard, and
+ * stepping onto it arms the exit from an arrival nobody made as a back. So a
+ * switch from or to the entry page RECORDS — the address as typed stays one
+ * back away — and THE ENTRY IT WRITES IS THE FLOOR, so the next switch stands
+ * on it. Between two other pages the entry is replaced.
+ *
+ * Args:
+ *     leaving: The page left.
+ *     arriving: The page arrived at.
+ */
+function switchWithoutFloor(leaving: string, arriving: string): void {
+  const homePage = addressSeam.homePage;
+  if (leaving === homePage || arriving === homePage) {
+    const floor = arriving === homePage ? [{ page: homePage, at: standingIndex() + 1 }] : undefined;
+    if (recordPath(floor)) walk.homeFloorExists = true;
+    return;
+  }
+  replacePath();
 }
 
 /**
@@ -274,19 +345,30 @@ export function switchPage(leaving: string): void {
  * Args:
  *     leaving: The page id the interface was on before the caller rendered the
  *         destination.
+ *     landing: How the tap lands, decided by the verb.
  */
-export function switchPageFromLayer(leaving: string): void {
+export function switchPageFromLayer(leaving: string, landing: Landing = "stackOnPage"): void {
   if (walk.driven) return;
   const homePage = addressSeam.homePage;
+  /* A BAR PAGE CHOSEN FROM THE MENU unwinds the trail like the bar does, from
+     any depth: the trail says how far the floor is. */
+  if (landing === "unwind" && walk.homeFloorExists && currentState().page !== leaving) {
+    switchPage(leaving, landing);
+    return;
+  }
   /* No floor to walk down to: the entry under the layer is an arrival nobody
      serves, and the one below THAT is the exit guard. The layer's entry takes
      the destination — AND THAT WRITE CAN LAY THE FLOOR ITSELF: a switch made
      FROM home leaves a home entry beneath the destination, and a switch
      arriving home puts the reader on one. */
   if (!walk.homeFloorExists) {
-    const written = replacePath();
-    if (written && (leaving === homePage || currentState().page === homePage))
-      walk.homeFloorExists = true;
+    /* AND THE TRAIL IT LAYS IS SAID, since the entry replaced is a layer's:
+       the floor is this entry arriving home, the one under it leaving home. */
+    const at = standingIndex();
+    const arriving = String(currentState().page);
+    const trail = arriving === homePage ? [{ page: homePage, at }]
+      : leaving === homePage ? [{ page: homePage, at: at - 1 }, { page: arriving, at }] : undefined;
+    if (replacePath(trail) && trail) walk.homeFloorExists = true;
     return;
   }
   /* WHAT THE LAYER STANDS ON, counted rather than ASSUMED. The layer's own
@@ -299,7 +381,11 @@ export function switchPageFromLayer(leaving: string): void {
      ends, so this is in time, and a rewind that threw arms nothing. Arriving
      home the floor IS the destination, so its address is settled in place;
      anywhere else the destination is an arrival and stacks on the floor. */
-  walk.afterUnwind = currentState().page === homePage ? replacePath : recordPath;
+  const floor = standingTrail(leaving)[0];
+  const arriving = String(currentState().page);
+  walk.afterUnwind = arriving === homePage
+    ? () => replacePath([floor])
+    : () => recordPath([floor, { page: arriving, at: floor.at + 1 }]);
 }
 
 // THE FEATURES REACH THE REPLACE THROUGH A DOOR, not by importing this module: a
