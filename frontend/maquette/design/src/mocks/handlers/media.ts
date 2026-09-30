@@ -86,6 +86,51 @@ function portraitsFor(cast: unknown): Record<string, string> {
 }
 
 /**
+ * The sheet of a medium the library does not hold, composed from a resolution
+ * candidate carrying that identity (B-578).
+ *
+ * A candidate's poster opens its sheet, as every poster of the app does, and
+ * the provider answers a sheet for ANY identifier — the demand register asks
+ * the backend for exactly that. What the candidate carries is what the sheet
+ * says: its title, year, synopsis and poster; everything else is unknown, and
+ * said as unknown rather than invented. It is not owned.
+ *
+ * @param provider The provider, `tmdb`, `tvdb` or `imdb`.
+ * @param identifier The identifier at that provider.
+ * @returns The composed sheet, or null when no candidate carries the identity.
+ */
+export function candidateSheet(provider: string, identifier: string): unknown {
+  for (const decision of mockState().pendingDecisions) {
+    const candidate = decision.candidates.find(
+      (one) => one.provider === provider && String(one.id) === identifier);
+    if (candidate === undefined) continue;
+    return {
+      title: candidate.title,
+      kind: decision.kind,
+      year: candidate.year == null ? "" : String(candidate.year),
+      rating: null,
+      genres: null,
+      runtime: null,
+      overview: candidate.overview ?? null,
+      director: null,
+      creator: null,
+      cast: [],
+      trailer: null,
+      ids: { [provider]: candidate.id },
+      status: "",
+      owned: false,
+      poster: candidate.poster ?? null,
+      posterHighDefinition: null,
+      hero: null,
+      trailerVideo: null,
+      castPortraits: {},
+      metadataRefreshedAt: null,
+    };
+  }
+  return null;
+}
+
+/**
  * Answers one media sheet, composed from the families that hold it.
  *
  * @param request The request.
@@ -96,7 +141,7 @@ function sheet(request: MockRequest): unknown {
   const found = underAnyTitle(MEDIA_SHEETS as ByTitle, titles) as
     | Record<string, unknown>
     | undefined;
-  if (found === undefined) return null;
+  if (found === undefined) return candidateSheet(request.parameters.provider, request.parameters.providerId);
   // The posters and the wide visual live in families of their own, keyed by the
   // same titles. Composing them here is what the demand register asks the
   // backend to do once, in one payload.

@@ -151,7 +151,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** One media sheet, by its provider identity */
+        /**
+         * One media sheet, by its provider identity
+         * @description For ANY provider identity, not only a medium the library holds: a resolution candidate's poster opens its sheet (B-578), so the backend answers a sheet from the provider for an identifier it has never stored, owned false.
+         */
         get: operations["readMediaSheet"];
         put?: never;
         post?: never;

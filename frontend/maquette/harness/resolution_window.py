@@ -104,7 +104,8 @@ REOPENED = """() => {
     reasons: [...screen.querySelectorAll(
       '[data-region="screen-resolution/body"] > [data-part="card/meta"] > [data-part="chip"]')]
       .map((chip) => chip.textContent.trim()),
-    candidates: screen.querySelectorAll('[data-part="card"][data-resolve]').length,
+    // The pick is the candidate's body since B-578, not the card itself.
+    candidates: screen.querySelectorAll('[data-part="card"] [data-resolve]').length,
   };
 }"""
 

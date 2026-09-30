@@ -52,6 +52,8 @@ export function ReleaseCard({
     poster?: string | null;
     noPoster?: boolean;
     overview?: string;
+    /** The provider identity the poster opens the sheet at, when the cache holds none under the title. */
+    identity?: { provider: string; id: number | string };
   };
 }) {
   const reference = useEngineDrawing();
@@ -80,6 +82,8 @@ export function ReleaseCard({
           as="button"
           type="button"
           data-mediasheet={title || undefined}
+          data-provider={opts.identity?.provider}
+          data-provider-id={opts.identity === undefined ? undefined : String(opts.identity.id)}
           aria-label={t("surfaces.card.sheetOf", { title })}
           title={
             opts.noPoster ? t("screens.resolution.noPosterTitle") : undefined
@@ -237,6 +241,7 @@ export function Candidates({ decision }: { decision: PendingDecision }) {
             poster: candidate.poster,
             noPoster: candidate.withoutPoster,
             overview: candidate.overview,
+            identity: { provider: candidate.provider, id: candidate.id },
           }}
         />
       ))}

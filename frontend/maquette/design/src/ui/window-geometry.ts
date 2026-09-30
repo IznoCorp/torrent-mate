@@ -85,8 +85,11 @@ export function useWindowGeometry(
       // library states, from a change made to exclude that 3% scale.
       const rows = [...node.querySelectorAll(
         ":scope > *:not([data-part='window/spacer']):not([data-pressing])")];
-      const heights = rows.map((row) => row.getBoundingClientRect().height).filter((one) => one > 0);
-      const height = heights.length ? Math.min(...heights) : 0;
+      let height = 0;
+      for (const row of rows) {
+        const drawn = row.getBoundingClientRect().height;
+        if (drawn > 0 && (height === 0 || drawn < height)) height = drawn;
+      }
       const rowGap = parseFloat(style.rowGap || style.gap) || 0;
       if (!height) return;
       setMeasured((held) =>

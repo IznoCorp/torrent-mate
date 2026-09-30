@@ -197,13 +197,20 @@ function carriedFor(title: string): CarriedIdentity | null {
  * delete, an unavailable library database — is applied: a rule reads the facts a
  * sheet is composed from, and the screen for what it drew.
  *
+ * A POSTER THAT CARRIES ITS IDENTITY is addressed by it: a resolution
+ * candidate is in no seed, and the layer composes its sheet from the candidate
+ * (B-578).
+ *
  * Args:
  *     title: The title, as the seed or a drawn list spells it.
+ *     provider: The provider a poster names, when it carries its identity.
+ *     identifier: The identifier at that provider.
  *
  * Returns:
  *     The seed sheet, or null when the title names no identified medium.
  */
-function sheetOf(title: string): Record<string, unknown> | null {
+function sheetOf(title: string, provider?: string, identifier?: string): Record<string, unknown> | null {
+  if (provider && identifier) return window.__mocks?.candidateSheet(provider, identifier) ?? null;
   const address = providerAddress(carriedFor(title)?.ids);
   if (address === null) return null;
   const sheets = Object.values(window.__mocks?.sheets() ?? {});
@@ -265,7 +272,7 @@ declare global {
     /** The address the medium a title names is reached at, or null. */
     __addressOf: (title: string) => { provider: string; id: string } | null;
     /** The seed sheet the layer answers for the medium a title names, or null. */
-    __sheetOf: (title: string) => Record<string, unknown> | null;
+    __sheetOf: (title: string, provider?: string, identifier?: string) => Record<string, unknown> | null;
     /** A named state's first step, for a rule that builds one by hand. */
     applyState: (patch: Partial<UiState>) => void;
     /** Puts the pull indicator back at rest, published by the engine. */

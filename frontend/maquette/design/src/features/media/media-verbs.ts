@@ -126,8 +126,17 @@ async function rescrapeMedia(client: QueryClient, title: string): Promise<void> 
 export function installMediaVerbs(client: QueryClient): void {
   // « Voir la fiche », from any list: the crossing resolves the identity the
   // list holds and closes an open panel inside its own commit.
-  registerVerb("mediasheet", (title) => {
-    if (title) screens.mediaSheet(title);
+  // A POSTER MAY CARRY ITS IDENTITY: a resolution candidate is in no read the
+  // cache holds under its title, and two candidates may share one title — so
+  // its poster names the provider and the identifier, and the sheet is
+  // addressed by them (B-578).
+  registerVerb("mediasheet", (title, cell) => {
+    if (!title) return;
+    const provider = cell?.getAttribute("data-provider");
+    const identifier = cell?.getAttribute("data-provider-id");
+    screens.mediaSheet(title, provider && identifier
+      ? { title, poster: null, ids: { [provider]: identifier } }
+      : undefined);
   });
   // A season cell's episode: the feature says it, the frame places it.
   registerVerb("ep", (written, cell) => {

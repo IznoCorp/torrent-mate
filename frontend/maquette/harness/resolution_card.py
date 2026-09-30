@@ -34,7 +34,8 @@ WHAT IT READS, and each hold fails differently:
       plus » and it picked it: « Comme pour le reste de l'app. » The finger at
       the poster's centre lands on a button carrying the candidate's title in
       `data-mediasheet`, the tap opens the medium's sheet, and the folder is
-      still in « À traiter » after it.
+      still in « À traiter » after it. And Retour from that sheet comes back to
+      the resolution screen (§ 16: a link inside a page stacks).
   h10. EVERY CARD IS AT LEAST A FINGER TALL. The act is the whole card now, so
       the card IS the touch target and it owes the 44 px every other one in this
       harness owes. It measures 126, and a floor is written for the day the room
@@ -416,6 +417,18 @@ async def main():
                       opened is not None and first is not None and first in opened
                       and set(before) == set(after),
                       f"sheet {opened!r}; « À traiter » {before} → {after}")
+        back = await page.evaluate(
+            """()=>{const control=document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"] [data-part="screen/back"]');
+              if(!control) return null; const box=control.getBoundingClientRect();
+              return {x:box.left+box.width/2, y:box.top+box.height/2};}""")
+        if back:
+            await page.touchscreen.tap(back["x"], back["y"])
+        await page.wait_for_timeout(ACTED)
+        returned = await page.evaluate(
+            """()=>document.querySelector('[data-part="screen"][data-open][data-key^="resolution:"]') !== null
+              && document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]') === null""")
+        journal.check("and Retour from the sheet comes back to the resolution screen",
+                      bool(back) and returned, f"back control {back}; resolution open again: {returned}")
 
         # ── h1: a finger on the card's body resolves the folder ───────────
         before = await page.evaluate(BLOCKED)
