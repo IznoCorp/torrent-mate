@@ -63,7 +63,7 @@ describe("followFraction and gridBadge", () => {
     expect(gridBadge(film("pending"))).toEqual({ txt: "•", tone: "pending" });
     expect(gridBadge(series("to_grab", { aired: 10, owned: 7 }))).toEqual({ txt: "3", tone: "to_grab" });
     expect(gridBadge(series("acquiring", { aired: 5, owned: 5 }))).toEqual({ txt: "1", tone: "acquiring" });
-    expect(gridBadge(series("verifying"))).toEqual({ txt: "?", tone: "muted" });
+    expect(gridBadge(series("verifying"))).toEqual({ txt: "?", tone: "neutral" });
     expect(gridBadge(series("up_to_date"))).toBeNull();
   });
 });

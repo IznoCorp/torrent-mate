@@ -8,8 +8,9 @@ never the full-width pill it was.
 
 THE SECOND RULING (B-500). A check mark on every candidate read as « already
 selected », and nothing said the card was there to be chosen. The operator chose
-the affordance: a « Choisir » pill on every candidate — primary, a finger's
-height — and no check mark before the pick.
+the affordance: « Choisir » on every candidate — primary, a finger's height —
+and no check mark before the pick. It is the interface's primary action button
+(R-conformity-p, `primary_action.py`), no longer a pill of its own.
 
 WHAT IT READS, and each hold fails differently:
 
@@ -333,7 +334,7 @@ async def main():
         # ── h2: every card offers the pill, and no card is marked ─────────
         pills = await page.evaluate(PILLS)
         journal.check(
-            "every candidate card offers the « Choisir » pill, drawn at a finger's height",
+            "every candidate card offers « Choisir », the primary action, drawn at a finger's height",
             bool(pills) and all(pill["text"] == CHOOSE and pill["drawn"]
                                 and pill["height"] >= TOUCH_FLOOR for pill in pills),
             str([{key: pill[key] for key in ("title", "text", "drawn", "height")}

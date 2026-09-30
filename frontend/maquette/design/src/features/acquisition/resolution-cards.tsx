@@ -4,7 +4,7 @@
 // it is the shape it is; the screen keeps only the arbitration.
 import { useTranslation } from "react-i18next";
 import { type PendingDecision, type SettledDecision } from "./types";
-import { ruleNote, type ChipTone } from "../../ui/variants";
+import { actionButton, ruleNote, type ChipTone } from "../../ui/variants";
 import {
   Card,
   CardBody,
@@ -19,7 +19,7 @@ import {
 import { Chip } from "../../ui/chip";
 import { PosterArtwork } from "../../ui/poster";
 import { posterArtwork, useEngineDrawing } from "../../lib/engine-drawing";
-import { candidateCard, candidatePick } from "./variants";
+import { candidateCard, pickPlace } from "./variants";
 import { REASON_TONE, decisionState, decisionStateDetail, reasonLabel, viaLabel } from "./decision-vocabulary";
 
 // A RELEASE is not a medium, and its card is deliberately a different object.
@@ -115,8 +115,10 @@ export function ReleaseCard({
             ""
           )}
         </CardBody>
-        <span className={candidatePick()} data-part="card/pick" aria-hidden="true">
-          {t("screens.resolution.choose")}
+        <span className={pickPlace()}>
+          <span className={actionButton({ kind: "panelAction", tone: "primary" })} data-part="card/pick" aria-hidden="true">
+            {t("screens.resolution.choose")}
+          </span>
         </span>
       </CardTop>
     </Card>

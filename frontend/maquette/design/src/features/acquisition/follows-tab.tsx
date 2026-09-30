@@ -5,7 +5,7 @@ import { type Follow } from "./types";
 import { useFollows, useGrabCadence } from "./queries";
 import { useUiState } from "../../lib/store-access";
 import { FollowsFilters } from "./follows-filters";
-import { body, emptyNote, posterGrid, section as sectionClass, sectionCount, sectionHead, sectionTitle, statusDot, swipeAction, type StatusTone } from "../../ui/variants";
+import { body, emptyNote, posterGrid, section as sectionClass, swipeAction } from "../../ui/variants";
 import { Markup, emptyNoteMarkup, sectionInnerMarkup } from "../../ui/markup";
 import { Disclosure } from "../../ui/disclosure";
 import { posterArtwork, useEngineDrawing } from "../../lib/engine-drawing";
@@ -248,10 +248,8 @@ export function FollowsTab(): ReactElement {
             <Markup tag="section"
               key={group.label}
               className={sectionClass()} data-part="section"
-              html={`
-            <div class="${sectionHead()}" data-part="section/head"><span class="${statusDot({ tone: group.tone as StatusTone })}" data-part="status-dot"></span><span class="${sectionTitle()}" data-part="section/title">${group.label}</span><span class="${sectionCount()}" data-part="section/count">${items.length}</span></div>
-            ${items.map((item) => rowOf(item, showStatus)).join("")}
-          `}
+              html={sectionInnerMarkup(group.tone, group.label, String(items.length),
+                items.map((item) => rowOf(item, showStatus)).join(""))}
             />
           );
         })}

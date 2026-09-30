@@ -201,13 +201,9 @@ BARE_ALLOWED = {
     ("features/acquisition/discover-tab.tsx", "button"): (
         1, "the « connect TMDB » action, inside the same `surfaceError()` and "
            "dressed by the same `[&_button]:…`"),
-    ("features/acquisition/add-screen.tsx", "button"): (
-        2, "the two segment controls, and NOT latent: `segmentSmall()` dresses "
-           "them with `[&_button]:…`, as `castPortrait()` dresses a portrait"),
     ("app/drawer.tsx", "button"): (
         1, "the appearance control — one SITE, drawn once per appearance — and "
-           "NOT latent: `segmentSmall()` dresses it, as it dresses "
-           "`add-screen.tsx`'s two"),
+           "NOT latent: `segmentSmall()` dresses it with `[&_button]:…`"),
     ("ui/poster.tsx", "img"): (
         1, "a poster's picture, and NOT latent: its frame dresses it entirely — "
            "`sheetPoster()` with `[&_img]:…` and `posterFrame()` with "

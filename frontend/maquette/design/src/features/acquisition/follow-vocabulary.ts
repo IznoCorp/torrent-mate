@@ -16,7 +16,7 @@ export const STATUS_TONE: Record<string, string> = {
   to_grab: "warning",
   acquiring: "info",
   pending: "waiting",
-  unverified: "muted",
+  unverified: "neutral",
   up_to_date: "success",
   ended: "neutral",
 };
@@ -102,7 +102,7 @@ export function gridBadge(follow: FollowSubject): { txt: string; tone: string } 
       tone: follow.status,
     };
   }
-  if (follow.status === "unverified" || follow.status === "verifying") return { txt: "?", tone: "muted" };
+  if (follow.status === "unverified" || follow.status === "verifying") return { txt: "?", tone: "neutral" };
   return null;
 }
 

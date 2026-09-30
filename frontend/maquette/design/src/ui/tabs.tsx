@@ -25,11 +25,13 @@ export type Tab = {
  * @param props.tabs The tabs, in the order the page reads them.
  * @param props.selected The id of the tab drawn selected.
  * @param props.attribute The `data-*` attribute a tap writes, carrying the tab's id.
- * @param props.region The region the row is measured as, when a rule reads it.
+ * @param props.data-region The region the row is measured as, when a rule reads it —
+ *   written at the call site under the attribute's own name, so the markup guard
+ *   reads the value where it is chosen.
  * @param props.trailing A control after the tabs — a « more » button.
  * @returns The tab bar.
  */
-export function Tabs({ tabs, selected, attribute, region, trailing }: {
+export function Tabs({ tabs, selected, attribute, "data-region": region, trailing }: {
   /** The tabs, in the order the page reads them. */
   tabs: readonly Tab[];
   /** The id of the tab drawn selected. */
@@ -37,7 +39,7 @@ export function Tabs({ tabs, selected, attribute, region, trailing }: {
   /** The `data-*` attribute a tap writes. */
   attribute: `data-${string}`;
   /** The region the row is measured as. */
-  region?: string;
+  "data-region"?: string;
   /** A control after the tabs. */
   trailing?: ReactNode;
 }): ReactElement {

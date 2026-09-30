@@ -2,7 +2,7 @@
 //
 // THE TONE A FOLLOW'S STATUS NAMES is the page's vocabulary, so it is read here
 // and the tile only hears whether its badge carries a fill. A rating's `note`
-// tone reads over the picture on the neutral scrim. Every status tone — `muted`,
+// tone reads over the picture on the neutral scrim. Every status tone — `neutral`,
 // `pending`, `acquiring` and the rest — was drawn with a fill naming a custom
 // property no stylesheet declares, so it has always painted none, and it still
 // paints none: the badge is its ring and its figure.

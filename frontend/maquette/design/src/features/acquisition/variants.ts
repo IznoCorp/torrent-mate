@@ -36,21 +36,25 @@ export const suggestionChip = cva(
 );
 
 /**
- * The « by identifier » disclosure.
- *
- * Its marker is drawn by the stylesheet rather than by the browser: the native
- * triangle differs on every platform and could not be placed.
+ * The « by identifier » box. The fold inside it is the interface's one
+ * disclosure, chevron and all; the box only places it on the screen.
  */
-export const byIdentifier = cva(
-  "byid mt-7 mx-7 mb-0 border border-border rounded-3 py-5 px-6 " +
-    "[&>summary]:text-3 [&>summary]:font-semibold [&>summary]:cursor-pointer " +
-    "[&>summary]:list-none [&>summary::-webkit-details-marker]:hidden " +
-    "[&>summary::before]:content-['▸_'] [&>summary::before]:text-1 " +
-    "open:[&>summary::before]:content-['▾_']",
-);
+export const byIdentifier = cva("byid mt-7 mx-7 mb-0 border border-border rounded-3 py-2 px-6");
+
+/** Which folder an identification is for, at the bar's right end. */
+export const identifyFolder = cva("ml-auto text-2 text-muted-foreground");
+
+/** Where the identification's notice sits, above the search. */
+export const identifyNotice = cva("pt-6 px-7");
+
+/** Where the empty search's note sits. */
+export const emptyNotePlace = cva("p-7");
+
+/** The provider switch, at its own width at the start of the fold. */
+export const providerSwitchPlace = cva("self-start");
 
 /** The disclosure's contents. */
-export const byIdentifierBody = cva("byidin mt-5 flex flex-col gap-4");
+export const byIdentifierBody = cva("byidin mt-2 mb-4 flex flex-col gap-4");
 
 /** Why an action is refused. */
 export const refusalReason = cva("whyoff text-2 text-danger");
@@ -96,7 +100,8 @@ export const cadence = cva("cadence text-2 text-muted-foreground pt-4 px-7 pb-0"
 
 /**
  * A small segmented control: its buttons side by side on a muted ground, the
- * pressed one lifted.
+ * pressed one lifted. The drawer's alone now — every other segmented choice is
+ * `viewSwitch` at its text size — and it goes when the drawer comes to it.
  */
 export const segmentSmall = cva(
   "segmini flex gap-1 p-1 bg-muted rounded-3 " +
@@ -215,23 +220,12 @@ export const deckHint = cva(
  */
 export const candidateCard = cva("text-left p-0 [font:inherit] text-inherit");
 
-/** The « Choisir » pill at a candidate card's right edge: a finger's height, in
- *  the primary ground, and never a check mark — a mark on every card read as
- *  « already selected » (B-500). It is decorative: the card is the button. */
-export const candidatePick = cva(
-  "inline-flex items-center justify-center self-center flex-none min-h-[44px] px-6 mr-5 "
-    + "rounded-full bg-primary text-primary-foreground text-3 font-semibold whitespace-nowrap",
-);
-
-/**
- * Acquisition's tabs at a finger's size: worn BESIDE `segmentTab()`, it lifts
- * each of the four to 44 px — a floor, so the segment's own padding still sets
- * the label's place. The library's segment keeps its own size.
- */
-export const fingerTab = cva("min-h-[44px]");
-
-/** The « ⋮ » beside those tabs, at the same floor, worn beside `moreButton()`. */
-export const fingerMore = cva("min-w-[44px] min-h-[44px]");
+/** Where the « Choisir » action sits at a candidate card's right edge. The action
+ *  is the interface's primary action button, at its 44 px, and never a check
+ *  mark — a mark on every card read as « already selected » (B-500). It is
+ *  decorative: the card is the button. An action button fills its row by
+ *  default; here it takes its label's width. */
+export const pickPlace = cva("flex-none self-center mr-5 [&>span]:w-auto");
 
 /**
  * Two feet on one line. A card of « À traiter » that offers two answers —
@@ -245,9 +239,11 @@ export const footRow = cva("flex gap-4 [&>*]:flex-1 [&>*]:min-h-[44px]");
  * An origin beside its one foot. A card of « À traiter » that offers one answer
  * lays the line saying who asked beside it rather than under its reason: one
  * line more made the card taller than its poster can follow. The foot keeps its
- * label whole and the touch floor; the line truncates before it does.
+ * label whole and the touch floor, at its label's width: an action button fills
+ * its row by default, and filling this one left the line no width at all. The
+ * line takes what remains and wraps there — cut, it hid who asked (§ 12).
  */
 export const originRow = cva(
-  "flex items-center gap-4 mt-4 [&>button]:mt-0 [&>button]:flex-none [&>button]:min-h-[44px] " +
-  "[&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate",
+  "flex items-center gap-4 mt-4 [&>button]:mt-0 [&>button]:flex-none [&>button]:w-auto " +
+  "[&>button]:min-h-[44px] [&>span]:min-w-0 [&>span]:flex-1",
 );
