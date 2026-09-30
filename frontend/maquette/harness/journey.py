@@ -329,6 +329,11 @@ async def step(pg, instruction):
     elif kind == "js":
         await pg.evaluate(f"()=>{argument}")
         await pg.wait_for_timeout(SETTLED)
+    elif kind == "reload":
+        await pg.reload(wait_until="load")
+        await pg.evaluate("()=>window.__loadingDone?.()")
+        await pg.evaluate("()=>document.querySelector('#toastx')?.click()")
+        await pg.wait_for_timeout(SETTLED)
     else:
         raise ValueError(f"no such step: {instruction}")
 

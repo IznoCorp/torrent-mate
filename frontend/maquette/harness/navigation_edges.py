@@ -18,6 +18,7 @@ Steps, as strings:
     `press:<css>`   a long press on it (a card's panel);
     `fill:<css>|<text>`  a typed query;
     `js:<code>`     a precondition on the mock world a finger cannot produce.
+    `reload`        the browser reloads the document where it stands.
 
 A STOP is `(address, page, armed)` plus an optional fourth `sheet`, whether a
 panel is up: `address` is a pathname, compared exactly — or as a prefix when it
@@ -161,6 +162,13 @@ EDGES = [
      "stops": [(SETTINGS, "cfg", False), HOME_STOP, GUARD], "emits": []},
     {"edge": "D1", "walk": ["menu:sys", RUNS_LINK, "menu:cfg", "menu:sys"],
      "stops": [(SETTINGS, "cfg", False), HOME_STOP, GUARD], "emits": []},
+    # ── A RELOAD in the middle of the trail keeps it: the trail survives a reload
+    # because the history does (DESIGN § 3, § 16 rule 3) — Retour still walks it
+    # back, and the guard arms at the floor and nowhere above it.
+    {"edge": "RL", "walk": ["menu:sys", SETTINGS_ROW, "reload"],
+     "stops": [(SYSTEM, "sys", False), HOME_STOP, GUARD], "emits": []},
+    {"edge": "RL", "start": "system", "walk": [SETTINGS_ROW, "menu:maint", "reload"],
+     "stops": [(SETTINGS, "cfg", False), (SYSTEM, "sys", False), HOME_STOP, GUARD], "emits": []},
 ]
 
 # The ids DESIGN § 1 classifies, so a row dropped from the table is a failure too.

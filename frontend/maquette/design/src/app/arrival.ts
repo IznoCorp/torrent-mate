@@ -173,6 +173,27 @@ export function installArrival(store: Store): void {
     entry?.showSignIn(false, walk.driven);
     walk.driven = false;
   }
+  /* A START ON AN ENTRY THAT ALREADY CARRIES ITS TRAIL IS NO ARRIVAL — a
+     reload, a restored tab. The history under it is the one the reader walked,
+     guard and floor included, and the trail survives the reload because the
+     history does (DESIGN § 3). Writing the guard over it and pushing a floor
+     and a page on top rewrote it as a cold arrival: Retour then skipped the
+     pages walked and armed the guard above the floor (§ 16 rule 3). So nothing
+     is written here: the floor flags are read off the trail, and a panel the
+     entry stands for is put back ON it, as a Back onto it does. A cold arrival
+     — no trail — goes on below exactly as before. */
+  const heldTrail = (history.state as Record<string, unknown> | null)?.[TRAIL_KEY];
+  if (!arrival.notFound && !arrival.signIn && Array.isArray(heldTrail) && heldTrail.length > 0) {
+    const floor = heldTrail[0] as TrailStop;
+    walk.homeFloorExists = floor.page === addressSeam.homePage;
+    /* The guard is the document's first entry and a served arrival's floor
+       stands right on it; a floor further up was laid by a switch, over an
+       address nobody serves. */
+    walk.arrivalWithoutFloor = floor.at > 1;
+    loadingDone?.();
+    reopenPanelWhenReady(arrivalSearch, true);
+    return;
+  }
   /* The address is put back on the entry one arrives on, so a back from
      anywhere reaches the page the link named rather than a bare document.
 
@@ -267,9 +288,21 @@ export function installArrival(store: Store): void {
      table answers from the query cache, and on a COLD LOAD none of it has landed
      when this runs. A bounded wait over frames is the shape the scroll
      restoration and the listing's paging door already use. */
+  reopenPanelWhenReady(arrivalSearch, false);
+}
+
+/**
+ * Reopens the panel an address names, waiting over frames for its subject.
+ *
+ * Args:
+ *     search: The query the document opened on.
+ *     onCurrentEntry: Whether the panel goes on the entry one stands on (a
+ *         restored layer entry) rather than pushing its own (a cold arrival).
+ */
+function reopenPanelWhenReady(search: string, onCurrentEntry: boolean): void {
   let framesLeft = 60;
   const reopenWhenTheSubjectIsThere = () => {
-    const answer = reopenAddressedPanel(arrivalSearch, false, framesLeft > 1);
+    const answer = reopenAddressedPanel(search, onCurrentEntry, framesLeft > 1);
     if (answer !== "not yet") return;
     framesLeft -= 1;
     requestAnimationFrame(reopenWhenTheSubjectIsThere);
