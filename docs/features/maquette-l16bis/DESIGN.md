@@ -166,7 +166,7 @@ it, and the phase that proves it.
 | Uniform behaviours — « Il faut uniformiser les comportements. Sauf exception volontaire de ma part. » | the torrent card takes the media card's taps (poster → sheet, body → panel, § 1.4) and the follow row's drawer swipe (§ 1.6); the tracker row opens a panel like the torrent card (DECIDED 3); Découvrir's list and deck swipe the same way (§ 1.11). Exceptions he decided: Découvrir's commit-on-release swipe, « un nouveau comportement propre à découvrir » (Q7) | 1, 3, 4 |
 | The design system reused — « on crée pas de nouveau composant on adapte » | § 1.8's table, element by element; the adaptations written: the card title's `wrap`, the legend's `danger` / `neutral` tones (§ 0.4), the badge's failure term (DECIDED 6), `liveStrip`'s `inline`, the commit swipe moved to `ui/` (§ 1.11); one new part justified: the byte-progress fill | every phase; R-L16bis-i at 3 |
 | Every case — « seule une maquette montrant tout les cas possibles est utile. » | § 3, one named state per case, 73 ids, each reachable from the catalogue with its French label | every phase |
-| Every width 320–1280 — « tout doit être responsive » | the 132-character name wraps (§ 1.4); the header ellipsises at the switch only (§ 1.10); R-conformity-a on every state of the touched surfaces at each phase gate, the full sweep at the midpoint and the close | every phase; 5 |
+| Every width 320–1280 — « tout doit être responsive » | the 132-character name wraps (§ 1.4); the header ellipsises at the switch only (§ 1.10); the responsive rule in CI on the pull request | every phase; 5 |
 | Film / series variant — « une différence entre film et série » (B-581's family) | a film's torrent opens the film's sheet, an episode's opens its series' sheet and its panel names the episode (`torrent-card-film`, `torrent-panel-episode`); Découvrir's header splits « séries » and « films » (§ 1.10); a suggestion's panel keeps its film note (`panels.suggestion.filmLeavesNote`) | 1, 4 |
 | Navigation § 16 — Retour replays the arrival path | Trackers and Découvrir are bar pages (they replace, Retour → the entry page); the poster → the sheet and « Identifier » → the resolution screen STACK (Retour → Trackers, on « Torrents »); a bottom panel is not a page (Retour closes it); a landing naming a tab or a tracker is an arrival (§ 1.1, DECIDED 3) — each walked by finger | 1, 2, 3 |
 
@@ -575,7 +575,7 @@ one by DECIDED 1's three card states (`torrent-card-volumes`, `torrent-card-down
 
 Labels, never numbers: they bind to the range the steward reserves in the lot's launch brief.
 
-| Rule | What it READS | The mutation that fells it |
+| Rule | What it READS | What makes it fall |
 | --- | --- | --- |
 | **R-L16bis-a** — the landing (point 1) | a cold `/trackers` opens « Torrents »; after « Trackers » is opened, the next cold entry opens « Trackers »; storage refused opens « Torrents »; a named landing obeys — by a finger walk | first tab back to `trackers` → falls |
 | **R-L16bis-b** — the selector (point 2) | the pill names the filter and is pressed; the panel lists every roster tracker in order with its count; a choice filters and pushes nothing (`history.length`); « Tous les trackers » lifts it | drop a tracker from the choices → falls; push on choice → falls |
@@ -745,3 +745,59 @@ NE-DOIT-PAS-4 / -5 (the refusal, R-L16bis-h) — proposed to the operator at the
 
 **L17**: its § 3.3 (the per-pair mark « on the ORIGIN row ») is re-homed by this lot to the torrent's PANEL and the
 swipe's left side; L17's plan re-reads its phases 6, 9, 10 and 15 at its opening (a STOP D there, not here).
+
+---
+
+## 7. What the build recorded (2026-09-30, `feat/maquette-l16bis`)
+
+Written at the close, for the reader and for L17. Each line says what the build did where the text above
+did not say it, and why.
+
+**The data.**
+
+- The one read of the operator's qBittorrent (§ 2.3) was REFUSED by the session's permissions. No client
+  figure is seeded: `addedAt`, `swarmSeeds`, `swarmLeechers`, the volumes and the rates are `null` on the
+  seven real entries, the tab says each one unknown, and the named states that need them pose them
+  (`poseEntry`), composed and declared in their labels. The read stays the operator's to authorise.
+- `Download` carries two fields § 2.1 did not list, both needed by S4 and S5: `poster` (the medium's
+  poster, seeded from `posters.json` by title — Lanterns has none, the real `torrent-card-no-artwork`) and
+  `folder` (the staging folder « Identifier » opens; the unlinked entry is posed on the real undecided
+  folder `Backrooms.2026.MULTi.2160p.WEB-DL`).
+- `Tracker.disabled` holds a failure only; the operator's own off is derived from the setting
+  `tracker.providers.<name>.enabled`, the one the switch and Réglages write. `lacale`'s date and sentence
+  are composed — its configuration names neither.
+
+**The design system — adapted, each written beside its class.**
+
+- The card (`ui/card-markup.ts`) learned four facts: `details` (the state line's figures), `notes` (the
+  annotation line's), `marks` (a line of chips, dots or figures, each with the caller's attributes) and
+  `progress` (the native `<progress>`, `cardProgress` — the byte fill § 1.8 justified). The title's `wrap`
+  value was not needed: the conformity train made every title wrap.
+- `keyValueRow` (the panel's facts) breaks a value anywhere: a release name ran out of the panel.
+- `ui/legend.tsx` is the ONE legend component — the seasons' legend is its first caller — keyed by tone,
+  gaining `danger` and `neutral`, its entries allowed to wrap. A list's legend groups its codes BY TONE: a
+  dot and a chip of one colour are one swatch saying every meaning that colour carries there.
+- The panel gained a generic `choices` block (the option list an enumerated setting draws), the tracker
+  selector's; `factRow` a `withControl` value (a switch at the row's end, a notice under it); `liveStrip`
+  an `inline` value (§ 1.10).
+- The commit swipe: `commitRow` / `commitRowBack` (`ui/variants/rows.ts`), `commitRowMarkup` (`ui/rows.ts`)
+  and `lib/commit-swipe.ts`; the identity class `.commitrow` replaced `.sugwrap` in its three readers. The
+  back hides the side the row travels away from (`data-travel`), which the fading card let show through.
+- Réglages' save bar follows the store's version itself (a pending edit filed on Trackers never raised
+  it), keeps its button at its word's width (it crushed the sentence at 320 px, Réglages included), and a
+  failed write is RECORDED per setting — a 422 refusal drops the edit and says the engine's words, any
+  other failure keeps the edit pending — offered to another page through `lib/save-bar-door.tsx`'s
+  pending-edits door, the one table both doors file into.
+
+**What the build did not do.**
+
+- The three-choice leave confirmation (§ 1.7, « the SAME … as Réglages ») does not exist anywhere in the
+  code: leaving Réglages or Trackers with a pending edit asks nothing today. It lives in the page switch,
+  the navigation lot's file, and was not drawn here — reported to the orchestrator.
+- `app/frame-verbs.ts` gained one line, with the orchestrator's grant: `openAddressedPanel` routes
+  `torrent:` to its producer, so the card's body and folder keep the card's own `data-panel`.
+
+**For L17 — the re-home.** The per-pair cross-seed mark of L17 § 3.3 lives on the torrent's PANEL (its
+facts and actions, `features/trackers/panel-torrent.ts`) and on the swipe's LEFT drawer, which is not drawn
+until L17 adds its verb (DECIDED 9). L17's phases 6, 9, 10 and 15 re-read this at its opening.
+

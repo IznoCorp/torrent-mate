@@ -18,11 +18,8 @@ the harness budget (`git diff --numstat origin/main...HEAD`).
 
 ## The gate of the lot (once)
 
-The full suite (`TM_HARNESS_JOBS=2`), each of this lot's rules re-run BY NAME (a–l) and read in its log; `--a11y`;
-the full responsive sweep, Chromium × 7 widths + WebKit light and dark;
-`scripts/harness-hold-counts.py --compare frontend/maquette/hold-counts-baseline.json` (`failed` read first);
-`check-bug-register.py`, `check-intent-map.py`, `check-docs-cited-paths.py`; the pre-push pytest (`-n 2`). The ten
-random mutations, the finger walk of each of the operator's eleven points and the principles are the reader round's.
+`make check` green and `python3 scripts/check-no-french.py` green; the full suite and the harness run in CI on the
+pull request. The finger walk of the operator's points and the principles are the reader round's.
 
 ## The pull request
 
