@@ -651,7 +651,13 @@ inside its plan. **Named states (proposed, not built): `settings-save-bar-frame`
 itself, replacing L16's `lib/save-bar-door.tsx` door — C2's own compromise, superseded) **and `settings-leave-confirm`**
 (the three-choice confirmation). **One rule**, holding both. **The existing pending-edits signal is REUSED** — the
 door's `onEditsWritten` / `editsWritten` pair (`frontend/maquette/design/src/lib/save-bar-door.tsx`) already knows
-whether a change waits; the leave confirmation reads THAT, never a second dirty-tracker.
+whether a change waits; the leave confirmation reads THAT, never a second dirty-tracker. **Delivered 2026-09-30** on
+`feat/maquette-c1`: the bar is drawn by the frame's bottom slot over the pages whose row says `holdsEdits`
+(`app/navigation.ts`: Réglages, Trackers); the door became `lib/pending-edits-door.ts`, the one table of pending
+edits, which also answers how many wait, the save and the drop; the confirmation is `app/leave-confirm.ts`, asked
+by the frame's three page verbs and by the Back ladder, which holds a Retour that would leave; the named states
+`settings-save-bar-frame` and `settings-leave-confirm` are built, and rule R-C1-a (`harness/settings_leave.py`)
+holds both, red on `4f6704ccd`.
 
 #### L14 — The surfaces that outgrew their file · *depends on L07, L09*
 

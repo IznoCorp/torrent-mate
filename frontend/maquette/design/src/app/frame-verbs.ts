@@ -33,6 +33,7 @@ import {
   redraw,
 } from "../lib/shell-doors";
 import { hideLayers, registeredLayers } from "./layers";
+import { heldLeave } from "./leave-confirm";
 import { rowFor } from "./navigation";
 import { switchPage, switchPageFromLayer, type Landing } from "./page-switch";
 import { holdLeavingOffset } from "./scroll-restoration";
@@ -101,15 +102,44 @@ function landingOf(page: string, chooser: boolean): Landing {
 
 /* THE PAGE A CONTROL NAMES. Navigating CLOSES whatever is open above it:
    without that, one changed page while staying stuck on the media sheet. */
+/* EACH OF THE THREE VERBS ASKS FIRST when the page it leaves holds edits that
+   wait (C1, `app/leave-confirm.ts`): the confirmation runs the verb's own leave
+   once the operator has chosen. What the leave reads of the tap is read BEFORE
+   asking, while the tapped element is still where it was. */
 registerVerb("page", (page, element) => {
+  const menu = element.closest(DESTINATION_MENU) !== null;
+  if (heldLeave(page, () => pageSwitch(page, menu), closeLeftLayer)) return;
+  pageSwitch(page, menu);
+});
+
+/**
+ * Closes the layer a leave was asked from — « Rester »'s second half.
+ *
+ * « Rester » gives the page back BARE: the menu or the account sheet the leave
+ * was pressed in closes with the confirmation (the operator's « fermer, rester
+ * sur réglages », C1's reader, 2026-09-30). Each close is guarded by its own
+ * layer, so the one that is not open does nothing.
+ */
+function closeLeftLayer(): void {
+  registeredLayers.close("drawer");
+  registeredLayers.close("sheet");
+}
+
+/**
+ * Switches to the page a control names — the `page` verb's leave.
+ *
+ * @param page The destination.
+ * @param chooser Whether the tap came from the bar or the menu.
+ */
+function pageSwitch(page: string, chooser: boolean): void {
   const leaving = currentPage();
-  const landing = landingOf(page, element.closest(DESTINATION_MENU) !== null);
+  const landing = landingOf(page, chooser);
   hideLayers();
   store.write({ page });
   scrollPortToTop();
   redraw();
   switchPage(leaving, landing);
-});
+}
 
 /* A LANDING THAT CAN BE ASKED FROM A LAYER — the account menu's « Profil et
    préférences », and a panel's « Compléter » through the link door. Landing
@@ -141,11 +171,23 @@ function goTo(page: string, dial: string | undefined, chooser: boolean): void {
   settleLanding(fromLayer, leaving, "go", landing);
 }
 
+/**
+ * Lands on a page from a link, once a page with edits waiting has said so.
+ *
+ * @param page The destination.
+ * @param dial The dial the link lands on.
+ * @param chooser Whether the tap chose a destination.
+ */
+function goToOnceAsked(page: string, dial: string | undefined, chooser: boolean): void {
+  if (heldLeave(page, () => goTo(page, dial, chooser), closeLeftLayer)) return;
+  goTo(page, dial, chooser);
+}
+
 registerVerb("go", (page, element) => {
-  goTo(page, element.dataset.dial, element.closest(DESTINATION_MENU) !== null);
+  goToOnceAsked(page, element.dataset.dial, element.closest(DESTINATION_MENU) !== null);
 });
 
-fillFollowLinkDoor((page, dial) => goTo(page, dial, false));
+fillFollowLinkDoor((page, dial) => goToOnceAsked(page, dial, false));
 
 /* A LANDING FROM THE DRAWER. The drawer is NOT a route, so its entry does not
    survive the destination. What the page left becomes depends on the
@@ -153,6 +195,18 @@ fillFollowLinkDoor((page, dial) => goTo(page, dial, false));
    menu page stacks on the page left, and the page one is on only closes the
    drawer. */
 registerVerb("navgo", (page) => {
+  if (heldLeave(page, () => menuLanding(page), closeLeftLayer)) return;
+  menuLanding(page);
+});
+
+/**
+ * Lands on the page a drawer entry names — the `navgo` verb's leave. Run after
+ * a confirmation, it reads the drawer's entry again, which the confirmation's
+ * own entry has given back by then.
+ *
+ * @param page The destination.
+ */
+function menuLanding(page: string): void {
   const fromDrawer = Boolean(history.state && history.state.layer === "drawer");
   const leaving = currentPage();
   const landing = landingOf(page, true);
@@ -161,7 +215,7 @@ registerVerb("navgo", (page) => {
   scrollPortToTop();
   redraw();
   settleLanding(fromDrawer, leaving, "navgo", landing);
-});
+}
 
 /* THE DRAWER. Its entry is pushed so a back closes it, and a refusal of the
    history write leaves the drawer open rather than the interface stuck.

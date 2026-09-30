@@ -22,6 +22,7 @@ import {
 import { bridge, panel, redraw, toast } from "../lib/shell-doors";
 import { store } from "../lib/store-access";
 import { reopenAddressedPanel } from "./addressed-panels";
+import { heldBack } from "./leave-confirm";
 import { BACK_WINDOW, recordPath, walk } from "./page-switch";
 
 export type LayerRegistration = {
@@ -290,6 +291,7 @@ export function onEngineBack(
        opened on, then the panel. The page switches of the bar and the menus
        unwind the trail, so no switch buries a panel's entry any longer. */
     if (record && record.openedOn && direction === "BACK") {
+      if (heldBack(record.openedOn)) return;
       restorePage({ ...entryPatch(store.read().state), page: record.openedOn });
       reopenPanelOfRecord(record, true);
       return;
@@ -303,6 +305,9 @@ export function onEngineBack(
   }
 
   if (state && state.tm === "nav") {
+    /* A RETOUR THAT WOULD LEAVE A PAGE WITH EDITS WAITING is held, and asks
+       (C1) — before anything of the landing is read or written. */
+    if (direction === "BACK" && heldBack(String(state.page ?? ""))) return;
     walk.armedExit = 0;
     /* BACK UNDER THE FLOOR, and it is a BACK that lowers the flag — never a
        FORWARD — and only in a session that arrived without one. There the floor
@@ -336,6 +341,7 @@ export function onEngineBack(
     /* ABOVE its page's own entry, or it is the page's entry itself — which a
        driven state leaves naming another page than the one drawn. */
     if (top.at < entryIndex(state) && under !== String(store.read().state.page ?? "")) {
+      if (direction === "BACK" && heldBack(under)) return;
       restorePage({ ...entryPatch(store.read().state), page: under });
       return;
     }

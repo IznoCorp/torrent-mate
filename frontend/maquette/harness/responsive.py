@@ -279,6 +279,14 @@ async def read_pass(browser, label, width, wanted, engine, scheme):
             readings[state] = [{"arm": "unreachable", "part": str(error)[:80], "rect": None}]
             continue
         await page.wait_for_timeout(SETTLED)
+        # A STATE STILL ARRIVING IS NOT READ. Pushing a screen is a view
+        # transition (`--duration-4`, base.css), and while it runs the
+        # `::view-transition` overlay on the root takes every hit test: WebKit
+        # answers `html` at any point of the page, so the bottom bar read
+        # « unseen » at the tail of the crossing (C1, once B-609 stopped the bar
+        # being inert over a screen). A finger lands after the crossing, and so
+        # does this reading.
+        await page.wait_for_function("()=>!document.documentElement.matches(':active-view-transition')")
         readings[state] = await page.evaluate(MEASURE, width)
         if engine == "webkit":
             readings[state] += await page.evaluate(VISIBLE, width)

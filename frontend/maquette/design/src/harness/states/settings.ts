@@ -7,6 +7,7 @@
 import { applyState, type NamedState } from "../drive";
 import { resetSettings } from "../settings-reset";
 import { SETTINGS_STATE } from "../../features/settings/state";
+import { askToLeave } from "../../app/leave-confirm";
 
 // Long enough that a read held back is still in flight when the state is measured.
 const HELD_BACK = 60000;
@@ -87,6 +88,32 @@ export function settingsStates(): NamedState[] {
         );
         SETTINGS_STATE.modifs.set("tracker:tracker.providers.c411.enabled", false);
         applyState({ page: "cfg", phase: "ready" });
+      },
+    ],
+    /* C1 — THE BAR IS THE FRAME'S, drawn over the rubric list as over a rubric,
+       and over Trackers: one edit waiting, on Réglages' own root. */
+    [
+      "settings-save-bar-frame",
+      "Réglages — la barre d'enregistrement du cadre, une modification en attente",
+      () => {
+        resetSettings();
+        SETTINGS_STATE.modifs.set("thresholds:thresholds.min_free_space_staging_gb", 40);
+        applyState({ page: "cfg", phase: "ready" });
+      },
+    ],
+    /* C1 — LEAVING WITH EDITS WAITING asks, with three choices. The leave it
+       holds is the bar's own tap on Acquisition, so « Enregistrer » and
+       « Abandonner les modifications » land where a finger would have. */
+    [
+      "settings-leave-confirm",
+      "Réglages — quitter avec des modifications en attente : enregistrer, abandonner ou rester",
+      () => {
+        resetSettings();
+        SETTINGS_STATE.modifs.set("thresholds:thresholds.min_free_space_staging_gb", 40);
+        SETTINGS_STATE.modifs.set("tracker:tracker.providers.c411.enabled", false);
+        applyState({ page: "cfg", phase: "ready" });
+        askToLeave("cfg", () =>
+          document.querySelector<HTMLElement>('[data-part="shell/tab-bar"] [data-page="acq"]')?.click());
       },
     ],
     /* One state per FIELD, because a field is a shape one judges by looking at

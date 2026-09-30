@@ -8,11 +8,12 @@ file: `git log -- IMPLEMENTATION.md` (the last long one is `IMPLEMENTATION.md@63
 
 | | |
 | --- | --- |
-| **Last landed** | L16-bis — the Trackers page's correction and Découvrir, PR #657, version 0.98.116, 2026-09-30 (before it: `maquette-navigation`, PR #656, version 0.98.115) |
+| **Last landed** | C1 — the settings save bar and the three-choice leave confirmation, PR #661, 2026-10-01 (before it: L16-bis, PR #657, version 0.98.116) |
 | **In flight** | L17 — § 19, cross-seed is seen and decided, `feat/maquette-l17`, 7 phases regrouped by surface from the plan's 18, all done: the contract, seed and mocks; the six words and each tracker's line; the torrent's cross-seed in its panel, refusals read in full, an obligation's origin; the tracker's switch and its confirmation; the cut and the exclusion memory; the badge's failure term and the stream; « Chercher un cross-seed » (panel and the card's left drawer). Version 0.98.117. Its pull request is opened by the orchestrator after the lot's one reader. DOIT-14 reads `partly` until L18 draws the media sheet's block |
-| **Next** | C1 settings save bar (the next micro-wave) |
-| **Then** | L18 accounts · L23 upload · L24 orphans · the desktop milestone. The season recovery (5 phases, re-cut from 13 on 2026-09-30) is built by the next lot that touches Acquisition |
-| **Landed, in order** | L01 · L02 · L03 · L04 · L05 · L06 · L07 · L08 · L09 · L10 · L15 · L11 · L12 · L14 · L19 · L21 · L13a · L13b · L20 · L13r · L13c · L22a · L22b · L16 · L16-bis (plus the correction waves L07-bis, L08-bis, L10-bis and the design phase L10-ter) |
+| **In flight, too** | L23 — § 19 point 5, the upload to a tracker, `feat/maquette-l23`, built on L17 |
+| **Next** | L18 accounts (closing) |
+| **Then** | L24 orphans · the desktop milestone. The season recovery (5 phases, re-cut from 13 on 2026-09-30) is built by the next lot that touches Acquisition |
+| **Landed, in order** | L01 · L02 · L03 · L04 · L05 · L06 · L07 · L08 · L09 · L10 · L15 · L11 · L12 · L14 · L19 · L21 · L13a · L13b · L20 · L13r · L13c · L22a · L22b · L16 · L16-bis · C1 (plus the correction waves L07-bis, L08-bis, L10-bis and the design phase L10-ter) |
 | **Freeze** | reached at L24's close, with every case of every surface drawn as a named state |
 
 ## Designs ready, code not started
