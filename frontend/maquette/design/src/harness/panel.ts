@@ -1,8 +1,11 @@
-// THE HARNESS BAR'S NOTES TOGGLE — the harness's own control, and no part of the interface.
+// THE HARNESS BAR'S NOTES AND WORLD TOGGLES — the harness's own controls,
+// and no part of the interface.
 //
 // The design-notes button is wired here, and so is the welcome hint that points
 // at the notes. They speak the operator's language because the operator reads
 // them by hand; no rule taps them.
+import i18next from "../i18n";
+import { redraw } from "../lib/shell-doors";
 
 const currentState = () => window.__store.read().state;
 
@@ -24,6 +27,32 @@ export function installHarnessPanel(): void {
       notesButton.setAttribute("aria-pressed", String(currentState().notes));
       toast(currentState().notes ? "Notes de conception affichées." : "Notes masquées.");
     };
+
+  /* B-572: the real/dense world switch. Runtime, not build-time — it moves
+     `scen` the way a named state's own patch does, over whichever world the
+     build opened on, real or dense. */
+  const scenarioButton = document.querySelector<HTMLElement>("#scenarioBtn");
+  const paintScenario = (dense: boolean) => {
+    if (!scenarioButton) return;
+    scenarioButton.setAttribute("aria-pressed", String(dense));
+    const label = i18next.t(dense
+      ? "harness.scenarioToggle.toReal"
+      : "harness.scenarioToggle.toDense");
+    scenarioButton.setAttribute("aria-label", label);
+    scenarioButton.setAttribute("title", label);
+  };
+  if (scenarioButton) {
+    paintScenario(currentState().scen === "loaded");
+    scenarioButton.onclick = () => {
+      const dense = currentState().scen !== "loaded";
+      window.__store.write({ scen: dense ? "loaded" : "real" });
+      paintScenario(dense);
+      redraw();
+      toast(i18next.t(dense
+        ? "harness.scenarioToggle.toastDense"
+        : "harness.scenarioToggle.toastReal"));
+    };
+  }
 
   /* The welcome hint disappears on first interaction: a bubble that
      returns over an open sheet is a nuisance, not help. */

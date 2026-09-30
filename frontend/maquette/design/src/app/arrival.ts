@@ -16,6 +16,11 @@ import { onEngineBack } from "./layers";
 import { walk } from "./page-switch";
 import { NAVIGATION } from "./navigation";
 
+/** Whether tm-design's own build opens on the dense world. Replaced at build
+ * time (`vite.config.mjs`, `--mode design-host`) — false everywhere else, so
+ * the harness's own build and the unit suite keep booting on the real world. */
+declare const __DESIGN_HOST_START_DENSE__: boolean;
+
 /* The interface's opening state, before the address has said anything. */
 const INITIAL_STATE = {
   page: "acq",
@@ -26,7 +31,11 @@ const INITIAL_STATE = {
   /* « Trackers »: its open tab, and the tracker « Torrents » is filtered to. */
   trackersTab: "trackers",
   trackersFilter: "",
-  scen: "real",
+  /* B-572: tm-design's own build opens dense — every other build (the
+     harness's `run.sh`, the unit suite) keeps the real world, exactly as
+     before. A named state still pins its own scenario on drive (`drive.ts`'s
+     `reset()`), unaffected either way. */
+  scen: __DESIGN_HOST_START_DENSE__ ? "loaded" : "real",
   /* The pipeline's state, as the pilot's bar shows it — idle, running, or a run
      asked for while one is running, which DOIT-4 requires be QUEUED visibly
      rather than refused. */

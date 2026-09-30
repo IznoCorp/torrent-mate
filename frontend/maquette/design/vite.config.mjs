@@ -106,7 +106,7 @@ function buildWorker() {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   root: ROOT,
   define: {
     // WHETHER THE MOCK LAYER IS BUILT IN (L08). True today, and the point is
@@ -132,6 +132,12 @@ export default defineConfig({
     // `/build.json` serves; the worker names its cache after the same value, so
     // the three cannot drift apart.
     __BUILD_ID__: JSON.stringify(BUILD_ID),
+    // B-572: tm-design's OWN build passes `--mode design-host` so the operator's
+    // cold boot opens on the dense world instead of the real one, where
+    // `movingReel` is empty by design. Every other build — the harness's
+    // `run.sh` (`npm run build`, no mode), the unit suite — keeps Vite's default
+    // mode and therefore the real world, unchanged.
+    __DESIGN_HOST_START_DENSE__: JSON.stringify(mode === "design-host"),
   },
   // The prototype references `assets/...` itself; nothing else is public.
   publicDir: false,
@@ -145,4 +151,4 @@ export default defineConfig({
   // Tailwind FIRST: it must have generated its sheet before the prototype
   // fragment is injected, and the injection deliberately runs `post`.
   plugins: [tailwindcss(), injectPrototype(), buildWorker()],
-});
+}));
