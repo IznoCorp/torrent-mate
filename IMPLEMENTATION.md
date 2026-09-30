@@ -8,16 +8,15 @@ file: `git log -- IMPLEMENTATION.md` (the last long one is `IMPLEMENTATION.md@63
 
 | | |
 | --- | --- |
-| **Last landed** | `maquette-navigation` — every navigation edge against § 16 as amended, PR #656, version 0.98.115, 2026-09-30 |
-| **In flight** | L16-bis — the Trackers page's correction and Découvrir, `feat/maquette-l16bis`, 5 phases, all done (the torrent card, the « Torrents » tab, the « Trackers » tab, Découvrir's header and swipe, the close), version 0.98.116; its pull request is opened by the orchestrator after the lot's one reader at 390 px on tm-design, and a follow-up commit writes its number here and on the register rows B-595–B-597 |
+| **Last landed** | L16-bis — the Trackers page's correction and Découvrir, PR #657, version 0.98.116, 2026-09-30 (after `maquette-navigation`, #656) |
+| **In flight** | `maquette-season-recovery` — `feat/maquette-season-recovery`, 5 phases, all done: one acquisition card per whole-season recovery and the episodes it covers leave « En cours » (R-season-recovery-a, -e, -g), « Demandée » on both sheets until the library and « Demandée · auto » (-b, -g), a journey per acquisition and the covered episode's pointer to its season's card (-c), the release picker's refusal (-d, -f); a link to another tab of the page it is tapped on stacks (R-navigation-a L5, L6); `fix/nav-scroll-memory` carried (B-601); version 0.98.117. Its pull request is opened by the orchestrator after the lot's one reader at 390 px on tm-design; a follow-up writes its number on B-598–B-601 |
 | **Next** | C1 settings save bar (the next micro-wave) — L17 cross-seed is built on L16-bis in its own worktree |
-| **Then** | L17 cross-seed · L18 accounts · L23 upload · L24 orphans · the desktop milestone. The season recovery (5 phases, re-cut from 13 on 2026-09-30) is built by the next lot that touches Acquisition |
+| **Then** | L17 cross-seed · L18 accounts · L23 upload · L24 orphans · the desktop milestone. |
 | **Landed, in order** | L01 · L02 · L03 · L04 · L05 · L06 · L07 · L08 · L09 · L10 · L15 · L11 · L12 · L14 · L19 · L21 · L13a · L13b · L20 · L13r · L13c · L22a · L22b · L16 (plus the correction waves L07-bis, L08-bis, L10-bis and the design phase L10-ter) |
 | **Freeze** | reached at L24's close, with every case of every surface drawn as a named state |
 
 ## Designs ready, code not started
 
-- Season recovery — `docs/features/maquette-season-recovery/DESIGN.md` (Q14–Q19 ruled; OPEN 8 ruled 2026-09-30)
 - L17 — `docs/features/maquette-l17/DESIGN.md` · L18 — `docs/features/maquette-l18/DESIGN.md`
 - L23 — `docs/features/maquette-l23/DESIGN.md` · L24 — `docs/features/maquette-l24/DESIGN.md`
 
@@ -33,7 +32,7 @@ remains, with the standalone addresses, is owned by L24 (`docs/features/maquette
 - Plex deletion route; real deletion validated only after the production merge, on a named medium, with a
   `sqlite3 .backup` first.
 - Synopsis absent from the read-model (`library.db`); state CODES, not words, for Système; season recovery
-  demands SR1–SR4; the medium's kind on the library membership read (B-581) and the automatic trigger's
+  demands SR1–SR5; the medium's kind on the library membership read (B-581) and the automatic trigger's
   technical fault told from a person's stop (`watcherDown`); L16-bis's T1 (three more trackers), T2 (a failing
   tracker switched off with its reason, its re-activation refused 422) and T3 (a torrent entry's date, sources,
   volumes, rates, poster and folder); the rest in `docs/reference/frontend-backend-demands.md`.

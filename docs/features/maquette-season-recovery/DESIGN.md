@@ -471,3 +471,34 @@ orchestrator, who owns that file; proposed rows in its shape:
 
 **`docs/reference/product-intent-map.md`**, read, not edited: the lot adds proofs under DOIT-2 (the refusal said,
 R-d), DOIT-4's visible half (the mark, R-b) and § 13's pointer (R-c) — proposed to the operator at the close.
+
+---
+
+## 7. Built — the record (2026-09-30, `feat/maquette-season-recovery`, version 0.98.117)
+
+The five phases, each rule seen red on the old behaviour, then green (`frontend/maquette/harness/`):
+`season_recovery_now.py` (R-season-recovery-a, -e, -g's card half), `season_recovery_row.py` (-b, -g's row half),
+`season_recovery_pointer.py` (-c), `season_recovery_refusal.py` (-d, -f). Re-aimed out loud: R224
+(`now_holds_in_flight.py`) and R238 (`one_card_per_medium.py`, an item is its title and its served season and
+episode). The 30 named states of § 3 are declared in `frontend/maquette/design/src/harness/states/season-recovery.ts`.
+Register rows: B-598 (a followed ask drew no card), B-599 (an episode card beside its season), B-600 (« Demandée »
+read another list); the `queuedMark` row went with the conformity train.
+
+What differs from the text above, and why:
+
+- **The named states live in one file of their own**, not in `acquisition.ts` and `media.ts`: the recovery draws on
+  five surfaces, and `acquisition.ts` would have passed its ceiling holding them.
+- **The derivation kept its module's name**, moved whole to `lib/arrival-slots.ts` (§ 1.7); `inFlightCards` hides
+  every card carrying a served `absorbedBy`, `liveCards` feeds the row, `tabHolding` the pointer, `acquisitionKey`
+  (« Silo|S03 », « Silo|S03E07 ») names an acquisition from its served fields.
+- **A covered episode is never revived by the interface** (§ 1.6): once its season is shelved it keeps its pointer
+  and stays out of « En cours », its journey then saying « La saison 3 est arrivée en médiathèque » (§ 1.4); an
+  abandoned recovery's covered cards go with it; a closed-short fallback re-enqueues ORDINARY cards, with no pointer.
+- **The release picker reads the episode off the release's NAME**: the release read carries no season field — a
+  demand beside SR1. The row's « Retenue » hint is not drawn on a covered release.
+- **A link to another tab of the page it is tapped on stacks** (§ 16, Q12): « Voir la carte de la saison » from a
+  journey over « Suivis », or from the release screen, lands on « En cours » or « À traiter » and Retour gives back
+  what it was tapped on. Built on the mechanism #657 brought (`recordArrivalInPage`, `restoreDials`), called by
+  `goTo` (`app/frame-verbs.ts`); R-navigation-a gains L5 and L6 (`navigation_edges.py`).
+- **The mock's recovery is per world**: an ask queues the season card in every world that lacks it, and answers
+  `reused` only where every world held it — the dense world's seeded recovery made a real-world ask « reused ».
