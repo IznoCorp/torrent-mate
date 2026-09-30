@@ -26,6 +26,8 @@ import { mockDials, mockState, resetMockState, type MockDials } from "./state";
 import { trackerDials, type TrackerDials } from "./trackers-state";
 import { installMockStream, resetStream, type StreamDriver } from "./stream";
 import { routes } from "./handlers";
+import { identityDials, signedInRights, type IdentityDials } from "./identity";
+import { OPERATION_RIGHTS, allowed } from "./operation-rights";
 
 /** The signature this module replaces. */
 type NetworkCall = typeof globalThis.fetch;
@@ -53,6 +55,9 @@ let becameQuiet: (() => void)[] = [];
 // The statuses that carry NO body. Building a response with one throws, so a
 // scenario asking a DELETE to answer 204 — the obvious thing to ask of a
 // DELETE — would make the request reject instead of answering.
+// The status of a call the account's rights refuse.
+const FORBIDDEN = 403;
+
 const BODILESS_STATUSES = new Set([204, 205, 304]);
 
 /**
@@ -149,6 +154,19 @@ async function answer(input: RequestInfo | URL, options?: RequestInit): Promise<
   if (seenBefore) {
     seenBefore.arrivals += 1;
     return json(seenBefore.status, seenBefore.payload);
+  }
+  // THE ONE GUARD OF § 17's REFUSAL SIDE: the operation's right against the
+  // signed-in account's, through the SAME model the surfaces offer by. It
+  // answers before the scenario does, and is recorded, so a forced call reads
+  // as the 403 it was.
+  const asks = OPERATION_RIGHTS[found.route.operationId] ?? null;
+  if (!allowed(asks, signedInRights().holdsAny)) {
+    recordAnswered({ operationId: found.route.operationId, method, path: address.pathname, status: FORBIDDEN });
+    return problem(
+      FORBIDDEN,
+      "a right this account does not hold",
+      `${found.route.operationId} asks for ${String(asks)}`,
+    );
   }
   const outcome = outcomeFor(found.route.operationId);
   // WHAT WAS ASKED FOR, RECORDED — `mocks/answered.ts` says why a rule cannot
@@ -345,6 +363,7 @@ export function installMockNetwork(): void {
     // WHAT THE MACHINE IS, as opposed to how an operation answers.
     ...mockDials,
     ...trackerDials,
+    ...identityDials,
     setOffline: (down: boolean) => {
       networkIsDown = down;
     },
@@ -370,7 +389,7 @@ declare global {
      * in. Optional, so a document served without it fails visibly at the call
      * site rather than here.
      */
-    __mocks?: MockSeeds & MockDials & TrackerDials & {
+    __mocks?: MockSeeds & MockDials & TrackerDials & IdentityDials & {
       routes: () => string[];
       /**
        * Every call this layer answered, in order.

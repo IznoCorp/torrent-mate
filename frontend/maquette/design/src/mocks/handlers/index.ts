@@ -14,6 +14,7 @@ import { maintenanceRoutes } from "./maintenance";
 import { membershipRoutes } from "./membership";
 import { mediaRoutes } from "./media";
 import { pipelineRoutes } from "./pipeline";
+import { requesterRoutes } from "./requesters";
 import { stagingRoutes } from "./staging";
 import { systemRoutes } from "./system";
 import { trackerRoutes } from "./trackers";
@@ -28,6 +29,7 @@ export function routes(): MockRoute[] {
     ...mediaRoutes(),
     ...acquisitionRoutes(),
     ...acquisitionVerbRoutes(),
+    ...requesterRoutes(),
     ...stagingRoutes(),
     ...pipelineRoutes(),
     ...decisionRoutes(),

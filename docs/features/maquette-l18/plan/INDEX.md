@@ -258,3 +258,12 @@ one dated line under the L18 heading of `docs/reference/frontend-architecture.md
   (sum 356 → 449, mean 12.3 → 12.47); deleted the first drawing's phase 10 (F46); split phases 4, 15, 17, 20, 22,
   27 of the first drawing where a fix grew them past 15 points; every phase number is now an integer with no
   reading-conditional branch left in the table (F51). L18a/L18b seam restated at phase 20/21 (was 17/18).
+- **2026-09-30 — re-grouped by SURFACE** (`docs/reference/method.md`, reset of 2026-09-30: a phase is one surface).
+  The thirty-six phases above are executed as twelve, each naming the old phases it absorbs: **1** the rights model —
+  contract, identities, the model, the one refusal guard (old 1–6); **2** the frame by rights — bar, menu badge,
+  drawer, reserved place, cold addresses, the entry page, `/no-access` (7–9); **3** Acquisition by rights — lists,
+  counts, tabs, the section absent, the remembered tab, own tunnel, « Suivre » (10, 11, 14, 18); **4** reassign (12,
+  13); **5** quality and pause per acquisition (15, 16); **6** the library read-only (17); **7** the forbidden-writes
+  list (19, 20); **8** Profil (21, 22); **9** the sign-in gate (23–25); **10** « Comptes » (26–32); **11** the media
+  sheet's cross-seed block (33, 34); **12** the close (35, 36). Retired with the reset: the oracle, the mutation
+  script, the « seven widths », the midpoint, dispatch records. Rule labels R-L18-a…z are bound to R280 onwards.

@@ -10,6 +10,7 @@ import { arrivalsOf, originOf } from "./staging";
 import { isVerifiedInPlex, forgetLadder, ladderOf, rungIndex, stripPosition, type Position } from "./ladder";
 import type { components } from "../../contract/types";
 import { stagesOf } from "./acquisition-verbs";
+import { withAcquisitionFacts, withRequesters } from "./requesters";
 import { mockState } from "../state";
 import { refused, type MockRequest, type MockRoute } from "../router";
 
@@ -104,7 +105,7 @@ export function acquisitionRoutes(): MockRoute[] {
     // A FILM'S FOLLOW ENDS ALONE once its last rung, « vérifié dans Plex », is done (ruling 3); a series' never
     // does. The engine deletes it at DETECTION today, earlier: a demand owed (DESIGN § 6.2).
     route("readFollows", GET, "/api/acquisition/followed", () =>
-      mockState().follows.filter((follow) => follow.kind !== FILM_KIND || !isVerifiedInPlex(follow.title))),
+      withAcquisitionFacts(mockState().follows.filter((follow) => follow.kind !== FILM_KIND || !isVerifiedInPlex(follow.title)))),
     route("createFollow", POST, "/api/acquisition/followed", (request) => {
       const state = mockState();
       // BUILT FROM ITS OWN REQUEST, and from nothing else. An earlier version
@@ -320,10 +321,10 @@ export function acquisitionRoutes(): MockRoute[] {
       const inFlight = (dense ? state.inFlight : state.inFlightReel)
         .filter((card) => !arrivals.some((arrival) => sameItem(arrival, card)));
       return {
-        takeable: onTheLadder(state.takeable, TAKEABLE_AT),
-        blocked: onTheLadder(state.blocked),
-        inFlight: onTheLadder(inFlight),
-        arrivals,
+        takeable: withRequesters(onTheLadder(state.takeable, TAKEABLE_AT)),
+        blocked: withRequesters(onTheLadder(state.blocked)),
+        inFlight: withRequesters(onTheLadder(inFlight)),
+        arrivals: withRequesters(arrivals),
       };
     }),
     // THE STAGES THE VERBS MOVE, not the seed itself. This answered the

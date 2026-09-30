@@ -4598,6 +4598,278 @@
           }
         }
       }
+    },
+    "/api/auth/plex": {
+      "post": {
+        "operationId": "signInWithPlex",
+        "summary": "Open a session through Plex",
+        "tags": [
+          "authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "the account the Plex identity signs in — a first sign-in creates it on the Default role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "invented: the Plex SSO does not exist yet (demand E); the layer answers the identity a named state dials"
+      }
+    },
+    "/api/acquisition/requesters/reassign": {
+      "post": {
+        "operationId": "reassignRequester",
+        "summary": "Move one requester of an acquisition to another account",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "200": {
+            "description": "the acquisition's requesters after the move",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "requesters": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AccountRef"
+                      },
+                      "description": "WHO ASKED for this acquisition — PLURAL (round 9 Q16): a follow keeps a table of requesters, each piloting it. The lists an account reads are filtered on membership in it unless the account holds `acquisition.see.others`."
+                    }
+                  },
+                  "required": [
+                    "requesters"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "follow",
+                      "card"
+                    ],
+                    "description": "a follow, or a card of the queue"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "the acquisition, by its title"
+                  },
+                  "from": {
+                    "type": "string",
+                    "description": "the requester moved off"
+                  },
+                  "to": {
+                    "type": "string",
+                    "description": "the account moved on"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "title",
+                  "from",
+                  "to"
+                ]
+              }
+            }
+          }
+        },
+        "x-unseeded": "invented: no account but the Plex owner exists yet (demand I)"
+      }
+    },
+    "/api/acquisition/followed/{followedId}/quality": {
+      "put": {
+        "operationId": "setAcquisitionQuality",
+        "summary": "Set the caller's quality profile on one acquisition",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "200": {
+            "description": "the follow, its profile in force recomputed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Follow"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "followedId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the follow"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "profile": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "a quality profile's name, or null to follow the default"
+                  }
+                },
+                "required": [
+                  "profile"
+                ]
+              }
+            }
+          }
+        },
+        "x-unseeded": "invented: the engine has no per-acquisition profile (demand K)"
+      }
+    },
+    "/api/acquisition/followed/{followedId}/pause": {
+      "put": {
+        "operationId": "setAcquisitionPause",
+        "summary": "Set the caller's pause on one acquisition",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "200": {
+            "description": "the follow, its pause recomputed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Follow"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "followedId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the follow"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "paused": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "paused"
+                ]
+              }
+            }
+          }
+        },
+        "x-unseeded": "invented: the engine has no per-acquisition pause (demand P)"
+      }
     }
   },
   "components": {
@@ -4710,6 +4982,13 @@
           "droppedByHand": {
             "type": "boolean",
             "description": "the folder was put in the staging area by hand: no acquisition asked for it, so it carries no requester, and its ladder starts where its own row does — at « arrivé »"
+          },
+          "requesters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountRef"
+            },
+            "description": "WHO ASKED for this acquisition — PLURAL (round 9 Q16): a follow keeps a table of requesters, each piloting it. The lists an account reads are filtered on membership in it unless the account holds `acquisition.see.others`."
           }
         },
         "required": [
@@ -5035,6 +5314,35 @@
               "null"
             ],
             "description": "the poster's address, or null when none is known"
+          },
+          "requesters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountRef"
+            },
+            "description": "WHO ASKED for this acquisition — PLURAL (round 9 Q16): a follow keeps a table of requesters, each piloting it. The lists an account reads are filtered on membership in it unless the account holds `acquisition.see.others`."
+          },
+          "ownQuality": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the quality profile THE CALLER set on this acquisition, or null — offered under `acquisition.quality.own` (demand K)"
+          },
+          "quality": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the profile in force: the HIGHEST of the settings of the requesters whose role holds `acquisition.quality.own` (round 10 Q6), null when none set one — the default profile applies"
+          },
+          "ownPaused": {
+            "type": "boolean",
+            "description": "whether THE CALLER asked for a pause of this acquisition (demand P)"
+          },
+          "paused": {
+            "type": "boolean",
+            "description": "whether the acquisition IS paused: every requester whose role holds `acquisition.pause.own` asked for it, and at least one did (round 10 Q6)"
           }
         },
         "required": [
@@ -5631,13 +5939,36 @@
           },
           "avatar": {
             "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "description": "the account's key"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "plexLinked": {
+            "type": "boolean",
+            "description": "whether a Plex account is linked to this one"
+          },
+          "forbiddenWrites": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Right"
+            },
+            "description": "THE INSTANCE'S forbidden writes (ruling 23): every write right on today's read-only instance, `library.delete` alone on the future preprod, empty on production. Read from the server, never guessed from an address."
           }
         },
         "required": [
           "avatar",
           "email",
-          "name"
-        ]
+          "forbiddenWrites",
+          "id",
+          "name",
+          "plexLinked",
+          "role"
+        ],
+        "description": "WHO IS SIGNED IN, and what the account may do (§ 17, demand D): its role, the rights the role carries, whether a Plex account is linked, and the instance's forbidden writes (ruling 23), subtracted from every role — Admin's included."
       },
       "DecisionCandidate": {
         "type": "object",
@@ -7614,6 +7945,83 @@
           "message",
           "reason",
           "since"
+        ]
+      },
+      "Right": {
+        "type": "string",
+        "enum": [
+          "library.read",
+          "library.delete",
+          "library.rescrape",
+          "acquisition.request",
+          "acquisition.follow",
+          "acquisition.pilot.own",
+          "acquisition.pilot.any",
+          "acquisition.see.others",
+          "acquisition.quality.own",
+          "acquisition.pause.own",
+          "acquisition.reassign",
+          "pipeline.control",
+          "trackers.view",
+          "trackers.control",
+          "system.view",
+          "configuration.view",
+          "configuration.write",
+          "accounts.manage",
+          "auth.password"
+        ],
+        "description": "ONE RIGHT OF THE ACL (§ 17, ruling 17: every access, a view or an act, is a right). Rights belong to ROLES, never to an account (ruling 20). The interface reads the set an account holds and offers exactly what it opens; it never compares a role's name."
+      },
+      "Role": {
+        "type": "object",
+        "description": "A ROLE and the rights it carries (ruling 20: one role per account). Two are the system's and indelible (ruling 22): `admin` holds NO rights list — it bypasses the ACL, every right present and future — and `default` is the role every new account receives, its rights configurable. Every other role is `ordinary` configuration.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "the role's key"
+          },
+          "name": {
+            "type": "string",
+            "description": "its name, for display only — never compared"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "default",
+              "ordinary"
+            ],
+            "description": "`admin` and `default` are the two system roles; `ordinary` is everything else"
+          },
+          "rights": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Right"
+            },
+            "description": "the rights it carries — empty for `admin`, which bypasses the list"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "rights"
+        ]
+      },
+      "AccountRef": {
+        "type": "object",
+        "description": "An account named by another answer — a requester, a chooser's row.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
         ]
       }
     },

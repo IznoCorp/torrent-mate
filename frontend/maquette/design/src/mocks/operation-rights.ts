@@ -1,0 +1,128 @@
+// THE RIGHT EVERY OPERATION ASKS FOR — the refusal side of § 17, in one table.
+//
+// EVERY OPERATION THE LAYER ANSWERS IS NAMED HERE, a write AND a read (F28,
+// F30): `operation-rights.test.ts` refuses a route this table does not name, so
+// a new operation cannot arrive ungated by forgetting. `null` is a DECISION —
+// the session's own acts, and the reads every account makes — never a default.
+//
+// A LIST IS « ANY OF »: Système's status is read by whoever may open Système or
+// Maintenance, the settings catalogue by whoever opens the configuration or a
+// page that shows a setting. A write names exactly one right, because the
+// forbidden-writes list (ruling 23) subtracts rights and a write must be
+// subtractable by name.
+//
+// THE ACQUISITION READS ARE NOT REFUSED: an account that may not see another's
+// acquisitions reads its own subset on a 200 (`acquisition.see.others` is a
+// filter, never a 403), and an account with no acquisition right reads an empty
+// one.
+import type { Right } from "../features/account/rights";
+
+/** What one operation asks for: a right, any of several, or nothing. */
+export type Asked = Right | readonly Right[] | null;
+
+// The acquisition section's own door: requesting, or seeing everyone's.
+const ACQUISITION: readonly Right[] = ["acquisition.request", "acquisition.see.others"];
+// Piloting a tunnel: one's own, or any.
+const PILOT: readonly Right[] = ["acquisition.pilot.own", "acquisition.pilot.any"];
+
+/** Every operation, and what it asks for. */
+export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
+  // The session's own acts: every identity, under any ceiling (F28).
+  readAccount: null,
+  signIn: null,
+  signOut: null,
+  signInWithPlex: null,
+  readVersion: null,
+
+  readLibraryItems: "library.read",
+  readLibraryCategories: "library.read",
+  readLibraryRecent: "library.read",
+  readLibraryIncomplete: "library.read",
+  readLibraryMembership: "library.read",
+  readMediaSheet: "library.read",
+  readMediaSeasons: "library.read",
+  deleteLibraryItems: "library.delete",
+  rescrapeMedia: "library.rescrape",
+
+  readFollows: null,
+  readAcquisitionQueue: null,
+  readAcquisitionStatus: null,
+  readJourney: null,
+  readDecisions: ACQUISITION,
+  readStaging: ACQUISITION,
+  readStagedMediaCopies: ACQUISITION,
+  readStagingDestinations: ACQUISITION,
+  readSuggestions: "acquisition.request",
+  searchProviders: "acquisition.request",
+  readReleases: PILOT,
+  createFollow: "acquisition.request",
+  updateFollow: "acquisition.follow",
+  deleteFollow: "acquisition.follow",
+  restoreFollow: "acquisition.follow",
+  searchForFollow: PILOT,
+  grabForFollow: PILOT,
+  grabSeasonForFollow: PILOT,
+  requeueJourney: PILOT,
+  rescrapeJourney: PILOT,
+  setAcquisitionQuality: "acquisition.quality.own",
+  setAcquisitionPause: "acquisition.pause.own",
+  reassignRequester: "acquisition.reassign",
+
+  runDetection: "pipeline.control",
+  deleteStagedMedia: "pipeline.control",
+  continueStagedMedia: "pipeline.control",
+  discardStagedMedia: "pipeline.control",
+  reclassifyStagedMedia: "pipeline.control",
+  restoreReclassifiedMedia: "pipeline.control",
+  resolvePlexMatch: "pipeline.control",
+  resolveDecision: "pipeline.control",
+  dismissDecision: "pipeline.control",
+  searchForDecision: "pipeline.control",
+  runPipeline: "pipeline.control",
+  pausePipeline: "pipeline.control",
+  resumePipeline: "pipeline.control",
+  killPipeline: "pipeline.control",
+  setWatcher: "pipeline.control",
+  runMaintenanceAction: "pipeline.control",
+
+  readPipeline: "system.view",
+  readPipelineHistory: "system.view",
+  readRun: "system.view",
+  readServices: "system.view",
+  readDependencies: "system.view",
+  readErrors: "system.view",
+  readSchedulers: "system.view",
+  readDisks: "system.view",
+  readIndexHealth: "system.view",
+  readMaintenanceActions: "system.view",
+  readDeletionJournal: "system.view",
+  readLocks: "system.view",
+
+  readTrackers: "trackers.view",
+  readDownloads: "trackers.view",
+  readObligations: "trackers.view",
+  removeDownload: "trackers.control",
+  markBrokenObligationSeen: "trackers.control",
+
+  readSettings: ["configuration.view", "trackers.view", "system.view"],
+  readConfigurationStatus: ["configuration.view", "system.view"],
+  readSecrets: "configuration.view",
+  readConfigurationFiles: "configuration.view",
+  readConfigurationFile: "configuration.view",
+  updateSecrets: "configuration.write",
+  updateConfigurationFile: "configuration.write",
+  restartWeb: "configuration.write",
+  previewRanking: "configuration.write",
+};
+
+/**
+ * Whether the signed-in account may call one operation.
+ *
+ * @param asked What the operation asks for.
+ * @param holdsAny The account's own test, from the model.
+ * @returns True when nothing is asked or one asked right is held.
+ */
+export function allowed(asked: Asked, holdsAny: (rights: readonly Right[]) => boolean): boolean {
+  if (asked === null) return true;
+  return holdsAny(typeof asked === "string" ? [asked] : asked);
+}
