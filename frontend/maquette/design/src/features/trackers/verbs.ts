@@ -3,7 +3,7 @@
 // THE DECLARATION RUNS AT MODULE EVALUATION, named once in
 // `app/panel-contributions.ts`, like its neighbours.
 import { registerVerb } from "../../lib/verbs";
-import { fillLandingDoor, panel, redraw, replaceAddress } from "../../lib/shell-doors";
+import { fillLandingDoor, panel, recordAddress, redraw, replaceAddress } from "../../lib/shell-doors";
 import { read, send, sharedQueryClient } from "../../lib/query-client";
 import { store } from "../../lib/store-access";
 import { trackersKey, type Tracker } from "./queries";
@@ -99,9 +99,19 @@ function filterTo(tracker: string): void {
   replaceAddress?.();
 }
 
-/* « VOIR LES TORRENTS »: the « Torrents » tab, filtered to the tracker whose entry
-   offered it. */
-registerVerb("trackers-filter", (tracker) => filterTo(tracker));
+/* « VOIR LES TORRENTS », in a tracker's panel: an ARRIVAL from the layer, never
+   the selector's adjustment (D-L13-1). The panel closes KEEPING its entry, the
+   « Torrents » tab filtered to the tracker stacks over it, and Retour reopens
+   the panel on « Trackers » — as the torrent panel's « Voir la fiche » does. */
+registerVerb("trackers-see", (tracker) => {
+  panel.close(true);
+  MEMORY.remember("torrents");
+  store.write({ trackersTab: "torrents", trackersFilter: tracker });
+  const port = document.getElementById("port");
+  if (port !== null) port.scrollTop = 0;
+  redraw();
+  recordAddress?.();
+});
 
 /* THE SELECTOR'S PILL raises its choices. */
 registerVerb("trackers-selector", () => panel.produce("trackers-selector"));

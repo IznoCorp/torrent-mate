@@ -376,6 +376,30 @@ export function destinationOf(pathname: string, search: string): Destination {
   return { page, dials, panel };
 }
 
+/**
+ * Every dial of the page an address names, each at the value it says — its
+ * default when it says none.
+ *
+ * `destinationOf` leaves a default out, because only what differs is written;
+ * a caller putting the page BACK as an entry left it needs the defaults said.
+ *
+ * Args:
+ *     pathname: The address's path.
+ *     search: Its query string.
+ *
+ * Returns:
+ *     The page's dial fields and their values; nothing for a screen or an
+ *     address nobody serves.
+ */
+export function pageDialsAt(pathname: string, search: string): Record<string, string> {
+  const destination = destinationOf(pathname, search);
+  if (destination.screen || destination.notFound !== undefined) return {};
+  return Object.fromEntries(
+    DIALS.filter((dial) => dial.of === destination.page)
+      .map((dial) => [dial.field, destination.dials[dial.field] ?? dial.default]),
+  );
+}
+
 /** The address model, as the engine asks for it. */
 export type AddressSeam = {
   /** The sign-in screen's own path, so the engine writes it by name. */
