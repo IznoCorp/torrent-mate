@@ -851,8 +851,8 @@ as « one need, N modules » to the one component. Its first move is the **respo
 320, 360, 369, 390, 412, 768 and 1280 px, no horizontal overflow and no cut — which replaces order 60; every red it
 finds and the train does not repair is declared by name, with its owner. A conversion proves nothing observable
 changed except the one visible change its item names. Design: the conformity reading
-(`review-archive/conformity-80/REPORT.md` § B, § D); plan `docs/features/maquette-conformity/plan/INDEX.md` (14
-phases). Four conversions (report D.1 #2, #7, #14, #15) wait for the operator's round and are not in it.
+(`review-archive/conformity-80/REPORT.md` § B, § D); plan `docs/features/maquette-conformity/plan/INDEX.md` (13
+phases, one per surface, a harness consolidation before the close). Four conversions (report D.1 #2, #7, #14, #15) wait for the operator's round and are not in it.
 
 #### L17 — §19, cross-seed · *depends on L16*
 

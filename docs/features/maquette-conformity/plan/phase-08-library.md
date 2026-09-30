@@ -16,6 +16,11 @@
    EMPTY and says so by the empty note. Named states `lib-recent-films`, `lib-incomplete-films`.
 4. **The Incomplets count line** (D.1 #6): its `statusDot` + inline `b` and `marginLeft: 12` (`page.tsx:51–54, 89`)
    → `countLine`'s own count part; the residue class `linkbtn` checked and removed.
+5. **B-578 — a candidate's poster opens its sheet** (moved into the train by the orchestrator, order 97(2)): on the
+   resolution screen the whole candidate card is one `data-resolve` button, so a touch on its poster PICKS it where
+   every other poster of the app opens the medium's sheet. The poster becomes its own control opening the sheet,
+   the rest of the card keeps the pick (`features/acquisition/resolution-cards.tsx`). `BUGS.md` B-578 → `fixing`,
+   then `fixed #<PR>` at the close, with escaped from / why / family (order 57).
 
 ## Acceptance — red first
 
@@ -24,9 +29,11 @@
 - R-conformity-b extended to `lib-grid`; R-conformity-s (new, `harness/lens_filters.py`): on `lib-recent` and
   `lib-incomplete` the pills are drawn, one pressed, and a pressed « Films » leaves only films, its count equal to the
   rows drawn.
+- B-578: a hold in `resolution_card.py` (a surface with a rule takes a hold, not a file — order 52): a touch on a
+  candidate's poster opens its sheet and picks nothing; a touch on its body still picks. Read RED on the old code.
 - Re-aimed by name: `virtual.py`, `scroll_keeps_place.py`, `cards.py`, `filters.py`, `library_membership.py`.
 - The oracle accepts by name: every state whose titles wrap (built by script), the library tabs' floor, the pills on
-  the two lenses.
+  the two lenses, the candidate card whose poster is now a control.
 
 ## Commit
 

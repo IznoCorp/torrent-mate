@@ -5,11 +5,12 @@
 - **Branch** `feat/maquette-conformity` (worktree `/Users/izno/dev/worktrees/maquette-conformity`), merged with
   `origin/main` at `9234341fc` (#645). **Orchestrator**: `Orch : TM frontend [077751]`.
 - **Design** `/Users/izno/dev/review-archive/conformity-80/REPORT.md` § B, § D; the operator's rulings
-  `/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md`. **Plan** `plan/INDEX.md` — 12 phases, one per
+  `/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md`. **Plan** `plan/INDEX.md` — 13 phases, one per
   surface (orders 98, 99): read its correspondence table and each page before a phase.
 - **DONE: phases 1–7.** 1 the responsive rule · 2 its WebKit pass · 3 components I · 4 components II · 5 Système ·
   6 Réglages and Maintenance · 7 Acquisition. **NOW: the MIDPOINT** (`--contracts` + the full responsive sweep,
-  Chromium + WebKit, once; its real falls repaired before phase 8). **NEXT: phase 8, Médiathèque**.
+  Chromium + WebKit, once; its real falls repaired before phase 8). **NEXT: phase 8, Médiathèque** (with B-578, the candidate's poster), then 9–11, **12 the harness
+  consolidation** (order 52, budget ≤ 0.60), **13 the close**.
 - **The phase gate (order 99)**: static guards on the files touched; each new rule read RED on the old code first
   (`scripts/mutate.sh` with a targeted expression — an old file that no longer compiles cannot be restored whole);
   the oracle ALONE, then `oracle.py --accept` through `/Users/izno/dev/review-archive/conformity-train/accept-oracle.sh`
