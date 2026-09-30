@@ -39,7 +39,7 @@ const SEED_WRITTEN_IN = "fr-FR";
  *
  * @returns The day and the hour, as « 10 août, 14 h 05 ».
  */
-function settledNow(): string {
+export function settledNow(): string {
   const day = new Intl.DateTimeFormat(SEED_WRITTEN_IN, { day: "numeric", month: "long", timeZone: "UTC" })
     .format(new Date(scenario().now));
   const clock = new Date();

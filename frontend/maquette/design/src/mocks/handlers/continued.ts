@@ -7,7 +7,7 @@
 import { mockState } from "../state";
 import { FROM_BLOCKED, FROM_DENSE, FROM_REAL } from "./staged-folders";
 import { forgetLadder } from "./ladder";
-import { settleChosen } from "./decisions";
+import { settleChosen, settledNow } from "./decisions";
 
 // Where a folder stands once a candidate answered it: identified, and the
 // pipeline running on « rangé » — the strip's fifth cell, the first four done.
@@ -46,6 +46,10 @@ const ASIDE = "aside";
 export function continueMedia(asked: string, named: string): boolean {
   const state = mockState();
   const decided = settleChosen(asked, named);
+  // THE CHOICE PASSES « IDENTIFIÉ », and the rung carries when: a done rung
+  // with no time read « — », as if nothing had been lived.
+  const when = settledNow();
+  for (const title of new Set([asked, named === "" ? asked : named])) state.identifiedAt[title] = when;
   const lists = [
     { from: FROM_REAL, to: [TO_REAL] },
     { from: FROM_DENSE, to: [TO_DENSE] },

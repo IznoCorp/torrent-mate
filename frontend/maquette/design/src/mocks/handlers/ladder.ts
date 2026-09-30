@@ -175,13 +175,16 @@ export function rungIndex(token: Rung["rung"]): number {
  */
 export function ladderOf(subject: string, position?: Position, origin: Origin = {}): Rung[] {
   const state = mockState();
-  const held = state.journeyStages[subject];
-  if (held !== undefined) return held;
-  const fresh = position === undefined
+  const ladder = state.journeyStages[subject] ?? (position === undefined
     ? TEMPLATE.map((seeded) => laid(seeded, seeded.state))
-    : positioned(position, origin);
-  state.journeyStages[subject] = fresh;
-  return fresh;
+    : positioned(position, origin));
+  // AN IDENTIFICATION SETTLED BY A CHOICE is passed at the time it was made —
+  // on a ladder laid before the choice as much as on one laid after it.
+  const identified = ladder[rungIndex("identified")];
+  const settledAt = state.identifiedAt[subject];
+  if (settledAt !== undefined && identified.state === DONE && identified.when === "") identified.when = settledAt;
+  state.journeyStages[subject] = ladder;
+  return ladder;
 }
 
 /**

@@ -208,6 +208,8 @@ export type MockState = {
    * nothing knows in advance which media will be asked for.
    */
   journeyStages: Record<string, Schemas["JourneyStage"][]>;
+  /** When a medium's identification was settled by a choice, by the title it goes on under: its rung « identifié » carries it. */
+  identifiedAt: Record<string, string>;
   /** A staged folder's case, POSED by the harness (RULINGS 22) — no fixture records one. */
   stagedCopies: Record<string, string>;
   /** The releases already tried per title, which the release read no longer offers. */
@@ -309,6 +311,7 @@ const seeded = (): MockState => ({
   tmpOrphans: copyOf<Schemas["TmpOrphan"][]>(TMP_ORPHANS),
   machineHealthy: false,
   journeyStages: {},
+  identifiedAt: {},
   stagedCopies: {},
   triedReleases: {},
   metadataRefreshedAt: {},

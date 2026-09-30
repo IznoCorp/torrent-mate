@@ -13,7 +13,10 @@ WHAT IS READ, once the pick's undo window has closed and its send has left:
     3. and it no longer says why it was stopped — the blocked card's reason is
        not carried onto the card that goes on;
     4. the decision it waited on is no longer pending — it is settled, with the
-       candidate chosen.
+       candidate chosen;
+    4b. its journey sheet's « identifié » carries the time the choice was made
+       — never « — » nor a word in its place (orchestrator, 2026-10-01: the act
+       « Choisir » writes that rung's time).
 
   From « Corriger » (`acq-resolution-enqueued`, the engine's « Furious »):
     5. the decision « Corriger » created is no longer pending;
@@ -23,6 +26,7 @@ WHAT IS READ, once the pick's undo window has closed and its send has left:
 import asyncio
 import json
 import pathlib
+import re
 
 from common import ACTED, PANEL_IN, SETTLED, Journal, open_page, read_at, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
@@ -106,6 +110,17 @@ async def main():
                       card is not None and BLOCKED_REASON not in card["text"], str(card and card["text"][:160]))
         pending = await page.evaluate(PENDING)
         journal.check("the decision « Lucky » waited on is no longer pending", "Lucky" not in pending, str(pending))
+        await page.evaluate("(title) => window.__panel.produce('journey', title)", choice)
+        await page.wait_for_timeout(PANEL_IN + SETTLED)
+        identified = await page.evaluate("""(name) => {
+          const row = [...document.querySelectorAll('#sheet[data-open] [data-part="key-value"]')]
+            .find((one) => one.querySelector('span')?.textContent.trim() === name);
+          return row ? row.querySelectorAll(':scope > span')[1]?.textContent.trim() ?? null : null;
+        }""", RUNGS["identified"])
+        journal.check("the journey's « identifié » carries the time of the choice",
+                      bool(re.search(r"\d{1,2} h \d{2}", identified or "")), repr(identified))
+        await page.evaluate("() => window.__panel.close()")
+        await page.wait_for_timeout(ACTED)
 
         await read_at(page, "acq-resolution-enqueued", "() => true", wait=PANEL_IN + ACTED + SETTLED + SETTLED)
         folder = await page.evaluate("() => document.querySelector('[data-part=\"screen\"][data-open][data-key^=\"resolution:\"]')?.dataset.key.slice(11) ?? null")

@@ -18,7 +18,12 @@ WHAT IS READ, every expected word from the ONE settled read the layer answered
      block;
   5. on those sheets, the rung « identifié » is drawn done, and never with the
      running rung's words (« en cours depuis … ») — a done rung borrowed the
-     template's time while the mock laid it done;
+     template's time while the mock laid it done — nor with « — », which says
+     nothing lived: a done rung with no time recorded says « fait »
+     (orchestrator, 2026-10-01);
+  5b. each sheet names the release of ITS OWN acquisition — its decision's
+     folder — never another medium's (the reader, 2026-10-01: President
+     Curtis's journey read « release Furious.S01E01… »);
   6. a medium whose decision is PENDING (« Lucky », an « À traiter » card), its
      ladder laid past identification: no block — its card opens the arbitration;
   7. that decision settled now (`resolveDecision`, « Choisir »): the block's
@@ -45,6 +50,7 @@ STATES = (
 )
 
 IDENTIFIED = WORDS["surfaces"]["ladder"]["rungs"]["identified"]
+NO_TIME = "—"
 RUNNING = [stage["when"] for stage in json.loads((SOURCE / "mocks/seeds/journey-stages.json").read_text(encoding="utf-8"))
            if stage["state"] == "now"]
 
@@ -61,6 +67,7 @@ READ = """(subject) => {
     .find((row) => row.querySelector('span')?.textContent.trim() === IDENTIFIED);
   const answer = window.__queries.getQueryData(['/api/decisions/']);
   return {open: !!sheet, block: !!block, rows,
+          meta: sheet?.querySelector('[data-part="sheet/meta"]')?.textContent.trim() ?? '',
           identified: identified ? {tone: identified.querySelector('[data-part="status-dot"]')?.dataset.tone,
                                     value: identified.querySelectorAll(':scope > span')[1]?.textContent.trim()} : null,
           settled: answer?.settled.find((one) => one.title === subject || one.choice?.title === subject) ?? null};
@@ -129,6 +136,11 @@ async def main():
             rung = seen["identified"] or {}
             journal.check(f"{state}: « {IDENTIFIED} » drawn done, not with the running rung's words",
                           rung.get("tone") == "success" and rung.get("value") not in RUNNING, str(rung))
+            journal.check(f"{state}: « {IDENTIFIED} » done says so in words, never « {NO_TIME} »",
+                          rung.get("value") not in (NO_TIME, None, ""), str(rung))
+            journal.check(f"{state}: the sheet names the release of its own acquisition",
+                          seen["meta"].endswith(seen["settled"]["folder"]),
+                          f"meta {seen['meta']!r}, its decision's folder {seen['settled']['folder']!r}")
         journal.check("the three states cover both authors", authors == {"operator", "engine"}, str(authors))
 
         running = await read_at(page, "sheet-journey", READ, "Furious", wait=PANEL_IN + SETTLED)

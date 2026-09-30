@@ -21,8 +21,8 @@ import i18next from "i18next";
 import { registerProducer, type PanelCache, type PanelDescriptor, type PanelNeed } from "../../ui/panel/contract";
 import { read } from "../../lib/query-client";
 import type { Schemas } from "../../lib/contract-schemas";
-import { DECISIONS_QUERY } from "./decision-queries";
-import "./decision-block";
+import { DECISIONS_QUERY, type Decisions } from "./decision-queries";
+import { settledDecisionOf } from "./decision-block";
 
 
 /** One rung of a medium's ladder, as the contract answers it. */
@@ -42,10 +42,12 @@ const STAGE_PIP: Record<Stage["state"], string> = {
 // The mark of a time nobody recorded — never a reconstructed one.
 const NO_TIME = "—";
 
-// A RUNNING LINE SAYS SO IN WORDS when no start was recorded for it: « — »
-// read the same for running and never reached. A done line is never given a
-// word in place of its time — the time is what « done » owes.
-const RUNNING_WITHOUT_TIME: Partial<Record<Stage["state"], string>> = {
+// A LINE SAYS ITS STATE IN WORDS when no time was recorded for it: « — » read
+// the same for done, running and never reached. Only a rung never lived keeps
+// the mark. A done rung still owes its time — the acts that pass one write it —
+// and the word stands only where nothing recorded it.
+const WITHOUT_TIME: Partial<Record<Stage["state"], string>> = {
+  done: "surfaces.ladder.doneUntimed",
   now: "surfaces.ladder.nowUntimed",
 };
 
@@ -57,7 +59,7 @@ const RUNNING_WITHOUT_TIME: Partial<Record<Stage["state"], string>> = {
  * @returns The line.
  */
 function stageLine(stage: Stage, name: string) {
-  const words = RUNNING_WITHOUT_TIME[stage.state];
+  const words = WITHOUT_TIME[stage.state];
   return {
     c: name,
     v: stage.when || (words ? i18next.t(words) : NO_TIME),
@@ -66,12 +68,23 @@ function stageLine(stage: Stage, name: string) {
   };
 }
 
-// THE RELEASE THE JOURNEY IS ABOUT, and it is a fixture rather than an answer:
-// the contract's `readJourney` returns the STAGES and nothing else, so there is
-// nowhere to read it from. Recorded as a demand on the backend (D7) rather than
-// dressed up — a journey names the release it followed, and the interface
-// requires it.
-const RELEASE = "Furious.S01E01.MULTi.1080p.WEB-DL";
+/**
+ * The release a journey followed: the folder of ITS OWN acquisition's decision.
+ *
+ * A FIXTURE NAMED ONE RELEASE FOR EVERY JOURNEY — President Curtis's journey
+ * read « release Furious.S01E01… ». The contract's `readJourney` answers the
+ * stages alone (demand D7), so the release is read where the layer does hold
+ * it: the decision about this medium, settled or pending, names its folder.
+ * None known, none named.
+ *
+ * @param title The medium.
+ * @param decisions The decisions read, both lists.
+ * @returns The release's folder, or null.
+ */
+function releaseOf(title: string, decisions: Decisions | undefined): string | null {
+  const pending = decisions?.pending.find((decision) => decision.title === title || decision.folder === title);
+  return pending?.folder ?? settledDecisionOf(decisions, { title })?.folder ?? null;
+}
 
 /**
  * Whether the medium's identification is behind it: the rung « identifié » done.
@@ -106,10 +119,13 @@ function journeyPanel(title: string, cache: PanelCache): PanelDescriptor | null 
   const stages = cache.held<Stage[]>(journeyQuery(title).queryKey);
   if (stages === undefined) return null;
   const translate = i18next.t.bind(i18next);
+  const release = releaseOf(title, cache.held<Decisions>(DECISIONS_QUERY.queryKey));
   return {
     address: "journey:" + title,
     title,
-    meta: [translate("panels.journey.metaBefore"), { m: RELEASE }],
+    meta: release === null
+      ? translate("panels.journey.metaAlone")
+      : [translate("panels.journey.metaBefore"), { m: release }],
     blocs: [
       {
         type: "faits",

@@ -370,6 +370,7 @@ async def main():
         # no follow and in no library — reached the panel from its « En cours »
         # card as « Série · — épisodes » with the no-season note, while its
         # Médiathèque sheet said « Film · 115 min »: the card carried no kind.
+        rung_words = set(await page.evaluate("()=>Object.values(window.__i18n.t('surfaces.ladder.rungs', {returnObjects: true}))"))
         await page.evaluate("()=>window.__go('acq-now-loaded')")
         await page.wait_for_timeout(SETTLED)
         for title in ("Conclave", "The Alabama Solution"):
@@ -379,6 +380,11 @@ async def main():
                 film_word in said["meta"] and series_word not in said["meta"] and not said["seasons"]
                 and not any(words in said["body"] for words in series_only),
                 f"meta {said['meta']!r} · body {said['body'][:160]!r}")
+            # AND ITS CHIP SAYS THE STEP IT STANDS ON, never « Acquis » for a
+            # film not yet in the library (orchestrator, 2026-10-01).
+            journal.check(
+                f"a film in flight ({title}): its chip names the rung it stands on, never « acquired »",
+                said["chip"].strip() in rung_words, f"chip {said['chip']!r}")
 
         # 6. THE HOLDER, both ways.
         for kind, real, invented in HOLDS:

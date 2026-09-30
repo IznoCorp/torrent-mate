@@ -1183,6 +1183,7 @@
       },
       "step": "· {{name}}",
       "subStep": "· · {{name}}",
+      "doneUntimed": "fait",
       "nowUntimed": "en cours",
       "toConfirm": "{{rung}} — à confirmer",
       "ratioWithoutThreshold": "Différé : le ratio sur {{tracker}} est trop bas, et ce tracker n'a aucun seuil réglé.",
@@ -1364,6 +1365,7 @@
     },
     "journey": {
       "metaBefore": "Parcours de l'acquisition · release ",
+      "metaAlone": "Parcours de l'acquisition",
       "provenanceNote": "Les dates viennent de la spine de provenance. Une étape non encore atteinte affiche « à venir » — jamais une date reconstruite.",
       "seeSheet": "Voir la fiche",
       "requeue": "Remettre en file",

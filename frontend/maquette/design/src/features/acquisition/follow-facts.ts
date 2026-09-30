@@ -19,6 +19,8 @@ import { membershipQuery, type Membership } from "../../lib/membership";
 import { completenessHeld, completenessQuery, seasonsQuery, seasonsHeld, type FollowCompleteness, type SeasonsAnswer } from "../../lib/season-rows";
 import { queueKey, queueNow, type AcquisitionQueue } from "../../lib/queue";
 import { store } from "../../lib/store-access";
+import { currentRung } from "../../lib/current-rung";
+import i18next from "i18next";
 import type { PanelCache } from "../../ui/panel/contract";
 import { followsQuery, incompleteShowsQuery } from "./queries";
 
@@ -51,6 +53,11 @@ export type FollowFacts = {
   /** Watched: something is looking for it. */
   isFollowed: boolean;
   inLibrary: boolean;
+  /**
+   * The rung a medium nobody follows stands on while its acquisition is in
+   * flight — what its chip says — or null.
+   */
+  stage: string | null;
   /** Waiting to be taken. */
   toTake: boolean;
   /** Waiting for the operator to resolve it. */
@@ -106,6 +113,10 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
   const todo = answer ? todoCards(answer).find((one) => one.title === title) : undefined;
   const arrival = answer?.arrivals.find((one) => one.title === title);
   const acquisition = todo ?? (answer ? inFlightCards(answer).find((one) => one.title === title) : undefined);
+  // A MEDIUM IN FLIGHT IS NOT « À JOUR » NOR « ACQUIS »: until its ladder's last
+  // rung is passed it is being acquired, at the rung its card stands on.
+  const ladder = (acquisition ?? arrival)?.ladder;
+  const inFlight = ladder !== undefined && ladder.length > 0 && ladder[ladder.length - 1].state !== "done";
   const follow: FollowSubject =
     followed.find((one) => one.title === title) ??
     incompleteShows
@@ -117,7 +128,12 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
     // added by hand and still in flight was drawn as a series (B-612) — else
     // the library answers it for this very title (B-581), and a series only
     // when neither holds it.
-    { title, kind: (acquisition ?? arrival)?.kind ?? membership.kind ?? "show", year: "", status: "up_to_date" };
+    {
+      title,
+      kind: (acquisition ?? arrival)?.kind ?? membership.kind ?? "show",
+      year: "",
+      status: inFlight ? "acquiring" : "up_to_date",
+    };
   const address = providerAddress(follow.ids ?? heldIdentity(title)?.ids);
   const seasonsAnswer = address
     ? cache.held<SeasonsAnswer>(seasonsQuery(address.provider, address.id).queryKey)
@@ -153,6 +169,9 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
     incomplete,
     isFollowed,
     inLibrary,
+    stage: !isFollowed && inFlight && ladder
+      ? i18next.t(`surfaces.ladder.rungs.${ladder[currentRung(ladder)].rung}`)
+      : null,
     toTake,
     toResolve,
     // THE SAME CARD, THE SAME ANSWERS: what « À traiter » offers at a card's

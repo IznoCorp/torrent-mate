@@ -152,7 +152,8 @@ function followPanel(title: string, cache: PanelCache): PanelDescriptor | null {
     meta:
       `${follow.year ? String(follow.year) + " · " : ""}${kind}` +
       `${fraction ? " · " + fraction + translate("panels.follow.episodesSuffix") : ""}`,
-    puce: [STATUS_TONE[follow.status as string], followStatusLabel(follow)],
+    // A MEDIUM IN FLIGHT that nobody follows says the rung it stands on.
+    puce: [STATUS_TONE[follow.status as string], facts.stage ?? followStatusLabel(follow)],
     blocs: [
       { type: "actions", actions: [primaryAction(facts)] },
       taken ? { type: "note", text: taken } : null,
