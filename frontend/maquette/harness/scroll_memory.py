@@ -59,7 +59,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, Journal, open_page, chrome_launch_args
+from common import PHONE, Journal, open_page, browser_channel, chrome_launch_args
 
 # The page viewport and the open screen's, by their `data-*` anchors — the same
 # pair `app/scroll-restoration.ts` resolves, so the rule and the code read one
@@ -177,7 +177,7 @@ async def walk_a_page(page):
 async def hold(journal):
     """Walks a page and a screen, out and back."""
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser, **PHONE)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))

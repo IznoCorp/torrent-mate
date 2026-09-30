@@ -23,9 +23,18 @@
 import { sharedQueryClient } from "../lib/query-client";
 import { registerVerb } from "../lib/verbs";
 import { store } from "../lib/store-access";
-import { bridge, fillAddressedPanelDoor, resetLandingDial, panel, toast, redraw } from "../lib/shell-doors";
+import {
+  bridge,
+  fillAddressedPanelDoor,
+  fillFollowLinkDoor,
+  resetLandingDial,
+  panel,
+  toast,
+  redraw,
+} from "../lib/shell-doors";
 import { hideLayers, registeredLayers } from "./layers";
-import { switchPage, switchPageFromLayer } from "./page-switch";
+import { rowFor } from "./navigation";
+import { switchPage, switchPageFromLayer, type Landing } from "./page-switch";
 
 /** The page showing right now — what a switch is told it is leaving. */
 function currentPage(): string {
@@ -52,11 +61,12 @@ function scrollPortToTop(): void {
  * @param fromLayer Whether the tap was made on a layer.
  * @param leaving The page being left.
  * @param name The verb's name, for the console when the write refuses.
+ * @param landing How the tap lands (`landingOf`).
  */
-function settleLanding(fromLayer: boolean, leaving: string, name: string): void {
+function settleLanding(fromLayer: boolean, leaving: string, name: string, landing: Landing): void {
   try {
-    if (fromLayer) switchPageFromLayer(leaving);
-    else switchPage(leaving);
+    if (fromLayer) switchPageFromLayer(leaving, landing);
+    else switchPage(leaving, landing);
   } catch (error) {
     // ENGLISH, and not in `fr.json`: a console message is a tool message.
     console.error(`data-${name}: the navigation write refused`, error);
@@ -64,24 +74,56 @@ function settleLanding(fromLayer: boolean, leaving: string, name: string): void 
   }
 }
 
+/* WHAT CHOOSES A DESTINATION rather than follows a link: the bottom bar, and a
+   menu's entry — the account menu's marks itself `data-destination`. */
+const DESTINATION_MENU = '[data-part="shell/tab-bar"], [data-destination]';
+
+/**
+ * How a tap lands, read from WHERE it was made and WHAT it leads to (DESIGN § 3).
+ *
+ * The bar and the menus CHOOSE a destination: a bar page unwinds the trail
+ * onto the floor (§ 16 rule 2, Q11), a menu page stacks on the page left (§ 16
+ * as amended). A tap anywhere else — a page, a screen, a panel — is a LINK, and
+ * a link stacks on what it was tapped on, the entry page included (Q12).
+ *
+ * @param page The destination.
+ * @param chooser Whether the tap came from the bar or the menu.
+ * @returns The landing.
+ */
+function landingOf(page: string, chooser: boolean): Landing {
+  const barPage = rowFor(page)?.inBar === true;
+  if (chooser) return barPage ? "unwind" : "stackOnPage";
+  return "stack";
+}
+
 /* THE PAGE A CONTROL NAMES. Navigating CLOSES whatever is open above it:
    without that, one changed page while staying stuck on the media sheet. */
-registerVerb("page", (page) => {
+registerVerb("page", (page, element) => {
   const leaving = currentPage();
+  const landing = landingOf(page, element.closest(DESTINATION_MENU) !== null);
   hideLayers();
   store.write({ page });
   scrollPortToTop();
   redraw();
-  switchPage(leaving);
+  switchPage(leaving, landing);
 });
 
-/* A LANDING THAT CAN BE ASKED FROM A LAYER — today only the user sheet's
-   « Profil et préférences »: every other producer renders into the page body,
-   which sits under every layer and is therefore untappable while one is open
-   (walked control by control, B-024). Landing must LEAVE the layer. */
-registerVerb("go", (page, element) => {
+/* A LANDING THAT CAN BE ASKED FROM A LAYER — the account menu's « Profil et
+   préférences », and a panel's « Compléter » through the link door. Landing
+   must LEAVE the layer: the menu's entry goes with it, a panel's is kept
+   (D-L13-1) so Retour gives it back. */
+/**
+ * Lands on a page from a link, a layer included — the `go` verb, and the door a
+ * feature's own verb follows a link through (« Compléter », `followLink`).
+ *
+ * @param page The destination.
+ * @param dial The dial the link lands on, passed to the page unread.
+ * @param chooser Whether the tap chose a destination (a menu's entry).
+ */
+function goTo(page: string, dial: string | undefined, chooser: boolean): void {
   const fromLayer = Boolean(history.state && history.state.layer);
   const leaving = currentPage();
+  const landing = landingOf(page, chooser);
   registeredLayers.close("drawer", true);
   panel?.close(true);
   store.write({ page });
@@ -90,23 +132,32 @@ registerVerb("go", (page, element) => {
      tab. The frame does not name that dial — it is the page's, and the write is
      made where it is understood. A control that names the dial it lands on
      (`data-dial`) has it passed along, unread. */
-  resetLandingDial?.(page, element.dataset.dial);
+  resetLandingDial?.(page, dial);
   scrollPortToTop();
   redraw();
-  settleLanding(fromLayer, leaving, "go");
+  settleLanding(fromLayer, leaving, "go", landing);
+}
+
+registerVerb("go", (page, element) => {
+  goTo(page, element.dataset.dial, element.closest(DESTINATION_MENU) !== null);
 });
 
+fillFollowLinkDoor((page, dial) => goTo(page, dial, false));
+
 /* A LANDING FROM THE DRAWER. The drawer is NOT a route, so its entry does not
-   survive the destination — and neither does the entry of the page being left:
-   a drawer entry is a top-level destination like any other. */
+   survive the destination. What the page left becomes depends on the
+   destination (§ 16 as amended): a bar page unwinds the trail onto the floor, a
+   menu page stacks on the page left, and the page one is on only closes the
+   drawer. */
 registerVerb("navgo", (page) => {
   const fromDrawer = Boolean(history.state && history.state.layer === "drawer");
   const leaving = currentPage();
+  const landing = landingOf(page, true);
   registeredLayers.close("drawer", true);
   store.write({ page });
   scrollPortToTop();
   redraw();
-  settleLanding(fromDrawer, leaving, "navgo");
+  settleLanding(fromDrawer, leaving, "navgo", landing);
 });
 
 /* THE DRAWER. Its entry is pushed so a back closes it, and a refusal of the

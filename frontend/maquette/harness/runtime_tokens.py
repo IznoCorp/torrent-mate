@@ -40,7 +40,7 @@ among them, and every writer is under `app/`.
 import asyncio
 import re
 
-from common import ROOT, Journal, open_page, chrome_launch_args
+from common import ROOT, Journal, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 # The property, spelled the way the stylesheet spells it. Both ends of the
@@ -201,7 +201,7 @@ async def main():
 
     # ── the document: the value lands, and it follows the bar ────────────────
     async with async_playwright() as p:
-        browser = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         ctx, pg = await open_page(browser)
         errors = []
         pg.on("pageerror", lambda e: errors.append(str(e)))

@@ -72,7 +72,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, Journal, PANEL_IN, SETTLED, open_page, chrome_launch_args
+from common import ACTED, Journal, PANEL_IN, SETTLED, open_page, browser_channel, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -166,7 +166,7 @@ DISMISS = """()=>window.__toast?.hide()"""
 async def main():
     journal = Journal("R138 — a queued ask says so, and goes on saying it")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
         errors: list[str] = []
         page.on("pageerror", lambda error: errors.append(str(error)))

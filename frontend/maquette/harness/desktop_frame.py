@@ -62,7 +62,7 @@ from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, Journal, open_page, chrome_launch_args
+from common import PHONE, Journal, open_page, browser_channel, chrome_launch_args
 from desktop_frame_page import (  # noqa: E402 - the path line above must run first
     COVERS, CROSSED, DEVICE_BOX, GEOMETRY, LABELLED, NOTHING_IS_MOVING, OUTSIDE, OUT_OF_THE_FRAME, PRESENCE, READ_FORCED, UNFRAMED, UNFRAMED_DEVICE, VISIBLE_WORDS, WHAT_COVERS_IT, WHAT_THE_DECLARATIONS_MEAN)
 
@@ -1090,7 +1090,7 @@ async def hold(journal):
         journal: The run's journal.
     """
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         await measure_phone(browser, journal)
         await measure_desktop(browser, journal)
         await measure_tightest(browser, journal)

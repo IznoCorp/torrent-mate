@@ -31,7 +31,7 @@ follow's sheet (R123's).
 """
 import asyncio
 
-from common import SETTLED, Journal, open_page, chrome_launch_args
+from common import SETTLED, Journal, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 GONE = ("À récupérer", "Rangé aujourd'hui", "Cherché, rien trouvé")  # french-ok: the three section titles, asserted absent
@@ -64,7 +64,7 @@ async def main():
     """Runs the rule."""
     journal = Journal("R224 — « En cours » holds « En vol » alone")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))

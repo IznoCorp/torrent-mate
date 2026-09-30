@@ -34,7 +34,7 @@ import zlib
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, PROTOTYPE, Journal, chrome_launch_args
+from common import PHONE, PROTOTYPE, Journal, browser_channel, chrome_launch_args
 
 BAR = "#nav"
 FROM_STATE = "lib-grid"
@@ -124,7 +124,7 @@ async def hold(journal):
     """Reads the bar's own region, mid-transition against settled."""
     errors = []
     async with async_playwright() as play:
-        browser = await play.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await play.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context = await browser.new_context(**PHONE)
         page = await context.new_page()
         await page.goto(PROTOTYPE, wait_until="load")

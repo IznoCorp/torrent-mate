@@ -78,7 +78,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, SETTLED, Journal, open_page, chrome_launch_args
+from common import ACTED, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
 from resolution_card import SCREEN, TIED_STATE, aim_at
 
 from playwright.async_api import async_playwright
@@ -381,7 +381,7 @@ async def main():
     """Walks the two journeys the second subject makes reachable."""
     journal = Journal("R172 — two picks in one undo window, by a finger")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
         errors: list[str] = []
         page.on("pageerror", lambda error: errors.append(str(error)))

@@ -9,6 +9,8 @@ import { registerVerb } from "../../lib/verbs";
 import { queueActions } from "../../lib/queue";
 import { bridge, dialog, panel, toast, redraw } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
+import { addressSeam } from "../../lib/addresses";
+import { entriesAbovePage } from "../../lib/navigation-entry";
 import { baseTitle } from "../../lib/titles";
 import { followVerbs } from "./follow-verbs";
 import { searchResults } from "./search-queries";
@@ -23,9 +25,11 @@ import type { SearchResult } from "./types";
  * The stuck folder becomes this medium and the pipeline resumes; no follow is
  * created, because that was not the request.
  *
- * ONE SETTLEMENT FOR THE TWO ENTRIES THIS JOURNEY STACKED — the result's panel
- * and `/add` itself. The panel is ASKED before it is closed, because its own
- * entry decides the count, and it is closed without unwinding (`close(true)`):
+ * ONE SETTLEMENT FOR THE ENTRIES THIS JOURNEY STACKED — the result's panel,
+ * `/add` itself and the arbitration it was opened over: everything above the
+ * page is given back, so the list comes back as a pick in the arbitration
+ * brings it back (09-15 Q4). The count is read BEFORE the panel is closed, and
+ * the panel is closed without unwinding (`close(true)`):
  * its unwind plus a second back were two backs racing in one task, and the
  * surplus pop was read as the operator's own back gesture.
  *
@@ -37,7 +41,7 @@ function identify(result: SearchResult): void {
   const target = (store.read().state.resolveTarget as string | null) ?? "";
   markAdded(result);
   store.touch();
-  const entries = (panel.isOpen() ? 1 : 0) + 1;
+  const entries = entriesAbovePage(addressSeam.homePage, String(store.read().state.page));
   panel.close(true);
   bridge.rewind(entries);
   // A PLEX MATCH IS CORRECTED by the identity found here, sent with it.

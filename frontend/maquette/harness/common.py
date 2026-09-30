@@ -20,6 +20,7 @@ transcribes, and a transcription drifts.
 import os
 import pathlib
 import re
+import sys
 from urllib.parse import urlparse
 
 import served_copy
@@ -100,6 +101,24 @@ def chrome_launch_args(extra=None):
         The `args` list `chromium.launch` accepts.
     """
     return ["--use-mock-keychain", *(extra or [])]
+
+
+# THE BROWSER EVERY RULE LAUNCHES, and on macOS it is not Google's Chrome. The
+# mock keychain above was not enough: each launch of Google's SIGNED Chrome
+# writes an `unexportable-keys` item into the macOS keychain itself and removes
+# it about two seconds later, so a browser a rule closes sooner leaks it
+# (measured by the audit, 2026-09-30). Playwright's own Chromium build is not
+# Google-signed and was measured leaving none. Linux — CI — keeps Chrome,
+# unchanged; the variable overrides both, for a reader who wants the other one
+# on purpose.
+def browser_channel():
+    """The `channel` every harness rule's `chromium.launch` takes.
+
+    Returns:
+        `TM_HARNESS_CHANNEL` when set, else `"chromium"` on macOS and
+        `"chrome"` everywhere else.
+    """
+    return os.environ.get("TM_HARNESS_CHANNEL") or ("chromium" if sys.platform == "darwin" else "chrome")
 
 
 # THE NAME BOTH RULES HOLD THIS UNDER, so a mutation that defeats the mapping

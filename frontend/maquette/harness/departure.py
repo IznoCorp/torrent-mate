@@ -69,7 +69,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import Journal, open_page, chrome_launch_args
+from common import Journal, open_page, browser_channel, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -636,7 +636,7 @@ async def main():
         "R127 — the departing panel does not come back, and its scrim does not "
         "stay under the finger (B-310, B-338)")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         errors: list[str] = []
         await hold_the_departure_is_complete(journal, browser, errors)
         await hold_the_reduced_path_is_drawn(journal, browser, errors)

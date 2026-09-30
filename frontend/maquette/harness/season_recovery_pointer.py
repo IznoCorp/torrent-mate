@@ -20,7 +20,7 @@ WHAT IT HOLDS, by finger:
 """
 import asyncio
 
-from common import PANEL_IN, SETTLED, Journal, open_page, chrome_launch_args
+from common import PANEL_IN, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 SEASON_CARD = "Silo|S03"
@@ -97,7 +97,7 @@ async def main():
     """Runs the rule."""
     journal = Journal("R-season-recovery-c — the absorbed episode's journey points to the season's card")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))

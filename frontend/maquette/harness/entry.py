@@ -28,7 +28,7 @@ import re
 from common import (
     READ_THROUGH_LOCALHOST,
     Journal,
-    chrome_launch_args,
+    browser_channel, chrome_launch_args,
     read_through_localhost,
     resolve_deployed_host_locally,
 )
@@ -89,7 +89,7 @@ async def main():
           not forbidden, str(sorted(set(forbidden))))
 
     async with async_playwright() as p:
-        b = await p.chromium.launch(channel="chrome", args=chrome_launch_args(resolve_deployed_host_locally(HOST)))
+        b = await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args(resolve_deployed_host_locally(HOST)))
         ctx = await b.new_context(viewport={"width": 390, "height": 844},
                                   device_scale_factor=2, is_mobile=True, has_touch=True)
         errors = []

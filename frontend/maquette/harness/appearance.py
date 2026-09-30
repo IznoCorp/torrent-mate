@@ -37,7 +37,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PROTOTYPE, Journal, open_page, chrome_launch_args
+from common import PROTOTYPE, Journal, open_page, browser_channel, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -88,7 +88,7 @@ async def read(page):
 async def main():
     journal = Journal("R102 — the appearance survives a reload, and the bar follows it")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
         await context.add_init_script(BEFORE_ANY_MODULE)
         errors: list[str] = []

@@ -54,7 +54,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from common import Journal, open_page, chrome_launch_args
+from common import Journal, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -148,7 +148,7 @@ def published(page_text: str) -> str | None:
 async def read_drawer():
     """Opens the prototype on the STATIC host and reads the identity block."""
     async with async_playwright() as driver:
-        browser = await driver.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await driver.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         _, page = await open_page(browser)
         await page.evaluate("()=>window.__go('drawer-navigation')")
         await page.wait_for_timeout(400)
