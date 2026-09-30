@@ -1,254 +1,74 @@
 # The prototype — this directory IS the product
 
-> **This prototype is the product, not a reference.** Operator directive of 2026-08-13: the
-> mission is no longer a mobile restyling of the shipped app but a REDESIGN — a finished v1. Every
-> page production serves is owed here, including the ones production has and this does not. The
-> app is bound to it afterwards, in a separate mission, and only once the operator judges the
-> design and the front-end architecture solid enough. The inventory of what is still owed is in
-> `IMPLEMENTATION.md`.
->
-> **Restated and widened, 2026-08-19 — EVERY screen is to be redrawn. All of them.** This is a
-> new version of the app, not a reskin: its purpose is a new, COHERENT user experience, and the
-> first objective is to FREEZE that interface. Four things follow.
->
-> 1. **No surface is out of scope.** A production screen with no page here is owed, never an
->    arbitration to leave it out. `/control` and `/pipeline` had been ruled deliberately
->    page-less; the operator overturned that on 2026-08-19. Where their panels BELONG remains a
->    live UX argument (`IMPLEMENTATION.md`); being drawn is no longer in question.
-> 2. **What this prototype already holds is VALIDATED** by the operator. Do not relitigate it.
-> 3. **What remains is not only pages** — the UX, the interaction language and this prototype's
->    own ARCHITECTURE have to be finished and consolidated before the freeze.
-> 4. **The backend follows the interface.** The engine will be adapted to what the new interface
->    needs, and that comes AFTER the freeze — so a backend limitation is never a reason to draw
->    less. Record it, and draw what the experience requires.
->
-> **It REPLACES the app; it is not transposed into it (2026-08-20).** On switchover day
-> `frontend/src` is ARCHIVED and this directory takes its place. Every page and every MECHANISM
-> the shipped app has must therefore end up here — afterwards there is nothing left to take from
-> it. And the corollary that cost the most: the CSS extraction, the `.tm` scope, the selector
-> allowlist and the rendering-parity probe were built for the OPPOSITE model — migrating the app
-> surface by surface, planned in the 2026-08-10 spec §4.1/§7.2 and reversed on 2026-08-13. They
-> have no subject and are being retired. The measured inventory of what is done and what remains
-> lives in `IMPLEMENTATION.md` § THE OBJECTIVE.
+`design/` is the next version of the TorrentMate web UI, and it REPLACES the shipped app: on
+switchover day `frontend/src` is archived and this directory takes its place. Why, and what is in
+scope, is not restated here: the constitution is `docs/reference/product-intent.md` (§ 15), the
+mission of 2026-08-19 and the authority of this prototype are in `CLAUDE.md` § Authority, the
+target architecture and the lot order are `docs/reference/frontend-architecture.md`, and where
+the work stands is `IMPLEMENTATION.md`. This file is the developer reference of the prototype.
 
-**`design/` is the design reference for the TorrentMate web UI. Any change to the
-design starts here, not in `frontend/src`.**
+**The design reference is the TOKENS and the COMPONENT CATALOGUE**, never one file:
+`design/src/styles/theme.css` (the scale and the palette), `design/src/styles/base.css` (the base
+layer), and the `variants.ts` of `design/src/ui/` and of each surface, where every drawing
+decision is written beside the class that applies it. `design/src/styles/harness.css` is the
+phone frame: it is in the prototype's own build and in no production build, and it dies at
+switchover.
 
-**Where inside `design/`, since L07 (2026-08-25) — and since L13a (2026-09-14), this line names no
-file at all.** It used to name `design/refonte.html`, which carried no style rule since L07. The
-reference is the TOKENS and the COMPONENT CATALOGUE — `src/styles/theme.css` for the scale and the
-palette, `src/styles/base.css` for the base layer, and the `variants.ts` of `src/ui/` and of each
-surface, where every drawing decision is written beside the class that applies it. `src/styles/harness.css` is the phone frame — it is in the maquette's OWN build, because that is
-where the oracle measures, and in no production build; it dies at switchover.
-`frontend/maquette/design/refonte.html@60530dbd8`, which had become the conversion ledger alone,
-was deleted at L13a with the rest of that residue.
+## Layout
 
-`design/` is the served root — everything a browser reaches lives there (the prototype, images,
-PWA assets). The `harness/` directory and the root's own Python — `serve.py` and the two files split out
-of it, `host_identity.py` and `installable.py` — plus `regions.json`, are never served.
+| Path | What |
+| --- | --- |
+| `design/` | the served root and a Vite project — `index.html`, `src/`, `assets/`, `sw.js` |
+| `design/src/routes/` | one file per address: `/`, `/acquisition`, `/media`, `/discover`, `/trackers`, `/system`, `/maintenance`, `/settings`, `/settings/ranking`, `/account`, `/add`, `/media/$provider/$id`, `/quality/$name`, `/releases/$title`, `/resolution/$folder`, `/run/$runUid` |
+| `design/src/app/` | the shell: frame, drawer, tab bar, layers, history bridge, page host, store, outbox, live relay |
+| `design/src/features/` | one directory per surface (acquisition, library, media, releases, trackers, system, maintenance, settings, account) |
+| `design/src/ui/` | the shared components and their `variants.ts` (card, chip, dialog, panel, popover, fact rows…) |
+| `design/src/lib/` | shared logic without markup (addresses, clock, relay, gestures, navigation entries…) |
+| `design/src/mocks/` | the mock layer that answers the contract in process (below) |
+| `design/src/harness/` | the harness-only modules: named states (`states/`), `drive.ts` (`window.__go`), `publish.ts` |
+| `design/src/i18n/fr.json` | every interface string (below) |
+| `contract/openapi.json` | the maquette's own data contract |
+| `harness/` | the rule suite, its host and `run.sh` — never served |
+| `serve.py`, `host_identity.py`, `installable.py` | the design host (`tm-design.iznogoudatall.xyz`) — never served |
+| `regions.json` | `$vocabulary` (the frozen CSS-name exceptions, read by the no-French guard), `$reportedDefects`, `$adversarialReview` (the rule set R1… with what each rule is for) |
 
-`design/` is also a Vite project — the chassis the conversion is moving into, sub-project
-by sub-project. `npm run build` emits `dist/` (gitignored): the real envelope from
-`index.html` with the prototype injected **verbatim** — a local plugin inserts the fragment
-after Vite's own HTML processing, so no minifier ever touches it — plus the shell's module
-bundle under `dist/vite/`, and `dist/assets` linked to the real files. R72 (`shell.py`)
-holds what remains true of that emission: the fragment appears verbatim exactly once, the
-document names exactly one module entry, and the bundle it names exists.
+`npm run build` (in `design/`) emits `dist/` (gitignored): the envelope from `index.html`, the
+module bundle under `dist/vite/`, the built worker `dist/sw.js`, and `dist/assets` linked to the
+real files. `npm run typecheck` and `npm test` (vitest) are the fast checks.
 
-**The fragment is a title and a stylesheet, and nothing else.** Two things left it. The
-engine — the 35 052-line script it used to carry — lived at
-`design/src/engine/legacy.js@c0a5062ac`, a module the shell imported before it started it,
-moved byte for byte, not rewritten, and kept as JavaScript on purpose, because typing it
-would have meant editing it and an edit hidden inside a move that size is an edit nobody could
-review. **It is DEAD, removed at L13r** (`08400a22a`, #605) — its residue's own death, the
-engine's last code gone. The application shell's markup — the phone frame, the splash, the
-sign-in card, the topbar, the drawer, the layer hosts — lives in `index.html`, the document
-Vite owns.
+## The shell, in one page
 
-**The markup went to `index.html` rather than into React**, and the reason is the engine's
-boot: it captures its containers at module evaluation (`view = F('#view')` and its siblings),
-and a module evaluates before React has rendered anything. Markup drawn by a component would
-not exist when the engine looks for it. `index.html`'s body is parsed before any module runs —
-the order the markup already had — and it sits after the injection marker so the order inside
-`<body>` is unchanged too: mount node, stylesheet, shell.
-
-What remains in the fragment is BLOCK 1 and BLOCK 2, unchanged: the CSS contract is SP5's
-subject, not SP4's.
-
-Two consequences worth knowing before writing a rule:
-
-- **The design has SOURCES, plural** — the fragment, `index.html`, and the engine module.
-  `common.py` names them (`DESIGN_SOURCES`) and `design_source()` reads them together. A rule
-  that greps « the design » greps that, never one file: four rules once grepped
-  `refonte.html` alone and stayed green after their subject moved out of it — 930 image
-  references, five colour references, and the body of code one of them counts history
-  primitives in. Reading a declared source that no longer exists raises, deliberately.
-- **The login gate reads each block where it lives.** `serve.py` clones the sign-in MARKUP
-  from `index.html` and inherits its STYLE from the fragment; `extract` raises on a missing
-  marker, so pointing one at the wrong file fails the gate rather than serving a screen
-  stripped of its design.
-- **Names are English, and the guard asks « is this word one we use? »** The other question —
-  « is this word French? » — is only as good as its list of French words, and that list had
-  holes: a hundred and forty French names sat under a green guard. `scripts/code-vocabulary.txt`
-  holds the 522 words this codebase's names are built from, and a name built from a word nobody
-  wrote down is refused whatever language it comes from. Adding a word is one line, deliberately.
-- **A `data-*` name is code; its VALUE is not.** `data-go="profil"` names a page, and a page id
-  is an address. A contract has three ends — the markup that emits it, the `dataset.X` that
-  reads it, the rules that tap it — and they move in ONE step. Beware the ones the engine
-  GENERATES: it writes `data-${nom}` from a data key, so no search for the literal `data-x`
-  will ever list them.
-- **The engine republished its own surface — DEAD, removed at L13r.** `design/src/engine/legacy.js@c0a5062ac`
-  (`08400a22a`, #605) was a classic script, whose top-level declarations were global where a
-  module's are not, and the harness drove it by bare name in some forty `page.evaluate` call
-  sites; the block at its bottom republished exactly what already existed — by value, or by
-  getter for the bindings the engine reassigned, the split measured rather than chosen. Its
-  successor is `harness/publish.ts`: every name the harness drives by is an explicit `publish()`
-  call from the typed module that owns it, never a script's own top-level scope.
-- **`src/seams.ts`'s three live bindings are gone too, moved to imports at L13r** (`docs/reference/frontend-architecture.md`,
-  « the seam is an import »). `pont`, `ecrans` and `panneau` were `export let` bindings the
-  engine-era shell filled at boot; the implementations import the store directly now, one
-  import per feature, and no two ways of reaching it are left to disagree.
-- **The scenario table is not the engine's.** The named states live in
-  `src/harness/states/`, one file per surface, and `window.__go(id)` is published by
-  `src/harness/drive.ts` (`installDriver`), which the harness module installs at boot. The
-  driving left the engine with the table.
-
-**React and TanStack Router are the outer shell.** The router is the SINGLE writer of the
-URL and the history: the legacy engine keeps its navigation logic but speaks to
-`window.__bridge` (six verbs) instead of the History API. The shell creates the store and
-the real bridge FIRST and only then starts the engine (`window.__demarrerMoteur` — the boot
-inversion described below), so every bridge call the engine makes at boot lands straight on
-the single writer; nothing before it needs queueing or replaying. R74 (`bridge.py`) holds the
-bridge: no direct history writer left in the source, the back journey redraws through it,
-a deep URL lands on its promised state, `__go` drives without touching history depth, and
-the boot handshake is real — the startup screen comes off on its own, before the harness
-ever touches it. One faithfully-kept legacy trait: forward is not a return — going back
-from a sheet and then forward closes it rather than restoring it, exactly as before the
-router.
-
-**Two screens are routed for real, not merely driven by `__go()`.** `/profile/$title`
-(the quality-profile screen, `ProfileScreen`) and `/add` (the add screen, `AddScreen`,
-whose `q` and `mode` search params are router-owned for as long as the address reads
-`/add`) render as final components inside the React root, reached by a real address
-rather than by the legacy fragment's own state machine. `go()` in `shell.tsx` is
-the ONLY function allowed to call `routeur.navigate()` — R76 (`navigation.py`) holds it
-to exactly one call site, source-level counted, sitting inside `go()`'s own body:
-the router library batches its commits into a microtask, so two writes issued in the
-same task would merge into one entry unless something flushes between them, and the
-legacy unwinding logic counts entries. `go()` flushes immediately after every
-`navigate()` to keep native `pushState` semantics — one call, one entry. Ownership of a
-history entry is decided by the entry's own SHAPE, never by matching the address
-against a list of routes: a `layer` entry and a `tm: "nav"` entry keep the legacy
-engine's exact existing handling, and an entry the router wrote carries neither key, so
-the popstate callback's own checks fall through it harmlessly.
-
-**The engine's boot order inverted once the bridge was real.** `window.__demarrerMoteur`
-is the handshake: the shell creates the store and the real `__bridge` FIRST, then calls it
-once, and the engine's own boot writes — the arrival state, the guard entry, the back
-listener — land straight on the single writer, in the engine's own order, before the
-first render. The queue-and-replay pre-bridge (recording writes issued before the shell
-existed, then replaying them on mount) is retired: nothing writes before the handshake
-runs, so nothing needs recording or replaying. A module that fails to evaluate simply
-never calls `__demarrerMoteur`, and the startup screen — already first in the frame —
-stays up: a visible, truthful failure instead of an app with mute verbs.
-
-**EVERY PAGE is the shell's: `sys`, `maint`, `cfg`, `arr`, `lib`, `acq`, `profil`, `404`.** A page is not a screen — it has no
-address of its own, `/` stays the pages' route with its legacy query, the legacy parser keeps
-owning it, and a page's markup must land inside `#view`, where the stylesheet, the harness
-selectors and the document-level click delegation all expect it. So the shell PORTALS into
-`#view`: a `PAGES_OF()` entry carries `shellOwned`, `render()` skips its `innerHTML` write for
-such a page and does everything else it always did, and `src/pages/host.tsx` holds the ONE table
-a later wave adds a page to. THE HANDOVER IS ANNOUNCED, in `render()`, the one place that already
-knows which world owns the page: taking, the fragment removes the nodes IT wrote and lets React
-draw into the container; releasing, it calls `window.__releasePage()` — a `flushSync`, so React
-has let go of every node before the next statement writes there. Removing its own nodes rather
-than emptying the container is deliberate: a store write and a `render()` are not always the same
-task, so the shell may already have drawn, and emptying then deletes nodes React believes it
-holds. An earlier arrangement gave each page a HOST ELEMENT of its own; it could not describe a
-page that emits several roots (the Médiathèque draws four siblings), and wrapping those would be
-a markup change.
-A migrated page's entry loses its `render`, so clearing `shellOwned` without restoring a
-renderer crashes rather than quietly drawing a page nobody maintains. What the page host owes
-the fragment in return: the legacy must never touch a node React holds — the settings page's
-save bar is a second portal, into `#device`, and the legacy's own removal of that node tore the
-React root down until the mounter was deleted. The fragment's `PAGES_OF()` carries no `render` at all any more; what it still draws is the SUGGESTION machinery — `#sugitems`, `#sugload` and the deck's `.deckbody`, containers the Acquisition component draws and fills only with what the FRAGMENT emits — the rows from `fillSug`, the deck's pile from `deckHTML`, written once when the container has none rather than on every commit, because `avancerDeck` mutates the deck's own DOM in place and a replaced node cannot animate. R77 (`page_host.py`) holds all of it — including one law about the RULES rather than the pages: no rule drives a page by mutating the engine's `state` alias. That alias points at the store's CURRENT object, so an in-place write leaves its identity unchanged, nothing React subscribes to moves, and the measurement lands on whatever page was drawn before.
-
-**The panel is one component, opened through `window.__panel`.** `<PanelContent>`
-(`components/panel.tsx`) is the single React constructor every panel draws through — a
-`PanelDescriptor` of typed `PanelBlock`s, refused outright if a block's `type` is not one of the five
-declared kinds. A producer never builds markup: it calls `window.__panel.open(descriptor)`,
-and `.fermer(pop?)` / `.ouverte()` complete the surface, backed by the shell's own store
-(`panneauOuvert`/`panneauDescripteur`). The legacy `openSheet()` is retired to a tripwire —
-it throws, so a producer nobody converted fails where it is written instead of quietly doing
-nothing; `closeSheet(pop)` stays as a one-line verb pointing at `window.__panel.close`,
-kept because the harness driver still says it. R56 (`panel.py`) holds the shape: no caller
-hands the panel markup, exactly one constructor, every declared block draws, an undeclared
-one is refused.
-
-**The fiche is a real route, `/fiche/$titre`.** `MediaScreen` renders it inside the React root
-like `/profile/$title` and `/add` before it, reached through `window.__screens.mediaSheet(title)`
-(NFC-normalised on write, same door as `.profil()`). An unknown title still renders, honestly
-— the legacy `openFiche()` it was transplanted from never had a not-found branch either — and
-a real fiche without a trailer shows its own "no trailer" line rather than hiding the section.
-R75 (`screen_addresses.py`) holds the address at this depth: cold entry, the hero image the
-screen paints itself actually loads, one Back returns to where the walk started, a wrong
-address still renders instead of raising.
-
-**Two more real routes: `/resolution/$dossier` and `/releases/$titre`.** `ResolutionScreen`
-and `ReleasesScreen` are transplanted from `openResolve()` and `openReleases()` — the arbitration
-screen and the release-choice screen — reached through `window.__screens.resolution(folder?,
-replace?)` and `.releases(titre)`. `resolution`'s argument is optional: the legacy function
-picked the first stuck folder itself when called with none, and the shell reproduces that default
-rather than pushing the choice onto each caller; its `replace` flag turns a legacy
-close-then-reopen (a pop plus a push, net one history entry) into a single `go(..., replace:
-true)`, worth exactly as much. `releases` writes `state.relatedTitle` — the legacy function's own
-first line — BEFORE navigating, since the `data-take` delegation branch still reads it after
-the route has rendered. `releaseCardHTML`/`decisionCardHTML`, the legacy builders both screens
-drew their cards with, are gone once their last caller moved: `ReleaseCard` and `DecisionCard`
-(`design/src/screens/resolution.tsx`) are what replaced them. R75 extends with six holds for the
-two screens: cold deep entry (including a dossier name carrying its own dots, the shape a real
-staging folder actually has — `server.py`'s and `serve.py`'s SPA fallbacks both fold it to the
-document rather than 404ing), one Back landing on `/`, and an unknown subject rendering the
-screen's own honest empty case instead of raising.
-
-**`window.__bridge` gained a sixth verb: `rewind(n)`**, the door for settling SEVERAL history
-entries in one announced operation instead of calling `retour()` twice in the same task. It
-flushes pending writes, announces the traversal to the engine (`window.__annoncerPops`, next to
-`window.__derouler`), THEN issues a single `historique.go(-n)` — measured, not assumed: a
-multi-entry `history.go(-n)` coalesces into ONE popstate at the browser level, so the engine's
-own latch is raised once per announcement, never by `n` (raising it by `n` was tried and falls a
-mutation: it swallows the operator's next real Back in silence). This closed M11 — the Associer
-flow (`data-add="N"` from an `/add` result, with `state.addMode === "identifier"`) used to
-fire two raw `history.back()` calls in the same task, which the engine's own coalescing latch
-could absorb only one of; the second read as an unannounced operator gesture and happened to
-land correctly only by the accident of which
-entry sat underneath. `ident.py` holds the settlement: one entry back, no layer left open, the
-next Back still worth exactly one step.
-
-**Scroll position follows the HISTORY ENTRY, not the address.** A screen opened over another
-used to be the same legacy layer restoring its own scroll on unwind; a router-owned screen
-unmounts instead, taking its DOM — and its offset — with it. The shell keeps a small map keyed
-by each history entry's own `key` (`shell.tsx`, "SCROLL FOLLOWS THE HISTORY ENTRY"),
-reads the outgoing screen's position in the history subscription — the only instant it is
-still in the DOM — and reapplies it once the incoming screen's port exists and its images have
-settled. Components never see it: no prop, no hook, no context.
-
-**The live host serves the BUILD, and so does the harness.** `serve.py` compares the
-newest mtime of the build's inputs (the three roots and every file under `src/`) against
-`dist/index.html` and rebuilds under a lock before serving (0.4 s measured), so an edit is
-still visible at the next reload. A failed build answers 503 with its own last words —
-serving the previous output would date what is being judged falsely. R73 (`switchover.py`)
-holds all of it against a scratch design root. The harness measures the same truth:
-`wrapped.html` is a COPY of the built document — the copy is what isolates rule mutations
-from what the host serves.
-
-It is the operator-approved interactive prototype of the mobile-first interface:
-`/acquisition` (three views), `/mediatheque`, `/arrivees`, `/systeme`, plus the media
-sheet and the shared shell. It is **not an illustration**. It is the source the shipped UI
-is derived from, and the reference every measurement compares against.
-
-Design spec: `docs/superpowers/specs/2026-08-10-refonte-mobile-quatre-pages-design.md@79ccebe2` — §7
-is the parity methodology and is the part that matters most.
+- **The router is the SINGLE writer of the URL and the history.** `go()` in the shell is the only
+  caller of the router's `navigate()` (R76, `navigation.py`), and it flushes after every call so
+  one call writes one entry — the router batches its commits into a microtask, and two writes in
+  one task would otherwise merge. Every other module speaks to history through
+  `window.__bridge` (`app/history-bridge.ts`). Ownership of a history entry is decided by the
+  entry's own SHAPE, never by matching the address against a list of routes.
+- **`rewind(n)` settles several entries in one announced operation.** A multi-entry
+  `history.go(-n)` coalesces into ONE popstate, so the announcement is raised once, never `n`
+  times (raising it `n` times swallows the operator's next real Back). `ident.py` holds it.
+- **Every page is drawn by the page host** (`app/page-host.tsx`) into `#view`, and a page draws the
+  same whichever surface it was reached from (R77, `page_host.py`). No rule drives a page by
+  mutating the store in place: an in-place write keeps the object's identity, nothing subscribed
+  moves, and the measurement lands on whatever page was drawn before.
+- **The panel is one component, opened through `window.__panel`.** A producer never builds markup:
+  it hands `window.__panel.open(descriptor)` a typed descriptor of ordered blocks of declared kinds,
+  and an undeclared block is refused (R56, `panel.py`).
+- **Screens are real routes** — the media sheet, the quality profile, `/add` (its `q` and `mode`
+  are router-owned search params), the resolution and releases screens, a run — reached through
+  `window.__screens`, cold by their address or from inside the app (R75, `screen_addresses.py`).
+  An unknown subject renders the screen's own honest empty case instead of raising.
+- **Scroll position follows the HISTORY ENTRY, not the address.** The shell keeps a map keyed by
+  each entry's `key` (`app/scroll-restoration.ts`), reads the outgoing screen's offset while it is
+  still in the DOM, and reapplies it once the incoming port exists and its images have settled.
+- **The design's sources, plural.** A rule that greps « the design » reads `common.py`'s
+  `DESIGN_SOURCES` (`index.html` plus the component sources) through `design_source()`, never one
+  file; reading a declared source that no longer exists raises, deliberately.
+- **The live host serves the BUILD, and so does the harness.** `serve.py` compares the newest
+  mtime of the build's inputs against `dist/index.html` and rebuilds under a lock before serving,
+  so an edit is visible at the next reload; a failed build answers 503 with its own last words
+  (R73, `switchover.py`). The harness measures a COPY of the built document, which isolates a
+  rule's corruption of its copy from what the host serves.
 
 ---
 
@@ -260,9 +80,7 @@ This applies to every future evolution of the interface, not only to the initial
 
 1. **A design change starts in the surface's own `variants.ts`, or in `src/styles/theme.css`
    when it is the vocabulary that moves.** Adjust it there, check it against the harness, then
-   derive the code. (Until L07 this line read « in `design/refonte.html` », which held the
-   stylesheet; `frontend/maquette/design/refonte.html@60530dbd8` held none after that lot, and was
-   itself deleted at L13a.)
+   derive the code.
 2. **If a region cannot be built as drawn, amend the prototype and record why.** The code
    never diverges "temporarily" — a temporary divergence is how an interface turns into a
    patchwork.
@@ -271,64 +89,10 @@ This applies to every future evolution of the interface, not only to the initial
 4. **Nothing ships that the prototype does not show.** A new surface is drawn here before it
    is coded.
 
-This rule is also recorded in `docs/reference/product-intent.md` and in the project's root
-`CLAUDE.md`, so it survives outside this directory.
-
----
-
-## Why this file exists at all
-
-**This directory inverts a defect a previous rebuild paid for**: translating a prototype instead
-of transplanting it, and validating by eyeball ("present in the DOM" read as "conformant") rather
-than by measurement built before the code and run locally on every change. The prototype comes
-first, the CSS is generated from it, and the measurement runs locally on every change. Story:
-`frontend/maquette/README.md@6a47304a4` § Why this file exists at all.
-
----
-
-## The four working rules
-
-### 1. The prototype is the source. Change it FIRST.
-
-See the binding rule above.
-
-### 2. The CSS is the maquette's own — there is nothing to translate.
-
-BLOCK 2 ships as-is; nothing lifts it, rescopes it or copies it anywhere — the extraction/rescoping
-tooling this rule once required (`scripts/extract-maquette-css.py`, the `.tm` scope, the 461-selector
-allowlist, `scripts/parity-probe.py`) was built for a migrate-the-app-surface-by-surface model the
-operator reversed on 2026-08-13, and it was retired 2026-08-20. Story:
-`frontend/maquette/README.md@6a47304a4` § The four working rules.
-
-**You do not translate a CSS that becomes the CSS.** What survives is the one distinction that
-was never about translation:
-
-- **BLOCK 1 is the harness** — the phone frame, the demo bars, the design notes. It must NOT
-  ship on switchover day, and the maquette's own build carries it today. That is an open item,
-  recorded in `IMPLEMENTATION.md`, not a solved one.
-- **BLOCK 2 is the product**, and `scripts/check-css-tokens.py` holds it: every `var()` in
-  BLOCK 2 resolves to a declaration in BLOCK 2, or is a `--tm-*` runtime token carrying a
-  fallback. A token that only BLOCK 1 declares works in the prototype and dies at switchover —
-  which is exactly the state that rule was written for: 35 tokens used, ONE declared.
-
-### 3. The DOM is a contract, checked offline.
-
-Per region, a vitest test renders the component with the shared fixture and asserts that the
-emitted **tag chain + class chain** equals the prototype's. jsdom, milliseconds, no browser.
-This catches "translating" at the moment it happens.
-
-### 4. What replaced « zero divergence »
-
-The rescoping-parity probe (`scripts/parity-probe.py`) was deleted with the extraction it
-measured — there is no second stylesheet to be in parity WITH, BLOCK 2 is the app's CSS, full
-stop. What holds BLOCK 2 now is narrower and honest about it: `scripts/check-css-tokens.py`
-(every `var()` resolves), the rule scripts in `harness/`, and the fact that a rendering change in
-the prototype IS the product changing — there is no copy of it left to diverge.
-
 ## The scale — a design constant is a STEP, and it is declared once
 
-BLOCK 2 opens on a single `:root` block, before anything that could use it: **32 tokens**, and
-they are the only design constants the application's stylesheet spends.
+The scale is one block of tokens in `design/src/styles/theme.css`, and its steps are the only
+design constants the application CSS spends.
 
 | Family                                                                          | Steps     | What it answers for                                                                                                                                                                                     |
 | ------------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -339,10 +103,7 @@ they are the only design constants the application's stylesheet spends.
 
 `scripts/check-css-tokens.py --arm scale` holds it, and it is a **wall rather than a budget**:
 the first declaration on no step is refused, named by selector, property and literal, with the
-step it sits nearest to so the reader can fold it in one edit. It was a ratchet — a recorded
-per-family count that was forbidden to rise — for exactly as long as the stylesheet was being
-folded; the record and the mode that wrote it went the day the last family reached zero, because
-a tolerance that tolerates nothing is a tolerance someone eventually spends.
+step it sits nearest to so the reader can fold it in one edit.
 
 Motion is held in **two dimensions**, because a curve is not a number and no pattern written for
 lengths will ever see one: the duration must read a step of the ramp AND the easing must be one
@@ -353,8 +114,7 @@ initial `ease`, a curve nobody chose — are each refused.
 **Two selectors are exempt, by name and with their reason**, in the arm's own `EXEMPTIONS`
 table: `.dcard .cap` reserves the footprint that clears the floating add button, and `.hero`
 pulls its title up over the poster's melt. Both are measurements of a composition, not distances
-anyone would want on a ramp. Exempting them by name is the point — a family-wide tolerance would
-have covered the next fifty.
+anyone would want on a ramp.
 
 **The block carries TWO marker names on one line**, `scale:start` and `login:scale:start`,
 because it has two readers: the scale guard, and `serve.py`, which composes the standalone
@@ -363,14 +123,13 @@ inherits a token the composed page would otherwise never declare.
 
 **`--tm-bottom-bar-h` is the one custom property that is a MEASUREMENT rather than a decision** —
 the bottom bar's drawn height, safe area included, known only once the bar is on screen. It is
-published by the SHELL (`design/src/app/bar-height.ts`), never by the engine, so the engine's
-removal has nothing to rescue; its eight uses keep their `, 0px` fallback, because a runtime token
+published by the SHELL (`design/src/app/bar-height.ts`); its uses keep their `, 0px` fallback, because a runtime token
 resolves to nothing until the script has run and the symptom is a flash. R84 (`runtime_tokens.py`)
 holds the three ends.
 
 ## Traps this stylesheet paid for
 
-- **The composed sign-in page does not get BLOCK 2** — a MARKER-reading rule can stay green over
+- **The composed sign-in page does not get the application CSS** — a MARKER-reading rule can stay green over
   a page missing a declaration it still serves; the login arm reads `serve.py`'s own `extract()`
   calls instead.
 - **A contrast repair verified on one theme repairs one of the two** — measure a colour in BOTH
@@ -385,8 +144,6 @@ holds the three ends.
 - **`stopPropagation` does not stop a listener sitting BESIDE yours on the same node** — the tap
   registry answers in CAPTURE on `document`, so a swallower must call `stopImmediatePropagation`
   and be registered first, or the click it meant to swallow fires the verb under the finger.
-- **A reference reading that rolls `design/src` back discards uncommitted work** — commit before
-  checking older sources out under the branch's instrument, as `scripts/mutate.sh` requires.
 - **After a TOUCH drag the browser suppresses the click itself** — a hold about the click that
   ends a drag drives it with a MOUSE, or it measures the browser, not the guard.
 - **`offsetParent` cannot see a closed `<details>`** — Chrome hides its content with
@@ -395,21 +152,16 @@ holds the three ends.
 - **The mock layer intercepts `fetch` INSIDE the page** — so a Playwright response listener sees
   nothing at all on the API routes, and a rule built on one measures an empty list rather than a
   silent interface. A claim about « the request that left » is read in the layer's own register
-  (`GET` the address back, or `window.__mocks.answered()`), never in a network trace. And a
-  mutation log keeps the mutation's EXPRESSION beside the file and the `FAIL` line: a reader who
-  has only the file cannot tell which of its behaviours the rule was proved against.
-
-Story: `frontend/maquette/README.md@6a47304a4` § Traps this stylesheet paid for.
+  (`GET` the address back, or `window.__mocks.answered()`), never in a network trace.
 
 ## Every state has a name, and knows how to reach itself
 
 `window.__go("<id>")` drives the prototype into a state **without clicking**.
-`window.__states()` returns every declared id — count them there, never here: this line said 54 while the table held 113.
+`window.__states()` returns every declared id — count them there, never in a document.
 
 This is what makes a rule deterministic. Without it, measuring "the blocked card" requires
 knowing how to make one appear — and that knowledge is exactly what evaporates over time. With
-it, a rule says `__go(state)` and measures. The parity probe used to walk `regions.json` this
-way; both it and that map went on 2026-08-20 with the extraction they served.
+it, a rule says `__go(state)` and measures.
 
 Three orthogonal dials of the prototype's store:
 
@@ -429,19 +181,6 @@ variants, the navigation drawer, the two install proposals, the arbitration scre
 
 `harness/states.py` drives every one of them and asserts each one renders content, has no horizontal
 overflow and raises no JS error. **A state that renders nothing fails the pass.**
-
-## `regions.json` — the project's memory
-
-The extraction contract's fields (`exportedSelectors`, `harnessSelectors`, `probe`, `regions`,
-`states`, `scope`, `outOfScope`) went with the CSS extraction and its parity probe on 2026-08-20
-(§ The four working rules). What is left is the part that was never machinery:
-
-- **`$vocabulary`** — the frozen CSS-name exceptions, each with the reason it was kept. Read by
-  the no-French guard's class-name and custom-property arms.
-- **`target`** — read by `harness/address.py`.
-- **`$adversarialReview`** — the rule set (R1…R64) plus `$methodLessons`: what each rule
-  exists for, and what a rule that failed to bite taught. `$reportedDefects` lists the
-  defects found by hand, each with its test in `harness/bugs.py`.
 
 ## What is real in here, and what is not
 
@@ -464,24 +203,11 @@ Not real: the release candidates on the "choose another release" screen — no t
 queried — and the timings and counts of the `loaded` scenario, which exist so density can be
 judged. Both are labelled as such in the design notes.
 
-**The copy ages by design.** The system keeps running: the scheduler searches twice a day
-and increments each follow's attempt counter in `acquire.db`, so the embedded counters
-drift and `content.py` (which compares the cards against the LIVE database) goes red with
-no code change. `resync.py` is SUPPOSED to close the gap the only honest way — reading the
-live counters and rewriting the embedded ones, nothing else — but it is BROKEN, since L13r:
-it still reads `design/src/engine/legacy.js@c0a5062ac` (`08400a22a`, #605), deleted whole
-that lot, and crashes with an uncaught `FileNotFoundError` rather than the graceful refusal
-its own header describes (B-563, filed at this close). Do not run it expecting a correction
-until it is repaired.
-
-`frontend/maquette/resync.py` was that tool, run standalone
-(`python3 frontend/maquette/resync.py`) before the suite, not as part of it: it opens
-`acquire.db` read-only, computes each followed title's real attempt count, and used to rewrite
-only the matching counters embedded in `design/src/engine/legacy.js@c0a5062ac`'s data blocks —
-never a layout, a class, or anything the harness itself measures. It reported how many
-objects it corrected and touched the file only when a count actually changed, so a clean
-run left no diff to review. A correction was committed on its own, as data, never folded
-into a code change it happens to precede.
+**The copy ages by design.** The system keeps running: the scheduler searches twice a day and
+increments each follow's attempt counter in `acquire.db`, so the embedded counters drift and
+`content.py` (which compares the cards against the LIVE database) goes red with no code change.
+`resync.py`, the tool that rewrote those counters, is broken since the engine's removal (B-563);
+until it is repaired, correct a counter by hand, as data, in a commit of its own.
 
 **Two scenarios**, switched from the harness (the **≡** button):
 
@@ -492,35 +218,21 @@ into a code change it happens to precede.
 
 ---
 
-## The mock layer — what it is, and how to drive it (L08)
+## The mock layer — what it is, and how to drive it
 
-**The prototype is still NOT connected to a backend, and this changes nothing about that**
-(operator, 2026-08-20). A mock layer is not a connection: it answers the maquette's own
-contract, in process. The wiring belongs to the switchover.
+**The prototype is NOT connected to a backend.** A mock layer is not a connection: it answers the
+maquette's own contract, in process. The wiring belongs to the switchover.
 
-**What it is.** `design/src/mocks/` — one module replaces `fetch` with a table of routes, one
-per operation `frontend/maquette/contract/openapi.json` declares — 63 of them today, counted by
-`window.__mocks.routes().length` and never from this line. No service worker: the oracle
-measures at first paint and a worker's registration is asynchronous. It is installed
-synchronously in the boot, behind the build-time constant `__MOCKS_BUILT_IN__`.
+**What it is.** `design/src/mocks/` — one module replaces `fetch` with a table of routes, one per
+operation `frontend/maquette/contract/openapi.json` declares, counted by
+`window.__mocks.routes().length`. No service worker: a worker's registration is asynchronous and
+the first paint must already be answered. It is installed synchronously in the boot, behind the
+build-time constant `__MOCKS_BUILT_IN__`.
 
-**Where its data comes from.** `design/src/mocks/seeds/*.json` were ORIGINALLY built from
-`design/src/engine/legacy.js@c0a5062ac` by a declared projection — a rename of keys and a
-regroup of positional arrays, never a re-derivation, so nothing in them was invented. **That
-builder is gone**: `scripts/build-mock-seeds.py` died with the engine at L13r (`08400a22a`,
-#605, B-563), and nothing has rebuilt a seed from a live fixture since. `check-mock-seeds.py`
-(still live) holds what is left of the discipline without the builder — every seed against the
-CONTRACT's own schema, and a provenance correspondence between the register, the seed files and
-the contract's `x-seeded-from`, never a fixture it re-derives from.
-
-```
-python3 scripts/check-mock-seeds.py             # six arms, ~1 s
-python3 scripts/check-mock-seeds.py --list      # the inventory it holds
-```
-
-**After `refresh-maquette-fixture.py` rewrites a fixture, edit the affected seeds by hand in the
-same commit** and let `check-mock-seeds.py` hold the correspondence — there is no rebuild step
-to run instead (B-563). `resync.py` is presently BROKEN (B-563) and rewrites nothing.
+**Where its data comes from.** `design/src/mocks/seeds/*.json`, first projected from the old
+engine's data (a rename of keys and a regroup of arrays, nothing invented). Their builder is gone
+(B-563): after `scripts/refresh-maquette-fixture.py` rewrites a fixture, edit the affected seeds
+by hand in the same commit.
 
 **How to drive it**, from the console or from a rule — `window.__mocks`:
 
@@ -531,16 +243,14 @@ to run instead (B-563). `resync.py` is presently BROKEN (B-563) and rewrites not
 | `.scenario().operations.<operationId> = { status: 503 }` | make one operation fail |
 | `.scenario().operations.<operationId> = { latencyMilliseconds: 250 }` | hold one answer back |
 | `.inFlight()` | how many requests are in flight |
-| `.quiet()` | a promise that settles when none is. `oracle.py`'s settle reads it |
+| `.quiet()` | a promise that settles when none is |
 | `.reset()` | the seeded state and the empty scenario, both back |
 
 **A request no route claims FAILS and names itself** — 404 with the method and the path. Never a
 pass-through, never a silent empty object: a mock that answers something to everything is a mock
 that hides a missing handler.
 
-**What holds it**: `harness/mocks.py` (R85, 15 holds) in the full suite,
-`scripts/check-mock-seeds.py` and `scripts/compare-contracts.py --check` in the per-phase tier and
-in `make check`.
+**What holds it**: `harness/mocks.py` (R85) and `scripts/compare-contracts.py --check`.
 
 ---
 
@@ -549,7 +259,7 @@ in `make check`.
 - **A named state RESETS the mock scenario.** `window.__go` puts the layer back, latency included,
   so a scenario asked for BEFORE a state is a scenario asked for nobody: set it after.
 - **A pinned COUNT in a unit test moves with a seed row.** Adding one row to a seed moves the
-  figures `design/src/**/*.test.ts` pins, and `check-maquette-unit-tests` is what says so.
+  figures `design/src/**/*.test.ts` pins; `npm test` says so.
 - **The library's listing is PAGED, and `total` is not what the layer holds.** `total` answers the
   library's own 1 861; `loaded` is what the seeds carry. A reading that judges the seeds by one
   page, or by `total`, invents holes that are not there.
@@ -557,8 +267,6 @@ in `make check`.
   size, which can blow a fixed-width frame out past its bound.
 - **R8 — an author `display` rule beats `[hidden]`.** Any class declaring a `display` must
   declare its own hidden case, or `el.hidden = true` does nothing.
-
-Story: `frontend/maquette/README.md@6a47304a4` § Two rules the prototype itself re-taught, the hard way.
 
 ## One card, one behaviour — and one panel per medium
 
@@ -576,8 +284,7 @@ disagree.
   (« À récupérer », « Ça coince »). It is a shortcut, never the only way in.
 
 **The last two clauses are the ones that matter**: an action reachable from a single surface
-disappears the moment that surface is displayed differently, which is what R43 holds. Story:
-`frontend/maquette/README.md@6a47304a4` § One card, one behaviour.
+disappears the moment that surface is displayed differently, which is what R43 holds.
 
 **The panel is derived, not passed in.** One builder reads what is true about the
 medium — followed, incomplete, in the library, to grab, blocked, has a sheet —
@@ -603,11 +310,6 @@ screen:
 | Release card  | `ReleaseCard`/`DecisionCard`   | the resolution and release screens — **not a medium**        |
 | Selection row | `selectionRowMarkup` (`ui/rows.ts`) | a mode of the LIST, not a variant of the card |
 
-Three views used to rebuild a card by hand. One of them had already drifted, and it
-took a separate edit to bring it back in line — the kind of edit that is silently
-forgotten. Breaking the shared builder on purpose now produces **332 failures across
-every list**; the same edit once reached only the lists that happened to use it.
-
 **The card takes a descriptor of FACTS**, listed in the source next to the function:
 title, kind, sub-line, reason, fraction, chip, caption, fresh, strip. A view that
 wants to show something not in that list is describing a fact the card does not yet
@@ -628,11 +330,8 @@ which belong to no stylesheet and are therefore exported nowhere. It now takes a
 its primary action above the season matrix and its secondary group below. A block type nobody
 declared raises rather than drawing nothing.
 
-A **fallback** builder had also appeared, answering for whatever the first did not recognise,
-and it shipped six buttons of which three led nowhere at all. That is what a fallback becomes:
-never the one being looked at, so never the one being fixed. There is one builder now, and
-« nothing is known about this medium » is one of the truths it derives from. R56
-(`harness/panel.py`) states it.
+There is one panel builder and no fallback: « nothing is known about this medium » is one of
+the truths it derives from (R56, `harness/panel.py`).
 
 **Not everything that looks like a card is one.** A release candidate shares the markup
 and is a different object: it has no sheet and no panel, because it is one candidate
@@ -640,17 +339,10 @@ among several for a medium already named on the screen. It says so with
 `data-nonmedia`, so the check tells them apart by construction rather than by knowing
 which screen draws which (R46).
 
-**Every list uses the same metrics** — poster 49 × 73.5, padding 9, radius 8, title 13.5,
-gap 10 (R47). That 49 is derived from the card's own ANATOMY, not from a percentile: the 135
-cards the interface draws fall into eight shapes by which blocks they carry, and the poster
-fills the one whose purpose is RECOGNISING a medium — title, sub-line and synopsis, 72.9px of
-content, two thirds of which is 49. It used to fill the median card (60.7 → 42) and that
-reference had run out: the poster had become what set the median, so re-running the computation
-returned its own answer. The two neighbouring shapes, for another notch: a card carrying a
-reason gives 58, the fullest card gives 63. Card HEIGHTS differ, and that is content: a card carrying a reason is taller
-than one that does not. Découvrir was the last holdout, with its own builder and a poster
-63 % larger, on a page that already offers a gallery and a deck for visual browsing. A list
-is a list.
+**Every list uses the same metrics** — poster 49 × 73.5, padding 9, radius 8, title 13.5, gap 10
+(R47). The 49 is derived from the card's anatomy: the poster fills the shape whose purpose is
+RECOGNISING a medium (title, sub-line and synopsis, 72.9 px of content, two thirds of which is
+49). Card HEIGHTS differ, and that is content. A list is a list: no surface keeps its own card.
 
 **A reason never truncates** (§12, R48). It wraps and the card grows; half a sentence is not
 a reason.
@@ -658,9 +350,7 @@ a reason.
 ### Galleries answer their container, not the window
 
 Every gallery — the library's three lenses, the follows grid, Découvrir's posters — draws
-the same tile at the same metrics (R50). Découvrir was the last holdout here too, with its
-own builder, its own class vocabulary and a tile 53 % wider on a page that already offers a
-deck for visual browsing.
+the same tile at the same metrics (R50).
 
 The **column count follows the scrollport's width**, through a container query, and never
 the window's:
@@ -673,17 +363,15 @@ the window's:
 | ≥ 820px    | 6       |
 
 A media query would read the viewport, so a 390px frame sitting on a 1280px desktop would be
-told it has room for six columns it does not have — which is exactly why a harness deviation
-used to pin three columns by hand. That deviation is gone: the container query asks the width
-actually available, and the app gets the same answer because there the scrollport IS the
-window.
+told it has room for six columns it does not have. The container query asks the width actually
+available, and the app gets the same answer because there the scrollport IS the window.
 
 `harness/cards.py` proves all of it; R41–R50 in `regions.json` state it.
 
 ## It installs, and the invitation depends on the platform
 
 `serve.py` serves a manifest, the brand icons and a service worker, so the prototype installs
-to a home screen like the app does. **Since L11 the worker precaches the SHELL** — the document,
+to a home screen like the app does. **The worker precaches the SHELL** — the document,
 the bundles and the icons — and nothing under `/api/` or the stream: a navigation goes to the
 NETWORK first and falls back to the cache, so a design judged live is never served yesterday's
 build; the update discipline reloads once when the served build stops matching the running one,
@@ -697,7 +385,7 @@ worker installs from whichever document is in front of it, which here is the SIG
 answers 401 there), so the install attempts everything and requires nothing — the running
 application then asks for the shell to be completed (`cache-shell`), and **R105 reads the cache
 after boot and refuses a shell with no bundle in it**, so a completion that failed once repairs
-itself the next time. Story: `frontend/maquette/README.md@6a47304a4` § It installs.
+itself the next time.
 
 **The invitation is actually offered, and it has two forms, not cosmetic variants (R51):**
 
@@ -740,8 +428,7 @@ Where a title is a proposition rather than an identity, only its own picture wil
 **Three ways out, and the third was missing.** Pick a candidate, search by hand, or LEAVE IT AS
 IT IS. The last exists in the engine (`dismissed`) and existed nowhere in the interface, so a
 folder whose automatic result was right had no way of being agreed with — one could only ever
-contradict the machine. A pick takes the folder out of the queue: « À traiter » used to keep it
-forever, because the answer only ever looked in the list of a page that no longer exists.
+contradict the machine. A pick takes the folder out of the queue.
 « Laisser tel quel » means LATER: the folder stays queued, set
 aside, in « Mis de côté », a folded section at the end of « À traiter » that counts neither in
 the tab's number nor in the bar's badge (`harness/set_aside_is_later.py`).
@@ -772,9 +459,7 @@ The gate gets the same screen by **extraction**, the rule it already obeys for t
 (R49), and reveals it on submit. R53 (`harness/startup.py`) checks all of it, gate included —
 it starts `serve.py` on a scratch port and drives a real submit.
 
-**Leaving is the same story told backwards.** « Se déconnecter » used to answer with a message
-saying the session had been closed, over an interface that had not moved and was still signed
-in. A message is not a destination. The session IS the cookie, and the cookie belongs to the
+**Leaving is the same story told backwards.** A message is not a destination. The session IS the cookie, and the cookie belongs to the
 server, so the server is asked to drop it **first** and the entry screen only reflects what has
 already happened — an entry form shown over a live cookie is contradicted by the next reload.
 R54 (`harness/logout.py`) checks both halves, and the invisible one is the one that
@@ -799,14 +484,8 @@ ruling 12: each thing speaks where it lives, one badge per tab, no notification 
 and provider health with nothing saying why they share a page; each of its **eight** panels
 (`ToHandleList`, `ScrapeActivityPanel`, `LastRunDigest`, `StalledPanel`, `AcquisitionSummaryCard`,
 `SchedulersPanel`, `CompactHealth`, `PipelineControls`) has a home under the rule. The full
-mapping, panel by panel, is in `IMPLEMENTATION.md`.
-
-> ⚠ **Amended 2026-08-19.** This paragraph used to end « and none of those homes is a new page »,
-> and that sentence was read as « `/control` and `/pipeline` are deliberately page-less ». The
-> operator has overturned it — see the banner at the top of this file: EVERY screen is redrawn.
-> What survives here is the PLACEMENT argument, never an exemption from being drawn. The
-> identical sentence was amended in `IMPLEMENTATION.md` first and this copy was missed, which is
-> the third time one wording has outlived its correction in a second file.
+placement of what remains, and the `/control` and `/pipeline` pages still owed, are L24's
+(`docs/features/maquette-l24/DESIGN.md`).
 
 **A state wears a BADGE, and it has four tones.** `success` — it works. `alert` — it does not, and
 something must be done now. `warning` — important but not critical, a disk nearly full. `info` — a
@@ -815,11 +494,8 @@ good nor bad, it is how big the library is. Badging a number green is how a gree
 « it works ».
 
 `alert` is the operator's word and `danger` is the stylesheet's; the mapping lives in ONE place.
-And **a tone has two jobs that one colour cannot do**: `--danger` is a FILL, painted behind white
-text on a button, and reusing it as a label colour on a 20 % tint of itself put every red badge at
-3.69, under AA, while every green sat at 5.5. The light theme was worse and had been for as long as
-the chips existed — success at 2.91, warning at 2.02, on every chip in the interface. Each tone now
-carries a text variant, and all four clear AA in **both** themes.
+**A tone has two jobs that one colour cannot do**: `--danger` is a FILL behind white text; a
+label takes the tone's text variant, and all four clear AA in **both** themes.
 
 **PM2 reports a scheduled job as `stopped` between two runs.** That is the literal truth about the
 process and a lie about the system — repeated on screen it paints six red rows on a machine in
@@ -866,16 +542,14 @@ regex built for `rgb()` mean nothing.
 
 `harness/drawer.py` holds all of it; R65 states it.
 
-## A trap that cost real time: **screenshots are not an oracle**
+## A trap that cost real time: **screenshots are not proof**
 
 **Every capture a rule takes (`common.shot`, gitignored under `harness/__screenshots__/`) is a
 reading aid for a failed rule, never a proof** — two captures of the same unmodified file can
-disagree on several states from animation and async-decode timing alone. **Use the deterministic
-oracle instead** — bounding rectangles plus a fixed `getComputedStyle` subset. For the narrower
-question "is this rule dead?", an exact answer needs no oracle at all: a selector count of zero
-over every state, combined with "the source never writes this class name", is a proof rather than
-a sample (`harness/export.py`). Story:
-`frontend/maquette/README.md@6a47304a4` § A trap that cost real time.
+disagree on several states from animation and async-decode timing alone. A rule reads bounding
+rectangles and computed style instead. For « is this CSS rule dead? », a selector count of zero
+over every state, combined with « the source never writes this class name », is a proof rather
+than a sample.
 
 ## And one trap that no synthetic test can catch
 
@@ -896,28 +570,25 @@ native picture drag.
 **A pointer stream is not a touch stream on the scrollport**, where `pan-y` is not available to
 claim (it intersects down onto siblings that need both axes) — so the scrollport reads the finger
 from touch events and everything else from pointer events, one implementation, two sources, never
-both for the same finger. Story:
-`frontend/maquette/README.md@6a47304a4` § And one trap that no synthetic test can catch.
 
 ---
 
 ## `harness/` — the rule suite
 
-**Run it with `harness/run.sh`, never by hand.** The script builds the prototype and refreshes
-the copy the rules read before measuring anything — that copy is manual, and a stale one measures
-the previous build without saying so. Two tiers: `--contracts` (11 rules, minutes, wired into CI
-on every maquette PR) and no flag (all of them, the gate before a wave merges — one headless
-Chrome per rule, as many at a time as the machine has processors). **Both tiers also run the
-repository's cheap guards** since 2026-08-25 — the module tree, the ceilings, the language rule,
-the scale, the markup contracts, the resources: nineteen invocations, ~31 s,
-listed in `run.sh` as `REPOSITORY_GUARDS`.
+**Run it with `harness/run.sh`, never by hand.** The script builds the prototype, refreshes the
+copy the rules read and starts the harness host before measuring anything — that copy is manual,
+and a stale one measures the previous build without saying so. Every script fails through its
+exit code, not through its output: a script that only prints cannot fail.
 
-Until 2026-08-20 the suite ran NOWHERE automatically — not in CI, not in `make check`, which only
-printed a reminder. That day a rename broke six contracts and four were visible to nothing else.
+```bash
+TM_HARNESS_JOBS=2 frontend/maquette/harness/run.sh                            # every rule — once, at a lot's close
+TM_HARNESS_JOBS=2 frontend/maquette/harness/run.sh --rules settings.py back.py # only the named rules, over one build — a phase
+```
 
-The 71 scripts that measure the prototype in headless Chromium. They are committed because they
-encode recipes that cost time to get right, and because a rule with no script is a sentence in a
-file.
+Name the fan-out on every command line (`TM_HARNESS_JOBS=2`), and run a long suite under
+`scripts/heavy.sh`: the machine also serves Plex. One headless Chrome per rule; the rules below are
+committed because they encode recipes that cost time to get right, and because a rule with no
+script is a sentence in a file.
 
 | Script                | What it proves                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -931,7 +602,6 @@ file.
 | `mouse.py`            | every gesture answers a MOUSE too: the interface is used from a desktop browser                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `surfaces.py`         | every surface the interface draws is reachable and renders                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `audit.py`            | rules R1–R10 and R20–R23 across every state, and it announces how many rules it EXECUTED                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `audit2.py`           | rules R11–R17 and R26–R31: uniformity, honesty of the text, one back design, one season rendering, episode presence against the data, a panel that never offers an action the medium does not support                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `cards.py`            | rules R41–R50: the card and gallery contract — poster to the sheet, body to the panel, no action reachable from a single surface, the same panel from a card and from a gallery                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `bugs.py`             | one test per defect found by hand                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `inter.py`            | swipe, infinite scroll, load error + retry, delete dialog                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -966,65 +636,70 @@ file.
 | `panel.py`            | R56: one panel builder, no caller passing markup, no inline style inside a panel, one heading, no action without a destination, and an undeclared block refused                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `decision.py`         | R57: the arbitration screen — the folder as subject, no sheet or panel promised, no engine token on screen, a score printed only when it separates, each candidate wearing only its own poster, three ways out, and answering emptying the queue on both lists                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `touch.py`            | R55: every gesture under REAL touch input (`Input.dispatchTouchEvent`), which the compositor can cancel — the pull to refresh on seven surfaces, the swipe between views, ordinary scrolling, the swipeable row and the deck                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `images.py`           | R70: the design's SOURCES embed no image and every `assets/` reference resolves to a file — read across the fragment AND the engine module, because the 930 references live in the latter                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `images.py`           | R70: the design's SOURCES embed no image and every `assets/` reference resolves to a file |
 | `screens.py`          | R71: a screen above another one — back redraws the screen it covered (query and scroll included) through both exits, one more back leaves the layer, and a result card carries no inline action in its foot: the panel is the single path to the act                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `shell.py`            | R72: the Vite shell emits the prototype verbatim inside a real envelope — the module entry is present with the correct format and the named bundle file exists under dist/vite/ — hold (a), the fragment `refonte.html` appearing byte-for-byte exactly once, was RETIRED when L13a deleted it (`frontend/maquette/design/refonte.html@60530dbd8`); the letters are kept so R72's recorded history still lines up with them                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `bridge.py`           | R74: the bridge wires the legacy nav cluster to the router — zero raw history calls across the design's sources, the journey works through both exits, deep URL entry lands on promised state, __go() preserves history depth, and the boot handshake is real: `window.__demarrerMoteur` exists and the startup screen comes off on its own, before the harness ever touches it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `shell.py`            | R72: the Vite shell emits a real envelope — the module entry is present with the correct format and the named bundle file exists under `dist/vite/` |
+| `bridge.py`           | R74: history goes through the bridge — zero raw history calls across the design's sources, the journey works through both exits, a deep URL lands on its promised state, `__go()` preserves history depth |
 | `switchover.py`       | R73: the host serves the build to the byte, rebuilds stale sources before serving, and a broken build answers 503 that says so — proven against a scratch design root, never the real source                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `server.py`           | the prototype's HOST, and a rule about itself. `--serve 8899 <root>` is what `run.sh` starts and every rule reads: it serves the built copy at `/` and folds every address with no file behind it onto the document, so a page at a real path (`/media`) and a deep screen address (`/add`) can be requested cold rather than only reached from inside an already-loaded document. Two sets keep their 404 — `ASSET_PREFIXES` (`/vite/`, `/assets/`, `/src/`) and `ASSET_PATHS` (`/sw.js`, `/manifest.webmanifest`, the two icons) — because they are resources, never addresses. Run bare it is a RULE: nine holds over its own behaviour, including that the live host on 8899 is this server and not a plain `http.server`, and that neither entry point will bind a port belonging to the reverse proxy. `start_server` is the scratch variant a rule raises on an EPHEMERAL port — it is handed 0 and yields the port the kernel gave it, here and in `screen_addresses.py` alike, because a fixed port is a list that drifts and rules picking from the same list collide on one socket                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `screen_addresses.py` | R75: a screen route answers a real address, cold, and only while it is open — `/profile/$title` opens the promised screen with no journey and no click, every image the document loads at that depth resolves through `<base href="/">`, one back from a walked-to screen lands exactly where the walk started with the address returning to what it was, a wrong deep address renders honestly instead of raising, and `/add?q=…` opens with its field and results already drawn                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `library_sort.py`     | R78: every sort goes BOTH ways, and each way says its own name — the panel offers the six explicitly (« Ajout récent » / « Ajout ancien », « A → Z » / « Z → A », « Les plus incomplets » / « Les plus complets »), exactly one is marked, the control on the count line reads the direction in force, the reversal is measured on the ROWS DRAWN over a library narrowed until the whole set fits on one page, and the sort stays out of the address — a preference, not a place                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `library_load.py`     | R79: the library loads more, says when it cannot, and lets one try again — the end of the sample says it IS the end of the sample and how many titles the prototype really carries, a failed page says what remains valid, and « Réessayer » really loads, measured with the scroll sentinel NEUTRALISED because it produces the same outcome for a different reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `focus.py`            | R81: what an assistive technology is told, and an audit cannot see — a layer takes focus when it opens and gives it back when it closes; opening the drawer or the sheet moves focus INSIDE it and marks the background `inert` (never `aria-hidden`, which hides a subtree from a screen reader and leaves every control in it tabbable, the worst of both); `Escape` closes the layer on top through the verb the engine already publishes; closing gives the background back and returns focus to the control that OPENED it; and the skip link is the first stop of the tab order and lands FOCUS on the main region, not merely the scroll position. None of this is visible to an automated audit, which reads the markup of one moment where this reads a SEQUENCE — the two instruments do not overlap. Measured on a fresh page for the tab-order holds, because the browser's sequential focus starting point is set by the last CLICK and `blur()` does not move it. It also holds what the interface SAYS while it works: the main region carries `aria-busy` while a page loads and stops carrying it once loaded — set in the page host, the one place that knows every page's phase, because marked page by page the eighth call site is the one that gets forgotten — and every error surface announces, summed over EVERY state whose id says error rather than sampled on one, after a first version drove a single state, found a single surface and printed that as a census |
-| `page_host.py`        | R77: one owner per PAGE, and the container never holds two — the fragment writes `#view` only for a page without `shellOwned`, the shell empties it when it takes ownership, and a page draws the same whichever world it was reached from (the residue hold, which measures constancy across predecessors rather than a root count, because pages emit different numbers of roots); the delegation still reads what React emits — the nine `data-*` attributes the document-level handler acts on, each driven by a REAL tap that compares the row's own value against what opened, and looked up before it is tapped so an absent or inert control is a verdict rather than a dead script; and leaving a migrated page with an unsaved change and coming back leaves the shell ALIVE — the hole that let the legacy remove a node React owned, tearing the root down; and the handover law is held TWICE — structurally, read from the engine's source because the branch it guards is dead while every page is shell-owned, and behaviourally, by spying on `#view`'s own setter through one real redraw, a hold that carries its own positive control because a count of zero passes just as happily when the detector is dead                                                                                                                                                                                                                                                               |
+| `page_host.py`        | R77: one owner per PAGE, and the container never holds two — a page draws the same whichever surface it was reached from; the document-level delegation still reads the `data-*` attributes the pages emit, each driven by a REAL tap; leaving a page with an unsaved change and coming back leaves the shell alive |
 | `navigation.py`       | R76: the shell owns navigation through one door — `navigate(` appears exactly once under `design/src/`, inside `go()`'s own body; a round trip through the door writes one history entry per call and back walks them in reverse, judged by the screen's own observed state, never by `history.length`; two navigations issued in the same task, no `await` between them, still produce two separate entries                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `type_scale.py`       | R83 (9 holds): the browser holds the type scale — every form field renders at least 16px, so a focused field no longer zooms iOS, and every rendered size inside the measured regions sits on a step of the scale, over every named state. The step set is READ FROM THE DOCUMENT, never carried as a pixel list that measures the scale as it was on the day the list was typed; an element whose size is INHERITED is not judged on its own, because naming it would name the wrong element. This is what a static count of literals cannot see, and it found its first defect the day it was written — a half-pixel size in an inline style, on a paragraph six states draw. Both readings are held before anything is judged against them: a scale read as empty puts every size off-step, and a field no state draws is a field nothing measured                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `hiding.py`           | R86 (26 holds): what the interface declares invisible IS invisible, read from the served document and never from the stylesheet. The design notes, hidden by default and shown by their button — BOTH directions, because a hold on the pressed state alone passed on a tree where the notes were visible in both. The `hidden` attribute made to bite on the five elements the register named, plus a probe element the markup has never met wearing an INLINE display, because five prove the elements and only the probe proves the rule; `hidden="until-found"` is spared and held. The action button, which shares the bottom-right corner with the message by construction: the collision itself is a hold, then the button is absent while a message is up, still absent while it leaves, back once it has gone, and a page with NO action does not acquire one when a message closes. Every dismissal path, including the capture-phase one that does not go through the seam and is the one that broke. And the application's own guidance, which must NOT be hidden with the annotations. WHAT IT DOES NOT READ: the stylesheet, a real finger, and every element that could ever carry the attribute |
 | `identity.py`         | R87 (26 holds): the drawer names what the host is serving, or says it cannot — and the two are held apart, because the defect was never silence. A published identity is shown, branch and commit, with a dirty mark that is absent when the tree is clean and a DETACHED head named as one rather than shown as a branch called « HEAD ». With nothing published, the block says so and states no version and no build sha of its own. On the server side: the document really carries it; a scratch repository the rule builds proves it is computed PER CALL and not at boot, that a clean tree is not called dirty, and that outside a repository it names nothing rather than guessing; and a branch name that ends a script element is escaped rather than emitted — held on the SCRIPT BODY, because the corrupted payload parses as valid JSON and `json.loads` would pass. With its resource emptied the block shows its keys, never « undefined ». WHAT IT DOES NOT READ: `git` (it never re-derives what it checks), the host's real password, and production's own version endpoint |
 | `runtime_tokens.py`   | R84 (8 holds): `--tm-bottom-bar-h` is published, it FOLLOWS the bar, and it has ONE publisher — exactly one file under `design/src/` writes a `--tm-` property, and it lives under `app/`. That is counted over the whole tree rather than grepped in the engine, because a rule checking « the engine does not publish » stays green over a second publisher added anywhere else, and two writers of one property agree until they do not. The value is read against the bar's own rendered height in the SAME evaluation, then the bar is forced to a height no state draws — through the cascade, never an inline style, which is what a wrong publisher would be writing. The probe is held first: a forcing that did not force would let « the value follows » pass over a publisher that had stopped observing                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
-Run them with the Python that carries Playwright, against a local static server on
-**127.0.0.1:8899** — **never** 8710 / 8711, which the reverse proxy routes to prod and
-staging.
+### Serving the prototype — two hosts, and the harness measures only one
 
-**Two rules measure the LIVE host instead** — `pwa.py` (R52) and `entry.py`, because
-installability and the sign-in gate are things only a real server hands out. That makes them
-the only rules whose verdict depends on a PROCESS rather than on a file: `serve.py` is read
-once, at boot, so a change to it is not live until `pm2 restart torrentmate-design`. Until
-then the host answers its own build-failure page, and those two go red naming symptoms that
-have nothing to do with the change under test — « the login gate declares no manifest »,
-`Cannot read properties of null`. Both were seen, and both were the stale process.
+|                  | Port     | What                                                                                                                              | Started by                 |
+| ---------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| **Harness host** | **8899** | `harness/server.py --serve`, rooted in `/private/tmp/tm-refonte`, serving a COPY of the build at `/` and folding every router-owned address onto it | `run.sh`, or by hand       |
+| **Design host**  | **8712** | `serve.py`, scrypt password-protected (`tm-design.iznogoudatall.xyz`)                                                             | PM2 (`torrentmate-design`) |
 
-**So: after any edit to `serve.py`, restart the design host before reading the suite.**
+`harness/common.py` pins the first one: `PROTOTYPE = "http://127.0.0.1:8899/"`. Never
+8710/8711/8712/8899 for a server of your own — `harness/server.py`'s `RESERVED_PORTS` names all
+four, and the reverse proxy routes the first three to production, staging and the design host.
 
-**The harness measures the BUILD.** `wrapped.html` is a copy of `dist/index.html` — the
-same document the host serves — rebuilt and re-copied before every run, or the suite
-measures the previous version. The copy is what isolates rule mutations from the host:
-a rule may corrupt its copy freely, the real build stays untouched.
+- **`python3 serve.py 8899` is wrong**: `serve.py` is the DESIGN host, it answers 401 without a
+  session, and the harness would then measure the sign-in screen — every rule green, nothing
+  measured.
+- **A plain `python3 -m http.server` is wrong too**: a page sits on a real path, a plain server
+  answers 404 to every one of them, and the router renders its not-found page instead of the
+  surface under test. `harness/server.py --serve` folds any address with no file behind it onto the
+  document and keeps a 404 for the resources that really are files (`/vite/…`, `/assets/…`,
+  `/sw.js`, `/manifest.webmanifest`). It is rooted on the copy of the BUILD, never on `design/`,
+  which would serve unbuilt TypeScript.
 
-**The copy is the document AND the bundle, and half a copy is worse than none.** Refreshing
-`wrapped.html` while leaving the previous `vite/` behind serves today's markup against
-yesterday's shell, and what falls is whatever rule that mismatch happens to reach — naming a
-cause that has nothing to do with the change under test. The `vite/` directory is removed before
-it is re-copied, never merged into.
+What `run.sh` does, for a by-hand reading of one rule:
 
 ```bash
+# 1. Rebuild, and refresh the copy the harness reads — BEFORE EVERY RUN.
 cd frontend/maquette/design
 npm run build
 cp dist/index.html /tmp/tm-refonte/wrapped.html
 rm -rf /tmp/tm-refonte/vite && { [ -d dist/vite ] && cp -R dist/vite /tmp/tm-refonte/vite || true; }
-```
-
-The wrapper directory `/tmp/tm-refonte/` must also carry an `assets` symlink to the repo's
-`design/assets/`:
-
-```bash
 ln -sfn "$(git rev-parse --show-toplevel)/frontend/maquette/design/assets" /tmp/tm-refonte/assets
+
+# 2. The harness host — check before starting, it is usually already running.
+lsof -nP -iTCP:8899 -sTCP:LISTEN || (python3 frontend/maquette/harness/server.py --serve 8899 /tmp/tm-refonte &)
 ```
 
-Without it, every image reference (`src=` and `url()` values) resolves to a 404. The
-envelope carries the viewport meta; the prototype also injects one itself if the host page
-has none — do not remove that guard.
+**The copy is the document AND the bundle, and half a copy is worse than none.** Refreshing
+`wrapped.html` while leaving the previous `vite/` behind serves today's markup against yesterday's
+shell; `vite/` is removed before it is re-copied, never merged into. Without the `assets` symlink
+every image reference resolves to a 404. A stale copy of the rule scripts can also end up in
+`/tmp/tm-refonte`: running those measures the previous version. The envelope carries the viewport
+meta; without it Chrome falls back to the 980 px layout viewport and every measurement is wrong.
+
+**Two rules measure the LIVE host instead** — `pwa.py` (R52) and `entry.py`, because
+installability and the sign-in gate are things only a real server hands out. `serve.py` is read
+once, at boot, so **after any edit to `serve.py`, `pm2 restart torrentmate-design` before reading
+the suite** — until then the host answers its own build-failure page and those two go red naming
+symptoms unrelated to the change.
 
 ## Language of the source
 
@@ -1035,10 +710,7 @@ is what the screen says.
 
 **So is everything else the source NAMES.** Identifiers, function and type names, **class
 names — code and CSS alike** — **file and directory names**, and every message a tool prints:
-English, on the day the thing is written. This is not a cleanup someone does later; a French
-name arriving today is a French name a whole wave has to remove tomorrow, and it will be
-holding four worlds together by then (the fragment's markup, the shell's components, the
-harness's selectors, the extracted stylesheet).
+English, on the day the thing is written.
 
 Two things are NOT covered by that rule, and confusing them is how a rule goes quiet:
 
@@ -1051,68 +723,32 @@ Two things are NOT covered by that rule, and confusing them is how a rule goes q
   are contracts, and renaming one moves the contract rather than a name. The frozen ones are
   listed, each with the reason it was kept, in `regions.json`'s `$vocabulary`.
 
-## The data-* vocabulary (L02)
+## The data-* vocabulary
 
 **One attribute, `data-part`, its value namespaced by `/`**: `card`, `card/title`,
 `card/poster`. The namespace names the owning DOM concept; the leaf names the role.
-The style class STAYS beside it — `className="ctitle" data-part="card/title"` — the
-class still styles, and L07 removes it. Keeping both is not duplication: it is the
-separation L02 exists to create.
+Rules anchor on `data-*`, never on a style class (`docs/reference/frontend-architecture.md`, D4).
 
 **Boolean state attributes carry no value, and the list is DERIVED, not
 enumerated.** An attribute is one when the harness asks whether it is THERE —
-`[data-open]`, `hasAttribute('data-open')` — and never what it says. Twenty-four
-qualify today: `data-announced`, `data-blocked`, `data-clearq`, `data-confirmadd`,
-`data-delsel`, `data-drawer`, `data-edited`, `data-empty`, `data-in-library`,
-`data-leave`, `data-manual`, `data-mono`, `data-no-poster`, `data-open`,
-`data-qsettings`, `data-read-only`, `data-resolve`, `data-restart`, `data-save`,
-`data-scroll-root`, `data-shown`, `data-skeleton`, `data-solid`, `data-sort`. Do not
-maintain that list by hand — `check-markup-contracts.py` prints what it derived on
-every run. It was a hand-written tuple of SEVEN for one wave, and twelve shipped.
+`[data-open]`, `hasAttribute('data-open')` — and never what it says (`data-open`,
+`data-empty`, `data-blocked`, `data-skeleton`, …). Derive the list from the rules; never keep
+one by hand.
 
 **In a component, a state attribute is `data-open={isOpen || undefined}` — never
 `data-open={isOpen}`.** React renders `data-*` as strings, so `false` becomes the
 string `"false"` and `[data-open]` then matches ALWAYS: a rule goes green while it
-measures nothing. The trap is not a remembered convention — `harness/attrs.py`
-demonstrates it in the live document, rule 51 of the suite, and ARM 4 of
-`check-markup-contracts.py` refuses the spelling that falls into it.
+measures nothing. `harness/attrs.py` demonstrates it in the live document.
 
 A NAMING attribute's VALUE is a name someone chose, so `scripts/check-no-french.py`
-reads it — 484 values today, through `nofrench_values.py`. Five attributes qualify
-(`markup_text.NAMING_ATTRIBUTES`: `data-part`, `data-region`, `data-tone`,
-`data-action`, `data-side`), and the markup guard reads the SAME list to hold a
-different question — every value a rule selects is emitted somewhere. An ADDRESS is
-not a name: `data-go="profil"` names a page, and the guards leave it alone.
+reads it (`markup_text.NAMING_ATTRIBUTES`: `data-part`, `data-region`, `data-tone`,
+`data-action`, `data-side`). An ADDRESS is not a name: `data-go="profil"` names a page,
+and the guard leaves it alone.
 
-**An emission may be imperative.** Most parts are anchored in markup — `class="ep"
-data-part="episode"` — but an element the engine BUILDS carries no markup literal:
-`createElement.className = "eppop"` is such an element, and its anchor sits beside the
-assignment, `createElement.dataset.part = "episode/popover"`. The guard's emission reader
-knows that form and `setAttribute("data-part", "…")`, with a literal value only; a computed
-value is unread in every form, so a computed class is anchored with a literal `data-part` at
-the same site.
+**An emission may be imperative.** An element built with `createElement` carries its anchor
+beside the assignment, `element.dataset.part = "episode/popover"`, with a literal value: a
+computed value is read by nothing.
 
-**The floor is a HARD ZERO, not a burn-down.** `scripts/check-markup-contracts.py`
-refuses the FIRST class token in any rule selector — passed to `querySelector`, held
-in a variable, a table, a concatenation, or READ from the class attribute without a
-selector at all (`className.includes('x')`, a regex of class names, a table matched
-against a spread `classList`, an injected CSS rule) — and the first
-`classList.contains` at a site `GENRE_SITES` does not exempt, by `file:line`. There is no baseline file, no budget and no
-`--allow-additions`: the guard takes no argument at all. The shipped debt was carried by
-a burn-down list while it was being migrated, and list, ratchet and escape hatch were
-deleted in the same move as the last entry — an empty tolerance is a tolerance someone
-raises.
-
-**And the zero is only worth what the readers SEE.** A selector the harness BUILDS
-spells itself in neither shape a naive reader expects: an f-string carries `{…}`
-interpolations, and a selector concatenated onto a variable starts with a space. Both
-were live and read by NOTHING — not the guard, not the independent
-`classify-rule-anchors.py`. The shape test now treats an interpolation as an opaque
-token that does not end the selector, and accepts the leading space; it still refuses a
-brace that never balances (`.splashbar {` is stylesheet text) and an `=` outside an
-attribute block (`#splash.hidden = {…}` is a journal label about an element, not a
-selection of it). Both readers must report zero — `classify-rule-anchors.py --baseline`
-prints `[]` — because one reader's zero is a claim.
 
 ## Where the interface's French lives
 
@@ -1135,16 +771,10 @@ const { t } = useTranslation();
   prototype rather than restated. One source, nothing to keep in step.
 - **Extract, never retype.** Cut the string out of the JSX and paste it into `fr.json`. A
   retyped string is a defect even when it looks right: it renders correctly while the
-  reference is broken, and the copy is the only place anyone ever looks. The proof that an
-  extraction changed nothing is byte-identity of the rendered text across every driven state,
-  plus the full suite at unchanged hold counts.
+  reference is broken, and the copy is the only place anyone ever looks.
 - **A few literals stay French, and say why.** A data value, a `data-*` value, a route
   parameter: each carries a `// french-ok: <reason>` (or `# french-ok:`) pragma on its own
   line, the line above, or the line below. A pragma citing no reason is itself a violation.
 
-**All of this is enforced, not remembered**: `python3 scripts/check-no-french.py` — fourteen
-arms, listed in that script's own docstring and held against it by arm 13, which also reads
-the count out of `CLAUDE.md` and out of THIS file
-(strings, identifiers, file names, class names), wired into `make check` and into its own CI
-job. Each arm also reports what it READ, and an arm that read nothing fails: a scope that
-silently empties would otherwise announce « no violation » while measuring nothing.
+**All of this is enforced in CI**: `python3 scripts/check-no-french.py` (strings, identifiers,
+file names, class names; its arms are listed in its own docstring).

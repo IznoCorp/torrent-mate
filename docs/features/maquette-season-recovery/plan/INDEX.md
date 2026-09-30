@@ -1,7 +1,7 @@
 # Season recovery — a whole-season recovery, visible and exclusive · PLAN
 
-Design: `docs/features/maquette-season-recovery/DESIGN.md`. The implementer is held to
-`docs/reference/implementer-office.md`, AMENDED by the auditor's orders 98 and 99 (§ « The gates » below).
+Design: `docs/features/maquette-season-recovery/DESIGN.md`. The method is
+`docs/reference/method.md` and the gates are `CLAUDE.md` § Gates.
 
 **Re-cut 2026-09-30, on `main` at `9234341fc`** (orders 97, 98, 99), after the operator's round Q14–Q19: 13 phases
 become **5**, one per surface. The old plan is `docs/features/maquette-season-recovery/plan/INDEX.md@9234341fc`; its

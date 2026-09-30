@@ -5,7 +5,7 @@
 
 > This document describes the version **in production**, which the next version replaces — the
 > constitution of that next version is `docs/reference/product-intent.md`, and which document
-> describes which version is `docs/reference/documentation-model.md`.
+> describes which version is `CLAUDE.md` § Reference index.
 
 Pipeline d'automatisation media — ingestion, tri, scraping, vérification, dispatch — piloté en ligne de commande ou depuis **TorrentMate**, une web app installable (PWA).
 

@@ -1,6 +1,6 @@
 # Phase 8 — « Corriger » on the Médiathèque sheet
 
-**RULED OPEN 8 = A** (operator, 2026-09-29, `review-archive/l24/rulings-2026-09-29.md`): « Corriger » drawn on the
+**RULED OPEN 8 = A** (operator, 2026-09-29, `docs/features/maquette-l24/rulings-2026-09-29.md`): « Corriger » drawn on the
 Médiathèque block, opening the arbitration on a shelved medium's decision by its id, the re-identification of a
 shelved medium declared as a demand, 8 points. Refused: B (the phase would have dropped).
 

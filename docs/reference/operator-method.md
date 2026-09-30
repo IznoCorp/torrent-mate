@@ -1,18 +1,8 @@
 # La méthode de l'opérateur — TorrentMate, refonte de l'interface
 
-Trois parties, et rien d'autre : **(1)** ses principes, un par ligne, avec sa phrase et sa date ; **(2)** les règles de
-méthode en vigueur, en table — règle, raison, mesure de retour ; **(3)** ses décisions par surface, une ligne chacune, avec
-sa date. L'opérateur seul amende ses mots ; l'auditeur en cours tient ce fichier et ne le commite jamais (l'orchestrateur
-l'atterrit dans la PR docs du lot). Rien ici n'est l'avis d'un auditeur : une ligne porte les mots de l'opérateur ou une
-mesure.
-
-**Le journal daté n'est plus ici.** Du 2026-09-12 au 2026-09-29, il est dans l'archive citée
-`docs/reference/operator-method.md@5a763b90a` (`git show 5a763b90a:docs/reference/operator-method.md`), avec le
-texte intégral de chaque décision, les ordres des audits 1 à 82 et leur sort, les attentes nommées, les candidats au plugin
-et le registre du temps perdu. Il n'est pas lu par défaut. Désormais, le détail daté d'une décision (verbatim, contexte,
-lectures refusées) va au § 8 du rapport d'audit en cours ; ce fichier n'en garde que la ligne.
-**Retour :** une décision reposée à l'opérateur faute de la trouver dans cet index → la ligne manquante est rapatriée de
-l'archive, et la famille (le genre de ligne perdue) est rapatriée avec elle.
+Deux parties : (1) ses principes, (3) ses décisions par surface. L'opérateur seul amende ses mots.
+La méthode de développement est `docs/reference/method.md` ; l'ancien § 2 et le journal daté sont dans git :
+`docs/reference/operator-method.md@5a763b90a`.
 
 Heures lues sur l'horloge de la machine, sauf « ~ » (heure estimée par la session qui a reçu le mot). « Rd R Q q » = round
 de décision R, question q ; « ruling N » = ruling d'organisation N (numérotation : `docs/features/maquette-l22/DESIGN.md@232a908ca` § 0).
@@ -71,68 +61,14 @@ de décision R, question q ; « ruling N » = ruling d'organisation N (numérota
 | 09-29 | Rien de ce qu'il remonte n'est oublié : noté tout de suite, corrigé tout de suite ou plus tard, jamais laissé dans un fichier où personne ne repasse | « Est-ce qu'il y a un garde-fou qui s'assure que tout ce que je remonte […] soit bien noté et corrigé ? […] Il n'est pas oublié, écrit dans un fichier quelconque euh, et oublié parce que personne ne repassera dessus. » |
 | 09-29 | Les comportements sont uniformes dans toute l'app, sauf exception qu'il décide | « Il faut uniformiser les comportements. Sauf exception volontaire de ma part. » (toucher l'affiche d'un candidat l'a choisi au lieu d'ouvrir sa fiche « comme pour le reste de l'app ») |
 | 09-29 | L'existant validé d'abord, et c'est le nouveau qui s'y conforme | « là où on en as besoin c'est d'abord l'existant ! » ; « c'est tracker qui doit ressembler aux autres systèmes d'onglet, l'existant est ce qui est validé. » |
+| 09-02 | Tout nettoyer après soi | « Toujours nettoyer l'espace disque, la ram, les serveurs. TOUT ! » |
+| 09-05 | L'orchestrateur lance lui-même les agents | « c'est à toi de lancer les agents, tes skills d'orchestrateur sont faites pour ça ; ne pas le faire est une erreur critique » |
+| 09-12 | Pas d'agent tmux | « tmux n'est pas une solution. Plus jamais d'agent tmux. » |
+| 09-30 | L'audit allège et contrôle, il n'ajoute pas ; la plus grande part du temps sert au développement | « Qui a demandé un garde plex. Personne ! […] le travaille que je te demande est l'inverse. Alléger les garde et faire avancer le dev. » ; « Assainir par l'allègement la méthode de développement. T'assurer que la p'us grande part du temps sert au développement !!! » |
 
-## 2. Les règles de méthode en vigueur
+## 2. Les règles de méthode
 
-« Mesure N » = une des mesures de l'opérateur (12 et 13/09) ; « ordre N » = un ordre d'audit (le texte intégral et son sort,
-jusqu'à 82, sont dans l'archive). Une règle qui meurt sort de cette table le jour même ; son histoire reste dans l'archive.
-
-| Id | Règle | Raison (la mesure qui la fonde) | Mesure de retour |
-| --- | --- | --- | --- |
-| mesure 1 | Aucune garde, aucun bras, aucune vague d'outillage sans un défaut qui l'a atteint ; les outils qui rendent du temps sans retirer une porte sont permis (son mot 09-13 19:2x) | 09-12 : l'appareil grossissait plus vite que le produit | un défaut revenu faute d'une garde refusée |
-| mesure 2 | Un tour de lecture par lot, aucun par micro-vague ; les mineurs d'instruments sont filés | 09-12 | un majeur trouvé après la fusion, qu'un tour aurait vu |
-| mesure 3 | Le geste post-fusion est un script de l'orchestrateur, sans agent | 09-12 | — |
-| mesure 4 | Une PR docs de l'office par lot, en fin de lot | 09-12 | l'état lu par une session fraîche en retard d'un lot |
-| mesure 5 | Un train de correctifs par jour, pas une micro-vague par bug | 09-12 | — |
-| mesure 6 (amendée 09-29) | Trois agents au plus, dont un seul sur le harnais (le verrou) ; les deux autres sans harnais (dessin, lecture, documents) ; retour à deux si la charge dépasse 8 ou si la mémoire récupérable passe sous 2 Go | ordre 68 : L22b 1,27 phase/h seul contre 0,81–0,87 à côté d'un autre agent du harnais | la cadence du lot et les minutes d'attente du verrou |
-| mesure 8 | Porte de contexte à 80 % pour les trois rôles (agent, steward, auditeur) ; une phase démarre si jauge + coût mesuré de la dernière phase ≤ 80 ; jamais de rotation en milieu de phase | 13 rotations à 60 % sur L13a | une phase coupée par la porte |
-| mesure 9 | Un sous-lot démarre empilé sur la tête finale du précédent, pendant son tour de lecture ; rebase après le squash | b·1 commité avant la fusion de L13a | — |
-| mesure 10 | Démarrage à froid au régime : état ≤ 40 lignes + journal en ajout seul ; rulings dans un fichier numéroté ; lecture requise = brief + état + phase + rulings | 26 → 14 min au premier commit | temps du lancement au premier commit |
-| mesure 12 | Les instruments lisent vrai (`heavy.sh` compte la mémoire récupérable ; `mutate.sh` lit le code de sortie ; `run.sh` construit une fois) | 9 + 20 min de verrou pour rien ; un vert faux depuis le 29/08 | une porte qui mesure faux |
-| ordre 17 | La copie du lecteur est épinglée à la tête de la dernière porte, re-pointée à la PR prête | 35 min PR prête → lecteur | — |
-| ordres 21, 23 | Diète d'écriture : message ≤ 3 lignes sauf décision (deux lectures + coût) ; journal aux frontières ; brief de succession = état ≤ 40 lignes + pointeurs | triple écriture, 4 successions du steward un même jour | une perte de qualité due à la diète |
-| ordres 22, 29 | Le steward route modèle ET effort par lancement (`orchestrator:model-routing`, règle de la fausse économie) | son mot 09-13 | un second tour causé par un palier trop bas |
-| ordres 24, 58 | La porte de phase : gardes statiques → oracle seul → règles nommées des surfaces touchées, en une invocation ; le tier contrats toutes les 5 phases, à mi-suite, à la clôture et en CI | contrats ~290 s sur une porte médiane de 340 s ; 0 capture produit propre en 14 jours | ≥ 2 défauts de phase vus seulement par un contrat dans un lot → contrats à chaque phase |
-| ordre 26 | Pas de `make check` local avant la PR d'une vague maquette : le job `test` de la CI est l'autorité | 15 min sous le verrou, 3e exécution de la même suite | — |
-| ordre 32 | Une PR de conversion ne cite pas les §§ de la constitution ; une PR de comportement ou de surface les cite (entériné par son mot, 09-14) | — | — |
-| ordre 33 | Frontière calme avant le redémarrage du lundi 05:00 : tout poussé à 04:30, aucun lancement après 04:15 | reboot hebdomadaire | le journal de relance du lundi |
-| ordre 34 | Les journaux de porte vivent hors de `/private/tmp` | le reboot a effacé deux dossiers de journaux | — |
-| ordre 36 | Un run long s'attend dans l'appel d'outil, jamais en arrière-plan en fin de tour | pertes répétées de runs | — |
-| ordre 38 | « N-bis » = correction de la phase N seulement ; une phase insérée prend un numéro et décale les suivantes | son mot 09-14 | — |
-| ordre 42 | Chaque fichier de phase porte sa mesure d'ouverture ; les coupes se font en un commit docs | L13r coupée cinq fois | STOP D de taille par lot |
-| règle 09-16 | Un chemin parti de l'arbre se cite `path@<dernier commit de main qui le porte>`, jamais à un commit de branche | un squash rend un commit de branche irrésoluble | — |
-| ordres 46, 47, 72 | Le second créneau ne reste jamais vide : dessins en avance (jamais entre deux lots), puis ce qu'aucun lot ne possède | « je trouve ça encore lent » | un lot qui attend son dessin |
-| ordres 48, 65 | Une chute écartée comme « charge » se prouve par comparaison répétée contre main (5 tirages d'abord pour une règle instable connue ; 10 contre 10 si ≥ 1/5), jamais par une relance verte | — | — |
-| ordre 49 | La porte ne se relance pas pour un mouvement attendu : oracle seul d'abord, mouvements déclarés par nom avec leur cause ; pas de porte « final » après une acceptation prouvée | L22b : 28 portes en échec sur 66, ~2 h par lot | portes en échec par lot |
-| ordres 50, 51 | tm-design sert automatiquement la tête du lot en vol (main entre deux lots), vérifié servi = disque | tm-design resté un jour sur une fusion ancienne | tm-design en retard sur la tête |
-| ordre 52 | Harnais ajouté ≤ 0,6 × produit ajouté par lot ; au-delà, une phase de consolidation avant READY, prouvée comme une conversion | ratio ~1,5 sur L22b | L16 : 0,60, porte ses fruits |
-| ordre 53 | Une phase de plan ≤ 60 lignes (portée, contrats, tests, fait = quoi, pointeurs) | L16 : 91 lignes par phase | — |
-| ordre 54 | Un horizon de gel de l'interface dans `IMPLEMENTATION.md` : phases restantes ÷ cadence mesurée, mis à jour à chaque clôture, avec les pages encore sans dessin | aucune date écrite | — |
-| ordre 55 | Lecture permanente de l'audit : `bash review-archive/audit-health.sh` toutes les 2 h (`--alerts`), recréée à chaque relance d'audit | — | une ALERT vraie que le cycle n'a pas vue |
-| ordre 56 (amendé 09-29 ~19:10, son mot) | Dès qu'une PR est ouverte et son diff vérifié sur l'artefact, le steward arme `gh pr merge <n> --auto --squash --match-head-commit <sha>` (réarmé si la tête bouge) ; jamais attendre la CI pour fusionner à la main ; `allow_auto_merge` activé sur le dépôt ; écrit en tête de chaque brief de steward | trois fois dite (09-13, 09-28, 09-29) : « pourquoi on attend, on est en PR auto merge » — le réglage du dépôt était à `false` | une PR verte non fusionnée faute d'armement |
-| ordre 57 | Chaque bug signalé par l'opérateur : test vu rouge, et dans BUGS.md « échappé de », « pourquoi », « famille réparée par » | son principe du 09-28 | un bug de la même famille qui revient |
-| ordre 59 | entry et pwa (hôte déployé) se contrôlent après déploiement, hors de la porte | 8 chutes sur 8 = délais du réseau | — |
-| ordre 85 (remplace l'ordre 60, sur son mot du 09-29) | L'interface tient à TOUTES les largeurs : une règle « responsive » passe chaque état nommé à 320, 360, 369, 390, 412, 768 et 1280 px et refuse tout débordement ou coupure (bordure, tableau, texte, bouton hors de l'écran) ; à mi-lot, à la clôture et en CI, et à chaque phase sur les états des surfaces touchées ; les autres règles gardent leur largeur | 6 défauts de largeur échappés, dont B-557 et le tableau des exécutions coupé à droite (09-29 17:04) | un défaut de largeur signalé par lui, à n'importe quelle largeur |
-| ordre 87 | La source des clés Chrome se nomme par mesure : le relevé par minute (`review-archive/keychain-attribution.sh`) date chaque clé ; les règles candidates d'une minute se rejouent seules, compte avant/après | la purge du 29/09 (0 ligne) ; +52 clés pendant la suite suivante | la règle fautive nommée, puis 0 clé sur une suite complète |
-| ordre 88 | Plex passe avant le harnais : le parallélisme a un NOM sur chaque ligne de commande (`TM_HARNESS_JOBS=2`, `pytest -n 2`) ; `heavy.sh` suspend son enfant tant qu'un Plex Transcoder tourne et que la charge dépasse 12 | 29/09 22:27 : charge 59, Plex Transcoder à 0 %, vidéos bloquées (« J'ai plex qui bug ») ; run.sh à nproc = 8 faute de la variable | une charge > 12 pendant une suite (relevé par minute), une plainte Plex |
-| ordre 89 | Une passe WebKit au format iPhone : la règle responsive et la visibilité des contrôles du cadre, en clair et en sombre ; à la clôture et en CI, à chaque porte si elle tient sous 5 min | le hamburger invisible sur iPhone ; une seule règle lançait WebKit | un défaut propre à l'iPhone signalé par lui |
-| ordre 91 | Tout signalement de l'opérateur a sa ligne B-xxx sur main dans l'heure (PR docs en auto-merge) ; chaque ligne ouverte nomme son propriétaire (« open → … ») ; `audit-health.sh` sonne pour un signalement sans numéro après 1 h, une ligne sans propriétaire, une ligne immobile depuis plus de 14 jours ; la revue de clôture de lot tranche les lignes anciennes | 29/09 : 7 signalements du soir absents du registre sur main ; 113 lignes ouvertes sans propriétaire, dont 88 immobiles depuis plus de 14 jours | 0 signalement sans ligne après 1 h ; le nombre de lignes ouvertes baisse |
-| ordres 94–96 (29/09, analyse d'ensemble) | Aligner les fichiers des agents sur cette table (fan-out 2 par défaut dans run.sh, 80 %, entry/pwa hors des suites tant que B-571 est ouvert, 85 limité aux états touchés en phase) ; retirer ce qui pèse sans rendre (check-mock-keychain.py, une garde étrangère à la phase ne la bloque plus) ; une mesure de retour pour chaque ligne | L16 : 51–65 % du temps en vérification, 14 portes sur 15 tombées dont 12 sur une garde étrangère ; les instruments ont surtout trouvé leurs propres défauts (4 sur 5 depuis le 26/09) | minutes de porte par phase et chutes étrangères sur L17 |
-| ordres 97–99 (30/09, ses mots) | Comprendre avant de construire : un tableau de conformité aux principes dans chaque DESIGN, avant le plan. Le « bis » EST la phase de correctifs entre deux lots (une porte, chaque nouveau signalement s'y ajoute). Une phase = une surface, dimensionnée par le contexte de l'agent ; porte de phase légère (gardes des fichiers touchés, oracle, règles des surfaces touchées ; ni mutation ni a11y par phase) ; suite complète, a11y et relecture une fois par lot ; un plan = une page par surface | ses corrections du 29/09 venaient de principes non lus ; L16 : 10,5 min de porte sur 19,9 par phase, 51–65 % du temps en vérification ; L16-bis dessiné en 18 phases, le train en 29 | corrections par lot, phases et minutes de porte par lot ÷ 2 à 3, sans hausse des défauts du lecteur ou de l'opérateur |
-| lignes retirées le 29/09 | 19, 25, 27, 31, 35, 37, 71, 74/83, 82 : du code fini ou remplacé, sans application manuelle ; leur texte est à `operator-method.md@163b41ee4` | — | — |
-| ordre 61 | Le tour de lecture marche au doigt, à 369 px sur tm-design, les surfaces du lot (à froid, depuis l'état précédent, et les voisins des correctifs) | 22 des 33 échappés dans des familles qu'aucune porte ne lit | défauts qu'il signale par lot |
-| ordre 62 | Pas de fusion avec un majeur produit connu visible à 369 px sans son mot | B-557 | — |
-| ordre 63 | Les familles récidivistes (tirer-pour-rafraîchir, défilement après retour, éclair) ont chacune une règle de famille | — | une récidive |
-| ordre 64 | Consolidation du harnais dans le second créneau, prouvée par comptes de tenues égaux et mutations par nom ; rien retiré pour « jamais tombé » | — | — |
-| ordre 66 | Le lecteur rejoue 10 mutations revendiquées tirées au hasard, puis fait les siennes | 272 sur 281 tombent | une revendiquée qui ne tombe pas |
-| ordre 67 | Documents vrais et allégés : `IMPLEMENTATION.md` réécrit à chaque squash ; registre trié ; un office unique des invariants de brief ; lecture d'audit réduite (en-tête seul) | 342 Ko de mémoire relus à chaque relance | — |
-| ordre 69 | Le périmètre d'un lot se fige à son ouverture : un ruling arrivé en cours va au lot suivant, sauf s'il change une surface en construction ou débloque un STOP | L22b : 23 unités sur 38 nées en cours de lot | un défaut qu'il signale à cause d'un ruling différé → le ruling entre dans le lot |
-| ordre 70 | `run.sh --rules` sur quelques règles et le build de tm-design prennent la classe `rule` (plafond 10) | trois runs bloqués 9–14 min derrière le verrou | compresseur ou swap en hausse, ou charge > 12 → classe browser |
-| ordre 73 | Un rouge chronique « d'infrastructure » (3 fois de suite) ouvre une ligne de registre avec son mécanisme, nommé avant la PR prête | — | — |
-| ordres 76, 77 | Chaque cas de chaque surface touchée devient un état nommé du catalogue que l'opérateur ouvre sur tm-design ; lentille « exhaustivité des cas » au tour de lecture ; inventaire des cas manquants des surfaces livrées ; le gel exige le catalogue complet | « En cours » vide à froid sur tm-design | un cas découvert à l'accrochage absent du catalogue |
-| ordre 79 | Lentille « cohérence du design système » au tour de lecture ; chaque élément nouveau se rattache à un composant de `design/src/ui/` (table élément → composant du DESIGN), ou sa nouveauté est justifiée ; redessiner l'existant est un défaut | Trackers de L16 hors design système | un écart au design système qu'il signale |
-| ordre 80 | Revue de conformité au design système de toutes les surfaces livrées, puis un train qui remet chaque écart à l'existant ; composant d'onglets unique avec garde statique obligatoire | trois écarts signalés le 29/09 | — |
-| ordre 81 | Revue de tous les chemins de navigation contre § 16, marchés au doigt ; chaque écart filé comme défaut | Système → Réglages → Retour ramenait à Acquisition | — |
+Voir `docs/reference/method.md`.
 
 ## 3. Les décisions par surface
 

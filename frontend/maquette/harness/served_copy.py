@@ -241,8 +241,8 @@ def assert_unchanged(expected: str | None, where: str) -> None:
         f"  started against: {expected}\n"
         f"  now serving:     {seen or 'no stamp at all'}\n"
         "  This reading spans two builds and means nothing either way.\n"
-        "  Another session rebuilt /tmp/tm-refonte. Coordinate first "
-        "(docs/reference/frontend-steward.md), then run again."
+        "  Another session rebuilt /tmp/tm-refonte. Wait for it to finish, "
+        "then run again."
     )
 
 

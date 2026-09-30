@@ -295,7 +295,7 @@ personalscraper library-doctor | grep "canonical_provider populated"
 Re-run the executable ACCEPTANCE criteria for the merged feature. For a feature
 with a live `docs/features/<codename>/ACCEPTANCE.md`, run each `ACC-NN` command
 in order and compare to its `Expected:` annotation (see
-`docs/reference/feature-lifecycle.md` §3 for the re-exercise protocol).
+`docs/reference/feature-lifecycle.md@638ebcfc` §3 for the re-exercise protocol).
 
 For the indexer/provider-ids surface, the criteria that must still hold post-merge
 include:
@@ -428,7 +428,7 @@ If any step above fails and cannot be resolved in-place:
 
 - `docs/reference/indexer.md` — DB schema, drift policy, scan modes
 - `docs/reference/commands.md` — full CLI reference
-- `docs/reference/feature-lifecycle.md` — ACCEPTANCE format and re-exercise protocol
+- `docs/reference/feature-lifecycle.md@638ebcfc` — ACCEPTANCE format and re-exercise protocol
 - `docs/features/<codename>/ACCEPTANCE.md` — per-feature executable criteria (when a feature is active)
 - `docs/archive/features/tech-debt/ACCEPTANCE.md` — archived 0.16.0 criteria (historical)
 - `docs/reference/storage.md` — disk layout, rsync flags, NTFS/macFUSE notes

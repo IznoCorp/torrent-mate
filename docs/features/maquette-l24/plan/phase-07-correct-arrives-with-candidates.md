@@ -1,6 +1,6 @@
 # Phase 7 — « Corriger » arrives with candidates (S5, DOIT-7)
 
-**RULED OPEN 7 = A** (operator, 2026-09-29, `review-archive/l24/rulings-2026-09-29.md`): one act, « Corriger » on
+**RULED OPEN 7 = A** (operator, 2026-09-29, `docs/features/maquette-l24/rulings-2026-09-29.md`): one act, « Corriger » on
 the block, for both authors, 12 points. Refused: B (a separate third act on the journey sheet).
 
 **Opening measure (2026-09-29, on `77e7b8436`):**

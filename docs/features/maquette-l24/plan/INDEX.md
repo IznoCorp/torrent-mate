@@ -1,7 +1,7 @@
 # L24 — the orphans: what no lot draws · PLAN
 
 Design: `docs/features/maquette-l24/DESIGN.md`. Contract: `docs/reference/frontend-architecture.md` § 4, entry
-`#### L24 — the orphans, what no lot draws`. The implementer is held to `docs/reference/implementer-office.md`; this
+`#### L24 — the orphans, what no lot draws`. The method is `docs/reference/method.md`; this
 plan carries only what is the lot's own.
 
 **Written 2026-09-29, on `main` at `e65130ab1`; re-cut the same day, on `77e7b8436`, on the operator's six rulings**
@@ -18,7 +18,7 @@ phase's cut is STOP D.
 - **STOP A** — the oracle diverging on a state the phase did not name.
 - **STOP B** — the pull request.
 - **STOP C — NONE LEFT.** All nine OPEN questions are RULED (the six of 2026-09-29's first round, then OPEN 7, 8
-  and 9 the rulings themselves raised, ruled in the second round — `review-archive/l24/rulings-2026-09-29.md`).
+  and 9 the rulings themselves raised, ruled in the second round — `docs/features/maquette-l24/rulings-2026-09-29.md`).
   Phases 7, 8 and 10 each carried one; each now opens with its answer written in, no phase begins on an open choice.
 - **STOP D** — a measurement that contradicts a home the design decided. Two are near already: `lib/addresses.ts`
   holds 395 non-blank lines of 400 (phase 10 adds at most 3), and `mocks/handlers/staging.ts` holds 399 (so no
@@ -83,7 +83,7 @@ reading surfaces already drawn; **the records** (19) and **the close** (20) end 
 
 ## Gates
 
-Per phase: the office's phase gate (`docs/reference/implementer-office.md` § « The gate »), with divergences ONLY on
+Per phase: the phase gate (`CLAUDE.md` § Gates), with divergences ONLY on
 the states the phase names. Before the pull request: the office's pre-PR gate. The pull request bumps the version
 (patch). **None of this applies to THIS docs pull request**, whose gate is `check-docs-cited-paths.py`,
 `check-no-french.py`, `check-implementation-state.py`, `check-intent-map.py`, `check-bug-register.py` and `make
