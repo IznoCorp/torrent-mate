@@ -12,7 +12,8 @@
   (`--contracts` + the full responsive sweep, once).
 - **The phase gate (order 99)**: static guards on the files touched; each new rule read RED on the old code first
   (`scripts/mutate.sh` with a targeted expression — an old file that no longer compiles cannot be restored whole);
-  the oracle ALONE, then `oracle.py --accept` through the scratchpad's accept script (build, publish, host, accept),
+  the oracle ALONE, then `oracle.py --accept` through `/Users/izno/dev/review-archive/conformity-train/accept-oracle.sh`
+  (outside the repository: build, publish, host, accept — run it under `scripts/heavy.sh --class browser`),
   and a script proving ONLY the declared states' keys moved; `run.sh --rules` on the touched surfaces' rules;
   R-conformity-a with `TM_RESPONSIVE_STATES` built BY SCRIPT from `harness/states/<surface>.ts` (mind the
   `.map`-built ids: `settings-field-<type>`). Every browser run names `TM_HARNESS_JOBS=2`; pytest `-n 2`.
