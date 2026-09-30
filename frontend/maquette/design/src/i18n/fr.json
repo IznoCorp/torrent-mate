@@ -1168,7 +1168,11 @@
         "wait": "Pourquoi : {{reason}}",
         "excluded": "Exclu des prochains passages du moteur",
         "titleExcluded": "Titre exclu : plus aucun cross-seed, sur aucun tracker.",
-        "none": "Aucun autre tracker n'est éligible au cross-seed de ce torrent."
+        "none": "Aucun autre tracker n'est éligible au cross-seed de ce torrent.",
+        "cut": "Couper le cross-seed sur ce tracker",
+        "include": "Ne plus exclure ce tracker",
+        "excludeTitle": "Ne plus partager ce titre",
+        "includeTitle": "Partager de nouveau ce titre"
       },
       "switch": {
         "engineOff": "Le moteur de cross-seed est coupé : aucun tracker n'en fait de nouveau, ce qui tourne continue.",
@@ -1634,7 +1638,20 @@
       "obligation": "Obligation en cours sur {{tracker}} — {{title}}.",
       "obligationBody": " La couper maintenant la clôt libérée, jamais en infraction.",
       "switchConfirm": "Couper",
-      "cancel": "Annuler"
+      "cancel": "Annuler",
+      "cutHeading": "Couper le cross-seed sur {{tracker}} ?",
+      "cutBody": "L'entrée de « {{title}} » sur {{tracker}} quitte qBittorrent, sans ses fichiers : l'original garde sa copie et continue de partager sur {{origin}}.",
+      "cutMemory": "{{tracker}} est exclu des prochains passages du moteur pour ce titre ; l'annuler permet de le chercher de nouveau.",
+      "cutConfirm": "Couper",
+      "cutDone": "Cross-seed coupé sur {{tracker}}.",
+      "titleHeading": "Ne plus partager « {{title}} » ?",
+      "titleBody": "Le titre est exclu de tous les prochains passages du moteur, sur tous les trackers.",
+      "titleRunning": "Les cross-seeds en cours sont coupés : {{trackers}} — leurs entrées quittent qBittorrent, sans leurs fichiers.",
+      "titleOrigin": "L'original reste en partage sur {{origin}}.",
+      "titleConfirm": "Ne plus partager",
+      "titleDone": "« {{title}} » n'est plus partagé en cross-seed.",
+      "includeDone": "{{tracker}} n'est plus exclu pour ce titre.",
+      "includeTitleDone": "« {{title}} » peut de nouveau être partagé en cross-seed."
     }
   },
   "discover": {

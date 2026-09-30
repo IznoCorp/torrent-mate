@@ -4,7 +4,7 @@
 // is INVENTED (L17 DESIGN § 2.3) and its default is the live states: every
 // switch on. A state that needs another scenario turns a dial and says so.
 import { applyState, type NamedState } from "../drive";
-import { openSwitchConfirm } from "../../features/trackers/cross-seed-verbs";
+import { openCutConfirm, openSwitchConfirm } from "../../features/trackers/cross-seed-verbs";
 
 // The page's reads, and the settings the switches are kept in: dropped before a
 // state so the page asks the layer again rather than drawing a state before's.
@@ -35,18 +35,24 @@ const OPEN_AFTER = 300;
 export const CROSS_SEEDING = "66e23ab395c438b7db4f7c855bd451d8bb1f0046";
 export const REFUSED = "8d51568b1a4f46e1fb7e7b535b52a5203312fc28";
 export const COPY = "7c1e0b2f95c438b7db4f7c855bd451d8bb1f0046";
+// Ted Lasso, its whole title excluded.
+export const EXCLUDED = "e1af6819d9e3159e0aa191b534b6a66af4344788";
 
 /**
  * The « Torrents » tab with one entry's panel open, as a tap on its card's body opens it.
  *
  * @param entry The entry, `<hash>:<tracker>`.
  * @param pose What the state poses on the layer before the page reads it.
+ * @param then What a finger does once the panel is open.
  */
-function torrentPanel(entry: string, pose: () => void = () => undefined): void {
+function torrentPanel(entry: string, pose: () => void = () => undefined, then: () => void = () => undefined): void {
   fresh();
   pose();
   applyState({ page: "trackers", trackersTab: "torrents", trackersFilter: "", phase: "ready" });
-  window.setTimeout(() => window.__panel.produce("torrent", entry), OPEN_AFTER);
+  window.setTimeout(() => {
+    window.__panel.produce("torrent", entry);
+    then();
+  }, OPEN_AFTER);
 }
 
 /**
@@ -105,6 +111,16 @@ export function crossSeedStates(): NamedState[] {
       "tracker-cross-seed-switch-confirm",
       "Tracker — confirmer la coupure sur tr4ker, avec ou sans les cross-seeds en cours, l'obligation nommée (INVENTÉ)",
       () => trackerPanel("tr4ker", () => undefined, () => openSwitchConfirm("tr4ker")),
+    ],
+    [
+      "torrents-cross-seed-cut-confirm",
+      "Torrents — couper le cross-seed de President Curtis sur tr4ker : sans ses fichiers, l'obligation nommée (INVENTÉ)",
+      () => torrentPanel(`${CROSS_SEEDING}:c411`, () => undefined, () => openCutConfirm(CROSS_SEEDING, "tr4ker")),
+    ],
+    [
+      "torrents-cross-seed-exclude",
+      "Torrents — un titre exclu entier (Ted Lasso), l'annulation à portée, sans confirmation (INVENTÉ)",
+      () => torrentPanel(`${EXCLUDED}:c411`),
     ],
   ];
 }

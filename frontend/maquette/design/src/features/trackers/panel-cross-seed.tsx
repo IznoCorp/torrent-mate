@@ -18,7 +18,7 @@ import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
 import { Chip } from "../../ui/chip";
 import { Switch } from "../../ui/switch";
 import type { Schemas } from "../../lib/contract-schemas";
-import { factDetail, factList, factName, factRow, factRowBody } from "../../ui/variants";
+import { actionButton, sheetActions, factDetail, factList, factName, factRow, factRowBody } from "../../ui/variants";
 import { dayOf } from "./format";
 import {
   CROSS_SEED_TONE, familyWord, isFailure, reasonSentence, stateWord, type CrossSeedPair,
@@ -92,13 +92,54 @@ function dateOf(pair: CrossSeedPair, say: (key: string, values?: Record<string, 
 }
 
 /**
+ * What a pair offers: to cut it while it runs (round 9 Q5, Q8), and to lift its
+ * exclusion once excluded (round 9 Q11) — nothing the engine would refuse (§ 17
+ * point 1). A title excluded whole is lifted whole, never pair by pair.
+ *
+ * @param props.pair The pair.
+ * @param props.origin The origin entry.
+ * @param props.titleExcluded Whether the whole title is excluded.
+ * @returns The pair's buttons, or nothing.
+ */
+function PairActs({ pair, origin, titleExcluded }: {
+  pair: CrossSeedPair; origin: PanelBlockMap["crossSeed"]["origin"]; titleExcluded: boolean;
+}): ReactElement | null {
+  const { t } = useTranslation();
+  const say = (key: string) => t(`screens.crossSeed.panel.${key}`);
+  const subject = `${origin.infoHash}:${pair.tracker}`;
+  if (pair.state === "active") {
+    return (
+      <span className={factDetail()}>
+        <button className={actionButton({ kind: "panelAction", tone: "danger" })} data-part="torrents/cross-seed-cut"
+          data-cross-seed-cut={subject}>
+          {say("cut")}
+        </button>
+      </span>
+    );
+  }
+  if (pair.excluded && !titleExcluded) {
+    return (
+      <span className={factDetail()}>
+        <button className={actionButton({ kind: "panelAction", tone: "plain" })} data-part="torrents/cross-seed-exclude"
+          data-undo="" data-cross-seed-include={subject}>
+          {say("include")}
+        </button>
+      </span>
+    );
+  }
+  return null;
+}
+
+/**
  * One pair's row.
  *
  * @param props.pair The pair.
  * @param props.origin The origin entry.
  * @returns The row.
  */
-function PairRow({ pair, origin }: { pair: CrossSeedPair; origin: PanelBlockMap["crossSeed"]["origin"] }): ReactElement {
+function PairRow({ pair, origin, titleExcluded }: {
+  pair: CrossSeedPair; origin: PanelBlockMap["crossSeed"]["origin"]; titleExcluded: boolean;
+}): ReactElement {
   const { t } = useTranslation();
   const say = (key: string, values: Record<string, string> = {}) => t(`screens.crossSeed.panel.${key}`, values);
   const date = dateOf(pair, say);
@@ -129,6 +170,7 @@ function PairRow({ pair, origin }: { pair: CrossSeedPair; origin: PanelBlockMap[
         {pair.excluded ? (
           <span className={factDetail()} data-part="torrents/cross-seed-excluded">{say("excluded")}</span>
         ) : null}
+        <PairActs pair={pair} origin={origin} titleExcluded={titleExcluded} />
       </div>
     </li>
   );
@@ -154,9 +196,21 @@ function CrossSeedBlock({ block }: { block: { type: "crossSeed" } & PanelBlockMa
         <p className={factDetail()} data-part="torrents/cross-seed-none">{say("none")}</p>
       ) : (
         <ol className={factList()}>
-          {orderedPairs(block.pairs).map((pair) => <PairRow key={pair.tracker} pair={pair} origin={block.origin} />)}
+          {orderedPairs(block.pairs).map((pair) => (
+            <PairRow key={pair.tracker} pair={pair} origin={block.origin} titleExcluded={block.titleExcluded} />
+          ))}
         </ol>
       )}
+      {/* THE TITLE AS A WHOLE, on the origin, never on one tracker's line (round 9 Q11). */}
+      <div className={sheetActions()}>
+        <button className={actionButton({ kind: "panelAction", tone: block.titleExcluded ? "plain" : "danger" })}
+          data-part="torrents/cross-seed-exclude" data-whole=""
+          {...(block.titleExcluded
+            ? { "data-undo": "", "data-cross-seed-include-title": block.origin.infoHash }
+            : { "data-cross-seed-exclude-title": block.origin.infoHash })}>
+          {say(block.titleExcluded ? "includeTitle" : "excludeTitle")}
+        </button>
+      </div>
     </section>
   );
 }

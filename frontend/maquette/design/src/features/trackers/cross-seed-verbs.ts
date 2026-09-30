@@ -8,7 +8,7 @@
 // and ask nothing.
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
-import { dialog, panel } from "../../lib/shell-doors";
+import { dialog, panel, toast } from "../../lib/shell-doors";
 import { read, send, sharedQueryClient } from "../../lib/query-client";
 import type { DialogBlock } from "../../ui/dialog/contract";
 import type { Schemas } from "../../lib/contract-schemas";
@@ -156,4 +156,118 @@ registerVerb("cross-seed-switch", (tracker) => {
   if (summary === undefined) return;
   if (summary.crossSeed.enabled) openSwitchConfirm(tracker);
   else void writeSwitch(tracker, true, false);
+});
+
+/**
+ * An origin entry and its pairs, as held.
+ *
+ * @param downloads The client's entries.
+ * @param infoHash The origin's hash.
+ * @returns The origin, or undefined when the client no longer holds it.
+ */
+function originOf(downloads: Schemas["Downloads"], infoHash: string): Schemas["Download"] | undefined {
+  return downloads.downloads.find((entry) => entry.infoHash === infoHash && entry.crossSeed !== null);
+}
+
+/**
+ * Opens the confirmation for cutting one pair: its entry leaves the client
+ * WITHOUT its files, its obligation closes « libérée », and the pair is
+ * excluded from the engine's next passes — all in one call (round 9 Q5, Q8, Q11).
+ *
+ * @param infoHash The origin's hash.
+ * @param tracker The pair's tracker.
+ */
+export function openCutConfirm(infoHash: string, tracker: string): void {
+  void held().then(([downloads, obligations]) => {
+    const origin = originOf(downloads, infoHash);
+    const pair = origin?.crossSeed?.pairs.find((one) => one.tracker === tracker);
+    if (origin === undefined || pair === undefined) return;
+    const ending = runningOn(pair.entryHash === null ? [] : [pair.entryHash], obligations.items);
+    dialog?.open({
+      heading: say("cutHeading", { tracker }),
+      body: [
+        { type: "paragraph", runs: [{ text: say("cutBody", { title: origin.title, tracker, origin: origin.tracker }) }] },
+        { type: "paragraph", runs: [{ text: say("cutMemory", { tracker }) }] },
+        ...obligationParagraphs(ending),
+      ],
+      actions: [
+        {
+          text: say("cutConfirm"),
+          tone: "danger",
+          run: () => void send("POST", `/api/torrents/${encodeURIComponent(infoHash)}/cross-seed/${encodeURIComponent(tracker)}/cut`)
+            .then(refresh).then(() => toast?.show({ message: say("cutDone", { tracker }) })),
+        },
+        { text: say("cancel"), tone: "ghost", dismiss: true },
+      ],
+    });
+  });
+}
+
+/**
+ * Opens the confirmation for « Ne plus partager ce titre »: every running pair
+ * cut the way one is, the whole title excluded on every tracker, the origin
+ * untouched (round 9 Q11, M4).
+ *
+ * @param infoHash The origin's hash.
+ */
+export function openTitleConfirm(infoHash: string): void {
+  void held().then(([downloads, obligations]) => {
+    const origin = originOf(downloads, infoHash);
+    if (origin === undefined) return;
+    const running = (origin.crossSeed?.pairs ?? []).filter((pair) => pair.state === "active");
+    const ending = runningOn(running.flatMap((pair) => pair.entryHash === null ? [] : [pair.entryHash]), obligations.items);
+    dialog?.open({
+      heading: say("titleHeading", { title: origin.title }),
+      body: [
+        { type: "paragraph", runs: [{ text: say("titleBody") }] },
+        ...(running.length === 0 ? [] : [{
+          type: "paragraph" as const,
+          runs: [{ text: say("titleRunning", { trackers: running.map((pair) => pair.tracker).join(", ") }) }],
+        }]),
+        ...obligationParagraphs(ending),
+        { type: "paragraph", runs: [{ text: say("titleOrigin", { origin: origin.tracker }) }] },
+      ],
+      actions: [
+        {
+          text: say("titleConfirm"),
+          tone: "danger",
+          run: () => void send("PUT", `/api/torrents/${encodeURIComponent(infoHash)}/cross-seed/exclusions`, { tracker: null })
+            .then(refresh).then(() => toast?.show({ message: say("titleDone", { title: origin.title }) })),
+        },
+        { text: say("cancel"), tone: "ghost", dismiss: true },
+      ],
+    });
+  });
+}
+
+/**
+ * Lifts an exclusion — undoing is never destructive, so nothing is asked first.
+ *
+ * @param infoHash The origin's hash.
+ * @param tracker The pair's tracker, or null for the whole title.
+ * @param message What is said once it is lifted.
+ */
+function include(infoHash: string, tracker: string | null, message: string): void {
+  void send("DELETE", `/api/torrents/${encodeURIComponent(infoHash)}/cross-seed/exclusions`, { tracker })
+    .then(refresh).then(() => toast?.show({ message }));
+}
+
+/* A PAIR'S CUT, from the torrent's panel: `<origin hash>:<tracker>`. */
+registerVerb("cross-seed-cut", (value) => {
+  const [infoHash, tracker] = value.split(":");
+  if (infoHash && tracker) openCutConfirm(infoHash, tracker);
+});
+
+/* THE TITLE, as a whole, from the origin's panel. */
+registerVerb("cross-seed-exclude-title", (infoHash) => openTitleConfirm(infoHash));
+
+/* THE UNDOS, at once. */
+registerVerb("cross-seed-include", (value) => {
+  const [infoHash, tracker] = value.split(":");
+  if (infoHash && tracker) include(infoHash, tracker, say("includeDone", { tracker }));
+});
+registerVerb("cross-seed-include-title", (infoHash) => {
+  const title = sharedQueryClient?.getQueryData<Schemas["Downloads"]>(downloadsKey)?.downloads
+    .find((entry) => entry.infoHash === infoHash)?.title ?? "";
+  include(infoHash, null, say("includeTitleDone", { title }));
 });

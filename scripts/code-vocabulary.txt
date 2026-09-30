@@ -50,6 +50,7 @@ actions
 activation
 active
 activity
+acts
 add
 added
 addfield
@@ -399,6 +400,7 @@ events
 ever
 every
 everything
+exclude
 excluded
 exec
 executions
@@ -555,6 +557,7 @@ images
 imgs
 in
 inc
+include
 included
 incoming
 incomplete
@@ -1428,6 +1431,7 @@ what
 when
 while
 white
+whole
 why
 wide
 width
