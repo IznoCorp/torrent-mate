@@ -60,7 +60,7 @@ there:
 - **review on evidence** — the reading, never the report; the idle subscription (`SendMessage` with
   `notify_when_idle`) after every message that expects work back;
 - **context, measured** — `orchestrator:context-gauge` for the steward's own fill and for every
-  agent's, never an estimate; **agent rotation** at the ~60 % gate with the rotation brief; and **the
+  agent's, never an estimate; **agent rotation** at the 80 % gate with the rotation brief; and **the
   steward's own succession** when its context nears the limit — the succession brief, the successor
   launched with `orchestrator:iterm-agents`, its first act re-announcing its exact address to
   every running agent. A successor satisfies this office's « fresh session » condition as long as it
@@ -82,7 +82,7 @@ there:
   enforces — `Agent : <subject>` for anything the steward spawns, `Orch : <subject>` for the steward
   and its successor (subject ≤ 25 characters) — the prompt ONE LINE naming the brief's path and the
   steward's exact `ListAgents` name and reference, everything else in the brief. Verify the spawn on
-  the artifact, then wait for the handshake; an agent past ~60 % is stood down at its unit boundary,
+  the artifact, then wait for the handshake; an agent past 80 % is stood down at its unit boundary,
   its resume brief pushed and proved by `ls-remote` BEFORE it stops, and `rotate` spawns its
   replacement first and closes its tab after. **The steward's own succession passes `--successor`**
   (the tab lands immediately right of the steward and takes its agent chain) with the title
@@ -184,8 +184,9 @@ reaches him.
    « None » (the plain row, no pull request number anywhere in the cell — the arm reads the first `#NNN`); the trace in
    « Between … » stays the steward's, in the docs PR. Ratified 2026-09-14: the docs-only push path
    completes in seconds, live since order 35.
-5. **One repair train per day** — one brief, one worktree, one agent, one gate for the day's repairs — never one micro-wave
-   per bug.
+5. **A fast lane for the operator's reports, a train for tooling debts** (rewritten order 95) — an operator-reported
+   bug goes to the fast lane, one at a time, as it lands; a tooling debt (a guard, a rule, the harness) goes to one
+   repair train per day — one brief, one worktree, one agent, one gate — never one micro-wave per debt.
 6. **Three agents at most, ONE on the harness lock at a time** — the other two without it (drawing, reading,
    documents); back to two while load > 8 or free memory < 2 GB with a third running (amended 2026-09-29, operator,
    « A »; order 68: L22b measured 1.27 phase/h alone against 0.81–0.87 beside another harness agent).
@@ -233,8 +234,10 @@ reaches him.
     267–271 s, against 7–9 min before. **L20: PR READY 10:04, reader spawned 10:13 = 9 min — the
     implementer did not report READY at once; a PR READY is reported the second it exists
     (2026-09-15).**
-18. **The contracts tier's fan-out is `TM_HARNESS_JOBS=3`**, measured once with `vm_stat` and
-    `vm.swapusage` before and after (a rule costs ≈ 400 MB); back to 2 if swap moves.
+18. **The contracts tier's fan-out is `TM_HARNESS_JOBS=2`** (realigned to `run.sh`'s own default,
+    auditor's order 88 — measured once at 3 with `vm_stat` and `vm.swapusage` before and after, a
+    rule costing ≈ 400 MB, lowered when the default itself moved to 2 so no heavy run takes every
+    core without being told to).
 19. **No local `make check` before a maquette wave's pull request** — CI's `test` job (8 min,
     unconditional) is the authority; the pre-PR gate is `make lint` + the full suite + `--a11y` +
     `--compare` + the pre-push pytest. Measured: 11 259 tests ran three times before #596 for 0 defects
@@ -248,6 +251,11 @@ reaches him.
     maintenant et une fois pour toute pour l'auto merge des PRs »).
 22. **A lot's scope freezes at its opening** — a ruling that arrives during the lot goes to the next lot, unless
     it changes a surface under construction or unblocks a STOP (order 69).
+
+**Two orders not yet carried above** (`docs/reference/operator-method.md`, rules table). **Order 33**: a calm
+border before the Monday 05:00 reboot — everything pushed by 04:30, nothing launched after 04:15. **Orders
+46/47/72**: the second slot never sits empty — drawings ahead of need first (never between two lots), then
+whatever no lot owns.
 
 **Order 42's own fate (auditor, on L13c, 2026-09-15/16).** Nine opening measures written ahead of the
 first phase's spawn, one per phase (c·1 ≈ 6 … c·9 ≈ 5, mean ≈ 6.9, none past measure 11's 15-point
@@ -280,6 +288,13 @@ recounted — are invisible from inside the wave that produced them.
 The steward holds **this responsibility and no other**. It does not implement lots, it does not
 arbitrate what belongs to the operator, and it does not inherit its standing from any
 conversation. What follows is the whole of the office.
+
+**The plan recipe the steward approves before dispatch (order 99).** One phase = one surface; one
+plan page per surface, the order-97 conformity table to the operator's principles at its head,
+before the phases. The phase gate it dispatches is LIGHT — `docs/reference/implementer-office.md`
+§ « The gate » carries the mechanism — and the mutation replay, the accessibility audit and the
+reading round run once per lot, never per phase. A plan cut any other way is sent back before its
+first phase opens, not corrected mid-lot.
 
 **The audit, in this order.** Each step answers a question the previous one cannot.
 
@@ -440,10 +455,24 @@ holder's name and exit 0, or « free » and exit 1 (B-326). `cat` on the holder 
 directory as a file and prints NOTHING whether the lock is held or free — the office reads the
 holder's name or `test -d`, never `cat` on the directory.
 
-**The fan-out has a NAME, `TM_HARNESS_JOBS`** — `run.sh` and `scripts/harness-hold-counts.py`
-default it to the core count (eight here), so « fan-out two » is unenforceable without setting the
-variable: `TM_HARNESS_JOBS=2 sh scripts/heavy.sh <who> <command>`. The lock holds the door, not the
-room.
+**The fan-out has a NAME, `TM_HARNESS_JOBS`** — `run.sh` now defaults it to 2, not the core count
+(auditor's order 88, 2026-09-29: a suite launched with no override starved the Plex Transcoder);
+`scripts/harness-hold-counts.py` still defaults to the core count (eight here) and is outside this
+repair's scope — read it, do not assume it. The lock holds the door, not the room.
+
+**A heavy run also YIELDS to Plex while it runs, not just before it starts** (auditor's order 88):
+`scripts/heavy.sh` watches for the Plex Transcoder and the one-minute load together, and SIGSTOPs
+the whole wrapped tree — never anything it did not start — resuming on a lower load or the
+transcoder's absence; `HEAVY_PLEX_LOAD_CEILING` / `HEAVY_PLEX_LOAD_RESUME` name the thresholds.
+
+**A SHORT run PREEMPTS a browser-class holder rather than waiting behind it** (auditor's order 90,
+operator: monitor progress, control the speed): `--class rule` or `--class test` SIGSTOPs the
+holder's own wrapped tree for the length of the short run (capped at `HEAVY_PREEMPT_CAP_SECONDS`,
+600 s, past which the holder resumes and the short run just runs, unprotected, as before this
+existed), SIGCONTing it when done. A second short run queues behind the FIRST short run's own
+preempt sub-lock, never behind the (possibly very long) holder — the mechanism that avoids nesting
+the suspension. `scripts/heavy.sh` also names `TM_HARNESS_JOBS` for its own child when the caller
+sets none: 3 with no Plex Transcoder running, 2 with one active.
 
 **Three locks, by what the run READS** (2026-09-12, five agents on one machine; amended
 2026-09-13). The mutex above is for the ONE served copy and the ONE 8899 host — `run.sh` in any
@@ -465,7 +494,7 @@ beside a harness run, whatever the locks say. Story:
 **Its thresholds are arithmetic, not taste.** This host is 8 cores and 16 GB; one Playwright browser
 group costs about 1.1 GB; the baseline holds about 6 GB. A fan-out of eight therefore asks for more
 than exists, which is how a load of 65 with 200 MB free happened. The caps that go with the lock: at
-most two browser groups machine-wide, a harness fan-out of two, a parallel test run at three workers
+most two browser groups machine-wide, a harness fan-out of two, a parallel test run at two workers
 rather than all eight cores, and never a build beside one. **The margin is deliberate** — the script
 asks whether there is room to spare, never whether a run merely fits, because a run that squeezes
 leaves compressed memory this host does not reclaim until a reboot.

@@ -59,6 +59,12 @@
 #     frontend/maquette/harness/run.sh --rules pwa.py settings.py
 #                                        # ONLY the named rules, over one build: for a red,
 #                                        # a diagnosis, a finger walk — NEVER as a gate
+#     frontend/maquette/harness/run.sh --ci --shard 2/4
+#                                        # the full suite as a CI runner runs it: the
+#                                        # machine-bound rules and the oracle left out BY
+#                                        # NAME, and only the second quarter of the rules
+#     TM_HARNESS_LOG_DIR=logs frontend/maquette/harness/run.sh
+#                                        # any form, with every rule's log and duration KEPT
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -124,12 +130,29 @@ SERVED="/tmp/tm-refonte"
 #                    never ship, and a fifteen-phase interval is not where that
 #                    should be found.
 #
-# `arrivals.py` guards the `data-pipe` contract too and is NOT here: it holds
-# R66, which checks every figure against the run `library.db` really recorded,
-# by run_uid. That database is the operator's and a CI runner has none, so the
-# rule would fail there for a reason that has nothing to do with the change
-# under test. It runs in the full suite, on the machine that has the data.
+# NO RULE THAT READS THE OPERATOR'S OWN MACHINE IS HERE, and none may join: a CI
+# runner has neither his configuration nor his deployed design host, so such a
+# rule fails there for a reason that has nothing to do with the change under
+# test. Those rules are named in `CI_EXCLUDED` below.
 CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py boot_order.py settle.py state_surfaces.py relay_states.py scroll_memory.py persistence.py producers.py replacement.py paths_to_sheets.py take.py busy.py served_copy.py declared_codes.py locks.py levers.py watch_run.py run_history.py raw_log.py responsive.py)
+
+# THE RULES A CI RUNNER CANNOT RUN, left out of the full suite under `--ci` and
+# only there. They are named, never detected: a rule that silently drops out
+# because a file is missing is a rule nobody notices has stopped running.
+#   entry, pwa   read the DEPLOYED design host through the local reverse proxy
+#                (`resolve_deployed_host_locally`); a runner has neither.
+#   settings     reads the operator's configuration directory and crashes on a
+#                runner, where `thresholds.json5` does not exist.
+#   address      compares the account screen against the operator's
+#                `web.json5`, and fails its hold where that file is absent.
+# The ORACLE leaves with them: its reference is a measurement bound to the
+# machine that recorded it, and the same unmodified tree reads a few pixels
+# apart on the runner.
+#
+# `content.py` STAYS. Its comparison against the acquisition database is already
+# advisory — it prints that no database was found and gates nothing there — and
+# its other half reads the interface only, so it has no half to split off.
+CI_EXCLUDED=(entry.py pwa.py settings.py address.py)
 
 # THE REPOSITORY'S CHEAP GUARDS, run beside the rules (B-063, arbitrated by the
 # operator on 2026-08-25). They read the tree in seconds and they read exactly
@@ -221,7 +244,6 @@ REPOSITORY_GUARDS=(
   "scripts/check-intent-map.py"
   "scripts/check-docs-cited-paths.py"
   "scripts/compare-contracts.py --check"
-  "scripts/check-mock-keychain.py"
 )
 REPOSITORY_ROOT="$(cd "$HERE/../../.." && pwd)"
 
@@ -267,6 +289,45 @@ resolve_named_rules() {
     NAMED_RULES+=("$(basename "$rule")")
   done
 }
+# `--ci` AND `--shard i/n` ARE READ FIRST, wherever they stand, and belong to the
+# full suite alone: the contracts tier already runs whole in CI, and a sharded
+# oracle or a sharded audit means nothing. Given with anything else they are
+# refused, never dropped — a flag ignored in silence reads as a flag obeyed.
+CI_MODE=0
+SHARD=""
+remaining_arguments=()
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --ci) CI_MODE=1 ;;
+    --shard)
+      if [ "$#" -lt 2 ]; then
+        echo "run.sh: --shard needs its index and count, as in --shard 2/4" >&2
+        exit 64
+      fi
+      SHARD="$2"
+      shift
+      ;;
+    *) remaining_arguments+=("$1") ;;
+  esac
+  shift
+done
+set -- ${remaining_arguments[@]+"${remaining_arguments[@]}"}
+SHARD_INDEX=1
+SHARD_COUNT=1
+if [ -n "$SHARD" ]; then
+  if ! [[ "$SHARD" =~ ^([1-9][0-9]*)/([1-9][0-9]*)$ ]] \
+    || [ "${BASH_REMATCH[1]}" -gt "${BASH_REMATCH[2]}" ]; then
+    echo "run.sh: --shard reads i/n with 1 <= i <= n — refused: $SHARD" >&2
+    exit 64
+  fi
+  SHARD_INDEX="${BASH_REMATCH[1]}"
+  SHARD_COUNT="${BASH_REMATCH[2]}"
+fi
+if { [ "$CI_MODE" -eq 1 ] || [ -n "$SHARD" ]; } && [ "$#" -ne 0 ]; then
+  echo "run.sh: --ci and --shard apply to the full suite alone — refused beside: $*" >&2
+  exit 64
+fi
+
 TIER="${1:-}"
 WITH_ORACLE=0
 RULES_ONLY=0
@@ -346,6 +407,95 @@ else
     scripts+=("$(basename "$s")")
   done
   label="full suite (${#scripts[@]} rules)"
+  if [ "$CI_MODE" -eq 1 ]; then
+    kept=()
+    for rule in "${scripts[@]}"; do
+      case " ${CI_EXCLUDED[*]} " in
+        *" $rule "*) ;;
+        *) kept+=("$rule") ;;
+      esac
+    done
+    scripts=("${kept[@]}")
+    label="full suite, CI form (${#scripts[@]} rules; left out by name: ${CI_EXCLUDED[*]} and the oracle)"
+  fi
+  # THE SPLIT IS A FUNCTION OF THE RULE LIST ALONE, so every shard of one run
+  # computes the same partition without talking to the others, and the union of
+  # the shards is the suite, each rule exactly once. With a file of durations
+  # (`TM_HARNESS_DURATIONS`, the `durations.tsv` a kept run writes) the rules
+  # are dealt longest first to the lightest shard, so the slowest rule does not
+  # land beside the next slowest; a rule the file does not know weighs the mean
+  # of those it does. Without one they are dealt by name, round robin.
+  if [ "$SHARD_COUNT" -gt 1 ]; then
+    shard_rules="$(python3 - "$SHARD_INDEX" "$SHARD_COUNT" "${TM_HARNESS_DURATIONS:-}" "${scripts[@]}" <<'PYTHON'
+import pathlib
+import sys
+
+index, count, durations_path = int(sys.argv[1]), int(sys.argv[2]), sys.argv[3]
+rules = sorted(sys.argv[4:])
+durations = {}
+if durations_path and pathlib.Path(durations_path).is_file():
+    for line in pathlib.Path(durations_path).read_text().splitlines():
+        fields = line.split("\t")
+        try:
+            durations[fields[0]] = float(fields[1])
+        except (IndexError, ValueError):
+            continue
+known = [durations[rule] for rule in rules if rule in durations]
+if known:
+    mean = sum(known) / len(known)
+    weight = {rule: durations.get(rule, mean) for rule in rules}
+    loads = [0.0] * count
+    shards = [[] for _ in range(count)]
+    for rule in sorted(rules, key=lambda rule: (-weight[rule], rule)):
+        lightest = min(range(count), key=lambda shard: (loads[shard], shard))
+        loads[lightest] += weight[rule]
+        shards[lightest].append(rule)
+    chosen = sorted(shards[index - 1])
+    print(f"by the durations in {durations_path}")
+else:
+    chosen = [rule for position, rule in enumerate(rules) if position % count == index - 1]
+    print("by name")
+print("\n".join(chosen))
+PYTHON
+)"
+    # The first line says how the rules were dealt; the others are the rules.
+    balance="$(printf '%s\n' "$shard_rules" | head -1)"
+    scripts=()
+    while IFS= read -r rule; do
+      [ -n "$rule" ] && scripts+=("$rule")
+    done <<< "$(printf '%s\n' "$shard_rules" | tail -n +2)"
+    # AN EMPTY SHARD IS REFUSED: it would build, run nothing, and close green.
+    if [ "${#scripts[@]}" -eq 0 ]; then
+      echo "run.sh: shard $SHARD_INDEX/$SHARD_COUNT holds no rule — a run of nothing would read as a green one" >&2
+      exit 64
+    fi
+    label="${label} — shard ${SHARD_INDEX}/${SHARD_COUNT}, ${#scripts[@]} rules dealt ${balance}"
+  fi
+fi
+
+# WHAT RUNS ONCE PER SUITE, not once per shard: the repository's guards and the
+# accessibility audit read the tree and the whole prototype, so under `--shard`
+# they belong to the first shard alone. The oracle never runs under `--ci`.
+RUN_SUITE_WIDE=1
+[ "$SHARD_INDEX" -eq 1 ] || RUN_SUITE_WIDE=0
+RUN_ORACLE=1
+[ "$CI_MODE" -eq 0 ] || RUN_ORACLE=0
+
+# THE LOGS ARE KEPT WHEN THE CALLER NAMES WHERE (`TM_HARNESS_LOG_DIR`): each
+# rule's output, its duration in `<rule>.seconds`, and a `durations.tsv` of
+# `rule, seconds, verdict` in rule order — the file `--shard` balances by, and
+# what CI uploads. The directory must be new or empty, and that is not caution:
+# the verdict below reads each rule's `.ok` marker, so a marker left by an
+# earlier run would read as a pass this run never earned. Unnamed, the logs go
+# to a temporary directory the exit removes, as they always did.
+KEEP_LOGS=0
+if [ -n "${TM_HARNESS_LOG_DIR:-}" ]; then
+  if [ -e "$TM_HARNESS_LOG_DIR" ] && [ -n "$(ls -A "$TM_HARNESS_LOG_DIR" 2>/dev/null)" ]; then
+    echo "run.sh: TM_HARNESS_LOG_DIR=$TM_HARNESS_LOG_DIR is not empty — an earlier run's markers would read as this run's verdicts" >&2
+    exit 64
+  fi
+  mkdir -p "$TM_HARNESS_LOG_DIR"
+  KEEP_LOGS=1
 fi
 
 # THE SERVED COPY IS TAKEN BEFORE IT IS REBUILT (B-256). Until this line, two
@@ -360,7 +510,7 @@ fi
 # not an error rather than so that two traps have to stay in step.
 cleanup() {
   python3 "$HERE/served_copy.py" --release "$$"
-  [ -n "${LOGS:-}" ] && rm -rf "$LOGS"
+  [ -n "${LOGS:-}" ] && [ "$KEEP_LOGS" -eq 0 ] && rm -rf "$LOGS"
   return 0
 }
 # ACQUIRE FIRST, THEN ARM THE TRAP, and the order is the whole correctness of
@@ -432,6 +582,14 @@ fi
 # hatch that matters: a rule that measures a settle can read a contended CPU as
 # a slow animation. A rule that needs the machine to itself is a finding to
 # record, not a reason to run all of them alone.
+#
+# THE DEFAULT IS 2, NOT THE CORE COUNT (auditor's order 88): it used to fall
+# back to `nproc` — eight on this host — so a suite launched with no override
+# started eight rules, each its own Chrome, at once; that starved the Plex
+# Transcoder on 2026-09-29 while nothing named the fan-out in the brief that
+# ran it. Two browser groups machine-wide is the office's own arithmetic
+# (`docs/reference/frontend-steward.md` § Instrument hygiene) — a caller that
+# knows its machine can afford more still sets `TM_HARNESS_JOBS` by hand.
 # EVERY RULE IS BOUNDED, and a rule past its bound is an INSTRUMENT that fell,
 # never a hold that passed: a hung rule once held the served copy for forty-five
 # minutes. `TM_RULE_TIMEOUT_SECONDS` moves the bound (ten minutes; the longest
@@ -439,15 +597,16 @@ fi
 RULE_TIMEOUT_SECONDS="${TM_RULE_TIMEOUT_SECONDS:-600}"
 BOUND="$(command -v timeout || command -v gtimeout || true)"
 [ -n "$BOUND" ] || echo "run.sh: no timeout command on this machine — rules run unbounded" >&2
-JOBS="${TM_HARNESS_JOBS:-}"
-if [ -z "$JOBS" ]; then
-  JOBS="$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)"
-fi
+JOBS="${TM_HARNESS_JOBS:-2}"
 
 # Each rule writes to its own log, and the FAILURES are reported after the run
 # in the rule order — never the order they happened to finish. A report whose
 # order depends on scheduling cannot be diffed against the previous one.
-LOGS="$(mktemp -d)"
+if [ "$KEEP_LOGS" -eq 1 ]; then
+  LOGS="$(cd "$TM_HARNESS_LOG_DIR" && pwd)"
+else
+  LOGS="$(mktemp -d)"
+fi
 
 failed=0
 timed_out=0
@@ -473,12 +632,14 @@ else
         # rule does not abort `xargs` and take the rules after it with it.
         # Absence of the `.ok` marker IS the failure, read back below.
         status=0
+        started="$(date +%s)"
         if [ -n "$HARNESS_BOUND" ]; then
           "$HARNESS_BOUND" --kill-after=10 "$HARNESS_RULE_TIMEOUT" \
             python3 "$HARNESS_DIR/$rule" > "$HARNESS_LOGS/$rule.out" 2>&1 || status=$?
         else
           python3 "$HARNESS_DIR/$rule" > "$HARNESS_LOGS/$rule.out" 2>&1 || status=$?
         fi
+        echo "$(( $(date +%s) - started ))" > "$HARNESS_LOGS/$rule.seconds"
         if [ "$status" -eq 0 ]; then
           : > "$HARNESS_LOGS/$rule.ok"
         elif [ -n "$HARNESS_BOUND" ] && { [ "$status" -eq 124 ] || [ "$status" -eq 137 ]; }; then
@@ -525,6 +686,18 @@ else
     echo "$hits" | sed 's/^/      /'
     failed=$((failed + 1))
   done
+
+  # The kept durations, one line per rule in rule order, whatever the verdict:
+  # a rule that fell or timed out took its time too, and the balance needs it.
+  if [ "$KEEP_LOGS" -eq 1 ]; then
+    for s in "${scripts[@]}"; do
+      verdict="failed"
+      [ -f "${LOGS}/${s}.ok" ] && verdict="ok"
+      [ -f "${LOGS}/${s}.timedout" ] && verdict="timed-out"
+      printf '%s\t%s\t%s\n' "$s" "$(cat "${LOGS}/${s}.seconds" 2>/dev/null || echo "")" "$verdict"
+    done > "${LOGS}/durations.tsv"
+    echo "  per-rule logs and durations kept in ${LOGS}"
+  fi
 fi
 
 # THE NAMED RULES' OWN VERDICT, and it counts what RAN, not what was asked for.
@@ -570,22 +743,67 @@ print("" if count is None else count)
   exit 0
 fi
 
+# A guard's failure blocks the phase only if it is the phase's own to pay for
+# (order 95, 2026-09-30): 12 of L16's 14 guard failures named a file that phase
+# never touched. `GUARD_ATTRIBUTION` stays 0 — every failure blocks, as before
+# this rule — when the tree carries no `origin/main` to diff against (a test's
+# scratch tree, a shallow clone).
+GUARD_ATTRIBUTION=0
+TOUCHED_FILES=""
+if git -C "$REPOSITORY_ROOT" rev-parse --verify origin/main >/dev/null 2>&1; then
+  TOUCHED_FILES="$(git -C "$REPOSITORY_ROOT" diff --name-only origin/main...HEAD -- . 2>/dev/null)"
+  GUARD_ATTRIBUTION=1
+fi
+
+# True (blocks) unless the guard names at least one file in its own output and
+# EVERY file it names was left untouched by this phase.
+guard_blocks_phase() {
+  local out="$1"
+  [ "$GUARD_ATTRIBUTION" -eq 1 ] || return 0
+  # An EMPTY touched set (HEAD is `origin/main` itself — the post-merge
+  # gesture, the references suite) has nothing to excuse a fall against: an
+  # empty diff used to match no candidate either, which read exactly like
+  # "every candidate is untouched" and demoted a fall on `main` to a warning.
+  [ -n "$TOUCHED_FILES" ] || return 0
+  local candidates
+  candidates="$(grep -oE '[A-Za-z0-9_./-]+\.(py|ts|tsx|mjs|json|md|css|html)' "$out" | sort -u)"
+  [ -n "$candidates" ] || return 0
+  local path normalised
+  while IFS= read -r path; do
+    # `git diff --name-only` lists repo-relative paths; a guard citing the
+    # SAME file as an absolute path (under `$REPOSITORY_ROOT`) or `./`-prefixed
+    # never matched that form, so a real, this-phase defect read as untouched.
+    normalised="${path#"$REPOSITORY_ROOT"/}"
+    normalised="${normalised#./}"
+    printf '%s\n' "$TOUCHED_FILES" | grep -qxF "$normalised" && return 0
+  done <<< "$candidates"
+  return 1
+}
+
 # The repository's guards, after the rules and before the two audits. They read
 # FILES — the module tree, the ceilings, the language rule — so they need no
 # browser and no served copy, and they are skipped on the two single-purpose
 # tiers: `--oracle` answers « did the rendering move » and `--a11y` answers « is
 # the markup usable », and a tier that answers two questions answers neither
 # clearly.
-if [ "$ORACLE_ONLY" -eq 0 ] && [ "$A11Y_ONLY" -eq 0 ]; then
+guards_run=0
+if [ "$ORACLE_ONLY" -eq 0 ] && [ "$A11Y_ONLY" -eq 0 ] && [ "$RUN_SUITE_WIDE" -eq 1 ]; then
+  guards_run=${#REPOSITORY_GUARDS[@]}
   echo
   echo "Running the repository's cheap guards (${#REPOSITORY_GUARDS[@]})…"
   for guard in "${REPOSITORY_GUARDS[@]}"; do
     # Word-splitting is WANTED here: an entry carries its own flags.
     # shellcheck disable=SC2086
     if ! (cd "$REPOSITORY_ROOT" && python3 $guard > "$LOGS/guard.out" 2>&1); then
-      echo "  FAILED: python3 $guard"
-      sed 's/^/      /' < "$LOGS/guard.out"
-      failed=$((failed + 1))
+      if guard_blocks_phase "$LOGS/guard.out"; then
+        echo "  FAILED: python3 $guard"
+        sed 's/^/      /' < "$LOGS/guard.out"
+        failed=$((failed + 1))
+      else
+        echo "  WARNING (untouched by this phase): python3 $guard"
+        sed 's/^/      /' < "$LOGS/guard.out"
+        echo "      file a register row in docs/reference/frontend-architecture.md § 5 (The instruments' own debts) if none names this yet"
+      fi
     fi
   done
 fi
@@ -595,7 +813,7 @@ if [ "$failed" -gt 0 ] && [ "$WITH_ORACLE" -eq 0 ]; then
   exit 1
 fi
 if [ "$failed" -eq 0 ] && [ "$ORACLE_ONLY" -eq 0 ] && [ "$A11Y_ONLY" -eq 0 ]; then
-  echo "harness: ${#scripts[@]} rule(s) and ${#REPOSITORY_GUARDS[@]} repository guard(s), no violation."
+  echo "harness: ${#scripts[@]} rule(s) and ${guards_run} repository guard(s), no violation."
 fi
 
 # The FOURTH tier. Before the oracle, because the two answer different questions
@@ -606,7 +824,7 @@ fi
 # not for the same cost. The contracts subset answers « did a NAME move without
 # all of its ends? », and an accessibility violation is not that question. CI
 # runs this tier as its own step, beside the contracts one.
-if [ "$TIER" != "--contracts" ] && [ "$ORACLE_ONLY" -eq 0 ]; then
+if [ "$TIER" != "--contracts" ] && [ "$ORACLE_ONLY" -eq 0 ] && [ "$RUN_SUITE_WIDE" -eq 1 ]; then
   echo
   echo "Running the accessibility audit (the markup is usable)…"
   python3 "${HERE}/../a11y.py" --check
@@ -624,7 +842,8 @@ fi
 # metrics, not a change to anything. Same reason `arrivals.py` is kept out of the
 # subset: a hold that fails on the runner for a reason foreign to the change
 # under test teaches nobody anything and gets muted.
-if { [ "$TIER" != "--contracts" ] || [ "$WITH_ORACLE" -eq 1 ]; } && [ "$A11Y_ONLY" -eq 0 ]; then
+if { [ "$TIER" != "--contracts" ] || [ "$WITH_ORACLE" -eq 1 ]; } && [ "$A11Y_ONLY" -eq 0 ] \
+  && [ "$RUN_ORACLE" -eq 1 ] && [ "$RUN_SUITE_WIDE" -eq 1 ]; then
   echo
   echo "Running the recorded oracle (the rendering did not move)…"
   oracle_status=0

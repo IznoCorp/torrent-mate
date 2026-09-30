@@ -4,14 +4,16 @@
 8-core host — beside whatever gate a wave is already running under
 ``scripts/heavy.sh`` and outside that lock. The office's arithmetic
 (``docs/reference/frontend-steward.md`` § Instrument hygiene) caps a parallel
-test run at three workers here, and that cap used to live only in briefs: every
-wave was told to export ``PYTEST_XDIST_AUTO_NUM_WORKERS`` by hand.
+test run at two workers here (auditor's order 88 — lowered from three, so no
+heavy run takes every core by default), and that cap used to live only in
+briefs: every wave was told to export ``PYTEST_XDIST_AUTO_NUM_WORKERS`` by
+hand.
 
 The hook now applies the cap itself, and says which number it applied. This test
 runs the real hook with a stub ``python`` — so no check actually spends minutes
 — and reads, in both directions, what reached the checks:
 
-* the variable absent from the environment  -> every check sees ``3``;
+* the variable absent from the environment  -> every check sees ``2``;
 * the variable present                      -> its value survives untouched.
 """
 
@@ -78,13 +80,13 @@ def _run_hook(tmp_path: Path, worker_count: str | None) -> tuple[subprocess.Comp
 
 
 def test_pre_push_caps_pytest_workers_when_the_environment_is_silent(tmp_path: Path) -> None:
-    """With the variable unset, every check must see the three-worker cap."""
+    """With the variable unset, every check must see the two-worker cap."""
     result, dump = _run_hook(tmp_path, None)
 
     assert result.returncode == 0, f"stdout={result.stdout}\nstderr={result.stderr}"
     assert f"{_WORKER_VARIABLE}=UNSET" not in dump, f"the cap never reached a check:\n{dump}"
-    assert dump.strip().splitlines() == [f"{_WORKER_VARIABLE}=3"] * 5, dump
-    assert "pytest workers 3 (capped" in result.stdout, result.stdout
+    assert dump.strip().splitlines() == [f"{_WORKER_VARIABLE}=2"] * 5, dump
+    assert "pytest workers 2 (capped" in result.stdout, result.stdout
 
 
 def test_pre_push_honours_a_worker_count_the_environment_already_names(tmp_path: Path) -> None:

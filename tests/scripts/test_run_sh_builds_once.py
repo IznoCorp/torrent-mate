@@ -363,3 +363,175 @@ def test_an_empty_rule_list_is_refused_by_the_rules_mode_before_the_build(
     assert result.returncode == 64, result.stdout + result.stderr
     assert "--rules names no rule" in result.stderr, result.stderr
     assert _count(journal, "npm run build") == 0, journal
+
+
+def test_the_default_fan_out_is_two_and_not_the_core_count(scratch_tree: Path) -> None:
+    """No heavy run takes every core by default any more (auditor's order 88).
+
+    `TM_HARNESS_JOBS` unset used to fall back to `nproc` — eight on this host — so
+    a suite launched with no override started eight rules, each its own Chrome, at
+    once. `nproc` is stubbed here to answer 8 on purpose: if the default silently
+    read it, this test would see « 8 at a time » instead of the new floor.
+    """
+    _write_executable(scratch_tree / "bin" / "nproc", "#!/bin/sh\necho 8\n")
+    journal = scratch_tree / "journal"
+    journal.touch()
+    result = subprocess.run(
+        ["bash", str(scratch_tree / "frontend" / "maquette" / "harness" / "run.sh"), "--contracts"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env={
+            **{k: v for k, v in os.environ.items() if k != "TM_HARNESS_JOBS"},
+            "PATH": f"{scratch_tree / 'bin'}:{os.environ['PATH']}",
+            "RUN_JOURNAL": str(journal),
+        },
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "2 at a time" in result.stdout, result.stdout
+    assert "8 at a time" not in result.stdout, result.stdout
+
+
+def _git(tree: Path, *args: str) -> None:
+    """Run one git command in the scratch tree.
+
+    Args:
+        tree: The scratch repository root.
+        *args: The git subcommand and its arguments.
+    """
+    subprocess.run(["git", *args], cwd=tree, check=True, capture_output=True, text=True)
+
+
+def _commit_base_as_origin_main(tree: Path) -> None:
+    """Commit the fixture's current files and mark that commit `origin/main`.
+
+    A later commit on top of this one is what a phase "touched" — `run.sh`
+    reads `git diff --name-only origin/main...HEAD` against exactly this point.
+
+    Args:
+        tree: The scratch repository root.
+    """
+    _git(tree, "init", "-q")
+    _git(tree, "config", "user.email", "test@example.com")
+    _git(tree, "config", "user.name", "test")
+    _git(tree, "add", "-A")
+    _git(tree, "commit", "-q", "-m", "base")
+    _git(tree, "branch", "origin/main")
+
+
+def test_a_guard_failing_on_an_untouched_file_warns_instead_of_blocking(
+    scratch_tree: Path,
+) -> None:
+    """A guard's own defect, not this phase's, is a WARNING with a row to file (order 95).
+
+    12 of L16's 14 guard failures named a file that phase never touched — the
+    gate blocked it anyway. The stale file here is part of the base commit,
+    never touched by the phase commit that follows it.
+    """
+    src = scratch_tree / "frontend" / "maquette" / "design" / "src"
+    src.mkdir(parents=True, exist_ok=True)
+    (src / "stale.ts").write_text("export const stale = 1\n")
+    _write_executable(
+        scratch_tree / "scripts" / "check-frontend-boundaries.py",
+        STUB_PYTHON + 'print("violation: frontend/maquette/design/src/stale.ts:12")\nsys.exit(1)\n',
+    )
+    _commit_base_as_origin_main(scratch_tree)
+    (src / "touched.ts").write_text("export const touched = 1\n")
+    _git(scratch_tree, "add", "-A")
+    _git(scratch_tree, "commit", "-q", "-m", "phase: touch touched.ts")
+
+    result, _journal = _run(scratch_tree, "--contracts")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "WARNING (untouched by this phase): python3 scripts/check-frontend-boundaries.py" in result.stdout, (
+        result.stdout
+    )
+    assert "file a register row" in result.stdout, result.stdout
+    assert "FAILED: python3 scripts/check-frontend-boundaries.py" not in result.stdout, result.stdout
+
+
+def test_a_guard_failing_on_a_touched_file_still_blocks_the_phase(
+    scratch_tree: Path,
+) -> None:
+    """A guard naming a file the phase itself touched is still this phase's to pay for."""
+    src = scratch_tree / "frontend" / "maquette" / "design" / "src"
+    src.mkdir(parents=True, exist_ok=True)
+    _write_executable(
+        scratch_tree / "scripts" / "check-frontend-boundaries.py",
+        STUB_PYTHON + 'print("violation: frontend/maquette/design/src/touched.ts:12")\nsys.exit(1)\n',
+    )
+    _commit_base_as_origin_main(scratch_tree)
+    (src / "touched.ts").write_text("export const touched = 1\n")
+    _git(scratch_tree, "add", "-A")
+    _git(scratch_tree, "commit", "-q", "-m", "phase: touch touched.ts")
+
+    result, _journal = _run(scratch_tree, "--contracts")
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "FAILED: python3 scripts/check-frontend-boundaries.py" in result.stdout, result.stdout
+    assert "WARNING (untouched by this phase)" not in result.stdout, result.stdout
+
+
+def test_guard_attribution_is_skipped_without_origin_main(scratch_tree: Path) -> None:
+    """No `origin/main` to diff against (this fixture's plain, git-less trees): every failure still blocks."""
+    _write_executable(
+        scratch_tree / "scripts" / "check-frontend-boundaries.py",
+        STUB_PYTHON + 'print("violation: frontend/maquette/design/src/anything.ts:1")\nsys.exit(1)\n',
+    )
+
+    result, _journal = _run(scratch_tree, "--contracts")
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "FAILED: python3 scripts/check-frontend-boundaries.py" in result.stdout, result.stdout
+
+
+def test_a_guard_failing_with_an_empty_touched_set_still_blocks(scratch_tree: Path) -> None:
+    """HEAD == `origin/main` (a post-merge suite, the references gesture): nothing to excuse a fall against.
+
+    An empty `git diff --name-only origin/main...HEAD` used to match no candidate
+    EITHER, which read the same as "every candidate is untouched" — a guard fell
+    on `main` itself and the gate still went green.
+    """
+    src = scratch_tree / "frontend" / "maquette" / "design" / "src"
+    src.mkdir(parents=True, exist_ok=True)
+    (src / "stale.ts").write_text("export const stale = 1\n")
+    _write_executable(
+        scratch_tree / "scripts" / "check-frontend-boundaries.py",
+        STUB_PYTHON + 'print("violation: frontend/maquette/design/src/stale.ts:12")\nsys.exit(1)\n',
+    )
+    _commit_base_as_origin_main(scratch_tree)
+    # No further commit: HEAD is `origin/main` itself, so the diff is empty.
+
+    result, _journal = _run(scratch_tree, "--contracts")
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "FAILED: python3 scripts/check-frontend-boundaries.py" in result.stdout, result.stdout
+    assert "WARNING (untouched by this phase)" not in result.stdout, result.stdout
+
+
+def test_a_guard_citing_an_absolute_path_for_a_touched_file_still_blocks(
+    scratch_tree: Path,
+) -> None:
+    """A guard citing its own subject by an absolute (or `./`-prefixed) path is not thereby "untouched".
+
+    `git diff --name-only` lists repo-relative paths; a guard's own message
+    naming the SAME file some other way used to never match, so a real,
+    this-phase defect read as a WARNING instead of blocking it.
+    """
+    src = scratch_tree / "frontend" / "maquette" / "design" / "src"
+    src.mkdir(parents=True, exist_ok=True)
+    _commit_base_as_origin_main(scratch_tree)
+    touched = src / "touched.ts"
+    touched.write_text("export const touched = 1\n")
+    _git(scratch_tree, "add", "-A")
+    _git(scratch_tree, "commit", "-q", "-m", "phase: touch touched.ts")
+    _write_executable(
+        scratch_tree / "scripts" / "check-frontend-boundaries.py",
+        STUB_PYTHON + f'print("violation: {touched.resolve()}:12")\nsys.exit(1)\n',
+    )
+
+    result, _journal = _run(scratch_tree, "--contracts")
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "FAILED: python3 scripts/check-frontend-boundaries.py" in result.stdout, result.stdout
+    assert "WARNING (untouched by this phase)" not in result.stdout, result.stdout

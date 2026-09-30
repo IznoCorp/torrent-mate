@@ -18,6 +18,7 @@ import os
 import re
 import subprocess
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -550,3 +551,716 @@ def test_a_holder_waiting_for_room_does_not_block_a_run_that_already_fits(
     finally:
         waiting_for_room.terminate()
         waiting_for_room.wait(timeout=15)
+
+
+# ── Heavy runs yield to Plex (auditor's order 88) ────────────────────────────
+# 2026-09-29 22:27, the operator: « J'ai plex qui bug, les videos tourne plus la
+# machine est saturé ? ». A full harness suite ran with no `TM_HARNESS_JOBS`,
+# fanned out to the core count, and starved the Plex Transcoder while `heavy.sh`
+# waited for room only BEFORE its child started — nothing yielded once it was
+# running. These tests fake both readings the guard needs (a process named
+# « Plex Transcoder » and the one-minute load) so none of them waits for a real
+# transcode or a real busy machine.
+
+
+def _write_uptime_stub(bin_dir: Path, load_file: Path) -> None:
+    """Install a fake `uptime` whose load average is read from a file the test can rewrite.
+
+    Args:
+        bin_dir: Directory prepended to PATH, so this stub is found before the real one.
+        load_file: File holding the one-minute load this stub reports, one bare number.
+    """
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    stub = bin_dir / "uptime"
+    stub.write_text(
+        "#!/bin/sh\n"
+        f'load=$(cat "{load_file}")\n'
+        'echo "12:00  up 1 day,  1 user, load averages: ${load} ${load} ${load}"\n'
+    )
+    stub.chmod(0o755)
+
+
+def _fake_plex_pattern(tmp_path: Path) -> str:
+    """A process-name pattern unique to one test, read through `HEAVY_PLEX_PROCESS_PATTERN`.
+
+    THE REAL PLEX TRANSCODER CAN BE GENUINELY RUNNING on the machine a test runs
+    on — it was, on this one, while these tests were first written. A fixture
+    literally named « Plex Transcoder » is then indistinguishable from the real
+    thing: killing the fixture leaves the guard still reading a transcode, and a
+    test built on « no transcoder is running » is quietly false. `heavy.sh`
+    reads its pattern from the environment for exactly this reason.
+
+    Args:
+        tmp_path: Pytest's per-test scratch directory, already unique.
+
+    Returns:
+        A pattern no real process answers to.
+    """
+    return f"heavy-sh-test-fixture-transcoder-{tmp_path.name}"
+
+
+def _spawn_fake_transcoder(tmp_path: Path, pattern: str) -> subprocess.Popen[bytes]:
+    """Start a process whose command line contains the given pattern, nothing more.
+
+    `pgrep -f` matches the full command line, which is how the guard tells a real
+    transcode apart from Plex merely running — the fixture's path alone is enough
+    to fool it exactly the way the real binary's own path does.
+
+    Args:
+        tmp_path: Scratch directory to hold the fake executable.
+        pattern: The (unique) name this fixture's path carries — see `_fake_plex_pattern`.
+
+    Returns:
+        The running process; the caller terminates it.
+    """
+    fixture_dir = tmp_path / "fixtures"
+    fixture_dir.mkdir(exist_ok=True)
+    fake = fixture_dir / pattern
+    fake.write_text("#!/bin/sh\nsleep 120\n")
+    fake.chmod(0o755)
+    return subprocess.Popen([str(fake)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def _wait_until(predicate: Callable[[], bool], timeout: float, interval: float = 0.2) -> bool:
+    """Poll a predicate until it is true or the timeout passes.
+
+    Args:
+        predicate: Zero-argument callable checked each iteration.
+        timeout: Seconds to keep polling.
+        interval: Seconds between polls.
+
+    Returns:
+        Whether the predicate became true within the timeout.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return True
+        time.sleep(interval)
+    return predicate()
+
+
+@pytest.mark.parametrize("knob", ["HEAVY_PLEX_LOAD_CEILING", "HEAVY_PLEX_LOAD_RESUME", "HEAVY_PLEX_PROCESS_PATTERN"])
+def test_the_plex_thresholds_are_readable_from_the_environment(knob: str) -> None:
+    """The margin is the point here too: an unreadable threshold is a threshold nobody can raise."""
+    assert f"{knob}:-" in SCRIPT.read_text(), f"{knob} is not readable from the environment"
+
+
+def test_a_heavy_run_is_suspended_while_plex_transcodes_under_load_and_resumes_when_load_falls(
+    tmp_path: Path,
+) -> None:
+    """THE CORE CASE: Plex active + load over the ceiling suspends; load under the resume threshold, not."""
+    stand_in = tmp_path / "bin"
+    load_file = tmp_path / "load"
+    load_file.write_text("20\n")
+    _write_uptime_stub(stand_in, load_file)
+
+    heartbeat = tmp_path / "heartbeat"
+    heartbeat.write_text("")
+    lock = tmp_path / "holder"
+    pattern = _fake_plex_pattern(tmp_path)
+    env = {
+        **os.environ,
+        "HEAVY_LOCK": str(lock),
+        "PATH": f"{stand_in}:{os.environ['PATH']}",
+        "HB": str(heartbeat),
+        "HEAVY_PLEX_PROCESS_PATTERN": pattern,
+        **PERMISSIVE,
+    }
+    child_script = 'i=0; while [ "$i" -lt 200 ]; do printf x >> "$HB"; i=$((i + 1)); sleep 0.2; done'
+
+    transcoder = _spawn_fake_transcoder(tmp_path, pattern)
+    try:
+        run_proc = subprocess.Popen(
+            ["sh", str(SCRIPT), "plex-yield", "sh", "-c", child_script],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env=env,
+        )
+        try:
+            assert _wait_until(lambda: heartbeat.stat().st_size > 0, timeout=10), "the child never started"
+            # The guard's first check lands at ~3 s; wait past it so the snapshot
+            # below is taken AFTER the child is already suspended, not before.
+            time.sleep(5)
+            size_at_suspend = heartbeat.stat().st_size
+            time.sleep(5)
+            size_after_wait = heartbeat.stat().st_size
+            assert size_after_wait == size_at_suspend, (
+                f"the heartbeat grew from {size_at_suspend} to {size_after_wait} bytes "
+                "while Plex transcoded under load — the child was not suspended"
+            )
+
+            # Drop the load under the resume threshold (8) and confirm growth resumes.
+            load_file.write_text("5\n")
+            resumed = _wait_until(lambda: heartbeat.stat().st_size > size_after_wait, timeout=8)
+            assert resumed, "the child did not resume once load fell under the resume threshold"
+        finally:
+            run_proc.terminate()
+            run_proc.wait(timeout=15)
+    finally:
+        transcoder.terminate()
+        transcoder.wait(timeout=10)
+
+
+def test_a_suspended_run_also_resumes_when_the_transcoder_is_gone_rather_than_load_alone(
+    tmp_path: Path,
+) -> None:
+    """THE OTHER RESUME PATH: the transcoder disappearing resumes the run even if load stays high."""
+    stand_in = tmp_path / "bin"
+    load_file = tmp_path / "load"
+    load_file.write_text("20\n")
+    _write_uptime_stub(stand_in, load_file)
+
+    heartbeat = tmp_path / "heartbeat"
+    heartbeat.write_text("")
+    lock = tmp_path / "holder"
+    pattern = _fake_plex_pattern(tmp_path)
+    env = {
+        **os.environ,
+        "HEAVY_LOCK": str(lock),
+        "PATH": f"{stand_in}:{os.environ['PATH']}",
+        "HB": str(heartbeat),
+        "HEAVY_PLEX_PROCESS_PATTERN": pattern,
+        **PERMISSIVE,
+    }
+    child_script = 'i=0; while [ "$i" -lt 200 ]; do printf x >> "$HB"; i=$((i + 1)); sleep 0.2; done'
+
+    transcoder = _spawn_fake_transcoder(tmp_path, pattern)
+    run_proc = subprocess.Popen(
+        ["sh", str(SCRIPT), "plex-yield-gone", "sh", "-c", child_script],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=env,
+    )
+    try:
+        assert _wait_until(lambda: heartbeat.stat().st_size > 0, timeout=10), "the child never started"
+        # Past the guard's first ~3 s check, so it has already suspended the child.
+        time.sleep(5)
+        size_at_suspend = heartbeat.stat().st_size
+        time.sleep(4)
+        assert heartbeat.stat().st_size == size_at_suspend, "the child was not suspended under load"
+
+        # Load stays at 20 — well over the ceiling — but the transcoder is gone.
+        transcoder.terminate()
+        transcoder.wait(timeout=10)
+        resumed = _wait_until(lambda: heartbeat.stat().st_size > size_at_suspend, timeout=8)
+        assert resumed, "the run did not resume once the transcoder disappeared, load still over the ceiling"
+    finally:
+        run_proc.terminate()
+        run_proc.wait(timeout=15)
+
+
+def test_high_load_alone_never_suspends_a_run_with_no_transcoder(tmp_path: Path) -> None:
+    """THE GUARD READS PLEX, NOT LOAD ALONE: no transcoder, no suspension, whatever the load."""
+    stand_in = tmp_path / "bin"
+    load_file = tmp_path / "load"
+    load_file.write_text("20\n")
+    _write_uptime_stub(stand_in, load_file)
+
+    heartbeat = tmp_path / "heartbeat"
+    heartbeat.write_text("")
+    lock = tmp_path / "holder"
+    env = {
+        **os.environ,
+        "HEAVY_LOCK": str(lock),
+        "PATH": f"{stand_in}:{os.environ['PATH']}",
+        "HB": str(heartbeat),
+        **PERMISSIVE,
+    }
+    child_script = 'i=0; while [ "$i" -lt 40 ]; do printf x >> "$HB"; i=$((i + 1)); sleep 0.2; done'
+
+    run_proc = subprocess.Popen(
+        ["sh", str(SCRIPT), "plex-no-transcoder", "sh", "-c", child_script],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=env,
+    )
+    try:
+        assert _wait_until(lambda: heartbeat.stat().st_size >= 5, timeout=10), "the child never ran"
+        size_a = heartbeat.stat().st_size
+        time.sleep(5)
+        size_b = heartbeat.stat().st_size
+        assert size_b > size_a, "the run stalled with no Plex Transcoder anywhere in sight"
+    finally:
+        run_proc.terminate()
+        run_proc.wait(timeout=15)
+
+
+def test_a_transcoder_below_the_load_ceiling_never_suspends_a_run(tmp_path: Path) -> None:
+    """THE OTHER CONTROL: Plex transcoding at a quiet machine is not a reason to pause anything."""
+    stand_in = tmp_path / "bin"
+    load_file = tmp_path / "load"
+    load_file.write_text("2\n")
+    _write_uptime_stub(stand_in, load_file)
+
+    heartbeat = tmp_path / "heartbeat"
+    heartbeat.write_text("")
+    lock = tmp_path / "holder"
+    pattern = _fake_plex_pattern(tmp_path)
+    env = {
+        **os.environ,
+        "HEAVY_LOCK": str(lock),
+        "PATH": f"{stand_in}:{os.environ['PATH']}",
+        "HB": str(heartbeat),
+        "HEAVY_PLEX_PROCESS_PATTERN": pattern,
+        **PERMISSIVE,
+    }
+    child_script = 'i=0; while [ "$i" -lt 40 ]; do printf x >> "$HB"; i=$((i + 1)); sleep 0.2; done'
+
+    transcoder = _spawn_fake_transcoder(tmp_path, pattern)
+    try:
+        run_proc = subprocess.Popen(
+            ["sh", str(SCRIPT), "plex-quiet-machine", "sh", "-c", child_script],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env=env,
+        )
+        try:
+            assert _wait_until(lambda: heartbeat.stat().st_size >= 5, timeout=10), "the child never ran"
+            size_a = heartbeat.stat().st_size
+            time.sleep(5)
+            size_b = heartbeat.stat().st_size
+            assert size_b > size_a, "the run stalled while Plex transcoded on an otherwise quiet machine"
+        finally:
+            run_proc.terminate()
+            run_proc.wait(timeout=15)
+    finally:
+        transcoder.terminate()
+        transcoder.wait(timeout=10)
+
+
+def test_the_suspended_signal_also_reaches_a_descendant_that_left_the_process_group(
+    tmp_path: Path,
+) -> None:
+    """THE DEFECT A PLAIN GROUP SIGNAL MISSES: a browser a driver launches detached (its own session).
+
+    The wrapped command here spawns a grandchild with `start_new_session=True` —
+    its own process group, exactly what a Playwright-launched browser can end up
+    in. `kill -STOP -$child` alone never reaches it; the guard must walk the
+    process tree by descent, not by group, to suspend it too.
+    """
+    stand_in = tmp_path / "bin"
+    load_file = tmp_path / "load"
+    load_file.write_text("20\n")
+    _write_uptime_stub(stand_in, load_file)
+
+    grandchild_hb = tmp_path / "grandchild_heartbeat"
+    grandchild_hb.write_text("")
+    grandchild_script = tmp_path / "grandchild.py"
+    grandchild_script.write_text(
+        "import time\n"
+        "i = 0\n"
+        "while i < 200:\n"
+        f"    with open({str(grandchild_hb)!r}, 'a') as f:\n"
+        "        f.write('x')\n"
+        "    time.sleep(0.2)\n"
+        "    i += 1\n"
+    )
+
+    grandchild_pid_file = tmp_path / "grandchild.pid"
+    parent_script = tmp_path / "parent.py"
+    parent_script.write_text(
+        "import subprocess, sys, time\n"
+        f"gc = subprocess.Popen([sys.executable, {str(grandchild_script)!r}], start_new_session=True)\n"
+        f"open({str(grandchild_pid_file)!r}, 'w').write(str(gc.pid))\n"
+        "while True:\n"
+        "    time.sleep(0.2)\n"
+    )
+
+    lock = tmp_path / "holder"
+    pattern = _fake_plex_pattern(tmp_path)
+    env = {
+        **os.environ,
+        "HEAVY_LOCK": str(lock),
+        "PATH": f"{stand_in}:{os.environ['PATH']}",
+        "HEAVY_PLEX_PROCESS_PATTERN": pattern,
+        **PERMISSIVE,
+    }
+
+    transcoder = _spawn_fake_transcoder(tmp_path, pattern)
+    run_proc = subprocess.Popen(
+        ["sh", str(SCRIPT), "plex-detached-grandchild", "python3", str(parent_script)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=env,
+    )
+    try:
+        assert _wait_until(lambda: grandchild_hb.stat().st_size > 0, timeout=10), "the grandchild never started"
+        # Past the guard's first ~3 s check, so it has already suspended the tree.
+        time.sleep(5)
+        size_at_suspend = grandchild_hb.stat().st_size
+        time.sleep(4)
+        assert grandchild_hb.stat().st_size == size_at_suspend, (
+            "the detached grandchild kept writing while its ancestor's run was suspended — "
+            "a process-group-only signal missed it"
+        )
+
+        load_file.write_text("5\n")
+        resumed = _wait_until(lambda: grandchild_hb.stat().st_size > size_at_suspend, timeout=8)
+        assert resumed, "the detached grandchild never resumed"
+    finally:
+        run_proc.terminate()
+        run_proc.wait(timeout=15)
+        transcoder.terminate()
+        transcoder.wait(timeout=10)
+        # The grandchild left the process group ON PURPOSE (that is the point of
+        # this test) — `run_proc.terminate()` above never reaches it, so it is
+        # killed by the pid its own parent wrote down.
+        if grandchild_pid_file.exists():
+            try:
+                os.kill(int(grandchild_pid_file.read_text().strip()), 9)
+            except (ProcessLookupError, ValueError):
+                pass
+
+
+# ── heavy.sh chooses TM_HARNESS_JOBS for its own child (auditor's order 90) ──
+# Once the Plex guard exists, `heavy.sh` knows whether a transcode is running
+# at the moment it starts a child — so it can hand that child a fan-out
+# already lowered, rather than starting at 3 and discovering the starve later.
+# `run.sh`'s own bare default is untouched by this (it stays 2 outside
+# heavy.sh); this is heavy.sh choosing a number FOR its child's environment.
+
+CHILD_ECHOES_HARNESS_JOBS = 'echo "TM_HARNESS_JOBS=${TM_HARNESS_JOBS:-UNSET}"'
+
+
+def _run_with_no_ambient_harness_jobs(lock: Path, *command: str, **environment: str):
+    """Like `run()`, but with `TM_HARNESS_JOBS` stripped from the inherited environment first.
+
+    This suite can itself run wrapped by `sh scripts/heavy.sh --class test …`
+    (the gate this repair's own tests run under) — and heavy.sh, once order 90
+    lands, exports `TM_HARNESS_JOBS` for ITS OWN child (this pytest process).
+    A test asking what a *fresh* heavy.sh invocation chooses must not inherit
+    that ambient value, or it is testing the outer wrapper, not the inner one.
+
+    Args:
+        lock: The lock this run takes, moved aside as usual.
+        *command: The command to wrap.
+        **environment: Extra environment, verbatim, applied after the strip.
+
+    Returns:
+        The completed process.
+    """
+    env = {k: v for k, v in os.environ.items() if k != "TM_HARNESS_JOBS"}
+    env = {**env, "HEAVY_LOCK": str(lock), **PERMISSIVE, **environment}
+    return subprocess.run(
+        ["sh", str(SCRIPT), "tester", *command],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        env=env,
+    )
+
+
+def test_heavy_sets_three_harness_jobs_for_its_child_when_plex_is_not_transcoding(
+    tmp_path: Path,
+) -> None:
+    """No transcoder in sight: the child gets the higher of the two figures.
+
+    The pattern is pointed at a name nothing answers to — the real Plex
+    Transcoder can be genuinely running on the machine this test runs on (see
+    `_fake_plex_pattern`), and the default pattern would then read it as active.
+    """
+    result = _run_with_no_ambient_harness_jobs(
+        tmp_path / "holder",
+        "sh",
+        "-c",
+        CHILD_ECHOES_HARNESS_JOBS,
+        HEAVY_PLEX_PROCESS_PATTERN=_fake_plex_pattern(tmp_path),
+    )
+    assert result.returncode == 0, result.stderr
+    assert "TM_HARNESS_JOBS=3" in result.stdout, result.stdout
+
+
+def test_heavy_sets_two_harness_jobs_for_its_child_when_plex_is_transcoding(tmp_path: Path) -> None:
+    """A transcode already running: the child starts at the lower figure, not after starving it."""
+    pattern = _fake_plex_pattern(tmp_path)
+    transcoder = _spawn_fake_transcoder(tmp_path, pattern)
+    try:
+        result = _run_with_no_ambient_harness_jobs(
+            tmp_path / "holder",
+            "sh",
+            "-c",
+            CHILD_ECHOES_HARNESS_JOBS,
+            HEAVY_PLEX_PROCESS_PATTERN=pattern,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "TM_HARNESS_JOBS=2" in result.stdout, result.stdout
+    finally:
+        transcoder.terminate()
+        transcoder.wait(timeout=10)
+
+
+@pytest.mark.parametrize("spawn_transcoder", [False, True])
+def test_heavy_never_overrides_an_explicit_harness_jobs_value(tmp_path: Path, spawn_transcoder: bool) -> None:
+    """A caller that already knows its own number is never second-guessed, either way."""
+    pattern = _fake_plex_pattern(tmp_path)
+    transcoder = _spawn_fake_transcoder(tmp_path, pattern) if spawn_transcoder else None
+    try:
+        result = run(
+            tmp_path / "holder",
+            "sh",
+            "-c",
+            CHILD_ECHOES_HARNESS_JOBS,
+            TM_HARNESS_JOBS="7",
+            HEAVY_PLEX_PROCESS_PATTERN=pattern,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "TM_HARNESS_JOBS=7" in result.stdout, result.stdout
+    finally:
+        if transcoder is not None:
+            transcoder.terminate()
+            transcoder.wait(timeout=10)
+
+
+# ── A short run preempts a browser-class holder (auditor's order 90) ────────
+# Tonight a tm-design build waited 35 min behind a full harness suite. These
+# tests use the class thresholds for real (a named class refuses a lowered
+# floor, so `PERMISSIVE` cannot apply here) — `vm_stat`/`uptime` are stubbed to
+# report abundant room regardless, because THE REAL MACHINE'S OWN ROOM MOVES:
+# other sessions on this host can and do push it under a browser class's own
+# 4 096 MB / load 6 while these tests run, and a class's floor may only be
+# RAISED by the environment, never lowered — there is no permissive escape
+# hatch here the way `PERMISSIVE` is one for an unclassed run.
+
+_HEARTBEAT_LOOP = 'i=0; while [ "$i" -lt {n} ]; do printf x >> "$HB"; i=$((i + 1)); sleep 0.2; done'
+
+
+def _room_stub_bin(tmp_path: Path) -> Path:
+    """Build a `bin/` whose `vm_stat`/`uptime` report abundant room, whatever the real machine reads.
+
+    Args:
+        tmp_path: Scratch directory to hold the stub executables.
+
+    Returns:
+        The directory, meant to be prepended to PATH.
+    """
+    stand_in = tmp_path / "room_bin"
+    stand_in.mkdir(exist_ok=True)
+    vm_stat = stand_in / "vm_stat"
+    vm_stat.write_text(f"#!/bin/sh\ncat <<'READING'\n{VM_STAT_WITH_SPECULATIVE_PAGES}READING\n")
+    vm_stat.chmod(0o755)
+    uptime = stand_in / "uptime"
+    uptime.write_text("#!/bin/sh\necho '12:00  up 1 day,  1 user, load averages: 2.00 2.00 2.00'\n")
+    uptime.chmod(0o755)
+    return stand_in
+
+
+def _classed_env(tmp_path: Path, lock: Path, **extra: str) -> dict[str, str]:
+    """Environment for a classed run: the real class thresholds, room stubbed abundant.
+
+    Args:
+        tmp_path: The test's scratch directory, for the room stubs.
+        lock: The moved lock this run and its holder share.
+        **extra: Additional variables, merged in last.
+
+    Returns:
+        The environment dict for `subprocess.Popen`/`subprocess.run`.
+    """
+    stand_in = _room_stub_bin(tmp_path)
+    env = {**os.environ, "HEAVY_LOCK": str(lock), "PATH": f"{stand_in}:{os.environ['PATH']}"}
+    env.pop("HEAVY_FREE_FLOOR_MB", None)
+    env.pop("HEAVY_LOAD_CEILING", None)
+    env.update(extra)
+    return env
+
+
+def test_a_short_run_preempts_a_browser_holder_instead_of_waiting_behind_it(tmp_path: Path) -> None:
+    """THE CORE CASE: the browser holder's tree freezes for the short run's duration, then resumes."""
+    lock = tmp_path / "holder"
+    holder_hb = tmp_path / "holder_heartbeat"
+    holder_hb.write_text("")
+    short_hb = tmp_path / "short_heartbeat"
+    short_hb.write_text("")
+
+    holder = subprocess.Popen(
+        ["sh", str(SCRIPT), "--class", "browser", "browser-holder", "sh", "-c", _HEARTBEAT_LOOP.format(n=300)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=_classed_env(tmp_path, lock, HB=str(holder_hb)),
+    )
+    try:
+        assert _wait_until(lambda: holder_hb.stat().st_size > 0, timeout=15), "the holder never started"
+
+        started = time.monotonic()
+        short_run = subprocess.run(
+            ["sh", str(SCRIPT), "--class", "test", "short-run", "sh", "-c", _HEARTBEAT_LOOP.format(n=20)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=_classed_env(tmp_path, lock, HB=str(short_hb)),
+        )
+        elapsed = time.monotonic() - started
+        assert short_run.returncode == 0, short_run.stdout + short_run.stderr
+        assert "preempts" in short_run.stderr, short_run.stderr
+        assert elapsed < 15, f"the short run waited {elapsed:.1f}s — it should have preempted, not queued"
+        # It ran its own 4 s of heartbeats (20 x 0.2 s) to completion.
+        assert short_hb.stat().st_size >= 15, short_hb.read_text()
+
+        # The holder's own heartbeat must have been frozen for at least some of
+        # that window — not merely slowed by contention.
+        holder_size_at_end_of_short_run = holder_hb.stat().st_size
+        time.sleep(1)
+        assert holder_hb.stat().st_size > holder_size_at_end_of_short_run, (
+            "the browser holder never resumed after the short run finished"
+        )
+    finally:
+        holder.terminate()
+        holder.wait(timeout=15)
+
+
+def test_a_short_run_past_its_cap_resumes_the_holder_and_keeps_going_unprotected(tmp_path: Path) -> None:
+    """THE FALLBACK: past `HEAVY_PREEMPT_CAP_SECONDS`, the holder resumes and the short run just runs."""
+    lock = tmp_path / "holder"
+    holder_hb = tmp_path / "holder_heartbeat"
+    holder_hb.write_text("")
+    short_hb = tmp_path / "short_heartbeat"
+    short_hb.write_text("")
+
+    holder = subprocess.Popen(
+        ["sh", str(SCRIPT), "--class", "browser", "browser-holder", "sh", "-c", _HEARTBEAT_LOOP.format(n=300)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=_classed_env(tmp_path, lock, HB=str(holder_hb)),
+    )
+    try:
+        assert _wait_until(lambda: holder_hb.stat().st_size > 0, timeout=15), "the holder never started"
+
+        short_run = subprocess.Popen(
+            ["sh", str(SCRIPT), "--class", "test", "short-run-long", "sh", "-c", _HEARTBEAT_LOOP.format(n=40)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=_classed_env(tmp_path, lock, HB=str(short_hb), HEAVY_PREEMPT_CAP_SECONDS="2"),
+        )
+        try:
+            # The short run itself takes ~8 s (40 x 0.2 s); the cap (2 s) should
+            # resume the holder well before the short run is done.
+            holder_grew_before_short_run_finished = _wait_until(
+                lambda: short_run.poll() is None and _holder_grew(holder_hb),
+                timeout=6,
+            )
+            assert holder_grew_before_short_run_finished, (
+                "the holder never resumed before the capped short run finished"
+            )
+            stderr = short_run.communicate(timeout=15)[1]
+            assert "past 2s" in stderr or "past " in stderr, stderr
+        finally:
+            if short_run.poll() is None:
+                short_run.terminate()
+                short_run.wait(timeout=15)
+    finally:
+        holder.terminate()
+        holder.wait(timeout=15)
+
+
+def _holder_grew(holder_hb: Path, _seen: dict[Path, int] = {}) -> bool:  # noqa: B006 - a closure's own memo
+    """True once, the first time `holder_hb` is read larger than its own first reading.
+
+    Args:
+        holder_hb: The holder's heartbeat file.
+        _seen: Memoised first reading, keyed by path — a `_wait_until` predicate
+            takes no arguments of its own, so the baseline has to live here.
+
+    Returns:
+        Whether the file has grown since the first call for this path.
+    """
+    size = holder_hb.stat().st_size
+    if holder_hb not in _seen:
+        _seen[holder_hb] = size
+        return False
+    return size > _seen[holder_hb]
+
+
+def test_two_short_runs_queue_behind_each_other_not_behind_the_browser_holder(tmp_path: Path) -> None:
+    """NO NESTING DEADLOCK: a second short run waits for the first short run, never for the long holder."""
+    lock = tmp_path / "holder"
+    holder_hb = tmp_path / "holder_heartbeat"
+    holder_hb.write_text("")
+
+    holder = subprocess.Popen(
+        ["sh", str(SCRIPT), "--class", "browser", "browser-holder", "sh", "-c", _HEARTBEAT_LOOP.format(n=300)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=_classed_env(tmp_path, lock, HB=str(holder_hb)),
+    )
+    try:
+        assert _wait_until(lambda: holder_hb.stat().st_size > 0, timeout=15), "the holder never started"
+
+        started = time.monotonic()
+        results: list[subprocess.CompletedProcess[str]] = []
+
+        def _run_short(who: str) -> None:
+            hb = tmp_path / f"{who}_heartbeat"
+            hb.write_text("")
+            results.append(
+                subprocess.run(
+                    ["sh", str(SCRIPT), "--class", "test", who, "sh", "-c", _HEARTBEAT_LOOP.format(n=15)],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    env=_classed_env(tmp_path, lock, HB=str(hb)),
+                )
+            )
+
+        import threading
+
+        first = threading.Thread(target=_run_short, args=("short-a",))
+        second = threading.Thread(target=_run_short, args=("short-b",))
+        first.start()
+        time.sleep(0.5)
+        second.start()
+        first.join(timeout=30)
+        second.join(timeout=30)
+        elapsed = time.monotonic() - started
+
+        assert len(results) == 2
+        assert all(r.returncode == 0 for r in results), [r.stdout + r.stderr for r in results]
+        # Two ~3 s short runs (15 x 0.2 s), serialised by the preempt sub-lock,
+        # finish in a few seconds — nowhere near the browser holder's own 60 s.
+        assert elapsed < 20, f"the second short run waited {elapsed:.1f}s — it queued behind the holder, not the first"
+    finally:
+        holder.terminate()
+        holder.wait(timeout=15)
+
+
+def test_the_holder_reports_its_own_total_preempted_time_on_exit(tmp_path: Path) -> None:
+    """THE KNOWN LIMIT, MADE VISIBLE: a SIGSTOPped process's own wall-clock waits keep counting down.
+
+    Nothing outside the holder's process can add back the seconds a `timeout(1)`
+    wrapper or a Playwright deadline lost while frozen — a rule preempted for
+    long enough can surface a timeout the instant it resumes, for a pause, not
+    a hang. What this proves: the holder's own exit line names how long it was
+    preempted, so a reader can tell the two apart.
+    """
+    lock = tmp_path / "holder"
+    holder_hb = tmp_path / "holder_heartbeat"
+    holder_hb.write_text("")
+    short_hb = tmp_path / "short_heartbeat"
+    short_hb.write_text("")
+
+    holder = subprocess.Popen(
+        ["sh", str(SCRIPT), "--class", "browser", "browser-holder", "sh", "-c", _HEARTBEAT_LOOP.format(n=30)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=_classed_env(tmp_path, lock, HB=str(holder_hb)),
+    )
+    try:
+        assert _wait_until(lambda: holder_hb.stat().st_size > 0, timeout=15), "the holder never started"
+
+        short_run = subprocess.run(
+            ["sh", str(SCRIPT), "--class", "test", "short-run", "sh", "-c", _HEARTBEAT_LOOP.format(n=15)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=_classed_env(tmp_path, lock, HB=str(short_hb)),
+        )
+        assert short_run.returncode == 0, short_run.stdout + short_run.stderr
+
+        holder_stderr = holder.communicate(timeout=20)[1]
+        assert "preempted for" in holder_stderr, holder_stderr
+        assert "not a hang" in holder_stderr, holder_stderr
+    finally:
+        if holder.poll() is None:
+            holder.terminate()
+            holder.wait(timeout=15)

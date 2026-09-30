@@ -24,9 +24,13 @@
 # held only by a run that is running or about to — never by one still waiting
 # for room (auditor's order 71: a holder used to take the lock BEFORE waiting
 # for room, so a run stuck on load held it for everyone behind it, including a
-# run whose own class already fit). `HEAVY_LOCK` moves the lock, which is what
-# `tests/scripts/test_heavy.py` uses to exercise every path here without
-# touching the machine's real lock.
+# run whose own class already fit). Once running, it also YIELDS TO PLEX
+# (auditor's order 88): a run that starts clean can still starve a transcode
+# minutes later, so the watchdog pauses (SIGSTOP) the whole wrapped tree for as
+# long as Plex is transcoding under load, and resumes it (SIGCONT) rather than
+# killing it — see PLEX_LOAD_CEILING below. `HEAVY_LOCK` moves the lock, which
+# is what `tests/scripts/test_heavy.py` uses to exercise every path here
+# without touching the machine's real lock.
 #
 # THE CLASS SAYS WHAT THE RUN COSTS. Until B-386 there was one readiness floor
 # for every run, so the replay of a single rule waited behind the same room a
@@ -110,6 +114,99 @@ LOAD_CEILING=${HEAVY_LOAD_CEILING:-$CLASS_LOAD_CEILING}
 HARD_FLOOR_MB=${HEAVY_HARD_FLOOR_MB:-2048}
 HARD_STRIKES=3
 
+# Plex is this machine's production service; a heavy run outranks nothing here
+# except waiting for it (auditor's order 88, 2026-09-29 22:27: the operator's
+# transcode starved at 0 % while a harness suite with no TM_HARNESS_JOBS took
+# every core). Unlike the memory floor above, which STOPS the run for good, a
+# run caught behind Plex is only PAUSED — SIGSTOP costs it nothing but time,
+# and a run killed mid-suite has to start over.
+#
+# WHAT THIS DOES NOT READ: a Plex DIRECT-PLAY stream runs no transcoder at all
+# (the client decodes its own file), so a heavy run shares the machine with one
+# untouched — this guard only ever fires on a stream Plex itself had to
+# transcode, which is the CPU-bound case a parallel run can actually starve.
+PLEX_LOAD_CEILING=${HEAVY_PLEX_LOAD_CEILING:-12}
+PLEX_LOAD_RESUME=${HEAVY_PLEX_LOAD_RESUME:-8}
+
+# A SHORT run (class `rule` or `test`) does not wait behind a LONG one (class
+# `browser`) — it pauses the browser holder's tree for the length of its own
+# run instead (auditor's order 90 — the operator asked for the fan-out to be
+# watched and the speed controlled). Capped: past this many seconds the holder
+# is resumed anyway and the short run keeps going unprotected, exactly as it
+# would have without this — a rule or a build is never LEFT stopping
+# something else for good.
+PREEMPT_CAP_SECONDS=${HEAVY_PREEMPT_CAP_SECONDS:-600}
+# Overridable so a test can point this at a name nothing real ever answers to —
+# the real Plex Transcoder can be genuinely running on the machine a test runs
+# on, and a fixture sharing its exact name would be read as the real thing.
+PLEX_PROCESS_PATTERN=${HEAVY_PLEX_PROCESS_PATTERN:-"Plex Transcoder"}
+
+# True while a transcode is actually running — never while Plex merely sits
+# idle. `pgrep -f` reads the full command line, which is how a plain `ps` on
+# this host already spots it (the binary's own path names it).
+plex_is_transcoding() {
+    command -v pgrep > /dev/null 2>&1 || return 1
+    pgrep -f "$PLEX_PROCESS_PATTERN" > /dev/null 2>&1
+}
+
+# Every pid reachable from $1 by descent, $1 included — a plain process-group
+# signal misses a browser a driver launched detached (its own new group), and
+# that is exactly the tree a suspend/resume pair here is answerable for. Used
+# by the Plex guard AND by short-run preemption (order 90) — both pause a
+# whole wrapped tree, never a lone pid.
+heavy_process_tree() {
+    queue="$1"
+    seen=""
+    while [ -n "$queue" ]; do
+        pid=$(printf '%s\n' "$queue" | head -n1)
+        queue=$(printf '%s\n' "$queue" | sed 1d)
+        case " $seen " in
+            *" $pid "*) continue ;;
+        esac
+        seen="$seen $pid"
+        kids=$(pgrep -P "$pid" 2>/dev/null || true)
+        [ -n "$kids" ] && queue="$queue
+$kids"
+    done
+    printf '%s\n' $seen
+}
+
+# SIGSTOP/SIGCONT rather than TERM/KILL: this is a pause the run resumes from,
+# not the hard floor's rescue. The group first (the common case), then every
+# descendant found by walking the tree (the one that left it).
+heavy_suspend_tree() {
+    kill -STOP -"$1" 2>/dev/null || kill -STOP "$1" 2>/dev/null || true
+    for pid in $(heavy_process_tree "$1"); do
+        kill -STOP "$pid" 2>/dev/null || true
+    done
+}
+
+heavy_resume_tree() {
+    kill -CONT -"$1" 2>/dev/null || kill -CONT "$1" 2>/dev/null || true
+    for pid in $(heavy_process_tree "$1"); do
+        kill -CONT "$pid" 2>/dev/null || true
+    done
+}
+
+# A SIGSTOPped process's own wall-clock waits (a `timeout(1)` wrapper's alarm,
+# Playwright's navigation timeout, anything measuring elapsed real time rather
+# than CPU time) keep counting down while it is frozen — the kernel's real-time
+# timers are not paused by SIGSTOP, only the process's own execution is. A rule
+# preempted for long enough can therefore surface a timeout error the instant
+# it resumes, for a pause, not a hang. This cannot be fixed from outside the
+# process without cooperation from every tool it might run — a rule's own
+# `page.goto(timeout=…)` cannot be told to add back the frozen seconds. What IS
+# done: every preemption's length is appended here, beside the lock, so the
+# holder's OWN log line at exit says how long it was paused and by how much —
+# the fact a reader needs to tell a real hang from an artifact of this guard.
+heavy_log_preemption() {
+    [ -d "$LOCK" ] && printf '%s\n' "$1" >> "$LOCK/preempted_seconds" 2>/dev/null || true
+}
+
+heavy_total_preempted_seconds() {
+    [ -f "$LOCK/preempted_seconds" ] && awk '{sum += $1} END {print sum + 0}' "$LOCK/preempted_seconds" || echo 0
+}
+
 free_megabytes() {
     # macOS first, then Linux, and NOTHING when neither answers. A wrapper that
     # runs on one operating system is a wrapper the repository's own CI cannot
@@ -192,6 +289,78 @@ if [ ! -d "$parent" ] || [ ! -w "$parent" ]; then
     exec "$@"
 fi
 
+# ── A short run preempts a browser-class holder, never waits behind it ───────
+# (auditor's order 90.) `PREEMPT_LOCK` is its OWN mkdir-based lock, a sibling
+# of `$LOCK` — never the same directory — so a SECOND short run queues behind
+# the FIRST short run's preemption window, and never behind the (possibly very
+# long) browser holder itself: THE DEADLOCK THIS AVOIDS. Only a `rule` or
+# `test` class run ever reaches this; a `browser` or unclassed run falls
+# straight through to the ordinary wait below, and is itself never preempted —
+# only ever the one doing the preempting.
+if [ "$RUN_CLASS" = "rule" ] || [ "$RUN_CLASS" = "test" ]; then
+    PREEMPT_LOCK="${LOCK}-preempt"
+    if [ -d "$LOCK" ] && [ "$(cat "$LOCK/class" 2>/dev/null)" = "browser" ]; then
+        preempt_announced=0
+        while ! mkdir "$PREEMPT_LOCK" 2>/dev/null; do
+            # A sub-lock stuck past its own bound is a session that died mid-
+            # preemption: age alone breaks it, exactly as the main lock is
+            # broken on age when nothing else can tell a dead holder from a
+            # slow one — this one has no pid file, so age is all it has.
+            if [ -n "$(find "$PREEMPT_LOCK" -maxdepth 0 -mmin +2 2>/dev/null)" ]; then
+                rm -rf "$PREEMPT_LOCK"
+                continue
+            fi
+            [ "$preempt_announced" -eq 0 ] &&
+                echo "heavy: $WHO queues behind another short run already preempting the browser holder" >&2
+            preempt_announced=1
+            sleep 1
+        done
+        trap 'rm -rf "$PREEMPT_LOCK"' EXIT
+
+        # Re-read after taking the sub-lock: the browser holder may have
+        # finished while this run waited for it.
+        if [ -d "$LOCK" ] && [ "$(cat "$LOCK/class" 2>/dev/null)" = "browser" ]; then
+            holder_child=$(cat "$LOCK/child_pid" 2>/dev/null || true)
+            if [ -n "$holder_child" ] && kill -0 "$holder_child" 2>/dev/null; then
+                holder_name=$(cat "$LOCK/who" 2>/dev/null || echo "the browser holder")
+                echo "heavy: $WHO preempts $holder_name (pid $holder_child) — suspending its tree" >&2
+                heavy_suspend_tree "$holder_child"
+                preempt_started=$(date +%s)
+                preempt_resumed=0
+
+                set -m
+                "$@" &
+                preempt_child=$!
+                set +m
+                trap 'heavy_log_preemption "$(($(date +%s) - preempt_started))"; heavy_resume_tree "$holder_child"; kill -TERM -"$preempt_child" 2>/dev/null || kill -TERM "$preempt_child" 2>/dev/null; rm -rf "$PREEMPT_LOCK"; exit 130' INT TERM
+
+                while kill -0 "$preempt_child" 2>/dev/null; do
+                    sleep 1
+                    if [ "$preempt_resumed" -eq 0 ] &&
+                        [ "$(($(date +%s) - preempt_started))" -ge "$PREEMPT_CAP_SECONDS" ]; then
+                        echo "heavy: $WHO past ${PREEMPT_CAP_SECONDS}s — resuming $holder_name early, waits as normal from here" >&2
+                        heavy_log_preemption "$(($(date +%s) - preempt_started))"
+                        heavy_resume_tree "$holder_child"
+                        preempt_resumed=1
+                    fi
+                done
+                wait "$preempt_child"
+                preempt_status=$?
+                if [ "$preempt_resumed" -eq 0 ]; then
+                    echo "heavy: $WHO done — resuming $holder_name" >&2
+                    heavy_log_preemption "$(($(date +%s) - preempt_started))"
+                    heavy_resume_tree "$holder_child"
+                fi
+                trap - INT TERM EXIT
+                rm -rf "$PREEMPT_LOCK"
+                exit "$preempt_status"
+            fi
+        fi
+        trap - EXIT
+        rm -rf "$PREEMPT_LOCK"
+    fi
+fi
+
 # Interrupted while it HOLDS the lock, the wrapper must take DOWN what it
 # started, not merely let go: a run stopped by hand that leaves its browsers
 # behind is the exact residue the ceiling exists to prevent. `child` is empty
@@ -238,6 +407,10 @@ while :; do
             # long as the run it wraps, so it is the fact the breaker below can
             # ask.
             echo "$$" > "$LOCK/pid"
+            # THE CLASS TOO — a short run deciding whether to preempt this
+            # holder (auditor's order 90) reads it; a run with no class writes
+            # the empty string, which preempts nothing.
+            echo "$RUN_CLASS" > "$LOCK/class"
             # Ours now — armed so an interrupt from here on cleans up rather
             # than abandoning it.
             trap 'release; exit 130' INT TERM
@@ -287,6 +460,22 @@ while :; do
     break
 done
 
+# A caller that names no TM_HARNESS_JOBS of its own gets one chosen FOR it,
+# from what the guard above already knows about Plex (auditor's order 90): 3
+# when nothing is transcoding, 2 when the Plex Transcoder is active. An
+# explicit value in the environment is never touched — a caller that knows its
+# own machine still wins. `run.sh`'s OWN default (used outside heavy.sh) stays
+# 2, untouched by this.
+if [ -z "${TM_HARNESS_JOBS:-}" ]; then
+    if plex_is_transcoding; then
+        export TM_HARNESS_JOBS=2
+        echo "heavy: TM_HARNESS_JOBS=2 for $WHO (Plex Transcoder active)" >&2
+    else
+        export TM_HARNESS_JOBS=3
+        echo "heavy: TM_HARNESS_JOBS=3 for $WHO (no Plex Transcoder)" >&2
+    fi
+fi
+
 # ── Run it, watched ──────────────────────────────────────────────────────────
 echo "heavy: $WHO starts (${free}MB free, load $load)" >&2
 # Job control puts the child in its OWN process group, so the watchdog can
@@ -297,6 +486,11 @@ set -m
 "$@" &
 child=$!
 set +m
+# THE CHILD'S OWN PID, BESIDE THE LOCK'S: `$LOCK/pid` is this wrapper's own
+# shell, which lives exactly as long as the run — but a short run preempting a
+# browser-class holder (order 90) has to suspend THE WRAPPED COMMAND'S tree,
+# not the wrapper waiting on it.
+[ -d "$LOCK" ] && echo "$child" > "$LOCK/child_pid" 2>/dev/null
 
 # The watchdog samples memory every 15 s, but it notices the child finishing
 # within a second: a wrapper that slept a fixed 15 s before looking would tax
@@ -304,9 +498,34 @@ set +m
 # makes a rule get bypassed.
 strikes=0
 ticks=0
+plex_suspended=0
 while kill -0 "$child" 2>/dev/null; do
     sleep 1
     ticks=$((ticks + 1))
+
+    # Plex is checked every few seconds — far more often than the memory
+    # floor below, because a starved transcoder is heard about in seconds,
+    # not minutes.
+    if [ "$((ticks % 3))" -eq 0 ]; then
+        if [ "$plex_suspended" -eq 0 ]; then
+            if plex_is_transcoding; then
+                plex_load=$(one_minute_load)
+                if [ -n "$plex_load" ] && [ "$(at_least "$plex_load" "$PLEX_LOAD_CEILING")" = 1 ]; then
+                    echo "heavy: Plex Transcoder active, load $plex_load >= $PLEX_LOAD_CEILING — suspending $WHO" >&2
+                    heavy_suspend_tree "$child"
+                    plex_suspended=1
+                fi
+            fi
+        else
+            plex_load=$(one_minute_load)
+            if ! plex_is_transcoding || { [ -n "$plex_load" ] && [ "$(at_most "$plex_load" "$PLEX_LOAD_RESUME")" = 1 ]; }; then
+                echo "heavy: resuming $WHO (Plex Transcoder gone or load $plex_load <= $PLEX_LOAD_RESUME)" >&2
+                heavy_resume_tree "$child"
+                plex_suspended=0
+            fi
+        fi
+    fi
+
     [ "$((ticks % 15))" -eq 0 ] || continue
     kill -0 "$child" 2>/dev/null || break
     free=$(free_megabytes)
@@ -329,5 +548,10 @@ done
 
 wait "$child"
 status=$?
-echo "heavy: $WHO done (exit $status)" >&2
+preempted_total=$(heavy_total_preempted_seconds)
+if [ "$preempted_total" -gt 0 ] 2>/dev/null; then
+    echo "heavy: $WHO done (exit $status) — preempted for ${preempted_total}s total by short run(s); a timeout right after a pause may be an artifact of it, not a hang" >&2
+else
+    echo "heavy: $WHO done (exit $status)" >&2
+fi
 exit $status
