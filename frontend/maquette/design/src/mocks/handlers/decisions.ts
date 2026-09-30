@@ -16,6 +16,12 @@ type DecisionRoute = components["schemas"]["DecisionRoute"];
 const RESOLVED: DecisionState = "resolved";
 const DISMISSED: DecisionState = "dismissed";
 
+/** Who settled a decision, as the contract's own enum names it. */
+type DecisionAuthor = components["schemas"]["DecisionAuthor"];
+
+/** A decision settled through this screen is the operator's. */
+const OPERATOR: DecisionAuthor = "operator";
+
 /** How a candidate was reached when it came from the offered list. */
 const PICKED: DecisionRoute = "pick";
 
@@ -56,6 +62,8 @@ function settle(
         );
   held.settledDecisions = [
     {
+      // The mocks address a decision by its folder, so its id is the folder.
+      id: found.folder,
       folder: found.folder,
       kind: found.kind,
       title: found.title,
@@ -63,6 +71,8 @@ function settle(
       when: found.when,
       year: found.year ?? undefined,
       state,
+      candidatesCount: found.candidates.length,
+      settledBy: OPERATOR,
       ...(candidate === undefined
         ? {}
         : {

@@ -19,14 +19,14 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 75 |
+| operations the interface requires | 77 |
 | operations the backend has | 65 |
 | required and missing | 24 |
-| declared by both, different response shape | 51 |
-| declared by both, path parameter spelled differently | 15 |
+| declared by both, different response shape | 53 |
+| declared by both, path parameter spelled differently | 17 |
 | declared by both, answered with a different status | 10 |
 | fields carried pre-formatted | 25 |
-| the backend has and the interface does not use | 14 |
+| the backend has and the interface does not use | 12 |
 
 ---
 
@@ -69,6 +69,7 @@ reports a difference for every optional field and drowns the real findings.
 | `DELETE /api/acquisition/followed/{followedId}` (`deleteFollow`) | `ok` | — |
 | `GET /api/acquisition/downloads` (`readDownloads`) | `addedAt`, `clientAvailable`, `deadline`, `downloadRate`, `downloadedBytes`, `errorReason`, `etaSeconds`, `folder`, `ids`, `infoHash`, `origin`, `poster`, `ratio`, `sizeBytes`, `swarmLeechers`, `swarmSeeds`, `tracker`, `uploadRate`, `uploadedBytes` | `client_available`, `error_reason`, `eta_seconds`, `imdb_id`, `info_hash`, `media_ref`, `size_bytes`, `tmdb_id`, `tvdb_id` |
 | `GET /api/acquisition/followed` (`readFollows`) | `aired`, `fresh`, `ids`, `poster`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `id`, `imdb_id`, `items`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
+| `GET /api/acquisition/followed/{followedId}/completeness` (`readFollowCompleteness`) | `airDate`, `catalogRefreshedAt`, `followedId`, `lastSearchOutcome`, `providerCatalogEmpty` | `air_date`, `catalog_refreshed_at`, `followed_id`, `last_search_outcome`, `provider_catalog_empty` |
 | `GET /api/acquisition/obligations` (`readObligations`) | `accumulatedSeedTimeSeconds`, `addedAt`, `breachedAt`, `dispatchedPath`, `hitAndRunCount`, `infoHash`, `minimumRatio`, `minimumSeedTimeSeconds`, `observedRatio`, `releasedAt`, `satisfiedAt`, `sourceTracker` | `accumulated_seed_time_s`, `added_at`, `breached_at`, `dispatched_path`, `hnr_count`, `info_hash`, `min_ratio`, `min_seed_time_s`, `observed_ratio`, `released_at`, `satisfied_at`, `source_tracker` |
 | `GET /api/acquisition/search` (`searchProviders`) | `followed`, `ids`, `owned`, `poster`, `shown` | `already_owned`, `limit`, `offset`, `poster_url`, `provider`, `provider_id`, `score` |
 | `GET /api/acquisition/status` (`readAcquisitionStatus`) | `cadence`, `nextSearch` | `command`, `deferred`, `ended_at`, `last_successful_run_at`, `name`, `outcome`, `reason`, `recent_runs`, `result`, `run_uid`, `started_at`, `trigger`, `watcher_enabled` |
@@ -79,7 +80,7 @@ reports a difference for every optional field and drowns the real findings.
 | `GET /api/config/schema` (`readSettings`) | `displayedValue`, `file`, `fileNames`, `id`, `key`, `name`, `note`, `precision`, `raw`, `secondaryLine`, `settings`, `title`, `type` | `json_schema`, `ownership`, `restart_impact` |
 | `GET /api/config/secrets` (`readSecrets`) | `defined`, `label` | `description`, `is_set`, `secrets` |
 | `GET /api/config/status` (`readConfigurationStatus`) | `readOnly`, `restartRequired` | `read_only`, `restart_configured`, `restart_required`, `role`, `stale_files` |
-| `GET /api/decisions/` (`readDecisions`) | `candidates`, `choice`, `folder`, `kind`, `overview`, `pending`, `poster`, `provider`, `reason`, `score`, `settled`, `state`, `title`, `via`, `when`, `withoutPoster`, `year` | `candidates_count`, `created_at`, `extracted_title`, `extracted_year`, `items`, `media_kind`, `page`, `page_size`, `pending_count`, `staging_path`, `status`, `total`, `trigger` |
+| `GET /api/decisions/` (`readDecisions`) | `candidates`, `candidatesCount`, `choice`, `folder`, `kind`, `overview`, `pending`, `poster`, `provider`, `reason`, `score`, `settled`, `settledBy`, `state`, `title`, `via`, `when`, `withoutPoster`, `year` | `candidates_count`, `created_at`, `extracted_title`, `extracted_year`, `items`, `media_kind`, `page`, `page_size`, `pending_count`, `staging_path`, `status`, `total`, `trigger` |
 | `GET /api/maintenance/actions` (`readMaintenanceActions`) | `dryRun`, `group`, `long` | `actions`, `category`, `category_counts`, `default`, `dry_run`, `enum_values`, `help`, `long_running`, `name`, `options`, `required`, `title`, `type` |
 | `GET /api/maintenance/destructive-log` (`readDeletionJournal`) | `label`, `rows`, `secondaryLine`, `total`, `value` | `actor`, `detail`, `entries`, `op`, `path`, `run_uid`, `ts` |
 | `GET /api/maintenance/disks` (`readDisks`) | `secondaryLine`, `state`, `tone`, `value` | `disks`, `free_gb`, `id`, `mounted`, `total_gb`, `used_pct` |
@@ -115,6 +116,7 @@ reports a difference for every optional field and drowns the real findings.
 | `POST /api/pipeline/watcher` (`setWatcher`) | `watcherEnabled` | `watcher_enabled` |
 | `POST /api/staging/media/{mediaId}/continue` (`continueStagedMedia`) | — | `deferred`, `detail`, `media_id`, `run_uid` |
 | `POST /api/staging/media/{mediaId}/discard` (`discardStagedMedia`) | — | `detail`, `media_id` |
+| `POST /api/staging/media/{mediaId}/enqueue` (`enqueueForResolution`) | `candidatesCount`, `candidatesSeeded`, `decisionId`, `mediaKind` | `candidates_count`, `candidates_seeded`, `decision_id`, `media_kind` |
 | `PUT /api/config/files/{name}` (`updateConfigurationFile`) | `conflict`, `restartRequired` | `restart_required`, `warnings` |
 | `PUT /api/config/secrets` (`updateSecrets`) | `restartRequired` | `restart_required`, `warnings` |
 
@@ -127,6 +129,7 @@ operator's call rather than this file's.
 | the interface requires | the backend has |
 | --- | --- |
 | `DELETE /api/acquisition/followed/{followedId}` | `DELETE /api/acquisition/followed/{followed_id}` |
+| `GET /api/acquisition/followed/{followedId}/completeness` | `GET /api/acquisition/followed/{followed_id}/completeness` |
 | `GET /api/media/{provider}/{providerId}` | `GET /api/media/{provider}/{provider_id}` |
 | `GET /api/pipeline/history/{runUid}` | `GET /api/pipeline/history/{run_uid}` |
 | `PATCH /api/acquisition/followed/{followedId}` | `PATCH /api/acquisition/followed/{followed_id}` |
@@ -141,6 +144,7 @@ operator's call rather than this file's.
 | `POST /api/maintenance/actions/{actionId}/run` | `POST /api/maintenance/actions/{action_id}/run` |
 | `POST /api/staging/media/{mediaId}/continue` | `POST /api/staging/media/{media_id}/continue` |
 | `POST /api/staging/media/{mediaId}/discard` | `POST /api/staging/media/{media_id}/discard` |
+| `POST /api/staging/media/{mediaId}/enqueue` | `POST /api/staging/media/{media_id}/enqueue` |
 
 ## 2c. Operations both declare, answered with a different status
 
@@ -212,7 +216,6 @@ Recorded because it says what the switchover MAY retire. It is not a suggestion 
 remove anything: an operation the maquette does not call may still be called by the
 production app, by a script, or by the operator.
 
-- `GET /api/acquisition/followed/{followed_id}/completeness`
 - `GET /api/acquisition/journeys`
 - `GET /api/acquisition/lookup`
 - `GET /api/acquisition/overview`
@@ -225,4 +228,3 @@ production app, by a script, or by the operator.
 - `GET /api/registry/status`
 - `GET /api/staging/media/{media_id}/poster`
 - `POST /api/config/validate`
-- `POST /api/staging/media/{media_id}/enqueue`

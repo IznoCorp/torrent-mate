@@ -1228,6 +1228,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/followed/{followedId}/completeness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What has aired against what the library holds, season by season, for one follow */
+        get: operations["readFollowCompleteness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staging/media/{mediaId}/enqueue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a staged medium to arbitration: a pending decision, with the candidates a provider search found */
+        post: operations["enqueueForResolution"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1580,6 +1614,8 @@ export interface components {
             year?: number | null;
         };
         SettledDecision: {
+            /** @description the decision, as `resolveDecision`, `dismissDecision` and `searchForDecision` address it — what « Corriger » re-opens */
+            id: string;
             folder: string;
             kind: string;
             title: string;
@@ -1590,6 +1626,9 @@ export interface components {
             when: string;
             year?: number;
             choice?: components["schemas"]["DecisionChoice"];
+            /** @description how many candidates the decision offered when it was settled (the engine's `candidates_count`) */
+            candidatesCount: number;
+            settledBy: components["schemas"]["DecisionAuthor"];
         };
         CastMember: {
             name: string;
@@ -2154,6 +2193,46 @@ export interface components {
             message: string | null;
             /** @description since when it is off by failure, Unix-epoch seconds, or null when the operator switched it off */
             since: number | null;
+        };
+        /**
+         * @description who settled a decision: the operator, by a pick or a manual search, or the engine, by an identification it made alone. DIVERGENCE: the engine writes no decision row for an identification it made alone — the interface reads one here, as a settled row with `engine` as its author.
+         * @enum {string}
+         */
+        DecisionAuthor: "operator" | "engine";
+        EpisodeCompleteness: {
+            episode: number;
+            title?: string | null;
+            /** @description ISO `YYYY-MM-DD` */
+            airDate?: string | null;
+            /** @enum {string} */
+            state: "announced" | "in_library" | "to_grab" | "acquiring" | "pending" | "unverified" | "absorbed";
+            lastSearchOutcome?: string | null;
+        };
+        SeasonCompleteness: {
+            season: number;
+            /** @description the season's aired episodes */
+            total: number;
+            /** @description of those, the ones in the library */
+            owned: number;
+            /** @description of those, the ones wanted and not yet held */
+            queued: number;
+            /** @description episodes announced and not yet aired */
+            announced: number;
+            episodes: components["schemas"]["EpisodeCompleteness"][];
+        };
+        FollowCompleteness: {
+            followedId: number;
+            title: string;
+            kind: string;
+            seasons: components["schemas"]["SeasonCompleteness"][];
+            /**
+             * @description `unknown` when no aired catalog is cached: the seasons are then empty, never a fabricated all-missing grid
+             * @enum {string}
+             */
+            source: "cache" | "unknown";
+            providerCatalogEmpty: boolean;
+            /** @description epoch seconds */
+            catalogRefreshedAt?: number | null;
         };
     };
     responses: {
@@ -4520,6 +4599,84 @@ export interface operations {
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
+        };
+    };
+    readFollowCompleteness: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the follow */
+                followedId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the follow's completeness */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowCompleteness"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    enqueueForResolution: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the staged medium */
+                mediaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** @enum {string|null} */
+                    mediaKind?: "movie" | "tvshow" | null;
+                };
+            };
+        };
+        responses: {
+            /** @description the decision filed, or the one already pending (idempotent) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                        /** @enum {string} */
+                        mediaKind: "movie" | "tvshow" | "ebook" | "audio" | "app" | "other" | "unsorted";
+                        /** @description the folder-derived title sent to arbitration */
+                        title: string;
+                        /** @description the pending decision, so the candidates screen opens on it */
+                        decisionId?: string | null;
+                        candidatesCount: number;
+                        /** @description false when no provider answered: the decision is filed with no candidate, and the screen opens on the pre-filled manual search */
+                        candidatesSeeded: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
         };
     };
 }
