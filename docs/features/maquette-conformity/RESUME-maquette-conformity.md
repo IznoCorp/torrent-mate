@@ -3,13 +3,13 @@
 ## State block (rewritten at every boundary)
 
 - **Branch** `feat/maquette-conformity` (worktree `/Users/izno/dev/worktrees/maquette-conformity`), merged with
-  `origin/main` at `431bc6179` (#644). **Orchestrator**: `Orch : TM frontend [077751]`.
+  `origin/main` at `9234341fc` (#645). **Orchestrator**: `Orch : TM frontend [077751]`.
 - **Design** `/Users/izno/dev/review-archive/conformity-80/REPORT.md` § B, § D; the operator's rulings
   `/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md`. **Plan** `plan/INDEX.md` — 12 phases, one per
   surface (orders 98, 99): read its correspondence table and each page before a phase.
-- **DONE: phases 1–6.** 1 the responsive rule · 2 its WebKit pass · 3 components I · 4 components II · 5 Système ·
-  6 Réglages and Maintenance. **NEXT: phase 7, Acquisition** (`plan/phase-07-acquisition.md`), then the MIDPOINT
-  (`--contracts` + the full responsive sweep, once).
+- **DONE: phases 1–7.** 1 the responsive rule · 2 its WebKit pass · 3 components I · 4 components II · 5 Système ·
+  6 Réglages and Maintenance · 7 Acquisition. **NOW: the MIDPOINT** (`--contracts` + the full responsive sweep,
+  Chromium + WebKit, once; its real falls repaired before phase 8). **NEXT: phase 8, Médiathèque**.
 - **The phase gate (order 99)**: static guards on the files touched; each new rule read RED on the old code first
   (`scripts/mutate.sh` with a targeted expression — an old file that no longer compiles cannot be restored whole);
   the oracle ALONE, then `oracle.py --accept` through `/Users/izno/dev/review-archive/conformity-train/accept-oracle.sh`
@@ -18,11 +18,13 @@
   R-conformity-a with `TM_RESPONSIVE_STATES` built BY SCRIPT from `harness/states/<surface>.ts` (mind the
   `.map`-built ids: `settings-field-<type>`). Every browser run names `TM_HARNESS_JOBS=2`; pytest `-n 2`.
 - **Traps paid for**: the markup arm reads only LITERAL `data-part="…"` — a part passed as a prop or built by
-  `FactRows` is invisible to it (emit it literally on a wrapper); `check-frame-domain` refuses a domain word in
+  `FactRows` is invisible to it (emit it literally on a wrapper, or let the component take the prop under the
+  attribute's own name, `data-region="…"`, as `Tabs` does); `check-frame-domain` refuses a domain word in
   `ui/`; a new maquette file needs `check-maquette-comments.py --record` in its commit; a merge of `main` moves the
   corpus floor too; the git index lock is taken by another process now and then — retry the commit.
-- **Rules born** (letter → file): a `responsive.py` · c `one_switch.py` · e `on_off.py` · f `state_words.py` ·
-  h `empty_place.py` · j `back_control.py`. **Owed list** (`OWED` in `responsive.py`): requester → 7; card/title,
+- **Rules born** (letter → file): a `responsive.py` · b `one_tab_bar.py` · c `one_switch.py` · e `on_off.py` ·
+  f `state_words.py` · h `empty_place.py` · j `back_control.py` · o `segmented_choice.py` · p `primary_action.py`.
+  **Owed list** (`OWED` in `responsive.py`): card/title,
   subtitle, tile/title, cast, segment, segment/count → 8; shell/tab-bar, connection-notice bevel → 10; the menu's
   WebKit « unseen » → the defects fast lane.
 - **To confirm by the operator** (choices said in the commits): « joignable » the one word of the reachable code;
@@ -65,3 +67,12 @@
   12/16 px margins to steps. Red first: one_switch (c), back_control (j). Gate: 9 rules green; my first state list
   took the `.map` type names for ids (an instrument error, rebuilt); oracle 14 settings states moved, accepted by
   name, proved by script. Stood down at 72 % context before phase 7 (≈ 12 points would pass the 80 % gate).
+- 2026-09-30 — phase 7 (Acquisition): the requester's zero width READ in the browser — `actionButton`'s `w-full` made
+  `flex-none` in `originRow` took the whole row — repaired (foot `w-auto`, the line wraps), B-583, out of `OWED`.
+  `Tabs` on Acquisition; `viewSwitch` text on the add screen; the pick = `actionButton` panelAction primary
+  (`candidatePick` → `pickPlace` by the rename tool, which needs `frontend/node_modules`: a temporary symlink to the
+  main checkout's, removed after); notice info, Disclosure, muted → neutral, `sectionInnerMarkup`, inline → steps.
+  Red first on the old code: o, p. b had no red to read — Acquisition's bar already was the component's drawing and
+  Médiathèque's and Trackers' read right since phase 3 — so no `OWED`, proved by mutation (trackersTab 52 px).
+  Gate: guards green (B-238 aside), 19 rules green, responsive 46 states × 9 passes 0 fall, oracle « no divergence »
+  (region roots only) — nothing to accept. Pre-push wanted `check-maquette-comments.py --record` for the 3 new rules.
