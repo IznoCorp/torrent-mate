@@ -92,6 +92,25 @@ function settle(
   return { state };
 }
 
+/**
+ * Settles the decision a folder waits on with the candidate chosen by its title.
+ *
+ * The queue's « continue » carries the candidate's TITLE, which is what the
+ * screen's pick names; the decision records it by provider and id, from its
+ * own candidate list.
+ *
+ * @param folder The staging folder.
+ * @param chosenTitle The candidate's title, or an empty string.
+ * @returns Whether a pending decision was settled.
+ */
+export function settleChosen(folder: string, chosenTitle: string): boolean {
+  const found = mockState().pendingDecisions.find((decision) => decision.folder === folder);
+  const candidate = found?.candidates.find((offered) => offered.title === chosenTitle);
+  if (found === undefined) return false;
+  settle(folder, RESOLVED, candidate && { provider: candidate.provider, providerId: candidate.id });
+  return true;
+}
+
 /** One candidate a decision offers, as the contract names it. */
 type DecisionCandidate = components["schemas"]["DecisionCandidate"];
 
