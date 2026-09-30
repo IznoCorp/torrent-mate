@@ -687,8 +687,12 @@ deck) la carte disparait, notification pour annulé si rejet (tout comme le deck
 à découvrir qu'on pourra réutiliser dans un autre cas. » and, asked to be precise: « vers gauche = passer / vers la
 droite = rejet ». Meaning: in the LIST and the DECK, left = pass (gone, no notification, may come back later), right
 = reject (gone, notification with « Annuler »); a gesture of Découvrir's own, declared in the design system. Readings
-A (Suivis' drawer swipe) and B (reject on release, both ways) refused. Drawn at § 1.11; the deck already conforms
-(§ 0.3 item 1). **Cost**: ≈ 10 points in phase 4 — the list's left branch and its words 2, the drawing moved to `ui/`
+A (Suivis' drawer swipe) and B (reject on release, both ways) refused. Drawn at § 1.11. **A fact, recorded with
+the ruling (the orchestrator, 2026-09-30): the DECK already conforms** — a right travel rejects with « Annuler »
+(`features/acquisition/card-gestures.ts:193–209`), a left travel passes (`:211`, `passerSug`,
+`features/acquisition/discover-feed.ts:109–112`), held by `harness/deck.py:55–78`; the ruling's « the deck does the
+same both ways » read the docstrings `features/acquisition/discover-cards.ts:96` and `card-gestures.ts:3–4`, which
+are wrong and are corrected in phase 4 (§ 1.11). Only the LIST changes behaviour. **Cost**: ≈ 10 points in phase 4 — the list's left branch and its words 2, the drawing moved to `ui/`
 and the mechanics to `lib/` 4, R-L16bis-l's holds 3, the two stale comments 1.
 
 **OPEN 10 (added 2026-09-30) — what « passer » does on the data side.** The ruling fixes the gesture and says « may
