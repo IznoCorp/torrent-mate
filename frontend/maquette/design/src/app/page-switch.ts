@@ -286,6 +286,27 @@ export function switchPage(leaving: string, landing: Landing = "stack"): void {
 }
 
 /**
+ * Settles history for a LINK that lands on the page it was tapped on, naming
+ * another of its dials — « Voir la carte de la saison » on Acquisition, from a
+ * panel over « Suivis » or from a screen over it (Rd conformité Q12).
+ *
+ * A LINK STACKS, the page one is on included: the entry is PUSHED over the one
+ * the tap was made on — the page's, the layer's or the screen's, which the verb
+ * leaves in place — so Retour gives that back. It is not a revisit (DECIDED 1
+ * moves a page already lower on the trail up; this is the page on top), and it
+ * is not a setting of the page, which replaces: the tap followed a link.
+ */
+export function stackOnSamePage(): void {
+  if (walk.driven) return;
+  const page = String(currentState().page);
+  if (!walk.homeFloorExists) {
+    recordPath();
+    return;
+  }
+  recordPath([...standingTrail(page), { page, at: standingIndex() + 1 }]);
+}
+
+/**
  * Lays a trail of pages under the one drawn, from the floor up — for a named
  * state that shows WHERE Retour goes, so the path replays on a finger.
  *

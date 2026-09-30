@@ -10,7 +10,8 @@ WHAT IT HOLDS, by finger:
   the pointer      on `absorbed-journey-pointer` the episode's journey draws the note « couvert par la
                    récupération de la saison 3 » and its primary action « Voir la carte de la saison »;
                    a finger on it lands on « En cours », the card « Silo|S03 » inside the viewport,
-                   focused and highlighted; Retour then leaves the landed tab for the journey's page.
+                   focused and highlighted. Walked whole by finger from « Suivis », Retour then gives
+                   back the episode's journey over « Suivis » — the link stacked (§ 16, Q12).
   stopped          on `absorbed-journey-pointer-blocked` the same finger lands on « À traiter », where
                    the season's card now stands — never a fixed « En cours ».
   ended            on `absorbed-journey-pointer-ended` the note says the season reached the library
@@ -103,12 +104,30 @@ async def main():
         page.on("pageerror", lambda error: errors.append(str(error)))
 
         await follow(page, journal, "absorbed-journey-pointer", "live", "now")
+
+        # ── THE WHOLE WALK, BY FINGER, so Retour reads the history a hand writes ──
+        await page.evaluate("()=>window.__go('acq-now-loaded')")
+        await page.wait_for_timeout(SETTLED)
+        await page.tap('[data-acqtab="follows"]')
+        await page.wait_for_timeout(SETTLED)
+        await page.locator('#view [data-panel$=":Silo"], #view [data-panel="Silo"]').first.tap()
+        await page.wait_for_timeout(PANEL_IN + SETTLED)
+        await page.locator('#sheet [data-journey]').first.tap()
+        await page.wait_for_timeout(PANEL_IN + SETTLED)
+        await page.locator(f'#sheet [data-journey="{EPISODE}"]').tap()
+        await page.wait_for_timeout(PANEL_IN + SETTLED)
+        await page.locator(f'#sheet [data-dial="now:{SEASON_CARD}"]').tap()
+        await page.wait_for_timeout(SETTLED * 3)
+        landed = await page.evaluate(LANDED, SEASON_CARD)
+        journal.check("by finger: « Suivis » → Silo → « Voir le parcours » → S03E07 → « Voir la carte de la saison » "
+                      "lands on « En cours », the card highlighted",
+                      landed.get("acqTab") == "now" and landed.get("landed"), str(landed))
         await page.go_back()
-        await page.wait_for_timeout(SETTLED * 2)
-        back = await page.evaluate("()=>({page: window.__store.read().state.page,"
-                                   " tab: window.__store.read().state.acqTab})")
-        journal.check("Retour from the landed tab returns to the journey's page, « Suivis »",
-                      back == {"page": "acq", "tab": "follows"}, str(back))
+        await page.wait_for_timeout(PANEL_IN + SETTLED)
+        back = await page.evaluate("""() => ({tab: window.__store.read().state.acqTab,
+          title: document.querySelector('#sheet[data-open] [data-part="sheet/title"]')?.textContent || ''})""")
+        journal.check("Retour gives back the episode's journey, over the page it was opened on, « Suivis »",
+                      back == {"tab": "follows", "title": "Silo · S03E07"}, str(back))
 
         await follow(page, journal, "absorbed-journey-pointer-blocked", "stopped", "todo")
 

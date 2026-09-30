@@ -34,7 +34,7 @@ import {
 } from "../lib/shell-doors";
 import { hideLayers, registeredLayers } from "./layers";
 import { rowFor } from "./navigation";
-import { switchPage, switchPageFromLayer, type Landing } from "./page-switch";
+import { stackOnSamePage, switchPage, switchPageFromLayer, type Landing } from "./page-switch";
 
 /** The page showing right now — what a switch is told it is leaving. */
 function currentPage(): string {
@@ -135,7 +135,10 @@ function goTo(page: string, dial: string | undefined, chooser: boolean): void {
   resetLandingDial?.(page, dial);
   scrollPortToTop();
   redraw();
-  settleLanding(fromLayer, leaving, "go", landing);
+  // A LINK NAMING ANOTHER DIAL OF THE PAGE IT WAS TAPPED ON stacks over what it
+  // was tapped on — the layer's or the screen's entry kept — so Retour gives it back.
+  if (landing === "stack" && dial !== undefined && page === leaving) stackOnSamePage();
+  else settleLanding(fromLayer, leaving, "go", landing);
 }
 
 registerVerb("go", (page, element) => {

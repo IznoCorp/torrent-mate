@@ -264,6 +264,15 @@ export function onEngineBack(
     const record = layerRecordOf(state, "sheet");
     const samePage = record?.openedOn === String(store.read().state.page ?? "");
     if (record && (direction === "FORWARD" || samePage)) {
+      /* A LINK OF THE PANEL THAT STAYED ON ITS PAGE and moved one of its dials
+         (« Voir la carte de la saison »: Suivis → En cours) stacked over it: the
+         Back gives back the page as the entry's address has it, then the panel. */
+      if (direction === "BACK" && samePage) {
+        const { dials } = addressSeam.parse(location.pathname, location.search);
+        const current = store.read().state as Record<string, unknown>;
+        if (Object.entries(dials).some(([dial, value]) => current[dial] !== value))
+          restorePage({ ...entryPatch(current), ...dials, page: record.openedOn });
+      }
       reopenPanelOfRecord(record, true);
       return;
     }

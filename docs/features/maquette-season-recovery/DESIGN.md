@@ -124,7 +124,7 @@ His principles are `docs/reference/operator-method.md` § 1 (the dates 09-29).
 | Uniform behaviours — « Il faut uniformiser les comportements. Sauf exception volontaire de ma part. » | a followed series and a one-off draw the same card, the same mark, the same absorption (§ 1.1–1.3); an automatic recovery draws like a manual one, save the one word Q19 asks for (§ 1.9); the pointer lands the way « Voir le tracker » does (§ 1.4). No exception declared | 1 · 2 · 3 |
 | The design system reused — « on crée pas de nouveau composant on adapte » | § 1.8, element by element: nothing new; two adaptations written (the landing door reads a named acquisition; the row's mark is the chip, the train's) | every phase; rule f at 4 |
 | Every case — « seule une maquette montrant tout les cas possibles est utile. » | § 3: 30 named states, none conditional any more, the automatic ones included | every phase |
-| Every width 320–1280 — « tout doit être responsive » | one mark at a time on the row (DECIDED 4: two chips at 320 px refused); the word « auto » is a word, not a second chip (DECIDED 8 = A); R-conformity-a on every touched state at each gate, the full sweep at the midpoint and the close | every phase; 5 |
+| Every width 320–1280 — « tout doit être responsive » | one mark at a time on the row (DECIDED 4: two chips at 320 px refused); the word « auto » is a word, not a second chip (DECIDED 8 = A); the widths are CI's (`harness-full`) since #654 | every phase |
 | Film / series variant — « une différence entre film et série » | a season recovery exists for a SERIES only: every state is a series'; a film's release list draws no refusal and keeps its acts — a hold of rule d | 4 |
 | Navigation § 16 — Retour replays the arrival path | the pointer is a link inside a page, so it STACKS, even onto the entry page (Rd conformité Q12); Retour from the landed tab returns to the journey sheet's page; walked by finger | 3 |
 
@@ -370,7 +370,7 @@ a time (DECIDED 4).
 
 Labels, never numbers: they bind to the range the steward reserves in the lot's launch brief.
 
-| Rule | What it READS | The mutation that fells it |
+| Rule | What it READS | The change that fells it (seen red on the old code) |
 | --- | --- | --- |
 | **R-season-recovery-a** — exclusive in « En cours » | at rest (dense) and after the finger's ask from `season-recovery-before-ask`: no card of « En cours » names an episode of a season whose season card of the same medium is on its way; « En vol »'s count equals the cards drawn | drop the absorption from the derivation → falls; count « En vol » before the absorption → falls on the count |
 | **R-season-recovery-b** — « Demandée » on both sheets, until the library | Silo S03 (followed) and the one-off read « Demandée » on the media sheet AND the follow panel, act withdrawn; at `season-card-arrived` and `season-card-blocked` still; at `season-recovery-shelved-*` gone, fraction `7/7` | restore the `via === "request"` filter → falls; read `queue.inFlight` instead of the derivation → falls at `season-card-arrived` |
