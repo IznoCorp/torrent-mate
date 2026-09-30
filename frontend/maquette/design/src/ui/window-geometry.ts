@@ -68,19 +68,25 @@ export function useWindowGeometry(
       const style = getComputedStyle(node);
       const tracks = style.gridTemplateColumns;
       const columns = tracks && tracks !== "none" ? tracks.split(/\s+/).length : 1;
+      // THE SHORTEST ROW DRAWN, and not the first one. A title is never cut
+      // (§ 12), so a row whose title wraps is taller than its neighbours, and
+      // the first row drawn changes as the reader scrolls: read there, the
+      // estimate flipped between two heights and every flip was taken for a
+      // change of pitch — the reader's place was re-taken on estimates, one
+      // gallery line too high. The shortest row is the pitch of a row whose
+      // title holds on one line, and it moves only with the width or the mode.
+      //
       // AN ITEM THAT IS NOT UNDER A FINGER: a tile wears `scale: 0.97` while a
       // press arms, so measuring that one sizes every line 3% short.
-      const item =
-        node.querySelector(
-          ":scope > *:not([data-part='window/spacer']):not([data-pressing])")
-        || node.querySelector(
-          ":scope > *:not([data-part='window/spacer'])");
+      //
       // THE RECTANGLE, and not `offsetHeight`, which ROUNDS to an integer. The
       // line height here is 203.34375; rounding it shortened every windowed page
       // by four tenths of a pixel — twelve oracle divergences across the four
-      // library states, from a change made to exclude that 3% scale. The scale
-      // is excluded by choosing the element instead.
-      const height = item ? item.getBoundingClientRect().height : 0;
+      // library states, from a change made to exclude that 3% scale.
+      const rows = [...node.querySelectorAll(
+        ":scope > *:not([data-part='window/spacer']):not([data-pressing])")];
+      const heights = rows.map((row) => row.getBoundingClientRect().height).filter((one) => one > 0);
+      const height = heights.length ? Math.min(...heights) : 0;
       const rowGap = parseFloat(style.rowGap || style.gap) || 0;
       if (!height) return;
       setMeasured((held) =>
