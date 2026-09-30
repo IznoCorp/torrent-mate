@@ -350,7 +350,15 @@ def test_the_temporary_logs_are_still_removed(scratch_tree: Path) -> None:
         ("--ci", "--contracts"),
         ("--ci", "--rules", "rule_a.py"),
     ],
-    ids=["index-past-count", "index-zero", "not-a-fraction", "no-value", "beside-contracts", "ci-beside-contracts", "ci-beside-rules"],
+    ids=[
+        "index-past-count",
+        "index-zero",
+        "not-a-fraction",
+        "no-value",
+        "beside-contracts",
+        "ci-beside-contracts",
+        "ci-beside-rules",
+    ],
 )
 def test_a_shard_or_ci_the_script_cannot_honour_is_refused(scratch_tree: Path, flags: tuple[str, ...]) -> None:
     """A flag the script cannot honour is refused before anything is built.
