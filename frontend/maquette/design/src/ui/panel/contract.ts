@@ -51,10 +51,14 @@ export type FactLine = {
   terne?: boolean;
 };
 
+// A CHOICE of a one-among-several list: its words, a hint, whether it is the one
+// in force, and — as an action's — a map of data attributes, never a handler.
+export type Choice = { text: string; hint?: string; checked: boolean; target: Record<string, string | number> };
+
 /**
  * Every block kind a descriptor may declare.
  *
- * `ui/panel` declares the three that know no domain. A feature adds its own
+ * `ui/panel` declares the four that know no domain. A feature adds its own
  * by merging into this interface from its own file:
  *
  *     declare module "…/ui/panel/contract" {
@@ -71,6 +75,7 @@ export interface PanelBlockMap {
   note: { text: RichTextValue };
   faits: { lignes: FactLine[] };
   actions: { actions: (Action | null | undefined)[]; secondary?: boolean };
+  choices: { options: Choice[] };
 }
 
 // A BLOCK is `{ type, … }`, never HTML. Order matters and is the caller's.

@@ -31,7 +31,7 @@
 // it can never write a binding.
 import { addressSeam } from "../lib/addresses";
 import { navigationState, trailOf, TRAIL_KEY, type TrailStop } from "../lib/navigation-entry";
-import { bridge, fillReplaceAddressDoor } from "../lib/shell-doors";
+import { bridge, fillRecordAddressDoor, fillReplaceAddressDoor } from "../lib/shell-doors";
 import { store } from "../lib/store-access";
 import { standingIndex, standingTrail, writeTrail } from "./trail";
 
@@ -286,6 +286,29 @@ export function switchPage(leaving: string, landing: Landing = "stack"): void {
 }
 
 /**
+ * Records an arrival made from a panel onto another view of the page it was
+ * opened on — « Voir les torrents » lands on the « Torrents » tab.
+ *
+ * The panel's entry is KEPT under it (D-L13-1), so Retour reopens the panel.
+ * The arrival continues the page's trail, the page's stop moved up to the new
+ * entry, so the bar still unwinds onto the floor from it. A layer's entry
+ * carries no trail, so the page's is derived from the entry UNDER it — the
+ * derivation `trailOf` makes for an entry that holds none.
+ *
+ * Returns:
+ *     Whether the entry was really written.
+ */
+function recordArrivalInPage(): boolean {
+  const page = String(currentState().page);
+  const homePage = addressSeam.homePage;
+  const standing = standingIndex();
+  const onLayer = Boolean(history.state && history.state.layer);
+  const under = onLayer ? standing - 1 : standing;
+  const floor = page === homePage ? [] : [{ page: homePage, at: under - 1 }];
+  return recordPath([...floor, { page, at: standing + 1 }]);
+}
+
+/**
  * Lays a trail of pages under the one drawn, from the floor up — for a named
  * state that shows WHERE Retour goes, so the path replays on a finger.
  *
@@ -372,3 +395,6 @@ export function switchPageFromLayer(leaving: string, landing: Landing = "stackOn
 // tab or a lens is a page setting every feature may write, and a module every
 // feature imported would be the hub the fan-in arm refuses.
 fillReplaceAddressDoor(replacePath);
+// AND THE RECORD, for a panel's link that lands on another tab of the page it
+// was opened on: an arrival, which stacks over the panel's kept entry.
+fillRecordAddressDoor(recordArrivalInPage);

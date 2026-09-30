@@ -4,6 +4,7 @@ import type { components } from "../../contract/types";
 import { mockState } from "../state";
 import { refused, type MockRoute } from "../router";
 import { configurationFiles, writeFileContent } from "../configuration-files";
+import { activationRefusal } from "./trackers";
 
 // Why a file's read is refused: the layer holds no content under that name.
 const UNKNOWN_FILE = "no configuration file carries that name";
@@ -89,6 +90,10 @@ export function configurationRoutes(): MockRoute[] {
       // that then reads what it raised. `movedFiles` is a property of the
       // FILE, seeded, so a HAND with no dial reaches B-299's banner simply by
       // saving a setting that lives in it.
+      // A TRACKER STILL FAILING IS NOT SWITCHED BACK ON: the write is refused
+      // whole, in the engine's own words, and nothing lands (demand T2).
+      const refusal = activationRefusal((request.body ?? {}) as Record<string, unknown>);
+      if (refusal !== null) return refused(422, refusal);
       const changedOnDisk = held.conflict || held.movedFiles.includes(name);
       if (changedOnDisk) return { restartRequired: held.restartRequired, conflict: true };
       const asked = request.body;

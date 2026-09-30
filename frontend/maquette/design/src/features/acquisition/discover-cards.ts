@@ -23,7 +23,8 @@ import { mediumCardMarkup } from "./card-markup";
 import { richTextMarkup } from "./rich-text";
 import { posterArtworkMarkup } from "../../ui/poster";
 import { tileMarkup } from "../../ui/tile";
-import { deckCaption, deckCardFrame, deckHint, deckMeta, deckPoster, deckReason, deckTitle, suggestionBack, suggestionWrap } from "./variants";
+import { commitRowMarkup } from "../../ui/rows";
+import { deckCaption, deckCardFrame, deckHint, deckMeta, deckPoster, deckReason, deckTitle } from "./variants";
 
 /** One suggestion, as the reserve answers it. */
 export type Suggestion = Schemas["Suggestion"];
@@ -32,34 +33,38 @@ const say = (key: string, values?: Record<string, unknown>) =>
   i18next.t(`discover.${key}`, values ?? {});
 
 /**
- * A suggestion as a LIST ROW, wrapped in what a sideways swipe reveals.
+ * A suggestion as a LIST ROW, in the commit row a sideways swipe decides on:
+ * thrown LEFT it is passed, thrown RIGHT it is rejected, and the side each travel
+ * uncovers says which.
  *
  * Args:
  *     suggestion: The suggestion.
- *     position: Its index into the reserve — what the panel and the dismissal
- *         both address it by.
+ *     position: Its index into the reserve — what the panel and both acts
+ *         address it by.
  *
  * Returns:
  *     The row's markup.
  */
 export function suggestionRow(suggestion: Suggestion, position: number): string {
-  const dismiss = say("notInterested");
-  return `<div class="${suggestionWrap()}" data-part="suggestion/wrap" data-dismissable="${position}">
-      <div class="${suggestionBack()}">
-        <span>${svgIcon(icons.x)}${dismiss}</span>
-        <span>${dismiss}${svgIcon(icons.x)}</span>
-      </div>
-      ${mediumCardMarkup({
-        title: suggestion.title,
-        k: suggestion.kind === "Film" ? "movie" : "show",
-        secondaryLine: `${suggestion.year} · ${suggestion.kind}`,
-        note: suggestion.rating,
-        reason: suggestion.why,
-        panel: `sug:${position}`,
-        poster: suggestion.poster,
-        ids: suggestion.ids,
-      })}
-    </div>`;
+  return commitRowMarkup(
+    mediumCardMarkup({
+      title: suggestion.title,
+      k: suggestion.kind === "Film" ? "movie" : "show",
+      secondaryLine: `${suggestion.year} · ${suggestion.kind}`,
+      note: suggestion.rating,
+      reason: suggestion.why,
+      panel: `sug:${position}`,
+      poster: suggestion.poster,
+      ids: suggestion.ids,
+    }),
+    // THE LEFT SIDE IS UNCOVERED BY A TRAVEL TO THE RIGHT, the right side by one
+    // to the left: each says the act its travel commits.
+    {
+      left: `${svgIcon(icons.x)}${escapeHtml(say("notInterested"))}`,
+      right: `${escapeHtml(say("skip"))}${svgIcon(icons.right)}`,
+    },
+    { "data-part": "suggestion/wrap", "data-dismissable": position },
+  );
 }
 
 /**
@@ -93,9 +98,9 @@ export function suggestionTile(suggestion: Suggestion, position: number): string
  * A suggestion as a DECK CARD — one card fills the surface, the next ones stack
  * behind it.
  *
- * Tapping the card opens the sheet; a swipe either way dismisses it, exactly as
- * in the list, and the next card rises from the deck; a long press opens the
- * panel, exactly as in a gallery.
+ * Tapping the card opens the sheet; a swipe to the left passes it and one to the
+ * right rejects it, exactly as in the list, and the next card rises from the
+ * deck; a long press opens the panel, exactly as in a gallery.
  *
  * Args:
  *     suggestion: The suggestion.

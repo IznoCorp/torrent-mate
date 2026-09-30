@@ -28,13 +28,12 @@ division a cross-seed would make by zero. So, on `torrents-list`:
    none;
 9. each row's origin mark says origin grab or cross-seed, as its entry does,
    and is DRAWN — a box a finger's eye can see, never 0×0 — and its ratio sits
-   on its title's own line, inside its own row;
+   on its state's own line, inside its own card;
 10. an open obligation is a MARK on its own row, never on a row that owes none;
-11. a finger on a row's title lands on its medium's sheet, by provider id.
+11. a finger on a card's poster lands on its medium's sheet, by provider id.
 12. `torrents-list-filtered` draws the named tracker's rows alone, and SAYS the
-    filter: « Filtré sur <tracker> », with « Tout voir »;
-13. a finger on « Tout voir », landed cold on a filtered address, draws every
-    row again, drops `tracker` from the address and pushes nothing;
+    filter: the selector's pill names it, pressed;
+13. (moved: lifting the filter is R-L16bis-b's, `trackers_selector_legend.py`);
 14. `torrents-empty` — nothing active anywhere — draws no row, says so, and
     shows no filter;
 15. `torrents-empty-filtered` — nothing on the filtered tracker — says a
@@ -60,6 +59,23 @@ reads the month too.
 that the real data does not hold (`acquire.db` has no satisfied row): it is
 POSED by `setObligationSatisfied`, a derivation shown as one in both states;
 the backend reads `seed_obligation.satisfied_at`.
+
+RE-AIMED OUT LOUD (L16-bis, the roster grows — successor R-L16bis-g/h in
+`trackers_switch.py`): the roster holds six trackers, one with nothing measured
+(its ratio said unknown, never counted in the mean) and three switched off, which
+say so under their name in place of their trend and volumes.
+
+RE-AIMED OUT LOUD (L16-bis, the selector — successor R-L16bis-b in
+`trackers_selector_legend.py`): holds 12 to 15 read RULINGS 3's line « Filtré sur
+<tracker> · Tout voir »; the operator's selector replaces it, its pill SAYS the
+filter, so these holds read the pill, and hold 13's « Tout voir » is the
+selector's « Tous les trackers », held there.
+
+RE-AIMED OUT LOUD (L16-bis, the torrent card — successor R-L16bis-e in
+`trackers_card.py`): holds 9, 11 and 17 read the old row's title, a text button
+to the sheet (`torrents/title`). The row is a media card now: its name is the
+card's title, the path to the sheet is its POSTER, and the ratio sits on the
+state line, after the state's chip.
 
 Red before the move: the tab draws no entry.
 """
@@ -108,16 +124,18 @@ ROWS = """() => [...document.querySelectorAll('#view [data-part="torrents/row"]'
     origin: row.querySelector('[data-part="torrents/origin"]')?.dataset.origin ?? null,
     mark: (() => { const box = row.querySelector('[data-part="torrents/origin"]')?.getBoundingClientRect();
       return box ? [Math.round(box.width), Math.round(box.height)] : null; })(),
-    onLine: (%s)(row.querySelector('[data-part="torrents/ratio"]'), row.querySelector('[data-part="torrents/title"]')),
+    onLine: (%s)(row.querySelector('[data-part="torrents/ratio"]'), row.querySelector('[data-part="card/meta"] [data-part="chip"]')),
     open: row.querySelector('[data-part="torrents/obligation-open"]') !== null,
     done: row.querySelector('[data-part="torrents/obligation-done"]') !== null,
   };
 })""" % ON_LINE
+# THE FILTER, AS THE SELECTOR SAYS IT: its pill pressed, naming the tracker —
+# null when the list is whole.
 FILTER = """() => {
-  const line = document.querySelector('#view [data-part="torrents/filter"]');
-  return line === null ? null : {
-    text: line.textContent.trim(),
-    clear: line.querySelector('[data-part="torrents/filter-clear"]') !== null,
+  const pill = document.querySelector('#view [data-part="torrents/selector"]');
+  return pill === null || pill.getAttribute('aria-pressed') !== 'true' ? null : {
+    text: pill.firstChild?.textContent.trim() ?? '',
+    clear: true,
   };
 }"""
 EMPTY = """() => document.querySelector('#view [data-part="empty-state"]')?.textContent.trim() ?? null"""
@@ -176,7 +194,7 @@ async def torrents(page, journal):
             journal.check(f"{name}: its deadline is its own, the {day} — day and month",
                           prefix in deadline and day in deadline, repr(deadline))
         journal.check(f"{name}: its origin mark says {'origin grab' if entry['origin'] else 'cross-seed'}, "
-                      "drawn with a box, and its ratio sits on its title's own line",
+                      "drawn with a box, and its ratio sits on its state's own line",
                       row.get("origin") == ("origin" if entry["origin"] else "cross")
                       and bool(row.get("mark")) and min(row["mark"]) > 0 and row.get("onLine") is True,
                       f"{row.get('origin')!r} · mark {row.get('mark')} · on its line {row.get('onLine')}")
@@ -189,12 +207,12 @@ async def torrents(page, journal):
     # A FINGER, not a posed screen: the title is a path, read on the address.
     first = DOWNLOADS[0]["ids"]
     wanted = f"/media/tvdb/{first['tvdb']}" if first.get("tvdb") else f"/media/tmdb/{first.get('tmdb')}"
-    title = page.locator('#view [data-part="torrents/row"] [data-part="torrents/title"]').first
-    if await title.count():
-        await title.tap()
+    poster = page.locator('#view [data-part="torrents/row"] [data-part="card/poster"]').first
+    if await poster.count():
+        await poster.tap()
         await page.wait_for_timeout(ACTED)
     where = await page.evaluate("()=>location.pathname")
-    journal.check(f"a finger on the first row's title lands on its sheet, {wanted}", where == wanted, where)
+    journal.check(f"a finger on the first card's poster lands on its sheet, {wanted}", where == wanted, where)
 
 
 async def filtered(page, journal):
@@ -209,29 +227,8 @@ async def filtered(page, journal):
                   [row["hash"] for row in drawn] == wanted and all(row["tracker"] == named for row in drawn),
                   f"{[(row['hash'][:6], row['tracker']) for row in drawn]}")
     line = await page.evaluate(FILTER)
-    said = words.get("filtered", "<no copy>").replace("{{tracker}}", named)
-    journal.check(f"the filter is said, « {said} », with « Tout voir »",
-                  line is not None and said in line["text"] and line["clear"], repr(line))
-
-    # A FINGER on « Tout voir », from a cold filtered address: every row back,
-    # the filter gone from the address, and the entry adjusted, never pushed.
-    address = f"{PROTOTYPE.rstrip('/')}{PAGE_PATHS.get('trackers', '/trackers')}?list=torrents&tracker={named}"
-    await page.goto(address, wait_until="load")
-    await page.evaluate("()=>window.__loadingDone?.()")
-    await page.wait_for_timeout(SETTLED)
-    before = await page.evaluate("()=>history.length")
-    clear = page.locator('#view [data-part="torrents/filter-clear"]')
-    if await clear.count():
-        await clear.first.tap()
-        await page.wait_for_timeout(ACTED)
-    drawn = await page.evaluate(ROWS)
-    where = await page.evaluate("()=>({search: location.search, length: history.length})")
-    journal.check("a finger on « Tout voir » draws every row again",
-                  len(drawn) == len(DOWNLOADS) and await page.evaluate(FILTER) is None,
-                  f"{len(drawn)} row(s) of {len(DOWNLOADS)}")
-    journal.check("« Tout voir » drops the tracker from the address and pushes nothing",
-                  "tracker=" not in where["search"] and where["length"] == before,
-                  f"{where['search']!r} · history.length {before} -> {where['length']}")
+    journal.check(f"the filter is said: the selector's pill names {named}, pressed",
+                  line is not None and line["text"] == named, repr(line))
 
     answer = await enter(page, "torrents-empty")
     journal.check("the named state torrents-empty exists", answer is None, answer or "")
@@ -241,7 +238,9 @@ async def filtered(page, journal):
                   and words.get("empty", "<no copy>") in note and await page.evaluate(FILTER) is None,
                   repr(note))
 
-    idle = TRACKERS[-1]["name"]
+    # THE TRACKER `torrents-empty-filtered` EMPTIES: the second of the seeds, the
+    # last one entries run on — the roster's later rows run nothing at all.
+    idle = TRACKERS[1]["name"]
     answer = await enter(page, "torrents-empty-filtered")
     journal.check("the named state torrents-empty-filtered exists", answer is None, answer or "")
     note = await page.evaluate(EMPTY)
@@ -273,17 +272,18 @@ async def downloading(page, journal):
     await enter(page, "torrents-list")
     hash_value = entry["infoHash"]
     row = page.locator(f'#view [data-part="torrents/row"][data-entry="{hash_value}"]')
-    title = row.locator('[data-part="torrents/title"]')
+    title = row.locator('[data-part="card/title"]')
+    poster = row.locator('[data-part="card/poster"]')
     drawn = (await title.first.text_content()).strip() if await title.count() else None
-    journal.check(f"« {entry['title']} », downloading, is a row of « Torrents » under its own title",
-                  drawn is not None and drawn.startswith(entry["title"]), repr(drawn))
+    journal.check(f"« {entry['title']} », downloading, is a card of « Torrents » under its own name",
+                  drawn == entry["name"], repr(drawn))
     ids = entry["ids"]
     wanted = f"/media/tvdb/{ids['tvdb']}" if ids.get("tvdb") else f"/media/tmdb/{ids.get('tmdb')}"
-    if drawn is not None:
-        await title.first.tap()
+    if drawn is not None and await poster.count():
+        await poster.first.tap()
         await page.wait_for_timeout(ACTED)
     where = await page.evaluate("()=>location.pathname")
-    journal.check(f"a finger on « {entry['title']} » lands on its sheet, {wanted}", where == wanted, where)
+    journal.check(f"a finger on « {entry['title']} »'s poster lands on its sheet, {wanted}", where == wanted, where)
 
 
 async def main():
@@ -300,16 +300,26 @@ async def main():
         journal.check("one entry per tracker, in the answer's order",
                       [entry["name"] for entry in drawn] == [tracker["name"] for tracker in TRACKERS],
                       f"{[entry['name'] for entry in drawn]} against {[t['name'] for t in TRACKERS]}")
-        mean = french(sum(t["ratio"] for t in TRACKERS) / len(TRACKERS), 2) if TRACKERS else None
+        measured = [t["ratio"] for t in TRACKERS if t["ratio"] is not None]
+        mean = french(sum(measured) / len(measured), 2) if measured else None
         by_name = {entry["name"]: entry for entry in drawn}
         for tracker in TRACKERS:
             entry = by_name.get(tracker["name"], {})
-            own = french(tracker["ratio"], 2)
             ratio = entry.get("ratio") or ""
-            journal.check(f"{tracker['name']}: its ratio is its own, {own}, never the mean {mean}",
-                          own in ratio and (mean == own or mean not in ratio), repr(ratio))
+            if tracker["ratio"] is None:
+                journal.check(f"{tracker['name']}: nothing measured, its ratio is said unknown, never a mean",
+                              ratio == WORDS.get("ratioUnknown") and (mean is None or mean not in ratio), repr(ratio))
+            else:
+                own = french(tracker["ratio"], 2)
+                journal.check(f"{tracker['name']}: its ratio is its own, {own}, never the mean {mean}",
+                              own in ratio and (mean == own or mean not in ratio), repr(ratio))
             journal.check(f"{tracker['name']}: its ratio sits on its name's own line, inside its row",
                           entry.get("onLine") is True, repr(entry.get("onLine")))
+            if not tracker["enabled"]:
+                # AN OFF TRACKER SAYS IT IS OFF under its name, in place of its facts.
+                journal.check(f"{tracker['name']}: off, it says so under its name in place of its trend and volumes",
+                              entry.get("trend") is None and entry.get("volumes") is None, repr(entry))
+                continue
             word = WORDS.get("trends", {}).get(tracker["trend"], "<no word>")
             journal.check(f"{tracker['name']}: its trend is said in words, « {word} »",
                           word in (entry.get("trend") or ""), repr(entry.get("trend")))

@@ -1,5 +1,5 @@
-// The rows a list draws around its cards — the swipe row and the selection row,
-// drawn as markup.
+// The rows a list draws around its cards — the swipe row, the commit row and the
+// selection row, drawn as markup.
 //
 // THEY KNOW NO DOMAIN (invariant 10). A swipe row wraps whatever row it is given
 // and uncovers whatever actions its caller wrote; a selection row takes a title,
@@ -14,6 +14,8 @@ import { posterArtworkMarkup, type Artwork } from "./poster";
 import { attributesMarkup, type MarkupAttributes } from "./tile";
 import {
   cardSubtitle,
+  commitRow,
+  commitRowBack,
   posterFrame,
   cardTitle,
   selectionCheck,
@@ -40,6 +42,25 @@ export function swipeRowMarkup(row: string, right: string, left?: string): strin
   return `<div class="${swipeRow()}" data-part="swipe"><div class="${swipeActions()}">${
     left ? `<div class="${swipeSide({ edge: "left" })}" data-part="swipe/side" data-side="left">${left}</div>` : ""
   }<div class="${swipeSide({ edge: "right" })}" data-part="swipe/side" data-side="right">${right}</div></div>${row}</div>`;
+}
+
+/**
+ * A row a swipe decides on release, the words of each side uncovered as it travels.
+ *
+ * @param row The row's own markup.
+ * @param words What each side of the back says, as markup: `right` is uncovered
+ *     by a travel to the left, `left` by a travel to the right.
+ * @param attributes What the caller's gesture and delegation read — its part, its subject.
+ * @returns The commit row's markup.
+ */
+export function commitRowMarkup(row: string, words: { left: string; right: string }, attributes: MarkupAttributes): string {
+  return `<div class="${commitRow()}"${attributesMarkup(attributes)}>
+      <div class="${commitRowBack()}" data-part="commit/back">
+        <span data-side="left">${words.left}</span>
+        <span data-side="right">${words.right}</span>
+      </div>
+      ${row}
+    </div>`;
 }
 
 /**

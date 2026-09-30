@@ -135,3 +135,6 @@ registerVerb("search-again", (title, element) => {
 fillLandingDoor((page, dial) => {
   if (page === "acq") store.write({ acqTab: landingTab(dial) });
 });
+
+/* DÉCOUVRIR'S HEADER, cut at the view switch, says its sentence whole in a panel. */
+registerVerb("discover-header", () => panel.produce("discover-header"));

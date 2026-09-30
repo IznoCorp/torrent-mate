@@ -36,6 +36,10 @@ off the download client's entries: absent before its arrival, offered after.
 Its arrival is a DERIVATION, POSED by `poseArrived` and shown as one — the
 download completes; no seed holds an arrived direct add of an unfollowed series.
 
+RE-AIMED OUT LOUD (L16-bis, the torrent card): hold 2 found the series' row by
+its title (`torrents/title`, a text button); the row is a media card now, whose
+title is the release name, and it is found by the medium its POSTER names.
+
 Red before the move: the downloading series is a card of « En vol », and the
 named state of its arrival does not exist.
 """
@@ -129,7 +133,7 @@ async def main():
         await page.evaluate("()=>window.__go('torrents-list')")
         await page.wait_for_timeout(SETTLED)
         row = await page.evaluate("""(title)=>{const row=[...document.querySelectorAll('#view [data-part="torrents/row"]')]
-            .find(one => (one.querySelector('[data-part="torrents/title"]')?.textContent || '').startsWith(title));
+            .find(one => one.querySelector('[data-part="card/poster"]')?.dataset.mediasheet === title);
             return row ? {follow: [...row.querySelectorAll('*')]
               .filter(one => one.getAttribute('data-follow') === title).length} : null;}""", OFFERED)
         journal.check(f"before it arrives, « {OFFERED} » is read in « Torrents », and offered no « Suivre » there",

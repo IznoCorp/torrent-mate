@@ -676,6 +676,33 @@
       },
       {
         "file": "tracker",
+        "key": "tracker.providers.v3x.club.enabled",
+        "type": "boolean",
+        "raw": true,
+        "name": "enabled",
+        "displayedValue": "actif",
+        "note": "COMPOSED for the maquette: a tracker the operator asked for (2026-09-29, « v3x.club et draupnirr.xyz, mais aussi digitalcore.club »), absent from the engine — demand T1."
+      },
+      {
+        "file": "tracker",
+        "key": "tracker.providers.draupnirr.xyz.enabled",
+        "type": "boolean",
+        "raw": false,
+        "name": "enabled",
+        "displayedValue": "inactif",
+        "note": "COMPOSED for the maquette: a tracker the operator asked for (2026-09-29, « v3x.club et draupnirr.xyz, mais aussi digitalcore.club »), absent from the engine — demand T1."
+      },
+      {
+        "file": "tracker",
+        "key": "tracker.providers.digitalcore.club.enabled",
+        "type": "boolean",
+        "raw": false,
+        "name": "enabled",
+        "displayedValue": "inactif",
+        "note": "COMPOSED for the maquette: a tracker the operator asked for (2026-09-29, « v3x.club et draupnirr.xyz, mais aussi digitalcore.club »), absent from the engine — demand T1."
+      },
+      {
+        "file": "tracker",
         "key": "tracker.providers.tr4ker.cross_seed",
         "type": "boolean",
         "raw": false,

@@ -1962,6 +1962,24 @@ export interface components {
             ratio: number;
             /** @description when the obligation on this entry is met by seed time, Unix-epoch seconds, or null when none is owed */
             deadline: number | null;
+            /** @description when the client added the entry, Unix-epoch seconds, or null when the client does not say. The backend HAS it on its client item (`TorrentItem.added_on`) and does not route it (a demand, T3) */
+            addedAt: number | null;
+            /** @description how many complete sources the swarm counts, or null when the client does not say — never 0 for an unknown, 0 is a dead swarm. The backend HAS it (`TorrentItem.swarm_seeds`, qBittorrent's `num_complete`) and does not route it (a demand, T3) */
+            swarmSeeds: number | null;
+            /** @description how many incomplete peers the swarm counts, or null when the client does not say. qBittorrent answers `num_incomplete`; the backend does not read it (a demand, T3) */
+            swarmLeechers: number | null;
+            /** @description how much this entry has received, or null when the client does not say. Not read by the backend (a demand, T3) */
+            downloadedBytes: number | null;
+            /** @description how much this entry has sent, or null when the client does not say. Not read by the backend (a demand, T3) */
+            uploadedBytes: number | null;
+            /** @description the entry's download rate in bytes per second, or null when the client does not say. Not read by the backend (a demand, T3 — a stream demand on `TorrentProgress`) */
+            downloadRate: number | null;
+            /** @description the entry's upload rate in bytes per second, or null when the client does not say. Not read by the backend (a demand, T3 — a stream demand on `TorrentProgress`) */
+            uploadRate: number | null;
+            /** @description the poster of the medium the entry is linked to, or null when it has none or no medium is linked (a demand: the backend's entry carries no artwork) */
+            poster: string | null;
+            /** @description the staging folder the engine holds for this entry — the path to its resolution when no medium is linked — or null when it holds none (a demand) */
+            folder: string | null;
         };
         /** @description every entry the download client holds */
         Downloads: {
@@ -1998,10 +2016,12 @@ export interface components {
             trend: "up" | "stable" | "down";
             /** @description the ratio under which the tracker is in alert — its own setting, distinct from the floor and the target — or null when none is set */
             alertThreshold: number | null;
-            /** @description since when the tracker refuses the configured identifier, Unix-epoch seconds, or null when it accepts it */
-            identifierRefusedSince: number | null;
             /** @description the obligations the engine broke on this tracker, their torrent gone */
             brokenObligations: components["schemas"]["BrokenObligation"][];
+            /** @description whether the tracker is switched on — read from the SAME setting the roster's switch and Réglages write, `tracker.providers.<name>.enabled`, so the two agree (a demand: nothing in the backend answers a tracker) */
+            enabled: boolean;
+            /** @description null while the tracker is on; otherwise who switched it off and why. A refused identifier is `reason: identifierRefused` here — one field per fact (a demand, T2: the engine switches nothing off by itself today) */
+            disabled: components["schemas"]["TrackerDisabled"] | null;
         };
         /** @description a size-or-count threshold and the score it awards */
         RankingThreshold: {
@@ -2117,6 +2137,23 @@ export interface components {
             digest: string;
             /** @description the keys of this file overridden by `local.json5` */
             shadowedKeys: string[];
+        };
+        /** @description why a tracker is off: the operator's own choice, or a failure the engine switched it off for (a demand, T2) */
+        TrackerDisabled: {
+            /**
+             * @description who switched it off
+             * @enum {string}
+             */
+            by: "operator" | "failure";
+            /**
+             * @description the failure's kind, or null when the operator switched it off
+             * @enum {string|null}
+             */
+            reason: "identifierRefused" | "unreachable" | "other" | null;
+            /** @description the engine's own sentence for the failure, or null when the operator switched it off */
+            message: string | null;
+            /** @description since when it is off by failure, Unix-epoch seconds, or null when the operator switched it off */
+            since: number | null;
         };
     };
     responses: {
@@ -3985,6 +4022,7 @@ export interface operations {
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
         };

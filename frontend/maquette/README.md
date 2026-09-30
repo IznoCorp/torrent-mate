@@ -309,9 +309,15 @@ screen:
 | Tile          | `tileMarkup` (`ui/tile.ts`)    | every gallery — the library's three lenses, the follows grid, the suggestions |
 | Release card  | `ReleaseCard`/`DecisionCard`   | the resolution and release screens — **not a medium**        |
 | Selection row | `selectionRowMarkup` (`ui/rows.ts`) | a mode of the LIST, not a variant of the card |
+| Commit row    | `commitRowMarkup` (`ui/rows.ts`), its gesture `lib/commit-swipe.ts` | a row a swipe DECIDES on release — Découvrir's list: left passes, right rejects. The swipe row (`swipeRowMarkup`) OPENS drawers and waits for a tap; the two differ on purpose |
 
 **The card takes a descriptor of FACTS**, listed in the source next to the function:
-title, kind, sub-line, reason, fraction, chip, caption, fresh, strip. A view that
+title, kind, sub-line, reason, fraction, chip, caption, fresh, strip — and, added for
+the torrent card (L16-bis), the figures on the state line (`details`), the figures on
+the annotation line (`notes`), a line of marks (`marks`: a toned chip, a coloured dot
+whose word is its label, or a plain figure) and a byte progress (`progress`, the
+native `<progress>`, which is not the strip: the strip says which STEP, this says how
+much of one). A view that
 wants to show something not in that list is describing a fact the card does not yet
 know about — the fix is to add the fact, never to pass ready-made markup. _An envelope
 guarantees nothing about what it carries._ This is what keeps « one component with

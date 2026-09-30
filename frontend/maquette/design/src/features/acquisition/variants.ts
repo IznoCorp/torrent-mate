@@ -3,7 +3,7 @@
 // AND DÉCOUVRIR'S SHAPES, « Suivis »' cadence line, and the small segmented
 // control the add screen and the drawer share.
 //
-// The engine's gestures still find these surfaces by their class — `.sugwrap`,
+// The engine's gestures still find these surfaces by their class —
 // `.deck`, `.dcard`, `.dhint.l`, `.dhint.r` — and write `dragging`, `out` and
 // `gone` straight to them, so each factory keeps its identity class and carries
 // those states as class-qualified utilities. The deck card's one- and three-letter
@@ -100,24 +100,6 @@ export const addFooterDismiss = cva(
 
 /** « Suivis »' line saying when the machine searches next. */
 export const cadence = cva("cadence text-2 text-muted-foreground pt-4 px-7 pb-0");
-
-/**
- * A suggestion row, which a swipe either way dismisses. It claims the vertical
- * pan, selects no text and drags no picture, for the swipe row's reasons; a
- * dismissed one collapses before it leaves.
- */
-export const suggestionWrap = cva(
-  "sugwrap relative overflow-hidden rounded-3 touch-pan-y select-none [&_img]:[-webkit-user-drag:none] " +
-    "[&.gone]:[transition:height_var(--duration-3)_var(--ease-standard),opacity_var(--duration-2)_var(--ease-standard),margin_var(--duration-3)_var(--ease-standard)] " +
-    "[&.gone]:[height:0]! [&.gone]:opacity-0 [&.gone]:mb-[calc(var(--spacing-7)*-1)]",
-);
-
-/** What a sliding suggestion uncovers: the dismissal's word, on both sides. */
-export const suggestionBack = cva(
-  "sugback absolute inset-0 flex items-center justify-between py-0 px-8 rounded-3 bg-muted " +
-    "text-muted-foreground text-3 font-bold [&_span]:flex [&_span]:items-center [&_span]:gap-3 " +
-    "[&_svg]:w-[16px] [&_svg]:h-[16px]",
-);
 
 /**
  * The surface holding the deck: the body, with less room under the pile. The

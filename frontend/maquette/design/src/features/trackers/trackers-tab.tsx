@@ -1,215 +1,188 @@
-// The « Trackers » tab: one entry per configured tracker.
+// The « Trackers » tab: one row per configured tracker.
 //
-// EACH ENTRY IS ITS OWN TRACKER'S, never an average: the ratio, the trend said
-// in words and the Download / Upload volumes are the ones its own answer
-// carries (§ 18, NE-DOIT-PAS-1). The entries keep the configuration's order —
-// never re-sorted by ratio, which would move the row being read.
+// EACH ROW IS ITS OWN TRACKER'S, never an average: the ratio, the trend said in
+// words and the Download / Upload volumes are the ones its own answer carries
+// (§ 18, NE-DOIT-PAS-1). The rows keep the configuration's order — never
+// re-sorted by ratio, which would move the row being read.
+//
+// A ROW OPENS ITS PANEL, as a torrent's card does (the operator's Q3: « de la
+// cohérence partout »), and keeps ONE control of its own at its end: the
+// activation switch, « facilement ». It files the SAME pending edit Réglages
+// files for `tracker.providers.<name>.enabled`, written by the same save bar —
+// one write, two doors. A tracker a failure switched off says why; switching it
+// back on while the failure persists is REFUSED by the engine, and the refusal
+// stays under the row, in the engine's words, never a toast that leaves.
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
-import { Disclosure } from "../../ui/disclosure";
-import { FactRows } from "../../ui/fact-rows";
+import i18next from "i18next";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { Markup, emptyNoteMarkup } from "../../ui/markup";
-import { useUiState } from "../../lib/store-access";
+import { Legend } from "../../ui/legend";
+import { Switch } from "../../ui/switch";
+import { useStoreContent } from "../../lib/store-access";
+import { pendingEdits } from "../../lib/save-bar-door";
 import {
-  chip, crossReference, emptyNote, factDetail, factList, factName, factRow, factRowBody, factValue, guidance,
+  chip, emptyNote, factDetail, factList, factName, factRow, factRowBody, factValue, surfaceError, type ChipTone,
 } from "../../ui/variants";
 import { dayOf, written } from "./format";
-import { seeTorrents, seenControl } from "./variants";
-import {
-  alertOf, useDownloads, useObligations, useSettingsCatalogue, useTrackers, type Alert, type Catalogue, type Tracker,
-} from "./queries";
+import { legendOf, type Code } from "./torrent-card";
+import { alertOf, useDownloads, useObligations, useSettingsCatalogue, useTrackers, type Alert, type Tracker } from "./queries";
 
-// THE POLICY IS THE TRACKER'S ECONOMY BLOCK, in the tracker's configuration
-// file: the floor, the seed time and the alert threshold, in that order.
-const POLICY_FILE = "tracker";
-const POLICY_FIELDS = [
-  { field: "min_ratio", label: "screens.trackers.minRatio" },
-  { field: "min_seed_time", label: "screens.trackers.minSeedTime" },
-  { field: "alert_threshold", label: "screens.trackers.alertThreshold" },
-] as const;
+// The status of a write the engine refuses: the value will not be taken.
+const REFUSED = 422;
 
 // A billion bytes: the « Go » the interface writes volumes in.
 const GIGABYTE = 1_000_000_000;
 
+/** One chip a row wears, the word its legend entry says, and the part its readers find it by. */
+type RosterMark = { tone: ChipTone; label: string; word: string; part: string };
+
 /**
- * One tracker's policy: each field is the SAME setting the settings page draws,
- * and a tap raises that setting's own panel — one write, whichever door.
+ * The setting one tracker's activation is kept under — the one Réglages draws.
  *
- * @param props.tracker The tracker's name.
- * @param props.catalogue The settings catalogue's read.
- * @returns The policy, or the sentence saying none is set; while the catalogue
- *     is read, its skeletons, and when the read failed, the failure.
+ * @param tracker The tracker's configured name.
+ * @returns The setting's identity, `<file>:<key>`.
  */
-function TrackerPolicy({ tracker, catalogue }: { tracker: string; catalogue: Catalogue }): ReactElement {
-  const { t } = useTranslation();
-  // THE CATALOGUE'S WAIT AND FAILURE ARE SAID — « no policy » is an answer,
-  // never a stand-in for a read still under way or one that failed.
-  if (catalogue.isError) {
-    return (
-      <div data-part="trackers/policy">
-        <SurfaceError subject={t("screens.trackers.policyErrorSubject")} onRetry={catalogue.retry} />
-      </div>
-    );
-  }
-  if (catalogue.settings === undefined) {
-    return (
-      <div data-part="trackers/policy">
-        <Skeletons count={3} shape="card" />
-      </div>
-    );
-  }
-  const settings = catalogue.settings;
-  const rows = POLICY_FIELDS.flatMap(({ field, label }) => {
-    const key = `tracker.providers.${tracker}.economy.${field}`;
-    const setting = settings.find((candidate) => candidate.file === POLICY_FILE && candidate.key === key);
-    return setting === undefined
-      ? []
-      : [{ label: t(label), value: String(setting.displayedValue ?? ""), target: { setting: `${POLICY_FILE}:${key}` } }];
+export function activationSetting(tracker: string): string {
+  return `tracker:tracker.providers.${tracker}.enabled`;
+}
+
+/**
+ * Why a tracker a failure switched off is off, and since when.
+ *
+ * @param tracker The tracker, as its own answer carries it.
+ * @returns The sentence, or null unless a failure switched it off.
+ */
+export function failureSentence(tracker: Tracker): string | null {
+  const off = tracker.disabled;
+  if (off === null || off.by !== "failure") return null;
+  return i18next.t("screens.trackers.failureSince", {
+    reason: i18next.t(`screens.trackers.failureReasons.${off.reason ?? "other"}`),
+    date: off.since === null ? "?" : dayOf(off.since),
   });
-  return (
-    <div data-part="trackers/policy">
-      {rows.length === 0 ? (
-        <p className={guidance()} data-part="trackers/policy-unset">{t("screens.trackers.policyUnset")}</p>
-      ) : (
-        <>
-          <ol className={factList()}>
-            <FactRows rows={rows} />
-          </ol>
-          <p className={guidance()} data-part="trackers/policy-guidance">{t("screens.trackers.floorGuidance")}</p>
-        </>
-      )}
-      <button className={`${crossReference()} ${seeTorrents()}`} data-part="trackers/see-torrents" data-trackers-filter={tracker}>
-        {t("screens.trackers.seeTorrents")}
-      </button>
-    </div>
-  );
 }
 
 /**
- * The obligations the engine broke on a tracker, their torrent gone — folded
- * under its entry, each marked seen on its own. SEEN IS NOT GONE: a row seen
- * stays listed and says so; it only leaves the alert's count.
+ * The chips one row wears — the row and the legend read this one derivation.
  *
- * @param props.tracker The tracker, its broken obligations included.
- * @returns The fold.
+ * @param tracker The tracker, as its own answer carries it.
+ * @param alert The page's one alert derivation.
+ * @returns The chips, in the order they are read.
  */
-function BrokenObligations({ tracker }: { tracker: Tracker }): ReactElement {
-  const { t } = useTranslation();
-  return (
-    <Disclosure summary={<span data-part="trackers/broken-obligations-toggle">{t("screens.trackers.brokenList")}</span>}>
-      <ol className={factList()}>
-        {tracker.brokenObligations.map((row) => (
-          <li key={row.infoHash} className={factRow()} data-part="trackers/broken-obligation-row" data-entry={row.infoHash}>
-            {/* « VU » IN THE VALUE'S PLACE, on the title's line — a finger's target. */}
-            <span className={factRowBody()}>
-              <span className={factName()} data-part="trackers/broken-obligation-title">{row.title}</span>
-              {row.seen ? (
-                <span className={factValue()} data-part="trackers/broken-obligation-seen-mark">
-                  {t("screens.trackers.seenMark")}
-                </span>
-              ) : (
-                <button
-                  className={seenControl()}
-                  data-part="trackers/broken-obligation-seen"
-                  data-obligation-seen={`${tracker.name}:${row.infoHash}`}
-                >
-                  {t("screens.trackers.seen")}
-                </button>
-              )}
-              <span className={factDetail()} data-part="trackers/broken-obligation-date">
-                {t("screens.trackers.brokenOn", { date: dayOf(row.brokenAt) })}
-              </span>
-            </span>
-          </li>
-        ))}
-      </ol>
-    </Disclosure>
-  );
+export function rosterMarks(tracker: Tracker, alert: Alert): RosterMark[] {
+  const say = (key: string, values: Record<string, unknown> = {}) => i18next.t(`screens.trackers.${key}`, values);
+  const marks: RosterMark[] = [];
+  if (tracker.disabled !== null) {
+    const byFailure = tracker.disabled.by === "failure";
+    marks.push({
+      tone: byFailure ? "danger" : "neutral",
+      label: say("disabledByOperator"),
+      word: say(byFailure ? "legendFailure" : "legendOperator"),
+      part: "trackers/disabled",
+    });
+  }
+  if (alert.under.has(tracker.name)) {
+    marks.push({
+      tone: "warning",
+      label: say("alertBelowThreshold", { threshold: written(tracker.alertThreshold ?? 0, 2) }),
+      word: say("legendAlert"),
+      part: "trackers/alert",
+    });
+  }
+  const unseen = alert.unseen.get(tracker.name) ?? 0;
+  if (unseen > 0) {
+    marks.push({
+      tone: "danger", label: say("brokenObligations", { count: unseen }), word: say("legendBroken"),
+      part: "trackers/broken-obligations",
+    });
+  }
+  return marks;
 }
 
 /**
- * One tracker's entry: its summary, folding away its policy.
- *
- * @param props.tracker The tracker, as its own answer carries it.
- * @param props.catalogue The settings catalogue's read.
- * @param props.open Whether the address opened it.
- * @returns The entry.
- */
-function TrackerEntry(
-  { tracker, catalogue, open, alert }: { tracker: Tracker; catalogue: Catalogue; open: boolean; alert: Alert },
-): ReactElement {
-  return (
-    <li data-part="trackers/entry" data-tracker={tracker.name}>
-      <Disclosure open={open} summary={<TrackerSummary tracker={tracker} alert={alert} />}>
-        <TrackerPolicy tracker={tracker.name} catalogue={catalogue} />
-        {tracker.brokenObligations.length > 0 ? <BrokenObligations tracker={tracker} /> : null}
-      </Disclosure>
-    </li>
-  );
-}
-
-/**
- * What a closed entry says: the tracker, its trend, its volumes, its ratio —
- * and, when it is in alert, why: under its own threshold, or its identifier
- * refused.
+ * One tracker's row: its summary, which opens its panel, and its switch.
  *
  * @param props.tracker The tracker, as its own answer carries it.
  * @param props.alert The page's one alert derivation.
- * @returns The entry's summary.
+ * @returns The row.
  */
-function TrackerSummary({ tracker, alert }: { tracker: Tracker; alert: Alert }): ReactElement {
+function TrackerRow({ tracker, alert }: { tracker: Tracker; alert: Alert }): ReactElement {
   const { t } = useTranslation();
+  const identity = activationSetting(tracker.name);
+  // THE SWITCH DRAWS THE PENDING VALUE when an edit waits, the served one otherwise.
+  const pending = pendingEdits()?.pending(identity);
+  const on = pending === undefined ? tracker.enabled : pending.value === true;
+  const refusal = pendingEdits()?.refusal(identity);
+  const marks = rosterMarks(tracker, alert);
   return (
-    // THE NAME AND THE RATIO ON ONE LINE of the body's grid, as a fact row is
-    // designed — the ratio never a sibling of the grid, floating under it.
-    <span className={factRowBody()}>
-      <span className={factName()} data-part="trackers/name">{tracker.name}</span>
-      <span className={factValue()} data-part="trackers/ratio">
-        {tracker.ratio === null ? t("screens.trackers.ratioUnknown") : t("screens.trackers.ratio", { ratio: written(tracker.ratio, 2) })}
-      </span>
-        <span className={factDetail()} data-part="trackers/trend">
-          {t("screens.trackers.trend", { trend: t(`screens.trackers.trends.${tracker.trend}`) })}
+    <li className={factRow({ withControl: true })} data-part="trackers/entry" data-tracker={tracker.name}
+      data-enabled={String(tracker.enabled)}>
+      {/* THE NAME AND THE RATIO ON ONE LINE of the body's grid, as a fact row is designed. */}
+      <button className={factRowBody({ withTarget: true })} data-part="trackers/body" data-tracker-open={tracker.name}>
+        <span className={factName()} data-part="trackers/name">{tracker.name}</span>
+        <span className={factValue()} data-part="trackers/ratio">
+          {tracker.ratio === null ? t("screens.trackers.ratioUnknown") : t("screens.trackers.ratio", { ratio: written(tracker.ratio, 2) })}
         </span>
-        <span className={factDetail()} data-part="trackers/volumes">
-          {t("screens.trackers.volumes", {
-            downloaded: written(tracker.downloadedBytes / GIGABYTE, 1),
-            uploaded: written(tracker.uploadedBytes / GIGABYTE, 1),
-          })}
-        </span>
-        {alert.under.has(tracker.name) ? (
-          <span className={chip({ tone: "warning" })} data-part="trackers/alert">
-            {t("screens.trackers.alertBelowThreshold", { threshold: written(tracker.alertThreshold ?? 0, 2) })}
+        {tracker.enabled ? (
+          <>
+            <span className={factDetail()} data-part="trackers/trend">
+              {t("screens.trackers.trend", { trend: t(`screens.trackers.trends.${tracker.trend}`) })}
+            </span>
+            <span className={factDetail()} data-part="trackers/volumes">
+              {t("screens.trackers.volumes", {
+                downloaded: written(tracker.downloadedBytes / GIGABYTE, 1),
+                uploaded: written(tracker.uploadedBytes / GIGABYTE, 1),
+              })}
+            </span>
+          </>
+        ) : null}
+        {failureSentence(tracker) === null ? null : (
+          <span className={factDetail()} data-part="trackers/failure">{failureSentence(tracker)}</span>
+        )}
+        {marks.length > 0 ? (
+          <span className={factDetail()}>
+            {marks.map((mark) => (
+              <span key={mark.part} className={chip({ tone: mark.tone })} data-part={mark.part} data-tone={mark.tone}
+                data-reason={mark.part === "trackers/disabled" ? tracker.disabled?.reason ?? "" : undefined}>
+                {mark.label}
+              </span>
+            ))}
           </span>
         ) : null}
-        {(alert.unseen.get(tracker.name) ?? 0) > 0 ? (
-          <span className={chip({ tone: "danger" })} data-part="trackers/broken-obligations">
-            {t("screens.trackers.brokenObligations", { count: alert.unseen.get(tracker.name) })}
-          </span>
-        ) : null}
-        {alert.refused.has(tracker.name) ? (
-          <span className={chip({ tone: "danger" })} data-part="trackers/identifier-refused">
-            {t("screens.trackers.identifierRefused", { date: dayOf(tracker.identifierRefusedSince ?? 0) })}
-          </span>
-        ) : null}
-    </span>
+      </button>
+      <Switch checked={on} label={t("screens.trackers.switchLabel", { tracker: tracker.name })}
+        data-part="trackers/switch" data-tracker-switch={tracker.name} />
+      {refusal === undefined ? null : (
+        // A REFUSAL (422) IS THE ENGINE'S ANSWER; any other failure left the edit pending.
+        <p className={surfaceError({ tone: "danger" })} role="status" data-part="trackers/refusal"
+          data-status={refusal.status}>
+          <b>{t(refusal.status === REFUSED ? "screens.trackers.refusedLead" : "screens.trackers.writeFailedLead")}</b>
+          {refusal.detail}
+        </p>
+      )}
+    </li>
   );
 }
 
 /**
  * The « Trackers » tab.
  *
- * @returns The roster, or the sentence saying none is configured; while the read
- *     is in flight, its skeletons, and when it failed, the failure.
+ * @returns The roster under its legend, or the sentence saying none is
+ *     configured; while the read is in flight, its skeletons, and when it
+ *     failed, the failure.
  */
 export function TrackersTab(): ReactElement {
   const { t } = useTranslation();
-  const state = useUiState();
+  // A PENDING EDIT FILED BY THE SWITCH is a store bump, never a new answer: the
+  // tab listens to it, so the switch moves under the finger.
+  useStoreContent((content) => content.version);
   const read = useTrackers();
   const trackers = read.data;
   const { data: downloads } = useDownloads();
   const { data: obligations } = useObligations();
-  const catalogue = useSettingsCatalogue();
+  // THE SAME CATALOGUE Réglages reads, so the switch can file its edit — and the
+  // panel's policy rows read it too.
+  useSettingsCatalogue();
   // THE READ IN FLIGHT, OR FAILED, IS SAID — never an empty tab standing for either.
   if (read.isError) {
     return <SurfaceError subject={t("screens.trackers.errorSubject")} onRetry={() => void read.refetch()} />;
@@ -224,14 +197,15 @@ export function TrackersTab(): ReactElement {
       />
     );
   }
+  // THE LEGEND READS THE CHIPS THE ROWS DRAW, only those present.
+  const codes: Code[] = trackers.flatMap((tracker) =>
+    rosterMarks(tracker, alert).map((mark): Code => ({ kind: "chip", tone: mark.tone, word: mark.word })));
   return (
-    <ol className={factList()} data-part="trackers/roster">
-      {trackers.map((tracker) => (
-        <TrackerEntry
-          key={tracker.name} tracker={tracker} catalogue={catalogue} alert={alert}
-          open={state.trackersFilter === tracker.name}
-        />
-      ))}
-    </ol>
+    <>
+      <Legend entries={legendOf(codes)} />
+      <ol className={factList()} data-part="trackers/roster">
+        {trackers.map((tracker) => <TrackerRow key={tracker.name} tracker={tracker} alert={alert} />)}
+      </ol>
+    </>
   );
 }

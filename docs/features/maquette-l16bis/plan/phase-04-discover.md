@@ -34,8 +34,7 @@ first**: the deck's two directions on tm-design (DESIGN § 0.3 item 1 was read i
 - **R-L16bis-k** — red on `discover-header` (the message a child of `discover/body`, its figures `fr.json` strings).
 - **R-L16bis-l**, holds in `harness/deck.py` — red on the list: a left swipe toasts and adds to `sugGone`; the back
   reads « Pas intéressé » on both sides. `deck.py`'s deck holds stay green throughout.
-- Named states: every S8 and S9 id (`discover-list-passed-returns` under A); the oracle accepts every Découvrir state
-  by name (the body lost its strip; the list's back words).
+- Named states: every S8 and S9 id (`discover-list-passed-returns` under A).
 - Walked by finger at 369 px, list and deck: left, right, « Annuler »; the header's tap and Retour.
 
 ## Commit
