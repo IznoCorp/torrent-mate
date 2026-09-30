@@ -36,7 +36,7 @@ None.
    events claimed; a refusal readable with its reason; **the exact list of what L18 inherits** (the media route,
    its gate, the admin fact) so L18's own opening measure does not have to re-derive it.
 
-## Mutation
+## ~~Mutation~~
 
 None.
 
@@ -44,7 +44,7 @@ None.
 
 B-145 annotated, never closed alone; B-144 read (L16's); B-539 left as a homonym.
 
-## Oracle: states that diverge, declared by name
+## ~~Oracle: states that diverge, declared by name~~
 
 None.
 

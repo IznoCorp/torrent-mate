@@ -39,6 +39,7 @@ import SECRETS from "./seeds/secrets.json";
  */
 const CHANGED_ON_DISK = "notify";
 import { scenario } from "./scenario";
+import { liveCrossSeedSettings } from "./cross-seed-state";
 import type { components } from "../contract/types";
 
 /** The contract's own vocabulary for what the pipeline is doing. */
@@ -286,7 +287,8 @@ const seeded = (): MockState => ({
   blocked: copyOf<Schemas["QueueCard"][]>(BLOCKED),
   inFlight: copyOf<Schemas["QueueCard"][]>(IN_FLIGHT),
   inFlightReel: [],
-  settings: copyOf<Schemas["SettingsTopic"][]>(SETTINGS),
+  // THE CROSS-SEED SWITCHES ON: the default scenario shows the live states (L17, round 9 Q9).
+  settings: liveCrossSeedSettings(copyOf<Schemas["SettingsTopic"][]>(SETTINGS)),
   secrets: copyOf<Schemas["Secret"][]>(SECRETS),
   pipelineState: IDLE,
   pipelineRuns: copyOf<Schemas["RunDetail"][]>(PIPELINE_RUNS),

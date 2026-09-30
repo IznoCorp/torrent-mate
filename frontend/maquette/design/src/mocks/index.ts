@@ -24,6 +24,7 @@ import { mockSeeds, type MockSeeds } from "./mock-seeds";
 import { answeredCalls, clearAnswered, recordAnswered } from "./answered";
 import { mockDials, mockState, resetMockState, type MockDials } from "./state";
 import { trackerDials, type TrackerDials } from "./trackers-state";
+import { crossSeedDials, type CrossSeedDials } from "./cross-seed-state";
 import { installMockStream, resetStream, type StreamDriver } from "./stream";
 import { routes } from "./handlers";
 
@@ -345,6 +346,7 @@ export function installMockNetwork(): void {
     // WHAT THE MACHINE IS, as opposed to how an operation answers.
     ...mockDials,
     ...trackerDials,
+    ...crossSeedDials,
     setOffline: (down: boolean) => {
       networkIsDown = down;
     },
@@ -370,7 +372,7 @@ declare global {
      * in. Optional, so a document served without it fails visibly at the call
      * site rather than here.
      */
-    __mocks?: MockSeeds & MockDials & TrackerDials & {
+    __mocks?: MockSeeds & MockDials & TrackerDials & CrossSeedDials & {
       routes: () => string[];
       /**
        * Every call this layer answered, in order.

@@ -18,6 +18,7 @@ import { relayStates } from "./states/relay";
 import { settingsStates } from "./states/settings";
 import { systemStates } from "./states/system";
 import { trackersStates } from "./states/trackers";
+import { crossSeedStates } from "./states/cross-seed";
 import { tunnelStates } from "./states/tunnel";
 
 /**
@@ -44,6 +45,7 @@ function namedStates(): NamedState[] {
     ...navigationStates(),
     ...accountStates(),
     ...trackersStates(),
+    ...crossSeedStates(),
     ...maintenanceStates(),
     ...settingsStates(),
     ...relayStates(),

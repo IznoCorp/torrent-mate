@@ -56,6 +56,8 @@ export function TorrentsTab(): ReactElement {
     );
   }
   const breachedOf = (entry: (typeof entries)[number]) => alert.breached.has(`${entry.infoHash}:${entry.tracker}`);
+  // THE PAIR'S OWN TRACKER SWITCH (§ 17 point 1): the summary this tab already reads.
+  const trackerEnabled = (name: string) => (trackers ?? []).find((one) => one.name === name)?.crossSeed.enabled ?? true;
   // THE LEGEND READS THE CODES THE CARDS DRAW, only those present on the list shown.
   const codes = entries.flatMap((entry) => codesOf(entry, owedBy(entry, obligations.items), breachedOf(entry)));
   return (
@@ -65,7 +67,7 @@ export function TorrentsTab(): ReactElement {
       <Markup
         className={section()} data-part="torrents"
         html={entries.map((entry) => torrentItemMarkup(
-          entry, owedBy(entry, obligations.items), breachedOf(entry),
+          entry, owedBy(entry, obligations.items), breachedOf(entry), trackerEnabled,
         )).join("")}
       />
     </>

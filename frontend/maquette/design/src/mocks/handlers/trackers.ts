@@ -4,6 +4,7 @@
 import { DELETE, GET, POST, field, route } from "./shared";
 import { mockState } from "../state";
 import { alertThresholdKey, enabledKey, trackersState } from "../trackers-state";
+import { crossSeedOfEntry, crossSeedOrigin, crossSeedState, trackerCrossSeed } from "../cross-seed-state";
 import { refused, type MockRoute } from "../router";
 import { previewOf } from "./ranking";
 import type { components } from "../../contract/types";
@@ -55,7 +56,7 @@ function enabledOf(tracker: string): boolean {
  * @param enabled Whether its setting is on.
  * @returns Null while it is on.
  */
-function disabledOf(tracker: Schemas["Tracker"], enabled: boolean): Schemas["Tracker"]["disabled"] {
+function disabledOf(tracker: Omit<Schemas["Tracker"], "crossSeed">, enabled: boolean): Schemas["Tracker"]["disabled"] {
   if (enabled) return null;
   if (tracker.disabled?.by === "failure") return tracker.disabled;
   return { by: "operator", reason: null, message: null, since: null };
@@ -81,7 +82,11 @@ export function trackerRoutes(): MockRoute[] {
     route("readTrackers", GET, "/api/trackers", (): Schemas["Tracker"][] =>
       trackersState().trackers.map((tracker) => {
         const enabled = enabledOf(tracker.name);
-        return { ...tracker, alertThreshold: alertThresholdOf(tracker.name), enabled, disabled: disabledOf(tracker, enabled) };
+        return {
+          ...tracker, alertThreshold: alertThresholdOf(tracker.name), enabled, disabled: disabledOf(tracker, enabled),
+          // THE CROSS-SEED'S COUNTS DERIVED FROM THE SAME PAIRS the downloads read answers, its torrents still in the client.
+          crossSeed: trackerCrossSeed(tracker.name, trackersState().downloads),
+        };
       }),
     ),
     route("markBrokenObligationSeen", POST, "/api/trackers/{tracker}/broken-obligations/{infoHash}/seen", (request) => {
@@ -98,10 +103,15 @@ export function trackerRoutes(): MockRoute[] {
           (request) => previewOf(request.body as Schemas["RankingConfig"])),
     route("readDownloads", GET, "/api/acquisition/downloads", (): Schemas["Downloads"] => ({
       clientAvailable: true,
-      downloads: trackersState().downloads,
+      // THE MARK'S PAIRS FOLDED INTO THE SAME ANSWER (R-L17-k): no second read for them.
+      downloads: trackersState().downloads.map((entry) => ({ ...entry, crossSeed: crossSeedOfEntry(entry) })),
+      crossSeedQuota: crossSeedState().quota,
     })),
     route("readObligations", GET, "/api/acquisition/obligations", (): Schemas["Obligations"] => ({
-      items: trackersState().obligations,
+      // AN OBLIGATION A CROSS-SEED CREATED says whose copy it is (§ 19 point 2).
+      items: trackersState().obligations.map((obligation) => ({
+        ...obligation, crossSeedOf: crossSeedOrigin(obligation, trackersState().downloads),
+      })),
     })),
     route("removeDownload", DELETE, "/api/acquisition/downloads/{infoHash}", (request) => {
       // THE ENTRY LEAVES THE CLIENT, and a running obligation it owed is CLOSED

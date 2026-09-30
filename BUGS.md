@@ -156,6 +156,7 @@
 | B-597 | Découvrir's header drew four `fr.json` strings as figures — « Réserve remplie il y a 2 h · », « 503 », « 1 832 », « ids TMDB possédés exclus » — read from no answer (§ 13, « aucun état affiché n'est une constante »). The operator, 2026-09-29 16:52: « son contenu remplacé par quelque chose d'utile ». **Escaped from**: L08-bis and L22's move of the surface. **Why**: a figure in copy passes every guard — `check-no-french` exempts `fr.json`, and no rule read the strip. **Family repaired**: the header, beside the view switch, says « n séries et m films à découvrir », both counted from the suggestions read; the four strings are deleted; R-L16bis-k (`discover_header.py`) reads every figure against the served answer and moves it with a rejection. | order 57 (L16-bis DESIGN § 6) | `fixed #657` |
 | B-602 | Découvrir cut a text and let a thrown card stand out of the frame — his « Non tout doit être responsive, ça doit pas fonctionné que sur mon téléphone, mais sur tous ! » (09-29). The header's sentence ellipsised beside the view switch at 320 px on every Découvrir state and up to 390 px on `discover-header-unavailable` (WebKit too), as L16-bis S8 had drawn it against § 12; a deck card thrown at 768 and 1280 px flew a fixed 460 px and stood half out of a window wider than that. Found by CI's harness on #657 (`responsive.py`, `states.py`, `audit.py` R4). **Family repaired**: the header WRAPS in its place (`liveStrip` `inline`), never cut — S8 amended, `discover_header.py` hold 4 re-aimed; the flight's distance is the window's from the pile plus the turn's swing; the deck's body clips on x at the port's edges, so a card leaving is clipped by its surface. `states.py`'s and `audit.py`'s clipping walk re-aimed: past an overflowing clipper, a clipper inside the surface (the swipe row) decides. | by CI (#657) | `to confirm` |
 | B-603 | Découvrir lost the pull-to-refresh every other page has (his 09-26 Rd 7 Q7): since #657 its header fills the pill place, a `.pillscroll` the pull gesture refuses, so a pull from the top row never armed (`touch.py`, `pull_wheel_turns.py` on `discover-full`, h=0). Found by CI's harness on #657. **Family repaired**: `pillScroll` has a `train` variant — a place holding no pill train neither scrolls sideways nor refuses the pull; Découvrir's header place takes `train: false`. | by CI (#657) | `to confirm` |
+| B-606 | Réglages reads a tracker's domain as two subjects: `tracker.providers.v3x.club.cross_seed` is labelled « v3x · club — Cross-seed » (and every `.enabled` row of a domain-named tracker the same, on `main` too) — `settingSubject` splits the key on every dot, so the dot inside `v3x.club` is taken for a key separator. The family is every row keyed by a tracker's domain. Found by the L17 reader (N-bis, 2026-09-30, screen `51-settings-crossseed-rows.png`); fixed on `feat/maquette-l17` — a tracker's instance runs to its first own field (`enabled`, `economy`, `cross_seed`), a domain names itself; hold in `harness/cross_seed_switch.py`. | by review | `fixing` |
 | B-607 | The torrent card's broken-obligation chip (« En infraction depuis le … ») is cut at 320 px: a chip never wraps, and the dated one is wider than the card's line (`responsive.py`, `torrent-obligation-breached` and `torrents-legend`, `cut torrents/obligation-breached [107, 322]`). Found by CI's harness on #658. **Family repaired**: a chip on a card's state or marks line (`cardMeta`) wraps its words when it alone is wider than the line; one that fits still reads on one line. | by CI (#658) | `fixing` |
 
 **B-471 — one operation declares a shape and answers another.**
@@ -2787,6 +2788,16 @@ was written for, and the first one to arise since it was written.
 to nothing is `NE-DOIT-PAS-5` — silent failure — applied to a SUCCESS as much as to a failure. The
 events are emitted and dropped. Whatever §19 becomes, the cheapest half is already built and
 unplugged: two event types, already carrying their reason.
+
+> **ANNOTATED, 2026-09-30 (L17, `feat/maquette-l17`): the READING half is drawn; the row stays
+> `open` for its backend half.** The maquette declares what the interface needs — the tracker
+> summary's `crossSeed`, an origin's pairs in six states with their reasons, an obligation's origin,
+> `cutCrossSeed`, `searchCrossSeed`, the exclusions, the switch's `stopRunningCrossSeeds` — and draws
+> them on the Trackers page (each tracker's line and switch, the torrent's panel, the badge's failure
+> term); the two events and a third, `CrossSeedSearched`, are claimed by `features/trackers/live.ts`.
+> Still owed by the backend (`docs/reference/frontend-backend-demands.md`, `-stream.md` § 3): every
+> route above, the events relayed to `/ws/events`, an attempt on every eligible tracker (DESIGN fact 16),
+> and the default « active » at the switchover (demand H). The media sheet's block is L18's.
 
 
 > **ARBITRATED, 2026-08-29.** The three sections are recorded in `frontend-architecture.md` § 1 as
