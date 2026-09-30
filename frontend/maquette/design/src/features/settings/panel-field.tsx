@@ -20,7 +20,8 @@ import { Icon } from "../../ui/icon";
 import { settingLabel, unitOf } from "../../features/settings/labels";
 import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
 import { fieldInput, fieldLabel, fieldUnit, listAdd, listItem, listRemove, panelField } from "./variants";
-import { ruleNote, toggleSwitch } from "../../ui/variants";
+import { ruleNote } from "../../ui/variants";
+import { Switch } from "../../ui/switch";
 import { panel } from "../../lib/shell-doors";
 
 // The kind this file adds to the panel's block map. Declared here, beside what
@@ -68,12 +69,10 @@ function FieldBlock({
   if (setting.type === "boolean")
     return (
       <div className={panelField()} data-part="field">
-        <button
-          className={toggleSwitch()}
+        <Switch
+          checked={Boolean(v)}
+          label={settingLabel(setting)}
           data-part="field/toggle"
-          role="switch"
-          aria-label={settingLabel(setting)}
-          aria-checked={v ? "true" : "false"}
           data-field={id}
           data-to={v ? "non" : "oui"}
         />

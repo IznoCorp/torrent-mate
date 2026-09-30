@@ -14,7 +14,8 @@ import { useReleases } from "./queries";
 import { Icon } from "../../ui/icon";
 import { type Release, type Resolution } from "../../features/releases/types";
 import { useUiState, writeUiState } from "../../lib/store-access";
-import { actionButton, backAction, body, factsPanel, keyValueRow, option, optionKind, optionLabel, optionList, optionMark, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, settingRow, sheetActions, toggleSwitch } from "../../ui/variants";
+import { actionButton, backAction, body, factsPanel, keyValueRow, option, optionKind, optionLabel, optionList, optionMark, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, settingRow, sheetActions } from "../../ui/variants";
+import { Switch } from "../../ui/switch";
 import { qualityGroup } from "../../features/releases/variants";
 import { bridge } from "../../lib/shell-doors";
 import { baseTitle } from "../../lib/titles";
@@ -229,12 +230,10 @@ export function QualityScreen() {
                     {t("screens.profile.exclude3dHint")}
                   </span>
                 </span>
-                <button
-                  className={toggleSwitch()}
+                <Switch
+                  checked={profile.exclude_3d}
+                  label={t("screens.profile.exclude3d")}
                   data-part="switch"
-                  role="switch"
-                  aria-checked={profile.exclude_3d}
-                  aria-label={t("screens.profile.exclude3d")}
                   data-qflag="exclude_3d"
                   onClick={() => toggleLock("exclude_3d")}
                 />
@@ -247,12 +246,10 @@ export function QualityScreen() {
                     {t("screens.profile.requireKnownResolutionHint")}
                   </span>
                 </span>
-                <button
-                  className={toggleSwitch()}
+                <Switch
+                  checked={profile.require_known_resolution}
+                  label={t("screens.profile.requireKnownResolution")}
                   data-part="switch"
-                  role="switch"
-                  aria-checked={profile.require_known_resolution}
-                  aria-label={t("screens.profile.requireKnownResolution")}
                   data-qflag="require_known_resolution"
                   onClick={() => toggleLock("require_known_resolution")}
                 />
