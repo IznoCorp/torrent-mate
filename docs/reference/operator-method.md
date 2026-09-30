@@ -66,6 +66,9 @@ de décision R, question q ; « ruling N » = ruling d'organisation N (numérota
 | 09-29 | La cohérence partout | « design, ergonomie, geste, composant, design system, je veux de la cohérence partout ! » |
 | 09-29 | Un composant est réutilisé, jamais recopié | « les composants sont réutiliser, si un jour je change un composant ça change partout, c'est le design système ! » |
 | 09-29 | Deux mécanismes semblables se comportent pareil ; on adapte l'existant au lieu d'en créer | « 2 mécanismes similaires de l'application devrait avoir le même comportement, on crée pas de nouveau composant on adapte » |
+| 09-30 | Ses retours ne sont pas des ajouts : ce sont des corrections de ce qui était attendu (une mauvaise compréhension au départ) ; on vise le gel, et c'est à l'audit de concentrer, réguler et contrôler le temps | « Mes retours ne sont pas des nouvelles choses qu'on ajoute. Mes retours sont des corrections sur ce qui est attendu. […] On définit ce qui est, des, devait être fait. Parce qu'il y a eu sûrement une mauvaise compréhension au départ. […] c'est ton rôle. de concentrer ça, de le gérer, réguler et de le contrôler. » (périmètre du gel = B) |
+| 09-29/30 | L'auditeur vérifie (l'orchestrateur, le développement, l'avancée, la vitesse), l'orchestrateur fait ; et l'auditeur doit se rendre inutile : des process rodés, sans audit ; un mot répété renforce l'ordre en place, il ne s'écrit pas deux fois | « Ce qui revient à l'orchestrateur est fait par l'orchestrateur. Tu audites l'orchestrateur. » ; « à terme, euh, j'aimerais que l'auditeur ne soit plus utile » ; « Pas besoin de l'ajouter deux, trois, quatre, cinq fois […] On essaye d'alléger le processus. » |
+| 09-29 | Rien de ce qu'il remonte n'est oublié : noté tout de suite, corrigé tout de suite ou plus tard, jamais laissé dans un fichier où personne ne repasse | « Est-ce qu'il y a un garde-fou qui s'assure que tout ce que je remonte […] soit bien noté et corrigé ? […] Il n'est pas oublié, écrit dans un fichier quelconque euh, et oublié parce que personne ne repassera dessus. » |
 | 09-29 | Les comportements sont uniformes dans toute l'app, sauf exception qu'il décide | « Il faut uniformiser les comportements. Sauf exception volontaire de ma part. » (toucher l'affiche d'un candidat l'a choisi au lieu d'ouvrir sa fiche « comme pour le reste de l'app ») |
 | 09-29 | L'existant validé d'abord, et c'est le nouveau qui s'y conforme | « là où on en as besoin c'est d'abord l'existant ! » ; « c'est tracker qui doit ressembler aux autres systèmes d'onglet, l'existant est ce qui est validé. » |
 
@@ -85,23 +88,16 @@ jusqu'à 82, sont dans l'archive). Une règle qui meurt sort de cette table le j
 | mesure 8 | Porte de contexte à 80 % pour les trois rôles (agent, steward, auditeur) ; une phase démarre si jauge + coût mesuré de la dernière phase ≤ 80 ; jamais de rotation en milieu de phase | 13 rotations à 60 % sur L13a | une phase coupée par la porte |
 | mesure 9 | Un sous-lot démarre empilé sur la tête finale du précédent, pendant son tour de lecture ; rebase après le squash | b·1 commité avant la fusion de L13a | — |
 | mesure 10 | Démarrage à froid au régime : état ≤ 40 lignes + journal en ajout seul ; rulings dans un fichier numéroté ; lecture requise = brief + état + phase + rulings | 26 → 14 min au premier commit | temps du lancement au premier commit |
-| mesure 11 | Budget de contexte ≤ 15 points par phase (journaux lus à la ligne de verdict, corps de commit ≤ 12 lignes, grep avant lecture entière) | 25–33 points par phase sur L13a | points par phase |
 | mesure 12 | Les instruments lisent vrai (`heavy.sh` compte la mémoire récupérable ; `mutate.sh` lit le code de sortie ; `run.sh` construit une fois) | 9 + 20 min de verrou pour rien ; un vert faux depuis le 29/08 | une porte qui mesure faux |
 | ordre 17 | La copie du lecteur est épinglée à la tête de la dernière porte, re-pointée à la PR prête | 35 min PR prête → lecteur | — |
-| ordre 19 | Hook pre-push : chemin « docs seuls » (≤ 1 min) | ~80 min de suites sur des poussées de prose | — |
 | ordres 21, 23 | Diète d'écriture : message ≤ 3 lignes sauf décision (deux lectures + coût) ; journal aux frontières ; brief de succession = état ≤ 40 lignes + pointeurs | triple écriture, 4 successions du steward un même jour | une perte de qualité due à la diète |
 | ordres 22, 29 | Le steward route modèle ET effort par lancement (`orchestrator:model-routing`, règle de la fausse économie) | son mot 09-13 | un second tour causé par un palier trop bas |
 | ordres 24, 58 | La porte de phase : gardes statiques → oracle seul → règles nommées des surfaces touchées, en une invocation ; le tier contrats toutes les 5 phases, à mi-suite, à la clôture et en CI | contrats ~290 s sur une porte médiane de 340 s ; 0 capture produit propre en 14 jours | ≥ 2 défauts de phase vus seulement par un contrat dans un lot → contrats à chaque phase |
-| ordre 25 | Tier contrats à 3 règles en parallèle | 19 règles à 2 ≈ 3–4 min ; ~400 Mo par règle | swap en hausse → retour à 2 |
 | ordre 26 | Pas de `make check` local avant la PR d'une vague maquette : le job `test` de la CI est l'autorité | 15 min sous le verrou, 3e exécution de la même suite | — |
-| ordre 27 | Délai de 10 min par invocation de règle ou de mutation (« TIMED OUT » = chute de l'instrument) ; un verrou ne se brise que si son tenant est parti | mutation pendue 47 min ; verrou brisé sous un tenant vivant | — |
-| ordre 31 | Pas de chiffres de baseline dans les corps de commit (le diff du JSON est le registre) | corps de 40 lignes | un lecteur qui a manqué un nombre |
 | ordre 32 | Une PR de conversion ne cite pas les §§ de la constitution ; une PR de comportement ou de surface les cite (entériné par son mot, 09-14) | — | — |
 | ordre 33 | Frontière calme avant le redémarrage du lundi 05:00 : tout poussé à 04:30, aucun lancement après 04:15 | reboot hebdomadaire | le journal de relance du lundi |
 | ordre 34 | Les journaux de porte vivent hors de `/private/tmp` | le reboot a effacé deux dossiers de journaux | — |
-| ordre 35 | `core.hooksPath` relatif, pour que chaque worktree exécute les hooks de sa branche | trois chutes pre-push à preuve jetée | — |
 | ordre 36 | Un run long s'attend dans l'appel d'outil, jamais en arrière-plan en fin de tour | pertes répétées de runs | — |
-| ordre 37 | Un agent bloqué reçoit une sonde toutes les 15 min (réponse attendue en 60 s) ; l'écran n'est qu'un complément | deux agents à l'arrêt des heures | — |
 | ordre 38 | « N-bis » = correction de la phase N seulement ; une phase insérée prend un numéro et décale les suivantes | son mot 09-14 | — |
 | ordre 42 | Chaque fichier de phase porte sa mesure d'ouverture ; les coupes se font en un commit docs | L13r coupée cinq fois | STOP D de taille par lot |
 | règle 09-16 | Un chemin parti de l'arbre se cite `path@<dernier commit de main qui le porte>`, jamais à un commit de branche | un squash rend un commit de branche irrésoluble | — |
@@ -117,6 +113,13 @@ jusqu'à 82, sont dans l'archive). Une règle qui meurt sort de cette table le j
 | ordre 57 | Chaque bug signalé par l'opérateur : test vu rouge, et dans BUGS.md « échappé de », « pourquoi », « famille réparée par » | son principe du 09-28 | un bug de la même famille qui revient |
 | ordre 59 | entry et pwa (hôte déployé) se contrôlent après déploiement, hors de la porte | 8 chutes sur 8 = délais du réseau | — |
 | ordre 85 (remplace l'ordre 60, sur son mot du 09-29) | L'interface tient à TOUTES les largeurs : une règle « responsive » passe chaque état nommé à 320, 360, 369, 390, 412, 768 et 1280 px et refuse tout débordement ou coupure (bordure, tableau, texte, bouton hors de l'écran) ; à mi-lot, à la clôture et en CI, et à chaque phase sur les états des surfaces touchées ; les autres règles gardent leur largeur | 6 défauts de largeur échappés, dont B-557 et le tableau des exécutions coupé à droite (09-29 17:04) | un défaut de largeur signalé par lui, à n'importe quelle largeur |
+| ordre 87 | La source des clés Chrome se nomme par mesure : le relevé par minute (`review-archive/keychain-attribution.sh`) date chaque clé ; les règles candidates d'une minute se rejouent seules, compte avant/après | la purge du 29/09 (0 ligne) ; +52 clés pendant la suite suivante | la règle fautive nommée, puis 0 clé sur une suite complète |
+| ordre 88 | Plex passe avant le harnais : le parallélisme a un NOM sur chaque ligne de commande (`TM_HARNESS_JOBS=2`, `pytest -n 2`) ; `heavy.sh` suspend son enfant tant qu'un Plex Transcoder tourne et que la charge dépasse 12 | 29/09 22:27 : charge 59, Plex Transcoder à 0 %, vidéos bloquées (« J'ai plex qui bug ») ; run.sh à nproc = 8 faute de la variable | une charge > 12 pendant une suite (relevé par minute), une plainte Plex |
+| ordre 89 | Une passe WebKit au format iPhone : la règle responsive et la visibilité des contrôles du cadre, en clair et en sombre ; à la clôture et en CI, à chaque porte si elle tient sous 5 min | le hamburger invisible sur iPhone ; une seule règle lançait WebKit | un défaut propre à l'iPhone signalé par lui |
+| ordre 91 | Tout signalement de l'opérateur a sa ligne B-xxx sur main dans l'heure (PR docs en auto-merge) ; chaque ligne ouverte nomme son propriétaire (« open → … ») ; `audit-health.sh` sonne pour un signalement sans numéro après 1 h, une ligne sans propriétaire, une ligne immobile depuis plus de 14 jours ; la revue de clôture de lot tranche les lignes anciennes | 29/09 : 7 signalements du soir absents du registre sur main ; 113 lignes ouvertes sans propriétaire, dont 88 immobiles depuis plus de 14 jours | 0 signalement sans ligne après 1 h ; le nombre de lignes ouvertes baisse |
+| ordres 94–96 (29/09, analyse d'ensemble) | Aligner les fichiers des agents sur cette table (fan-out 2 par défaut dans run.sh, 80 %, entry/pwa hors des suites tant que B-571 est ouvert, 85 limité aux états touchés en phase) ; retirer ce qui pèse sans rendre (check-mock-keychain.py, une garde étrangère à la phase ne la bloque plus) ; une mesure de retour pour chaque ligne | L16 : 51–65 % du temps en vérification, 14 portes sur 15 tombées dont 12 sur une garde étrangère ; les instruments ont surtout trouvé leurs propres défauts (4 sur 5 depuis le 26/09) | minutes de porte par phase et chutes étrangères sur L17 |
+| ordres 97–99 (30/09, ses mots) | Comprendre avant de construire : un tableau de conformité aux principes dans chaque DESIGN, avant le plan. Le « bis » EST la phase de correctifs entre deux lots (une porte, chaque nouveau signalement s'y ajoute). Une phase = une surface, dimensionnée par le contexte de l'agent ; porte de phase légère (gardes des fichiers touchés, oracle, règles des surfaces touchées ; ni mutation ni a11y par phase) ; suite complète, a11y et relecture une fois par lot ; un plan = une page par surface | ses corrections du 29/09 venaient de principes non lus ; L16 : 10,5 min de porte sur 19,9 par phase, 51–65 % du temps en vérification ; L16-bis dessiné en 18 phases, le train en 29 | corrections par lot, phases et minutes de porte par lot ÷ 2 à 3, sans hausse des défauts du lecteur ou de l'opérateur |
+| lignes retirées le 29/09 | 19, 25, 27, 31, 35, 37, 71, 74/83, 82 : du code fini ou remplacé, sans application manuelle ; leur texte est à `operator-method.md@163b41ee4` | — | — |
 | ordre 61 | Le tour de lecture marche au doigt, à 369 px sur tm-design, les surfaces du lot (à froid, depuis l'état précédent, et les voisins des correctifs) | 22 des 33 échappés dans des familles qu'aucune porte ne lit | défauts qu'il signale par lot |
 | ordre 62 | Pas de fusion avec un majeur produit connu visible à 369 px sans son mot | B-557 | — |
 | ordre 63 | Les familles récidivistes (tirer-pour-rafraîchir, défilement après retour, éclair) ont chacune une règle de famille | — | une récidive |
@@ -125,14 +128,11 @@ jusqu'à 82, sont dans l'archive). Une règle qui meurt sort de cette table le j
 | ordre 67 | Documents vrais et allégés : `IMPLEMENTATION.md` réécrit à chaque squash ; registre trié ; un office unique des invariants de brief ; lecture d'audit réduite (en-tête seul) | 342 Ko de mémoire relus à chaque relance | — |
 | ordre 69 | Le périmètre d'un lot se fige à son ouverture : un ruling arrivé en cours va au lot suivant, sauf s'il change une surface en construction ou débloque un STOP | L22b : 23 unités sur 38 nées en cours de lot | un défaut qu'il signale à cause d'un ruling différé → le ruling entre dans le lot |
 | ordre 70 | `run.sh --rules` sur quelques règles et le build de tm-design prennent la classe `rule` (plafond 10) | trois runs bloqués 9–14 min derrière le verrou | compresseur ou swap en hausse, ou charge > 12 → classe browser |
-| ordre 71 | `heavy.sh` attend la place avant de prendre le verrou | — | deux runs lourds simultanés |
 | ordre 73 | Un rouge chronique « d'infrastructure » (3 fois de suite) ouvre une ligne de registre avec son mécanisme, nommé avant la PR prête | — | — |
-| ordres 74, 83 | Le harnais ne crée plus de clés dans le groupe « unexportable-keys » de Chrome : la voie retenue est celle dont la sonde de 20 lancements sur les vraies pages du harnais mesure un delta nul, avec sa garde — `--use-mock-keychain` (#636) n'y suffit pas, Playwright le passait déjà ; `audit-health.sh` alerte si le groupe dépasse 200 lignes ou secd 50 % de CPU | 71 443 lignes purgées le 29/09 à 21:02 (secd 60–180 %, démarrages bloqués jusqu'à 3 min ; trousseau 360 → 21 Mo) | l'ALERT du cycle de 2 h |
 | ordres 76, 77 | Chaque cas de chaque surface touchée devient un état nommé du catalogue que l'opérateur ouvre sur tm-design ; lentille « exhaustivité des cas » au tour de lecture ; inventaire des cas manquants des surfaces livrées ; le gel exige le catalogue complet | « En cours » vide à froid sur tm-design | un cas découvert à l'accrochage absent du catalogue |
 | ordre 79 | Lentille « cohérence du design système » au tour de lecture ; chaque élément nouveau se rattache à un composant de `design/src/ui/` (table élément → composant du DESIGN), ou sa nouveauté est justifiée ; redessiner l'existant est un défaut | Trackers de L16 hors design système | un écart au design système qu'il signale |
 | ordre 80 | Revue de conformité au design système de toutes les surfaces livrées, puis un train qui remet chaque écart à l'existant ; composant d'onglets unique avec garde statique obligatoire | trois écarts signalés le 29/09 | — |
 | ordre 81 | Revue de tous les chemins de navigation contre § 16, marchés au doigt ; chaque écart filé comme défaut | Système → Réglages → Retour ramenait à Acquisition | — |
-| ordre 82 | La relance après redémarrage lance le steward avec l'identifiant explicite du modèle | — | le journal de relance du lundi |
 
 ## 3. Les décisions par surface
 
@@ -170,12 +170,9 @@ d'audit en cours.
 - 09-26 · Rd 5 Q1 puis 09-27 Rd 8 Q20 : onglets « Suivis · En cours · À traiter » (Découvrir est parti dans la barre).
 - 09-26 · Rd 7 Q4 : l'onglet par défaut est « Suivis », puis le dernier ouvert (mémoire locale).
 - 09-26 · Rd 5 Q3 : « Suivis » ne liste que des suivis ; une carte d'arrivée vit dans « En cours » ou « À traiter », même pour un épisode d'une série suivie.
-- 09-26 · Rd 7 Q5 : « À récupérer » quitte « En cours » ; « Récupérer maintenant » reste sur la fiche du suivi.
-- 09-26 · Rd 7 Q6 : « Rangé aujourd'hui » et « Cherché, rien trouvé » quittent « En cours », qui ne garde que « En vol ».
+- 09-26 · Rd 7 Q5 : « À récupérer » quitte « En cours » ; « Récupérer maintenant » reste sur la fiche du suivi ; Rd 7 Q6 : « Rangé aujourd'hui » et « Cherché, rien trouvé » quittent « En cours », qui ne garde que « En vol ».
 - 09-26 · Rd 5 Q6 : « Lancer » / « Arrêter » une passe meurent avec la barre d'Arrivées.
-- 09-26 · Rd 5 Q9 : la carte « match Plex à confirmer » propose « Confirmer » et « Corriger » sur le match lui-même.
-- 09-26 · Rd 5 Q10 : « Abandonner » une erreur du tunnel met le dossier en quarantaine, après confirmation.
-- 09-26 · Rd 5 Q11 : L22 dessine la ligne « ajouté par … » ; le geste de réaffecter naît avec L18.
+- 09-26 · Rd 5 Q9 : la carte « match Plex à confirmer » propose « Confirmer » et « Corriger » sur le match lui-même ; Rd 5 Q10 : « Abandonner » une erreur du tunnel met le dossier en quarantaine, après confirmation ; Rd 5 Q11 : L22 dessine la ligne « ajouté par … » ; le geste de réaffecter naît avec L18.
 - 09-26 · Rd 7 Q7 : la roue du tirer-pour-recharger tourne dès que le geste est armé, un tour minimal visible, disparaît à la fin.
 - 09-27 · ruling 16 et Rd 8 Q16 : « Mis de côté » replié en fin d'« À traiter » ; « Supprimer » y est une vraie suppression du dossier, confirmée.
 - 09-27 · Rd 8 Q17 : les suivis en pause forment une section repliée en fin de « Suivis ».
@@ -201,7 +198,8 @@ d'audit en cours.
 - 09-29 · Rd 2 Q2 (L24 OPEN 8) : « Corriger » est aussi sur la fiche Médiathèque d'un média rangé.
 - 09-29 · Rd 2 Q3 (L24 OPEN 9) : `/media?decision=<id>` ouvre la Médiathèque, l'identifiant ignoré (pas de rétro-compatibilité).
 - 09-29 · Rd Q9 (L24 OPEN 5) = B : sur la feuille de parcours, « enrichi » se déplie en sous-étapes (métadonnées, affiches, bande-annonce).
-- 09-27 · Rd 8 Q1 : le bloc « cross-seed » de la fiche, réservé à l'administrateur, attend L18.
+- 09-27 · Rd 8 Q1 : le bloc « cross-seed » de la fiche, réservé à l'administrateur, attend L18 ; 09-29 : chaque panneau et chaque fiche a sa variante FILM (« Il doit y avoir une personnalisation une différence entre film et série ») — aucun bloc saisons/épisodes pour un film (défaut : le panneau de « On l'appelait Robin des Bois », un film, disait « Série » et « Aucune donnée de saison »).
+- 09-29 · les filtres par catégorie (Tout, Films, Séries…) s'affichent aussi sur « Récents » (« Mediathèque sur l'onglet recents, on peut aussi mettre les filtres Tout/Films/séries. ») et, Q20 = A, sur « Incomplets » — même barre, même composant, même mémoire du choix que « Médias ».
 
 ### Découvrir
 
@@ -252,8 +250,11 @@ d'audit en cours.
 - 09-29 · Rd conformité Q2 = A : les mots d'état de Système (« en ligne », « joignable », « à l'heure », « bientôt plein »…) quittent les données simulées — les données portent un CODE d'état, l'application prend le mot dans son dictionnaire (un mot par état, vu par la garde du vocabulaire) ; le moteur enverra des codes (demande au back-end).
 - 09-29 · Rd conformité Q3 = A : un seul composant d'AVIS, adapté du panneau d'erreur, à trois tons — danger (l'erreur d'aujourd'hui, seule annoncée comme alerte), avertissement, information ; « TMDB déconnecté », « à identifier », lecture seule, redémarrage requis y passent.
 - 09-29 · Rd conformité Q4 = A : le sélecteur segmenté n'a qu'une déclaration — le commutateur de vue du design système gagne une taille « texte », la version d'Acquisition (écran d'ajout, menu latéral) y est rebranchée et disparaît.
-- 09-29 · Rd conformité Q5 = A : la ligne d'une saison dont la récupération entière est lancée dit « Demandée » (fiche de la série et fiche du suivi), suivie ou non, jusqu'à l'arrivée en médiathèque ; l'avancement se lit sur la carte de la saison dans « En cours ».
+- 09-29 · Rd conformité Q5 = A : la ligne d'une saison dont la récupération entière est lancée dit « Demandée » (fiche de la série et fiche du suivi), suivie ou non, jusqu'à l'arrivée en médiathèque ; l'avancement se lit sur la carte de la saison dans « En cours » ; Q17 = A : une marque à la fois sur la ligne de la saison — « En file — pipeline en cours » tant que la demande attend, puis « Demandée ».
 - 09-29 · Rd conformité Q6 = A : pendant la récupération d'une saison entière, la carte d'acquisition d'un épisode seul de cette saison (dans « En cours ») est ABSORBÉE — elle disparaît, la carte de la saison la couvre, son parcours renvoie à la saison ; le moteur refuse de lancer l'épisode à part (demande au back-end).
+- 09-29 · Rd récupération de saison (dessin #642) Q14 = A : un PARCOURS par acquisition (la saison S03, l'épisode S03E07), plus par titre ; « Voir le parcours » ouvre la récupération en cours, sinon la plus récente (demande SR4) ; Q15 = A : le renvoi d'un épisode absorbé mène à l'onglet d'Acquisition qui porte la carte de la saison, carte visible et mise en évidence.
+- 09-29 · Q16 = A : le parcours de la saison liste chaque épisode absorbé avec son état (« S03E07 — téléchargement déjà en cours »), chacun menant à son parcours (demande SR2 : le sort d'un épisode déjà attrapé) ; Q18 = A : le moteur sert le lien « absorbée par » (absorbedBy, saison, épisode) sur la carte ; l'interface le lit, elle ne compare aucun libellé (demande SR1).
+- 09-29 · Q19 = SON MOT (« Il faut une distinction auto/manuelle même légère juste pour pas que je me demande qui à demandé la saison entière alors que c'était un process auto ») : une récupération lancée par le moteur s'affiche comme une manuelle, AVEC une distinction légère et visible sur la ligne ET sur la carte, prise dans un composant existant.
 
 ### Comptes, rôles, droits (L18)
 
@@ -265,8 +266,7 @@ d'audit en cours.
 - 09-27 · Rd 8 Q14 : la demande d'un invité est le même geste que pour tous : « Suivre » une série (jusqu'au retrait), « Ajouter » un film (jusqu'à sa confirmation dans Plex) ; les droits font la différence.
 - 09-27 · Rd 9 Q12 (ruling 17) : les droits se donnent à des rôles, jamais à un utilisateur ; ruling 20 : un compte a un seul rôle.
 - 09-27 · Rd 9 Q14 : pas d'escalade — un compte n'attribue qu'un rôle dont les droits sont inclus dans les siens ; les droits et les rôles livrés sont définis en amont, modifiables par l'interface.
-- 09-27 · Rd 9 Q15 (ruling 22) : deux rôles système indélébiles — le rôle par défaut (tout nouveau compte, modifiable) et le rôle Admin (sans droits : un contournement des ACL, ni restreint ni modifiable).
-- 09-27 · ruling 22, précision : un rôle qui ne donne aucune page envoie sur une page dédiée.
+- 09-27 · Rd 9 Q15 (ruling 22) : deux rôles système indélébiles — le rôle par défaut (tout nouveau compte, modifiable) et le rôle Admin (sans droits : un contournement des ACL, ni restreint ni modifiable) ; ruling 22, précision : un rôle qui ne donne aucune page envoie sur une page dédiée.
 
 ### Environnements et back-end
 
@@ -278,6 +278,7 @@ d'audit en cours.
 - 09-27 · Rd 8 Q19 : `--color-waiting-text` déclaré dans `theme.css` comme les quatre autres tons.
 - 09-29 · un seul composant d'onglets, adaptable, pour toutes les pages à onglets, avec une garde statique ; sa référence est l'existant validé (Acquisition en tête), Trackers s'y conforme (Rd 3 Q7).
 - 09-29 · Rd 3 Q4 : le chevron des saisons est la seule flèche de pliage de l'application.
+- 09-29 · défauts signalés (« Sur iphone on voit pas l'icone "hamburger" qui ouvre le menu sidebar ni en clair ni en dark mode. De plus sur tout les téléphones, le menu dans la sidebar "Apparence" Système/clair/sombre ne change plus d'état de manière réactive, le theme change mais pas le selecteur. ») : le hamburger est visible sur iPhone (WebKit) en clair et en sombre ; le sélecteur « Apparence » montre l'état choisi dès le toucher.
 - 09-29 · Rd conformité Q9 = A : un ton « à venir » est ajouté au point coloré et à la puce du design système, avec la couleur existante (`--color-upcoming`) ; les endroits qui le dessinaient à part y sont rebranchés.
 
 ### Documents et carte d'intention

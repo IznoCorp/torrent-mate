@@ -19,19 +19,36 @@ pull request's title and §§, and any amendment — which names the line of thi
 - **A lot's scope freezes at its opening** — a ruling that arrives during the lot goes to the next lot, unless it
   changes a surface under construction or unblocks a STOP (order 69; `docs/reference/operator-method.md`, rules
   table, row « ordre 69 »).
+- **A "N-bis" phase corrects phase N alone** (order 38); a phase inserted mid-plan takes its own number and shifts
+  every phase after it.
+- **A plan's phase text stays ≤ 60 lines** (order 53): scope, contracts, tests, done-when, pointers.
+- **One phase = one surface** (the plan recipe, order 99): a plan is cut by surface, not by an arbitrary point
+  budget; **one plan page per surface**, the order-97 conformity table (the operator's principles, checked against
+  the DESIGN) at its head, BEFORE the phases. Remove the plan it replaces in the same move — never two versions of
+  a plan for the same surface.
 
 ## The gate (auditor's order 58)
 
-- **A phase's gate**: the CI's static list (the `no-french` job of `.github/workflows/ci.yml`) and the cheap guards →
+- **LIGHT** (the plan recipe, order 99): guards attributed to the files the phase touches →
   the ORACLE ALONE (`run.sh --oracle`) → `run.sh --rules` on the phase's re-aimed rules plus the rule group of every
-  surface it touches → `--a11y` on every gate that draws; logs POSTDATE the commit they measure. **No `--contracts`
+  surface it touches. **No mutation replay and no `--a11y` per phase** — both moved to the once-per-lot pass below;
+  logs POSTDATE the commit they measure. **A guard falling on a file the phase did not touch no longer blocks it**
+  (order 95, 12 of L16's 14 guard failures were exactly this): `run.sh` reads the guard's own output against
+  `git diff --name-only origin/main...HEAD`, and a failure naming only untouched files becomes a WARNING with a
+  row to file in `docs/reference/frontend-architecture.md` § 5 (The instruments' own debts), not a gate failure.
+  **No `--contracts`
   at a phase gate** — it runs at the midpoint, the brief's checkpoints, the close and in CI; a contract rule falling
   there on the lot's own defect is a ledger line, two bring it back at every gate. `entry.py` and `pwa.py` read the
-  DEPLOYED host: full suites only.
+  DEPLOYED host: OUT of every suite, phase gate and full, while B-571 is open (order 73 — the mechanism is not yet
+  named); back once its row names one. **Candidate cadence (order 95)**: contracts every 5 phases instead of at the
+  midpoint / checkpoints / close / CI, IF L17 reads 0 catches missed under the cadence above — L17 decides, not this
+  line; until its reading lands, the midpoint / checkpoints / close / CI cadence above stands.
 - **The full suite twice** (measure 20): at the midpoint, its real falls repaired before the next phase opens; before
   the pull request, with `--a11y`, `scripts/harness-hold-counts.py --compare
   frontend/maquette/hold-counts-baseline.json` (`failed` read FIRST), `check-bug-register.py`, `check-intent-map.py`,
-  `check-docs-cited-paths.py`, read by OUTPUT. **No local `make check`** (measure 19): `make lint` + the full suite +
+  `check-docs-cited-paths.py`, read by OUTPUT. **The reading round is once per lot too** (order 99, measure 2): ten
+  claimed mutations drawn at random, the finger walk at every width, the principles — `docs/reference/reader-office.md`'s
+  lenses, never replayed per phase. **No local `make check`** (measure 19): `make lint` + the full suite +
   `--a11y` + `--compare` + the pre-push pytest. `tests/scripts/test_check_maquette_comments.py` before any push;
   `check-maquette-comments.py --record` inside the commit when a maquette file moved.
 - **A fall set aside as « load »** (order 48): the rule under `--rules`, 5 draws, stop at 0/5; 10 against 10 on
@@ -40,10 +57,16 @@ pull request's title and §§, and any amendment — which names the line of thi
   row in the lot's range with its MECHANISM to name, named before the pull request is READY — otherwise the rule
   leaves the gates and the row stays open (order 73). Story: the deployed-host rules, classed « timeout » thirteen
   times with no mechanism named, until #631 named it (auditor's order 73, 2026-09-29).
-- **Harness budget** (order 52): harness lines added ≤ 0.6 × product lines added (`git diff --numstat
-  origin/main...HEAD`), read at the midpoint and the close; a new check on a surface with a rule is a HOLD in that
-  rule's file; over budget, the close carries a consolidation phase, every merged hold still falling under its
-  mutation.
+- **Harness budget** (order 52): harness lines added ≤ 0.6 × product lines added, read at the midpoint and the
+  close; a new check on a surface with a rule is a HOLD in that rule's file; over budget, the close carries a
+  consolidation phase, every merged hold still falling under its mutation. **Harness** = `frontend/maquette/harness/**`;
+  **product** = `frontend/maquette/design/src/**` minus its own test files (`*.test.ts`, `*.test.tsx`, `*.spec.ts`);
+  a recorded baseline (`oracle-reference.json`, a corpus or record file) counts on NEITHER side — the same reading
+  the auditor's `audit-health.sh` already uses. The one command, run twice:
+  ```
+  git diff --numstat origin/main...HEAD -- frontend/maquette/harness
+  git diff --numstat origin/main...HEAD -- frontend/maquette/design/src ':!*.test.ts' ':!*.test.tsx' ':!*.spec.ts'
+  ```
 
 ## The oracle accepts by name; declared lists are built by script
 
@@ -80,6 +103,9 @@ default (outside heavy.sh) stays 2.
 - `docs/features/<lot>/RESUME-<lot>.md`: a STATE BLOCK ≤ 40 lines rewritten at every boundary, an APPEND-ONLY ledger
   below. An unshipped defect is a ledger line, not a register row; a row a phase closes is closed in it, with the
   rule's red reading and its mutation.
+- **Every bug the operator reports** lands with a test SEEN RED, and its `BUGS.md` row carries « échappé de »,
+  « pourquoi », « famille réparée par » (order 57). **That row exists on `main` within the hour** and names its
+  owner from the first commit that opens it (order 91) — `audit-health.sh` alerts otherwise.
 - `IMPLEMENTATION.md` is the steward's; `docs/reference/*`, `CLAUDE.md` and this office are not a lot's to edit. The
   lot's DESIGN and plan take ONE dated line where a phase proves them wrong. A file a phase deletes is re-cited
   `path@<the last MAIN commit holding it>`, never a branch head.
@@ -118,6 +144,8 @@ default (outside heavy.sh) stays 2.
 - **Everything must be responsive, not only his phone** (2026-09-29 21:2x, operator, verbatim: « Non
   tout doit être responsive, ça doit pas fonctionné que sur mon téléphone, mais sur tous ! »); the
   rule that measures it is order 85, which replaces order 60 — its lens is `docs/reference/reader-office.md`'s.
+  **Its cadence**: at a phase gate, the states of the surfaces that phase TOUCHED; the full pass (every
+  named state, all seven widths) at mid-lot, at close and in CI.
 
 Full verbatims: `docs/reference/operator-method.md` § 1, the principles table.
 
