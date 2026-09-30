@@ -26,6 +26,13 @@ numbers. Every figure carries the command that produced it, run from the worktre
 (order 69: a ruling arriving during a lot goes to the next one); the orchestrator names it. Section 5's OPEN
 questions go to ONE operator round before any code.
 
+**Amended 2026-09-30, on `main` at `9234341fc`** (the auditor's orders 97, 98, 99): the round is done — Q14–Q19
+(`/Users/izno/dev/review-archive/season-recovery/rulings-2026-09-29.md`) close OPEN 1–6 as DECIDED 1–6 (§ 5), the
+named states and the rules follow them, and Q19's automatic / manual mark is drawn (§ 1.9, rule g); OPEN 7's subject
+is the conformity train's (§ 5); the drawing leaves ONE question, OPEN 8 (where the card carries the mark). § 0.3 is
+the conformity table of order 97. The plan is re-cut BY SURFACE — 13 phases become **5** (`plan/INDEX.md`, its
+correspondence table last). Every section below whose reading a ruling fixed carries a line « Decided 2026-09-30 ».
+
 ---
 
 ## 0. What the lot owes, said once
@@ -40,6 +47,7 @@ questions go to ONE operator round before any code.
 | 6 | the end: the season reaches the library, the row leaves « Demandée » | Q5 | **S6** | § 1.6 |
 | 7 | every case of every surface is a named state | orders 76, 77 | § 3 | § 3 |
 | 8 | every element drawn by the one existing component that draws it | order 79; implementer office, principles of 2026-09-29 | § 1.8 | § 1.8 |
+| 9 | an automatic recovery is told apart from a manual one, lightly and visibly, on the row AND the card | Q19 (2026-09-29) | **S1**, **S2** | § 1.9 |
 
 ### 0.1 Measurements that correct the premises
 
@@ -105,6 +113,20 @@ Each read on `b63a45438`. Paths under `frontend/maquette/design/src/` are writte
 | L22 — the acquisition card (`ui/card-markup.ts`, `features/acquisition/card-markup.ts`) | the season's card, unchanged in anatomy |
 | L15 — the bottom panel and its generic blocks (`note`, `faits`, `actions`) | the journey's pointer |
 | The named landing — « Voir le tracker » lands on `trackers:<name>` (`features/acquisition/card-markup.ts:208–215`, `features/trackers/verbs.ts:38–45`) | the pointer's landing, ADAPTED to Acquisition |
+| The conformity train (`feat/maquette-conformity`): `queuedMark` → `chip({ tone: "info" })` (its phase 9), the one fold chevron and the season fold as `Disclosure` (phases 3, 9), the responsive rule R-conformity-a (phase 1) | the row's mark is the chip before this lot opens; every gate of this lot runs R-conformity-a on its states |
+
+### 0.3 Conformity to the operator's principles (order 97) — read BEFORE the plan
+
+His principles are `docs/reference/operator-method.md` § 1 (the dates 09-29).
+
+| Principle, his words | Where this design holds it | Phase |
+| --- | --- | --- |
+| Uniform behaviours — « Il faut uniformiser les comportements. Sauf exception volontaire de ma part. » | a followed series and a one-off draw the same card, the same mark, the same absorption (§ 1.1–1.3); an automatic recovery draws like a manual one, save the one word Q19 asks for (§ 1.9); the pointer lands the way « Voir le tracker » does (§ 1.4). No exception declared | 1 · 2 · 3 |
+| The design system reused — « on crée pas de nouveau composant on adapte » | § 1.8, element by element: nothing new; two adaptations written (the landing door reads a named acquisition; the row's mark is the chip, the train's) | every phase; rule f at 4 |
+| Every case — « seule une maquette montrant tout les cas possibles est utile. » | § 3: 30 named states, none conditional any more, the automatic ones included | every phase |
+| Every width 320–1280 — « tout doit être responsive » | one mark at a time on the row (DECIDED 4: two chips at 320 px refused); the word « auto » is a word, not a second chip (OPEN 8 A); R-conformity-a on every touched state at each gate, the full sweep at the midpoint and the close | every phase; 5 |
+| Film / series variant — « une différence entre film et série » | a season recovery exists for a SERIES only: every state is a series'; a film's release list draws no refusal and keeps its acts — a hold of rule d | 4 |
+| Navigation § 16 — Retour replays the arrival path | the pointer is a link inside a page, so it STACKS, even onto the entry page (Rd conformité Q12); Retour from the landed tab returns to the journey sheet's page; walked by finger | 3 |
 
 ---
 
@@ -132,6 +154,9 @@ key is renamed by `scripts/rename-identifiers.py --values` to `seasonRequested`,
 
 **The mark's drawing.** One component — the chip (§ 1.8, OPEN 7).
 
+**Decided 2026-09-30** (DECIDED 4, DECIDED 6): ONE mark at a time — « En file — pipeline en cours » while the request
+waits, then « Demandée »; an automatic recovery's mark reads « Demandée · auto » in the same chip (§ 1.9).
+
 ### 1.2 S2 — The season's acquisition card in « En cours »
 
 **Its component: the acquisition card, unchanged** — `mediumCardMarkup` (`features/acquisition/card-markup.ts:198–258`)
@@ -144,7 +169,9 @@ followed series (`surfaces.card.requester.follow`), « demandé par {{name}}, po
 (`…request`). Its strip — the eight rungs of a season pack, the same ladder an episode walks.
 
 **Its taps** — the card's own: the poster opens the medium's sheet; the body opens the medium's panel. **Its
-journey** — its own sheet, addressed per acquisition, not per title (OPEN 1).
+journey** — its own sheet, addressed per acquisition, not per title (OPEN 1). **Decided 2026-09-30** (DECIDED 1, 3,
+6): per acquisition; the season's journey lists each absorbed episode with its state, each a path to its own
+journey; an automatic recovery's card carries « auto » (OPEN 8: in its subtitle, « S03 · auto »).
 
 **ONE card per season** (R-season-recovery-e): a second ask queues nothing more (the one-off's rule, `:207–211`,
 generalised); the season pack's arrival JOINS the card (`inFlightCards`' own merge, once the season is a field — § 2).
@@ -173,6 +200,9 @@ CLOSED (§ 1.6) — they belong to no live recovery.
 
 **The absorbed episode that was already downloading** (a `grabbed` wanted, § 0.1 item 4) — its torrent is in the
 client; the Trackers page's « Torrents » tab still lists it, honestly. What the SEASON's journey says of it is OPEN 3.
+**Decided 2026-09-30** (DECIDED 3): it lists « S03E07 — téléchargement déjà en cours » (`panels.journey.absorbedRunning`,
+proposed), a path to the episode's own journey. **Decided** (DECIDED 5): the absorption reads `absorbedBy`, never a
+label.
 
 ### 1.4 S4 — The absorbed episode's journey points to the season's card
 
@@ -189,7 +219,7 @@ if it is stopped — with that card scrolled into view and focused. The mechanis
 (`trackers:<name>`), ADAPTED: `data-go="acq"` with `data-dial="<tab>:<acquisition>"`, read by Acquisition's landing
 door (`features/acquisition/verbs.ts:135–137`, `landingTab`, `features/acquisition/tab-memory.ts:50`) the way the
 Trackers door reads a tracker. A landing is an arrival (§ 16: it stacks); the tab choice inside it is not a second
-entry.
+entry. **Decided 2026-09-30** (DECIDED 2): this landing, the card visible and highlighted.
 
 **When the target has ended** — the season reached the library: the note reads « La saison 3 est arrivée en
 médiathèque. » (`panels.journey.absorbedEnded`) and the action becomes the card's own « Voir la fiche » (existing,
@@ -230,7 +260,7 @@ surfaces, the pointer. Today the answer lives in `features/acquisition/arrival-s
 `sameMedium`), which `features/media` may not import (invariant 7). It is **MOVED**, unchanged in behaviour, into
 its own `lib/` module (not `lib/queue.ts`, at 390 lines), and extended there with the absorption: the cards on their
 way, less every episode card whose pointer names a live season card (OPEN 5: the pointer as a field, or the lines
-compared). `askedSeasons` then reads that answer — every season card on its way, whatever its requester — instead
+compared — **decided 2026-09-30**, DECIDED 5: the field). `askedSeasons` then reads that answer — every season card on its way, whatever its requester — instead
 of `queue.inFlight` filtered on `request`.
 
 ### 1.8 The design system, element by element (order 79)
@@ -248,9 +278,28 @@ of `queue.inFlight` filtered on `request`.
 | The refusal on a release | `chip({ tone: "info" })` + `actionButton({ kind: "cardFoot" })` (the row's own foot) | no |
 | The toast at the ask | the existing toast and its `seasonAsked*` words | no |
 | The named landing on a card | Acquisition's landing door, ADAPTED to read `<tab>:<acquisition>` — the Trackers door's shape | adapted |
+| « auto » on the row (§ 1.9) | the row's chip, its word | no |
+| « auto » on the card (§ 1.9) | the card's subtitle (OPEN 8 A) — under B, `chip`, the slot made a list | no (A) / adapted (B) |
 
 **Nothing new is drawn.** Two adaptations are written here, as the office asks: the landing door reads a named
 acquisition; the mark is the chip (OPEN 7).
+
+### 1.9 The automatic / manual mark (DECIDED 6, the operator's Q19)
+
+**What it says.** A recovery the engine launched (`detect.py:655–740`, rule R4) reads « auto », lightly and visibly,
+on the season's row AND on its card; a recovery a person asked for reads nothing more than today (the origin line
+names the person). One word, the same on both: « auto » (`screens.media.seasonRequestedAutomatic` « Demandée · auto »
+on the row; `surfaces.card.automatic` « auto » on the card — keys proposed).
+
+**Where.** On the row: inside the ONE chip, never a second chip (DECIDED 4's own reason). On the card: in the subtitle,
+« S03 · auto » — OPEN 8 (§ 5), written for its recommended A. The origin line stays as it is (« demandé par … »),
+the engine's follow as the requester.
+
+**What it reads.** A field the engine serves on the card: `trigger` — `manual` / `automatic` / `null` (§ 2; demand
+SR5); `null` draws nothing (never guessed from the requester).
+
+**Named states** — `season-card-automatic`, `season-row-requested-automatic-sheet`,
+`season-row-requested-automatic-panel` (§ 3). **The rule** — R-season-recovery-g (§ 4).
 
 ---
 
@@ -258,7 +307,8 @@ acquisition; the mark is the chip (OPEN 7).
 
 **The contract (D7), first** — `scripts/compare-contracts.py --check` refuses a field apart from its schema.
 `QueueCard` gains `season: int | null`, `episode: int | null` (read off the engine's wanted row, never the line) and
-`absorbedBy: string | null` (the acquisition that covers this one — OPEN 5). The season-grab answer gains
+`absorbedBy: string | null` (the acquisition that covers this one — OPEN 5, decided: the field) and — **added
+2026-09-30** (DECIDED 6) — `trigger: "manual" | "automatic" | null` (who launched the acquisition; demand SR5). The season-grab answer gains
 `reused` (the engine's route answers it, `acquisition_seasons.py:160–171`; the maquette's inline answer schema,
 `frontend/maquette/contract/openapi.json`, carries `season`, `absorbedCount`, `queued`, `runUid` and no `reused`). The journey read takes the acquisition, not the title (OPEN 1).
 
@@ -287,16 +337,17 @@ Every id is PROPOSED, declared in `frontend/maquette/design/src/harness/states/a
 follow panel) · `season-row-requested-one-off` (R158's subject, not followed) · `season-row-queued` (« En file »,
 OPEN 4) · `season-row-queue-loading` (the act `aria-busy`, no mark asserted) · `season-row-queue-unread` (the queue's
 read failed: no mark asserted — never a constant — the act offered; a re-ask answers `reused` and says « déjà
-demandée ») · `season-row-ask-failed` · `season-row-ask-held` (offline).
+demandée ») · `season-row-ask-failed` · `season-row-ask-held` (offline) · `season-row-requested-automatic-sheet` ·
+`season-row-requested-automatic-panel` (« Demandée · auto », DECIDED 6 — added 2026-09-30).
 
 **S2 — the season's card**: `season-card-requested` · `season-card-searched-nothing` (« cherché », no release yet) ·
 `season-card-downloading` · `season-card-arrived` (the pack in the staging area, joined to the card) ·
 `season-card-blocked` (in « À traiter »; the row still « Demandée ») · `season-card-one-off` · `season-card-journey`
-· `season-card-automatic` (engine-minted — conditional on OPEN 6 = A).
+· `season-card-automatic` (engine-minted, « S03 · auto » — DECIDED 6, no longer conditional).
 
 **S3 — the absorption**: `season-recovery-before-ask` (posed: « S03E07 » in « En cours », the act offered) ·
-`season-recovery-absorbs-episode` (after the finger's ask) · `season-recovery-absorbed-downloading` (conditional on
-OPEN 3 = A: the season's journey names the episode whose torrent still runs).
+`season-recovery-absorbs-episode` (after the finger's ask) · `season-recovery-absorbed-downloading` (DECIDED 3: the
+season's journey names the episode whose torrent still runs — no longer conditional).
 
 **S4 — the pointer**: `absorbed-journey-pointer` · `absorbed-journey-pointer-blocked` (lands on « À traiter ») ·
 `absorbed-journey-pointer-ended` (the season in the library).
@@ -309,7 +360,9 @@ OPEN 3 = A: the season's journey names the episode whose torrent still runs).
 
 **Counted** (`` sed -n '/^## 3/,/^## 4/p' docs/features/maquette-season-recovery/DESIGN.md | grep -o -E '`(season|absorbed|releases)-[a-z0-9-]+`' | sort -u | wc -l ``):
 **28** ids, all new; **2** conditional (`season-card-automatic`, `season-recovery-absorbed-downloading`), and one
-whose drawing depends on OPEN 4 (`season-row-queued`).
+whose drawing depends on OPEN 4 (`season-row-queued`). **Re-counted 2026-09-30** by the same command → **30**: the
+two automatic rows added (DECIDED 6); none conditional any more (DECIDED 3, 6), `season-row-queued` drawn one mark at
+a time (DECIDED 4).
 
 ---
 
@@ -324,6 +377,7 @@ Labels, never numbers: they bind to the range the steward reserves in the lot's 
 | **R-season-recovery-c** — the pointer is followed | the absorbed journey draws the note and « Voir la carte de la saison »; a finger on it lands on the tab holding the season card, that card in the viewport and focused; ended → the sheet | land on a fixed « En cours » → falls at `absorbed-journey-pointer-blocked`; drop the note → falls |
 | **R-season-recovery-d** — the refusal is visible | during the recovery every `S03E07` release has no pick act, carries the chip and the pointer; the pack keeps its act; before the ask and after the library, `S03E07` takes again | keep the act → falls; refuse the pack → falls |
 | **R-season-recovery-e** — one card per season | two asks, then the pack's arrival: « En cours » holds exactly one « Silo · S03 » | push a card per ask → falls |
+| **R-season-recovery-g** — the automatic mark (DECIDED 6) | on `season-card-automatic` and the two automatic rows: « auto » in the row's ONE chip and in the card's subtitle; on the manual subjects (`season-card-requested`, `season-row-requested-sheet`) no « auto »; on a card whose `trigger` is `null`, nothing | drop the word from the card → falls; draw it on a manual recovery → falls; draw it as a second chip on the row → falls |
 | **R-season-recovery-f** — the design system is reused | the row's mark and the release's refusal are the SAME `ui` component (class set read); the pointer is a panel `note` + `actions`; no `features/*` variant is named for the recovery | draw the refusal with a feature's own variant → falls |
 
 Navigation (R-c) is proved by a finger walk, never by a posed state alone (the office).
@@ -336,52 +390,68 @@ Navigation (R-c) is proved by a finger walk, never by a posed state alone (the o
 « Prendre maintenant » (§ 0.1 item 7); a push notification; a per-episode progress inside the season's card (the card
 draws its ladder, one medium).
 
-Each question below is one the rulings leave. Two readings, the cost of each, one recommendation — for ONE round.
+### DECIDED — the operator's round of 2026-09-29 (Q14–Q19), recorded 2026-09-30
 
-**OPEN 1 — The journey's subject.** Today a journey is addressed by title (§ 0.1 item 6): Silo's episode and Silo's
-season share one address, so « the episode's journey points to the season's card » has no episode journey to hold it.
-**A** — a journey per ACQUISITION (`journey:<title>|S03`, `journey:<title>|S03E07`); the follow panel's « Voir le
-parcours » opens the live recovery's while one runs, the medium's latest otherwise. Cost: the address, its reopen
-test, the read's parameter (≈ 6 points) and a backend demand (the journey keyed by wanted row). **B** — keep one
-journey per medium; the pointer lives only on the release picker and the season card's journey lists what it
-absorbed. Cost: none now; the ruling's « son parcours pointe » is then met by the season's journey, not the
-episode's. **Recommendation: A** — § 13's pointer needs a subject that holds it, and a series has several
-acquisitions at once by construction.
+Each item quotes the ruling verbatim from `/Users/izno/dev/review-archive/season-recovery/rulings-2026-09-29.md`,
+gives its meaning as that file records it, and says what changes against the reading costed above (the readings A /
+B are kept in `docs/features/maquette-season-recovery/DESIGN.md@9234341fc` § 5). Nothing here is re-argued.
 
-**OPEN 2 — Where the pointer lands.** **A** — on the Acquisition tab holding the season's card, the card in view and
-focused (the adapted named landing, § 1.4). Cost ≈ 5 points, one rule hold. **B** — straight onto the season card's
-journey sheet (panel to panel). Cost ≈ 2 points; the operator never sees the CARD the ruling names. **Recommendation:
-A** — the ruling says « pointe vers la carte de la saison ».
+**DECIDED 1 (Q14, was OPEN 1) — the journey's subject.** Verbatim: « A ». Meaning: one journey per ACQUISITION
+(`journey:<title>|S03`, `journey:<title>|S03E07`); on the follow sheet, « Voir le parcours » opens the running
+recovery's journey if there is one, else the most recent. Backend demand SR4: the journey stored per acquisition
+(wanted row), no longer per title. B (one journey per series) refused. **Cost**: as costed, ≈ 6 points (phase 3).
 
-**OPEN 3 — An absorbed episode whose torrent already runs.** The engine absorbs only what is not yet grabbed (§ 0.1
-item 4); a grabbed episode's download runs on. **A** — the season's journey lists each absorbed episode with its
-state (« S03E07 — téléchargement déjà en cours »), each a path to its own journey (conditional state
-`season-recovery-absorbed-downloading`). Cost ≈ 4 points and the demand of § 6. **B** — the count only, in the
-toast, as today. Cost none; a download runs « en parallèle » with nothing on screen saying so. **Recommendation: A**
-— the operator's sentence is about exactly that.
+**DECIDED 2 (Q15, was OPEN 2) — where the pointer lands.** Verbatim: « A ». Meaning: an absorbed episode's pointer
+leads to the Acquisition tab that carries the season's card, the card visible and highlighted — the named landing
+adapted (§ 1.4). B (straight to the journey sheet) refused. **Cost**: ≈ 5 points, one hold (phase 3).
 
-**OPEN 4 — « En file » and « Demandée » on one row.** An ask answered `queued` (pipeline busy) creates the season
-row all the same (the route's 201). **A** — one mark at a time: « En file — pipeline en cours » while the ask waits,
-then « Demandée ». Cost ≈ 1 point. **B** — both marks side by side. Cost none; two chips on a phone row at 320 px
-compete with the fraction (§ 12). **Recommendation: A.**
+**DECIDED 3 (Q16, was OPEN 3) — an absorbed episode already downloading.** Verbatim: « A ». Meaning: the season's
+journey lists each absorbed episode with its state (« S03E07 — téléchargement déjà en cours »), each leading to its
+own journey; the state `season-recovery-absorbed-downloading` is no longer conditional. Backend demand SR2. B (the
+count alone, in the notification) refused. **Cost**: ≈ 4 points (phase 3) and SR2.
 
-**OPEN 5 — What the absorption reads.** **A** — the engine's pointer, served on the card (`absorbedBy`, `season`,
-`episode`, § 2) — the engine already holds `absorbed_by` for open wanteds. Cost: the contract field (≈ 3 points) and
-the demand extension of § 6. **B** — derived in the interface by comparing lines (« S03 » covers « S03E07 », same
-provider identity). Cost none now; § 13's « suivre le pointeur » becomes the interface guessing a pointer the engine
-holds, and it breaks on the first line that is not `SxxEyy`. **Recommendation: A.**
+**DECIDED 4 (Q17, was OPEN 4) — « En file » and « Demandée » on one row.** Verbatim: « A ». Meaning: one mark at a
+time — « En file — pipeline en cours » while the request waits, then « Demandée ». B (both side by side) refused.
+**Cost**: ≈ 1 point (phase 2).
 
-**OPEN 6 — An automatic season recovery.** The engine mints a season recovery by itself (R4: the season fully aired
-≥ 7 days ago, owned ≤ half — `detect.py:655–740`). **A** — drawn exactly as a manual one: « Demandée », the season's
-card, the absorption; its origin line says who (the follow). Cost: one state (`season-card-automatic`). **B** —
-only the manual ask draws the mark; an automatic one shows its card only. Cost none; two recoveries doing the same
-thing look different. **Recommendation: A** — the operator's sentence is about the recovery, not who launched it.
+**DECIDED 5 (Q18, was OPEN 5) — what the absorption reads.** Verbatim: « A ». Meaning: the engine serves the link on
+the card (`absorbedBy`, `season`, `episode` — § 2); the interface reads it as is and compares no label; the field
+enters the contract and demand SR1 is extended. B (deducing from the labels « S03 » ⊃ « S03E07 ») refused. **Cost**:
+≈ 3 points (phase 1).
 
-**OPEN 7 — The mark's component.** `queuedMark` redraws the info chip without its dot (§ 0.1 item 9) and cannot be
-reached from the release picker. **A** — replace it by `chip({ tone: "info" })` everywhere: one component, the rows
-gain the chip's dot. Cost ≈ 3 points, a visible change on « Demandée » and « En file ». **B** — move `queuedMark` to
-`ui/` as it is and use it for the refusal too. Cost ≈ 3 points; two drawings of one tone stay in `ui/`.
-**Recommendation: A** — « on crée pas de nouveau composant on adapte ».
+**DECIDED 6 (Q19, was OPEN 6) — the automatic season recovery.** The operator's own word, verbatim: « Il faut une
+distinction auto/manuelle même légère juste pour pas que je me demande qui à demandé la saison entière alors que
+c'était un process auto ». Meaning: a recovery the engine launches (`personalscraper/acquire/detect.py:655–740`)
+shows like a manual one — « Demandée », the season's card, the absorption — BUT with a light, VISIBLE auto / manual
+distinction on the season's ROW and on the CARD: a discreet word or marker taken from an existing component and
+vocabulary (order 79), not only the origin line at the foot of the card. A as it stood (the distinction left to the
+origin line) and B (no mark for the automatic one) refused. **Drawn** at § 1.9: the word « auto » inside the ONE
+chip of the row, and on the card per OPEN 8 below; named states `season-card-automatic`,
+`season-row-requested-automatic-sheet`, `season-row-requested-automatic-panel`; rule R-season-recovery-g; the
+engine must say who launched it — demand SR5. **Cost**: ≈ 4 points (the field 1, the word on the row 1, on the card
+1, the rule's holds — part of phase 2's and phase 1's).
+
+**OPEN 7 — the mark's component: its subject is taken by the conformity train, not by an operator ruling.** The
+train's phase 9 (`docs/features/maquette-conformity/plan/phase-09-media-sheet.md` on `feat/maquette-conformity`,
+item 4, the conformity reading's D.1 #5) turns `queuedMark` into `chip({ tone: "info" })` — reading A, carried out
+there. This lot reads the chip; its old phase 7 is gone (see the plan's correspondence). Should the orchestrator read
+the train's item otherwise, OPEN 7 comes back as it was.
+
+### OPEN — left by the drawing (one round)
+
+**OPEN 8 (added 2026-09-30) — where the CARD carries the « auto » word.** Q19 asks for a light, visible mark on the
+card, not the origin line alone. The card's chip slot is taken: a card on its ladder draws its current rung's chip
+there (`features/acquisition/card-markup.ts:244`), and `ui/card-markup.ts:64` holds ONE chip.
+
+- **A — in the subtitle.** « S03 · auto » (the subtitle already reads « S03 », `oneOff`, § 1.2); a word, no new part,
+  the same word as the row's chip. **Cost** ≈ 1 point; nothing adapted in `ui/`. It is plain text: the mark is as
+  discreet as the subtitle.
+- **B — a second chip.** A `neutral` chip « auto » beside the rung's chip; `ui/card-markup.ts`'s `chip` becomes a
+  list — an adaptation of the card, written in § 1.8. **Cost** ≈ 3 points; two chips compete with the figure on a
+  320 px card, the reason Q17's B was refused on the row.
+
+**Recommendation: A** — « même légère » is his word, and the word is the row's own. The plan is written for A; under
+B phase 1 gains the card's adaptation (≈ 2 points more).
 
 ---
 
@@ -401,10 +471,11 @@ orchestrator, who owns that file; proposed rows in its shape:
 
 | Demand | What the engine must do | Why |
 | --- | --- | --- |
-| **SR1 — the pointer on the card** | serve, on each queue card, `season`, `episode` and `absorbedBy` (the covering acquisition), from the wanted row's own columns | Q6: the card is absorbed and its journey points to the season's; the engine already holds `absorbed_by` |
+| **SR1 — the pointer on the card** | serve, on each queue card, `season`, `episode` and `absorbedBy` (the covering acquisition), from the wanted row's own columns — **extended 2026-09-30** (DECIDED 5): the interface reads the served link as is and compares no label | Q6: the card is absorbed and its journey points to the season's; the engine already holds `absorbed_by` |
 | **SR2 — a grabbed episode at the ask** | decide and serve what a season ask does to an episode already `grabbed` (absorbed with its torrent left running, or cancelled), and mark it absorbed either way | 17:36 « aucun téléchargement … en parallèle »; R5 covers only open wanteds |
 | **SR3 — the per-episode path refuses** | while a season wanted is open, the per-episode enqueue and grab paths skip that season's episodes — including an episode with no wanted row at the ask | § 14's own bullet, made precise: `detect.py`'s episode path reads no season row |
 | **SR4 — a journey per acquisition** (OPEN 1 = A) | the journey read keyed by the acquisition (wanted row), not the title, with the release it followed | § 0.1 item 6 |
+| **SR5 — who launched it** (DECIDED 6, added 2026-09-30) | record on the wanted row whether a person's ask or the engine's rule (R4, `detect.py:655–740`) created it, and serve it on the card as `trigger` | Q19: « pour pas que je me demande qui à demandé la saison entière alors que c'était un process auto »; the engine records no such column today (`grep -n -i "trigger\|requested_by" personalscraper/acquire/_wanted_store.py` → nothing) |
 
 **`docs/reference/product-intent-map.md`**, read, not edited: the lot adds proofs under DOIT-2 (the refusal said,
 R-d), DOIT-4's visible half (the mark, R-b) and § 13's pointer (R-c) — proposed to the operator at the close.

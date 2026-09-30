@@ -14,6 +14,14 @@ L17 · L18 · L23 · L24`. **Amended 2026-09-29**, PR #637's correction round: �
 operator's own words in `/Users/izno/dev/review-archive/l16bis/rulings-2026-09-29.md` — nothing left open in this
 document.
 
+**Amended 2026-09-30, on `main` at `9234341fc`** (the auditor's orders 97, 98, 99): L16-bis is a CORRECTION of L16,
+so it is cut into correction phases BY SURFACE, not drawn as a lot — the plan runs **5 phases** where it ran 18
+(`plan/INDEX.md`, and `plan/CORRESPONDENCE.md` for where every old item went). § 0.5 is the conformity table of
+order 97. The operator's ruling Q7 on Découvrir's swipe
+(`/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md` § Q7) joins as DECIDED 10 and surface **S9**
+(§ 1.11); it leaves ONE question open, OPEN 10 (§ 5). § 0.4 records what the conformity train already built, so
+nothing is drawn twice.
+
 ---
 
 ## 0. What L16-bis owes, said once
@@ -30,6 +38,7 @@ document.
 | 8 | Découvrir's header message beside the view switch; its content replaced by something useful | 16:52 | **S8** | § 1.10 |
 | 9 | an activation switch per tracker; a failing tracker switched off by itself, its error said on re-activation; the list grows | 16:58 | **S7** | § 1.7 |
 | 10 | ONE tab component, adapted, for every tabbed page | 17:17; order 80 | **S1** | § 1.1 |
+| 11 | Découvrir's swipe, in the list AND the deck: left = pass, right = reject with « Annuler »; a gesture of Découvrir's own, declared in the design system | Q7 (2026-09-29, conformity round) | **S9** | § 1.11 |
 
 ### 0.1 Measurements that correct the premises
 
@@ -103,6 +112,64 @@ Each read on `f3d8fed01`, from the worktree root.
 | L15 — the bottom panel (`ui/panel/`), its generic blocks (facts, actions) | the torrent's panel |
 | `lib/tab-memory.ts` — one rule for every tabbed page | the landing rule, re-valued |
 
+### 0.3 Measurements of 2026-09-30 — Découvrir's swipe (Q7)
+
+Each read on `9234341fc`; paths under `frontend/maquette/design/src/`.
+
+1. **The DECK already does what Q7 rules; the ruling's premise read a comment.** The ruling notes « the deck's code
+   today does the same both ways — `discover-cards.ts:96` ». That line is a docstring (« a swipe either way dismisses
+   it »), and so is `features/acquisition/card-gestures.ts:3–4`, which says the reverse of the code. The CODE, at
+   `card-gestures.ts:185–220`: a travel RIGHT (`offset > 0`) adds the card to `sugGone` and shows the toast
+   « « {{title}} » écarté. » with its undo; a travel LEFT calls `passerSug` (`features/acquisition/discover-feed.ts:109–112`),
+   which sends the card to the back of `sugOrder`, no toast. The hints agree: « Passer » on the left, « Pas intéressé »
+   on the right (`discover-cards.ts:139–144`). And a rule already HOLDS it: `harness/deck.py:55–78`, verdict « left
+   skips and comes back, right dismisses with an undo ». The deck's change is therefore two stale comments, and the
+   gesture's declaration — not its behaviour. Read in the code and in the rule, not by a finger: phase 4 reads it
+   by finger first.
+2. **The LIST dismisses both ways.** `card-gestures.ts:169–183`: any travel past `LIST_TRAVEL_PIXELS` (92 px) calls
+   `dismissSug`, which toasts with an undo (`discover-feed.ts:302–342`); the row's back draws « Pas intéressé » on
+   BOTH sides (`discover-cards.ts:44–50`, `suggestionBack`). This is the one behaviour Q7 changes.
+3. **Neither act reaches the engine.** `sugGone` (reject) and `sugOrder` (pass) are interface state
+   (`app/arrival.ts:74–76`), lost on a reload; the contract has no operation on a suggestion but `readSuggestions`
+   (`python3 -c "import json;d=json.load(open('frontend/maquette/contract/openapi.json'));print([o.get('operationId') for v in d['paths'].values() for o in v.values() if 'sugg' in str(o.get('operationId','')).lower()])"`
+   → `['readSuggestions']`). The list draws the reserve in its own order and ignores `sugOrder`
+   (`discover-feed.ts:277–281`). What « passer » does to the data is OPEN 10 (§ 5).
+4. **The poster view has no swipe** (`card-gestures.ts:55`: the list's gesture binds `suggestion/wrap`, which only
+   the list row draws); Q7 names the list and the deck. Nothing is added to the posters.
+5. **Near the ceiling**: `grep -cv '^\s*$' features/acquisition/discover-feed.ts` → **382** of 400 — phase 4 adds
+   nothing there (the order's read is a one-line change, the gesture's mechanics leave for `lib/`).
+
+### 0.4 What the conformity train already built — read on `origin/feat/maquette-conformity` at `cede5d85b`
+
+Nothing below is drawn again by this lot; each line says what L16-bis now does instead. Read with `git show
+origin/feat/maquette-conformity:<path>`, the plan at `docs/features/maquette-conformity/plan/INDEX.md` on that branch.
+
+| Built by the train | Where | What L16-bis does |
+| --- | --- | --- |
+| The legend moved to `ui/`, KEYED BY TONE (`unknown`, `upcoming`, `waiting`, `warning`, `info`, `success`), not by state (phase 4, `2caa2d183`; `7c0d9c2dc`) | `ui/variants/legend.ts` | the old plan's phase « the legend moves to ui » has LOST ITS SUBJECT and is removed; L16-bis maps its own codes to tones where it draws (§ 1.3), and ADAPTS the legend with the two tones its codes need and the legend lacks — `danger` and `neutral` (written here, as the office asks) |
+| The one tab component `ui/tabs.tsx` (phase 3, `7f98508be`); Trackers' bar converted to it (phase 11, planned) | `ui/tabs.tsx`, `ui/variants/tabs.ts` | uses it; the landing values (§ 1.1) stay this lot's |
+| The one fold chevron in `ui/Disclosure` (phase 3) | `ui/disclosure.tsx` | DECIDED 4 is done; the tracker row no longer folds anyway (DECIDED 3) |
+| One switch, `toggleSwitch`, the settings field included (phase 6, `51355b720`) — and § 1.7's sentence corrected on that branch | `features/settings/panel-field.tsx` | the roster's switch reuses it |
+| The toned notice (`SurfaceError`, three tones) and Découvrir's TMDB notice on it (phases 4, 11) | `ui/variants/notice.ts` | the header move (§ 1.10) leaves the notice where the train put it |
+| The responsive rule, 320 → 1280 px and WebKit (`harness/responsive.py`, phases 1–2) | R-conformity-a | every phase gate of this lot runs it on the states of the surfaces it touches |
+| The guard arms of § 1.9 (phase 12, planned) | `scripts/check-component-once.py` | none — as § 1.9 already said |
+
+**L16-bis's code opens after the train has merged** (DECIDED 7's queue), on `main` holding all of the above.
+
+### 0.5 Conformity to the operator's principles (order 97) — read BEFORE the plan
+
+His principles are `docs/reference/operator-method.md` § 1 (the dates 09-29); each row says where this design holds
+it, and the phase that proves it.
+
+| Principle, his words | Where this design holds it | Phase |
+| --- | --- | --- |
+| Uniform behaviours — « Il faut uniformiser les comportements. Sauf exception volontaire de ma part. » | the torrent card takes the media card's taps (poster → sheet, body → panel, § 1.4) and the follow row's drawer swipe (§ 1.6); the tracker row opens a panel like the torrent card (DECIDED 3); Découvrir's list and deck swipe the same way (§ 1.11). Exceptions he decided: Découvrir's commit-on-release swipe, « un nouveau comportement propre à découvrir » (Q7) | 1, 3, 4 |
+| The design system reused — « on crée pas de nouveau composant on adapte » | § 1.8's table, element by element; the adaptations written: the card title's `wrap`, the legend's `danger` / `neutral` tones (§ 0.4), the badge's failure term (DECIDED 6), `liveStrip`'s `inline`, the commit swipe moved to `ui/` (§ 1.11); one new part justified: the byte-progress fill | every phase; R-L16bis-i at 3 |
+| Every case — « seule une maquette montrant tout les cas possibles est utile. » | § 3, one named state per case, 73 ids, each reachable from the catalogue with its French label | every phase |
+| Every width 320–1280 — « tout doit être responsive » | the 132-character name wraps (§ 1.4); the header ellipsises at the switch only (§ 1.10); R-conformity-a on every state of the touched surfaces at each phase gate, the full sweep at the midpoint and the close | every phase; 5 |
+| Film / series variant — « une différence entre film et série » (B-581's family) | a film's torrent opens the film's sheet, an episode's opens its series' sheet and its panel names the episode (`torrent-card-film`, `torrent-panel-episode`); Découvrir's header splits « séries » and « films » (§ 1.10); a suggestion's panel keeps its film note (`panels.suggestion.filmLeavesNote`) | 1, 4 |
+| Navigation § 16 — Retour replays the arrival path | Trackers and Découvrir are bar pages (they replace, Retour → the entry page); the poster → the sheet and « Identifier » → the resolution screen STACK (Retour → Trackers, on « Torrents »); a bottom panel is not a page (Retour closes it); a landing naming a tab or a tracker is an arrival (§ 1.1, DECIDED 3) — each walked by finger | 1, 2, 3 |
+
 ---
 
 ## 1. The surfaces
@@ -169,6 +236,10 @@ from — one derivation (§ 13): a colour added to a row without its legend entr
 
 **Its component.** The season legend, MOVED to `ui/` (invariant 7), unchanged in drawing; `features/media` imports it
 from there. **Where it sits**: inline, above the list (DECIDED 5, § 5) — the season legend's own place, REUSED as is.
+**Corrected 2026-09-30** (§ 0.4): the conformity train moved it (`ui/variants/legend.ts`), keyed by TONE — so this
+lot moves nothing; each tab maps its codes to tones where it draws them (the dot's `info` / `waiting`, the chips'
+`info` / `success` / `danger` / `warning`, the card's states `neutral` among them), and the legend gains the two
+tones it lacks, `danger` and `neutral` — an adaptation of the one legend, never a second one.
 
 ### 1.4 S4 — The torrent card (points 4, 5)
 
@@ -311,6 +382,10 @@ uses. **A NEW part is written only with its justification**; everything else REU
 | alert / refusal chips | `chip` | `chip` | no |
 | empty, loading, error | `emptyNote`, `Skeletons`, `SurfaceError` | unchanged | no |
 | Découvrir's message | `liveStrip` in the body | `liveStrip` inside `pillBar`'s `pill/list` place | no |
+| Découvrir's list swipe (§ 1.11) | `suggestionWrap` + `suggestionBack` (the feature's), the mechanics in `card-gestures.ts` | `ui` `commitRow` / `commitRowBack` + a `lib/` module, the meaning left in the feature | no (moved and adapted: one word per side) |
+
+**Read on 2026-09-30** (§ 0.4): the rows « the tab strip », « the legend », « the fold chevron » and « the activation
+switch » are the conformity train's already; this lot consumes them.
 
 **The feature's own variants that die** (`features/trackers/variants.ts`): `torrentTitle`, `torrentFilter`,
 `torrentFilterClear`, `torrentHead`, `torrentChipLine`, `torrentRemove`, `trackersTab`, `seeTorrents`, `seenControl`
@@ -352,6 +427,36 @@ field and no engine demand.
 
 **The TMDB-disconnected warning** (`discover-tab.tsx:162–184`) stays in the body: it is a state with an action, not a
 header message.
+
+### 1.11 S9 — Découvrir's swipe (DECIDED 10, the operator's Q7)
+
+**The ruling.** In the LIST and in the DECK: a swipe LEFT = « passer » — the suggestion leaves, no notification, it
+may come back later; a swipe RIGHT = « rejeter » — it leaves, and the notification offers « Annuler », as the deck's
+toast does today. A gesture of Découvrir's own, declared in the design system so another surface can reuse it.
+
+**What changes, and what does not** (§ 0.3):
+
+- **The list** — the one behaviour that moves. A left travel past the threshold calls the pass (no toast); a right
+  travel keeps today's `dismissSug` and its toast with « Annuler ». The row's back uncovers the word of the act the
+  travel commits to: a LEFT travel uncovers the back's right side, reading « Passer » (`discover.skip`, existing); a
+  RIGHT travel uncovers its left side, reading « Pas intéressé » (`discover.notInterested`, existing) — today both
+  sides read « Pas intéressé ».
+- **The deck** — its behaviour already conforms and `harness/deck.py` holds it; its two stale comments
+  (`card-gestures.ts:3–4`, `discover-cards.ts:96`) are corrected to what the code does.
+- **The posters** — no swipe today, none added (§ 0.3 item 4).
+
+**Declared in the design system — adapted, not created.** The list's gesture is today a feature's: its drawing
+`suggestionWrap` / `suggestionBack` (`features/acquisition/variants.ts:114–125`) and its mechanics in
+`card-gestures.ts` (axis claim, 92 px threshold, fade, flight). It becomes the app's SECOND swipe beside the drawer
+swipe row (`ui/rows.ts`, `ui/variants/rows.ts` — 56 non-blank lines): the drawing moves to `ui/variants/rows.ts` as
+`commitRow` / `commitRowBack` (the words passed by the caller — `ui/` names no domain, invariant 10), the
+mechanics to a domain-free `lib/` module taking `{ onLeft, onRight }`; `features/acquisition` keeps only what each
+side MEANS. The two swipes differ on purpose and the comment says so: the drawer swipe OPENS actions and waits for a
+tap; the commit swipe DECIDES on release. The deck's pile (its tilt, its hints) stays Découvrir's own drawing.
+
+**Pass, on the data side** — OPEN 10 (§ 5). The plan is written for its recommended reading A.
+
+**Named states** — § 3, S9. **The rule** — R-L16bis-l, § 4.
 
 ---
 
@@ -422,10 +527,12 @@ codes) · `trackers-legend` (the roster's codes).
 `torrent-card-errored` · `torrent-card-missing` · `torrent-card-cross-seed` · `torrents-obligation-done` (kept) ·
 `torrent-obligation-breached` (kept) · `torrents-external-removal` (kept) · `torrent-card-volumes` (DECIDED 1,
 default — received/sent) · `torrent-card-downloading-progress` (DECIDED 1 — the progress bar and the download rate)
-· `torrent-card-uploading-rate` (DECIDED 1 — no bar, the upload rate alone).
+· `torrent-card-uploading-rate` (DECIDED 1 — no bar, the upload rate alone) · `torrent-card-film` (a film's entry: its
+poster opens the FILM's sheet — added 2026-09-30, order 97's film / series row).
 
 **S5 — the panel**: `torrent-panel` (linked) · `torrent-panel-unlinked` (« Identifier ») ·
-`torrent-panel-unlinked-no-folder` · `torrent-panel-partial` (every « inconnu »).
+`torrent-panel-unlinked-no-folder` · `torrent-panel-partial` (every « inconnu ») · `torrent-panel-episode` (an
+episode's entry: the medium fact names the series and its `SxxEyy` — added 2026-09-30).
 
 **S6 — the swipe**: `torrent-swipe-remove` (the right drawer open) · `torrent-remove-confirm` ·
 `torrent-remove-confirm-obligation` · `torrent-remove-confirm-shared` (kept — reached from the swipe too). No
@@ -442,6 +549,19 @@ declaration readable in the catalogue label).
 deck) · `discover-header-narrow` (369 px, ellipsised, its tap opening the sentence) · `discover-header-loading` ·
 `discover-header-unavailable` (its datum's read failed — said, never blank). No conditional content state: DECIDED 8
 (§ 5) needs none of readings A or C.
+
+**S9 — Découvrir's swipe** (added 2026-09-30, DECIDED 10): `discover-list-travel-left` (a row held mid-travel to the
+left, « Passer » uncovered) · `discover-list-travel-right` (to the right, « Pas intéressé » uncovered) ·
+`discover-list-passed` (after a left swipe: the row gone, no notification) · `discover-list-rejected` (after a right
+swipe: the row gone, the notification with « Annuler ») · `discover-list-reject-undone` (after « Annuler »: the row
+back in its place) · `discover-list-passed-returns` (the passed suggestion drawn again at the back of the list —
+conditional on OPEN 10 = A) · `discover-deck-passed` · `discover-deck-rejected` · `discover-deck-reject-undone`.
+
+**Re-counted 2026-09-30**
+(`` sed -n '/^## 3/,/^## 4/p' docs/features/maquette-l16bis/DESIGN.md | grep -o -E '`(trackers|torrents?|tracker|discover)-[a-z0-9-]+`' | sort -u | wc -l ``
+→ **76**, of which three are the dropped ids the paragraph below names; on `9234341fc` the same command → 65, i.e. 62):
+**73** live ids — the 62 below, two of order 97's film / series row (`torrent-card-film`, `torrent-panel-episode`) and
+nine of S9, one conditional (`discover-list-passed-returns`, on OPEN 10).
 
 **Counted** (by script over this section): **62** ids — every one of L16's 21 kept, **41 new**, none conditional: the
 three ids that were conditional on an OPEN reading (`torrent-swipe-cross-seed`, `discover-header-new-none`,
@@ -467,6 +587,7 @@ Labels, never numbers: they bind to the range the steward reserves in the lot's 
 | **R-L16bis-h** — a failing tracker says why (point 9) | off by failure reads its reason; re-activating it answers the refusal, the switch stays off, the engine's words drawn under the row and staying | turn the switch on before the answer → falls; toast the refusal → falls |
 | **R-L16bis-i** — the design system is reused (point 7) | the page's parts come from `ui/`: the card parts, the swipe row, the tab component, the switch, the legend; no `features/trackers` variant draws a title, a filter or a removal | re-add `torrentRemove` → falls |
 | **R-L16bis-k** — Découvrir's header (point 8) | the message is in the view row, not the body; every figure it draws comes from a read (never a `fr.json` literal) | draw the literal back → falls |
+| **R-L16bis-l** — Découvrir's swipe: left passes, right rejects (DECIDED 10) — HOLDS in `harness/deck.py`, the gesture's rule (the office: a new check on a surface with a rule is a hold in that rule's file) | by real touches (TouchEvents, as `deck.py` drives them), in the LIST: a left travel past the threshold removes the row, leaves `sugGone` unchanged, shows no notification, and the suggestion is still in the order, at its back; a right travel removes it, `sugGone` + 1, the notification carries « Annuler », and « Annuler » puts the row back at its place; mid-travel, the uncovered word is « Passer » to the left, « Pas intéressé » to the right; the list's back is the `ui` `commitRow`. In the DECK: `deck.py`'s holds unchanged, plus the uncovered hint per side | in the list's release, call `dismissSug` for a left travel → falls (a notification on a pass); swap the back's two words → falls; draw the back with the feature's `suggestionBack` again → falls |
 
 **R-L16bis-j WITHDRAWN** (DECIDED 7, § 5): « one tab component, the three bars at the same height » is the conformity
 train's rule, over Acquisition, Médiathèque and Trackers together — L16-bis builds none of the component and cannot
@@ -487,7 +608,7 @@ one; the harness at 369 px — order 60. **Not drawn**: a push notification (L16
 
 ### DECIDED — the operator's nine rulings, 2026-09-29 (round of PR #637)
 
-Every OPEN question of this section is now closed. Each item below quotes the operator verbatim (in « guillemets »,
+Every OPEN question of this section is now closed — save OPEN 10, added 2026-09-30 with DECIDED 10 (below). Each item below quotes the operator verbatim (in « guillemets »,
 `/Users/izno/dev/review-archive/l16bis/rulings-2026-09-29.md`), gives its English meaning, and states what changes
 against the reading that was costed above. Nothing here is re-argued.
 
@@ -558,6 +679,44 @@ readings A and C (`discover-header-new-none`, `discover-header-stale`) are dropp
 the row travels one way until L17 adds the left drawer with its verb; nothing is drawn that does nothing. Reading B
 (drawn now, disabled) is refused. **Cost**: unchanged — none; phase 11 drops reading B's drawer and its state
 (`torrent-swipe-cross-seed`), dropped from § 3.
+
+**DECIDED 10 (added 2026-09-30) — Découvrir's swipe, the operator's Q7 of the conformity round.** Verbatim
+(`/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md` § Q7): « Glissé à droite et à gauche à le même
+comportement que glissé une carte du mode deck de decouvrir, rejet, ou passé. (on garde le même sens que pour le
+deck) la carte disparait, notification pour annulé si rejet (tout comme le deck) c'est un nouveau comportement propre
+à découvrir qu'on pourra réutiliser dans un autre cas. » and, asked to be precise: « vers gauche = passer / vers la
+droite = rejet ». Meaning: in the LIST and the DECK, left = pass (gone, no notification, may come back later), right
+= reject (gone, notification with « Annuler »); a gesture of Découvrir's own, declared in the design system. Readings
+A (Suivis' drawer swipe) and B (reject on release, both ways) refused. Drawn at § 1.11. **A fact, recorded with
+the ruling (the orchestrator, 2026-09-30): the DECK already conforms** — a right travel rejects with « Annuler »
+(`features/acquisition/card-gestures.ts:193–209`), a left travel passes (`:211`, `passerSug`,
+`features/acquisition/discover-feed.ts:109–112`), held by `harness/deck.py:55–78`; the ruling's « the deck does the
+same both ways » read the docstrings `features/acquisition/discover-cards.ts:96` and `card-gestures.ts:3–4`, which
+are wrong and are corrected in phase 4 (§ 1.11). Only the LIST changes behaviour. **Cost**: ≈ 10 points in phase 4 — the list's left branch and its words 2, the drawing moved to `ui/`
+and the mechanics to `lib/` 4, R-L16bis-l's holds 3, the two stale comments 1.
+
+**OPEN 10 (added 2026-09-30) — what « passer » does on the data side.** The ruling fixes the gesture and says « may
+come back later »; it leaves the data to the drawing (the ruling's own « Placement » line). Today neither act reaches
+the engine (§ 0.3 item 3): the deck's pass sends the card to the back of `sugOrder`, interface state lost on a
+reload, and the list ignores that order.
+
+- **A — the back of ONE order, in the interface.** Pass sends the suggestion to the back of the one order both views
+  read (`sugOrder`, today the deck's alone); the list draws by that order too, so a passed row leaves its place and
+  comes back after every suggestion not yet passed — at the back of what is loaded, or with the next « charger
+  plus »; nothing is sent to the engine; a reload restores the reserve's own order, as the deck does today. **Cost**
+  ≈ 3 points in phase 4 (the list reads the order, one conditional state `discover-list-passed-returns`, one hold);
+  no contract, no demand.
+- **B — held by the engine, with a return.** Pass is recorded by the engine: the suggestion is withheld from the
+  reserve until its next refill (or a number of days) and comes back then, across reloads and devices. **Cost** ≈ 6
+  points (an operation `passSuggestion` 2, its mock 2, two states — withheld, returned — 2) and a backend demand (the
+  reserve reads a « passed until » per title); and it makes the two acts unequal — a reject is session-only today
+  (`sugGone`), so B raises at once whether a reject must be durable too, a question he has not been asked.
+
+**Recommendation: A.** His « peut revenir plus tard » is met by the mechanism the deck already has, and made the same
+in both views (« 2 mécanismes similaires … le même comportement »); the backend follows the interface after the
+freeze (the mission, point 4), and B can join the backend brief then without redrawing anything. **The plan is written
+for A**; under B phase 4 gains ≈ 3 points and the demand, and `discover-list-passed-returns` becomes « withheld » and
+« returned ».
 
 **The operator's binding principles, this round** (verbatim, DECIDED 3/5/6 above): coherence everywhere, across
 design, ergonomics, gesture, component and design system; a component is REUSED, never copied — one design system,
