@@ -1262,6 +1262,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/decisions/{decisionId}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Re-open a settled decision for arbitration, with the candidates a provider search finds
+         * @description « Corriger » on a decision the operator settled — in Acquisition or on a shelved medium (L24 OPEN 7 = A, OPEN 8 = A). DEMAND: the engine has no operation that re-opens a settled decision, nor one that re-identifies a shelved medium against candidates.
+         */
+        post: operations["reopenDecision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4667,6 +4687,41 @@ export interface operations {
                         candidatesCount: number;
                         /** @description false when no provider answered: the decision is filed with no candidate, and the screen opens on the pre-filled manual search */
                         candidatesSeeded: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    reopenDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the settled decision */
+                decisionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the decision pending again */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        decisionId: string;
+                        /** @description the folder the candidates screen is addressed by */
+                        folder: string;
+                        candidatesCount: number;
                     };
                 };
             };

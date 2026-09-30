@@ -9,8 +9,24 @@ import { applyState, type NamedState } from "../drive";
 /** Opens a medium's sheet the way a tap on its card does: with what the card knew. */
 const open = (title: string) => window.__screens.mediaSheet(title, window.__carriedFor(title) ?? undefined);
 
+// How long after the sheet is asked for « Corriger » is tapped: the sheet and its
+// decision read have to answer first.
+const CORRECT_AFTER = 900;
+
 export function mediaStates(): NamedState[] {
   return [
+    [
+      "media-sheet-decision-corrected",
+      "Fiche — « Corriger » sur un média rangé : l'arbitrage rouvert",
+      () => {
+        window.__mocks?.reset();
+        applyState({ page: "lib", phase: "ready" });
+        open("The Bombing of Pan Am 103");
+        window.setTimeout(() => {
+          document.querySelector<HTMLElement>('[data-part="decision/correct"]')?.click();
+        }, CORRECT_AFTER);
+      },
+    ],
     [
       "media-sheet-decision",
       "Fiche — l'identification réglée d'un média rangé",

@@ -245,6 +245,7 @@ copies
 copy
 corps
 correct
+corrected
 cote
 count
 counted
@@ -378,6 +379,7 @@ end
 ended
 engine
 enqueue
+enqueued
 entries
 entry
 envelope

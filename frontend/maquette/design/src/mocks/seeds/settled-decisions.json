@@ -210,14 +210,15 @@
     "settledBy": "engine"
   },
   {
-    "id": "This.City.Is.Ours.S01.1080p",
-    "folder": "This.City.Is.Ours.S01.1080p",
-    "kind": "show",
-    "title": "This City Is Ours",
+    "id": "The.Alabama.Solution.2025.1080p",
+    "folder": "The.Alabama.Solution.2025.1080p",
+    "kind": "movie",
+    "title": "The Alabama Solution",
     "reason": "below_threshold",
     "state": "dismissed",
     "when": "11 juillet, 18 h 05",
     "candidatesCount": 4,
-    "settledBy": "operator"
+    "settledBy": "operator",
+    "year": 2025
   }
 ]

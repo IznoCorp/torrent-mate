@@ -1125,7 +1125,8 @@
       "byOperatorAlone": "vous",
       "byEngine": "le moteur, seul",
       "when": "Le",
-      "state": "Décision"
+      "state": "Décision",
+      "correct": "Corriger"
     },
     "card": {
       "sheetOf": "Fiche de {{title}}",
@@ -1414,6 +1415,10 @@
     }
   },
   "verbs": {
+    "decision": {
+      "correctHeld": "Correction demandée — en attente du réseau.",
+      "correctRefused": "La correction n'a pas abouti : {{reason}}"
+    },
     "library": {
       "sorted": "Trié par {{way}}.",
       "delete": {

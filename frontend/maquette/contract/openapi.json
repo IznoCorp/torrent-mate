@@ -4773,6 +4773,78 @@
         },
         "x-unseeded": "the pending decision filed in the seeded decisions, with the candidates the seeds offer for that title."
       }
+    },
+    "/api/decisions/{decisionId}/reopen": {
+      "post": {
+        "operationId": "reopenDecision",
+        "summary": "Re-open a settled decision for arbitration, with the candidates a provider search finds",
+        "tags": [
+          "decisions"
+        ],
+        "description": "« Corriger » on a decision the operator settled — in Acquisition or on a shelved medium (L24 OPEN 7 = A, OPEN 8 = A). DEMAND: the engine has no operation that re-opens a settled decision, nor one that re-identifies a shelved medium against candidates.",
+        "responses": {
+          "200": {
+            "description": "the decision pending again",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "decisionId": {
+                      "type": "string"
+                    },
+                    "folder": {
+                      "type": "string",
+                      "description": "the folder the candidates screen is addressed by"
+                    },
+                    "candidatesCount": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "candidatesCount",
+                    "decisionId",
+                    "folder"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "decisionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the settled decision"
+          }
+        ],
+        "x-unseeded": "the settled decision moved back to the pending list, with the candidates the seeds offer for its title."
+      }
     }
   },
   "components": {

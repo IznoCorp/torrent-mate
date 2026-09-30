@@ -114,13 +114,14 @@ const OWN_NAME_SCORE = 1;
  * « Furious » and « Furious (2026) » — are what a search on that name answers.
  * One identity is offered once, whichever key it was filed under.
  *
- * @param title The title searched.
- * @returns The candidates, none when no sheet carries that title.
+ * @param titles The names searched — a folder, a title, a choice's title.
+ * @returns The candidates, none when no sheet carries any of those names.
  */
-function candidatesFor(title: string): DecisionCandidate[] {
+function candidatesFor(...titles: (string | undefined)[]): DecisionCandidate[] {
   const found = new Map<string, DecisionCandidate>();
+  const named = titles.filter((title): title is string => Boolean(title));
   for (const [name, sheet] of Object.entries(MEDIA_SHEETS as unknown as Record<string, SeededSheet>)) {
-    if (name !== title && !name.startsWith(`${title} (`)) continue;
+    if (!named.some((title) => name === title || name.startsWith(`${title} (`))) continue;
     const provider = sheet.ids?.tvdb ? "tvdb" : "tmdb";
     const id = Number(sheet.ids?.[provider]);
     if (!Number.isFinite(id) || found.has(`${provider}:${id}`)) continue;
@@ -166,7 +167,7 @@ function enqueue(mediaId: string): unknown {
     reason: SENT_BY_HAND,
     when: identified!.when,
     year: identified!.year ?? null,
-    candidates: candidatesFor(identified!.title),
+    candidates: candidatesFor(identified!.folder, identified!.title, identified!.choice?.title),
   };
   if (waiting === undefined) {
     held.settledDecisions = held.settledDecisions.filter((settled) => settled !== identified);
@@ -180,6 +181,38 @@ function enqueue(mediaId: string): unknown {
     candidatesCount: decision.candidates.length,
     candidatesSeeded: decision.candidates.length > 0,
   };
+}
+
+/**
+ * Re-opens a decision the operator settled: it waits again, with candidates.
+ *
+ * « CORRIGER » ON THE OPERATOR'S OWN CHOICE (L24 OPEN 7 = A) — in Acquisition,
+ * and on a shelved medium's sheet (OPEN 8 = A). The settled row leaves the
+ * settled list and is pending again, with the candidates a search on its title
+ * finds; its choice among them is the operator's again.
+ *
+ * @param decisionId The settled decision.
+ * @returns The re-opened decision's address, or a refusal when none is settled under that id.
+ */
+function reopen(decisionId: string): unknown {
+  const held = mockState();
+  const settled = held.settledDecisions.find((decision) => decision.id === decisionId);
+  if (settled === undefined) return refused(NOT_FOUND, "no settled decision carries that id");
+  const candidates = candidatesFor(settled.folder, settled.title, settled.choice?.title);
+  held.settledDecisions = held.settledDecisions.filter((decision) => decision !== settled);
+  held.pendingDecisions = [
+    {
+      folder: settled.folder,
+      kind: settled.kind,
+      title: settled.title,
+      reason: settled.reason,
+      when: settled.when,
+      year: settled.year ?? null,
+      candidates,
+    },
+    ...held.pendingDecisions.filter((decision) => decision.folder !== settled.folder),
+  ];
+  return { decisionId: settled.folder, folder: settled.folder, candidatesCount: candidates.length };
 }
 
 /** Every route this subject answers. */
@@ -203,6 +236,9 @@ export function decisionRoutes(): MockRoute[] {
     ),
     route("enqueueForResolution", POST, "/api/staging/media/{mediaId}/enqueue", (request) =>
       enqueue(request.parameters.mediaId),
+    ),
+    route("reopenDecision", POST, "/api/decisions/{decisionId}/reopen", (request) =>
+      reopen(request.parameters.decisionId),
     ),
     route("searchForDecision", POST, "/api/decisions/{decisionId}/search", (request) => {
       // A manual search over data that already exists: the candidates a

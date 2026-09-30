@@ -37,7 +37,7 @@ RESOLUTION = WORDS["screens"]["resolution"]
 STATES = (
     ("sheet-journey-decision-operator", "President Curtis"),
     ("sheet-journey-decision-engine", "Furious"),
-    ("sheet-journey-decision-dismissed", "This City Is Ours"),
+    ("sheet-journey-decision-dismissed", "The Alabama Solution"),
 )
 
 IDENTIFIED = WORDS["surfaces"]["ladder"]["rungs"]["identified"]

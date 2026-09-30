@@ -68,7 +68,7 @@ const DECK_TOP = '[data-part="deck/card"][data-depth="0"]';
 const DECISION_SUBJECTS = [
   ["sheet-journey-decision-operator", "President Curtis", "une correspondance choisie par vous"],
   ["sheet-journey-decision-engine", "Furious", "le moteur l'a identifié seul"],
-  ["sheet-journey-decision-dismissed", "This City Is Ours", "laissé tel quel"],
+  ["sheet-journey-decision-dismissed", "The Alabama Solution", "laissé tel quel"],
 ] as const;
 
 /** The journey sheet over each kind of settled decision. */

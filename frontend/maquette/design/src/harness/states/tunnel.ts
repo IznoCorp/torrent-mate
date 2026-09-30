@@ -14,8 +14,44 @@ import { openDeleteConfirm } from "../../features/acquisition/delete-set-aside-v
 // answer and the tab draw before there is a fold to open.
 const OPEN_AFTER = 300;
 
+/**
+ * « Corriger » tapped on a journey sheet's decision block, the way a finger taps
+ * it: the sheet drawn first, the act once it is there.
+ *
+ * @param subject The medium whose identification is corrected.
+ */
+function correctFromJourney(subject: string): void {
+  window.__mocks?.placeAtPlexCheck(subject);
+  applyState({ page: "acq", phase: "ready" });
+  window.__panel.produce("journey", subject);
+  window.setTimeout(() => {
+    document.querySelector<HTMLElement>('#sheet [data-part="decision/correct"]')?.click();
+  }, CORRECT_AFTER);
+}
+
+// How long after its sheet is asked for « Corriger » is tapped: the sheet has to
+// enter and its decision block draw.
+const CORRECT_AFTER = 700;
+
 export function tunnelStates(): NamedState[] {
   return [
+    [
+      "acq-resolution-enqueued",
+      "« Corriger » — le moteur l'avait identifié seul : la décision créée, ses candidats",
+      () => {
+        window.__mocks?.reset();
+        correctFromJourney("Furious");
+      },
+    ],
+    [
+      "acq-resolution-enqueue-failed",
+      "« Corriger » — l'envoi en arbitrage refusé, sa raison dite",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.setOperationOutcome("enqueueForResolution", { status: 409 });
+        correctFromJourney("Furious");
+      },
+    ],
     [
       "acq-resolution-none",
       "À traiter — résolution, aucun candidat",

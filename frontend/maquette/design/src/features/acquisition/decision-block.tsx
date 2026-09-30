@@ -13,7 +13,9 @@
 // « À traiter » card and its card opens the arbitration.
 import { useTranslation } from "react-i18next";
 import { registerBlock } from "../../ui/panel/contract";
-import { factsPanel, keyValueRow, ruleNote, sheetFacts, sectionHeading } from "../../ui/variants";
+import { actionButton, factsPanel, keyValueRow, ruleNote, sheetActions, sheetFacts, sectionHeading } from "../../ui/variants";
+import { Icon } from "../../ui/icon";
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useDecisions, type Decisions } from "./decision-queries";
 import { decisionHeadingPlace } from "./variants";
 import { decisionState, decisionStateDetail, viaLabel } from "./decision-vocabulary";
@@ -60,6 +62,7 @@ export function settledDecisionOf(decisions: Decisions | undefined, subject: Dec
  */
 export function DecisionBlock({ subject }: { subject: DecisionSubject }) {
   const { t } = useTranslation();
+  const { icons } = useEngineDrawing();
   const { data } = useDecisions();
   const decision = settledDecisionOf(data, subject);
   if (decision === null) return null;
@@ -93,6 +96,18 @@ export function DecisionBlock({ subject }: { subject: DecisionSubject }) {
             {decisionStateDetail(decision.state)}
           </p>
         )}
+      </div>
+      {/* « CORRIGER », the block's one act (S5): its verb creates or re-opens
+          the decision, then opens the candidates screen. */}
+      <div className={sheetActions()}>
+        <button
+          className={actionButton({ kind: "panelAction" })}
+          data-part="decision/correct"
+          data-decision-correct={decision.id}
+        >
+          <Icon paths={icons.search} />
+          {t("surfaces.decision.correct")}
+        </button>
       </div>
     </section>
   );
