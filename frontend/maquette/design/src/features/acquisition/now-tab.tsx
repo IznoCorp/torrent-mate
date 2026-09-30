@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { mediumCardMarkup } from "./card-markup";
-import { inFlightCards } from "./arrival-slots";
+import { inFlightCards } from "../../lib/arrival-slots";
 import { followOffered } from "./follow-offer";
 import { useFollows } from "./queries";
 import { useAcquisitionQueue } from "../../lib/queue";

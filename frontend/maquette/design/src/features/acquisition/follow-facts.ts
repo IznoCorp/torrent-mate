@@ -29,7 +29,7 @@ import { followsQuery, incompleteShowsQuery } from "./queries";
 // undefined, which is what the engine's object literal did in practice.
 import type { Follow, FollowSubject } from "./types";
 import { followFraction } from "./follow-vocabulary";
-import { inFlightCards, setAsideCards, todoCards } from "./arrival-slots";
+import { acquisitionKey, inFlightCards, liveCards, setAsideCards, todoCards } from "../../lib/arrival-slots";
 import { originLine } from "./card-markup";
 import { followOffered } from "./follow-offer";
 
@@ -69,6 +69,11 @@ export type FollowFacts = {
   fraction: string | null;
   /** Where its acquisition came from, whole — the line its card may truncate. */
   origin: string | null;
+  /**
+   * The journey « Voir le parcours » opens (Q14 = A): the running recovery of a
+   * whole season if there is one, else its acquisition, else the title.
+   */
+  journey: string;
 };
 
 /**
@@ -88,7 +93,7 @@ export type FollowFacts = {
  *     panel cannot draw without.
  */
 export function followFacts(title: string, cache: PanelCache): FollowFacts | null {
-  const followed = cache.held<Follow[]>(followsQuery.queryKey);
+  const followed = cache.held<Follow[]>(followsQuery().queryKey);
   // NOT BEFORE WHAT IT STATES HAS LANDED: a panel drawn without the membership
   // or the incomplete shows says « not in the library » and « complete » about
   // a medium it simply has not asked about yet.
@@ -130,6 +135,9 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
   const todo = answer ? todoCards(answer).find((one) => one.title === title) : undefined;
   const arrival = answer?.arrivals.find((one) => one.title === title);
   const acquisition = todo ?? (answer ? inFlightCards(answer).find((one) => one.title === title) : undefined);
+  // A WHOLE SEASON'S RECOVERY OF IT, running — the journey « Voir le parcours » opens first.
+  const recovery = answer ? liveCards(answer).find((one) => one.title === title && one.season != null
+    && one.episode == null) : undefined;
   // WHAT MAY BE OFFERED « Suivre »: an arrival, or a season asked once — a
   // one-off acquisition of a series nobody follows (round 10 Q2).
   const offered = arrival ?? (acquisition?.requester?.via === ASKED_ONCE ? acquisition : undefined);
@@ -157,6 +165,7 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
     // THE SAME OFFER THE CARD'S FOOT MAKES, from the same derivation (R43).
     followOffer: offered !== undefined && followOffered(offered, followed) ? offered.ids ?? null : null,
     origin: acquisition ? originLine(acquisition) ?? null : null,
+    journey: acquisitionKey(recovery ?? acquisition ?? { title }),
     // ONE DERIVATION: the card's fraction, the header's, and the sum of the
     // season headers all read this computation.
     fraction: isFilm

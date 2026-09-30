@@ -391,7 +391,11 @@
       "noteBeforePourquoi": "« Chercher une autre release » ne menait nulle part. Ce qui manquait n'est pas une liste : c'est",
       "notePourquoi": "pourquoi",
       "noteAfterPourquoi": "le moteur a classé ainsi — sans ça, choisir est un pari.",
-      "rescount": "candidats retenus par le profil de qualité · dernière recherche il y a 12 min",
+      "rescount_one": "candidat retenu par le profil de qualité · dernière recherche il y a 12 min",
+      "rescount_other": "candidats retenus par le profil de qualité · dernière recherche il y a 12 min",
+      "allCovered_one": "candidat — couvert par la saison {{season}}",
+      "allCovered_other": "candidats — tous couverts par la saison {{season}}",
+      "coveredBySeason": "Couvert par la saison {{season}}",
       "qhint": "Retenue : meilleure résolution admise par le profil, langue MULTi préférée, et le plus de sources à qualité égale.",
       "pickCurrent": "Reprendre celle-ci",
       "pickAlternative": "Prendre celle-ci à la place",
@@ -477,7 +481,8 @@
       "unread": "non lu",
       "unreadFeminine": "non lue",
       "seasonWaitingOnPipeline": "En file — pipeline en cours",
-      "seasonAskedOnce": "Demandée",
+      "seasonRequested": "Demandée",
+      "seasonRequestedAutomatic": "Demandée · auto",
       "episodeState": {
         "in_library": "En médiathèque",
         "to_grab": "À récupérer",
@@ -1116,6 +1121,7 @@
       "sheetOf": "Fiche de {{title}}",
       "folderActions": "Actions pour le dossier {{title}}",
       "folder": "Dossier",
+      "automatic": "{{line}} · auto",
       "freshTag": "Nouveau",
       "stages": [
         "pris",
@@ -1336,10 +1342,16 @@
     },
     "journey": {
       "metaBefore": "Parcours de l'acquisition · release ",
+      "metaAlone": "Parcours de l'acquisition",
       "provenanceNote": "Les dates viennent de la spine de provenance. Une étape non encore atteinte affiche « à venir » — jamais une date reconstruite.",
       "seeSheet": "Voir la fiche",
       "requeue": "Remettre en file",
-      "rescrape": "Re-scraper ce passage"
+      "rescrape": "Re-scraper ce passage",
+      "absorbedBy": "Cet épisode est couvert par la récupération de la saison {{season}}.",
+      "absorbedEnded": "La saison {{season}} est arrivée en médiathèque.",
+      "seeSeasonCard": "Voir la carte de la saison",
+      "absorbedRunning": "{{episode}} — téléchargement déjà en cours",
+      "absorbedCovered": "{{episode}} — couvert par la saison"
     },
     "notMedia": {
       "title": "Ce n'est pas un média",
@@ -1482,6 +1494,7 @@
       "seasonAsked": "Saison {{season}} de « {{title}} » demandée — {{count}} épisodes à récupérer.",
       "seasonAskedOne": "Saison {{season}} de « {{title}} » demandée — 1 épisode à récupérer.",
       "seasonAskedNone": "Saison {{season}} de « {{title}} » demandée — aucun épisode à récupérer.",
+      "seasonAlreadyAsked": "Saison {{season}} de « {{title}} » déjà demandée — sa récupération est en cours.",
       "seasonQueued": "Saison {{season}} de « {{title}} » en file — pipeline en cours.",
       "seasonHeld": "Saison {{season}} de « {{title}} » demandée — en attente du réseau, elle partira au retour.",
       "seasonRefused": "Saison {{season}} de « {{title}} » : la demande n'a pas abouti.",

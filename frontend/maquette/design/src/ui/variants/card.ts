@@ -18,7 +18,10 @@ export const card = cva(
   "card relative grid grid-cols-[auto_1fr] w-full items-stretch rounded-3 border border-border bg-card " +
     "overflow-hidden min-h-[126px] [transition:transform_var(--duration-2)_var(--ease-standard)] " +
     // The swipe gesture writes `dragging` straight to the card while a finger holds it.
-    "[&.dragging]:transition-none",
+    "[&.dragging]:transition-none " +
+    // A LANDING NAMED THIS CARD (« Voir la carte de la saison »): it wears the
+    // focus ring the base layer draws — the same outline, never a new one.
+    "data-[landed]:[outline:2px_solid_var(--color-primary)] data-[landed]:[outline-offset:2px]",
 );
 
 /** The column beside the poster: the top, then the strip, then the foot. */
