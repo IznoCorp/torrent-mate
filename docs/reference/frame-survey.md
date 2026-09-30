@@ -144,7 +144,10 @@ The engine's back handler (`onEngineBack`, `legacy.js:9461–9608`; the rungs at
    routes: a Back from one is a history pop the router handles, not a ladder step.
 3. **sheet** — `panel.isOpen()` → `panel.close(true)`. The panel host pushes `"sheet"`; an
    addressed panel travels in the query (D1, second tier).
-4. **the page** — a top-level page REPLACES (D1b), and Back from `/acquisition` arms the exit guard.
+4. **the page** — a bar page REPLACES from wherever it is opened; a page the side menu opens, and a
+   link placed inside a page, STACK; the exit guard arms only when the entry page is at the bottom of
+   the stack (D1b rule 2, § 16 as amended on 2026-09-29). Owed: the code still replaces for every page
+   until the navigation lot lands.
 
 **What is NOT on the ladder, and D1 says it should be.** D1's third tier reads « Transient: no URL,
 but Back still closes it », and names a confirmation as the example. `openDlg` pushes no entry and

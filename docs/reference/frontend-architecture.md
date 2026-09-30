@@ -149,11 +149,17 @@ considered and rejected — see rule 4 below.
 
 1. **Back pops, and the stack holds only deliberate arrivals.** Opening a surface — a sheet, a
    resolution, a panel — pushes. Adjusting one — a filter, an inner tab, a sort, a lens — replaces.
-2. **Switching a top-level page REPLACES, with the entry page kept beneath.** The stack under any
-   top-level page is `[guard, /acquisition]`; under a non-home page `[guard, /acquisition, /page]`.
-   Going TO `/acquisition` from elsewhere pops back onto the floor already there. Back from any
-   page lands on `/acquisition`; Back from there arms the exit guard — Android's
-   `popUpTo(startDestination)` in this codebase's terms.
+2. **Switching a BAR page REPLACES, with the entry page kept beneath — from wherever it is
+   opened.** The rule reads by DESTINATION: a page of the bottom bar (Acquisition, Médiathèque,
+   Trackers, Découvrir) replaces whether the bar, the side menu or a link opened it. The stack under
+   it is `[guard, /acquisition]`, or `[guard, /acquisition, /page]` for a bar page other than the
+   entry. Going TO `/acquisition` from the bar pops back onto the floor already there; Back from any
+   bar page lands on `/acquisition` — Android's `popUpTo(startDestination)` in this codebase's terms.
+   **A page the side menu opens STACKS** — Système, Réglages, Maintenance, Comptes, Profil and the
+   others — and Back replays the arrival path. **A link placed inside a page STACKS, even when it
+   leads to the entry page**, and the exit guard arms only when the entry page is at the bottom of
+   the stack. This half is § 16 as amended on 2026-09-29 (#635, #643); it is NOT delivered — the
+   code still replaces for every page, and the navigation lot (§ 4) owes it.
 3. **Where no stack exists, synthesise it from the hierarchy.** A cold link poses the real parent
    under the screen — read off the emitter of the screen's own opener, not guessed — and that
    parent is **rendered**, not merely recorded (`SCREEN_PARENTS` in `lib/addresses.ts`).
@@ -649,6 +655,8 @@ and plan, written 2026-09-27, name it L23: the order is now L14 · L19 · L21 ·
 L17 · L18 · L23**, and no dependency already written moved. **L24 (the orphans), drawn 2026-09-29, follows L23;
 after it, the desktop milestone** (operator, 2026-09-29, L24's OPEN 6) — the final entry of this section, not a lot.
 **L16-bis (the Trackers page's correction and Découvrir's header, on the operator's feedback of 2026-09-29), drawn 2026-09-29, is inserted between L16 and L17, which draws on its torrent rows: the order is now L14 · L19 · L21 · L13 · L20 · L22 · L16 · L16-bis · L17 · L18 · L23 · L24** — `docs/features/maquette-l16bis/DESIGN.md`, `docs/features/maquette-l16bis/plan/INDEX.md`. **Amended 2026-09-29 (the operator's nine rulings, PR #637): L16-bis *depends on the conformity train*** — the train builds the app's one tab component first, on the existing validated tab bars (Acquisition first), then arms the guard; L16-bis's own code waits for the train and then uses the component for Trackers, never building it — the phase that once built it here is removed (DESIGN § 5, DECIDED 7).
+
+**The navigation lot (`maquette-navigation`, B-577 and every edge read against the amended § 16), drawn 2026-09-30 in PR #651, is inserted directly after the conformity train: its code opens only once the train has merged**, because the train's phases 5 and 10 touch Système and the drawer, the surfaces its first phase rewires (its DESIGN § 0.3, its plan's INDEX). It changes behaviour, so it is not a conversion. **The order is now L14 · L19 · L21 · L13 · L20 · L22 · L16 · the conformity train · maquette-navigation · L16-bis · L17 · L18 · L23 · L24**, and no dependency already written moved.
 
 **C1 — the settings save bar, placed AFTER L16 (operator, 2026-09-29, ruling C1, verbatim: « On parle de toutes les
 pages de réglages ? Si oui alors oui. Si on veux quitter réglages un message de confirmation s'affiche, avec
