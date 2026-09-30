@@ -31,7 +31,7 @@
 // it can never write a binding.
 import { addressSeam } from "../lib/addresses";
 import { navigationState } from "../lib/navigation-entry";
-import { bridge, fillReplaceAddressDoor } from "../lib/shell-doors";
+import { bridge, fillRecordAddressDoor, fillReplaceAddressDoor } from "../lib/shell-doors";
 import { stackedSurfaces } from "../lib/stacked-surface";
 import { store } from "../lib/store-access";
 
@@ -306,3 +306,6 @@ export function switchPageFromLayer(leaving: string): void {
 // tab or a lens is a page setting every feature may write, and a module every
 // feature imported would be the hub the fan-in arm refuses.
 fillReplaceAddressDoor(replacePath);
+// AND THE RECORD, for a panel's link that lands on another tab of the page it
+// was opened on: an arrival, which stacks over the panel's kept entry.
+fillRecordAddressDoor(recordPath);

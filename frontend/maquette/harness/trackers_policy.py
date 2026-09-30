@@ -17,8 +17,10 @@ left waiting where the operator cannot see it (NE-DOIT-PAS-2).
    page never left; its « Enregistrer » writes
    through `updateConfigurationFile`, and the entry, read again, shows the value
    the layer now answers;
-5. « Voir les torrents » lands on « Torrents » filtered to that tracker, as an
-   adjustment, and it is a finger's target, at least 44 px high;
+5. « Voir les torrents » is an ARRIVAL from the tracker's panel: it lands on
+   « Torrents » filtered to that tracker, stacking one entry over the panel's,
+   and Retour reopens the tracker's panel on « Trackers » (D-L13-1, 09-13); it is
+   a finger's target, at least 44 px high;
 6. the alert threshold's panel, raised from the entry, is titled in the
    interface's words — never the key's raw English, « alert threshold »;
 7. from « Trackers », a finger sets the alert threshold above the tracker's
@@ -35,6 +37,13 @@ torrents », the wait and the failure are read in the tracker's PANEL, never in 
 fold; opening it is a layer above the roster (Back closes it), no longer an
 adjustment of the page. RULINGS 2's door is unchanged: a policy row raises the
 setting's own panel.
+
+RE-AIMED OUT LOUD (L16-bis, the reader's N-bis, 2026-09-30): hold 5 read
+« Voir les torrents » as an ADJUSTMENT — the selector's verb, replacing the
+panel's entry — and Retour then left « Trackers » for the entry page. His
+D-L13-1: a layer left for an arrival keeps its entry and Retour reopens it, as
+the torrent panel's « Voir la fiche » does. Hold 5 now walks it with a finger
+and reads the Retour; red on `515c277bd`.
 
 Red before the move: no entry opens. Holds 6–9 came with correction round C16,
 red while the save left `/api/trackers` stale, the policy read `?? []`, the
@@ -86,10 +95,15 @@ OPEN = """(name) => {
       .map(row => ({setting: row.dataset.setting, text: row.textContent.replace(/\\s+/g, ' ').trim()})) : [],
     guidance: notes.includes(GUIDANCE) ? GUIDANCE : null,
     unset: notes.includes(UNSET) ? UNSET : null,
-    see: mine && !!sheet.querySelector(`[data-part="sheet/action"][data-trackers-choose="${name}"]`),
+    see: mine && [...sheet.querySelectorAll('[data-part="sheet/action"]')].some(action => action.textContent.trim() === SEE),
     length: history.length,
   };
-}""".replace("GUIDANCE", json.dumps(WORDS.get("floorGuidance"))).replace("UNSET", json.dumps(WORDS.get("policyUnset")))
+}""".replace("GUIDANCE", json.dumps(WORDS.get("floorGuidance"))).replace("UNSET", json.dumps(WORDS.get("policyUnset"))).replace(
+    "SEE", json.dumps(WORDS.get("seeTorrents")))
+# WHERE THE WALK STANDS: the tab, the filter, the panel up and its title, the depth.
+WHERE = """() => ({tab: window.state?.trackersTab, filter: window.state?.trackersFilter,
+  sheet: document.querySelector('#sheet[data-open] [data-part="sheet/title"]')?.textContent.trim() ?? null,
+  length: history.length, address: location.pathname + location.search})"""
 CATALOGUE = """(id) => {
   const topics = window.__queries?.getQueryData(['/api/config/schema']) || [];
   const one = topics.flatMap((topic) => topic.settings).find((s) => (s.file + ':' + s.key) === id);
@@ -200,17 +214,27 @@ async def main():
         journal.check("and the entry, read again, shows the value the layer now answers",
                       answered is not None and answered["shown"] in floor, f"{floor!r} · {answered}")
 
-        await enter(page, "trackers-entry-open")
-        start = await page.evaluate("()=>history.length")
-        see = f'#sheet[data-open] [data-part="sheet/action"][data-trackers-choose="{WITH_POLICY}"]'
-        height = await page.evaluate(
-            f"""()=>Math.round(document.querySelector('{see}')?.getBoundingClientRect().height ?? 0)""")
-        await tapped(page, see)
-        landed = await page.evaluate(
-            "()=>({tab: window.state?.trackersTab, filter: window.state?.trackersFilter, length: history.length})")
-        journal.check("« Voir les torrents » lands on « Torrents » filtered to the tracker, as an adjustment",
-                      landed["tab"] == "torrents" and landed["filter"] == WITH_POLICY and landed["length"] == start,
-                      f"{landed} from {start}")
+        # A FINGER'S WALK, never a driven panel: the panel's entry is what Retour reopens.
+        # THE TAB TAPPED, so the address says « Trackers » as a walk would have left it.
+        await enter(page, "trackers-roster")
+        await tapped(page, '#view [data-trackers-tab="trackers"]')
+        await tapped(page, f'#view [data-tracker-open="{WITH_POLICY}"]')
+        opened = await page.evaluate(WHERE)
+        see = page.locator('#sheet[data-open] [data-part="sheet/action"]', has_text=WORDS.get("seeTorrents"))
+        height = round((await see.first.bounding_box() or {}).get("height", 0)) if await see.count() == 1 else 0
+        if await see.count() == 1:
+            await see.tap()
+            await page.wait_for_timeout(ACTED)
+        landed = await page.evaluate(WHERE)
+        journal.check("« Voir les torrents » is an arrival: « Torrents » filtered to the tracker, one entry stacked",
+                      landed["tab"] == "torrents" and landed["filter"] == WITH_POLICY and landed["sheet"] is None
+                      and landed["length"] == opened["length"] + 1, f"{landed} from {opened}")
+        await page.go_back()
+        await page.wait_for_timeout(ACTED)
+        back = await page.evaluate(WHERE)
+        journal.check("Retour reopens the tracker's panel on « Trackers », unfiltered",
+                      back["tab"] == "trackers" and back["filter"] == "" and back["sheet"] == WITH_POLICY,
+                      f"{back} from {landed}")
 
         journal.check(f"« Voir les torrents » is a finger's target, at least {FINGER} px high", height >= FINGER,
                       f"{height} px")

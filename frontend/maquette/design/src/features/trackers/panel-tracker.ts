@@ -166,7 +166,7 @@ function trackerPanel(name: string, cache: PanelCache): PanelDescriptor | null {
       } : null,
       {
         type: "actions",
-        actions: [{ text: say("seeTorrents"), icone: icons.right, target: { "trackers-choose": tracker.name } }],
+        actions: [{ text: say("seeTorrents"), icone: icons.right, target: { "trackers-see": tracker.name } }],
       },
     ],
   };
