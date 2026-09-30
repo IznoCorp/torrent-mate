@@ -40,7 +40,8 @@ The reader's corrections (N-bis, 2026-09-30), red on `18fb39365`:
 11. « Enregistrer » is the filled primary, « Abandonner les modifications » the
     danger OUTLINE — a transparent ground, the danger's colour;
 12. B-608 — Réglages' search filters as one types, the field keeping its focus
-    and its word;
+    and its word; B-610 — and the browser's own cancel cross is not drawn beside
+    ours;
 13. B-609 — on a screen (a media sheet opened from a torrent's poster), the tab
     bar drawn over it takes a finger.
 """
@@ -50,6 +51,8 @@ import pathlib
 
 from common import ACTED, PAGE_PATHS, PANEL_IN, PHONE, PROTOTYPE, SETTLED, Journal, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
+
+from chrome_pixels import average_colour
 
 ROOT = pathlib.Path(__file__).resolve().parents[1] / "design/src"
 WORDS = json.loads((ROOT / "i18n/fr.json").read_text(encoding="utf-8"))
@@ -316,6 +319,20 @@ async def hold_search_as_one_types(browser, journal):
                   "the field still focused with its word",
                   typed["rubrics"] == 0 and typed["rows"] and all("port" in row for row in typed["rows"])
                   and typed["focused"] == "qsettings" and typed["value"] == "port", repr(typed)[:400])
+    # THE BROWSER'S CROSS IS READ IN PIXELS: `getComputedStyle` does not answer
+    # for `::-webkit-search-cancel-button`, it answers the field's own
+    # `appearance`. The field is captured as drawn, then with the cross hidden by
+    # force — the same pixels when there was no cross to hide.
+    await page.evaluate("()=>document.activeElement?.blur()")
+    box = await page.locator("#qsettings").bounding_box()
+    drawn = average_colour(await page.screenshot(clip=box))
+    await page.add_style_tag(content="#qsettings::-webkit-search-cancel-button{appearance:none}")
+    await page.wait_for_timeout(100)
+    hidden = average_colour(await page.screenshot(clip=box))
+    journal.check("R-C1-a 12 (B-610): the browser draws no cross of its own in the filled field — ours is the one",
+                  all(abs(a - b) < 0.1 for a, b in zip(drawn, hidden)), f"drawn {drawn} · forced {hidden}")
+    await field.focus()
+    await page.keyboard.press("End")
     for _ in range(4):
         await page.keyboard.press("Backspace")
     await page.wait_for_timeout(ACTED)
