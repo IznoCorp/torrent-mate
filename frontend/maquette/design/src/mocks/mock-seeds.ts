@@ -30,7 +30,7 @@ import { poseDeferral } from "./handlers/posed-deferral";
 import { sameItem } from "./handlers/same-item";
 import {
   SEARCHING, poseAutomatic, poseBeforeAsk, poseSeasonArrived, poseSeasonAt, poseSeasonBlocked, poseSeasonEnded,
-  poseSeasonShelved,
+  poseSeasonShelved, poseReleaseTried,
 } from "./handlers/season-recovery";
 import { poseKeepsItsFiles } from "./handlers/staged-folders";
 import { confirmInPlex, placeAtPlexCheck } from "./handlers/ladder";
@@ -82,6 +82,7 @@ export type MockSeeds = {
     automatic: typeof poseAutomatic;
     ended: typeof poseSeasonEnded;
     shelved: typeof poseSeasonShelved;
+    releaseTried: typeof poseReleaseTried;
   };
   /** Whether two queue cards stand for one item — the layer's own rapprochement (R238). */
   sameItem: typeof sameItem;
@@ -164,6 +165,7 @@ export const mockSeeds: MockSeeds = {
     automatic: poseAutomatic,
     ended: poseSeasonEnded,
     shelved: poseSeasonShelved,
+    releaseTried: poseReleaseTried,
   },
   sameItem,
   placeAtPlexCheck,

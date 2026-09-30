@@ -269,5 +269,17 @@ export function poseSeasonShelved(title: string, season: number): void {
   held.set(title, { ...held.get(title), [String(season)]: Array.from({ length: aired }, (_, index) => index + 1) });
 }
 
+/**
+ * Takes one release out of a title's list — tried and abandoned, so the
+ * release read no longer offers it (§14.1) — until the layer is next reset.
+ *
+ * @param title The medium.
+ * @param name The release's name.
+ */
+export function poseReleaseTried(title: string, name: string): void {
+  const state = mockState();
+  state.triedReleases[title] = [...(state.triedReleases[title] ?? []), name];
+}
+
 /** The rung a season's card is searched on, while no release is found yet. */
 export const SEARCHING: Position = { current: rungIndex("searched"), state: "now" };

@@ -304,6 +304,8 @@
       "notePourquoi": "pourquoi",
       "noteAfterPourquoi": "le moteur a classé ainsi — sans ça, choisir est un pari.",
       "rescount": "candidats retenus par le profil de qualité · dernière recherche il y a 12 min",
+      "allCovered": "candidats — tous couverts par la saison {{season}}",
+      "coveredBySeason": "Couvert par la saison {{season}}",
       "qhint": "Retenue : meilleure résolution admise par le profil, langue MULTi préférée, et le plus de sources à qualité égale.",
       "pickCurrent": "Reprendre celle-ci",
       "pickAlternative": "Prendre celle-ci à la place",

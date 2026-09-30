@@ -14,6 +14,8 @@ const SERIES = "Silo";
 const SEASON = 3;
 const ONE_OFF = "Les aventures de Tintin";
 const ONE_OFF_SEASON = 3;
+// The season pack the dense world's releases hold, by its name.
+const SEASON_PACK = "Silo.S03.MULTi.1080p.WEB-DL.DDP5.1.H264-FRATERNITY";
 // The season pack the dense world's releases hold, its line's tail once arrived.
 const PACK = "MULTi · 1080p";
 
@@ -31,6 +33,12 @@ function forgetSeasons(): void {
 function journey(subject: string): void {
   applyState({ page: "acq", acqTab: "follows", scen: "loaded", phase: "ready" });
   window.__panel.produce("journey", subject);
+}
+
+/** The release picker of the subject, over « Suivis », in the dense world. */
+function releases(title: string): void {
+  applyState({ page: "acq", acqTab: "follows", scen: "loaded", phase: "ready" });
+  window.__screens.releases(title);
 }
 
 /** « En cours », in the dense world. */
@@ -306,6 +314,21 @@ export function seasonRecoveryStates(): NamedState[] {
         window.__mocks?.seasonRecovery.shelved(SERIES, SEASON);
         forgetQueue();
         journey(`${SERIES}|S03E07`);
+      },
+    ],
+    // ── S5 — the refusal in the release picker ─────────────────────────────
+    [
+      "releases-season-recovering",
+      "Choisir une autre release — pendant la récupération de S03 : les S03E07 couverts, le pack reste offert",
+      () => releases(SERIES),
+    ],
+    [
+      "releases-season-recovering-all-covered",
+      "Choisir une autre release — chaque candidat est un épisode couvert par la saison 3",
+      () => {
+        window.__mocks?.seasonRecovery.releaseTried(SERIES, SEASON_PACK);
+        window.__queries?.removeQueries({ queryKey: ["/api/acquisition/releases"] });
+        releases(SERIES);
       },
     ],
     // ── S6 — the end, on the rows ──────────────────────────────────────────

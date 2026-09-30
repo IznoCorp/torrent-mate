@@ -929,6 +929,8 @@ reconnecting
 reconnection
 record
 recover
+recovered
+recovering
 recovery
 rect
 redirect
@@ -1283,6 +1285,7 @@ translate
 travel
 travelled
 trend
+tried
 trim
 tunnel
 tuples
