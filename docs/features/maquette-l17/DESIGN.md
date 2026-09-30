@@ -434,9 +434,9 @@ per-surface list, not by name here).
 « Chercher un cross-seed » and the arrival of an event are ACTS, not surfaces: R-L17-e, R-L17-f, R-L17-i and R-L17-h
 walk them by finger or through `window.__mocks.emit` and read the network and the render.
 
-### 4.1 What the oracle will do (D8)
+### ~~4.1 What the oracle will do (D8)~~
 
-The new surfaces are NEW, so the reference RECORDS them and proves nothing about them. What the oracle is for here
+~~The new surfaces are NEW, so the reference RECORDS them and proves nothing about them. What the oracle is for here~~
 is the other direction — **no existing state may diverge unless a phase names it**. The list below covers every
 phase of the re-cut plan (§ INDEX), not only the ones this document first named (F61 — the first drawing stopped at
 its own phase 13 and left every later phase unnamed):
@@ -450,15 +450,15 @@ its own phase 13 and left every later phase unnamed):
 | 8 | L16's `torrents-list` again, where an obligation is a cross-seed's | « L17 § 3.4: the obligation's origin » |
 | 9 | L16's `tracker-entry-open` (the disclosure gains a fourth row) | « L17 § 3.2: the switch » |
 | 10 | L16's `torrents-list` again, where a pair is cut | « L17 § 3.3: the cut » |
-| 11 | none by the oracle — an exclusion changes no rectangle it reads | — |
-| 12 | none by the oracle — the badge's number is text | — |
+| 11 | ~~none by the oracle — an exclusion changes no rectangle it reads~~ | — |
+| 12 | ~~none by the oracle — the badge's number is text~~ | — |
 | 13 | none — a live rule moves no rectangle | — |
 | 14, 15 | none — a contract, then an act on an existing row | — |
-| 16 | none by the oracle — a virtual window's geometry is declared, not read by a rectangle proof | — |
+| 16 | ~~none by the oracle — a virtual window's geometry is declared, not read by a rectangle proof~~ | — |
 | 17, 18 | none — records and the close | — |
 
-**The oracle's silence over the badge and over a removed row proves nothing, and this design says so before the
-phase does**: the oracle reads a rectangle and a computed style, never a count or a missing element. **This lot is
+~~**The oracle's silence over the badge and over a removed row proves nothing, and this design says so before the~~
+~~phase does**: the oracle reads a rectangle and a computed style, never a count or a missing element. **This lot is~~
 held by § 5's rules or by nobody.**
 
 The accessibility tier (`--a11y`) is re-read at phases 6, 7, 9, 10 and 15 over the states this lot adds.
@@ -470,10 +470,10 @@ The accessibility tier (`--a11y`) is re-read at phases 6, 7, 9, 10 and 15 over t
 Numbers: the harness's highest rule number is re-taken against `origin/main` at the moment phase 4 runs (the first
 phase that writes a rule), and every label below is bound to a consecutive free number then, the mapping written
 into the report. A number chosen from this document without re-measuring is a collision. Each rule is written RED
-FIRST; none of the surfaces exists on `main`, so each is red for that reason and needs no mutation to be seen red;
-the mutation comes after the move.
+~~FIRST; none of the surfaces exists on `main`, so each is red for that reason and needs no mutation to be seen red;~~
+~~the mutation comes after the move.~~
 
-| Rule | Phase | What it READS | The mutation that fells it |
+| Rule | Phase | What it READS | ~~The mutation that fells it~~ |
 | --- | ---: | --- | --- |
 | **R-L17-a** — the six words, and no bare code (NE-DOIT-PAS-4) | 4 | every state chip the surface draws reads one of the operator's six words; every reason code the contract's `state`/`reason` enums declare has a sentence in `fr.json`, and no rendered text is a bare code | draw the code instead of its sentence → falls; remove one sentence → falls; add a seventh chip word → falls |
 | **R-L17-b** — one derivation (§13, NE-DOIT-PAS-1, M6) | 5, re-aimed 6, 7, 12 | the state and the count drawn on the roster's line, on the mark's rows and in the badge equal the mock's own field, never a local computation; **when `engineEnabled` is false, every reader — the line, the tracker's entry — names it FIRST, and no pair reads « stoppé » from it alone** | compute a state or a count client-side → falls; draw a pair « stoppé » from the engine's own switch alone → the engine-off hold falls |
@@ -496,7 +496,7 @@ width** (`docs/reference/product-intent.md` § 12, DOIT-9).
 
 R-L16-d (« one derivation for the alert, four readers ») reads the Trackers tab's badge; the cross-seed term makes
 that count a sum of four (threshold, breach, refused identifier, cross-seed failure), so the rule is **re-aimed in
-phase 12**, out loud, and its mutation re-run. R91 (`fanout.py`) is re-aimed in phase 13 for the three names that
+~~phase 12**, out loud, and its mutation re-run. R91 (`fanout.py`) is re-aimed in phase 13 for the three names that~~
 leave the exemption. Neither is left green over a changed reading.
 
 ---

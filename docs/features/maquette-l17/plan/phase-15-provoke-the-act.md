@@ -35,7 +35,7 @@ second tap on the same pair is the one refusal (a duplicate); the quota is drawn
 2. R-L17-i written first, seen red; the quota line in the mark's foot.
 3. The search-outcome event resolving a `queued` pair, reading phase 13's rule.
 
-## Mutation
+## ~~Mutation~~
 
 Commit first: let a double tap send two → R-L17-i falls; answer « occupé » on throttle → falls; hide the quota →
 the quota hold falls; offer the act on an `active` row → the offer hold falls; leave a `queued` pair unresolved
@@ -45,10 +45,10 @@ past the visit → the same-visit hold falls.
 
 —
 
-## Oracle: states that diverge, declared by name
+## ~~Oracle: states that diverge, declared by name~~
 
 `torrents-cross-seed` — a row gains its act — accepted with « L17 § 3.3: « Chercher un cross-seed » on a row ». Any
-other divergence is STOP A.
+~~other divergence is STOP A.~~
 
 ## Gate
 

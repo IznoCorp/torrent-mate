@@ -2785,6 +2785,16 @@ to nothing is `NE-DOIT-PAS-5` — silent failure — applied to a SUCCESS as muc
 events are emitted and dropped. Whatever §19 becomes, the cheapest half is already built and
 unplugged: two event types, already carrying their reason.
 
+> **ANNOTATED, 2026-09-30 (L17, `feat/maquette-l17`): the READING half is drawn; the row stays
+> `open` for its backend half.** The maquette declares what the interface needs — the tracker
+> summary's `crossSeed`, an origin's pairs in six states with their reasons, an obligation's origin,
+> `cutCrossSeed`, `searchCrossSeed`, the exclusions, the switch's `stopRunningCrossSeeds` — and draws
+> them on the Trackers page (each tracker's line and switch, the torrent's panel, the badge's failure
+> term); the two events and a third, `CrossSeedSearched`, are claimed by `features/trackers/live.ts`.
+> Still owed by the backend (`docs/reference/frontend-backend-demands.md`, `-stream.md` § 3): every
+> route above, the events relayed to `/ws/events`, an attempt on every eligible tracker (DESIGN fact 16),
+> and the default « active » at the switchover (demand H). The media sheet's block is L18's.
+
 
 > **ARBITRATED, 2026-08-29.** The three sections are recorded in `frontend-architecture.md` § 1 as
 > **lots that are OWED and not yet declared** — deliberately without a number, an order or a

@@ -36,7 +36,7 @@ transport failure read differently. Red against `main`: no such row.
    refusal is part of the default scenario now, not a switch-on special case).
 3. R-L17-c written first, seen red; R-L17-a re-aimed at the reasons.
 
-## Mutation
+## ~~Mutation~~
 
 Commit first: draw one constant sentence for every code → the contrast hold falls; drop the reason → it falls; draw
 the code → R-L17-a falls too.
@@ -45,10 +45,10 @@ the code → R-L17-a falls too.
 
 —
 
-## Oracle: states that diverge, declared by name
+## ~~Oracle: states that diverge, declared by name~~
 
 L16's `torrents-list` again where a refusal row is drawn — accepted with « L17 § 3.3: the cross-seed mark ». Any
-other divergence is STOP A.
+~~other divergence is STOP A.~~
 
 ## Gate
 

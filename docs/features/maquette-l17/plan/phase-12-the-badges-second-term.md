@@ -33,9 +33,9 @@ trackers under threshold plus the obligations in breach plus the refused identif
 
 1. `trackersBadge` reads the summary's `crossSeed.failed` as its fifth term.
 2. `bar-trackers-refused` in `harness/states/frame.ts` beside L22's `bar-todo-badge` and L16's `bar-trackers-alert`.
-3. R-L16-d re-aimed, out loud: the tab's count against the entry's, with the sum of five — its mutation re-run.
+3. ~~R-L16-d re-aimed, out loud: the tab's count against the entry's, with the sum of five — its mutation re-run.~~
 
-## Mutation
+## ~~Mutation~~
 
 Commit first: drop the term → R-L17-g falls; count an ordinary mismatch → falls; count « sans correspondance » →
 falls; require a « seen » gesture to clear a resolved failure → the M5 hold falls.
@@ -44,9 +44,9 @@ falls; require a « seen » gesture to clear a resolved failure → the M5 hold 
 
 —
 
-## Oracle: states that diverge, declared by name
+## ~~Oracle: states that diverge, declared by name~~
 
-None by the oracle — the badge's number is text and the tab's rectangle does not move (DESIGN § 4.1). R-L17-g holds
+~~None by the oracle — the badge's number is text and the tab's rectangle does not move (DESIGN § 4.1). R-L17-g holds~~
 it.
 
 ## Gate

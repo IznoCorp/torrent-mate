@@ -477,14 +477,17 @@ Five surfaces, and what decides which one a panel belongs to is not the page it 
 
 | A medium in trouble                      | **Acquisition › « À traiter »** |
 | ---------------------------------------- | ------------------------------- |
-| A tracker in trouble (ratio, obligation) | **Trackers**                    |
+| A tracker in trouble (ratio, obligation, cross-seed) | **Trackers**        |
 | A machine in trouble                     | **Système**                     |
 | A setting                                | **Configuration**               |
 | A command run against the library        | **Maintenance**                 |
 
 A tracker's trouble speaks where the tracker lives — its ratio under its own threshold, a refused
-identifier, a broken obligation — and the badge on the bar's « Trackers » tab says it (organisation
-ruling 12: each thing speaks where it lives, one badge per tab, no notification box).
+identifier, a broken obligation, a cross-seed that FAILED (never an ordinary mismatch, never « sans
+correspondance ») — and the badge on the bar's « Trackers » tab says it (organisation ruling 12: each
+thing speaks where it lives, one badge per tab, no notification box). The cross-seed (L17) lives on
+the same page: each tracker's line and its switch in its panel, and a torrent's pairs, tracker by
+tracker, in the torrent's panel.
 
 `Contrôle` does not survive this cut **as it is**. Production stacks blocked media on top of disk
 and provider health with nothing saying why they share a page; each of its **eight** panels

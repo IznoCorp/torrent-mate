@@ -18,10 +18,10 @@ never folded silently into phase 6's own render.
   geometry declared (row height, from the SAME chip-and-date layout every row already draws, so no new measurement
   is invented) ≈ 8 lines new 1; **whether phase 7's opened-refusal row (a taller, multi-line form) fits the SAME
   fixed height or needs its own reserved slot** is measured here and reported, never assumed 1½; R117 (the codebase's
-  own virtual-window rule) or a new rule re-aimed at the mark's rows, with its own mutation, 3; the seed's own row
+  ~~own virtual-window rule) or a new rule re-aimed at the mark's rows, with its own mutation, 3; the seed's own row~~
   count, re-measured against a screenful at 390 px (fact: DOIT-9) 1½ → 9.
 - **Found.** The mark's OWN scroll never escapes the Torrents tab's own page scroll (D1's own discipline, unchanged
-  by a virtual window); the window's geometry is DECLARED, not read by a rectangle proof (the oracle records no
+  ~~by a virtual window); the window's geometry is DECLARED, not read by a rectangle proof (the oracle records no~~
   divergence for it, DESIGN § 4.1).
 
 ## Red today
@@ -37,7 +37,7 @@ window's own overscan. Red before this phase: the mark renders every row unwindo
    reserved slot) rather than silently choosing.
 3. Re-aim the virtual-window rule at the mark's own rows, seen red first.
 
-## Mutation
+## ~~Mutation~~
 
 Commit first: render the full row list unwindowed past a screenful → falls; let an opened refusal's taller form
 overflow the fixed geometry silently (no reserved slot, no reported finding) → falls.
@@ -46,7 +46,7 @@ overflow the fixed geometry silently (no reserved slot, no reported finding) →
 
 —
 
-## Oracle: states that diverge, declared by name
+## ~~Oracle: states that diverge, declared by name~~
 
 None — a virtual window's geometry is declared, never read by a rectangle proof (DESIGN § 4.1 says so before this
 phase does).

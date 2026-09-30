@@ -4126,7 +4126,10 @@ export interface operations {
     };
     updateConfigurationFile: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description L17 (round 9 Q5): when this write turns a tracker's `cross_seed` OFF, ALSO stop every pair running on it — each reads `stopped`, `stopCause: switch`, dated — in this SAME call. Absent or false, the switch cuts NEW cross-seeds only and every running pair keeps seeding (M6). Invented: no fixture exists for the cross-seed. */
+                stopRunningCrossSeeds?: boolean;
+            };
             header?: never;
             path: {
                 /** @description the file */

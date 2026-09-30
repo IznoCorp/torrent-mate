@@ -31,7 +31,7 @@
 - Demand B's `description` asks for an attempt per ELIGIBLE, switched-on tracker, not the engine's current
   first-only behaviour.
 
-## Red today · Mutation · Oracle
+## ~~Red today · Mutation · Oracle~~
 
 None — a contract has no rule and moves no surface. `scripts/compare-contracts.py --check` is the guard, read by hand.
 
@@ -49,7 +49,7 @@ Demands A and B of DESIGN § 6.2, filed by the regenerated `docs/reference/front
 
 ## Gate — done when
 
-Per INDEX « Gates »; `python3 scripts/compare-contracts.py --check`; `python3 scripts/check-mock-seeds.py` (its
+~~Per INDEX « Gates »; `python3 scripts/compare-contracts.py --check`; `python3 scripts/check-mock-seeds.py` (its~~
 `provenance` arm refuses an operation carrying neither `x-seeded-from` nor `x-unseeded`).
 
 ## Commit
