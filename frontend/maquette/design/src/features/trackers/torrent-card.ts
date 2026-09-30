@@ -248,9 +248,13 @@ export function legendOf(codes: readonly Code[]): LegendEntry[] {
  * @param entry The download client's entry.
  * @param obligation The obligation it owes, when it owes one.
  * @param breached Whether the page's alert reads its obligation broken.
+ * @param trackerEnabled Whether a tracker's own cross-seed switch is on (§ 17
+ *     point 1): a pair on a tracker whose switch is off offers no search here.
  * @returns The item's markup.
  */
-export function torrentItemMarkup(entry: Download, obligation: Obligation | undefined, breached: boolean): string {
+export function torrentItemMarkup(
+  entry: Download, obligation: Obligation | undefined, breached: boolean, trackerEnabled: (tracker: string) => boolean,
+): string {
   const say = (key: string, values: Record<string, string> = {}) => i18next.t(`screens.torrents.${key}`, values);
   const panelAddress = torrentPanelAddress(entry);
   const transfer = transferOf(entry);
@@ -295,7 +299,9 @@ export function torrentItemMarkup(entry: Download, obligation: Obligation | unde
   // search on an origin, over every pair the engine would act on — drawn only
   // when there is one; nothing is drawn that does nothing.
   const searchable = entry.crossSeed !== null
-    && entry.crossSeed.pairs.some((pair) => isSearchable(pair, entry.crossSeed?.titleExcluded ?? false, isComplete(entry)));
+    && entry.crossSeed.pairs.some((pair) => isSearchable(
+      pair, entry.crossSeed?.titleExcluded ?? false, isComplete(entry), trackerEnabled(pair.tracker),
+    ));
   const search = searchable
     ? `<button class="${swipeAction({ tone: "resume" })}" data-part="swipe/action" data-action="cross-seed-search" data-swipeact="cross-seed-search" data-cross-seed-search-all="${escapeMarkup(entry.infoHash)}">${svgIcon(icons.search)}${escapeMarkup(say("swipeSearch"))}</button>`
     : undefined;

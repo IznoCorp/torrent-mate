@@ -4,8 +4,8 @@ import i18next from "../../lib/unit-words";
 import contract from "../../../../contract/openapi.json";
 import { isFailure as layerCounts } from "../../mocks/cross-seed-state";
 import {
-  CROSS_SEED_TONE, REASON_FAMILY, familyWord, isFailure, isSearchable, reasonSentence, rosterLine, stateWord,
-  type CrossSeedPair, type CrossSeedReason, type CrossSeedState,
+  CROSS_SEED_TONE, REASON_FAMILY, familyWord, isFailure, isSearchable, isSwitchedOff, reasonSentence, rosterLine,
+  stateWord, type CrossSeedPair, type CrossSeedReason, type CrossSeedState,
 } from "./cross-seed-state";
 
 // The operator's six words, verbatim (§ 19; round 10 Q5 = A) — the rule's data.
@@ -59,17 +59,29 @@ describe("the search offered", () => {
   const pair = (state: CrossSeedState, excluded = false): CrossSeedPair => ({ ...refused("fetch_failed"), state, excluded });
 
   it("resumes a stopped pair once its exclusion is undone, never while it is excluded", () => {
-    expect(isSearchable(pair("stopped"), false, true)).toBe(true);
-    expect(isSearchable(pair("stopped", true), false, true)).toBe(false);
-    expect(isSearchable(pair("active"), false, true)).toBe(false);
-    expect(isSearchable(pair("trackerWithout"), false, true)).toBe(false);
+    expect(isSearchable(pair("stopped"), false, true, true)).toBe(true);
+    expect(isSearchable(pair("stopped", true), false, true, true)).toBe(false);
+    expect(isSearchable(pair("active"), false, true, true)).toBe(false);
+    expect(isSearchable(pair("trackerWithout"), false, true, true)).toBe(false);
   });
 
   it("offers nothing while the original still downloads", () => {
     for (const state of ["noMatch", "error", "notSearched", "stopped"] as CrossSeedState[]) {
-      expect(isSearchable(pair(state), false, false), state).toBe(false);
-      expect(isSearchable(pair(state), false, true), state).toBe(true);
+      expect(isSearchable(pair(state), false, false, true), state).toBe(false);
+      expect(isSearchable(pair(state), false, true, true), state).toBe(true);
     }
+  });
+
+  it("offers nothing on a pair whose own tracker's cross-seed switch is off, whatever its state (§ 17 point 1)", () => {
+    for (const state of ["noMatch", "error", "notSearched", "stopped"] as CrossSeedState[]) {
+      expect(isSearchable(pair(state), false, true, false), state).toBe(false);
+      expect(isSwitchedOff(pair(state), false, true, false), state).toBe(true);
+      expect(isSwitchedOff(pair(state), false, true, true), state).toBe(false);
+    }
+    // NEVER THE REASON when something else already withholds the search.
+    expect(isSwitchedOff(pair("active"), false, true, false)).toBe(false);
+    expect(isSwitchedOff(pair("stopped", true), false, true, false)).toBe(false);
+    expect(isSwitchedOff(pair("stopped"), false, false, false)).toBe(false);
   });
 });
 

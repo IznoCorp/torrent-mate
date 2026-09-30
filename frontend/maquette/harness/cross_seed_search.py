@@ -15,6 +15,11 @@ L17 DESIGN § 3.3.
 1b. a cut pair, its exclusion undone, offers the search, and the search resolves
    it like a fresh one (§ 3.3: resuming IS « Chercher un cross-seed »); a title
    shared again offers the card's drawer;
+1c. a pair whose OWN tracker's cross-seed switch is off offers nothing, WHATEVER
+   its state (stopped, noMatch, notSearched, error) — the switch refuses it just
+   as the engine would (§ 17 point 1); its line says the TRUE reason; another
+   tracker, its switch on, still offers the search; the mock's own handler
+   refuses a search asked on a switched-off pair;
 2. `torrents-cross-seed-search`: a double tap on one pair asks ONCE; the pair
    reads « en file », never « occupé »; the engine's quota is drawn;
 3. the search ends within the same visit: its outcome moves the pair on its own;
@@ -39,6 +44,8 @@ COPY = "7c1e0b2f95c438b7db4f7c855bd451d8bb1f0046"
 SEARCHABLE = {"noMatch", "error", "notSearched", "stopped"}
 # The wait a pair still downloading says, in the interface's words.
 DOWNLOADING_WAIT = "l'original est encore en téléchargement"  # french-ok: the rendered line this hold asserts
+# The wait a switched-off tracker says (§ 17 point 1), in the interface's words.
+SWITCH_OFF_WAIT = "l'interrupteur cross-seed du tracker est coupé"  # french-ok: the rendered line this hold asserts
 # How long the second finger of a double tap may wait for its button.
 QUICK = 500
 # Long enough for the engine's queued search to end (the layer's SEARCH_MILLISECONDS, 4 s).
@@ -62,6 +69,15 @@ DRAWER = """(hash) => !!document.querySelector(
   `#view [data-part="torrents/row"][data-entry="${hash}"] [data-part="swipe/side"][data-side="left"] [data-cross-seed-search-all]`)"""
 CONFIRM = '[data-part="dialog"][data-open] [data-part="dialog/button"][data-tone="danger"]'
 TOAST = """() => document.getElementById('toast')?.textContent.trim() ?? ''"""
+# Poses one pair fresh, its tracker's switch off, and forgets the stale trackers' read —
+# the SAME discipline the named states' own `fresh()` holds, done here without one.
+SWITCH_OFF_PAIR = """({infoHash, tracker, state}) => {
+  window.__mocks?.poseCrossSeedPair(infoHash, tracker, {
+    state, excluded: false, searching: false, reason: state === 'error' ? 'fetch_failed' : null,
+  });
+  window.__mocks?.poseCrossSeedSwitchOff(tracker);
+  window.__queries?.removeQueries({ queryKey: ['/api/trackers'] });
+}"""
 
 
 async def enter(page, state):
@@ -109,6 +125,39 @@ async def main():
                       bool(rows) and any(row["offered"] for row in rows)
                       and any(row["state"] == "stopped" and row["offered"] for row in rows) and not wrong,
                       repr(wrong or [(row["tracker"], row["state"], row["offered"]) for row in rows]))
+
+        # ── 1c: the tracker's OWN switch off refuses it, whatever the pair's state ──
+        for state in ("stopped", "noMatch", "notSearched", "error"):
+            await enter(page, "torrents-cross-seed")
+            await page.evaluate(SWITCH_OFF_PAIR, {"infoHash": SWITCHED, "tracker": "tr4ker", "state": state})
+            await panel(page, f"{SWITCHED}:c411")
+            switched = {row["tracker"]: row for row in await page.evaluate(OFFERS)}
+            journal.check(f"the tracker's own switch off: nothing offered on a {state!r} pair, its line says why",
+                          switched.get("tr4ker", {}).get("offered") is False
+                          and switched.get("tr4ker", {}).get("wait") is not None
+                          and SWITCH_OFF_WAIT in switched["tr4ker"]["wait"],
+                          repr(switched.get("tr4ker")))
+            journal.check(f"another tracker's own switch, still on: its {state!r}-sibling pair still offers the search",
+                          switched.get("v3x.club", {}).get("offered") is True, repr(switched.get("v3x.club")))
+        # THE MOCK'S OWN HANDLER REFUSES IT TOO: the card's bulk drawer asks with no
+        # tracker filter, and the switched-off pair is excluded from what it queues,
+        # never offered a way around the engine's own boundary (§ 17 point 1).
+        await page.evaluate("() => window.__panel.close?.()")
+        await page.wait_for_timeout(ACTED)
+        await page.evaluate(
+            "(hash) => document.querySelector(`#view [data-part=\"torrents/row\"][data-entry=\"${hash}\"] "
+            "[data-cross-seed-search-all]`)?.click()", SWITCHED)
+        await page.wait_for_timeout(ACTED)
+        pairs = {pair["tracker"]: pair for pair in await page.evaluate(
+            "(hash) => (window.__queries?.getQueryData(['/api/acquisition/downloads'])?.downloads || [])"
+            ".find(e => e.infoHash === hash)?.crossSeed?.pairs ?? []", SWITCHED)}
+        journal.check("the handler queues only the tracker whose own switch is on, from a no-tracker bulk ask",
+                      pairs.get("v3x.club", {}).get("searching") is True
+                      and pairs.get("tr4ker", {}).get("searching") is not True,
+                      repr(pairs))
+        # BACK TO THE BASELINE: every switch on again, nothing of 1c leaking into what follows.
+        await enter(page, "torrents-cross-seed")
+
         await panel(page, f"{UNSEARCHED}:c411")
         waiting = await page.evaluate(OFFERS)
         journal.check("the original still downloading: nothing offered, each line says so, the TRUE reason",

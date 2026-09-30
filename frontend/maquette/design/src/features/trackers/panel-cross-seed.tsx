@@ -23,7 +23,8 @@ import { dayOf } from "./format";
 import { useDownloads, useTrackers } from "./queries";
 import type { SwitchWrite } from "./cross-seed-verbs";
 import {
-  CROSS_SEED_TONE, familyWord, isComplete, isFailure, isSearchable, reasonSentence, stateWord, type CrossSeedPair,
+  CROSS_SEED_TONE, familyWord, isComplete, isFailure, isSearchable, isSwitchedOff, reasonSentence, stateWord,
+  type CrossSeedPair,
 } from "./cross-seed-state";
 
 // The block this file adds to the panel's map, declared beside what draws it.
@@ -104,10 +105,11 @@ function dateOf(pair: CrossSeedPair, say: (key: string, values?: Record<string, 
  * @param props.pair The pair.
  * @param props.origin The origin entry.
  * @param props.titleExcluded Whether the whole title is excluded.
+ * @param props.trackerEnabled Whether the pair's own tracker carries its cross-seed switch on.
  * @returns The pair's buttons, or nothing.
  */
-function PairActs({ pair, origin, titleExcluded }: {
-  pair: CrossSeedPair; origin: PanelBlockMap["crossSeed"]["origin"]; titleExcluded: boolean;
+function PairActs({ pair, origin, titleExcluded, trackerEnabled }: {
+  pair: CrossSeedPair; origin: PanelBlockMap["crossSeed"]["origin"]; titleExcluded: boolean; trackerEnabled: boolean;
 }): ReactElement | null {
   const { t } = useTranslation();
   const say = (key: string) => t(`screens.crossSeed.panel.${key}`);
@@ -128,7 +130,7 @@ function PairActs({ pair, origin, titleExcluded }: {
   if (pair.searching) {
     return <span className={factDetail()} data-part="torrents/cross-seed-queued"><b>{say("queued")}</b></span>;
   }
-  if (isSearchable(pair, titleExcluded, isComplete(origin))) {
+  if (isSearchable(pair, titleExcluded, isComplete(origin), trackerEnabled)) {
     return (
       <span className={factDetail()}>
         <button className={actionButton({ kind: "panelAction", tone: "primary" })} data-part="torrents/cross-seed-search"
@@ -156,10 +158,11 @@ function PairActs({ pair, origin, titleExcluded }: {
  *
  * @param props.pair The pair.
  * @param props.origin The origin entry.
+ * @param props.trackerEnabled Whether the pair's own tracker carries its cross-seed switch on.
  * @returns The row.
  */
-function PairRow({ pair, origin, titleExcluded }: {
-  pair: CrossSeedPair; origin: PanelBlockMap["crossSeed"]["origin"]; titleExcluded: boolean;
+function PairRow({ pair, origin, titleExcluded, trackerEnabled }: {
+  pair: CrossSeedPair; origin: PanelBlockMap["crossSeed"]["origin"]; titleExcluded: boolean; trackerEnabled: boolean;
 }): ReactElement {
   const { t } = useTranslation();
   const say = (key: string, values: Record<string, string> = {}) => t(`screens.crossSeed.panel.${key}`, values);
@@ -187,11 +190,15 @@ function PairRow({ pair, origin, titleExcluded }: {
           <span className={factDetail()} data-part="torrents/cross-seed-wait">
             {say("wait", { reason: t(`screens.crossSeed.waits.${pair.waitReason}`) })}
           </span>
+        ) : isSwitchedOff(pair, titleExcluded, isComplete(origin), trackerEnabled) ? (
+          <span className={factDetail()} data-part="torrents/cross-seed-wait">
+            {say("wait", { reason: t("screens.crossSeed.waits.switchOff") })}
+          </span>
         ) : null}
         {pair.excluded ? (
           <span className={factDetail()} data-part="torrents/cross-seed-excluded">{say("excluded")}</span>
         ) : null}
-        <PairActs pair={pair} origin={origin} titleExcluded={titleExcluded} />
+        <PairActs pair={pair} origin={origin} titleExcluded={titleExcluded} trackerEnabled={trackerEnabled} />
       </div>
     </li>
   );
@@ -213,6 +220,10 @@ function CrossSeedBlock({ block: posed }: { block: { type: "crossSeed" } & Panel
   const entry = downloads?.downloads.find((one) => one.infoHash === posed.origin.infoHash);
   const held = entry?.crossSeed;
   const quota = downloads?.crossSeedQuota;
+  // THE PAIR'S OWN TRACKER SWITCH (§ 17 point 1): the same `/api/trackers` read
+  // the page already holds (R-L17-k), never a second operation for this block.
+  const trackers = useTrackers().data;
+  const enabledOf = (tracker: string) => trackers?.find((one) => one.name === tracker)?.crossSeed.enabled ?? true;
   const block = held && entry
     ? { ...posed, origin: { ...posed.origin, progress: entry.progress }, pairs: held.pairs, titleExcluded: held.titleExcluded }
     : posed;
@@ -229,7 +240,10 @@ function CrossSeedBlock({ block: posed }: { block: { type: "crossSeed" } & Panel
       ) : (
         <ol className={factList()}>
           {orderedPairs(block.pairs).map((pair) => (
-            <PairRow key={pair.tracker} pair={pair} origin={block.origin} titleExcluded={block.titleExcluded} />
+            <PairRow
+              key={pair.tracker} pair={pair} origin={block.origin} titleExcluded={block.titleExcluded}
+              trackerEnabled={enabledOf(pair.tracker)}
+            />
           ))}
         </ol>
       )}

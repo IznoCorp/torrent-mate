@@ -5,7 +5,7 @@
 // INVENTED, like its seed: no engine route answers any of these today.
 import { DELETE, POST, PUT, field, route } from "./shared";
 import { mockState } from "../state";
-import { crossSeedKey, crossSeedState, nowSeconds, stopRunningOn } from "../cross-seed-state";
+import { crossSeedKey, crossSeedState, nowSeconds, stopRunningOn, switchOf } from "../cross-seed-state";
 import { trackersState } from "../trackers-state";
 import { refused, type MockRoute } from "../router";
 import { emit } from "../stream";
@@ -30,7 +30,7 @@ const SEARCHED = "CrossSeedSearched";
 const NO_TORRENT = "no origin torrent carries that hash";
 const NO_PAIR = "that torrent has no cross-seed pair on that tracker";
 const NOT_RUNNING = "that pair is not running: there is nothing to cut";
-const NOT_SEARCHABLE = "a search is offered only on a pair with no match, in error, not yet searched or stopped, not excluded, its original complete";
+const NOT_SEARCHABLE = "a search is offered only on a pair with no match, in error, not yet searched or stopped, not excluded, its own tracker's switch on, its original complete";
 const DUPLICATE = "a search is already queued for that pair";
 
 /**
@@ -130,8 +130,10 @@ export function crossSeedRoutes(): MockRoute[] {
       if (typeof tracker === "string" && asked.length === 0) return refused(404, NO_PAIR);
       // A SECOND ASK ON A PAIR ALREADY SEARCHING is the one refusal (DOIT-4).
       if (asked.some((one) => one.searching) && typeof tracker === "string") return refused(409, DUPLICATE);
+      // NOTHING IS OFFERED THE ENGINE WOULD REFUSE (§ 17 point 1): a tracker whose
+      // own cross-seed switch is off searches nothing there, whatever the pair's state.
       const pairs = asked.filter((one) => SEARCHABLE.has(one.state) && !one.excluded && !one.searching
-        && !torrent.titleExcluded && complete);
+        && !torrent.titleExcluded && complete && switchOf(crossSeedKey(one.tracker)));
       if (pairs.length === 0) return refused(409, NOT_SEARCHABLE);
       const held = crossSeedState();
       held.searches.push({ infoHash, tracker: typeof tracker === "string" ? tracker : null });

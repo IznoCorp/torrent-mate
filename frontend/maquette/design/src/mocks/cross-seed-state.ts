@@ -82,7 +82,7 @@ export function liveCrossSeedSettings(settings: Schemas["SettingsTopic"][]): Sch
  * @param key The setting's key.
  * @returns Its value, or true when no setting names it.
  */
-function switchOf(key: string): boolean {
+export function switchOf(key: string): boolean {
   const setting = mockState().settings.flatMap((topic) => topic.settings).find((one) => one.key === key);
   return typeof setting?.raw === "boolean" ? setting.raw : true;
 }

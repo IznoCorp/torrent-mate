@@ -121,17 +121,54 @@ export function rosterLine(summary: Schemas["TrackerCrossSeed"]): string {
 const SEARCHABLE: ReadonlySet<CrossSeedState> = new Set(["noMatch", "error", "notSearched", "stopped"]);
 
 /**
+ * Whether a pair is one the engine would otherwise act on, its own tracker's
+ * switch left aside — the shared half `isSearchable` and `isSwitchedOff` split on.
+ *
+ * @param pair The pair.
+ * @param titleExcluded Whether its whole title is excluded.
+ * @param originComplete Whether the original is complete.
+ * @returns True on a pair with no match, in error, not yet searched or stopped,
+ *     neither excluded nor already searching, its original complete.
+ */
+function isEligible(pair: CrossSeedPair, titleExcluded: boolean, originComplete: boolean): boolean {
+  return SEARCHABLE.has(pair.state) && !pair.excluded && !pair.searching && !titleExcluded && originComplete;
+}
+
+/**
  * Whether « Chercher un cross-seed » is offered on a pair.
  *
  * @param pair The pair.
  * @param titleExcluded Whether its whole title is excluded.
  * @param originComplete Whether the original is complete: the engine searches
  *     nothing for a torrent still downloading, and the pair's line says so.
+ * @param trackerEnabled Whether the pair's OWN tracker carries its cross-seed
+ *     switch on: a switch off refuses the search just as the engine would
+ *     (§ 17 point 1), whatever the pair's state.
  * @returns True on a pair with no match, in error, not yet searched or stopped,
- *     neither excluded nor already searching, its original complete.
+ *     neither excluded nor already searching, its original complete, its
+ *     tracker's switch on.
  */
-export function isSearchable(pair: CrossSeedPair, titleExcluded: boolean, originComplete: boolean): boolean {
-  return SEARCHABLE.has(pair.state) && !pair.excluded && !pair.searching && !titleExcluded && originComplete;
+export function isSearchable(
+  pair: CrossSeedPair, titleExcluded: boolean, originComplete: boolean, trackerEnabled: boolean,
+): boolean {
+  return isEligible(pair, titleExcluded, originComplete) && trackerEnabled;
+}
+
+/**
+ * Whether a pair reads eligible for a search EXCEPT its own tracker's switch is
+ * off — the reason a row gives instead of the button (§ 17 point 1: the true
+ * reason, never a silent absence).
+ *
+ * @param pair The pair.
+ * @param titleExcluded Whether its whole title is excluded.
+ * @param originComplete Whether the original is complete.
+ * @param trackerEnabled Whether the pair's own tracker carries its switch on.
+ * @returns True when the switch alone is what withholds the search.
+ */
+export function isSwitchedOff(
+  pair: CrossSeedPair, titleExcluded: boolean, originComplete: boolean, trackerEnabled: boolean,
+): boolean {
+  return isEligible(pair, titleExcluded, originComplete) && !trackerEnabled;
 }
 
 /**

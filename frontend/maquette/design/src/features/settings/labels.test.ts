@@ -1,4 +1,4 @@
-// A setting's subject: a tracker keyed by its domain is ONE subject (B-598).
+// A setting's subject: a tracker keyed by its domain is ONE subject (B-606).
 import { describe, expect, it } from "vitest";
 import { settingLabels } from "./labels";
 import type { Setting } from "./types";
