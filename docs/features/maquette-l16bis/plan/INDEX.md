@@ -1,93 +1,65 @@
-# L16-bis — the Trackers page's correction, and Découvrir's header · PLAN
+# L16-bis — the Trackers page's correction, and Découvrir · PLAN
 
-Design: `docs/features/maquette-l16bis/DESIGN.md`. The implementer is held to `docs/reference/implementer-office.md`;
-this plan carries only what is the lot's own.
+Design: `docs/features/maquette-l16bis/DESIGN.md`. The implementer is held to `docs/reference/implementer-office.md`,
+AMENDED by the auditor's orders 98 and 99 (§ « The gates » below); this plan carries only what is the lot's own.
 
-**Written 2026-09-29, on `main` at `f3d8fed01`** (L16 merged, #634). L16-bis opens BEFORE L17. Every figure below was
-taken by a command on `f3d8fed01`; the implementer RE-TAKES each at the phase's real opening — a figure that moved is
-re-taken, a figure that no longer supports its phase's cut is STOP D.
+**Re-cut 2026-09-30, on `main` at `9234341fc`** (orders 97, 98, 99): L16-bis is the CORRECTION of L16 — « bis veut
+dire correction » (the operator, 2026-09-14) — so it is cut BY SURFACE, one page each, not drawn as a lot. The plan
+of 18 phases (1–4, 6–19; 180 points) is `docs/features/maquette-l16bis/plan/INDEX.md@9234341fc`; every item of it,
+every ruling and every owed row has its new phase in `CORRESPONDENCE.md`. **The code opens after the conformity train
+has merged** (DECIDED 7's queue; DESIGN § 0.4 for what the train already built).
 
-**Amended 2026-09-29** (PR #637's correction round): the operator ruled all nine OPEN questions
-(`/Users/izno/dev/review-archive/l16bis/rulings-2026-09-29.md`; DESIGN § 5 carries each verbatim, as DECIDED 1–9).
-**DECIDED 7 removes the phase that built the one tab component from this plan**: the CONFORMITY TRAIN builds it
-first, on the existing validated tab bars (Acquisition first); L16-bis's code waits for that train, then uses the
-component for Trackers — no phase of this lot builds it, and this plan now runs **18 phases**, numbered 1–4 and
-6–19 (the gap at 5 is deliberate: it names the phase the ruling removed, kept as a record in § « Why this order » and
-phase 19). `docs/reference/frontend-architecture.md`'s L16-bis entry carries the same dependency.
+## The operator's principles, and the phase that proves each (order 97 — the design's table is DESIGN § 0.5)
 
----
+| Principle, his words | Phase |
+| --- | --- |
+| « Il faut uniformiser les comportements. Sauf exception volontaire de ma part. » — the torrent card's taps and swipe are the media card's and the follow row's; the tracker row opens a panel; Découvrir's two views swipe alike | 1 · 3 · 4 |
+| « on crée pas de nouveau composant on adapte » — every element from `ui/` (DESIGN § 1.8); the adaptations written there | 1 · 2 · 3 · 4; R-L16bis-i at 3 |
+| « seule une maquette montrant tout les cas possibles est utile » — 73 named states (DESIGN § 3), each in the catalogue | every phase; counted at 5 |
+| « tout doit être responsive … sur tous ! » — R-conformity-a on the touched surfaces' states at each gate; the full sweep at the midpoint and the close | every phase; 2 · 5 |
+| « une différence entre film et série » — `torrent-card-film`, `torrent-panel-episode`; Découvrir's « séries » and « films » | 1 · 4 |
+| Constitution § 16 (bar pages replace; a link inside a page stacks) — walked by finger | 1 · 2 · 3 |
+| « Mes retours sont des corrections sur ce qui est attendu » — a defect he reports on these surfaces while the lot runs joins the phase of its surface (order 98) | any |
+
+## The phases — one surface each, sized by the context (gauge + the last phase's cost ≤ 80), no point cap
+
+| # | Surface | DESIGN | Rules | Page |
+| ---: | --- | --- | --- | --- |
+| 1 | The torrent card — its facts, its poster and panel, its swipe, and the data they read | S4, S5, S6; § 2.1 | d, e, f | [phase-01](phase-01-the-torrent-card.md) |
+| 2 | The « Torrents » tab around it — the landing, the selector, the legend — then the MIDPOINT | S1, S2, S3 | a, b, c | [phase-02](phase-02-the-torrents-tab.md) |
+| 3 | The « Trackers » tab — the roster, its switch, its failure, its panel, its legend | S7, S3; § 2.2 | g, h, c, i | [phase-03](phase-03-the-trackers-tab.md) |
+| 4 | Découvrir — the header, and the swipe of Q7 | S8, S9 | k, l | [phase-04](phase-04-discover.md) |
+| 5 | The close — the lot's gate, the records, the pull request | — | all, by name | [phase-05](phase-05-the-close.md) |
+
+**Measured**: 18 phases → **5** (4 surfaces + the close). The old scale's points are not re-added: order 99 sizes a
+phase by the agent's context, and each page's « Opening measure » says what it re-takes.
+
+**The legend phase is removed, its subject lost**: the old phase 6 moved the season legend into `ui/`; the conformity
+train did it (phase 4, `2caa2d183`), keyed by tone (`7c0d9c2dc`). What is left — mapping this page's codes to tones,
+and the two tones the legend lacks — joins the surfaces that draw a legend (2 and 3). Also gone from this lot, done by
+the train: the chevron (old phase 15's `ui/Disclosure` half), the tab bar (train phase 11).
+
+## The gates (order 99, amending the office's « The gate »)
+
+- **A phase gate — light**: the static guards on the files touched; the ORACLE ALONE, accepting only the states the
+  page names (the declared list built BY SCRIPT); `run.sh --rules` on the rules of the surfaces touched — each new
+  hold read RED on the old code first, then green (its proof: no per-phase mutation, no per-phase `--a11y`);
+  R-conformity-a on the touched surfaces' states (`TM_RESPONSIVE_STATES`, built by script). Every browser run names
+  `TM_HARNESS_JOBS=2` (order 88); every pytest `-n 2`.
+- **The midpoint, after phase 2**: `--contracts` and the full responsive sweep (Chromium + WebKit), once.
+- **Once per lot, at phase 5**: the full suite (CI is its authority), `--a11y`, the full sweep, the hold counts, each
+  rule of this lot re-run BY NAME (order 98). The reader round follows the pull request: ten claimed mutations drawn
+  at random, the finger walk at the seven widths, the principles (`docs/reference/reader-office.md`).
 
 ## The stops
 
-- **STOP A** — the oracle diverging on a state the phase did not name.
-- **STOP B** — the pull request.
-- **STOP C — CLOSED.** DESIGN § 5's nine questions are DECIDED (the operator, 2026-09-29, PR #637's round); each
-  phase that named one carries its dated line. Phases 1, 7, 10, 11, 14, 15 and 17 carried one (phase 5, which
-  carried DECIDED 7, is removed — the ruling made it the conformity train's).
-- **STOP D** — a measurement that contradicts a home the design decided. Near already: `ui/variants/controls.ts`
-  holds **397** non-blank lines of 400 (the 44 px floor moves INTO `segmentTab` when the conformity train builds
-  `Tabs`, never a new factory there — outside this plan since DECIDED 7); `ui/variants/surfaces.ts` holds **373**
-  (phase 6's legend lands in its own `ui/` module, not there).
+**STOP A** — the oracle diverging on a state the page did not name. **STOP B** — the pull request. **STOP C** — OPEN
+10 (DESIGN § 5): phase 4 is written for its recommended reading A; the operator's answer is read before phase 4
+opens. **STOP D** — a ceiling (`grep -cv '^\s*$'`, 400): `features/acquisition/discover-feed.ts` **382**,
+`ui/variants/controls.ts` and `frame.ts` near it on the train's head — a phase landing there moves lines out.
+Anything outside these pages: STOP, ask the orchestrator.
 
-Anything outside this plan and its design: STOP, and ask the orchestrator first.
+## The gate of THIS docs pull request
 
----
-
-## Points, and the mean
-
-The scale is L23's (`docs/features/maquette-l23/plan/INDEX.md` « Points »): a line edited 1 per 5, written new 1 per
-10; a new rule with its mutation 3; a rule re-aimed 1; a named state 1 (re-using a seed) or 2 (a new seed row); an
-operation declared new 2, edited 1; a mock route new 2, re-answered 1; a sentence rewritten 1; a documentation row 1.
-
-A phase whose re-measure at its opening exceeds 15 is cut there, never begun, and the orchestrator told.
-
-| # | Phase | Kind | Rule | Points | Ruling |
-| ---: | --- | --- | --- | ---: | --- |
-| 1 | [The contract](phase-01-the-contract.md) | contract | — | 9 | DECIDED 1 |
-| 2 | [The seeds](phase-02-the-seeds.md) | seed | — | 12 | — |
-| 3 | [The mocks that move](phase-03-the-mocks-that-move.md) | mock | — | 12 | — |
-| 4 | [« Torrents » first](phase-04-torrents-first.md) | behaviour (S1) | a | 5 | — |
-| 6 | [The legend moves to ui](phase-06-the-legend-moves-to-ui.md) | move | — | 4 | — |
-| 7 | [The legend on Trackers](phase-07-the-legend-on-trackers.md) | surface (S3) | c | 9 | DECIDED 5 |
-| 8 | [The torrent card](phase-08-the-torrent-card.md) | surface (S4) | d | 14 | — |
-| 9 | [The card's facts](phase-09-the-cards-facts.md) | surface (S4) | d (+ holds) | 15 | DECIDED 1 |
-| 10 | [The poster and the panel](phase-10-the-poster-and-the-panel.md) | surface (S4, S5) | e | 12 | DECIDED 2 |
-| 11 | [The swipe](phase-11-the-swipe.md) | gesture (S6) | f | 8 | DECIDED 9 |
-| 12 | [The tracker selector](phase-12-the-tracker-selector.md) | surface (S2) | b | 13 | — |
-| 13 | [The switch, one write two doors](phase-13-the-switch.md) | surface (S7) | g | 12 | — |
-| 14 | [A failing tracker says why](phase-14-a-failing-tracker-says-why.md) | behaviour (S7) | h | 13 | DECIDED 6 |
-| 15 | [The tracker row and the one chevron](phase-15-the-tracker-row.md) | surface (S7) | — (re-aims) | 13 | DECIDED 3, 4 |
-| 16 | [The design system, swept](phase-16-the-design-system-swept.md) | refactor | i | 7 | — |
-| 17 | [Découvrir's header](phase-17-discovers-header.md) | surface (S8) | k | 9 | DECIDED 8 |
-| 18 | [The records](phase-18-the-records.md) | records | — | 7 | — |
-| 19 | [The close](phase-19-the-close.md) | close | — | 6 | — |
-
-**Re-measured 2026-09-29** (`python3 -c "print(9+12+12+5+4+9+14+15+12+8+13+12+13+13+7+9+7+6)"` → **180**): **180
-points over 18 phases, mean ≈ 10.0, max 15** (phase 9 — DECIDED 1's three-way switch, its progress bar and its three
-named states; at the plan's own ceiling, not past it). Phase 5 (the tab component) is REMOVED, its ≈ 11 points gone
-with it (DECIDED 7 — the conformity train's). **The midpoint** — the full suite, its falls repaired before the next
-phase — stays after phase 10.
-
----
-
-## Why this order
-
-**The contract first** (1): `scripts/compare-contracts.py --check` refuses a field apart from its schema. **The seeds
-second** (2), **the mocks third** (3): a handler with no seed answers nothing. **The landing** (4) is the smallest
-behaviour and the operator's first point; the tab component that once followed it here (5) is DECIDED 7's — the
-conformity train's, ahead of this plan on the harness queue. **The legend is moved before it is drawn** (6, 7): a
-move is its own kind. **The card before its facts, its facts before its taps** (8, 9, 10), and **the taps before the
-swipe** (11), which opens the same confirmation the panel does. **The selector** (12) reads the card list already
-redrawn. **The roster's switch** (13) before **its failure** (14) and **its form** (15). **The sweep** (16) deletes
-what phases 6–15 left unused. **Découvrir** (17) touches another page and comes last of the surfaces; **the
-records** (18) and **the close** (19) end it.
-
----
-
-## Gates
-
-Per phase: the office's phase gate (`docs/reference/implementer-office.md` § « The gate »), with divergences ONLY on
-the states the phase names. The harness budget (≤ 0.6 × product lines) is read at the midpoint and the close. Before
-the pull request: the office's pre-PR gate; the pull request bumps the version (patch). **None of this applies to
-THIS docs pull request**, whose gate is `check-docs-cited-paths.py`, `check-no-french.py`,
-`check-implementation-state.py`, `check-intent-map.py` and `make lint`.
+`python3 scripts/check-docs-cited-paths.py`, `check-no-french.py`, `check-implementation-state.py`,
+`check-intent-map.py`, `make lint` — the implementer's gates above do not apply to it.
