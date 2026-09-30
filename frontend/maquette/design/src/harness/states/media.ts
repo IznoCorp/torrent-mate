@@ -12,6 +12,15 @@ const open = (title: string) => window.__screens.mediaSheet(title, window.__carr
 export function mediaStates(): NamedState[] {
   return [
     [
+      "media-sheet-decision",
+      "Fiche — l'identification réglée d'un média rangé",
+      () => {
+        window.__mocks?.reset();
+        applyState({ page: "lib", phase: "ready" });
+        open("The Bombing of Pan Am 103");
+      },
+    ],
+    [
       "mediasheet-suggestion-series",
       "Fiche — suggestion NON possédée (série)",
       () => {

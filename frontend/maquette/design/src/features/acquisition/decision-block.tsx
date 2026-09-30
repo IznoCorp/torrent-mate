@@ -32,8 +32,8 @@ export type DecisionSubject = { title: string; ids?: Record<string, string | num
  * The medium's latest settled decision, or none — nothing while one is pending.
  *
  * THE ONE DERIVATION both sheets read. A decision is the medium's when its
- * choice names one of the medium's provider ids, or, lacking ids, when it
- * carries the medium's title. The settled list is newest first, so the first
+ * choice names one of the medium's provider ids, or, lacking ids, when its
+ * folder or its title is the medium's. The settled list is newest first, so the first
  * match is the latest.
  *
  * @param decisions The decisions read, both lists.
@@ -48,7 +48,7 @@ export function settledDecisionOf(decisions: Decisions | undefined, subject: Dec
     decision.choice !== undefined &&
     known.some(([provider, id]) => provider === decision.choice!.provider && String(id) === String(decision.choice!.id));
   const byTitle = (decision: SettledDecision) =>
-    decision.title === subject.title || decision.choice?.title === subject.title;
+    decision.folder === subject.title || decision.title === subject.title || decision.choice?.title === subject.title;
   return decisions.settled.find(known.length > 0 ? byId : byTitle) ?? null;
 }
 

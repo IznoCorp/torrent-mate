@@ -35,6 +35,7 @@ import { MediaLibraryFacts } from "./media-library-facts";
 import type { Follow, MediaSheetFields } from "./sheet-fields";
 import { bridge } from "../../lib/shell-doors";
 import { baseTitle } from "../../lib/titles";
+import { DecisionBlock } from "../acquisition/decision-block";
 
 /** What the route hands the screen: the follows, owned by another feature, so they compose in the route. */
 export type MediaScreenProperties = { readFollows: () => unknown[] };
@@ -314,6 +315,10 @@ export function MediaScreen({ readFollows }: MediaScreenProperties) {
             seasonsInFlight={seasonsInFlight}
             sheetInFlight={inFlight}
           />
+
+          {/* THE DECISION THAT IDENTIFIED IT, the journey sheet's own block (L24
+              S1, § 13): found here by the medium's provider ids. */}
+          <DecisionBlock subject={{ title, ids: prov }} />
 
           <MediaDetails title={title} isFilm={isFilm} owns={owns} followed={followed} follows={follows} prov={prov} inFlight={inFlight} identified={identified} metadataRefreshedAt={sheet?.metadataRefreshedAt ?? null} />
 
