@@ -32,10 +32,23 @@ export type CrossSeedHeld = {
   uploadOutcomes: Record<string, UploadOutcome>;
 };
 
+/** The two codes an upload is refused by (L23 § 2.2). */
+export type UploadRefusal = "creation_failed" | "publish_failed";
+
 /** How an upload ends: published, or refused with one of its two codes and the tracker's own words. */
-export type UploadOutcome =
-  | { reason: null }
-  | { reason: "creation_failed" | "publish_failed"; trackerReason: string | null };
+export type UploadOutcome = { reason: null } | { reason: UploadRefusal; trackerReason: string | null };
+
+/**
+ * An upload's refusal as the engine would answer it: a publication refused
+ * carries the tracker's own words (round 11 OPEN 3 = A), a creation never
+ * reached the tracker and carries none.
+ *
+ * @param reason The code.
+ * @returns The outcome.
+ */
+function refusalOf(reason: UploadRefusal): UploadOutcome {
+  return { reason, trackerReason: reason === "publish_failed" ? CROSS_SEED.publishRefusal : null };
+}
 
 // WHERE THE SWITCHES ARE SET: the tracker's own, and the engine's.
 const SETTING_PREFIX = "tracker.providers.";
@@ -257,7 +270,8 @@ export type CrossSeedDials = {
   crossSeedSearches: () => CrossSeedHeld["searches"];
   poseCrossSeedQuotaSpent: () => void;
   poseUploadsOff: (tracker: string) => void;
-  poseUploadOutcome: (infoHash: string, tracker: string, outcome: UploadOutcome) => void;
+  poseUploadOutcome: (infoHash: string, tracker: string, reason: UploadRefusal | null) => void;
+  posePairRefusedByUpload: (infoHash: string, tracker: string, reason: UploadRefusal) => void;
   crossSeedUploads: () => CrossSeedHeld["uploads"];
 };
 
@@ -282,8 +296,16 @@ export const crossSeedDials: CrossSeedDials = {
   // ONE TRACKER'S « ACCEPTE LES UPLOADS » OFF, its cross-seed switch untouched (round 11 OPEN 2 = B).
   poseUploadsOff: (tracker: string) => setSwitch(uploadsKey(tracker), false),
   // HOW AN UPLOAD ON ONE PAIR WILL END: the engine's refusal is a scenario, never the default.
-  poseUploadOutcome: (infoHash: string, tracker: string, outcome: UploadOutcome) => {
-    crossSeedState().uploadOutcomes[`${infoHash}:${tracker}`] = outcome;
+  poseUploadOutcome: (infoHash: string, tracker: string, reason: UploadRefusal | null) => {
+    crossSeedState().uploadOutcomes[`${infoHash}:${tracker}`] = reason === null ? { reason: null } : refusalOf(reason);
+  },
+  // A DERIVATION, SHOWN AS ONE: a pair an upload was refused on, as its outcome leaves it.
+  posePairRefusedByUpload: (infoHash: string, tracker: string, reason: UploadRefusal) => {
+    const pair = crossSeedState().torrents[infoHash]?.pairs.find((one) => one.tracker === tracker);
+    if (pair === undefined) return;
+    Object.assign(pair, refusalOf(reason), {
+      state: "error", via: "upload", candidate: null, waitReason: null, at: nowSeconds(), excluded: false,
+    });
   },
   // NOT A DIAL — a reading: the uploads the layer was asked for.
   crossSeedUploads: () => structuredClone(crossSeedState().uploads),

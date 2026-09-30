@@ -69,7 +69,7 @@ const unnamedSubjects = new Set<string>();
 // runs from the collection to the FIRST of its own fields — `TrackerProviderConfig`'s
 // — and is one segment, whatever dots it holds.
 const ENTRY_OWN_FIELDS: Readonly<Record<string, ReadonlySet<string>>> = {
-  "tracker.providers": new Set(["enabled", "economy", "cross_seed"]),
+  "tracker.providers": new Set(["enabled", "economy", "cross_seed", "accepts_uploads"]),
 };
 
 /**

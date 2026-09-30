@@ -16,11 +16,11 @@ export type CrossSeedPair = Schemas["CrossSeedPair"];
 /** One of the six states. */
 export type CrossSeedState = CrossSeedPair["state"];
 
-/** A refusal's code, the engine's twelve and the reserved upload slot. */
+/** A refusal's code, the engine's twelve and the upload's two (L23 § 2.2). */
 export type CrossSeedReason = NonNullable<CrossSeedPair["reason"]>;
 
 /** The kind of trouble a refusal is: § 19 point 1 asks that a mismatch is not read as a failure. */
-export type ReasonFamily = "files" | "self" | "attempt" | "engine" | "upload";
+export type ReasonFamily = "files" | "self" | "attempt" | "engine";
 
 /** The tone each state wears on its chip. */
 export const CROSS_SEED_TONE: Readonly<Record<CrossSeedState, ChipTone>> = {
@@ -46,11 +46,14 @@ export const REASON_FAMILY: Readonly<Record<CrossSeedReason, ReasonFamily>> = {
   parse_failed: "attempt",
   inject_failed: "engine",
   obligation_write_failed: "engine",
-  upload_failed: "upload",
+  // THE RESERVED SLOT, FILLED (round 8 Q8, « le cas A »): an upload that could
+  // not be created or published is the engine not finishing, never a mismatch.
+  creation_failed: "engine",
+  publish_failed: "engine",
 };
 
 /** The families that are FAILURES — the badge's term; « pas les mêmes fichiers » is an ordinary outcome. */
-export const COUNTED_FAMILIES: ReadonlySet<ReasonFamily> = new Set(["attempt", "engine", "upload"]);
+export const COUNTED_FAMILIES: ReadonlySet<ReasonFamily> = new Set(["attempt", "engine"]);
 
 /**
  * A state in the operator's word.
@@ -179,4 +182,69 @@ export function isSwitchedOff(
  */
 export function isComplete(entry: { progress: number }): boolean {
   return entry.progress >= 1;
+}
+
+// The states an upload may be asked on (L23 § 1 clause 1): only where nothing
+// already cross-seeds. Never « stoppé » — resuming a stopped pair IS the search.
+const UPLOADABLE: ReadonlySet<CrossSeedState> = new Set(["noMatch", "error", "notSearched"]);
+
+/** What « Créer et publier un torrent » reads of a pair's origin and tracker. */
+export type UploadGate = {
+  /** Whether the whole title is excluded. */
+  titleExcluded: boolean;
+  /** Whether the origin is active in the client, complete and seeding (round 11 OPEN 1 = A). */
+  originSeeding: boolean;
+  /** Whether the pair's tracker carries its cross-seed switch on. */
+  trackerEnabled: boolean;
+  /** Whether the pair's tracker carries its « accepte les uploads » switch on (round 11 OPEN 2 = B). */
+  acceptsUploads: boolean;
+};
+
+/**
+ * Whether a pair reads eligible for an upload, its tracker's two switches left
+ * aside — the shared half `isUploadable` and `isUploadRefused` split on.
+ *
+ * @param pair The pair.
+ * @param gate What the gesture reads of its origin.
+ * @returns True on a pair with no match, in error or not yet searched, neither
+ *     excluded nor already searching or uploading, its origin seeding.
+ */
+function isUploadEligible(pair: CrossSeedPair, gate: UploadGate): boolean {
+  return UPLOADABLE.has(pair.state) && !pair.excluded && !pair.searching && !pair.uploading
+    && !gate.titleExcluded && gate.originSeeding;
+}
+
+/**
+ * Whether « Créer et publier un torrent » is offered on a pair (L23 § 2.3).
+ *
+ * @param pair The pair.
+ * @param gate What the gesture reads of its origin and its tracker.
+ * @returns True where nothing already cross-seeds and the engine would act.
+ */
+export function isUploadable(pair: CrossSeedPair, gate: UploadGate): boolean {
+  return isUploadEligible(pair, gate) && gate.trackerEnabled && gate.acceptsUploads;
+}
+
+/**
+ * Whether a pair reads eligible for an upload EXCEPT its tracker refuses
+ * uploads — the reason a row gives instead of the act (§ 17 point 1: the true
+ * reason, never a silent absence). The cross-seed switch off is said already.
+ *
+ * @param pair The pair.
+ * @param gate What the gesture reads of its origin and its tracker.
+ * @returns True when the « accepte les uploads » switch alone withholds it.
+ */
+export function isUploadRefused(pair: CrossSeedPair, gate: UploadGate): boolean {
+  return isUploadEligible(pair, gate) && gate.trackerEnabled && !gate.acceptsUploads;
+}
+
+/**
+ * Whether a client entry is active, complete and seeding — the one torrent an
+ * upload may be created from (round 11 OPEN 1 = A).
+ *
+ * @param entry The origin's entry.
+ * @returns True on a complete entry the client is seeding.
+ */
+export function isSeeding(entry: { progress: number; state: string }): boolean {
+  return isComplete(entry) && entry.state === "seeding";
 }

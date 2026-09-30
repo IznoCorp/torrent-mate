@@ -4,8 +4,8 @@ import i18next from "../../lib/unit-words";
 import contract from "../../../../contract/openapi.json";
 import { isFailure as layerCounts } from "../../mocks/cross-seed-state";
 import {
-  CROSS_SEED_TONE, REASON_FAMILY, familyWord, isFailure, isSearchable, isSwitchedOff, reasonSentence, rosterLine,
-  stateWord, type CrossSeedPair, type CrossSeedReason, type CrossSeedState,
+  CROSS_SEED_TONE, REASON_FAMILY, familyWord, isFailure, isSearchable, isSwitchedOff, isUploadRefused, isUploadable,
+  reasonSentence, rosterLine, stateWord, type CrossSeedPair, type CrossSeedReason, type CrossSeedState,
 } from "./cross-seed-state";
 
 // The operator's six words, verbatim (§ 19; round 10 Q5 = A) — the rule's data.
@@ -23,8 +23,8 @@ const REASONS = (pairSchema.reason.oneOf[0] as { enum: CrossSeedReason[] }).enum
  */
 function refused(reason: CrossSeedReason): CrossSeedPair {
   return {
-    tracker: "tr4ker", state: "error", reason, candidate: null, waitReason: null, at: null, stoppedAt: null,
-    stopCause: null, entryHash: null, excluded: false, searching: false,
+    tracker: "tr4ker", state: "error", reason, candidate: null, via: "search", trackerReason: null, waitReason: null,
+    at: null, stoppedAt: null, stopCause: null, entryHash: null, excluded: false, searching: false, uploading: false,
   };
 }
 
@@ -51,6 +51,12 @@ describe("the reasons", () => {
     expect(isFailure(refused("self_candidate"))).toBe(false);
     expect(isFailure(refused("fetch_failed"))).toBe(true);
     expect(isFailure(refused("inject_failed"))).toBe(true);
+    // THE UPLOAD'S TWO CODES, the reserved slot filled (round 8 Q8): failures, in
+    // the family « the engine could not finish », never a family of their own.
+    expect(isFailure(refused("creation_failed"))).toBe(true);
+    expect(isFailure(refused("publish_failed"))).toBe(true);
+    expect(REASON_FAMILY.creation_failed).toBe(REASON_FAMILY.inject_failed);
+    expect(REASON_FAMILY.publish_failed).toBe(REASON_FAMILY.obligation_write_failed);
     for (const reason of REASONS) expect(isFailure(refused(reason)), reason).toBe(layerCounts(refused(reason)));
   });
 });
@@ -85,6 +91,34 @@ describe("the search offered", () => {
   });
 });
 
+describe("the upload offered (L23 § 2.3)", () => {
+  const gate = { titleExcluded: false, originSeeding: true, trackerEnabled: true, acceptsUploads: true };
+  const pair = (state: CrossSeedState, fields: Partial<CrossSeedPair> = {}): CrossSeedPair =>
+    ({ ...refused("fetch_failed"), state, ...fields });
+
+  it("is offered only where nothing already cross-seeds — never on a stopped, running or impossible pair", () => {
+    for (const state of ["noMatch", "error", "notSearched"] as CrossSeedState[]) expect(isUploadable(pair(state), gate), state).toBe(true);
+    for (const state of ["active", "stopped", "trackerWithout"] as CrossSeedState[]) expect(isUploadable(pair(state), gate), state).toBe(false);
+  });
+
+  it("is never offered on an excluded pair or title, a pair already searching or uploading, an origin not seeding", () => {
+    expect(isUploadable(pair("noMatch", { excluded: true }), gate)).toBe(false);
+    expect(isUploadable(pair("noMatch", { searching: true }), gate)).toBe(false);
+    expect(isUploadable(pair("noMatch", { uploading: true }), gate)).toBe(false);
+    expect(isUploadable(pair("noMatch"), { ...gate, titleExcluded: true })).toBe(false);
+    expect(isUploadable(pair("noMatch"), { ...gate, originSeeding: false })).toBe(false);
+  });
+
+  it("reads both of the tracker's switches, and says when « accepte les uploads » alone withholds it", () => {
+    expect(isUploadable(pair("noMatch"), { ...gate, trackerEnabled: false })).toBe(false);
+    expect(isUploadable(pair("noMatch"), { ...gate, acceptsUploads: false })).toBe(false);
+    expect(isUploadRefused(pair("noMatch"), { ...gate, acceptsUploads: false })).toBe(true);
+    expect(isUploadRefused(pair("noMatch"), gate)).toBe(false);
+    expect(isUploadRefused(pair("active"), { ...gate, acceptsUploads: false })).toBe(false);
+    expect(isUploadRefused(pair("noMatch"), { ...gate, trackerEnabled: false, acceptsUploads: false })).toBe(false);
+  });
+});
+
 describe("the kinds of trouble", () => {
   it("gives the candidate that is the original itself its own word, never the files-mismatch one", () => {
     expect(familyWord("self_candidate")).not.toBe(familyWord("file_list_mismatch"));
@@ -93,7 +127,7 @@ describe("the kinds of trouble", () => {
 });
 
 describe("the roster's line", () => {
-  const summary = { enabled: true, engineEnabled: true, active: 2, failed: 0, lastInjectedAt: null };
+  const summary = { enabled: true, acceptsUploads: true, engineEnabled: true, active: 2, failed: 0, lastInjectedAt: null };
 
   it("says the count the server gave, and its failures", () => {
     expect(rosterLine(summary)).toBe("Cross-seed : actif — 2 torrents");

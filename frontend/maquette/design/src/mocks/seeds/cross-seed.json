@@ -1,6 +1,7 @@
 {
-  "about": "INVENTED (L17 DESIGN § 2.3): nothing records a cross-seed per (torrent, tracker) pair today, so every row below is composed from the cases the design names, on the mock's own library entries and the roster's trackers. None is lived data.",
+  "about": "INVENTED (L17 DESIGN § 2.3): nothing records a cross-seed per (torrent, tracker) pair today, so every row below is composed from the cases the design names, on the mock's own library entries and the roster's trackers. None is lived data. `publishRefusal` is a tracker\u0027s own answer to a refused publication, invented too (L23 DESIGN § 2.2, round 11 OPEN 3 = A): no upload was ever refused.",
   "quota": { "used": 3, "perDay": 20, "delaySeconds": 300 },
+  "publishRefusal": "Upload refused: a torrent with the same content already exists on this tracker (rule 4.2, no duplicates).",
   "torrents": {
     "66e23ab395c438b7db4f7c855bd451d8bb1f0046": {
       "titleExcluded": false,

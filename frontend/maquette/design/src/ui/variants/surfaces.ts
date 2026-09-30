@@ -325,6 +325,12 @@ export const factValue = cva("fr text-3 text-right", {
 /** A fact's sub-line. A reason never truncates (§12, R48): it wraps and the row grows. */
 export const factDetail = cva("fs col-span-full text-2 text-muted-foreground [overflow-wrap:anywhere]");
 
+/**
+ * A fact row's own acts, stacked with their gap: a pair of the cross-seed may
+ * offer its search AND its upload (L23), two buttons that must never touch.
+ */
+export const factActions = cva("factacts flex flex-col gap-3");
+
 /** A fact's key, in the mono face: what one needs reading a log or a diff. */
 export const factKey = cva(
   "fk [font-family:ui-monospace,SFMono-Regular,Menlo,monospace] text-1 text-muted-foreground",

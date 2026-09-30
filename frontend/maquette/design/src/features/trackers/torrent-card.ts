@@ -37,8 +37,17 @@ export const STATE_TONE: Readonly<Record<Download["state"], ChipTone>> = {
   in_client: "neutral",
 };
 
-/** The tone of the origin dot: the original grab, or a cross-seed of the same files. */
-export const ORIGIN_TONE = { origin: "info", cross: "waiting" } as const;
+/**
+ * The origin dot: the original grab, a cross-seed of the same files, or a
+ * torrent this application created from them and published there — « publié
+ * par vous », its own colour (round 11 OPEN 5 = B). Keyed by the value the
+ * card's `data-origin` carries, each with the word the card says.
+ */
+export const ORIGIN_MARK: Readonly<Record<Download["provenance"], { value: string; tone: "info" | "waiting" | "upcoming"; word: string }>> = {
+  downloaded: { value: "origin", tone: "info", word: "origin" },
+  crossSeed: { value: "cross", tone: "waiting", word: "crossSeed" },
+  published: { value: "published", tone: "upcoming", word: "published" },
+};
 
 /** One colour code a card draws: a chip or a dot, its tone, and what it means. */
 export type Code = { kind: "chip" | "dot"; tone: LegendTone; word: string };
@@ -152,12 +161,12 @@ function marksOf(entry: Download, obligation: Obligation | undefined, breached: 
     && obligation.satisfiedAt === null && obligation.breachedAt === null && obligation.releasedAt === null;
   // MET AND STILL SEEDING: the entry kept going past its own requirement.
   const done = obligation !== undefined && obligation.satisfiedAt !== null && obligation.releasedAt === null;
-  const origin = entry.origin ? "origin" : "cross";
+  const origin = ORIGIN_MARK[entry.provenance];
   const marks: MarkWithWord[] = [
     {
-      label: say(entry.origin ? "origin" : "crossSeed"),
-      dot: ORIGIN_TONE[origin],
-      attributes: { "data-part": "torrents/origin", "data-origin": origin },
+      label: say(origin.word),
+      dot: origin.tone,
+      attributes: { "data-part": "torrents/origin", "data-origin": origin.value },
     },
     { label: entry.tracker, attributes: { "data-part": "torrents/tracker" } },
   ];

@@ -6,6 +6,11 @@
 // ends — the tracker, and every running obligation — and only the confirmation
 // writes. Turning a switch back ON, and undoing an exclusion, destroy nothing
 // and ask nothing.
+//
+// A TORRENT CREATED AND PUBLISHED AT A THIRD PARTY asks first too (L23 § 2.3,
+// NE-DOIT-PAS-6 in the creating direction): the confirmation names the tracker
+// and the files that will be packaged and sent there. A tracker's « accepte les
+// uploads » switch writes at once, both ways: off, it cuts nothing published.
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { dialog, panel, toast } from "../../lib/shell-doors";
@@ -53,6 +58,16 @@ function say(key: string, values: Record<string, string> = {}): string {
  */
 export function crossSeedSetting(tracker: string): string {
   return `${TRACKER_FILE}:tracker.providers.${tracker}.cross_seed`;
+}
+
+/**
+ * The setting one tracker's « accepte les uploads » switch is kept under — the one Réglages draws.
+ *
+ * @param tracker The tracker's configured name.
+ * @returns The setting's identity, `<file>:<key>`.
+ */
+export function uploadsSetting(tracker: string): string {
+  return `${TRACKER_FILE}:tracker.providers.${tracker}.accepts_uploads`;
 }
 
 /** Asks every read a cross-seed write moves again, so every reader agrees in one render. */
@@ -320,3 +335,78 @@ registerVerb("cross-seed-search", (value) => {
 
 /* THE CARD'S LEFT DRAWER: every pair of the origin the engine would act on, in its one search. */
 registerVerb("cross-seed-search-all", (infoHash) => search(infoHash, null));
+
+/**
+ * Writes one tracker's « accepte les uploads » switch — the SAME write Réglages
+ * makes (round 11 OPEN 2 = B). Nothing published is withdrawn, so nothing is asked.
+ *
+ * @param tracker The tracker's configured name.
+ * @param on Whether the tracker accepts uploads.
+ */
+async function writeUploads(tracker: string, on: boolean): Promise<void> {
+  await send("PUT", `/api/config/files/${TRACKER_FILE}`, { [uploadsSetting(tracker)]: on });
+  await refresh();
+  toast?.show({ message: say(on ? "uploadsOnDone" : "uploadsOffDone", { tracker }) });
+}
+
+/* « ACCEPTE LES UPLOADS » ON A TRACKER'S PANEL: written at once, both ways. */
+registerVerb("uploads-switch", (tracker) => {
+  const summary = sharedQueryClient?.getQueryData<Schemas["Tracker"][]>(trackersKey)?.find((one) => one.name === tracker);
+  if (summary !== undefined) void writeUploads(tracker, !summary.crossSeed.acceptsUploads);
+});
+
+/** The uploads asked and not yet answered: a second tap asks nothing (DOIT-4). */
+const uploading = new Set<string>();
+
+/**
+ * Asks ONE upload and says it is queued, never « occupé »; the pair reads « en
+ * file » until its outcome arrives on the stream — the SAME two events a found
+ * cross-seed ends by (F59).
+ *
+ * @param infoHash The origin's hash.
+ * @param tracker The tracker the torrent is published on.
+ */
+function upload(infoHash: string, tracker: string): void {
+  const subject = `${infoHash}:${tracker}`;
+  if (uploading.has(subject)) return;
+  uploading.add(subject);
+  void send("POST", `/api/torrents/${encodeURIComponent(infoHash)}/cross-seed/${encodeURIComponent(tracker)}/upload`)
+    .then(() => toast?.show({ message: say("uploadQueued", { tracker }) }))
+    // THE REFUSAL IS SAID, never swallowed: a duplicate, or a pair the engine no longer acts on.
+    .catch(() => toast?.show({ message: say("uploadRefused", { tracker }) }))
+    .then(refresh)
+    .finally(() => uploading.delete(subject));
+}
+
+/**
+ * Opens the confirmation for « Créer et publier un torrent »: it names the
+ * tracker, the release whose files are packaged, and that the tracker's own
+ * rules decide — the interface pre-validates nothing (round 11 OPEN 3 = A).
+ *
+ * @param infoHash The origin's hash.
+ * @param tracker The tracker the torrent would be published on.
+ */
+export function openUploadConfirm(infoHash: string, tracker: string): void {
+  void held().then(([downloads]) => {
+    const origin = originOf(downloads, infoHash);
+    if (origin === undefined) return;
+    dialog?.open({
+      heading: say("uploadHeading", { tracker }),
+      body: [
+        { type: "paragraph", runs: [{ text: say("uploadBody", { title: origin.title, tracker }) }] },
+        { type: "paragraph", runs: [{ text: say("uploadFiles"), strong: true }, { text: ` ${origin.name}` }] },
+        { type: "paragraph", runs: [{ text: say("uploadRules", { tracker }) }] },
+      ],
+      actions: [
+        { text: say("uploadConfirm"), run: () => upload(infoHash, tracker) },
+        { text: say("cancel"), tone: "ghost", dismiss: true },
+      ],
+    });
+  });
+}
+
+/* « CRÉER ET PUBLIER UN TORRENT » on a pair, from the torrent's panel: `<origin hash>:<tracker>`. */
+registerVerb("cross-seed-upload", (value) => {
+  const [infoHash, tracker] = value.split(":");
+  if (infoHash && tracker) openUploadConfirm(infoHash, tracker);
+});

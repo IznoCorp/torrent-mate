@@ -12,27 +12,36 @@
 // the failures the badge counts first, then the ordinary refusals, then
 // « actif », « stoppé », « tracker sans cross-seed », and « sans correspondance »
 // / « pas encore cherché » last — within a state, the newest first.
+//
+// A SECOND ACT BESIDE THE SEARCH (L23 § 2.3): « Créer et publier un torrent »,
+// on the pairs nothing already cross-seeds, its origin seeding and its tracker
+// accepting uploads. A published pair reads « actif » like a found one, dated
+// « publié le »; a refused one « erreur de cross-seed », the tracker's own
+// reason said beside the code's sentence — no seventh word (round 11).
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
 import { Chip } from "../../ui/chip";
 import { Switch } from "../../ui/switch";
 import type { Schemas } from "../../lib/contract-schemas";
-import { actionButton, sheetActions, factDetail, factList, factName, factRow, factRowBody } from "../../ui/variants";
+import { actionButton, sheetActions, factActions, factDetail, factList, factName, factRow, factRowBody } from "../../ui/variants";
 import { dayOf } from "./format";
 import { useDownloads, useTrackers } from "./queries";
 import type { SwitchWrite } from "./cross-seed-verbs";
 import {
-  CROSS_SEED_TONE, familyWord, isComplete, isFailure, isSearchable, isSwitchedOff, reasonSentence, stateWord,
-  type CrossSeedPair,
+  CROSS_SEED_TONE, familyWord, isComplete, isFailure, isSearchable, isSeeding, isSwitchedOff, isUploadRefused,
+  isUploadable, reasonSentence, stateWord, type CrossSeedPair, type UploadGate,
 } from "./cross-seed-state";
 
 // The block this file adds to the panel's map, declared beside what draws it.
 declare module "../../ui/panel/contract" {
   interface PanelBlockMap {
     crossSeed: {
-      /** The origin entry: its hash, its release name, the tracker it runs on, and how much of it is held. */
-      origin: { infoHash: string; name: string; tracker: string; progress: number };
+      /**
+       * The origin entry: its hash, its release name, the tracker it runs on, how
+       * much of it is held, and whether the client is seeding it whole.
+       */
+      origin: { infoHash: string; name: string; tracker: string; progress: number; seeding: boolean };
       pairs: CrossSeedPair[];
       titleExcluded: boolean;
     };
@@ -93,24 +102,43 @@ function dateOf(pair: CrossSeedPair, say: (key: string, values?: Record<string, 
     return say(pair.stopCause === "switch" ? "stoppedBySwitch" : "stoppedByCut", { date: dayOf(pair.stoppedAt) });
   }
   if (pair.at === null) return null;
-  if (pair.state === "active") return say("injected", { date: dayOf(pair.at) });
-  return say("tried", { date: dayOf(pair.at) });
+  const uploaded = pair.via === "upload";
+  if (pair.state === "active") return say(uploaded ? "published" : "injected", { date: dayOf(pair.at) });
+  return say(uploaded ? "publishTried" : "tried", { date: dayOf(pair.at) });
+}
+
+/** What a pair's row reads of its origin and of its tracker's two switches. */
+type PairContext = {
+  pair: CrossSeedPair;
+  origin: PanelBlockMap["crossSeed"]["origin"];
+  titleExcluded: boolean;
+  /** Whether the pair's own tracker carries its cross-seed switch on. */
+  trackerEnabled: boolean;
+  /** Whether the pair's own tracker carries its « accepte les uploads » switch on. */
+  acceptsUploads: boolean;
+};
+
+/**
+ * What « Créer et publier un torrent » reads of a pair's context.
+ *
+ * @param context The pair and what its row reads.
+ * @returns The gate.
+ */
+function gateOf({ origin, titleExcluded, trackerEnabled, acceptsUploads }: PairContext): UploadGate {
+  return { titleExcluded, originSeeding: origin.seeding, trackerEnabled, acceptsUploads };
 }
 
 /**
- * What a pair offers: to cut it while it runs (round 9 Q5, Q8), and to lift its
- * exclusion once excluded (round 9 Q11) — nothing the engine would refuse (§ 17
- * point 1). A title excluded whole is lifted whole, never pair by pair.
+ * What a pair offers: to cut it while it runs (round 9 Q5, Q8), to search it or
+ * to publish a torrent there where nothing cross-seeds (L23 § 2.3), and to lift
+ * its exclusion once excluded (round 9 Q11) — nothing the engine would refuse
+ * (§ 17 point 1). A title excluded whole is lifted whole, never pair by pair.
  *
- * @param props.pair The pair.
- * @param props.origin The origin entry.
- * @param props.titleExcluded Whether the whole title is excluded.
- * @param props.trackerEnabled Whether the pair's own tracker carries its cross-seed switch on.
+ * @param context The pair, its origin, and its tracker's two switches.
  * @returns The pair's buttons, or nothing.
  */
-function PairActs({ pair, origin, titleExcluded, trackerEnabled }: {
-  pair: CrossSeedPair; origin: PanelBlockMap["crossSeed"]["origin"]; titleExcluded: boolean; trackerEnabled: boolean;
-}): ReactElement | null {
+function PairActs(context: PairContext): ReactElement | null {
+  const { pair, origin, titleExcluded, trackerEnabled } = context;
   const { t } = useTranslation();
   const say = (key: string) => t(`screens.crossSeed.panel.${key}`);
   const subject = `${origin.infoHash}:${pair.tracker}`;
@@ -130,14 +158,28 @@ function PairActs({ pair, origin, titleExcluded, trackerEnabled }: {
   if (pair.searching) {
     return <span className={factDetail()} data-part="torrents/cross-seed-queued"><b>{say("queued")}</b></span>;
   }
-  if (isSearchable(pair, titleExcluded, isComplete(origin), trackerEnabled)) {
+  // AN UPLOAD ASKED reads « en file » too, never « occupé » (DOIT-4), until its outcome arrives.
+  if (pair.uploading) {
+    return <span className={factDetail()} data-part="torrents/cross-seed-upload-queued"><b>{say("uploadQueued")}</b></span>;
+  }
+  const searchable = isSearchable(pair, titleExcluded, isComplete(origin), trackerEnabled);
+  const uploadable = isUploadable(pair, gateOf(context));
+  if (searchable || uploadable) {
     return (
-      <span className={factDetail()}>
-        <button className={actionButton({ kind: "panelAction", tone: "primary" })} data-part="torrents/cross-seed-search"
-          data-cross-seed-search={subject}>
-          {say("search")}
-        </button>
-      </span>
+      <span className={factDetail()}><span className={factActions()}>
+        {searchable ? (
+          <button className={actionButton({ kind: "panelAction", tone: "primary" })} data-part="torrents/cross-seed-search"
+            data-cross-seed-search={subject}>
+            {say("search")}
+          </button>
+        ) : null}
+        {uploadable ? (
+          <button className={actionButton({ kind: "panelAction", tone: "plain" })} data-part="torrents/cross-seed-upload"
+            data-cross-seed-upload={subject}>
+            {say("upload")}
+          </button>
+        ) : null}
+      </span></span>
     );
   }
   if (pair.excluded && !titleExcluded) {
@@ -156,14 +198,11 @@ function PairActs({ pair, origin, titleExcluded, trackerEnabled }: {
 /**
  * One pair's row.
  *
- * @param props.pair The pair.
- * @param props.origin The origin entry.
- * @param props.trackerEnabled Whether the pair's own tracker carries its cross-seed switch on.
+ * @param context The pair, its origin, and its tracker's two switches.
  * @returns The row.
  */
-function PairRow({ pair, origin, titleExcluded, trackerEnabled }: {
-  pair: CrossSeedPair; origin: PanelBlockMap["crossSeed"]["origin"]; titleExcluded: boolean; trackerEnabled: boolean;
-}): ReactElement {
+function PairRow(context: PairContext): ReactElement {
+  const { pair, origin, titleExcluded, trackerEnabled } = context;
   const { t } = useTranslation();
   const say = (key: string, values: Record<string, string> = {}) => t(`screens.crossSeed.panel.${key}`, values);
   const date = dateOf(pair, say);
@@ -180,8 +219,13 @@ function PairRow({ pair, origin, titleExcluded, trackerEnabled }: {
           <span className={factDetail()} data-part="torrents/cross-seed-reason" data-reason={pair.reason}>
             <b>{familyWord(pair.reason)}</b> — {reasonSentence(pair.reason)}
             <br />
-            {pair.candidate === null ? null : (
+            {pair.candidate === null || pair.via === "upload" ? null : (
               <>{say("candidate", { name: pair.candidate, tracker: pair.tracker })}<br /></>
+            )}
+            {pair.trackerReason === null ? null : (
+              <><span data-part="torrents/cross-seed-tracker-reason">
+                {say("trackerReason", { tracker: pair.tracker, reason: pair.trackerReason })}
+              </span><br /></>
             )}
             {say("source", { name: origin.name, tracker: origin.tracker })}
           </span>
@@ -195,10 +239,13 @@ function PairRow({ pair, origin, titleExcluded, trackerEnabled }: {
             {say("wait", { reason: t("screens.crossSeed.waits.switchOff") })}
           </span>
         ) : null}
+        {isUploadRefused(pair, gateOf(context)) ? (
+          <span className={factDetail()} data-part="torrents/cross-seed-upload-off">{say("uploadOff", { tracker: pair.tracker })}</span>
+        ) : null}
         {pair.excluded ? (
           <span className={factDetail()} data-part="torrents/cross-seed-excluded">{say("excluded")}</span>
         ) : null}
-        <PairActs pair={pair} origin={origin} titleExcluded={titleExcluded} trackerEnabled={trackerEnabled} />
+        <PairActs {...context} />
       </div>
     </li>
   );
@@ -224,8 +271,13 @@ function CrossSeedBlock({ block: posed }: { block: { type: "crossSeed" } & Panel
   // the page already holds (R-L17-k), never a second operation for this block.
   const trackers = useTrackers().data;
   const enabledOf = (tracker: string) => trackers?.find((one) => one.name === tracker)?.crossSeed.enabled ?? true;
+  // « ACCEPTE LES UPLOADS » (round 11 OPEN 2 = B): unread, nothing is offered it might withdraw.
+  const acceptsOf = (tracker: string) => trackers?.find((one) => one.name === tracker)?.crossSeed.acceptsUploads ?? false;
   const block = held && entry
-    ? { ...posed, origin: { ...posed.origin, progress: entry.progress }, pairs: held.pairs, titleExcluded: held.titleExcluded }
+    ? {
+      ...posed, origin: { ...posed.origin, progress: entry.progress, seeding: isSeeding(entry) }, pairs: held.pairs,
+      titleExcluded: held.titleExcluded,
+    }
     : posed;
   const say = (key: string) => t(`screens.crossSeed.panel.${key}`);
   return (
@@ -242,7 +294,7 @@ function CrossSeedBlock({ block: posed }: { block: { type: "crossSeed" } & Panel
           {orderedPairs(block.pairs).map((pair) => (
             <PairRow
               key={pair.tracker} pair={pair} origin={block.origin} titleExcluded={block.titleExcluded}
-              trackerEnabled={enabledOf(pair.tracker)}
+              trackerEnabled={enabledOf(pair.tracker)} acceptsUploads={acceptsOf(pair.tracker)}
             />
           ))}
         </ol>
@@ -273,7 +325,8 @@ function CrossSeedBlock({ block: posed }: { block: { type: "crossSeed" } & Panel
  * A tracker's cross-seed switch, in its panel (S2): its state in words and the
  * control that flips it — the SAME setting Réglages draws, one write, two doors.
  * THE ENGINE OFF IS A SEPARATE FACT, said above and never hiding the tracker's
- * own switch (M6).
+ * own switch (M6). Its « accepte les uploads » switch below it, the same way
+ * (L23, round 11 OPEN 2 = B).
  *
  * @param props.block The tracker, its summary, and whether its switch moved in this visit.
  * @returns The block.
@@ -285,6 +338,7 @@ function CrossSeedSwitchBlock({ block: posed }: { block: { type: "crossSeedSwitc
   const block = summary ? { ...posed, summary } : posed;
   const say = (key: string, values: Record<string, string> = {}) => t(`screens.crossSeed.switch.${key}`, values);
   const on = block.summary.enabled;
+  const accepts = block.summary.acceptsUploads;
   // THE DETAIL SAYS WHAT IS TRUE: the engine off, the tracker on searches nothing
   // (M6, as the roster's line says it); the running ones cut, they no longer continue.
   const detail = on
@@ -305,6 +359,18 @@ function CrossSeedSwitchBlock({ block: posed }: { block: { type: "crossSeedSwitc
           </div>
           <Switch checked={on} label={say("label", { tracker: block.tracker })}
             data-part="tracker/cross-seed-switch" data-cross-seed-switch={block.tracker} />
+        </li>
+        {/* « ACCEPTE LES UPLOADS », DISTINCT FROM THE CROSS-SEED (round 11 OPEN 2 = B): the
+            same setting Réglages draws, one write, two doors. Off, it cuts nothing published. */}
+        <li className={factRow({ withControl: true })} data-part="tracker/uploads" data-on={String(accepts)}>
+          <div className={factRowBody()}>
+            <span className={factName()} data-part="tracker/uploads-state">{say(accepts ? "uploadsOn" : "uploadsOff")}</span>
+            <span className={factDetail()} data-part="tracker/uploads-detail">
+              {say(accepts ? "uploadsOnDetail" : "uploadsOffDetail")}
+            </span>
+          </div>
+          <Switch checked={accepts} label={say("uploadsLabel", { tracker: block.tracker })}
+            data-part="tracker/uploads-switch" data-uploads-switch={block.tracker} />
         </li>
       </ol>
       {block.switched !== null ? (

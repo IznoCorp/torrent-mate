@@ -14,7 +14,8 @@ import { registerProducer, type Action, type FactLine, type PanelCache, type Pan
 import { read } from "../../lib/query-client";
 import { dayOf, sizeOf, written } from "./format";
 import { downloadsKey, obligationsKey, type Download, type Obligation } from "./queries";
-import { addedOf, episodeCode, owedBy, sourcesOf, transferOf } from "./torrent-card";
+import { ORIGIN_MARK, addedOf, episodeCode, owedBy, sourcesOf, transferOf } from "./torrent-card";
+import { isSeeding } from "./cross-seed-state";
 // The cross-seed block an origin's panel draws, declared to the panel as it evaluates.
 import "./panel-cross-seed";
 
@@ -57,7 +58,7 @@ function factsOf(entry: Download, obligation: Obligation | undefined): FactLine[
     { c: say("name"), v: entry.name },
     { c: say("medium"), v: medium },
     { c: say("tracker"), v: entry.tracker },
-    { c: say("origin"), v: i18next.t(entry.origin ? "screens.torrents.origin" : "screens.torrents.crossSeed") },
+    { c: say("origin"), v: i18next.t(`screens.torrents.${ORIGIN_MARK[entry.provenance].word}`) },
     {
       c: say("state"),
       v: [i18next.t(`screens.torrents.states.${entry.state}`), entry.errorReason].filter(Boolean).join(" — "),
@@ -118,7 +119,10 @@ function torrentPanel(subject: string, cache: PanelCache): PanelDescriptor | nul
       // AN ORIGIN'S CROSS-SEED, tracker by tracker — never repeated on a cross-seed's own entry.
       entry.crossSeed === null ? null : {
         type: "crossSeed",
-        origin: { infoHash: entry.infoHash, name: entry.name, tracker: entry.tracker, progress: entry.progress },
+        origin: {
+          infoHash: entry.infoHash, name: entry.name, tracker: entry.tracker, progress: entry.progress,
+          seeding: isSeeding(entry),
+        },
         pairs: entry.crossSeed.pairs,
         titleExcluded: entry.crossSeed.titleExcluded,
       },
