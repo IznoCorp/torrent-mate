@@ -130,6 +130,7 @@ bold
 boolean
 boot
 border
+born
 borne
 bottom
 bound
@@ -258,6 +259,7 @@ crosses
 cur
 current
 cursor
+cut
 cutoff
 daily
 damping
@@ -358,6 +360,7 @@ driver
 drop
 dropped
 dry
+duplicate
 duration
 dx
 each
@@ -409,8 +412,10 @@ facts
 failed
 failing
 failure
+failures
 fallback
 families
+family
 fast
 faults
 feature
@@ -559,6 +564,7 @@ info
 informative
 initial
 initials
+injected
 inner
 input
 inset
@@ -803,6 +809,7 @@ pages
 paging
 paint
 pair
+pairs
 panel
 paragraph
 parameter
@@ -921,6 +928,7 @@ reader
 ready
 real
 reason
+reasons
 receive
 received
 recent
@@ -1040,6 +1048,7 @@ scen
 scenario
 schedule
 schedulers
+schema
 schemas
 scheme
 score
@@ -1057,10 +1066,13 @@ scrollport
 seam
 seams
 search
+searchable
+searched
 season
 seasons
 sec
 secondary
+seconds
 secret
 secrets
 section
@@ -1124,6 +1136,7 @@ signout
 silence
 silent
 since
+six
 size
 skel
 skeleton
@@ -1149,6 +1162,7 @@ space
 spacer
 spacers
 spacing
+spent
 splash
 src
 st
@@ -1175,6 +1189,7 @@ statuses
 step
 steps
 sticky
+stop
 stopped
 storage
 store

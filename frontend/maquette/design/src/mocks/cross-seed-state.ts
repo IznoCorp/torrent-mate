@@ -212,16 +212,24 @@ export function stopRunningOn(tracker: string): string[] {
 }
 
 /** The dials a named state turns to reach a cross-seed state no verb produces. */
-export const crossSeedDials = {
-  /** « le moteur est coupé » — the engine's own switch off; nothing running moves (M6). */
-  poseEngineOff: () => setSwitch(ENGINE_KEY, false),
-  /** One tracker's own switch off, its running pairs untouched. */
-  poseSwitchOff: (tracker: string) => setSwitch(crossSeedKey(tracker), false),
-  /** One pair posed in a state, for a state no seed row holds. */
-  posePair: (infoHash: string, tracker: string, fields: Partial<Schemas["CrossSeedPair"]>) => {
+export type CrossSeedDials = {
+  poseCrossSeedEngineOff: () => void;
+  poseCrossSeedSwitchOff: (tracker: string) => void;
+  poseCrossSeedPair: (infoHash: string, tracker: string, fields: Partial<Schemas["CrossSeedPair"]>) => void;
+  crossSeedSearches: () => CrossSeedHeld["searches"];
+};
+
+/** Those dials, over the cross-seed subject. */
+export const crossSeedDials: CrossSeedDials = {
+  // « LE MOTEUR EST COUPÉ » — the engine's own switch off; nothing running moves (M6).
+  poseCrossSeedEngineOff: () => setSwitch(ENGINE_KEY, false),
+  // ONE TRACKER'S OWN SWITCH OFF, its running pairs untouched.
+  poseCrossSeedSwitchOff: (tracker: string) => setSwitch(crossSeedKey(tracker), false),
+  // A DERIVATION, SHOWN AS ONE: a pair posed in a state no seed row holds.
+  poseCrossSeedPair: (infoHash: string, tracker: string, fields: Partial<Schemas["CrossSeedPair"]>) => {
     const pair = crossSeedState().torrents[infoHash]?.pairs.find((one) => one.tracker === tracker);
     if (pair !== undefined) Object.assign(pair, fields);
   },
-  /** NOT A DIAL — a reading: the searches the layer was asked for. */
-  searches: () => structuredClone(crossSeedState().searches),
+  // NOT A DIAL — a reading: the searches the layer was asked for.
+  crossSeedSearches: () => structuredClone(crossSeedState().searches),
 };

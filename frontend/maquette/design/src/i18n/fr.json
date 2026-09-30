@@ -111,7 +111,7 @@
       "min_seed_time": "Durée de partage minimale",
       "alert_threshold": "Seuil d'alerte du ratio",
       "hit_and_run_grace": "Tolérance avant de considérer un abandon",
-      "cross_seed": "Partage croisé",
+      "cross_seed": "Cross-seed",
       "verify_seed_pure": "Vérifier qu'un partage reste intact",
       "cutoff_days": "Ancienneté au-delà de laquelle on n'insiste plus",
       "budget_seconds": "Temps accordé à une recherche",
@@ -195,7 +195,7 @@
       "watch": "Surveillance",
       "seasons": "Saisons",
       "subtitles": "Sous-titres",
-      "cross_seed": "Partage croisé",
+      "cross_seed": "Cross-seed",
       "audio": "Audio",
       "video": "Vidéo",
       "log": "Journal",
@@ -1102,6 +1102,55 @@
       "restartConfirmCancel": "Annuler",
       "restartDone": "Service redémarré — les réglages sont pris en compte.",
       "allTopics": "Tous les réglages"
+    },
+    "crossSeed": {
+      "states": {
+        "active": "actif",
+        "stopped": "stoppé",
+        "trackerWithout": "tracker sans cross-seed",
+        "error": "erreur de cross-seed",
+        "noMatch": "sans correspondance",
+        "notSearched": "pas encore cherché"
+      },
+      "reasons": {
+        "piece_length_mismatch": "Les morceaux du candidat n'ont pas la même taille que ceux de l'original.",
+        "file_list_mismatch": "La liste des fichiers du candidat diffère de celle de l'original.",
+        "root_name_mismatch": "Le dossier du candidat ne porte pas le même nom que celui de l'original.",
+        "v2_hybrid": "L'original est au format v2 ou hybride, que le cross-seed ne prend pas.",
+        "self_candidate": "Le candidat trouvé est l'original lui-même.",
+        "fetch_failed": "Le fichier .torrent du candidat n'a pas pu être téléchargé depuis le tracker.",
+        "verify_timeout": "La vérification des fichiers n'a pas abouti à temps.",
+        "recheck_failed": "La vérification des fichiers a échoué.",
+        "magnet_not_supported": "Le tracker n'a proposé qu'un lien magnet, que le cross-seed ne prend pas.",
+        "parse_failed": "Le fichier .torrent reçu est illisible.",
+        "inject_failed": "qBittorrent a refusé l'ajout du torrent.",
+        "obligation_write_failed": "Le torrent a été ajouté, mais son obligation de partage n'a pas pu être enregistrée.",
+        "upload_failed": "L'envoi ou la création du torrent sur le tracker a échoué."
+      },
+      "families": {
+        "files": "Pas les mêmes fichiers",
+        "attempt": "La tentative a échoué",
+        "engine": "Le moteur n'a pas pu finir",
+        "upload": "L'envoi au tracker a échoué"
+      },
+      "waits": {
+        "downloading": "l'original est encore en téléchargement",
+        "quota": "en attente du quota du jour"
+      },
+      "line": {
+        "active_one": "Cross-seed : actif — {{count}} torrent",
+        "active_other": "Cross-seed : actif — {{count}} torrents",
+        "activeNone": "Cross-seed : actif — aucun torrent",
+        "off": "Cross-seed : coupé sur ce tracker",
+        "offRunning_one": "Cross-seed : coupé sur ce tracker — {{count}} torrent continue",
+        "offRunning_other": "Cross-seed : coupé sur ce tracker — {{count}} torrents continuent",
+        "engineOff": "Cross-seed : le moteur est coupé",
+        "engineOffOwn": "{{engine}} · ce tracker : {{own}}",
+        "ownOn": "actif",
+        "ownOff": "coupé",
+        "failures_one": "{{line}} · {{count}} échec",
+        "failures_other": "{{line}} · {{count}} échecs"
+      }
     }
   },
   "surfaces": {
