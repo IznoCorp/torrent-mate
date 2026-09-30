@@ -926,11 +926,6 @@
       "swipeSearch": "Chercher",
       "modePosters": "Affiches",
       "modeDeck": "Slide cards",
-      "liveBefore": "Réserve remplie il y a 2 h · ",
-      "liveSuggestions": "503",
-      "liveMiddle": " suggestions · ",
-      "liveOwned": "1 832",
-      "liveAfter": " ids TMDB possédés exclus",
       "tmdbDisconnected": "Compte TMDB non connecté.",
       "connectTmdb": "Connecter mon compte TMDB",
       "tmdbBefore": "\n             Sans lui, deux choses manquent : vos ",
@@ -987,7 +982,15 @@
       "plexConfirmFoot": "Confirmer",
       "plexCorrectFoot": "Corriger",
       "abandonFoot": "Abandonner",
-      "deleteFoot": "Supprimer"
+      "deleteFoot": "Supprimer",
+      "headerSeries_one": "{{count}} série",
+      "headerSeries_other": "{{count}} séries",
+      "headerFilms_one": "{{count}} film",
+      "headerFilms_other": "{{count}} films",
+      "headerCount": "{{series}} et {{films}} à découvrir",
+      "headerLoading": "Suggestions en cours de lecture…",
+      "headerUnavailable": "Suggestions indisponibles pour le moment.",
+      "headerTitle": "À découvrir"
     },
     "accountPage": {
       "noteLead": "Un seul compte existe sur ce serveur.",

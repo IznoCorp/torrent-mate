@@ -365,7 +365,7 @@ export function installPressArbitration(
  * @returns The element carrying the panel's address, or null.
  */
 function panelUnderFinger(target: Element): Element | null {
-  return target.closest?.("[data-panel]") ?? target.closest?.(".card, .sugwrap")?.querySelector("[data-panel]") ?? null;
+  return target.closest?.("[data-panel]") ?? target.closest?.(".card, .commitrow")?.querySelector("[data-panel]") ?? null;
 }
 
 /**

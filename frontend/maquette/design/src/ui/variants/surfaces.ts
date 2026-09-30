@@ -187,6 +187,19 @@ export const skeleton = cva(
 export const liveStrip = cva(
   "live flex items-center gap-4 border border-border rounded-3 py-4 px-5 " +
     "text-2 text-muted-foreground bg-card",
+  {
+    variants: {
+      // INLINE: the strip set in a row another control shares — the view switch's
+      // — so its border and its ground drop, it takes the row's free room, and its
+      // one line ends in an ellipsis at the control; its whole is on a tap. It is
+      // the only text allowed to stop short, being secondary and whole elsewhere.
+      inline: {
+        true: "min-w-0 flex-1 min-h-[44px] [border:0] bg-transparent py-0 px-0 text-left cursor-pointer [&>span:last-child]:min-w-0 [&>span:last-child]:overflow-hidden [&>span:last-child]:text-ellipsis [&>span:last-child]:whitespace-nowrap",
+        false: "",
+      },
+    },
+    defaultVariants: { inline: false },
+  },
 );
 
 /**

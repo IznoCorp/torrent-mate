@@ -425,6 +425,7 @@ file
 files
 fill
 film
+films
 filter
 filtered
 filters
@@ -717,6 +718,7 @@ muted
 name
 named
 names
+narrow
 nav
 navgo
 navigated
@@ -811,6 +813,8 @@ parents
 parsed
 part
 partial
+pass
+passed
 passer
 passively
 password
@@ -949,6 +953,8 @@ registrations
 registry
 reglees
 regular
+reject
+rejected
 relaxed
 relay
 release
@@ -998,6 +1004,7 @@ resume
 resumed
 retry
 return
+returns
 reversed
 rich
 right
@@ -1234,6 +1241,7 @@ theme
 there
 thousand
 threshold
+throw
 ticked
 tie
 tied
@@ -1288,9 +1296,11 @@ typed
 ua
 ui
 uid
+unavailable
 unblock
 under
 undo
+undone
 unit
 units
 universe

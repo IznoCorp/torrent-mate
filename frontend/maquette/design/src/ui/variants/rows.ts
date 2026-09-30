@@ -1,5 +1,5 @@
-// THE ROWS A LIST DRAWS AROUND ITS CARDS, AS TYPED VARIANTS — the swipe row and
-// the selection row.
+// THE ROWS A LIST DRAWS AROUND ITS CARDS, AS TYPED VARIANTS — the swipe row, the
+// commit row and the selection row.
 //
 // EVERY FACTORY KEEPS ITS IDENTITY CLASS AT THE FRONT. The swipe gesture finds
 // its row by `.swipe` and measures a drawer through `.side.right` and
@@ -54,6 +54,34 @@ export const swipeActions = cva("actions absolute inset-px rounded-3 overflow-hi
 export const swipeSide = cva("side flex flex-[0_0_auto]", {
   variants: { edge: { left: "left", right: "right ml-auto" } },
 });
+
+/**
+ * A row a swipe DECIDES on release — the application's second swipe, beside the
+ * swipe row, and different on purpose: the swipe row OPENS a drawer of actions
+ * and waits for a tap; this one commits the act of the side it travelled to,
+ * once past its threshold, and the row leaves. It claims the vertical pan, selects
+ * no text and drags no picture, for the swipe row's reasons; a row that leaves
+ * collapses before it goes. The gesture finds it by `.commitrow`.
+ */
+export const commitRow = cva(
+  "commitrow relative overflow-hidden rounded-3 touch-pan-y select-none [&_img]:[-webkit-user-drag:none] " +
+    "[&.gone]:[transition:height_var(--duration-3)_var(--ease-standard),opacity_var(--duration-2)_var(--ease-standard),margin_var(--duration-3)_var(--ease-standard)] " +
+    "[&.gone]:[height:0]! [&.gone]:opacity-0 [&.gone]:mb-[calc(var(--spacing-7)*-1)]",
+);
+
+/**
+ * What a commit row uncovers as it travels: on each side, the word of the act
+ * that travel commits to — the right side read by a travel to the left, the left
+ * side by a travel to the right. The words are the caller's.
+ */
+export const commitRowBack = cva(
+  "commitback absolute inset-0 flex items-center justify-between py-0 px-8 rounded-3 bg-muted " +
+    "text-muted-foreground text-3 font-bold [&_span]:flex [&_span]:items-center [&_span]:gap-3 " +
+    "[&_svg]:w-[16px] [&_svg]:h-[16px] " +
+    // THE SIDE THE ROW TRAVELS AWAY FROM IS NOT READ: the gesture writes which
+    // way it goes, and the word under the fading card is hidden.
+    "[[data-travel=left]>&>[data-side=left]]:invisible [[data-travel=right]>&>[data-side=right]]:invisible",
+);
 
 /**
  * A row in selection mode: the card's anatomy with a check in front. A mode of

@@ -12,7 +12,7 @@ panel was reachable by no finger at all.
 
 **THIS RULE MEASURES RATHER THAN ASSUMES, and that distinction is the reason it
 exists.** Reading the code says the panel SHOULD open: `panelUnderFinger`
-resolves `[data-panel]` from the element itself and from a `.card`/`.sugwrap`
+resolves `[data-panel]` from the element itself and from a `.card`/`.commitrow`
 child, so it finds the tile's own node and the deck card's article; the press
 arbitration then swallows the click the lift causes. Every step of that
 reasoning is sound and the operator's finger disagrees with it. So nothing here

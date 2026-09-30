@@ -274,10 +274,11 @@ export function fillSug(): void {
   }
   const draw = state.sugMode === "poster" ? suggestionTile : suggestionRow;
   box.className = state.sugMode === "poster" ? posterGrid() : "";
-  const gone = state.sugGone as Set<number>;
-  const markup = reserve()
-    .slice(0, state.sugCount as number)
-    .map((suggestion, position) => (gone.has(position) ? "" : draw(suggestion, position)))
+  // THE ONE ORDER THE DECK READS TOO, what is dismissed already out of it: a
+  // suggestion passed comes round again after every one not yet passed.
+  const markup = deckOrder()
+    .filter((position) => position < (state.sugCount as number))
+    .map((position) => draw(reserve()[position], position))
     .join("");
   // AN EMPTY LIST SAYS SO. Dismissing every drawn suggestion left this
   // container holding nothing at all — no rows and no word — which reads as a
