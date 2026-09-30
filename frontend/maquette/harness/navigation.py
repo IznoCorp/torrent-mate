@@ -54,7 +54,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ROOT, Journal, open_page, chrome_launch_args
+from common import ROOT, Journal, open_page, browser_channel, chrome_launch_args
 
 DESIGN_SRC = ROOT / "design" / "src"
 
@@ -229,7 +229,7 @@ async def main():
         "state driver")
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
 
         # ─── Hold 2: one entry per call, walked back in reverse ────────
         ctx, pg = await open_page(browser)

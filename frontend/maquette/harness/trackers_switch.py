@@ -48,7 +48,7 @@ import json
 import pathlib
 import re
 
-from common import ACTED, SETTLED, Journal, chrome_launch_args, open_page
+from common import ACTED, SETTLED, Journal, browser_channel, chrome_launch_args, open_page
 from playwright.async_api import async_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parents[1] / "design/src"
@@ -127,7 +127,7 @@ async def tap(page, selector):
 async def main():
     journal = Journal("R-L16bis-g/h/c/i — each tracker has its switch, says why it failed, from the design system")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))

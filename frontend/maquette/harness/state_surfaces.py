@@ -35,7 +35,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, Journal, open_page, chrome_launch_args
+from common import PHONE, Journal, open_page, browser_channel, chrome_launch_args
 
 # Every named state that draws an error surface, and what the surface is about.
 # READ OFF the named-state table, never guessed: a first version of this list invented
@@ -64,7 +64,7 @@ SHARED_BODY = "Le serveur n'a pas répondu"    # french-ok: the app's rendered o
 async def hold(journal):
     """Drives every error state and reads the surface it draws."""
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         _context, page = await open_page(browser, **PHONE)
         # EVERY PAGE ERROR THE WALK RAISES, collected from the page itself.
         # This rule was written for B-108 — twenty-two React `NotFoundError`s

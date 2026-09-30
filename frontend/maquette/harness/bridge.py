@@ -62,7 +62,7 @@ from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from common import (DESIGN_SOURCES, PHONE, ROOT, Journal, design_source,
-                    without_comments, chrome_launch_args)
+                    without_comments, browser_channel, chrome_launch_args)
 
 # The engine may hold no history primitive of its own — the bridge is the
 # only way to the single writer.
@@ -194,7 +194,7 @@ async def main():
     )
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         ctx = await browser.new_context(**PHONE)
         pg = await ctx.new_page()
         errors = []
@@ -315,7 +315,7 @@ async def main():
 
     # ─── Hold (c): deep-URL entry ─────────────────────────────────────
     async with async_playwright() as p:
-        browser = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         ctx = await browser.new_context(**PHONE)
         pg = await ctx.new_page()
         pg.on("pageerror", lambda e: errors.append(str(e)))

@@ -35,7 +35,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, PROTOTYPE, Journal, chrome_launch_args
+from common import PHONE, PROTOTYPE, Journal, browser_channel, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -72,7 +72,7 @@ async def main():
     journal = Journal("R167 — a secret's two acts")
 
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page, errors = await open_at(browser, "settings")
         await page.click('[data-topic="secrets"]')
         await page.wait_for_timeout(450)

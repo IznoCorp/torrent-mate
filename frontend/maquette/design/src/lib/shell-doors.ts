@@ -55,6 +55,8 @@ export let replaceAddress: (() => boolean) | undefined;
 export let recordAddress: (() => boolean) | undefined;
 /** Opening the panel an element addresses — the press reads it while the gesture is still the engine's. */
 export let openAddressedPanel: ((element: Element) => void) | undefined;
+// A link a feature's own verb follows, landing as the `go` verb lands.
+export let followLink: ((page: string, dial?: string) => void) | undefined;
 /* Every feature's landing door, in the order they were filled. */
 const landingDoors: ((page: string, dial?: string) => void)[] = [];
 
@@ -147,6 +149,16 @@ export function fillRecordAddressDoor(write: () => boolean): void {
  */
 export function fillAddressedPanelDoor(open: (element: Element) => void): void {
   openAddressedPanel = open;
+}
+
+/**
+ * Fills the link door, from the frame's verbs.
+ *
+ * @param follow What lands on a page from a link — the `go` verb's landing,
+ *     for a verb that does something else first (« Compléter »).
+ */
+export function fillFollowLinkDoor(follow: (page: string, dial?: string) => void): void {
+  followLink = follow;
 }
 
 /**

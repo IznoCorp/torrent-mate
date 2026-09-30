@@ -48,7 +48,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PANEL_IN, PHONE, PROTOTYPE, Journal, chrome_launch_args, open_page, read_at
+from common import PANEL_IN, PHONE, PROTOTYPE, Journal, browser_channel, chrome_launch_args, open_page, read_at
 
 from playwright.async_api import async_playwright
 
@@ -106,7 +106,7 @@ async def main():
     journal = Journal("R166 — filing an edit, writing it, and being told")
 
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page, errors = await open_at(browser, "settings")
 
         # ── into a rubric, and onto a row that carries a TEXT field ────────

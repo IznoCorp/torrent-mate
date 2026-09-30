@@ -50,7 +50,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import Journal, open_page, chrome_launch_args
+from common import Journal, open_page, browser_channel, chrome_launch_args
 
 # The state that opens a panel carrying an avatar. Driven through `__go`, the
 # same seam the oracle drives, so this rule and the recorded references stand on
@@ -110,7 +110,7 @@ async def hold(journal):
     """Opens the panel and holds both avatars."""
     errors = []
     async with async_playwright() as play:
-        browser = await play.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await play.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
         page.on("pageerror", lambda error: errors.append(str(error)))
 

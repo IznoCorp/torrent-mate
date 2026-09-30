@@ -529,10 +529,30 @@ bottom panel opened halfway down a list rebuilt the list and sent it home — no
 that one; the mutation proving the rule bites is what found it.
 
 So an unwind **announces itself** and the popstate handler consumes the announcement, and a
-drawer navigation settles history itself: the destination TAKES the drawer's entry through
-`replaceState` rather than unwinding and pushing within one task, where the asynchronous pop
-lands after the push and overwrites it. A back from the destination then reaches where one was
-before opening the drawer, which is the only thing a drawer can honestly promise.
+drawer navigation settles history itself — its writes wait for the traversal to land
+(`walk.afterUnwind`), never issued in the same task, where the asynchronous pop would land after
+them and overwrite them.
+
+**Where Retour goes is § 16 as amended, and every entry carries the trail that says it.** Each
+history entry holds the pages under it from the floor up, with their indexes (`trail`,
+`lib/navigation-entry.ts`; written by `app/trail.ts`), and the verb that switches the page says how
+the tap lands (`app/frame-verbs.ts`, `landingOf`):
+
+- **a bar page** (Acquisition, Médiathèque, Trackers, Découvrir) chosen from the bar or the menu
+  UNWINDS the trail onto the floor, from any depth: Retour from it reaches the entry page, and
+  the entry page's own Retour arms the exit guard;
+- **a menu page** (Système, Maintenance, Réglages, Profil) chosen from the menu or the account
+  menu STACKS on the page left, the drawer and any rubric open under it given back first: a back
+  from the destination reaches where one was before opening the drawer;
+- **a link inside a page**, a screen or a panel STACKS on what it was tapped on — the entry page
+  included, so the guard arms only with the entry page at the bottom; a panel's entry is kept,
+  and Retour gives the page and the panel back;
+- **a page already on the trail** moves to its top and is never on it twice (the operator's
+  ruling of 2026-09-30): Acquisition → Système → Acquisition → Réglages → Système gives back
+  Réglages, then Acquisition.
+
+`harness/journey.py` walks every edge by finger (R-navigation-a, its table in
+`harness/navigation_edges.py`) and holds B-577 (R-navigation-b).
 
 `window.__pages()` exposes the page table, so a control can be checked against what the
 interface can actually render rather than against a list written beside it — one drawer entry

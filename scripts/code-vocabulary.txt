@@ -605,6 +605,7 @@ large
 last
 late
 latency
+lay
 layer
 layers
 leading
@@ -1006,6 +1007,7 @@ retry
 return
 returns
 reversed
+revisited
 rich
 right
 ring
@@ -1175,6 +1177,7 @@ statuses
 step
 steps
 sticky
+stop
 stopped
 storage
 store
@@ -1377,6 +1380,7 @@ succeeded
 summary
 swept
 timing
+trail
 trigger
 turn
 verified

@@ -103,7 +103,7 @@ registerVerb("manual", (folder) => {
     .replace(/\b(MULTi|VOSTFR|WEB-DL|WEBRip|BluRay|x264|x265|HEVC|1080p|2160p|720p|FRENCH|TRUEFRENCH)\b/gi, "")
     .replace(/\s{2,}/g, " ")
     .trim();
-  // The search takes the arbitration's place: a REPLACE, the ladder a pop and a
-  // push used to leave.
-  screens.add(query, "identify", true);
+  // The search STACKS over the arbitration (DECIDED 2 = A): its Retour gives
+  // the arbitration back, and a pick in it gives back the list.
+  screens.add(query, "identify");
 });

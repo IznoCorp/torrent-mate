@@ -10,6 +10,7 @@
 import {
   carryingState,
   layerEntry,
+  TRAIL_KEY,
   type CarriedIdentity,
   type LayerRecord,
 } from "../lib/navigation-entry";
@@ -46,7 +47,7 @@ type Bridge = {
 // its old `openX(...)` function. `title` crosses the bridge as a plain
 // string — normalisation and encoding are this file's job, not the caller's.
 type Screens = {
-  profile: (title: string, replace?: boolean) => void;
+  profile: (title: string) => void;
   // The media sheet — the centre of the product. `title` crosses as a plain
   // string here too; `carried` is what the caller knows of the item when it
   // knows it, and the cache is asked otherwise.
@@ -66,7 +67,7 @@ type Screens = {
   resolution: (folder?: string, replace?: boolean) => void;
   // `q`/`mode` cross the bridge as plain strings (a literal like `"identify"`)
   // — the validated union lives in `/add`'s own `validateSearch`, not here.
-  add: (q?: string, mode?: string, replace?: boolean) => void;
+  add: (q?: string, mode?: string) => void;
   // One passage, by its identifier — an arrival from the passages' list.
   run: (runUid: string) => void;
   // The ranking editor, under the settings page.
@@ -96,6 +97,22 @@ declare global {
 // instance BELOW, once window.__startEngine is called, so the entry the
 // shell mounts on is written once, by the single writer, in the right order.
 export const history = createBrowserHistory();
+
+/* EVERY ENTRY CARRIES THE TRAIL OF THE PAGE IT STANDS ON (`lib/navigation-entry.ts`),
+   and a writer that does not name one inherits the entry it is written from:
+   a screen, a layer or a rubric opened over a page stands on that page's trail,
+   and a setting that replaces an entry keeps it. Said HERE, once, because the
+   router writes this instance too, and a screen's entry is the router's. */
+const pushEntry = history.push;
+const replaceEntry = history.replace;
+const withTrail = (state: unknown): unknown => {
+  const own = state as Record<string, unknown> | undefined;
+  if (own && TRAIL_KEY in own) return state;
+  const standing = (history.location.state as unknown as Record<string, unknown> | undefined)?.[TRAIL_KEY];
+  return Array.isArray(standing) ? { ...own, [TRAIL_KEY]: standing } : state;
+};
+history.push = (path, state, options) => pushEntry(path, withTrail(state) as typeof state, options);
+history.replace = (path, state, options) => replaceEntry(path, withTrail(state) as typeof state, options);
 
 /**
  * Installs the history primitives the legacy nav cluster calls.
@@ -203,11 +220,11 @@ const leavePanel = () => {
 };
 
 fillScreensDoor({
-  // REPLACE when one screen leaves for another at the same depth: the release
-  // screen's own « profile » takes that screen's place on the ladder.
-  profile: (title: string, replace?: boolean) =>
+  // A screen opened from another STACKS (§ 16 rule 1, DECIDED 2 = A): the
+  // release screen's own « profile » lands over it, and Retour gives it back.
+  profile: (title: string) =>
     go(
-      { to: "/quality/$name", params: { name: title.normalize("NFC") }, replace },
+      { to: "/quality/$name", params: { name: title.normalize("NFC") } },
       leavePanel,
     ),
   // The sheet is addressed by PROVIDER ID (DOIT-11), and a tap holds a title,
@@ -306,7 +323,7 @@ fillScreensDoor({
   // THE ROUTER CARRIES BOTH: the query and the mode travel in the address, and
   // nothing is copied into the store — a copy there outlived the screen and
   // handed « + » the previous visit's query (B-340).
-  add: (q?: string, mode?: string, replace?: boolean) => {
+  add: (q?: string, mode?: string) => {
     const validMode = mode === "identify" ? "identify" : "follow";
     go(
       {
@@ -315,7 +332,6 @@ fillScreensDoor({
           q: q || undefined,
           mode: validMode === "identify" ? "identify" : undefined,
         },
-        replace,
       },
       leavePanel,
     );

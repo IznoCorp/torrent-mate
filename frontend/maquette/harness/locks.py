@@ -52,7 +52,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, Journal, SETTLED, open_page, chrome_launch_args
+from common import ACTED, Journal, SETTLED, open_page, browser_channel, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -347,7 +347,7 @@ async def main():
     async with async_playwright() as playwright:
         # THE INSTALLED CHROME, as every rule here launches: the repository's
         # own browser, never a download this script would have to manage.
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
 
         # 1 — THE FOUR FACTS, each with a value, in the ordinary state.

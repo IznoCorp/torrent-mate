@@ -88,8 +88,12 @@
          node starts here, a plain sibling of the fragment's phone frame, but
          shell.tsx relocates it into `.device` before the first render —
          see that file's own comment — so a screen (`/profile/$title`, `/add`)
-         is contained by the phone frame. -->
-    <div id="shell"></div>
+         is contained by the phone frame.
+         ORDERED between the header and the page (`order-1`, `#port` is
+         `order-2`): the one thing it draws IN THE FLOW is the connection
+         notice, which belongs under the header. Last in the frame, it was drawn
+         after the page, under the bottom bar, out of a finger's reach (B-594). -->
+    <div id="shell" class="order-1"></div>
     <script type="module" src="/src/app/shell.tsx"></script>
     <!-- The application shell. It used to live in the fragment, and it is here
          now for one reason: the engine captures its containers at module
@@ -311,7 +315,7 @@
          position but not its focus, and the next Tab resumes from the top of
          the document, which is the bug that makes most skip links useless. -->
     <main
-      class="port @container/port flex-auto min-h-0 overflow-y-auto overflow-x-clip
+      class="port @container/port order-2 flex-auto min-h-0 overflow-y-auto overflow-x-clip
              overscroll-y-none [-webkit-overflow-scrolling:touch]
              pb-[calc(var(--tm-bottom-bar-h,0px)+var(--spacing-7))]"
       id="port"

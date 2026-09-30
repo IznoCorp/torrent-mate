@@ -29,7 +29,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ROOT, Journal, open_page, chrome_launch_args  # noqa: E402
+from common import ROOT, Journal, open_page, browser_channel, chrome_launch_args  # noqa: E402
 
 from playwright.async_api import async_playwright  # noqa: E402
 
@@ -58,7 +58,7 @@ async def main():
     held = [library[0], library[1], *(library[index] for index in FAR_ROWS)]
 
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
         errors: list[str] = []
         page.on("pageerror", lambda error: errors.append(str(error)))

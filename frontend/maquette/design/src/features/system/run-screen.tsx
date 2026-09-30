@@ -314,10 +314,12 @@ export function RunScreen(): ReactElement {
           {read.isPending ? <SkeletonLine width="wide" /> : null}
           {missing ? (
             // A DOOR OUT, never a dead end (DOIT-7): a stale link lands here,
-            // and the passages it came from are one tap away.
+            // and the passages it came from are one tap away. The door IS a
+            // Retour — the screen's own — so the passages are given back once,
+            // never stacked a second time over the screen (§ 16 rule 1).
             <div className={guidance()} data-part="run/not-found">
               {t("screens.run.notFound")}{" "}
-              <button className={backAction({ floor: true })} data-go="sys">
+              <button className={backAction({ floor: true })} onClick={() => bridge.back()}>
                 {t("screens.run.notFoundBack")}
               </button>
             </div>

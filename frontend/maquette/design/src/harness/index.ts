@@ -10,7 +10,7 @@ import { publishSeams } from "./publish";
 import { accountStates } from "./states/account";
 import { acquisitionStates } from "./states/acquisition";
 import { entryStates } from "./states/entry";
-import { drawerStates, menuStates, notFoundStates } from "./states/frame";
+import { drawerStates, menuStates, navigationStates, notFoundStates } from "./states/frame";
 import { libraryStates } from "./states/library";
 import { maintenanceStates } from "./states/maintenance";
 import { mediaStates } from "./states/media";
@@ -41,6 +41,7 @@ function namedStates(): NamedState[] {
     ...menuStates(),
     ...systemStates(),
     ...notFoundStates(),
+    ...navigationStates(),
     ...accountStates(),
     ...trackersStates(),
     ...maintenanceStates(),

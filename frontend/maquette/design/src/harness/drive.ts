@@ -17,7 +17,7 @@ import { refillProducers } from "../app/panel-host";
 import { refillFollows, refillSuggestions } from "../features/acquisition/queries";
 import { navigation } from "../app/navigation-seam";
 import type { UiState } from "../app/store";
-import { drivenWithoutHistory } from "../app/page-switch";
+import { drivenWithoutHistory, layNamedTrail } from "../app/page-switch";
 import { hideLayers } from "../app/layers";
 import { redraw } from "../lib/shell-doors";
 import { resetSettings } from "./settings-reset";
@@ -58,6 +58,20 @@ export function applyState(patch: Record<string, unknown>): void {
     if (port) port.scrollTop = 0;
   }
   redraw();
+}
+
+// The trail a state asked to have laid under it, written after its drive.
+let posedTrail: string[] | null = null;
+
+/**
+ * Asks for a trail of pages under the state being driven, so Retour replays a
+ * path on it (the navigation states: DESIGN maquette-navigation § 4).
+ *
+ * Args:
+ *     pages: The pages from the entry page up, the page the state draws last.
+ */
+export function poseTrail(pages: string[]): void {
+  posedTrail = pages;
 }
 
 /** One named state: the id `__go` takes, its label in words, and how to build it. */
@@ -164,6 +178,11 @@ function go(stateId: string, options?: { keep?: boolean }): string {
   // Driving is not a journey: a measurement must not depend on how many
   // states ran before it.
   drivenWithoutHistory(found[2]);
+  /* A POSED TRAIL IS WRITTEN ONCE THE DRIVE IS DONE: the drive writes no
+     history, and this is the one write a state may ask for. */
+  const trail = posedTrail;
+  posedTrail = null;
+  if (trail) layNamedTrail(trail);
   return stateId;
 }
 

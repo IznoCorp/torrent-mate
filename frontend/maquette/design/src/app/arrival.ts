@@ -8,7 +8,7 @@
 // move.
 import type { Store } from "./store";
 import { addressSeam } from "../lib/addresses";
-import { navigationState } from "../lib/navigation-entry";
+import { entryIndex, navigationState, TRAIL_KEY, type TrailStop } from "../lib/navigation-entry";
 import { bridge, redraw, resetLandingDial } from "../lib/shell-doors";
 import { reopenAddressedPanel } from "./addressed-panels";
 import { entry, loadingDone } from "./entry";
@@ -173,6 +173,27 @@ export function installArrival(store: Store): void {
     entry?.showSignIn(false, walk.driven);
     walk.driven = false;
   }
+  /* A START ON AN ENTRY THAT ALREADY CARRIES ITS TRAIL IS NO ARRIVAL — a
+     reload, a restored tab. The history under it is the one the reader walked,
+     guard and floor included, and the trail survives the reload because the
+     history does (DESIGN § 3). Writing the guard over it and pushing a floor
+     and a page on top rewrote it as a cold arrival: Retour then skipped the
+     pages walked and armed the guard above the floor (§ 16 rule 3). So nothing
+     is written here: the floor flags are read off the trail, and a panel the
+     entry stands for is put back ON it, as a Back onto it does. A cold arrival
+     — no trail — goes on below exactly as before. */
+  const heldTrail = (history.state as Record<string, unknown> | null)?.[TRAIL_KEY];
+  if (!arrival.notFound && !arrival.signIn && Array.isArray(heldTrail) && heldTrail.length > 0) {
+    const floor = heldTrail[0] as TrailStop;
+    walk.homeFloorExists = floor.page === addressSeam.homePage;
+    /* The guard is the document's first entry and a served arrival's floor
+       stands right on it; a floor further up was laid by a switch, over an
+       address nobody serves. */
+    walk.arrivalWithoutFloor = floor.at > 1;
+    loadingDone?.();
+    reopenPanelWhenReady(arrivalSearch, true);
+    return;
+  }
   /* The address is put back on the entry one arrives on, so a back from
      anywhere reaches the page the link named rather than a bare document.
 
@@ -198,7 +219,7 @@ export function installArrival(store: Store): void {
      can be inserted below the entry a document opens on, so the guard has to BE
      that entry. */
   try {
-    bridge.replace({ tm: "garde" }); // french-ok: the exit guard's entry marker, matched by the ladder and the harness
+    bridge.replace({ tm: "garde", [TRAIL_KEY]: [] }); // french-ok: the exit guard's entry marker, matched by the ladder and the harness
   } catch (error) {
     console.error("boot: writing the exit guard failed", error);
     window.__navEchec = true;
@@ -223,10 +244,16 @@ export function installArrival(store: Store): void {
   /* AND AN ARRIVAL WITH NO FLOOR UNDER IT IS RECORDED AS SUCH, because a Back can
      then go under the one a later switch lays. */
   if (arrival.notFound) walk.arrivalWithoutFloor = true;
+  /* EACH ENTRY CARRIES ITS TRAIL — the pages beneath it with their indexes —
+     so the first switch made from the arrival knows where its floor lies. A
+     screen stands on its page's trail; an address nobody serves has none. */
+  const trail: TrailStop[] = [];
+  const nextIndex = () => entryIndex(history.state) + 1;
   for (const under of beneath) {
+    trail.push({ page: under, at: nextIndex() });
     try {
       bridge.record(
-        Object.assign(navigationState(), { page: under }),
+        Object.assign(navigationState(), { page: under, [TRAIL_KEY]: [...trail] }),
         addressSeam.compose(Object.assign({}, store.read().state, { page: under })),
       );
       /* AND THE FLOOR FLAG FOLLOWS THE WRITE, not the plan: a push that was
@@ -240,8 +267,12 @@ export function installArrival(store: Store): void {
   /* Pushed with the address one ARRIVED at rather than with the one the state
      now implies: rendering an unknown id moves the state onto the not-found
      surface, and deriving the address from it would rewrite a mistyped link. */
+  if (!arrival.notFound && !arrival.screen) trail.push({ page: arrival.page, at: nextIndex() });
   try {
-    bridge.record(navigationState(), arrivalAddress);
+    bridge.record(
+      arrival.notFound ? navigationState() : { ...navigationState(), [TRAIL_KEY]: [...trail] },
+      arrivalAddress,
+    );
     /* ARRIVING ON THE HOME PAGE, the entry just written IS the floor. */
     if (arrival.page === homePage) walk.homeFloorExists = true;
   } catch (error) {
@@ -257,9 +288,21 @@ export function installArrival(store: Store): void {
      table answers from the query cache, and on a COLD LOAD none of it has landed
      when this runs. A bounded wait over frames is the shape the scroll
      restoration and the listing's paging door already use. */
+  reopenPanelWhenReady(arrivalSearch, false);
+}
+
+/**
+ * Reopens the panel an address names, waiting over frames for its subject.
+ *
+ * Args:
+ *     search: The query the document opened on.
+ *     onCurrentEntry: Whether the panel goes on the entry one stands on (a
+ *         restored layer entry) rather than pushing its own (a cold arrival).
+ */
+function reopenPanelWhenReady(search: string, onCurrentEntry: boolean): void {
   let framesLeft = 60;
   const reopenWhenTheSubjectIsThere = () => {
-    const answer = reopenAddressedPanel(arrivalSearch, false, framesLeft > 1);
+    const answer = reopenAddressedPanel(search, onCurrentEntry, framesLeft > 1);
     if (answer !== "not yet") return;
     framesLeft -= 1;
     requestAnimationFrame(reopenWhenTheSubjectIsThere);
