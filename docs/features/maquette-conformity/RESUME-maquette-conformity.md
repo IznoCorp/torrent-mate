@@ -3,28 +3,32 @@
 ## State block (rewritten at every boundary)
 
 - **Branch** `feat/maquette-conformity` (worktree `/Users/izno/dev/worktrees/maquette-conformity`), merged with
-  `origin/main` at `9234341fc` (#645). Remote head `f3e77525e`; THIS block's commit is local only — the docs-only
-  pre-push list refuses it on the In-flight row (B-238): push it with the first code commit, never `--no-verify`.
-  **Orchestrator**: `Orch : TM frontend [077751]` — handshake first, every question to it by SendMessage, a gate
-  report carries the head (verified by `git ls-remote`) and the MEASURED context (`context-gauge.sh`).
+  `origin/main` at `ce55ced3f` (#651) in `83bd01a91`. **Orchestrator**: `Orch : TM frontend [077751]` — every
+  question to it by SendMessage, a gate report carries the head (verified by `git ls-remote`) and the MEASURED
+  context (`context-gauge.sh`).
 - **Design** `/Users/izno/dev/review-archive/conformity-80/REPORT.md` § B, § D; the operator's rulings
   `/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md`. **Plan** `plan/INDEX.md` — 13 phases, one per
   surface (orders 98, 99): read its correspondence table and each page before a phase.
-- **DONE: phases 1–11** and the MIDPOINT (no real fall). 1 the responsive rule · 2 its WebKit pass · 3 components I ·
-  4 components II · 5 Système · 6 Réglages and Maintenance · 7 Acquisition · 8 Médiathèque (+ B-578) · 9 the media
-  sheet · 10 the frame · 11 Découvrir and Trackers (+ B-580). Rotation before 12, on the orchestrator's order.
-- **NEXT: phase 12, the harness consolidation** (`plan/phase-12-harness-consolidation.md`; conversion only, the
-  oracle « no divergence », every merged hold still falling under the mutation that proved it). **The budget**, as
-  the orchestrator ruled it: harness = lines added under `frontend/maquette/harness/**`; product = lines added under
-  `frontend/maquette/design/src/**` minus `*.test.*`; baselines and docs on neither side; its command is on the phase
-  page; measured ONCE, at the gate, on the final head, target ≤ 0.60. **Ruled (a)** by the orchestrator after the
-  predecessor's inventory (≈ 1 560 harness lines added: responsive.py 362, the 13 small rules ≈ 800): fold the 13
-  small rules into holds of the rules that read their surfaces, factor the page read / state loop / journal into
-  `common.py` as far as a conversion goes, measure ONCE, accept the figure reached, said as it is, the residual a
-  debt to order 64's consolidation (L16 precedent 0.602). (b) refused: responsive.py stays counted. No hold removed.
-- **Then phase 13, the close** (`plan/phase-13-close.md`): the guard arms, the last tokens, the version bump, the
-  full gate once, the PR (READY, auto-merge NOT armed). At the close each of **B-576, B-578, B-580, B-583, B-584,
-  B-585** turns `fixed #<PR>` (each row already carries escaped from / why / family).
+- **DONE: phases 1–12** and the MIDPOINT. 12 the harness consolidation (`950da7b61`): the 13 small rules folded
+  into the rules reading their surfaces (the ledger names each host), 99 holds present by name before and after,
+  each fold's mutation falling by name, the oracle « no divergence ». **The budget, measured ONCE on `950da7b61`:
+  harness +1179, product +1229, 0.96** — over the 0.60 target, accepted as reached under ruling (a); the residual
+  is order 64's debt, named below.
+- **The residual debt → order 64's consolidation** (every fold not done, its estimated gain in harness lines):
+  `responsive.py` stays whole, 355 lines, 0.29 of the budget by itself — its surface-on-top picker shared with
+  `states.py` (≈ 10) and its colour/contrast reader made a common JS helper once a second rule reads contrast
+  (≈ 20); the computed-style signature each fold re-reads (`four_tabs.BAR_SIGNATURE`, `add_footer.CHOICES`,
+  `badges_observed.BADGE_DRAWINGS`, `resolution_card.PRIMARY`, `settings_editing.SWITCH`) as one `common.py`
+  reader (≈ 25); the fold-open-then-read pattern (`add_footer`, `follow_seasons`) as a `read_at` option (≈ 6); the
+  folds on the host's own page instead of a context each, once each host's own holds are shown to leave no state
+  behind (≈ 26); the folds' docstrings cut to one line each (≈ 60, at the price of the defect's story). Total
+  ≈ 150 → ≈ 0.84; no conversion reaches 0.60 while `responsive.py` is counted.
+- **NEXT: phase 13, the close** (`plan/phase-13-close.md`): the guard arms, the last tokens, the version bump, the
+  full gate once, the PR (READY, label `full-suite` so `harness-full.yml` runs its 4 shards on the same head as the
+  local full suite, `TM_HARNESS_LOG_DIR` kept, compared by `harness-hold-counts.py --compare`; auto-merge NOT
+  armed — the orchestrator arms it). At the close each of **B-576, B-578, B-580, B-583, B-584, B-585** turns
+  `fixed #<PR>` (each row already carries escaped from / why / family). Close report: hold counts `--compare` read
+  first, the LOCAL full suite kept, reader findings by severity, speed against L16 (17 phases, 21 h).
 - **The phase gate (order 99)**: static guards on the files touched; each new rule read RED on the old code first
   (checkout the previous head's `frontend/maquette/design/src`, run, restore with `git checkout HEAD --`; a rule with
   no possible red on the old code is proved by `scripts/mutate.sh` and said so); the oracle ALONE, then
@@ -42,9 +46,9 @@
   checkout's, removed after; a new maquette file needs `check-maquette-comments.py --record`; `git fetch` is refused
   by a hook (use `git remote update origin`); push with `GIT_SSH_COMMAND="ssh -o ServerAliveInterval=30"`; the git
   index lock is taken now and then — retry.
-- **Rules born** (letter → file): a `responsive.py` · b `one_tab_bar.py` · c `one_switch.py` · d `state_chips.py` ·
-  e `on_off.py` · f `state_words.py` · g `fact_state.py` · h `empty_place.py` · j `back_control.py` · k
-  `one_badge.py` · l `legends.py` · o `segmented_choice.py` · p `primary_action.py` · s `lens_filters.py`; holds
+- **Rules born** (letter → where it lives since phase 12): a `responsive.py` · b `four_tabs.py` · c
+  `settings_editing.py` · d, g, l `follow_seasons.py` · e, f `levers.py` · h `run_history.py` · j `back.py` · k
+  `badges_observed.py` · o `add_footer.py` · p `resolution_card.py` · s `kind_chips_scrollbar.py`; holds
   added: resolution_card h11/h12 (B-578), appearance (B-580), state_surfaces (the TMDB notice). **Owed list**
   (`OWED` in `responsive.py`): the menu's WebKit « unseen » → the defects fast lane, alone.
 - **To confirm by the operator** (choices said in the commits, relayed by the orchestrator): « joignable » the one
@@ -136,3 +140,16 @@
   the oracle « no divergence ».
 - 2026-09-30 — stood down after phase 11 at 55.7 % measured, on the orchestrator's order: rotation before the
   consolidation, so no merge straddles two sessions.
+- 2026-09-30 — phase 12 (the harness consolidation): `origin/main` merged first (`83bd01a91`: `run.sh` took main's
+  comment and kept `responsive.py` in `CONTRACTS`; `ci.yml` main's docs-only condition with `TM_HARNESS_JOBS=2`;
+  B-582 `fixed #646`). The 13 small rules folded, each as `hold_<need>(browser, journal)` in a context of its own:
+  e, f → `levers.py`; c → `settings_editing.py` (`settings.py` is `CI_EXCLUDED`, so not a host); p →
+  `resolution_card.py`; j → `back.py`; k → `badges_observed.py`; b → `four_tabs.py`; o → `add_footer.py` (its two
+  readers one); h → `run_history.py`; d, g, l → `follow_seasons.py`; s → `kind_chips_scrollbar.py`. `common.read_at`
+  is the state loop; `responsive.passes_everything` is `passes_asked({})`. Holds: the 23 rules run before and the 11
+  after (`TM_HARNESS_LOG_DIR`), compared by name — 99 folded holds, none lost, none gained. Mutations through
+  `scripts/mutate.sh`, each falling by its name: e (the off tone), f (a coded seed row as a word), c (the switch
+  48 px), p (the pick round), j (Maintenance's icon gone), k (the drawer count's type), b (Trackers' bar gap), o (a
+  feature-variants import in `app/`), h (the empty note's part), d (the chip square), g (the « oui » chips as text —
+  the first aim, one branch, is not drawn in the seeds and stood: re-aimed to every « oui »), l (the legend short
+  one state), s (no pill pressed). Guards green but B-238. Oracle « no divergence ». Budget measured once: 0.96.
