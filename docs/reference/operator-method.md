@@ -97,6 +97,9 @@ d'audit en cours.
 - 09-29 · Rd conformité Q11 = A : la règle se lit par DESTINATION — une page de la barre du bas (Acquisition, Médiathèque, Trackers, Découvrir) garde la règle de la barre même ouverte depuis le menu latéral (elle remplace, Retour → page d'entrée).
 - 09-29 · Rd conformité Q12 = A : un lien DANS une page empile, même vers la page d'entrée (Système › « … laissés derrière → » vers Acquisition) — Retour ramène d'où l'on vient ; la garde de sortie ne s'arme que si la page d'entrée est au fond de la pile.
 - 09-29 · Rd conformité Q13 = A : les précisions de Q11 (par destination) et Q12 (un lien interne empile, même vers la page d'entrée) sont écrites au § 16 de `product-intent.md`, à la fin du paragraphe du menu latéral, tel que proposé.
+- 09-30 · Rd 09-30 Q6 (navigation OPEN 1) = SON MOT (« B, toujours le même chemin mais on repasse pas 2 fois par la même vue. Exemple: si on fait "Acquisition => Système => Acquisition => Réglages => Système" le retour fait "Système => Réglages => Acquisition". Quand on repasse par la même page, elle remonte en haut de la pile elle est pas empilé 2 fois ») : une page revisitée REMONTE en haut du chemin, jamais empilée deux fois ; vaut aussi pour le lien interne vers Acquisition de Q12 ; quand rien ne reste sous une page, Retour tombe sur la page d'entrée (règle 3), à dessiner par le lot.
+- 09-30 · Rd 09-30 Q7 (navigation OPEN 2) = A : un écran qui en ouvre un autre (versions → profil de qualité, résolution → identifier à la main) EMPILE ; Retour ramène à l'écran d'où l'on vient.
+- 09-30 · Rd 09-30 Q8 (navigation OPEN 3) = B : quitter Réglages ou Maintenance par le menu avec une rubrique ouverte rend d'abord la rubrique ; Retour → la racine de la page.
 - 09-29 · Rd Q10 (L24 OPEN 6) : le grand écran reste mobile d'abord, avec une phase finale « bureau » au plan.
 - 09-12 · A6 : « × » veut dire « vu » partout ; la sortie est « Annuler », visible et distincte.
 
@@ -142,6 +145,7 @@ d'audit en cours.
 - 09-27 · Rd 8 Q20 : Découvrir est une page de la barre du bas, à la quatrième place.
 - 09-29 · Rd 3 Q8 : le message de tête dit « n séries et m films à découvrir », à côté des boutons de vue.
 - 09-29 · Rd conformité Q7 = SON MOT (« Glissé à droite et à gauche à le même comportement que glissé une carte du mode deck de decouvrir, rejet, ou passé […] la carte disparait, notification pour annulé si rejet […] c'est un nouveau comportement propre à découvrir qu'on pourra réutiliser dans un autre cas », puis « vers gauche = passer / vers la droite = rejet ») : en liste ET en deck, glisser à GAUCHE = passer (disparaît sans notification, peut revenir plus tard), à DROITE = rejeter (disparaît, notification avec « Annuler ») ; un geste propre à Découvrir, déclaré au design système pour être réutilisé. Aujourd'hui les deux sens du deck font la même chose (« écarté »).
+- 09-30 · Rd 09-30 Q4 (L16-bis OPEN 10) = A (« A, elle repasse tout en bas de la pile. ») : « passer » renvoie la suggestion au bas de l'ordre unique que lisent la liste et le deck ; rien n'est envoyé au moteur.
 
 ### Trackers, ratio, cross-seed, upload
 
@@ -191,6 +195,10 @@ d'audit en cours.
 - 09-29 · Rd récupération de saison (dessin #642) Q14 = A : un PARCOURS par acquisition (la saison S03, l'épisode S03E07), plus par titre ; « Voir le parcours » ouvre la récupération en cours, sinon la plus récente (demande SR4) ; Q15 = A : le renvoi d'un épisode absorbé mène à l'onglet d'Acquisition qui porte la carte de la saison, carte visible et mise en évidence.
 - 09-29 · Q16 = A : le parcours de la saison liste chaque épisode absorbé avec son état (« S03E07 — téléchargement déjà en cours »), chacun menant à son parcours (demande SR2 : le sort d'un épisode déjà attrapé) ; Q18 = A : le moteur sert le lien « absorbée par » (absorbedBy, saison, épisode) sur la carte ; l'interface le lit, elle ne compare aucun libellé (demande SR1).
 - 09-29 · Q19 = SON MOT (« Il faut une distinction auto/manuelle même légère juste pour pas que je me demande qui à demandé la saison entière alors que c'était un process auto ») : une récupération lancée par le moteur s'affiche comme une manuelle, AVEC une distinction légère et visible sur la ligne ET sur la carte, prise dans un composant existant.
+- 09-30 · Rd 09-30 Q5 (récupération de saison OPEN 8) = A : la carte porte « auto » dans son sous-titre (« S03 · auto ») — un mot, pas une seconde puce.
+- 09-30 · Rd 09-30 Q1 = A : « joignable » est le seul mot de l'état « ça répond » dans Système.
+- 09-30 · Rd 09-30 Q2 = B (« B, "en pause" ») : la ligne « Pause » de Système dit « en pause » quand la pause est enclenchée, « inactif » sinon — plus « actif » ; ton avertissement quand elle est enclenchée.
+- 09-30 · Rd 09-30 Q3 (« orange si c'est en pause, rouge si c'est un problème technique ») : le « Traitement automatique des téléchargements » coupé par une personne est en ton avertissement (orange), coupé par une panne technique en ton danger (rouge) ; chaque cas est un état nommé de la maquette.
 
 ### Comptes, rôles, droits (L18)
 

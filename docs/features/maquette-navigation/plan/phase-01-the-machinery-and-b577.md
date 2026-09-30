@@ -21,8 +21,9 @@ row anchored `[data-part="topic"][data-page="cfg"]` (`features/system/page.tsx:1
    tap came from the bar or the menu, or from inside a page; in `switchPage`, an in-page link RECORDS (N1–N3 —
    B-577); a bar tap on a bar page unwinds the whole trail (T4) — rewind `trail.length - 1`, then the floor takes
    the address (`walk.afterUnwind`, as `:238–240` already does); the current page writes nothing (T5, unchanged).
-   An in-page link arriving HOME keeps its old path until phase 3 (N4, N5 `owed: 3`). OPEN 1 = A: a page already on
-   the trail stacks again — nothing to search.
+   An in-page link arriving HOME keeps its old path until phase 3 (N4, N5 `owed: 3`). DECIDED 1 (DESIGN § 6): a page already on
+   the trail is MOVED to its top, never stacked twice — the trail is searched and the page's earlier entry dropped;
+   with nothing left under a page, Retour lands on the entry page (rule 3).
 4. **The exit guard at the bottom only** (Y5): nothing to change in `app/layers.ts` — the guard is popped only from
    the floor once the trail is honest; the walk proves it.
 5. **The named states** `nav-exit-armed` and `nav-trail-settings` (DESIGN § 4), in `harness/states/frame.ts`, with the

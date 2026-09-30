@@ -158,11 +158,7 @@ export type MockState = {
    * Store state, not a fixture, as `pipelineState` is.
    */
   watcherEnabled: boolean;
-  /**
-   * Whether the automatic trigger, left ON, has a process that does not
-   * answer: a technical fault, which nobody chose — told apart from a person
-   * turning it off. A property of the machine, so a dial.
-   */
+  /** The automatic trigger is ON but its process does not answer: a fault nobody chose, a dial. */
   watcherDown: boolean;
   /** When the pipeline took its lock, or null while it is idle. */
   pipelineSince: string | null;
@@ -378,9 +374,7 @@ export const mockDials: MockDials = {
     held.watcherEnabled = enabled;
     held.watcherPausedSince = enabled ? null : scenario().now;
   },
-  setWatcherDown: (down: boolean) => {
-    mockState().watcherDown = down;
-  },
+  setWatcherDown: (down: boolean) => { mockState().watcherDown = down; },
   setAcquisitionQueueEmpty: (empty: boolean) => {
     // WHAT A VEILLE THAT FINDS NOTHING LOOKS LIKE. The three figures are
     // derived from the acquisition queue, so an empty queue is the zero case —

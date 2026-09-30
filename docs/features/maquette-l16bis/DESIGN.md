@@ -19,7 +19,7 @@ so it is cut into correction phases BY SURFACE, not drawn as a lot — the plan 
 (`plan/INDEX.md`, and `plan/CORRESPONDENCE.md` for where every old item went). § 0.5 is the conformity table of
 order 97. The operator's ruling Q7 on Découvrir's swipe
 (`docs/features/maquette-conformity/rulings-2026-09-29.md` § Q7) joins as DECIDED 10 and surface **S9**
-(§ 1.11); it leaves ONE question open, OPEN 10 (§ 5). § 0.4 records what the conformity train already built, so
+(§ 1.11); the one question it left, what « passer » does on the data side, is DECIDED 11 = A (§ 5). § 0.4 records what the conformity train already built, so
 nothing is drawn twice.
 
 ---
@@ -133,7 +133,7 @@ Each read on `9234341fc`; paths under `frontend/maquette/design/src/`.
    (`app/arrival.ts:74–76`), lost on a reload; the contract has no operation on a suggestion but `readSuggestions`
    (`python3 -c "import json;d=json.load(open('frontend/maquette/contract/openapi.json'));print([o.get('operationId') for v in d['paths'].values() for o in v.values() if 'sugg' in str(o.get('operationId','')).lower()])"`
    → `['readSuggestions']`). The list draws the reserve in its own order and ignores `sugOrder`
-   (`discover-feed.ts:277–281`). What « passer » does to the data is OPEN 10 (§ 5).
+   (`discover-feed.ts:277–281`). What « passer » does to the data is DECIDED 11 (§ 5): the back of one order.
 4. **The poster view has no swipe** (`card-gestures.ts:55`: the list's gesture binds `suggestion/wrap`, which only
    the list row draws); Q7 names the list and the deck. Nothing is added to the posters.
 5. **Near the ceiling**: `grep -cv '^\s*$' features/acquisition/discover-feed.ts` → **382** of 400 — phase 4 adds
@@ -454,7 +454,7 @@ mechanics to a domain-free `lib/` module taking `{ onLeft, onRight }`; `features
 side MEANS. The two swipes differ on purpose and the comment says so: the drawer swipe OPENS actions and waits for a
 tap; the commit swipe DECIDES on release. The deck's pile (its tilt, its hints) stays Découvrir's own drawing.
 
-**Pass, on the data side** — OPEN 10 (§ 5). The plan is written for its recommended reading A.
+**Pass, on the data side** — DECIDED 11 = A (§ 5): the back of the one order both views read.
 
 **Named states** — § 3, S9. **The rule** — R-L16bis-l, § 4.
 
@@ -555,13 +555,13 @@ left, « Passer » uncovered) · `discover-list-travel-right` (to the right, « 
 `discover-list-passed` (after a left swipe: the row gone, no notification) · `discover-list-rejected` (after a right
 swipe: the row gone, the notification with « Annuler ») · `discover-list-reject-undone` (after « Annuler »: the row
 back in its place) · `discover-list-passed-returns` (the passed suggestion drawn again at the back of the list —
-conditional on OPEN 10 = A) · `discover-deck-passed` · `discover-deck-rejected` · `discover-deck-reject-undone`.
+DECIDED 11 = A) · `discover-deck-passed` · `discover-deck-rejected` · `discover-deck-reject-undone`.
 
 **Re-counted 2026-09-30**
 (`` sed -n '/^## 3/,/^## 4/p' docs/features/maquette-l16bis/DESIGN.md | grep -o -E '`(trackers|torrents?|tracker|discover)-[a-z0-9-]+`' | sort -u | wc -l ``
 → **76**, of which three are the dropped ids the paragraph below names; on `9234341fc` the same command → 65, i.e. 62):
 **73** live ids — the 62 below, two of order 97's film / series row (`torrent-card-film`, `torrent-panel-episode`) and
-nine of S9, one conditional (`discover-list-passed-returns`, on OPEN 10).
+nine of S9 (`discover-list-passed-returns` included, DECIDED 11 = A).
 
 **Counted** (by script over this section): **62** ids — every one of L16's 21 kept, **41 new**, none conditional: the
 three ids that were conditional on an OPEN reading (`torrent-swipe-cross-seed`, `discover-header-new-none`,
@@ -608,7 +608,7 @@ one; the harness at 369 px — order 60. **Not drawn**: a push notification (L16
 
 ### DECIDED — the operator's nine rulings, 2026-09-29 (round of PR #637)
 
-Every OPEN question of this section is now closed — save OPEN 10, added 2026-09-30 with DECIDED 10 (below). Each item below quotes the operator verbatim (in « guillemets »,
+Every OPEN question of this section is now closed — OPEN 10, added 2026-09-30 with DECIDED 10, by DECIDED 11 (below). Each item below quotes the operator verbatim (in « guillemets »,
 `docs/features/maquette-l16bis/rulings-2026-09-29.md`), gives its English meaning, and states what changes
 against the reading that was costed above. Nothing here is re-argued.
 
@@ -695,28 +695,13 @@ same both ways » read the docstrings `features/acquisition/discover-cards.ts:96
 are wrong and are corrected in phase 4 (§ 1.11). Only the LIST changes behaviour. **Cost**: ≈ 10 points in phase 4 — the list's left branch and its words 2, the drawing moved to `ui/`
 and the mechanics to `lib/` 4, R-L16bis-l's holds 3, the two stale comments 1.
 
-**OPEN 10 (added 2026-09-30) — what « passer » does on the data side.** The ruling fixes the gesture and says « may
-come back later »; it leaves the data to the drawing (the ruling's own « Placement » line). Today neither act reaches
-the engine (§ 0.3 item 3): the deck's pass sends the card to the back of `sugOrder`, interface state lost on a
-reload, and the list ignores that order.
-
-- **A — the back of ONE order, in the interface.** Pass sends the suggestion to the back of the one order both views
-  read (`sugOrder`, today the deck's alone); the list draws by that order too, so a passed row leaves its place and
-  comes back after every suggestion not yet passed — at the back of what is loaded, or with the next « charger
-  plus »; nothing is sent to the engine; a reload restores the reserve's own order, as the deck does today. **Cost**
-  ≈ 3 points in phase 4 (the list reads the order, one conditional state `discover-list-passed-returns`, one hold);
-  no contract, no demand.
-- **B — held by the engine, with a return.** Pass is recorded by the engine: the suggestion is withheld from the
-  reserve until its next refill (or a number of days) and comes back then, across reloads and devices. **Cost** ≈ 6
-  points (an operation `passSuggestion` 2, its mock 2, two states — withheld, returned — 2) and a backend demand (the
-  reserve reads a « passed until » per title); and it makes the two acts unequal — a reject is session-only today
-  (`sugGone`), so B raises at once whether a reject must be durable too, a question he has not been asked.
-
-**Recommendation: A.** His « peut revenir plus tard » is met by the mechanism the deck already has, and made the same
-in both views (« 2 mécanismes similaires … le même comportement »); the backend follows the interface after the
-freeze (the mission, point 4), and B can join the backend brief then without redrawing anything. **The plan is written
-for A**; under B phase 4 gains ≈ 3 points and the demand, and `discover-list-passed-returns` becomes « withheld » and
-« returned ».
+**DECIDED 11 (2026-09-30) — what « passer » does on the data side (was OPEN 10): A.** Verbatim: « A, elle repasse
+tout en bas de la pile. » Meaning: pass sends the suggestion to the back of the ONE order both views read
+(`sugOrder`, today the deck's alone); the list draws by that order too, so a passed row leaves its place and comes back
+after every suggestion not yet passed — at the back of what is loaded, or with the next « charger plus »; nothing is
+sent to the engine; a reload restores the reserve's own order, as the deck does today. **Cost** ≈ 3 points in phase 4
+(the list reads the order, the state `discover-list-passed-returns`, one hold); no contract, no demand. Refused: B, a
+pass held by the engine with a return.
 
 **The operator's binding principles, this round** (verbatim, DECIDED 3/5/6 above): coherence everywhere, across
 design, ergonomics, gesture, component and design system; a component is REUSED, never copied — one design system,

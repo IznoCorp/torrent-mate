@@ -10,7 +10,7 @@ its phases 5 and 10 touch Système and the drawer), on `main` holding it — eve
 | --- | --- |
 | § 16 — « Si je passe par système je repasse par systèmes, sinon non. » — menu pages, Profil and in-page links stack; bar pages replace from anywhere | 1 · 2 · 3 |
 | « Vérifier les autres cas également » — 35 edges, each walked by R-navigation-a; an unclassified emitter fails it | 1, then every phase |
-| « Il faut uniformiser les comportements. Sauf exception volontaire de ma part. » — one reading per kind of edge; OPEN 1–3 | every phase |
+| « Il faut uniformiser les comportements. Sauf exception volontaire de ma part. » — one reading per kind of edge; DECIDED 1–3 | every phase |
 | « on crée pas de nouveau composant on adapte » — the entry's `trail`, the driver's `poseTrail`; N6 is the existing Retour | 1 · 3 |
 | « seule une maquette montrant tout les cas possibles est utile » — four named states (DESIGN § 4) | 1 · 3 |
 | « tout doit être responsive … sur tous ! » — R-conformity-a on the new states at their gate | 1 · 3 |
@@ -46,9 +46,8 @@ flips its own rows from red to green and the rule never lies about the rows it h
 
 ## The stops
 
-**STOP A** — the oracle diverging on a state the page did not name. **STOP B** — the pull request. **STOP C** — the
-OPEN answers (DESIGN § 6): OPEN 1 read before phase 1, OPEN 3 before phase 2, OPEN 2 before phase 3; each page is
-written for the recommended reading. **STOP D** — a ceiling (`grep -cv '^\s*$'`, 400): `add-screen.tsx` **382**,
+**STOP A** — the oracle diverging on a state the page did not name. **STOP B** — the pull request. **STOP C** — none
+left: OPEN 1–3 are DECIDED (DESIGN § 6, 2026-09-30); phase 1 is re-read under DECIDED 1, his own reading. **STOP D** — a ceiling (`grep -cv '^\s*$'`, 400): `add-screen.tsx` **382**,
 `run-screen.tsx` **324**, `page-switch.ts` **294** — a phase landing near 400 moves lines out. Anything outside these
 pages: STOP, ask the orchestrator.
 

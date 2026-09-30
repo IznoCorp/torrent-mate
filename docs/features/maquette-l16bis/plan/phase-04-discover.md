@@ -1,7 +1,7 @@
 # Phase 4 — Découvrir: the header, and the swipe of Q7 (S8, S9)
 
-**STOP C: OPEN 10** (DESIGN § 5) — written for its recommended reading A (one order, in the interface); under B this
-page gains an operation, its mock, two states and a demand (≈ 3 points more). The operator's answer is read first.
+**DECIDED 11 = A** (DESIGN § 5, 2026-09-30, « A, elle repasse tout en bas de la pile. ») — one order, in the
+interface.
 
 **Opening measure** (taken on `9234341fc`; re-taken at the real opening):
 `grep -n "liveStrip()\|pill/list" frontend/maquette/design/src/features/acquisition/discover-tab.tsx` → **107**,
@@ -20,7 +20,7 @@ first**: the deck's two directions on tm-design (DESIGN § 0.3 item 1 was read i
 2. **The list's swipe** (S9; DECIDED 10): a LEFT travel passes — the row leaves, no notification; a RIGHT travel
    rejects — `dismissSug` and its « Annuler », unchanged; the back uncovers « Passer » on a left travel and « Pas
    intéressé » on a right one.
-3. **Pass, one order** (OPEN 10 = A): the list draws by `sugOrder` as the deck does, so a passed row comes back at
+3. **Pass, one order** (DECIDED 11 = A): the list draws by `sugOrder` as the deck does, so a passed row comes back at
    the back; nothing reaches the engine.
 4. **The gesture declared in the design system**: `suggestionWrap` / `suggestionBack`
    (`features/acquisition/variants.ts:114–125`) → `ui/variants/rows.ts` `commitRow` / `commitRowBack`, the words the

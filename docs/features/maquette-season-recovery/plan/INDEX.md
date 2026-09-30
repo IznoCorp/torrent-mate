@@ -45,9 +45,9 @@ lands with the surface it shows (the card's in 1, the row's in 2, the pointer's 
 
 ## The stops
 
-**STOP A** — the oracle diverging on a state the page did not name. **STOP B** — the pull request. **STOP C** — OPEN 8
-(DESIGN § 5), written for A in phase 1; the operator's answer is read before phase 1 opens. **STOP D** — a ceiling
-(`grep -cv '^\s*$'`, 400): `lib/queue.ts` **390**, `features/media/season-list.tsx` **390**, `mocks/state.ts` **393** —
+**STOP A** — the oracle diverging on a state the page did not name. **STOP B** — the pull request. **STOP C** — none
+left: OPEN 8 is DECIDED 8 = A (DESIGN § 5, 2026-09-30). **STOP D** — a ceiling
+(`grep -cv '^\s*$'`, 400): `lib/queue.ts` **390**, `features/media/season-list.tsx` **390**, `mocks/state.ts` **398** (the conformity train's close) —
 none grows (the derivation lands in its own `lib/` module). Anything outside these pages: STOP, ask the orchestrator.
 
 ## The gate of THIS docs pull request
@@ -77,5 +77,5 @@ Old pages: `docs/features/maquette-season-recovery/plan/phase-NN-….md@9234341f
 | old midpoint « after phase 6 » | after 2 |
 | Q14 = DECIDED 1 (journey per acquisition) · Q15 = DECIDED 2 (the landing) · Q16 = DECIDED 3 (the absorbed downloading, listed) | 3 · 3 · 3 |
 | Q17 = DECIDED 4 (one mark at a time) · Q18 = DECIDED 5 (the served link) · Q19 = DECIDED 6 (the auto / manual mark) | 2 · 1 · 1 (card, the field) and 2 (row) |
-| OPEN 8 (where the card carries « auto ») | 1 (written for A) |
+| OPEN 8 (where the card carries « auto ») | 1 (DECIDED 8 = A, 2026-09-30) |
 | B-rows owned: `grep -n -i "season-recovery\|season recovery" BUGS.md \| wc -l` → **0** on `9234341fc` | — |

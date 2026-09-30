@@ -8,8 +8,7 @@ the harness budget (`git diff --numstat origin/main...HEAD`).
 ## What changes
 
 1. **The records**: a state of DESIGN § 3 missing is drawn here if small, else a ledger line and STOP D; the demands
-   T1–T3 in `docs/reference/frontend-backend-demands.md` by regeneration, counters before and after (and OPEN 10's
-   demand under B); the fixture register re-read (composed rows declared); the row « three tab bars at two heights »
+   T1–T3 in `docs/reference/frontend-backend-demands.md` by regeneration, counters before and after; the fixture register re-read (composed rows declared); the row « three tab bars at two heights »
    (DESIGN § 6) is the conformity train's, cited, not filed here.
 2. **L17's re-home**: one ledger line — the per-pair mark moves to the torrent's panel and the swipe's left side;
    L17's phases 6, 9, 10 and 15 re-read at its opening.

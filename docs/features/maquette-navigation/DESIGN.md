@@ -99,7 +99,7 @@ the guard omitted.
 | M4 | menu → Médiathèque / Trackers / Découvrir, from anywhere | same | rewind to the floor, record | Acquisition | Q11: replace, Retour → the entry page — from ANY depth once pages stack | constraint |
 | M5 | menu → Acquisition, from anywhere | same | rewind; the floor takes the address (`:302`) | exit guard | rule 2 — from any depth | constraint |
 | M6 | menu → the page one is on | same | no equality test (`:278–303`): rewinds and re-records the same page | the same as before the tap | not an arrival: the drawer closes, nothing is written | constraint |
-| M7 | menu from Réglages / Maintenance with a rubric open → another page | same; `stackedSurfaces()` counts the rubric (`:296`) | the rubric rewound with the page | Acquisition | the rubric kept on the trail, or given back first? | **OPEN 3** |
+| M7 | menu from Réglages / Maintenance with a rubric open → another page | same; `stackedSurfaces()` counts the rubric (`:296`) | the rubric rewound with the page | Acquisition | the rubric given back first (DECIDED 3 = B) | **DECIDED 3** |
 | P1 | account sheet « Profil et préférences » → Profil | `features/account/panel-account.ts:72` `target: { go: "profile" }` | `go` from a layer → `switchPageFromLayer` | Acquisition | § 16 names Profil among the stacking pages: the page under the sheet | **DEFECT** (coincides from Acquisition) |
 | T1 | bar: Acquisition → a bar page | `app/tab-bar.tsx:80` `data-page` | `switchPage` records (`:212–216`) | Acquisition | rule 2 | conforms |
 | T2 | bar: a bar page → another | same | replace (`:250`) | Acquisition | rule 2 | conforms |
@@ -111,8 +111,8 @@ the guard omitted.
 | L3 | follow panel « Compléter » (Médiathèque › Incomplets) → Acquisition · Maintenant | `features/acquisition/follow-actions.ts:60` → `features/acquisition/verbs.ts:95–101` | writes `page: "acq"` itself — `store.write`, `panel.close()`, `redraw()` — and calls NO switch: the panel's pop leaves Médiathèque's entry under Acquisition drawn (read; B-026's class) | Médiathèque's address under the Acquisition page | a link in a page's layer stacks (Q12), the layer's entry kept (D-L13-1): Retour → Médiathèque, the panel reopened | **DEFECT (read)** |
 | L4 | add screen « Voir mes suivis » → Acquisition · Maintenant | `features/acquisition/add-footer.tsx:57` → `features/acquisition/add-screen.tsx:116–134` | `go({ to: "/acquisition", replace: true })` over `/add`: `[acq, acq·now]` | Acquisition again, on its former tab — a Retour that undoes a setting (read) | the screen closes (rule 1), the tab set as a setting: Retour → the guard | **DEFECT (read)** |
 | S1 | a screen from a page: media sheet, resolution, releases, quality profile, add, run, ranking | `features/media/media-verbs.ts:130`, `features/acquisition/resolution-verbs.ts:63`, `features/releases/verbs.ts:92`, `app/action-button.tsx:81`, `features/system/run-verbs.ts:22`, `app/history-bridge.ts:324` → `lib/navigate.ts:72` | push | the opener | rule 1 | conforms |
-| S2 | releases → quality profile | `features/releases/verbs.ts:96–99`, `app/history-bridge.ts:208–212` (`replace`) | the profile REPLACES the releases screen | under the releases screen | rule 1: opening a surface stacks | **OPEN 2** |
-| S3 | resolution « manuel » → identification search | `features/acquisition/resolution-verbs.ts:106–108` (`screens.add(…, true)`) | the search REPLACES the resolution | Acquisition | same | **OPEN 2** |
+| S2 | releases → quality profile | `features/releases/verbs.ts:96–99`, `app/history-bridge.ts:208–212` (`replace`) | the profile REPLACES the releases screen | under the releases screen | rule 1: opening a surface stacks (DECIDED 2 = A) | **DECIDED 2** |
+| S3 | resolution « manuel » → identification search | `features/acquisition/resolution-verbs.ts:106–108` (`screens.add(…, true)`) | the search REPLACES the resolution | Acquisition | same (DECIDED 2 = A) | **DECIDED 2** |
 | S4 | a screen's drawn Retour, and the acts that close one (a candidate picked, a release picked) | `features/media/media-screen.tsx:226`, `features/acquisition/resolution-verbs.ts:70, 87`, `features/releases/verbs.ts:76` → `bridge.back()` | pop | the opener | rule 1; 09-15 Q4 (the resolution closes) | conforms |
 | S5 | connection lost → sign-in | `app/connection-notice.tsx:146` | push, covers everything | — | not a § 16 journey | conforms |
 | S6 | a cold link to a screen | `lib/addresses.ts:71–79` `SCREEN_PARENTS`; `app/arrival.ts:215–240` | the parent synthesised under it | the parent | rule 3 | conforms |
@@ -222,35 +222,32 @@ His principles are `docs/reference/operator-method.md` § 1; each row says where
 | --- | --- | --- |
 | § 16 — « Les retours se font toujours par le même chemin d'arrivé. Si je passe par système je repasse par systèmes, sinon non. » | menu pages and Profil stack (M1–M3, P1); in-page links stack, even to Acquisition (N1–N5, L3); bar pages replace from anywhere (M4, M5, T4) — each walked by finger, R-navigation-a | 1 · 2 · 3 |
 | « Mes retours sont des corrections sur ce qui est attendu » — « Vérifier les autres cas également » | B-577 is one row of 35; the family rule's completeness hold makes an unclassified edge a failure, so the next one cannot escape | 1 |
-| « Il faut uniformiser les comportements. Sauf exception volontaire de ma part. » | one reading per KIND of edge: a link stacks, a bar destination replaces, a Retour control pops (N6 becomes one); OPEN 1–3 ask where two readings would make two behaviours | every phase |
+| « Il faut uniformiser les comportements. Sauf exception volontaire de ma part. » | one reading per KIND of edge: a link stacks, a bar destination replaces, a Retour control pops (N6 becomes one); DECIDED 1–3 (§ 6) settle where two readings would have made two behaviours | every phase |
 | « on crée pas de nouveau composant on adapte » | no new element: the exit notice is the existing toast, N6 the existing `backAction`; the only adaptation is the entry's `trail` and the driver's `poseTrail` (§ 3, § 4) | 1 · 3 |
 | « seule une maquette montrant tout les cas possibles est utile » | § 4's four states (`run-not-found` a missing case found here), in the catalogue with their French labels | 1 · 3 |
 | « tout doit être responsive … sur tous ! » | nothing drawn changes width; R-conformity-a runs on the four states at their phase's gate | 1 · 3 |
 | « design et ergonomie d'application mobile natif » | Android's system Retour drives the walk (`page.go_back()`); the bar keeps Android's `popUpTo(startDestination)`; iOS gives no Retour between tabs, which rule 2 already follows | 1 · 2 |
 | « A, pas de gestion de rétro-compatibilité ! » | an entry with no trail reads as `[floor, page]`, no migration | 1 |
 
-## 6. OPEN — to the operator, one round
+## 6. DECIDED — the operator's round of 2026-09-30
 
-**OPEN 1 — coming back to a page already on the trail.** Système → Réglages → menu → Système. **A** — stack again,
-literally: Retour walks Système → Réglages → Système → Acquisition; the same rule as Q12 (Système's link to
-Acquisition stacks although Acquisition is at the bottom). **B** — cut the trail back to that page's entry: Retour
-from Système → Acquisition; no page twice on the trail, but the entry page stays the exception Q12 made, so two
-behaviours. Cost: A nothing beyond § 3; B a search of the trail and a rewind. **Recommended: A** — his words
-(« toujours par le même chemin ») and one behaviour with Q12.
+**DECIDED 1 (was OPEN 1) — coming back to a page already on the trail: HIS OWN READING, neither A nor B as drawn.**
+Verbatim: « B, toujours le même chemin mais on repasse pas 2 fois par la même vue. Exemple: si on fait "Acquisition
+=> Système => Acquisition => Réglages => Système" le retour fait "Système => Réglages => Acquisition". Quand on repasse
+par la même page, elle remonte en haut de la pile elle est pas empilé 2 fois ». Meaning: a page revisited is MOVED to
+the top of the trail, never stacked twice — Retour walks the same path back, with each page once, in the order it was
+last left. It holds for every arrival, the in-page link to Acquisition of Q12 included (rows N4, N5, Y5 and § 3's
+rule 5 are re-read by the lot under it: a link to a page already on the trail moves that page up, it does not stack
+it again). **To be drawn by the lot**: when nothing remains under a page, Retour lands on the entry page (rule 3).
 
-**OPEN 2 — a screen that takes another screen's place (S2, S3).** Releases → « profil de qualité » and resolution →
-« identifier à la main » REPLACE today (`features/releases/verbs.ts:93–99`, `features/acquisition/resolution-verbs.ts:106–108`),
-so Retour skips the screen one came from. **A** — they stack (rule 1: opening a surface is an arrival); Retour from
-the profile → the releases, from the search → the resolution; after a pick in the search, the list comes back, as a
-resolution's pick does (09-15 Q4). **B** — keep the replacement, declared as his exception. Cost: A two `replace`
-flags removed and the search's pick rewinding two entries; B none. **Recommended: A** — uniform with every other
-screen.
+**DECIDED 2 (was OPEN 2) — a screen that takes another screen's place (S2, S3): A, they stack.** Retour from the
+profile → the releases, from the identification search → the resolution; after a pick in the search, the list comes
+back, as a resolution's pick does (09-15 Q4). The two `replace` flags go
+(`features/releases/verbs.ts:93–99`, `features/acquisition/resolution-verbs.ts:106–108`).
 
-**OPEN 3 — leaving Réglages or Maintenance by the menu while a rubric is open (M7).** **A** — the rubric stays on the
-trail: Retour → the rubric. **B** — the rubric is given back first, as an in-page control already does
-(`lib/stacked-surface.ts`, `giveTheEntryBackFirst`, B-398): Retour → the page's root. Cost: A counts it and keeps
-it; B the drawer's tap adopts that existing order. **Recommended: B** — the existing, validated behaviour of the same
-gesture from inside the page, and § 16 keeps no stack INSIDE a page.
+**DECIDED 3 (was OPEN 3) — leaving Réglages or Maintenance by the menu while a rubric is open (M7): B, the rubric is
+given back first**, as an in-page control already does (`lib/stacked-surface.ts`, `giveTheEntryBackFirst`, B-398):
+Retour → the page's root.
 
 ## 7. The documents that still describe the old rule — changed at the close
 

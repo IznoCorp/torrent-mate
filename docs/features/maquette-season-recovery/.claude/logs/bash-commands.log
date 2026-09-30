@@ -10,3 +10,13 @@ pointing to the season's, the release picker saying an episode is covered.
 seven OPEN questions for one operator round. Documents only.
 EOF
 git log --oneline -1 && git status --short | head - Commit the design and plan
+[2026-09-30 14:11:09] python3 - <<'EOF'
+p="plan/INDEX.md"; s=open(p).read()
+a="""**STOP C** — OPEN 8
+(DESIGN § 5), written for A in phase 1; the operator's answer is read before phase 1 opens. **STOP D**"""
+b="""**STOP C** — none
+left: OPEN 8 is DECIDED 8 = A (DESIGN § 5, 2026-09-30). **STOP D**"""
+assert s.count(a)==1; s=s.replace(a,b); s=s.replace("`mocks/state.ts` **393**","`mocks/state.ts` **398** (the conformity train's close)")
+open(p,"w").write(s)
+EOF
+cd ../maquette-navigation && sed -n 228,262p DESIGN.md - Fix season STOP C; read navigation OPENs

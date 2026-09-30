@@ -2,57 +2,8 @@
 
 ## State block (rewritten at every boundary)
 
-- **Branch** `feat/maquette-conformity` (worktree `/Users/izno/dev/worktrees/maquette-conformity`), merged with
-  `origin/main` at `ce55ced3f` (#651) in `83bd01a91`. **Orchestrator**: `Orch : TM frontend [077751]` — every
-  question to it by SendMessage, a gate report carries the head (verified by `git ls-remote`) and the MEASURED
-  context (`context-gauge.sh`).
-- **Design** `/Users/izno/dev/review-archive/conformity-80/REPORT.md` § B, § D; the operator's rulings
-  `/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md`. **Plan** `plan/INDEX.md` — 13 phases, one per
-  surface (orders 98, 99): read its correspondence table and each page before a phase.
-- **DONE: phases 1–12** and the MIDPOINT. 12 the harness consolidation (`950da7b61`): the 13 small rules folded
-  into the rules reading their surfaces (the ledger names each host), 99 holds present by name before and after,
-  each fold's mutation falling by name, the oracle « no divergence ». **The budget, measured ONCE on `950da7b61`:
-  harness +1179, product +1229, 0.96** — over the 0.60 target, accepted as reached under ruling (a); the residual
-  is order 64's debt, named below.
-- **The residual debt → order 64's consolidation** (every fold not done, its estimated gain in harness lines):
-  `responsive.py` stays whole, 355 lines, 0.29 of the budget by itself — its surface-on-top picker shared with
-  `states.py` (≈ 10) and its colour/contrast reader made a common JS helper once a second rule reads contrast
-  (≈ 20); the computed-style signature each fold re-reads (`four_tabs.BAR_SIGNATURE`, `add_footer.CHOICES`,
-  `badges_observed.BADGE_DRAWINGS`, `resolution_card.PRIMARY`, `settings_editing.SWITCH`) as one `common.py`
-  reader (≈ 25); the fold-open-then-read pattern (`add_footer`, `follow_seasons`) as a `read_at` option (≈ 6); the
-  folds on the host's own page instead of a context each, once each host's own holds are shown to leave no state
-  behind (≈ 26); the folds' docstrings cut to one line each (≈ 60, at the price of the defect's story). Total
-  ≈ 150 → ≈ 0.84; no conversion reaches 0.60 while `responsive.py` is counted.
-- **NEXT: phase 13, the close** (`plan/phase-13-close.md`): the guard arms, the last tokens, the version bump, the
-  full gate once, the PR (READY, label `full-suite` so `harness-full.yml` runs its 4 shards on the same head as the
-  local full suite, `TM_HARNESS_LOG_DIR` kept, compared by `harness-hold-counts.py --compare`; auto-merge NOT
-  armed — the orchestrator arms it). At the close each of **B-576, B-578, B-580, B-583, B-584, B-585** turns
-  `fixed #<PR>` (each row already carries escaped from / why / family). Close report: hold counts `--compare` read
-  first, the LOCAL full suite kept, reader findings by severity, speed against L16 (17 phases, 21 h).
-- **The phase gate (order 99)**: static guards on the files touched; each new rule read RED on the old code first
-  (checkout the previous head's `frontend/maquette/design/src`, run, restore with `git checkout HEAD --`; a rule with
-  no possible red on the old code is proved by `scripts/mutate.sh` and said so); the oracle ALONE, then
-  `/Users/izno/dev/review-archive/conformity-train/accept-oracle.sh` under `scripts/heavy.sh --class browser`, and a
-  script proving ONLY the declared states' keys moved (any other is STOP A: ask); `run.sh --rules` on the touched
-  surfaces' rules; R-conformity-a with `TM_RESPONSIVE_STATES` built BY SCRIPT from `harness/states/<surface>.ts`.
-  Every browser run names `TM_HARNESS_JOBS=2`; pytest `-n 2`; heavy runs under `scripts/heavy.sh`.
-- **Traps paid for**: the virtual window's pitch is the SHORTEST row drawn and lines are measured only once the
-  geometry is the drawing's; zsh does not split `$VAR` — pass a rule list as `${=VAR}`; the markup arm reads only
-  LITERAL `data-part="…"` — a part passed as a prop is invisible (emit it on a wrapper, read it as the wrapper's
-  child, or let the component take the prop under the attribute's own name, as `Tabs` and `Disclosure` do); moving
-  lines in `audit.py` moves its genre sites in `scripts/markup_anchors.py` AND the fixture line in
-  `tests/scripts/test_check_markup_contracts.py`; a new named state moves `tests/scripts/test_oracle.py`'s pinned
-  count; the rename tool and `generate-contract-types` need `frontend/node_modules` — a temporary symlink to the main
-  checkout's, removed after; a new maquette file needs `check-maquette-comments.py --record`; `git fetch` is refused
-  by a hook (use `git remote update origin`); push with `GIT_SSH_COMMAND="ssh -o ServerAliveInterval=30"`; the git
-  index lock is taken now and then — retry.
-- **Rules born** (letter → where it lives since phase 12): a `responsive.py` · b `four_tabs.py` · c
-  `settings_editing.py` · d, g, l `follow_seasons.py` · e, f `levers.py` · h `run_history.py` · j `back.py` · k
-  `badges_observed.py` · o `add_footer.py` · p `resolution_card.py` · s `kind_chips_scrollbar.py`; holds
-  added: resolution_card h11/h12 (B-578), appearance (B-580), state_surfaces (the TMDB notice). **Owed list**
-  (`OWED` in `responsive.py`): the menu's WebKit « unseen » → the defects fast lane, alone.
-- **To confirm by the operator** (choices said in the commits, relayed by the orchestrator): « joignable » the one
-  word of the reachable code; the pause « actif » when engaged; the stopped processing in danger.
+- **Closed 2026-09-30** — all 15 phases done, version 0.98.114; the pull request is opened by the orchestrator after
+  the lot's one reader, and its number is written by a follow-up commit.
 
 ## Ledger (append-only)
 
@@ -153,3 +104,16 @@
   feature-variants import in `app/`), h (the empty note's part), d (the chip square), g (the « oui » chips as text —
   the first aim, one branch, is not drawn in the seeds and stood: re-aimed to every « oui »), l (the legend short
   one state), s (no pill pressed). Guards green but B-238. Oracle « no divergence ». Budget measured once: 0.96.
+- 2026-09-30 — phase 13 (B-579, the frame): the burger's `<svg>` had no size since L07 (#494) moved `.topbar .burger
+  svg` and `.brand .mk` to utilities on no element; a centred flex box resolved it to 32 px in Chromium, 0 in WebKit,
+  and the header's brand mark to 0 in both. Sizes restored (20 px, 28 px + primary). Held by the responsive rule's
+  new `undrawn` arm (every shown `<svg>` at no size, every pass) and `unseen · menu`, out of `OWED` (now empty) — both
+  RED on the old code. Gate: 7 frame rules green, the full responsive sweep green.
+- 2026-09-30 — phase 14 (B-581, Médiathèque): the follow panel synthesised `kind: "show"` for a library item nobody
+  follows. `LibraryMembership.kind` (contract, mock from the engine's film categories) carries it; the panel's FILM
+  variant draws no seasons block and no episode note. State `lib-film-panel`; hold `producers.py` § 5b, RED on the old
+  code. Gate: 28 neighbouring rules green.
+- 2026-09-30 — phase 15 (the close): the guard arms and the last tokens had landed (`cadd27f71`, `b3613dee8`); the
+  operator's 09-30 round: Q2 the pause says « en pause », Q3 the automatic processing orange when a person stops it
+  and red on a fault (`Pipeline.watcherDown`, state `levers-trigger-down`) — `locks.py`, `levers.py` RED first; the
+  eight rulings written in `operator-method.md` § 3 and the three DESIGN.md; version 0.98.114; gate `make check`.
