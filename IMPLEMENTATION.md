@@ -9,7 +9,7 @@ file: `git log -- IMPLEMENTATION.md` (the last long one is `IMPLEMENTATION.md@63
 | | |
 | --- | --- |
 | **Last landed** | `maquette-navigation` — every navigation edge against § 16 as amended, PR #656, version 0.98.115, 2026-09-30 |
-| **In flight** | L16-bis — the Trackers page's correction and Découvrir, `feat/maquette-l16bis`, 5 phases, all done (the torrent card, the « Torrents » tab, the « Trackers » tab, Découvrir's header and swipe, the close), version 0.98.116; its pull request is opened by the orchestrator after the lot's one reader at 390 px on tm-design, and a follow-up commit writes its number here and on the register rows B-595–B-597 |
+| **In flight** | L16-bis — the Trackers page's correction and Découvrir, `feat/maquette-l16bis`, 5 phases, all done (the torrent card, the « Torrents » tab, the « Trackers » tab, Découvrir's header and swipe, the close), version 0.98.116; its pull request is opened by the orchestrator after the lot's one reader at 390 px on tm-design, and a follow-up commit writes its number here and on the register rows B-595–B-597 · **L18** — accounts, rights and Plex identity (§ 17), `feat/maquette-l18`, re-grouped by surface into 12 phases, 11 done (the rights model and its 403 guard, the frame, Acquisition by requester, reassign, quality and pause, the library read-only, the forbidden writes, Profil, the Plex-first gate, « Comptes »), rules R420–R428, version 0.98.118; **owed**: phase 11, the media sheet's per-tracker cross-seed block (`readMediaCrossSeed`, gated by `trackers.view`, R-L18-w), which enters L18's correction pass after the reader, on `main` with L17 |
 | **Next** | C1 settings save bar (the next micro-wave) — L17 cross-seed is built on L16-bis in its own worktree |
 | **Then** | L17 cross-seed · L18 accounts · L23 upload · L24 orphans · the desktop milestone. The season recovery (5 phases, re-cut from 13 on 2026-09-30) is built by the next lot that touches Acquisition |
 | **Landed, in order** | L01 · L02 · L03 · L04 · L05 · L06 · L07 · L08 · L09 · L10 · L15 · L11 · L12 · L14 · L19 · L21 · L13a · L13b · L20 · L13r · L13c · L22a · L22b · L16 (plus the correction waves L07-bis, L08-bis, L10-bis and the design phase L10-ter) |
@@ -18,7 +18,7 @@ file: `git log -- IMPLEMENTATION.md` (the last long one is `IMPLEMENTATION.md@63
 ## Designs ready, code not started
 
 - Season recovery — `docs/features/maquette-season-recovery/DESIGN.md` (Q14–Q19 ruled; OPEN 8 ruled 2026-09-30)
-- L17 — `docs/features/maquette-l17/DESIGN.md` · L18 — `docs/features/maquette-l18/DESIGN.md`
+- L17 — `docs/features/maquette-l17/DESIGN.md`
 - L23 — `docs/features/maquette-l23/DESIGN.md` · L24 — `docs/features/maquette-l24/DESIGN.md`
 
 ## Pages still due — no surface is out of scope

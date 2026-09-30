@@ -509,12 +509,12 @@ in a new `harness/states/rights.ts` file: 8 more than before — `signin-plex-fi
 the count); `media-cross-seed`/`media-cross-seed-hidden` are drawn here now, not conditionally carried from L17
 (net +0, already counted). Every id is English, reachable by `window.__go`, French-labelled in the panel.
 
-### 4.1 What the oracle will do (D8)
+### 4.1 ~~What the oracle will do (D8)~~ *(retired 2026-09-30 — the oracle left the method; § 5's rules are the proof)*
 
-Unchanged in method from the first drawing: **the oracle draws Admin's application and is blind to another
+~~Unchanged in method from the first drawing: **the oracle draws Admin's application and is blind to another
 role's absence.** For every state that existed before this lot, Admin's surface is unmoved; the phases below name
 exactly where it diverges (unchanged rows omitted from the first drawing's table are not repeated — only what
-this amendment adds or changes):
+this amendment adds or changes):~~ *(retired 2026-09-30)*
 
 | Phase | Existing states that WILL diverge | Reason |
 | --- | --- | --- |

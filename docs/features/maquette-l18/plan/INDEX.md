@@ -26,8 +26,8 @@ Unchanged from the first drawing — repeated because the chat compacts and this
 **Self-check, at the end of every phase:** « Am I about to report instead of continuing? » If yes, the next phase
 exists, and none of the STOPs below is the reason, **continue**. The only permitted halts:
 
-- **STOP A** — the oracle diverging on a state the phase did not name (DESIGN § 4.1). The oracle draws Admin's
-  application and is blind to what another role cannot see.
+- ~~**STOP A** — the oracle diverging on a state the phase did not name (DESIGN § 4.1). The oracle draws Admin's
+  application and is blind to what another role cannot see.~~ *(retired 2026-09-30)*
 - **STOP B** — the pull request.
 - **STOP D** — a measurement that contradicts a home this plan decided. The phase re-takes its own figures before
   moving anything; a figure that no longer supports the home is reported to the steward with the command, never
@@ -49,7 +49,7 @@ Anything believed necessary outside the contract: STOP and ask the steward first
 Unchanged from the first drawing: **rule first, seen RED, then the move, then the same rule green with its holds
 counted.** **A right is proved on BOTH sides and separately** — a rule proving only one side is refused by review.
 
-**Commit BEFORE every mutation**, `scripts/mutate.sh <file> <expression> <rule…>`.
+~~**Commit BEFORE every mutation**, `scripts/mutate.sh <file> <expression> <rule…>`.~~ *(retired 2026-09-30)*
 
 **The numbers R-L18-a … z, plus R-L18-l-bis, are LABELS, not rule numbers:** the rule numbers are the range the steward reserves in this lot's launch brief; phase 3
 binds every label to one of them.
@@ -63,8 +63,8 @@ binds every label to one of them.
 N »). Output to a FILE, exit code read in the same tool call, never `| tail -N` on a long gate.
 
 **Never `cd` into `frontend/maquette/design/src`.** Documents added BY FILE. No `git stash`, ever. A renamed
-identifier goes through `scripts/rename-identifiers.py`, its diff re-read and the harness suite re-run as the
-oracle outside the tool.
+identifier goes through `scripts/rename-identifiers.py`, its diff re-read ~~and the harness suite re-run as the
+oracle outside the tool~~ *(retired 2026-09-30)*.
 
 ---
 
@@ -144,7 +144,7 @@ points, cut into two.**
 | 32 | [« Comptes » — a new account, and the Plex link](phase-32-comptes-a-new-account.md) | the creation form, mandatory e-mail; a matching e-mail links; `auth.password` gates whether the account can sign in without SSO | v | 15 |
 | 33 | [The media-sheet block, on the model](phase-33-media-cross-seed-block.md) | the per-tracker cross-seed block drawn fresh (F25, taking over L17's demand C); `media-cross-seed` / `media-cross-seed-hidden` | w | 14 |
 | 34 | [The media-sheet block's gate](phase-34-media-cross-seed-gate.md) | gated on `trackers.view`, refused `403`; R-L18-w carries L17's R-L17-b/-k holds; proved on the six seed identities | w (extended) | 13 |
-| 35 | [The records of the lot](phase-35-the-records.md) | regions, the oracle, accessibility, the fixture register, the ratchets | — | 10 |
+| 35 | [The records of the lot](phase-35-the-records.md) | ~~regions, the oracle, accessibility, the fixture register, the ratchets~~ *(retired 2026-09-30)* | — | 10 |
 | 36 | [The close](phase-36-the-close.md) | the register, the README, the frame model, the debts, the report; hands over demands M and N (F67) | — | 10 |
 
 **Opening measures (this amendment, 2026-09-27, on `825fdeaad`), each phase's re-estimate**: 14, 14, 15, 14, 10, 9,
@@ -175,8 +175,8 @@ L18b edits a file L18a leaves half-done.
 
 ## Why thirty-six phases, and what a phase costs
 
-**A phase is a unit of attribution, not a gate.** One commit each (two where the phase says « commit before the
-mutation »); the gate is the contracts tier plus the oracle. The full gate runs once, before the pull request
+**A phase is a unit of attribution, not a gate.** One commit each ~~(two where the phase says « commit before the
+mutation »); the gate is the contracts tier plus the oracle~~ *(retired 2026-09-30: the gates are `method.md`'s)*. The full gate runs once, before the pull request
 (STOP B). Two rules drove the count, unchanged from the first drawing: **one kind of change per phase**, **the
 15-point ceiling** — and this amendment's own re-cut follows both exactly where F28, F30, F25, ruling 20, ruling
 23 and round 10 Q6 grew a single phase past 15.
@@ -216,17 +216,17 @@ and the escalation-guarded assignment (round 9 Q14's own instruction to MEASURE 
 
 ## Gates
 
-Unchanged from the first drawing. **Per phase**: `frontend/maquette/harness/run.sh --contracts` and the oracle,
-divergences only where DESIGN § 4.1 names them (D8).
+~~Unchanged from the first drawing. **Per phase**: `frontend/maquette/harness/run.sh --contracts` and the oracle,
+divergences only where DESIGN § 4.1 names them (D8).~~ *(retired 2026-09-30)*
 
-**Before each pull request** (L18a's and L18b's): `make lint`; the full suite, expected no failure; `--a11y` at 0
+~~**Before each pull request** (L18a's and L18b's): `make lint`; the full suite, expected no failure; `--a11y` at 0
 over the new states; `python3 scripts/harness-hold-counts.py --compare` with `failed` read FIRST; the pre-push
 pytest; `check-intent-map.py`, `check-bug-register.py`, `check-docs-cited-paths.py` read by OUTPUT. Each pull
-request bumps the version (patch).
+request bumps the version (patch).~~ *(retired 2026-09-30)*
 
-**The steward is told BEFORE a full-suite run.** **A right's gate is its two halves**: `check-mock-seeds.py`,
+~~**The steward is told BEFORE a full-suite run.** **A right's gate is its two halves**: `check-mock-seeds.py`,
 `compare-contracts.py --check`, the sweep over every write AND every gated read at that moment (F28, F30). **A
-DRAFT pull request runs no CI.**
+DRAFT pull request runs no CI.**~~ *(retired 2026-09-30)*
 
 ---
 
