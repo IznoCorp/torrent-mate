@@ -19,6 +19,8 @@
   badges share size, fill and type; R-conformity-o gains its hold: `app/` imports nothing from `features/*/variants.ts`.
 - Re-aimed by name: `badges_observed.py`, `drawer.py`, `appearance.py`.
 - The oracle accepts by name: the bar at 390 px unchanged (a divergence there is STOP A), the drawer's badge.
+  Also `relay-lost` and `relay-refused` (the orchestrator's ruling A, 2026-09-30): the declared consequence of
+  item 2 — without the button's bevel and padding the notice is lower, and the viewport under it grows (15 and 6 px).
 
 ## Commit
 

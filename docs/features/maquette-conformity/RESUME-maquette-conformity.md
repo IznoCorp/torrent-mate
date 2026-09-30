@@ -7,8 +7,8 @@
 - **Design** `/Users/izno/dev/review-archive/conformity-80/REPORT.md` § B, § D; the operator's rulings
   `/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md`. **Plan** `plan/INDEX.md` — 13 phases, one per
   surface (orders 98, 99): read its correspondence table and each page before a phase.
-- **DONE: phases 1–9.** 1 the responsive rule · 2 its WebKit pass · 3 components I · 4 components II · 5 Système ·
-  6 Réglages and Maintenance · 7 Acquisition · 8 Médiathèque (+ B-578) · 9 the media sheet. **MIDPOINT DONE** (no real fall to repair). **NEXT: phase 10, the frame and the menu**, then 11, **12 the harness
+- **DONE: phases 1–10.** 1 the responsive rule · 2 its WebKit pass · 3 components I · 4 components II · 5 Système ·
+  6 Réglages and Maintenance · 7 Acquisition · 8 Médiathèque (+ B-578) · 9 the media sheet · 10 the frame. **MIDPOINT DONE** (no real fall to repair). **NEXT: phase 11, Découvrir and Trackers**, **12 the harness
   consolidation** (order 52, budget ≤ 0.60), **13 the close**.
 - **The phase gate (order 99)**: static guards on the files touched; each new rule read RED on the old code first
   (`scripts/mutate.sh` with a targeted expression — an old file that no longer compiles cannot be restored whole);
@@ -26,8 +26,8 @@
   corpus floor too; the git index lock is taken by another process now and then — retry the commit.
 - **Rules born** (letter → file): a `responsive.py` · b `one_tab_bar.py` · c `one_switch.py` · e `on_off.py` ·
   f `state_words.py` · h `empty_place.py` · j `back_control.py` · o `segmented_choice.py` · p `primary_action.py` ·
-  s `lens_filters.py` · d `state_chips.py` · g `fact_state.py` · l `legends.py`. **Owed list** (`OWED` in `responsive.py`): shell/tab-bar,
-  connection-notice bevel → 10; the menu's WebKit « unseen » → the defects fast lane.
+  s `lens_filters.py` · d `state_chips.py` · g `fact_state.py` · l `legends.py` · k `one_badge.py`. **Owed list** (`OWED` in `responsive.py`): the menu's WebKit « unseen » → the defects fast lane,
+  alone.
 - **To confirm by the operator** (choices said in the commits): « joignable » the one word of the reachable code;
   the pause « actif » when engaged; the stopped processing in danger.
 
@@ -101,3 +101,10 @@
   d, g, l (for l, by the absent legend AND the absent `data-state`), h. The plan's named re-aims needed none;
   screen_addresses.py re-aimed (the place is a block). Gate: 47 rules green, responsive 163 × 9 passes 0 fall, the
   oracle 6 media sheets accepted by name (their body alone), proved by script.
+- 2026-09-30 — phase 10 (the frame): the bar's tab button resets the browser's inline padding (a label had 68 of its
+  80 px; B-585); the connection notice's action is `connectionNoticeAction`, no bevel; the drawer's Appearance is
+  `viewSwitch` text, `app/` imports no feature variant, `segmentSmall` dies; the badges already were one (phase 3).
+  Red first on the old code: o (drawer + import) and a (tab-bar, bevel); k green on the old code, proved by mutation
+  (the drawer's badge recoloured). Gate: 45 rules green, responsive 163 states 0 fall, `OWED` = the menu alone; the
+  oracle moved relay-lost and relay-refused only (STOP A raised, the orchestrator ruled A: accepted by name as item
+  2's consequence), proved by script.
