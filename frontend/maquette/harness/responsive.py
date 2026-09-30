@@ -146,7 +146,18 @@ MEASURE = """(width) => {
       && (rect.left < left - 0.5 || rect.right > right + 0.5);
     if (holder === null) {
       if (partly(0, width)) push('outside', element, rect);
-    } else if (!holder.scrolls && (text || painted)) {
+    } else if (!holder.scrolls && (text || painted)
+               // A ROW HELD MID-SWIPE: its card travels past the row that clips
+               // it, which is the gesture's own drawing — the word of that side
+               // uncovered under it — not a cut (re-aimed 2026-09-30,
+               // `discover-list-travel-left/right`; the row still fits, and
+               // anything past IT still falls). The design system's drawer
+               // swipe is the same drawing: a card of a `swipe` row, held open
+               // on its drawer (its inline travel), uncovers the drawer's
+               // action (`torrent-swipe-remove`); at rest it is still read.
+               && !(holder.parent.hasAttribute('data-travel') && element.closest('[data-part="card"]'))
+               && !(holder.parent.dataset.part === 'swipe'
+                    && element.closest('[data-part="card"]')?.style.transform)) {
       const box = holder.parent.getBoundingClientRect();
       if (partly(box.left, box.right)) push('cut', element, rect);
     }

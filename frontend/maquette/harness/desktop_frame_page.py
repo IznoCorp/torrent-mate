@@ -113,10 +113,26 @@ CROSSED = """(argument)=>{
   if (!a.width || !a.height) return ['NOT DRAWN'];
   const crosses = (b) => !(a.right <= b.left || b.right <= a.left
                            || a.bottom <= b.top || b.bottom <= a.top);
+  // WHAT IS SEEN OF IT, not its whole box: a row scrolled up under the header
+  // is clipped by its scroll port and no finger meets it there — read whole, a
+  // list scrolled out of the frame crossed the control with a card nobody sees
+  // (re-aimed 2026-09-30, `discover-list-passed-returns` on #657).
+  const seen = (el) => {
+    const r = el.getBoundingClientRect();
+    let [left, top, right, bottom] = [r.left, r.top, r.right, r.bottom];
+    for (let up = el.parentElement; up; up = up.parentElement) {
+      const style = getComputedStyle(up);
+      if (style.overflowX === 'visible' && style.overflowY === 'visible') continue;
+      const c = up.getBoundingClientRect();
+      left = Math.max(left, c.left); top = Math.max(top, c.top);
+      right = Math.min(right, c.right); bottom = Math.min(bottom, c.bottom);
+    }
+    return right > left && bottom > top ? {left, top, right, bottom} : null;
+  };
   return [...document.querySelectorAll(interactive + ', ' + harness)]
     .filter((el) => el !== node && !node.contains(el) && !el.contains(node))
     .filter((el) => el.getClientRects().length > 0)
-    .filter((el) => crosses(el.getBoundingClientRect()))
+    .filter((el) => { const box = seen(el); return box !== null && crosses(box); })
     .map((el) => el.getAttribute('data-part') || el.id
                  || (el.textContent || '').trim().slice(0, 24) || el.tagName);
 }"""

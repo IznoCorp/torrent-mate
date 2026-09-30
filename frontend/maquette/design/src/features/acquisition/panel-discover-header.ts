@@ -3,8 +3,8 @@
 // « n séries et m films à découvrir » (the operator's Q8): both figures counted
 // from the suggestions ALREADY READ — the list Découvrir draws, split by kind,
 // what was rejected left out — so no figure is copy, and no new read is made.
-// The header draws it on one line beside the view switch; a tap opens this
-// panel with the sentence whole.
+// The header draws it beside the view switch, wrapping where the room is short;
+// a tap opens this panel with the sentence.
 import i18next from "i18next";
 import type { Schemas } from "../../lib/contract-schemas";
 import { store } from "../../lib/store-access";
