@@ -4,6 +4,7 @@
 // is INVENTED (L17 DESIGN § 2.3) and its default is the live states: every
 // switch on. A state that needs another scenario turns a dial and says so.
 import { applyState, type NamedState } from "../drive";
+import { openSwitchConfirm } from "../../features/trackers/cross-seed-verbs";
 
 // The page's reads, and the settings the switches are kept in: dropped before a
 // state so the page asks the layer again rather than drawing a state before's.
@@ -49,6 +50,21 @@ function torrentPanel(entry: string, pose: () => void = () => undefined): void {
 }
 
 /**
+ * The « Trackers » tab with one tracker's panel open, as a tap on its row opens it.
+ *
+ * @param tracker The tracker's configured name.
+ * @param pose What the state poses on the layer before the page reads it.
+ * @param then What a finger does once the panel is open.
+ */
+function trackerPanel(tracker: string, pose: () => void = () => undefined, then: () => void = () => undefined): void {
+  roster(pose);
+  window.setTimeout(() => {
+    window.__panel.produce("tracker", tracker);
+    then();
+  }, OPEN_AFTER);
+}
+
+/**
  * Every cross-seed state.
  *
  * @returns The table.
@@ -79,6 +95,16 @@ export function crossSeedStates(): NamedState[] {
       "torrents-obligation-cross-seed",
       "Torrents — une obligation née d'un cross-seed, son origine et le chemin vers sa fiche (INVENTÉ)",
       () => torrentPanel(`${COPY}:tr4ker`),
+    ],
+    [
+      "tracker-cross-seed-switch-off",
+      "Tracker — l'interrupteur cross-seed de tr4ker est coupé, le cross-seed déjà actif continue (INVENTÉ)",
+      () => trackerPanel("tr4ker", () => window.__mocks?.poseCrossSeedSwitchOff("tr4ker")),
+    ],
+    [
+      "tracker-cross-seed-switch-confirm",
+      "Tracker — confirmer la coupure sur tr4ker, avec ou sans les cross-seeds en cours, l'obligation nommée (INVENTÉ)",
+      () => trackerPanel("tr4ker", () => undefined, () => openSwitchConfirm("tr4ker")),
     ],
   ];
 }

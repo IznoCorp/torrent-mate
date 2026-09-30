@@ -1169,6 +1169,15 @@
         "excluded": "Exclu des prochains passages du moteur",
         "titleExcluded": "Titre exclu : plus aucun cross-seed, sur aucun tracker.",
         "none": "Aucun autre tracker n'est éligible au cross-seed de ce torrent."
+      },
+      "switch": {
+        "engineOff": "Le moteur de cross-seed est coupé : aucun tracker n'en fait de nouveau, ce qui tourne continue.",
+        "on": "Cross-seed actif sur ce tracker",
+        "off": "Cross-seed coupé sur ce tracker",
+        "onDetail": "Le moteur y cherche et y injecte les cross-seeds.",
+        "offDetail": "Plus aucun nouveau cross-seed ici ; ceux en cours continuent tant qu'on ne les coupe pas.",
+        "label": "Cross-seed sur {{tracker}}",
+        "nextPass": "Pris en compte à la prochaine passe du moteur."
       }
     }
   },
@@ -1613,6 +1622,19 @@
         "cancel": "Annuler",
         "done": "« {{title}} » a quitté qBittorrent."
       }
+    },
+    "crossSeed": {
+      "switchHeading": "Couper le cross-seed sur {{tracker}} ?",
+      "switchBody": "Le moteur ne fera plus de nouveau cross-seed sur {{tracker}}.",
+      "switchNoneRunning": "Aucun cross-seed ne tourne sur {{tracker}}.",
+      "switchRunning_one": "{{count}} cross-seed tourne sur {{tracker}} : il continue, sauf si vous cochez ci-dessous.",
+      "switchRunning_other": "{{count}} cross-seeds tournent sur {{tracker}} : ils continuent, sauf si vous cochez ci-dessous.",
+      "stopRunning": "Couper aussi les cross-seeds en cours pour {{tracker}}",
+      "switchEnding": "Cochée, cette case termine ces obligations, libérées :",
+      "obligation": "Obligation en cours sur {{tracker}} — {{title}}.",
+      "obligationBody": " La couper maintenant la clôt libérée, jamais en infraction.",
+      "switchConfirm": "Couper",
+      "cancel": "Annuler"
     }
   },
   "discover": {

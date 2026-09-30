@@ -16,6 +16,8 @@ import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
 import { Chip } from "../../ui/chip";
+import { Switch } from "../../ui/switch";
+import type { Schemas } from "../../lib/contract-schemas";
 import { factDetail, factList, factName, factRow, factRowBody } from "../../ui/variants";
 import { dayOf } from "./format";
 import {
@@ -30,6 +32,14 @@ declare module "../../ui/panel/contract" {
       origin: { infoHash: string; name: string; tracker: string };
       pairs: CrossSeedPair[];
       titleExcluded: boolean;
+    };
+    crossSeedSwitch: {
+      /** The tracker's configured name. */
+      tracker: string;
+      /** Its cross-seed, as the summary read answers it. */
+      summary: Schemas["TrackerCrossSeed"];
+      /** Whether its switch was changed in this visit. */
+      switched: boolean;
     };
   }
 }
@@ -151,5 +161,43 @@ function CrossSeedBlock({ block }: { block: { type: "crossSeed" } & PanelBlockMa
   );
 }
 
-// Declared to the registry as this module evaluates: the torrent's panel imports it.
+/**
+ * A tracker's cross-seed switch, in its panel (S2): its state in words and the
+ * control that flips it — the SAME setting Réglages draws, one write, two doors.
+ * THE ENGINE OFF IS A SEPARATE FACT, said above and never hiding the tracker's
+ * own switch (M6).
+ *
+ * @param props.block The tracker, its summary, and whether its switch moved in this visit.
+ * @returns The block.
+ */
+function CrossSeedSwitchBlock({ block }: { block: { type: "crossSeedSwitch" } & PanelBlockMap["crossSeedSwitch"] }): ReactElement {
+  const { t } = useTranslation();
+  const say = (key: string, values: Record<string, string> = {}) => t(`screens.crossSeed.switch.${key}`, values);
+  const on = block.summary.enabled;
+  return (
+    <section data-part="tracker/cross-seed" data-tracker={block.tracker}>
+      {block.summary.engineEnabled ? null : (
+        <p className={factDetail()} data-part="tracker/cross-seed-engine-off"><b>{say("engineOff")}</b></p>
+      )}
+      <ol className={factList()}>
+        <li className={factRow({ withControl: true })}>
+          <div className={factRowBody()}>
+            <span className={factName()} data-part="tracker/cross-seed-state" data-on={String(on)}>
+              {say(on ? "on" : "off")}
+            </span>
+            <span className={factDetail()}>{say(on ? "onDetail" : "offDetail")}</span>
+          </div>
+          <Switch checked={on} label={say("label", { tracker: block.tracker })}
+            data-part="tracker/cross-seed-switch" data-cross-seed-switch={block.tracker} />
+        </li>
+      </ol>
+      {block.switched ? (
+        <p className={factDetail()} data-part="tracker/cross-seed-next-pass">{say("nextPass")}</p>
+      ) : null}
+    </section>
+  );
+}
+
+// Declared to the registry as this module evaluates: the torrent's panel and the tracker's import it.
 registerBlock("crossSeed", (block) => <CrossSeedBlock block={block} />);
+registerBlock("crossSeedSwitch", (block) => <CrossSeedSwitchBlock block={block} />);

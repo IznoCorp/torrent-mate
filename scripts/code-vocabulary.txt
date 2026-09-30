@@ -379,6 +379,7 @@ emphasized
 empty
 end
 ended
+ending
 engine
 entries
 entry
@@ -714,6 +715,7 @@ motif
 motion
 mount
 move
+moved
 movie
 movies
 moving
@@ -813,6 +815,7 @@ pair
 pairs
 panel
 paragraph
+paragraphs
 parameter
 parameters
 params
@@ -1229,6 +1232,7 @@ sweep
 swipe
 swipeact
 switch
+switched
 synopses
 synopsis
 system
@@ -1255,6 +1259,7 @@ thawed
 the
 theme
 there
+this
 thousand
 threshold
 throw
