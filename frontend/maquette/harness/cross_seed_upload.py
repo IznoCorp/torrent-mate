@@ -28,7 +28,8 @@ R451 (R-L23-b) — offered only where nothing already cross-seeds:
 
 R453 (R-L23-d) — the confirmation names what is published, before any call:
 4. `torrents-cross-seed-upload-confirm`: the tracker and the release whose files
-   are sent are named; nothing is called until confirmed, nothing on « Annuler ».
+   are sent are named; nothing is called until confirmed, nothing on « Annuler »;
+4b. at 320 px the release name breaks inside the confirmation, never past its edge.
 
 R452 (R-L23-c) — the call is answered, visible, and resolved in the same visit:
 5. confirmed: ONE `uploadCrossSeed`, even under a double tap; the pair reads
@@ -71,6 +72,16 @@ UPLOADABLE_STATES = {"noMatch", "error", "notSearched"}
 ACT = '#sheet[data-open] [data-cross-seed-upload$=":v3x.club"]'
 DIALOG = '[data-part="dialog"][data-open]'
 BUTTONS = f'{DIALOG} [data-part="dialog/button"]'
+# The narrowest phone the maquette is drawn for.
+NARROW = {"width": 320, "height": 640}
+# Every paragraph of the open confirmation that runs past its own box or past the dialog's edge.
+OVERFLOWS = f"""() => {{
+  const dialog = document.querySelector('{DIALOG}');
+  if (!dialog) return null;
+  const edge = dialog.getBoundingClientRect().right;
+  return [...dialog.querySelectorAll('p')].filter(p => p.scrollWidth > p.clientWidth
+    || p.getBoundingClientRect().right > edge).map(p => p.textContent.slice(0, 60));
+}}"""
 # Long enough for the engine's queued upload to end (the layer's SEARCH_MILLISECONDS, 4 s).
 UPLOAD_ENDS = 6000
 # A code as the engine writes it: a word, an underscore, a word.
@@ -331,6 +342,15 @@ async def main():
                       and refused.get("trackerReason"), repr(refused))
         journal.check("R454 the badge counts it — one more, still the five terms' sum, no sixth",
                       badge == str(start + 1) and badge == str(total), f"{start} → {badge!r} · sum {total}")
+
+        # ── R453: at 320 px, the release name breaks inside the confirmation ──
+        narrow, small = await open_page(browser, viewport=NARROW)
+        answer = await enter(small, "torrents-cross-seed-upload-confirm")
+        await small.wait_for_timeout(ACTED)
+        spilled = await small.evaluate(OVERFLOWS)
+        journal.check("R453 at 320 px the release name breaks inside the confirmation, never past its edge",
+                      answer is None and spilled == [], repr(answer or spilled))
+        await narrow.close()
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()
