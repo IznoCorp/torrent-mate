@@ -267,11 +267,10 @@ export function onEngineBack(
       /* A LINK OF THE PANEL THAT STAYED ON ITS PAGE and moved one of its dials
          (« Voir la carte de la saison »: Suivis → En cours) stacked over it: the
          Back gives back the page as the entry's address has it, then the panel. */
-      if (direction === "BACK" && samePage) {
-        const { dials } = addressSeam.parse(location.pathname, location.search);
+      if (direction === "BACK" && samePage && record.dials !== undefined) {
         const current = store.read().state as Record<string, unknown>;
-        if (Object.entries(dials).some(([dial, value]) => current[dial] !== value))
-          restorePage({ ...entryPatch(current), ...dials, page: record.openedOn });
+        if (Object.entries(record.dials).some(([dial, value]) => current[dial] !== value))
+          restorePage({ ...record.dials, page: record.openedOn });
       }
       reopenPanelOfRecord(record, true);
       return;
