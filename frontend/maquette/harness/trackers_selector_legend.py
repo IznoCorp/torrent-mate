@@ -13,7 +13,9 @@ R-L16bis-b — the selector:
 2. `torrents-list-filtered`: the pill names the tracker, pressed, counting its
    entries — and RULINGS 3's line « Filtré sur … · Tout voir » is gone;
 3. a finger on the pill opens the panel: « Tous les trackers » first, then every
-   tracker of the roster in its order, each with its entry count;
+   tracker of the roster in its order, each with its entry count — and one
+   switched off says so beside its name, in S7's words (off by you, or off and
+   why: « Identifiant refusé », « Injoignable »), where an active one says none;
 4. a choice closes the panel and filters: the list shows that tracker's entries
    alone, the pill names it, the address carries it — and nothing is pushed;
 5. « Tous les trackers » lifts the filter;
@@ -31,6 +33,9 @@ RE-AIMED OUT LOUD — the successor of `trackers_roster.py`'s holds 12 and 13 (R
 3's line and its « Tout voir »): the pill says the filter, and « Tous les
 trackers » lifts it.
 
+Hold 3's off-tracker clause came with the reader's N-bis (2026-09-30): the hint
+was the count alone; red on `515c277bd`.
+
 Red before the move: the tab draws no selector and no legend.
 """
 import asyncio
@@ -43,6 +48,18 @@ from playwright.async_api import async_playwright
 SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
 DOWNLOADS = json.loads((SOURCE / "mocks/seeds/downloads.json").read_text(encoding="utf-8"))
 WORDS = json.loads((SOURCE / "i18n/fr.json").read_text(encoding="utf-8"))["screens"]["torrents"]
+TRACKER_WORDS = json.loads((SOURCE / "i18n/fr.json").read_text(encoding="utf-8"))["screens"]["trackers"]
+TRACKERS = json.loads((SOURCE / "mocks/seeds/trackers.json").read_text(encoding="utf-8"))
+
+
+def off_word(tracker):
+    """What S7 says of a tracker switched off — by the operator, or off and why; None when it is on."""
+    off = tracker.get("disabled")
+    if off is None:
+        return None
+    if off["by"] == "operator":
+        return TRACKER_WORDS.get("legendOperator", "<no copy>")
+    return TRACKER_WORDS.get("failureReasons", {}).get(off.get("reason") or "other", "<no copy>")
 ALL = WORDS.get("selectorAll", "<no copy>")
 CHOSEN = "tr4ker"
 
@@ -130,6 +147,14 @@ async def main():
                       and [(choice["value"], choice["text"], choice["hint"].split(" ")[0]) for choice in choices]
                       == [(value, text, str(count)) for value, text, count in wanted],
                       f"{choices!r} against roster {roster}")
+        hints = {choice["value"]: choice["hint"] for choice in choices or []}
+        words = {tracker["name"]: off_word(tracker) for tracker in TRACKERS}
+        every_off = {word for word in words.values() if word}
+        journal.check("a tracker switched off says so beside its name, in S7's words; an active one says none",
+                      bool(every_off) and all(
+                          (word in hints.get(name, "")) if word else not any(one in hints.get(name, "") for one in every_off)
+                          for name, word in words.items()),
+                      f"{hints} against {words}")
         before = await page.evaluate("()=>history.length")
         option = page.locator(f'#sheet[data-open] [data-part="option"][data-trackers-choose="{CHOSEN}"]')
         if await option.count():

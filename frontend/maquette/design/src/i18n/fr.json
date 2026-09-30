@@ -381,6 +381,7 @@
       "selectorTitle": "Afficher les torrents de",
       "selectorCount_one": "{{count}} torrent",
       "selectorCount_other": "{{count}} torrents",
+      "selectorCountOff": "{{count}} · {{state}}",
       "legendBreached": "En infraction",
       "selectorMeta": "Chaque tracker avec le nombre de ses torrents dans le client."
     },
