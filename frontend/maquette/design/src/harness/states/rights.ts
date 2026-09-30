@@ -182,6 +182,40 @@ export function rightsStates(): NamedState[] {
       },
     ],
     [
+      "profile-household",
+      "Droits — Profil d'un membre du foyer : son rôle, ce qu'il peut faire, et qui détient le reste",
+      () => {
+        as("household-member");
+        applyState({ page: "profile", phase: "ready" });
+      },
+    ],
+    [
+      "profile-guest",
+      "Droits — Profil d'un invité Plex",
+      () => {
+        as("guest");
+        applyState({ page: "profile", phase: "ready" });
+      },
+    ],
+    [
+      "profile-ceiling",
+      "Droits — Profil de l'Admin sur l'instance en lecture seule",
+      () => {
+        window.__mocks?.setForbiddenWrites(EVERY_WRITE);
+        reread();
+        applyState({ page: "profile", phase: "ready" });
+      },
+    ],
+    [
+      "profile-preprod",
+      "Droits — Profil de l'Admin en préproduction : la suppression nommée, le reste permis",
+      () => {
+        window.__mocks?.setForbiddenWrites(["library.delete"]);
+        reread();
+        applyState({ page: "profile", phase: "ready" });
+      },
+    ],
+    [
       "no-access",
       "Droits — un rôle qui n'ouvre aucune page : la page dédiée, la déconnexion seule",
       () => {

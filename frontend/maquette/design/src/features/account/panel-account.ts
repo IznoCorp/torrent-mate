@@ -54,7 +54,8 @@ function accountPanel(
   const translate = i18next.t.bind(i18next);
   return {
     title: account.name,
-    subtitle: account.email,
+    // THE ROLE'S NAME, as the server names it — shown, never compared (§ 1.1).
+    subtitle: `${account.role.name} · ${account.email}`,
     avatar: account.avatar,
     blocs: [
       {

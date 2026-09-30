@@ -10,10 +10,9 @@ one discipline: answer honestly what you do not have.
   answer to a bookmark. It now renders, names what was asked for, and offers a
   way out (DOIT-7 — never a dead end).
 
-· **The account surface.** There is ONE account on this server. Drawing a list
-  of colleagues to fill the screen is what §13 forbids: an interface showing
-  data the system does not hold teaches its operator to distrust the rest of
-  it. The place of the others is marked and EMPTY, and says why.
+· **The account surface.** Profil is the connected account and its preferences
+  (ruling 14): the other accounts left it for « Comptes », so it draws no place
+  for them at all.
 
 Everything the account surface claims about the session is compared against
 `web.json5` — the real file, not a number written beside it.
@@ -142,8 +141,8 @@ async def main():
         account = await pg.evaluate(READ)
         journal.check("the menu entry does open the account surface",
                       account["page"] == "profile", account["page"])
-        journal.check("the place of the other accounts is marked AND EMPTY",
-                      "pas encore" in account["empty"].lower(), account["empty"])
+        journal.check("Profil draws no place for the other accounts (ruling 14)",
+                      "autres comptes" not in account["text"].lower() and not account["empty"], account["empty"])
         journal.check("nothing spills past the account's frame",
                       account["overflow"] <= 0, f"{account['overflow']}px")
 

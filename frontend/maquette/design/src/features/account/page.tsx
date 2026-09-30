@@ -2,23 +2,28 @@
 // « Profil et préférences » — the account surface the user menu points at. It
 // draws what EXISTS: one identity, one session, and the way that session ends.
 //
-// The place of other accounts is marked and EMPTY. Filling it with invented
-// colleagues would teach a reader to distrust the rest of the interface, and
-// the shape is settled here so the feature does not have to teach its own form
-// twice when it arrives.
+// THE CONNECTED ACCOUNT AND ITS PREFERENCES, for everyone (ruling 14): its
+// role's NAME — shown, never compared (ruling 20) — what it can do and why not
+// the rest, and its Plex link. The other accounts left for « Comptes ».
 import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useTranslation } from "react-i18next";
-import { useAccount } from "./queries";
+import { useAccount, useRights } from "./queries";
+import { RIGHTS } from "../../lib/rights";
 import type { ReactElement } from "react";
 import { FactRows, type FactRow } from "../../ui/fact-rows";
-import { actionButton, emptyNote, factList, sectionHeading } from "../../ui/variants";
-import { Markup, emptyNoteMarkup } from "../../ui/markup";
+import { actionButton, factList, sectionHeading } from "../../ui/variants";
 
 export function AccountPage(): ReactElement | null {
   const { t } = useTranslation();
   // FROM THE CACHE (invariant 4).
   const { data: ACCOUNT } = useAccount();
+  const rights = useRights();
   if (!ACCOUNT) return null;
+  // WHAT THIS ACCOUNT CAN DO, from the model (R-L18-z): the rights held, then,
+  // for each one lacking, the reason and who holds it by default — the same
+  // sentences a reserved page says.
+  const held = RIGHTS.filter((right) => rights.holds(right));
+  const lacking = RIGHTS.filter((right) => !rights.holds(right));
   const facts = (rows: FactRow[]) => (
     <ol className={factList()} data-part="flux">
       <FactRows rows={rows} />
@@ -44,7 +49,37 @@ export function AccountPage(): ReactElement | null {
           value: ACCOUNT.email,
           secondaryLine: t("screens.accountPage.addressSub"),
         },
+        {
+          label: t("screens.accountPage.role"),
+          value: ACCOUNT.role.name,
+          secondaryLine: t("screens.accountPage.roleSub"),
+          part: "profile/role",
+        },
+        {
+          label: t("screens.accountPage.plex"),
+          value: t(ACCOUNT.plexLinked ? "screens.accountPage.plexLinked" : "screens.accountPage.plexNotLinked"),
+          part: "profile/plex",
+        },
       ])}
+
+      <h2 className={sectionHeading()} data-part="heading">{t("screens.accountPage.can")}</h2>
+      {facts(held.map((right) => ({
+        label: t(`access.rights.${right}`),
+        tone: "success",
+        part: "profile/right-held",
+      })))}
+      {lacking.length ? (
+        <>
+          <h2 className={sectionHeading()} data-part="heading">{t("screens.accountPage.cannot")}</h2>
+          {facts(lacking.map((right) => ({
+            label: t(`access.rights.${right}`),
+            secondaryLine: rights.forbidden.includes(right)
+              ? t("screens.accountPage.forbiddenHere")
+              : t(`access.holders.${right}`),
+            part: "profile/right-lacking",
+          })))}
+        </>
+      ) : null}
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.accountPage.session")}</h2>
       {facts([
@@ -70,14 +105,6 @@ export function AccountPage(): ReactElement | null {
         {t("screens.accountPage.signOut")}
       </button>
 
-      <h2 className={sectionHeading()} data-part="heading">{t("screens.accountPage.others")}</h2>
-      <Markup
-        className={emptyNote()} data-part="empty-state"
-        html={emptyNoteMarkup(
-            t("screens.accountPage.othersEmptyTitle"),
-            t("screens.accountPage.othersEmptyBody"),
-          )}
-      />
     </>
   );
 }

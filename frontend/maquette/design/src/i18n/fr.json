@@ -996,8 +996,8 @@
       "headerTitle": "À découvrir"
     },
     "accountPage": {
-      "noteLead": "Un seul compte existe sur ce serveur.",
-      "noteRest": " Ce qui est dessiné ici est ce qui existe : votre identité, votre session, et la façon dont elle se termine. La place des autres comptes est marquée et vide — la remplir de collègues inventés apprendrait à se méfier du reste de l'interface.",
+      "noteLead": "Ce compte, son rôle et ce qu'il peut faire.",
+      "noteRest": " Les droits appartiennent au rôle, jamais au compte : ce qui manque ici se donne en changeant de rôle, dans « Comptes ».",
       "you": "Vous",
       "identifier": "Identifiant",
       "identifierSub": "défini dans la configuration, pas ici",
@@ -1014,9 +1014,14 @@
       "whereValue": "sur le serveur",
       "whereSub": "la session EST le cookie ; se déconnecter demande au serveur de le lâcher, et l'écran ne fait que refléter ce qui a déjà eu lieu",
       "signOut": "Se déconnecter",
-      "others": "Les autres comptes",
-      "othersEmptyTitle": "Il n'y en a pas encore.",
-      "othersEmptyBody": "Les comptes multiples et leurs droits sont une mission à part. Leur place est ici, pour que la forme soit arrêtée avant que la fonctionnalité arrive — un menu qui gagne une entrée plus tard enseigne sa forme deux fois."
+      "role": "Rôle",
+      "roleSub": "un seul par compte ; ses droits sont les vôtres",
+      "plex": "Plex",
+      "plexLinked": "compte Plex lié",
+      "plexNotLinked": "aucun compte Plex lié",
+      "can": "Ce que ce compte peut faire",
+      "cannot": "Ce qu'il ne peut pas faire",
+      "forbiddenHere": "interdit sur cette instance, pour tous les comptes"
     },
     "notFound": {
       "title": "Cette adresse ne mène nulle part.",

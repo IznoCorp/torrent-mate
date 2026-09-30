@@ -22,6 +22,15 @@ import type { Schemas } from "./contract-schemas";
 /** One right of the ACL, in the contract's own names. */
 export type Right = Schemas["Right"];
 
+/** Every right of the ACL, in the order Profil and « Comptes » list them. */
+export const RIGHTS: readonly Right[] = [
+  "library.read", "library.delete", "library.rescrape",
+  "acquisition.request", "acquisition.follow", "acquisition.pilot.own", "acquisition.pilot.any",
+  "acquisition.see.others", "acquisition.quality.own", "acquisition.pause.own", "acquisition.reassign",
+  "pipeline.control", "trackers.view", "trackers.control", "system.view",
+  "configuration.view", "configuration.write", "accounts.manage", "auth.password",
+];
+
 /**
  * Every WRITE right of the ACL — what a forbidden-writes list may name (ruling
  * 23). The view rights and the password door are never forbidden writes.

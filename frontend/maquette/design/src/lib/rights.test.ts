@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import ACCOUNTS from "../mocks/seeds/accounts.json";
 import contract from "../../../contract/openapi.json";
-import { NO_RIGHTS, rightsOf, type Right } from "./rights";
+import { NO_RIGHTS, RIGHTS, rightsOf, type Right } from "./rights";
 import type { Schemas } from "./contract-schemas";
 
 const EVERY = (contract as unknown as { components: { schemas: { Right: { enum: Right[] } } } })
@@ -15,6 +15,10 @@ function accountOn(roleId: string, forbiddenWrites: Right[] = []): Schemas["Acco
 }
 
 describe("the rights of an account are its role's", () => {
+  it("lists every right the contract declares, and no other", () => {
+    expect([...RIGHTS].sort()).toEqual([...EVERY].sort());
+  });
+
   it("holds nothing before the account is read", () => {
     expect(EVERY.filter((right) => NO_RIGHTS.holds(right))).toEqual([]);
   });
