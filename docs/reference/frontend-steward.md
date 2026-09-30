@@ -233,8 +233,10 @@ reaches him.
     267–271 s, against 7–9 min before. **L20: PR READY 10:04, reader spawned 10:13 = 9 min — the
     implementer did not report READY at once; a PR READY is reported the second it exists
     (2026-09-15).**
-18. **The contracts tier's fan-out is `TM_HARNESS_JOBS=3`**, measured once with `vm_stat` and
-    `vm.swapusage` before and after (a rule costs ≈ 400 MB); back to 2 if swap moves.
+18. **The contracts tier's fan-out is `TM_HARNESS_JOBS=2`** (realigned to `run.sh`'s own default,
+    auditor's order 88 — measured once at 3 with `vm_stat` and `vm.swapusage` before and after, a
+    rule costing ≈ 400 MB, lowered when the default itself moved to 2 so no heavy run takes every
+    core without being told to).
 19. **No local `make check` before a maquette wave's pull request** — CI's `test` job (8 min,
     unconditional) is the authority; the pre-PR gate is `make lint` + the full suite + `--a11y` +
     `--compare` + the pre-push pytest. Measured: 11 259 tests ran three times before #596 for 0 defects
@@ -440,10 +442,24 @@ holder's name and exit 0, or « free » and exit 1 (B-326). `cat` on the holder 
 directory as a file and prints NOTHING whether the lock is held or free — the office reads the
 holder's name or `test -d`, never `cat` on the directory.
 
-**The fan-out has a NAME, `TM_HARNESS_JOBS`** — `run.sh` and `scripts/harness-hold-counts.py`
-default it to the core count (eight here), so « fan-out two » is unenforceable without setting the
-variable: `TM_HARNESS_JOBS=2 sh scripts/heavy.sh <who> <command>`. The lock holds the door, not the
-room.
+**The fan-out has a NAME, `TM_HARNESS_JOBS`** — `run.sh` now defaults it to 2, not the core count
+(auditor's order 88, 2026-09-29: a suite launched with no override starved the Plex Transcoder);
+`scripts/harness-hold-counts.py` still defaults to the core count (eight here) and is outside this
+repair's scope — read it, do not assume it. The lock holds the door, not the room.
+
+**A heavy run also YIELDS to Plex while it runs, not just before it starts** (auditor's order 88):
+`scripts/heavy.sh` watches for the Plex Transcoder and the one-minute load together, and SIGSTOPs
+the whole wrapped tree — never anything it did not start — resuming on a lower load or the
+transcoder's absence; `HEAVY_PLEX_LOAD_CEILING` / `HEAVY_PLEX_LOAD_RESUME` name the thresholds.
+
+**A SHORT run PREEMPTS a browser-class holder rather than waiting behind it** (auditor's order 90,
+operator: monitor progress, control the speed): `--class rule` or `--class test` SIGSTOPs the
+holder's own wrapped tree for the length of the short run (capped at `HEAVY_PREEMPT_CAP_SECONDS`,
+600 s, past which the holder resumes and the short run just runs, unprotected, as before this
+existed), SIGCONTing it when done. A second short run queues behind the FIRST short run's own
+preempt sub-lock, never behind the (possibly very long) holder — the mechanism that avoids nesting
+the suspension. `scripts/heavy.sh` also names `TM_HARNESS_JOBS` for its own child when the caller
+sets none: 3 with no Plex Transcoder running, 2 with one active.
 
 **Three locks, by what the run READS** (2026-09-12, five agents on one machine; amended
 2026-09-13). The mutex above is for the ONE served copy and the ONE 8899 host — `run.sh` in any
@@ -465,7 +481,7 @@ beside a harness run, whatever the locks say. Story:
 **Its thresholds are arithmetic, not taste.** This host is 8 cores and 16 GB; one Playwright browser
 group costs about 1.1 GB; the baseline holds about 6 GB. A fan-out of eight therefore asks for more
 than exists, which is how a load of 65 with 200 MB free happened. The caps that go with the lock: at
-most two browser groups machine-wide, a harness fan-out of two, a parallel test run at three workers
+most two browser groups machine-wide, a harness fan-out of two, a parallel test run at two workers
 rather than all eight cores, and never a build beside one. **The margin is deliberate** — the script
 asks whether there is room to spare, never whether a run merely fits, because a run that squeezes
 leaves compressed memory this host does not reclaim until a reboot.

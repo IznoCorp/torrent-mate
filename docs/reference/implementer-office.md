@@ -61,9 +61,19 @@ pull request's title and §§, and any amendment — which names the line of thi
 
 `sh scripts/heavy.sh --class <class> <who> <command>`, no `HEAVY_LOCK=` override; read `sh scripts/heavy.sh --held`
 and wait, never bypass; one line to the steward before and after. **browser**: a full gate or suite
-(`TM_HARNESS_JOBS=3`). **rule**: `run.sh --rules` on a few rules, a one-rule mutation, the tm-design build. **test**:
-every pytest (`PYTEST_XDIST_AUTO_NUM_WORKERS=3`) and every `git push` — its OWN command from the worktree root, never
-`cd … &&`. A push the classifier refuses is a STOP with its exact text: no retry, no other route, no other session.
+(`TM_HARNESS_JOBS=2`, lowered from 3, auditor's order 88 — realigned to `run.sh`'s own default). **rule**:
+`run.sh --rules` on a few rules, a one-rule mutation, the tm-design build. **test**:
+every pytest (`PYTEST_XDIST_AUTO_NUM_WORKERS=2`, lowered from 3, same order) and every `git push` — its OWN
+command from the worktree root, never `cd … &&`. A push the classifier refuses is a STOP with its exact text:
+no retry, no other route, no other session. **`heavy.sh` also yields to Plex while its child runs** (order 88):
+Plex Transcoder active and load over `HEAVY_PLEX_LOAD_CEILING` SIGSTOPs the wrapped tree; it resumes under
+`HEAVY_PLEX_LOAD_RESUME` or once the transcoder is gone. **A short run PREEMPTS a browser-class holder instead
+of waiting behind it** (order 90): a `rule` or `test` class run SIGSTOPs the browser holder's whole wrapped
+tree for the length of its own run (a per-holder sub-lock, `${LOCK}-preempt`, so a second short run queues
+behind the first short run, never behind the holder — no nesting deadlock), SIGCONTing it on completion or past
+`HEAVY_PREEMPT_CAP_SECONDS` (600 s), whichever comes first. `heavy.sh` also names `TM_HARNESS_JOBS` for its own
+child when the caller sets none — 3 with no Plex Transcoder running, 2 with one active; `run.sh`'s own bare
+default (outside heavy.sh) stays 2.
 
 ## The RESUME, and what is not yours
 
