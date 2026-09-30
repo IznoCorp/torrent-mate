@@ -278,6 +278,13 @@ export const drawerGroup = cva(
   "grp [.grp+&]:border-t [.grp+&]:border-border [.grp+&]:mt-3 [.grp+&]:pt-5",
 );
 
+/** The appearance group, which sits outside the navigation: it takes the
+ *  navigation's own padding, so its heading starts where every group's does. */
+export const drawerAppearance = cva("px-4");
+
+/** The appearance selector, under its heading and aligned with it. */
+export const drawerAppearanceSwitch = cva("mx-6");
+
 export const drawerGroupTitle = cva(
   "sect pt-5 px-6 pb-2 text-1 font-medium uppercase tracking-[0.08em] "
     + "text-muted-foreground",

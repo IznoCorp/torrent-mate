@@ -15,7 +15,7 @@ import { askForSeason, useAskedInFlight } from "./season-grab";
 import { announcedAfter, ownedSeason, type MediaSeasons } from "./queries";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CatalogSeason, MediaSheetFields, SeasonRow } from "./sheet-fields";
-import { dateLabel, episodeStateLabel, numberRanges } from "./format";
+import { dateLabel, episodeStateLabel, episodeRanges } from "./format";
 
 export function SeasonList({
   followed,
@@ -326,7 +326,7 @@ export function SeasonList({
                   // french-ok: the INTERPOLATION placeholder, named by
                   // `missingList` in fr.json — renaming this half alone
                   // leaves « Manquants : {{liste}} » on screen.
-                  liste: numberRanges(missingNums),
+                  liste: episodeRanges(missingNums),
                 })}
               </p>
             ) : (

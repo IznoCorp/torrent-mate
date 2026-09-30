@@ -3,11 +3,36 @@ opens the bottom panel.
 
 A gallery that answers a tap differently from its neighbours teaches two
 vocabularies for the same picture.
+
+THE POSTERS OF ONE ROW SHARE THEIR TOP, on every library lens and at every
+width read (the reader of the conformity train, 2026-09-30: 8 to 15 px offsets
+since titles wrap, B-584). A tile is a `<button>`; the grid stretched it to its
+row's height and a button centres what it holds, so a tile whose title took
+one line drew its poster lower than a neighbour whose title took three.
 """
 import asyncio
 
 from common import chrome_launch_args
 from playwright.async_api import async_playwright
+
+# THE WIDTHS THE ROW IS READ AT: the narrowest phone, the reference, and one
+# with more columns.
+ROW_WIDTHS = (320, 390, 700)
+
+# EVERY ROW'S POSTER TOPS: tiles grouped by the grid line they start on (the
+# tile's own top, which a stretched row shares), the spread of their posters'
+# tops measured in each group.
+ROW_SPREADS = """()=>{
+  const rows = new Map();
+  for (const tile of document.querySelectorAll('#view [data-part="grid"] [data-part="tile"]')) {
+    const line = Math.round(tile.getBoundingClientRect().top);
+    const poster = tile.querySelector('.p');
+    if (!poster) continue;
+    (rows.get(line) ?? rows.set(line, []).get(line)).push(poster.getBoundingClientRect().top);
+  }
+  return [...rows.values()].filter((tops) => tops.length > 1)
+    .map((tops) => Math.max(...tops) - Math.min(...tops));
+}"""
 
 GALLERIES = [
   ("Médiathèque · Médias",    "lib-grid",                '[data-part="tile"][data-panel]'),
@@ -113,6 +138,27 @@ async def main():
         if not ok:
             failures.append(f"lens {lens} does not offer both layouts: {shapes}")
     await ctx.close()
+
+    # THE POSTERS OF ONE ROW SHARE THEIR TOP, on every lens and width.
+    print()
+    for width in ROW_WIDTHS:
+        ctx = await b.new_context(viewport={"width": width, "height": 844},
+                                  device_scale_factor=2, is_mobile=True, has_touch=True)
+        pg = await ctx.new_page()
+        await pg.goto("http://127.0.0.1:8899/", wait_until="load")
+        await pg.evaluate("()=>window.__loadingDone?.()")
+        await pg.evaluate("()=>window.__measure(true)")
+        for lens in ("cat", "inc", "rec"):
+            await pg.evaluate("([l,m])=>{window.__reset(); applyState({page:'lib',libLens:l,libMode:m,phase:'ready'}); window.__store.touch();}", [lens, "grid"])
+            await pg.wait_for_timeout(420)
+            spreads = await pg.evaluate(ROW_SPREADS)
+            ok = bool(spreads) and max(spreads) <= 0.5
+            print(f"  {width} px « {lens} »  {len(spreads)} rows, worst poster offset "
+                  f"{max(spreads, default=0):.1f} px  {'OK' if ok else 'FAIL'}")
+            if not ok:
+                failures.append(f"{width} px lens {lens}: posters of one row do not share their top "
+                                f"({[round(one, 1) for one in spreads]})")
+        await ctx.close()
 
     print("\nVERDICT:", "one pattern in every gallery" if not failures else f"FAILED - {failures}")
     await b.close()

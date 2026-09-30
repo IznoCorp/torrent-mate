@@ -9,7 +9,8 @@ import type { ReactElement } from "react";
 import { VirtualRows } from "../../ui/virtual-rows";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { LIBRARY_WINDOW } from "./types";
-import { registerListingPaging, useLibraryListing } from "./queries";
+import { registerListingPaging, useLibraryCategories, useLibraryListing } from "./queries";
+import { rowsIn } from "./category-filter";
 import { useStoreContent, useUiState } from "../../lib/store-access";
 import { EmptyLibrary } from "./library-empty";
 import { endMark, loadError, loadErrorAction, loadFooter, posterGrid, section, skeleton } from "../../ui/variants";
@@ -38,13 +39,20 @@ export function LibraryList(): ReactElement {
   // THE ORDER IS PART OF THE QUESTION. The filtering and the sort used to be
   // done here over the whole set; a page index only means something once the
   // server orders what it pages.
+  // « RÉCENTS » FILTERS THE ROWS IT HOLDS, never the read: its pills count
+  // the rows it draws, and a read filtered by the engine would leave the other
+  // pills nothing to count — so the lens reads the listing whole, the head
+  // counts that one read, and the pill keeps its share here.
+  const recent = state.libLens === "rec";
+  const { data: CATS = [] } = useLibraryCategories();
   const listing = useLibraryListing(
     String(state.q ?? ""),
-    String(state.libCat ?? ""),
+    recent ? "" : String(state.libCat ?? ""),
     String(state.sortKey ?? ""),
     Boolean(state.sortReversed),
   );
-  const rows = (listing.data?.pages ?? []).flatMap((page) => page.items);
+  const read = (listing.data?.pages ?? []).flatMap((page) => page.items);
+  const rows = recent ? rowsIn(read, CATS.find((entry) => entry.id === state.libCat)) : read;
 
   // A SELECTION BELONGS TO THE LISTING IT WAS TAKEN IN, and it is dropped WHERE
   // THE QUESTION IS WRITTEN — beside each control that changes it — rather than

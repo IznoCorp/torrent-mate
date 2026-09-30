@@ -35,7 +35,10 @@ a sheet (« no candidate promises a sheet or a panel » → no candidate offers 
 panel, and its sheet only from its poster); « nothing invites leaving the screen
 to decide » → nothing but the poster does (no link, one sheet door); and « one
 can pick a candidate » reads `data-resolve` on the candidate's BODY, which still
-carries the choice.
+carries the choice. RE-AIMED AGAIN WITH B-578's END, his 09-29 word « toucher
+l'affiche ou la carte d'un candidat OUVRE SA FICHE ; seul le bouton « Choisir »
+choisit »: the sheet's doors are the poster AND the body, and `data-resolve` is
+on « Choisir » alone.
 
 RE-AIMED OUT LOUD: « Suivant » is gone, so the hold that read it opening the
 next folder in place now reads its ABSENCE on a folder among several.
@@ -97,7 +100,7 @@ SCREEN = """() => {
     titleMono: !!s.querySelector('[data-part="heading"] code'),
     candidates: candidates.map(c => ({
       title: (c.querySelector('[data-part="card/title"]') || {}).textContent || '',
-      // The pick is the body since B-578 (the card itself before it).
+      // The pick is « Choisir » since B-578's end (the body before, the card before that).
       resolve: (c.matches('[data-resolve]') ? c : c.querySelector('[data-resolve]'))?.dataset.resolve || null,
       confidence: (c.querySelector('[data-part="chip"]') || {}).textContent || null,
       posterButton: (c.querySelector('[data-part="card/poster"]') || {}).tagName === 'BUTTON',
@@ -140,9 +143,9 @@ async def main():
         check("the folder is the subject, in the mono face", with_["titleMono"], with_["title"][:40])
         check("the five real candidates are there", len(with_["candidates"]) == 5,
               str(len(with_["candidates"])))
-        check("no candidate offers a panel, and its sheet only from its poster",
+        check("no candidate offers a panel, and its sheet from its poster and its body",
               not any(c["panel"] for c in with_["candidates"])
-              and all(c["sheetDoors"] == ["card/poster"] for c in with_["candidates"]),
+              and all(c["sheetDoors"] == ["card/poster", "card/body"] for c in with_["candidates"]),
               str([c["sheetDoors"] for c in with_["candidates"]]))
 
         # The four that tie carry no percentage; the fifth, which differs, does.
@@ -170,7 +173,7 @@ async def main():
         check("every candidate says what it is about",
               all(c["plot"] for c in with_["candidates"]),
               str([c["title"] for c in with_["candidates"] if not c["plot"]]))
-        check("and nothing but the poster invites leaving the screen to decide",
+        check("and nothing but the sheet's doors invites leaving the screen to decide",
               not any(c["link"] for c in with_["candidates"]))
         check("the one the provider does not illustrate shows the substitute",
               sum(1 for c in with_["candidates"] if c["noPoster"]) == 1,

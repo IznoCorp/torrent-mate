@@ -59,6 +59,9 @@ export const byIdentifierBody = cva("byidin mt-2 mb-4 flex flex-col gap-4");
 /** Why an action is refused. */
 export const refusalReason = cva("whyoff text-2 text-danger-text");
 
+/** What a provider's identifier holds, said before anything is typed — a hint, never a refusal. */
+export const identifierHint = cva("text-2 text-muted-foreground");
+
 /**
  * The screen's footer.
  *
@@ -197,8 +200,8 @@ export const deckHint = cva(
 );
 
 /**
- * A resolution candidate's body, which IS the button that picks it; its poster
- * beside it opens the candidate's sheet.
+ * A resolution candidate's body, which IS a button: it opens the candidate's
+ * sheet, as its poster does (B-578); « Choisir » beside it picks.
  *
  * THE BUTTON'S OWN DEFAULTS ARE UNDONE HERE, because this prototype carries no
  * preflight: a `<button>` arrives with the browser's small control font, its
@@ -208,18 +211,12 @@ export const deckHint = cva(
  */
 export const candidateCard = cva("text-left p-0 [font:inherit] text-inherit");
 
-/** Where the « Choisir » action sits at a candidate card's right edge. The action
- *  is the interface's primary action button, at its 44 px, and never a check
- *  mark — a mark on every card read as « already selected » (B-500). It is
- *  decorative: the card is the button. An action button fills its row by
- *  default; here it takes its label's width. */
-export const pickPlace = cva("flex-none self-center mr-5 [&>span]:w-auto");
-
-/** The candidate's pick: its words, then the « Choisir » mark at its right edge. */
-export const pickRow = cva("flex items-center gap-5");
-
-/** The pick's words, which take what the mark leaves. */
-export const pickText = cva("block min-w-0 flex-1");
+/** Where the « Choisir » button sits at a candidate card's right edge. It is the
+ *  interface's primary action button, at its 44 px, the ONLY control that picks,
+ *  and never a check mark — a mark on every card read as « already selected »
+ *  (B-500). An action button fills its row by default; here it takes its
+ *  label's width. */
+export const pickPlace = cva("flex-none self-center mr-5 [&>button]:w-auto");
 
 /**
  * Two feet on one line. A card of « À traiter » that offers two answers —

@@ -54,6 +54,7 @@ import {
   emptyNotePlace,
   identifyFolder,
   identifyNotice,
+  identifierHint,
   providerSwitchPlace,
   refusalReason,
   resultList,
@@ -86,6 +87,10 @@ export function AddScreen() {
   const state = useUiState();
   const addKind = (state.addKind as string) ?? "Tout";
   const idProv = (state.idProv as string) ?? "TMDB";
+  // What the identifier field holds, and whether its provider refuses it: an
+  // IMDB identifier is « tt » and digits, a TMDB or TVDB one digits only.
+  const [typedId, setTypedId] = useState("");
+  const idRefused = typedId.trim() !== "" && !(idProv === "IMDB" ? /^tt\d+$/ : /^\d+$/).test(typedId.trim());
   const recents = (state.recents as string[]) ?? [];
   const resolveTarget = state.resolveTarget as string | null;
 
@@ -345,25 +350,25 @@ export function AddScreen() {
               <input
                 className={searchInput()}
                 id="byidv"
-                placeholder={idProv === "IMDB" ? "tt1234567" : "12e34"}
+                placeholder={idProv === "IMDB" ? "tt1234567" : "1234"}
                 aria-label={t("screens.add.idAria", { prov: idProv })}
+                value={typedId}
+                onChange={(event) => setTypedId(event.target.value)}
               />
             </div>
-            <p className={refusalReason()}>
-              {idProv === "IMDB" ? (
-                <>
-                  {t("screens.add.imdbBefore")} <code>tt</code>{" "}
-                  {t("screens.add.imdbAfter")}
-                </>
-              ) : idProv === "TVDB" ? (
-                t("screens.add.tvdbHint")
-              ) : (
-                <>
-                  {t("screens.add.numberBefore")} <code>Number()</code>{" "}
-                  {t("screens.add.numberAfter")}
-                </>
-              )}
-            </p>
+            {/* NO REFUSAL BEFORE A CHARACTER IS TYPED, and none in a
+                developer's words: the screen opened on « Identifiant refusé :
+                « 12e34 » … Number() … » with the field empty. */}
+            {idRefused ? (
+              <p className={refusalReason()} data-part="add/id-refused">
+                {t(idProv === "IMDB" ? "screens.add.idRefusedImdb" : "screens.add.idRefusedNumber", {
+                  typed: typedId.trim(),
+                  prov: idProv,
+                })}
+              </p>
+            ) : idProv === "TVDB" ? (
+              <p className={identifierHint()}>{t("screens.add.tvdbHint")}</p>
+            ) : null}
             <button className={actionButton({ kind: "submit" })} disabled>
               {t("screens.add.add")}
             </button>

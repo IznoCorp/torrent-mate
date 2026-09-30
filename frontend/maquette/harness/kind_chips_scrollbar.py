@@ -27,7 +27,10 @@ ignores `::-webkit-scrollbar` entirely once it is not `auto`.
 
 R-conformity-s — THE CATEGORY PILLS ON EVERY LENS (`hold_lens_pills`, in its own
 context): « Récents » and « Incomplets » draw the pills, and a pressed pill
-filters and counts what is drawn.
+filters and counts what is drawn. On « Récents », EVERY pill counts the rows
+the lens holds in its category, never the library (the reader of the train,
+2026-09-30: « Tout 1861 · Films 717 … » over 24 drawn) — its list is windowed,
+so the rows it holds are read from the window's own count, pill by pill.
 """
 import asyncio
 import json
@@ -129,8 +132,15 @@ LENS = """()=>{
     titles: rows.map((row) => (row.querySelector('[data-part="tile/title"], [data-part="card/title"]')
       ?.textContent ?? '').trim()),
     empty: !!body?.querySelector('[data-part="empty-state"]'),
+    // A WINDOWED list draws only what is in view; the rows it holds are its count.
+    held: Number(body?.querySelector('[data-virtualised]')?.dataset.virtualised ?? 0),
   };
 }"""
+
+# EVERY PILL'S FIGURE, then pressed one after the other with the rows the lens
+# holds under it.
+PILL_FIGURES = """()=>[...document.querySelectorAll('#view [data-part="pill"][data-cat]')]
+  .map((pill) => ({cat: pill.dataset.cat, figure: Number(pill.lastElementChild?.textContent ?? NaN)}))"""
 
 
 async def hold_lens_pills(browser, journal):
@@ -157,6 +167,19 @@ async def hold_lens_pills(browser, journal):
                   and all(title in movies for title in seen["titles"]),
                   f"pressed {seen['pressed']}; not movies: "
                   f"{[title for title in seen['titles'] if title not in movies][:3]} of {len(seen['titles'])}")
+    # THE FIGURE AND THE ROWS ARE READ IN ONE BREATH: a pill that leaves the
+    # list short lets it ask for its next page, and both grow together.
+    figures = await read_at(page, "lib-recent", PILL_FIGURES)
+    unequal = []
+    for one in figures:
+        await page.evaluate(
+            """(cat)=>document.querySelector(`#view [data-part="pill"][data-cat="${cat}"]`)?.click()""", one["cat"])
+        await page.wait_for_timeout(SETTLED)
+        seen = await page.evaluate(LENS)
+        if seen["pressed"] != [one["cat"]] or seen["figure"] != seen["held"]:
+            unequal.append({"cat": one["cat"], "figure": seen["figure"], "rows": seen["held"]})
+    journal.check("lib-recent: every pill counts the rows the lens holds in its category",
+                  len(figures) >= 2 and not unequal, f"{unequal[:3]} of {len(figures)} pills")
     for state, empty in (("lib-incomplete", False), ("lib-incomplete-movies", True)):
         seen = await read_at(page, state, LENS)
         journal.check(f"{state}: the pressed pill counts the rows drawn",

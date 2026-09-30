@@ -41,8 +41,14 @@ export const swipeAction = cva(
   },
 );
 
-/** The drawers under a swipe row, filling it edge to edge. */
-export const swipeActions = cva("actions absolute inset-0 flex items-stretch justify-end");
+/**
+ * The drawers under a swipe row, filling it inside the card's rim. ONE PIXEL IN
+ * and rounded as the card is: laid edge to edge, the drawer's colour showed
+ * through the card's antialiased corners — pink arcs at a follow card's right
+ * corners, on Chrome and WebKit alike (the reader of the train, 2026-09-30).
+ * The card's opaque border covers the pixel it gives up.
+ */
+export const swipeActions = cva("actions absolute inset-px rounded-3 overflow-hidden flex items-stretch justify-end");
 
 /** One drawer: its actions side by side, the right one pushed to its edge. */
 export const swipeSide = cva("side flex flex-[0_0_auto]", {

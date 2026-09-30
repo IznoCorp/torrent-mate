@@ -18,8 +18,9 @@
    → `countLine`'s own count part; the residue class `linkbtn` checked and removed.
 5. **B-578 — a candidate's poster opens its sheet** (moved into the train by the orchestrator, order 97(2)): on the
    resolution screen the whole candidate card is one `data-resolve` button, so a touch on its poster PICKS it where
-   every other poster of the app opens the medium's sheet. The poster becomes its own control opening the sheet,
-   the rest of the card keeps the pick (`features/acquisition/resolution-cards.tsx`). `BUGS.md` B-578 → `fixing`,
+   every other poster of the app opens the medium's sheet. The poster and the card's body open the sheet (his 09-29
+   word, § 3: « toucher l'affiche ou la carte d'un candidat OUVRE SA FICHE ; seul le bouton « Choisir » choisit »);
+   « Choisir » is a button of its own, the only pick (`features/acquisition/resolution-cards.tsx`). `BUGS.md` B-578 → `fixing`,
    then `fixed #<PR>` at the close, with escaped from / why / family (order 57).
 
 ## Acceptance — red first
@@ -30,7 +31,7 @@
   `lib-incomplete` the pills are drawn, one pressed, and a pressed « Films » leaves only films, its count equal to the
   rows drawn.
 - B-578: a hold in `resolution_card.py` (a surface with a rule takes a hold, not a file — order 52): a touch on a
-  candidate's poster opens its sheet and picks nothing; a touch on its body still picks. Read RED on the old code.
+  candidate's poster or body opens its sheet and picks nothing; a touch on « Choisir » picks. Read RED on the old code.
 - Re-aimed by name: `virtual.py`, `scroll_keeps_place.py`, `cards.py`, `filters.py`, `library_membership.py`.
 - The oracle accepts by name: every state whose titles wrap (built by script), the library tabs' floor, the pills on
   the two lenses, the candidate card whose poster is now a control.

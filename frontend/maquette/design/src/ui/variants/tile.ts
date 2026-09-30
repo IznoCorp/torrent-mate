@@ -17,9 +17,14 @@ import { cva } from "../cva";
  * A grid of posters: three columns on a phone, one more at each width the port
  * reaches. A container query, because the frame is narrower than the window it
  * sits in, and the port is what the columns have room in.
+ *
+ * ITS TILES SIT AT THE TOP OF THEIR ROW. A tile is a `<button>`, and a stretched
+ * button centres what it holds: since titles wrap (B-584), a tile whose title
+ * took one line drew its poster 8 to 15 px below a neighbour's whose title took
+ * three.
  */
 export const posterGrid = cva(
-  "gallery grid grid-cols-[repeat(3,minmax(0,1fr))] gap-5 " +
+  "gallery grid grid-cols-[repeat(3,minmax(0,1fr))] items-start gap-5 " +
     "@min-[460px]/port:grid-cols-[repeat(4,minmax(0,1fr))] " +
     "@min-[620px]/port:grid-cols-[repeat(5,minmax(0,1fr))] " +
     "@min-[820px]/port:grid-cols-[repeat(6,minmax(0,1fr))]",

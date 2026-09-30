@@ -412,8 +412,12 @@ export const disclosure = cva(
         plain: "[&>summary]:gap-2 [&>summary]:min-h-[44px] [&>summary]:text-3 [&>summary]:font-semibold " +
           "[&>summary]:text-primary-text",
         // A season of a series: the rule between seasons, an uppercase summary.
+        // Its summary WRAPS: « Saison 3 » is one flex item that never breaks,
+        // and a row crowded with marks (« 6/7 », « 1 manquant », « 3 à venir
+        // · dès le … ») carries them onto the next line instead (§ 12) — a
+        // summary that shrank its items broke the title into « Saison / 3 ».
         season: "season [border-top:1px_solid_var(--color-border)] first-of-type:[border-top:0] py-4 " +
-          "[&>summary]:gap-4 [&>summary]:py-2 [&>summary]:text-2 [&>summary]:font-bold " +
+          "[&>summary]:flex-wrap [&>summary]:gap-4 [&>summary]:py-2 [&>summary]:text-2 [&>summary]:font-bold " +
           "[&>summary]:uppercase [&>summary]:[letter-spacing:0.06em] [&>summary]:text-muted-foreground",
       },
     },

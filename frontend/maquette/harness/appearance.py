@@ -106,6 +106,19 @@ async def main():
             "the drawer offers the three appearances, in English",
             offered == ["system", "light", "dark"],
             str(offered))
+        # (a1) THE APPEARANCE BLOCK IS ONE OF THE DRAWER'S GROUPS, aligned
+        # with them: its heading and its selector start where every group's
+        # heading does (the reader of the train: the selector at 0, its heading
+        # at 12, the groups at 20).
+        edges = await page.evaluate(
+            """()=>({headings: [...document.querySelectorAll('#drawer .sect')]
+                       .map((one) => Math.round(one.getBoundingClientRect().left + parseFloat(getComputedStyle(one).paddingLeft))),
+                     selector: Math.round(document.querySelector('#drawer [data-part="view/switch"]')
+                       ?.getBoundingClientRect().left ?? -1)})""")
+        journal.check(
+            "the appearance heading and selector start where the drawer's groups do",
+            len(set(edges["headings"])) == 1 and edges["selector"] == edges["headings"][0],
+            str(edges))
 
         # (a2) THE PRESSED STATE FOLLOWS THE TAP, with no reload (B-580). The
         # operator, on every phone: the theme changed and the selector did not

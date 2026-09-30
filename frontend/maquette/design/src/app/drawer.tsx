@@ -33,6 +33,8 @@ import { useServerStateVersion } from "../lib/query-client";
 import { servedIdentityLines } from "../lib/served-identity";
 import { useStoreContent, useUiState, writeUiState, store } from "../lib/store-access";
 import {
+  drawerAppearance,
+  drawerAppearanceSwitch,
   drawerEntry,
   drawerEntryCount,
   drawerEntryDrawing,
@@ -162,10 +164,10 @@ export function NavigationDrawer(): ReactElement {
           </div>
         ))}
       </nav>
-      <div className={drawerGroup()}>
+      <div className={`${drawerGroup()} ${drawerAppearance()}`}>
         <p className={drawerGroupTitle()}>{t("navigation.appearanceGroup")}</p>
         <div
-          className={viewSwitch()}
+          className={`${viewSwitch()} ${drawerAppearanceSwitch()}`}
           data-part="view/switch"
           role="group"
           aria-label={t("navigation.appearanceLabel")}

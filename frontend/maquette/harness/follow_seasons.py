@@ -20,7 +20,11 @@ the same question of the same answer.
 AND HOW THE SHEET AND THE PANEL DRAW WHAT THEY SAY, each in its own context:
 R-conformity-d, every state pill is the chip (`hold_state_chips`);
 R-conformity-g, a fact's state is the chip at its row's end (`hold_fact_states`);
-R-conformity-l, every coloured episode state is in its legend (`hold_legends`).
+R-conformity-l, every coloured episode state is in its legend (`hold_legends`);
+and a season's title is never broken (`hold_season_titles_whole`): on Silo's
+sheet, whose season 3 is crowded with marks (« 6/7 », « 1 manquant », « 3 à
+venir · dès le … »), « Saison N » sits on one line at 320 and 390 px — the
+reader of the train saw « SAISON / 3 » (2026-09-30); the marks wrap instead.
 """
 import asyncio
 import json
@@ -28,7 +32,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ROOT, SETTLED, Journal, open_page, read_at, chrome_launch_args  # noqa: E402
+from common import PHONE, ROOT, SETTLED, Journal, open_page, read_at, chrome_launch_args  # noqa: E402
 
 from playwright.async_api import async_playwright  # noqa: E402
 
@@ -113,6 +117,7 @@ async def main():
         await hold_state_chips(browser)
         await hold_fact_states(browser)
         await hold_legends(browser)
+        await hold_season_titles_whole(browser)
         await browser.close()
     journal.summary()
 
@@ -204,6 +209,39 @@ async def hold_legends(browser):
         journal.check(f"{state}: the legend names exactly the states drawn",
                       bool(read) and read["drawn"] == read["legend"], f"{read}")
     await context.close()
+
+
+# THE LINES « Saison N » TAKES: the summary's text from its start to its
+# fraction, read as the line boxes a Range covers (a pseudo-element's chevron is
+# not in it), one distinct top per line.
+TITLE_LINES = """()=>[...document.querySelectorAll('[data-part="screen"][data-open] [data-part="season"] > summary')]
+  .map((summary) => {
+    const fraction = summary.querySelector('.sfr');
+    const range = document.createRange();
+    range.setStart(summary, 0);
+    if (fraction) range.setEndBefore(fraction); else range.setEnd(summary, summary.childNodes.length);
+    const tops = new Set([...range.getClientRects()].filter((box) => box.width > 0)
+      .map((box) => Math.round(box.top)));
+    return {title: range.toString().trim(), lines: tops.size};
+  })"""
+
+# THE WIDTHS A SEASON ROW IS READ AT: the narrowest phone and the reference.
+TITLE_WIDTHS = (320, 390)
+
+
+async def hold_season_titles_whole(browser):
+    """A season's title never breaks inside « Saison N »; the marks wrap under it.
+
+    Args:
+        browser: The launched browser; the hold reads a context of its own per width.
+    """
+    for width in TITLE_WIDTHS:
+        context, page = await open_page(browser, viewport={**PHONE["viewport"], "width": width})
+        rows = await read_at(page, "mediasheet-series", TITLE_LINES)
+        broken = [row for row in rows if row["lines"] != 1]
+        journal.check(f"mediasheet-series at {width} px: every « Saison N » sits on one line",
+                      len(rows) >= 3 and not broken, f"{broken[:3]} of {len(rows)} rows")
+        await context.close()
 
 
 if __name__ == "__main__":
