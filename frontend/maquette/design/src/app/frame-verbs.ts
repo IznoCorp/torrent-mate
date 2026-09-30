@@ -151,6 +151,7 @@ function openAddressedPanel(address: string): void {
   const reference = address.slice(separator + 1);
   if (kind === "sug") panel?.produce("suggestion", reference);
   else if (kind === "add") panel?.produce("add", reference);
+  else if (kind === "torrent") panel?.produce("torrent", reference);
   else panel?.produce("follow", reference);
 }
 
