@@ -375,14 +375,20 @@
         "obligationReleased": "libérée le {{date}}",
         "seeSheet": "Voir la fiche",
         "identify": "Identifier",
-        "noFolder": "Aucun dossier à identifier."
+        "noFolder": "Aucun dossier à identifier.",
+        "crossSeedOf": "Cross-seed de",
+        "seeOrigin": "Voir la fiche de l'original"
       },
       "selectorAll": "Tous les trackers",
       "selectorTitle": "Afficher les torrents de",
       "selectorCount_one": "{{count}} torrent",
       "selectorCount_other": "{{count}} torrents",
       "legendBreached": "En infraction",
-      "selectorMeta": "Chaque tracker avec le nombre de ses torrents dans le client."
+      "selectorMeta": "Chaque tracker avec le nombre de ses torrents dans le client.",
+      "crossSeedOf": "cross-seed de {{title}}",
+      "crossSeedActive_one": "cross-seed actif sur {{count}} tracker",
+      "crossSeedActive_other": "cross-seed actif sur {{count}} trackers",
+      "crossSeedNone": "aucun cross-seed actif"
     },
     "releases": {
       "back": "Retour",
@@ -1150,6 +1156,19 @@
         "ownOff": "coupé",
         "failures_one": "{{line}} · {{count}} échec",
         "failures_other": "{{line}} · {{count}} échecs"
+      },
+      "panel": {
+        "lead": "Cross-seed, tracker par tracker",
+        "injected": "injecté le {{date}}",
+        "stoppedBySwitch": "stoppé le {{date}} — l'interrupteur du tracker a coupé les cross-seeds en cours",
+        "stoppedByCut": "stoppé le {{date}} — coupé depuis ce torrent",
+        "tried": "cherché le {{date}}",
+        "candidate": "Candidat : {{name}} sur {{tracker}}",
+        "source": "Source : {{name}} sur {{tracker}}",
+        "wait": "Pourquoi : {{reason}}",
+        "excluded": "Exclu des prochains passages du moteur",
+        "titleExcluded": "Titre exclu : plus aucun cross-seed, sur aucun tracker.",
+        "none": "Aucun autre tracker n'est éligible au cross-seed de ce torrent."
       }
     }
   },

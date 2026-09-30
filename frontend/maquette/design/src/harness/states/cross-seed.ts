@@ -26,6 +26,28 @@ function roster(pose: () => void = () => undefined): void {
   applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
 }
 
+// How long a panel waits for the tab it opens over to be drawn.
+const OPEN_AFTER = 300;
+
+// THE ENTRIES THE STATES OPEN, each a seeded entry: President Curtis cross-seeding
+// on two trackers, Star Trek refused three ways, and President Curtis's copy on tr4ker.
+export const CROSS_SEEDING = "66e23ab395c438b7db4f7c855bd451d8bb1f0046";
+export const REFUSED = "8d51568b1a4f46e1fb7e7b535b52a5203312fc28";
+export const COPY = "7c1e0b2f95c438b7db4f7c855bd451d8bb1f0046";
+
+/**
+ * The « Torrents » tab with one entry's panel open, as a tap on its card's body opens it.
+ *
+ * @param entry The entry, `<hash>:<tracker>`.
+ * @param pose What the state poses on the layer before the page reads it.
+ */
+function torrentPanel(entry: string, pose: () => void = () => undefined): void {
+  fresh();
+  pose();
+  applyState({ page: "trackers", trackersTab: "torrents", trackersFilter: "", phase: "ready" });
+  window.setTimeout(() => window.__panel.produce("torrent", entry), OPEN_AFTER);
+}
+
 /**
  * Every cross-seed state.
  *
@@ -42,6 +64,21 @@ export function crossSeedStates(): NamedState[] {
       "trackers-cross-seed-engine-off",
       "Trackers — le moteur entier est coupé, l'interrupteur de chaque tracker dit ensuite (INVENTÉ)",
       () => roster(() => window.__mocks?.poseCrossSeedEngineOff()),
+    ],
+    [
+      "torrents-cross-seed",
+      "Torrents — la marque cross-seed d'un torrent d'origine, chaque autre tracker dans son état (INVENTÉ)",
+      () => torrentPanel(`${CROSS_SEEDING}:c411`),
+    ],
+    [
+      "torrents-cross-seed-refused",
+      "Torrents — un refus, sa raison en entier : sa phrase, son genre d'ennui, le candidat, la source (INVENTÉ)",
+      () => torrentPanel(`${REFUSED}:c411`),
+    ],
+    [
+      "torrents-obligation-cross-seed",
+      "Torrents — une obligation née d'un cross-seed, son origine et le chemin vers sa fiche (INVENTÉ)",
+      () => torrentPanel(`${COPY}:tr4ker`),
     ],
   ];
 }

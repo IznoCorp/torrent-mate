@@ -267,6 +267,7 @@ danger
 data
 database
 date
+dated
 dead
 deadline
 decimals
@@ -1402,6 +1403,7 @@ visible
 visit
 volumes
 vsw
+wait
 waiters
 waiting
 walk

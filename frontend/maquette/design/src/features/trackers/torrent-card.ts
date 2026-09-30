@@ -163,6 +163,22 @@ function marksOf(entry: Download, obligation: Obligation | undefined, breached: 
   if (running) {
     marks.push({ label: say("obligationOpen"), tone: "info", attributes: { "data-part": "torrents/obligation-open" } });
   }
+  // AN OBLIGATION A CROSS-SEED CREATED says whose copy it is (§ 19 point 2) — one that
+  // is not reads as it did, no mark and no empty slot.
+  if (obligation?.crossSeedOf) {
+    marks.push({
+      label: say("crossSeedOf", { title: obligation.crossSeedOf.title }),
+      attributes: { "data-part": "torrents/obligation-origin", "data-origin-entry": obligation.crossSeedOf.infoHash },
+    });
+  }
+  // AN ORIGIN SAYS WHERE IT CROSS-SEEDS, as the server counts its pairs; its panel says each one.
+  if (entry.crossSeed !== null && entry.crossSeed.pairs.length > 0) {
+    const active = entry.crossSeed.pairs.filter((pair) => pair.state === "active").length;
+    marks.push({
+      label: active === 0 ? say("crossSeedNone") : i18next.t("screens.torrents.crossSeedActive", { count: active }),
+      attributes: { "data-part": "torrents/cross-seed-summary", "data-active": String(active) },
+    });
+  }
   // BROKEN, THE TORRENT STILL HERE: the alert's own reading, never recomputed on
   // the card — « en infraction », never « rompue », which names the torrent gone.
   if (breached) {
