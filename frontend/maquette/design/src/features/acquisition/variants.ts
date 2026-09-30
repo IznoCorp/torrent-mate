@@ -99,19 +99,6 @@ export const addFooterDismiss = cva(
 export const cadence = cva("cadence text-2 text-muted-foreground pt-4 px-7 pb-0");
 
 /**
- * A small segmented control: its buttons side by side on a muted ground, the
- * pressed one lifted. The drawer's alone now — every other segmented choice is
- * `viewSwitch` at its text size — and it goes when the drawer comes to it.
- */
-export const segmentSmall = cva(
-  "segmini flex gap-1 p-1 bg-muted rounded-3 " +
-    "[&_button]:[border:0] [&_button]:rounded-2 [&_button]:[background:transparent] " +
-    "[&_button]:text-muted-foreground [&_button]:text-3 [&_button]:font-semibold [&_button]:py-3 [&_button]:px-6 " +
-    "[&_button[aria-pressed=true]]:bg-background [&_button[aria-pressed=true]]:text-foreground " +
-    "[&_button[aria-pressed=true]]:[box-shadow:var(--mq-shadow-vsw)]",
-);
-
-/**
  * A suggestion row, which a swipe either way dismisses. It claims the vertical
  * pan, selects no text and drags no picture, for the swipe row's reasons; a
  * dismissed one collapses before it leaves.

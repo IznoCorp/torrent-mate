@@ -44,8 +44,9 @@ import {
   drawerIdentityPrimary,
   drawerIdentitySecondary,
   drawerNavigation,
+  viewSwitch,
+  viewSwitchButton,
 } from "../ui/variants";
-import { segmentSmall } from "../features/acquisition/variants";
 
 /** The groups, in the order the table first names them. */
 function grouped(): { key: NavigationGroup; rows: NavigationRow[] }[] {
@@ -160,14 +161,15 @@ export function NavigationDrawer(): ReactElement {
       <div className={drawerGroup()}>
         <p className={drawerGroupTitle()}>{t("navigation.appearanceGroup")}</p>
         <div
-          className={segmentSmall()}
-          data-part="segment-small"
+          className={viewSwitch()}
+          data-part="view/switch"
           role="group"
           aria-label={t("navigation.appearanceLabel")}
         >
           {APPEARANCES.map((mode) => (
             <button
               key={mode}
+              className={viewSwitchButton({ size: "text" })}
               data-appearance={mode}
               aria-pressed={appearance === mode}
               onClick={() => {

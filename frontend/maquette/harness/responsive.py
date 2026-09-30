@@ -79,8 +79,6 @@ PARALLEL = int(os.environ.get("TM_HARNESS_JOBS", "3"))
 OWED: dict[tuple[str, str], str] = {
     # Reds with a named owner and a repair to come: each entry leaves the
     # list in the commit that repairs it, and the rule then holds it.
-    ("bevel", "shell/connection-notice"): "maquette-conformity phase 10 (R1's family)",
-    ("cut", "shell/tab-bar"): "maquette-conformity phase 10",
     # WebKit draws the menu button's icon at no size, in light and in dark.
     ("unseen", "menu"): "defects fast lane",
 }

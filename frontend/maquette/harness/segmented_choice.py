@@ -6,12 +6,15 @@ lists already drew: two drawings for one need. A choice between a few values in
 place is `viewSwitch` at its text size, wherever it is offered.
 
 WHAT IT READS, on the add screen's states with the « by identifier » fold
-opened: no segmented control of another drawing is on screen; every group of
-pressed buttons sits in a `view/switch`; and every such button — the kinds and
-the providers alike — reads one drawing.
+opened, and in the drawer's appearance choice: every group of pressed buttons
+sits in a `view/switch`, and every such button — the kinds, the providers, the
+appearances alike — reads one drawing. And, read in the sources: the frame
+(`app/`) imports nothing from a feature's variants — a frame drawing a
+feature's control is how the drawer came to wear the add screen's.
 """
 import asyncio
 import pathlib
+import re
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -19,6 +22,8 @@ from common import Journal, SETTLED, chrome_launch_args, open_page
 from playwright.async_api import async_playwright
 
 STATES = ("acq-add-empty", "acq-add-results", "acq-identify")
+APP = pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "app"
+FEATURE_VARIANTS = re.compile(r'from\s+"[^"]*features/[^"]*/variants"')
 
 READ = """()=>{
   const screen = document.querySelector('[data-part="screen"][data-open][data-key^="add:"]');
@@ -30,11 +35,24 @@ READ = """()=>{
   };
   const pressed = [...screen.querySelectorAll('button[aria-pressed]')];
   return {
-    others: screen.querySelectorAll('[data-part="segment-small"]').length,
     groups: pressed.length,
     outside: pressed.filter((button) => !button.closest('[data-part="view/switch"]')).length,
     drawings: [...new Set(pressed.map(drawing))],
   };
+}"""
+
+
+DRAWER = """()=>{
+  const drawer = document.querySelector('#drawer[data-open]');
+  if (!drawer) return null;
+  const pressed = [...drawer.querySelectorAll('button[aria-pressed]')];
+  const drawing = (button) => {
+    const style = getComputedStyle(button);
+    return [style.fontSize, style.fontWeight, style.paddingTop, style.paddingLeft, style.borderRadius].join(' ');
+  };
+  return {groups: pressed.length,
+          outside: pressed.filter((button) => !button.closest('[data-part="view/switch"]')).length,
+          drawings: [...new Set(pressed.map(drawing))]};
 }"""
 
 
@@ -53,12 +71,20 @@ async def main():
             read = await page.evaluate(READ)
             journal.check(f"{state}: the kinds and the providers are offered", bool(read) and read["groups"] >= 6,
                           f"{read}")
-            journal.check(f"{state}: every choice sits in the view switch, and no other drawing is on screen",
-                          bool(read) and read["others"] == 0 and read["outside"] == 0, f"{read}")
+            journal.check(f"{state}: every choice sits in the view switch",
+                          bool(read) and read["outside"] == 0, f"{read}")
             journal.check(f"{state}: every choice reads one drawing", bool(read) and len(read["drawings"]) == 1,
                           f"{read}")
+        await page.evaluate("(id)=>window.__go(id)", "drawer-navigation")
+        await page.wait_for_timeout(SETTLED)
+        appearance = await page.evaluate(DRAWER)
+        journal.check("the drawer's appearance choice is the view switch, one drawing",
+                      bool(appearance) and appearance["outside"] == 0 and len(appearance["drawings"]) == 1,
+                      f"{appearance}")
         await context.close()
         await browser.close()
+    imports = [path.name for path in sorted(APP.rglob("*.ts*")) if FEATURE_VARIANTS.search(path.read_text(encoding="utf-8"))]
+    journal.check("the frame imports nothing from a feature's variants", not imports, f"{imports}")
     journal.summary()
 
 

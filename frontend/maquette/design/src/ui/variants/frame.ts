@@ -108,8 +108,9 @@ export const tabBar = cva(
   },
 );
 
+/* `px-0`: a button arrives with the browser's inline padding, which cut a label at 320 px. */
 export const tabBarButton = cva(
-  "flex min-h-[44px] min-w-0 flex-1 basis-0 flex-col items-center justify-center "
+  "flex min-h-[44px] min-w-0 flex-1 basis-0 flex-col items-center justify-center px-0 "
     + "gap-2 py-4 text-3 [border:0] bg-transparent text-muted-foreground "
     + "transition-[color] duration-150 ease-standard",
   {
