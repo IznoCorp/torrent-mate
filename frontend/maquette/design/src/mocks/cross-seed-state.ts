@@ -217,6 +217,7 @@ export type CrossSeedDials = {
   poseCrossSeedSwitchOff: (tracker: string) => void;
   poseCrossSeedPair: (infoHash: string, tracker: string, fields: Partial<Schemas["CrossSeedPair"]>) => void;
   crossSeedSearches: () => CrossSeedHeld["searches"];
+  poseCrossSeedQuotaSpent: () => void;
 };
 
 /** Those dials, over the cross-seed subject. */
@@ -229,6 +230,11 @@ export const crossSeedDials: CrossSeedDials = {
   poseCrossSeedPair: (infoHash: string, tracker: string, fields: Partial<Schemas["CrossSeedPair"]>) => {
     const pair = crossSeedState().torrents[infoHash]?.pairs.find((one) => one.tracker === tracker);
     if (pair !== undefined) Object.assign(pair, fields);
+  },
+  // THE ENGINE'S DAILY QUOTA SPENT: a search asked now waits for tomorrow, still « en file ».
+  poseCrossSeedQuotaSpent: () => {
+    const quota = crossSeedState().quota;
+    quota.used = quota.perDay;
   },
   // NOT A DIAL — a reading: the searches the layer was asked for.
   crossSeedSearches: () => structuredClone(crossSeedState().searches),

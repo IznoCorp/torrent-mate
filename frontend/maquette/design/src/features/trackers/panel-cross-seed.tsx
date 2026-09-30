@@ -22,7 +22,7 @@ import { actionButton, sheetActions, factDetail, factList, factName, factRow, fa
 import { dayOf } from "./format";
 import { useDownloads, useTrackers } from "./queries";
 import {
-  CROSS_SEED_TONE, familyWord, isFailure, reasonSentence, stateWord, type CrossSeedPair,
+  CROSS_SEED_TONE, familyWord, isFailure, isSearchable, reasonSentence, stateWord, type CrossSeedPair,
 } from "./cross-seed-state";
 
 // The block this file adds to the panel's map, declared beside what draws it.
@@ -44,6 +44,9 @@ declare module "../../ui/panel/contract" {
     };
   }
 }
+
+// The seconds in a minute: the engine's delay is said in minutes.
+const SECONDS_PER_MINUTE = 60;
 
 // THE READING ORDER OF THE STATES (F64): a refusal splits in two, counted first.
 const RANK: Readonly<Record<CrossSeedPair["state"], number>> = {
@@ -114,6 +117,22 @@ function PairActs({ pair, origin, titleExcluded }: {
         <button className={actionButton({ kind: "panelAction", tone: "danger" })} data-part="torrents/cross-seed-cut"
           data-cross-seed-cut={subject}>
           {say("cut")}
+        </button>
+      </span>
+    );
+  }
+  // « CHERCHER UN CROSS-SEED » (OPEN 3 = A): only where the engine would act — a
+  // pair with no match, in error or not yet searched, and not excluded. A search
+  // already asked reads « en file », visibly, never « occupé ».
+  if (pair.searching) {
+    return <span className={factDetail()} data-part="torrents/cross-seed-queued"><b>{say("queued")}</b></span>;
+  }
+  if (isSearchable(pair, titleExcluded)) {
+    return (
+      <span className={factDetail()}>
+        <button className={actionButton({ kind: "panelAction", tone: "primary" })} data-part="torrents/cross-seed-search"
+          data-cross-seed-search={subject}>
+          {say("search")}
         </button>
       </span>
     );
@@ -189,7 +208,9 @@ function CrossSeedBlock({ block: posed }: { block: { type: "crossSeed" } & Panel
   // pair moved by an event, a search or a cut is drawn again in the render that
   // follows — never a stale « en file » (F59). The descriptor's pairs stand in
   // until the read is held.
-  const held = useDownloads().data?.downloads.find((entry) => entry.infoHash === posed.origin.infoHash)?.crossSeed;
+  const downloads = useDownloads().data;
+  const held = downloads?.downloads.find((entry) => entry.infoHash === posed.origin.infoHash)?.crossSeed;
+  const quota = downloads?.crossSeedQuota;
   const block = held ? { ...posed, pairs: held.pairs, titleExcluded: held.titleExcluded } : posed;
   const say = (key: string) => t(`screens.crossSeed.panel.${key}`);
   return (
@@ -207,6 +228,14 @@ function CrossSeedBlock({ block: posed }: { block: { type: "crossSeed" } & Panel
             <PairRow key={pair.tracker} pair={pair} origin={block.origin} titleExcluded={block.titleExcluded} />
           ))}
         </ol>
+      )}
+      {/* THE ENGINE'S OWN BOUNDS, shown and never set here (F45: no 3-day window on a hand search). */}
+      {quota === undefined ? null : (
+        <p className={factDetail()} data-part="torrents/cross-seed-quota" data-used={quota.used} data-per-day={quota.perDay}>
+          {t("screens.crossSeed.panel.quota", {
+            used: quota.used, perDay: quota.perDay, delay: Math.round(quota.delaySeconds / SECONDS_PER_MINUTE),
+          })}
+        </p>
       )}
       {/* THE TITLE AS A WHOLE, on the origin, never on one tracker's line (round 9 Q11). */}
       <div className={sheetActions()}>

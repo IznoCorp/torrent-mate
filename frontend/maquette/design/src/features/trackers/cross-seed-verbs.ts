@@ -271,3 +271,40 @@ registerVerb("cross-seed-include-title", (infoHash) => {
     .find((entry) => entry.infoHash === infoHash)?.title ?? "";
   include(infoHash, null, say("includeTitleDone", { title }));
 });
+
+/** The searches asked and not yet answered: a second tap asks nothing (DOIT-4). */
+const asking = new Set<string>();
+
+/**
+ * Asks ONE search — a pair, or every pair of an origin the engine would act on
+ * — and says it is queued, never « occupé ». The pair reads « en file » until
+ * the search's outcome arrives on the stream (F59).
+ *
+ * @param infoHash The origin's hash.
+ * @param tracker The pair's tracker, or null for every pair.
+ */
+function search(infoHash: string, tracker: string | null): void {
+  const subject = `${infoHash}:${tracker ?? ""}`;
+  if (asking.has(subject)) return;
+  asking.add(subject);
+  void send<{ queued: boolean; trackers: string[]; startsAt: number | null }>(
+    "POST", `/api/torrents/${encodeURIComponent(infoHash)}/cross-seed/search`, { tracker },
+  )
+    .then((answer) => {
+      const waiting = typeof answer === "object" && answer !== null && answer.startsAt !== null;
+      toast?.show({ message: say(waiting ? "searchWaiting" : "searchQueued") });
+    })
+    // THE ONE REFUSAL (a duplicate) is said, never swallowed.
+    .catch(() => toast?.show({ message: say("searchDuplicate") }))
+    .then(refresh)
+    .finally(() => asking.delete(subject));
+}
+
+/* « CHERCHER UN CROSS-SEED » on a pair, from the torrent's panel: `<origin hash>:<tracker>`. */
+registerVerb("cross-seed-search", (value) => {
+  const [infoHash, tracker] = value.split(":");
+  if (infoHash && tracker) search(infoHash, tracker);
+});
+
+/* THE CARD'S LEFT DRAWER: every pair of the origin the engine would act on, in its one search. */
+registerVerb("cross-seed-search-all", (infoHash) => search(infoHash, null));

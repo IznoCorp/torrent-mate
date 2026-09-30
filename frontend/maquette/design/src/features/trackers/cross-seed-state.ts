@@ -114,3 +114,19 @@ export function rosterLine(summary: Schemas["TrackerCrossSeed"]): string {
   }
   return summary.failed === 0 ? line : say("failures", { line, count: summary.failed });
 }
+
+// The states a search may be asked on (§ 17 point 1): nothing is offered that the
+// engine would refuse to act on.
+const SEARCHABLE: ReadonlySet<CrossSeedState> = new Set(["noMatch", "error", "notSearched"]);
+
+/**
+ * Whether « Chercher un cross-seed » is offered on a pair.
+ *
+ * @param pair The pair.
+ * @param titleExcluded Whether its whole title is excluded.
+ * @returns True on a pair with no match, in error or not yet searched, neither
+ *     excluded nor already searching.
+ */
+export function isSearchable(pair: CrossSeedPair, titleExcluded: boolean): boolean {
+  return SEARCHABLE.has(pair.state) && !pair.excluded && !pair.searching && !titleExcluded;
+}

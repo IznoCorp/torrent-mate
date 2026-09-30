@@ -35,6 +35,8 @@ const OPEN_AFTER = 300;
 export const CROSS_SEEDING = "66e23ab395c438b7db4f7c855bd451d8bb1f0046";
 export const REFUSED = "8d51568b1a4f46e1fb7e7b535b52a5203312fc28";
 export const COPY = "7c1e0b2f95c438b7db4f7c855bd451d8bb1f0046";
+// Les Zinzins de l'Espace, still downloading: never searched on either tracker.
+export const UNSEARCHED = "c44e8cd75bec37a8337175c6580e85d4e2079da3";
 // Ted Lasso, its whole title excluded.
 export const EXCLUDED = "e1af6819d9e3159e0aa191b534b6a66af4344788";
 
@@ -121,6 +123,19 @@ export function crossSeedStates(): NamedState[] {
       "torrents-cross-seed-exclude",
       "Torrents — un titre exclu entier (Ted Lasso), l'annulation à portée, sans confirmation (INVENTÉ)",
       () => torrentPanel(`${EXCLUDED}:c411`),
+    ],
+    [
+      "torrents-cross-seed-search",
+      "Torrents — « Chercher un cross-seed » offert sur les paires pas encore cherchées, le quota du moteur dit (INVENTÉ)",
+      () => torrentPanel(`${UNSEARCHED}:c411`),
+    ],
+    [
+      "torrents-cross-seed-search-queued",
+      "Torrents — la recherche est en file, dite ; le quota du jour atteint, elle partira demain (INVENTÉ, POSÉ)",
+      () => torrentPanel(`${UNSEARCHED}:c411`, () => {
+        window.__mocks?.poseCrossSeedQuotaSpent();
+        window.__mocks?.poseCrossSeedPair(UNSEARCHED, "tr4ker", { searching: true });
+      }),
     ],
   ];
 }
