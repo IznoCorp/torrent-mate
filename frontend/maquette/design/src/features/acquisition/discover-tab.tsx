@@ -113,7 +113,7 @@ export function DiscoverTab(): ReactElement {
         {/* THE HEADER'S MESSAGE, in the row's free place beside the view switch —
             wrapping where the room is short, never cut; a tap opens it in a
             panel. It comes down into the body if the place is ever taken. */}
-        <div className={pillScroll()} data-part="pill/list">
+        <div className={pillScroll({ train: false })} data-part="pill/list">
           <button className={liveStrip({ inline: true })} data-part="discover/header" data-discover-header="">
             <span className={liveDot()}></span>
             <span data-part="discover/header-text">
