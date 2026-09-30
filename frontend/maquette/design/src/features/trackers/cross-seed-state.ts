@@ -137,6 +137,23 @@ function isEligible(pair: CrossSeedPair, titleExcluded: boolean, originComplete:
   return SEARCHABLE.has(pair.state) && !pair.excluded && !pair.searching && !titleExcluded && originComplete;
 }
 
+/** Who switched a tracker itself off: the operator, or a failure (« Injoignable », a refused identifier). */
+export type TrackerOff = NonNullable<Schemas["Tracker"]["disabled"]>["by"];
+
+/**
+ * Whether a tracker is ITSELF switched off, and by whom — the engine neither
+ * searches nor publishes anything on a tracker off or down, whatever its two
+ * cross-seed switches say (§ 17 point 1).
+ *
+ * @param tracker The tracker as `/api/trackers` answers it, or undefined while unread.
+ * @returns Who switched it off, or null while it is on (or unread: nothing is said that is not read).
+ */
+export function trackerOffBy(tracker: Schemas["Tracker"] | undefined): TrackerOff | null {
+  if (tracker === undefined) return null;
+  if (tracker.disabled !== null) return tracker.disabled.by;
+  return tracker.enabled ? null : "operator";
+}
+
 /**
  * Whether « Chercher un cross-seed » is offered on a pair.
  *
@@ -147,31 +164,51 @@ function isEligible(pair: CrossSeedPair, titleExcluded: boolean, originComplete:
  * @param trackerEnabled Whether the pair's OWN tracker carries its cross-seed
  *     switch on: a switch off refuses the search just as the engine would
  *     (§ 17 point 1), whatever the pair's state.
+ * @param trackerOn Whether the pair's tracker is itself on — neither switched
+ *     off by the operator nor down.
  * @returns True on a pair with no match, in error, not yet searched or stopped,
  *     neither excluded nor already searching, its original complete, its
- *     tracker's switch on.
+ *     tracker on and its switch on.
  */
 export function isSearchable(
-  pair: CrossSeedPair, titleExcluded: boolean, originComplete: boolean, trackerEnabled: boolean,
+  pair: CrossSeedPair, titleExcluded: boolean, originComplete: boolean, trackerEnabled: boolean, trackerOn: boolean,
 ): boolean {
-  return isEligible(pair, titleExcluded, originComplete) && trackerEnabled;
+  return isEligible(pair, titleExcluded, originComplete) && trackerOn && trackerEnabled;
 }
 
 /**
  * Whether a pair reads eligible for a search EXCEPT its own tracker's switch is
  * off — the reason a row gives instead of the button (§ 17 point 1: the true
- * reason, never a silent absence).
+ * reason, never a silent absence). A tracker itself off is said instead.
  *
  * @param pair The pair.
  * @param titleExcluded Whether its whole title is excluded.
  * @param originComplete Whether the original is complete.
  * @param trackerEnabled Whether the pair's own tracker carries its switch on.
+ * @param trackerOn Whether the pair's tracker is itself on.
  * @returns True when the switch alone is what withholds the search.
  */
 export function isSwitchedOff(
-  pair: CrossSeedPair, titleExcluded: boolean, originComplete: boolean, trackerEnabled: boolean,
+  pair: CrossSeedPair, titleExcluded: boolean, originComplete: boolean, trackerEnabled: boolean, trackerOn: boolean,
 ): boolean {
-  return isEligible(pair, titleExcluded, originComplete) && !trackerEnabled;
+  return isEligible(pair, titleExcluded, originComplete) && trackerOn && !trackerEnabled;
+}
+
+/**
+ * Whether a pair reads eligible for a search EXCEPT its tracker is itself off
+ * or down — the reason a row gives instead of both acts (§ 17 point 1), before
+ * any of its switches: nothing is searched nor published on it.
+ *
+ * @param pair The pair.
+ * @param titleExcluded Whether its whole title is excluded.
+ * @param originComplete Whether the original is complete.
+ * @param trackerOn Whether the pair's tracker is itself on.
+ * @returns True when the tracker's own state is what withholds the acts.
+ */
+export function isTrackerOff(
+  pair: CrossSeedPair, titleExcluded: boolean, originComplete: boolean, trackerOn: boolean,
+): boolean {
+  return isEligible(pair, titleExcluded, originComplete) && !trackerOn;
 }
 
 /**
@@ -194,6 +231,8 @@ export type UploadGate = {
   titleExcluded: boolean;
   /** Whether the origin is active in the client, complete and seeding (round 11 OPEN 1 = A). */
   originSeeding: boolean;
+  /** Whether the pair's tracker is itself on — neither switched off by the operator nor down. */
+  trackerOn: boolean;
   /** Whether the pair's tracker carries its cross-seed switch on. */
   trackerEnabled: boolean;
   /** Whether the pair's tracker carries its « accepte les uploads » switch on (round 11 OPEN 2 = B). */
@@ -222,20 +261,21 @@ function isUploadEligible(pair: CrossSeedPair, gate: UploadGate): boolean {
  * @returns True where nothing already cross-seeds and the engine would act.
  */
 export function isUploadable(pair: CrossSeedPair, gate: UploadGate): boolean {
-  return isUploadEligible(pair, gate) && gate.trackerEnabled && gate.acceptsUploads;
+  return isUploadEligible(pair, gate) && gate.trackerOn && gate.trackerEnabled && gate.acceptsUploads;
 }
 
 /**
  * Whether a pair reads eligible for an upload EXCEPT its tracker refuses
  * uploads — the reason a row gives instead of the act (§ 17 point 1: the true
- * reason, never a silent absence). The cross-seed switch off is said already.
+ * reason, never a silent absence). The tracker off and the cross-seed switch
+ * off are said already.
  *
  * @param pair The pair.
  * @param gate What the gesture reads of its origin and its tracker.
  * @returns True when the « accepte les uploads » switch alone withholds it.
  */
 export function isUploadRefused(pair: CrossSeedPair, gate: UploadGate): boolean {
-  return isUploadEligible(pair, gate) && gate.trackerEnabled && !gate.acceptsUploads;
+  return isUploadEligible(pair, gate) && gate.trackerOn && gate.trackerEnabled && !gate.acceptsUploads;
 }
 
 /**

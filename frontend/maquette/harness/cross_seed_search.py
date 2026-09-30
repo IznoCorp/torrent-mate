@@ -9,9 +9,10 @@ card's left drawer is the row's one « for » action — the manual cross-seed.
 L17 DESIGN § 3.3.
 
 1. the act is offered ONLY on a pair with no match, in error, not yet searched or
-   stopped, not excluded, its original complete — never on « actif », « tracker
-   sans cross-seed », an excluded pair, nor while the original still downloads
-   (the pair's line says why, and says the TRUE reason);
+   stopped, not excluded, its original complete, its tracker itself on (neither
+   off nor down, L23 N-bis) — never on « actif », « tracker sans cross-seed », an
+   excluded pair, nor while the original still downloads (the pair's line says
+   why, and says the TRUE reason);
 1b. a cut pair, its exclusion undone, offers the search, and the search resolves
    it like a fresh one (§ 3.3: resuming IS « Chercher un cross-seed »); a title
    shared again offers the card's drawer;
@@ -58,6 +59,8 @@ OFFERS = """() => {
   return [...document.querySelectorAll('#sheet[data-open] [data-part="torrents/cross-seed-row"]')].map(row => ({
     tracker: row.dataset.tracker, state: row.dataset.state, excluded: row.dataset.excluded === 'true',
     downloading: !!entry && entry.progress < 1,
+    trackerOn: (() => { const one = (window.__queries?.getQueryData(['/api/trackers']) || [])
+      .find(t => t.name === row.dataset.tracker); return !one || (one.enabled && !one.disabled); })(),
     offered: !!row.querySelector('[data-part="torrents/cross-seed-search"]'),
     queued: row.querySelector('[data-part="torrents/cross-seed-queued"]')?.textContent.trim() ?? null,
     wait: row.querySelector('[data-part="torrents/cross-seed-wait"]')?.textContent.trim() ?? null,
@@ -119,9 +122,10 @@ async def main():
             await panel(page, entry)
             rows += await page.evaluate(OFFERS)
         wrong = [row for row in rows
-                 if row["offered"] != (row["state"] in SEARCHABLE and not row["excluded"] and not row["downloading"])]
+                 if row["offered"] != (row["state"] in SEARCHABLE and not row["excluded"] and not row["downloading"]
+                                       and row["trackerOn"])]
         journal.check("offered only on a pair with no match, in error, not yet searched or stopped, not excluded, "
-                      "its original complete",
+                      "its original complete, its tracker itself on",
                       bool(rows) and any(row["offered"] for row in rows)
                       and any(row["state"] == "stopped" and row["offered"] for row in rows) and not wrong,
                       repr(wrong or [(row["tracker"], row["state"], row["offered"]) for row in rows]))

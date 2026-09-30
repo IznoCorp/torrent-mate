@@ -29,8 +29,9 @@ import { dayOf } from "./format";
 import { useDownloads, useTrackers } from "./queries";
 import type { SwitchWrite } from "./cross-seed-verbs";
 import {
-  CROSS_SEED_TONE, familyWord, isComplete, isFailure, isSearchable, isSeeding, isSwitchedOff, isUploadRefused,
-  isUploadable, reasonSentence, stateWord, type CrossSeedPair, type UploadGate,
+  CROSS_SEED_TONE, familyWord, isComplete, isFailure, isSearchable, isSeeding, isSwitchedOff, isTrackerOff,
+  isUploadRefused, isUploadable, reasonSentence, stateWord, trackerOffBy, type CrossSeedPair, type TrackerOff,
+  type UploadGate,
 } from "./cross-seed-state";
 
 // The block this file adds to the panel's map, declared beside what draws it.
@@ -112,6 +113,8 @@ type PairContext = {
   pair: CrossSeedPair;
   origin: PanelBlockMap["crossSeed"]["origin"];
   titleExcluded: boolean;
+  /** Who switched the pair's tracker itself off, or null while it is on. */
+  trackerOff: TrackerOff | null;
   /** Whether the pair's own tracker carries its cross-seed switch on. */
   trackerEnabled: boolean;
   /** Whether the pair's own tracker carries its « accepte les uploads » switch on. */
@@ -124,8 +127,8 @@ type PairContext = {
  * @param context The pair and what its row reads.
  * @returns The gate.
  */
-function gateOf({ origin, titleExcluded, trackerEnabled, acceptsUploads }: PairContext): UploadGate {
-  return { titleExcluded, originSeeding: origin.seeding, trackerEnabled, acceptsUploads };
+function gateOf({ origin, titleExcluded, trackerOff, trackerEnabled, acceptsUploads }: PairContext): UploadGate {
+  return { titleExcluded, originSeeding: origin.seeding, trackerOn: trackerOff === null, trackerEnabled, acceptsUploads };
 }
 
 /**
@@ -138,7 +141,7 @@ function gateOf({ origin, titleExcluded, trackerEnabled, acceptsUploads }: PairC
  * @returns The pair's buttons, or nothing.
  */
 function PairActs(context: PairContext): ReactElement | null {
-  const { pair, origin, titleExcluded, trackerEnabled } = context;
+  const { pair, origin, titleExcluded, trackerOff, trackerEnabled } = context;
   const { t } = useTranslation();
   const say = (key: string) => t(`screens.crossSeed.panel.${key}`);
   const subject = `${origin.infoHash}:${pair.tracker}`;
@@ -162,7 +165,7 @@ function PairActs(context: PairContext): ReactElement | null {
   if (pair.uploading) {
     return <span className={factDetail()} data-part="torrents/cross-seed-upload-queued"><b>{say("uploadQueued")}</b></span>;
   }
-  const searchable = isSearchable(pair, titleExcluded, isComplete(origin), trackerEnabled);
+  const searchable = isSearchable(pair, titleExcluded, isComplete(origin), trackerEnabled, trackerOff === null);
   const uploadable = isUploadable(pair, gateOf(context));
   if (searchable || uploadable) {
     return (
@@ -202,7 +205,7 @@ function PairActs(context: PairContext): ReactElement | null {
  * @returns The row.
  */
 function PairRow(context: PairContext): ReactElement {
-  const { pair, origin, titleExcluded, trackerEnabled } = context;
+  const { pair, origin, titleExcluded, trackerOff, trackerEnabled } = context;
   const { t } = useTranslation();
   const say = (key: string, values: Record<string, string> = {}) => t(`screens.crossSeed.panel.${key}`, values);
   const date = dateOf(pair, say);
@@ -234,7 +237,12 @@ function PairRow(context: PairContext): ReactElement {
           <span className={factDetail()} data-part="torrents/cross-seed-wait">
             {say("wait", { reason: t(`screens.crossSeed.waits.${pair.waitReason}`) })}
           </span>
-        ) : isSwitchedOff(pair, titleExcluded, isComplete(origin), trackerEnabled) ? (
+        ) : trackerOff !== null && isTrackerOff(pair, titleExcluded, isComplete(origin), false) ? (
+          // THE TRACKER ITSELF OFF OR DOWN (§ 17 point 1): neither act, and the true reason, before any switch's.
+          <span className={factDetail()} data-part="torrents/cross-seed-tracker-off" data-by={trackerOff}>
+            {say("wait", { reason: t(`screens.crossSeed.waits.${trackerOff === "failure" ? "trackerDown" : "trackerOff"}`) })}
+          </span>
+        ) : isSwitchedOff(pair, titleExcluded, isComplete(origin), trackerEnabled, trackerOff === null) ? (
           <span className={factDetail()} data-part="torrents/cross-seed-wait">
             {say("wait", { reason: t("screens.crossSeed.waits.switchOff") })}
           </span>
@@ -270,6 +278,8 @@ function CrossSeedBlock({ block: posed }: { block: { type: "crossSeed" } & Panel
   // THE PAIR'S OWN TRACKER SWITCH (§ 17 point 1): the same `/api/trackers` read
   // the page already holds (R-L17-k), never a second operation for this block.
   const trackers = useTrackers().data;
+  // THE TRACKER ITSELF (§ 17 point 1): off by the operator or down, nothing is searched nor published there.
+  const offOf = (tracker: string) => trackerOffBy(trackers?.find((one) => one.name === tracker));
   const enabledOf = (tracker: string) => trackers?.find((one) => one.name === tracker)?.crossSeed.enabled ?? true;
   // « ACCEPTE LES UPLOADS » (round 11 OPEN 2 = B): unread, nothing is offered it might withdraw.
   const acceptsOf = (tracker: string) => trackers?.find((one) => one.name === tracker)?.crossSeed.acceptsUploads ?? false;
@@ -294,7 +304,8 @@ function CrossSeedBlock({ block: posed }: { block: { type: "crossSeed" } & Panel
           {orderedPairs(block.pairs).map((pair) => (
             <PairRow
               key={pair.tracker} pair={pair} origin={block.origin} titleExcluded={block.titleExcluded}
-              trackerEnabled={enabledOf(pair.tracker)} acceptsUploads={acceptsOf(pair.tracker)}
+              trackerOff={offOf(pair.tracker)} trackerEnabled={enabledOf(pair.tracker)}
+              acceptsUploads={acceptsOf(pair.tracker)}
             />
           ))}
         </ol>

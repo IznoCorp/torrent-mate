@@ -1153,7 +1153,9 @@
       "waits": {
         "downloading": "l'original est encore en téléchargement",
         "quota": "en attente du quota du jour",
-        "switchOff": "l'interrupteur cross-seed du tracker est coupé"
+        "switchOff": "l'interrupteur cross-seed du tracker est coupé",
+        "trackerOff": "le tracker est désactivé : rien n'y est cherché ni publié",
+        "trackerDown": "le tracker est désactivé par une panne : rien n'y est cherché ni publié"
       },
       "line": {
         "active_one": "Cross-seed : actif — {{count}} torrent",

@@ -6,7 +6,7 @@
 import { DELETE, POST, PUT, field, route } from "./shared";
 import { mockState } from "../state";
 import { crossSeedKey, crossSeedState, nowSeconds, stopRunningOn, switchOf, uploadsKey } from "../cross-seed-state";
-import { trackersState } from "../trackers-state";
+import { enabledKey, trackersState } from "../trackers-state";
 import { refused, type MockRoute } from "../router";
 import { emit } from "../stream";
 import type { components } from "../../contract/types";
@@ -39,10 +39,22 @@ const UPLOADABLE: ReadonlySet<string> = new Set(["noMatch", "error", "notSearche
 const NO_TORRENT = "no origin torrent carries that hash";
 const NO_PAIR = "that torrent has no cross-seed pair on that tracker";
 const NOT_RUNNING = "that pair is not running: there is nothing to cut";
-const NOT_SEARCHABLE = "a search is offered only on a pair with no match, in error, not yet searched or stopped, not excluded, its own tracker's switch on, its original complete";
+const NOT_SEARCHABLE = "a search is offered only on a pair with no match, in error, not yet searched or stopped, not excluded, its own tracker on and its switch on, its original complete";
 const DUPLICATE = "a search is already queued for that pair";
-const NOT_UPLOADABLE = "an upload is offered only on a pair with no match, in error or not yet searched, not excluded, its original active in the client, complete and seeding, its tracker's cross-seed and « accepte les uploads » switches on";
+const NOT_UPLOADABLE = "an upload is offered only on a pair with no match, in error or not yet searched, not excluded, its original active in the client, complete and seeding, its tracker on and its cross-seed and « accepte les uploads » switches on";
 const DUPLICATE_UPLOAD = "an upload is already queued for that pair";
+
+/**
+ * Whether a tracker is itself on — read where `readTrackers` reads it, the
+ * setting the roster's switch and Réglages write: off by the operator or down
+ * (a failure switches it off), the engine searches and publishes nothing there.
+ *
+ * @param tracker The tracker's configured name.
+ * @returns True while it is on.
+ */
+function trackerOn(tracker: string): boolean {
+  return switchOf(enabledKey(tracker));
+}
 
 /**
  * One origin's cross-seed, or a refusal.
@@ -191,10 +203,10 @@ export function crossSeedRoutes(): MockRoute[] {
       if (typeof tracker === "string" && asked.length === 0) return refused(404, NO_PAIR);
       // A SECOND ASK ON A PAIR ALREADY SEARCHING is the one refusal (DOIT-4).
       if (asked.some((one) => one.searching) && typeof tracker === "string") return refused(409, DUPLICATE);
-      // NOTHING IS OFFERED THE ENGINE WOULD REFUSE (§ 17 point 1): a tracker whose
-      // own cross-seed switch is off searches nothing there, whatever the pair's state.
+      // NOTHING IS OFFERED THE ENGINE WOULD REFUSE (§ 17 point 1): a tracker off or
+      // down, or whose own cross-seed switch is off, searches nothing there, whatever the pair's state.
       const pairs = asked.filter((one) => SEARCHABLE.has(one.state) && !one.excluded && !one.searching
-        && !torrent.titleExcluded && complete && switchOf(crossSeedKey(one.tracker)));
+        && !torrent.titleExcluded && complete && trackerOn(one.tracker) && switchOf(crossSeedKey(one.tracker)));
       if (pairs.length === 0) return refused(409, NOT_SEARCHABLE);
       const held = crossSeedState();
       held.searches.push({ infoHash, tracker: typeof tracker === "string" ? tracker : null });
@@ -220,10 +232,10 @@ export function crossSeedRoutes(): MockRoute[] {
       // ONLY A TORRENT ACTIVE IN THE CLIENT, COMPLETE AND SEEDING (round 11 OPEN 1 = A).
       const seeding = trackersState().downloads
         .some((entry) => entry.infoHash === infoHash && entry.progress >= 1 && entry.state === "seeding");
-      // NOTHING OFFERED THE ENGINE WOULD REFUSE (§ 17 point 1): both of the
-      // tracker's switches on — its cross-seed, and its « accepte les uploads ».
+      // NOTHING OFFERED THE ENGINE WOULD REFUSE (§ 17 point 1): the tracker itself
+      // on — neither off nor down — and both of its switches on, its cross-seed and its « accepte les uploads ».
       const uploadable = UPLOADABLE.has(pair.state) && !pair.excluded && !pair.searching && !torrent.titleExcluded
-        && seeding && switchOf(crossSeedKey(tracker)) && switchOf(uploadsKey(tracker));
+        && seeding && trackerOn(tracker) && switchOf(crossSeedKey(tracker)) && switchOf(uploadsKey(tracker));
       if (!uploadable) return refused(409, NOT_UPLOADABLE);
       crossSeedState().uploads.push({ infoHash, tracker });
       pair.uploading = true;

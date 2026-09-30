@@ -20,7 +20,11 @@ R451 (R-L23-b) — offered only where nothing already cross-seeds:
 2. the pair's tracker no longer accepting uploads: the act is gone, its line
    says why, the search is still offered; its cross-seed switch off: the act is
    gone too, the switch's own reason said once;
-3. the layer's own handler refuses an upload asked where the act is not drawn.
+3. the layer's own handler refuses an upload asked where the act is not drawn;
+3b. the pair's tracker ITSELF switched off, by a failure (lacale, « Injoignable »)
+   or by the operator, its two cross-seed switches left on: neither the upload
+   nor the search is offered, the row's line says the tracker is off and why,
+   and the layer's handlers refuse both (§ 17 point 1).
 
 R453 (R-L23-d) — the confirmation names what is published, before any call:
 4. `torrents-cross-seed-upload-confirm`: the tracker and the release whose files
@@ -78,8 +82,11 @@ OFFERS = """() => {
     .find(one => one.infoHash === origin?.dataset.entry);
   return [...document.querySelectorAll('#sheet[data-open] [data-part="torrents/cross-seed-row"]')].map(row => ({
     tracker: row.dataset.tracker, state: row.dataset.state, excluded: row.dataset.excluded === 'true',
+    trackerOff: row.querySelector('[data-part="torrents/cross-seed-tracker-off"]')?.textContent.trim() ?? null,
     titleExcluded: origin?.dataset.titleExcluded === 'true',
     seeding: !!entry && entry.progress >= 1 && entry.state === 'seeding',
+    trackerOn: (() => { const one = (window.__queries?.getQueryData(['/api/trackers']) || [])
+      .find(t => t.name === row.dataset.tracker); return !one || (one.enabled && !one.disabled); })(),
     offered: !!row.querySelector('[data-part="torrents/cross-seed-upload"]'),
     searched: !!row.querySelector('[data-part="torrents/cross-seed-search"]'),
     queued: row.querySelector('[data-part="torrents/cross-seed-upload-queued"]')?.textContent.trim() ?? null,
@@ -117,6 +124,17 @@ PUBLISHED_CARD = """(tracker) => [...document.querySelectorAll('#view [data-part
 # Asks the layer for an upload the way the interface would, bypassing the act.
 FORCE = """async ([hash, tracker]) => (await fetch(
   `/api/torrents/${hash}/cross-seed/${encodeURIComponent(tracker)}/upload`, { method: 'POST' })).status"""
+# Asks the layer for a search on one pair the way the interface would, bypassing the act.
+FORCE_SEARCH = """async ([hash, tracker]) => (await fetch(`/api/torrents/${hash}/cross-seed/search`, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tracker }) })).status"""
+# Writes tracker settings the way Réglages does — the operator's own gesture — and
+# forgets the page's stale trackers read.
+WRITE = """async (values) => {
+  const status = (await fetch('/api/config/files/tracker', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) })).status;
+  window.__queries?.removeQueries({ queryKey: ['/api/trackers'] });
+  return status;
+}"""
 # Poses a scenario on the layer and forgets the page's stale trackers read.
 POSE = """([dial, args]) => {
   window.__mocks?.[dial](...args);
@@ -168,10 +186,12 @@ async def main():
             await panel(page, f"{entry}:c411")
             seen += await page.evaluate(OFFERS)
         wrong = [row for row in seen if row["offered"] != (
-            row["state"] in UPLOADABLE_STATES and not row["excluded"] and not row["titleExcluded"] and row["seeding"])]
+            row["state"] in UPLOADABLE_STATES and not row["excluded"] and not row["titleExcluded"] and row["seeding"]
+            and row["trackerOn"])]
         states = {row["state"] for row in seen}
         journal.check("R451 offered only on a pair with no match, in error or not yet searched, not excluded, its "
-                      "origin seeding — never on actif, stoppé, tracker sans cross-seed, nor while it downloads",
+                      "origin seeding, its tracker itself on — never on actif, stoppé, tracker sans cross-seed, nor "
+                      "while it downloads",
                       answer is None and any(row["offered"] for row in seen)
                       and {"active", "stopped", "trackerWithout", "notSearched"} <= states and not wrong,
                       repr(answer or wrong or [(row["tracker"], row["state"], row["offered"]) for row in seen]))
@@ -197,6 +217,35 @@ async def main():
             ("downloading", UNSEARCHED, "tr4ker"), ("excluded", EXCLUDED, "v3x.club"))}
         journal.check("R451 the layer refuses an upload asked where the act is not drawn",
                       all(status == 409 for status in forced.values()), repr(forced))
+
+        # The tracker itself off — down (lacale, by a failure) or by the operator
+        # (v3x.club) — its cross-seed and « accepte les uploads » switches on.
+        for tracker, by, key in (("lacale", "failure", "trackerDown"), ("v3x.club", "operator", "trackerOff")):
+            await enter(page, "torrents-cross-seed-upload")
+            values = {f"tracker:tracker.providers.{tracker}.cross_seed": True,
+                      f"tracker:tracker.providers.{tracker}.accepts_uploads": True}
+            if by == "operator":
+                values[f"tracker:tracker.providers.{tracker}.enabled"] = False
+            written = await page.evaluate(WRITE, values)
+            state = await page.evaluate(
+                "(name) => fetch('/api/trackers').then(answer => answer.json())"
+                ".then(all => { const one = all.find(t => t.name === name);"
+                " return { enabled: one.enabled, by: one.disabled?.by ?? null, crossSeed: one.crossSeed.enabled,"
+                " uploads: one.crossSeed.acceptsUploads }; })", tracker)
+            await panel(page, f"{REFUSED}:c411")
+            row = (await rows(page)).get(tracker, {})
+            said = WORDS["waits"].get(key)
+            journal.check(f"R451 {tracker} switched off by {by}, its two switches on: neither the upload nor the "
+                          "search is offered, and its line says the tracker is off and why",
+                          written == 200 and state == {"enabled": False, "by": by, "crossSeed": True, "uploads": True}
+                          and row.get("state") == "error" and row.get("offered") is False
+                          and row.get("searched") is False and said is not None
+                          and said in (row.get("trackerOff") or "") and row.get("off") is None,
+                          f"{written} · {state} · {row}")
+            refusals = {"upload": await page.evaluate(FORCE, [REFUSED, tracker]),
+                        "search": await page.evaluate(FORCE_SEARCH, [REFUSED, tracker])}
+            journal.check(f"R451 {tracker} switched off by {by}: the layer refuses the upload and the search",
+                          all(status == 409 for status in refusals.values()), repr(refusals))
 
         # ── R453: the confirmation names what is published, before any call ──
         await enter(page, "torrents-cross-seed-upload")
