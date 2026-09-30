@@ -650,6 +650,7 @@ login
 loginerr
 loginform
 long
+look
 lookup
 loop
 lossy
@@ -842,6 +843,7 @@ plex
 point
 points
 policy
+poll
 pong
 pop
 popover
@@ -995,6 +997,7 @@ resume
 resumed
 retry
 return
+reused
 reversed
 rich
 right
@@ -1155,6 +1158,7 @@ standard
 standby
 standing
 start
+started
 startup
 state
 states
@@ -1216,6 +1220,7 @@ take
 takeable
 taken
 takes
+tap
 target
 teardown
 temp
@@ -1293,6 +1298,7 @@ unknown
 unmatched
 unnamed
 unreachable
+unread
 unreadable
 unseen
 unset
@@ -1369,6 +1375,7 @@ visible
 visit
 volumes
 vsw
+wait
 waiters
 waiting
 walk

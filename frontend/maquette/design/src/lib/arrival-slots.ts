@@ -155,3 +155,15 @@ export function inFlightCards(queue: { inFlight: QueueCard[]; arrivals: QueueCar
   const live = liveKeys(queue);
   return onTheirWay(queue).filter((card) => card.absorbedBy == null || !live.has(card.absorbedBy));
 }
+
+/**
+ * Every acquisition still live — « En cours »'s cards and « À traiter »'s: what
+ * the season's row reads to say « Demandée » until the library (Q5). ONE
+ * derivation with « En cours » (§13): a card shelved has left both.
+ *
+ * @param queue The queue's answer.
+ * @returns The cards.
+ */
+export function liveCards(queue: { inFlight: QueueCard[]; arrivals: QueueCard[]; blocked: QueueCard[] }): QueueCard[] {
+  return [...inFlightCards(queue), ...todoCards(queue)];
+}

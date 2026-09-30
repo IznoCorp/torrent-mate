@@ -163,7 +163,7 @@ SEASON_KEYS = ("seasonAsked", "seasonAskedOne", "seasonAskedNone", "seasonQueued
 # The season's own mark while its one-off acquisition lives.
 ASKED_MARK = json.loads(
     (ROOT / "design" / "src" / "i18n" / "fr.json").read_text(encoding="utf-8")
-)["screens"]["media"]["seasonAskedOnce"]
+)["screens"]["media"]["seasonRequested"]
 
 ANSWERED = "()=>(window.__mocks?.answered?.() || [])"
 

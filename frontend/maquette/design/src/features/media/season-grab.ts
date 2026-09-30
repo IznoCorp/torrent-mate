@@ -25,6 +25,8 @@ type SeasonGrab = {
   season: number;
   absorbedCount: number;
   queued: boolean;
+  /** A live recovery of that season was already there: nothing more is queued. */
+  reused: boolean;
   runUid: string | null;
 };
 
@@ -176,7 +178,11 @@ export async function grabSeason(title: string, season: number): Promise<boolean
     // panel read as about American Dad!, where the ask was Silo's. The take's
     // own sentence already names its show.
     const count = grab?.absorbedCount ?? 0;
-    const messageKey = grab?.queued
+    // A LIVE RECOVERY OF THAT SEASON WAS ALREADY THERE — the engine answers
+    // `reused` and queues nothing more: said so, never as a new ask.
+    const messageKey = grab?.reused
+      ? "seasonAlreadyAsked"
+      : grab?.queued
       ? "seasonQueued"
       : count === 0
         ? "seasonAskedNone"

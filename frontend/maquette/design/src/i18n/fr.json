@@ -389,7 +389,8 @@
       "unread": "non lu",
       "unreadFeminine": "non lue",
       "seasonWaitingOnPipeline": "En file — pipeline en cours",
-      "seasonAskedOnce": "Demandée",
+      "seasonRequested": "Demandée",
+      "seasonRequestedAutomatic": "Demandée · auto",
       "episodeState": {
         "in_library": "En médiathèque",
         "to_grab": "À récupérer",
@@ -1386,6 +1387,7 @@
       "seasonAsked": "Saison {{season}} de « {{title}} » demandée — {{count}} épisodes à récupérer.",
       "seasonAskedOne": "Saison {{season}} de « {{title}} » demandée — 1 épisode à récupérer.",
       "seasonAskedNone": "Saison {{season}} de « {{title}} » demandée — aucun épisode à récupérer.",
+      "seasonAlreadyAsked": "Saison {{season}} de « {{title}} » déjà demandée — sa récupération est en cours.",
       "seasonQueued": "Saison {{season}} de « {{title}} » en file — pipeline en cours.",
       "seasonHeld": "Saison {{season}} de « {{title}} » demandée — en attente du réseau, elle partira au retour.",
       "seasonRefused": "Saison {{season}} de « {{title}} » : la demande n'a pas abouti.",

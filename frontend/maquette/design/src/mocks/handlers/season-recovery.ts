@@ -7,6 +7,7 @@
 // (demand SR1): the season's card, and `absorbedBy` on every card it covers. A
 // FOLLOWED series' ask used to queue no card at all — the one-off's guard was
 // the only path that queued one (DESIGN maquette-season-recovery § 0.1 item 1).
+import SEASONS from "../seeds/seasons.json";
 import { mockState } from "../state";
 import { acquisitionKey } from "../../lib/arrival-slots";
 import { forgetLadder, ladderOf, rungIndex, stripPosition, type Position } from "./ladder";
@@ -92,12 +93,19 @@ function absorbInto(season: QueueCard): number {
  */
 export function recoverSeason(card: QueueCard): { reused: boolean } {
   const state = mockState();
-  const held = card.season == null ? undefined : seasonCardOf(card.title, card.season);
-  if (held !== undefined) return { reused: true };
-  state.inFlightReel = [card, ...state.inFlightReel];
-  state.inFlight = [card, ...state.inFlight];
-  absorbInto(card);
-  return { reused: false };
+  // EACH WORLD HOLDS ITS OWN LISTS: the dense world's recovery of a season is
+  // not the real world's, so an ask is queued in every world that lacks it, and
+  // answered `reused` only where every world already held it.
+  const holds = (cards: QueueCard[]) => [...cards, ...state.blocked].some((one) => one.title === card.title
+    && isSeason(one) && one.season === card.season);
+  let reused = true;
+  for (const list of FLIGHT_LISTS) {
+    if (holds(state[list])) continue;
+    state[list] = [card, ...state[list]];
+    reused = false;
+  }
+  if (!reused) absorbInto(card);
+  return { reused };
 }
 
 /**
@@ -216,6 +224,42 @@ export function poseSeasonArrived(title: string, season: number, release: string
   forgetLadder(acquisitionKey(card));
   state.moving = [{ ...pack, secondaryLine: `${card.secondaryLine} · ${release}`, strip: [1, 1, "now", 0, 0] },
     ...state.moving];
+}
+
+// WHAT A SHELVED SEASON ADDED TO THE LIBRARY, keyed by the layer's state so a
+// reset forgets it with everything else: per series, per season, its episodes.
+const shelvedIn = new WeakMap<object, Map<string, Record<string, number[]>>>();
+
+/**
+ * The episodes a shelved recovery added to one series' library, per season.
+ *
+ * @param titles Every title the series is known under.
+ * @returns The episodes by season, empty when nothing was shelved.
+ */
+export function shelvedEpisodes(titles: string[]): Record<string, number[]> {
+  const held = shelvedIn.get(mockState());
+  if (held === undefined) return {};
+  const title = titles.find((one) => held.has(one)) ?? [...held.keys()].find((one) =>
+    titles.some((known) => known.startsWith(`${one} (`)));
+  return title === undefined ? {} : held.get(title) ?? {};
+}
+
+/**
+ * The season reaches the library — its card's rung « rangé » done: the card
+ * leaves, the episodes it covered with it, and the library holds every episode
+ * of the season that aired, until the layer is next reset.
+ *
+ * @param title The medium.
+ * @param season The season, 1-based.
+ */
+export function poseSeasonShelved(title: string, season: number): void {
+  poseSeasonEnded(title, season, "abandoned");
+  const aired = ((SEASONS as Record<string, { season: number; aired: number }[]>)[title] ?? [])
+    .find((one) => one.season === season)?.aired ?? 0;
+  const state = mockState();
+  const held = shelvedIn.get(state) ?? new Map<string, Record<string, number[]>>();
+  shelvedIn.set(state, held);
+  held.set(title, { ...held.get(title), [String(season)]: Array.from({ length: aired }, (_, index) => index + 1) });
 }
 
 /** The rung a season's card is searched on, while no release is found yet. */

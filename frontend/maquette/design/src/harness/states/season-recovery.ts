@@ -13,13 +13,18 @@ import { applyState, type NamedState } from "../drive";
 const SERIES = "Silo";
 const SEASON = 3;
 const ONE_OFF = "Les aventures de Tintin";
-const ONE_OFF_SEASON = 2;
+const ONE_OFF_SEASON = 3;
 // The season pack the dense world's releases hold, its line's tail once arrived.
 const PACK = "MULTi · 1080p";
 
 /** Drops the queue the reset already asked for, so the page asks the posed world again. */
 function forgetQueue(): void {
   window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
+}
+
+/** Drops the seasons reads already held, so a surface reads what a posed shelving put in the library. */
+function forgetSeasons(): void {
+  window.__queries?.removeQueries({ queryKey: ["/api/media"] });
 }
 
 /** « En cours », in the dense world. */
@@ -40,8 +45,138 @@ async function ask(title: string, season: number): Promise<void> {
   forgetQueue();
 }
 
+/** The media sheet of the subject, in the dense world, opened as a tap on its card opens it. */
+function sheet(title: string): void {
+  applyState({ page: "lib", scen: "loaded", phase: "ready" });
+  window.__screens.mediaSheet(title, window.__carriedFor(title) ?? undefined);
+}
+
+/** The follow panel of the subject, over « Suivis », in the dense world. */
+function followPanel(title: string): void {
+  applyState({ page: "acq", acqTab: "follows", scen: "loaded", phase: "ready" });
+  window.__panel.produce("follow", title);
+}
+
+// How long the act is looked for once the surface is asked for, and how often.
+const ACT_WAIT = 3000;
+const ACT_POLL = 100;
+
+/**
+ * Taps « Récupérer la saison N » once its surface has drawn it — a finger's
+ * tap, so the interface's own verb says what came back.
+ *
+ * @param title The series.
+ * @param season The season, 1-based.
+ */
+function tapAct(title: string, season: number): void {
+  const started = Date.now();
+  const look = () => {
+    const act = document.querySelector<HTMLElement>(`[data-grab-season="${CSS.escape(`${title}|${season}`)}"]`);
+    if (act !== null) act.click();
+    else if (Date.now() - started < ACT_WAIT) window.setTimeout(look, ACT_POLL);
+  };
+  look();
+}
+
+// The sheet the subject's library holds it under.
+const SERIES_SHEET = "Silo (2023)";
+// Long enough that the ask is still in flight when the surface is measured.
+const HELD_BACK = 60000;
+
 export function seasonRecoveryStates(): NamedState[] {
   return [
+    // ── S1 — the season's row, on both surfaces ────────────────────────────
+    [
+      "season-row-requested-sheet",
+      "Ligne de saison — « Demandée » sur la fiche de Silo (suivie)",
+      () => sheet(SERIES_SHEET),
+    ],
+    [
+      "season-row-requested-panel",
+      "Ligne de saison — « Demandée » sur la fiche de suivi de Silo",
+      () => followPanel(SERIES),
+    ],
+    [
+      "season-row-requested-one-off",
+      "Ligne de saison — « Demandée » sur la fiche d'une série non suivie (ponctuelle)",
+      () => {
+        void ask(ONE_OFF, ONE_OFF_SEASON).then(() => sheet(ONE_OFF));
+      },
+    ],
+    [
+      "season-row-requested-automatic-sheet",
+      "Ligne de saison — « Demandée · auto » sur la fiche, lancée par le moteur",
+      () => {
+        window.__mocks?.seasonRecovery.automatic(SERIES, SEASON);
+        forgetQueue();
+        sheet(SERIES_SHEET);
+      },
+    ],
+    [
+      "season-row-requested-automatic-panel",
+      "Ligne de saison — « Demandée · auto » sur la fiche de suivi, lancée par le moteur",
+      () => {
+        window.__mocks?.seasonRecovery.automatic(SERIES, SEASON);
+        forgetQueue();
+        followPanel(SERIES);
+      },
+    ],
+    [
+      "season-row-queued",
+      "Ligne de saison — « En file — pipeline en cours » tant que la demande attend",
+      () => {
+        window.__mocks?.seasonRecovery.beforeAsk(SERIES, SEASON);
+        window.__mocks?.setPipelineState("running");
+        forgetQueue();
+        followPanel(SERIES);
+        tapAct(SERIES, SEASON);
+      },
+    ],
+    [
+      "season-row-queue-loading",
+      "Ligne de saison — la demande part : l'acte occupé, aucune marque encore",
+      () => {
+        window.__mocks?.seasonRecovery.beforeAsk(SERIES, SEASON);
+        window.__mocks?.setOperationOutcome("grabSeasonForFollow", { latencyMilliseconds: HELD_BACK });
+        forgetQueue();
+        followPanel(SERIES);
+        tapAct(SERIES, SEASON);
+      },
+    ],
+    [
+      "season-row-queue-unread",
+      "Ligne de saison — la file n'a pas pu être lue : aucune marque affirmée, l'acte offert",
+      () => {
+        window.__mocks?.setOperationOutcome("readAcquisitionQueue", { status: 500 });
+        forgetQueue();
+        followPanel(SERIES);
+      },
+    ],
+    [
+      "season-row-ask-failed",
+      "Ligne de saison — la demande est refusée : le refus est dit, l'acte reste offert",
+      () => {
+        window.__mocks?.seasonRecovery.beforeAsk(SERIES, SEASON);
+        window.__mocks?.setOperationOutcome("grabSeasonForFollow", { status: 500 });
+        forgetQueue();
+        followPanel(SERIES);
+        tapAct(SERIES, SEASON);
+      },
+    ],
+    [
+      "season-row-ask-held",
+      "Ligne de saison — hors ligne : la demande est retenue, et dite retenue",
+      () => {
+        window.__mocks?.seasonRecovery.beforeAsk(SERIES, SEASON);
+        forgetQueue();
+        followPanel(SERIES);
+        window.setTimeout(() => {
+          window.__mocks?.setOffline(true);
+          tapAct(SERIES, SEASON);
+        }, ACT_WAIT / 3);
+      },
+    ],
+    // ── S2 — the season's acquisition card ─────────────────────────────────
     [
       "season-card-requested",
       "Récupération de saison — la carte de « Silo » S03 à peine demandée par le suivi, dans « En cours »",
@@ -131,6 +266,27 @@ export function seasonRecoveryStates(): NamedState[] {
         window.__mocks?.seasonRecovery.ended(SERIES, SEASON, "abandoned");
         forgetQueue();
         now();
+      },
+    ],
+    // ── S6 — the end, on the rows ──────────────────────────────────────────
+    [
+      "season-recovery-shelved-sheet",
+      "Récupération de saison — rangée : la fiche lit 7/7, plus de marque",
+      () => {
+        window.__mocks?.seasonRecovery.shelved(SERIES, SEASON);
+        forgetQueue();
+        forgetSeasons();
+        sheet(SERIES_SHEET);
+      },
+    ],
+    [
+      "season-recovery-shelved-panel",
+      "Récupération de saison — rangée : la fiche de suivi lit 7/7, plus de marque",
+      () => {
+        window.__mocks?.seasonRecovery.shelved(SERIES, SEASON);
+        forgetQueue();
+        forgetSeasons();
+        followPanel(SERIES);
       },
     ],
   ];
