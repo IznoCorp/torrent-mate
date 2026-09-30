@@ -21,8 +21,18 @@ const CATALOGUE_KEY = ["/api/config/schema"];
 /** Every read a cross-seed write moves: the summary, the entries, their obligations, the settings. */
 const MOVED = [trackersKey, downloadsKey, obligationsKey, CATALOGUE_KEY];
 
-/** The trackers whose switch was changed in this visit: « pris en compte à la prochaine passe ». */
-export const switchedThisVisit = new Set<string>();
+/** What a switch's write did: turned on, off, or off with the running ones cut. */
+export type SwitchWrite = "on" | "off" | "offStopped";
+
+/** The trackers whose switch was changed in this visit, and how: « pris en compte à la prochaine passe ». */
+export const switchedThisVisit = new Map<string, SwitchWrite>();
+
+// The status message each write earns, as the cut, the search and the exclusion each have one.
+const SWITCH_DONE: Readonly<Record<SwitchWrite, string>> = {
+  on: "switchOnDone",
+  off: "switchOffDone",
+  offStopped: "switchOffStoppedDone",
+};
 
 /**
  * The words of the cross-seed's confirmations, in the interface's language.
@@ -102,8 +112,10 @@ export function obligationParagraphs(obligations: Schemas["Obligation"][]): Dial
 async function writeSwitch(tracker: string, on: boolean, stopRunning: boolean): Promise<void> {
   const query = stopRunning ? "?stopRunningCrossSeeds=true" : "";
   await send("PUT", `/api/config/files/${TRACKER_FILE}${query}`, { [crossSeedSetting(tracker)]: on });
-  switchedThisVisit.add(tracker);
+  const write: SwitchWrite = on ? "on" : stopRunning ? "offStopped" : "off";
+  switchedThisVisit.set(tracker, write);
   await refresh();
+  toast?.show({ message: say(SWITCH_DONE[write], { tracker }) });
 }
 
 /**

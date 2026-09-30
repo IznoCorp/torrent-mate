@@ -1137,6 +1137,7 @@
       },
       "families": {
         "files": "Pas les mêmes fichiers",
+        "self": "Le même torrent",
         "attempt": "La tentative a échoué",
         "engine": "Le moteur n'a pas pu finir",
         "upload": "L'envoi au tracker a échoué"
@@ -1184,7 +1185,9 @@
         "on": "Cross-seed actif sur ce tracker",
         "off": "Cross-seed coupé sur ce tracker",
         "onDetail": "Le moteur y cherche et y injecte les cross-seeds.",
+        "onEngineOffDetail": "Activé sur ce tracker, mais le moteur est coupé : il n'y cherche ni n'y injecte rien.",
         "offDetail": "Plus aucun nouveau cross-seed ici ; ceux en cours continuent tant qu'on ne les coupe pas.",
+        "offStoppedDetail": "Plus aucun nouveau cross-seed ici, et ceux qui tournaient ont été coupés.",
         "label": "Cross-seed sur {{tracker}}",
         "nextPass": "Pris en compte à la prochaine passe du moteur."
       }
@@ -1636,6 +1639,9 @@
       "switchHeading": "Couper le cross-seed sur {{tracker}} ?",
       "switchBody": "Le moteur ne fera plus de nouveau cross-seed sur {{tracker}}.",
       "switchNoneRunning": "Aucun cross-seed ne tourne sur {{tracker}}.",
+      "switchOffDone": "Cross-seed coupé sur {{tracker}} : plus aucun nouveau, ceux en cours continuent.",
+      "switchOffStoppedDone": "Cross-seed coupé sur {{tracker}}, et ceux en cours ont été coupés.",
+      "switchOnDone": "Cross-seed activé sur {{tracker}}.",
       "switchRunning_one": "{{count}} cross-seed tourne sur {{tracker}} : il continue, sauf si vous cochez ci-dessous.",
       "switchRunning_other": "{{count}} cross-seeds tournent sur {{tracker}} : ils continuent, sauf si vous cochez ci-dessous.",
       "stopRunning": "Couper aussi les cross-seeds en cours pour {{tracker}}",

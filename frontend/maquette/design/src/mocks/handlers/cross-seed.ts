@@ -14,8 +14,8 @@ import type { components } from "../../contract/types";
 type Schemas = components["schemas"];
 
 // The states a search may be asked on (§ 17 point 1): nothing is offered the
-// engine would refuse to act on.
-const SEARCHABLE: ReadonlySet<string> = new Set(["noMatch", "error", "notSearched"]);
+// engine would refuse to act on. A stopped pair resumes by a search (§ 3.3).
+const SEARCHABLE: ReadonlySet<string> = new Set(["noMatch", "error", "notSearched", "stopped"]);
 
 // How long a queued search takes to end, on a real clock: long enough for a
 // person to see « en file », short enough to be seen ending in the same visit.
@@ -30,7 +30,7 @@ const SEARCHED = "CrossSeedSearched";
 const NO_TORRENT = "no origin torrent carries that hash";
 const NO_PAIR = "that torrent has no cross-seed pair on that tracker";
 const NOT_RUNNING = "that pair is not running: there is nothing to cut";
-const NOT_SEARCHABLE = "a search is offered only on a pair with no match, in error, or not yet searched, and not excluded";
+const NOT_SEARCHABLE = "a search is offered only on a pair with no match, in error, not yet searched or stopped, not excluded, its original complete";
 const DUPLICATE = "a search is already queued for that pair";
 
 /**
@@ -123,13 +123,15 @@ export function crossSeedRoutes(): MockRoute[] {
       const infoHash = request.parameters.infoHash;
       const torrent = torrentOf(infoHash);
       if (torrent === undefined) return refused(404, NO_TORRENT);
+      // THE ENGINE SEARCHES NOTHING FOR AN ORIGIN STILL DOWNLOADING.
+      const complete = trackersState().downloads.some((entry) => entry.infoHash === infoHash && entry.progress >= 1);
       const tracker = field(request.body, "tracker");
       const asked = typeof tracker === "string" ? torrent.pairs.filter((one) => one.tracker === tracker) : torrent.pairs;
       if (typeof tracker === "string" && asked.length === 0) return refused(404, NO_PAIR);
       // A SECOND ASK ON A PAIR ALREADY SEARCHING is the one refusal (DOIT-4).
       if (asked.some((one) => one.searching) && typeof tracker === "string") return refused(409, DUPLICATE);
       const pairs = asked.filter((one) => SEARCHABLE.has(one.state) && !one.excluded && !one.searching
-        && !torrent.titleExcluded);
+        && !torrent.titleExcluded && complete);
       if (pairs.length === 0) return refused(409, NOT_SEARCHABLE);
       const held = crossSeedState();
       held.searches.push({ infoHash, tracker: typeof tracker === "string" ? tracker : null });

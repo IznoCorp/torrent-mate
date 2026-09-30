@@ -320,9 +320,12 @@ and the mark's own read is folded into the SAME downloads call the row already a
 visit, never a second operation).
 
 **« Chercher un cross-seed » (OPEN 3 = A).** Offered ONLY on a pair reading « sans correspondance », « erreur de
-cross-seed » or « pas encore cherché » — never on `active`, `stopped` or `trackerWithout`, because nothing is
-offered the engine would refuse to act on anyway (§ 17 point 1; this completes round 8 Q3's own act onto the sixth
-word round 10 added afterward, a mechanical consequence, not a fresh choice). One tap asks ONCE
+cross-seed », « pas encore cherché » or « stoppé » and NOT excluded — never on `active` or `trackerWithout`, never on
+an excluded pair, and never while the ORIGINAL is still downloading (its line already says why, the true reason),
+because nothing is offered the engine would refuse to act on anyway (§ 17 point 1; this completes round 8 Q3's own
+act onto the sixth word round 10 added afterward, a mechanical consequence, not a fresh choice). « stoppé » is
+offered because resuming a stopped pair IS this act (below); a cut pair stays excluded until its exclusion is undone
+(reader's correction N-bis, 2026-09-30). One tap asks ONCE
 (`searchCrossSeed`, body `{tracker}`, `infoHash` in the path — fact 17, already answered by L16's own identity), a
 throttled engine answers a visible « en file », never « occupé » (DOIT-4, NE-DOIT-PAS-3), and a second tap on the
 same pair is the one refusal DOIT-4 allows (a duplicate). **A queued search resolves within the SAME visit** (F59):

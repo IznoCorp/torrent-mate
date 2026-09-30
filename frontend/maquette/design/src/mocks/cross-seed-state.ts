@@ -148,13 +148,20 @@ export function crossSeedOfEntry(entry: Omit<Schemas["Download"], "crossSeed">):
 
 /**
  * One tracker's cross-seed summary, DERIVED from the same pairs the downloads
- * read answers — never a second count that could disagree (R-L17-b).
+ * read answers — never a second count that could disagree (R-L17-b). ONLY THE
+ * TORRENTS STILL IN THE CLIENT count: an origin removed takes its pairs out of
+ * the failures and the running torrents alike.
  *
  * @param tracker The tracker's configured name.
+ * @param downloads The client's entries, the torrents still in it.
  * @returns The summary.
  */
-export function trackerCrossSeed(tracker: string): Schemas["TrackerCrossSeed"] {
-  const pairs = Object.values(crossSeedState().torrents).flatMap((torrent) => torrent.pairs)
+export function trackerCrossSeed(
+  tracker: string, downloads: readonly Pick<Schemas["Download"], "infoHash">[],
+): Schemas["TrackerCrossSeed"] {
+  const present = new Set(downloads.map((entry) => entry.infoHash));
+  const pairs = Object.entries(crossSeedState().torrents)
+    .flatMap(([infoHash, torrent]) => present.has(infoHash) ? torrent.pairs : [])
     .filter((pair) => pair.tracker === tracker);
   const injected = pairs.filter((pair) => pair.state === "active" && pair.at !== null).map((pair) => pair.at as number);
   return {

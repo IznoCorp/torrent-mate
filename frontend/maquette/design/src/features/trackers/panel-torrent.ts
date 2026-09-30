@@ -118,7 +118,7 @@ function torrentPanel(subject: string, cache: PanelCache): PanelDescriptor | nul
       // AN ORIGIN'S CROSS-SEED, tracker by tracker — never repeated on a cross-seed's own entry.
       entry.crossSeed === null ? null : {
         type: "crossSeed",
-        origin: { infoHash: entry.infoHash, name: entry.name, tracker: entry.tracker },
+        origin: { infoHash: entry.infoHash, name: entry.name, tracker: entry.tracker, progress: entry.progress },
         pairs: entry.crossSeed.pairs,
         titleExcluded: entry.crossSeed.titleExcluded,
       },

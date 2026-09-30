@@ -23,7 +23,7 @@ import type { LegendEntry } from "../../ui/legend";
 import { swipeAction, type ChipTone, type LegendTone } from "../../ui/variants";
 import { dayOf, rateOf, sizeOf, written } from "./format";
 import type { Download, Obligation } from "./queries";
-import { isSearchable } from "./cross-seed-state";
+import { isComplete, isSearchable } from "./cross-seed-state";
 
 /** The tone each of the client's states wears — the legend reads the same map. */
 export const STATE_TONE: Readonly<Record<Download["state"], ChipTone>> = {
@@ -295,7 +295,7 @@ export function torrentItemMarkup(entry: Download, obligation: Obligation | unde
   // search on an origin, over every pair the engine would act on — drawn only
   // when there is one; nothing is drawn that does nothing.
   const searchable = entry.crossSeed !== null
-    && entry.crossSeed.pairs.some((pair) => isSearchable(pair, entry.crossSeed?.titleExcluded ?? false));
+    && entry.crossSeed.pairs.some((pair) => isSearchable(pair, entry.crossSeed?.titleExcluded ?? false, isComplete(entry)));
   const search = searchable
     ? `<button class="${swipeAction({ tone: "resume" })}" data-part="swipe/action" data-action="cross-seed-search" data-swipeact="cross-seed-search" data-cross-seed-search-all="${escapeMarkup(entry.infoHash)}">${svgIcon(icons.search)}${escapeMarkup(say("swipeSearch"))}</button>`
     : undefined;

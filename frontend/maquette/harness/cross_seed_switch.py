@@ -19,7 +19,14 @@ into the tracker's panel (L16-bis § 1.7).
    closed « libérée »;
 5. a finger turns it back on: no confirmation, one write, on;
 6. `tracker-cross-seed-switch-off`: the panel says « coupé », the running pair runs;
-7. the engine off: the panel says so ABOVE the tracker's own switch, which stays.
+7. the engine off: the panel says so ABOVE the tracker's own switch, which stays,
+   and the tracker's line says the tracker on and the engine off — never that the
+   engine searches there;
+8. each write is confirmed by a status message, as the cut, the search and the
+   exclusion are; after a cut that took the running ones, the panel says they
+   were cut, never that they continue;
+9. Réglages names every row keyed by a tracker by that tracker, its domain ONE
+   subject (`v3x.club`, never « v3x · club »).
 
 Red before the move: no tracker panel carries a cross-seed switch.
 """
@@ -35,6 +42,7 @@ SWITCH = json.loads((ROOT / "i18n/fr.json").read_text(encoding="utf-8"))["screen
 ORIGIN = "66e23ab395c438b7db4f7c855bd451d8bb1f0046"
 COPY = "7c1e0b2f95c438b7db4f7c855bd451d8bb1f0046"
 KEY = "tracker.providers.tr4ker.cross_seed"
+DONE = json.loads((ROOT / "i18n/fr.json").read_text(encoding="utf-8"))["verbs"]["crossSeed"]
 
 READ = """([origin, copy, key]) => {
   const downloads = window.__queries?.getQueryData(['/api/acquisition/downloads'])?.downloads || [];
@@ -52,11 +60,21 @@ READ = """([origin, copy, key]) => {
     released: obligation ? obligation.releasedAt : 'absent',
     engineNote: !!document.querySelector('#sheet[data-open] [data-part="tracker/cross-seed-engine-off"]'),
     state: document.querySelector('#sheet[data-open] [data-part="tracker/cross-seed-state"]')?.textContent.trim() ?? null,
+    detail: document.querySelector('#sheet[data-open] [data-part="tracker/cross-seed-state"]')
+      ?.nextElementSibling?.textContent.trim() ?? null,
+    toast: document.getElementById('toast')?.textContent.trim() ?? '',
   };
 }"""
 DIALOG = """() => {
   const box = document.querySelector('[data-part="dialog"][data-open]');
   return box ? {text: box.textContent, checked: box.querySelector('[data-part="dialog/check"]')?.getAttribute('aria-checked')} : null;
+}"""
+SUBJECTS = """() => {
+  const names = (window.__queries?.getQueryData(['/api/trackers']) || []).map(one => one.name);
+  return (window.__queries?.getQueryData(['/api/config/schema']) || []).flatMap(topic => topic.settings)
+    .filter(one => one.key.startsWith('tracker.providers.'))
+    .map(one => ({key: one.key, label: window.__settingLabels.label(one),
+                  tracker: names.find(name => one.key.startsWith(`tracker.providers.${name}.`)) ?? null}));
 }"""
 WRITES = """() => (window.__mocks?.answered() || []).map(call => ({op: call.operationId, path: decodeURIComponent(call.path)}))"""
 CONFIRM = '[data-part="dialog"][data-open] [data-part="dialog/button"][data-tone="danger"]'
@@ -117,6 +135,9 @@ async def main():
                       repr({k: after[k] for k in ("panel", "summary", "setting", "line", "nextPass")}))
         journal.check("the pair running on tr4ker still runs, its obligation still open (M6: new ones only)",
                       after["pair"]["state"] == "active" and after["copy"] and after["released"] is None, repr(after["pair"]))
+        journal.check("the write confirms: « coupé », the running ones continuing",
+                      bool(DONE.get("switchOffDone")) and after["toast"].startswith(
+                          DONE.get("switchOffDone", "∅").replace("{{tracker}}", "tr4ker")), repr(after["toast"]))
 
         await open_tr4ker(page)
         await tap(page, '#sheet[data-open] [data-cross-seed-switch="tr4ker"]')
@@ -131,6 +152,11 @@ async def main():
                       after["pair"]["state"] == "stopped" and after["pair"]["stopCause"] == "switch"
                       and after["pair"]["stoppedAt"] and not after["copy"] and isinstance(after["released"], (int, float)),
                       repr((after["pair"], after["copy"], after["released"])))
+        journal.check("the write confirms the running ones cut, and the panel says so — never « ceux en cours continuent »",
+                      bool(DONE.get("switchOffStoppedDone")) and after["toast"].startswith(
+                          DONE.get("switchOffStoppedDone", "∅").replace("{{tracker}}", "tr4ker"))
+                      and SWITCH.get("offStoppedDetail") is not None and after["detail"] == SWITCH["offStoppedDetail"],
+                      repr((after["toast"], after["detail"])))
 
         calls = len(await page.evaluate(WRITES))
         await tap(page, '#sheet[data-open] [data-cross-seed-switch="tr4ker"]')
@@ -139,6 +165,9 @@ async def main():
         journal.check("a finger turns it back on: no confirmation, one write, on",
                       await page.evaluate(DIALOG) is None and [w["op"] for w in writes] == ["updateConfigurationFile"]
                       and after["panel"] is True and after["summary"] is True, repr((writes, after["panel"])))
+        journal.check("turned back on, the write confirms it",
+                      bool(DONE.get("switchOnDone")) and after["toast"].startswith(
+                          DONE.get("switchOnDone", "∅").replace("{{tracker}}", "tr4ker")), repr(after["toast"]))
 
         await enter(page, "tracker-cross-seed-switch-off")
         await page.wait_for_timeout(ACTED)
@@ -151,6 +180,16 @@ async def main():
         engine = await page.evaluate(READ, argument)
         journal.check("the engine off: said above the tracker's own switch, which stays drawn and on",
                       engine["engineNote"] and engine["panel"] is True and engine["pair"]["state"] == "active", repr(engine))
+        journal.check("the engine off: the tracker's line says the tracker on and the engine off, never that it searches",
+                      SWITCH.get("onEngineOffDetail") is not None and engine["detail"] == SWITCH["onEngineOffDetail"],
+                      repr((engine["state"], engine["detail"])))
+
+        subjects = await page.evaluate(SUBJECTS)
+        wrong = [row for row in subjects
+                 if row["tracker"] is None or row["label"].split(" — ")[0].split(" · ")[0].lower() != row["tracker"].lower()]
+        journal.check("Réglages names every tracker-keyed row by its tracker, a domain ONE subject",
+                      any("." in (row["tracker"] or "") for row in subjects) and not wrong,
+                      repr(wrong[:4] or [row["label"] for row in subjects][:4]))
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()

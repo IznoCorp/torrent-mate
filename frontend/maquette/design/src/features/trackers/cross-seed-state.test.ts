@@ -4,7 +4,7 @@ import i18next from "../../lib/unit-words";
 import contract from "../../../../contract/openapi.json";
 import { isFailure as layerCounts } from "../../mocks/cross-seed-state";
 import {
-  CROSS_SEED_TONE, REASON_FAMILY, isFailure, reasonSentence, rosterLine, stateWord,
+  CROSS_SEED_TONE, REASON_FAMILY, familyWord, isFailure, isSearchable, reasonSentence, rosterLine, stateWord,
   type CrossSeedPair, type CrossSeedReason, type CrossSeedState,
 } from "./cross-seed-state";
 
@@ -52,6 +52,31 @@ describe("the reasons", () => {
     expect(isFailure(refused("fetch_failed"))).toBe(true);
     expect(isFailure(refused("inject_failed"))).toBe(true);
     for (const reason of REASONS) expect(isFailure(refused(reason)), reason).toBe(layerCounts(refused(reason)));
+  });
+});
+
+describe("the search offered", () => {
+  const pair = (state: CrossSeedState, excluded = false): CrossSeedPair => ({ ...refused("fetch_failed"), state, excluded });
+
+  it("resumes a stopped pair once its exclusion is undone, never while it is excluded", () => {
+    expect(isSearchable(pair("stopped"), false, true)).toBe(true);
+    expect(isSearchable(pair("stopped", true), false, true)).toBe(false);
+    expect(isSearchable(pair("active"), false, true)).toBe(false);
+    expect(isSearchable(pair("trackerWithout"), false, true)).toBe(false);
+  });
+
+  it("offers nothing while the original still downloads", () => {
+    for (const state of ["noMatch", "error", "notSearched", "stopped"] as CrossSeedState[]) {
+      expect(isSearchable(pair(state), false, false), state).toBe(false);
+      expect(isSearchable(pair(state), false, true), state).toBe(true);
+    }
+  });
+});
+
+describe("the kinds of trouble", () => {
+  it("gives the candidate that is the original itself its own word, never the files-mismatch one", () => {
+    expect(familyWord("self_candidate")).not.toBe(familyWord("file_list_mismatch"));
+    expect(i18next.exists("screens.crossSeed.families.self")).toBe(true);
   });
 });
 

@@ -19,7 +19,8 @@ R-L17-a/b — the mark's rows are the server's, in the six words:
 R-L17-c — a refusal is readable (§ 19 point 1, DOIT-2):
 5. `torrents-cross-seed-refused`: each « erreur » row draws ITS code's sentence,
    its kind of trouble, the candidate on its tracker and the source — never the code;
-6. a transport failure and a layout mismatch read different families.
+6. a transport failure and a layout mismatch read different families; the
+   candidate that is the original itself reads its own.
 
 R-L17-d — an obligation says where it came from (§ 19 point 2):
 7. the cross-seed's own card (President Curtis on tr4ker) wears « cross-seed de
@@ -158,6 +159,14 @@ async def main():
                       layout is not None and transport is not None
                       and WORDS["families"]["files"] in layout["reason"] and WORDS["families"]["attempt"] in transport["reason"]
                       and WORDS["families"]["files"] not in transport["reason"], f"{layout!r} · {transport!r}")
+
+        await page.evaluate("()=>window.__panel.produce('torrent', '0ff265e478d97d9eae4d1cabd13748e23b9e6cba:c411')")
+        await page.wait_for_timeout(ACTED)
+        itself = next((row for row in (await page.evaluate(ROWS, "0ff265e478d97d9eae4d1cabd13748e23b9e6cba"))["rows"]
+                       if row["code"] == "self_candidate"), None)
+        journal.check("the candidate that is the original itself reads its own kind, never « pas les mêmes fichiers »",
+                      itself is not None and WORDS["families"].get("self", "∅") in itself["reason"]
+                      and WORDS["families"]["files"] not in itself["reason"], repr(itself))
 
         # ── d: an obligation says where it came from ───────────────────────
         answer = await enter(page, "torrents-obligation-cross-seed")

@@ -44,7 +44,7 @@
       "titleExcluded": false,
       "pairs": [
         { "tracker": "tr4ker", "state": "notSearched", "reason": null, "candidate": null, "waitReason": "downloading", "at": null, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": false, "searching": false },
-        { "tracker": "v3x.club", "state": "notSearched", "reason": null, "candidate": null, "waitReason": "quota", "at": null, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": false, "searching": false }
+        { "tracker": "v3x.club", "state": "notSearched", "reason": null, "candidate": null, "waitReason": "downloading", "at": null, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": false, "searching": false }
       ]
     }
   },

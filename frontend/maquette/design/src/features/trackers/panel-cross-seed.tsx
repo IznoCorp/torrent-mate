@@ -21,16 +21,17 @@ import type { Schemas } from "../../lib/contract-schemas";
 import { actionButton, sheetActions, factDetail, factList, factName, factRow, factRowBody } from "../../ui/variants";
 import { dayOf } from "./format";
 import { useDownloads, useTrackers } from "./queries";
+import type { SwitchWrite } from "./cross-seed-verbs";
 import {
-  CROSS_SEED_TONE, familyWord, isFailure, isSearchable, reasonSentence, stateWord, type CrossSeedPair,
+  CROSS_SEED_TONE, familyWord, isComplete, isFailure, isSearchable, reasonSentence, stateWord, type CrossSeedPair,
 } from "./cross-seed-state";
 
 // The block this file adds to the panel's map, declared beside what draws it.
 declare module "../../ui/panel/contract" {
   interface PanelBlockMap {
     crossSeed: {
-      /** The origin entry: its hash, its release name and the tracker it runs on. */
-      origin: { infoHash: string; name: string; tracker: string };
+      /** The origin entry: its hash, its release name, the tracker it runs on, and how much of it is held. */
+      origin: { infoHash: string; name: string; tracker: string; progress: number };
       pairs: CrossSeedPair[];
       titleExcluded: boolean;
     };
@@ -39,8 +40,8 @@ declare module "../../ui/panel/contract" {
       tracker: string;
       /** Its cross-seed, as the summary read answers it. */
       summary: Schemas["TrackerCrossSeed"];
-      /** Whether its switch was changed in this visit. */
-      switched: boolean;
+      /** What its switch's write did in this visit, or null when it was not written. */
+      switched: SwitchWrite | null;
     };
   }
 }
@@ -122,12 +123,12 @@ function PairActs({ pair, origin, titleExcluded }: {
     );
   }
   // « CHERCHER UN CROSS-SEED » (OPEN 3 = A): only where the engine would act — a
-  // pair with no match, in error or not yet searched, and not excluded. A search
-  // already asked reads « en file », visibly, never « occupé ».
+  // pair with no match, in error, not yet searched or stopped, not excluded, its
+  // original complete. A search already asked reads « en file », never « occupé ».
   if (pair.searching) {
     return <span className={factDetail()} data-part="torrents/cross-seed-queued"><b>{say("queued")}</b></span>;
   }
-  if (isSearchable(pair, titleExcluded)) {
+  if (isSearchable(pair, titleExcluded, isComplete(origin))) {
     return (
       <span className={factDetail()}>
         <button className={actionButton({ kind: "panelAction", tone: "primary" })} data-part="torrents/cross-seed-search"
@@ -209,9 +210,12 @@ function CrossSeedBlock({ block: posed }: { block: { type: "crossSeed" } & Panel
   // follows — never a stale « en file » (F59). The descriptor's pairs stand in
   // until the read is held.
   const downloads = useDownloads().data;
-  const held = downloads?.downloads.find((entry) => entry.infoHash === posed.origin.infoHash)?.crossSeed;
+  const entry = downloads?.downloads.find((one) => one.infoHash === posed.origin.infoHash);
+  const held = entry?.crossSeed;
   const quota = downloads?.crossSeedQuota;
-  const block = held ? { ...posed, pairs: held.pairs, titleExcluded: held.titleExcluded } : posed;
+  const block = held && entry
+    ? { ...posed, origin: { ...posed.origin, progress: entry.progress }, pairs: held.pairs, titleExcluded: held.titleExcluded }
+    : posed;
   const say = (key: string) => t(`screens.crossSeed.panel.${key}`);
   return (
     <section data-part="torrents/cross-seed" data-region="torrents/cross-seed" data-entry={block.origin.infoHash}
@@ -267,6 +271,11 @@ function CrossSeedSwitchBlock({ block: posed }: { block: { type: "crossSeedSwitc
   const block = summary ? { ...posed, summary } : posed;
   const say = (key: string, values: Record<string, string> = {}) => t(`screens.crossSeed.switch.${key}`, values);
   const on = block.summary.enabled;
+  // THE DETAIL SAYS WHAT IS TRUE: the engine off, the tracker on searches nothing
+  // (M6, as the roster's line says it); the running ones cut, they no longer continue.
+  const detail = on
+    ? (block.summary.engineEnabled ? "onDetail" : "onEngineOffDetail")
+    : (block.switched === "offStopped" ? "offStoppedDetail" : "offDetail");
   return (
     <section data-part="tracker/cross-seed" data-tracker={block.tracker}>
       {block.summary.engineEnabled ? null : (
@@ -278,13 +287,13 @@ function CrossSeedSwitchBlock({ block: posed }: { block: { type: "crossSeedSwitc
             <span className={factName()} data-part="tracker/cross-seed-state" data-on={String(on)}>
               {say(on ? "on" : "off")}
             </span>
-            <span className={factDetail()}>{say(on ? "onDetail" : "offDetail")}</span>
+            <span className={factDetail()} data-part="tracker/cross-seed-detail">{say(detail)}</span>
           </div>
           <Switch checked={on} label={say("label", { tracker: block.tracker })}
             data-part="tracker/cross-seed-switch" data-cross-seed-switch={block.tracker} />
         </li>
       </ol>
-      {block.switched ? (
+      {block.switched !== null ? (
         <p className={factDetail()} data-part="tracker/cross-seed-next-pass">{say("nextPass")}</p>
       ) : null}
     </section>

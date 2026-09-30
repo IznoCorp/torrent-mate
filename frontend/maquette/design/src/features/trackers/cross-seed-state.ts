@@ -20,7 +20,7 @@ export type CrossSeedState = CrossSeedPair["state"];
 export type CrossSeedReason = NonNullable<CrossSeedPair["reason"]>;
 
 /** The kind of trouble a refusal is: § 19 point 1 asks that a mismatch is not read as a failure. */
-export type ReasonFamily = "files" | "attempt" | "engine" | "upload";
+export type ReasonFamily = "files" | "self" | "attempt" | "engine" | "upload";
 
 /** The tone each state wears on its chip. */
 export const CROSS_SEED_TONE: Readonly<Record<CrossSeedState, ChipTone>> = {
@@ -38,7 +38,7 @@ export const REASON_FAMILY: Readonly<Record<CrossSeedReason, ReasonFamily>> = {
   file_list_mismatch: "files",
   root_name_mismatch: "files",
   v2_hybrid: "files",
-  self_candidate: "files",
+  self_candidate: "self",
   fetch_failed: "attempt",
   verify_timeout: "attempt",
   recheck_failed: "attempt",
@@ -116,17 +116,30 @@ export function rosterLine(summary: Schemas["TrackerCrossSeed"]): string {
 }
 
 // The states a search may be asked on (§ 17 point 1): nothing is offered that the
-// engine would refuse to act on.
-const SEARCHABLE: ReadonlySet<CrossSeedState> = new Set(["noMatch", "error", "notSearched"]);
+// engine would refuse to act on. « stoppé » is one: resuming a stopped pair IS
+// the search (§ 3.3), which its exclusion alone withholds.
+const SEARCHABLE: ReadonlySet<CrossSeedState> = new Set(["noMatch", "error", "notSearched", "stopped"]);
 
 /**
  * Whether « Chercher un cross-seed » is offered on a pair.
  *
  * @param pair The pair.
  * @param titleExcluded Whether its whole title is excluded.
- * @returns True on a pair with no match, in error or not yet searched, neither
- *     excluded nor already searching.
+ * @param originComplete Whether the original is complete: the engine searches
+ *     nothing for a torrent still downloading, and the pair's line says so.
+ * @returns True on a pair with no match, in error, not yet searched or stopped,
+ *     neither excluded nor already searching, its original complete.
  */
-export function isSearchable(pair: CrossSeedPair, titleExcluded: boolean): boolean {
-  return SEARCHABLE.has(pair.state) && !pair.excluded && !pair.searching && !titleExcluded;
+export function isSearchable(pair: CrossSeedPair, titleExcluded: boolean, originComplete: boolean): boolean {
+  return SEARCHABLE.has(pair.state) && !pair.excluded && !pair.searching && !titleExcluded && originComplete;
+}
+
+/**
+ * Whether a client entry is complete — the engine's condition for searching its cross-seed.
+ *
+ * @param entry The origin's entry, or its progress.
+ * @returns True once every byte is held.
+ */
+export function isComplete(entry: { progress: number }): boolean {
+  return entry.progress >= 1;
 }

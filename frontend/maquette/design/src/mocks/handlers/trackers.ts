@@ -84,8 +84,8 @@ export function trackerRoutes(): MockRoute[] {
         const enabled = enabledOf(tracker.name);
         return {
           ...tracker, alertThreshold: alertThresholdOf(tracker.name), enabled, disabled: disabledOf(tracker, enabled),
-          // THE CROSS-SEED'S COUNTS DERIVED FROM THE SAME PAIRS the downloads read answers.
-          crossSeed: trackerCrossSeed(tracker.name),
+          // THE CROSS-SEED'S COUNTS DERIVED FROM THE SAME PAIRS the downloads read answers, its torrents still in the client.
+          crossSeed: trackerCrossSeed(tracker.name, trackersState().downloads),
         };
       }),
     ),

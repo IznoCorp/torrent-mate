@@ -147,7 +147,7 @@ function trackerPanel(name: string, cache: PanelCache): PanelDescriptor | null {
     blocs: [
       { type: "faits", lignes: facts },
       // ITS CROSS-SEED SWITCH, a row of its own beside the policy (S2) — never the activation's.
-      { type: "crossSeedSwitch", tracker: tracker.name, summary: tracker.crossSeed, switched: switchedThisVisit.has(tracker.name) },
+      { type: "crossSeedSwitch", tracker: tracker.name, summary: tracker.crossSeed, switched: switchedThisVisit.get(tracker.name) ?? null },
       { type: "note", text: policyNote(catalogue, policy.length) },
       policy.length === 0 ? null : { type: "actions", actions: policy },
       broken.length === 0 ? null : { type: "note", text: say("panel.brokenLead") },
