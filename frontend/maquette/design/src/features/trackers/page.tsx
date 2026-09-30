@@ -7,8 +7,7 @@
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 import { useUiState } from "../../lib/store-access";
-import { segment, segmentTab, viewTabs } from "../../ui/variants";
-import { trackersTab } from "./variants";
+import { Tabs } from "../../ui/tabs";
 import { TorrentsTab } from "./torrents-tab";
 import { TrackersTab } from "./trackers-tab";
 import { PendingEditsBar } from "../../lib/save-bar-door";
@@ -28,22 +27,7 @@ export function TrackersPage(): ReactElement {
   ];
   return (
     <div data-part="trackers">
-      <div className={viewTabs()} data-part="trackers/tabs">
-        <div className={segment()} data-part="segment" role="tablist">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              className={`${segmentTab()} ${trackersTab()}`}
-              role="tab"
-              aria-selected={state.trackersTab === tab.id}
-              data-part="trackers/tab"
-              data-trackers-tab={tab.id}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <Tabs tabs={tabs} selected={String(state.trackersTab)} attribute="data-trackers-tab" />
       {state.trackersTab === "trackers" ? <TrackersTab /> : <TorrentsTab />}
       {/* A policy edited here is saved here: the settings' own bar. */}
       <PendingEditsBar />

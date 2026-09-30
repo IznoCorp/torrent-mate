@@ -107,6 +107,27 @@ async def main():
             offered == ["system", "light", "dark"],
             str(offered))
 
+        # (a2) THE PRESSED STATE FOLLOWS THE TAP, with no reload (B-580). The
+        # operator, on every phone: the theme changed and the selector did not
+        # — the drawer read the choice once, and the redraw its tap asked for
+        # reached no subscriber. A finger taps « dark », then « light », and
+        # each time the pressed control is the one tapped.
+        followed = []
+        for mode in ("dark", "light"):
+            box = await page.evaluate(
+                """(mode)=>{const control=document.querySelector(`#drawer [data-appearance="${mode}"]`);
+                  if(!control) return null; const rect=control.getBoundingClientRect();
+                  return {x: rect.left + rect.width / 2, y: rect.top + rect.height / 2};}""", mode)
+            if box:
+                await page.touchscreen.tap(box["x"], box["y"])
+            await page.wait_for_timeout(400)
+            followed.append(await page.evaluate(
+                """()=>[...document.querySelectorAll('#drawer [data-appearance][aria-pressed="true"]')]
+                     .map((control) => control.dataset.appearance)"""))
+        journal.check(
+            "the pressed appearance follows the tap, without a reload",
+            followed == [["dark"], ["light"]], f"pressed after « dark », « light »: {followed}")
+
         # (b) EVERY ONE OF THE THREE, CHOSEN AND RELOADED. B-245 was a
         # two-value mismatch, and a walk that chooses ONE appearance and
         # reloads once would pass with the other two branches of the pre-paint
