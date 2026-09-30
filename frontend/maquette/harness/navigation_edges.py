@@ -115,8 +115,13 @@ EDGES = [
      "stops": [HOME_STOP, GUARD], "emits": [TAB_BAR]},
     {"edge": "T5", "walk": ["bar:lib", "bar:lib"], "stops": [HOME_STOP], "emits": [TAB_BAR]},
     # ── L — the links inside a page ─────────────────────────────────────────
+    # « Voir le tracker » lands on Trackers WITH THE TRACKER'S PANEL UP (#657): a
+    # layer, so the first Retour closes it, as every panel's does, and the next
+    # returns to Acquisition — re-aimed 2026-09-30.
     {"edge": "L1", "walk": [RATIO_DEFERRAL, "tap:[data-acqtab=now]", 'tap:#view [data-go="trackers"]'],
-     "stops": [HOME_STOP], "emits": ["features/acquisition/card-markup.ts:go=TRACKERS_PAGE"]},
+     "landing": (TRACKERS, "trackers", False, True),
+     "stops": [(TRACKERS, "trackers", False, False), HOME_STOP],
+     "emits": ["features/acquisition/card-markup.ts:go=TRACKERS_PAGE"]},
     {"edge": "L2", "start": "nimportequoi", "walk": ['tap:[data-go="acq"]'],
      "stops": [("/nimportequoi", "404", False)], "emits": ["app/not-found.tsx:go=acq"]},
     {"edge": "L3", "walk": ["bar:lib", "tap:[data-lens=inc]", "press:#view [data-panel]",

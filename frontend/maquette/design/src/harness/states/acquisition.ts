@@ -236,11 +236,8 @@ export function acquisitionStates(): NamedState[] {
     ],
     [
       "discover-header-narrow",
-      "Découvrir — l'en-tête coupé à la bascule de vue, et son toucher qui ouvre la phrase entière",
-      () => {
-        discoverIn("list");
-        window.setTimeout(() => document.querySelector<HTMLElement>('#view [data-discover-header]')?.click(), OPEN_AFTER);
-      },
+      "Découvrir — l'en-tête sur un écran étroit : il revient à la ligne à côté de la bascule de vue, jamais coupé",
+      () => discoverIn("list"),
     ],
     [
       "discover-header-loading",

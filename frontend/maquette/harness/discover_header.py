@@ -10,8 +10,10 @@ The four `fr.json` strings it drew — « Réserve remplie il y a 2 h », « 503
 2. its two figures are the suggestions already read, split by kind, the rejected
    left out — and a rejection moves them in the render that follows;
 3. no copy stands as a figure: the four `live*` strings are gone from `fr.json`;
-4. `discover-header-narrow`, at 369 px: one line, cut at the switch and never
-   past it — and its tap opens the sentence whole;
+4. `discover-header-narrow`, at 369 px: beside the switch and never past it, and
+   NEVER CUT — it wraps where the room is short (§ 12 prevails over S8's first
+   « one line, ellipsised », re-aimed 2026-09-30 with responsive.py, which
+   refuses every cut text) — and its tap still opens the sentence in a panel;
 5. `discover-header-loading` and `discover-header-unavailable` say so, never blank.
 
 Red before the move: the message is a child of `discover/body`, and its figures
@@ -35,12 +37,10 @@ HEADER = """() => {
   const text = header.querySelector('[data-part="discover/header-text"]');
   const row = header.closest('.pillbar');
   const box = header.getBoundingClientRect(), view = row?.querySelector('[data-part="view/switch"]')?.getBoundingClientRect();
-  const style = text ? getComputedStyle(text) : null;
   return {
     text: text?.textContent.trim() ?? '',
     inRow: !!row && !!view, inBody: !!header.closest('[data-region="discover/body"]'),
     beside: view ? box.right <= view.left + 1 : false,
-    oneLine: text ? text.getBoundingClientRect().height <= parseFloat(style.lineHeight || '20') * 1.5 : false,
     cut: text ? text.scrollWidth > text.clientWidth : false,
   };
 }"""
@@ -110,19 +110,19 @@ async def main():
         await page.set_viewport_size({"width": 369, "height": 800})
         await enter(page, "discover-header")
         header = await page.evaluate(HEADER)
-        journal.check("at 369 px: one line, cut at the switch and never past it",
-                      header is not None and header["oneLine"] and header["beside"], repr(header))
+        journal.check("at 369 px: beside the switch, never past it, and never cut — it wraps",
+                      header is not None and not header["cut"] and header["beside"], repr(header))
         tap = page.locator('#view [data-discover-header]')
         if await tap.count():
             await tap.first.tap()
             await page.wait_for_timeout(ACTED)
         whole = await page.evaluate("""()=>document.querySelector('#sheet[data-open]')?.textContent ?? null""")
-        journal.check("its tap opens the sentence whole",
+        journal.check("its tap opens the sentence in a panel",
                       whole is not None and (header or {}).get("text", "<none>") in whole, repr(whole))
         answer = await enter(page, "discover-header-narrow")
-        journal.check("the named state discover-header-narrow opens it", answer is None
-                      and await page.evaluate("()=>document.querySelector('#sheet')?.hasAttribute('data-open') ?? false"),
-                      answer or "")
+        header = await page.evaluate(HEADER)
+        journal.check("the named state discover-header-narrow draws it whole, beside the switch", answer is None
+                      and header is not None and not header["cut"] and header["beside"], answer or repr(header))
         await page.set_viewport_size({"width": 390, "height": 844})
 
         for state, key in (("discover-header-loading", "headerLoading"), ("discover-header-unavailable", "headerUnavailable")):

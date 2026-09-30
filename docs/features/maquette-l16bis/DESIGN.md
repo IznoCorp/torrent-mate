@@ -420,6 +420,11 @@ allowed to, because it is secondary and its whole is on its tap (the bottom pane
 down** into the body if the row's place is ever taken — the operator's own words; a note in the component, not a
 rule.
 
+**Amended 2026-09-30 — § 12 prevails, the text wraps.** CI's harness on #657 read the ellipsis as a cut text at
+320–390 px (`responsive.py`, § 12: a text is never cut, the layout changes). The header's sentence now WRAPS in its
+place beside the switch instead of ellipsising; the tap and its panel stay. `discover-header-narrow` shows the header
+wrapped, no panel open, and `discover_header.py`'s hold 4 reads « never cut » where it read « one line, cut ».
+
 **(b) The content.** The count and the TMDB ids excluded go (§ 0.1 item 10: they were not even read). Per DECIDED 8
 (§ 5), what replaces them is « n séries et m films à découvrir » (`screens.discover.headerCount`) — both numbers
 counted from the suggestions already read (the same list the tab already renders, split by media type), no new
@@ -546,7 +551,7 @@ panel, DECIDED 3) · `trackers-policy-unset` (kept) · `tracker-alert-active` ·
 declaration readable in the catalogue label).
 
 **S8 — Découvrir's header**: `discover-header` (« n séries et m films à découvrir », each view mode — list, posters,
-deck) · `discover-header-narrow` (369 px, ellipsised, its tap opening the sentence) · `discover-header-loading` ·
+deck) · `discover-header-narrow` (369 px, wrapped beside the switch, never cut — amended 2026-09-30) · `discover-header-loading` ·
 `discover-header-unavailable` (its datum's read failed — said, never blank). No conditional content state: DECIDED 8
 (§ 5) needs none of readings A or C.
 

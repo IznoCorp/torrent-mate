@@ -63,8 +63,15 @@ export const cardOverview = cva(
     "mt-2 text-2 leading-[1.4] text-muted-foreground",
 );
 
-/** The state line: what the medium is, at a glance. */
-export const cardMeta = cva("cmeta mt-3 flex flex-wrap items-center gap-2");
+/**
+ * The state line: what the medium is, at a glance.
+ *
+ * A CHIP ON IT WRAPS its words when it alone is wider than the line (§ 12, a
+ * text is never cut: the broken obligation's dated chip at 320 px, B-607). A
+ * chip that fits still reads on one line, since a wrapping row breaks before an
+ * item before it shrinks one.
+ */
+export const cardMeta = cva("cmeta mt-3 flex flex-wrap items-center gap-2 [&>.chip]:whitespace-normal");
 
 /** A numeric aside. */
 export const cardCaption = cva("caption text-2 text-muted-foreground");

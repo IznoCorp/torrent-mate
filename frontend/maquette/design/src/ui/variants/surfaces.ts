@@ -190,11 +190,11 @@ export const liveStrip = cva(
   {
     variants: {
       // INLINE: the strip set in a row another control shares — the view switch's
-      // — so its border and its ground drop, it takes the row's free room, and its
-      // one line ends in an ellipsis at the control; its whole is on a tap. It is
-      // the only text allowed to stop short, being secondary and whole elsewhere.
+      // — so its border and its ground drop and it takes the row's free room. Where
+      // that room is short (a 320 px phone, a longer message) its sentence WRAPS
+      // under itself: a text is never cut (§ 12), the row grows instead.
       inline: {
-        true: "min-w-0 flex-1 min-h-[44px] [border:0] bg-transparent py-0 px-0 text-left cursor-pointer [&>span:last-child]:min-w-0 [&>span:last-child]:overflow-hidden [&>span:last-child]:text-ellipsis [&>span:last-child]:whitespace-nowrap",
+        true: "min-w-0 flex-1 min-h-[44px] [border:0] bg-transparent py-2 px-0 text-left cursor-pointer [&>span:last-child]:min-w-0 [&>span:last-child]:[overflow-wrap:anywhere]",
         false: "",
       },
     },

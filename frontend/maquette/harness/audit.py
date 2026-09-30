@@ -141,12 +141,20 @@ async def main():
           // VERIFY the clipping: there must be an ancestor that really clips
           // (overflow-x hidden/clip) AND that fits within the frame itself. A
           // clipping ancestor that overflows clips nothing, it moves the
-          // problem.
+          // problem — to the next clipper INSIDE the surface: a card that
+          // clips its own poster, slid mid-swipe past the edge, is clipped by
+          // its row, which fits (re-aimed 2026-09-30 — the walk stopped at the
+          // first clipper and read a swipe mid-travel as an overflow).
           const SCROLLERS = '[data-part="pill/list"],[data-part="cast"],[data-part="episode/set"]';
           const clipped = (el) => {
+            let first = true;
             for (let p = el.parentElement; p && p !== root.parentElement; p = p.parentElement) {
+              if (!first && !root.contains(p)) return false;
               const ox = getComputedStyle(p).overflowX;
-              if (ox === 'hidden' || ox === 'clip') return p.getBoundingClientRect().right <= 390.5;
+              if (ox === 'hidden' || ox === 'clip') {
+                if (p.getBoundingClientRect().right <= 390.5) return true;
+                first = false;
+              }
             }
             return false;
           };
