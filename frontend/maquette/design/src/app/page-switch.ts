@@ -264,7 +264,9 @@ export function switchPage(leaving: string, landing: Landing = "stack"): void {
   const trail = standingTrail(leaving);
   const floor = trail[0];
   if (landing === "unwind") {
-    if (arriving === homePage) layTrail([], [homePage], floor.at);
+    /* A floor that is not the entry page's (a driven state drawn over it) is
+       replaced like the entry page's own. */
+    if (arriving === homePage || floor.page !== homePage) layTrail([], [arriving], floor.at);
     else layTrail([floor], [arriving], floor.at + 1);
     return;
   }

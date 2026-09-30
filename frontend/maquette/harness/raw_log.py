@@ -95,7 +95,9 @@ TOUCH_FLOOR = 44
 # THE TARGETS ON A PASSAGE'S PATH, each by the selector that finds it.
 FOLD_SUMMARY = 'summary:has([data-part="run/log-toggle"])'
 RUN_BACK = '[data-part="screen"][data-key^="run:"] [data-part="screen/back"]'
-NOT_FOUND_DOOR = '[data-part="run/not-found"] [data-go="sys"]'
+# RE-AIMED OUT LOUD (the navigation lot, N6): the door is the screen's own
+# Retour, a button with no `data-go`.
+NOT_FOUND_DOOR = '[data-part="run/not-found"] button'
 
 # A RUN NOBODY HOLDS — a stale link's shape.
 UNKNOWN_RUN = "nobody"

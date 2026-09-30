@@ -20,9 +20,11 @@ torrent trouvé ».
    Système, a run — because its named state lays Système without the entry a
    finger pushes, and the landing's walk back through the history then has no
    floor to land on: the address would be read off a history no finger makes.
-   And the landing STANDS ON THE FLOOR — the entry home stood on when the walk
-   began (§ 16 rule 2: [guard, acq] arriving home, never a page's entry left
-   underneath, which would take two Backs to leave);
+   RE-AIMED OUT LOUD (§ 16 as amended, Q12, the navigation lot): the landing
+   STANDS ON THE TRAIL, never on the floor — a link inside a page stacks, even
+   towards the entry page, so Retour gives back Système (or the run's screen).
+   Its entry is the floor's plus what the finger stacked: Système, then the
+   landing (floor + 2), and the run's screen between them (floor + 3);
 2b. and the landing home that every bar tap makes is unchanged: on a
    history a finger laid with « En cours » in the floor's address and « À
    traiter » remembered, the bar's Médiathèque then its Acquisition come back
@@ -156,6 +158,9 @@ WALKS = {
     "system": (*TO_SYSTEM, f'{PAGE} [data-part="cross-reference"][data-go]'),
     "run-detail": (*TO_SYSTEM, '[data-run]', f'{RUN_BODY} [data-part="cross-reference"][data-go]'),
 }
+# How many entries each walk stacks above the floor: Système, the run's screen
+# where it is walked through, and the landing itself.
+STACKED = {"system": 2, "run-detail": 3}
 
 
 async def walked(browser, journal, name):
@@ -173,8 +178,10 @@ async def walked(browser, journal, name):
     journal.check(f"{name}, walked: on « À traiter », which it names — the address says it, and the tab is drawn",
                   landed["tab"] == TODO and landed["drawn"] == TODO, str(landed))
     standing = await page.evaluate(ENTRY)
-    journal.check(f"{name}, walked: the landing stands on the floor, no entry left underneath",
-                  floor is not None and standing == floor, f"floor {floor}, landed on {standing}")
+    journal.check(f"{name}, walked: the landing stands on the trail the finger walked, the floor "
+                  f"{STACKED[name]} entries down",
+                  floor is not None and standing == floor + STACKED[name],
+                  f"floor {floor}, landed on {standing}")
     await context.close()
 
 

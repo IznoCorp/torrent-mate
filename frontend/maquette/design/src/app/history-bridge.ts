@@ -47,7 +47,7 @@ type Bridge = {
 // its old `openX(...)` function. `title` crosses the bridge as a plain
 // string — normalisation and encoding are this file's job, not the caller's.
 type Screens = {
-  profile: (title: string, replace?: boolean) => void;
+  profile: (title: string) => void;
   // The media sheet — the centre of the product. `title` crosses as a plain
   // string here too; `carried` is what the caller knows of the item when it
   // knows it, and the cache is asked otherwise.
@@ -67,7 +67,7 @@ type Screens = {
   resolution: (folder?: string, replace?: boolean) => void;
   // `q`/`mode` cross the bridge as plain strings (a literal like `"identify"`)
   // — the validated union lives in `/add`'s own `validateSearch`, not here.
-  add: (q?: string, mode?: string, replace?: boolean) => void;
+  add: (q?: string, mode?: string) => void;
   // One passage, by its identifier — an arrival from the passages' list.
   run: (runUid: string) => void;
   // The ranking editor, under the settings page.
@@ -220,11 +220,11 @@ const leavePanel = () => {
 };
 
 fillScreensDoor({
-  // REPLACE when one screen leaves for another at the same depth: the release
-  // screen's own « profile » takes that screen's place on the ladder.
-  profile: (title: string, replace?: boolean) =>
+  // A screen opened from another STACKS (§ 16 rule 1, DECIDED 2 = A): the
+  // release screen's own « profile » lands over it, and Retour gives it back.
+  profile: (title: string) =>
     go(
-      { to: "/quality/$name", params: { name: title.normalize("NFC") }, replace },
+      { to: "/quality/$name", params: { name: title.normalize("NFC") } },
       leavePanel,
     ),
   // The sheet is addressed by PROVIDER ID (DOIT-11), and a tap holds a title,
@@ -323,7 +323,7 @@ fillScreensDoor({
   // THE ROUTER CARRIES BOTH: the query and the mode travel in the address, and
   // nothing is copied into the store — a copy there outlived the screen and
   // handed « + » the previous visit's query (B-340).
-  add: (q?: string, mode?: string, replace?: boolean) => {
+  add: (q?: string, mode?: string) => {
     const validMode = mode === "identify" ? "identify" : "follow";
     go(
       {
@@ -332,7 +332,6 @@ fillScreensDoor({
           q: q || undefined,
           mode: validMode === "identify" ? "identify" : undefined,
         },
-        replace,
       },
       leavePanel,
     );

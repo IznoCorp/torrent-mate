@@ -91,10 +91,7 @@ registerVerb("pick-release", (value) => {
 // Another release: the release screen for the title the panel names.
 registerVerb("releases", (title) => screens.releases(title));
 
-// The quality profile. Both are ROUTES: from the release screen the profile
-// takes that screen's place — a REPLACE, the ladder a pop and a push used to
-// leave — and from a panel it lands on top of the panel's entry.
-registerVerb("profile", (profile) => {
-  const fromReleases = !!document.querySelector('.screen.open[data-key^="releases:"]');
-  screens.profile(profile, fromReleases);
-});
+// The quality profile. Both are ROUTES, and opening one STACKS wherever it is
+// asked from (§ 16 rule 1, DECIDED 2 = A): over the release screen, whose
+// Retour gives it back, and over a panel's entry.
+registerVerb("profile", (profile) => screens.profile(profile));

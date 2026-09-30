@@ -40,7 +40,7 @@ import { useTranslation } from "react-i18next";
 import { Icon } from "../../ui/icon";
 import { go } from "../../lib/navigate";
 import { useState } from "react";
-import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
+import { store, useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
 import { useProviderSearch } from "./search-queries";
 import { actionButton, backAction, emptyNote, resultCount, screen, screenBar, scrollport, searchField, searchInput, section, viewSwitch, viewSwitchButton } from "../../ui/variants";
 import { Disclosure } from "../../ui/disclosure";
@@ -62,7 +62,9 @@ import {
   suggestions,
 } from "../../features/acquisition/variants";
 import { Markup } from "../../ui/markup";
-import { bridge, redraw } from "../../lib/shell-doors";
+import { bridge, panel, redraw, replaceAddress } from "../../lib/shell-doors";
+import { addressSeam } from "../../lib/addresses";
+import { entriesAbovePage } from "../../lib/navigation-entry";
 import { baseTitle } from "../../lib/titles";
 import { mediumCardMarkup } from "./card-markup";
 import { addVerb } from "./add-label";
@@ -113,35 +115,20 @@ export function AddScreen() {
     });
   }
 
-  // Leaving a ROUTER-OWNED screen back onto legacy ground is not a `back`
-  // (however many entries deep the operator is, this always lands on the
-  // right page) and not a `data-go` click either — that shared delegated
-  // handler's own history handling is built for the engine's layers, which
-  // this screen does not belong to. The router entry is REPLACED with the
-  // destination — the same "the layer's entry becomes the arrival" semantics
-  // `data-go`'s own comment describes, expressed as a router-owned replace
-  // instead of a `__bridge.remplacer` — and the legacy state is written +
-  // rendered explicitly, since nothing subscribes the legacy `#view` to the
-  // store automatically (see `render`'s own doc comment in data.ts).
+  // « Voir mes suivis » CLOSES the screen (§ 16 rule 1) and sets the tab as a
+  // setting: the entries above the page — this screen and a result's panel —
+  // are given back in ONE traversal, and the page's own entry then takes the
+  // tab, replaced. Stacking a second Acquisition over the screen left a Retour
+  // that only undid the tab (the navigation lot, L4).
   function toFollows(): void {
-    writeUiState({ page: "acq", acqTab: "now" });
+    const entries = entriesAbovePage(addressSeam.homePage, String(store.read().state.page));
+    panel.close(true);
+    writeUiState({ acqTab: "now" });
     redraw();
-    // THE IDENTITY IS IN THE PATH AND THE STATE IS IN THE QUERY — D1, and this
-    // function was the counter-example (B-051). It navigated to `/` with
-    // `search: { page: "acq", tab: "now" }`: the page's identity travelling as
-    // a query parameter, and to an address that is not even the acquisition
-    // page — `/` is the root, which the boot SETTLES onto `/acquisition` with a
-    // replace. So the destination was right only by way of a redirect, and the
-    // key that named it was in the wrong half of the URL.
-    //
-    // `/acquisition` declares `SearchParams = { tab?: string }` and carries no
-    // `page` at all, which is what the address model has said all along.
-    go({
-      to: "/acquisition",
-      search: { tab: "now" },
-      replace: true,
-    });
+    window.addEventListener("popstate", () => replaceAddress?.(), { once: true });
+    bridge.rewind(entries);
   }
+
 
   // FROM THE CACHE (invariant 4). Nothing is drawn before it answers, and the
   // oracle measures at rest — which is where the answer is.

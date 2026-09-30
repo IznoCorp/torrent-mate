@@ -636,8 +636,43 @@ async def hold(journal):
     journal.summary(errors)
 
 
+async def hold_the_notice_is_reachable(journal):
+    """B-594 — the notice's control is under a finger, at the phone's widths.
+
+    The notice sits in the FLOW under the header. Mounted last in the phone
+    frame, it was drawn after the page, under the bottom bar: « Se reconnecter »
+    existed, was announced, and no finger could reach it. Read by a hit test at
+    the control's centre, which is what a finger does, at 390 and 320 px.
+    """
+    async with async_playwright() as playwright:
+        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        for width in (390, 320):
+            for state in ("relay-refused", "relay-lost"):
+                context, page = await open_page(
+                    browser, **{**PHONE, "viewport": {"width": width, "height": 844}})
+                await page.evaluate("(id)=>window.__go(id)", state)
+                await page.wait_for_timeout(500)
+                reached = await page.evaluate(
+                    """(notice) => {
+                      const action = document.querySelector(notice + ' [data-connection-action]');
+                      if (!action) return {drawn: false};
+                      const box = action.getBoundingClientRect();
+                      const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+                      return {drawn: true, reached: hit !== null && action.contains(hit),
+                              hit: hit ? (hit.closest('[data-part]')?.dataset.part ?? hit.tagName) : null,
+                              y: Math.round(box.y)};
+                    }""", NOTICE)
+                journal.check(
+                    f"B-594: at {width} px, « {state} »'s control is under a finger, never under the bar",
+                    reached.get("reached") is True,
+                    f"{reached}")
+                await context.close()
+        await browser.close()
+
+
 def main():
     journal = Journal("R92 — the connection says what is wrong, where a reader is")
+    asyncio.run(hold_the_notice_is_reachable(journal))
     asyncio.run(hold(journal))
 
 

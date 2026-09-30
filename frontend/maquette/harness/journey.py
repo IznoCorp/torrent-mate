@@ -120,7 +120,7 @@ from common import (
     SETTLED,
     chrome_launch_args,
 )
-from navigation_edges import DESIGN_EDGES, EDGES, NAMED_TRAILS, PAGE_WRITES_OWED
+from navigation_edges import DESIGN_EDGES, EDGES, NAMED_TRAILS
 from playwright.async_api import async_playwright
 
 # THE BAR'S OWN PAGES, the entry page left out: which pages are tabs is the
@@ -221,11 +221,13 @@ def query(url):
 # DESIGN § 0.2's command, read from the source: every line that names a page a
 # tap leads to, or writes one into the store. A comment line is no emitter.
 EMITTER_LINE = re.compile(
-    r'(data-(page|go|navgo)=|"data-(page|go|navgo)"|target: \{ go: |store\.write\(\{ page|writeUiState\(\{ page)')
+    r'(data-(page|go|navgo)=|"data-(page|go|navgo)"|target: \{ go: |store\.write\(\{ page'
+    r'|writeUiState\(\{ page|followLink\?\.\()')
 EMITTER_VALUE = (
     re.compile(r'data-(page|go|navgo)=\{?"?([\w.]+)'),
     re.compile(r'"data-(page|go|navgo)":\s*"?([\w.]+)'),
     re.compile(r'target: \{ (go): "(\w+)"'),
+    re.compile(r'(followLink)\?\.\("(\w+)"'),
     re.compile(r'(?:store\.write|writeUiState)\(\{ page(?::\s*"(\w+)")?'),
 )
 # The three verbs that switch a page; their own writes are the switch itself.
@@ -422,30 +424,17 @@ async def hold_the_edges(b, journal):
         "R-navigation-a: every emitter the table names is still in the source",
         claimed <= set(found), f"gone {sorted(claimed - set(found))}")
     writes = [name for name in found if ":write=" in name]
-    owed_phase, owed_writes = PAGE_WRITES_OWED
     journal.check(
-        f"R-navigation-a: nothing but the three verbs writes `page` — {owed_writes} "
-        f"write(s) outside them owed to phase {owed_phase}" if owed_writes else
         "R-navigation-a: nothing but the three verbs writes `page` into the store",
-        len(writes) == owed_writes, f"{writes}")
+        not writes, f"{writes}")
     for row in EDGES:
-        owed = row.get("owed")
-        if owed and owed[1] is None:
-            landing, seen, trouble = await walk_edge(b, row, 0)
-            journal.check(
-                f"R-navigation-a {row['edge']} (owed to phase {owed[0]}: TODAY) "
-                f"the finger cannot make the walk {' → '.join(row['walk'])}",
-                bool(trouble), trouble or f"it made it: landing {said(landing)}")
-            continue
-        expected = owed[1] if owed else row["stops"]
+        expected = row["stops"]
         landing, seen, trouble = await walk_edge(b, row, len(expected))
         landed = "landing" not in row or stop_matches(row["landing"], landing)
         walked = " → ".join(row["walk"]) or "cold"
         start = row.get("start", HOME.lstrip("/"))
-        name = (f"R-navigation-a {row['edge']} (owed to phase {owed[0]}: TODAY) " if owed
-                else f"R-navigation-a {row['edge']}: ")
         journal.check(
-            f"{name}/{start} · {walked} — Retour lands on "
+            f"R-navigation-a {row['edge']}: /{start} · {walked} — Retour lands on "
             + " → ".join(said(dict(zip(("address", "query", "page", "armed", "sheet"),
                                        (stop[0], "", stop[1], stop[2],
                                         stop[3] if len(stop) > 3 else False))))

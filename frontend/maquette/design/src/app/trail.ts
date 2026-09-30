@@ -19,7 +19,8 @@ export function standingIndex(): number {
  * The trail under the page being left, read off the entry one stands on.
  *
  * A DRIVEN state writes no history, so the entry may name another page than the
- * one drawn: the top of the trail is then the page drawn, at the same index.
+ * one drawn: the top of the trail is then the page drawn, at the same index —
+ * the floor itself when nothing is under it, and then no entry page is.
  *
  * Args:
  *     leaving: The page the interface was on.
@@ -30,7 +31,7 @@ export function standingIndex(): number {
 export function standingTrail(leaving: string): TrailStop[] {
   const trail = trailOf(history.state, addressSeam.homePage, leaving);
   const top = trail[trail.length - 1];
-  if (top.page !== leaving && trail.length > 1)
+  if (top.page !== leaving)
     return [...trail.slice(0, -1), { page: leaving, at: top.at }];
   return trail;
 }

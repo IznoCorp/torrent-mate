@@ -18,7 +18,7 @@ import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { HELD, send } from "../../lib/query-client";
 import { queueActions } from "../../lib/queue";
-import { fillLandingDoor, panel, replaceAddress, toast, redraw } from "../../lib/shell-doors";
+import { fillLandingDoor, followLink, panel, replaceAddress, toast, redraw } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
 import { baseTitle } from "../../lib/titles";
 import { settleSwipeRow } from "./follow-verbs";
@@ -91,11 +91,11 @@ async function searchNow(title: string): Promise<void> {
   });
 }
 // An incomplete series: the search for its missing episodes is said where it
-// will be seen moving, on « Maintenant ».
+// will be seen moving, on « Maintenant ». A LINK from the panel, followed as
+// one (§ 16, Q12): it stacks on the panel, whose entry is kept, so Retour gives
+// the page and the panel back.
 registerVerb("complete", (title) => {
-  store.write({ page: "acq", acqTab: "now" });
-  panel.close();
-  redraw();
+  followLink?.("acq", "now");
   toast?.show({
     message: i18next.t("verbs.acquisition.completionStarted", { title: baseTitle(title) }),
   });

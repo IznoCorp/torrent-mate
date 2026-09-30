@@ -69,7 +69,8 @@ function accountPanel(
             // the two copies drifted, which is the defect a retyped string IS.
             text: translate("navigation.pages.profile"),
             icone: icons.user,
-            target: { go: "profile" },
+            // A MENU'S ENTRY: it chooses a destination rather than follows a link.
+            target: { go: "profile", destination: "" },
           },
           {
             text: translate("screens.accountPage.signOut"),

@@ -148,6 +148,22 @@ export function trailOf(state: unknown, homePage: string, page: string): TrailSt
   return page === homePage ? [{ page, at }] : [{ page: homePage, at: at - 1 }, { page, at }];
 }
 
+/**
+ * How many entries stand above the page's own — the screens, panels and
+ * rubrics a surface that CLOSES back to the page gives back in one traversal.
+ *
+ * Args:
+ *     homePage: The entry page.
+ *     page: The page drawn.
+ *
+ * Returns:
+ *     The count, read off the entry one stands on and its trail.
+ */
+export function entriesAbovePage(homePage: string, page: string): number {
+  const trail = trailOf(history.state, homePage, page);
+  return entryIndex(history.state) - trail[trail.length - 1].at;
+}
+
 /* WHAT A LAYER'S ENTRY RECORDS, so a Back onto it can put the layer back. A
    layer left for an arrival keeps its entry, and the entry is all that is left
    of it once the arrival has closed it: the kind and the subject it was
