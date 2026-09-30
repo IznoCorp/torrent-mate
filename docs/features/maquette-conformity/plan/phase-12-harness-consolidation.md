@@ -1,9 +1,19 @@
 # Phase 12 — The harness consolidation
 
-Added by the orchestrator, 2026-09-30, after phase 7 (order 52): the lot's harness budget read **1.09** by the
-orchestrator (1.27–1.38 by the branch's own reading at the midpoint, harness lines added against design lines
-added, `git diff --numstat origin/main...HEAD`) against a ceiling of **0.6**. A CONVERSION phase: nothing observable
-changes.
+Added by the orchestrator, 2026-09-30, after phase 7 (order 52): the lot's harness budget is over its ceiling of
+**0.6**. A CONVERSION phase: nothing observable changes.
+
+**The budget's definition** (the orchestrator's ruling, 2026-09-30 — `implementer-office.md` leaves it open):
+harness = lines added under `frontend/maquette/harness/**` (rules, drivers, lib); product = lines added under
+`frontend/maquette/design/src/**` minus test files (`*.test.*`); recorded baselines (`oracle-reference.json`, the
+corpus and record files) and docs count on neither side. Measured ONCE, at this phase's gate, on the final head:
+
+```sh
+git diff --numstat origin/main...HEAD | awk '
+  $3 ~ /^frontend\/maquette\/harness\// {harness += $1}
+  $3 ~ /^frontend\/maquette\/design\/src\// && $3 !~ /\.test\./ {product += $1}
+  END {printf "harness +%d, product +%d, budget %.2f\n", harness, product, harness / product}'
+```
 
 ## What changes
 
@@ -17,7 +27,7 @@ changes.
 
 ## Acceptance
 
-- The budget, measured by the command above and written in the RESUME: ≤ 0.60.
+- The budget, measured once by the command above on the final head and written in the RESUME: ≤ 0.60.
 - The oracle ALONE: « no divergence » (a conversion moves no rendering — any divergence is STOP A).
 - `run.sh --rules` on every merged rule, green; each born mutation replayed through `scripts/mutate.sh`, each
   falling by its name.
