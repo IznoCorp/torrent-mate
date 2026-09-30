@@ -291,6 +291,11 @@ export function SeasonList({
                 <span className={chip({ tone: "info" })} data-part="season/queued" data-tone="info">
                   {t("screens.media.seasonWaitingOnPipeline")}
                 </span>
+              ) : asked.has(row.n) ? (
+                /* « DEMANDÉE » IN THE ROW'S HEAD, where the follow panel draws it:
+                   a folded season still says it is asked for. One mark
+                   at a time, « En file » first (DECIDED 4). */
+                <SeasonRequested title={followTitle} season={row.n} automatic={asked.get(row.n) === true} />
               ) : (
                 ""
               )}{" "}
@@ -356,11 +361,9 @@ export function SeasonList({
                 measurement of geometry can see a button. Having a sheet does not
                 make a medium one of the reader's. The behaviour is shared —
                 `askForSeason` — so the two surfaces cannot drift apart. */}
-            {/* « DEMANDÉE » WHILE THE SEASON'S RECOVERY LIVES, in the act's place —
-                one mark at a time, « En file » first (DECIDED 4). */}
-            {asked.has(row.n) ? (waiting.includes(row.n) ? null
-              : <SeasonRequested title={followTitle} season={row.n} automatic={asked.get(row.n) === true} />
-            ) : (owns || followed) && !complete && !seasonUpcoming ? (
+            {/* THE ACT IS WITHDRAWN WHILE THE SEASON'S RECOVERY LIVES: its mark
+                stands in the row's head. */}
+            {asked.has(row.n) ? null : (owns || followed) && !complete && !seasonUpcoming ? (
               <button
                 type="button"
                 className={`${actionButton({ kind: "panelAction" })} ${seasonGrabSpacing()} ${seasonGrabTaken()}`}

@@ -1278,6 +1278,8 @@ export interface components {
              * @enum {string|null}
              */
             trigger?: "manual" | "automatic" | null;
+            /** @description the release this acquisition follows — the name its torrent carries, a season's pack for a whole season's recovery, an episode's own for an episode; null until one is taken, and then no release is named. The engine holds it on the wanted row's grab and does not serve it on the card yet: demand SR4 (a journey per acquisition, with the release it followed). */
+            release?: string | null;
         };
         Fact: {
             /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */

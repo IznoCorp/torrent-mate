@@ -10,7 +10,7 @@
 import SEASONS from "../seeds/seasons.json";
 import { mockState } from "../state";
 import { acquisitionKey } from "../../lib/arrival-slots";
-import { forgetLadder, ladderOf, rungIndex, stripPosition, type Position } from "./ladder";
+import { forgetLadder, ladderOf, rungIndex, stripPosition, ownTimeOf, type Position } from "./ladder";
 import type { components } from "../../contract/types";
 
 type QueueCard = components["schemas"]["QueueCard"];
@@ -58,6 +58,19 @@ export function seasonCardOf(title: string, season: number): QueueCard | undefin
   const state = mockState();
   return [...state.inFlight, ...state.inFlightReel, ...state.blocked]
     .find((card) => card.title === title && isSeason(card) && card.season === season);
+}
+
+/**
+ * Whether a whole season of a medium is on its way — its card in flight, or its
+ * pack arrived in the staging area.
+ *
+ * @param title The medium.
+ * @returns True while one is.
+ */
+export function recoveringSeason(title: string): boolean {
+  const state = mockState();
+  return [...state.inFlight, ...state.inFlightReel, ...state.moving]
+    .some((card) => card.title === title && isSeason(card));
 }
 
 /**
@@ -141,7 +154,7 @@ export function poseSeasonAt(title: string, season: number, position: Position):
   if (card === undefined) return;
   const key = acquisitionKey(card);
   forgetLadder(key);
-  ladderOf(key, position);
+  ladderOf(key, position, { times: ownTimeOf(card) });
 }
 
 /**
@@ -162,7 +175,7 @@ export function poseSeasonBlocked(title: string, season: number): void {
   state.blocked = [{ ...stopped, strip }, ...state.blocked];
   forgetLadder(acquisitionKey(card));
   const position = stripPosition(strip);
-  if (position !== undefined) ladderOf(acquisitionKey(card), position);
+  if (position !== undefined) ladderOf(acquisitionKey(card), position, { times: ownTimeOf(card) });
 }
 
 /**

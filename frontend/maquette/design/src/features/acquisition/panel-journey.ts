@@ -62,13 +62,6 @@ function stageLine(stage: Stage, name: string) {
   };
 }
 
-// THE RELEASE THE JOURNEY IS ABOUT, and it is a fixture rather than an answer:
-// the contract's `readJourney` returns the STAGES and nothing else, so there is
-// nowhere to read it from. Recorded as a demand on the backend (D7) rather than
-// dressed up — a journey names the release it followed, and the interface
-// requires it.
-const RELEASE = "Furious.S01E01.MULTi.1080p.WEB-DL";
-
 /** The stages of one journey, as a query definition. */
 function journeyQuery(subject: string): PanelNeed {
   return {
@@ -138,6 +131,21 @@ function alreadyRunning(card: { ladder?: Stage[] }): boolean {
   return (card.ladder ?? []).some((rung) => rung.rung === "grabbed" && rung.state === "done");
 }
 
+// The rungs before the torrent is in the staging area: while one runs, the
+// download is still going and there is nothing to put back in the queue.
+const BEFORE_ARRIVAL: readonly Stage["rung"][] = ["requested", "searched", "grabbed", "downloading"];
+
+/**
+ * Whether a journey's download is still under way: a rung before « arrivé »
+ * running now.
+ *
+ * @param stages Its rungs.
+ * @returns True while it downloads.
+ */
+function running(stages: Stage[]): boolean {
+  return stages.some((stage) => stage.state === "now" && BEFORE_ARRIVAL.includes(stage.rung));
+}
+
 /**
  * Builds one journey's descriptor.
  *
@@ -177,7 +185,11 @@ function journeyPanel(subject: string, cache: PanelCache): PanelDescriptor | nul
   return {
     address: "journey:" + subject,
     title: itemOf(subject) === "" ? title : `${title} · ${itemOf(subject)}`,
-    meta: [translate("panels.journey.metaBefore"), { m: RELEASE }],
+    // THE RELEASE ITS OWN ACQUISITION FOLLOWED, served on its card (SR4): the
+    // season's pack for a season, the episode's own for an episode — none named
+    // while nothing is taken, never another journey's.
+    meta: own?.release ? [translate("panels.journey.metaBefore"), { m: own.release }]
+      : [translate("panels.journey.metaAlone")],
     blocs: [
       ...(pointer === null ? [] : [{ type: "note" as const, text: pointer.note }]),
       {
@@ -214,13 +226,14 @@ function journeyPanel(subject: string, cache: PanelCache): PanelDescriptor | nul
           // THE TUNNEL'S OWN VERBS (B-302, §20: it « reprend là où il s'est
           // arrêté, par l'opérateur »). Their `data-*` names are answered by
           // `lib/verbs`: a verb that never existed in the engine had no branch
-          // to move there.
-          {
+          // to move there. A DOWNLOAD STILL RUNNING has not stopped: nothing is
+          // put back in the queue while it goes on.
+          ...(running(stages) ? [] : [{
             text: translate("panels.journey.requeue"),
             icone: icons.refresh,
-            ton: "primary",
+            ton: "primary" as const,
             target: { "journey-requeue": subject },
-          },
+          }]),
           {
             text: translate("panels.journey.rescrape"),
             icone: icons.search,

@@ -4790,6 +4790,13 @@
               null
             ],
             "description": "who launched the acquisition: `manual` a person's ask, `automatic` the engine's own rule (the season detection, R4); null when it is not known, and then nothing is drawn. The engine records no such column yet: demand SR5."
+          },
+          "release": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the release this acquisition follows — the name its torrent carries, a season's pack for a whole season's recovery, an episode's own for an episode; null until one is taken, and then no release is named. The engine holds it on the wanted row's grab and does not serve it on the card yet: demand SR4 (a journey per acquisition, with the release it followed)."
           }
         },
         "required": [

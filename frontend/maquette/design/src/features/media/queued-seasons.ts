@@ -26,7 +26,36 @@
 // (« I asked, and I was told it was queued ») and says nothing it has not been
 // told. Recorded as a demand on the backend rather than left as a client
 // invention.
+import { useEffect } from "react";
 import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import type { components } from "../../contract/types";
+import { read } from "../../lib/query-client";
+
+type PipelineStatus = components["schemas"]["Pipeline"];
+
+/** The pipeline's status — the system page's key and shape, one cached answer. */
+const PIPELINE_STATUS = ["/api/pipeline/status"];
+
+/** The state the pipeline is in when nothing runs: a queued ask is then taken. */
+const IDLE = "idle";
+
+/**
+ * Reads the pipeline's status afresh, before a queued ask is marked.
+ *
+ * THE MARK LASTS WHILE THE PIPELINE WORKS, so the status it reads must be the
+ * one the answer « queued » was given against: a status cached idle from an
+ * earlier visit would clear the mark the moment it was drawn.
+ *
+ * Args:
+ *     client: The cache the surfaces read.
+ */
+export async function refreshPipelineStatus(client: QueryClient): Promise<void> {
+  await client.fetchQuery({
+    queryKey: PIPELINE_STATUS,
+    queryFn: async () => read<PipelineStatus>("/api/pipeline/status"),
+    staleTime: 0,
+  });
+}
 
 /** The cache key holding one medium's queued seasons. */
 function keyFor(title: string): [string, string] {
@@ -71,11 +100,22 @@ export function forgetQueuedSeasons(client: QueryClient, title: string): void {
 /**
  * The seasons of one medium whose grab is waiting on the pipeline.
  *
+ * ONE MARK AT A TIME (DECIDED 4): « En file » while the ask waits, then
+ * « Demandée ». The wait ends when the pipeline is idle again — the ask is then
+ * taken — so the pipeline's status is read here, and an idle answer forgets the
+ * medium's queued seasons (the mark cleared only on a reload). A status
+ * not read, or unreadable, asserts nothing and keeps what the answer said.
+ *
  * Returns:
  *     Their numbers, empty when none is waiting.
  */
 export function useQueuedSeasons(title: string): number[] {
   const client = useQueryClient();
+  const { data: pipeline } = useQuery({
+    queryKey: PIPELINE_STATUS,
+    queryFn: async () => read<PipelineStatus>("/api/pipeline/status"),
+  });
+  const taken = pipeline?.state === IDLE;
   const { data } = useQuery({
     queryKey: keyFor(title),
     // IT ASKS NOBODY. The key holds what this interface was told by an answer
@@ -85,5 +125,8 @@ export function useQueuedSeasons(title: string): number[] {
     enabled: false,
     initialData: [] as number[],
   });
-  return data;
+  useEffect(() => {
+    if (taken && data.length) forgetQueuedSeasons(client, title);
+  }, [taken, data.length, client, title]);
+  return taken ? [] : data;
 }

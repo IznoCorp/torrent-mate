@@ -14,6 +14,9 @@ import type { FollowFacts } from "./follow-facts";
 
 const say = (key: string) => i18next.t(`panels.follow.${key}`);
 
+// The status of a follow whose grab is running.
+const BEING_ACQUIRED = "acquiring";
+
 /**
  * The ONE act the panel leads with.
  *
@@ -58,6 +61,13 @@ export function primaryAction(facts: FollowFacts): Action {
     return {
       text: say("complete"), icone: icons.play, ton: "primary",
       target: { complete: follow.title },
+    };
+  // A GRAB ALREADY RUNNING IS NOT SEARCHED AGAIN: the follow leads to the
+  // journey of what runs — a whole season's recovery first (Q14 = A).
+  if (facts.isFollowed && follow.status === BEING_ACQUIRED)
+    return {
+      text: say("seeJourney"), icone: icons.refresh, ton: "primary",
+      target: { journey: facts.journey },
     };
   if (facts.isFollowed)
     return {
@@ -125,7 +135,8 @@ export function secondaryActions(facts: FollowFacts): (Action | null)[] {
     // action, which happens for a medium with no sheet that nothing is
     // chasing. Without this condition the panel drew the same words twice and
     // gave the reader two buttons he could not tell apart (B-313).
-    facts.hasSheet || facts.toResolve || facts.toTake || facts.incomplete || facts.isFollowed
+    (facts.hasSheet || facts.toResolve || facts.toTake || facts.incomplete || facts.isFollowed)
+      && primaryAction(facts).target?.journey === undefined
       ? { text: say("seeJourney"), icone: icons.refresh, target: { journey: facts.journey } }
       : null,
     // Chasing a release only means something for a medium still being acquired.

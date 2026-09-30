@@ -17,7 +17,20 @@
       "tmdb": "125988",
       "imdb": "tt14688458"
     },
-    "poster": "assets/posters/6d0da42b.webp"
+    "poster": "assets/posters/6d0da42b.webp",
+    "release": "Silo.S03.MULTi.1080p.WEB-DL.DDP5.1.H264-FRATERNITY",
+    "ladder": [
+      {
+        "rung": "grabbed",
+        "when": "10 août, 01 h 12",
+        "state": "done"
+      },
+      {
+        "rung": "downloading",
+        "when": "10 août, 01 h 15",
+        "state": "now"
+      }
+    ]
   },
   {
     "title": "Silo",
@@ -37,7 +50,20 @@
       "tmdb": "125988",
       "imdb": "tt14688458"
     },
-    "poster": "assets/posters/6d0da42b.webp"
+    "poster": "assets/posters/6d0da42b.webp",
+    "release": "Silo.S03E07.MULTi.1080p.WEB-DL.DDP5.1.H264-FRATERNITY",
+    "ladder": [
+      {
+        "rung": "grabbed",
+        "when": "9 août, 22 h 40",
+        "state": "done"
+      },
+      {
+        "rung": "downloading",
+        "when": "9 août, 22 h 47",
+        "state": "now"
+      }
+    ]
   },
   {
     "title": "President Curtis",

@@ -113,7 +113,10 @@ export function ReleasesScreen() {
           </div>
           <p className={resultCount({ flush: true })} data-part="result/count">
             <b>{RELEASES.length}</b>{" "}
-            {allCovered ? t("screens.releases.allCovered", { season: covered[0] }) : t("screens.releases.rescount")}
+            {/* THE COUNT'S OWN FORM: « 1 candidat retenu », never « 1 candidats ». */}
+            {allCovered
+              ? t("screens.releases.allCovered", { season: covered[0], count: RELEASES.length })
+              : t("screens.releases.rescount", { count: RELEASES.length })}
           </p>
           {RELEASES.map((release, index) => (
             <article

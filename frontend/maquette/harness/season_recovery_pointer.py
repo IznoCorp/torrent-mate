@@ -17,7 +17,10 @@ WHAT IT HOLDS, by finger:
   ended            on `absorbed-journey-pointer-ended` the note says the season reached the library
                    and the primary action is « Voir la fiche »: a pointer never lands on nothing.
   the season's     on `season-card-journey` the season's journey names S03E07, « téléchargement déjà en
-  journey          cours », and a finger on it opens that episode's own journey.
+  journey          cours », and a finger on it opens that episode's own journey. Each journey names its
+                   OWN acquisition's release — the season's pack for S03, the episode's for S03E07 —
+                   and its own times, never one journey's for both; the season's download still
+                   running, its journey offers no « Remettre en file ».
 """
 import asyncio
 
@@ -31,6 +34,9 @@ ENDED = "arrivée en médiathèque"  # french-ok: the ended pointer's note, asse
 SEE_CARD = "Voir la carte de la saison"  # french-ok: the pointer's action, asserted as drawn
 SEE_SHEET = "Voir la fiche"  # french-ok: the ended pointer's action, asserted as drawn
 RUNNING = "S03E07 — téléchargement déjà en cours"  # french-ok: the covered episode's line, asserted as drawn
+REQUEUE = "Remettre en file"  # french-ok: the tunnel's requeue act, asserted absent on a running download
+PACK = "Silo.S03.MULTi"
+EPISODE_RELEASE = "Silo.S03E07."
 
 SHEET = """() => {
   const sheet = document.querySelector('#sheet');
@@ -39,6 +45,8 @@ SHEET = """() => {
   return {
     open: true,
     title: (sheet.querySelector('[data-part="sheet/title"]') || {}).textContent || '',
+    meta: (sheet.querySelector('[data-part="sheet/meta"]') || {}).textContent || '',
+    times: [...sheet.querySelectorAll('[data-part="key-value"]')].map((one) => one.textContent.trim()),
     text: sheet.innerText,
     actions: actions.map((one) => ({text: one.textContent.trim(), tone: one.dataset.tone || '',
                                      go: one.dataset.go || '', dial: one.dataset.dial || '',
@@ -144,6 +152,12 @@ async def main():
         await page.evaluate("()=>window.__go('season-card-journey')")
         await page.wait_for_timeout(PANEL_IN + SETTLED)
         sheet = await page.evaluate(SHEET)
+        season_sheet = sheet
+        journal.check("the season's journey names the season's pack, its own release",
+                      PACK in sheet.get("meta", ""), sheet.get("meta", ""))
+        journal.check("the season's download still running, its journey offers no « Remettre en file »",
+                      not any(one["text"] == REQUEUE for one in sheet.get("actions", [])),
+                      str([one["text"] for one in sheet.get("actions", [])]))
         covered = [one for one in sheet.get("actions", []) if one["text"] == RUNNING]
         journal.check("the season's journey names S03E07, « téléchargement déjà en cours », a path to its journey",
                       len(covered) == 1 and covered[0]["journey"] == EPISODE,
@@ -153,6 +167,10 @@ async def main():
         sheet = await page.evaluate(SHEET)
         journal.check("a finger on it opens that episode's own journey — its pointer drawn",
                       sheet["open"] and COVERED in sheet.get("text", ""), sheet.get("title", ""))
+        journal.check("the episode's journey names the episode's own release, and its own times — not the season's",
+                      EPISODE_RELEASE in sheet.get("meta", "") and PACK not in sheet.get("meta", "")
+                      and sheet.get("times") and sheet.get("times") != season_sheet.get("times"),
+                      f"{sheet.get('meta')!r} {sheet.get('times')} vs {season_sheet.get('times')}")
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()

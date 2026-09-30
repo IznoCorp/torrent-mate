@@ -31,6 +31,8 @@ ALL_COVERED = "tous couverts par la saison 3"  # french-ok: the count's words, a
 PACK = "Silo.S03.MULTi"
 EPISODE = "S03E07"
 FILM = "Wicker"
+COUNT_WORD = r"\s*(\d+)\s+(candidats?)\b"  # french-ok: the count's figure and word, read as drawn
+ONE_CANDIDATE = "candidat"  # french-ok: the count's singular, asserted as drawn
 
 ROWS = """() => {
   const screen = document.querySelector('[data-part="screen"][data-open][data-key^="releases:"]');
@@ -110,6 +112,11 @@ async def main():
         journal.check("R-d: a film's release list draws no refusal and keeps its acts",
                       film.get("rows") and all(row["pick"] and not row["chip"] for row in film["rows"]),
                       str(film.get("rows")))
+        # THE COUNT'S OWN FORM: « 1 candidat retenu », never « 1 candidats » — the word agrees with the figure.
+        figure = re.match(COUNT_WORD, film.get("count", ""))
+        journal.check("the count agrees with its figure (« 1 candidat », « n candidats »)",
+                      figure is not None and int(figure.group(1)) == len(film.get("rows", []))
+                      and (figure.group(2) == ONE_CANDIDATE) == (int(figure.group(1)) == 1), repr(film.get("count")))
 
         # ── the pointer, by finger ────────────────────────────────────────────
         await page.evaluate("()=>window.__go('releases-season-recovering')")

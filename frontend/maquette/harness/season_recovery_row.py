@@ -12,7 +12,12 @@ WHAT IT HOLDS:
                        not followed) the same on its sheet; still « Demandée » when the pack has
                        arrived in the staging area and when the card is stopped in « À traiter »; gone
                        once the season is shelved, the fraction then `7/7`; while the ask waits on
-                       the pipeline, « En file » and no « Demandée » (one mark at a time).
+                       the pipeline, « En file » and no « Demandée » (one mark at a time), and once the
+                       pipeline is idle again the ask is taken: « Demandée », « En file » gone, with no
+                       reload; on the SERIES sheet the mark sits in the row's head, visible with the
+                       season folded, as on the follow sheet; while the season's recovery runs, the
+                       follow's own status and acts say so — no « En attente de torrent », no
+                       « Chercher maintenant », no « Aucune release conforme » on its Suivis card.
   R-season-recovery-g  the row's half: on the two automatic subjects the row's ONE chip reads
                        « Demandée · auto » — never a second chip; on the manual subject no « auto ».
 """
@@ -24,6 +29,35 @@ from playwright.async_api import async_playwright
 REQUESTED = "Demandée"  # french-ok: the row's mark, asserted as drawn
 AUTOMATIC = "Demandée · auto"  # french-ok: the automatic recovery's mark, asserted as drawn
 WAITING = "En file"  # french-ok: the queued mark's words, asserted as drawn
+PENDING = "En attente de torrent"  # french-ok: the follow's status while nothing is taken, asserted absent
+SEARCH_NOW = "Chercher maintenant"  # french-ok: the follow's search act, asserted absent
+NO_RELEASE = "Aucune release conforme"  # french-ok: the Suivis card's reason, asserted absent
+
+# The row's « Demandée » on the series sheet with its season FOLDED — drawn, and visible.
+FOLDED = """([title, season]) => {
+  const mark = document.querySelector(`[data-asked-season="${CSS.escape(title + '|' + season)}"]`);
+  const row = mark ? mark.closest('[data-part="season"]') : null;
+  if (!row) return {found: false};
+  if (row.open) row.querySelector('summary').click();
+  return {found: true, open: row.open, inHead: !!mark.closest('summary'),
+          visible: mark.checkVisibility({visibilityProperty: true, opacityProperty: true})};
+}"""
+
+# The follow sheet's own status and acts, and its Suivis card's reason.
+FOLLOW = """(title) => {
+  const heading = [...document.querySelectorAll('#sheetin [data-part="sheet/title"]')]
+    .find((one) => one.textContent.trim() === title);
+  const head = heading ? heading.parentElement : null;
+  const card = [...document.querySelectorAll('#view [data-part="card"]')]
+    .find((one) => ((one.querySelector('[data-part="card/title"]') || {}).textContent || '').trim() === title);
+  return {
+    found: !!head,
+    status: head ? [...head.querySelectorAll(':scope > [data-part="chip"]')].map((one) => one.textContent.trim()) : [],
+    acts: [...document.querySelectorAll('#sheetin [data-part="sheet/action"]')].map((one) => one.textContent.trim()),
+    card: !!card,
+    reason: card ? ((card.querySelector('[data-part="card/reason"]') || {}).textContent || '') : '',
+  };
+}"""
 
 # The season row of one series' season, on whatever surface is up: its marks, its act, its fraction.
 ROW = """([title, season]) => {
@@ -90,6 +124,31 @@ async def main():
         journal.check("R-b: while the ask waits, « En file » and no « Demandée » — one mark at a time",
                       len(row.get("queued", [])) == 1 and WAITING in row["queued"][0] and not row.get("asked"),
                       str(row))
+        # THE TRANSITION, with no reload: the pipeline goes idle and says so, and the ask is taken.
+        await page.evaluate("()=>{window.__mocks.setPipelineState('idle');"
+                            "window.__mocks.stream.emit('PipelineEnded', {});}")
+        await page.wait_for_timeout(SETTLED * 3)
+        row = await page.evaluate(ROW, ["Silo", 3])
+        journal.check("R-b: once the pipeline is idle again, « Demandée » replaces « En file » — no reload",
+                      row.get("asked") == [REQUESTED] and not row.get("queued"), str(row))
+
+        # ONE PLACE ON BOTH SHEETS: the row's head, visible with the season folded.
+        await at(page, "season-row-requested-sheet", "Silo", 3)
+        await page.evaluate(FOLDED, ["Silo", 3])  # the first read folds the season, as a finger does
+        await page.wait_for_timeout(SETTLED)
+        folded = await page.evaluate(FOLDED, ["Silo", 3])
+        journal.check("R-b: on the series sheet, « Demandée » sits in the row's head, visible with the season folded",
+                      folded.get("found") and not folded.get("open") and folded.get("inHead")
+                      and folded.get("visible"), str(folded))
+
+        # THE FOLLOW SAYS WHAT RUNS: its season's pack downloads, nothing is searched.
+        await at(page, "season-row-requested-panel", "Silo", 3)
+        follow = await page.evaluate(FOLLOW, "Silo")
+        journal.check("R-b: while the recovery runs, the follow sheet reads no « En attente de torrent » and "
+                      "offers no « Chercher maintenant »; its Suivis card says no « Aucune release conforme »",
+                      follow.get("found") and follow.get("card") and PENDING not in follow.get("status", [])
+                      and follow.get("status") and SEARCH_NOW not in follow.get("acts", [])
+                      and NO_RELEASE not in follow.get("reason", ""), str(follow))
 
         for state in ("season-row-requested-automatic-sheet", "season-row-requested-automatic-panel"):
             row = await at(page, state, "Silo", 3)
