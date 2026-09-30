@@ -28,7 +28,7 @@ Red before the move: no pair offers a cut, no title an exclusion.
 """
 import asyncio
 
-from common import ACTED, SETTLED, Journal, chrome_launch_args, open_page
+from common import ACTED, SETTLED, Journal, browser_channel, chrome_launch_args, open_page
 from playwright.async_api import async_playwright
 
 ORIGIN = "66e23ab395c438b7db4f7c855bd451d8bb1f0046"
@@ -81,7 +81,7 @@ def pair(reading, tracker):
 async def main():
     journal = Journal("R-L17-f/j — a cross-seed is cut cleanly on one tracker, and the cut is remembered")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))

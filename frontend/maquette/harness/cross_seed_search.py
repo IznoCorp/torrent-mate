@@ -22,7 +22,7 @@ Red before the move: no pair offers a search, no card a left drawer.
 """
 import asyncio
 
-from common import ACTED, SETTLED, Journal, chrome_launch_args, open_page
+from common import ACTED, SETTLED, Journal, browser_channel, chrome_launch_args, open_page
 from playwright.async_api import async_playwright
 
 CROSS_SEEDING = "66e23ab395c438b7db4f7c855bd451d8bb1f0046"
@@ -65,7 +65,7 @@ async def panel(page, entry):
 async def main():
     journal = Journal("R-L17-i — « Chercher un cross-seed »: bounded, answered, visible, offered where the engine acts")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))

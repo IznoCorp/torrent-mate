@@ -25,7 +25,7 @@ Red before the move: the badge counts four terms and the three events move nothi
 import asyncio
 import pathlib
 
-from common import SETTLED, Journal, chrome_launch_args, open_page
+from common import SETTLED, Journal, browser_channel, chrome_launch_args, open_page
 from playwright.async_api import async_playwright
 
 REFUSED = "8d51568b1a4f46e1fb7e7b535b52a5203312fc28"
@@ -75,7 +75,7 @@ async def pose(page, infoHash, tracker, fields, event):
 async def main():
     journal = Journal("R-L17-g/h — the Trackers badge counts the cross-seed's failures, and its events move the page")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))

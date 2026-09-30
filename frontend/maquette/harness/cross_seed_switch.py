@@ -27,7 +27,7 @@ import asyncio
 import json
 import pathlib
 
-from common import ACTED, SETTLED, Journal, chrome_launch_args, open_page
+from common import ACTED, SETTLED, Journal, browser_channel, chrome_launch_args, open_page
 from playwright.async_api import async_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parents[1] / "design/src"
@@ -89,7 +89,7 @@ async def open_tr4ker(page):
 async def main():
     journal = Journal("R-L17-e — a tracker's cross-seed switch, in two halves, where the tracker is")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
