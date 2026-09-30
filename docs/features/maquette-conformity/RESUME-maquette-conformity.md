@@ -8,8 +8,7 @@
   `/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md`. **Plan** `plan/INDEX.md` — 13 phases, one per
   surface (orders 98, 99): read its correspondence table and each page before a phase.
 - **DONE: phases 1–7.** 1 the responsive rule · 2 its WebKit pass · 3 components I · 4 components II · 5 Système ·
-  6 Réglages and Maintenance · 7 Acquisition. **NOW: the MIDPOINT** (`--contracts` + the full responsive sweep,
-  Chromium + WebKit, once; its real falls repaired before phase 8). **NEXT: phase 8, Médiathèque** (with B-578, the candidate's poster), then 9–11, **12 the harness
+  6 Réglages and Maintenance · 7 Acquisition. **MIDPOINT DONE** (no real fall to repair). **NEXT: phase 8, Médiathèque** (with B-578, the candidate's poster), then 9–11, **12 the harness
   consolidation** (order 52, budget ≤ 0.60), **13 the close**.
 - **The phase gate (order 99)**: static guards on the files touched; each new rule read RED on the old code first
   (`scripts/mutate.sh` with a targeted expression — an old file that no longer compiles cannot be restored whole);
@@ -77,3 +76,9 @@
   Médiathèque's and Trackers' read right since phase 3 — so no `OWED`, proved by mutation (trackersTab 52 px).
   Gate: guards green (B-238 aside), 19 rules green, responsive 46 states × 9 passes 0 fall, oracle « no divergence »
   (region roots only) — nothing to accept. Pre-push wanted `check-maquette-comments.py --record` for the 3 new rules.
+- 2026-09-30 — MIDPOINT: `run.sh --contracts` — the 24 contract rules green; 26 of 27 guards green, the one red
+  `check-implementation-state.py` (B-238: the In-flight row names no PR yet — owed to the PR's opening). The full
+  responsive sweep, 161 states × 9 passes (7 Chromium widths, WebKit light and dark at 390): 0 fall outside `OWED`;
+  owed: tab-bar 159, segment/count 23, segment 12, tile/title 44, card/title 47, card/subtitle 5, cast 54,
+  connection-notice bevel 18, menu unseen 214. The orchestrator added phase 12 (harness consolidation, order 52,
+  its definition ruled) and moved B-578 into phase 8.
