@@ -38,7 +38,11 @@ ANSWER = """async (who) => {
 COUNTS = """() => ({
   tab: Number(document.querySelector('[data-acqtab="todo"] [data-part="segment/count"]')?.textContent || 0),
   badge: Number(document.querySelector('#nav button[data-page="acq"] [data-part="shell/tab-badge"]')?.textContent || 0),
-  fab: document.querySelector('#fab')?.checkVisibility() || false })"""
+  fab: !document.querySelector('#fab')?.hidden })"""
+# A MESSAGE HIDES THE « ＋ » while it is shown (R86), so the button is read once
+# no message stands — the welcome hint included.
+QUIET = """async () => { for (let i = 0; i < 40 && document.querySelector('#toast[data-shown]'); i += 1) {
+  document.querySelector('#toastx')?.click(); await new Promise((settle) => setTimeout(settle, 250)); } }"""
 PANEL_VERBS = """() => [...document.querySelectorAll('#sheet [data-journey-requeue], #sheet [data-journey-rescrape]')]
   .map((one) => one.getAttribute('data-journey-requeue') ? 'requeue' : 'rescrape')"""
 FORCE_REQUEUE = """async ([who, title]) => { window.__mocks.setIdentity(who);
@@ -58,6 +62,7 @@ async def main():
             await page.wait_for_timeout(wait)
 
         await go("acq-household")
+        await page.evaluate(QUIET)
         member = await page.evaluate(ANSWER, "household-member")
         journal.check("R-L18-g: a household member reads only the acquisitions it asked for",
                       member["all"] > 0 and not member["others"], str(member))
@@ -80,6 +85,7 @@ async def main():
                       str(counts))
 
         await go("acq-see-only")
+        await page.evaluate(QUIET)
         counts = await page.evaluate(COUNTS)
         journal.check("F65: a role that only sees has no « ＋ »", not counts["fab"], str(counts))
 
