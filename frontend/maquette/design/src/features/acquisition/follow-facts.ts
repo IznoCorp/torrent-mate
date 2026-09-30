@@ -29,7 +29,7 @@ import { followsQuery, incompleteShowsQuery } from "./queries";
 // undefined, which is what the engine's object literal did in practice.
 import type { Follow, FollowSubject } from "./types";
 import { followFraction } from "./follow-vocabulary";
-import { inFlightCards, setAsideCards, todoCards } from "./arrival-slots";
+import { inFlightCards, setAsideCards, todoCards } from "../../lib/arrival-slots";
 import { originLine } from "./card-markup";
 import { followOffered } from "./follow-offer";
 

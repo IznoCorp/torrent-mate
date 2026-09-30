@@ -176,7 +176,7 @@
     },
     "INFLIGHT": {
       "class": "served",
-      "why": "Acquisition, « En cours » — what is in flight",
+      "why": "Acquisition, « En cours » — what is in flight — and, at the head of the dense list, the whole-season recovery of « Silo » S03 (its season card, requester `follow`, `trigger` `manual`, at « téléchargement ») with its episode card S03E07 · 1080p · MULTi, `absorbedBy` the season card: both COMPOSED for the season recovery (DESIGN maquette-season-recovery § 2), their ids and poster Silo's follow's",
       "seed": null,
       "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
@@ -334,7 +334,7 @@
       "class": "served",
       "why": "the release candidates. NOT REAL — no tracker is queried (README, What is real in here) — but a release list IS server state, so it is served and the register says where its values came from",
       "seed": null,
-      "converted": "L09 phase 8 — the release picker and the quality profile read /api/acquisition/releases. The seed holds the four Silo rows the fixture carried, then ONE DERIVED ROW per title the acquisition offers « another release » on (follows, incomplete-shows, takeable, blocked, not-found, in-flight, not-found-loaded — Silo excepted): the title spelled with dots and without accents, then its episode when a card names one (SxxEyy) or else its year (the seed's own, or its media sheet's), then the quality tail, seeders, size and score of one of the four rows verbatim, taken in turn over the titles sorted. Nothing in a derived row is a value no seed holds (B-501)."
+      "converted": "L09 phase 8 — the release picker and the quality profile read /api/acquisition/releases. The seed holds the four Silo rows the fixture carried, then ONE DERIVED ROW per title the acquisition offers « another release » on (follows, incomplete-shows, takeable, blocked, not-found, in-flight, not-found-loaded — Silo excepted): the title spelled with dots and without accents, then its episode when a card names one (SxxEyy) or else its year (the seed's own, or its media sheet's), then the quality tail, seeders, size and score of one of the four rows verbatim, taken in turn over the titles sorted. Nothing in a derived row is a value no seed holds (B-501). The season pack `Silo.S03.MULTi.1080p.WEB-DL.DDP5.1.H264-FRATERNITY` is COMPOSED for the season recovery (DESIGN maquette-season-recovery § 2): the 1080p FRATERNITY row's tail, its episode token dropped."
     },
     "RESOLUTIONS": {
       "class": "interface",

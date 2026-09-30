@@ -1,5 +1,45 @@
 [
   {
+    "title": "Silo",
+    "secondaryLine": "S03",
+    "season": 3,
+    "episode": null,
+    "trigger": "manual",
+    "strip": [
+      1,
+      "now",
+      0,
+      0,
+      0
+    ],
+    "ids": {
+      "tvdb": "403245",
+      "tmdb": "125988",
+      "imdb": "tt14688458"
+    },
+    "poster": "assets/posters/6d0da42b.webp"
+  },
+  {
+    "title": "Silo",
+    "secondaryLine": "S03E07 · 1080p · MULTi",
+    "season": 3,
+    "episode": 7,
+    "absorbedBy": "Silo|S03",
+    "strip": [
+      1,
+      "now",
+      0,
+      0,
+      0
+    ],
+    "ids": {
+      "tvdb": "403245",
+      "tmdb": "125988",
+      "imdb": "tt14688458"
+    },
+    "poster": "assets/posters/6d0da42b.webp"
+  },
+  {
     "title": "President Curtis",
     "secondaryLine": "S01E02 · 1080p · VOSTFR",
     "strip": [

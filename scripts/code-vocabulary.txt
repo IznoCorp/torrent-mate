@@ -37,6 +37,8 @@
 abandon
 abandoned
 above
+absorb
+absorbs
 accent
 accepted
 account
@@ -102,6 +104,7 @@ attributes
 audio
 audios
 authentication
+automatic
 avatar
 axis
 back
@@ -244,6 +247,8 @@ cote
 count
 counted
 cover
+coverable
+covered
 create
 criteria
 criterion
@@ -339,6 +344,7 @@ doors
 dot
 down
 download
+downloading
 downloads
 drag
 draw
@@ -488,6 +494,7 @@ groups
 guard
 guidance
 had
+hand
 harness
 has
 hash
@@ -615,6 +622,7 @@ libload
 libq
 library
 libretry
+lifted
 light
 like
 limit
@@ -785,6 +793,8 @@ owned
 owner
 ownership
 owns
+pack
+pad
 page
 pages
 paging
@@ -912,6 +922,7 @@ reconnect
 reconnecting
 reconnection
 record
+recover
 recovery
 rect
 redirect
@@ -962,6 +973,7 @@ replaced
 replay
 report
 request
+requested
 requester
 required
 requeue
@@ -1034,6 +1046,8 @@ scrollport
 seam
 seams
 search
+searched
+searching
 season
 seasons
 sec
@@ -1082,6 +1096,7 @@ sheetin
 sheets
 shell
 shelved
+short
 shortfall
 shorthands
 shot
@@ -1211,6 +1226,7 @@ text
 that
 thawed
 the
+their
 theme
 there
 threshold

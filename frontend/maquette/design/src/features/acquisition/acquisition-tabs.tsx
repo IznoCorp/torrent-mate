@@ -6,7 +6,7 @@ import { useAcquisitionQueue } from "../../lib/queue";
 import { useUiState } from "../../lib/store-access";
 import { Tabs } from "../../ui/tabs";
 import { moreButton } from "../../ui/variants";
-import { inFlightCards, todoCards } from "./arrival-slots";
+import { inFlightCards, todoCards } from "../../lib/arrival-slots";
 
 // The tab bar, and the « more » control that opens the watch-and-obligations
 // sheet. Shared by the four surfaces below.

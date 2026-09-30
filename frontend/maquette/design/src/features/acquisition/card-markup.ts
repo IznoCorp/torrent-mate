@@ -34,6 +34,9 @@ type Rung = {
   minimumRatio?: number | null;
 };
 /** A medium as an acquisition list holds one, in the engine's field names. */
+// The contract's token for an acquisition the engine launched on its own.
+const AUTOMATIC = "automatic";
+
 export type MediumCard = {
   title: string;
   k?: string;
@@ -59,6 +62,8 @@ export type MediumCard = {
   poster?: string | null;
   /** The provider identifiers — null for a title no sheet stands behind. */
   ids?: Record<string, number | string> | null;
+  /** Who launched it: a person's ask, or the engine's own rule — null when not known. */
+  trigger?: "manual" | "automatic" | null;
 };
 
 /** The foot a section offers for its own action. */
@@ -231,7 +236,12 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot | Med
           },
         },
     body: { "data-panel": medium.panel || (hasSheet ? `media:${title}` : folderAddress) },
-    subtitle: medium.secondaryLine,
+    // AN AUTOMATIC RECOVERY SAYS SO in its subtitle, « S03 · auto » (Q19,
+    // DECIDED 8 = A): a word, never a second chip beside the rung's. A manual
+    // one reads nothing more; an unknown trigger draws nothing, never a guess.
+    subtitle: medium.trigger === AUTOMATIC
+      ? i18next.t("surfaces.card.automatic", { line: medium.secondaryLine })
+      : medium.secondaryLine,
     reason: medium.plexMatch
       ? escapeMarkup(i18next.t("surfaces.card.plexMatch", { title: medium.plexMatch.title }))
       : onLadder?.setAside

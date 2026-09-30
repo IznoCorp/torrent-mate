@@ -9,7 +9,7 @@ import type { Schemas } from "../../lib/contract-schemas";
 import type { Follow, FollowOutcome } from "./types";
 import { queueKey, useAcquisitionQueue, type AcquisitionQueue } from "../../lib/queue";
 import { store, useUiState } from "../../lib/store-access";
-import { todoCards } from "./arrival-slots";
+import { todoCards } from "../../lib/arrival-slots";
 import { fillFollowedTitlesDoor } from "../../lib/shell-doors";
 
 /**

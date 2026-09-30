@@ -1019,6 +1019,7 @@
       "sheetOf": "Fiche de {{title}}",
       "folderActions": "Actions pour le dossier {{title}}",
       "folder": "Dossier",
+      "automatic": "{{line}} · auto",
       "freshTag": "Nouveau",
       "stages": [
         "pris",

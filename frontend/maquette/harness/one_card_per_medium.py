@@ -35,10 +35,17 @@ from common import SETTLED, Journal, open_page, chrome_launch_args
 from playwright.async_api import async_playwright
 
 FOLLOWED = ("President Curtis", "Furious")
+# AN ITEM IS ITS TITLE AND WHAT OF IT IS ACQUIRED: the served season and episode where the card
+# carries them, else the episode its line names. RE-AIMED OUT LOUD (season recovery): the dense
+# world holds Silo's whole-season card AND the episode card it covers — two items of one series,
+# one drawn (R-season-recovery-a); counting by title alone read them as one medium answered twice.
 QUEUE = """async () => {
   const answer = await (await fetch('/api/acquisition/to-handle?scenario=loaded')).json();
+  const item = (card) => card.title + ' ' + (card.season != null
+    ? 'S' + card.season + (card.episode != null ? 'E' + card.episode : '')
+    : ((card.secondaryLine || '').match(/S\\d+E\\d+/) || [''])[0]);
   return Object.entries(answer).flatMap(([family, cards]) => Array.isArray(cards)
-    ? cards.map((card) => ({ family, title: card.title })) : []);
+    ? cards.map((card) => ({ family, title: item(card) })) : []);
 }"""
 DRAWN = """() => [...document.querySelectorAll('#view [data-part="card"] [data-part="card/title"]')]
   .map((one) => one.textContent)"""

@@ -2,6 +2,7 @@
 import GRAB_CADENCE from "../seeds/grab-cadence.json";
 import { releasesFor } from "./releases-of";
 import { sameItem } from "./same-item";
+import { acquisitionKey } from "../../lib/arrival-slots";
 import SEARCH_RESULTS from "../seeds/search-results.json";
 import SUGGESTIONS from "../seeds/suggestions.json";
 import { DELETE, GET, PATCH, POST, field, route, text } from "./shared";
@@ -50,7 +51,7 @@ function onTheLadder(cards: components["schemas"]["QueueCard"][], at?: Position)
     // follow names carries none, and the card says its origin is unknown.
     const { requester, origin } = originOf(card, false);
     const asked = requester === undefined ? card : { ...card, requester };
-    return position === undefined ? asked : { ...asked, ladder: ladderOf(card.title, position, origin) };
+    return position === undefined ? asked : { ...asked, ladder: ladderOf(acquisitionKey(card), position, origin) };
   });
 }
 

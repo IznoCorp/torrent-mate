@@ -21,6 +21,11 @@ WHAT IT HOLDS:
                    « rien en cours », draws no section, and carries no count:
                    what waits to be taken is not counted as moving.
 
+RE-AIMED OUT LOUD (season recovery): the dense world now holds Silo's whole-season
+card, « S03 », and the episode card it covers, S03E07, which « En vol » does not draw
+(R-season-recovery-a). The season card is one medium of « En vol » like any other,
+its line naming no episode; the count still reads what « En vol » draws.
+
 WHAT IT DOES NOT READ: which card sits on which rung (R207's), or the take on the
 follow's sheet (R123's).
 """
