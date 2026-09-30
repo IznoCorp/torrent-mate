@@ -7,8 +7,8 @@
 - **Design** `/Users/izno/dev/review-archive/conformity-80/REPORT.md` § B, § D; the operator's rulings
   `/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md`. **Plan** `plan/INDEX.md` — 13 phases, one per
   surface (orders 98, 99): read its correspondence table and each page before a phase.
-- **DONE: phases 1–7.** 1 the responsive rule · 2 its WebKit pass · 3 components I · 4 components II · 5 Système ·
-  6 Réglages and Maintenance · 7 Acquisition. **MIDPOINT DONE** (no real fall to repair). **NEXT: phase 8, Médiathèque** (with B-578, the candidate's poster), then 9–11, **12 the harness
+- **DONE: phases 1–8.** 1 the responsive rule · 2 its WebKit pass · 3 components I · 4 components II · 5 Système ·
+  6 Réglages and Maintenance · 7 Acquisition · 8 Médiathèque (+ B-578). **MIDPOINT DONE** (no real fall to repair). **NEXT: phase 9, the media sheet and the seasons**, then 10–11, **12 the harness
   consolidation** (order 52, budget ≤ 0.60), **13 the close**.
 - **The phase gate (order 99)**: static guards on the files touched; each new rule read RED on the old code first
   (`scripts/mutate.sh` with a targeted expression — an old file that no longer compiles cannot be restored whole);
@@ -17,16 +17,17 @@
   and a script proving ONLY the declared states' keys moved; `run.sh --rules` on the touched surfaces' rules;
   R-conformity-a with `TM_RESPONSIVE_STATES` built BY SCRIPT from `harness/states/<surface>.ts` (mind the
   `.map`-built ids: `settings-field-<type>`). Every browser run names `TM_HARNESS_JOBS=2`; pytest `-n 2`.
-- **Traps paid for**: the markup arm reads only LITERAL `data-part="…"` — a part passed as a prop or built by
+- **Traps paid for**: the virtual window's pitch is the SHORTEST row drawn and lines are measured only once the
+  geometry is the drawing's (a first row that wraps flipped the estimate; stale lanes resized tiles as lines); zsh
+  does not split `$VAR` — pass a rule list as `${=VAR}`; the markup arm reads only LITERAL `data-part="…"` — a part passed as a prop or built by
   `FactRows` is invisible to it (emit it literally on a wrapper, or let the component take the prop under the
   attribute's own name, `data-region="…"`, as `Tabs` does); `check-frame-domain` refuses a domain word in
   `ui/`; a new maquette file needs `check-maquette-comments.py --record` in its commit; a merge of `main` moves the
   corpus floor too; the git index lock is taken by another process now and then — retry the commit.
 - **Rules born** (letter → file): a `responsive.py` · b `one_tab_bar.py` · c `one_switch.py` · e `on_off.py` ·
-  f `state_words.py` · h `empty_place.py` · j `back_control.py` · o `segmented_choice.py` · p `primary_action.py`.
-  **Owed list** (`OWED` in `responsive.py`): card/title,
-  subtitle, tile/title, cast, segment, segment/count → 8; shell/tab-bar, connection-notice bevel → 10; the menu's
-  WebKit « unseen » → the defects fast lane.
+  f `state_words.py` · h `empty_place.py` · j `back_control.py` · o `segmented_choice.py` · p `primary_action.py` ·
+  s `lens_filters.py`. **Owed list** (`OWED` in `responsive.py`): shell/tab-bar,
+  connection-notice bevel → 10; the menu's WebKit « unseen » → the defects fast lane.
 - **To confirm by the operator** (choices said in the commits): « joignable » the one word of the reachable code;
   the pause « actif » when engaged; the stopped processing in danger.
 
@@ -82,3 +83,13 @@
   owed: tab-bar 159, segment/count 23, segment 12, tile/title 44, card/title 47, card/subtitle 5, cast 54,
   connection-notice bevel 18, menu unseen 214. The orchestrator added phase 12 (harness consolidation, order 52,
   its definition ruled) and moved B-578 into phase 8.
+- 2026-09-30 — phase 8 (Médiathèque + B-578): titles, sub-lines, tile titles and cast wrap (B-584); the virtual window
+  measures every drawn line (resizeItem), its spacers read the virtualiser's measurements, its estimated pitch is the
+  shortest row; `segmentTab` wraps. `Tabs` on Médiathèque; the category pills on « Récents » and « Incomplets »
+  (`IncompleteShow.category` in the contract and seed, `incompleteIn`), states `lib-recent-movies`,
+  `lib-incomplete-movies` (« movies » joins the vocabulary); the count line's `sectionCount`, `linkbtn` and 12 px
+  gone. B-578 (orchestrator's ruling A): the candidate's poster carries its identity, the mock composes its sheet,
+  Retour comes back. Red first on the old code: s (no pills), resolution_card h11/h12 (the poster PICKED). Re-aimed
+  out loud: resolution_card, decision, audit R1, resolution_window, cards R50, lens_filters (no skeleton). Gate: 74
+  rules green (81 named with the lenses, the resolution and the sheets), responsive 163 states × 9 passes 0 fall, the
+  oracle 16 states accepted by name, proved by script (exactly those keys moved).
