@@ -36,6 +36,18 @@ WHAT IT DOES NOT READ, said before the arm so nobody reads more into it:
 A FLOOR ON THE CORPUS. A run that read no file, or found no declaration,
 reports « no duplicate » and means « I measured nothing » — the reading this
 repository counts under « guards green over what they do not read ».
+
+THREE ELEMENT ARMS, the same subject read from the other end: an element the
+design system draws ONCE is written only in `ui/`. Over the same corpus minus
+`ui/`, each is refused wherever it is written — JSX, a markup string, a
+comment:
+  - `role="tablist"` — a tab bar is `ui/tabs.tsx`;
+  - `<details`, and a `summary::before` / `summary::after` class token — a
+    fold is `ui/disclosure.tsx` and its chevron the `disclosure` variant;
+  - `role="switch"` — a switch is `ui/switch.tsx`.
+HARD ZERO, no allow-list, for the reason above. They read TEXT: a chevron drawn
+as an SVG path, or a `button` toggling `aria-pressed` without the role, is not
+read — said, so nobody reads more into them.
 """
 from __future__ import annotations
 
@@ -63,6 +75,37 @@ DECLARATION = re.compile(
 # there is none here.
 FLOOR_FILES = 60
 FLOOR_DECLARATIONS = 30
+# The one directory each element below may be written in.
+SHARED_DIRECTORY = "ui"
+# element → (the pattern that finds it written, where it lives instead).
+ELEMENTS = {
+    "a tab bar": (re.compile(r"""role\s*[=:]\s*\\?["']tablist"""), "ui/tabs.tsx"),
+    "a fold": (re.compile(r"<details\b|summary::(?:before|after)"), "ui/disclosure.tsx"),
+    "a switch": (re.compile(r"""role\s*[=:]\s*\\?["']switch"""), "ui/switch.tsx"),
+}
+
+
+def elements_outside_the_shared_directory(files: list[Path]) -> tuple[int, list[str]]:
+    """Find every element the design system draws once, written outside `ui/`.
+
+    Args:
+        files: The corpus `sources` collected.
+
+    Returns:
+        How many files were read outside `ui/`, and one line per element found.
+    """
+    read = 0
+    found: list[str] = []
+    for path in files:
+        relative = path.relative_to(DESIGN_ROOT)
+        if relative.parts[0] == SHARED_DIRECTORY:
+            continue
+        read += 1
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            for element, (pattern, home) in ELEMENTS.items():
+                if pattern.search(line):
+                    found.append(f"{relative}:{number}: {element} is written here — it is `{home}`")
+    return read, found
 
 
 def sources(root: Path) -> list[Path]:
@@ -85,10 +128,10 @@ def sources(root: Path) -> list[Path]:
 
 
 def main() -> int:
-    """Refuse a PascalCase function declared in more than one file.
+    """Refuse a PascalCase function declared in more than one file, and a shared element written outside `ui/`.
 
     Returns:
-        The number of names declared twice, or 1 when the corpus is under its floor.
+        The number of violations, or 1 when a corpus is under its floor.
     """
     declared: dict[str, list[str]] = {}
     files = sources(DESIGN_ROOT)
@@ -110,9 +153,18 @@ def main() -> int:
               "a component two files draw is vocabulary and lives in `ui/`; two "
               "different things under one name are renamed, never allow-listed",
               file=sys.stderr)
-    if twice:
-        print(f"check-component-once: {len(twice)} violation(s)", file=sys.stderr)
-        return len(twice)
+    read, elements = elements_outside_the_shared_directory(files)
+    print(f"  elements: {len(ELEMENTS)} arm(s) over {read} file(s) outside `{SHARED_DIRECTORY}/` "
+          f"(floor {FLOOR_FILES}), {len(elements)} written outside it")
+    if read < FLOOR_FILES:
+        print(f"check-component-once: the corpus outside `{SHARED_DIRECTORY}/` is under its floor", file=sys.stderr)
+        return 1
+    for line in elements:
+        print(f"    {line}", file=sys.stderr)
+    violations = len(twice) + len(elements)
+    if violations:
+        print(f"check-component-once: {violations} violation(s)", file=sys.stderr)
+        return violations
     print("check-component-once: clean")
     return 0
 

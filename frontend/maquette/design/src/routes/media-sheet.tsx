@@ -36,7 +36,7 @@ function MediaRouteScreen() {
 // resolution, never to a dead link.
 //
 // NO search param: the legacy sheet had no open-season state either; a
-// `<details open>` is computed per render and toggled natively by the finger,
+// season's `Disclosure` opens per render and is toggled natively by the finger,
 // so there is nothing here for the address to carry.
 export const mediaRoute = createRoute({
   getParentRoute: () => rootRoute,

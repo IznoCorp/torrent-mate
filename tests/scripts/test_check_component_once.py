@@ -140,3 +140,33 @@ def test_an_empty_corpus_is_refused_rather_than_called_clean(tmp_path: Path) -> 
     finished = run(tmp_path)
     assert finished.returncode != 0
     assert "under its floor" in finished.stderr
+
+
+# THE ELEMENT ARMS: each shape an arm claims to read, planted outside `ui/`,
+# and the same text inside `ui/`, where the element lives.
+PLANTED = {
+    "a tab bar in JSX": '<div role="tablist">',
+    "a tab bar in a markup string": 'const bar = `<div role=\\"tablist\\">`;',
+    "a tab bar in a props object": 'const props = { role: "tablist" };',
+    "a fold element": "<details open>",
+    "a fold chevron token": "const fold = \"[&>summary::before]:content-['›']\";",
+    "a fold's after token": "const fold = \"[&>summary::after]:content-['']\";",
+    "a switch in JSX": '<button role="switch" />',
+    "a switch in a markup string": "const knob = `<button role='switch'>`;",
+}
+
+
+@pytest.mark.parametrize("shape", sorted(PLANTED))
+def test_an_element_written_outside_ui_is_refused(tree: Path, shape: str) -> None:
+    """Each element the design system draws once is refused where a feature writes it."""
+    second(tree, PLANTED[shape] + "\n", "features/releases/planted.tsx")
+    finished = run(tree)
+    assert finished.returncode != 0, shape
+    assert "planted.tsx:1" in finished.stderr, finished.stderr
+
+
+@pytest.mark.parametrize("shape", sorted(PLANTED))
+def test_the_same_element_inside_ui_is_where_it_lives(tree: Path, shape: str) -> None:
+    """Written in `ui/`, the element is the component itself, not a copy."""
+    second(tree, PLANTED[shape] + "\n", "ui/planted.tsx")
+    assert run(tree).returncode == 0, shape
