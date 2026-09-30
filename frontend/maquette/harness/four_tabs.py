@@ -29,13 +29,15 @@ reaches (the follows of a whole library run to hundreds):
    never clipped by the tab's edge.
 
 R-conformity-b — ONE TAB BAR (`hold_one_tab_bar`, in its own context): the bars
-of Médiathèque and Trackers are Acquisition's.
+of Médiathèque and Trackers are Acquisition's — and (`hold_bar_position`) every
+page that draws a tab bar draws it at Acquisition's place, at 320, 390 and
+1280 px.
 """
 import asyncio
 import json
 import pathlib
 
-from common import SETTLED, Journal, open_page, read_at, chrome_launch_args
+from common import PAGE_PATHS, PROTOTYPE, SETTLED, Journal, open_page, read_at, chrome_launch_args
 from playwright.async_api import async_playwright
 
 WORDS = json.loads((pathlib.Path(__file__).resolve().parents[1]
@@ -144,6 +146,7 @@ async def main():
         journal.check("no JS error", not errors, str(errors))
         await context.close()
         await hold_one_tab_bar(browser, journal)
+        await hold_bar_position(browser, journal)
         await browser.close()
     journal.summary()
 
@@ -210,6 +213,61 @@ async def hold_one_tab_bar(browser, journal):
         detail = f"{bar}" if state == REFERENCE_BAR else f"{bar} against {reference['signature']}"
         journal.check(f"{state}: every tab at least {TOUCH_TARGET} px, one height, the reference's drawing",
                       held, detail)
+
+
+POSITION_WIDTHS = (320, 390, 1280)
+REFERENCE_PAGE = "acq"
+# Where the page's tab bar sits: its row's offset under the frame's header, its
+# insets from the view's edges, its width, and whether the row is the page's
+# own head — a child of `#view` — or drawn inside a column of the page.
+BAR_POSITION = """()=>{
+  const bar = document.querySelector('#view [role="tablist"]');
+  if (!bar) return null;
+  const row = bar.parentElement.getBoundingClientRect();
+  const view = document.querySelector('#view').getBoundingClientRect();
+  const header = document.querySelector('[data-part="shell/header"]').getBoundingClientRect();
+  return {place: {top: Math.round(row.top - header.bottom), left: Math.round(row.left - view.left),
+                  right: Math.round(view.right - row.right), width: Math.round(row.width)},
+          head: bar.parentElement.parentElement.id === 'view', part: bar.parentElement.dataset.part || null};
+}"""
+
+
+async def hold_bar_position(browser, journal):
+    """R-conformity-b — every page's tab bar sits where Acquisition's does.
+
+    Trackers' page was hosted in the page column (its navigation row's `root`),
+    so its bar took the column's padding on top of its own: lower, inset twice,
+    narrower. Every page of the address table is loaded at each width; each
+    one that draws a tab bar draws it as the page's head, `view/tabs`, at
+    Acquisition's offset, insets and width.
+
+    Args:
+        browser: The launched browser; the holds read a context of their own.
+        journal: The rule's journal.
+    """
+    for width in POSITION_WIDTHS:
+        phone = width < 768
+        context, page = await open_page(browser, viewport={"width": width, "height": 844}, is_mobile=phone,
+                                        has_touch=phone, device_scale_factor=2 if phone else 1)
+        bars = {}
+        for name, path in PAGE_PATHS.items():
+            await page.goto(PROTOTYPE.rstrip("/") + path, wait_until="load")
+            await page.evaluate("()=>window.__loadingDone?.()")
+            await page.wait_for_timeout(SETTLED)
+            bars[name] = await page.evaluate(BAR_POSITION)
+        await context.close()
+        drawn = sorted(name for name, bar in bars.items() if bar)
+        reference = bars[REFERENCE_PAGE]
+        if not journal.check(f"{width} px: the pages drawing a tab bar include {REFERENCE_PAGE}, lib and trackers",
+                             {REFERENCE_PAGE, "lib", "trackers"} <= set(drawn), f"{drawn}"):
+            continue
+        for name in drawn:
+            journal.check(f"{width} px · {name}: its tab bar is at {REFERENCE_PAGE}'s place",
+                          bars[name]["place"] == reference["place"],
+                          f"{bars[name]['place']} against {reference['place']}")
+            journal.check(f"{width} px · {name}: the bar is the page's head, view/tabs, a child of #view",
+                          bars[name]["head"] and bars[name]["part"] == "view/tabs",
+                          f"head {bars[name]['head']}, part {bars[name]['part']}")
 
 
 if __name__ == "__main__":

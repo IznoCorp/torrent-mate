@@ -44,7 +44,7 @@ export function Tabs({ tabs, selected, attribute, "data-region": region, trailin
   trailing?: ReactNode;
 }): ReactElement {
   return (
-    <div className={viewTabs()} data-region={region}>
+    <div className={viewTabs()} data-part="view/tabs" data-region={region}>
       <div className={segment()} data-part="segment" role="tablist">
         {tabs.map((tab) => (
           <button
