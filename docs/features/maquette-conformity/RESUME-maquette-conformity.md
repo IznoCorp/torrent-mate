@@ -7,8 +7,8 @@
 - **Design** `/Users/izno/dev/review-archive/conformity-80/REPORT.md` § B, § D; the operator's rulings
   `/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md`. **Plan** `plan/INDEX.md` — 13 phases, one per
   surface (orders 98, 99): read its correspondence table and each page before a phase.
-- **DONE: phases 1–8.** 1 the responsive rule · 2 its WebKit pass · 3 components I · 4 components II · 5 Système ·
-  6 Réglages and Maintenance · 7 Acquisition · 8 Médiathèque (+ B-578). **MIDPOINT DONE** (no real fall to repair). **NEXT: phase 9, the media sheet and the seasons**, then 10–11, **12 the harness
+- **DONE: phases 1–9.** 1 the responsive rule · 2 its WebKit pass · 3 components I · 4 components II · 5 Système ·
+  6 Réglages and Maintenance · 7 Acquisition · 8 Médiathèque (+ B-578) · 9 the media sheet. **MIDPOINT DONE** (no real fall to repair). **NEXT: phase 10, the frame and the menu**, then 11, **12 the harness
   consolidation** (order 52, budget ≤ 0.60), **13 the close**.
 - **The phase gate (order 99)**: static guards on the files touched; each new rule read RED on the old code first
   (`scripts/mutate.sh` with a targeted expression — an old file that no longer compiles cannot be restored whole);
@@ -26,7 +26,7 @@
   corpus floor too; the git index lock is taken by another process now and then — retry the commit.
 - **Rules born** (letter → file): a `responsive.py` · b `one_tab_bar.py` · c `one_switch.py` · e `on_off.py` ·
   f `state_words.py` · h `empty_place.py` · j `back_control.py` · o `segmented_choice.py` · p `primary_action.py` ·
-  s `lens_filters.py`. **Owed list** (`OWED` in `responsive.py`): shell/tab-bar,
+  s `lens_filters.py` · d `state_chips.py` · g `fact_state.py` · l `legends.py`. **Owed list** (`OWED` in `responsive.py`): shell/tab-bar,
   connection-notice bevel → 10; the menu's WebKit « unseen » → the defects fast lane.
 - **To confirm by the operator** (choices said in the commits): « joignable » the one word of the reachable code;
   the pause « actif » when engaged; the stopped processing in danger.
@@ -93,3 +93,11 @@
   out loud: resolution_card, decision, audit R1, resolution_window, cards R50, lens_filters (no skeleton). Gate: 74
   rules green (81 named with the lenses, the resolution and the sheets), responsive 163 states × 9 passes 0 fall, the
   oracle 16 states accepted by name, proved by script (exactly those keys moved).
+- 2026-09-30 — phase 9 (the media sheet): facts as chips (« actif / inactif » for the follow), NoInfo = the empty
+  note under the `no-info` part (skeleton places stay), the season fold is `Disclosure` kind season (it now takes
+  `data-part` by the attribute's name), the season marks and the trailer's source are chips, the air date text,
+  episode dots are `statusDot`, `*-text` tokens on the cells, one `EpisodeLegend` over both drawings with
+  `data-state` on episodes and entries, inline spacing → steps. season-list.tsx 382/400. Red first on the old code:
+  d, g, l (for l, by the absent legend AND the absent `data-state`), h. The plan's named re-aims needed none;
+  screen_addresses.py re-aimed (the place is a block). Gate: 47 rules green, responsive 163 × 9 passes 0 fall, the
+  oracle 6 media sheets accepted by name (their body alone), proved by script.
