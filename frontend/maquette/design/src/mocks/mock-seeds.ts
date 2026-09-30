@@ -29,7 +29,7 @@ import { poseUnknownIdentity } from "./handlers/posed-identity";
 import { poseDeferral } from "./handlers/posed-deferral";
 import { sameItem } from "./handlers/same-item";
 import { poseKeepsItsFiles } from "./handlers/staged-folders";
-import { confirmInPlex, placeAtPlexCheck } from "./handlers/ladder";
+import { confirmInPlex, placeAtPlexCheck, placeInEnrichment } from "./handlers/ladder";
 import { emit } from "./stream";
 
 /** What the layer exposes of its seeds. */
@@ -69,6 +69,8 @@ export type MockSeeds = {
   sameItem: typeof sameItem;
   /** Lays a medium's ladder one event away from « vérifié dans Plex » — a DERIVATION from its real row (RULINGS 14). */
   placeAtPlexCheck: (title: string) => void;
+  /** Lays a medium's ladder in the middle of its enrichment — « enrichi » unfolded, each part at its own state. */
+  placeInEnrichment: (title: string) => void;
   /**
    * The medium confirmed in the library: its last rung done, carried on the
    * engine's per-step event, `ItemProgressed`. Answers true once emitted.
@@ -140,6 +142,7 @@ export const mockSeeds: MockSeeds = {
   poseDeferral,
   sameItem,
   placeAtPlexCheck,
+  placeInEnrichment,
   confirmInPlex: (title) => {
     confirmInPlex(title);
     emit("ItemProgressed", { step: "plex", item: title, status: "verified" });

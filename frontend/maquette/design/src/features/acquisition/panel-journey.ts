@@ -109,9 +109,17 @@ function journeyPanel(title: string, cache: PanelCache): PanelDescriptor | null 
         // pipeline steps it merges, from the same answer the card reads.
         lignes: stages.flatMap((stage) => [
           stageLine(stage, translate(`surfaces.ladder.rungs.${stage.rung}`)),
-          ...(stage.steps ?? []).map((step) => stageLine(step, translate("surfaces.ladder.step", {
-            name: translate(`surfaces.ladder.steps.${step.rung}`),
-          }))),
+          ...(stage.steps ?? []).flatMap((step) => [
+            stageLine(step, translate("surfaces.ladder.step", {
+              name: translate(`surfaces.ladder.steps.${step.rung}`),
+            })),
+            // « ENRICHI » UNFOLDED (L24 OPEN 5 = B): what the enrichment
+            // fetched, each part with its own state — the sheet only; the
+            // card keeps its eight rungs.
+            ...(step.steps ?? []).map((part) => stageLine(part, translate("surfaces.ladder.subStep", {
+              name: translate(`surfaces.ladder.steps.${part.rung}`),
+            }))),
+          ]),
         ]),
       },
       // THE DECISION THAT IDENTIFIED IT, once « identifié » is passed (L24 S1):

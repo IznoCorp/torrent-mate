@@ -80,12 +80,31 @@ function timeOf(seeded: Rung, state: RungState): string {
 function laid(seeded: Rung, state: RungState): Rung {
   const rung: Rung = { rung: seeded.rung, state, when: timeOf(seeded, state) };
   if (seeded.steps !== undefined) {
-    rung.steps = seeded.steps.map((step, index) => {
-      const stepState = state === DONE ? DONE : index === 0 && state !== PENDING ? state : PENDING;
-      return { rung: step.rung, state: stepState, when: timeOf(step, stepState) };
-    });
+    // AND THE STEPS' OWN STEPS, laid the same way: « enrichi » carries what the
+    // enrichment fetched (L24 OPEN 5 = B).
+    rung.steps = seeded.steps.map((step, index) =>
+      laid(step, state === DONE ? DONE : index === 0 && state !== PENDING ? state : PENDING));
   }
   return rung;
+}
+
+/**
+ * Lays one medium's ladder in the middle of its enrichment: « rangé » running,
+ * « trié » done, « enrichi » running — its metadata fetched, its posters being
+ * fetched, its trailer still to come.
+ *
+ * @param subject The medium.
+ */
+export function placeInEnrichment(subject: string): void {
+  delete mockState().journeyStages[subject];
+  const ladder = ladderOf(subject, { current: rungIndex("shelved"), state: RUNNING_NOW });
+  const [sorted, enriched] = ladder[rungIndex("shelved")].steps ?? [];
+  if (sorted === undefined || enriched === undefined) return;
+  sorted.state = DONE;
+  enriched.state = RUNNING_NOW;
+  (enriched.steps ?? []).forEach((step, index) => {
+    step.state = index === 0 ? DONE : index === 1 ? RUNNING_NOW : PENDING;
+  });
 }
 
 /**

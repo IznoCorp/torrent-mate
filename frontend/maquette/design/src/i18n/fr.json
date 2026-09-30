@@ -1169,9 +1169,13 @@
       "steps": {
         "sorted": "trié",
         "enriched": "enrichi",
-        "shelved": "rangé"
+        "shelved": "rangé",
+        "metadata": "métadonnées",
+        "posters": "posters récupérés",
+        "trailer": "bande-annonce"
       },
       "step": "· {{name}}",
+      "subStep": "· · {{name}}",
       "toConfirm": "{{rung}} — à confirmer",
       "ratioWithoutThreshold": "Différé : le ratio sur {{tracker}} est trop bas, et ce tracker n'a aucun seuil réglé.",
       "reasons": {

@@ -419,6 +419,16 @@ export function acquisitionStates(): NamedState[] {
     ],
     ...decisionStates(),
     [
+      "sheet-journey-enriched-unfolded",
+      "Feuille de parcours — « enrichi » déplié : métadonnées, posters, bande-annonce",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.placeInEnrichment("President Curtis");
+        applyState({ page: "acq", phase: "ready" });
+        window.__panel.produce("journey", "President Curtis");
+      },
+    ],
+    [
       "sheet-more",
       "Feuille « ⋮ » — veille et obligations",
       () => {
