@@ -81,12 +81,6 @@ OWED: dict[tuple[str, str], str] = {
     # list in the commit that repairs it, and the rule then holds it.
     ("bevel", "shell/connection-notice"): "maquette-conformity phase 10 (R1's family)",
     ("cut", "shell/tab-bar"): "maquette-conformity phase 10",
-    ("cut", "card/title"): "maquette-conformity phase 8 (§ 12)",
-    ("cut", "card/subtitle"): "maquette-conformity phase 8 (§ 12)",
-    ("cut", "tile/title"): "maquette-conformity phase 8 (§ 12's family)",
-    ("cut", "cast"): "maquette-conformity phase 8 (§ 12's family)",
-    ("cut", "segment"): "maquette-conformity phase 8",
-    ("cut", "segment/count"): "maquette-conformity phase 8",
     # WebKit draws the menu button's icon at no size, in light and in dark.
     ("unseen", "menu"): "defects fast lane",
 }

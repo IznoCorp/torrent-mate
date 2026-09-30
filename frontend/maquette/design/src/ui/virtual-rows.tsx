@@ -194,10 +194,10 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
   // whose title wraps is taller than its neighbour. Each spacer is read from the
   // virtualiser's own measurements — the lines it has measured, the estimate
   // for the rest — never as a count times one pitch.
-  const before = linesBefore ? lines[0].start - scrollMargin - gap : 0;
-  const after = linesAfter
-    ? virtualizer.getTotalSize() - (lines[lines.length - 1].end - scrollMargin) - gap
-    : 0;
+  // Before the first frame the window holds no line at all, and everything is after.
+  const drawnEnd = lines.length ? lines[lines.length - 1].end - scrollMargin : 0;
+  const before = linesBefore && lines.length ? lines[0].start - scrollMargin - gap : 0;
+  const after = linesAfter ? virtualizer.getTotalSize() - drawnEnd - gap : 0;
 
   const start = firstLine * activeLanes;
   const end = Math.min(count, (lastLine + 1) * activeLanes);
