@@ -3,33 +3,53 @@
 ## State block (rewritten at every boundary)
 
 - **Branch** `feat/maquette-conformity` (worktree `/Users/izno/dev/worktrees/maquette-conformity`), merged with
-  `origin/main` at `9234341fc` (#645). **Orchestrator**: `Orch : TM frontend [077751]`.
+  `origin/main` at `9234341fc` (#645). Remote head `f3e77525e`; THIS block's commit is local only — the docs-only
+  pre-push list refuses it on the In-flight row (B-238): push it with the first code commit, never `--no-verify`.
+  **Orchestrator**: `Orch : TM frontend [077751]` — handshake first, every question to it by SendMessage, a gate
+  report carries the head (verified by `git ls-remote`) and the MEASURED context (`context-gauge.sh`).
 - **Design** `/Users/izno/dev/review-archive/conformity-80/REPORT.md` § B, § D; the operator's rulings
   `/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md`. **Plan** `plan/INDEX.md` — 13 phases, one per
   surface (orders 98, 99): read its correspondence table and each page before a phase.
-- **DONE: phases 1–11.** 1 the responsive rule · 2 its WebKit pass · 3 components I · 4 components II · 5 Système ·
-  6 Réglages and Maintenance · 7 Acquisition · 8 Médiathèque (+ B-578) · 9 the media sheet · 10 the frame · 11 Découvrir and Trackers (+ B-580). **MIDPOINT DONE** (no real fall to repair). **NEXT:** **12 the harness
-  consolidation** (order 52, budget ≤ 0.60), **13 the close**.
+- **DONE: phases 1–11** and the MIDPOINT (no real fall). 1 the responsive rule · 2 its WebKit pass · 3 components I ·
+  4 components II · 5 Système · 6 Réglages and Maintenance · 7 Acquisition · 8 Médiathèque (+ B-578) · 9 the media
+  sheet · 10 the frame · 11 Découvrir and Trackers (+ B-580). Rotation before 12, on the orchestrator's order.
+- **NEXT: phase 12, the harness consolidation** (`plan/phase-12-harness-consolidation.md`; conversion only, the
+  oracle « no divergence », every merged hold still falling under the mutation that proved it). **The budget**, as
+  the orchestrator ruled it: harness = lines added under `frontend/maquette/harness/**`; product = lines added under
+  `frontend/maquette/design/src/**` minus `*.test.*`; baselines and docs on neither side; its command is on the phase
+  page; measured ONCE, at the gate, on the final head, target ≤ 0.60. **Open with the orchestrator**: the harness
+  added is ≈ 1 560 lines (responsive.py 362; the 13 new small rules ≈ 800; resolution_card +64; re-aims ≈ 120) —
+  merging the small rules into the rules that read their surfaces, their reading factored in `common.py`, saves
+  ≈ 40–50 %, which likely does not reach 0.60 without removing holds; the predecessor asked whether to (a) accept
+  the reached figure, said, or (b) count responsive.py (order 85's instrument) outside the lot. No hold is removed
+  without the orchestrator's word.
+- **Then phase 13, the close** (`plan/phase-13-close.md`): the guard arms, the last tokens, the version bump, the
+  full gate once, the PR (READY, auto-merge NOT armed). At the close each of **B-576, B-578, B-580, B-583, B-584,
+  B-585** turns `fixed #<PR>` (each row already carries escaped from / why / family).
 - **The phase gate (order 99)**: static guards on the files touched; each new rule read RED on the old code first
-  (`scripts/mutate.sh` with a targeted expression — an old file that no longer compiles cannot be restored whole);
-  the oracle ALONE, then `oracle.py --accept` through `/Users/izno/dev/review-archive/conformity-train/accept-oracle.sh`
-  (outside the repository: build, publish, host, accept — run it under `scripts/heavy.sh --class browser`),
-  and a script proving ONLY the declared states' keys moved; `run.sh --rules` on the touched surfaces' rules;
-  R-conformity-a with `TM_RESPONSIVE_STATES` built BY SCRIPT from `harness/states/<surface>.ts` (mind the
-  `.map`-built ids: `settings-field-<type>`). Every browser run names `TM_HARNESS_JOBS=2`; pytest `-n 2`.
+  (checkout the previous head's `frontend/maquette/design/src`, run, restore with `git checkout HEAD --`; a rule with
+  no possible red on the old code is proved by `scripts/mutate.sh` and said so); the oracle ALONE, then
+  `/Users/izno/dev/review-archive/conformity-train/accept-oracle.sh` under `scripts/heavy.sh --class browser`, and a
+  script proving ONLY the declared states' keys moved (any other is STOP A: ask); `run.sh --rules` on the touched
+  surfaces' rules; R-conformity-a with `TM_RESPONSIVE_STATES` built BY SCRIPT from `harness/states/<surface>.ts`.
+  Every browser run names `TM_HARNESS_JOBS=2`; pytest `-n 2`; heavy runs under `scripts/heavy.sh`.
 - **Traps paid for**: the virtual window's pitch is the SHORTEST row drawn and lines are measured only once the
-  geometry is the drawing's (a first row that wraps flipped the estimate; stale lanes resized tiles as lines); zsh
-  does not split `$VAR` — pass a rule list as `${=VAR}`; the markup arm reads only LITERAL `data-part="…"` — a part passed as a prop or built by
-  `FactRows` is invisible to it (emit it literally on a wrapper, or let the component take the prop under the
-  attribute's own name, `data-region="…"`, as `Tabs` does); `check-frame-domain` refuses a domain word in
-  `ui/`; a new maquette file needs `check-maquette-comments.py --record` in its commit; a merge of `main` moves the
-  corpus floor too; the git index lock is taken by another process now and then — retry the commit.
-- **Rules born** (letter → file): a `responsive.py` · b `one_tab_bar.py` · c `one_switch.py` · e `on_off.py` ·
-  f `state_words.py` · h `empty_place.py` · j `back_control.py` · o `segmented_choice.py` · p `primary_action.py` ·
-  s `lens_filters.py` · d `state_chips.py` · g `fact_state.py` · l `legends.py` · k `one_badge.py`. **Owed list** (`OWED` in `responsive.py`): the menu's WebKit « unseen » → the defects fast lane,
-  alone.
-- **To confirm by the operator** (choices said in the commits): « joignable » the one word of the reachable code;
-  the pause « actif » when engaged; the stopped processing in danger.
+  geometry is the drawing's; zsh does not split `$VAR` — pass a rule list as `${=VAR}`; the markup arm reads only
+  LITERAL `data-part="…"` — a part passed as a prop is invisible (emit it on a wrapper, read it as the wrapper's
+  child, or let the component take the prop under the attribute's own name, as `Tabs` and `Disclosure` do); moving
+  lines in `audit.py` moves its genre sites in `scripts/markup_anchors.py` AND the fixture line in
+  `tests/scripts/test_check_markup_contracts.py`; a new named state moves `tests/scripts/test_oracle.py`'s pinned
+  count; the rename tool and `generate-contract-types` need `frontend/node_modules` — a temporary symlink to the main
+  checkout's, removed after; a new maquette file needs `check-maquette-comments.py --record`; `git fetch` is refused
+  by a hook (use `git remote update origin`); push with `GIT_SSH_COMMAND="ssh -o ServerAliveInterval=30"`; the git
+  index lock is taken now and then — retry.
+- **Rules born** (letter → file): a `responsive.py` · b `one_tab_bar.py` · c `one_switch.py` · d `state_chips.py` ·
+  e `on_off.py` · f `state_words.py` · g `fact_state.py` · h `empty_place.py` · j `back_control.py` · k
+  `one_badge.py` · l `legends.py` · o `segmented_choice.py` · p `primary_action.py` · s `lens_filters.py`; holds
+  added: resolution_card h11/h12 (B-578), appearance (B-580), state_surfaces (the TMDB notice). **Owed list**
+  (`OWED` in `responsive.py`): the menu's WebKit « unseen » → the defects fast lane, alone.
+- **To confirm by the operator** (choices said in the commits, relayed by the orchestrator): « joignable » the one
+  word of the reachable code; the pause « actif » when engaged; the stopped processing in danger.
 
 ## Ledger (append-only)
 
@@ -115,3 +135,5 @@
   `appearance.py` holds the pressed control following a finger with no reload, read RED on `main` and on this branch
   before the repair (the viewSwitch conversion had not fixed it). Gate: 33 rules green, responsive 16 states 0 fall,
   the oracle « no divergence ».
+- 2026-09-30 — stood down after phase 11 at 55.7 % measured, on the orchestrator's order: rotation before the
+  consolidation, so no merge straddles two sessions.
