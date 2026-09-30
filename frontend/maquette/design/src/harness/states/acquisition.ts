@@ -62,6 +62,29 @@ function undo(): void {
 const LIST_ROW = '#view [data-part="suggestion/wrap"]';
 const DECK_TOP = '[data-part="deck/card"][data-depth="0"]';
 
+// A SETTLED DECISION ON THE JOURNEY SHEET (L24 S1): each medium's identification
+// behind it — every rung before « vérifié dans Plex » done — so the block reads
+// the decision the seed holds for it.
+const DECISION_SUBJECTS = [
+  ["sheet-journey-decision-operator", "President Curtis", "une correspondance choisie par vous"],
+  ["sheet-journey-decision-engine", "Furious", "le moteur l'a identifié seul"],
+  ["sheet-journey-decision-dismissed", "This City Is Ours", "laissé tel quel"],
+] as const;
+
+/** The journey sheet over each kind of settled decision. */
+function decisionStates(): NamedState[] {
+  return DECISION_SUBJECTS.map(([id, subject, what]) => [
+    id,
+    `Feuille de parcours — l'identification réglée : ${what}`,
+    () => {
+      window.__mocks?.reset();
+      window.__mocks?.placeAtPlexCheck(subject);
+      applyState({ page: "acq", phase: "ready" });
+      window.__panel.produce("journey", subject);
+    },
+  ]);
+}
+
 export function acquisitionStates(): NamedState[] {
   // The store the shell creates and publishes, read when the table is built.
   const store = window.__store;
@@ -394,6 +417,7 @@ export function acquisitionStates(): NamedState[] {
         window.__panel.produce("journey", "Furious");
       },
     ],
+    ...decisionStates(),
     [
       "sheet-more",
       "Feuille « ⋮ » — veille et obligations",

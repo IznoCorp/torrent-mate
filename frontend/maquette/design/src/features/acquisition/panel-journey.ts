@@ -21,6 +21,8 @@ import i18next from "i18next";
 import { registerProducer, type PanelCache, type PanelDescriptor, type PanelNeed } from "../../ui/panel/contract";
 import { read } from "../../lib/query-client";
 import type { Schemas } from "../../lib/contract-schemas";
+import { DECISIONS_QUERY } from "./decision-queries";
+import "./decision-block";
 
 
 /** One rung of a medium's ladder, as the contract answers it. */
@@ -63,6 +65,16 @@ function stageLine(stage: Stage, name: string) {
 // requires it.
 const RELEASE = "Furious.S01E01.MULTi.1080p.WEB-DL";
 
+/**
+ * Whether the medium's identification is behind it: the rung « identifié » done.
+ *
+ * @param stages The journey's rungs.
+ * @returns True once that rung is done.
+ */
+function identifiedDone(stages: Stage[]): boolean {
+  return stages.some((stage) => stage.rung === "identified" && stage.state === "done");
+}
+
 /** The stages of one journey, as a query definition. */
 function journeyQuery(subject: string): PanelNeed {
   return {
@@ -102,6 +114,9 @@ function journeyPanel(title: string, cache: PanelCache): PanelDescriptor | null 
           }))),
         ]),
       },
+      // THE DECISION THAT IDENTIFIED IT, once « identifié » is passed (L24 S1):
+      // the block says itself nothing when the medium has none.
+      identifiedDone(stages) ? { type: "decision", subject: title } : null,
       { type: "note", text: translate("panels.journey.provenanceNote") },
       {
         type: "actions",
@@ -134,5 +149,5 @@ function journeyPanel(title: string, cache: PanelCache): PanelDescriptor | null 
 
 registerProducer("journey", {
   produce: journeyPanel,
-  needs: (subject) => [journeyQuery(subject)],
+  needs: (subject) => [journeyQuery(subject), DECISIONS_QUERY],
 });

@@ -23,17 +23,20 @@ export type Decisions = {
  * @returns The query, its decisions already in the engine's names.
  */
 export function useDecisions() {
-  return useQuery({
-    queryKey: ["/api/decisions/"],
-    queryFn: async () => {
-      const answer = await read<{ pending: PendingDecision[]; settled: SettledDecision[] }>("/api/decisions/");
-      return {
-        pending: answer.pending,
-        settled: answer.settled,
-      } satisfies Decisions;
-    },
-  });
+  return useQuery(DECISIONS_QUERY);
 }
+
+/** The decisions read as a query definition, for a panel that needs it before it draws. */
+export const DECISIONS_QUERY = {
+  queryKey: ["/api/decisions/"],
+  queryFn: async () => {
+    const answer = await read<{ pending: PendingDecision[]; settled: SettledDecision[] }>("/api/decisions/");
+    return {
+      pending: answer.pending,
+      settled: answer.settled,
+    } satisfies Decisions;
+  },
+};
 
 /**
  * Publishes the pending decisions for a synchronous reader.

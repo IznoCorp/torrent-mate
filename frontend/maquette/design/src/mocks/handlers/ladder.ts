@@ -63,6 +63,9 @@ const STRIP_OFFSET = TEMPLATE.findIndex((rung) => rung.rung === "grabbed");
  */
 function timeOf(seeded: Rung, state: RungState): string {
   if (state === PENDING) return UPCOMING_WHEN;
+  // A RUNG LAID DONE keeps only a DONE rung's time: the template's running rung
+  // carries « en cours depuis 4 min », which is no date an ended rung can wear.
+  if (state === DONE) return seeded.state === DONE ? seeded.when : "";
   return seeded.state === DONE || seeded.state === RUNNING_NOW ? seeded.when : "";
 }
 

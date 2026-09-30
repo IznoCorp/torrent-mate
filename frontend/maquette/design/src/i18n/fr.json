@@ -1114,6 +1114,19 @@
     }
   },
   "surfaces": {
+    "decision": {
+      "heading": "Identification",
+      "chosen": "Retenu",
+      "among": "Parmi",
+      "candidates_one": "{{count}} candidat",
+      "candidates_other": "{{count}} candidats",
+      "by": "Par",
+      "byOperator": "vous — {{via}}",
+      "byOperatorAlone": "vous",
+      "byEngine": "le moteur, seul",
+      "when": "Le",
+      "state": "Décision"
+    },
     "card": {
       "sheetOf": "Fiche de {{title}}",
       "folderActions": "Actions pour le dossier {{title}}",

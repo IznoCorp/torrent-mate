@@ -220,3 +220,6 @@ export const originRow = cva(
   "flex items-center gap-4 mt-4 [&>button]:mt-0 [&>button]:flex-none [&>button]:w-auto " +
   "[&>button]:min-h-[44px] [&>span]:min-w-0 [&>span]:flex-1",
 );
+
+/** The decision block's heading, a step above its facts (L24 S1). */
+export const decisionHeadingPlace = cva("mb-3");
