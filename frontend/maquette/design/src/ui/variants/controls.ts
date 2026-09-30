@@ -328,10 +328,22 @@ export const pillBar = cva("pillbar flex items-center gap-0 mt-4");
  * exception: the chips are the affordance), with `!` because the unlayered
  * `* { scrollbar-width: thin }` beats any layered utility (B-336).
  */
-export const pillScroll = cva(
-  "pillscroll flex-auto min-w-0 flex flex-nowrap gap-3 overflow-x-auto " +
-    "[scrollbar-width:none]! [&::-webkit-scrollbar]:hidden touch-pan-x touch-pan-y pr-4",
-);
+export const pillScroll = cva("flex-auto min-w-0 flex gap-3 pr-4", {
+  variants: {
+    // A TRAIN OF PILLS scrolls sideways, and the pull-to-refresh leaves it
+    // alone (`.pillscroll`). HELD, the place carries one thing that is not a
+    // pill — Découvrir's header, which wraps rather than scrolls — so it neither
+    // scrolls nor refuses the pull: a page whose top row is its header must
+    // still pull (CI's harness on #657, `touch.py` on `discover-full`).
+    train: {
+      true:
+        "pillscroll flex-nowrap overflow-x-auto [scrollbar-width:none]! [&::-webkit-scrollbar]:hidden " +
+        "touch-pan-x touch-pan-y",
+      false: "",
+    },
+  },
+  defaultVariants: { train: true },
+});
 
 /**
  * One filter pill.

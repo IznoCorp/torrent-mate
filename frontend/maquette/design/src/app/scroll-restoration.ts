@@ -46,6 +46,13 @@ const scrollPositions = new Map<string, number>();
 // or its images invalidates it: the position belonged to the entry one has
 // just left.
 let restoreToken = 0;
+// THE ENTRY OF THE PAGE ONE STANDS ON, under a layer as well — a layer's own
+// entry has no position, so the page underneath is the one a departure leaves.
+let pageKey: string | null = null;
+// The entry `holdLeavingOffset` has just written for. The history write that
+// follows it must not overwrite that position with the top the verb has
+// scrolled to since.
+let heldKey: string | null = null;
 
 /**
  * Says whether a history entry is a LAYER — a drawer, a panel, a sheet.
@@ -155,6 +162,31 @@ function restoreScroll(y: number, token: number): void {
 }
 
 /**
+ * Remembers the offset of the page being left, before a verb scrolls it away.
+ *
+ * THE SUBSCRIPTION ALONE COULD NOT, on a page switch. A landing verb draws the
+ * destination at the top — `#port.scrollTop = 0` — BEFORE it writes history,
+ * so by the time the subscription read the port the offset was already gone,
+ * and it stored the top under the departing page's key. A page kept its
+ * position only when something had been PUSHED over it first (an item, a
+ * screen), whose own save caught the offset while it was still there. Leaving
+ * by the side menu pushes a LAYER first, which neither half saves across by
+ * design, and the menu page then REPLACES that layer's entry: Retour from
+ * Système reached the library's entry with nothing stored under it and landed
+ * at the top. The bar hid this while its tabs replaced the page's entry;
+ * § 16 as amended made the menu page stack, and the loss showed.
+ *
+ * Called by the frame's landing verbs at the one instant the offset is still
+ * the page's: after the decision to leave, before the port is reset.
+ */
+export function holdLeavingOffset(): void {
+  const port = activePort();
+  if (!pageKey || !port) return;
+  scrollPositions.set(pageKey, port.scrollTop);
+  heldKey = pageKey;
+}
+
+/**
  * Starts remembering and restoring the scroll offset per history entry.
  *
  * Called once from the boot. It subscribes for the document's lifetime — there
@@ -164,6 +196,7 @@ function restoreScroll(y: number, token: number): void {
 export function installScrollRestoration(): void {
 let currentKey = entryKey(history.location.state);
 let currentIsLayer = isLayer(history.location.state);
+pageKey = currentIsLayer ? null : currentKey;
 history.subscribe(({ action, location }) => {
   const nextIsLayer = isLayer(location.state);
   // ACROSS A LAYER BOUNDARY, NEITHER HALF RUNS. Opening one must not store the
@@ -171,9 +204,12 @@ history.subscribe(({ action, location }) => {
   // closing one must not put an older offset back over it.
   const crossesALayer = currentIsLayer || nextIsLayer;
   const port = crossesALayer ? null : activePort();
-  if (currentKey && port) scrollPositions.set(currentKey, port.scrollTop);
+  if (currentKey && port && currentKey !== heldKey)
+    scrollPositions.set(currentKey, port.scrollTop);
+  heldKey = null;
   currentKey = entryKey(location.state);
   currentIsLayer = nextIsLayer;
+  if (!nextIsLayer) pageKey = currentKey;
   restoreToken += 1;
   if (crossesALayer) return;
   // Only a RETURN restores: arriving forward on an address one has seen

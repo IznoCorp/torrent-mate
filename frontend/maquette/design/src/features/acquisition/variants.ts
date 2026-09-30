@@ -104,8 +104,13 @@ export const cadence = cva("cadence text-2 text-muted-foreground pt-4 px-7 pb-0"
 /**
  * The surface holding the deck: the body, with less room under the pile. The
  * utility is qualified by its own class so it outranks the body's own padding.
+ *
+ * IT CLIPS ON x, at the port's own edges, so a card thrown off the pile leaves
+ * through the surface's edge rather than past the page's: `clip`, not `hidden`,
+ * so the body does not become a scroll container and the pile's depth still
+ * shows below it.
  */
-export const deckBody = cva("deckbody [&.deckbody]:pb-5");
+export const deckBody = cva("deckbody [&.deckbody]:pb-5 [overflow-x:clip]");
 
 /**
  * The pile. No `flex: 1`: in a column flex container that sets a 0 basis on the

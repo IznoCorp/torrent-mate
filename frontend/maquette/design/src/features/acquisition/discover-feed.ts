@@ -33,6 +33,12 @@ const BATCH = 30;
 /** How long a card takes to fly out, in milliseconds. */
 const FLIGHT = 440;
 
+/** How far, as a share of its height, a card turned by 20° swings past its own width. */
+const FLIGHT_TURN_MARGIN = 0.35;
+
+/** The flight's margin past the window's edge, so its curve's tail still ends outside. */
+const FLIGHT_MARGIN = 1.25;
+
 /** How far a dismissed row travels before it is removed, in milliseconds. */
 const COLLAPSE = 320;
 
@@ -184,9 +190,18 @@ export function advanceDeck(position: number, direction: number): void {
   const outgoing = deck?.querySelector<HTMLElement>('.dcard[data-depth="0"]');
   if (!deck || !outgoing) return;
 
+  // THE CARD LEAVES THE WINDOW WHOLLY, whatever its width: a fixed 460 px left a
+  // desktop's card — wider than that — standing half out of the frame for the
+  // whole flight (CI's harness on #657, `responsive.py` at 768 and 1280 px). The
+  // distance is what lies between the card's far edge and the window's, plus what
+  // the turn swings out, with room for the curve's last few percent — read on the
+  // PILE, which the card fills at rest: the card's own box carries the drag.
+  const box = deck.getBoundingClientRect();
+  const toEdge = direction > 0 ? window.innerWidth - box.left : box.right;
+  const distance = Math.round((toEdge + box.height * FLIGHT_TURN_MARGIN) * FLIGHT_MARGIN);
   outgoing.classList.add("out");
   outgoing.style.transform =
-    `translateX(${direction > 0 ? 460 : -460}px) rotate(${direction > 0 ? 20 : -20}deg)`;
+    `translateX(${direction > 0 ? distance : -distance}px) rotate(${direction > 0 ? 20 : -20}deg)`;
   outgoing.dataset.depth = "sortie";
 
   for (const card of deck.querySelectorAll<HTMLElement>(".dcard[data-depth]")) {
