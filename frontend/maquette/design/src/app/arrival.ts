@@ -29,7 +29,7 @@ const INITIAL_STATE = {
   libCat: "all",
   libMode: "grid",
   /* « Trackers »: its open tab, and the tracker « Torrents » is filtered to. */
-  trackersTab: "trackers",
+  trackersTab: "torrents",
   trackersFilter: "",
   /* B-572: tm-design's own build opens dense — every other build (the
      harness's `run.sh`, the unit suite) keeps the real world, exactly as

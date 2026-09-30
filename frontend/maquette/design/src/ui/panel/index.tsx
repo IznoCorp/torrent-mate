@@ -1,4 +1,4 @@
-// The bottom panel — one constructor, and the three blocks that know no domain.
+// The bottom panel — one constructor, and the four blocks that know no domain.
 //
 // Every panel in the legacy engine is built by ONE function (`panneauHTML`,
 // refonte.html@60530dbd8) from a plain descriptor of facts — never ready-made markup —
@@ -26,12 +26,13 @@ import { posterArtwork, useEngineDrawing } from "../../lib/engine-drawing";
 import { Chip } from "../chip";
 import { PosterArtwork } from "../poster";
 import { Icon } from "../../ui/icon";
-import { actionButton, avatarImage, comingSoon, factsPanel, keyValueRow, ruleNote, sheetActions, sheetAvatar, sheetFacts, sheetHead, sheetIdentity, sheetMeta, sheetPoster, sheetTitle, statusDot, type ChipTone, type StatusTone } from "../variants";
+import { actionButton, avatarImage, comingSoon, factsPanel, keyValueRow, option, optionLabel, optionList, optionMark, ruleNote, sheetActions, sheetAvatar, sheetFacts, sheetHead, sheetIdentity, sheetMeta, sheetPoster, sheetTitle, statusDot, type ChipTone, type StatusTone } from "../variants";
 import {
   refuseBlock,
   registerBlock,
   rendererFor,
   type Action,
+  type Choice,
   type PanelBlock,
   type PanelDescriptor,
   type RichTextValue,
@@ -66,17 +67,18 @@ function panelActionTone(tone: string | undefined): "plain" | "primary" | "dange
   return tone === "primary" || tone === "danger" ? tone : "plain";
 }
 
+// The only dynamically-keyed attributes set in this file: a `target`'s keys are
+// the caller's own vocabulary (`mediaSheet`, `go`, `toast`, …), decided by each
+// call site, not by this component.
+function targetAttributes(target: Record<string, string | number> | undefined): Record<`data-${string}`, string> {
+  return Object.fromEntries(
+    Object.entries(target ?? {}).map(([name, value]) => [`data-${name}`, String(value)]),
+  ) as Record<`data-${string}`, string>;
+}
+
 function PanelActionButton({ action }: { action: Action | null | undefined }) {
   if (!action) return null;
-  // The only dynamically-keyed attribute set in this file: `target`'s keys
-  // are the action's own vocabulary (`mediaSheet`, `go`, `toast`, …), decided by
-  // each call site, not by this component.
-  const attributes = Object.fromEntries(
-    Object.entries(action.target ?? {}).map(([name, value]) => [
-      `data-${name}`,
-      String(value),
-    ]),
-  ) as Record<`data-${string}`, string>;
+  const attributes = targetAttributes(action.target);
   return (
     <button
       className={`${actionButton({ kind: "panelAction", tone: panelActionTone(action.ton) })}${action.ton && panelActionTone(action.ton) === "plain" ? ` ${action.ton}` : ""}`}
@@ -106,6 +108,26 @@ function ActionsBlock({
     <div className={sheetActions({ secondary: Boolean(block.secondary) })} data-part="sheet/actions">
       {list.map((action, index) => (
         <PanelActionButton key={index} action={action} />
+      ))}
+    </div>
+  );
+}
+
+/* ONE CHOICE AMONG SEVERAL: the option list an enumerated setting draws — a
+   circle per option, the one in force checked — so a panel offering a choice
+   draws it the one way the application draws a choice. */
+function ChoicesBlock({ block }: { block: Extract<PanelBlock, { type: "choices" }> }) {
+  return (
+    <div className={optionList()} data-part="option/list" role="radiogroup">
+      {block.options.map((choice: Choice, index) => (
+        <button key={index} className={option()} data-part="option" role="radio" aria-checked={choice.checked}
+          {...targetAttributes(choice.target)}>
+          <span className={optionMark({ kind: "radio" })} />
+          <span className={optionLabel()}>
+            {choice.text}
+            {choice.hint ? <small>{choice.hint}</small> : null}
+          </span>
+        </button>
       ))}
     </div>
   );
@@ -154,10 +176,11 @@ function FactsBlock({
 
 /* --- the dispatcher -------------------------------------------------- */
 
-// The three kinds this file owns, declared to the registry as this module
+// The four kinds this file owns, declared to the registry as this module
 // evaluates. A feature's own block registers itself the same way, from its own
 // file — see `contract.ts`.
 registerBlock("note", (block) => <NoteBlock block={block} />);
+registerBlock("choices", (block) => <ChoicesBlock block={block} />);
 registerBlock("faits", (block) => <FactsBlock block={block} />);
 registerBlock("actions", (block) => <ActionsBlock block={block} />);
 

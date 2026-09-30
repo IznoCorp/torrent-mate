@@ -19,7 +19,8 @@ import { posterArtworkMarkup } from "../../ui/poster";
 import { swipeRowMarkup } from "../../ui/rows";
 import { escapeMarkup } from "../../ui/markup";
 import { svgIcon } from "../../lib/markup-text";
-import { swipeAction, type ChipTone } from "../../ui/variants";
+import type { LegendEntry } from "../../ui/legend";
+import { swipeAction, type ChipTone, type LegendTone } from "../../ui/variants";
 import { dayOf, rateOf, sizeOf, written } from "./format";
 import type { Download, Obligation } from "./queries";
 
@@ -37,6 +38,12 @@ export const STATE_TONE: Readonly<Record<Download["state"], ChipTone>> = {
 
 /** The tone of the origin dot: the original grab, or a cross-seed of the same files. */
 export const ORIGIN_TONE = { origin: "info", cross: "waiting" } as const;
+
+/** One colour code a card draws: a chip or a dot, its tone, and what it means. */
+export type Code = { kind: "chip" | "dot"; tone: LegendTone; word: string };
+
+/** A mark, and — when its label carries a date — the word its legend entry says. */
+type Coded = CardMark & { word?: string };
 
 /** What an entry's transfer says: which of the three states, and its words. */
 export type Transfer = { mode: "downloading" | "uploading" | "volumes"; text: string };
@@ -137,7 +144,7 @@ export function torrentPanelAddress(entry: Download): string {
  * @param breached Whether the page's alert reads its obligation broken.
  * @returns The marks, in the order they are read.
  */
-function marksOf(entry: Download, obligation: Obligation | undefined, breached: boolean): CardMark[] {
+function marksOf(entry: Download, obligation: Obligation | undefined, breached: boolean): Coded[] {
   const say = (key: string, values: Record<string, string> = {}) => i18next.t(`screens.torrents.${key}`, values);
   // RUNNING: nothing has closed it — neither met, nor broken, nor released.
   const running = obligation !== undefined
@@ -145,7 +152,7 @@ function marksOf(entry: Download, obligation: Obligation | undefined, breached: 
   // MET AND STILL SEEDING: the entry kept going past its own requirement.
   const done = obligation !== undefined && obligation.satisfiedAt !== null && obligation.releasedAt === null;
   const origin = entry.origin ? "origin" : "cross";
-  const marks: CardMark[] = [
+  const marks: Coded[] = [
     {
       label: say(entry.origin ? "origin" : "crossSeed"),
       dot: ORIGIN_TONE[origin],
@@ -161,6 +168,7 @@ function marksOf(entry: Download, obligation: Obligation | undefined, breached: 
   if (breached) {
     marks.push({
       label: say("obligationBreached", { date: obligation?.breachedAt ? dayOf(obligation.breachedAt) : "" }),
+      word: say("legendBreached"),
       tone: "danger",
       attributes: { "data-part": "torrents/obligation-breached" },
     });
@@ -173,6 +181,44 @@ function marksOf(entry: Download, obligation: Obligation | undefined, breached: 
     attributes: { "data-part": "torrents/deadline" },
   });
   return marks;
+}
+
+/**
+ * The colour codes one entry's card draws — the card and the legend read this
+ * one derivation, so a colour drawn without its legend entry cannot happen.
+ *
+ * @param entry The download client's entry.
+ * @param obligation The obligation it owes, when it owes one.
+ * @param breached Whether the page's alert reads its obligation broken.
+ * @returns The codes, the state's chip first.
+ */
+export function codesOf(entry: Download, obligation: Obligation | undefined, breached: boolean): Code[] {
+  const state: Code = {
+    kind: "chip", tone: STATE_TONE[entry.state], word: i18next.t(`screens.torrents.states.${entry.state}`),
+  };
+  return [state, ...marksOf(entry, obligation, breached).flatMap((mark): Code[] =>
+    mark.dot !== undefined ? [{ kind: "dot", tone: mark.dot as LegendTone, word: mark.word ?? mark.label }]
+      : mark.tone !== undefined ? [{ kind: "chip", tone: mark.tone as LegendTone, word: mark.word ?? mark.label }]
+        : [])];
+}
+
+/**
+ * A legend's entries for the codes a list draws: one per TONE, in the order
+ * first drawn, saying every meaning that colour carries there — a dot and a chip
+ * of one colour are one swatch, never two a reader must tell apart.
+ *
+ * @param codes Every code the list draws.
+ * @returns The entries.
+ */
+export function legendOf(codes: readonly Code[]): LegendEntry[] {
+  const entries = new Map<string, { tone: LegendTone; words: string[] }>();
+  for (const code of codes) {
+    const key = code.tone;
+    const entry = entries.get(key) ?? { tone: code.tone, words: [] };
+    if (!entry.words.includes(code.word)) entry.words.push(code.word);
+    entries.set(key, entry);
+  }
+  return [...entries].map(([key, entry]) => ({ key, tone: entry.tone, label: entry.words.join(" · ") }));
 }
 
 /**

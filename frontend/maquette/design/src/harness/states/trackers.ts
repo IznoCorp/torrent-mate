@@ -104,8 +104,7 @@ const SWIPE_TRAVEL = 160;
  */
 function oneCard(infoHash: string, fields: Parameters<NonNullable<typeof window.__mocks>["poseEntry"]>[1]): void {
   window.__mocks?.reset();
-  // THE CACHED ANSWERS ARE DROPPED, so the page asks again and reads what is posed.
-  for (const [, address] of PAGE_READS) window.__queries?.removeQueries({ queryKey: [address] });
+  dropReads();
   window.__mocks?.poseEntry(infoHash, fields);
   window.__mocks?.poseOneEntry(infoHash);
   applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
@@ -119,6 +118,11 @@ function oneCard(infoHash: string, fields: Parameters<NonNullable<typeof window.
  */
 function openTorrentPanel(infoHash: string, tracker: string): void {
   window.__panel.produce("torrent", `${infoHash}:${tracker}`);
+}
+
+/** The page's reads, forgotten: the next render asks again and reads what is posed. */
+function dropReads(): void {
+  for (const [, address] of PAGE_READS) window.__queries?.removeQueries({ queryKey: [address] });
 }
 
 /** Drags the first card left by a finger's travel, once drawn, so its right drawer rests open. */
@@ -148,8 +152,70 @@ export function trackersStates(): NamedState[] {
   return [
     [
       "trackers-page",
-      "Trackers — la page",
+      "Trackers — la page, ouverte sur « Torrents » la première fois",
       () => applyState({ page: "trackers", phase: "ready" }),
+    ],
+    [
+      "trackers-page-remembered",
+      "Trackers — une seconde visite, « Trackers » ouvert en dernier sur cet appareil",
+      () => {
+        window.__mocks?.reset();
+        try {
+          window.localStorage.setItem("trackers-tab", "trackers");
+        } catch {
+          // Storage refused: the state still lands on the tab it names.
+        }
+        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+      },
+    ],
+    [
+      "trackers-landing-named",
+      "Trackers — « Voir le tracker » d'une carte différée, qui nomme trackers:c411",
+      () => {
+        window.__mocks?.reset();
+        applyState({ page: "trackers", trackersTab: "trackers", trackersFilter: "c411", phase: "ready" });
+      },
+    ],
+    [
+      "torrents-selector",
+      "Torrents — le sélecteur de tracker en tête de liste, sans filtre : « Tous les trackers »",
+      () => {
+        window.__mocks?.reset();
+        dropReads();
+        applyState({ page: "trackers", trackersTab: "torrents", trackersFilter: "", phase: "ready" });
+      },
+    ],
+    [
+      "torrents-selector-open",
+      "Torrents — le panneau du sélecteur : « Tous les trackers » puis chaque tracker, avec son nombre de torrents",
+      () => {
+        window.__mocks?.reset();
+        dropReads();
+        applyState({ page: "trackers", trackersTab: "torrents", trackersFilter: "", phase: "ready" });
+        window.setTimeout(() => window.__panel.produce("trackers-selector"), OPEN_AFTER);
+      },
+    ],
+    [
+      "torrents-legend",
+      "Torrents — la légende de chaque code présent : états, origines, obligations (états et obligations POSÉS)",
+      () => {
+        window.__mocks?.reset();
+        dropReads();
+        window.__mocks?.setObligationSatisfied(SEASON_ENTRY);
+        window.__mocks?.setObligationBreached("8d51568b1a4f46e1fb7e7b535b52a5203312fc28");
+        window.__mocks?.poseEntry("e1af6819d9e3159e0aa191b534b6a66af4344788", { state: "paused" });
+        window.__mocks?.poseEntry(NO_ARTWORK_ENTRY, { state: "stalled" });
+        applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+      },
+    ],
+    [
+      "torrents-legend-partial",
+      "Torrents — filtrés sur tr4ker : la légende ne dit que les codes de ce qui est affiché",
+      () => {
+        window.__mocks?.reset();
+        dropReads();
+        applyState({ page: "trackers", trackersTab: "torrents", trackersFilter: "tr4ker", phase: "ready" });
+      },
     ],
     [
       "trackers-loading",

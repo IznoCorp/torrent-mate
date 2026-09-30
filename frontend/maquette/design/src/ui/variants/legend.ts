@@ -4,7 +4,7 @@
 // state reads the same legend rather than a copy of it.
 import { cva } from "../cva";
 
-/** The legend over the matrix: only the states present, each with its swatch. */
+/** The legend over a drawing: only the codes present, each with its swatch. */
 export const legend = cva(
   "legend flex flex-wrap gap-y-2 gap-x-6 mb-6 text-2 text-muted-foreground " +
     "[&_span]:inline-flex [&_span]:items-center [&_span]:gap-2 [&_span]:whitespace-nowrap " +
@@ -28,6 +28,11 @@ export const legendSwatch = cva("swatch", {
       warning: "sw-warning [background:color-mix(in_oklab,var(--color-warning)_60%,transparent)]",
       info: "sw-info [background:color-mix(in_oklab,var(--color-info)_60%,transparent)]",
       success: "sw-success [background:color-mix(in_oklab,var(--color-success)_60%,transparent)]",
+      danger: "sw-danger [background:color-mix(in_oklab,var(--color-danger)_60%,transparent)]",
+      neutral: "sw-neutral [background:color-mix(in_oklab,var(--color-neutral-signal)_60%,transparent)]",
     },
   },
 });
+
+/** A tone a legend swatch may carry. */
+export type LegendTone = NonNullable<NonNullable<Parameters<typeof legendSwatch>[0]>["tone"]>;

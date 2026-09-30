@@ -12,6 +12,7 @@ import { Tabs } from "../../ui/tabs";
 import { body } from "../../ui/variants";
 import { TorrentsTab } from "./torrents-tab";
 import { TrackersTab } from "./trackers-tab";
+import { TrackerSelector } from "./tracker-selector";
 import { PendingEditsBar } from "../../lib/save-bar-door";
 
 /**
@@ -30,6 +31,8 @@ export function TrackersPage(): ReactElement {
   return (
     <>
       <Tabs tabs={tabs} selected={String(state.trackersTab)} attribute="data-trackers-tab" />
+      {/* THE SELECTOR IS THE LIST'S HEAD, in the filter zone every list draws above itself. */}
+      {state.trackersTab === "trackers" ? null : <TrackerSelector />}
       <div className={body()} data-part="trackers" data-region="trackers/body">
         {state.trackersTab === "trackers" ? <TrackersTab /> : <TorrentsTab />}
         {/* A policy edited here is saved here: the settings' own bar. */}

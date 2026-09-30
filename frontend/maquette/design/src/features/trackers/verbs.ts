@@ -3,7 +3,7 @@
 // THE DECLARATION RUNS AT MODULE EVALUATION, named once in
 // `app/panel-contributions.ts`, like its neighbours.
 import { registerVerb } from "../../lib/verbs";
-import { fillLandingDoor, redraw, replaceAddress } from "../../lib/shell-doors";
+import { fillLandingDoor, panel, redraw, replaceAddress } from "../../lib/shell-doors";
 import { send, sharedQueryClient } from "../../lib/query-client";
 import { store } from "../../lib/store-access";
 import { trackersKey } from "./queries";
@@ -12,11 +12,12 @@ import { tabMemory } from "../../lib/tab-memory";
 // « Retirer de qBittorrent » declares its own verb, and a torrent's panel its producer.
 import "./remove-verb";
 import "./panel-torrent";
+import "./panel-selector";
 
-// « TRACKERS » THE FIRST TIME, THEN THE TAB OPENED LAST on this device — the
+// « TORRENTS » THE FIRST TIME, THEN THE TAB OPENED LAST on this device — the
 // rule every tabbed page follows, through the memory they share.
 const TABS = new Set(["torrents", "trackers"]);
-const MEMORY = tabMemory("trackers-tab", "trackers", TABS);
+const MEMORY = tabMemory("trackers-tab", "torrents", TABS);
 // Between a landing dial's tab and the tracker it names.
 const DIAL_SEPARATOR = ":";
 
@@ -32,7 +33,7 @@ registerVerb("trackers-tab", (tab) => {
   replaceAddress?.();
 });
 
-/* ARRIVING AT THIS PAGE OPENS THE TAB OPENED LAST, « Trackers » the first time —
+/* ARRIVING AT THIS PAGE OPENS THE TAB OPENED LAST, « Torrents » the first time —
    whoever asked for it. A control that NAMES the tab it lands on is obeyed, and
    one naming a tracker after it (`trackers:c411`, a deferred card's path) lands
    with that tracker's entry open. */
@@ -50,15 +51,39 @@ fillLandingDoor((page, dial) => {
    badge move in the render that follows, never at the next ratio measured. */
 onEditsWritten(() => void sharedQueryClient?.invalidateQueries({ queryKey: trackersKey }));
 
-/* « VOIR LES TORRENTS »: the « Torrents » tab, filtered to the tracker whose entry
-   offered it — both dials of the page set at once, an adjustment like a tab. */
-registerVerb("trackers-filter", (tracker) => {
+/**
+ * Lands on the « Torrents » tab filtered to one tracker, or to none: both dials
+ * of the page set at once, an adjustment like a tab.
+ *
+ * @param tracker The tracker, or "" for every one.
+ */
+function filterTo(tracker: string): void {
   MEMORY.remember("torrents");
   store.write({ trackersTab: "torrents", trackersFilter: tracker });
   const port = document.getElementById("port");
   if (port !== null) port.scrollTop = 0;
   redraw();
   replaceAddress?.();
+}
+
+/* « VOIR LES TORRENTS »: the « Torrents » tab, filtered to the tracker whose entry
+   offered it. */
+registerVerb("trackers-filter", (tracker) => filterTo(tracker));
+
+/* THE SELECTOR'S PILL raises its choices. */
+registerVerb("trackers-selector", () => panel.produce("trackers-selector"));
+
+/* A CHOICE closes the panel, then filters — ONCE THE PANEL'S ENTRY HAS LEFT, so
+   the filter's address replaces the page's own entry, never the panel's, and
+   nothing is pushed. */
+registerVerb("trackers-choose", (tracker) => {
+  if (history.state?.layer === "sheet") {
+    window.addEventListener("popstate", () => window.setTimeout(() => filterTo(tracker)), { once: true });
+    panel.close();
+    return;
+  }
+  panel.close();
+  filterTo(tracker);
 });
 
 /* « VU » ON A BROKEN OBLIGATION: the write marks it seen, then the summary is

@@ -12,35 +12,15 @@ import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { useUiState } from "../../lib/store-access";
 import { emptyNote, section } from "../../ui/variants";
 import { alertOf, useDownloads, useObligations, useTrackers } from "./queries";
-import { owedBy, torrentItemMarkup } from "./torrent-card";
-import { torrentFilter, torrentFilterClear } from "./variants";
-
-/**
- * The line saying which tracker the list is filtered to, and lifting it.
- *
- * « TOUT VOIR » IS THE SAME VERB AS « Voir les torrents », given no tracker: an
- * adjustment of the page, which replaces its address and pushes nothing.
- *
- * @param props.tracker The tracker the list is filtered to.
- * @returns The line.
- */
-function FilterLine({ tracker }: { tracker: string }): ReactElement {
-  const { t } = useTranslation();
-  return (
-    <p className={torrentFilter()} data-part="torrents/filter">
-      <span>{t("screens.torrents.filtered", { tracker })}</span>
-      <button className={torrentFilterClear()} data-part="torrents/filter-clear" data-trackers-filter="">
-        {t("screens.torrents.showAll")}
-      </button>
-    </p>
-  );
-}
+import { codesOf, legendOf, owedBy, torrentItemMarkup } from "./torrent-card";
+import { Legend } from "../../ui/legend";
 
 /**
  * The « Torrents » tab.
  *
  * THE FILTER IS READ HERE, on the list both reads answered: filtered or not,
- * the page asks the server the same thing.
+ * the page asks the server the same thing. The selector above the page's body
+ * SAYS it; the list only obeys it.
  *
  * @returns Every entry's row — the filtered tracker's alone when the dial names
  *     one — or the sentence saying there is none; while the reads are in flight,
@@ -66,27 +46,26 @@ export function TorrentsTab(): ReactElement {
   const alert = alertOf(trackers ?? [], downloads.downloads, obligations.items);
   const tracker = typeof state.trackersFilter === "string" ? state.trackersFilter : "";
   const entries = tracker === "" ? downloads.downloads : downloads.downloads.filter((entry) => entry.tracker === tracker);
-  const filter = tracker === "" ? null : <FilterLine tracker={tracker} />;
   if (entries.length === 0) {
     // TWO SENTENCES, never one: nothing anywhere is not nothing on this tracker.
     const [title, body] = tracker === ""
       ? [t("screens.torrents.empty"), t("screens.torrents.emptyBody")]
       : [t("screens.torrents.emptyFiltered"), t("screens.torrents.emptyFilteredBody")];
     return (
-      <>
-        {filter}
-        <Markup className={emptyNote()} data-part="empty-state" html={emptyNoteMarkup(title, body)} />
-      </>
+      <Markup className={emptyNote()} data-part="empty-state" html={emptyNoteMarkup(title, body)} />
     );
   }
+  const breachedOf = (entry: (typeof entries)[number]) => alert.breached.has(`${entry.infoHash}:${entry.tracker}`);
+  // THE LEGEND READS THE CODES THE CARDS DRAW, only those present on the list shown.
+  const codes = entries.flatMap((entry) => codesOf(entry, owedBy(entry, obligations.items), breachedOf(entry)));
   return (
     <>
-      {filter}
+      <Legend entries={legendOf(codes)} />
       {/* ONE CARD PER ENTRY, each in its swipe row: the media card's anatomy and taps. */}
       <Markup
         className={section()} data-part="torrents"
         html={entries.map((entry) => torrentItemMarkup(
-          entry, owedBy(entry, obligations.items), alert.breached.has(`${entry.infoHash}:${entry.tracker}`),
+          entry, owedBy(entry, obligations.items), breachedOf(entry),
         )).join("")}
       />
     </>

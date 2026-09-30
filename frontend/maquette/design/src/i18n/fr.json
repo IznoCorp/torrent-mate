@@ -289,12 +289,10 @@
       "obligationOpen": "Obligation en cours",
       "obligationBreached": "En infraction depuis le {{date}}",
       "obligationDone": "Obligation terminée",
-      "filtered": "Filtré sur {{tracker}}",
-      "showAll": "Tout voir",
       "empty": "Rien en cours sur aucun tracker.",
       "emptyBody": "Un torrent apparaît ici dès que le client le télécharge ou le partage.",
       "emptyFiltered": "Rien en cours sur ce tracker.",
-      "emptyFilteredBody": "D'autres trackers peuvent en avoir : « Tout voir » lève le filtre.",
+      "emptyFilteredBody": "D'autres trackers peuvent en avoir : « Tous les trackers » lève le filtre.",
       "remove": "Retirer de qBittorrent",
       "states": {
         "downloading": "En téléchargement",
@@ -350,7 +348,13 @@
         "seeSheet": "Voir la fiche",
         "identify": "Identifier",
         "noFolder": "Aucun dossier à identifier."
-      }
+      },
+      "selectorAll": "Tous les trackers",
+      "selectorTitle": "Afficher les torrents de",
+      "selectorCount_one": "{{count}} torrent",
+      "selectorCount_other": "{{count}} torrents",
+      "legendBreached": "En infraction",
+      "selectorMeta": "Chaque tracker avec le nombre de ses torrents dans le client."
     },
     "releases": {
       "back": "Retour",

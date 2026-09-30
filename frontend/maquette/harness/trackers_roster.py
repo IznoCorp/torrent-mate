@@ -32,9 +32,8 @@ division a cross-seed would make by zero. So, on `torrents-list`:
 10. an open obligation is a MARK on its own row, never on a row that owes none;
 11. a finger on a card's poster lands on its medium's sheet, by provider id.
 12. `torrents-list-filtered` draws the named tracker's rows alone, and SAYS the
-    filter: « Filtré sur <tracker> », with « Tout voir »;
-13. a finger on « Tout voir », landed cold on a filtered address, draws every
-    row again, drops `tracker` from the address and pushes nothing;
+    filter: the selector's pill names it, pressed;
+13. (moved: lifting the filter is R-L16bis-b's, `trackers_selector_legend.py`);
 14. `torrents-empty` — nothing active anywhere — draws no row, says so, and
     shows no filter;
 15. `torrents-empty-filtered` — nothing on the filtered tracker — says a
@@ -60,6 +59,12 @@ reads the month too.
 that the real data does not hold (`acquire.db` has no satisfied row): it is
 POSED by `setObligationSatisfied`, a derivation shown as one in both states;
 the backend reads `seed_obligation.satisfied_at`.
+
+RE-AIMED OUT LOUD (L16-bis, the selector — successor R-L16bis-b in
+`trackers_selector_legend.py`): holds 12 to 15 read RULINGS 3's line « Filtré sur
+<tracker> · Tout voir »; the operator's selector replaces it, its pill SAYS the
+filter, so these holds read the pill, and hold 13's « Tout voir » is the
+selector's « Tous les trackers », held there.
 
 RE-AIMED OUT LOUD (L16-bis, the torrent card — successor R-L16bis-e in
 `trackers_card.py`): holds 9, 11 and 17 read the old row's title, a text button
@@ -119,11 +124,13 @@ ROWS = """() => [...document.querySelectorAll('#view [data-part="torrents/row"]'
     done: row.querySelector('[data-part="torrents/obligation-done"]') !== null,
   };
 })""" % ON_LINE
+# THE FILTER, AS THE SELECTOR SAYS IT: its pill pressed, naming the tracker —
+# null when the list is whole.
 FILTER = """() => {
-  const line = document.querySelector('#view [data-part="torrents/filter"]');
-  return line === null ? null : {
-    text: line.textContent.trim(),
-    clear: line.querySelector('[data-part="torrents/filter-clear"]') !== null,
+  const pill = document.querySelector('#view [data-part="torrents/selector"]');
+  return pill === null || pill.getAttribute('aria-pressed') !== 'true' ? null : {
+    text: pill.firstChild?.textContent.trim() ?? '',
+    clear: true,
   };
 }"""
 EMPTY = """() => document.querySelector('#view [data-part="empty-state"]')?.textContent.trim() ?? null"""
@@ -215,29 +222,8 @@ async def filtered(page, journal):
                   [row["hash"] for row in drawn] == wanted and all(row["tracker"] == named for row in drawn),
                   f"{[(row['hash'][:6], row['tracker']) for row in drawn]}")
     line = await page.evaluate(FILTER)
-    said = words.get("filtered", "<no copy>").replace("{{tracker}}", named)
-    journal.check(f"the filter is said, « {said} », with « Tout voir »",
-                  line is not None and said in line["text"] and line["clear"], repr(line))
-
-    # A FINGER on « Tout voir », from a cold filtered address: every row back,
-    # the filter gone from the address, and the entry adjusted, never pushed.
-    address = f"{PROTOTYPE.rstrip('/')}{PAGE_PATHS.get('trackers', '/trackers')}?list=torrents&tracker={named}"
-    await page.goto(address, wait_until="load")
-    await page.evaluate("()=>window.__loadingDone?.()")
-    await page.wait_for_timeout(SETTLED)
-    before = await page.evaluate("()=>history.length")
-    clear = page.locator('#view [data-part="torrents/filter-clear"]')
-    if await clear.count():
-        await clear.first.tap()
-        await page.wait_for_timeout(ACTED)
-    drawn = await page.evaluate(ROWS)
-    where = await page.evaluate("()=>({search: location.search, length: history.length})")
-    journal.check("a finger on « Tout voir » draws every row again",
-                  len(drawn) == len(DOWNLOADS) and await page.evaluate(FILTER) is None,
-                  f"{len(drawn)} row(s) of {len(DOWNLOADS)}")
-    journal.check("« Tout voir » drops the tracker from the address and pushes nothing",
-                  "tracker=" not in where["search"] and where["length"] == before,
-                  f"{where['search']!r} · history.length {before} -> {where['length']}")
+    journal.check(f"the filter is said: the selector's pill names {named}, pressed",
+                  line is not None and line["text"] == named, repr(line))
 
     answer = await enter(page, "torrents-empty")
     journal.check("the named state torrents-empty exists", answer is None, answer or "")
