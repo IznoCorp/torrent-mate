@@ -8,10 +8,9 @@ file: `git log -- IMPLEMENTATION.md` (the last long one is `IMPLEMENTATION.md@63
 
 | | |
 | --- | --- |
-| **Last landed** | L16-bis — the Trackers page's correction and Découvrir, PR #657, version 0.98.116, 2026-09-30 (after `maquette-navigation`, #656) |
-| **In flight** | `maquette-season-recovery` — `feat/maquette-season-recovery`, 5 phases, all done: one acquisition card per whole-season recovery and the episodes it covers leave « En cours » (R-season-recovery-a, -e, -g), « Demandée » on both sheets until the library and « Demandée · auto » (-b, -g), a journey per acquisition and the covered episode's pointer to its season's card (-c), the release picker's refusal (-d, -f); a link to another tab of the page it is tapped on stacks (R-navigation-a L5, L6); `fix/nav-scroll-memory` carried (B-601); version 0.98.118, PR #659 |
-| **Next** | C1 settings save bar (the next micro-wave) — L17 cross-seed is built on L16-bis in its own worktree |
-| **Then** | L17 cross-seed · L18 accounts · L23 upload · L24 orphans · the desktop milestone. |
+| **Last landed** | C1 — the save bar a frame part and the three-choice leave confirmation, PR #661, version 0.98.119, 2026-10-01 (after `maquette-navigation` #656, L16-bis #657, main's harness reds #658) |
+| **In flight** | `maquette-season-recovery` — PR #659, version 0.98.120: one card per whole-season recovery, « Demandée » on both sheets, a journey per acquisition · L17 cross-seed — PR #660 · L18 accounts — in reading · L24 orphans — in its correction round · L23 upload — building |
+| **Then** | the desktop milestone (to draw) |
 | **Landed, in order** | L01 · L02 · L03 · L04 · L05 · L06 · L07 · L08 · L09 · L10 · L15 · L11 · L12 · L14 · L19 · L21 · L13a · L13b · L20 · L13r · L13c · L22a · L22b · L16 (plus the correction waves L07-bis, L08-bis, L10-bis and the design phase L10-ter) |
 | **Freeze** | reached at L24's close, with every case of every surface drawn as a named state |
 

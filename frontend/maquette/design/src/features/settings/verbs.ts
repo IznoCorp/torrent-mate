@@ -7,6 +7,7 @@
 // `panel-setting.ts`, `panel-secret.ts`, `panel-field.tsx` — so this file grows
 // no producer and imports no other feature.
 import i18next from "i18next";
+import { fillPendingEditsDoor } from "../../lib/pending-edits-door";
 import { panel } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
 import { registerVerb } from "../../lib/verbs";
@@ -97,4 +98,25 @@ registerVerb("confirmrestart", () => {
 registerVerb("qsettings", (query) => {
   SETTINGS_STATE.q = query;
   store.touch();
+});
+
+/* THE SAME TABLE, OFFERED TO ANOTHER DOOR: a setting a page draws beside its
+   subject — a tracker's activation, on its roster row — is filed here, counted
+   in the same save bar and written by the same save. Filing it again forgets
+   the refusal its last write earned. And the frame asks it, before a page with
+   edits waiting is left (C1): how many wait, the save, and the drop. */
+fillPendingEditsDoor({
+  pending: (identifier) =>
+    SETTINGS_STATE.modifs.has(identifier) ? { value: SETTINGS_STATE.modifs.get(identifier) } : undefined,
+  file: (identifier, value) => {
+    SETTINGS_STATE.refused.delete(identifier);
+    changeSetting(identifier, value);
+  },
+  refusal: (identifier) => SETTINGS_STATE.refused.get(identifier),
+  waiting: () => SETTINGS_STATE.modifs.size,
+  save: () => settingsVerbs.save(),
+  drop: () => {
+    SETTINGS_STATE.modifs.clear();
+    store.touch();
+  },
 });
