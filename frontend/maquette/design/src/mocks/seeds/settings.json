@@ -608,6 +608,15 @@
       },
       {
         "file": "tracker",
+        "key": "tracker.providers.lacale.accepts_uploads",
+        "type": "boolean",
+        "raw": false,
+        "name": "accepts_uploads",
+        "displayedValue": "inactif",
+        "note": "COMPOSED for the maquette: a tracker's « accepte les uploads » switch (L23, round 11 OPEN 2 = B), absent from the engine — a demand, off as the other trackers' example values are."
+      },
+      {
+        "file": "tracker",
         "key": "tracker.providers.c411.enabled",
         "type": "boolean",
         "raw": true,
@@ -622,6 +631,15 @@
         "raw": false,
         "name": "cross_seed",
         "displayedValue": "inactif"
+      },
+      {
+        "file": "tracker",
+        "key": "tracker.providers.c411.accepts_uploads",
+        "type": "boolean",
+        "raw": false,
+        "name": "accepts_uploads",
+        "displayedValue": "inactif",
+        "note": "COMPOSED for the maquette: a tracker's « accepte les uploads » switch (L23, round 11 OPEN 2 = B), absent from the engine — a demand, off as the other trackers' example values are."
       },
       {
         "file": "tracker",
@@ -694,6 +712,15 @@
       },
       {
         "file": "tracker",
+        "key": "tracker.providers.v3x.club.accepts_uploads",
+        "type": "boolean",
+        "raw": false,
+        "name": "accepts_uploads",
+        "displayedValue": "inactif",
+        "note": "COMPOSED for the maquette: a tracker's « accepte les uploads » switch (L23, round 11 OPEN 2 = B), absent from the engine — a demand, off as the other trackers' example values are."
+      },
+      {
+        "file": "tracker",
         "key": "tracker.providers.draupnirr.xyz.enabled",
         "type": "boolean",
         "raw": false,
@@ -709,6 +736,15 @@
         "name": "cross_seed",
         "displayedValue": "inactif",
         "note": "COMPOSED for the maquette: the cross-seed switch of a tracker the operator asked for (2026-09-29), absent from the engine — demand T1, off as the other trackers' example values are."
+      },
+      {
+        "file": "tracker",
+        "key": "tracker.providers.draupnirr.xyz.accepts_uploads",
+        "type": "boolean",
+        "raw": false,
+        "name": "accepts_uploads",
+        "displayedValue": "inactif",
+        "note": "COMPOSED for the maquette: a tracker's « accepte les uploads » switch (L23, round 11 OPEN 2 = B), absent from the engine — a demand, off as the other trackers' example values are."
       },
       {
         "file": "tracker",
@@ -730,11 +766,29 @@
       },
       {
         "file": "tracker",
+        "key": "tracker.providers.digitalcore.club.accepts_uploads",
+        "type": "boolean",
+        "raw": false,
+        "name": "accepts_uploads",
+        "displayedValue": "inactif",
+        "note": "COMPOSED for the maquette: a tracker's « accepte les uploads » switch (L23, round 11 OPEN 2 = B), absent from the engine — a demand, off as the other trackers' example values are."
+      },
+      {
+        "file": "tracker",
         "key": "tracker.providers.tr4ker.cross_seed",
         "type": "boolean",
         "raw": false,
         "name": "cross_seed",
         "displayedValue": "inactif"
+      },
+      {
+        "file": "tracker",
+        "key": "tracker.providers.tr4ker.accepts_uploads",
+        "type": "boolean",
+        "raw": false,
+        "name": "accepts_uploads",
+        "displayedValue": "inactif",
+        "note": "COMPOSED for the maquette: a tracker's « accepte les uploads » switch (L23, round 11 OPEN 2 = B), absent from the engine — a demand, off as the other trackers' example values are."
       },
       {
         "file": "tracker",

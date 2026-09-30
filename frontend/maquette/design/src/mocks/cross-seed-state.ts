@@ -8,7 +8,8 @@
 // THE DEFAULT IS THE LIVE STATES (round 9 Q9): the configuration's « off » are
 // example values, never the operator's choice, so the layer turns every
 // cross-seed switch ON when it seeds its settings. « le moteur est coupé » and a
-// tracker's own switch off are named scenarios, reached through a dial.
+// tracker's own switch off are named scenarios, reached through a dial. So is
+// an upload refused (L23): by default a torrent created and published is taken.
 import CROSS_SEED from "./seeds/cross-seed.json";
 import { mockState } from "./state";
 import type { components } from "../contract/types";
@@ -22,18 +23,33 @@ export type CrossSeedHeld = {
   quota: Schemas["CrossSeedQuota"];
   /** Every search asked, in order: what a rule reads the request by. */
   searches: { infoHash: string; tracker: string | null }[];
+  /** Every upload asked, in order: what a rule reads the request by. */
+  uploads: { infoHash: string; tracker: string }[];
+  /**
+   * How an upload asked on a pair ends, keyed `<origin hash>:<tracker>` — a
+   * dial's choice; a pair the dial never named is published (L23 § 2.3).
+   */
+  uploadOutcomes: Record<string, UploadOutcome>;
 };
+
+/** How an upload ends: published, or refused with one of its two codes and the tracker's own words. */
+export type UploadOutcome =
+  | { reason: null }
+  | { reason: "creation_failed" | "publish_failed"; trackerReason: string | null };
 
 // WHERE THE SWITCHES ARE SET: the tracker's own, and the engine's.
 const SETTING_PREFIX = "tracker.providers.";
 const CROSS_SEED_SUFFIX = ".cross_seed";
+// A tracker's « accepte les uploads » switch, distinct from its cross-seed one (round 11 OPEN 2 = B).
+const UPLOADS_SUFFIX = ".accepts_uploads";
 const ENGINE_KEY = "cross_seed.enabled";
 
-// The reasons that COUNT — the attempt failed, the engine could not finish, the
-// reserved upload slot (OPEN 8 = A). An ordinary mismatch is not a failure.
+// The reasons that COUNT — the attempt failed, the engine could not finish, an
+// upload's creation or publication among them (OPEN 8 = A, round 8 Q8). An
+// ordinary mismatch is not a failure.
 const FAILURES: ReadonlySet<string> = new Set([
   "fetch_failed", "verify_timeout", "recheck_failed", "magnet_not_supported", "parse_failed",
-  "inject_failed", "obligation_write_failed", "upload_failed",
+  "inject_failed", "obligation_write_failed", "creation_failed", "publish_failed",
 ]);
 
 // The milliseconds in a second: the layer dates in Unix-epoch seconds.
@@ -50,13 +66,25 @@ export function crossSeedKey(tracker: string): string {
 }
 
 /**
- * Whether a settings key is a cross-seed switch, the engine's or a tracker's.
+ * The settings key of one tracker's « accepte les uploads » switch.
+ *
+ * @param tracker The tracker's configured name.
+ * @returns The key.
+ */
+export function uploadsKey(tracker: string): string {
+  return SETTING_PREFIX + tracker + UPLOADS_SUFFIX;
+}
+
+/**
+ * Whether a settings key is a cross-seed switch — the engine's, a tracker's, or
+ * a tracker's « accepte les uploads ».
  *
  * @param key The setting's key.
- * @returns True for either.
+ * @returns True for any of the three.
  */
 function isCrossSeedSwitch(key: string): boolean {
-  return key === ENGINE_KEY || (key.startsWith(SETTING_PREFIX) && key.endsWith(CROSS_SEED_SUFFIX));
+  return key === ENGINE_KEY
+    || (key.startsWith(SETTING_PREFIX) && (key.endsWith(CROSS_SEED_SUFFIX) || key.endsWith(UPLOADS_SUFFIX)));
 }
 
 /**
@@ -113,9 +141,11 @@ export function crossSeedState(): CrossSeedHeld {
   let subject = held.get(owner);
   if (subject === undefined) {
     subject = {
-      torrents: structuredClone(CROSS_SEED.torrents) as Record<string, Schemas["TorrentCrossSeed"]>,
+      torrents: structuredClone(CROSS_SEED.torrents) as unknown as Record<string, Schemas["TorrentCrossSeed"]>,
       quota: structuredClone(CROSS_SEED.quota),
       searches: [],
+      uploads: [],
+      uploadOutcomes: {},
     };
     held.set(owner, subject);
   }
@@ -142,7 +172,7 @@ export function isFailure(pair: Schemas["CrossSeedPair"]): boolean {
  * @returns Its pairs on an origin, null on a cross-seed's own entry.
  */
 export function crossSeedOfEntry(entry: Omit<Schemas["Download"], "crossSeed">): Schemas["TorrentCrossSeed"] | null {
-  if (!entry.origin) return null;
+  if (entry.provenance !== "downloaded") return null;
   return crossSeedState().torrents[entry.infoHash] ?? { pairs: [], titleExcluded: false };
 }
 
@@ -166,6 +196,7 @@ export function trackerCrossSeed(
   const injected = pairs.filter((pair) => pair.state === "active" && pair.at !== null).map((pair) => pair.at as number);
   return {
     enabled: switchOf(crossSeedKey(tracker)),
+    acceptsUploads: switchOf(uploadsKey(tracker)),
     engineEnabled: switchOf(ENGINE_KEY),
     active: pairs.filter((pair) => pair.state === "active").length,
     failed: pairs.filter(isFailure).length,
@@ -225,6 +256,9 @@ export type CrossSeedDials = {
   poseCrossSeedPair: (infoHash: string, tracker: string, fields: Partial<Schemas["CrossSeedPair"]>) => void;
   crossSeedSearches: () => CrossSeedHeld["searches"];
   poseCrossSeedQuotaSpent: () => void;
+  poseUploadsOff: (tracker: string) => void;
+  poseUploadOutcome: (infoHash: string, tracker: string, outcome: UploadOutcome) => void;
+  crossSeedUploads: () => CrossSeedHeld["uploads"];
 };
 
 /** Those dials, over the cross-seed subject. */
@@ -245,4 +279,12 @@ export const crossSeedDials: CrossSeedDials = {
   },
   // NOT A DIAL — a reading: the searches the layer was asked for.
   crossSeedSearches: () => structuredClone(crossSeedState().searches),
+  // ONE TRACKER'S « ACCEPTE LES UPLOADS » OFF, its cross-seed switch untouched (round 11 OPEN 2 = B).
+  poseUploadsOff: (tracker: string) => setSwitch(uploadsKey(tracker), false),
+  // HOW AN UPLOAD ON ONE PAIR WILL END: the engine's refusal is a scenario, never the default.
+  poseUploadOutcome: (infoHash: string, tracker: string, outcome: UploadOutcome) => {
+    crossSeedState().uploadOutcomes[`${infoHash}:${tracker}`] = outcome;
+  },
+  // NOT A DIAL — a reading: the uploads the layer was asked for.
+  crossSeedUploads: () => structuredClone(crossSeedState().uploads),
 };

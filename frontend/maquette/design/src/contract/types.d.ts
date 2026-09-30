@@ -1248,6 +1248,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/torrents/{infoHash}/cross-seed/{tracker}/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a torrent from one origin's files and publish it on one tracker
+         * @description « Créer et publier un torrent » (§ 19 point 5; L23 demand Q): ONE torrent, ONE tracker, ONE call — the engine builds a `.torrent` from the origin's own files and publishes it on the named tracker, to open a cross-seed where its own search found none. Asked only on a pair with no match, in error or not yet searched, not excluded, its origin ACTIVE in the client, complete and seeding (round 11 OPEN 1 = A), its tracker's cross-seed switch on and its « accepte les uploads » switch on (OPEN 2 = B); anything else is refused (409). The answer is a visible « en file », never « occupé » (DOIT-4, NE-DOIT-PAS-3); a second ask on a pair already uploading is a duplicate (409). The engine applies the tracker's own publication rules and the interface pre-validates nothing (OPEN 3 = A). Its outcome arrives on the stream by the SAME two events a found cross-seed does — `CrossSeedInjected` on success (the pair `active`, `via: upload`), `CrossSeedRejected` on failure (the pair `error`, `creation_failed` or `publish_failed`, the tracker's reason in `trackerReason`) — never a third.
+         */
+        post: operations["uploadCrossSeed"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/torrents/{infoHash}/cross-seed/search": {
         parameters: {
             query?: never;
@@ -1988,7 +2008,7 @@ export interface components {
             /** @description the obligations, newest first */
             items: components["schemas"]["Obligation"][];
         };
-        /** @description one qBittorrent ENTRY on one tracker — a torrent cross-seeded onto two trackers is two entries. The backend's `AcquisitionDownload` extended with the tracker it runs on, its ratio there, its deadline and whether it is the origin grab (a demand: none of the four exists) */
+        /** @description one qBittorrent ENTRY on one tracker — a torrent cross-seeded onto two trackers is two entries. The backend's `AcquisitionDownload` extended with the tracker it runs on, its ratio there, its deadline and where it comes from (a demand: none of the four exists) */
         Download: {
             /** @description the entry's own hash */
             infoHash: string;
@@ -2022,8 +2042,11 @@ export interface components {
             ids: components["schemas"]["ProviderIds"] | null;
             /** @description the tracker this entry is active on */
             tracker: string;
-            /** @description true for the torrent's origin grab, false for a cross-seed of the same files */
-            origin: boolean;
+            /**
+             * @description where this entry comes from: `downloaded`, the torrent's origin grab; `crossSeed`, a cross-seed of the same files found on this tracker; `published`, a torrent this application created from the same files and published on this tracker (round 11 OPEN 5 = B, « publié par vous »). Its ratio is computed like any entry's, on its own size
+             * @enum {string}
+             */
+            provenance: "downloaded" | "crossSeed" | "published";
             /** @description the entry's ratio on THIS tracker, computed on the torrent's own size — so a cross-seed never divides by zero */
             ratio: number;
             /** @description when the obligation on this entry is met by seed time, Unix-epoch seconds, or null when none is owed */
@@ -2229,11 +2252,13 @@ export interface components {
         TrackerCrossSeed: {
             /** @description the tracker's own switch, read from `tracker.providers.<name>.cross_seed` — the setting Réglages and the tracker's panel both write */
             enabled: boolean;
+            /** @description the tracker's own « accepte les uploads » switch, read from `tracker.providers.<name>.accepts_uploads` — the setting Réglages and the tracker's panel both write (one write, two doors), DISTINCT from its cross-seed switch (round 11 OPEN 2 = B): a tracker may take a cross-seed injected onto it and forbid a member from publishing a new torrent there */
+            acceptsUploads: boolean;
             /** @description the engine's own switch, `cross_seed.enabled`; a separate fact from the tracker's (M6) — it cuts nothing running */
             engineEnabled: boolean;
             /** @description how many torrents cross-seed onto this tracker now (pairs in state `active`) */
             active: number;
-            /** @description how many pairs on this tracker read `error` with a FAILURE-kind reason (the attempt failed, the engine could not finish, the reserved upload slot) — never an ordinary mismatch, never `noMatch` (OPEN 8 = A); a failure leaves the count the moment its pair's state changes (M5) */
+            /** @description how many pairs on this tracker read `error` with a FAILURE-kind reason (the attempt failed, the engine could not finish — an upload's `creation_failed` and `publish_failed` among them, round 8 Q8) — never an ordinary mismatch, never `noMatch` (OPEN 8 = A); a failure leaves the count the moment its pair's state changes (M5) */
             failed: number;
             /** @description the last injection onto this tracker, Unix-epoch seconds, or null when none ever happened */
             lastInjectedAt: number | null;
@@ -2247,10 +2272,14 @@ export interface components {
              * @enum {string}
              */
             state: "active" | "stopped" | "trackerWithout" | "error" | "noMatch" | "notSearched";
-            /** @description on `error` only: the last attempt's code — the engine's twelve, closed, plus the slot reserved for an upload or tracker-side creation failure (round 8 Q18 = B, no code path emits it today); null otherwise */
-            reason: ("piece_length_mismatch" | "file_list_mismatch" | "root_name_mismatch" | "v2_hybrid" | "self_candidate" | "fetch_failed" | "verify_timeout" | "recheck_failed" | "magnet_not_supported" | "parse_failed" | "inject_failed" | "obligation_write_failed" | "upload_failed") | null;
+            /** @description on `error` only: the last attempt's code — the engine's twelve, closed, and the two an upload adds (L23 DESIGN § 2.2, round 8 Q8): `creation_failed`, the `.torrent` could not be built from the medium's own files; `publish_failed`, the tracker refused or did not take the publication. Both are FAILURES, of the family « the engine could not finish », beside `inject_failed` and `obligation_write_failed`; null otherwise */
+            reason: ("piece_length_mismatch" | "file_list_mismatch" | "root_name_mismatch" | "v2_hybrid" | "self_candidate" | "fetch_failed" | "verify_timeout" | "recheck_failed" | "magnet_not_supported" | "parse_failed" | "inject_failed" | "obligation_write_failed" | "creation_failed" | "publish_failed") | null;
             /** @description on `active` and `error`: the candidate's release name on that tracker, or null */
             candidate: string | null;
+            /** @description on `active` and `error`: how the pair got there — `search`, a candidate found on that tracker and injected; `upload`, a torrent this application created from the medium's own files and published there (L23 demand S, round 11 OPEN 5 = B). No seventh state word: an uploaded pair reads « actif » or « erreur de cross-seed » like a found one; null otherwise */
+            via: ("search" | "upload") | null;
+            /** @description on `error` with `publish_failed`: the tracker's own reason for refusing the publication, in its words, or null when it gave none. The engine applies the tracker's publication rules and answers the refusal with its reason; the interface pre-validates nothing (round 11 OPEN 3 = A) */
+            trackerReason: string | null;
             /** @description on `notSearched`: why not yet, when the engine knows — the origin still downloading, or waiting for the daily quota; null otherwise */
             waitReason: ("downloading" | "quota") | null;
             /** @description when the state was taken — the injection on `active`, the attempt on `error` and `noMatch` — Unix-epoch seconds, or null */
@@ -2265,6 +2294,8 @@ export interface components {
             excluded: boolean;
             /** @description whether a search asked by hand is queued or running for the pair */
             searching: boolean;
+            /** @description whether an upload asked by hand (`uploadCrossSeed`) is queued or running for the pair — it reads « en file » until its outcome arrives on the stream (`CrossSeedInjected` or `CrossSeedRejected`, never a third event) */
+            uploading: boolean;
         };
         /** @description an ORIGIN entry's cross-seed (demand B): one pair per OTHER tracker eligible for it. The backend must ATTEMPT every eligible, switched-on tracker — the engine today stops at the first verified injection (DESIGN fact 16) — and must KEEP a state for the pairs no event fires for. invented: no fixture exists for the cross-seed (L17 DESIGN § 2.3) */
         TorrentCrossSeed: {
@@ -4686,6 +4717,43 @@ export interface operations {
                         removed: string[];
                         /** @description the hashes whose running obligation was closed « libérée » */
                         released: string[];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    uploadCrossSeed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the ORIGIN entry's hash */
+                infoHash: string;
+                /** @description the tracker the torrent is published on — one of the pair's */
+                tracker: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the upload is queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description always true: the ask is in the engine's queue */
+                        queued: boolean;
+                        /** @description the tracker the torrent will be published on */
+                        tracker: string;
                     };
                 };
             };
