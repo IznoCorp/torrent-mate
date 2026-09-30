@@ -48,9 +48,21 @@ export function menuStates(): NamedState[] {
     ],
     [
       "menu-clear",
-      "Bouton du menu — rien à dire",
+      "Bouton du menu — rien à dire (machine saine posée : disques avec de la place, index sans anomalie)",
       () => {
+        // RE-AIMED OUT LOUD (L24, OPEN 2 = A): a disk nearly full and an index
+        // anomaly count in the badge now, and the seed at rest is the operator's
+        // real machine, which has both. A machine with nothing to say is POSED.
         window.__mocks?.setTmpOrphans(false);
+        window.__mocks?.setMachineHealthy(true);
+        applyState({ page: "lib", phase: "ready" });
+      },
+    ],
+    [
+      "system-disk-filling",
+      "Bouton du menu — un disque bientôt plein et une anomalie d'index comptent",
+      () => {
+        window.__mocks?.reset();
         applyState({ page: "lib", phase: "ready" });
       },
     ],

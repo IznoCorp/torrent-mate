@@ -25,7 +25,7 @@ import { sharedQueryClient } from "../../lib/query-client";
 import { store } from "../../lib/store-access";
 import { serviceDownWords, withOneRowDown } from "./fault";
 import { useLocks } from "./locks-queries";
-import { useDependencies, useServices } from "./queries";
+import { useDependencies, useDisks, useIndexHealth, useServices } from "./queries";
 import { factTone } from "./state-words";
 
 type Fact = Schemas["Fact"];
@@ -35,10 +35,13 @@ type Locks = components["schemas"]["Locks"];
 const LOCKS_KEY = ["/api/maintenance/locks"];
 const SERVICES_KEY = ["/api/system/services"];
 const DEPENDENCIES_KEY = ["/api/system/dependencies"];
+const DISKS_KEY = ["/api/maintenance/disks"];
+const INDEX_KEY = ["/api/maintenance/index-health"];
 
 // The contract's tone for a fact that is wrong, and its sweep status for « not
 // counted yet ».
 const ALERT = "alert";
+const WARNING = "warning";
 const SWEEP_PENDING = "pending";
 
 /**
@@ -76,7 +79,10 @@ export function systemBadge(): number {
       ].filter(Boolean).length
     : 0;
   const faults = [...drawn, ...dependencies].filter((fact) => factTone(fact) === ALERT).length;
-  return maintenance + faults;
+  // A DISK NEARLY FULL AND AN INDEX ANOMALY COUNT TOO (L24, OPEN 2 = A), each
+  // read on the fact's own tone, never on its words.
+  const care = [...listAt(DISKS_KEY), ...listAt(INDEX_KEY)].filter((fact) => factTone(fact) === WARNING).length;
+  return maintenance + faults + care;
 }
 
 /**
@@ -87,4 +93,6 @@ export function useSystemBadgeReads(): void {
   useLocks();
   useServices();
   useDependencies();
+  useDisks();
+  useIndexHealth();
 }
