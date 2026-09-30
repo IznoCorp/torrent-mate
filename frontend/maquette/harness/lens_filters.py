@@ -32,7 +32,9 @@ READ = """()=>{
   const pills = [...view.querySelectorAll('[data-part="pill"][data-cat]')];
   const pressed = pills.filter((pill) => pill.getAttribute('aria-pressed') === 'true');
   const body = view.querySelector('[data-part="surface/body"]');
-  const rows = body ? [...body.querySelectorAll('[data-part="tile"], [data-part="card"]')] : [];
+  // A skeleton stands for a row still loading; it is not a row drawn.
+  const rows = body ? [...body.querySelectorAll('[data-part="tile"], [data-part="card"]')]
+    .filter((row) => !row.hasAttribute('data-skeleton')) : [];
   return {
     pills: pills.length,
     pressed: pressed.map((pill) => pill.dataset.cat),
