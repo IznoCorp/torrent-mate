@@ -34,10 +34,11 @@ What this holds to:
    exactly one entry behind, the entry page's own, so a Back from any of them
    lands there rendered with the guard still beneath — and tapping the entry
    page's own tab steps back onto that floor rather than laying a second copy
-   of it down. The switches made from a LAYER obey the same rule, and they are
-   where it was being broken: the drawer and the account menu used to give the
-   destination the LAYER's entry, leaving the abandoned page's entry sandwiched
-   underneath and three Backs to leave.
+   of it down. The switches made from a LAYER obey the same rule for a bar
+   page: the drawer used to give the destination the LAYER's entry, leaving the
+   abandoned page's entry sandwiched underneath and three Backs to leave.
+   RE-AIMED OUT LOUD: Profil, which the account menu opens, is a page that
+   STACKS (§ 16 as amended) — its first Back gives the médiathèque back.
 4. (d) The exit guard arms at the TOP and nowhere else. A Back from another
    page does not arm it; a Back from the entry page does. Read on the engine's
    own `armedExit`, because the address alone says nothing: a guard that arms
@@ -781,10 +782,11 @@ async def main():
             # between it and the guard.
             ("the drawer", "[data-drawer]", f'#drawer [data-navgo="{HOME_PAGE}"]',
              HOME_PAGE, HOME, ()),
-            # Anywhere else, exactly one: the entry page, and never the
-            # médiathèque the layer was opened from.
+            # RE-AIMED OUT LOUD (§ 16 as amended, the navigation lot): Profil
+            # is a page the account menu STACKS, so the first stop is the
+            # médiathèque the menu was opened from, then the entry page.
             ("the account menu", 'JS:window.__panel.produce("account")', '[data-go="profile"]',
-             "profile", PAGE_PATHS["profile"], ((HOME, HOME_PAGE),)),
+             "profile", PAGE_PATHS["profile"], ((LIBRARY, "lib"), (HOME, HOME_PAGE))),
         ):
             ctx, pg, errors = await open_page(b, PROTOTYPE + LIBRARY.lstrip("/"))
             depth = await pg.evaluate("()=>history.length")
@@ -811,8 +813,8 @@ async def main():
                 armed = (await pg.evaluate("()=>window.armedExit")
                          if stopped else None)
                 journal.check(
-                    f"and one Back off {wanted}'s destination reaches the entry page,"
-                    " never the page it was opened from",
+                    f"and the Backs off {wanted}'s destination walk the path back:"
+                    f" {stop_page} at {stop_address}",
                     stopped is not None and path(pg.url) == stop_address
                     and stopped["page"] == stop_page and not armed,
                     f"{pg.url} · {stopped if stopped else 'the document was left'}"

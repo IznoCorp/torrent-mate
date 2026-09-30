@@ -108,7 +108,8 @@ registerVerb("page", (page, element) => {
 registerVerb("go", (page, element) => {
   const fromLayer = Boolean(history.state && history.state.layer);
   const leaving = currentPage();
-  const landing = landingOf(page, false);
+  /* A LAYER'S LINK IS THE ACCOUNT MENU'S — a menu, so it CHOOSES. */
+  const landing = landingOf(page, fromLayer);
   registeredLayers.close("drawer", true);
   panel?.close(true);
   store.write({ page });
@@ -124,8 +125,10 @@ registerVerb("go", (page, element) => {
 });
 
 /* A LANDING FROM THE DRAWER. The drawer is NOT a route, so its entry does not
-   survive the destination — and neither does the entry of the page being left:
-   a drawer entry is a top-level destination like any other. */
+   survive the destination. What the page left becomes depends on the
+   destination (§ 16 as amended): a bar page unwinds the trail onto the floor, a
+   menu page stacks on the page left, and the page one is on only closes the
+   drawer. */
 registerVerb("navgo", (page) => {
   const fromDrawer = Boolean(history.state && history.state.layer === "drawer");
   const leaving = currentPage();

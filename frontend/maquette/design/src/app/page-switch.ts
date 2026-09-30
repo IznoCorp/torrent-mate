@@ -32,7 +32,6 @@
 import { addressSeam } from "../lib/addresses";
 import { navigationState, trailOf, TRAIL_KEY, type TrailStop } from "../lib/navigation-entry";
 import { bridge, fillReplaceAddressDoor } from "../lib/shell-doors";
-import { stackedSurfaces } from "../lib/stacked-surface";
 import { store } from "../lib/store-access";
 import { standingIndex, standingTrail, writeTrail } from "./trail";
 
@@ -326,21 +325,13 @@ function switchWithoutFloor(leaving: string, arriving: string): void {
  * Settles history for a page switch made FROM A LAYER.
  *
  * The drawer's entries and the account menu's « Profil et préférences » are the
- * page switches a finger can reach while something is open over the page.
+ * page switches a finger can reach while something is open over the page. They
+ * obey `switchPage`'s rule, the layer's entry being one more entry the trail
+ * says is there: a bar page unwinds onto the floor, a menu page stacks on the
+ * PAGE left — the layer, and a rubric open under it, given back first
+ * (DECIDED 3, 2026-09-30) — so Retour lands on the page's root.
  *
- * § 16 RULE 2 IS THE SAME RULE HERE, and it used to be read as « the destination
- * takes the layer's entry ». That leaves the ABANDONED page's entry sandwiched
- * underneath: from the médiathèque, the drawer's Acquisition gave [guard, acq,
- * médiathèque, acq] — two entries for one page, and three backs to leave. The
- * rule allows exactly two shapes: [guard, acq] arriving home, [guard, acq, page]
- * anywhere else.
- *
- * Only a TRAVERSAL can reach them, because no write reaches an entry below the
- * current one. So the walk goes down to the floor and the destination is
- * settled on it — once the pop has landed, because a write issued in this task
- * would be overtaken by the traversal and undone. The interface is already on
- * the destination, and the pop is swallowed by the ladder's latch, so nothing of
- * the floor is ever drawn.
+ * THE PAGE ONE IS ON is no arrival: the layer closes and nothing is written.
  *
  * Args:
  *     leaving: The page id the interface was on before the caller rendered the
@@ -350,42 +341,29 @@ function switchWithoutFloor(leaving: string, arriving: string): void {
 export function switchPageFromLayer(leaving: string, landing: Landing = "stackOnPage"): void {
   if (walk.driven) return;
   const homePage = addressSeam.homePage;
-  /* A BAR PAGE CHOSEN FROM THE MENU unwinds the trail like the bar does, from
-     any depth: the trail says how far the floor is. */
-  if (landing === "unwind" && walk.homeFloorExists && currentState().page !== leaving) {
+  const arriving = String(currentState().page);
+  if (arriving === leaving) {
+    /* The layer's entry goes, announced so the ladder does not read the pop. */
+    try {
+      bridge.rewind(1);
+    } catch (error) {
+      console.error("switchPageFromLayer: closing the layer failed", error);
+      window.__navEchec = true;
+    }
+    return;
+  }
+  if (walk.homeFloorExists) {
     switchPage(leaving, landing);
     return;
   }
-  /* No floor to walk down to: the entry under the layer is an arrival nobody
+  /* NO FLOOR to walk down to: the entry under the layer is an arrival nobody
      serves, and the one below THAT is the exit guard. The layer's entry takes
-     the destination — AND THAT WRITE CAN LAY THE FLOOR ITSELF: a switch made
-     FROM home leaves a home entry beneath the destination, and a switch
-     arriving home puts the reader on one. */
-  if (!walk.homeFloorExists) {
-    /* AND THE TRAIL IT LAYS IS SAID, since the entry replaced is a layer's:
-       the floor is this entry arriving home, the one under it leaving home. */
-    const at = standingIndex();
-    const arriving = String(currentState().page);
-    const trail = arriving === homePage ? [{ page: homePage, at }]
-      : leaving === homePage ? [{ page: homePage, at: at - 1 }, { page: arriving, at }] : undefined;
-    if (replacePath(trail) && trail) walk.homeFloorExists = true;
-    return;
-  }
-  /* WHAT THE LAYER STANDS ON, counted rather than ASSUMED. The layer's own
-     entry plus the abandoned page's is what rule 2 leaves, and a surface inside
-     a page that pushes its own arrival puts a third entry there (B-398): what
-     stacks says so, or this is a guess again. */
-  const entries = (leaving === homePage ? 1 : 2) + stackedSurfaces();
-  bridge.rewind(entries);
-  /* Armed after the traversal is issued: a pop cannot land before this task
-     ends, so this is in time, and a rewind that threw arms nothing. Arriving
-     home the floor IS the destination, so its address is settled in place;
-     anywhere else the destination is an arrival and stacks on the floor. */
-  const floor = standingTrail(leaving)[0];
-  const arriving = String(currentState().page);
-  walk.afterUnwind = arriving === homePage
-    ? () => replacePath([floor])
-    : () => recordPath([floor, { page: arriving, at: floor.at + 1 }]);
+     the destination — AND THAT WRITE CAN LAY THE FLOOR ITSELF, whose trail is
+     said: this entry arriving home, the one under it leaving home. */
+  const at = standingIndex();
+  const trail = arriving === homePage ? [{ page: homePage, at }]
+    : leaving === homePage ? [{ page: homePage, at: at - 1 }, { page: arriving, at }] : undefined;
+  if (replacePath(trail) && trail) walk.homeFloorExists = true;
 }
 
 // THE FEATURES REACH THE REPLACE THROUGH A DOOR, not by importing this module: a

@@ -94,9 +94,9 @@ EDGES = [
     # ── M — the side menu ────────────────────────────────────────────────────
     {"edge": "M1", "walk": ["menu:sys"], "stops": [HOME_STOP], "emits": [DRAWER]},
     {"edge": "M2", "walk": ["bar:lib", "menu:sys"],
-     "stops": [(LIBRARY, "lib", False)], "owed": (2, [HOME_STOP]), "emits": [DRAWER]},
+     "stops": [(LIBRARY, "lib", False)], "emits": [DRAWER]},
     {"edge": "M3", "walk": ["menu:sys", "menu:cfg"],
-     "stops": [(SYSTEM, "sys", False)], "owed": (2, [HOME_STOP]), "emits": [DRAWER]},
+     "stops": [(SYSTEM, "sys", False)], "emits": [DRAWER]},
     {"edge": "M4", "walk": ["menu:sys", SETTINGS_ROW, "menu:lib"],
      "stops": [HOME_STOP, GUARD], "emits": [DRAWER]},
     {"edge": "M5", "walk": ["menu:sys", SETTINGS_ROW, "menu:acq"],
@@ -104,10 +104,10 @@ EDGES = [
     {"edge": "M6", "walk": ["menu:sys", "menu:sys"],
      "stops": [HOME_STOP], "emits": [DRAWER]},
     {"edge": "M7", "walk": ["menu:cfg", A_RUBRIC, "menu:sys"],
-     "stops": [(SETTINGS + "?", "cfg", False)], "owed": (2, [HOME_STOP]), "emits": [DRAWER]},
+     "stops": [(SETTINGS + "?", "cfg", False)], "emits": [DRAWER]},
     # ── P — the account sheet ────────────────────────────────────────────────
     {"edge": "P1", "walk": ["bar:lib", "tap:[data-account]", 'tap:#sheet [data-go="profile"]'],
-     "stops": [(LIBRARY, "lib", False, False)], "owed": (2, [HOME_STOP]),
+     "stops": [(LIBRARY, "lib", False, False)],
      "emits": ["features/account/panel-account.ts:go=profile"]},
     # ── T — the bottom bar ───────────────────────────────────────────────────
     {"edge": "T1", "walk": ["bar:lib"], "stops": [HOME_STOP, GUARD], "emits": [TAB_BAR]},
@@ -168,9 +168,10 @@ EDGES = [
     # ── DECIDED 1 — a page revisited moves to the top of the trail, never twice.
     # His own example: Acquisition → Système → Acquisition → Réglages → Système,
     # and Retour walks Réglages, then Acquisition, then the guard.
+    {"edge": "D1", "walk": ["menu:sys", "menu:cfg", "menu:sys"],
+     "stops": [(SETTINGS, "cfg", False), HOME_STOP, GUARD], "emits": []},
     {"edge": "D1", "walk": ["menu:sys", RUNS_LINK, "menu:cfg", "menu:sys"],
-     "stops": [(SETTINGS, "cfg", False), HOME_STOP, GUARD], "owed": (3, [HOME_STOP]),
-     "emits": []},
+     "stops": [(SETTINGS, "cfg", False), HOME_STOP, GUARD], "emits": []},
 ]
 
 # The ids DESIGN § 1 classifies, so a row dropped from the table is a failure too.
