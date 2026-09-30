@@ -35,6 +35,7 @@ import {
 import { hideLayers, registeredLayers } from "./layers";
 import { rowFor } from "./navigation";
 import { switchPage, switchPageFromLayer, type Landing } from "./page-switch";
+import { holdLeavingOffset } from "./scroll-restoration";
 
 /** The page showing right now — what a switch is told it is leaving. */
 function currentPage(): string {
@@ -43,8 +44,10 @@ function currentPage(): string {
 
 /* A LANDING STARTS THE PAGE AT THE TOP, and the scrolling element is the
    frame's own port rather than the document: a page that kept the previous
-   one's offset opened halfway down a list nobody had scrolled. */
+   one's offset opened halfway down a list nobody had scrolled. The page LEFT
+   keeps its offset for a Retour, taken here while it is still the page's. */
 function scrollPortToTop(): void {
+  holdLeavingOffset();
   const port = document.getElementById("port");
   if (port !== null) port.scrollTop = 0;
 }
