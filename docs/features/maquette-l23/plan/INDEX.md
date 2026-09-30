@@ -3,6 +3,35 @@
 Design: `docs/features/maquette-l23/DESIGN.md`. Contract: `docs/reference/frontend-architecture.md` § 4, entry
 `#### L23 — §19 point 5, upload to a tracker` (its « Where it lives » and « Done when » lines, once written).
 
+## Executed 2026-10-01 — read this first
+
+The plan below is older than the method's reset (`docs/reference/method.md`, 2026-09-30) and than round 11
+(DESIGN § 7, all five ruled). Its cut was kept, its figures re-taken on the tree, and its lines on retired
+controls (mutations, the oracle, hold counts, `check-mock-seeds.py`, the `--contracts` and `--a11y` tiers,
+`regions.json`) are struck. What was built, on `feat/maquette-l23` (L17's branch merged in):
+
+| Plan phases | Commit | What landed |
+| --- | --- | --- |
+| 1–3 | contract, seed, mock | `uploadCrossSeed` (Q); `creation_failed`, `publish_failed` in place of L17's reserved `upload_failed` (R); a pair's `via`, `trackerReason`, `uploading` (S, filed: Q5 was ruled B); a tracker's `acceptsUploads` and its setting `tracker.providers.<name>.accepts_uploads` (Q2 = B); a client entry's `origin` boolean became `provenance` — `downloaded`, `crossSeed`, `published` (Q5 = B); the seed invented, the handler moving the pair by the SAME two events |
+| 4–7 | the gesture, the switch, the mark | the act beside the search on `noMatch`/`error`/`notSearched`, the origin seeding (Q1 = A); the confirmation naming the tracker and the release; « en file »; « publié par vous le … » or the code's sentence and the tracker's own reason (Q3 = A, Q4 = A); the badge counting both codes with no new term; the tracker panel's « accepte les uploads » switch; the third origin mark « Publié par vous » |
+| 8 | — | struck: every instrument it re-ran is retired |
+| 9 | the close | this section, `IMPLEMENTATION.md`, the version bump |
+
+**Rule numbers** (bound at the first rule-writing phase, from the brief's R450–R479): R450 = R-L23-a, R451 = b,
+R452 = c, R453 = d, R454 = e (re-aims R-L17-g/h) — `harness/cross_seed_upload.py`; R455 (the « accepte les
+uploads » switch) and R456 (the third origin mark) — `harness/cross_seed_upload_marks.py`. Each was seen red on
+`2b69c0fdf` (no act, no state), then green. `cross_seed_mark.py` and `trackers_roster.py` were re-aimed by the
+intended change.
+
+**Waiting on L18** (not on `main` at the close): the right `trackers.upload` (DESIGN § 0.2) and R-L23-f, its two
+halves — the act absent for a non-holder, the call refused `403` when forced. Wired to L18's rights model once
+`main` holds it.
+
+**Named states** (DESIGN § 3): 1–6 real; 7 (`-rule-refused`) and 8 (`tracker-upload-failures`) dropped — Q3 and Q4
+ruled A; `torrents-cross-seed-published` added for Q5 = B.
+
+---
+
 **Written 2026-09-27, on `main` at `7d40969f4`**, before L23 itself is next in the order — at the time, L16, L17 and
 L18 had each landed as a design-and-plan pull request, none yet as code (`docs/features/maquette-l16/`, `-l17/`,
 `-l18/` were all still on the tree; `docs/reference/frontend-architecture.md` § 4, « Landed, in order » named none of
@@ -30,7 +59,7 @@ proposed starting value instead of asking. **No phase below opens until the lot 
 `frontend-architecture.md`'s order AND every open question a phase depends on is ruled.** Once both are true, the
 phases chain exactly as every other lot's do:
 
-- **STOP A** — the oracle diverging on a state the phase did not name.
+- ~~**STOP A** — the oracle diverging on a state the phase did not name.~~
 - **STOP B** — the pull request.
 - **STOP C — LIVE for this plan, unlike L16/L17/L18's own by the time their plans ran.** Five questions are open
   (DESIGN § 7); every phase below names which ones it needs ruled before it can open, and a phase with a live STOP
@@ -54,7 +83,7 @@ Anything believed necessary outside the contract: STOP and ask the steward first
 **Rule first, seen RED, then the move, then the same rule green with its holds counted.** Every rule this plan
 proposes is red for the same reason every prior lot's was at its own opening: none of `features/trackers/`'s
 upload surface exists anywhere this plan can read, on `main` or on L16/L17/L18's own branches (all three already
-merged as docs, none as code) — the red needs no mutation to be seen, and the mutation comes after the move, as
+~~merged as docs, none as code) — the red needs no mutation to be seen, and the mutation comes after the move, as~~
 everywhere else on this tree.
 
 **The labels `R-L23-a … R-L23-f` (DESIGN § 4) are NOT rule numbers.** The phase that first writes a rule re-takes
@@ -73,8 +102,8 @@ FILE**: `git add docs/features/maquette-l23/<name>.md`. **No `git stash`**, ever
 **A renamed identifier goes through `scripts/rename-identifiers.py`**, never by hand and never by an ad-hoc regex.
 
 **The mock is INVENTED**, exactly as L17's own was for cross-seed (DESIGN § 2.2 of that design, unchanged in kind
-here): every seed row L23 adds is marked `x-unseeded`, and a phase that writes one and does not mark it is refused
-by `python3 scripts/check-mock-seeds.py`, its exit code read by OUTPUT, never by status (B-346).
+~~here): every seed row L23 adds is marked `x-unseeded`, and a phase that writes one and does not mark it is refused~~
+~~by `python3 scripts/check-mock-seeds.py`, its exit code read by OUTPUT, never by status (B-346).~~
 
 ---
 
@@ -121,7 +150,7 @@ because most of this lot's cost is a SECOND act on a row L17 already draws, neve
 ## Why nine phases, and what a phase costs
 
 **A phase is a unit of attribution, not a gate.** Each is one commit, and its own gate is the contracts tier plus
-the oracle. **The contract is first** (1), because `scripts/compare-contracts.py --check` refuses the demand and
+~~the oracle. **The contract is first** (1), because `scripts/compare-contracts.py --check` refuses the demand and~~
 the schema apart, and because the two new codes are what makes round 8 Q8's own ruling typed rather than merely
 quoted. **The seed is second** (2) and **the mocks third** (3): a seed with no contract cannot be checked against
 it, and a handler with no seed answers nothing — the SAME ordering L16, L17 and L18 all used.
@@ -139,19 +168,19 @@ claimed — the same shape every prior lot's own closing phase already takes.
 
 ## Gates
 
-**Per phase**: the shared-lock `frontend/maquette/harness/run.sh --contracts`, and the oracle, with divergences
+~~**Per phase**: the shared-lock `frontend/maquette/harness/run.sh --contracts`, and the oracle, with divergences~~
 ONLY on states DESIGN § 4.1 of this design would name (none is named yet — S1 is a wholly new act on an existing
-row, and the oracle is blind to a state nothing has walked before this lot's own phases run); every other state at
-zero, or it is STOP A.
+~~row, and the oracle is blind to a state nothing has walked before this lot's own phases run); every other state at~~
+~~zero, or it is STOP A.~~
 
 **Before the pull request** (the maquette wave's own gate, once L23 actually opens): `make lint`; the full suite;
-the `--a11y` tier at 0 over the states this lot adds; `python3 scripts/harness-hold-counts.py --compare` with
-`failed` read FIRST; the pre-push pytest; `check-intent-map.py`, `check-bug-register.py` and
-`check-docs-cited-paths.py`, each read by OUTPUT. The pull request bumps the version (patch) because it changes
+~~the `--a11y` tier at 0 over the states this lot adds; `python3 scripts/harness-hold-counts.py --compare` with~~
+~~`failed` read FIRST; the pre-push pytest; `check-intent-map.py`, `check-bug-register.py` and~~
+~~`check-docs-cited-paths.py`, each read by OUTPUT. The pull request bumps the version (patch) because it changes~~
 `frontend/maquette/design/src/`.
 
 **None of this applies to THIS docs pull request.** This plan is prose and numbers; the gate this PR itself
-answers to is `docs/features/BRIEF-design-l23.md`'s own — `check-docs-cited-paths.py`, `check-no-french.py`,
+~~answers to is `docs/features/BRIEF-design-l23.md`'s own — `check-docs-cited-paths.py`, `check-no-french.py`,~~
 `make lint` — read once, over the three commits this PR carries, never over a code change that does not exist yet.
 
 ---

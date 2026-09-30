@@ -39,8 +39,8 @@ None — a mock has no rule of its own.
 
 ## Mutation
 
-None — the handler exists nowhere to mutate yet; a later reader mutates it against the real code once this phase
-has actually landed.
+~~None — the handler exists nowhere to mutate yet; a later reader mutates it against the real code once this phase~~
+~~has actually landed.~~
 
 ## Register
 
@@ -48,11 +48,11 @@ Nothing new — the operation was filed in phase 1; this phase only makes it ans
 
 ## Oracle: states that diverge, declared by name
 
-None — a mock moves no rectangle by itself; the surfaces that read it (phases 4–5) are where a rectangle exists.
+~~None — a mock moves no rectangle by itself; the surfaces that read it (phases 4–5) are where a rectangle exists.~~
 
 ## Gate
 
-Per INDEX « Gates »; `python3 scripts/check-mock-seeds.py`.
+~~Per INDEX « Gates »; `python3 scripts/check-mock-seeds.py`.~~
 
 ## Commit
 

@@ -9,7 +9,7 @@ own derivation. This phase is deliberately small: it PROVES a re-aim, never buil
   cross-seed failures) is where `crossSeed.failed` is read; by the time this phase opens it already reads the two
   counted families L17 built. This phase adds NOTHING to the sum's own shape — `creation_failed` and
   `publish_failed` are members of an EXISTING family, not a fifth term.
-- **Points ≈ 6.** `R-L17-g` re-aimed, out loud, and its mutation re-run (1½, per the plan's own re-aim price);
+- ~~**Points ≈ 6.** `R-L17-g` re-aimed, out loud, and its mutation re-run (1½, per the plan's own re-aim price);~~
   the report naming which family absorbed the two codes and confirming the sum's arity is unchanged (1); a check
   that neither code is counted in ANY other place (the row's own refusal reading, § 2.2 of DESIGN — a mismatch
   never counted, and neither of these two is one) 1½; the report 2.
@@ -18,21 +18,21 @@ own derivation. This phase is deliberately small: it PROVES a re-aim, never buil
 
 Nothing is red here in the usual sense — `R-L17-g` is already GREEN on `main`, by the time this phase opens, over
 a derivation that has never had to count these two codes because nothing emitted them. The phase's own job is to
-make the mutation that already exists for L17's two original counted codes ALSO fell when `creation_failed` or
-`publish_failed` fails to be counted — proven by a fresh mutation naming one of the two new codes specifically,
+~~make the mutation that already exists for L17's two original counted codes ALSO fell when `creation_failed` or~~
+~~`publish_failed` fails to be counted — proven by a fresh mutation naming one of the two new codes specifically,~~
 not merely re-running L17's own two.
 
 ## Move
 
 Nothing moves in the summary read's own shape (DESIGN § 1, clause 2 — no new component). The move is entirely in
-the TEST: a new mutation case is added to `R-L17-g`'s own suite, dropping `creation_failed` (or `publish_failed`)
+~~the TEST: a new mutation case is added to `R-L17-g`'s own suite, dropping `creation_failed` (or `publish_failed`)~~
 from the counted set, and the existing rule is confirmed to fall on it exactly as it already falls on
 `inject_failed` being dropped.
 
 ## Mutation
 
-**R-L17-g, re-aimed** — drop `creation_failed` from the counted set → the sum-arity hold falls, naming the code.
-Same for `publish_failed`.
+~~**R-L17-g, re-aimed** — drop `creation_failed` from the counted set → the sum-arity hold falls, naming the code.~~
+~~Same for `publish_failed`.~~
 
 ## Register
 
@@ -41,12 +41,12 @@ own two codes added.
 
 ## Oracle: states that diverge, declared by name
 
-None — the badge's number is text, and D8 already excludes it from the oracle's own reach (L17's own precedent,
-DESIGN § 4.1).
+~~None — the badge's number is text, and D8 already excludes it from the oracle's own reach (L17's own precedent,~~
+~~DESIGN § 4.1).~~
 
 ## Gate
 
-Per INDEX « Gates »; the re-aimed mutation replayed and named in the report.
+~~Per INDEX « Gates »; the re-aimed mutation replayed and named in the report.~~
 
 ## Commit
 

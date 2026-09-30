@@ -18,7 +18,7 @@ of this contract, never this phase's own shape.
 - **Points ≈ 10.** The new operation, `POST /api/torrents/{infoHash}/cross-seed/{tracker}/upload` →
   `uploadCrossSeed`, declared new (2); the reason enum's two new codes, `creation_failed` and `publish_failed`,
   filed into the SAME family as `inject_failed`/`obligation_write_failed` (≈ 6 lines new, schema plus two
-  `x-unseeded` sentences) 1; the register regenerated, its counters read before and after 1; the report naming
+  ~~`x-unseeded` sentences) 1; the register regenerated, its counters read before and after 1; the report naming~~
   what is DEFERRED (the `via` field of DESIGN § 2.1 demand S, contingent on § 7 Q5 — declared only if L23's own
   opening finds the operator has ruled it) 1½ — the deferral itself costs nothing to STATE, but the report's own
   line does.
@@ -29,20 +29,20 @@ of this contract, never this phase's own shape.
 
 ## Red today
 
-None — a contract has no rule of its own; `scripts/compare-contracts.py --check` is the guard, read by hand.
+~~None — a contract has no rule of its own; `scripts/compare-contracts.py --check` is the guard, read by hand.~~
 
 ## Move
 
 1. Declare `uploadCrossSeed` in `frontend/maquette/contract/openapi.json`, extending L17's own `CrossSeedTrackerState`
    shape as its DESIGN § 2.1 left it (one torrent, one tracker, one call; the answer shape mirrors `searchCrossSeed`'s
    own « queued » discipline). Extend the closed reason enum with `creation_failed` and `publish_failed`, each
-   carrying `x-unseeded` (« invented: no fixture exists for the upload, DESIGN § 2.2 »).
+   ~~carrying `x-unseeded` (« invented: no fixture exists for the upload, DESIGN § 2.2 »).~~
 2. `python3 scripts/compare-contracts.py --write`, then `--check`, then `npm --prefix frontend/maquette/design run
    generate-contract-types`. Read the counters, before and after, into the report.
 
 ## Mutation
 
-None.
+~~None.~~
 
 ## Register
 
@@ -51,11 +51,11 @@ two codes) filed the same way; demand S is NOT filed (deferred, § 7 Q5).
 
 ## Oracle: states that diverge, declared by name
 
-None — a contract moves no surface.
+~~None — a contract moves no surface.~~
 
 ## Gate
 
-Per INDEX « Gates »; `python3 scripts/compare-contracts.py --check`; `python3 scripts/check-mock-seeds.py`.
+~~Per INDEX « Gates »; `python3 scripts/compare-contracts.py --check`; `python3 scripts/check-mock-seeds.py`.~~
 
 ## Commit
 

@@ -184,6 +184,9 @@ CONDITIONAL on an answer in § 7, named as such; five are not.
 | 7 | `torrents-cross-seed-upload-rule-refused` | the confirmation naming a tracker-side rule the medium cannot meet, before any call fires | § 7 Q3, reading B |
 | 8 | `tracker-upload-failures` | a per-tracker « N publications échouées » count, unfolding, a « vu » per row | § 7 Q4, reading B |
 
+**2026-10-01**: states 1–6 are real; 7 and 8 are dropped (Q3 and Q4 ruled A); `torrents-cross-seed-published`
+is added for Q5 = B (the third origin mark).
+
 States 6–8 are named here so the plan that later draws them does not invent an id from nothing; they are not
 proved by anything today, and a phase that finds them unneeded (because the operator ruled the OTHER reading) says
 so and drops them, rather than building a state nobody's reading asks for.
@@ -197,7 +200,11 @@ free numbers the day L23's plan's first rule-writing phase opens, against `origi
 moment. Two are drawn in full; four are drawn PARTIALLY, because their exact hold depends on § 7's answers, and
 each says which question it is waiting on.
 
-| Rule | What it READS | The mutation that fells it | Waiting on |
+**Struck 2026-10-01** (the method's reset retired mutations): the third column below is no longer a control.
+**Bound 2026-10-01**: R-L23-a … e are R450 … R454; R455 and R456 hold the « accepte les uploads » switch and the
+third origin mark; R-L23-f waits for L18's rights model on `main` (`plan/INDEX.md`, « Executed »).
+
+| Rule | What it READS | ~~The mutation that fells it~~ | Waiting on |
 | --- | --- | --- | --- |
 | **R-L23-a** — the two new codes are sentenced, no bare code (NE-DOIT-PAS-4) | every `error` row reading `creation_failed` or `publish_failed` draws ITS sentence, never the code | draw the code instead of its sentence → falls | — |
 | **R-L23-b** — the gesture is offered only where nothing already cross-seeds (§ 1, clause 1) | the act is present on `noMatch`/`error`/`notSearched` rows and absent on `active`/`stopped`/`trackerWithout`/excluded pairs | offer it on an `active` row → the offer hold falls | — |
