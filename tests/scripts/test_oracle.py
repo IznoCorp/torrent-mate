@@ -415,7 +415,9 @@ def test_the_committed_reference_carries_a_platform():
     # nothing else moved. 39 regions SINCE L16's phase 17: `screen-ranking/body`, the ranking editor
     # L16 created and no region measured — drawn on its five states alone.
     # 161 SINCE L16's phase 17a: `trackers-loading` and `trackers-error` — added, nothing else moved.
-    assert reference["counts"] == {"states": 161, "regions": 39}
+    # 163 SINCE the conformity train's phase 8: `lib-recent-movies` and `lib-incomplete-movies` —
+    # the category pills on the two lenses; the states whose titles now wrap moved, named in its gate.
+    assert reference["counts"] == {"states": 163, "regions": 39}
 
 
 class TestItRefusesToWriteOverAForeignBuild:
