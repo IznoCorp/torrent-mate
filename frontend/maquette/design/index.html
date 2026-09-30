@@ -233,7 +233,12 @@
         aria-label="Ouvrir le menu de navigation"
         data-drawer="1"
       >
+        <!-- THE ICON CARRIES ITS OWN SIZE. An `<svg>` sized by its viewBox
+             alone has no intrinsic width, and a centred flex box resolves it
+             to the room left in Chromium and to nothing in WebKit: the menu
+             was invisible on an iPhone (B-579). -->
         <svg
+          class="w-[20px] h-[20px]"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -246,7 +251,7 @@
       </button>
       <a class="brand flex items-center gap-4" href="#" onclick="return false;">
         <svg
-          class="mk"
+          class="mk w-[28px] h-[28px] text-primary"
           data-part="brand/mark"
           viewBox="0 0 24 24"
           fill="none"

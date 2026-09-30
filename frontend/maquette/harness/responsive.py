@@ -16,6 +16,10 @@ opens every named state at seven widths and refuses, over the whole device:
   bevel     — a border drawn `outset`, `inset`, `groove` or `ridge`: the design
               system draws none, so it is a browser default no class reset — the
               runs list's buttons, whose right edge shades into the background;
+  undrawn   — an `<svg>` the page shows, drawn at no size: an icon sized by
+              its viewBox alone, which a flex box resolves to 0 in WebKit and
+              to the room left in Chromium (the menu's, B-579) — or to 0 in
+              both (the header's brand mark);
   unseen    — in WebKit only, a frame control a finger must find (the menu
               button, the bottom bar's buttons, a tab) that is outside the
               window, covered at its centre, drawn at no size, or inked under
@@ -79,8 +83,6 @@ PARALLEL = int(os.environ.get("TM_HARNESS_JOBS", "3"))
 OWED: dict[tuple[str, str], str] = {
     # Reds with a named owner and a repair to come: each entry leaves the
     # list in the commit that repairs it, and the rule then holds it.
-    # WebKit draws the menu button's icon at no size, in light and in dark.
-    ("unseen", "menu"): "defects fast lane",
 }
 
 MEASURE = """(width) => {
@@ -107,6 +109,10 @@ MEASURE = """(width) => {
     if (layer && view && view.contains(element) && !layer.contains(element)) continue;
     if (!element.checkVisibility({opacityProperty: true, visibilityProperty: true})) continue;
     const rect = element.getBoundingClientRect();
+    // An icon the page shows drawn at no size: an `<svg>` sized by its
+    // viewBox alone has no intrinsic width, and a flex box resolves it to
+    // the room left — the whole of it in one engine, nothing in another.
+    if (element.tagName.toLowerCase() === 'svg' && (rect.width < 1 || rect.height < 1)) { push('undrawn', element, rect); continue; }
     if (rect.width <= 1 && rect.height <= 1) continue;
     const style = getComputedStyle(element);
     // Visually hidden on purpose — the screen-reader-only heading: clipped to
