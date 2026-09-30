@@ -103,6 +103,7 @@ attributes
 audio
 audios
 authentication
+author
 avatar
 axis
 back
@@ -376,6 +377,7 @@ empty
 end
 ended
 engine
+enqueue
 entries
 entry
 envelope
@@ -497,6 +499,7 @@ groups
 guard
 guidance
 had
+hand
 harness
 has
 hash
@@ -1083,6 +1086,7 @@ selector
 selmode
 semibold
 send
+sent
 sentence
 sentinel
 separator

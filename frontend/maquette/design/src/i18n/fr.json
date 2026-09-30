@@ -658,6 +658,14 @@
       "toMaintenance": "Réparer ce que l'index signale se fait depuis Maintenance. ",
       "toMaintenanceLink": "Maintenance →",
       "dependencies": "Dépendances",
+      "unavailableLabel": "État",
+      "unavailable": "indisponible",
+      "unavailableLine": {
+        "services": "L'état des services n'a pas pu être lu.",
+        "disks": "La place des disques n'a pas pu être lue.",
+        "index": "La santé de l'index n'a pas pu être lue.",
+        "dependencies": "Redis et les providers n'ont pas pu être interrogés."
+      },
       "codeErrors": "Erreurs de code",
       "errorsRaised": "Du code a levé",
       "errorsValue": "des erreurs",
