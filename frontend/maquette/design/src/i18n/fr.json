@@ -1114,6 +1114,13 @@
     "noAccess": {
       "title": "Ce compte n'ouvre aucune page.",
       "body": " Son rôle ne lui donne aucun droit ici : l'administrateur peut lui en attribuer un autre dans « Comptes »."
+    },
+    "gate": {
+      "plex": "Se connecter avec Plex",
+      "plexUnreachable": "Plex ne répond pas : connectez-vous avec un mot de passe.",
+      "usePassword": "Utiliser un mot de passe",
+      "invalid": "Identifiants invalides",
+      "passwordRefused": "Ce compte se connecte avec Plex : il n'a pas de mot de passe ici."
     }
   },
   "surfaces": {

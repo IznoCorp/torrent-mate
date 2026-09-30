@@ -35,6 +35,16 @@ function reread(): void {
 /** Every WRITE right — what today's read-only instance forbids (ruling 23). */
 export const EVERY_WRITE: Right[] = [...WRITE_RIGHTS];
 
+/** Raises the gate without writing history, as a driven state does. */
+function showGate(): void {
+  window.__entry?.showSignIn(false, true);
+}
+
+/** Taps one control of the gate. */
+function tap(selector: string): void {
+  document.querySelector<HTMLElement>(selector)?.click();
+}
+
 // A title the library holds, whose sheet offers the library's writes.
 const OWNED = "American Dad!";
 
@@ -213,6 +223,45 @@ export function rightsStates(): NamedState[] {
         window.__mocks?.setForbiddenWrites(["library.delete"]);
         reread();
         applyState({ page: "profile", phase: "ready" });
+      },
+    ],
+    [
+      "signin-password-open",
+      "Connexion — « Utiliser un mot de passe » ouvert sous « Se connecter avec Plex »",
+      () => {
+        showGate();
+        tap('[data-part="login/password-disclosure"]');
+      },
+    ],
+    [
+      "signin-plex-unreachable-open",
+      "Connexion — Plex ne répond pas : le mot de passe s'ouvre de lui-même",
+      () => {
+        window.__mocks?.setPlexReachable(false);
+        showGate();
+        tap('[data-part="login/plex-submit"]');
+      },
+    ],
+    [
+      "signin-password-refused",
+      "Connexion — le mot de passe d'un invité Plex, refusé avec sa raison",
+      () => {
+        showGate();
+        tap('[data-part="login/password-disclosure"]');
+        const form = document.querySelector<HTMLFormElement>("#loginform");
+        if (!form) return;
+        (form.elements.namedItem("username") as HTMLInputElement).value = "Noé";
+        (form.elements.namedItem("password") as HTMLInputElement).value = "secret";
+        form.requestSubmit();
+      },
+    ],
+    [
+      "signin-plex-bare",
+      "Connexion — un compte Plex sans droit entre par Plex et arrive sur la Médiathèque, sans barre",
+      () => {
+        window.__mocks?.setIdentity("plex-without-rights");
+        showGate();
+        tap('[data-part="login/plex-submit"]');
       },
     ],
     [

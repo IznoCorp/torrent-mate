@@ -119,6 +119,7 @@ badges
 band
 banners
 bar
+bare
 base
 batch
 became
@@ -388,6 +389,7 @@ emphasized
 empty
 end
 ended
+ending
 engine
 entries
 entry
@@ -412,6 +414,7 @@ exec
 executions
 exemptions
 exhausted
+existing
 exists
 exit
 expanded
@@ -618,6 +621,7 @@ labels
 lacking
 ladder
 laid
+land
 landed
 landing
 lanes
@@ -1276,6 +1280,7 @@ take
 takeable
 taken
 takes
+tap
 target
 teardown
 temp
