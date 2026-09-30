@@ -148,7 +148,7 @@ async def hold(journal):
           document.body.appendChild(probe);
           const warning = getComputedStyle(probe).color;
           probe.remove();
-          const node = document.querySelector('[data-part="discover/notice"] [data-part="notice"]');
+          const node = document.querySelector('[data-part="discover/notice"]')?.firstElementChild ?? null;
           return node ? {alert: node.getAttribute('role') === 'alert',
                          warning: getComputedStyle(node.querySelector('b')).color === warning} : null;
         }""")
