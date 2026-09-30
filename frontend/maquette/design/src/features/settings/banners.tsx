@@ -18,8 +18,9 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { SETTINGS_STATE, changedFiles, fileName } from "./state";
 import { useConfigurationStatus } from "./queries";
-import { loadError, loadErrorAction } from "../../ui/variants";
-import { saveAction, saveBar } from "./variants";
+import { actionButton, loadErrorAction } from "../../ui/variants";
+import { SurfaceError } from "../../ui/state-surfaces";
+import { saveBar } from "./variants";
 import { fillSaveBarDoor } from "../../lib/save-bar-door";
 
 // The save bar lives BESIDE the view rather than inside it, so scrolling the
@@ -46,10 +47,10 @@ export function SettingsBanners(): ReactElement {
   return (
     <>
       {SETTINGS_STATE.readOnly ? (
-        <div className={loadError()} data-part="load-error">
+        <div data-part="settings/notice"><SurfaceError tone="info" part="notice">
           <b>{t("screens.settings.readOnlyLead")}</b>
           {t("screens.settings.readOnlyRest")}
-        </div>
+        </SurfaceError></div>
       ) : null}
       {/* THE THIRD BANNER — the one the copy named and the page never drew
           (B-299). The file moved on disk while it was being edited, so what is
@@ -58,16 +59,16 @@ export function SettingsBanners(): ReactElement {
           surprise would be the second loss, and reloading is offered as a
           decision rather than taken as one. */}
       {SETTINGS_STATE.conflict ? (
-        <div className={loadError()} data-part="load-error">
+        <div data-part="settings/notice"><SurfaceError tone="warning" part="notice">
           <b>{t("screens.settings.conflictLead")}</b>
           {t("screens.settings.conflictRest")}{" "}
           <button className={loadErrorAction()} data-reloadsettings="1">
             {t("screens.settings.conflictReload")}
           </button>
-        </div>
+        </SurfaceError></div>
       ) : null}
       {restartOwed ? (
-        <div className={loadError()} data-part="load-error">
+        <div data-part="settings/notice"><SurfaceError tone="warning" part="notice">
           <b>{t("screens.settings.restartLead")}</b>{" "}
           {changedFiles().join(", ") ||
             t("screens.settings.restartSomeSettings")}
@@ -75,7 +76,7 @@ export function SettingsBanners(): ReactElement {
           <button className={loadErrorAction()} data-restart="1">
             {t("screens.settings.restartNow")}
           </button>
-        </div>
+        </SurfaceError></div>
       ) : null}
     </>
   );
@@ -106,7 +107,7 @@ export function SaveBar(): ReactElement | null {
         </b>{" "}
         {t("screens.settings.willWrite", { files })}
       </span>
-      <button className={saveAction()} data-save="1" disabled={SETTINGS_STATE.readOnly}>
+      <button className={actionButton({ kind: "submit" })} data-save="1" disabled={SETTINGS_STATE.readOnly}>
         {t("screens.settings.save")}
       </button>
     </div>,

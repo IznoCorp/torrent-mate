@@ -39,9 +39,6 @@ export const seenControl = cva(
   "text-2 font-semibold text-primary-text bg-transparent [border:0] p-0 min-h-[44px] min-w-[44px] cursor-pointer",
 );
 
-/** A tab of the page's strip: a finger's height, as Acquisition's own tabs. */
-export const trackersTab = cva("min-h-[44px]");
-
 /** « Voir les torrents »: a path, at a finger's height. */
 export const seeTorrents = cva("min-h-[44px]");
 

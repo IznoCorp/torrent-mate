@@ -151,7 +151,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** One media sheet, by its provider identity */
+        /**
+         * One media sheet, by its provider identity
+         * @description For ANY provider identity, not only a medium the library holds: a resolution candidate's poster opens its sheet (B-578), so the backend answers a sheet from the provider for an identifier it has never stored, owned false.
+         */
         get: operations["readMediaSheet"];
         put?: never;
         post?: never;
@@ -1269,11 +1272,16 @@ export interface components {
             /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
             label: string;
             /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
-            tone: string;
+            tone?: string;
             /** @description the fact itself. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
-            value: string;
+            value?: string;
             /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             secondaryLine?: string;
+            /**
+             * @description the state a fact is in, as a CODE: the interface says it in its own words (one word per state, `states` in fr.json) and derives its tone. A row that is a quantity carries `value` and `tone` instead.
+             * @enum {string}
+             */
+            state?: "reachable" | "on_time" | "room" | "nearly_full" | "succeeded" | "none" | "to_clean" | "offline" | "late";
         };
         /** @description A library row as a LISTING shows it. The recents carry no category — that is what the fixture holds — so the category lives on LibraryItem below rather than here. */
         LibraryRow: {
@@ -1317,6 +1325,8 @@ export interface components {
             ids: components["schemas"]["ProviderIds"] | null;
             /** @description the poster's address, or null when none is known */
             poster: string | null;
+            /** @description the engine's category id the show is stored under (a LibraryCategory's `includes` names these), so the lens can be filtered by the same pills as the listing */
+            category: string;
         };
         LibraryMembership: {
             /** @description whether the library holds the title */
@@ -1327,6 +1337,8 @@ export interface components {
             incomplete: boolean;
             /** @description the held medium's provider identity, or null when the library does not hold it or no sheet identifies it */
             ids: components["schemas"]["ProviderIds"] | null;
+            /** @description whether the held medium is a film or a series, from the category it is filed under, or null when the library does not hold it — a panel about a medium nobody follows has no other source for its kind */
+            kind: ("movie" | "show") | null;
         };
         Follow: {
             title: string;
@@ -1439,6 +1451,8 @@ export interface components {
             last: components["schemas"]["PipelineRunSummary"];
             /** @description whether the automatic trigger opens runs on its own. The layer PROJECTS it from the one field `setWatcher` writes, which the locks read also projects as `sentinels.watcherPaused` — one fact, two readers (§13). Not in the seed: it is store state, not a fixture */
             watcherEnabled?: boolean;
+            /** @description whether the automatic trigger is ON but its process does not answer — a TECHNICAL fault, told apart from a person turning it off (`watcherEnabled` false). Not in the seed: store state, as `watcherEnabled` is */
+            watcherDown?: boolean;
             /** @description what the pipeline is doing RIGHT NOW. The layer projects it from the one field its verbs move; the backend answers it on the same read (`StatusResponse.state`). Not in the seed — store state, as `watcherEnabled` is */
             state?: components["schemas"]["PipelineState"];
         };

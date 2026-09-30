@@ -13,9 +13,9 @@ coincides): unchanged, its docstring's hold 2 re-read against the new rule.
 1. **The layer switch reads the destination's class**: a non-bar destination (Système, Maintenance, Réglages,
    Profil) rewinds the LAYER's entry only and records on the page left (M2, M3, P1); a bar destination unwinds the
    trail (M4, M5 — phase 1's path); the page one is on closes the drawer and writes nothing (M6).
-2. **A rubric open under the drawer** (M7, OPEN 3 = B): the drawer's tap gives the rubric's entry back first, the
+2. **A rubric open under the drawer** (M7, DECIDED 3 = B): the drawer's tap gives the rubric's entry back first, the
    order `giveTheEntryBackFirst` already follows for an in-page control (`lib/stacked-surface.ts`), then stacks —
-   Retour → the page's root. Under OPEN 3 = A the rubric is counted and kept instead; the answer is read first.
+   Retour → the page's root.
 3. **The `navgo` comment** (`app/frame-verbs.ts:99–101`) says the amended rule; « a drawer entry is a top-level
    destination like any other » goes.
 4. R-navigation-a's rows M2, M3, M7, P1 lose `owed: 2`.

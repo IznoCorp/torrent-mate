@@ -39,6 +39,9 @@ WHAT THE DETAIL IS HELD TO:
      under way, and every step the run has not reached is drawn as unknown
      (« — ») — never « pas faite », never a count. §13: a part not yet known is
      not printed as an answer.
+
+R-conformity-h — AN EMPTY PLACE IS THE ONE EMPTY NOTE (`hold_empty_places`, in
+its own context): the empty list of passages, and a media sheet's empty place.
 """
 import asyncio
 import json
@@ -46,7 +49,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, Journal, SETTLED, open_page, chrome_launch_args
+from common import ACTED, Journal, SETTLED, open_page, read_at, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -57,14 +60,17 @@ DEGRADED = "runs-degraded"
 
 # WHAT THE SECTION AND ITS ROWS CARRY.
 SECTION = "runs"
-ROW = "runs/row"
+# A PASSAGE'S ROW IS THE SHARED FACT ROW, and its control is the button carrying
+# the run it opens — RE-AIMED from the list's own `runs/row` part, which went
+# with the list's own drawing; the row is found by the run it stands for.
+ROW = "[data-run]"
 DEGRADED_LINE = "runs/degraded"
 EMPTY_LINE = "runs/empty"
 
 # PRESSED AT ITS OWN CENTRE, after scrolling to it — a finger scrolls first, and
 # `elementFromPoint` answers null outside the viewport.
-PRESS_FIRST_ROW = """(part)=>{
-  const row = document.querySelector(`[data-part="${part}"]`);
+PRESS_FIRST_ROW = """(selector)=>{
+  const row = document.querySelector(selector);
   if (!row) return {found: false, pressed: false, covered: ''};
   row.scrollIntoView({block: 'center'});
   const box = row.getBoundingClientRect();
@@ -115,7 +121,7 @@ ROWS_SAID = """async ()=>{
     };
     return {runUid: run.runUid, command: run.command, outcome: run.outcome,
             detected: ((run.steps || [])[0] || {}).counts?.detected ?? null,
-            word: said('runs/outcome'), line: said('runs/line')};
+            word: said('flux/value'), line: said('flux/detail')};
   });
 }"""
 
@@ -123,8 +129,11 @@ ROWS_SAID = """async ()=>{
 SENTENCES = json.loads(
     (pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "i18n" / "fr.json")
     .read_text(encoding="utf-8"))["screens"]["system"]
-OUTCOME_WORDS = {"success": "runSucceeded", "error": "runFailed", "running": "runRunning",
-                 "killed": "runKilled", "paused": "runPaused"}
+# ONE WORD PER OUTCOME, the run screen's: RE-AIMED from the list's own five
+# keys, which said « arrêté » where the run's own screen said « interrompu ».
+OUTCOME_WORDS = json.loads(
+    (pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "i18n" / "fr.json")
+    .read_text(encoding="utf-8"))["screens"]["run"]["outcome"]
 
 ROW_TEXT = """(runUid)=>{
   const row = document.querySelector(`[data-run="${runUid}"]`);
@@ -136,14 +145,14 @@ ROW_TEXT = """(runUid)=>{
 DRAWN_ORDER = """async ()=>{
   const answer = await (await fetch('/api/pipeline/history')).json();
   const started = new Map((answer.runs || []).map((run) => [run.runUid, run.startedAt]));
-  return [...document.querySelectorAll('[data-part="runs/row"]')].map((row) => ({
+  return [...document.querySelectorAll('[data-run]')].map((row) => ({
     runUid: row.dataset.run || '',
     at: started.has(row.dataset.run) ? Date.parse(started.get(row.dataset.run)) : null,
     text: (row.textContent || '').replace(/\\s+/g, ' ').trim()}));
 }"""
 
 # HOW MANY ROWS ARE DRAWN.
-ROW_COUNT = """(part)=>document.querySelectorAll(`[data-part="${part}"]`).length"""
+ROW_COUNT = """(selector)=>document.querySelectorAll(selector).length"""
 
 # THE STATES OF A PASSAGE'S SCREEN.
 DETAIL = "run-detail"
@@ -295,7 +304,7 @@ async def main():
                       and order[0]["at"] > order[1]["at"],
                       f"{[(row['runUid'][:12], row['text'][:14]) for row in order[:2]]}")
         for row in going + [row for row in rows if row["outcome"] != "running"][:1]:
-            expected = SENTENCES.get(OUTCOME_WORDS[row["outcome"]])
+            expected = OUTCOME_WORDS.get(row["outcome"])
             journal.check(f"the {row['outcome']} row {row['runUid'][:8]} says its own outcome word",
                           bool(expected) and row["word"] == expected,
                           f"said {row['word']!r}, expected {expected!r}")
@@ -382,8 +391,37 @@ async def main():
                       f"{[(row['name'], row['status']) for row in ahead]}")
 
         await context.close()
+        await hold_empty_places(browser, journal)
         await browser.close()
     journal.summary()
+
+
+# The state, and the empty part it draws.
+EMPTY_PLACES = (("runs-empty", "runs/empty"), ("mediasheet-no-trailer", "no-info"))
+EMPTY_NOTE = """(part)=>{
+  const node = document.querySelector(`[data-part="${part}"] [data-part="empty-state"]`);
+  if (!node) return null;
+  const box = node.getBoundingClientRect();
+  return {note: true, drawn: box.width > 0 && box.height > 0, text: node.textContent.trim().length};
+}"""
+
+
+async def hold_empty_places(browser, journal):
+    """R-conformity-h — an empty place is the one empty note.
+
+    Each empty place below draws `empty-state` inside its own part, drawn and
+    saying something — never a bare sentence of its own.
+
+    Args:
+        browser: The launched browser; the holds read a context of their own.
+        journal: The rule's journal.
+    """
+    context, page = await open_page(browser)
+    for state, part in EMPTY_PLACES:
+        read = await read_at(page, state, EMPTY_NOTE, part)
+        journal.check(f"{state}: « {part} » is the empty note, drawn and saying something",
+                      bool(read) and read["note"] and read["drawn"] and read["text"] > 0, f"{read}")
+    await context.close()
 
 
 if __name__ == "__main__":

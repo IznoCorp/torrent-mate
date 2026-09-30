@@ -108,8 +108,9 @@ export const tabBar = cva(
   },
 );
 
+/* `px-0`: a button arrives with the browser's inline padding, which cut a label at 320 px. */
 export const tabBarButton = cva(
-  "flex min-h-[44px] min-w-0 flex-1 basis-0 flex-col items-center justify-center "
+  "flex min-h-[44px] min-w-0 flex-1 basis-0 flex-col items-center justify-center px-0 "
     + "gap-2 py-4 text-3 [border:0] bg-transparent text-muted-foreground "
     + "transition-[color] duration-150 ease-standard",
   {
@@ -126,16 +127,6 @@ export const tabBarIcon = cva("ic relative inline-flex");
 export const tabBarIconDrawing = cva("w-[20px] h-[20px] flex-none");
 
 export const tabBarLabel = cva("lb overflow-hidden text-ellipsis whitespace-nowrap max-w-full");
-
-/* PRIMARY, not danger: red is reserved for the « ? » of an unavailable
-   counter. The outline is the sidebar's colour so the badge reads as lifted off
-   the bar rather than punched into it. */
-export const tabBarBadge = cva(
-  "navbadge absolute right-[-10px] top-[-6px] inline-flex h-[18px] min-w-[18px] "
-    + "items-center justify-center px-2 rounded-full bg-primary text-primary-foreground "
-    + "text-2 font-semibold leading-none [font-variant-numeric:tabular-nums] "
-    + "[box-shadow:var(--mq-shadow-badge)] [outline:2px_solid_var(--color-sidebar)]",
-);
 
 /* ── The action button ───────────────────────────────────────────────
    Anchored to the frame's bottom-right corner, ABOVE the published bar height
@@ -287,6 +278,13 @@ export const drawerGroup = cva(
   "grp [.grp+&]:border-t [.grp+&]:border-border [.grp+&]:mt-3 [.grp+&]:pt-5",
 );
 
+/** The appearance group, which sits outside the navigation: it takes the
+ *  navigation's own padding, so its heading starts where every group's does. */
+export const drawerAppearance = cva("px-4");
+
+/** The appearance selector, under its heading and aligned with it. */
+export const drawerAppearanceSwitch = cva("mx-6");
+
 export const drawerGroupTitle = cva(
   "sect pt-5 px-6 pb-2 text-1 font-medium uppercase tracking-[0.08em] "
     + "text-muted-foreground",
@@ -314,12 +312,6 @@ export const drawerEntry = cva(
 );
 
 export const drawerEntryDrawing = cva("w-[20px] h-[20px] flex-none");
-
-export const drawerEntryCount = cva(
-  "count ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center "
-    + "px-2 rounded-full bg-primary text-primary-foreground text-2 font-semibold "
-    + "[font-variant-numeric:tabular-nums]",
-);
 
 export const drawerIdentity = cva(
   "ver border-t border-border pt-6 px-7 "

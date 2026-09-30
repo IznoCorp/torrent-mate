@@ -53,7 +53,9 @@ async def main():
                 port=screen_port)
     await trial("screen-profile", '[data-part="switch"]', 0, "switch", port=screen_port)
     print("── add screen ──")
-    await trial("acq-add-results", '[data-part="segment-small"] button', 1, "type segment", port=screen_port)
+    # RE-AIMED: the kind choice is the view switch now (R-conformity-o), read on the screen.
+    await trial("acq-add-results", '[data-part="screen"][data-open] [data-part="view/switch"] button', 1,
+                "type segment", port=screen_port)
 
     print("\n── keyboard input (value and caret) ──")
     await pg.evaluate("()=>window.__go('lib-grid')"); await pg.wait_for_timeout(400)

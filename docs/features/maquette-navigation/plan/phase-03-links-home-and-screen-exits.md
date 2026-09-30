@@ -20,7 +20,7 @@ walked menu → Système → link, `floor + 3` through the run screen), its docs
    `go` path from its panel; the panel's entry is kept (D-L13-1), so Retour → Médiathèque, the panel reopened.
 4. **The add screen's exit closes it** (L4): `toFollows` pops the screen (`bridge.back()`), then sets « Maintenant »
    as a setting (the replace door) — no second Acquisition entry.
-5. **A screen that opens another stacks** (S2, S3; OPEN 2 = A): the two `replace` flags go; a pick in the
+5. **A screen that opens another stacks** (S2, S3; DECIDED 2 = A): the two `replace` flags go; a pick in the
    identification search rewinds two entries, as the resolution's pick closes it (09-15 Q4).
 6. **The named states** `nav-acquisition-over-system` (`harness/states/system.ts`, `poseTrail(["acq", "sys"])` then
    « À traiter ») and `run-not-found` (the run screen on an unknown uid) — DESIGN § 4.

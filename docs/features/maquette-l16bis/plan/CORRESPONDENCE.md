@@ -53,7 +53,7 @@ and its pages `docs/features/maquette-l16bis/plan/phase-NN-….md@9234341fc` (`g
 | DECIDED 8 (Q8) — « n séries et m films à découvrir » | 4 |
 | DECIDED 9 (Q9) — no cross-seed swipe before L17 | 1 (nothing drawn) |
 | DECIDED 10 (conformity round Q7) — Découvrir's swipe, left = pass, right = reject, list and deck | 4 |
-| OPEN 10 — what « passer » does on the data side | 4 (written for A; STOP C) |
+| OPEN 10 — what « passer » does on the data side | 4 (DECIDED 11 = A, 2026-09-30) |
 | L16's RULINGS 2 (the second door), kept and extended to `enabled` | 3 |
 | L16's RULINGS 3 (the filter line), reversed in form | 2 |
 | L16's RULINGS 7 (poses for the unlinked, the long name, the states) | 1 |

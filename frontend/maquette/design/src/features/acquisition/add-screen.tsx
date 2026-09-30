@@ -42,16 +42,22 @@ import { go } from "../../lib/navigate";
 import { useState } from "react";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
 import { useProviderSearch } from "./search-queries";
-import { actionButton, backAction, emptyNote, resultCount, screen, screenBar, scrollport, searchField, searchInput, section, surfaceError } from "../../ui/variants";
+import { actionButton, backAction, emptyNote, resultCount, screen, screenBar, scrollport, searchField, searchInput, section, viewSwitch, viewSwitchButton } from "../../ui/variants";
+import { Disclosure } from "../../ui/disclosure";
+import { SurfaceError } from "../../ui/state-surfaces";
 import { AddFooter } from "./add-footer";
 import {
   addForm,
   addRow,
   byIdentifier,
   byIdentifierBody,
+  emptyNotePlace,
+  identifyFolder,
+  identifyNotice,
+  identifierHint,
+  providerSwitchPlace,
   refusalReason,
   resultList,
-  segmentSmall,
   suggestionChip,
   suggestions,
 } from "../../features/acquisition/variants";
@@ -81,6 +87,10 @@ export function AddScreen() {
   const state = useUiState();
   const addKind = (state.addKind as string) ?? "Tout";
   const idProv = (state.idProv as string) ?? "TMDB";
+  // What the identifier field holds, and whether its provider refuses it: an
+  // IMDB identifier is « tt » and digits, a TMDB or TVDB one digits only.
+  const [typedId, setTypedId] = useState("");
+  const idRefused = typedId.trim() !== "" && !(idProv === "IMDB" ? /^tt\d+$/ : /^\d+$/).test(typedId.trim());
   const recents = (state.recents as string[]) ?? [];
   const resolveTarget = state.resolveTarget as string | null;
 
@@ -181,15 +191,7 @@ export function AddScreen() {
           {t("screens.add.back")}
         </button>
         {identify ? (
-          <span
-            style={{
-              marginLeft: "auto",
-              fontSize: "11px",
-              color: "var(--color-muted-foreground)",
-            }}
-          >
-            {t("screens.add.identifyFolder")}
-          </span>
+          <span className={identifyFolder()}>{t("screens.add.identifyFolder")}</span>
         ) : null}
       </div>
       {/* THE ONLY SCREEN THE ORACLE DID NOT MEASURE. Four of the five overlay
@@ -210,15 +212,9 @@ export function AddScreen() {
           measured at all. */}
       <div className={scrollport()} data-part="viewport" data-region="screen-add/body">
         {identify ? (
-          <div style={{ padding: "12px 14px 0" }}>
-            <div
-              className={surfaceError()} data-part="surface-error" role="alert"
-              style={{
-                borderColor: "color-mix(in oklab,var(--color-info) 45%,transparent)",
-                background: "color-mix(in oklab,var(--color-info) 8%,transparent)",
-              }}
-            >
-              <b style={{ color: "var(--color-info)" }}>
+          <div className={identifyNotice()} data-part="add/notice">
+            <SurfaceError tone="info" part="notice">
+              <b>
                 {t("screens.add.identifyTitle", {
                   // french-ok: the INTERPOLATION placeholder, named by
                   // `identifyTitle` in fr.json — renaming this half alone
@@ -227,7 +223,7 @@ export function AddScreen() {
                 })}
               </b>
               {t("screens.add.identifyBody")}
-            </div>
+            </SurfaceError>
           </div>
         ) : null}
         <div className={addForm()}>
@@ -253,7 +249,7 @@ export function AddScreen() {
             />
           </div>
           <div className={addRow()}>
-            <div className={segmentSmall()} data-part="segment-small">
+            <div className={viewSwitch()} data-part="view/switch">
               {/* NOT interface copy: these three are the VALUES of
                   `state.addKind`, written to the legacy store, compared
                   against below (`addKind === "Tout"`, `=== "Films"`) and
@@ -275,6 +271,7 @@ export function AddScreen() {
               ).map(([value, key]) => (
                 <button
                   key={value}
+                  className={viewSwitchButton({ size: "text" })}
                   aria-pressed={addKind === value}
                   onClick={() => writeUiState({ addKind: value })}
                 >
@@ -326,7 +323,7 @@ export function AddScreen() {
                 </button>
               ))}
             </div>
-            <div style={{ padding: "14px" }}>
+            <div className={emptyNotePlace()}>
               <div className={emptyNote()} data-part="empty-state">
                 <b>{t("screens.add.emptyTitle")}</b>
                 {t("screens.add.emptyBody")}
@@ -334,17 +331,14 @@ export function AddScreen() {
             </div>
           </>
         )}
-        <details className={byIdentifier()} data-part="add/by-id">
-          <summary>
-            {identify
-              ? t("screens.add.byIdIdentify")
-              : t("screens.add.byIdAdd")}
-          </summary>
+        <div className={byIdentifier()} data-part="add/by-id">
+        <Disclosure summary={identify ? t("screens.add.byIdIdentify") : t("screens.add.byIdAdd")}>
           <div className={byIdentifierBody()}>
-            <div className={segmentSmall()} data-part="segment-small" style={{ alignSelf: "flex-start" }}>
+            <div className={`${viewSwitch()} ${providerSwitchPlace()}`} data-part="view/switch">
               {["TMDB", "TVDB", "IMDB"].map((element) => (
                 <button
                   key={element}
+                  className={viewSwitchButton({ size: "text" })}
                   aria-pressed={idProv === element}
                   onClick={() => writeUiState({ idProv: element })}
                 >
@@ -356,34 +350,31 @@ export function AddScreen() {
               <input
                 className={searchInput()}
                 id="byidv"
-                placeholder={idProv === "IMDB" ? "tt1234567" : "12e34"}
+                placeholder={idProv === "IMDB" ? "tt1234567" : "1234"}
                 aria-label={t("screens.add.idAria", { prov: idProv })}
+                value={typedId}
+                onChange={(event) => setTypedId(event.target.value)}
               />
             </div>
-            <p className={refusalReason()}>
-              {idProv === "IMDB" ? (
-                <>
-                  {t("screens.add.imdbBefore")} <code>tt</code>{" "}
-                  {t("screens.add.imdbAfter")}
-                </>
-              ) : idProv === "TVDB" ? (
-                t("screens.add.tvdbHint")
-              ) : (
-                <>
-                  {t("screens.add.numberBefore")} <code>Number()</code>{" "}
-                  {t("screens.add.numberAfter")}
-                </>
-              )}
-            </p>
-            <button
-              className={actionButton({ kind: "submit" })}
-              disabled
-              style={{ alignSelf: "flex-start", padding: "9px 16px" }}
-            >
+            {/* NO REFUSAL BEFORE A CHARACTER IS TYPED, and none in a
+                developer's words: the screen opened on « Identifiant refusé :
+                « 12e34 » … Number() … » with the field empty. */}
+            {idRefused ? (
+              <p className={refusalReason()} data-part="add/id-refused">
+                {t(idProv === "IMDB" ? "screens.add.idRefusedImdb" : "screens.add.idRefusedNumber", {
+                  typed: typedId.trim(),
+                  prov: idProv,
+                })}
+              </p>
+            ) : idProv === "TVDB" ? (
+              <p className={identifierHint()}>{t("screens.add.tvdbHint")}</p>
+            ) : null}
+            <button className={actionButton({ kind: "submit" })} disabled>
               {t("screens.add.add")}
             </button>
           </div>
-        </details>
+        </Disclosure>
+        </div>
         <AddFooter count={addedCount()} icons={icons} toFollows={toFollows} />
       </div>
     </section>

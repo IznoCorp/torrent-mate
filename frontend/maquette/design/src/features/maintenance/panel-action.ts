@@ -82,7 +82,7 @@ function maintenancePanel(
           {
             c: translate("panels.maintenance.dryRun"),
             v: translate(action.dryRun
-              ? (dry ? "panels.maintenance.dryRunOn" : "panels.maintenance.dryRunOff")
+              ? (dry ? "states.active" : "states.inactive")
               : "panels.maintenance.dryRunImpossible"),
           },
         ],

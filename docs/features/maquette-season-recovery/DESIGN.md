@@ -29,7 +29,7 @@ questions go to ONE operator round before any code.
 **Amended 2026-09-30, on `main` at `9234341fc`** (the auditor's orders 97, 98, 99): the round is done — Q14–Q19
 (`docs/features/maquette-season-recovery/rulings-2026-09-29.md`) close OPEN 1–6 as DECIDED 1–6 (§ 5), the
 named states and the rules follow them, and Q19's automatic / manual mark is drawn (§ 1.9, rule g); OPEN 7's subject
-is the conformity train's (§ 5); the drawing leaves ONE question, OPEN 8 (where the card carries the mark). § 0.3 is
+is the conformity train's (§ 5); the one question the drawing left, where the card carries the mark, is DECIDED 8 = A (§ 5). § 0.3 is
 the conformity table of order 97. The plan is re-cut BY SURFACE — 13 phases become **5** (`plan/INDEX.md`, its
 correspondence table last). Every section below whose reading a ruling fixed carries a line « Decided 2026-09-30 ».
 
@@ -124,7 +124,7 @@ His principles are `docs/reference/operator-method.md` § 1 (the dates 09-29).
 | Uniform behaviours — « Il faut uniformiser les comportements. Sauf exception volontaire de ma part. » | a followed series and a one-off draw the same card, the same mark, the same absorption (§ 1.1–1.3); an automatic recovery draws like a manual one, save the one word Q19 asks for (§ 1.9); the pointer lands the way « Voir le tracker » does (§ 1.4). No exception declared | 1 · 2 · 3 |
 | The design system reused — « on crée pas de nouveau composant on adapte » | § 1.8, element by element: nothing new; two adaptations written (the landing door reads a named acquisition; the row's mark is the chip, the train's) | every phase; rule f at 4 |
 | Every case — « seule une maquette montrant tout les cas possibles est utile. » | § 3: 30 named states, none conditional any more, the automatic ones included | every phase |
-| Every width 320–1280 — « tout doit être responsive » | one mark at a time on the row (DECIDED 4: two chips at 320 px refused); the word « auto » is a word, not a second chip (OPEN 8 A); R-conformity-a on every touched state at each gate, the full sweep at the midpoint and the close | every phase; 5 |
+| Every width 320–1280 — « tout doit être responsive » | one mark at a time on the row (DECIDED 4: two chips at 320 px refused); the word « auto » is a word, not a second chip (DECIDED 8 = A); R-conformity-a on every touched state at each gate, the full sweep at the midpoint and the close | every phase; 5 |
 | Film / series variant — « une différence entre film et série » | a season recovery exists for a SERIES only: every state is a series'; a film's release list draws no refusal and keeps its acts — a hold of rule d | 4 |
 | Navigation § 16 — Retour replays the arrival path | the pointer is a link inside a page, so it STACKS, even onto the entry page (Rd conformité Q12); Retour from the landed tab returns to the journey sheet's page; walked by finger | 3 |
 
@@ -171,7 +171,7 @@ followed series (`surfaces.card.requester.follow`), « demandé par {{name}}, po
 **Its taps** — the card's own: the poster opens the medium's sheet; the body opens the medium's panel. **Its
 journey** — its own sheet, addressed per acquisition, not per title (OPEN 1). **Decided 2026-09-30** (DECIDED 1, 3,
 6): per acquisition; the season's journey lists each absorbed episode with its state, each a path to its own
-journey; an automatic recovery's card carries « auto » (OPEN 8: in its subtitle, « S03 · auto »).
+journey; an automatic recovery's card carries « auto » (DECIDED 8: in its subtitle, « S03 · auto »).
 
 **ONE card per season** (R-season-recovery-e): a second ask queues nothing more (the one-off's rule, `:207–211`,
 generalised); the season pack's arrival JOINS the card (`inFlightCards`' own merge, once the season is a field — § 2).
@@ -279,7 +279,7 @@ of `queue.inFlight` filtered on `request`.
 | The toast at the ask | the existing toast and its `seasonAsked*` words | no |
 | The named landing on a card | Acquisition's landing door, ADAPTED to read `<tab>:<acquisition>` — the Trackers door's shape | adapted |
 | « auto » on the row (§ 1.9) | the row's chip, its word | no |
-| « auto » on the card (§ 1.9) | the card's subtitle (OPEN 8 A) — under B, `chip`, the slot made a list | no (A) / adapted (B) |
+| « auto » on the card (§ 1.9) | the card's subtitle (DECIDED 8 = A) | no |
 
 **Nothing new is drawn.** Two adaptations are written here, as the office asks: the landing door reads a named
 acquisition; the mark is the chip (OPEN 7).
@@ -292,7 +292,7 @@ names the person). One word, the same on both: « auto » (`screens.media.season
 on the row; `surfaces.card.automatic` « auto » on the card — keys proposed).
 
 **Where.** On the row: inside the ONE chip, never a second chip (DECIDED 4's own reason). On the card: in the subtitle,
-« S03 · auto » — OPEN 8 (§ 5), written for its recommended A. The origin line stays as it is (« demandé par … »),
+« S03 · auto » — DECIDED 8 = A (§ 5). The origin line stays as it is (« demandé par … »),
 the engine's follow as the requester.
 
 **What it reads.** A field the engine serves on the card: `trigger` — `manual` / `automatic` / `null` (§ 2; demand
@@ -426,7 +426,7 @@ shows like a manual one — « Demandée », the season's card, the absorption �
 distinction on the season's ROW and on the CARD: a discreet word or marker taken from an existing component and
 vocabulary (order 79), not only the origin line at the foot of the card. A as it stood (the distinction left to the
 origin line) and B (no mark for the automatic one) refused. **Drawn** at § 1.9: the word « auto » inside the ONE
-chip of the row, and on the card per OPEN 8 below; named states `season-card-automatic`,
+chip of the row, and on the card per DECIDED 8 below; named states `season-card-automatic`,
 `season-row-requested-automatic-sheet`, `season-row-requested-automatic-panel`; rule R-season-recovery-g; the
 engine must say who launched it — demand SR5. **Cost**: ≈ 4 points (the field 1, the word on the row 1, on the card
 1, the rule's holds — part of phase 2's and phase 1's).
@@ -437,21 +437,13 @@ item 4, the conformity reading's D.1 #5) turns `queuedMark` into `chip({ tone: "
 there. This lot reads the chip; its old phase 7 is gone (see the plan's correspondence). Should the orchestrator read
 the train's item otherwise, OPEN 7 comes back as it was.
 
-### OPEN — left by the drawing (one round)
+### DECIDED 8 (2026-09-30) — where the CARD carries the « auto » word (was OPEN 8): A
 
-**OPEN 8 (added 2026-09-30) — where the CARD carries the « auto » word.** Q19 asks for a light, visible mark on the
-card, not the origin line alone. The card's chip slot is taken: a card on its ladder draws its current rung's chip
-there (`features/acquisition/card-markup.ts:244`), and `ui/card-markup.ts:64` holds ONE chip.
-
-- **A — in the subtitle.** « S03 · auto » (the subtitle already reads « S03 », `oneOff`, § 1.2); a word, no new part,
-  the same word as the row's chip. **Cost** ≈ 1 point; nothing adapted in `ui/`. It is plain text: the mark is as
-  discreet as the subtitle.
-- **B — a second chip.** A `neutral` chip « auto » beside the rung's chip; `ui/card-markup.ts`'s `chip` becomes a
-  list — an adaptation of the card, written in § 1.8. **Cost** ≈ 3 points; two chips compete with the figure on a
-  320 px card, the reason Q17's B was refused on the row.
-
-**Recommendation: A** — « même légère » is his word, and the word is the row's own. The plan is written for A; under
-B phase 1 gains the card's adaptation (≈ 2 points more).
+Q19 asks for a light, visible mark on the card, not the origin line alone, and the card's chip slot is taken (a card
+on its ladder draws its current rung's chip there, `features/acquisition/card-markup.ts:244`; `ui/card-markup.ts:64`
+holds ONE chip). The operator's answer, relayed by the orchestrator on 2026-09-30: **A — in the subtitle**,
+« S03 · auto » (the subtitle already reads « S03 », `oneOff`, § 1.2): a word, no new part, the same word as the row's
+chip. **Cost** ≈ 1 point; nothing adapted in `ui/`. Refused: B, a second chip beside the rung's.
 
 ---
 

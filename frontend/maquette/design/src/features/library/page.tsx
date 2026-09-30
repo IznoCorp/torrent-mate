@@ -30,7 +30,7 @@ import { IncompleteLens } from "./incomplete-lens";
 import { CountLine, SortLabel } from "./library-count";
 import { INCOMPLETE_COUNT, LibraryHead } from "./library-head";
 import { LibraryList } from "./library-list";
-import { body, countLine, countLineAction, statusDot } from "../../ui/variants";
+import { body, countLine, countLineAction, sectionCount, statusDot } from "../../ui/variants";
 
 export function LibraryPage(): ReactElement | null {
   const state = useUiState();
@@ -51,7 +51,7 @@ export function LibraryPage(): ReactElement | null {
         <div className={countLine()} data-part="count-line" data-region="library/count-line">
           <span className={statusDot({ tone: "warning" })} data-part="status-dot"></span>
           <span>{t("screens.library.incompleteTitle")}</span>
-          <b style={{ marginLeft: "auto" }}>{INCOMPLETE_COUNT}</b>
+          <span className={sectionCount()} data-part="count-line/count">{INCOMPLETE_COUNT}</span>
         </div>
         <IncompleteLens rows={INCOMPLETE} />
       </>
@@ -83,10 +83,10 @@ export function LibraryPage(): ReactElement | null {
       <LibraryHead />
       <div className={countLine()} data-part="count-line" data-region="library/count-line">
         <CountLine />
-        <button className={`${countLineAction()} linkbtn`} data-selmode="1">
+        <button className={countLineAction()} data-selmode="1">
           {t("screens.library.select")}
         </button>
-        <button className={countLineAction()} style={{ marginLeft: 12 }} data-sort="1">
+        <button className={countLineAction()} data-sort="1">
           <SortLabel />
         </button>
       </div>

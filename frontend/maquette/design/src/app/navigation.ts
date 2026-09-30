@@ -148,8 +148,6 @@ export const NAVIGATION: readonly NavigationRow[] = [
     id: "trackers",
     path: PAGE_PATHS.trackers,
     Body: TrackersPage,
-    root: "body",
-    region: "trackers/body",
     labelKey: "navigation.pages.trackers",
     icon: icons.transfer,
     group: "supervision",

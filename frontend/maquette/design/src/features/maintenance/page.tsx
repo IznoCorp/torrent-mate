@@ -21,7 +21,10 @@ import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
 import { useUiState } from "../../lib/store-access";
 import { useDeletionJournal, useMaintenanceActions } from "./queries";
-import { backAction, factList, section, sectionHeading, topicRow } from "../../ui/variants";
+import { backAction, factList, section, sectionHeading } from "../../ui/variants";
+import { Icon } from "../../ui/icon";
+import { TopicRow } from "../../ui/topic-row";
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { guidance } from "../../ui/variants/layout";
 import { Markup } from "../../ui/markup";
 import { FactRows, type FactRow } from "../../ui/fact-rows";
@@ -40,6 +43,7 @@ import { bridge } from "../../lib/shell-doors";
 export function MaintenancePage(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
+  const { icons } = useEngineDrawing();
   // FROM THE CACHE (invariant 4).
   const { data: MAINT_ACTIONS = [] } = useMaintenanceActions();
   const { data: JOURNAL = { total: 0, rows: [] } } = useDeletionJournal();
@@ -74,6 +78,7 @@ export function MaintenancePage(): ReactElement | null {
           data-part="screen/back"
           onClick={() => bridge.back()}
         >
+          <Icon paths={icons.left} />
           {t("screens.maintenance.allCommands")}
         </button>
         <h2 className={sectionHeading()} data-part="heading">{t(`screens.maintenance.topics.${topic}.title`)}</h2>
@@ -110,12 +115,11 @@ export function MaintenancePage(): ReactElement | null {
           (action) => action.risk === "destructive",
         ).length;
         return (
-          <button className={topicRow()} data-part="topic" data-maintopic={entry} key={entry}>
-            <span style={{ minWidth: 0, flex: 1 }}>
-              <span className="rt" data-part="topic/title">{t(`screens.maintenance.topics.${entry}.title`)}</span>
-              <span className="rs" data-part="topic/subtitle">{t(`screens.maintenance.topics.${entry}.explanation`)}</span>
-            </span>
-            <span className="rn" data-part="topic/count">
+          <TopicRow
+            key={entry}
+            title={t(`screens.maintenance.topics.${entry}.title`)}
+            subtitle={t(`screens.maintenance.topics.${entry}.explanation`)}
+            value={<>
               {countIn(entry)}
               {destructive
                 ? t(
@@ -126,8 +130,9 @@ export function MaintenancePage(): ReactElement | null {
                   )
                 : ""}
               {t("screens.maintenance.arrow")}
-            </span>
-          </button>
+            </>}
+            target={{ "data-maintopic": entry }}
+          />
         );
       })}
 

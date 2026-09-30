@@ -19,9 +19,13 @@ import { cva } from "./cva";
 // imported widely — and re-exporting keeps 200-odd call sites reading one
 // name each instead of hunting three files for it.
 export * from "./variants/frame";
+export * from "./variants/badge";
 export * from "./variants/layout";
 export * from "./variants/controls";
+export * from "./variants/tabs";
 export * from "./variants/surfaces";
+export * from "./variants/notice";
+export * from "./variants/legend";
 export * from "./variants/card";
 export * from "./variants/tile";
 export * from "./variants/rows";

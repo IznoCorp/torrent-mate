@@ -98,7 +98,7 @@ export function PageHost(): ReactElement | null {
       <PageHeading page={page as string} />
       {root ? (
         <div
-          // THE ROOT IS A NAME, AND THE VARIANT IS ITS STYLE. Six pages declare
+          // THE ROOT IS A NAME, AND THE VARIANT IS ITS STYLE. Five pages declare
           // `root: "body"` in the table above, so this one element carries the
           // page column for most of the application — and it was the site the
           // first pass of phase 6 missed, because the class arrives as a VALUE

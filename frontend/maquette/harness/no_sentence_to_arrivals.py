@@ -154,7 +154,7 @@ async def lands(page, journal, state, selector, walked=False):
 TO_SYSTEM = ('[data-drawer]', '#drawer [data-navgo="sys"]')
 WALKS = {
     "system": (*TO_SYSTEM, f'{PAGE} [data-part="cross-reference"][data-go]'),
-    "run-detail": (*TO_SYSTEM, '[data-part="runs/row"]', f'{RUN_BODY} [data-part="cross-reference"][data-go]'),
+    "run-detail": (*TO_SYSTEM, '[data-run]', f'{RUN_BODY} [data-part="cross-reference"][data-go]'),
 }
 
 
@@ -198,7 +198,7 @@ async def bar_home(browser, journal):
 async def cold_run(browser, journal):
     """Holds a run's cross-reference on the run's address loaded cold."""
     context, page = await open_page(browser)
-    for selector in (*TO_SYSTEM, '[data-part="runs/row"]'):
+    for selector in (*TO_SYSTEM, '[data-run]'):
         if not await step(page, journal, "a run's address, read", selector):
             await context.close()
             return

@@ -697,6 +697,7 @@ motion
 mount
 move
 movie
+movies
 moving
 mq
 ms
@@ -1362,6 +1363,7 @@ warning
 was
 watch
 watcher
+watching
 way
 ways
 weekday

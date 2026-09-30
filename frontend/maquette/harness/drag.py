@@ -49,7 +49,12 @@ GEOMETRY = """() => {
     return {l: Math.round(r.width * 10) / 10,
             actions: e.querySelectorAll('[data-part="swipe/action"]').length};
   };
+  // The drawers' layer lies inside the card's rim, so no drawer colour can show
+  // through the card's antialiased corners at rest.
+  const layer = sw.querySelector('.actions')?.getBoundingClientRect();
   return {
+    tucked: layer ? Math.min(layer.left - rs.left, rs.right - layer.right,
+                             layer.top - rs.top, rs.bottom - layer.bottom) : null,
     right: side('[data-part="swipe/side"][data-side="right"]'), left: side('[data-part="swipe/side"][data-side="left"]'),
     // What spills past the row is what a rounded card cannot hide.
     spills: [...sw.querySelectorAll('[data-part="swipe/action"]')].map(x => {
@@ -91,6 +96,8 @@ async def main():
                          f"{m['right']['l']} for {m['right']['actions']} action(s)")
                 check(f"{name}: no action spills past the row",
                          max(m["spills"]) <= 0.5, str(m["spills"]))
+            check(f"{name}: the drawers lie inside the card's rim, no colour at its corners",
+                     bool(m) and m["tucked"] is not None and m["tucked"] >= 1, str(m and m["tucked"]))
 
         chrome, webkit = measures.get("Chromium"), measures.get("WebKit")
         check("both engines draw the same drawer",

@@ -29,7 +29,7 @@ import {
   type RelayCondition,
 } from "../lib/relay-condition";
 import { reconnectNow } from "../lib/relay";
-import { connectionDot, connectionMark, connectionNotice } from "../ui/variants";
+import { connectionDot, connectionMark, connectionNotice, connectionNoticeAction } from "../ui/variants";
 import {
   clearRefusedDepartures,
   departAll,
@@ -226,7 +226,7 @@ export function ConnectionNotice(): ReactElement | null {
       </span>
       <button
         type="button"
-        className="underline underline-offset-2 font-semibold"
+        className={connectionNoticeAction()}
         data-connection-action={offer.name}
         onClick={offer.act}
       >

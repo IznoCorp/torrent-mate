@@ -36,24 +36,31 @@ export const suggestionChip = cva(
 );
 
 /**
- * The « by identifier » disclosure.
- *
- * Its marker is drawn by the stylesheet rather than by the browser: the native
- * triangle differs on every platform and could not be placed.
+ * The « by identifier » box. The fold inside it is the interface's one
+ * disclosure, chevron and all; the box only places it on the screen.
  */
-export const byIdentifier = cva(
-  "byid mt-7 mx-7 mb-0 border border-border rounded-3 py-5 px-6 " +
-    "[&>summary]:text-3 [&>summary]:font-semibold [&>summary]:cursor-pointer " +
-    "[&>summary]:list-none [&>summary::-webkit-details-marker]:hidden " +
-    "[&>summary::before]:content-['▸_'] [&>summary::before]:text-1 " +
-    "open:[&>summary::before]:content-['▾_']",
-);
+export const byIdentifier = cva("byid mt-7 mx-7 mb-0 border border-border rounded-3 py-2 px-6");
+
+/** Which folder an identification is for, at the bar's right end. */
+export const identifyFolder = cva("ml-auto text-2 text-muted-foreground");
+
+/** Where the identification's notice sits, above the search. */
+export const identifyNotice = cva("pt-6 px-7");
+
+/** Where the empty search's note sits. */
+export const emptyNotePlace = cva("p-7");
+
+/** The provider switch, at its own width at the start of the fold. */
+export const providerSwitchPlace = cva("self-start");
 
 /** The disclosure's contents. */
-export const byIdentifierBody = cva("byidin mt-5 flex flex-col gap-4");
+export const byIdentifierBody = cva("byidin mt-2 mb-4 flex flex-col gap-4");
 
 /** Why an action is refused. */
-export const refusalReason = cva("whyoff text-2 text-danger");
+export const refusalReason = cva("whyoff text-2 text-danger-text");
+
+/** What a provider's identifier holds, said before anything is typed — a hint, never a refusal. */
+export const identifierHint = cva("text-2 text-muted-foreground");
 
 /**
  * The screen's footer.
@@ -93,18 +100,6 @@ export const addFooterDismiss = cva(
 
 /** « Suivis »' line saying when the machine searches next. */
 export const cadence = cva("cadence text-2 text-muted-foreground pt-4 px-7 pb-0");
-
-/**
- * A small segmented control: its buttons side by side on a muted ground, the
- * pressed one lifted.
- */
-export const segmentSmall = cva(
-  "segmini flex gap-1 p-1 bg-muted rounded-3 " +
-    "[&_button]:[border:0] [&_button]:rounded-2 [&_button]:[background:transparent] " +
-    "[&_button]:text-muted-foreground [&_button]:text-3 [&_button]:font-semibold [&_button]:py-3 [&_button]:px-6 " +
-    "[&_button[aria-pressed=true]]:bg-background [&_button[aria-pressed=true]]:text-foreground " +
-    "[&_button[aria-pressed=true]]:[box-shadow:var(--mq-shadow-vsw)]",
-);
 
 /**
  * A suggestion row, which a swipe either way dismisses. It claims the vertical
@@ -197,7 +192,7 @@ export const deckHint = cva(
           "l left-[14px] [transform:rotate(-9deg)] border-muted-foreground text-muted-foreground " +
           "[background:color-mix(in_oklab,var(--color-muted-foreground)_12%,var(--color-card))]",
         right:
-          "r right-[14px] [transform:rotate(9deg)] border-danger text-danger " +
+          "r right-[14px] [transform:rotate(9deg)] border-danger text-danger-text " +
           "[background:color-mix(in_oklab,var(--color-danger)_14%,var(--color-card))]",
       },
     },
@@ -205,33 +200,23 @@ export const deckHint = cva(
 );
 
 /**
- * A resolution candidate's card, which IS the button that picks it.
+ * A resolution candidate's body, which IS a button: it opens the candidate's
+ * sheet, as its poster does (B-578); « Choisir » beside it picks.
  *
  * THE BUTTON'S OWN DEFAULTS ARE UNDONE HERE, because this prototype carries no
  * preflight: a `<button>` arrives with the browser's small control font, its
- * control text colour, a padding and centred text, while the card's box comes
- * from `card()`, worn beside this factory. Only what makes a button read as the
- * card it was is written here, and so it claims no anchor of its own.
+ * control text colour, a padding and centred text, while the body's box comes
+ * from `cardBody()`, worn beside this factory. Only what makes a button read as
+ * the text it holds is written here, and so it claims no anchor of its own.
  */
 export const candidateCard = cva("text-left p-0 [font:inherit] text-inherit");
 
-/** The « Choisir » pill at a candidate card's right edge: a finger's height, in
- *  the primary ground, and never a check mark — a mark on every card read as
- *  « already selected » (B-500). It is decorative: the card is the button. */
-export const candidatePick = cva(
-  "inline-flex items-center justify-center self-center flex-none min-h-[44px] px-6 mr-5 "
-    + "rounded-full bg-primary text-primary-foreground text-3 font-semibold whitespace-nowrap",
-);
-
-/**
- * Acquisition's tabs at a finger's size: worn BESIDE `segmentTab()`, it lifts
- * each of the four to 44 px — a floor, so the segment's own padding still sets
- * the label's place. The library's segment keeps its own size.
- */
-export const fingerTab = cva("min-h-[44px]");
-
-/** The « ⋮ » beside those tabs, at the same floor, worn beside `moreButton()`. */
-export const fingerMore = cva("min-w-[44px] min-h-[44px]");
+/** Where the « Choisir » button sits at a candidate card's right edge. It is the
+ *  interface's primary action button, at its 44 px, the ONLY control that picks,
+ *  and never a check mark — a mark on every card read as « already selected »
+ *  (B-500). An action button fills its row by default; here it takes its
+ *  label's width. */
+export const pickPlace = cva("flex-none self-center mr-5 [&>button]:w-auto");
 
 /**
  * Two feet on one line. A card of « À traiter » that offers two answers —
@@ -245,9 +230,11 @@ export const footRow = cva("flex gap-4 [&>*]:flex-1 [&>*]:min-h-[44px]");
  * An origin beside its one foot. A card of « À traiter » that offers one answer
  * lays the line saying who asked beside it rather than under its reason: one
  * line more made the card taller than its poster can follow. The foot keeps its
- * label whole and the touch floor; the line truncates before it does.
+ * label whole and the touch floor, at its label's width: an action button fills
+ * its row by default, and filling this one left the line no width at all. The
+ * line takes what remains and wraps there — cut, it hid who asked (§ 12).
  */
 export const originRow = cva(
-  "flex items-center gap-4 mt-4 [&>button]:mt-0 [&>button]:flex-none [&>button]:min-h-[44px] " +
-  "[&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate",
+  "flex items-center gap-4 mt-4 [&>button]:mt-0 [&>button]:flex-none [&>button]:w-auto " +
+  "[&>button]:min-h-[44px] [&>span]:min-w-0 [&>span]:flex-1",
 );

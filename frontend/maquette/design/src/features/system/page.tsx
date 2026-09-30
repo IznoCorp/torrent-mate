@@ -30,10 +30,15 @@ import {
   useServices,
   useSystemErrors,
 } from "./queries";
-import { crossReference, crossReferenceLink, factList, section, sectionHeading, topicRow } from "../../ui/variants";
+import { crossReference, crossReferenceLink, factList, section, sectionHeading } from "../../ui/variants";
 import { guidance } from "../../ui/variants/layout";
 import { Markup } from "../../ui/markup";
-import { FactRows, type FactRow } from "../../ui/fact-rows";
+import { FactRows } from "../../ui/fact-rows";
+import { TopicRow } from "../../ui/topic-row";
+import { factRow } from "./state-words";
+import type { Schemas } from "../../lib/contract-schemas";
+
+type Fact = Schemas["Fact"];
 
 export function SystemPage(): ReactElement | null {
   const state = useUiState();
@@ -67,9 +72,9 @@ export function SystemPage(): ReactElement | null {
     );
   }
 
-  const facts = (rows: FactRow[]) => (
+  const facts = (rows: Fact[]) => (
     <ol className={factList()} data-part="flux">
-      <FactRows rows={rows} />
+      <FactRows rows={rows.map((fact) => factRow(fact, t))} />
     </ol>
   );
 
@@ -129,13 +134,12 @@ export function SystemPage(): ReactElement | null {
       ])}
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.system.settings")}</h2>
-      <button className={topicRow()} data-part="topic" data-page="cfg" style={{ marginTop: 0 }}>
-        <span style={{ minWidth: 0, flex: 1 }}>
-          <span className="rt" data-part="topic/title">{t("screens.system.settings")}</span>
-          <span className="rs" data-part="topic/subtitle">{t("screens.system.settingsSubtitle")}</span>
-        </span>
-        <span className="rn" data-part="topic/count">{t("screens.system.arrow")}</span>
-      </button>
+      <TopicRow
+        title={t("screens.system.settings")}
+        subtitle={t("screens.system.settingsSubtitle")}
+        value={t("screens.system.arrow")}
+        target={{ "data-page": "cfg" }}
+      />
     </>
   );
 }

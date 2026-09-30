@@ -102,7 +102,9 @@ export function settingInWords(
   precision?: number,
 ): string {
   if (value === null || value === undefined) return say("undefined");
-  if (typeof value === "boolean") return say(value ? "yes" : "no");
+  // A SWITCH'S VALUE IS SAID IN THE SWITCH'S WORD: the field says « actif »,
+  // and a saved value saying « oui » for it gave one value two words.
+  if (typeof value === "boolean") return i18next.t(value ? "states.active" : "states.inactive");
   if (typeof value === "number") {
     // THE PRECISION IS THE CONTRACT'S, never derived. `4` and `4.0` are one
     // number in JSON and two different settings on screen — a size in whole

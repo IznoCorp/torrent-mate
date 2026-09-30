@@ -26,6 +26,7 @@ import { store } from "../../lib/store-access";
 import { serviceDownWords, withOneRowDown } from "./fault";
 import { useLocks } from "./locks-queries";
 import { useDependencies, useServices } from "./queries";
+import { factTone } from "./state-words";
 
 type Fact = Schemas["Fact"];
 type Locks = components["schemas"]["Locks"];
@@ -74,7 +75,7 @@ export function systemBadge(): number {
         locks.sweep.status !== SWEEP_PENDING && locks.sweep.orphans.length > 0,
       ].filter(Boolean).length
     : 0;
-  const faults = [...drawn, ...dependencies].filter((fact) => fact.tone === ALERT).length;
+  const faults = [...drawn, ...dependencies].filter((fact) => factTone(fact) === ALERT).length;
   return maintenance + faults;
 }
 

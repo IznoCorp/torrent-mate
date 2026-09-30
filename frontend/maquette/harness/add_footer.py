@@ -70,15 +70,20 @@ WHAT IT DOES NOT READ, said before what it does:
     detail line. What is not held is that a given result takes a given route:
     that is the fixture's business, and pinning it here would make this rule
     fail the day a seed changes what the library already owns.
+
+R-conformity-o — ONE SEGMENTED CHOICE (`hold_one_segmented_choice`, in its own
+context): the add screen's kinds and providers, and the drawer's appearances,
+are the view switch's drawing.
 """
 import asyncio
 import pathlib
+import re
 import sys
 
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import Journal, open_page, chrome_launch_args
+from common import SETTLED, Journal, open_page, read_at, chrome_launch_args
 
 # The bar and its two controls, by the anchors the markup emits. `data-part` is
 # the naming attribute `check-markup-contracts.py` holds both ends of, so a
@@ -380,8 +385,64 @@ async def hold(journal):
                     "the QUERY, and no redirect standing in for either")
 
         await context.close()
+        await hold_one_segmented_choice(browser, journal)
         await browser.close()
     journal.summary(errors)
+
+
+ADD_STATES = ("acq-add-empty", "acq-add-results", "acq-identify")
+ADD_SCREEN = '[data-part="screen"][data-open][data-key^="add:"]'
+APP = pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "app"
+FEATURE_VARIANTS = re.compile(r'from\s+"[^"]*features/[^"]*/variants"')
+CHOICES = """(root)=>{
+  const layer = document.querySelector(root);
+  if (!layer) return null;
+  layer.querySelectorAll('details').forEach((fold) => { fold.open = true; });
+  const drawing = (button) => {
+    const style = getComputedStyle(button);
+    return [style.fontSize, style.fontWeight, style.paddingTop, style.paddingLeft, style.borderRadius].join(' ');
+  };
+  const pressed = [...layer.querySelectorAll('button[aria-pressed]')];
+  return {
+    groups: pressed.length,
+    outside: pressed.filter((button) => !button.closest('[data-part="view/switch"]')).length,
+    drawings: [...new Set(pressed.map(drawing))],
+  };
+}"""
+
+
+async def hold_one_segmented_choice(browser, journal):
+    """R-conformity-o — every segmented choice is the view switch's drawing.
+
+    The add screen drew its kind and provider choices with a control of its own
+    (`segmentSmall`) beside the view switch the lists drew. On the add screen's
+    states, the « by identifier » fold opened, and in the drawer's appearance
+    choice, every pressed button sits in a `view/switch` and all read one
+    drawing; and the frame (`app/`) imports nothing from a feature's variants —
+    that is how the drawer came to wear the add screen's control.
+
+    Args:
+        browser: The launched browser; the holds read a context of their own.
+        journal: The rule's journal.
+    """
+    context, page = await open_page(browser)
+    for state in ADD_STATES:
+        # The folds open on the first read; the second reads them open.
+        await read_at(page, state, CHOICES, ADD_SCREEN)
+        await page.wait_for_timeout(SETTLED)
+        read = await page.evaluate(CHOICES, ADD_SCREEN)
+        journal.check(f"{state}: the kinds and the providers are offered", bool(read) and read["groups"] >= 6,
+                      f"{read}")
+        journal.check(f"{state}: every choice sits in the view switch", bool(read) and read["outside"] == 0, f"{read}")
+        journal.check(f"{state}: every choice reads one drawing", bool(read) and len(read["drawings"]) == 1,
+                      f"{read}")
+    appearance = await read_at(page, "drawer-navigation", CHOICES, "#drawer[data-open]")
+    journal.check("the drawer's appearance choice is the view switch, one drawing",
+                  bool(appearance) and appearance["outside"] == 0 and len(appearance["drawings"]) == 1,
+                  f"{appearance}")
+    await context.close()
+    imports = [path.name for path in sorted(APP.rglob("*.ts*")) if FEATURE_VARIANTS.search(path.read_text(encoding="utf-8"))]
+    journal.check("the frame imports nothing from a feature's variants", not imports, f"{imports}")
 
 
 def main():

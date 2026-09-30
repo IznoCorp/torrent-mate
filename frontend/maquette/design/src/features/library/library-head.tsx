@@ -5,9 +5,12 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Icon } from "../../ui/icon";
 import { redraw } from "../../lib/shell-doors";
-import { useLibraryCategories } from "./queries";
+import { useLibraryCategories, useLibraryIncomplete, useLibraryListing } from "./queries";
+import type { LibraryCategory } from "./types";
 import { useUiState, writeUiState } from "../../lib/store-access";
-import { filterPill, filterPillCount, filterZone, pillBar, pillScroll, searchClear, searchField, searchInput, segment, segmentCount, segmentTab, viewSwitch, viewSwitchButton, viewSwitchWrap, viewTabs } from "../../ui/variants";
+import { filterPill, filterPillCount, filterZone, pillBar, pillScroll, searchClear, searchField, searchInput, viewSwitch, viewSwitchButton, viewSwitchWrap } from "../../ui/variants";
+import { Tabs } from "../../ui/tabs";
+import { rowsIn } from "./category-filter";
 
 // The three lenses, in the order the tab bar draws them.
 //
@@ -25,11 +28,34 @@ import { filterPill, filterPillCount, filterZone, pillBar, pillScroll, searchCle
 // while saying nothing true about a library of 1 861 titles.
 export const INCOMPLETE_COUNT = 47;
 
+/**
+ * What a pill counts on « Récents »: the rows the lens holds in its category,
+ * never the library. It reads the lens' own listing (the same key, so the same
+ * cached answer the list draws), and it is a component of its own so the read
+ * exists only while « Récents » is drawn.
+ *
+ * @param props.category The pill's category.
+ * @returns The count.
+ */
+function RecentCount({ category }: { category: LibraryCategory }): ReactElement {
+  const state = useUiState();
+  const recent = useLibraryListing(
+    String(state.q ?? ""),
+    "",
+    String(state.sortKey ?? ""),
+    Boolean(state.sortReversed),
+  );
+  return <>{rowsIn((recent.data?.pages ?? []).flatMap((page) => page.items), category).length}</>;
+}
+
 export function LibraryHead(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
   const { icons } = useEngineDrawing();
   const { data: CATS = [] } = useLibraryCategories();
+  // The page's own read of « Incomplets », shared by the query cache: the same
+  // answer the lens draws, never a second one.
+  const { data: INCOMPLETE = [] } = useLibraryIncomplete();
   const lenses = [
     { id: "cat", label: t("screens.library.lensMedia") },
     { id: "rec", label: t("screens.library.lensRecent") },
@@ -37,22 +63,7 @@ export function LibraryHead(): ReactElement {
   ];
   return (
     <>
-      <div className={viewTabs()} data-region="library/tabs">
-        <div className={segment()} data-part="segment" role="tablist">
-          {lenses.map((lens) => (
-            <button
-              key={lens.id}
-              className={segmentTab()}
-            role="tab"
-              aria-selected={state.libLens === lens.id}
-              data-lens={lens.id}
-            >
-              {lens.label}
-              {lens.count ? <span className={segmentCount()} data-part="segment/count">{lens.count}</span> : null}
-            </button>
-          ))}
-        </div>
-      </div>
+      <Tabs tabs={lenses} selected={String(state.libLens)} attribute="data-lens" data-region="library/tabs" />
       <div className={filterZone()} data-region="library/filters">
         <div className={searchField()}>
           <Icon paths={icons.search} />
@@ -121,20 +132,28 @@ export function LibraryHead(): ReactElement {
         </div>
         <div className={pillBar()}>
           <div className={pillScroll()} data-part="pill/list">
-            {state.libLens === "cat"
-              ? CATS.map((category) => (
-                  <button
-                    key={category.id}
-                    className={filterPill()}
-                    data-part="pill"
-                    aria-pressed={state.libCat === category.id}
-                    data-cat={category.id}
-                  >
-                    {category.label}
-                    <span className={filterPillCount()}>{category.count}</span>
-                  </button>
-                ))
-              : null}
+            {/* EVERY LENS IS FILTERED BY THE SAME PILLS, and the category is the
+                same remembered one: « Médias » prints the library's counts;
+                « Récents » and « Incomplets » count the rows they draw — a
+                « Films » on « Incomplets » reads 0, and the lens says why. */}
+            {CATS.map((category) => (
+              <button
+                key={category.id}
+                className={filterPill()}
+                data-part="pill"
+                aria-pressed={state.libCat === category.id}
+                data-cat={category.id}
+              >
+                {category.label}
+                <span className={filterPillCount()}>
+                  {state.libLens === "inc"
+                    ? rowsIn(INCOMPLETE, category).length
+                    : state.libLens === "rec"
+                      ? <RecentCount category={category} />
+                      : category.count}
+                </span>
+              </button>
+            ))}
           </div>
           <div className={viewSwitchWrap()}>
             <div className={viewSwitch()} data-part="view/switch">

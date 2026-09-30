@@ -319,6 +319,9 @@ async def main():
         # metrics, and its column count follows the CONTAINER's width. A media
         # query would read the window instead, and a 390px frame on a 1280px
         # desktop would be told it has room for six columns it does not have.
+        # RE-AIMED, and said so: a tile's HEIGHT is its poster's, read on the
+        # poster — a title is never cut (§ 12), so the whole tile grows with a
+        # title that wraps, and that is not a second metric.
         geometries = {}
         for state_ in TILE_STATES + ["discover-posters"]:
             await pg.evaluate("(i)=>window.__go(i)", state_)
@@ -327,9 +330,10 @@ async def main():
             g = await pg.evaluate(
                 """()=>{const t=document.querySelector('[data-part="tile"]'); if(!t) return null;
                 const grid=t.parentElement, r=t.getBoundingClientRect();
+                const poster=t.firstElementChild.getBoundingClientRect();
                 return {columns:getComputedStyle(grid).gridTemplateColumns.split(' ').length,
                         gap:getComputedStyle(grid).gap,
-                        tile:[Math.round(r.width),Math.round(r.height)],
+                        tile:[Math.round(r.width),Math.round(poster.height)],
                         name:getComputedStyle(t.querySelector('[data-part="tile/title"]')).fontSize,
                         subLine:getComputedStyle(t.querySelector('[data-part="tile/subtitle"]')).fontSize};}"""
             )

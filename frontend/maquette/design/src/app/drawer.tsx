@@ -33,6 +33,8 @@ import { useServerStateVersion } from "../lib/query-client";
 import { servedIdentityLines } from "../lib/served-identity";
 import { useStoreContent, useUiState, writeUiState, store } from "../lib/store-access";
 import {
+  drawerAppearance,
+  drawerAppearanceSwitch,
   drawerEntry,
   drawerEntryCount,
   drawerEntryDrawing,
@@ -44,8 +46,9 @@ import {
   drawerIdentityPrimary,
   drawerIdentitySecondary,
   drawerNavigation,
+  viewSwitch,
+  viewSwitchButton,
 } from "../ui/variants";
-import { segmentSmall } from "../features/acquisition/variants";
 
 /** The groups, in the order the table first names them. */
 function grouped(): { key: NavigationGroup; rows: NavigationRow[] }[] {
@@ -70,6 +73,10 @@ export function NavigationDrawer(): ReactElement {
   // the menu button redraws on a store write and this entry did not would be
   // two readings of one count.
   useUiState();
+  // AND TO THE STORE'S VERSION, which is what the appearance's tap moves
+  // (`store.touch()`): the choice lives in `localStorage`, not in the state, so
+  // a subscription to the state alone never redrew the pressed control (B-580).
+  useStoreContent((content) => content.version);
   const identity = servedIdentityLines();
   const appearance = currentAppearance();
   const closing = useRef(false);
@@ -157,17 +164,18 @@ export function NavigationDrawer(): ReactElement {
           </div>
         ))}
       </nav>
-      <div className={drawerGroup()}>
+      <div className={`${drawerGroup()} ${drawerAppearance()}`}>
         <p className={drawerGroupTitle()}>{t("navigation.appearanceGroup")}</p>
         <div
-          className={segmentSmall()}
-          data-part="segment-small"
+          className={`${viewSwitch()} ${drawerAppearanceSwitch()}`}
+          data-part="view/switch"
           role="group"
           aria-label={t("navigation.appearanceLabel")}
         >
           {APPEARANCES.map((mode) => (
             <button
               key={mode}
+              className={viewSwitchButton({ size: "text" })}
               data-appearance={mode}
               aria-pressed={appearance === mode}
               onClick={() => {

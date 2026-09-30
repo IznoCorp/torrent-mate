@@ -158,6 +158,8 @@ export type MockState = {
    * Store state, not a fixture, as `pipelineState` is.
    */
   watcherEnabled: boolean;
+  /** The automatic trigger is ON but its process does not answer: a fault nobody chose, a dial. */
+  watcherDown: boolean;
   /** When the pipeline took its lock, or null while it is idle. */
   pipelineSince: string | null;
   /** When the pipeline was paused, or null while it is not. */
@@ -289,6 +291,7 @@ const seeded = (): MockState => ({
   pipelineState: IDLE,
   pipelineRuns: copyOf<Schemas["RunDetail"][]>(PIPELINE_RUNS),
   watcherEnabled: true,
+  watcherDown: false,
   pipelineSince: null,
   pausedSince: null,
   watcherPausedSince: null,
@@ -344,6 +347,7 @@ export type MockDials = {
   setPipelineState: (state: PipelineState) => void;
   setLockStale: (stale: boolean) => void;
   setWatcherEnabled: (enabled: boolean) => void;
+  setWatcherDown: (down: boolean) => void;
   setAcquisitionQueueEmpty: (empty: boolean) => void;
   setHistoryEmpty: (empty: boolean) => void;
   setHistoryDegraded: (degraded: boolean) => void;
@@ -370,6 +374,7 @@ export const mockDials: MockDials = {
     held.watcherEnabled = enabled;
     held.watcherPausedSince = enabled ? null : scenario().now;
   },
+  setWatcherDown: (down: boolean) => { mockState().watcherDown = down; },
   setAcquisitionQueueEmpty: (empty: boolean) => {
     // WHAT A VEILLE THAT FINDS NOTHING LOOKS LIKE. The three figures are
     // derived from the acquisition queue, so an empty queue is the zero case —

@@ -9,7 +9,7 @@
 // récupérés » says the same thing in the voice of a report that found something.
 import { useTranslation } from "react-i18next";
 import { actionButton } from "../../ui/variants/controls";
-import { guidance } from "../../ui/variants";
+import { guidance, liveDot, liveStrip } from "../../ui/variants";
 import { useLaunchedWatch, useWatchRun } from "./watch-run";
 import { usePipelineHistory } from "./queries";
 import { whenItRan } from "./run-list";
@@ -66,7 +66,9 @@ export function WatchBlock(): ReactElement {
 
   return (
     <div data-part="levers/watch">
-      <div className={guidance()} data-part="levers/figures">
+      {/* WHILE A VEILLE RUNS, the line is the live strip Découvrir draws: its dot
+          is seen, and it says the run is going now. */}
+      <div className={run?.outcome === "running" ? liveStrip() : guidance()} data-part="levers/figures">
         {launched?.failed ? (
           t("screens.system.watchFailed")
         ) : run === undefined ? (
@@ -78,7 +80,7 @@ export function WatchBlock(): ReactElement {
           )
         ) : run.outcome === "running" ? (
           <>
-            <span data-part="levers/live-dot" />
+            <span className={liveDot()} data-part="levers/live-dot" />
             {t("screens.system.watchRunning")}
           </>
         ) : run.outcome === "error" ? (

@@ -4,7 +4,7 @@
 // it is the shape it is; the screen keeps only the arbitration.
 import { useTranslation } from "react-i18next";
 import { type PendingDecision, type SettledDecision } from "./types";
-import { ruleNote, type ChipTone } from "../../ui/variants";
+import { actionButton, ruleNote, type ChipTone } from "../../ui/variants";
 import {
   Card,
   CardBody,
@@ -19,7 +19,7 @@ import {
 import { Chip } from "../../ui/chip";
 import { PosterArtwork } from "../../ui/poster";
 import { posterArtwork, useEngineDrawing } from "../../lib/engine-drawing";
-import { candidateCard, candidatePick } from "./variants";
+import { candidateCard, pickPlace } from "./variants";
 import { REASON_TONE, decisionState, decisionStateDetail, reasonLabel, viaLabel } from "./decision-vocabulary";
 
 // A RELEASE is not a medium, and its card is deliberately a different object.
@@ -52,51 +52,50 @@ export function ReleaseCard({
     poster?: string | null;
     noPoster?: boolean;
     overview?: string;
+    /** The provider identity the poster opens the sheet at, when the cache holds none under the title. */
+    identity?: { provider: string; id: number | string };
   };
 }) {
   const reference = useEngineDrawing();
   const { icons } = reference;
   const { t } = useTranslation();
-  // THE CARD IS THE GESTURE: one tap anywhere on it picks the candidate. It is a
-  // BUTTON because the engine's delegation answers `button` and nothing else —
-  // a `div` carrying `data-resolve` is reached by no finger — and the attribute
-  // sits on the element tapped, never on a child. Its top row is a `span`
-  // because a button holds phrasing content only. What stays at the right edge
-  // is a MARK, never a control: a button inside this one would be invalid
-  // markup and a control nobody can name. Pressed, it
-  // wears the base layer's `:active`, like every button. THE MARK SAYS
-  // « Choisir » and draws no check: a check on every card read as « already
-  // selected » (B-500).
+  // ONE GESTURE PICKS, EVERYTHING ELSE LEARNS MORE (B-578, his 09-29 word:
+  // « toucher l'affiche ou la carte d'un candidat OUVRE SA FICHE ; seul le
+  // bouton « Choisir » choisit »). The poster and the body both open the
+  // candidate's sheet — what a poster and a card do everywhere else — and
+  // « Choisir » is a button of its own that carries the candidate's title in
+  // `data-resolve`. All three are BUTTONS because the engine's delegation
+  // answers `button` and nothing else, and they are SIBLINGS: a button holds
+  // phrasing content only, so none can hold another. « Choisir » draws no
+  // check: a check on every card read as « already selected » (B-500).
   //
-  // AND IT IS NAMED FROM ITS DATA. A button's accessible name is its whole text
-  // when nothing else says otherwise, so the card announced itself with its
-  // subtitle, its synopsis and — where the provider has no picture — the poster
-  // fallback's initial, up to 524 characters opening on a stray letter. What
-  // identifies a candidate to a listener is the title and the year, and both
-  // arrive here as data: the label is assembled from them, never typed. The
-  // year is a prop of its own rather than a slice of `meta`, because re-parsing
-  // a display string to recover a datum the caller already holds is how the two
-  // drift apart. The poster is `aria-hidden`: an image with an empty `alt` is
-  // already silent, its initials fallback is not, and neither is part of a name.
+  // EACH IS NAMED FROM ITS DATA. The pick is announced by its word, the title
+  // and the year, never by the card's whole text — up to 524 characters
+  // opening on the poster fallback's initial where the provider had no
+  // picture; the year is a prop of its own rather than a slice of `meta`,
+  // because re-parsing a display string to recover a datum the caller already
+  // holds is how the two drift apart. The poster and the body are announced as
+  // the sheet they open.
+  const sheet = {
+    "data-mediasheet": title || undefined,
+    "data-provider": opts.identity?.provider,
+    "data-provider-id": opts.identity === undefined ? undefined : String(opts.identity.id),
+    "aria-label": t("surfaces.card.sheetOf", { title }),
+  };
   return (
-    <Card
-      as="button"
-      type="button"
-      className={candidateCard()}
-      data-nonmedia={opts.genre || "release"}
-      data-resolve={title || undefined}
-      aria-label={year ? `${title} ${year}` : title}
-    >
-      <CardTop as="span">
+    <Card data-nonmedia={opts.genre || "release"}>
+      <CardTop>
         <CardPoster
-          aria-hidden="true"
+          as="button"
+          type="button"
+          {...sheet}
           title={
             opts.noPoster ? t("screens.resolution.noPosterTitle") : undefined
           }
         >
           <PosterArtwork artwork={posterArtwork(icons, opts.poster, title, opts.k)} />
         </CardPoster>
-        <CardBody as="span">
+        <CardBody type="button" className={candidateCard()} {...sheet}>
           <CardTitle>{title}</CardTitle>
           <CardSubtitle>{meta}</CardSubtitle>
           {/* The synopsis is what actually SEPARATES four series with nearly
@@ -115,8 +114,16 @@ export function ReleaseCard({
             ""
           )}
         </CardBody>
-        <span className={candidatePick()} data-part="card/pick" aria-hidden="true">
-          {t("screens.resolution.choose")}
+        <span className={pickPlace()}>
+          <button
+            type="button"
+            className={actionButton({ kind: "panelAction", tone: "primary" })}
+            data-part="card/pick"
+            data-resolve={title || undefined}
+            aria-label={t("screens.resolution.chooseOf", { name: year ? `${title} ${year}` : title })}
+          >
+            {t("screens.resolution.choose")}
+          </button>
         </span>
       </CardTop>
     </Card>
@@ -235,6 +242,7 @@ export function Candidates({ decision }: { decision: PendingDecision }) {
             poster: candidate.poster,
             noPoster: candidate.withoutPoster,
             overview: candidate.overview,
+            identity: { provider: candidate.provider, id: candidate.id },
           }}
         />
       ))}

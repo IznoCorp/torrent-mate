@@ -39,7 +39,7 @@ type SayAge = (key: string, options?: { count: number }) => string;
  * @param say The translator.
  * @returns The age in words, or an empty string when there is none.
  */
-function ageInWords(seconds: number | null | undefined, say: SayAge): string {
+export function ageInWords(seconds: number | null | undefined, say: SayAge): string {
   if (seconds === null || seconds === undefined) return "";
   if (seconds < MINUTE) return say("screens.system.ageNow");
   if (seconds < HOUR) {
@@ -86,27 +86,19 @@ export function LocksBlock(): ReactElement {
       secondaryLine: lock.stale ? t("screens.system.lockStaleLine") : undefined,
     },
     {
+      // THE PAUSE, ENGAGED, IS SAID « en pause » — the state it puts the
+      // pipeline in, not the pair's « actif » — and since when stands under it.
       label: t("screens.system.pauseSentinel"),
-      value: sentinels.pause
-        ? t("screens.system.sentinelOn", { age: ageInWords(sentinels.pauseAgeS, t) })
-        : t("screens.system.sentinelOff"),
+      value: sentinels.pause ? t("states.paused") : t("states.inactive"),
       tone: sentinels.pause ? "warning" : "success",
-    },
-    {
-      label: t("screens.system.watcherSentinel"),
-      value: sentinels.watcherPaused
-        ? t("screens.system.watcherOff", {
-            age: ageInWords(sentinels.watcherPausedAgeS, t),
-          })
-        : t("screens.system.watcherOn"),
-      tone: sentinels.watcherPaused ? "warning" : "success",
+      secondaryLine: sentinels.pause ? ageInWords(sentinels.pauseAgeS, t) : undefined,
     },
   ];
 
   // THE PARTS ARE NAMED ONE BY ONE, in the order the rows are built: the rule
   // reads each fact by its own name, so a block that drew three of four says
   // WHICH one is missing rather than « the block is wrong ».
-  const PARTS = ["locks/pipeline", "locks/pause-sentinel", "locks/watcher-sentinel"];
+  const PARTS = ["locks/pipeline", "locks/pause-sentinel"];
 
   return (
     <div data-part="locks" data-region="system/locks">

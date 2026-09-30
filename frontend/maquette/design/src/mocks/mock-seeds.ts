@@ -17,7 +17,7 @@ import SETTINGS from "./seeds/settings.json";
 import PIPELINE_RUNS from "./seeds/pipeline-runs.json";
 import type { components } from "../contract/types";
 import SEASON_FAMILY from "./seeds/seasons.json";
-import { seasonsAnswerFor } from "./handlers/media";
+import { candidateSheet, seasonsAnswerFor } from "./handlers/media";
 import FOLLOWS from "./seeds/follows.json";
 import INCOMPLETE_SHOWS from "./seeds/incomplete-shows.json";
 import { seasonsHeld } from "../lib/season-rows";
@@ -36,6 +36,8 @@ import { emit } from "./stream";
 export type MockSeeds = {
   /** Every media sheet, keyed by title, in the contract's names, with its poster. */
   sheets: () => Record<string, Record<string, unknown>>;
+  /** The sheet the layer composes for a resolution candidate's identity, or null. */
+  candidateSheet: (provider: string, identifier: string) => Record<string, unknown> | null;
   /** The settings catalogue, rubric by rubric, in the contract's names. */
   settings: () => { id: string; settings: { file: string; key: string; type: string }[] }[];
   /** Every passage the history holds at rest, in the snapshot's order and the contract's names. */
@@ -85,6 +87,8 @@ export const mockSeeds: MockSeeds = {
         ],
       ),
     ),
+  candidateSheet: (provider, identifier) =>
+    candidateSheet(provider, identifier) as Record<string, unknown> | null,
   settings: () => structuredClone(SETTINGS) as ReturnType<MockSeeds["settings"]>,
   pipelineRuns: () => structuredClone(PIPELINE_RUNS) as ReturnType<MockSeeds["pipelineRuns"]>,
   seasons: () => {

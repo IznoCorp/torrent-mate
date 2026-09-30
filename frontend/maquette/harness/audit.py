@@ -88,8 +88,14 @@ async def main():
                      ?? document.querySelector('#view');
 
           // R1 — every tappable poster leads to a FILLED-IN sheet
-          R.hollowSheets = [...root.querySelectorAll('[data-mediasheet]')].map(el=>el.dataset.mediasheet)
-            .filter(t=>{const f=window.__sheetOf(t); return !f || !f.overview || !f.genres;});
+          // RE-AIMED WITH B-578, said: a poster carrying its provider identity
+          // (a resolution candidate) is read on the sheet composed for it. It
+          // owes its synopsis; its genres are the provider's to answer for a
+          // medium the library never stored, and the candidate does not carry them.
+          R.hollowSheets = [...root.querySelectorAll('[data-mediasheet]')]
+            .filter(el=>{const f=window.__sheetOf(el.dataset.mediasheet, el.dataset.provider, el.dataset.providerId);
+              return !f || !f.overview || (!f.genres && !el.dataset.provider);})
+            .map(el=>el.dataset.mediasheet);
           // R1 bis's subjects: a filled-in sheet whose cast is empty.
           R.castless = [...root.querySelectorAll('[data-mediasheet]')].map(el=>el.dataset.mediasheet)
             .filter(t=>{const f=window.__sheetOf(t); return f && f.overview && f.genres && !(f.cast||[]).length;});

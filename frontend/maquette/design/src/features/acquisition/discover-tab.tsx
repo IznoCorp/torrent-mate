@@ -17,7 +17,7 @@ import type { ReactElement } from "react";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { Icon } from "../../ui/icon";
 import { useUiState } from "../../lib/store-access";
-import { body, filterZone, liveDot, liveEmphasis, liveStrip, loadFooter, pillBar, pillScroll, section as sectionClass, surfaceError, viewSwitch, viewSwitchButton, viewSwitchWrap } from "../../ui/variants";
+import { body, filterZone, liveDot, liveEmphasis, liveStrip, loadFooter, pillBar, pillScroll, section as sectionClass, viewSwitch, viewSwitchButton, viewSwitchWrap } from "../../ui/variants";
 import { Markup } from "../../ui/markup";
 // THE FEED IS THIS FEATURE'S — imported directly rather than read off
 // the engine's reference, which is what a surface does once its content has
@@ -159,17 +159,10 @@ export function DiscoverTab(): ReactElement {
             </span>
           </div>
         ) : (
-          <div
-            className={surfaceError()} data-part="surface-error" role="alert"
-            style={{
-              borderColor:
-                "color-mix(in oklab,var(--color-warning) 45%,transparent)",
-              background: "color-mix(in oklab,var(--color-warning) 8%,transparent)",
-            }}
-          >
-            <b style={{ color: "var(--color-warning)" }}>
-              {t("screens.acquisition.tmdbDisconnected")}
-            </b>
+          // A NOTICE, NOT A FAILURE: the warning tone, and no alert — only a
+          // failure interrupts a listener.
+          <div data-part="discover/notice"><SurfaceError tone="warning" part="notice">
+            <b>{t("screens.acquisition.tmdbDisconnected")}</b>
             {t("screens.acquisition.tmdbBefore")}
             <b>{t("screens.acquisition.tmdbNotes")}</b>
             {t("screens.acquisition.tmdbMiddle")}
@@ -181,7 +174,7 @@ export function DiscoverTab(): ReactElement {
             <button data-tmdb="1">
               {t("screens.acquisition.connectTmdb")}
             </button>
-          </div>
+          </SurfaceError></div>
         )}
         <div className="note" data-part="note">
           <b>{t("screens.acquisition.callsNoteLead")}</b>

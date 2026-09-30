@@ -107,7 +107,7 @@ async def main():
     # its own absence instead of a TypeError.
     r = await pg.evaluate("""()=>{const s=document.querySelector('[data-part="screen"][data-open][data-key^="add:"]')
         ?? document.createElement('div');
-      return {banner:(s.querySelector('[data-part="surface-error"] b')||{}).textContent,
+      return {banner:(s.querySelector('[data-part="add/notice"] b')||{}).textContent,
               query:s.querySelector('#addq')?.value,
               idBlock:(s.querySelector('[data-part="add/by-id"] summary')||{}).textContent};}""")
     typed = await pg.evaluate(TYPE, "star wars"); await pg.wait_for_timeout(600)

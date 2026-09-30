@@ -27,12 +27,17 @@ reaches (the follows of a whole library run to hundreds):
 5. with its count lit and at three digits, every counted tab (« En cours »,
    « À traiter ») keeps its label whole and its count badge inside its own box —
    never clipped by the tab's edge.
+
+R-conformity-b — ONE TAB BAR (`hold_one_tab_bar`, in its own context): the bars
+of Médiathèque and Trackers are Acquisition's — and (`hold_bar_position`) every
+page that draws a tab bar draws it at Acquisition's place, at 320, 390 and
+1280 px.
 """
 import asyncio
 import json
 import pathlib
 
-from common import SETTLED, Journal, open_page, chrome_launch_args
+from common import PAGE_PATHS, PROTOTYPE, SETTLED, Journal, open_page, read_at, chrome_launch_args
 from playwright.async_api import async_playwright
 
 WORDS = json.loads((pathlib.Path(__file__).resolve().parents[1]
@@ -140,8 +145,129 @@ async def main():
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()
+        await hold_one_tab_bar(browser, journal)
+        await hold_bar_position(browser, journal)
         await browser.close()
     journal.summary()
+
+
+# The reference bar first: every other bar is read against it.
+REFERENCE_BAR = "acq-follows-list"
+BAR_STATES = (REFERENCE_BAR, "lib-grid", "trackers-page")
+BAR_SIGNATURE = """()=>{
+  const bar = document.querySelector('#view [role="tablist"]');
+  if (!bar) return null;
+  const pick = (style, names) => Object.fromEntries(names.map((name) => [name, style[name]]));
+  const tabs = [...bar.querySelectorAll('[role="tab"]')];
+  const count = bar.querySelector('[data-part="segment/count"]');
+  const barStyle = getComputedStyle(bar);
+  return {
+    heights: tabs.map((tab) => Math.round(tab.getBoundingClientRect().height)),
+    signature: {
+      bar: {height: Math.round(bar.getBoundingClientRect().height),
+            ...pick(barStyle, ['paddingTop', 'paddingLeft', 'borderRadius', 'backgroundColor', 'gap'])},
+      tab: tabs[0] ? pick(getComputedStyle(tabs[0]), ['fontSize', 'fontWeight', 'borderRadius', 'paddingTop']) : null,
+      count: count ? pick(getComputedStyle(count), ['fontSize', 'fontWeight', 'borderRadius', 'backgroundColor', 'color']) : null,
+    },
+  };
+}"""
+
+
+def agrees(signature: dict, reference: dict) -> bool:
+    """Whether a bar's signature is the reference's — a count is compared only where both draw one.
+
+    Args:
+        signature: The bar's box, a tab's type and a count's drawing.
+        reference: The same, read on the reference bar.
+
+    Returns:
+        True when the two bars are one drawing.
+    """
+    if signature["bar"] != reference["bar"] or signature["tab"] != reference["tab"]:
+        return False
+    return signature["count"] is None or reference["count"] is None or signature["count"] == reference["count"]
+
+
+async def hold_one_tab_bar(browser, journal):
+    """R-conformity-b — one tab bar: the same height, composition and count on every page.
+
+    Acquisition, Médiathèque and Trackers each drew their own bar, at three
+    heights; `ui/tabs.tsx` is Acquisition's as it stood. On each state below
+    every tab is at least a finger tall and all are one height, and the bar's
+    box, a tab's type and a count's drawing are Acquisition's.
+
+    Args:
+        browser: The launched browser; the holds read a context of their own.
+        journal: The rule's journal.
+    """
+    context, page = await open_page(browser)
+    bars = {state: await read_at(page, state, BAR_SIGNATURE) for state in BAR_STATES}
+    await context.close()
+    reference = bars[REFERENCE_BAR]
+    if not journal.check(f"{REFERENCE_BAR}: the reference bar is drawn", reference is not None, "no tab bar"):
+        return
+    for state in BAR_STATES:
+        bar = bars[state]
+        held = (bar is not None and min(bar["heights"], default=0) >= TOUCH_TARGET
+                and len(set(bar["heights"])) == 1 and agrees(bar["signature"], reference["signature"]))
+        detail = f"{bar}" if state == REFERENCE_BAR else f"{bar} against {reference['signature']}"
+        journal.check(f"{state}: every tab at least {TOUCH_TARGET} px, one height, the reference's drawing",
+                      held, detail)
+
+
+POSITION_WIDTHS = (320, 390, 1280)
+REFERENCE_PAGE = "acq"
+# Where the page's tab bar sits: its row's offset under the frame's header, its
+# insets from the view's edges, its width, and whether the row is the page's
+# own head — a child of `#view` — or drawn inside a column of the page.
+BAR_POSITION = """()=>{
+  const bar = document.querySelector('#view [role="tablist"]');
+  if (!bar) return null;
+  const row = bar.parentElement.getBoundingClientRect();
+  const view = document.querySelector('#view').getBoundingClientRect();
+  const header = document.querySelector('[data-part="shell/header"]').getBoundingClientRect();
+  return {place: {top: Math.round(row.top - header.bottom), left: Math.round(row.left - view.left),
+                  right: Math.round(view.right - row.right), width: Math.round(row.width)},
+          head: bar.parentElement.parentElement.id === 'view', part: bar.parentElement.dataset.part || null};
+}"""
+
+
+async def hold_bar_position(browser, journal):
+    """R-conformity-b — every page's tab bar sits where Acquisition's does.
+
+    Trackers' page was hosted in the page column (its navigation row's `root`),
+    so its bar took the column's padding on top of its own: lower, inset twice,
+    narrower. Every page of the address table is loaded at each width; each
+    one that draws a tab bar draws it as the page's head, `view/tabs`, at
+    Acquisition's offset, insets and width.
+
+    Args:
+        browser: The launched browser; the holds read a context of their own.
+        journal: The rule's journal.
+    """
+    for width in POSITION_WIDTHS:
+        phone = width < 768
+        context, page = await open_page(browser, viewport={"width": width, "height": 844}, is_mobile=phone,
+                                        has_touch=phone, device_scale_factor=2 if phone else 1)
+        bars = {}
+        for name, path in PAGE_PATHS.items():
+            await page.goto(PROTOTYPE.rstrip("/") + path, wait_until="load")
+            await page.evaluate("()=>window.__loadingDone?.()")
+            await page.wait_for_timeout(SETTLED)
+            bars[name] = await page.evaluate(BAR_POSITION)
+        await context.close()
+        drawn = sorted(name for name, bar in bars.items() if bar)
+        reference = bars[REFERENCE_PAGE]
+        if not journal.check(f"{width} px: the pages drawing a tab bar include {REFERENCE_PAGE}, lib and trackers",
+                             {REFERENCE_PAGE, "lib", "trackers"} <= set(drawn), f"{drawn}"):
+            continue
+        for name in drawn:
+            journal.check(f"{width} px · {name}: its tab bar is at {REFERENCE_PAGE}'s place",
+                          bars[name]["place"] == reference["place"],
+                          f"{bars[name]['place']} against {reference['place']}")
+            journal.check(f"{width} px · {name}: the bar is the page's head, view/tabs, a child of #view",
+                          bars[name]["head"] and bars[name]["part"] == "view/tabs",
+                          f"head {bars[name]['head']}, part {bars[name]['part']}")
 
 
 if __name__ == "__main__":

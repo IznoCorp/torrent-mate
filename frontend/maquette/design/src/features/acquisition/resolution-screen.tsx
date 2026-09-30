@@ -124,7 +124,7 @@ export function ResolutionScreen() {
               ? t("screens.resolution.plexHeld", { title: held.title })
               : t("screens.resolution.noMediaIdentified")}
           </p>
-          <CardMeta as="div" style={{ marginBottom: "12px" }}>
+          <CardMeta as="div" className="mb-6">
             {decision ? (
               <Chip
                 tone={(REASON_TONE[decision.reason] ?? "neutral") as ChipTone}
@@ -152,9 +152,8 @@ export function ResolutionScreen() {
             <b>{t("screens.resolution.emptyTitle")}</b>
             {t("screens.resolution.emptyBody")}
             <button
-              className={actionButton({ kind: "cardFoot" })}
+              className={`${actionButton({ kind: "cardFoot" })} mt-5`}
               data-part="card/foot"
-              style={{ marginTop: "10px" }}
               data-manual={folder || undefined}
             >
               {t("screens.resolution.searchManually")}
@@ -176,7 +175,7 @@ export function ResolutionScreen() {
           </div>
           {settledDecisions.length > 0 ? (
             <>
-              <h2 className={sectionHeading()} data-part="heading" style={{ marginTop: "18px" }}>
+              <h2 className={`${sectionHeading()} mt-8`} data-part="heading">
                 {t("screens.resolution.settledHeading")}
               </h2>
               <p className={qualityHint()}>{t("screens.resolution.settledHint")}</p>

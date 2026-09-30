@@ -17,7 +17,9 @@ import "./lever-verbs";
 import { useTranslation } from "react-i18next";
 import { Skeletons } from "../../ui/state-surfaces";
 import { actionButton } from "../../ui/variants/controls";
-import { guidance, topicRow } from "../../ui/variants";
+import { factList, guidance, topicRow } from "../../ui/variants";
+import { FactRows } from "../../ui/fact-rows";
+import { ageInWords } from "./locks";
 import { WatchBlock } from "./watch";
 import { useLocks } from "./locks-queries";
 import { useBoundSetting, usePipelineState } from "./queries";
@@ -56,6 +58,8 @@ export function Levers(): ReactElement {
   const paused = pipeline.state === "paused" || locks.sentinels.pause;
   const queued = pipeline.state === "queued";
   const idle = !running && !paused && !queued;
+  // THE AUTOMATIC TRIGGER IS WATCHING only when it is on AND its process answers.
+  const watching = pipeline.watcherEnabled === true && pipeline.watcherDown !== true;
 
   return (
     <div data-part="levers" data-region="system/levers">
@@ -96,10 +100,23 @@ export function Levers(): ReactElement {
 
       {/* THE CONTROL NAMES THE ACT, THE ROW SAYS THE STATE. A label reading
           « actif » does not say whether a press turns it on or off. */}
-      <div className={topicRow()} data-part="levers/watcher-state">
-        <span>{t("screens.system.automaticTrigger")}</span>
-        <span>{pipeline.watcherEnabled ? t("screens.system.triggerOn") : t("screens.system.triggerOff")}</span>
-      </div>
+      {/* ONE ROW FOR ONE FACT: the automatic processing is said here, beside
+          the control that moves it, and nowhere else on the page. */}
+      {/* OFF BY A PERSON IS ORANGE, OFF BY A FAULT IS RED: a pause someone
+          chose is not a failure, and a failure nobody chose must not read as
+          a pause. */}
+      <ol className={factList()} data-part="levers/watcher-state">
+        <FactRows rows={[{
+          label: t("screens.system.automaticTrigger"),
+          value: watching ? t("states.active") : t("states.inactive"),
+          tone: watching ? "success" : pipeline.watcherEnabled ? "alert" : "warning",
+          secondaryLine: watching
+            ? undefined
+            : pipeline.watcherEnabled
+              ? t("screens.system.automaticTriggerDown")
+              : ageInWords(locks.sentinels.watcherPausedAgeS, t),
+        }]} />
+      </ol>
       <button
         className={actionButton({ kind: "cardFoot" })}
         data-part="levers/watcher"
@@ -107,7 +124,7 @@ export function Levers(): ReactElement {
       >
         {pipeline.watcherEnabled ? t("screens.system.turnTriggerOff") : t("screens.system.turnTriggerOn")}
       </button>
-      {pipeline.watcherEnabled ? null : (
+      {watching ? null : (
         <div className={guidance()} data-part="levers/trigger-consequence">
           {t("screens.system.automaticTriggerOff")}
         </div>

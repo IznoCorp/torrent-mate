@@ -131,12 +131,10 @@ export const castPortrait = cva(
     "[&_img]:w-full [&_img]:h-full [&_img]:object-cover [&_img]:block",
 );
 
-/** Their name and their role. */
+/** Their name and their role, whole: each wraps rather than being cut (§ 12). */
 export const castCaption = cva(
-  "mt-3 text-2 leading-[1.35] " +
-    "[&_b]:block [&_b]:font-semibold [&_b]:overflow-hidden [&_b]:text-ellipsis [&_b]:whitespace-nowrap " +
-    "[&_span]:block [&_span]:text-muted-foreground [&_span]:overflow-hidden " +
-    "[&_span]:text-ellipsis [&_span]:whitespace-nowrap",
+  "mt-3 text-2 leading-[1.35] [overflow-wrap:anywhere] " +
+    "[&_b]:block [&_b]:font-semibold [&_span]:block [&_span]:text-muted-foreground",
 );
 
 /** The trailer's row. THE DESTINATION IS INFORMATION: this control LEAVES the application. */
@@ -153,11 +151,8 @@ export const trailerPlay = cva(
   "pl flex-none w-[30px] h-[30px] rounded-full bg-primary text-primary-foreground grid place-items-center",
 );
 
-/** Where the trailer comes from. */
-export const trailerSource = cva(
-  "tsrc flex-none inline-flex items-center gap-2 ml-auto text-1 font-bold tracking-[0.02em] " +
-    "py-1 px-3 rounded-full bg-muted text-muted-foreground",
-);
+/** Where the trailer comes from, at the row's end: a neutral chip. */
+export const trailerSourcePlace = cva("tsrc flex-none ml-auto");
 
 /**
  * « Récupérer cette saison » — the verb a season with a hole carries (B-301).
@@ -183,30 +178,10 @@ export const seasonGrabSpacing = cva("mt-4 mb-1");
 export const seasonGrabTaken = cva("aria-busy:opacity-50");
 
 /**
- * A season whose grab is WAITING on the pipeline — DOIT-4's pastille.
- *
- * IT IS NOT THE SHORTFALL CHIP. `.miss` counts what a reader is short of; this
- * states what the machine is doing about it, and the two appear side by side on
- * the same row. Giving it the shortfall's own look would have made one fact
- * read as two of the other — the mistake `season/aired-on` was pulled out of.
- *
- * The information tone rather than the warning one: a queued ask is the system
- * working as promised, not something the operator must attend to. The clause is
- * « queued VISIBLY, and never refused »; drawn as a warning it would read as
- * the refusal the clause forbids.
- */
-export const queuedMark = cva(
-  "inline-flex items-center rounded-full py-1 px-3 text-1 font-semibold " +
-    "[background:color-mix(in_oklab,var(--color-info)_20%,transparent)] " +
-    "text-info-text",
-);
-
-/**
  * What a season has ANNOUNCED and not yet aired: information, never a shortfall.
  *
- * NOT THE SHORTFALL CHIP, for the reason `queuedMark` gives. An episode that has
- * not aired cannot be held, so it is not missing, and wearing `.miss`'s look
- * would read one fact as the other. The muted tone is the one the date a season
+ * NOT THE SHORTFALL CHIP. An episode that has not aired cannot be held, so it is
+ * not missing, and wearing the warning chip would read one fact as the other. The muted tone is the one the date a season
  * airs on already wears, because it is the same kind of fact: when something
  * comes out. It offers nothing to press.
  */
@@ -214,33 +189,10 @@ export const upcomingMark = cva("inline-flex items-center py-1 px-3 text-1 text-
 
 // ── The season tree ─────────────────────────────────────────────────────────
 
-/** A season as a disclosure: the rule between seasons, and a chevron one can see. */
-export const seasonDisclosure = cva(
-  "season [border-top:1px_solid_var(--color-border)] first-of-type:[border-top:0] py-4 px-[0] " +
-    "[&>summary]:flex [&>summary]:items-center [&>summary]:gap-4 [&>summary]:py-2 [&>summary]:px-[0] " +
-    "[&>summary]:cursor-pointer [&>summary]:text-2 [&>summary]:font-bold [&>summary]:uppercase " +
-    "[&>summary]:[letter-spacing:0.06em] [&>summary]:text-muted-foreground [&>summary]:list-none " +
-    "[&>summary::-webkit-details-marker]:hidden " +
-    // THE EXPAND AFFORDANCE MUST BE VISIBLE: a 9px chevron went unnoticed, and
-    // nothing said the row opens.
-    "[&>summary::before]:content-['›'] [&>summary::before]:grid [&>summary::before]:place-items-center " +
-    "[&>summary::before]:flex-[0_0_auto] [&>summary::before]:w-[20px] [&>summary::before]:h-[20px] " +
-    "[&>summary::before]:rounded-2 [&>summary::before]:bg-muted [&>summary::before]:text-foreground " +
-    "[&>summary::before]:text-5 [&>summary::before]:font-bold [&>summary::before]:[line-height:1] " +
-    "[&>summary::before]:[transition:transform_var(--duration-2)_var(--ease-standard)] " +
-    "open:[&>summary::before]:[transform:rotate(90deg)]",
-);
-
 /** The season's fraction, at the end of its summary. */
 export const seasonFraction = cva(
   "sfr ml-auto [font-family:ui-monospace,SFMono-Regular,Menlo,monospace] text-3 font-semibold " +
     "text-foreground [font-variant-numeric:tabular-nums] normal-case [letter-spacing:normal]",
-);
-
-/** The season's shortfall chip — and, dressed down by its site, the date a season aired. */
-export const seasonShortfall = cva(
-  "miss text-1 font-semibold py-1 px-3 rounded-full normal-case [letter-spacing:normal] " +
-    "[background:color-mix(in_oklab,var(--color-warning)_20%,transparent)] text-warning",
 );
 
 /**
@@ -249,10 +201,16 @@ export const seasonShortfall = cva(
  * The question an incomplete sheet answers is « which ones », not « how many ».
  */
 export const missingList = cva(
-  "missing [margin:var(--spacing-4)_0_0] text-3 font-semibold text-warning [font-variant-numeric:tabular-nums]",
+  "missing [margin:var(--spacing-4)_0_0] text-3 font-semibold text-warning-text [font-variant-numeric:tabular-nums]",
 );
 
-/** A sentence standing where data is not: dashed, muted, and never a mute dash. */
+/** Where an empty place of the sheet sits: a step below what precedes it. */
+export const noInfoPlace = cva("mt-4");
+
+/**
+ * A place still waiting for its read: a skeleton line in the frame the answer
+ * will take. It is not an empty place — the empty ones draw `NoInfo`.
+ */
 export const noInfo = cva(
   "noinfo [margin:0_0_var(--spacing-2)] text-3 text-muted-foreground " +
     "[border:1px_dashed_var(--color-border)] rounded-3 [padding:var(--spacing-5)_var(--spacing-5)]",
@@ -279,19 +237,8 @@ export const episodeRow = cva(
   },
 );
 
-/** The row's dot. « Not verified » is a dashed ghost: the absence of a verdict is not a colour. */
-export const episodeDot = cva("epdot flex-[0_0_auto] w-[6px] h-[6px] rounded-full self-center", {
-  variants: {
-    state: {
-      unverified: "[background:transparent] [border:1px_dashed_var(--color-border)]",
-      announced: "bg-upcoming",
-      pending: "bg-waiting",
-      to_grab: "bg-warning",
-      acquiring: "bg-info",
-      in_library: "bg-success",
-    },
-  },
-});
+/** Where the season list sits under the facts: a step below them. */
+export const seasonListPlace = cva("mt-5");
 
 /** The row's episode number, in the state's tone — a LABEL, so `to_grab` takes the tone's text colour. */
 export const episodeNumber = cva(
@@ -300,11 +247,11 @@ export const episodeNumber = cva(
     variants: {
       state: {
         unverified: "text-muted-foreground",
-        announced: "text-upcoming",
-        pending: "text-waiting",
+        announced: "text-upcoming-text",
+        pending: "text-waiting-text",
         to_grab: "text-warning-text",
-        acquiring: "text-info",
-        in_library: "text-success",
+        acquiring: "text-info-text",
+        in_library: "text-success-text",
       },
     },
   },
@@ -332,41 +279,27 @@ export const episodeCell = cva(
     variants: {
       state: {
         unverified: "unverified [border:1px_dashed_var(--color-border)] [background:transparent] text-muted-foreground",
-        announced: "announced [border:0] [background:color-mix(in_oklab,var(--color-upcoming)_20%,transparent)] text-upcoming",
-        pending: "pending [border:0] [background:color-mix(in_oklab,var(--color-waiting)_20%,transparent)] text-waiting",
-        to_grab: "to_grab [border:0] [background:color-mix(in_oklab,var(--color-warning)_20%,transparent)] text-warning",
-        acquiring: "acquiring [border:0] [background:color-mix(in_oklab,var(--color-info)_20%,transparent)] text-info",
-        in_library: "in_library [border:0] [background:color-mix(in_oklab,var(--color-success)_20%,transparent)] text-success",
+        announced: "announced [border:0] [background:color-mix(in_oklab,var(--color-upcoming)_20%,transparent)] text-upcoming-text",
+        pending: "pending [border:0] [background:color-mix(in_oklab,var(--color-waiting)_20%,transparent)] text-waiting-text",
+        to_grab: "to_grab [border:0] [background:color-mix(in_oklab,var(--color-warning)_20%,transparent)] text-warning-text",
+        acquiring: "acquiring [border:0] [background:color-mix(in_oklab,var(--color-info)_20%,transparent)] text-info-text",
+        in_library: "in_library [border:0] [background:color-mix(in_oklab,var(--color-success)_20%,transparent)] text-success-text",
       },
     },
   },
 );
 
-/** The legend over the matrix: only the states present, each with its swatch. */
-export const legend = cva(
-  "legend flex flex-wrap gap-y-2 gap-x-6 mb-6 text-2 text-muted-foreground " +
-    "[&_span]:inline-flex [&_span]:items-center [&_span]:gap-2 [&_span]:whitespace-nowrap " +
-    "[&_i]:w-[9px] [&_i]:h-[9px] [&_i]:rounded-1 [&_i]:block",
-);
-
-/**
- * A legend swatch: the state's tone at 60%, and a dashed ghost for « not verified ».
- *
- * `swatch` is its identity and carries no style: a factory's anchor is the first
- * token of its base, and a base left empty is a factory no reader can pair.
- */
-export const legendSwatch = cva("swatch", {
-  variants: {
-    state: {
-      unverified: "sw-muted [border:1px_dashed_var(--color-border)] [background:transparent]",
-      announced: "sw-upcoming [background:color-mix(in_oklab,var(--color-upcoming)_60%,transparent)]",
-      pending: "sw-waiting [background:color-mix(in_oklab,var(--color-waiting)_60%,transparent)]",
-      to_grab: "sw-warning [background:color-mix(in_oklab,var(--color-warning)_60%,transparent)]",
-      acquiring: "sw-info [background:color-mix(in_oklab,var(--color-info)_60%,transparent)]",
-      in_library: "sw-success [background:color-mix(in_oklab,var(--color-success)_60%,transparent)]",
-    },
-  },
-});
-
 /** An episode's state, as the matrix, the rows and the legend all name it. */
 export type EpisodeState = "unverified" | "announced" | "pending" | "to_grab" | "acquiring" | "in_library";
+
+/** A section heading of the sheet, a step above what it names. */
+export const sheetHeadingPlace = cva("mb-3");
+
+/** A panel of the sheet, a step above the next. */
+export const sheetPanelPlace = cva("mb-5");
+
+/** The synopsis, as the sheet reads it. */
+export const synopsisText = cva("m-0 text-3 leading-[1.55] text-muted-foreground");
+
+/** Who rates, beside the rating: quieter than the figure. */
+export const ratingSource = cva("font-normal text-muted-foreground");

@@ -135,6 +135,26 @@ async def hold(journal):
                       tapped and after > before,
                       f"tapped={tapped}, active answers {before} -> {after}")
 
+        # A NOTICE IS NOT A FAILURE. Découvrir without TMDB says so in the
+        # warning tone and interrupts no listener: the error surface repainted
+        # by an inline style kept its `role="alert"`, which only a failure
+        # earns. The tone is read on the lead's ink against a probe wearing
+        # the warning text token, so no colour is written here.
+        await page.evaluate("()=>window.__go('discover-degraded')")
+        await page.wait_for_timeout(600)
+        notice = await page.evaluate("""()=>{
+          const probe = document.createElement('b');
+          probe.className = 'text-warning-text';
+          document.body.appendChild(probe);
+          const warning = getComputedStyle(probe).color;
+          probe.remove();
+          const node = document.querySelector('[data-part="discover/notice"]')?.firstElementChild ?? null;
+          return node ? {alert: node.getAttribute('role') === 'alert',
+                         warning: getComputedStyle(node.querySelector('b')).color === warning} : null;
+        }""")
+        journal.check("discover-degraded's TMDB notice is the warning notice, and no alert",
+                      bool(notice) and notice["warning"] and not notice["alert"], f"{notice}")
+
         # No React error anywhere in the walk. B-108 was 22 of them over 83
         # states, and nothing read them.
         journal.check("no error was raised walking the error states",

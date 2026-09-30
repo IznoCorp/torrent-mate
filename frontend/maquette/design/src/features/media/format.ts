@@ -30,19 +30,21 @@ export function episodeStateLabel(state: string): string {
 }
 
 /**
- * Episode numbers with their runs folded: « 3, 7, 12, 13, 14 » reads badly,
- * « 3, 7, 12–14 » reads.
+ * Episodes by their codes with their runs folded: « E03, E07, E12, E13, E14 »
+ * reads badly, « E03, E07, E12–E14 » reads. A CODE and not a bare number:
+ * « Manquants : 7 » read as seven missing (the reader of the train, 2026-09-30).
  *
- * @param numbers The numbers, in any order.
- * @returns The numbers, sorted, each run of three or more written as a range.
+ * @param numbers The episode numbers, in any order.
+ * @returns The codes, sorted, each run of three or more written as a range.
  */
-export function numberRanges(numbers: number[]): string {
+export function episodeRanges(numbers: number[]): string {
+  const code = (number: number) => `E${String(number).padStart(2, "0")}`;
   const sorted = [...numbers].sort((left, right) => left - right);
   const written: string[] = [];
   for (let start = 0; start < sorted.length; ) {
     let end = start;
     while (end + 1 < sorted.length && sorted[end + 1] === sorted[end] + 1) end++;
-    written.push(end > start + 1 ? `${sorted[start]}–${sorted[end]}` : sorted.slice(start, end + 1).join(", "));
+    written.push(end > start + 1 ? `${code(sorted[start])}–${code(sorted[end])}` : sorted.slice(start, end + 1).map(code).join(", "));
     start = end + 1;
   }
   return written.join(", ");

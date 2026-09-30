@@ -1,7 +1,6 @@
 # Phase 1 — « En cours »: the season's card and the absorption (S2, S3, S6's card)
 
-**STOP C: OPEN 8** (DESIGN § 5) — written for A: the card's « auto » in its subtitle; under B the card's `chip` slot
-becomes a list (≈ 2 points more).
+**DECIDED 8 = A** (DESIGN § 5, 2026-09-30): the card's « auto » in its subtitle.
 
 **Opening measure** (taken on `9234341fc`; re-taken at the real opening):
 the contract's `QueueCard` → 13 fields, none of `season`, `episode`, `absorbedBy`, `trigger`; the grab answers `201`

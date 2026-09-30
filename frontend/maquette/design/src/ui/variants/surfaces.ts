@@ -26,6 +26,7 @@ export const statusDot = cva("pip w-[8px] h-[8px] rounded-full flex-none", {
       waiting: "waiting bg-waiting",
       success: "success bg-success",
       neutral: "neutral bg-neutral-signal",
+      upcoming: "upcoming bg-upcoming",
     },
   },
   // A DEFAULT, BECAUSE `VariantProps` MAKES THE PROP OPTIONAL. Without one,
@@ -75,6 +76,8 @@ export const chip = cva(
           "info [--chip-background:color-mix(in_oklab,var(--color-info)_20%,transparent)] [--chip-foreground:var(--color-info-text)]",
         waiting:
           "waiting [--chip-background:color-mix(in_oklab,var(--color-waiting)_20%,transparent)] [--chip-foreground:var(--color-waiting-text)]",
+        upcoming:
+          "upcoming [--chip-background:color-mix(in_oklab,var(--color-upcoming)_20%,transparent)] [--chip-foreground:var(--color-upcoming-text)]",
         neutral: "neutral",
       },
     },
@@ -174,18 +177,6 @@ export const skeleton = cva(
     },
     defaultVariants: { shape: "line" },
   },
-);
-
-/** A surface in error: it names the cause and offers a retry. */
-export const surfaceError = cva(
-  "surferr [border:1px_solid_color-mix(in_oklab,var(--color-danger)_45%,transparent)] " +
-    "[background:color-mix(in_oklab,var(--color-danger)_8%,transparent)] " +
-    "rounded-3 p-7 text-3 leading-[1.5] " +
-    // THE CAUSE LEADS AND THE RETRY SPANS, wherever the surface draws them.
-    "[&_b]:block [&_b]:text-danger-text [&_b]:mb-2 " +
-    "[&_button]:mt-5 [&_button]:w-full [&_button]:[border:1px_solid_var(--color-border)] " +
-    "[&_button]:bg-transparent [&_button]:text-foreground [&_button]:text-3 " +
-    "[&_button]:font-semibold [&_button]:p-4 [&_button]:rounded-2",
 );
 
 /**
@@ -388,8 +379,12 @@ export const topicRow = cva(
  *
  * IN `ui/` because two surfaces count: the add screen's search and the release
  * screen's candidates. Two features never import each other (invariant 7).
+ * `flush` is the count set in a panel that already pads it.
  */
-export const resultCount = cva("rescount pt-6 px-7 pb-0 text-2 text-muted-foreground");
+export const resultCount = cva("rescount text-2 text-muted-foreground", {
+  variants: { flush: { true: "p-0", false: "pt-6 px-7 pb-0" } },
+  defaultVariants: { flush: false },
+});
 
 /**
  * A disclosure: a summary a finger opens, and what it folds away.
@@ -400,9 +395,32 @@ export const resultCount = cva("rescount pt-6 px-7 pb-0 text-2 text-muted-foregr
  * affordance reads the same on every platform.
  */
 export const disclosure = cva(
-  "block [&>summary]:flex [&>summary]:items-center [&>summary]:gap-2 [&>summary]:min-h-[44px] " +
-    "[&>summary]:cursor-pointer [&>summary]:text-3 [&>summary]:font-semibold " +
-    "[&>summary]:text-primary-text [&>summary]:list-none " +
+  "block [&>summary]:flex [&>summary]:items-center [&>summary]:cursor-pointer [&>summary]:list-none " +
     "[&>summary::-webkit-details-marker]:hidden " +
-    "[&>summary::before]:content-['▸'] open:[&>summary::before]:content-['▾']",
+    // THE ONE CHEVRON, the seasons' own: a `›` in a chip, turning a quarter
+    // when the fold opens — every fold of the app wears it.
+    "[&>summary::before]:content-['›'] [&>summary::before]:grid [&>summary::before]:place-items-center " +
+    "[&>summary::before]:flex-[0_0_auto] [&>summary::before]:w-[20px] [&>summary::before]:h-[20px] " +
+    "[&>summary::before]:rounded-2 [&>summary::before]:bg-muted [&>summary::before]:text-foreground " +
+    "[&>summary::before]:text-5 [&>summary::before]:font-bold [&>summary::before]:[line-height:1] " +
+    "[&>summary::before]:[transition:transform_var(--duration-2)_var(--ease-standard)] " +
+    "open:[&>summary::before]:[transform:rotate(90deg)]",
+  {
+    variants: {
+      kind: {
+        // An action folded in place: a primary-coloured summary at the finger's floor.
+        plain: "[&>summary]:gap-2 [&>summary]:min-h-[44px] [&>summary]:text-3 [&>summary]:font-semibold " +
+          "[&>summary]:text-primary-text",
+        // A season of a series: the rule between seasons, an uppercase summary.
+        // Its summary WRAPS: « Saison 3 » is one flex item that never breaks,
+        // and a row crowded with marks (« 6/7 », « 1 manquant », « 3 à venir
+        // · dès le … ») carries them onto the next line instead (§ 12) — a
+        // summary that shrank its items broke the title into « Saison / 3 ».
+        season: "season [border-top:1px_solid_var(--color-border)] first-of-type:[border-top:0] py-4 " +
+          "[&>summary]:flex-wrap [&>summary]:gap-4 [&>summary]:py-2 [&>summary]:text-2 [&>summary]:font-bold " +
+          "[&>summary]:uppercase [&>summary]:[letter-spacing:0.06em] [&>summary]:text-muted-foreground",
+      },
+    },
+    defaultVariants: { kind: "plain" },
+  },
 );

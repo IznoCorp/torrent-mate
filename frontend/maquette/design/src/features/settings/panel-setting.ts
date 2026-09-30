@@ -18,6 +18,7 @@ import { configurationStatusQuery, settingsQuery, writeConfigurationFile } from 
 import type { Setting, SettingsTopic } from "./types";
 import { dialog, panel, toast, redraw, icons } from "../../lib/shell-doors";
 import { settingLabels } from "./labels";
+import { settingInWords } from "./format";
 import { changeSetting } from "./pending-edits";
 import { SETTINGS_STATE, changedFiles, fileName, typedValue } from "./state";
 import { editsWritten } from "../../lib/save-bar-door";
@@ -101,7 +102,9 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
             c: translate(changed
               ? "panels.setting.pendingValue"
               : "panels.setting.storedValue"),
-            v: String(shown),
+            // A switch flipped and not yet written is a boolean: said in the
+            // switch's word, as the saved value is, never « true ».
+            v: typeof shown === "boolean" ? settingInWords(setting.type, shown) : String(shown),
           },
           ...(changed
             ? [{

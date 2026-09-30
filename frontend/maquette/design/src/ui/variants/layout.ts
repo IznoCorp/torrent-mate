@@ -50,6 +50,9 @@ export const screen = cva(
  */
 export const screenBar = cva("screenbar flex-none flex items-center gap-3 py-5 px-6 bg-background");
 
+/** What a screen's bar says at its right end — the sheet's address, the profile's name. */
+export const screenBarNote = cva("ml-auto text-2 text-muted-foreground");
+
 /**
  * The back control itself.
  *
@@ -418,4 +421,7 @@ export const connectionNotice = cva(
     defaultVariants: { condition: "lost" },
   },
 );
+
+/** The notice's one action: a word in the notice's own ink, no button chrome — no bevel. */
+export const connectionNoticeAction = cva("[border:0] bg-transparent p-0 [color:inherit] [font-size:inherit] underline underline-offset-2 font-semibold");
 

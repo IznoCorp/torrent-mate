@@ -633,7 +633,7 @@ second slot after L18**, per the operator's own separation of that function from
 and plan, written 2026-09-27, name it L23: the order is now L14 · L19 · L21 · L13 · L20 · L22 · L16 ·
 L17 · L18 · L23**, and no dependency already written moved. **L24 (the orphans), drawn 2026-09-29, follows L23;
 after it, the desktop milestone** (operator, 2026-09-29, L24's OPEN 6) — the final entry of this section, not a lot.
-**L16-bis (the Trackers page's correction and Découvrir's header, on the operator's feedback of 2026-09-29), drawn 2026-09-29, is inserted between L16 and L17, which draws on its torrent rows: the order is now L14 · L19 · L21 · L13 · L20 · L22 · L16 · L16-bis · L17 · L18 · L23 · L24** — `docs/features/maquette-l16bis/DESIGN.md`, `docs/features/maquette-l16bis/plan/INDEX.md`. **Amended 2026-09-29 (the operator's nine rulings, PR #637): L16-bis *depends on the conformity train*** — the train builds the app's one tab component first, on the existing validated tab bars (Acquisition first), then arms the guard; L16-bis's own code waits for the train and then uses the component for Trackers, never building it — the phase that once built it here is removed (DESIGN § 5, DECIDED 7).
+**L16-bis (the Trackers page's correction and Découvrir's header, on the operator's feedback of 2026-09-29), drawn 2026-09-29, is inserted between L16 and L17, which draws on its torrent rows: the order is now L14 · L19 · L21 · L13 · L20 · L22 · L16 · L16-bis · L17 · L18 · L23 · L24** — `docs/features/maquette-l16bis/DESIGN.md`, `docs/features/maquette-l16bis/plan/INDEX.md`. **Amended 2026-09-29 (the operator's nine rulings, PR #637): L16-bis *depends on the conformity train*** — the train builds the app's one tab component first, on the existing validated tab bars (Acquisition first), then arms the guard; L16-bis's own code waits for the train and then uses the component for Trackers, never building it — the phase that once built it here is removed (DESIGN § 5, DECIDED 7). **Amended 2026-09-29: the conformity train (its entry after L16's) runs before the case catalogue, L16-bis's code and L17.**
 
 **The navigation lot (`maquette-navigation`, B-577 and every edge read against the amended § 16), drawn 2026-09-30 in PR #651, is inserted directly after the conformity train: its code opens only once the train has merged**, because the train's phases 5 and 10 touch Système and the drawer, the surfaces its first phase rewires (its DESIGN § 0.3, its plan's INDEX). It changes behaviour, so it is not a conversion. **The order is now L14 · L19 · L21 · L13 · L20 · L22 · L16 · the conformity train · maquette-navigation · L16-bis · L17 · L18 · L23 · L24**, and no dependency already written moved.
 
@@ -827,6 +827,19 @@ declared before L18; the badge's three components — threshold, breach, and, si
 refused identifier); one new OPEN question is born of ruling 19 itself (which tab opens by default,
 DESIGN § 5, OPEN 4) and is not chosen here. The lot
 opens after L22b.
+
+#### The conformity train — one need, one component; every state at every width · *depends on L16*
+
+**Not a lot: a train of conversions and one rule** (auditor's orders 80 and 85, the operator's 2026-09-29 reports:
+« 1 design système, 1 composant, de la cohérence ! », « tout doit être responsive … sur tous ! »). **It runs BEFORE
+the case catalogue, L16-bis's code and L17**, which waits for it (L16-bis DECIDED 7): it builds the app's one tab
+component from Acquisition's validated bar and arms its guard, then converts every need the design reading counted
+as « one need, N modules » to the one component. Its first move is the **responsive rule** — every named state at
+320, 360, 369, 390, 412, 768 and 1280 px, no horizontal overflow and no cut — which replaces order 60; every red it
+finds and the train does not repair is declared by name, with its owner. A conversion proves nothing observable
+changed except the one visible change its item names. Design: the conformity reading
+(`review-archive/conformity-80/REPORT.md` § B, § D); plan `docs/features/maquette-conformity/plan/INDEX.md` (13
+phases, one per surface, a harness consolidation before the close). Four conversions (report D.1 #2, #7, #14, #15) wait for the operator's round and are not in it.
 
 #### L17 — §19, cross-seed · *depends on L16*
 

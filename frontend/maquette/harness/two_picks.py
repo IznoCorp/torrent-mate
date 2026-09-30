@@ -169,8 +169,8 @@ async def tap_attribute(page, attribute, value):
 
 
 async def pick_first_candidate(page):
-    """Taps the first candidate's body on whatever resolution screen is open."""
-    aim = await aim_at(page, 0, "card/body")
+    """Taps the first candidate's « Choisir » on whatever resolution screen is open."""
+    aim = await aim_at(page, 0, "card/pick")
     if aim.get("found"):
         await page.touchscreen.tap(aim["x"], aim["y"])
     await page.wait_for_timeout(ACTED)

@@ -135,6 +135,9 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
     count: lineCount,
     getScrollElement: scrollElement,
     estimateSize: () => lineHeight,
+    // A LINE'S SIZE IS KEYED BY ITS DRAWING: a size measured in one drawing
+    // (a selection row, a card) is never read back in another.
+    getItemKey: (index) => `${properties.drawKey}:${index}`,
     scrollMargin,
     // Enough rendered beyond the viewport that a fast flick never shows a gap,
     // and few enough that the node count stays a small constant.
@@ -187,8 +190,14 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
   // a zero-height child still brings its gap with it.
   const linesBefore = firstLine;
   const linesAfter = Math.max(0, lineCount - 1 - lastLine);
-  const before = linesBefore ? linesBefore * lineHeight - gap : 0;
-  const after = linesAfter ? linesAfter * lineHeight - gap : 0;
+  // LINES ARE NOT ONE HEIGHT: a title is never cut (§ 12), so a card or a tile
+  // whose title wraps is taller than its neighbour. Each spacer is read from the
+  // virtualiser's own measurements — the lines it has measured, the estimate
+  // for the rest — never as a count times one pitch.
+  // Before the first frame the window holds no line at all, and everything is after.
+  const drawnEnd = lines.length ? lines[lines.length - 1].end - scrollMargin : 0;
+  const before = linesBefore && lines.length ? lines[0].start - scrollMargin - gap : 0;
+  const after = linesAfter ? virtualizer.getTotalSize() - drawnEnd - gap : 0;
 
   const start = firstLine * activeLanes;
   const end = Math.min(count, (lastLine + 1) * activeLanes);
@@ -320,6 +329,28 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
     spacers.current.before.style.display = before > 0 ? "" : "none";
     spacers.current.after.style.height = `${after}px`;
     spacers.current.after.style.display = after > 0 ? "" : "none";
+
+    // EVERY DRAWN LINE IS MEASURED, as the grid lays it: the height of its
+    // tallest row, and the gap under it. A line whose size moved is handed to
+    // the virtualiser, which re-renders once with the spacers above; a line
+    // that did not move costs a rectangle read and nothing else.
+    //
+    // ONLY ONCE THE GEOMETRY IS THIS DRAWING'S. The first frames of a new
+    // drawing still carry the previous one's lanes: the gallery's tiles read
+    // as one-row lines, each resized as a line, and the virtualiser moved the
+    // port — and the reader's place with it — by the difference.
+    if (measuredFor !== properties.drawKey) return;
+    for (let line = firstLine; line <= lastLine; line += 1) {
+      let drawnHeight = 0;
+      for (let index = line * activeLanes; index < Math.min(count, (line + 1) * activeLanes); index += 1) {
+        const held = live.get(index);
+        if (held) drawnHeight = Math.max(drawnHeight, held.node.getBoundingClientRect().height);
+      }
+      const known = virtualizer.measurementsCache[line]?.size;
+      if (drawnHeight && known !== undefined && Math.abs(known - (drawnHeight + activeGap)) > 0.5) {
+        virtualizer.resizeItem(line, drawnHeight + activeGap);
+      }
+    }
   });
 
   // THE RESTORE IS DECLARED AFTER THE DRAW, and the order is the fix. Effects
