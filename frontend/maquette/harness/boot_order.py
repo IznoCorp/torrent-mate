@@ -74,7 +74,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, ROOT, Journal, open_page, without_comments, chrome_launch_args
+from common import PHONE, ROOT, Journal, open_page, without_comments, browser_channel, chrome_launch_args
 
 SOURCE_ROOT = ROOT / "design" / "src"
 
@@ -182,10 +182,9 @@ def hold_the_source(journal):
 async def hold_the_browser(journal):
     """Holds that the boot the source declares actually produced a live one."""
     async with async_playwright() as playwright:
-        # `channel="chrome"` like every other rule here: the harness measures
-        # in the browser the operator actually runs, and the bundled headless
-        # shell is not installed on this machine.
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        # `browser_channel()` like every other rule here: Chrome in CI, the
+        # Playwright Chromium build on macOS (`common.browser_channel`).
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         _context, page = await open_page(browser, **PHONE)
 
         seams = await page.evaluate(

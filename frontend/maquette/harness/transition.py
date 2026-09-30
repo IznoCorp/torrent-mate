@@ -44,7 +44,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, PROTOTYPE, Journal, chrome_launch_args
+from common import PHONE, PROTOTYPE, Journal, browser_channel, chrome_launch_args
 
 # WHICH NAVIGATION THIS DRIVES, AND WHY IT IS NOT THE TAB BAR.
 #
@@ -988,7 +988,7 @@ async def hold(journal):
     """Drives the page switch under both motion preferences."""
     errors = []
     async with async_playwright() as play:
-        browser = await play.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await play.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         await hold_under(journal, browser, "no-preference")
         await hold_under(journal, browser, "reduce")
         await hold_one_entry_one_owner(journal, browser, warmed=False)

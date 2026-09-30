@@ -24,7 +24,7 @@ import asyncio
 import json
 import pathlib
 
-from common import ACTED, PANEL_IN, SETTLED, Journal, open_page, chrome_launch_args
+from common import ACTED, PANEL_IN, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 LOCALE = pathlib.Path(__file__).resolve().parents[1] / "design/src/i18n/fr.json"
@@ -70,7 +70,7 @@ async def main():
     """Runs the rule."""
     journal = Journal("R225 — a found release is taken from its follow's sheet")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))

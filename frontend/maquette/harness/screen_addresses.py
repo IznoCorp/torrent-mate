@@ -93,7 +93,7 @@ import urllib.parse
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PAGE_PATHS, PHONE, SCREEN_PARENTS, Journal, chrome_launch_args
+from common import PAGE_PATHS, PHONE, SCREEN_PARENTS, Journal, browser_channel, chrome_launch_args
 from server import start_server
 
 SERVED_ROOT = pathlib.Path("/tmp/tm-refonte")
@@ -290,7 +290,7 @@ async def main():
     journal = Journal("R75 — the screen addresses")
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
 
         with start_server(SERVED_ROOT) as port:
             base = f"http://127.0.0.1:{port}"

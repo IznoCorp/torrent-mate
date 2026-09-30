@@ -83,7 +83,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import SETTLED, Journal, open_page, read_at, chrome_launch_args
+from common import SETTLED, Journal, open_page, read_at, browser_channel, chrome_launch_args
 
 # The bar and its two controls, by the anchors the markup emits. `data-part` is
 # the naming attribute `check-markup-contracts.py` holds both ends of, so a
@@ -278,7 +278,7 @@ async def hold(journal):
     """Walks the journey and records every verdict."""
     errors = []
     async with async_playwright() as play:
-        browser = await play.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await play.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
         page.on("pageerror", lambda error: errors.append(str(error)))
 

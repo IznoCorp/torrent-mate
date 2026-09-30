@@ -63,7 +63,7 @@ import json
 import pathlib
 import time
 
-from common import Journal, open_page, chrome_launch_args
+from common import Journal, open_page, browser_channel, chrome_launch_args
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CONTRACT = ROOT / "contract" / "openapi.json"
@@ -126,7 +126,7 @@ async def main():
     errors = []
 
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
         page.on("pageerror", lambda error: errors.append(str(error)))
 

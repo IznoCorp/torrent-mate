@@ -4,7 +4,7 @@ A view that renders nothing FAILS the pass: that is the guard that was missing
 the day a page went blank because a constant had disappeared.
 """
 import asyncio
-from common import shot, chrome_launch_args
+from common import shot, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 # The state ids here are TEMPLATES — `acq-now-{s}` is completed at run time —
@@ -17,7 +17,7 @@ VIEWS = [("acq/now", "acq-now-{s}"), ("acq/follows", "acq-follows-list"),
 
 async def main():
   async with async_playwright() as p:
-    b = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
+    b = await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
     ctx = await b.new_context(viewport={"width": 390, "height": 844},
                               device_scale_factor=2, is_mobile=True, has_touch=True)
     pg = await ctx.new_page(); errs = []

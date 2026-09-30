@@ -44,7 +44,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-from common import Journal, chrome_launch_args  # noqa: E402 — the path above is what makes it importable
+from common import Journal, browser_channel, chrome_launch_args  # noqa: E402 — the path above is what makes it importable
 
 import oracle  # noqa: E402 — the path above is what makes it importable
 
@@ -141,7 +141,7 @@ async def main():
     regions = oracle.load_regions()
     errors = []
     async with oracle.browser_driver()() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         for index in range(1, READINGS + 1):
             await read_once(browser, recipe, regions, journal, index, errors)
         await browser.close()

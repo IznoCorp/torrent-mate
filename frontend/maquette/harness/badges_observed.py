@@ -42,7 +42,7 @@ placement of the badge reads one drawing.
 """
 import asyncio
 
-from common import PHONE, PROTOTYPE, SETTLED, Journal, chrome_launch_args, open_page, read_at
+from common import PHONE, PROTOTYPE, SETTLED, Journal, browser_channel, chrome_launch_args, open_page, read_at
 from playwright.async_api import async_playwright
 
 LIBRARY = "media"
@@ -94,7 +94,7 @@ def said(count):
 async def main():
     journal = Journal("R236 — a navigation badge reads an answer the frame keeps observed")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context = await browser.new_context(**PHONE)
         page = await context.new_page()
         errors = []

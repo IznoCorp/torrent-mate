@@ -33,7 +33,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import SETTLED, Journal, open_page, chrome_launch_args
+from common import SETTLED, Journal, open_page, browser_channel, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -207,7 +207,7 @@ async def main():
     """Pulls every page carrying the indicator and reads when its wheel turns."""
     journal = Journal("R223 — the pull indicator's wheel is seen turning")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         slow = {}
         reduced = {}
         own = {}

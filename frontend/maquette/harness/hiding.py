@@ -44,7 +44,7 @@ the RULE, where the five prove the elements as they stand today.
 import asyncio
 import time
 
-from common import PHONE, PROTOTYPE, Journal, open_page, chrome_launch_args
+from common import PHONE, PROTOTYPE, Journal, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 # The five the register named. `#fab`, `#installbar` and `#installsteps` were
@@ -103,7 +103,7 @@ async def main():
     _journal = Journal("R86 — what is declared invisible is invisible")
 
     async with async_playwright() as page_browser:
-        browser = await page_browser.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await page_browser.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         _, page = await open_page(browser)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))

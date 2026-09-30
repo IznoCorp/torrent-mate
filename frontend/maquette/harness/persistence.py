@@ -55,7 +55,7 @@ import sys
 import pathlib
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PROTOTYPE, Journal, open_page, chrome_launch_args
+from common import PROTOTYPE, Journal, open_page, browser_channel, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -229,7 +229,7 @@ SAME = """() => {
 async def main():
     journal = Journal("R100 — the chrome persists, and focus with it")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
         errors: list[str] = []
         page.on("pageerror", lambda error: errors.append(str(error)))

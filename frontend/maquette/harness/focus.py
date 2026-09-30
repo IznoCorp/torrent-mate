@@ -31,7 +31,7 @@ by owner, and acquisition's `plus` became a valueless `data-more`.
 import asyncio
 import sys
 
-from common import BAR, Journal, open_page, chrome_launch_args
+from common import BAR, Journal, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 # One entry per layer this rule drives: the control that opens it, the layer's
@@ -87,7 +87,7 @@ RESTORED = """(selector)=>{
 async def main():
     journal = Journal("R81 — focus enters a layer, and the interface says what it is doing")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
 
         for name, opener, layer in LAYERS:
