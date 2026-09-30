@@ -90,6 +90,12 @@ def gating_filter(job: str) -> str:
     for step in workflow["jobs"][job].get("steps", []):
         for output in re.findall(r"needs\.changes\.outputs\.(\w+)", str(step.get("if", ""))):
             gates.add(output)
+    # `docs_only` (order 95) is a cross-cutting SKIP, not a subject filter — it
+    # names no `filters()` entry to compare a guard's declared path against,
+    # unlike `maquette`, which is what this hold asks about. Every step of
+    # `harness-contracts` carries it ALONGSIDE `maquette`, never alone —
+    # `test_ci_docs_only_skips_harness_browser.py` is what proves that.
+    gates -= {"docs_only"}
     assert len(gates) == 1, (
         f"the {job} job's steps are gated on {sorted(gates)}; this hold needs "
         "exactly one filter to compare a guard's subject against"

@@ -64,6 +64,7 @@ jobs:
       frontend_app: ${{ steps.raffine.outputs.frontend_app }}
       maquette: ${{ steps.filtre.outputs.maquette }}
       docs: ${{ steps.filtre.outputs.docs }}
+      docs_only: ${{ steps.raffine.outputs.docs_only }}
     steps:
       # No checkout: on pull_request events the filter reads the PR file list
       # from the API.
@@ -186,6 +187,17 @@ jobs:
               # `tests/scripts/test_ci_filter_covers_the_guards.py` refuses
               # exactly that, and refused this before the line existed.
               - 'IMPLEMENTATION.md'
+            # EVERY changed path, docs-only detection's own input (order 95):
+            # `harness-contracts` pays Playwright and a browser suite for a PR
+            # the `maquette` filter above ropes in only for `BUGS.md` or
+            # `IMPLEMENTATION.md`'s guards — the pre-push hook already proved
+            # those guards green locally before the push (its own `docs_only`
+            # path runs them by name), so CI re-running the BROWSER tier over a
+            # PR that touches nothing else is the redundant, flaky half B-574
+            # named. A glob here would go stale the way the class-named guard
+            # list above already explains; this reads every changed path instead.
+            everything:
+              - '**'
       # Refinements the filter's glob language cannot express (negation only
       # works with the global 'every' quantifier, which would break the plain
       # filters above):
@@ -201,12 +213,20 @@ jobs:
         env:
           PYTHON_FILES: ${{ steps.filtre.outputs.python_files }}
           FRONTEND_FILES: ${{ steps.filtre.outputs.frontend_app_files }}
+          ALL_FILES: ${{ steps.filtre.outputs.everything_files }}
         run: |
           set -euo pipefail
           python=$(jq -r 'map(select(. != "personalscraper/__init__.py")) | length > 0' <<< "${PYTHON_FILES}")
           frontend_app=$(jq -r 'map(select(. != "personalscraper/__init__.py" and (startswith("frontend/maquette/") | not))) | length > 0' <<< "${FRONTEND_FILES}")
+          # The pre-push hook's own definition (`hooks/pre-push`): every changed
+          # path is under `docs/` or ends in `.md` — `BUGS.md` and every root
+          # `*.md` included, a nested `frontend/maquette/README.md` too, on purpose:
+          # one definition of "docs-only", not a second one that can drift from it.
+          docs_only=$(jq -r 'all(.[]; startswith("docs/") or endswith(".md"))' <<< "${ALL_FILES}")
           echo "python=${python}" >> "$GITHUB_OUTPUT"
           echo "frontend_app=${frontend_app}" >> "$GITHUB_OUTPUT"
+          echo "docs_only=${docs_only}" >> "$GITHUB_OUTPUT"
+          echo "docs_only=${docs_only}"
           echo "python=${python} frontend_app=${frontend_app}"
 
   # ── Stage 1: Fast checks (parallel) ───────────────────
@@ -342,23 +362,29 @@ jobs:
       # a job-level `if` yields a SKIPPED job, and a required check that is
       # skipped can sit in « expected » forever. Every other job in this file
       # does it this way; this one did not, and was the only exception.
+      # `&& needs.changes.outputs.docs_only == 'false'` (order 95, 2026-09-30):
+      # a PR touching only `docs/**` or a `.md` file already ran these same
+      # guards LOCALLY, by name, in the pre-push hook's own docs-only path —
+      # CI re-paying Playwright and the 11-rule browser subset over it bought
+      # nothing but B-574's flake (a chronic red on heads that cannot touch
+      # the maquette at all).
       # THE FULL HISTORY, because `check-bug-register.py`'s closure arm compares
       # each entry's body against the branch point — it is the only way to ask
       # « did this pull request write anything about what it closed ». With the
       # default depth of 1 there is no branch point, and that arm REFUSES
       # rather than passing, so this line is what keeps the job green honestly.
       - uses: actions/checkout@v4
-        if: needs.changes.outputs.maquette == 'true'
+        if: needs.changes.outputs.maquette == 'true' && needs.changes.outputs.docs_only == 'false'
         with:
           fetch-depth: 0
       - uses: actions/setup-node@v4
-        if: needs.changes.outputs.maquette == 'true'
+        if: needs.changes.outputs.maquette == 'true' && needs.changes.outputs.docs_only == 'false'
         with: { node-version: "22" }
       - uses: actions/setup-python@v5
-        if: needs.changes.outputs.maquette == 'true'
+        if: needs.changes.outputs.maquette == 'true' && needs.changes.outputs.docs_only == 'false'
         with: { python-version: "3.12" }
       - run: pip install playwright && python -m playwright install --with-deps chromium
-        if: needs.changes.outputs.maquette == 'true'
+        if: needs.changes.outputs.maquette == 'true' && needs.changes.outputs.docs_only == 'false'
       # `scripts/check-mock-seeds.py` is one of the cheap guards this tier folds
       # in, and its schema arm validates every mock seed against the maquette
       # contract. `jsonschema` is declared in pyproject's dev extra, which this
@@ -367,7 +393,7 @@ jobs:
       # arm answers « not installed » and the tier is red for a reason foreign
       # to every change under test.
       - run: pip install jsonschema
-        if: needs.changes.outputs.maquette == 'true'
+        if: needs.changes.outputs.maquette == 'true' && needs.changes.outputs.docs_only == 'false'
       # AND THE PACKAGE ITSELF, for the same reason one step up and for a
       # sharper one. `check-live-relay.py`'s `map-completeness` arm compares TWO
       # oracles — the event bus's own `_EVENT_CLASS_REGISTRY`, which is what the
@@ -383,9 +409,9 @@ jobs:
       # red instead of going quiet. Marginal beside the Chromium download this
       # job already pays for.
       - run: pip install -e .
-        if: needs.changes.outputs.maquette == 'true'
+        if: needs.changes.outputs.maquette == 'true' && needs.changes.outputs.docs_only == 'false'
       - run: npm ci --prefix frontend/maquette/design
-        if: needs.changes.outputs.maquette == 'true'
+        if: needs.changes.outputs.maquette == 'true' && needs.changes.outputs.docs_only == 'false'
       # The CONTRACT subset only. The 71-rule suite is a wave gate, not a
       # per-PR one: 71 headless-Chrome runs cost 20-25 minutes, and these ELEVEN
       # are the ones that fall when a NAME moves without all of its ends —
@@ -396,7 +422,7 @@ jobs:
       # it here would be green by accident of the runner shipping Chrome, which
       # is the failure `tests/conftest.py` was just fixed for.
       - run: frontend/maquette/harness/run.sh --contracts
-        if: needs.changes.outputs.maquette == 'true'
+        if: needs.changes.outputs.maquette == 'true' && needs.changes.outputs.docs_only == 'false'
       # The accessibility tier, as its own step and not folded into the subset
       # above: the contracts answer « did a NAME move without all of its ends? »
       # and an accessibility violation is not that question. Cheap enough for a
@@ -409,7 +435,7 @@ jobs:
       # the frame at rest — which is the failure that would otherwise be found
       # on the day the floor is armed. L03's last phase makes it a refusal.
       - run: frontend/maquette/harness/run.sh --a11y
-        if: needs.changes.outputs.maquette == 'true'
+        if: needs.changes.outputs.maquette == 'true' && needs.changes.outputs.docs_only == 'false'
 
   typecheck:
     name: typecheck

@@ -60,7 +60,7 @@ there:
 - **review on evidence** — the reading, never the report; the idle subscription (`SendMessage` with
   `notify_when_idle`) after every message that expects work back;
 - **context, measured** — `orchestrator:context-gauge` for the steward's own fill and for every
-  agent's, never an estimate; **agent rotation** at the ~60 % gate with the rotation brief; and **the
+  agent's, never an estimate; **agent rotation** at the 80 % gate with the rotation brief; and **the
   steward's own succession** when its context nears the limit — the succession brief, the successor
   launched with `orchestrator:iterm-agents`, its first act re-announcing its exact address to
   every running agent. A successor satisfies this office's « fresh session » condition as long as it
@@ -82,7 +82,7 @@ there:
   enforces — `Agent : <subject>` for anything the steward spawns, `Orch : <subject>` for the steward
   and its successor (subject ≤ 25 characters) — the prompt ONE LINE naming the brief's path and the
   steward's exact `ListAgents` name and reference, everything else in the brief. Verify the spawn on
-  the artifact, then wait for the handshake; an agent past ~60 % is stood down at its unit boundary,
+  the artifact, then wait for the handshake; an agent past 80 % is stood down at its unit boundary,
   its resume brief pushed and proved by `ls-remote` BEFORE it stops, and `rotate` spawns its
   replacement first and closes its tab after. **The steward's own succession passes `--successor`**
   (the tab lands immediately right of the steward and takes its agent chain) with the title
@@ -184,8 +184,9 @@ reaches him.
    « None » (the plain row, no pull request number anywhere in the cell — the arm reads the first `#NNN`); the trace in
    « Between … » stays the steward's, in the docs PR. Ratified 2026-09-14: the docs-only push path
    completes in seconds, live since order 35.
-5. **One repair train per day** — one brief, one worktree, one agent, one gate for the day's repairs — never one micro-wave
-   per bug.
+5. **A fast lane for the operator's reports, a train for tooling debts** (rewritten order 95) — an operator-reported
+   bug goes to the fast lane, one at a time, as it lands; a tooling debt (a guard, a rule, the harness) goes to one
+   repair train per day — one brief, one worktree, one agent, one gate — never one micro-wave per debt.
 6. **Three agents at most, ONE on the harness lock at a time** — the other two without it (drawing, reading,
    documents); back to two while load > 8 or free memory < 2 GB with a third running (amended 2026-09-29, operator,
    « A »; order 68: L22b measured 1.27 phase/h alone against 0.81–0.87 beside another harness agent).
@@ -251,6 +252,11 @@ reaches him.
 22. **A lot's scope freezes at its opening** — a ruling that arrives during the lot goes to the next lot, unless
     it changes a surface under construction or unblocks a STOP (order 69).
 
+**Two orders not yet carried above** (`docs/reference/operator-method.md`, rules table). **Order 33**: a calm
+border before the Monday 05:00 reboot — everything pushed by 04:30, nothing launched after 04:15. **Orders
+46/47/72**: the second slot never sits empty — drawings ahead of need first (never between two lots), then
+whatever no lot owns.
+
 **Order 42's own fate (auditor, on L13c, 2026-09-15/16).** Nine opening measures written ahead of the
 first phase's spawn, one per phase (c·1 ≈ 6 … c·9 ≈ 5, mean ≈ 6.9, none past measure 11's 15-point
 ceiling). Of the nine: SIX carried no STOP D at their opening at all, TWO were pre-empted by a ruling
@@ -282,6 +288,13 @@ recounted — are invisible from inside the wave that produced them.
 The steward holds **this responsibility and no other**. It does not implement lots, it does not
 arbitrate what belongs to the operator, and it does not inherit its standing from any
 conversation. What follows is the whole of the office.
+
+**The plan recipe the steward approves before dispatch (order 99).** One phase = one surface; one
+plan page per surface, the order-97 conformity table to the operator's principles at its head,
+before the phases. The phase gate it dispatches is LIGHT — `docs/reference/implementer-office.md`
+§ « The gate » carries the mechanism — and the mutation replay, the accessibility audit and the
+reading round run once per lot, never per phase. A plan cut any other way is sent back before its
+first phase opens, not corrected mid-lot.
 
 **The audit, in this order.** Each step answers a question the previous one cannot.
 

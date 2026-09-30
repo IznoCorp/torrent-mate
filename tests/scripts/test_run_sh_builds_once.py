@@ -390,3 +390,96 @@ def test_the_default_fan_out_is_two_and_not_the_core_count(scratch_tree: Path) -
     assert result.returncode == 0, result.stdout + result.stderr
     assert "2 at a time" in result.stdout, result.stdout
     assert "8 at a time" not in result.stdout, result.stdout
+
+
+def _git(tree: Path, *args: str) -> None:
+    """Run one git command in the scratch tree.
+
+    Args:
+        tree: The scratch repository root.
+        *args: The git subcommand and its arguments.
+    """
+    subprocess.run(["git", *args], cwd=tree, check=True, capture_output=True, text=True)
+
+
+def _commit_base_as_origin_main(tree: Path) -> None:
+    """Commit the fixture's current files and mark that commit `origin/main`.
+
+    A later commit on top of this one is what a phase "touched" — `run.sh`
+    reads `git diff --name-only origin/main...HEAD` against exactly this point.
+
+    Args:
+        tree: The scratch repository root.
+    """
+    _git(tree, "init", "-q")
+    _git(tree, "config", "user.email", "test@example.com")
+    _git(tree, "config", "user.name", "test")
+    _git(tree, "add", "-A")
+    _git(tree, "commit", "-q", "-m", "base")
+    _git(tree, "branch", "origin/main")
+
+
+def test_a_guard_failing_on_an_untouched_file_warns_instead_of_blocking(
+    scratch_tree: Path,
+) -> None:
+    """A guard's own defect, not this phase's, is a WARNING with a row to file (order 95).
+
+    12 of L16's 14 guard failures named a file that phase never touched — the
+    gate blocked it anyway. The stale file here is part of the base commit,
+    never touched by the phase commit that follows it.
+    """
+    src = scratch_tree / "frontend" / "maquette" / "design" / "src"
+    src.mkdir(parents=True, exist_ok=True)
+    (src / "stale.ts").write_text("export const stale = 1\n")
+    _write_executable(
+        scratch_tree / "scripts" / "check-frontend-boundaries.py",
+        STUB_PYTHON + 'print("violation: frontend/maquette/design/src/stale.ts:12")\nsys.exit(1)\n',
+    )
+    _commit_base_as_origin_main(scratch_tree)
+    (src / "touched.ts").write_text("export const touched = 1\n")
+    _git(scratch_tree, "add", "-A")
+    _git(scratch_tree, "commit", "-q", "-m", "phase: touch touched.ts")
+
+    result, _journal = _run(scratch_tree, "--contracts")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "WARNING (untouched by this phase): python3 scripts/check-frontend-boundaries.py" in result.stdout, (
+        result.stdout
+    )
+    assert "file a register row" in result.stdout, result.stdout
+    assert "FAILED: python3 scripts/check-frontend-boundaries.py" not in result.stdout, result.stdout
+
+
+def test_a_guard_failing_on_a_touched_file_still_blocks_the_phase(
+    scratch_tree: Path,
+) -> None:
+    """A guard naming a file the phase itself touched is still this phase's to pay for."""
+    src = scratch_tree / "frontend" / "maquette" / "design" / "src"
+    src.mkdir(parents=True, exist_ok=True)
+    _write_executable(
+        scratch_tree / "scripts" / "check-frontend-boundaries.py",
+        STUB_PYTHON + 'print("violation: frontend/maquette/design/src/touched.ts:12")\nsys.exit(1)\n',
+    )
+    _commit_base_as_origin_main(scratch_tree)
+    (src / "touched.ts").write_text("export const touched = 1\n")
+    _git(scratch_tree, "add", "-A")
+    _git(scratch_tree, "commit", "-q", "-m", "phase: touch touched.ts")
+
+    result, _journal = _run(scratch_tree, "--contracts")
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "FAILED: python3 scripts/check-frontend-boundaries.py" in result.stdout, result.stdout
+    assert "WARNING (untouched by this phase)" not in result.stdout, result.stdout
+
+
+def test_guard_attribution_is_skipped_without_origin_main(scratch_tree: Path) -> None:
+    """No `origin/main` to diff against (this fixture's plain, git-less trees): every failure still blocks."""
+    _write_executable(
+        scratch_tree / "scripts" / "check-frontend-boundaries.py",
+        STUB_PYTHON + 'print("violation: frontend/maquette/design/src/anything.ts:1")\nsys.exit(1)\n',
+    )
+
+    result, _journal = _run(scratch_tree, "--contracts")
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "FAILED: python3 scripts/check-frontend-boundaries.py" in result.stdout, result.stdout
