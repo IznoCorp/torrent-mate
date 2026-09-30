@@ -34,7 +34,7 @@ import { TopicRow } from "../../ui/topic-row";
 import { Chip } from "../../ui/chip";
 import { type Setting, type SettingsTopic } from "../../features/settings/types";
 import { SETTINGS_STATE, changedFiles, fileName } from "./state";
-import { useStoreContent } from "../../lib/store-access";
+import { store, useStoreContent } from "../../lib/store-access";
 import { settingInWords } from "./format";
 import { useConfigurationStatus, useSecrets, useSettings } from "./queries";
 import { settingLabel } from "../../features/settings/labels";
@@ -95,12 +95,27 @@ function SearchField(): ReactElement {
       <Icon paths={icons.search} />
       <input
         className={searchInput()}
+        // UNCONTROLLED, NOT KEYED, with its own native `input` handler — the
+        // arrangement `#libq` and `#follq` have. It was keyed by the query and
+        // listened to nothing, so typing filtered nothing and only the clear
+        // cross ever ran the search (B-608, C1's reader, 2026-09-30).
         id="qsettings"
-        key={SETTINGS_STATE.q}
         type="search"
         placeholder={t("screens.settings.searchPlaceholder")}
         defaultValue={SETTINGS_STATE.q}
         autoComplete="off"
+        ref={(element) => {
+          if (!element) return;
+          // What changes the query from OUTSIDE — the clear cross — reaches the
+          // field, and only when the two differ, so nothing touches it mid-word.
+          if (element.value !== SETTINGS_STATE.q) element.value = SETTINGS_STATE.q;
+          const commit = () => {
+            SETTINGS_STATE.q = element.value;
+            store.touch();
+          };
+          element.addEventListener("input", commit);
+          return () => element.removeEventListener("input", commit);
+        }}
       />
       {SETTINGS_STATE.q ? (
         <button

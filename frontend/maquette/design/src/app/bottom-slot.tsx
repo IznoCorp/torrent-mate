@@ -20,11 +20,13 @@
 // the tree rule forbids and which D5 calls what nobody dares delete. The day a
 // second feature wants the slot, the two are named here and a registry is one
 // reviewed line away.
-import type { ReactElement } from "react";
+import { useLayoutEffect, type ReactElement } from "react";
 
 import { SelectionBar } from "../features/library/selection-bar";
 import { SaveBar } from "../features/settings/banners";
+import { pendingEdits } from "../lib/pending-edits-door";
 import { useStoreContent } from "../lib/store-access";
+import { publishSaveBarHeight } from "./bar-height";
 import { rowFor } from "./navigation";
 
 /**
@@ -34,10 +36,16 @@ import { rowFor } from "./navigation";
  */
 export function BottomSlot(): ReactElement {
   const page = useStoreContent((content) => String(content.state.page ?? ""));
+  const holdsEdits = rowFor(page)?.holdsEdits === true;
+  // A PENDING EDIT IS A STORE BUMP: the count is re-read at each one.
+  const waiting = useStoreContent(() => pendingEdits()?.waiting() ?? 0);
+  const saveBarShown = holdsEdits && waiting > 0;
+  // The port reserves the bar's height while it shows, so nothing sits under it.
+  useLayoutEffect(() => publishSaveBarHeight(), [saveBarShown]);
   return (
     <>
       <SelectionBar />
-      {rowFor(page)?.holdsEdits ? <SaveBar /> : null}
+      {holdsEdits ? <SaveBar /> : null}
     </>
   );
 }

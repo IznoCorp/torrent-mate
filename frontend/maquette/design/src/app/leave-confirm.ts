@@ -39,7 +39,9 @@ function askFirst(from: string, to: string): boolean {
  *
  * « Enregistrer » writes, then leaves — and a write that failed keeps its edits
  * and stays, where the failure is drawn; « Abandonner les modifications » drops
- * them, then leaves; « Rester sur … » only closes the confirmation.
+ * them, then leaves; « Rester sur … » closes the confirmation AND the layer the
+ * leave was asked from — the menu, the account sheet — so the page is given back
+ * bare: the operator's « fermer, rester sur réglages » (C1's reader, 2026-09-30).
  *
  * THE LEAVE WAITS FOR THE CONFIRMATION'S OWN ENTRY TO BE GONE. Closing the
  * dialog pops the entry it pushed, and that pop is asynchronous: a leave written
@@ -49,8 +51,9 @@ function askFirst(from: string, to: string): boolean {
  *
  * @param from The page being left — its name is in the words.
  * @param leave What leaves, once the choice allows it.
+ * @param stay What « Rester » closes besides the confirmation, if anything.
  */
-export function askToLeave(from: string, leave: () => void): void {
+export function askToLeave(from: string, leave: () => void, stay?: () => void): void {
   const edits = pendingEdits();
   if (edits === undefined || dialog === undefined) {
     leave();
@@ -79,6 +82,7 @@ export function askToLeave(from: string, leave: () => void): void {
     actions: [
       {
         text: i18next.t("screens.settings.leaveSave"),
+        tone: "primary",
         run: onceClosed(() => {
           void edits.save().then(() => {
             if (edits.waiting() === 0) leave();
@@ -87,13 +91,18 @@ export function askToLeave(from: string, leave: () => void): void {
       },
       {
         text: i18next.t("screens.settings.leaveAbandon"),
-        tone: "danger",
+        tone: "dangerOutline",
         run: onceClosed(() => {
           edits.drop();
           leave();
         }),
       },
-      { text: i18next.t("screens.settings.leaveStay", { page }), tone: "ghost", dismiss: true },
+      {
+        text: i18next.t("screens.settings.leaveStay", { page }),
+        tone: "ghost",
+        dismiss: true,
+        run: stay ? onceClosed(stay) : undefined,
+      },
     ],
   });
   entryLaid = Boolean(history.state && history.state.layer === "dialog");
@@ -104,13 +113,15 @@ export function askToLeave(from: string, leave: () => void): void {
  *
  * @param to The page the verb lands on.
  * @param leave The verb's own leave, run as it would have run.
+ * @param stay What « Rester » closes besides the confirmation: the layer the
+ *     verb was pressed in.
  * @returns True when the confirmation holds the leave; the caller then does
  *     nothing more.
  */
-export function heldLeave(to: string, leave: () => void): boolean {
+export function heldLeave(to: string, leave: () => void, stay?: () => void): boolean {
   const from = currentPage();
   if (!askFirst(from, to)) return false;
-  askToLeave(from, leave);
+  askToLeave(from, leave, stay);
   return true;
 }
 

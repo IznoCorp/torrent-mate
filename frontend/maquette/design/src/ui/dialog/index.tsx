@@ -172,7 +172,7 @@ export function Dialog({
               <button
                 key={at}
                 data-part="dialog/button"
-                {...(action.tone === "danger" ? { "data-tone": "danger" } : {})}
+                {...(action.tone === "danger" || action.tone === "dangerOutline" ? { "data-tone": "danger" } : {})}
                 {...(action.dismiss ? { "data-dialog-dismiss": "" } : {})}
                 {...(at === entryAt ? namedEntry : {})}
                 {...(action.target ?? {})}

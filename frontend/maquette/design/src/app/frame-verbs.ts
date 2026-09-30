@@ -105,9 +105,22 @@ function landingOf(page: string, chooser: boolean): Landing {
    asking, while the tapped element is still where it was. */
 registerVerb("page", (page, element) => {
   const menu = element.closest(DESTINATION_MENU) !== null;
-  if (heldLeave(page, () => pageSwitch(page, menu))) return;
+  if (heldLeave(page, () => pageSwitch(page, menu), closeLeftLayer)) return;
   pageSwitch(page, menu);
 });
+
+/**
+ * Closes the layer a leave was asked from — « Rester »'s second half.
+ *
+ * « Rester » gives the page back BARE: the menu or the account sheet the leave
+ * was pressed in closes with the confirmation (the operator's « fermer, rester
+ * sur réglages », C1's reader, 2026-09-30). Each close is guarded by its own
+ * layer, so the one that is not open does nothing.
+ */
+function closeLeftLayer(): void {
+  registeredLayers.close("drawer");
+  registeredLayers.close("sheet");
+}
 
 /**
  * Switches to the page a control names — the `page` verb's leave.
@@ -163,7 +176,7 @@ function goTo(page: string, dial: string | undefined, chooser: boolean): void {
  * @param chooser Whether the tap chose a destination.
  */
 function goToOnceAsked(page: string, dial: string | undefined, chooser: boolean): void {
-  if (heldLeave(page, () => goTo(page, dial, chooser))) return;
+  if (heldLeave(page, () => goTo(page, dial, chooser), closeLeftLayer)) return;
   goTo(page, dial, chooser);
 }
 
@@ -179,7 +192,7 @@ fillFollowLinkDoor((page, dial) => goToOnceAsked(page, dial, false));
    menu page stacks on the page left, and the page one is on only closes the
    drawer. */
 registerVerb("navgo", (page) => {
-  if (heldLeave(page, () => menuLanding(page))) return;
+  if (heldLeave(page, () => menuLanding(page), closeLeftLayer)) return;
   menuLanding(page);
 });
 

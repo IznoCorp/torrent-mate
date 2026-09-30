@@ -28,6 +28,21 @@ Leaving (`settings-leave-confirm`), from Réglages with an edit waiting:
 
 Red on `main` (`4f6704ccd`): the two named states do not exist, and every way of
 leaving leaves at once, the edit left waiting where no bar shows it.
+
+The reader's corrections (N-bis, 2026-09-30), red on `18fb39365`:
+8. while the bar shows, nothing sits under it: scrolled to the bottom of
+   Réglages › « Ce qu'on va chercher » and of Trackers › Torrents, the last
+   control's centre hit-tests to itself;
+9. « Rester » also closes the layer one was leaving from — the menu, the account
+   sheet: back on the page, bare (« fermer, rester sur réglages »);
+10. the confirmation opened over the menu or the account sheet paints its scrim
+    over that layer too, as over any page;
+11. « Enregistrer » is the filled primary, « Abandonner les modifications » the
+    danger OUTLINE — a transparent ground, the danger's colour;
+12. B-608 — Réglages' search filters as one types, the field keeping its focus
+    and its word;
+13. B-609 — on a screen (a media sheet opened from a torrent's poster), the tab
+    bar drawn over it takes a finger.
 """
 import asyncio
 import json
@@ -70,6 +85,79 @@ WHERE = """() => ({
             buttons: [...dialog.querySelectorAll('[data-part="dialog/button"]')].map(b => b.textContent.trim())};
   })(),
   written: (window.__mocks?.answered() || []).filter(call => call.operationId === 'updateConfigurationFile').length,
+  layers: [...document.querySelectorAll('#drawer[data-open], #sheet[data-open]')].map(layer => layer.id),
+})"""
+
+# WHAT IS PAINTED over a layer the confirmation opened above — the layer's `inert`
+# lifted for the one reading, since `inert` takes it out of the hit test and a
+# plain reading would answer the scrim whatever the ranks said. The point is the
+# layer's own, clear of the dialog's box.
+SCRIM_OVER = """(selector)=>{
+  const layer = document.querySelector(selector);
+  const dialog = document.querySelector('#dlg[data-open]');
+  if (!layer || !dialog) return 'no layer or no dialog';
+  const box = layer.getBoundingClientRect();
+  const x = box.left + 24;
+  const y = selector === '#drawer' ? box.top + 24 : box.bottom - 24;
+  const was = layer.hasAttribute('inert');
+  layer.removeAttribute('inert');
+  const hit = document.elementFromPoint(x, y);
+  if (was) layer.setAttribute('inert', '');
+  return hit ? (hit.closest('#scrim') ? 'scrim' : hit.closest(selector) ? selector
+                : hit.closest('#dlg') ? 'dialog' : hit.tagName) : null;
+}"""
+
+# THE CONFIRMATION'S TWO ACTS, as painted: the save's ground against the save
+# bar's own filled primary, the drop's ground and colour against the danger's.
+TONES = """(words)=>{
+  const button = (text) => [...document.querySelectorAll('#dlg[data-open] [data-part="dialog/button"]')]
+    .find(b => b.textContent.trim() === text);
+  const save = button(words.save), drop = button(words.drop);
+  const primary = document.querySelector('#savebar [data-save]');
+  if (!save || !drop || !primary) return {absent: true};
+  const probe = document.createElement('span');
+  probe.style.color = 'var(--color-danger)';
+  document.body.append(probe);
+  const danger = getComputedStyle(probe).color;
+  probe.remove();
+  const style = (node) => getComputedStyle(node);
+  return {
+    saveFilled: style(save).backgroundColor === style(primary).backgroundColor,
+    dropOutline: style(drop).backgroundColor === 'rgba(0, 0, 0, 0)' && style(drop).color === danger
+      && style(drop).borderTopWidth !== '0px',
+    save: style(save).backgroundColor, drop: [style(drop).backgroundColor, style(drop).color], danger,
+  };
+}"""
+
+# THE LAST CONTROL OF THE PAGE, scrolled to the bottom: whether a finger at its
+# centre reaches it. Read two frames after the scroll, once the port has landed.
+LAST_CONTROL = """()=>new Promise((resolve) => {
+  const port = document.querySelector('#port');
+  port.scrollTop = port.scrollHeight;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const controls = [...document.querySelectorAll(
+      '#view button, #view [role="switch"], #view input, #view a[href], #view [tabindex="0"], #view [data-panel]')]
+      // A swipe row's own act lies UNDER its card until the card is swiped: no finger meets it at rest.
+      .filter(node => !node.closest('[data-part="swipe/action"]'))
+      .filter(node => { const box = node.getBoundingClientRect(); return box.width > 0 && box.height > 0; });
+    if (!controls.length) { resolve({absent: true}); return; }
+    const last = controls.reduce((a, b) =>
+      b.getBoundingClientRect().bottom >= a.getBoundingClientRect().bottom ? b : a);
+    const box = last.getBoundingClientRect();
+    const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+    // AND THE CONTENT'S OWN BOTTOM EDGE: a card whose centre is reached may still
+    // have its last lines under the bar.
+    const drawn = [...document.querySelectorAll('#view *')]
+      .filter(node => !node.closest('[data-part="swipe/action"]'))
+      .map(node => node.getBoundingClientRect()).filter(box => box.width > 0 && box.height > 0);
+    const contentBottom = Math.max(...drawn.map(box => box.bottom));
+    const bar = document.querySelector('#savebar');
+    const barTop = bar ? bar.getBoundingClientRect().top : null;
+    resolve({reached: hit === last || last.contains(hit), bar: !!bar,
+             clear: barTop !== null && contentBottom <= barTop + 1,
+             contentBottom: Math.round(contentBottom), barTop: barTop === null ? null : Math.round(barTop),
+             last: last.outerHTML.slice(0, 100), hit: hit ? hit.outerHTML.slice(0, 100) : null});
+  }));
 })"""
 
 
@@ -181,6 +269,89 @@ async def hold_the_bar(browser, journal):
         else:
             journal.check(f"R-C1-a 2: `{state}` draws the three-choice confirmation over Réglages",
                           answer is None and asked(seen, "cfg"), answer or repr(seen))
+            tones = await page.evaluate(TONES, {"save": SETTINGS_WORDS["leaveSave"],
+                                                "drop": SETTINGS_WORDS["leaveAbandon"]})
+            journal.check("R-C1-a 11: « Enregistrer » is the filled primary, « Abandonner les modifications » "
+                          "the danger outline", tones.get("saveFilled") and tones.get("dropOutline"), repr(tones))
+    await context.close()
+
+
+async def hold_nothing_under_the_bar(browser, journal):
+    """Hold 8: scrolled to the bottom with the bar up, the page's last control takes a finger."""
+    context, page, errors = await open_at(browser, "cfg")
+    await file_an_edit(page)
+    await tap(page, '#view [data-topic="acquisition"]')
+    rubric = await page.evaluate(LAST_CONTROL)
+    journal.check("R-C1-a 8: Réglages › « Ce qu'on va chercher », at the bottom under the bar — "
+                  "the last control's centre is the control, the content ends above the bar",
+                  rubric.get("bar") and rubric.get("reached") and rubric.get("clear"), repr(rubric))
+    await context.close()
+
+    context, page, errors = await open_at(browser, "trackers")
+    await tap(page, '[data-trackers-tab="trackers"]')
+    await tap(page, f'#view [data-tracker-switch="{OFF_BY_OPERATOR}"]')
+    await tap(page, '[data-trackers-tab="torrents"]', PANEL_IN)
+    torrents = await page.evaluate(LAST_CONTROL)
+    journal.check("R-C1-a 8: Trackers › Torrents, at the bottom under the bar — the last control's centre "
+                  "is the control, the content ends above the bar",
+                  torrents.get("bar") and torrents.get("reached") and torrents.get("clear"), repr(torrents))
+    journal.check("R-C1-a: no JS error on the bottom's walk", not errors, str(errors))
+    await context.close()
+
+
+async def hold_search_as_one_types(browser, journal):
+    """Hold 12 (B-608): typing in Réglages' search filters, word by word."""
+    context, page, errors = await open_at(browser, "cfg")
+    field = page.locator("#qsettings")
+    await field.tap()
+    await field.press_sequentially("port", delay=60)
+    await page.wait_for_timeout(ACTED)
+    typed = await page.evaluate("""()=>({
+      rubrics: document.querySelectorAll('#view [data-topic]').length,
+      rows: [...document.querySelectorAll('#view [data-part="setting/label"]')].map(n => n.textContent.toLowerCase()),
+      focused: document.activeElement?.id ?? null,
+      value: document.querySelector('#qsettings')?.value ?? null,
+    })""")
+    journal.check("R-C1-a 12 (B-608): typing « port » filters Réglages — no rubric left, only matching rows, "
+                  "the field still focused with its word",
+                  typed["rubrics"] == 0 and typed["rows"] and all("port" in row for row in typed["rows"])
+                  and typed["focused"] == "qsettings" and typed["value"] == "port", repr(typed)[:400])
+    for _ in range(4):
+        await page.keyboard.press("Backspace")
+    await page.wait_for_timeout(ACTED)
+    emptied = await page.evaluate("()=>document.querySelectorAll('#view [data-topic]').length")
+    journal.check("R-C1-a 12 (B-608): erasing the word gives the rubrics back", emptied > 0, str(emptied))
+    journal.check("R-C1-a: no JS error on the search", not errors, str(errors))
+    await context.close()
+
+
+async def hold_tab_bar_over_a_screen(browser, journal):
+    """Hold 13 (B-609): the tab bar drawn over a screen takes a finger."""
+    context, page, errors = await open_at(browser, "trackers")
+    await tap(page, '[data-trackers-tab="torrents"]', PANEL_IN)
+    opened = await tap(page, '#view [data-part="card/poster"]', PANEL_IN)
+    reach = await page.evaluate("""()=>{
+      const screen = document.querySelector('[data-part="screen"][data-open]');
+      const tab = document.querySelector('[data-part="shell/tab-bar"] [data-page="acq"]');
+      if (!screen || !tab) return {screen: !!screen, tab: !!tab};
+      const box = tab.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return {screen: true, reached: hit === tab || tab.contains(hit),
+              hit: hit ? hit.outerHTML.slice(0, 100) : null};
+    }""")
+    journal.check("R-C1-a 13 (B-609): a torrent's poster opens its media sheet, and the tab bar over it "
+                  "is what a finger meets", opened and reach.get("screen") and reach.get("reached"), repr(reach))
+    # A FINGER AT THE TAB'S CENTRE, never Playwright's own tap: that one waits for
+    # the element to take the event, and a bar out of the hit test is a timeout
+    # rather than the red this hold reads.
+    box = await page.locator('[data-part="shell/tab-bar"] [data-page="acq"]').bounding_box()
+    await page.touchscreen.tap(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+    await page.wait_for_timeout(PANEL_IN)
+    landed = await where(page)
+    screen_left = await page.evaluate("()=>!document.querySelector('[data-part=\"screen\"][data-open]')")
+    journal.check("R-C1-a 13 (B-609): and the tap lands on Acquisition, the sheet closed",
+                  landed["page"] == "acq" and screen_left, f"{landed!r} screen gone {screen_left}")
+    journal.check("R-C1-a: no JS error on the screen's walk", not errors, str(errors))
     await context.close()
 
 
@@ -198,14 +369,20 @@ async def hold_each_way_asks(browser, journal):
         seen = await where(page)
         journal.check(f"R-C1-a 3: leaving Réglages by {name} asks, Réglages still drawn",
                       all(walked) and asked(seen, "cfg"), f"taps {walked} · {seen!r}")
+        if len(taps) > 1:
+            covered = await page.evaluate(SCRIM_OVER, "#drawer" if "drawer" in taps[0] else "#sheet")
+            journal.check(f"R-C1-a 10: the confirmation over {name} paints its scrim over it",
+                          covered == "scrim", repr(covered))
         if seen["dialog"] is not None:
             await choose(page, stay_words("cfg"))
-        await page.keyboard.press("Escape")
-        await page.wait_for_timeout(ACTED)
         stayed = await where(page)
-        journal.check(f"R-C1-a 5: « {stay_words('cfg')} » after {name}: Réglages, the edit still waiting",
+        journal.check(f"R-C1-a 5+9: « {stay_words('cfg')} » after {name}: Réglages, bare, the edit still waiting",
                       stayed["page"] == "cfg" and stayed["dialog"] is None and stayed["waiting"] == 1
-                      and stayed["bar"] is not None, repr(stayed))
+                      and stayed["bar"] is not None and not stayed["layers"], repr(stayed))
+        # So the walk reaches its next way when this hold is red.
+        if stayed["layers"]:
+            await page.keyboard.press("Escape")
+            await page.wait_for_timeout(ACTED)
 
     await page.go_back()
     await page.wait_for_timeout(ACTED)
@@ -295,6 +472,9 @@ async def main():
         await hold_the_bar(browser, journal)
         await hold_each_way_asks(browser, journal)
         await hold_save(browser, journal)
+        await hold_nothing_under_the_bar(browser, journal)
+        await hold_search_as_one_types(browser, journal)
+        await hold_tab_bar_over_a_screen(browser, journal)
         await browser.close()
     journal.summary([])
 
