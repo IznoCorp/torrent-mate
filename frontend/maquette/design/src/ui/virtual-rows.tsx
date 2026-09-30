@@ -330,10 +330,16 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
     spacers.current.after.style.height = `${after}px`;
     spacers.current.after.style.display = after > 0 ? "" : "none";
 
-    // EVERY DRAWN LINE IS MEASURED, as the grid lays it: its drawnHeight row, and
-    // the gap under it. A line whose size moved is handed to the virtualiser,
-    // which re-renders once with the spacers above; a line that did not move
-    // costs a rectangle read and nothing else.
+    // EVERY DRAWN LINE IS MEASURED, as the grid lays it: the height of its
+    // tallest row, and the gap under it. A line whose size moved is handed to
+    // the virtualiser, which re-renders once with the spacers above; a line
+    // that did not move costs a rectangle read and nothing else.
+    //
+    // ONLY ONCE THE GEOMETRY IS THIS DRAWING'S. The first frames of a new
+    // drawing still carry the previous one's lanes: the gallery's tiles read
+    // as one-row lines, each resized as a line, and the virtualiser moved the
+    // port — and the reader's place with it — by the difference.
+    if (measuredFor !== properties.drawKey) return;
     for (let line = firstLine; line <= lastLine; line += 1) {
       let drawnHeight = 0;
       for (let index = line * activeLanes; index < Math.min(count, (line + 1) * activeLanes); index += 1) {
