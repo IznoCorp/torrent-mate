@@ -62,15 +62,17 @@ export function seasonCardOf(title: string, season: number): QueueCard | undefin
 
 /**
  * Whether a whole season of a medium is on its way — its card in flight, or its
- * pack arrived in the staging area.
+ * pack arrived in the staging area — IN ONE WORLD, the lists `/to-handle` answers
+ * for it: a recovery seeded in the dense world runs nowhere in the real one.
  *
  * @param title The medium.
+ * @param dense Whether the dense world is asked, else the real one.
  * @returns True while one is.
  */
-export function recoveringSeason(title: string): boolean {
+export function recoveringSeason(title: string, dense: boolean): boolean {
   const state = mockState();
-  return [...state.inFlight, ...state.inFlightReel, ...state.moving]
-    .some((card) => card.title === title && isSeason(card));
+  const lists = dense ? [...state.inFlight, ...state.moving] : [...state.inFlightReel, ...state.movingReel];
+  return lists.some((card) => card.title === title && isSeason(card));
 }
 
 /**

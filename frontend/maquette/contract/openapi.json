@@ -858,6 +858,21 @@
         "tags": [
           "acquisition"
         ],
+        "parameters": [
+          {
+            "name": "scenario",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "real",
+                "loaded"
+              ]
+            },
+            "description": "which body of data to answer with — the same dial `readAcquisitionQueue` takes. A follow's status reads what is on its way IN THAT WORLD: a whole season's recovery seeded in the dense one serves its follow `acquiring` there, never in the real one, where nothing of it runs."
+          }
+        ],
         "responses": {
           "200": {
             "description": "the follows",

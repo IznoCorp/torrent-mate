@@ -2576,7 +2576,10 @@ export interface operations {
     };
     readFollows: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description which body of data to answer with — the same dial `readAcquisitionQueue` takes. A follow's status reads what is on its way IN THAT WORLD: a whole season's recovery seeded in the dense one serves its follow `acquiring` there, never in the real one, where nothing of it runs. */
+                scenario?: "real" | "loaded";
+            };
             header?: never;
             path?: never;
             cookie?: never;

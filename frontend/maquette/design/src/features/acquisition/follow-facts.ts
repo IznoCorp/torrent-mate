@@ -93,7 +93,7 @@ export type FollowFacts = {
  *     panel cannot draw without.
  */
 export function followFacts(title: string, cache: PanelCache): FollowFacts | null {
-  const followed = cache.held<Follow[]>(followsQuery.queryKey);
+  const followed = cache.held<Follow[]>(followsQuery().queryKey);
   // NOT BEFORE WHAT IT STATES HAS LANDED: a panel drawn without the membership
   // or the incomplete shows says « not in the library » and « complete » about
   // a medium it simply has not asked about yet.

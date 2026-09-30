@@ -112,12 +112,15 @@ export function acquisitionRoutes(): MockRoute[] {
     // does. The engine deletes it at DETECTION today, earlier: a demand owed (DESIGN § 6.2).
     // A FOLLOW WHOSE WHOLE SEASON IS ON ITS WAY IS BEING ACQUIRED, as the engine
     // says of a follow with a grab running: never « en attente de torrent »
-    // beside the season's pack downloading.
-    route("readFollows", GET, "/api/acquisition/followed", () =>
-      mockState().follows
+    // beside the season's pack downloading. IN THE WORLD ASKED, as the queue
+    // is: a recovery the dense world holds runs nowhere in the real one.
+    route("readFollows", GET, "/api/acquisition/followed", (request) => {
+      const dense = request.query.get("scenario") === LOADED;
+      return mockState().follows
         .filter((follow) => follow.kind !== FILM_KIND || !isVerifiedInPlex(follow.title))
-        .map((follow) => (WAITING_ON_A_GRAB.has(follow.status) && recoveringSeason(follow.title)
-          ? { ...follow, status: BEING_ACQUIRED } : follow))),
+        .map((follow) => (WAITING_ON_A_GRAB.has(follow.status) && recoveringSeason(follow.title, dense)
+          ? { ...follow, status: BEING_ACQUIRED } : follow));
+    }),
     route("createFollow", POST, "/api/acquisition/followed", (request) => {
       const state = mockState();
       // BUILT FROM ITS OWN REQUEST, and from nothing else. An earlier version
