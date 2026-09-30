@@ -1,7 +1,8 @@
 // What the scrape could not decide alone.
 import { GET, POST, route, text } from "./shared";
 import { mockState } from "../state";
-import type { MockRoute } from "../router";
+import { refused, type MockRoute } from "../router";
+import MEDIA_SHEETS from "../seeds/media-sheets.json";
 import type { components } from "../../contract/types";
 
 /** Where a decision has got to, as the contract's own enum names it. */
@@ -91,6 +92,96 @@ function settle(
   return { state };
 }
 
+/** One candidate a decision offers, as the contract names it. */
+type DecisionCandidate = components["schemas"]["DecisionCandidate"];
+
+/** A media sheet of the seed, as far as a candidate reads it. */
+type SeededSheet = { year?: string; overview?: string; ids?: Record<string, string | number> };
+
+/** Why a folder sent to arbitration by hand is waiting, as the contract's token. */
+const SENT_BY_HAND = "manual";
+
+/** The status of an enqueue that finds nothing to send. */
+const NOT_FOUND = 404;
+
+/** The score a provider search gives a title found under its own name. */
+const OWN_NAME_SCORE = 1;
+
+/**
+ * The candidates a provider search finds for one title, read off the seeded sheets.
+ *
+ * A SHEET IS A MEDIUM THE PROVIDERS KNOW, so the sheets filed under the title —
+ * « Furious » and « Furious (2026) » — are what a search on that name answers.
+ * One identity is offered once, whichever key it was filed under.
+ *
+ * @param title The title searched.
+ * @returns The candidates, none when no sheet carries that title.
+ */
+function candidatesFor(title: string): DecisionCandidate[] {
+  const found = new Map<string, DecisionCandidate>();
+  for (const [name, sheet] of Object.entries(MEDIA_SHEETS as unknown as Record<string, SeededSheet>)) {
+    if (name !== title && !name.startsWith(`${title} (`)) continue;
+    const provider = sheet.ids?.tvdb ? "tvdb" : "tmdb";
+    const id = Number(sheet.ids?.[provider]);
+    if (!Number.isFinite(id) || found.has(`${provider}:${id}`)) continue;
+    found.set(`${provider}:${id}`, {
+      title: name,
+      year: Number(sheet.year),
+      provider,
+      id,
+      score: OWN_NAME_SCORE,
+      withoutPoster: true,
+      overview: sheet.overview ?? "",
+      poster: null,
+    });
+  }
+  return [...found.values()];
+}
+
+/**
+ * Sends a staged medium to arbitration: a pending decision, with candidates.
+ *
+ * IDEMPOTENT, the one refusal DOIT-4 allows: a folder already waiting answers
+ * the decision it has. A medium the engine identified alone leaves the settled
+ * list — its identification is what is being doubted — and waits again with
+ * the candidates a search on its title finds, or none, when the screen opens
+ * on the pre-filled manual search.
+ *
+ * @param mediaId The staged medium, which the layer names by its folder.
+ * @returns The enqueue's answer, or a refusal when nothing is staged under that name.
+ */
+function enqueue(mediaId: string): unknown {
+  const held = mockState();
+  const waiting = held.pendingDecisions.find((decision) => decision.folder === mediaId);
+  const identified = held.settledDecisions.find(
+    (decision) => decision.id === mediaId && decision.settledBy === "engine",
+  );
+  if (waiting === undefined && identified === undefined) {
+    return refused(NOT_FOUND, "no staged medium the engine identified is filed under that folder");
+  }
+  const decision = waiting ?? {
+    folder: identified!.folder,
+    kind: identified!.kind,
+    title: identified!.title,
+    reason: SENT_BY_HAND,
+    when: identified!.when,
+    year: identified!.year ?? null,
+    candidates: candidatesFor(identified!.title),
+  };
+  if (waiting === undefined) {
+    held.settledDecisions = held.settledDecisions.filter((settled) => settled !== identified);
+    held.pendingDecisions = [decision, ...held.pendingDecisions];
+  }
+  return {
+    ok: true,
+    mediaKind: decision.kind === "movie" ? "movie" : "tvshow",
+    title: decision.title,
+    decisionId: decision.folder,
+    candidatesCount: decision.candidates.length,
+    candidatesSeeded: decision.candidates.length > 0,
+  };
+}
+
 /** Every route this subject answers. */
 export function decisionRoutes(): MockRoute[] {
   return [
@@ -109,6 +200,9 @@ export function decisionRoutes(): MockRoute[] {
     }),
     route("dismissDecision", POST, "/api/decisions/{decisionId}/dismiss", (request) =>
       settle(request.parameters.decisionId, DISMISSED),
+    ),
+    route("enqueueForResolution", POST, "/api/staging/media/{mediaId}/enqueue", (request) =>
+      enqueue(request.parameters.mediaId),
     ),
     route("searchForDecision", POST, "/api/decisions/{decisionId}/search", (request) => {
       // A manual search over data that already exists: the candidates a
