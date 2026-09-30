@@ -8,10 +8,11 @@
 # Usage:
 #     frontend/maquette/harness/run.sh                      # every rule (the lot-close gate)
 #     frontend/maquette/harness/run.sh --rules a.py b.py    # the named rules only (a phase gate)
-#     frontend/maquette/harness/run.sh --ci                 # every rule a CI runner can run
+#     frontend/maquette/harness/run.sh --ci --shard 2/4     # a CI runner's share of the suite
 #
-# Fan-out: `TM_HARNESS_JOBS` (default 2). One headless Chrome per rule; run it
-# under `scripts/heavy.sh`, never beside another heavy run.
+# Fan-out: `TM_HARNESS_JOBS`, by default half the processors — one headless
+# Chrome per rule, and the machine's other half stays free for what else runs
+# on it.
 # `TM_HARNESS_LOG_DIR` keeps the per-rule logs and a `durations.tsv`.
 
 set -euo pipefail
@@ -26,13 +27,22 @@ CI_EXCLUDED=(entry.py pwa.py settings.py address.py)
 
 CI_MODE=0
 RULES_ONLY=0
+SHARD=""
 NAMED_RULES=()
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --ci) CI_MODE=1 ;;
     --rules) RULES_ONLY=1 ;;
+    --shard)
+      SHARD="${2:-}"
+      if ! [[ "$SHARD" =~ ^([1-9][0-9]*)/([1-9][0-9]*)$ ]] || [ "${BASH_REMATCH[1]}" -gt "${BASH_REMATCH[2]}" ]; then
+        echo "run.sh: --shard reads i/n with 1 <= i <= n — refused: $SHARD" >&2
+        exit 64
+      fi
+      shift
+      ;;
     -*)
-      echo "run.sh: unknown option $1 (known: --rules, --ci)" >&2
+      echo "run.sh: unknown option $1 (known: --rules, --ci, --shard i/n)" >&2
       exit 64
       ;;
     *)
@@ -72,6 +82,18 @@ else
     scripts+=("$rule")
   done
   label="full suite (${#scripts[@]} rules)"
+  if [ -n "$SHARD" ]; then
+    index="${SHARD%/*}"
+    count="${SHARD#*/}"
+    share=()
+    position=0
+    for rule in "${scripts[@]}"; do
+      [ $((position % count)) -eq $((index - 1)) ] && share+=("$rule")
+      position=$((position + 1))
+    done
+    scripts=("${share[@]}")
+    label="${label}, shard ${SHARD}: ${#scripts[@]} rules"
+  fi
 fi
 
 KEEP_LOGS=0
@@ -115,7 +137,8 @@ fi
 RULE_TIMEOUT_SECONDS="${TM_RULE_TIMEOUT_SECONDS:-600}"
 BOUND="$(command -v timeout || command -v gtimeout || true)"
 [ -n "$BOUND" ] || echo "run.sh: no timeout command on this machine — rules run unbounded" >&2
-JOBS="${TM_HARNESS_JOBS:-2}"
+PROCESSORS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)"
+JOBS="${TM_HARNESS_JOBS:-$(( (PROCESSORS + 1) / 2 ))}"
 if [ "$KEEP_LOGS" -eq 1 ]; then
   LOGS="$(cd "$TM_HARNESS_LOG_DIR" && pwd)"
 else
