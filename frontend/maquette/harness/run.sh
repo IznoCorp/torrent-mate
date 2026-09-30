@@ -591,12 +591,22 @@ fi
 guard_blocks_phase() {
   local out="$1"
   [ "$GUARD_ATTRIBUTION" -eq 1 ] || return 0
+  # An EMPTY touched set (HEAD is `origin/main` itself — the post-merge
+  # gesture, the references suite) has nothing to excuse a fall against: an
+  # empty diff used to match no candidate either, which read exactly like
+  # "every candidate is untouched" and demoted a fall on `main` to a warning.
+  [ -n "$TOUCHED_FILES" ] || return 0
   local candidates
   candidates="$(grep -oE '[A-Za-z0-9_./-]+\.(py|ts|tsx|mjs|json|md|css|html)' "$out" | sort -u)"
   [ -n "$candidates" ] || return 0
-  local path
+  local path normalised
   while IFS= read -r path; do
-    printf '%s\n' "$TOUCHED_FILES" | grep -qxF "$path" && return 0
+    # `git diff --name-only` lists repo-relative paths; a guard citing the
+    # SAME file as an absolute path (under `$REPOSITORY_ROOT`) or `./`-prefixed
+    # never matched that form, so a real, this-phase defect read as untouched.
+    normalised="${path#"$REPOSITORY_ROOT"/}"
+    normalised="${normalised#./}"
+    printf '%s\n' "$TOUCHED_FILES" | grep -qxF "$normalised" && return 0
   done <<< "$candidates"
   return 1
 }
