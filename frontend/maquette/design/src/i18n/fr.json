@@ -1121,6 +1121,35 @@
       "usePassword": "Utiliser un mot de passe",
       "invalid": "Identifiants invalides",
       "passwordRefused": "Ce compte se connecte avec Plex : il n'a pas de mot de passe ici."
+    },
+    "accounts": {
+      "accounts": "Les comptes",
+      "roles": "Les rôles",
+      "rightless": "sans droits",
+      "bypass": "contourne tous les droits",
+      "roleCount_one": "{{count}} droit",
+      "roleCount_other": "{{count}} droits",
+      "plexLinked": "compte Plex lié",
+      "plexNotLinked": "aucun compte Plex lié",
+      "oneRole": "Un compte a un seul rôle ; ses droits sont ceux du rôle.",
+      "notOwnRole": "Votre propre rôle ne se change pas d'ici : un autre gestionnaire le fait.",
+      "current": "rôle actuel",
+      "adminRole": "Le rôle Admin ne tient pas de liste : il contourne tous les droits, présents et à venir. Il ne se restreint ni ne se modifie.",
+      "defaultRole": "Le rôle de tout nouveau compte. Ses droits se règlent ici ; il ne se supprime ni ne se renomme.",
+      "grant": "Donner : {{right}}",
+      "withdraw": "Retirer : {{right}}",
+      "saved": "Enregistré.",
+      "refused": "Refusé : ce changement dépasse vos droits, ou laisserait le serveur sans Admin.",
+      "newRole": "Nouveau rôle",
+      "newRoleName": "Rôle {{count}}",
+      "newAccount": "Nouveau compte",
+      "name": "Nom",
+      "email": "Adresse e-mail (obligatoire)",
+      "initialRole": "Rôle de départ",
+      "plexHint": "Un compte Plex de même adresse lui est lié : il peut alors entrer par Plex.",
+      "create": "Créer le compte",
+      "emailRequired": "L'adresse e-mail est obligatoire.",
+      "createRefused": "La création a été refusée."
     }
   },
   "surfaces": {
@@ -1256,7 +1285,8 @@
       "cfg": "Réglages",
       "profile": "Profil et préférences",
       "404": "Adresse introuvable",
-      "noAccess": "Aucun accès"
+      "noAccess": "Aucun accès",
+      "accounts": "Comptes"
     },
     "groups": {
       "supervision": "Supervision",

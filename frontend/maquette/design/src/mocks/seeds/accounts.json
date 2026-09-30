@@ -154,5 +154,8 @@
         "paused": true
       }
     }
-  }
+  },
+  "plexUsers": [
+    "maya@example.invalid"
+  ]
 }

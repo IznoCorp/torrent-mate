@@ -204,6 +204,8 @@ function openAddressedPanel(address: string): void {
   else if (kind === "add") panel?.produce("add", reference);
   else if (kind === "torrent") panel?.produce("torrent", reference);
   else if (kind === "reassign") panel?.produce("reassign", reference);
+  else if (kind === "roster") panel?.produce("roster", reference);
+  else if (kind === "role") panel?.produce("role", reference);
   else panel?.produce("follow", reference);
 }
 

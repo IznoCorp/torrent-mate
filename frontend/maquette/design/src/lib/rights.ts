@@ -129,3 +129,41 @@ export function isOwn(acquisition: Requested, rights: Rights): boolean {
   if (rights.holds("acquisition.pilot.any")) return true;
   return (acquisition.requesters ?? []).some((one) => one.id === rights.id);
 }
+
+/** A role, as the roster answers it. */
+type Role = Schemas["Role"];
+
+/**
+ * Whether a role is the system's Admin — the one that bypasses the list and is
+ * neither restricted nor modified (ruling 22). Read HERE, beside the bypass, so
+ * no surface compares a role's kind itself.
+ *
+ * @param role The role.
+ * @returns True for the Admin role.
+ */
+export function bypassesRights(role: Role): boolean {
+  return role.kind === "admin";
+}
+
+/**
+ * Whether a role is the system's Default — every new account's, its rights
+ * configurable, its name not (ruling 22).
+ *
+ * @param role The role.
+ * @returns True for the Default role.
+ */
+export function isDefaultRole(role: Role): boolean {
+  return role.kind === "default";
+}
+
+/**
+ * Whether two answers name the same role — by its key, the one thing that
+ * identifies it (a name can be changed in « Comptes »).
+ *
+ * @param one A role.
+ * @param other Another.
+ * @returns True when both are one role.
+ */
+export function sameRole(one: Role, other: Role): boolean {
+  return one.id === other.id;
+}

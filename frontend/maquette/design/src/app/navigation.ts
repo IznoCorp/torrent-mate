@@ -32,6 +32,7 @@
 import type { ReactElement } from "react";
 
 import { AccountPage } from "../features/account/page";
+import { AccountsPage } from "../features/account/accounts-page";
 import { AcquisitionPage } from "../features/acquisition/page";
 import { acquisitionBadge, useAcquisitionBadgeReads } from "../features/acquisition/queries";
 import { DiscoverPage } from "../features/acquisition/discover-page";
@@ -228,6 +229,22 @@ export const NAVIGATION: readonly NavigationRow[] = [
     icon: icons.sort,
     group: "configuration",
     inBar: false,
+  },
+  {
+    // « COMPTES », A FIRST-LEVEL PAGE OF THE MENU, beside Réglages (round 8 Q9 =
+    // B): the accounts, their roles and the roles' rights. Marked, never hidden,
+    // for an account that does not manage them (OPEN 3 = B).
+    id: "accounts",
+    path: PAGE_PATHS.accounts,
+    Body: AccountsPage,
+    root: "body",
+    region: "accounts/body",
+    labelKey: "navigation.pages.accounts",
+    icon: icons.user,
+    group: "configuration",
+    inBar: false,
+    opens: ["accounts.manage"],
+    lacking: "reserved",
   },
   {
     // french-ok: this id IS the value of `state.page` and the page's address.

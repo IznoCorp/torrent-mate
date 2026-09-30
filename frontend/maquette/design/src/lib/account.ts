@@ -54,3 +54,9 @@ export function useRights(): Rights {
 export function heldRights(): Rights {
   return rightsOf(sharedQueryClient?.getQueryData<Account>(accountQuery.queryKey));
 }
+
+/** Every account and every role (demand F) — « Comptes » reads it, and the reassign chooser narrowly (F46). */
+export const accountsQuery = {
+  queryKey: ["/api/accounts"],
+  queryFn: async () => read<Schemas["Roster"]>("/api/accounts"),
+};

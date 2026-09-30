@@ -19,9 +19,9 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 80 |
+| operations the interface requires | 84 |
 | operations the backend has | 65 |
-| required and missing | 29 |
+| required and missing | 33 |
 | declared by both, different response shape | 51 |
 | declared by both, path parameter spelled differently | 15 |
 | declared by both, answered with a different status | 10 |
@@ -54,11 +54,15 @@ than a blank page.
 | `GET /api/system/errors` | `readErrors` | How many errors, out of how many runs, and the latest |
 | `GET /api/system/services` | `readServices` | The services, and whether each answers |
 | `GET /api/trackers` | `readTrackers` | Every configured tracker, its ratio, volumes, trend, alert threshold and health |
+| `PATCH /api/accounts/{accountId}` | `updateAccount` | Assign an account its one role |
+| `PATCH /api/roles/{roleId}` | `updateRole` | Rename a role or set its rights |
+| `POST /api/accounts` | `createAccount` | Create an account |
 | `POST /api/acquisition/followed/{followedId}/restore` | `restoreFollow` | Put a removed follow back, as it was |
 | `POST /api/acquisition/journeys/{infoHash}/plex-match` | `resolvePlexMatch` | Confirm or correct the match Plex made for a medium — the Plex match's CORRECTION VERB, OPEN 9's fifth demand; the disagreement is POSED in the maquette (RULINGS 24), the backend compares Plex's real match with the identity held |
 | `POST /api/acquisition/requesters/reassign` | `reassignRequester` | Move one requester of an acquisition to another account |
 | `POST /api/auth/plex` | `signInWithPlex` | Open a session through Plex |
 | `POST /api/media/{provider}/{providerId}/rescrape` | `rescrapeMedia` | Ask the providers for one medium's metadata again |
+| `POST /api/roles` | `createRole` | Create an ordinary role |
 | `POST /api/staging/media/{mediaId}/reclassify` | `reclassifyStagedMedia` | File a folder that is not a medium where the sort files its kind |
 | `POST /api/trackers/{tracker}/broken-obligations/{infoHash}/seen` | `markBrokenObligationSeen` | Mark one broken obligation of a tracker seen |
 | `PUT /api/acquisition/followed/{followedId}/pause` | `setAcquisitionPause` | Set the caller's pause on one acquisition |

@@ -27,6 +27,7 @@ export const PAGE_PATHS: Readonly<Record<string, string>> = {
   cfg: "/settings",
   profile: "/account",
   "no-access": "/no-access",
+  accounts: "/accounts",
 };
 
 /** The page an address names, for every path the table above declares. */

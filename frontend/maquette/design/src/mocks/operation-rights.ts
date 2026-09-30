@@ -35,6 +35,10 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   readVersion: null,
   // The roster: « Comptes » manages it; the reassign chooser reads it narrowly (F46).
   readAccounts: ["accounts.manage", "acquisition.reassign"],
+  createAccount: "accounts.manage",
+  updateAccount: "accounts.manage",
+  createRole: "accounts.manage",
+  updateRole: "accounts.manage",
 
   readLibraryItems: "library.read",
   readLibraryCategories: "library.read",

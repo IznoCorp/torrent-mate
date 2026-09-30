@@ -12,7 +12,9 @@ DESIGN maquette-l18 § 3.4, § 5 (R-L18-g, R-L18-h, R-L18-k), F33, F65, round 9 
    account's own card the verb is offered and the call is not refused. A guest's « À traiter »
    card carries no foot of the pipeline's decisions (`pipeline.control`).
 4. Round 9 Q16 — A CARD SEVERAL ACCOUNTS ASKED FOR NAMES THEM ALL on its line.
-5. R-L18-h — THE SECTION ABSENT: a Default-only account has no Acquisition in the bar and none
+5. R-L18-x — A COLD BOOT LANDS ON THE REMEMBERED TAB: before the account is read nothing is
+   known to be closed, so the owner's first Acquisition is « Suivis », not a fallback.
+6. R-L18-h — THE SECTION ABSENT: a Default-only account has no Acquisition in the bar and none
    in the drawer.
 
 WHAT IT DOES NOT READ: reassigning (R283), quality and pause (R284).
@@ -60,6 +62,10 @@ async def main():
         async def go(state, wait=SETTLED):
             await page.evaluate("(id)=>window.__go(id)", state)
             await page.wait_for_timeout(wait)
+
+        tab = await page.evaluate("()=>window.__store.read().state.acqTab")
+        journal.check("R-L18-x: a cold boot lands the owner on the remembered tab, « Suivis »", tab == "follows",
+                      str(tab))
 
         await go("acq-household")
         await page.evaluate(QUIET)

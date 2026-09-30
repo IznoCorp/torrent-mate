@@ -30,7 +30,7 @@ TABLE = (SOURCE / "app/navigation.ts").read_text(encoding="utf-8")
 IN_BAR = [identifier for identifier, flag
           in re.findall(r'\bid: "([^"]+)",.*?\binBar: (true|false)', TABLE, re.S) if flag == "true"]
 ACQUISITION_SIDE = ["acq", "lib", "discover"]
-RESERVED = ["trackers", "sys", "maint", "cfg"]
+RESERVED = ["trackers", "sys", "maint", "cfg", "accounts"]
 
 BAR = """() => {
   const bar = document.querySelector('#nav');
@@ -86,7 +86,7 @@ async def main():
         await go("drawer-household")
         entries = await page.evaluate(DRAWER)
         marked = sorted(one["page"] for one in entries if one["reserved"])
-        journal.check("R-L18-f: the drawer draws Trackers, Système, Maintenance, Réglages MARKED",
+        journal.check("R-L18-f: the drawer draws Trackers, Système, Maintenance, Réglages, Comptes MARKED",
                       marked == sorted(RESERVED), str(marked))
         counted = [one["page"] for one in entries if one["reserved"] and one["count"]]
         journal.check("R-L18-e: a marked entry carries no count", not counted, str(counted))

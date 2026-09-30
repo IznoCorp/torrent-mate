@@ -16,6 +16,7 @@ import { installJourneyVerbs } from "../features/acquisition/journey-verbs";
 import { installPlexVerbs } from "../features/acquisition/plex-verbs";
 import { installReassignVerb } from "../features/acquisition/reassign";
 import { installAcquisitionSettingVerbs } from "../features/acquisition/acquisition-settings";
+import { installRosterVerbs } from "../features/account/roster-panels";
 import { installMaintenanceVerbs } from "../features/maintenance/action-verbs";
 import { installMediaVerbs } from "../features/media/media-verbs";
 
@@ -35,6 +36,7 @@ export function installFeatureVerbs(client: QueryClient): void {
   installPlexVerbs(client);
   installReassignVerb(client);
   installAcquisitionSettingVerbs(client);
+  installRosterVerbs(client);
   installMaintenanceVerbs(client);
   installMediaVerbs(client);
 }

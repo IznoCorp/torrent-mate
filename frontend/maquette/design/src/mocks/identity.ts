@@ -31,6 +31,14 @@ type Dialled = {
   preferences: Record<string, Record<string, Preference>>;
   /** Roles whose rights were set since the seed, by role id. */
   roleRights: Record<string, Right[]>;
+  /** Roles renamed since the seed, by role id. */
+  roleNames: Record<string, string>;
+  /** Roles « Comptes » created. */
+  createdRoles: Role[];
+  /** Accounts « Comptes » created. */
+  createdAccounts: HeldAccount[];
+  /** Accounts assigned another role since the seed, by account id. */
+  assigned: Record<string, string>;
 };
 
 /** One requester's own settings on one acquisition (round 10 Q6). */
@@ -52,6 +60,10 @@ function dials(): Dialled {
       moved: {},
       preferences: structuredClone(ACCOUNTS.preferences) as Record<string, Record<string, Preference>>,
       roleRights: {},
+      roleNames: {},
+      createdRoles: [],
+      createdAccounts: [],
+      assigned: {},
     };
     dialled.set(held, found);
   }
@@ -60,13 +72,16 @@ function dials(): Dialled {
 
 /** Every role the layer holds. */
 export function roles(): Role[] {
-  const edited = dials().roleRights;
-  return (ACCOUNTS.roles as Role[]).map((role) =>
-    edited[role.id] ? { ...role, rights: [...edited[role.id]] } : role);
+  const { roleRights, roleNames, createdRoles } = dials();
+  return [...(ACCOUNTS.roles as Role[]), ...createdRoles].map((role) => ({
+    ...role,
+    name: roleNames[role.id] ?? role.name,
+    rights: [...(roleRights[role.id] ?? role.rights)],
+  }));
 }
 
 /** The role one id names. */
-function roleFor(id: string): Role {
+export function roleFor(id: string): Role {
   const role = roles().find((one) => one.id === id);
   if (role === undefined) throw new Error(`no role is seeded under ${id}`);
   return role;
@@ -83,11 +98,22 @@ export type HeldAccount = {
 
 /** Every account: the owner first, then the invented ones. */
 export function heldAccounts(): HeldAccount[] {
+  const { assigned, createdAccounts } = dials();
   return [
     { id: ACCOUNT.id, name: accountName(), email: ACCOUNT.email, role: ACCOUNT.role, plexLinked: ACCOUNT.plexLinked },
     ...ACCOUNTS.accounts,
-  ];
+    ...createdAccounts,
+  ].map((one) => ({ ...one, role: assigned[one.id] ?? one.role }));
 }
+
+/** What « Comptes » writes, over the layer's own state (demands G, H). */
+export const roster = {
+  addRole: (role: Role) => { dials().createdRoles.push(role); },
+  renameRole: (id: string, name: string) => { dials().roleNames[id] = name; },
+  setRoleRights: (id: string, rights: Right[]) => { dials().roleRights[id] = [...rights]; },
+  addAccount: (account: HeldAccount) => { dials().createdAccounts.push(account); },
+  assign: (id: string, role: string) => { dials().assigned[id] = role; },
+};
 
 /** The account dialled in, in the roster's shape. */
 function dialledAccount(): HeldAccount {
@@ -233,6 +259,6 @@ export const identityDials: IdentityDials = {
   setInventedRequests: (on) => { dials().inventedRequests = on; },
   setRoleRights: (roleId, rights) => {
     roleFor(roleId);
-    dials().roleRights[roleId] = [...rights];
+    roster.setRoleRights(roleId, rights);
   },
 };

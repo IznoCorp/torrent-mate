@@ -54,8 +54,11 @@ export function landingTab(asked?: string): string {
   if (location.pathname.startsWith(CANDIDATES_SCREEN)) return "todo";
   // THE VIEWER'S MEMORY IS THE VIEWER'S (R-L18-x): a tab remembered under a role
   // that opened it is ignored under one that does not.
+  // Before the account is read nothing is known to be closed: the memory stands.
   const remembered = rememberedTab();
-  return tabsOpenTo(heldRights()).includes(remembered) ? remembered : tabsOpenTo(heldRights())[0] ?? remembered;
+  const rights = heldRights();
+  if (!rights.known) return remembered;
+  return tabsOpenTo(rights).includes(remembered) ? remembered : tabsOpenTo(rights)[0] ?? remembered;
 }
 
 /**

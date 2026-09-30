@@ -18,15 +18,10 @@ import { registerVerb } from "../../lib/verbs";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 import type { Schemas } from "../../lib/contract-schemas";
 import { rightsOf } from "../../lib/rights";
+import { accountsQuery } from "../../lib/account";
 import { heldAcquisition } from "./act-rights";
 import { followsQuery } from "./queries";
 import { queueKey } from "../../lib/queue";
-
-/** The roster, as the chooser reads it (demand F, narrowly — F46). */
-export const accountsQuery = {
-  queryKey: ["/api/accounts"],
-  queryFn: async () => read<Schemas["Roster"]>("/api/accounts"),
-};
 
 // What separates the parts of a subject and of a verb's value: a title may
 // carry a colon, never this.

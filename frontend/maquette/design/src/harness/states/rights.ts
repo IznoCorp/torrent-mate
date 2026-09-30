@@ -45,6 +45,12 @@ function tap(selector: string): void {
   document.querySelector<HTMLElement>(selector)?.click();
 }
 
+// A manager who is not Admin: the spectator's role, given accounts.manage.
+const MANAGER_RIGHTS: Right[] = ["library.read", "acquisition.see.others", "accounts.manage", "acquisition.request"];
+
+// How long the creation form waits for the roster before it is submitted empty.
+const CREATE_AFTER = 400;
+
 // A title the library holds, whose sheet offers the library's writes.
 const OWNED = "American Dad!";
 
@@ -262,6 +268,60 @@ export function rightsStates(): NamedState[] {
         window.__mocks?.setIdentity("plex-without-rights");
         showGate();
         tap('[data-part="login/plex-submit"]');
+      },
+    ],
+    [
+      "accounts-roster",
+      "Comptes — la liste : un compte par ligne, son rôle, son lien Plex ; « sans droits » pour le rôle par défaut",
+      () => {
+        reread();
+        applyState({ page: "accounts", phase: "ready" });
+      },
+    ],
+    [
+      "accounts-detail",
+      "Comptes — un compte ouvert : son rôle, et les rôles qu'on peut lui donner",
+      () => {
+        applyState({ page: "accounts", phase: "ready" });
+        window.__panel.produce("roster", "household-member");
+      },
+    ],
+    [
+      "accounts-roles",
+      "Comptes — un rôle ouvert : chaque droit, donné ou retiré",
+      () => {
+        applyState({ page: "accounts", phase: "ready" });
+        window.__panel.produce("role", "household");
+      },
+    ],
+    [
+      "accounts-escalation-greyed",
+      "Comptes — un gestionnaire qui n'est pas Admin : ce qui dépasse ses droits est grisé, l'Admin absent",
+      () => {
+        window.__mocks?.setRoleRights("spectator", MANAGER_RIGHTS);
+        as("see-only");
+        applyState({ page: "accounts", phase: "ready" });
+        window.__panel.produce("roster", "household-member");
+      },
+    ],
+    [
+      "accounts-create-refused",
+      "Comptes — un nouveau compte sans adresse e-mail, refusé",
+      () => {
+        applyState({ page: "accounts", phase: "ready" });
+        window.setTimeout(() => {
+          const form = document.querySelector<HTMLFormElement>('[data-part="accounts/create"]');
+          (form?.elements.namedItem("name") as HTMLInputElement | null)?.setAttribute("value", "Maya");
+          form?.requestSubmit();
+        }, CREATE_AFTER);
+      },
+    ],
+    [
+      "accounts-forbidden",
+      "Comptes — ouvert par un membre du foyer : la page dit le droit qui manque",
+      () => {
+        as("household-member");
+        applyState({ page: "accounts", phase: "ready" });
       },
     ],
     [
