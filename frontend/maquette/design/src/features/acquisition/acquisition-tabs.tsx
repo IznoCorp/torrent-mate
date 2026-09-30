@@ -9,7 +9,7 @@ import { moreButton } from "../../ui/variants";
 import { inFlightCards, todoCards } from "./arrival-slots";
 import { useRights } from "../../lib/account";
 import { isOwn } from "../../lib/rights";
-import { tabsOpenTo } from "./tab-memory";
+import { drawnTab, tabsOpenTo } from "./tab-memory";
 
 // The tab bar, and the « more » control that opens the watch-and-obligations
 // sheet. Shared by the four surfaces below.
@@ -40,7 +40,7 @@ export function AcquisitionTabs(): ReactElement {
   return (
     <Tabs
       tabs={tabs}
-      selected={String(state.acqTab)}
+      selected={drawnTab(String(state.acqTab), rights)}
       attribute="data-acqtab"
       data-region="acquisition/tabs"
       trailing={

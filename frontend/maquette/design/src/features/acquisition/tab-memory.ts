@@ -83,3 +83,17 @@ export function tabsOpenTo(rights: Rights): string[] {
 export function rememberTab(tab: string): void {
   MEMORY.remember(tab);
 }
+
+/**
+ * The tab Acquisition DRAWS for a dial: the dial's own when the account opens
+ * it, else its first open tab — so the bar marks the tab the body shows. Before
+ * the account is read, the dial stands.
+ *
+ * @param dial The tab the state holds.
+ * @param rights What the account may do.
+ * @returns The tab drawn.
+ */
+export function drawnTab(dial: string, rights: Rights): string {
+  const open = tabsOpenTo(rights);
+  return !rights.known || open.includes(dial) ? dial : open[0] ?? dial;
+}

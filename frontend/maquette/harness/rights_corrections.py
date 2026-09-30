@@ -181,9 +181,12 @@ async def main():
         # 6 — « À TRAITER » FOLLOWS ITS RIGHT.
         await go("acq-guest")
         places = await page.evaluate("""() => ({ tab: !!document.querySelector('[data-acqtab="todo"]'),
+          marked: document.querySelector('[data-acqtab][aria-selected="true"]')?.dataset.acqtab ?? null,
           badge: Number(document.querySelector('#nav button[data-page="acq"] [data-part="shell/tab-badge"]')?.textContent || 0) })""")
         journal.check("6: a guest without the right has no « À traiter » and no count from it",
                       not places["tab"] and places["badge"] == 0, str(places))
+        journal.check("6: the tab the body draws instead is the one the bar marks", places["marked"] == "follows",
+                      str(places))
         await go("acq-household")
         holder = await page.evaluate("()=>!!document.querySelector('[data-acqtab=\"todo\"]')")
         journal.check("6: a household member holds it", holder)

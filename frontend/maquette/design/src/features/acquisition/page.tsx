@@ -14,7 +14,7 @@ import { FollowsTab } from "./follows-tab";
 import { NowTab } from "./now-tab";
 import { TodoTab } from "./todo-tab";
 import { useRights } from "../../lib/account";
-import { tabsOpenTo } from "./tab-memory";
+import { drawnTab } from "./tab-memory";
 
 export function AcquisitionPage(): ReactElement | null {
   const state = useUiState();
@@ -28,9 +28,7 @@ export function AcquisitionPage(): ReactElement | null {
   useStoreContent((content) => content.version);
   // A TAB THE ACCOUNT DOES NOT OPEN IS NEVER DRAWN (§ 17), whatever the dial
   // holds: its first open tab is. Before the account is read, the dial stands.
-  const rights = useRights();
-  const open = tabsOpenTo(rights);
-  const tab = !rights.known || open.includes(String(state.acqTab)) ? state.acqTab : open[0];
+  const tab = drawnTab(String(state.acqTab), useRights());
   if (tab === "now") {
     return (
       <>
