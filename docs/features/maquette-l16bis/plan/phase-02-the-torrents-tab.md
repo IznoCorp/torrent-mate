@@ -27,15 +27,9 @@ line); the `ui` legend's tones on the train's head → six, no `danger`, no `neu
   `torrents-list` (seven tones, no entry).
 - Re-aimed OUT LOUD: `trackers_page.py`'s cold landing (successor R-L16bis-a); the RULINGS 3 reads of
   `trackers_page.py` and `trackers_roster.py` (successor R-L16bis-b).
-- Named states: every S1 and S2 id, `torrents-legend` and `torrents-legend-partial`; the oracle accepts every
-  « Torrents » state by name.
+- Named states: every S1 and S2 id, `torrents-legend` and `torrents-legend-partial`.
 - Walked by finger: a cold entry, a second visit after « Trackers », « Voir le tracker » naming `trackers:c411`; the
   selector's panel opened and closed with Retour.
-
-## The midpoint — after this phase, once
-
-`run.sh --contracts` and the full responsive sweep (Chromium + WebKit), `TM_HARNESS_JOBS=2`; their real falls
-repaired before phase 3 opens.
 
 ## Commit
 

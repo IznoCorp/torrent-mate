@@ -6,7 +6,8 @@
     "uploadedBytes": 628181442560,
     "trend": "up",
     "alertThreshold": null,
-    "identifierRefusedSince": null,
+    "enabled": true,
+    "disabled": null,
     "brokenObligations": []
   },
   {
@@ -16,7 +17,67 @@
     "uploadedBytes": 22441204121,
     "trend": "down",
     "alertThreshold": null,
-    "identifierRefusedSince": null,
+    "enabled": true,
+    "disabled": null,
+    "brokenObligations": []
+  },
+  {
+    "name": "lacale",
+    "ratio": null,
+    "downloadedBytes": 0,
+    "uploadedBytes": 0,
+    "trend": "stable",
+    "alertThreshold": null,
+    "enabled": false,
+    "disabled": {
+      "by": "failure",
+      "reason": "unreachable",
+      "message": "Tracker injoignable : la-cale.space ne répond plus.",
+      "since": 1789171200
+    },
+    "brokenObligations": []
+  },
+  {
+    "name": "v3x.club",
+    "ratio": 2.4,
+    "downloadedBytes": 18253611008,
+    "uploadedBytes": 43808666419,
+    "trend": "up",
+    "alertThreshold": null,
+    "enabled": true,
+    "disabled": null,
+    "brokenObligations": []
+  },
+  {
+    "name": "draupnirr.xyz",
+    "ratio": 1.05,
+    "downloadedBytes": 9663676416,
+    "uploadedBytes": 10146860236,
+    "trend": "stable",
+    "alertThreshold": null,
+    "enabled": false,
+    "disabled": {
+      "by": "operator",
+      "reason": null,
+      "message": null,
+      "since": null
+    },
+    "brokenObligations": []
+  },
+  {
+    "name": "digitalcore.club",
+    "ratio": 0.91,
+    "downloadedBytes": 5368709120,
+    "uploadedBytes": 4885525299,
+    "trend": "down",
+    "alertThreshold": null,
+    "enabled": false,
+    "disabled": {
+      "by": "failure",
+      "reason": "identifierRefused",
+      "message": "Identifiant refusé par le tracker (HTTP 403).",
+      "since": 1789862400
+    },
     "brokenObligations": []
   }
 ]

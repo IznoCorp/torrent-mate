@@ -38,7 +38,7 @@ the contract's `Download` → 16 fields, none of `addedAt`, `swarmSeeds`, a rate
   `trackers_alert.py`, `follow_offered.py`, `paths_to_sheets.py` (the title → `card/title`; the path to the sheet →
   the poster; the removal → the panel's action, the swipe a second door).
 - Named states (DESIGN § 3, S4–S6): every S4, S5 and S6 id, `torrent-card-film` and `torrent-panel-episode`
-  included; the oracle accepts every « Torrents » state by name, and those alone.
+  included.
 - Walked by finger at 369 px: the poster → the sheet → Retour → « Torrents »; « Identifier » → the resolution
   screen → Retour; a swipe → the confirmation → « Annuler ».
 - `python3 scripts/compare-contracts.py --check`, `python3 scripts/check-mock-seeds.py`, read by OUTPUT.

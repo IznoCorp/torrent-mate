@@ -37,6 +37,12 @@ the confirmation calls the operation.
     the interface. The subject is POSED by `poseExternalRemoval`, a derivation
     shown as one: no real obligation has been released.
 
+RE-AIMED OUT LOUD (L16-bis, the torrent card): the gesture was a text button
+« Retirer de qBittorrent » on the row (`torrents/remove`); the row is a media card
+now, and the gesture is its PANEL's action — a finger on the card's body, then on
+the action. The swipe's drawer is its second door, held by R-L16bis-f
+(`trackers_card.py`).
+
 RE-AIMED OUT LOUD: hold 4 read « the same files' other entry is still there »,
 the grouped removal being left for later. It is now this rule's — round 9 Q7:
 the gesture takes every entry sharing the files with it, both gone from the tab
@@ -104,6 +110,24 @@ OBLIGATION = """(hash) => (window.__queries?.getQueryData(["/api/acquisition/obl
   .find(item => item.infoHash === hash) ?? null"""
 
 
+async def open_removal(page, entry):
+    """A finger on an entry's card body, then on its panel's « Retirer de qBittorrent »; True when both were there."""
+    body = page.locator(f'#view [data-part="torrents/row"][data-entry="{entry["infoHash"]}"]'
+                        f'[data-tracker="{entry["tracker"]}"] [data-part="card/body"]')
+    if not await body.count():
+        return False
+    await body.first.tap()
+    await page.wait_for_timeout(ACTED)
+    action = page.locator(f'#sheet[data-open] [data-part="sheet/action"]'
+                          f'[data-torrent-remove="{entry["infoHash"]}:{entry["tracker"]}"]')
+    if not await action.count():
+        return False
+    words = await action.first.text_content()
+    await action.first.tap()
+    await page.wait_for_timeout(ACTED)
+    return WORDS.get("remove", "<no copy>") in (words or "")
+
+
 async def enter(page, state):
     """Drives a named state; returns the error it raised, or None."""
     answer = await page.evaluate(
@@ -135,17 +159,9 @@ async def main():
                       and key in await page.evaluate(ROWS) and await page.evaluate(DIALOG) is None,
                       f"cancelled {cancelled}")
 
-        # A FINGER on the row's own gesture, then the confirmation.
+        # A FINGER on the card, then on its panel's action, then the confirmation.
         answer = await enter(page, "torrents-list")
-        gesture = page.locator(
-            f'#view [data-part="torrents/row"][data-entry="{REMOVED["infoHash"]}"]'
-            f'[data-tracker="{REMOVED["tracker"]}"] [data-part="torrents/remove"]')
-        journal.check("the row carries « Retirer de qBittorrent »",
-                      await gesture.count() == 1 and WORDS.get("remove", "<no copy>") in (
-                          await gesture.first.text_content() if await gesture.count() else ""), "")
-        if await gesture.count():
-            await gesture.first.tap()
-            await page.wait_for_timeout(ACTED)
+        journal.check("the card's panel carries « Retirer de qBittorrent »", await open_removal(page, REMOVED), "")
         confirmed = await page.evaluate(PRESS, True)
         await page.wait_for_timeout(SETTLED)
         answered = await page.evaluate(ANSWERED, OPERATION)
@@ -200,12 +216,7 @@ async def main():
 
         # ── a BROKEN obligation is not a running one ─────────────────────────
         await enter(page, "torrent-obligation-breached")
-        gesture = page.locator(
-            f'#view [data-part="torrents/row"][data-entry="{BREACHED["infoHash"]}"]'
-            f'[data-tracker="{BREACHED["tracker"]}"] [data-part="torrents/remove"]')
-        if await gesture.count():
-            await gesture.first.tap()
-            await page.wait_for_timeout(ACTED)
+        await open_removal(page, BREACHED)
         text = await page.evaluate(DIALOG) or ""
         journal.check(f"« {BREACHED['title']} », its obligation broken, is never announced « {obligation} … »",
                       BREACHED["title"] in text and obligation not in text, repr(text))
@@ -214,11 +225,7 @@ async def main():
         # ── a removal HELD offline is never said done ────────────────────────
         await enter(page, "torrents-list")
         await page.evaluate("()=>window.__mocks.setOffline(true)")
-        gesture = page.locator(
-            f'#view [data-part="torrents/row"][data-entry="{HELD_SUBJECT["infoHash"]}"] [data-part="torrents/remove"]')
-        if await gesture.count():
-            await gesture.first.tap()
-            await page.wait_for_timeout(ACTED)
+        await open_removal(page, HELD_SUBJECT)
         await page.evaluate(WATCH_TOASTS)
         confirmed = await page.evaluate(PRESS, True)
         await page.wait_for_timeout(SETTLED)

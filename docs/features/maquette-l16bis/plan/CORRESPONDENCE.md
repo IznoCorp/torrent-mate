@@ -25,7 +25,6 @@ and its pages `docs/features/maquette-l16bis/plan/phase-NN-….md@9234341fc` (`g
 | 8 the torrent card | the card, the whole name, the `wrap` value, the marks; R-L16bis-d's whole-name half; re-aims | 1 |
 | 9 the card's facts | the state chip, size, sources, date, DECIDED 1's three states, the progress fill; R-L16bis-d's facts | 1 |
 | 10 the poster and the panel | the poster, the folder side (DECIDED 2), the panel; R-L16bis-e; re-aims | 1 |
-| 10 | the midpoint « after phase 10 » | after 2 |
 | 11 the swipe | the right drawer, the confirmation; R-L16bis-f; no left drawer (DECIDED 9) | 1 |
 | 12 the tracker selector | the pill, the panel of choices, RULINGS 3's line deleted; R-L16bis-b | 2 |
 | 13 the switch | the switch, one write two doors; R-L16bis-g; `trackers_roster.py` re-aimed | 3 |
@@ -37,7 +36,7 @@ and its pages `docs/features/maquette-l16bis/plan/phase-NN-….md@9234341fc` (`g
 | 17 Découvrir's header | the move, the count (DECIDED 8); R-L16bis-k | 4 |
 | 18 the records | the four register rows of DESIGN § 6 | 2 (legend), 3 (a component redrawn), 4 (literals as figures); train (three tab bars) |
 | 18 | the states confronted with DESIGN § 3; demands T1–T3; the fixture register; L17's ledger line | 5 |
-| 19 the close | the map's proposal, the demands' counters, the report, the lot's mutations | 5 (the gate); the reader round (ten random mutations, order 99) |
+| 19 the close | the map's proposal, the demands' counters, the report | 5 (the gate); the reader round |
 
 ## 2. The rulings
 

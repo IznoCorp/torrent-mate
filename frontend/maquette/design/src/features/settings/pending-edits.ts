@@ -10,6 +10,7 @@ import { settingIdentifier } from "./catalog";
 import { heldSettings } from "./queries";
 import type { Setting } from "./types";
 import { SETTINGS_STATE } from "./state";
+import { fillPendingEditsDoor } from "../../lib/save-bar-door";
 
 /**
  * The value a field must draw.
@@ -66,3 +67,17 @@ export function changeSetting(identifier: string, value: unknown): void {
   else pending.set(identifier, value);
   store.touch();
 }
+
+/* THE SAME TABLE, OFFERED TO ANOTHER DOOR: a setting a page draws beside its
+   subject — a tracker's activation, on its roster row — is filed here, counted
+   in the same save bar and written by the same save. Filing it again forgets
+   the refusal its last write earned. */
+fillPendingEditsDoor({
+  pending: (identifier) =>
+    SETTINGS_STATE.modifs.has(identifier) ? { value: SETTINGS_STATE.modifs.get(identifier) } : undefined,
+  file: (identifier, value) => {
+    SETTINGS_STATE.refused.delete(identifier);
+    changeSetting(identifier, value);
+  },
+  refusal: (identifier) => SETTINGS_STATE.refused.get(identifier),
+});

@@ -187,6 +187,19 @@ export const skeleton = cva(
 export const liveStrip = cva(
   "live flex items-center gap-4 border border-border rounded-3 py-4 px-5 " +
     "text-2 text-muted-foreground bg-card",
+  {
+    variants: {
+      // INLINE: the strip set in a row another control shares — the view switch's
+      // — so its border and its ground drop, it takes the row's free room, and its
+      // one line ends in an ellipsis at the control; its whole is on a tap. It is
+      // the only text allowed to stop short, being secondary and whole elsewhere.
+      inline: {
+        true: "min-w-0 flex-1 min-h-[44px] [border:0] bg-transparent py-0 px-0 text-left cursor-pointer [&>span:last-child]:min-w-0 [&>span:last-child]:overflow-hidden [&>span:last-child]:text-ellipsis [&>span:last-child]:whitespace-nowrap",
+        false: "",
+      },
+    },
+    defaultVariants: { inline: false },
+  },
 );
 
 /**
@@ -230,7 +243,10 @@ export const factsPanel = cva("panel border border-border bg-card rounded-3 py-1
 export const keyValueRow = cva(
   "kv flex justify-between gap-6 py-4 px-0 border-b border-border text-3 last:border-b-0 " +
     "[&_span:first-child]:text-muted-foreground " +
-    "[&_span:last-child]:flex [&_span:last-child]:items-center [&_span:last-child]:gap-3",
+    "[&_span:last-child]:flex [&_span:last-child]:items-center [&_span:last-child]:gap-3 " +
+    // A VALUE IS NEVER CUT (§ 12): a release name has no space to break at, so it
+    // breaks anywhere and the row grows, rather than running out of the panel.
+    "[&>span:last-child]:min-w-0 [&>span:last-child]:[overflow-wrap:anywhere]",
   {
     variants: {
       withPip: {
@@ -266,8 +282,15 @@ export const factRow = cva("fx [.fx+&]:border-t [.fx+&]:border-t-border", {
     empty: { true: "fempty", false: "" },
     blocked: { true: "fblocked", false: "" },
     withTarget: { true: "fclick", false: "" },
+    // A ROW WITH A CONTROL AT ITS END — a switch beside the body that opens the
+    // row's subject: the body takes the line's room, the control keeps its own,
+    // and a notice about the row (a refusal) wraps under both, inset as the body is.
+    withControl: {
+      true: "fctl flex flex-wrap items-center gap-x-4 pr-5 [&>.fw]:w-auto [&>.fw]:flex-1 [&>.fw]:min-w-0 [&>.surferr]:basis-full [&>.surferr]:ml-5 [&>.surferr]:mb-4",
+      false: "",
+    },
   },
-  defaultVariants: { empty: false, blocked: false, withTarget: false },
+  defaultVariants: { empty: false, blocked: false, withTarget: false, withControl: false },
 });
 
 /**

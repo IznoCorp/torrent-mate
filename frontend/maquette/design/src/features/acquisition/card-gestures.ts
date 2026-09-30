@@ -1,19 +1,21 @@
 // THE TWO GESTURES DÉCOUVRIR OFFERS, bound where what they mean is known.
 //
-// A suggestion in the list is DISMISSED by a swipe either way; a card on the
-// deck is dismissed to the left and « passed » to the right, and the pile is
-// animated rather than rebuilt so the card underneath rises instead of
-// appearing. Both were listeners in the engine, beside the swipe row's; the
-// row's SHAPE is vocabulary and lives in `lib/`, but these two are not a shape
-// — each one decides what leaving the screen MEANS for a suggestion, which is
-// this feature's own business and nobody else's.
+// In the LIST and on the DECK alike (the operator's Q7): a travel to the LEFT
+// PASSES — the suggestion leaves, no notification, and comes round again at the
+// back of the one order both views read; a travel to the RIGHT REJECTS — it
+// leaves, and the notification offers « Annuler ». The deck is animated rather
+// than rebuilt so the card underneath rises instead of appearing, and keeps its
+// own pile here; the list is the design system's commit row, its mechanics in
+// `lib/commit-swipe.ts` — what each side MEANS for a suggestion stays here, this
+// feature's own business and nobody else's.
 //
-// THEY CLAIM THEIR AXIS in `touch-action` (`pan-y` on the wrap and on the deck),
+// THEY CLAIM THEIR AXIS in `touch-action` (`pan-y` on the row and on the deck),
 // which is what keeps the browser from taking the gesture and cancelling it at
 // the first pixel — the reason the pull gesture, inside the scrollport, cannot
 // use the pointer path at all.
 import i18next from "i18next";
-import { advanceDeck, dismissSug, passerSug, refreshDeck } from "./discover-feed";
+import { advanceDeck, dismissSug, fillSug, forgetDrawnFeed, passerSug, refreshDeck, sugFoot } from "./discover-feed";
+import { installCommitSwipe } from "../../lib/commit-swipe";
 import type { Suggestion } from "./discover-cards";
 import { suggestions } from "./queries";
 import { store } from "../../lib/store-access";
@@ -24,18 +26,6 @@ const AXIS_DEAD_ZONE_PIXELS = 6;
 
 /** How much more a drag must travel to the SIDE than down to be a swipe. */
 const SIDE_OVER_DOWN = 1.2;
-
-/** How far a suggestion in the LIST must travel to be dismissed. */
-const LIST_TRAVEL_PIXELS = 92;
-
-/** How far it flies out once it is. */
-const LIST_FLIGHT_PIXELS = 420;
-
-/** How faint a dragged suggestion is allowed to become. */
-const LIST_MIN_OPACITY = 0.35;
-
-/** Over how many pixels of travel it fades to that floor. */
-const LIST_OPACITY_OVER_PIXELS = 260;
 
 /** How far a deck drag travels before its hint appears at all. */
 const HINT_DEAD_ZONE_PIXELS = 20;
@@ -56,7 +46,7 @@ const WRAP = '[data-part="suggestion/wrap"]';
 const DECK_CARD = '[data-part="deck/card"]';
 
 type Drag = {
-  /** The element the finger landed in — the wrap, or the deck card itself. */
+  /** The element the finger landed in — the deck card itself. */
   held: HTMLElement;
   card: HTMLElement;
   x: number;
@@ -84,29 +74,37 @@ function takesTheAxis(drag: Drag, deltaX: number, deltaY: number): boolean {
 }
 
 /**
- * Binds the two swipes Découvrir offers, inside one element.
+ * « Passer », from the list: the suggestion goes to the back of the one order,
+ * and the list is drawn again from it — no notification, it comes round again.
  *
- * ONE INSTALL FOR BOTH, because they share the pointer stream and the axis
- * reading: two installs would each add a `pointermove` listener to the same
- * element and decide the same axis twice.
+ * @param row The row thrown to the left.
+ */
+function passListRow(row: HTMLElement): void {
+  passerSug(Number(row.dataset.dismissable));
+  forgetDrawnFeed();
+  fillSug();
+  sugFoot();
+}
+
+/**
+ * Binds the two swipes Découvrir offers, inside one element.
  *
  * @param frame The element the surfaces are drawn inside.
  */
 export function installDiscoverSwipe(frame: HTMLElement): void {
-  let listDrag: Drag | null = null;
   let deckDrag: Drag | null = null;
+
+  // THE LIST: the design system's commit row, each side meaning what it means here.
+  installCommitSwipe(frame, {
+    rows: WRAP,
+    onLeft: passListRow,
+    onRight: (row) => dismissSug(Number(row.dataset.dismissable)),
+  });
 
   frame.addEventListener(
     "pointerdown",
     (event) => {
       const target = event.target as HTMLElement;
-      const wrap = target.closest?.(WRAP);
-      if (wrap instanceof HTMLElement && event.isPrimary) {
-        const card = wrap.querySelector('[data-part="card"]');
-        if (card instanceof HTMLElement)
-          listDrag = { held: wrap, card, x: event.clientX, y: event.clientY, axis: null, offset: 0 };
-        return;
-      }
       const deckCard = target.closest?.(DECK_CARD);
       if (deckCard instanceof HTMLElement && event.isPrimary)
         deckDrag = {
@@ -124,20 +122,6 @@ export function installDiscoverSwipe(frame: HTMLElement): void {
   frame.addEventListener(
     "pointermove",
     (event) => {
-      if (listDrag) {
-        const deltaX = event.clientX - listDrag.x;
-        const deltaY = event.clientY - listDrag.y;
-        if (!takesTheAxis(listDrag, deltaX, deltaY)) return;
-        listDrag.offset = deltaX;
-        listDrag.card.style.transform = `translateX(${deltaX}px)`;
-        // IT FADES AS IT GOES, so the gesture says « this is leaving » before
-        // the finger has decided it is — and never past the floor, because a
-        // card one can no longer see is a card one cannot put back.
-        listDrag.card.style.opacity = String(
-          Math.max(LIST_MIN_OPACITY, 1 - Math.abs(deltaX) / LIST_OPACITY_OVER_PIXELS),
-        );
-        return;
-      }
       if (!deckDrag) return;
       const deltaX = event.clientX - deckDrag.x;
       const deltaY = event.clientY - deckDrag.y;
@@ -165,22 +149,6 @@ export function installDiscoverSwipe(frame: HTMLElement): void {
     },
     { passive: true },
   );
-
-  const releaseList = (): void => {
-    if (!listDrag) return;
-    const released = listDrag;
-    listDrag = null;
-    if (released.axis !== "x") return;
-    released.card.classList.remove(DRAG_MARK);
-    if (Math.abs(released.offset) > LIST_TRAVEL_PIXELS) {
-      released.card.style.transform =
-        `translateX(${released.offset > 0 ? LIST_FLIGHT_PIXELS : -LIST_FLIGHT_PIXELS}px)`;
-      dismissSug(Number(released.held.dataset.dismissable));
-    } else {
-      released.card.style.transform = "";
-      released.card.style.opacity = "";
-    }
-  };
 
   const releaseDeck = (): void => {
     if (!deckDrag) return;
@@ -219,8 +187,6 @@ export function installDiscoverSwipe(frame: HTMLElement): void {
       .forEach((hint) => ((hint as HTMLElement).style.opacity = "0"));
   };
 
-  window.addEventListener("pointerup", releaseList);
-  window.addEventListener("pointercancel", releaseList);
   window.addEventListener("pointerup", releaseDeck);
   window.addEventListener("pointercancel", releaseDeck);
 }

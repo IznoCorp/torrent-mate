@@ -141,3 +141,6 @@ fillLandingDoor((page, dial) => {
   store.write({ acqTab: landingTab(tab) });
   if (acquisition !== undefined) landOnCard(acquisition);
 });
+
+/* DÉCOUVRIR'S HEADER, cut at the view switch, says its sentence whole in a panel. */
+registerVerb("discover-header", () => panel.produce("discover-header"));

@@ -51,6 +51,8 @@ export let dialog: Window["__dialog"];
 export let followedTitles: (() => string[]) | undefined;
 /** Rewrites the current history entry's address for a page setting — a tab, a lens. */
 export let replaceAddress: (() => boolean) | undefined;
+/** Records an arrival inside a page as a new history entry — a panel's link to another tab of it. */
+export let recordAddress: (() => boolean) | undefined;
 /** Opening the panel an element addresses — the press reads it while the gesture is still the engine's. */
 export let openAddressedPanel: ((element: Element) => void) | undefined;
 // A link a feature's own verb follows, landing as the `go` verb lands.
@@ -129,6 +131,15 @@ export function fillFollowedTitlesDoor(read: () => string[]): void {
  */
 export function fillReplaceAddressDoor(write: () => boolean): void {
   replaceAddress = write;
+}
+
+/**
+ * Fills the address-recording door, from the page switch.
+ *
+ * @param write What pushes the current state's address as a new entry, answering whether it did.
+ */
+export function fillRecordAddressDoor(write: () => boolean): void {
+  recordAddress = write;
 }
 
 /**

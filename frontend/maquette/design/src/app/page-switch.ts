@@ -31,7 +31,7 @@
 // it can never write a binding.
 import { addressSeam } from "../lib/addresses";
 import { navigationState, trailOf, TRAIL_KEY, type TrailStop } from "../lib/navigation-entry";
-import { bridge, fillReplaceAddressDoor } from "../lib/shell-doors";
+import { bridge, fillRecordAddressDoor, fillReplaceAddressDoor } from "../lib/shell-doors";
 import { store } from "../lib/store-access";
 import { standingIndex, standingTrail, writeTrail } from "./trail";
 
@@ -286,24 +286,26 @@ export function switchPage(leaving: string, landing: Landing = "stack"): void {
 }
 
 /**
- * Settles history for a LINK that lands on the page it was tapped on, naming
- * another of its dials — « Voir la carte de la saison » on Acquisition, from a
- * panel over « Suivis » or from a screen over it (Rd conformité Q12).
+ * Records an arrival made from a panel onto another view of the page it was
+ * opened on — « Voir les torrents » lands on the « Torrents » tab.
  *
- * A LINK STACKS, the page one is on included: the entry is PUSHED over the one
- * the tap was made on — the page's, the layer's or the screen's, which the verb
- * leaves in place — so Retour gives that back. It is not a revisit (DECIDED 1
- * moves a page already lower on the trail up; this is the page on top), and it
- * is not a setting of the page, which replaces: the tap followed a link.
+ * The panel's entry is KEPT under it (D-L13-1), so Retour reopens the panel.
+ * The arrival continues the page's trail, the page's stop moved up to the new
+ * entry, so the bar still unwinds onto the floor from it. A layer's entry
+ * carries no trail, so the page's is derived from the entry UNDER it — the
+ * derivation `trailOf` makes for an entry that holds none.
+ *
+ * Returns:
+ *     Whether the entry was really written.
  */
-export function stackOnSamePage(): void {
-  if (walk.driven) return;
+export function recordArrivalInPage(): boolean {
   const page = String(currentState().page);
-  if (!walk.homeFloorExists) {
-    recordPath();
-    return;
-  }
-  recordPath([...standingTrail(page), { page, at: standingIndex() + 1 }]);
+  const homePage = addressSeam.homePage;
+  const standing = standingIndex();
+  const onLayer = Boolean(history.state && history.state.layer);
+  const under = onLayer ? standing - 1 : standing;
+  const floor = page === homePage ? [] : [{ page: homePage, at: under - 1 }];
+  return recordPath([...floor, { page, at: standing + 1 }]);
 }
 
 /**
@@ -393,3 +395,6 @@ export function switchPageFromLayer(leaving: string, landing: Landing = "stackOn
 // tab or a lens is a page setting every feature may write, and a module every
 // feature imported would be the hub the fan-in arm refuses.
 fillReplaceAddressDoor(replacePath);
+// AND THE RECORD, for a panel's link that lands on another tab of the page it
+// was opened on: an arrival, which stacks over the panel's kept entry.
+fillRecordAddressDoor(recordArrivalInPage);

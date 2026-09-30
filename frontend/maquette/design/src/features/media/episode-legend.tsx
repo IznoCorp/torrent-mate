@@ -6,7 +6,8 @@
 // draw names only the states present — an absent legend is a defect (order 57),
 // and a legend listing states the drawing does not use is noise.
 import type { ReactElement } from "react";
-import { legend, legendSwatch, type StatusTone } from "../../ui/variants";
+import { Legend } from "../../ui/legend";
+import type { StatusTone } from "../../ui/variants";
 import { episodeStateLabel } from "./format";
 
 /** Lifecycle order, as the operator reads it. */
@@ -46,15 +47,5 @@ export function EpisodeLegend({ present }: {
   present: ReadonlySet<string>;
 }): ReactElement | null {
   const shown = EPISODE_ORDER.filter((state) => present.has(state));
-  if (shown.length === 0) return null;
-  return (
-    <div className={legend()} data-part="legend">
-      {shown.map((state) => (
-        <span key={state} data-state={state}>
-          <i className={legendSwatch({ tone: EPISODE_SWATCH[state] })} />
-          {episodeStateLabel(state)}
-        </span>
-      ))}
-    </div>
-  );
+  return <Legend entries={shown.map((state) => ({ key: state, tone: EPISODE_SWATCH[state], label: episodeStateLabel(state) }))} />;
 }

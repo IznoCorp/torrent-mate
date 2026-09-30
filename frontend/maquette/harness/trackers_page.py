@@ -13,15 +13,15 @@ address model, never written here; its body is its own oracle region,
    as every change of bar page does (§ 16 point 2): `history.length` unchanged;
 3. the bar then draws four buttons, each a quarter of its width;
 4. the address opened cold lands on the same page;
-5. its two tabs, « Torrents » then « Trackers », are DIALS of the page: « Trackers »
+5. its two tabs, « Torrents » then « Trackers », are DIALS of the page: « Torrents »
    is selected when the address names none; a finger's tap on the other ADJUSTS —
    the address says `?list=`, `history.length` unchanged — and a back then leaves
    the page for the one beneath it rather than stepping between tabs;
 6. the address carries both dials: `?list=torrents&tracker=<name>` opened cold
    lands on that tab, filtered to that tracker;
-7. the tab a bare address opens is « Trackers » the first time, then the tab
+7. the tab a bare address opens is « Torrents » the first time, then the tab
    opened last on this device — the same rule, and the same mechanism, as
-   Acquisition's: storage empty, refused or holding no tab opens « Trackers »; an
+   Acquisition's: storage empty, refused or holding no tab opens « Torrents »; an
    address naming its tab wins; a tab tapped is the next cold entry's, and the
    next landing's from the bar, the address then naming it;
 8. `trackers-loading`: while the page's reads are in flight, each tab — « Trackers »,
@@ -35,6 +35,13 @@ address model, never written here; its body is its own oracle region,
     before is not carried into an arrival that did not ask for it;
 12. Acquisition's « ⋮ » no longer promises the obligations in its accessible
     name: they left its sheet for this page.
+
+RE-AIMED OUT LOUD (L16-bis, the operator's 2026-09-29 point 1 — R-L16bis-a): the
+first tab is « Torrents », the first landing too, then the tab opened last. Holds
+5 and 7 read « Trackers » first; they read « Torrents » first now, red on the code
+that opened « Trackers ». Hold 11 read RULINGS 3's filter line; the selector's
+pill SAYS the filter now (pressed), and a landing naming no tracker leaves it
+unpressed.
 
 Red before the move: no such page exists. RE-AIMED OUT LOUD: holds 5 and 6 came
 with the page's tabs, red on the page that had none; hold 7 with the tab memory,
@@ -96,8 +103,8 @@ TABS = """() => ({
 # The tabs in the operator's order (organisation ruling 19), and the one a bare
 # address opens (OPEN 4, ruled C).
 ORDER = ["torrents", "trackers"]
-FIRST = "trackers"
-OTHER = "torrents"
+FIRST = "torrents"
+OTHER = "trackers"
 # A tracker the configuration declares, read off the seed the page reads.
 FILTERED = json.loads((SOURCE / "mocks/seeds/trackers.json").read_text(encoding="utf-8"))[0]["name"]
 
@@ -111,7 +118,8 @@ PLANT_LANDING = """() => { const control = document.createElement('button');
   control.style.cssText = 'min-height:44px;min-width:44px';
   document.querySelector('#view')?.prepend(control); control.scrollIntoView(); }"""
 LANDED = """() => ({page: window.state?.page ?? null, filter: window.state?.trackersFilter ?? null,
-  search: location.search, line: document.querySelector('#view [data-part="torrents/filter"]') !== null})"""
+  search: location.search,
+  line: document.querySelector('#view [data-part="torrents/selector"]')?.getAttribute('aria-pressed') === 'true'})"""
 # The word the obligations went by in the sheet's promise.
 OBLIGATIONS_WORD = "obligations"
 
@@ -148,10 +156,10 @@ async def cold(browser, script, address):
 async def remembered(browser, journal):
     """Hold 7: the tab a bare address opens, first and then remembered."""
     for label, script, address, wanted in (
-        ("empty storage opens « Trackers »", prepared(), ENTRY, FIRST),
-        ("« Torrents » remembered opens « Torrents »", prepared(OTHER), ENTRY, OTHER),
-        ("storage that throws opens « Trackers »", prepared(throwing=True), ENTRY, FIRST),
-        ("a remembered value that is no tab opens « Trackers »", prepared("nowhere"), ENTRY, FIRST),
+        ("empty storage opens « Torrents »", prepared(), ENTRY, FIRST),
+        ("« Trackers » remembered opens « Trackers »", prepared(OTHER), ENTRY, OTHER),
+        ("storage that throws opens « Torrents »", prepared(throwing=True), ENTRY, FIRST),
+        ("a remembered value that is no tab opens « Torrents »", prepared("nowhere"), ENTRY, FIRST),
         ("an address naming its tab wins over the memory", prepared(OTHER), f"{ENTRY}?list={FIRST}", FIRST),
     ):
         context, page, errors = await cold(browser, script, address)
@@ -162,7 +170,7 @@ async def remembered(browser, journal):
 
     context, page, errors = await cold(browser, prepared(OTHER), ENTRY)
     where = await page.evaluate("()=>location.pathname + location.search")
-    journal.check("a cold landing on the remembered « Torrents » says it in the address",
+    journal.check("a cold landing on the remembered « Trackers » says it in the address",
                   where == f"{PAGE_PATHS.get(PAGE)}?list={OTHER}", where)
     await context.close()
 
@@ -229,7 +237,7 @@ async def main():
                       f"history.length {before['length']} -> {after['length']}")
 
         strip = await page.evaluate(TABS)
-        journal.check("its strip draws « Torrents » then « Trackers », « Trackers » selected on a bare address",
+        journal.check("its strip draws « Torrents » then « Trackers », « Torrents » selected on a bare address",
                       [entry["tab"] for entry in strip["tabs"]] == ORDER
                       and [entry["tab"] for entry in strip["tabs"] if entry["selected"]] == [FIRST]
                       and strip["dial"] == FIRST, str(strip))
@@ -238,7 +246,7 @@ async def main():
             await page.tap(other)
             await page.wait_for_timeout(ACTED)
         switched = await page.evaluate(TABS)
-        journal.check("a finger's tap on « Torrents » ADJUSTS: the address names it, history.length unchanged",
+        journal.check("a finger's tap on « Trackers » ADJUSTS: the address names it, history.length unchanged",
                       switched["dial"] == OTHER and switched["address"] == f"{PAGE_PATHS.get(PAGE)}?list={OTHER}"
                       and switched["length"] == strip["length"] and after["length"] == strip["length"],
                       f"{strip} -> {switched}")

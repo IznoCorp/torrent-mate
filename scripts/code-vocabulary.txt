@@ -50,6 +50,7 @@ acquisition
 act
 action
 actions
+activation
 active
 activity
 add
@@ -149,6 +150,7 @@ burst
 button
 by
 byidv
+byte
 cache
 cached
 cadence
@@ -191,6 +193,7 @@ checked
 child
 chip
 choice
+choices
 choose
 chosen
 claimed
@@ -218,6 +221,7 @@ commit
 common
 compare
 complete
+composed
 condition
 conditions
 config
@@ -269,6 +273,7 @@ database
 date
 dead
 deadline
+decimals
 decision
 decisions
 deck
@@ -322,6 +327,7 @@ digits
 direct
 direction
 directions
+disabled
 disagreement
 disagrees
 disarm
@@ -385,6 +391,7 @@ episodes
 eps
 err
 error
+errored
 errors
 escape
 escaped
@@ -424,6 +431,7 @@ file
 files
 fill
 film
+films
 filter
 filtered
 filters
@@ -634,6 +642,7 @@ limits
 line
 lines
 link
+linked
 list
 listener
 listeners
@@ -671,6 +680,7 @@ map
 maquette
 margin
 mark
+marks
 markup
 match
 matched
@@ -720,6 +730,7 @@ muted
 name
 named
 names
+narrow
 nav
 navgo
 navigated
@@ -775,6 +786,7 @@ opened
 opener
 opening
 operation
+operator
 option
 options
 order
@@ -814,6 +826,9 @@ parent
 parents
 parsed
 part
+partial
+pass
+passed
 passer
 passively
 password
@@ -852,6 +867,7 @@ poll
 pong
 pop
 popover
+popularity
 port
 portrait
 portraits
@@ -908,12 +924,14 @@ radius
 ranges
 rank
 ranking
+rate
 ratifies
 ratify
 rating
 ratio
 raw
 react
+reactivate
 read
 reader
 ready
@@ -954,6 +972,8 @@ registrations
 registry
 reglees
 regular
+reject
+rejected
 relaxed
 relay
 release
@@ -1004,6 +1024,7 @@ resume
 resumed
 retry
 return
+returns
 reused
 reversed
 revisited
@@ -1036,6 +1057,7 @@ say
 saying
 says
 scale
+scaled
 scen
 scenario
 schedule
@@ -1069,6 +1091,7 @@ section
 see
 seed
 seeded
+seeding
 seeds
 seen
 seg
@@ -1146,6 +1169,7 @@ soon
 sort
 sorted
 source
+sources
 space
 spacer
 spacers
@@ -1160,6 +1184,7 @@ stages
 staging
 stale
 stall
+stalled
 stalling
 stamped
 standard
@@ -1243,7 +1268,9 @@ the
 their
 theme
 there
+thousand
 threshold
+throw
 ticked
 tie
 tied
@@ -1283,6 +1310,7 @@ tracks
 trailer
 transact
 transaction
+transfer
 transition
 translate
 travel
@@ -1298,13 +1326,16 @@ typed
 ua
 ui
 uid
+unavailable
 unblock
 under
 undo
+undone
 unit
 units
 universe
 unknown
+unlinked
 unmatched
 unnamed
 unreachable
@@ -1317,6 +1348,8 @@ unwinding
 upcoming
 update
 updates
+upload
+uploading
 urgency
 url
 usable

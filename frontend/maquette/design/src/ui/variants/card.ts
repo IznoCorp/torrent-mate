@@ -78,6 +78,16 @@ export const cardRating = cva(
     "[border-color:color-mix(in_oklab,var(--color-success)_40%,transparent)] text-success ml-3",
 );
 
+/**
+ * A byte count under way — a download's progress, filled in the tone of a
+ * transfer. NOT the strip, which says which STEP a journey stands at: this says
+ * how much of one step is done. The native element, so a screen reader says it.
+ */
+export const cardProgress = cva(
+  "cprogress block w-full h-[6px] mt-3 rounded-full overflow-hidden appearance-none [border:0] bg-muted " +
+    "[&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-value]:bg-info [&::-moz-progress-bar]:bg-info",
+);
+
 /** The state's second line: what is pending, what has just arrived. */
 export const cardAnnotations = cva("cannotations mt-2 flex flex-wrap items-center gap-2");
 

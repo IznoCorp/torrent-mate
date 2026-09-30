@@ -1033,7 +1033,7 @@
 
    WHERE IT APPLIES IS EXACTLY WHERE A PRESS IS ARMED. `armPress` resolves its
    target through `panelUnderFinger`, which answers `[data-panel]`, or the
-   `[data-panel]` inside the `.card` or `.sugwrap` the finger is in. So the
+   `[data-panel]` inside the `.card` or `.commitrow` the finger is in. So the
    refusal follows that structure — `:has()` makes the rule follow STRUCTURE,
    the reason the icon rule above gives — and a card that answers no press
    keeps its text selectable.
@@ -1047,7 +1047,7 @@
    long press. Measured before it was written. */
 [data-panel],
 .card:has([data-panel]),
-.sugwrap:has([data-panel]) {
+.commitrow:has([data-panel]) {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;

@@ -10,7 +10,7 @@
 // must be right at that instant, whatever React has painted — the same reason
 // `panel.isOpen()` reads the store.
 import i18next from "../i18n";
-import { addressSeam } from "../lib/addresses";
+import { addressSeam, pageDialsAt } from "../lib/addresses";
 import {
   entryIndex,
   entryPatch,
@@ -99,6 +99,19 @@ function restorePage(patch: Record<string, unknown>): void {
     const port = document.querySelector("#port");
     if (port) port.scrollTop = 0;
   }
+  redraw();
+}
+
+/**
+ * Puts a page's dials back as an entry holds them, drawing only when one moved.
+ *
+ * Args:
+ *     dials: The dial fields and the values the entry holds.
+ */
+function restoreDials(dials: Record<string, string>): void {
+  const state = store.read().state as Record<string, unknown>;
+  if (Object.entries(dials).every(([field, value]) => String(state[field] ?? "") === value)) return;
+  store.write(dials as Parameters<typeof store.write>[0]);
   redraw();
 }
 
@@ -264,14 +277,11 @@ export function onEngineBack(
     const record = layerRecordOf(state, "sheet");
     const samePage = record?.openedOn === String(store.read().state.page ?? "");
     if (record && (direction === "FORWARD" || samePage)) {
-      /* A LINK OF THE PANEL THAT STAYED ON ITS PAGE and moved one of its dials
-         (« Voir la carte de la saison »: Suivis → En cours) stacked over it: the
-         Back gives back the page as the entry's address has it, then the panel. */
-      if (direction === "BACK" && samePage && record.dials !== undefined) {
-        const current = store.read().state as Record<string, unknown>;
-        if (Object.entries(record.dials).some(([dial, value]) => current[dial] !== value))
-          restorePage({ ...record.dials, page: record.openedOn });
-      }
+      /* THE PAGE AS THE ENTRY LEFT IT: an arrival inside the same page (« Voir
+         les torrents » lands on another tab of « Trackers ») moved its dials,
+         and Retour gives them back with the panel. */
+      if (samePage && addressSeam.parse(location.pathname, location.search).page === record.openedOn)
+        restoreDials(pageDialsAt(location.pathname, location.search));
       reopenPanelOfRecord(record, true);
       return;
     }

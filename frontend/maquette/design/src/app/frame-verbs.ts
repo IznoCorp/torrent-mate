@@ -34,7 +34,7 @@ import {
 } from "../lib/shell-doors";
 import { hideLayers, registeredLayers } from "./layers";
 import { rowFor } from "./navigation";
-import { stackOnSamePage, switchPage, switchPageFromLayer, type Landing } from "./page-switch";
+import { recordArrivalInPage, switchPage, switchPageFromLayer, type Landing } from "./page-switch";
 import { holdLeavingOffset } from "./scroll-restoration";
 
 /** The page showing right now — what a switch is told it is leaving. */
@@ -140,7 +140,7 @@ function goTo(page: string, dial: string | undefined, chooser: boolean): void {
   redraw();
   // A LINK NAMING ANOTHER DIAL OF THE PAGE IT WAS TAPPED ON stacks over what it
   // was tapped on — the layer's or the screen's entry kept — so Retour gives it back.
-  if (landing === "stack" && dial !== undefined && page === leaving) stackOnSamePage();
+  if (landing === "stack" && dial !== undefined && page === leaving) recordArrivalInPage();
   else settleLanding(fromLayer, leaving, "go", landing);
 }
 
@@ -208,6 +208,7 @@ function openAddressedPanel(address: string): void {
   const reference = address.slice(separator + 1);
   if (kind === "sug") panel?.produce("suggestion", reference);
   else if (kind === "add") panel?.produce("add", reference);
+  else if (kind === "torrent") panel?.produce("torrent", reference);
   else panel?.produce("follow", reference);
 }
 

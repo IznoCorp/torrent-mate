@@ -90,7 +90,7 @@ export function installPullIndicator(
        answer the same drag — and a list made of swipe rows must still pull. */
     isExcluded: (target) =>
       !!(
-        target.closest?.(".sugwrap") ||
+        target.closest?.(".commitrow") ||
         target.closest?.(".deck") ||
         target.closest?.(".pillscroll")
       ),

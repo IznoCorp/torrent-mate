@@ -16,14 +16,17 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { Icon } from "../../ui/icon";
-import { useUiState } from "../../lib/store-access";
-import { body, filterZone, liveDot, liveEmphasis, liveStrip, loadFooter, pillBar, pillScroll, section as sectionClass, viewSwitch, viewSwitchButton, viewSwitchWrap } from "../../ui/variants";
+import { useQuery } from "@tanstack/react-query";
+import { useStoreContent, useUiState } from "../../lib/store-access";
+import { body, filterZone, liveDot, liveStrip, loadFooter, pillBar, pillScroll, section as sectionClass, viewSwitch, viewSwitchButton, viewSwitchWrap } from "../../ui/variants";
 import { Markup } from "../../ui/markup";
 // THE FEED IS THIS FEATURE'S — imported directly rather than read off
 // the engine's reference, which is what a surface does once its content has
 // stopped being the engine's.
 import { deckHTML, fillSug, mountDeck, sugFoot } from "./discover-feed";
 import { deckBody } from "./variants";
+import { headerSentence } from "./panel-discover-header";
+import { suggestionsQuery } from "./queries";
 
 // « Découvrir » — what one might want, which is the only surface here that
 // asks nothing of the operator: the bar's badge never counts it.
@@ -37,6 +40,9 @@ export function DiscoverTab(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
   const { icons } = useEngineDrawing();
+  // A REJECTION IS A STORE BUMP: the header's count follows it.
+  useStoreContent((content) => content.version);
+  const read = useQuery(suggestionsQuery);
 
   // THE FRAGMENT FILLS WHAT THIS DRAWS, and it has to be asked AFTER the
   // drawing: `render()` calls the same verbs, but it calls them before React
@@ -104,7 +110,21 @@ export function DiscoverTab(): ReactElement {
   const selector = (
     <div className={filterZone()} data-region="acquisition/filters">
       <div className={pillBar()}>
-        <div className={pillScroll()} data-part="pill/list"></div>
+        {/* THE HEADER'S MESSAGE, in the row's free place beside the view switch —
+            one line, its whole on a tap. It comes down into the body if the
+            place is ever taken. */}
+        <div className={pillScroll()} data-part="pill/list">
+          <button className={liveStrip({ inline: true })} data-part="discover/header" data-discover-header="">
+            <span className={liveDot()}></span>
+            <span data-part="discover/header-text">
+              {state.phase === "error" || read.isError
+                ? t("screens.acquisition.headerUnavailable")
+                : state.phase === "loading" || read.data === undefined
+                  ? t("screens.acquisition.headerLoading")
+                  : headerSentence(read.data, state.sugGone as Set<number>)}
+            </span>
+          </button>
+        </div>
         <div className={viewSwitchWrap()}>
           <div className={viewSwitch()} data-part="view/switch">
             {modes.map(([id, paths, label]) => (
@@ -147,18 +167,7 @@ export function DiscoverTab(): ReactElement {
           <b>{t("screens.acquisition.discoverNoteLead")}</b>
           {t("screens.acquisition.discoverNoteRest")}
         </div>
-        {state.tmdb ? (
-          <div className={liveStrip()} data-part="live-activity">
-            <span className={liveDot()}></span>
-            <span>
-              {t("screens.acquisition.liveBefore")}
-              <b className={liveEmphasis()}>{t("screens.acquisition.liveSuggestions")}</b>
-              {t("screens.acquisition.liveMiddle")}
-              <b className={liveEmphasis()}>{t("screens.acquisition.liveOwned")}</b>
-              {t("screens.acquisition.liveAfter")}
-            </span>
-          </div>
-        ) : (
+        {state.tmdb ? null : (
           // A NOTICE, NOT A FAILURE: the warning tone, and no alert — only a
           // failure interrupts a listener.
           <div data-part="discover/notice"><SurfaceError tone="warning" part="notice">

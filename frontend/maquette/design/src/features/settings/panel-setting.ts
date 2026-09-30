@@ -13,7 +13,7 @@ import i18next from "i18next";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 import { registerVerb } from "../../lib/verbs";
 import { flattenSettings, settingIdentifier, valueShown } from "./catalog";
-import { HELD, send, sharedQueryClient } from "../../lib/query-client";
+import { HELD, isRequestFailure, send, sharedQueryClient } from "../../lib/query-client";
 import { configurationStatusQuery, settingsQuery, writeConfigurationFile } from "./queries";
 import type { Setting, SettingsTopic } from "./types";
 import { dialog, panel, toast, redraw, icons } from "../../lib/shell-doors";
@@ -201,6 +201,9 @@ type SettingsVerbs = {
   restart: () => void | Promise<void>;
 };
 
+// The status a write the engine REFUSES is answered with: a value it will not take.
+const REFUSED = 422;
+
 /* SAVING — the settings' other verb, and the one that made B-299 readable.
    `data-save` closed over nothing but local state: it cleared the pending
    edits, raised the restart flag and said « Enregistré », without ever asking
@@ -215,11 +218,28 @@ async function saveEdits(): Promise<void> {
   const files = changedFiles();
   const pending = SETTINGS_STATE.modifs;
   let conflicted = false;
+  const written: string[] = [];
   for (const file of files) {
     const values: Record<string, unknown> = {};
     for (const [identifier, value] of pending)
       if (identifier.startsWith(file + ":")) values[identifier] = value;
-    const answered = await writeConfigurationFile(file, values);
+    let answered;
+    try {
+      answered = await writeConfigurationFile(file, values);
+    } catch (failure) {
+      // A FAILED WRITE IS SAID where the setting is drawn, and kept there until
+      // the setting is written again. A REFUSAL (422) is the engine's answer:
+      // what the edits asked for will not happen, so they are dropped. Any other
+      // failure decided nothing about the value: the edits stay, to be saved again.
+      if (!isRequestFailure(failure)) throw failure;
+      for (const identifier of Object.keys(values)) {
+        SETTINGS_STATE.refused.set(identifier, { status: failure.status, detail: failure.detail });
+        if (failure.status === REFUSED) pending.delete(identifier);
+      }
+      continue;
+    }
+    for (const identifier of Object.keys(values)) SETTINGS_STATE.refused.delete(identifier);
+    written.push(file);
     // A WRITE THE OUTBOX HELD, or one that answered nothing, says nothing about
     // the file — so it says nothing here either. Neither is a conflict, and
     // neither is a promise that there is none.
@@ -231,7 +251,9 @@ async function saveEdits(): Promise<void> {
     redraw();
     return;
   }
-  pending.clear();
+  // ONLY WHAT WAS WRITTEN leaves the pending edits: a write that failed keeps its own.
+  for (const identifier of [...pending.keys()])
+    if (written.includes(identifier.split(":")[0])) pending.delete(identifier);
   // WHAT WAS WRITTEN IS ASKED FOR AGAIN, and this is the other half of B-342.
   // The layer now keeps the values a write carried, so the rows and the panel
   // must re-read them — without this the interface goes on showing the answer
@@ -248,9 +270,10 @@ async function saveEdits(): Promise<void> {
   // moves its alert in the render that follows, whichever door saved it.
   editsWritten();
   redraw();
+  if (written.length === 0) return;
   toast?.show({
     message: i18next.t("panels.setting.savedToast", {
-      files: files.map(fileName).join(", "),
+      files: written.map(fileName).join(", "),
     }),
   });
 }

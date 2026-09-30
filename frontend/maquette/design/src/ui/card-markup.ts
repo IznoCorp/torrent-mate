@@ -28,6 +28,7 @@ import {
   cardFreshTag,
   cardMeta,
   cardOverview,
+  cardProgress,
   cardRating,
   cardReason,
   cardStrip,
@@ -36,16 +37,24 @@ import {
   cardTop,
   chip,
   posterFrame,
+  statusDot,
   stripDot,
   stripLabel,
   stripStep,
   type ChipTone,
+  type StatusTone,
 } from "./variants";
 
 /** What stands at a card's left: a poster that leads somewhere, or a folder. */
 export type CardSide =
   | { poster: string; attributes: MarkupAttributes }
   | { folderIcon: string; folderLabel: string; attributes: MarkupAttributes };
+
+/**
+ * One mark a card says beside its state: a toned chip, a coloured dot whose word
+ * is its label, or a plain figure. The caller's attributes name it for its readers.
+ */
+export type CardMark = { label: string; tone?: ChipTone; dot?: StatusTone; attributes?: MarkupAttributes };
 
 /** One option at a card's foot. */
 export type CardFoot = { label: string; solid?: boolean; attributes: MarkupAttributes };
@@ -63,7 +72,15 @@ export type CardMarkupContent = {
   fraction?: string;
   chip?: { tone: string; label: string } | null;
   rating?: string;
+  /** Figures said on the state line, after the chip — a size, a ratio. */
+  details?: CardMark[];
   caption?: string;
+  /** Figures said on the annotation line, after the caption. */
+  notes?: CardMark[];
+  /** A byte count under way, from 0 to 1, and its words for a screen reader. */
+  progress?: { value: number; label: string };
+  /** The marks a card wears on a line of their own, under its annotations. */
+  marks?: CardMark[];
   /** The word a card that has just arrived wears, or nothing. */
   fresh?: string;
   /** Who asked for it — the card's last text line (§12). */
@@ -87,6 +104,25 @@ export type CardMarkupContent = {
  */
 function iconMarkup(paths: string, strokeWidth: number): string {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+}
+
+/**
+ * One mark, as markup.
+ *
+ * @param mark The mark: a chip when it has a tone, a dot when it has one, a figure otherwise.
+ * @returns The mark's markup.
+ */
+function markMarkup(mark: CardMark): string {
+  const { "data-part": part, ...rest } = mark.attributes ?? {};
+  const attributes = attributesMarkup(rest);
+  if (mark.tone !== undefined) {
+    return `<span class="${chip({ tone: mark.tone })}" data-part="${escapeMarkup(part ?? "chip")}" data-tone="${mark.tone}"${attributes}>${escapeMarkup(mark.label)}</span>`;
+  }
+  if (mark.dot !== undefined) {
+    // THE DOT'S WORD IS ITS LABEL, said to a screen reader; the eye reads it in the legend.
+    return `<span class="${statusDot({ tone: mark.dot })}" data-part="${escapeMarkup(part ?? "card/dot")}" data-tone="${mark.dot}" role="img" aria-label="${escapeMarkup(mark.label)}"${attributes}></span>`;
+  }
+  return `<span class="${cardCaption()}" data-part="${escapeMarkup(part ?? "card/figure")}"${attributes}>${escapeMarkup(mark.label)}</span>`;
 }
 
 /**
@@ -119,10 +155,18 @@ export function cardMarkup(content: CardMarkupContent): string {
     (content.chip
       ? `<span class="${chip({ tone: content.chip.tone as ChipTone })}" data-part="chip" data-tone="${escapeMarkup(content.chip.tone)}">${escapeMarkup(content.chip.label)}</span>`
       : "") +
-    (content.rating != null ? `<span class="${cardRating()}">${escapeMarkup(content.rating)}</span>` : "");
+    (content.rating != null ? `<span class="${cardRating()}">${escapeMarkup(content.rating)}</span>` : "") +
+    (content.details ?? []).map(markMarkup).join("");
   const annotations =
     (content.caption ? `<span class="${cardCaption()}" data-part="card/caption">${escapeMarkup(content.caption)}</span>` : "") +
-    (content.fresh ? `<span class="${cardFreshTag()}" data-part="card/fresh-tag">${escapeMarkup(content.fresh)}</span>` : "");
+    (content.fresh ? `<span class="${cardFreshTag()}" data-part="card/fresh-tag">${escapeMarkup(content.fresh)}</span>` : "") +
+    (content.notes ?? []).map(markMarkup).join("");
+  const progress = content.progress
+    ? `<progress class="${cardProgress()}" data-part="card/progress" value="${content.progress.value}" max="1" aria-label="${escapeMarkup(content.progress.label)}"></progress>`
+    : "";
+  const marks = content.marks?.length
+    ? `<span class="${cardMeta()}" data-part="card/marks">${content.marks.map(markMarkup).join("")}</span>`
+    : "";
   const strip = content.strip
     ? `<div class="${cardStrip({ cells: stripColumns(content.strip) })}" data-part="card/strip">${content.strip
         .map(
@@ -153,7 +197,9 @@ export function cardMarkup(content: CardMarkupContent): string {
         ${content.reason ? `<span class="${cardReason()}" data-part="card/reason">${content.reason}</span>` : ""}
         ${content.overview ? `<span class="${cardOverview()}" data-part="card/overview">${escapeMarkup(content.overview)}</span>` : ""}
         ${state ? `<span class="${cardMeta()}" data-part="card/meta">${state}</span>` : ""}
+        ${progress}
         ${annotations ? `<span class="${cardAnnotations()}">${annotations}</span>` : ""}
+        ${marks}
         ${shared ? "" : requester}
       </button>
     </div>

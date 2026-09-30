@@ -31,8 +31,8 @@ tracker's entry until the operator marks it seen, and seen is not gone.
 
 7. `tracker-broken-obligations` — its entry counts the UNSEEN broken obligations
    the summary serves for it, and no entry without one carries a count;
-8. `tracker-broken-obligations-open` unfolds one row per broken obligation, its
-   title and its date, each with « Vu »;
+8. `tracker-broken-obligations-open` opens the tracker's panel, listing one fact
+   per broken obligation, its title and its date, each with a « Vu » action;
 9. a finger on « Vu » asks the write ONCE for that obligation; the row STAYS,
    saying « Vue », and the count drops by one in the render that follows;
    « Vu » is a finger's target, 44 × 44 px at least.
@@ -64,6 +64,13 @@ and shown as such (`poseIdentifierRefused`, `setObligationBreached`): no real
 tracker refuses its identifier, and no real obligation has been broken — nor one broken whose torrent is gone
 (`poseBrokenObligation`).
 
+RE-AIMED OUT LOUD (L16-bis — R-L16-d, the refused identifier, read on
+`disabled`): the identifier refused is `disabled: {by: failure, reason:
+identifierRefused}` now, one field per fact, and the badge's unit generalises to
+every tracker a FAILURE switched off (the operator's Q6), never one the operator
+switched off. The broken obligations moved from the entry's fold to the tracker's
+panel (Q3): their facts and their « Vu » actions are read there.
+
 Red before the move: no entry and no row carries an alert.
 """
 import asyncio
@@ -82,7 +89,8 @@ SCREENS = json.loads((SOURCE / "i18n/fr.json").read_text(encoding="utf-8"))["scr
 # The subjects the states pose on: the first tracker under a threshold above its
 # ratio, the last one refusing its identifier, and one entry's broken obligation.
 ALERTED = TRACKERS[0]["name"]
-REFUSED = TRACKERS[-1]["name"]
+# The tracker `tracker-identifier-refused` poses the refusal on.
+REFUSED = TRACKERS[1]["name"]
 BREACHED = next(entry for entry in DOWNLOADS if entry["title"] == "Star Trek: Strange New Worlds")
 SEEN_OPERATION = "markBrokenObligationSeen"
 BADGE = """() => document.querySelector('[data-part="shell/tab-bar"] [data-page="trackers"] [data-part="shell/tab-badge"]')
@@ -96,18 +104,18 @@ SUM = """() => {
   const active = new Set(downloads.map((entry) => `${entry.infoHash}:${entry.tracker}`));
   const under = trackers.filter((one) => one.alertThreshold !== null && one.ratio !== null
     && one.ratio < one.alertThreshold).length;
-  const refused = trackers.filter((one) => one.identifierRefusedSince !== null).length;
+  const failed = trackers.filter((one) => one.disabled?.by === "failure").length;
   const breached = obligations.filter((one) => one.breachedAt !== null && one.satisfiedAt === null
     && one.releasedAt === null && active.has(`${one.infoHash}:${one.sourceTracker}`)).length;
   const unseen = trackers.reduce((total, one) => total + one.brokenObligations.filter((row) => !row.seen).length, 0);
-  return { under, refused, breached, unseen, total: under + refused + breached + unseen };
+  return { under, failed, breached, unseen, total: under + failed + breached + unseen };
 }"""
 BROKEN_WORDS = SCREENS["trackers"]
 
 ENTRIES = """() => [...document.querySelectorAll('#view [data-part="trackers/entry"]')].map(entry => ({
   name: entry.dataset.tracker,
   alert: entry.querySelectorAll('[data-part="trackers/alert"]').length,
-  refused: entry.querySelectorAll('[data-part="trackers/identifier-refused"]').length,
+  refused: entry.querySelectorAll('[data-part="trackers/disabled"][data-reason="identifierRefused"]').length,
 }))"""
 ROWS = """() => [...document.querySelectorAll('#view [data-part="torrents/row"]')].map(row => ({
   key: `${row.dataset.entry}:${row.dataset.tracker}`,
@@ -119,15 +127,19 @@ ROWS = """() => [...document.querySelectorAll('#view [data-part="torrents/row"]'
 COUNTS = """() => Object.fromEntries([...document.querySelectorAll('#view [data-part="trackers/entry"]')]
   .map(entry => [entry.dataset.tracker,
     entry.querySelector('[data-part="trackers/broken-obligations"]')?.textContent.trim() ?? null]))"""
-BROKEN_ROWS = """(tracker) => [...document.querySelectorAll(
-    `#view [data-part="trackers/entry"][data-tracker="${tracker}"] [data-part="trackers/broken-obligation-row"]`)]
-  .map(row => ({
-    hash: row.dataset.entry ?? null,
-    title: row.querySelector('[data-part="trackers/broken-obligation-title"]')?.textContent.trim() ?? '',
-    date: row.querySelector('[data-part="trackers/broken-obligation-date"]')?.textContent.trim() ?? '',
-    control: row.querySelector('[data-part="trackers/broken-obligation-seen"]') !== null,
-    seen: row.querySelector('[data-part="trackers/broken-obligation-seen-mark"]') !== null,
-  }))"""
+# THE TRACKER'S PANEL lists its broken obligations: a fact per obligation, its
+# title and its date or « vue », and a « Vu » action per one not yet seen.
+BROKEN_ROWS = """([tracker, owed]) => {
+  const sheet = document.querySelector('#sheet[data-open]');
+  if (!sheet) return [];
+  const facts = Object.fromEntries([...sheet.querySelectorAll('[data-part="key-value"]')]
+    .map(row => [...row.children].map(cell => cell.textContent.trim())));
+  return owed.filter(row => row.title in facts).map(row => ({
+    hash: row.infoHash, title: row.title, date: facts[row.title],
+    control: sheet.querySelector(`[data-part="sheet/action"][data-obligation-seen="${tracker}:${row.infoHash}"]`) !== null,
+    seen: facts[row.title] === SEEN,
+  }));
+}""".replace("SEEN", json.dumps(SCREENS["trackers"]["panel"]["brokenSeen"]))
 ANSWERED = """(operation) => (window.__mocks?.answered() || [])
   .filter(call => call.operationId === operation && call.status === 200)
   .map(call => decodeURIComponent(call.path))"""
@@ -238,14 +250,16 @@ async def main():
         answer = await enter(page, "tracker-identifier-refused")
         journal.check("the named state tracker-identifier-refused exists", answer is None, answer or "")
         drawn = {entry["name"]: entry for entry in await page.evaluate(ENTRIES)}
-        journal.check(f"{REFUSED}'s entry says its identifier is refused, once, and no other entry does",
-                      drawn.get(REFUSED, {}).get("refused") == 1
-                      and all(entry["refused"] == 0 for name, entry in drawn.items() if name != REFUSED),
-                      str(drawn))
-        since = next((tracker.get("identifierRefusedSince") for tracker in await page.evaluate(SERVED, "/api/trackers") or []
+        refusing = {tracker["name"] for tracker in await page.evaluate(SERVED, "/api/trackers") or []
+                    if (tracker.get("disabled") or {}).get("reason") == "identifierRefused"}
+        journal.check(f"{REFUSED}'s entry says its identifier is refused, once, and only the refusing entries do",
+                      REFUSED in refusing and drawn.get(REFUSED, {}).get("refused") == 1
+                      and all(entry["refused"] == (1 if name in refusing else 0) for name, entry in drawn.items()),
+                      f"{drawn} · refusing {sorted(refusing)}")
+        since = next(((tracker.get("disabled") or {}).get("since") for tracker in await page.evaluate(SERVED, "/api/trackers") or []
                       if tracker["name"] == REFUSED), None)
         said = await page.evaluate(
-            f"""()=>document.querySelector('#view [data-part="trackers/entry"][data-tracker="{REFUSED}"] [data-part="trackers/identifier-refused"]')
+            f"""()=>document.querySelector('#view [data-part="trackers/entry"][data-tracker="{REFUSED}"] [data-part="trackers/failure"]')
                 ?.textContent.trim() ?? ''""")
         journal.check(f"and says since when, « … depuis le {day_of(since) if since else '?'} »",
                       since is not None and f"depuis le {day_of(since)}" in said, repr(said))
@@ -253,6 +267,7 @@ async def main():
         # the tracker holding the most entries, the summary asked again — a
         # server fact the interface has no write for.
         many = max(TRACKERS, key=lambda tracker: sum(1 for entry in DOWNLOADS if entry["tracker"] == tracker["name"]))["name"]
+        failed_before = (await page.evaluate(SUM))["failed"]
         await page.evaluate(f"()=>window.__mocks?.poseIdentifierRefused?.('{many}')")
         await page.evaluate(REFRESH, "/api/trackers")
         await page.wait_for_timeout(SETTLED)
@@ -261,7 +276,7 @@ async def main():
         entries = sum(1 for entry in DOWNLOADS if entry["tracker"] == many)
         journal.check(f"{many}, refusing too with {entries} entries, is ONE more unit: the badge counts "
                       "the refused trackers, never their torrents",
-                      entries >= 2 and wanted["refused"] == 2 and badge == str(wanted["total"]),
+                      entries >= 2 and wanted["failed"] == failed_before + 1 and badge == str(wanted["total"]),
                       f"badge {badge!r} · served {wanted}")
         await page.evaluate("()=>document.querySelector('[data-trackers-tab=\"torrents\"]')?.click()")
         await page.wait_for_timeout(SETTLED)
@@ -312,24 +327,24 @@ async def main():
         answer = await enter(page, "tracker-broken-obligations-open")
         journal.check("the named state tracker-broken-obligations-open exists", answer is None, answer or "")
         owner = next((tracker for tracker in served if tracker.get("brokenObligations")), {"name": "", "brokenObligations": []})
-        rows = await page.evaluate(BROKEN_ROWS, owner["name"])
-        journal.check(f"{owner['name']}'s list unfolds one row per broken obligation, its title and its date, each with « Vu »",
+        rows = await page.evaluate(BROKEN_ROWS, [owner["name"], owner["brokenObligations"]])
+        journal.check(f"{owner['name']}'s panel lists one row per broken obligation, its title and its date, each with « Vu »",
                       len(rows) == len(owner["brokenObligations"]) > 0
                       and all(row["title"] and row["date"] and row["control"] for row in rows),
                       str(rows))
         box = await page.evaluate(
-            """()=>{const box=document.querySelector('#view [data-part="trackers/broken-obligation-seen"]')?.getBoundingClientRect();
+            """()=>{const box=document.querySelector('#sheet[data-open] [data-part="sheet/action"][data-obligation-seen]')?.getBoundingClientRect();
                  return box ? [Math.round(box.width), Math.round(box.height)] : null;}""")
         journal.check(f"« Vu » is a finger's target, {FINGER} × {FINGER} px at least",
                       box is not None and min(box) >= FINGER, str(box))
         before = (await page.evaluate(COUNTS)).get(owner["name"]) or ""
         first = owner["brokenObligations"][0]["infoHash"] if owner["brokenObligations"] else ""
-        control = page.locator(f'#view [data-part="trackers/broken-obligation-seen"][data-obligation-seen="{owner["name"]}:{first}"]')
+        control = page.locator(f'#sheet[data-open] [data-part="sheet/action"][data-obligation-seen="{owner["name"]}:{first}"]')
         if await control.count():
             await control.first.tap()
             await page.wait_for_timeout(SETTLED)
         asked = [path for path in await page.evaluate(ANSWERED, SEEN_OPERATION) if first and first in path]
-        rows = await page.evaluate(BROKEN_ROWS, owner["name"])
+        rows = await page.evaluate(BROKEN_ROWS, [owner["name"], owner["brokenObligations"]])
         after = (await page.evaluate(COUNTS)).get(owner["name"]) or ""
         left = len(owner["brokenObligations"]) - 1
         journal.check("« Vu » asks the write once for that obligation", len(asked) == 1, str(asked))

@@ -169,13 +169,7 @@ export function entriesAbovePage(homePage: string, page: string): number {
    of it once the arrival has closed it: the kind and the subject it was
    produced from, and the page it was opened on — which is what tells an entry
    left by an arrival from the leftover a page switch buries under a layer. */
-export type LayerRecord = {
-  kind: string;
-  subject: string;
-  openedOn: string;
-  /** The page's dials when the panel opened — an address may leave a remembered one out. */
-  dials?: Record<string, unknown>;
-};
+export type LayerRecord = { kind: string; subject: string; openedOn: string };
 
 /**
  * The state a layer's entry carries — its name, and what reopens it.
@@ -203,8 +197,7 @@ export function layerEntry(layer: string, record?: LayerRecord): Record<string, 
  *     The record, its page read from the store.
  */
 export function panelRecord(kind: string, subject: string): LayerRecord {
-  const state = store.read().state as Record<string, unknown>;
-  return { kind, subject, openedOn: String(state.page ?? ""), dials: entryPatch(state) };
+  return { kind, subject, openedOn: String(store.read().state.page ?? "") };
 }
 
 /**
@@ -225,7 +218,5 @@ export function layerRecordOf(state: unknown, layer: string): LayerRecord | unde
     kind: entry.kind,
     subject: String(entry.subject ?? ""),
     openedOn: String(entry.openedOn ?? ""),
-    ...(entry.dials !== null && typeof entry.dials === "object"
-      ? { dials: entry.dials as Record<string, unknown> } : {}),
   };
 }

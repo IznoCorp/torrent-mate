@@ -3,7 +3,7 @@
 // obligations those entries owe.
 import { DELETE, GET, POST, field, route } from "./shared";
 import { mockState } from "../state";
-import { alertThresholdKey, trackersState } from "../trackers-state";
+import { alertThresholdKey, enabledKey, trackersState } from "../trackers-state";
 import { refused, type MockRoute } from "../router";
 import { previewOf } from "./ranking";
 import type { components } from "../../contract/types";
@@ -32,14 +32,57 @@ function alertThresholdOf(tracker: string): number | null {
   return typeof setting?.raw === "number" ? setting.raw : null;
 }
 
+/**
+ * Whether the settings hold one tracker switched on.
+ *
+ * @param tracker The tracker's configured name.
+ * @returns The setting's value, or true when no setting names the tracker.
+ */
+function enabledOf(tracker: string): boolean {
+  // READ WHERE THE SETTINGS WRITE PUTS IT: the roster's switch and Réglages
+  // write the same key, so the two cannot disagree.
+  const key = enabledKey(tracker);
+  const setting = mockState()
+    .settings.flatMap((topic) => topic.settings)
+    .find((candidate) => candidate.key === key);
+  return typeof setting?.raw === "boolean" ? setting.raw : true;
+}
+
+/**
+ * Why a tracker is off: its failure when one holds, the operator's choice otherwise.
+ *
+ * @param tracker The tracker as the layer holds it.
+ * @param enabled Whether its setting is on.
+ * @returns Null while it is on.
+ */
+function disabledOf(tracker: Schemas["Tracker"], enabled: boolean): Schemas["Tracker"]["disabled"] {
+  if (enabled) return null;
+  if (tracker.disabled?.by === "failure") return tracker.disabled;
+  return { by: "operator", reason: null, message: null, since: null };
+}
+
+/**
+ * The refusal a write switching trackers on earns: the first of them whose failure persists.
+ *
+ * @param values The write, keyed `<file>:<key>`.
+ * @returns The engine's words, or null when the write may land.
+ */
+export function activationRefusal(values: Record<string, unknown>): string | null {
+  for (const tracker of trackersState().trackers) {
+    const asked = values[`tracker:${enabledKey(tracker.name)}`];
+    if (asked === true && tracker.disabled?.by === "failure") return tracker.disabled.message ?? "";
+  }
+  return null;
+}
+
 /** Every route this subject answers. */
 export function trackerRoutes(): MockRoute[] {
   return [
     route("readTrackers", GET, "/api/trackers", (): Schemas["Tracker"][] =>
-      trackersState().trackers.map((tracker) => ({
-        ...tracker,
-        alertThreshold: alertThresholdOf(tracker.name),
-      })),
+      trackersState().trackers.map((tracker) => {
+        const enabled = enabledOf(tracker.name);
+        return { ...tracker, alertThreshold: alertThresholdOf(tracker.name), enabled, disabled: disabledOf(tracker, enabled) };
+      }),
     ),
     route("markBrokenObligationSeen", POST, "/api/trackers/{tracker}/broken-obligations/{infoHash}/seen", (request) => {
       // SEEN IS NOT GONE: the row stays on its tracker, and leaves the alert's count.
