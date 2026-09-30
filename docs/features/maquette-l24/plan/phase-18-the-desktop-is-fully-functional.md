@@ -24,17 +24,11 @@ Read at the opening; a state that overflows at 1280 is a DEFECT found, reported 
 
 The rule only.
 
-## Mutation
-
-Pin a gallery's container to a fixed phone width → the overflow hold falls by name at 1280.
 
 ## Register
 
 The map's DOIT-9 « Open: B-235 / Q1 » is stale (Q1 answered 2026-08-30); proposed at phase 20.
 
-## Oracle: states that diverge, declared by name
-
-None.
 
 ## Commit
 

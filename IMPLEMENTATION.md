@@ -24,9 +24,12 @@ file: `git log -- IMPLEMENTATION.md` (the last long one is `IMPLEMENTATION.md@63
 ## Pages still due — no surface is out of scope
 
 The mission of 2026-08-19 (`CLAUDE.md` § Authority): EVERY screen is redrawn. Of production's eight pages
-(`frontend/src/router.tsx`), six have a maquette page and owe depth; **`/control` (« Contrôle ») and
-`/pipeline` owe their page** — their panels are partly redistributed into Acquisition and Système, and what
-remains, with the standalone addresses, is owned by L24 (`docs/features/maquette-l24/DESIGN.md`).
+(`frontend/src/router.tsx`), six have a maquette page and owe depth. **`/control` (« Contrôle ») and
+`/pipeline` are settled by L24, with no page of their own** (`docs/features/maquette-l24/DESIGN.md`): « Santé »
+is Système's, each section saying its own read failed and a filling disk counted on the menu's badge; the
+scraping activity reads on each card; a settled decision reads on its medium's journey and Médiathèque sheets,
+« Corriger » sending it back to arbitration; every former production address answers not-found (no
+backward compatibility, OPEN 9).
 
 ## Carried to the backend mission
 
@@ -36,4 +39,7 @@ remains, with the standalone addresses, is owned by L24 (`docs/features/maquette
   demands SR1–SR4; the medium's kind on the library membership read (B-581) and the automatic trigger's
   technical fault told from a person's stop (`watcherDown`); L16-bis's T1 (three more trackers), T2 (a failing
   tracker switched off with its reason, its re-activation refused 422) and T3 (a torrent entry's date, sources,
-  volumes, rates, poster and folder); the rest in `docs/reference/frontend-backend-demands.md`.
+  volumes, rates, poster and folder); L24's demands — a settled decision's id, candidates' count and author
+(an identification the engine made alone written as a decision row), `reopenDecision` (re-open a settled
+decision, a shelved medium's included), the follow completeness read in the contract's names; the rest in
+`docs/reference/frontend-backend-demands.md`.

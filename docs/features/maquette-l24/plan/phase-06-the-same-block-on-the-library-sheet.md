@@ -21,17 +21,11 @@ R-L24-b over `media-sheet-decision`: the Médiathèque sheet draws no block — 
 The same component, the same derivation, the same words: the medium's decision found by its choice's provider and
 id; no second module, no retyped word (§ 13).
 
-## Mutation
-
-Retype the author word in the media sheet instead of the block's → the one-source hold falls by name.
 
 ## Register
 
 None.
 
-## Oracle: states that diverge, declared by name
-
-`media-sheet-decision` (new), and every media-sheet state whose medium carries a settled decision — built by script.
 
 ## Commit
 

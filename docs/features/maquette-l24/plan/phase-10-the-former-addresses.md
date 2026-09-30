@@ -28,17 +28,11 @@ first PROOF over that fact — it does not exist yet, so it is red until written
 
 None. A PROOF phase adds a rule, not a behaviour.
 
-## Mutation
-
-Make `destinationOf` return a page for one of the dead paths instead of `not-found` → R-L24-d falls by name.
 
 ## Register
 
 None.
 
-## Oracle: states that diverge, declared by name
-
-None. `not-found` is already declared and unmoved.
 
 ## Commit
 
