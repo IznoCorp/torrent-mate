@@ -71,6 +71,10 @@ export function NavigationDrawer(): ReactElement {
   // the menu button redraws on a store write and this entry did not would be
   // two readings of one count.
   useUiState();
+  // AND TO THE STORE'S VERSION, which is what the appearance's tap moves
+  // (`store.touch()`): the choice lives in `localStorage`, not in the state, so
+  // a subscription to the state alone never redrew the pressed control (B-580).
+  useStoreContent((content) => content.version);
   const identity = servedIdentityLines();
   const appearance = currentAppearance();
   const closing = useRef(false);
