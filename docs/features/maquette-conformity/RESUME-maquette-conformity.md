@@ -7,8 +7,8 @@
 - **Design** `/Users/izno/dev/review-archive/conformity-80/REPORT.md` § B, § D; the operator's rulings
   `/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md`. **Plan** `plan/INDEX.md` — 13 phases, one per
   surface (orders 98, 99): read its correspondence table and each page before a phase.
-- **DONE: phases 1–10.** 1 the responsive rule · 2 its WebKit pass · 3 components I · 4 components II · 5 Système ·
-  6 Réglages and Maintenance · 7 Acquisition · 8 Médiathèque (+ B-578) · 9 the media sheet · 10 the frame. **MIDPOINT DONE** (no real fall to repair). **NEXT: phase 11, Découvrir and Trackers**, **12 the harness
+- **DONE: phases 1–11.** 1 the responsive rule · 2 its WebKit pass · 3 components I · 4 components II · 5 Système ·
+  6 Réglages and Maintenance · 7 Acquisition · 8 Médiathèque (+ B-578) · 9 the media sheet · 10 the frame · 11 Découvrir and Trackers (+ B-580). **MIDPOINT DONE** (no real fall to repair). **NEXT:** **12 the harness
   consolidation** (order 52, budget ≤ 0.60), **13 the close**.
 - **The phase gate (order 99)**: static guards on the files touched; each new rule read RED on the old code first
   (`scripts/mutate.sh` with a targeted expression — an old file that no longer compiles cannot be restored whole);
@@ -108,3 +108,10 @@
   (the drawer's badge recoloured). Gate: 45 rules green, responsive 163 states 0 fall, `OWED` = the menu alone; the
   oracle moved relay-lost and relay-refused only (STOP A raised, the orchestrator ruled A: accepted by name as item
   2's consequence), proved by script.
+- 2026-09-30 — phase 11 (Découvrir and Trackers + B-580): the TMDB notice is `SurfaceError` warning under
+  `discover/notice`, no alert (held in state_surfaces.py, read RED on the old code); Trackers' bar is `Tabs`,
+  `trackersTab` dies (R-b already held the three bars). B-580 (moved into the train by the orchestrator): the drawer
+  subscribed to the store's state, which `store.touch()` does not move — it subscribes to the version now;
+  `appearance.py` holds the pressed control following a finger with no reload, read RED on `main` and on this branch
+  before the repair (the viewSwitch conversion had not fixed it). Gate: 33 rules green, responsive 16 states 0 fall,
+  the oracle « no divergence ».
