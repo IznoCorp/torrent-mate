@@ -253,7 +253,14 @@ export function shelvedEpisodes(titles: string[]): Record<string, number[]> {
  * @param season The season, 1-based.
  */
 export function poseSeasonShelved(title: string, season: number): void {
-  poseSeasonEnded(title, season, "abandoned");
+  // THE EPISODES IT COVERED KEEP THEIR POINTER: covered, then shelved with their
+  // season — their journey says where the season went (DESIGN § 1.4).
+  const card = seasonCardOf(title, season);
+  if (card !== undefined) {
+    const state = mockState();
+    for (const list of [...FLIGHT_LISTS, "blocked"] as const) state[list] = state[list].filter((one) => one !== card);
+    forgetLadder(acquisitionKey(card));
+  }
   const aired = ((SEASONS as Record<string, { season: number; aired: number }[]>)[title] ?? [])
     .find((one) => one.season === season)?.aired ?? 0;
   const state = mockState();

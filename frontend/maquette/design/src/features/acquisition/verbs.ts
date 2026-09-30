@@ -14,6 +14,7 @@
 // verb that still shares its page with the engine's drawing redraws it
 // (`features/acquisition/resolution-verbs.ts` is the precedent).
 import { landingTab, rememberTab } from "./tab-memory";
+import { dialParts, landOnCard } from "./landing";
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { HELD, send } from "../../lib/query-client";
@@ -133,5 +134,10 @@ registerVerb("search-again", (title, element) => {
    landing door and the write is made here. A control that NAMES the tab it
    lands on is obeyed: a link to what waits for the hand opens « À traiter ». */
 fillLandingDoor((page, dial) => {
-  if (page === "acq") store.write({ acqTab: landingTab(dial) });
+  if (page !== "acq") return;
+  // A LANDING MAY NAME ONE CARD after its tab (`now:Silo|S03`): that card is
+  // brought into view, focused and highlighted (`./landing`).
+  const { tab, acquisition } = dialParts(dial);
+  store.write({ acqTab: landingTab(tab) });
+  if (acquisition !== undefined) landOnCard(acquisition);
 });

@@ -27,6 +27,12 @@ function forgetSeasons(): void {
   window.__queries?.removeQueries({ queryKey: ["/api/media"] });
 }
 
+/** One acquisition's journey, over « Suivis », in the dense world. */
+function journey(subject: string): void {
+  applyState({ page: "acq", acqTab: "follows", scen: "loaded", phase: "ready" });
+  window.__panel.produce("journey", subject);
+}
+
 /** « En cours », in the dense world. */
 function now(): void {
   applyState({ page: "acq", acqTab: "now", scen: "loaded", phase: "ready" });
@@ -266,6 +272,40 @@ export function seasonRecoveryStates(): NamedState[] {
         window.__mocks?.seasonRecovery.ended(SERIES, SEASON, "abandoned");
         forgetQueue();
         now();
+      },
+    ],
+    // ── S2's journey, S3's covered episode, S4 — the pointer ───────────────
+    [
+      "season-card-journey",
+      "Récupération de saison — le parcours de la saison, qui liste l'épisode qu'elle couvre",
+      () => journey(`${SERIES}|S03`),
+    ],
+    [
+      "season-recovery-absorbed-downloading",
+      "Récupération de saison — le parcours de la saison nomme S03E07, « téléchargement déjà en cours »",
+      () => journey(`${SERIES}|S03`),
+    ],
+    [
+      "absorbed-journey-pointer",
+      "Parcours d'un épisode couvert — la note et « Voir la carte de la saison »",
+      () => journey(`${SERIES}|S03E07`),
+    ],
+    [
+      "absorbed-journey-pointer-blocked",
+      "Parcours d'un épisode couvert — la carte de la saison arrêtée : le renvoi mène à « À traiter »",
+      () => {
+        window.__mocks?.seasonRecovery.blocked(SERIES, SEASON);
+        forgetQueue();
+        journey(`${SERIES}|S03E07`);
+      },
+    ],
+    [
+      "absorbed-journey-pointer-ended",
+      "Parcours d'un épisode couvert — la saison est en médiathèque : « Voir la fiche »",
+      () => {
+        window.__mocks?.seasonRecovery.shelved(SERIES, SEASON);
+        forgetQueue();
+        journey(`${SERIES}|S03E07`);
       },
     ],
     // ── S6 — the end, on the rows ──────────────────────────────────────────

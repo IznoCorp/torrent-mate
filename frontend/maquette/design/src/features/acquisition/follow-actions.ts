@@ -126,7 +126,7 @@ export function secondaryActions(facts: FollowFacts): (Action | null)[] {
     // chasing. Without this condition the panel drew the same words twice and
     // gave the reader two buttons he could not tell apart (B-313).
     facts.hasSheet || facts.toResolve || facts.toTake || facts.incomplete || facts.isFollowed
-      ? { text: say("seeJourney"), icone: icons.refresh, target: { journey: follow.title } }
+      ? { text: say("seeJourney"), icone: icons.refresh, target: { journey: facts.journey } }
       : null,
     // Chasing a release only means something for a medium still being acquired.
     // Offered on a complete one it is a button that can only disappoint.

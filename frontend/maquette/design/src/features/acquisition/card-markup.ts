@@ -9,6 +9,7 @@
 // NO HANDLER IS ATTACHED HERE. The document-level delegation answers
 // `data-mediasheet` and `data-panel` on the button tapped, which is
 // why every attribute below is one the delegation reads.
+import { acquisitionKey } from "../../lib/arrival-slots";
 import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";
 import { initials } from "../../lib/titles";
@@ -62,6 +63,9 @@ export type MediumCard = {
   poster?: string | null;
   /** The provider identifiers — null for a title no sheet stands behind. */
   ids?: Record<string, number | string> | null;
+  /** The season and the episode the acquisition is of, as the engine serves them. */
+  season?: number | null;
+  episode?: number | null;
   /** Who launched it: a person's ask, or the engine's own rule — null when not known. */
   trigger?: "manual" | "automatic" | null;
 };
@@ -221,7 +225,9 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot | Med
   return cardMarkup({
     title,
     // french-ok: the non-medium marker R46 reads, a contract value
-    attributes: hasSheet ? {} : { "data-nonmedia": "dossier" },
+    // THE ACQUISITION IT STANDS FOR, the key a landing names it by (DESIGN
+    // maquette-season-recovery § 1.4: « Voir la carte de la saison »).
+    attributes: { "data-acquisition": acquisitionKey(medium), ...(hasSheet ? {} : { "data-nonmedia": "dossier" }) },
     side: hasSheet
       ? {
           poster: artworkMarkup,

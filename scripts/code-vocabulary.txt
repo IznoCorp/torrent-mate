@@ -38,6 +38,7 @@ abandon
 abandoned
 above
 absorb
+absorbed
 absorbs
 accent
 accepted
@@ -517,6 +518,7 @@ history
 hold
 holder
 holders
+holding
 holds
 home
 hooks
@@ -596,6 +598,7 @@ label
 labels
 ladder
 laid
+land
 landed
 landing
 lanes
@@ -841,6 +844,7 @@ platform
 play
 plex
 point
+pointer
 points
 policy
 poll

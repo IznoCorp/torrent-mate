@@ -15,6 +15,7 @@
 // Split on the FIRST colon only, because a subject carries its own: a setting is
 // addressed `<file>:<key>`, and a title like « Dexter: Resurrection » would
 // otherwise name a medium that does not exist.
+import { acquisitionKey } from "../lib/arrival-slots";
 import { addressSeam } from "../lib/addresses";
 import { membershipQuery, type Membership } from "../lib/membership";
 import { sharedQueryClient } from "../lib/query-client";
@@ -62,9 +63,11 @@ const REOPEN: Readonly<Record<string, Opener | undefined>> = {
        this interface holds, plus the acquisitions in flight — which are what a
        journey describes. The layer answers the same stages for any info hash,
        so a `holds` built on that read would say yes to everything. */
+    /* A JOURNEY PER ACQUISITION (Q14 = A): its subject is the acquisition's
+       key, « Silo|S03E07 », whose title is before the separator. */
     resolves: (subject) =>
-      heldMedium(subject) ||
-      (queueLists?.().inFlight ?? []).some((entry) => entry.title === subject),
+      heldMedium(subject.split("|")[0]) ||
+      (queueLists?.().inFlight ?? []).some((entry) => acquisitionKey(entry) === subject),
   },
   setting: {
     /* The feature produces the panel and answers whether it holds the subject. */

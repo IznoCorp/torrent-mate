@@ -1244,7 +1244,12 @@
       "provenanceNote": "Les dates viennent de la spine de provenance. Une étape non encore atteinte affiche « à venir » — jamais une date reconstruite.",
       "seeSheet": "Voir la fiche",
       "requeue": "Remettre en file",
-      "rescrape": "Re-scraper ce passage"
+      "rescrape": "Re-scraper ce passage",
+      "absorbedBy": "Cet épisode est couvert par la récupération de la saison {{season}}.",
+      "absorbedEnded": "La saison {{season}} est arrivée en médiathèque.",
+      "seeSeasonCard": "Voir la carte de la saison",
+      "absorbedRunning": "{{episode}} — téléchargement déjà en cours",
+      "absorbedCovered": "{{episode}} — couvert par la saison"
     },
     "notMedia": {
       "title": "Ce n'est pas un média",

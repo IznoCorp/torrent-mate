@@ -128,32 +128,37 @@ function onTheirWay(queue: { inFlight: QueueCard[]; arrivals: QueueCard[] }): Qu
 }
 
 /**
- * The keys of every acquisition still live — on its way, or stopped for his
- * hand in « À traiter »: the recovery is still his until the library.
- *
- * @param queue The queue's answer.
- * @returns Their keys.
- */
-function liveKeys(queue: { inFlight: QueueCard[]; arrivals: QueueCard[]; blocked: QueueCard[] }): Set<string> {
-  return new Set([...onTheirWay(queue), ...todoCards(queue)].map(acquisitionKey));
-}
-
-/**
  * Every card « En cours » holds — « En vol » alone: the cards on their way,
- * less every one a live acquisition COVERS. ONE derivation, read by the tab,
- * its count and every surface that asks what is on its way (§13).
+ * less every one a whole season's recovery COVERS. ONE derivation, read by the
+ * tab, its count and every surface that asks what is on its way (§13).
  *
  * THE ABSORPTION READS THE SERVED POINTER (DECIDED 5): a card whose
- * `absorbedBy` names a live acquisition — a whole season's recovery — is not
- * drawn; the season's card covers it (Q6). No label is compared. A pointer
- * naming an acquisition that has ended covers nothing: the card is drawn.
+ * `absorbedBy` names the acquisition covering it is not drawn; the season's
+ * card covers it (Q6), and once that recovery has ended its episodes are not
+ * revived by the interface — the engine re-enqueues what it is still short of
+ * as ORDINARY cards, which carry no pointer. No label is compared.
  *
  * @param queue The queue's answer.
  * @returns The cards, in the order the tab draws them.
  */
-export function inFlightCards(queue: { inFlight: QueueCard[]; arrivals: QueueCard[]; blocked: QueueCard[] }): QueueCard[] {
-  const live = liveKeys(queue);
-  return onTheirWay(queue).filter((card) => card.absorbedBy == null || !live.has(card.absorbedBy));
+export function inFlightCards(queue: { inFlight: QueueCard[]; arrivals: QueueCard[] }): QueueCard[] {
+  return onTheirWay(queue).filter((card) => card.absorbedBy == null);
+}
+
+/**
+ * The tab of Acquisition that holds a live acquisition's card NOW — « En
+ * cours » while on its way, « À traiter » while stopped for his hand — or
+ * nothing once it has left both.
+ *
+ * @param queue The queue's answer.
+ * @param key The acquisition's key.
+ * @returns `now`, `todo`, or undefined.
+ */
+export function tabHolding(
+  queue: { inFlight: QueueCard[]; arrivals: QueueCard[]; blocked: QueueCard[] }, key: string,
+): "now" | "todo" | undefined {
+  if (inFlightCards(queue).some((card) => acquisitionKey(card) === key)) return "now";
+  return todoCards(queue).some((card) => acquisitionKey(card) === key) ? "todo" : undefined;
 }
 
 /**
