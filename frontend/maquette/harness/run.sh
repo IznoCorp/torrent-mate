@@ -432,6 +432,14 @@ fi
 # hatch that matters: a rule that measures a settle can read a contended CPU as
 # a slow animation. A rule that needs the machine to itself is a finding to
 # record, not a reason to run all of them alone.
+#
+# THE DEFAULT IS 2, NOT THE CORE COUNT (auditor's order 88): it used to fall
+# back to `nproc` — eight on this host — so a suite launched with no override
+# started eight rules, each its own Chrome, at once; that starved the Plex
+# Transcoder on 2026-09-29 while nothing named the fan-out in the brief that
+# ran it. Two browser groups machine-wide is the office's own arithmetic
+# (`docs/reference/frontend-steward.md` § Instrument hygiene) — a caller that
+# knows its machine can afford more still sets `TM_HARNESS_JOBS` by hand.
 # EVERY RULE IS BOUNDED, and a rule past its bound is an INSTRUMENT that fell,
 # never a hold that passed: a hung rule once held the served copy for forty-five
 # minutes. `TM_RULE_TIMEOUT_SECONDS` moves the bound (ten minutes; the longest
@@ -439,10 +447,7 @@ fi
 RULE_TIMEOUT_SECONDS="${TM_RULE_TIMEOUT_SECONDS:-600}"
 BOUND="$(command -v timeout || command -v gtimeout || true)"
 [ -n "$BOUND" ] || echo "run.sh: no timeout command on this machine — rules run unbounded" >&2
-JOBS="${TM_HARNESS_JOBS:-}"
-if [ -z "$JOBS" ]; then
-  JOBS="$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)"
-fi
+JOBS="${TM_HARNESS_JOBS:-2}"
 
 # Each rule writes to its own log, and the FAILURES are reported after the run
 # in the rule order — never the order they happened to finish. A report whose

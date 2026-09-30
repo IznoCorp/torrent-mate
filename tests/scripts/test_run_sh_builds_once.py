@@ -363,3 +363,30 @@ def test_an_empty_rule_list_is_refused_by_the_rules_mode_before_the_build(
     assert result.returncode == 64, result.stdout + result.stderr
     assert "--rules names no rule" in result.stderr, result.stderr
     assert _count(journal, "npm run build") == 0, journal
+
+
+def test_the_default_fan_out_is_two_and_not_the_core_count(scratch_tree: Path) -> None:
+    """No heavy run takes every core by default any more (auditor's order 88).
+
+    `TM_HARNESS_JOBS` unset used to fall back to `nproc` — eight on this host — so
+    a suite launched with no override started eight rules, each its own Chrome, at
+    once. `nproc` is stubbed here to answer 8 on purpose: if the default silently
+    read it, this test would see « 8 at a time » instead of the new floor.
+    """
+    _write_executable(scratch_tree / "bin" / "nproc", "#!/bin/sh\necho 8\n")
+    journal = scratch_tree / "journal"
+    journal.touch()
+    result = subprocess.run(
+        ["bash", str(scratch_tree / "frontend" / "maquette" / "harness" / "run.sh"), "--contracts"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env={
+            **{k: v for k, v in os.environ.items() if k != "TM_HARNESS_JOBS"},
+            "PATH": f"{scratch_tree / 'bin'}:{os.environ['PATH']}",
+            "RUN_JOURNAL": str(journal),
+        },
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "2 at a time" in result.stdout, result.stdout
+    assert "8 at a time" not in result.stdout, result.stdout
