@@ -24,6 +24,8 @@ type Schemas = components["schemas"];
 // The quality floors, lowest first: the highest a right-holding requester set wins.
 const FLOORS = ["720p", "1080p", "2160p"];
 const FORBIDDEN = 403;
+// The status a paused follow carries — the generic pause's own.
+const PAUSED = "disabled";
 const MISSING = 404;
 const NOT_THEIRS = "the caller is not among this acquisition's requesters";
 const NO_SUCH = "no acquisition carries that title, or that requester";
@@ -80,7 +82,12 @@ function settingsOf(title: string): Pick<Schemas["Follow"], "ownQuality" | "qual
  * @returns The same follows, decorated.
  */
 export function withAcquisitionFacts(follows: Schemas["Follow"][]): Schemas["Follow"][] {
-  return withRequesters(follows).map((follow) => ({ ...follow, ...settingsOf(follow.title) }));
+  // PAUSED FOR ALL once every requester holding the right has asked (round 10
+  // Q6): the follow stops being looked for, as the generic pause stops it.
+  return withRequesters(follows).map((follow) => {
+    const settings = settingsOf(follow.title);
+    return { ...follow, ...settings, status: settings.paused ? PAUSED : follow.status };
+  });
 }
 
 /**

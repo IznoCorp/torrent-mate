@@ -20,6 +20,7 @@ import { panel, toast } from "../../lib/shell-doors";
 import { registerVerb } from "../../lib/verbs";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 import type { Schemas } from "../../lib/contract-schemas";
+import { typedRoleName } from "./panel-role-name";
 
 type Roster = Schemas["Roster"];
 type Role = Schemas["Role"];
@@ -41,8 +42,12 @@ export function withinReach(rights: readonly Right[], account: Schemas["Account"
   return rights.every((right) => own.holds(right));
 }
 
-/** How many rights a role carries, in words. */
+/**
+ * How many rights a role carries, in words — Admin's holds no list, it
+ * bypasses every right (ruling 22), and « 0 droit » would say the opposite.
+ */
 function said(role: Role): string {
+  if (bypassesRights(role)) return i18next.t("screens.accounts.bypass");
   return i18next.t("screens.accounts.roleCount", { count: role.rights.length });
 }
 
@@ -108,12 +113,20 @@ function rolePanel(id: string, cache: PanelCache): PanelDescriptor | null {
       blocs: [{ type: "note", text: translate("screens.accounts.adminRole") }],
     };
   const own = manager !== undefined && sameRole(manager.role, role) && !bypassesRights(manager.role);
+  // ITS NAME IS OFFERED where the manager may change the role: an ordinary one
+  // (Default keeps its name, ruling 22), not its own, within its reach (round 9
+  // Q14 = A: a manager renames only a role whose rights it holds).
+  const nameOffered = !isDefaultRole(role) && !own && withinReach(role.rights, manager);
   return {
     address: "role:" + id,
     title: role.name,
     blocs: [
       isDefaultRole(role) ? { type: "note", text: translate("screens.accounts.defaultRole") } : null,
       own ? { type: "note", text: translate("screens.accounts.notOwnRole") } : null,
+      nameOffered ? { type: "roleName", role: role.id, name: role.name } : null,
+      nameOffered
+        ? { type: "actions", actions: [{ text: translate("screens.accounts.rename"), target: { "role-rename": role.id } }] }
+        : null,
       {
         type: "actions",
         actions: RIGHTS.map((right) => {
@@ -167,6 +180,15 @@ export function installRosterVerbs(client: QueryClient): void {
     const current = roster?.roles.find((one) => one.id === id)?.rights ?? [];
     const rights = on === "true" ? [...current, right as Right] : current.filter((one) => one !== right);
     void change(client, () => send("PATCH", `/api/roles/${encodeURIComponent(id)}`, { rights }));
+  });
+  registerVerb("role-rename", (id) => {
+    const name = typedRoleName(id);
+    // A ROLE IS NEVER NAMELESS: said before anything is asked.
+    if (!name) {
+      toast?.show({ message: i18next.t("screens.accounts.nameRequired") });
+      return;
+    }
+    void change(client, () => send("PATCH", `/api/roles/${encodeURIComponent(id)}`, { name }));
   });
   registerVerb("role-create", () => {
     // A NEW ROLE STARTS WITH THE DEFAULT ROLE'S RIGHTS, as every new account

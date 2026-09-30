@@ -1021,7 +1021,10 @@
       "plexNotLinked": "aucun compte Plex lié",
       "can": "Ce que ce compte peut faire",
       "cannot": "Ce qu'il ne peut pas faire",
-      "forbiddenHere": "interdit sur cette instance, pour tous les comptes"
+      "forbiddenHere": "interdit sur cette instance, pour tous les comptes",
+      "addressPlexSub": "relie le compte Plex de même adresse",
+      "held": "détenu",
+      "noRight": "Aucun droit : ce rôle n'ouvre rien ici."
     },
     "notFound": {
       "title": "Cette adresse ne mène nulle part.",
@@ -1155,7 +1158,11 @@
       "plexHint": "Un compte Plex de même adresse lui est lié : il peut alors entrer par Plex.",
       "create": "Créer le compte",
       "emailRequired": "L'adresse e-mail est obligatoire.",
-      "createRefused": "La création a été refusée."
+      "createRefused": "La création a été refusée.",
+      "roleName": "Nom du rôle",
+      "rename": "Renommer",
+      "nameRequired": "Un rôle porte un nom : il ne peut pas rester vide.",
+      "createBeyond": "Refusé : ce rôle de départ dépasse vos droits."
     }
   },
   "surfaces": {
@@ -1549,7 +1556,8 @@
       "rescrapeQueued": "Re-scrape de « {{title}} » en file — pipeline en cours.",
       "rescrapeHeld": "Re-scrape de « {{title}} » demandé — en attente du réseau, il partira au retour.",
       "rescrapeRefused": "Le re-scrape de « {{title}} » n'a pas abouti.",
-      "rescrapeUnidentified": "« {{title}} » n'a aucune identité fournisseur : il n'y a rien à re-scraper tant qu'il n'est pas identifié."
+      "rescrapeUnidentified": "« {{title}} » n'a aucune identité fournisseur : il n'y a rien à re-scraper tant qu'il n'est pas identifié.",
+      "seasonForbidden": "Saison {{season}} de « {{title}} » : votre rôle ne vous donne pas le droit de la récupérer."
     },
     "journey": {
       "requeueAsked": "Remis en file — le passage reprend où il s'est arrêté.",
@@ -1568,7 +1576,9 @@
       "searchStopped": "« {{title}} » ne sera plus cherché.",
       "paused": "« {{title}} » mis en pause.",
       "refused": "« {{title}} » n'a pas pu être enregistré : le serveur a refusé la demande.",
-      "removed": "« {{title}} » retiré de vos suivis."
+      "removed": "« {{title}} » retiré de vos suivis.",
+      "forbidden": "« {{title}} » : votre rôle ne vous donne pas ce droit sur ce suivi.",
+      "actRefused": "« {{title}} » : le changement n'a pas abouti."
     },
     "deck": {
       "loaded": "{{count}} suggestions de plus — la réserve en compte {{total}}.",
@@ -1666,7 +1676,10 @@
         "pause": {
           "own": "mettre ses acquisitions en pause"
         },
-        "reassign": "réaffecter une acquisition"
+        "reassign": "réaffecter une acquisition",
+        "todo": {
+          "view": "voir « À traiter »"
+        }
       },
       "pipeline": {
         "control": "piloter le traitement"
@@ -1711,7 +1724,10 @@
         "pause": {
           "own": "Par défaut : Admin et Membre du foyer."
         },
-        "reassign": "Par défaut, seul le rôle Admin le détient."
+        "reassign": "Par défaut, seul le rôle Admin le détient.",
+        "todo": {
+          "view": "Par défaut : Admin et Membre du foyer."
+        }
       },
       "pipeline": {
         "control": "Par défaut, seul le rôle Admin le détient."

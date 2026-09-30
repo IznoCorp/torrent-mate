@@ -170,6 +170,7 @@ bypasses every row.
 | `acquisition.pilot.own` | Household member, Plex guest | the tunnel's acts on a card one is a requester of | `requeueJourney`, `rescrapeJourney`, `grabForFollow`, `searchForFollow`, `grabSeasonForFollow` — where the caller is among the target's requesters |
 | `acquisition.pilot.any` | — | the same acts on ANY card | the same operations, any target |
 | `acquisition.see.others` | — (a variant role adds it) | cards and follows one did not request, read-only | `readAcquisitionQueue`, `readFollows` answer the caller's subset unless held |
+| `acquisition.todo.view` | Household member (both variants) | the « À traiter » tab and its count on the Acquisition badge — round 9 Q13 (« voir À traiter est un droit »), added by the reader's correction round of 2026-10-01 | the tab and the count are absent; the queue's read stays a filtered 200 |
 | `acquisition.quality.own` | Household member | « Profil de qualité » on one's own requested acquisition | `setAcquisitionQuality`, on one's own |
 | `acquisition.pause.own` | Household member | a pause preference on one's own requested acquisition | `setAcquisitionPause`, on one's own |
 | `acquisition.reassign` | — | the reassign gesture (S5) | `reassignRequester` |
@@ -389,7 +390,11 @@ the section keeps three, not four — F33 and the porting checklist both note th
    confirmation, ruling 3). What differs is which requesters hold `acquisition.request`/`.follow`, never the verb.
 7. **The floating « ＋ » is gated by `acquisition.request` through the model** (**F65**) — absent for a
    `see.others`-only identity and for an account under a forbidden-writes list that covers it.
-8. **The section absent** (the named exception, unchanged): an account holding neither `acquisition.request` nor
+8. **« À traiter » is a right** (round 9 Q13: « voir À traiter est un droit ; par défaut un compte ne voit et ne
+   compte que ses cartes »): `acquisition.todo.view`, held by the two household roles by default. Without it the tab
+   is not drawn and the Acquisition badge counts nothing from it; with it, the account sees and counts its own cards,
+   everyone's read-only only under `acquisition.see.others` (point 1). `acq-guest` is re-aimed to this absence.
+9. **The section absent** (the named exception, unchanged): an account holding neither `acquisition.request` nor
    `acquisition.see.others` has no Acquisition row, no tabs, no badge, no address — its landing is elsewhere in
    its own bar order (§ 3.2's entry-page rule).
 

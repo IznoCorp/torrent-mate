@@ -8,10 +8,10 @@
 import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useTranslation } from "react-i18next";
 import { useAccount, useRights } from "./queries";
-import { RIGHTS } from "../../lib/rights";
+import { RIGHTS, bypassesRights } from "../../lib/rights";
 import type { ReactElement } from "react";
 import { FactRows, type FactRow } from "../../ui/fact-rows";
-import { actionButton, factList, sectionHeading } from "../../ui/variants";
+import { actionButton, factList, guidance, sectionHeading } from "../../ui/variants";
 
 export function AccountPage(): ReactElement | null {
   const { t } = useTranslation();
@@ -24,6 +24,11 @@ export function AccountPage(): ReactElement | null {
   // sentences a reserved page says.
   const held = RIGHTS.filter((right) => rights.holds(right));
   const lacking = RIGHTS.filter((right) => !rights.holds(right));
+  // THE CONFIGURATION'S ACCOUNT IS THE ADMIN'S: its name comes from
+  // `web.username` and its address only notifies. Any other account is the
+  // roster's — named in « Comptes », its address the one that links Plex — and
+  // those two lines would be false for it (the reader's L18 round).
+  const fromConfiguration = bypassesRights(ACCOUNT.role);
   const facts = (rows: FactRow[]) => (
     <ol className={factList()} data-part="flux">
       <FactRows rows={rows} />
@@ -41,13 +46,14 @@ export function AccountPage(): ReactElement | null {
         {
           label: t("screens.accountPage.identifier"),
           value: ACCOUNT.name,
-          k: "web.username",
-          secondaryLine: t("screens.accountPage.identifierSub"),
+          ...(fromConfiguration ? { k: "web.username", secondaryLine: t("screens.accountPage.identifierSub") } : {}),
         },
         {
           label: t("screens.accountPage.address"),
           value: ACCOUNT.email,
-          secondaryLine: t("screens.accountPage.addressSub"),
+          secondaryLine: fromConfiguration
+            ? t("screens.accountPage.addressSub")
+            : ACCOUNT.plexLinked ? t("screens.accountPage.addressPlexSub") : undefined,
         },
         {
           label: t("screens.accountPage.role"),
@@ -63,11 +69,14 @@ export function AccountPage(): ReactElement | null {
       ])}
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.accountPage.can")}</h2>
-      {facts(held.map((right) => ({
+      {/* A HELD RIGHT SAYS SO in its chip — never an empty « — » — and a
+          role that holds none says « aucun » rather than an empty frame. */}
+      {held.length ? facts(held.map((right) => ({
         label: t(`access.rights.${right}`),
+        value: t("screens.accountPage.held"),
         tone: "success",
         part: "profile/right-held",
-      })))}
+      }))) : <p className={guidance()} data-part="profile/no-right">{t("screens.accountPage.noRight")}</p>}
       {lacking.length ? (
         <>
           <h2 className={sectionHeading()} data-part="heading">{t("screens.accountPage.cannot")}</h2>

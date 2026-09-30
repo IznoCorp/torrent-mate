@@ -7,10 +7,11 @@
 // (`lib/topbar-avatar.ts`).
 import type { QueryClient } from "@tanstack/react-query";
 import { showAvatar } from "../../lib/topbar-avatar";
-import { accountQuery } from "./queries";
+import { accountQuery, type Account } from "./queries";
 
 /**
- * Asks for the account and shows its picture in the top bar.
+ * Asks for the account and shows it in the top bar — and again whenever the
+ * signed-in account's answer moves (a sign-in, a named state's identity).
  *
  * A read that fails leaves the bar's avatar as the markup drew it: the bar has
  * nothing else to say about an account it could not read, and the account page
@@ -19,10 +20,14 @@ import { accountQuery } from "./queries";
  * @param queryClient The shared cache the boot created.
  */
 export function installSignedInAvatar(queryClient: QueryClient): void {
-  void queryClient.fetchQuery(accountQuery).then(
-    (account) => {
-      if (account.avatar) showAvatar(account.avatar);
-    },
-    () => undefined,
-  );
+  const show = (account: Account | undefined) => {
+    if (account) showAvatar(account.avatar, account.name);
+  };
+  // THE CACHE IS WATCHED, not one observer: the cache is emptied and refilled
+  // by a reset, and an observer would keep reading the entry it was given.
+  queryClient.getQueryCache().subscribe((event) => {
+    if (event.type !== "updated" || event.query.queryKey[0] !== accountQuery.queryKey[0]) return;
+    show(event.query.state.data as Account | undefined);
+  });
+  void queryClient.fetchQuery(accountQuery).then(show, () => undefined);
 }

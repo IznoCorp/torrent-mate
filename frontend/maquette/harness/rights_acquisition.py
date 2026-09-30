@@ -9,8 +9,8 @@ DESIGN maquette-l18 § 3.4, § 5 (R-L18-g, R-L18-h, R-L18-k), F33, F65, round 9 
    only sees.
 3. R-L18-k — OWN TUNNEL, BOTH SIDES: a card another account asked for opens a journey panel
    without the tunnel's verbs, and forcing « Remettre en file » on it answers 403; on the
-   account's own card the verb is offered and the call is not refused. A guest's « À traiter »
-   card carries no foot of the pipeline's decisions (`pipeline.control`).
+   account's own card the verb is offered and the call is not refused. A household member's
+   « À traiter » card carries no foot of the pipeline's decisions (`pipeline.control`).
 4. Round 9 Q16 — A CARD SEVERAL ACCOUNTS ASKED FOR NAMES THEM ALL on its line.
 5. R-L18-x — A COLD BOOT LANDS ON THE REMEMBERED TAB: before the account is read nothing is
    known to be closed, so the owner's first Acquisition is « Suivis », not a fallback.
@@ -111,12 +111,14 @@ async def main():
         allowed = await page.evaluate(FORCE_REQUEUE, ["household-member", OWN_CARD])
         journal.check("R-L18-k: « Remettre en file » on its own card is not refused", allowed != 403, str(allowed))
 
-        await go("acq-guest")
+        await go("acq-household")
+        await page.evaluate("()=>window.__store.write({ acqTab: 'todo' })")
+        await page.wait_for_timeout(SETTLED)
         feet = await page.evaluate("""() => [...document.querySelectorAll('#view [data-part="card/foot"]')]
           .flatMap((one) => [...one.attributes].map((attribute) => attribute.name))
           .filter((name) => ['data-resolution', 'data-plex-confirm', 'data-staging-delete', 'data-journey-abandon']
           .includes(name))""")
-        journal.check("R-L18-k: a guest's « À traiter » card carries none of the pipeline's decisions", not feet,
+        journal.check("R-L18-k: a household member's « À traiter » card carries none of the pipeline's decisions", not feet,
                       str(feet))
 
         await go("acq-card-plural-requesters")

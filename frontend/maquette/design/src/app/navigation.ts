@@ -187,9 +187,12 @@ export const NAVIGATION: readonly NavigationRow[] = [
   {
     // « DÉCOUVRIR », A PAGE OF THE BAR: it left
     // Acquisition's tabs. It draws its own body, as Acquisition does.
+    // RESERVED, NOT ABSENT, where the account may not ask for a medium: a page
+    // of its own, it stays in the menu marked (round 8 Q11) — the section's
+    // exception is Acquisition's, and Découvrir left the section.
     id: "discover",
     opens: ["acquisition.request"],
-    lacking: "absent",
+    lacking: "reserved",
     path: PAGE_PATHS.discover,
     Body: DiscoverPage,
     labelKey: "navigation.pages.discover",

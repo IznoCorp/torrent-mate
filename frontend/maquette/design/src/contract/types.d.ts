@@ -2316,7 +2316,7 @@ export interface components {
          * @description ONE RIGHT OF THE ACL (§ 17, ruling 17: every access, a view or an act, is a right). Rights belong to ROLES, never to an account (ruling 20). The interface reads the set an account holds and offers exactly what it opens; it never compares a role's name.
          * @enum {string}
          */
-        Right: "library.read" | "library.delete" | "library.rescrape" | "acquisition.request" | "acquisition.follow" | "acquisition.pilot.own" | "acquisition.pilot.any" | "acquisition.see.others" | "acquisition.quality.own" | "acquisition.pause.own" | "acquisition.reassign" | "pipeline.control" | "trackers.view" | "trackers.control" | "system.view" | "configuration.view" | "configuration.write" | "accounts.manage" | "auth.password";
+        Right: "library.read" | "library.delete" | "library.rescrape" | "acquisition.request" | "acquisition.follow" | "acquisition.pilot.own" | "acquisition.pilot.any" | "acquisition.see.others" | "acquisition.todo.view" | "acquisition.quality.own" | "acquisition.pause.own" | "acquisition.reassign" | "pipeline.control" | "trackers.view" | "trackers.control" | "system.view" | "configuration.view" | "configuration.write" | "accounts.manage" | "auth.password";
         /** @description A ROLE and the rights it carries (ruling 20: one role per account). Two are the system's and indelible (ruling 22): `admin` holds NO rights list — it bypasses the ACL, every right present and future — and `default` is the role every new account receives, its rights configurable. Every other role is `ordinary` configuration. */
         Role: {
             /** @description the role's key */

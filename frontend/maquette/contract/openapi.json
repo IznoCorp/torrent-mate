@@ -8269,6 +8269,7 @@
           "acquisition.pilot.own",
           "acquisition.pilot.any",
           "acquisition.see.others",
+          "acquisition.todo.view",
           "acquisition.quality.own",
           "acquisition.pause.own",
           "acquisition.reassign",

@@ -126,9 +126,11 @@ export function rightsStates(): NamedState[] {
     ],
     [
       "acq-guest",
-      "Droits — Acquisition d'un invité Plex : sa carte « À traiter » sans les gestes du traitement",
+      "Droits — Acquisition d'un invité Plex : ni « À traiter » ni son compte, son rôle ne tient pas le droit de le voir",
       () => {
         as("guest");
+        // THE DIAL ASKS FOR « À TRAITER », and the page draws the first tab the
+        // role opens instead (round 9 Q13).
         applyState({ page: "acq", acqTab: "todo", phase: "ready" });
       },
     ],

@@ -151,7 +151,7 @@ function followPanel(title: string, cache: PanelCache): PanelDescriptor | null {
   const rights = heldRights();
   const primary = offeredActs([primaryAction(facts)], follow, rights);
   const readOnly = follow.requesters !== undefined && !isOwn(follow, rights);
-  const pause = pauseOffer(follow);
+  const pause = pauseOffer(follow, rights);
   return {
     address: "follow:" + title,
     title: follow.title,

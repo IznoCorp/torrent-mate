@@ -12,7 +12,7 @@ import type { components } from "../../contract/types";
 import { stagesOf } from "./acquisition-verbs";
 import { withAcquisitionFacts, withRequesters } from "./requesters";
 import { mockState } from "../state";
-import { claimRequest } from "../identity";
+import { claimRequest, releaseRequest, requestersOf, signedInId, signedInRights } from "../identity";
 import { refused, type MockRequest, type MockRoute } from "../router";
 
 // How many suggestions one batch of the deck carries. The engine's own batch
@@ -97,6 +97,21 @@ function followedFrom(title: string) {
     ?? SUGGESTIONS.find((suggestion) => suggestion.title === title);
 }
 
+// Why a co-requester's generic pause is refused.
+const SHARED_PAUSE = "other accounts asked for this follow too: each pauses it for itself";
+
+/**
+ * Whether the caller shares a follow with other requesters and does not pilot
+ * every acquisition — the one who may not act on the whole of it.
+ *
+ * @param title The follow.
+ * @returns True for a co-requester.
+ */
+function sharedWithOthers(title: string): boolean {
+  if (signedInRights().holds("acquisition.pilot.any")) return false;
+  return requestersOf(title).some((one) => one.id !== signedInId());
+}
+
 // Why a follow nothing identifies is refused, in the problem body's own words.
 const NO_IDENTITY = "a follow with no provider identity has no sheet";
 
@@ -174,6 +189,9 @@ export function acquisitionRoutes(): MockRoute[] {
       (request) => {
         const found = followFor(request.parameters.followedId);
         if (found === undefined) return null;
+        // THE GENERIC PAUSE IS THE WHOLE FOLLOW'S: a co-requester pauses for
+        // itself (`setAcquisitionPause`), never for the others (round 10 Q6).
+        if (sharedWithOthers(found.title)) return refused(403, SHARED_PAUSE);
         const asked = field(request.body, "status");
         if (typeof asked === "string") found.status = asked;
         return found;
@@ -190,6 +208,13 @@ export function acquisitionRoutes(): MockRoute[] {
       "/api/acquisition/followed/{followedId}",
       (request) => {
         const state = mockState();
+        // A FOLLOW OTHERS ASKED FOR TOO STAYS FOR THEM: the caller alone
+        // leaves its requesters; it goes with its last one (round 9 Q16).
+        if (requestersOf(request.parameters.followedId).length > 1
+          && requestersOf(request.parameters.followedId).some((one) => one.id === signedInId())) {
+          releaseRequest(request.parameters.followedId);
+          return { ok: true };
+        }
         const removed = state.follows.filter(
           (follow) => follow.title === request.parameters.followedId,
         );
@@ -211,6 +236,13 @@ export function acquisitionRoutes(): MockRoute[] {
       "/api/acquisition/followed/{followedId}/restore",
       (request) => {
         const state = mockState();
+        // A FOLLOW THE CALLER ONLY LEFT is still there: putting it back makes
+        // the caller one of its requesters again.
+        const standing = followFor(request.parameters.followedId);
+        if (standing !== undefined) {
+          claimRequest(standing.title, true);
+          return withAcquisitionFacts([standing])[0];
+        }
         const at = state.removedFollows.findIndex(
           (follow) => follow.title === request.parameters.followedId,
         );

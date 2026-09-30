@@ -12,6 +12,7 @@ import { send } from "../../lib/query-client";
 import { panel, toast } from "../../lib/shell-doors";
 import { registerVerb } from "../../lib/verbs";
 import type { Schemas } from "../../lib/contract-schemas";
+import type { Rights } from "../../lib/rights";
 import { followsQuery } from "./queries";
 
 // What separates a title from the value a verb carries: a title may carry a colon, never this.
@@ -21,10 +22,14 @@ const PART = "|";
  * The pause act a follow's panel carries, and the note that says where the pause stands.
  *
  * @param follow The follow, with its settings.
+ * @param rights What the account may do.
  * @returns The act (its verb gated by `act-rights`), and the note, or null when nothing is paused.
  */
-export function pauseOffer(follow: Pick<Schemas["Follow"], "title" | "ownPaused" | "paused">) {
-  const own = follow.ownPaused === true;
+export function pauseOffer(follow: Pick<Schemas["Follow"], "title" | "ownPaused" | "paused">, rights: Rights) {
+  // A PAUSE OF ONE'S OWN EXISTS ONLY UNDER THE RIGHT: a setting left from a role
+  // that held it, or seeded for one that never did, counts for nothing (round
+  // 10 Q6) and is never said as « notée ».
+  const own = follow.ownPaused === true && rights.holds("acquisition.pause.own");
   return {
     act: {
       text: i18next.t(own ? "panels.follow.resumeOwn" : "panels.follow.pauseOwn"),

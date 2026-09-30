@@ -63,15 +63,16 @@ export function landingTab(asked?: string): string {
 
 /**
  * The tabs of Acquisition an account opens, in their order (§ 17): « Suivis »
- * to a role that manages follows or sees everyone's, the two others to any
- * role that reaches the section.
+ * to a role that manages follows or sees everyone's, « En cours » to any role
+ * that reaches the section, « À traiter » to a role holding its right (round 9
+ * Q13: « voir À traiter est un droit »).
  *
  * @param rights What the account may do.
  * @returns The tab ids.
  */
 export function tabsOpenTo(rights: Rights): string[] {
   const follows = rights.holdsAny(["acquisition.follow", "acquisition.see.others"]);
-  return [...(follows ? ["follows"] : []), "now", "todo"];
+  return [...(follows ? ["follows"] : []), "now", ...(rights.holds("acquisition.todo.view") ? ["todo"] : [])];
 }
 
 /**

@@ -187,7 +187,10 @@ export function originLine(
 ): string | undefined {
   // PLURAL WHERE SEVERAL ASKED (round 9 Q16): « demandé par izno et Léa ». The
   // names are joined by the language's own list, never by a typed conjunction.
-  const names = medium.requesters && medium.requesters.length > 1
+  // THE REQUESTERS ARE WHO ASKED, whenever the answer carries them: a card
+  // reassigned to one other account names that account, never the name the
+  // row's origin was first recorded under (the reader's L18 round).
+  const names = medium.requesters && medium.requesters.length > 0
     ? new Intl.ListFormat(i18next.language, { type: "conjunction" }).format(medium.requesters.map((one) => one.name))
     : medium.requester?.name;
   // A CARD SEVERAL ACCOUNTS ASKED FOR says so even where the answer names no

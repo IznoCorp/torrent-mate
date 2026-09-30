@@ -23,6 +23,7 @@
         "library.read",
         "acquisition.request",
         "acquisition.follow",
+        "acquisition.todo.view",
         "acquisition.pilot.own",
         "acquisition.quality.own",
         "acquisition.pause.own"
@@ -36,6 +37,7 @@
         "library.read",
         "acquisition.request",
         "acquisition.follow",
+        "acquisition.todo.view",
         "acquisition.pilot.own",
         "acquisition.quality.own",
         "acquisition.pause.own",

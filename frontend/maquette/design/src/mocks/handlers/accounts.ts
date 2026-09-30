@@ -147,6 +147,8 @@ export function accountRoutes(): MockRoute[] {
       if (callerRole().kind !== ADMIN) {
         if (callerRole().id === role.id) return refused(FORBIDDEN, "a manager never touches its own role");
         if (rights && !within(rights)) return refused(FORBIDDEN, "the role would hold rights the caller's does not");
+        if (typeof name === "string" && !within(role.rights))
+          return refused(FORBIDDEN, "a manager renames only a role within its own rights");
       }
       if (rights) {
         const every = roles().map((one) => (one.id === role.id ? { ...one, rights } : one));

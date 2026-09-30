@@ -21,7 +21,7 @@
 // dismissed suggestion leaves the deck only if it is told again. A `write`
 // would have given both for free; a Set mutated in place does not.
 import i18next from "i18next";
-import type { Follow, FollowOutcome } from "./types";
+import type { ActOutcome, Follow, FollowOutcome } from "./types";
 import { registerVerb } from "../../lib/verbs";
 import { store } from "../../lib/store-access";
 import { collapseOpenRow, openRow } from "../../lib/swipe-arbitration";
@@ -194,12 +194,12 @@ function pause(title: string): void {
   // and moves nothing the engine still draws. The undo needs it just as much
   // as the act does, so both go through this one door.
   const put = (status: string) => {
-    followActions?.setStatus(title, status);
+    const answered = followActions?.setStatus(title, status);
     store.touch();
+    return answered;
   };
-  put(after);
   const resumed = after !== "disabled";
-  toast?.show({
+  void said(put(after), found.title, () => ({
     message: i18next.t(
       resumed
         ? "verbs.follows.resumed"
@@ -212,8 +212,37 @@ function pause(title: string): void {
     // THE UNDO MOVES WITH THE VERB IT UNDOES. It restores what WAS rather
     // than toggling again: a second toggle is the same act repeated, and it
     // would land on the wrong side of anything that moved in between.
-    undo: () => put(before),
-  });
+    undo: () => { void put(before); },
+  }));
+}
+
+/**
+ * Says what became of a pause or a removal — ONCE THE LAYER HAS ANSWERED.
+ *
+ * The row moved in the tap's own task; the sentence waits, so a refusal is
+ * never announced as done first (the reader's L18 round: « retiré », then a
+ * silent 403 and the row back). A HELD act keeps its done sentence: offline, the
+ * outbox holds it and it has not failed (R107).
+ *
+ * @param answered The act's outcome, once the layer answers.
+ * @param title The medium, for the refusal's sentence.
+ * @param done The message the act says when it stood.
+ */
+async function said(
+  answered: Promise<ActOutcome> | undefined,
+  title: string,
+  done: () => { message: string; undo?: () => void },
+): Promise<void> {
+  const outcome = await answered;
+  if (outcome === "forbidden") {
+    toast?.show({ message: i18next.t("verbs.follows.forbidden", { title }) });
+    return;
+  }
+  if (outcome === "refused") {
+    toast?.show({ message: i18next.t("verbs.follows.actRefused", { title }) });
+    return;
+  }
+  toast?.show(done());
 }
 
 /**
@@ -237,15 +266,15 @@ function removeFollow(title: string): void {
   const removed = (followActions?.all() ?? []).find(
     (follow) => follow.title === title);
   if (!removed) return;
-  followActions?.remove(title);
+  const answered = followActions?.remove(title);
   store.touch();
-  toast?.show({
+  void said(answered, removed.title, () => ({
     message: i18next.t("verbs.follows.removed", { title: removed.title }),
     undo: () => {
       followActions?.restore(removed);
       store.touch();
     },
-  });
+  }));
 }
 
 /**

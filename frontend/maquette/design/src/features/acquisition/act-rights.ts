@@ -12,8 +12,12 @@ import { isOwn } from "../../lib/rights";
 import type { MediumCardFoot } from "./card-markup";
 import { sharedQueryClient } from "../../lib/query-client";
 
-/** What one verb asks for. */
-type Asked = { rights: readonly Right[]; own?: true };
+/**
+ * What one verb asks for. `sole` adds « and nobody else asked for it »: an act on
+ * the WHOLE acquisition, which a co-requester may not take for the others
+ * (round 10 Q6) — `acquisition.pilot.any` lifts it, as it lifts `own`.
+ */
+type Asked = { rights: readonly Right[]; own?: true; sole?: true };
 
 // Piloting a tunnel: one's own acquisition, or any.
 const PILOT: Asked = { rights: ["acquisition.pilot.own", "acquisition.pilot.any"], own: true };
@@ -38,7 +42,11 @@ const ACTS: Readonly<Record<string, Asked>> = {
   follow: { rights: ["acquisition.request"] },
   profile: { rights: ["acquisition.quality.own"], own: true },
   "pause-own": { rights: ["acquisition.pause.own"], own: true },
-  pause: FOLLOW,
+  "search-again": PILOT,
+  // THE GENERIC PAUSE STOPS THE FOLLOW FOR EVERY REQUESTER, so a co-requester is
+  // offered its own pause instead (`pause-own`); « Retirer » takes the caller
+  // off the requesters, which is its own to do.
+  pause: { ...FOLLOW, sole: true },
   remove: FOLLOW,
   rescrape: { rights: ["library.rescrape"] },
   del: { rights: ["library.delete"] },
@@ -57,7 +65,9 @@ export function actOffered(verb: string, subject: { requesters?: readonly { id: 
   const asked = ACTS[verb.replace(/^data-/, "")];
   if (asked === undefined) return true;
   if (!rights.holdsAny(asked.rights)) return false;
-  return asked.own !== true || isOwn(subject, rights);
+  if (asked.own === true && !isOwn(subject, rights)) return false;
+  return asked.sole !== true || rights.holds("acquisition.pilot.any")
+    || (subject.requesters ?? []).every((one) => one.id === rights.id);
 }
 
 /**

@@ -134,7 +134,9 @@ export function signedIn(): Schemas["Account"] {
     id: held.id,
     name: held.name,
     email: held.email,
-    avatar: ACCOUNT.avatar,
+    // THE OWNER'S PICTURE IS HIS: an invented account carries none, and the
+    // header draws its initial (the reader's L18 round, izno's face on Tom).
+    avatar: held.id === ACCOUNT.id ? ACCOUNT.avatar : "",
     role: roleFor(held.role),
     plexLinked: held.plexLinked,
     forbiddenWrites: [...dials().forbiddenWrites],
@@ -203,6 +205,19 @@ export function claimRequest(title: string, existing: boolean): void {
   const ids = existing ? requestersOf(title).map((one) => one.id) : [];
   if (!ids.includes(dials().identity)) ids.push(dials().identity);
   dials().moved[title] = ids;
+}
+
+/**
+ * Takes the signed-in account off an acquisition's requesters — what « Retirer
+ * de la liste » does to a follow others asked for too (round 9 Q16): the follow
+ * stays for them.
+ *
+ * @param title The acquisition, by its title.
+ * @returns The requesters left.
+ */
+export function releaseRequest(title: string): Schemas["AccountRef"][] {
+  dials().moved[title] = requestersOf(title).map((one) => one.id).filter((id) => id !== dials().identity);
+  return requestersOf(title);
 }
 
 /**

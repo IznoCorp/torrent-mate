@@ -26,8 +26,8 @@ export type Right = Schemas["Right"];
 export const RIGHTS: readonly Right[] = [
   "library.read", "library.delete", "library.rescrape",
   "acquisition.request", "acquisition.follow", "acquisition.pilot.own", "acquisition.pilot.any",
-  "acquisition.see.others", "acquisition.quality.own", "acquisition.pause.own", "acquisition.reassign",
-  "pipeline.control", "trackers.view", "trackers.control", "system.view",
+  "acquisition.see.others", "acquisition.todo.view", "acquisition.quality.own", "acquisition.pause.own",
+  "acquisition.reassign", "pipeline.control", "trackers.view", "trackers.control", "system.view",
   "configuration.view", "configuration.write", "accounts.manage", "auth.password",
 ];
 
@@ -128,6 +128,24 @@ type Requested = { requesters?: readonly { id: string }[] };
 export function isOwn(acquisition: Requested, rights: Rights): boolean {
   if (rights.holds("acquisition.pilot.any")) return true;
   return (acquisition.requesters ?? []).some((one) => one.id === rights.id);
+}
+
+/**
+ * Whether the account is offered « Récupérer la saison N » on a medium.
+ *
+ * TAKING A SEASON IS PILOTING (`grabSeasonForFollow`): on a followed medium it
+ * is offered where the account is among the requesters (or pilots any); on one
+ * nobody follows, the take makes the account its requester, so it asks
+ * `acquisition.request` as well. Both surfaces that draw the act read this one
+ * answer, so the season never offers what the server refuses.
+ *
+ * @param followed The follow, when the medium is followed.
+ * @param rights What the account may do.
+ * @returns True when the act is offered.
+ */
+export function seasonTakeOffered(followed: Requested | undefined, rights: Rights): boolean {
+  if (!rights.holdsAny(["acquisition.pilot.own", "acquisition.pilot.any"])) return false;
+  return followed === undefined ? rights.holds("acquisition.request") : isOwn(followed, rights);
 }
 
 /** A role, as the roster answers it. */
