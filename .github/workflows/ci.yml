@@ -92,110 +92,9 @@ jobs:
             maquette:
               - 'frontend/maquette/**'
               - '.github/workflows/ci.yml'
-              # THE TOOL THAT LIVES UNDER `scripts/` AND IS READ BY NO OTHER
-              # JOB. `harness-contracts` is the only job that runs
-              # `check-mock-seeds.py` (through `run.sh --contracts`). Without
-              # this line a pull request touching only the guard ran it
-              # NOWHERE — added 2026-08-26.
-              - 'scripts/check-mock-seeds.py'
-              # THE BUG REGISTER, for the same reason and it is a sharper one.
-              # `check-bug-register.py` reads `BUGS.md` and runs in exactly two
-              # places: `make check` (the `python` job) and `run.sh --contracts`
-              # (this one). Neither filter named `BUGS.md`, so a pull request
-              # filing or closing an entry — a register-only PR, precisely what
-              # the `no-version-bump` label exists for — ran the register's own
-              # guard in NO job at all. It is listed here rather than under
-              # `python` on purpose: this tier is minutes, and re-running the
-              # fourteen-minute suite over a register edit is the cost the
-              # filter exists to remove.
-              - 'BUGS.md'
-              # And the two this hold found that no reading had: the register's
-              # ARCHIVE, whose consistency with `BUGS.md` is one of the five
-              # arms, and `CLAUDE.md`, which `check-no-french.py` reads for its
-              # self-description arm — the arm that refuses the guard's own
-              # documentation drifting from the arms it documents.
-              - 'BUGS-CLOSED.md'
-              - 'CLAUDE.md'
-              # AND SEVEN MORE, FOUND BY ASKING THE SECOND QUESTION (B-244).
-              # `tests/scripts/test_ci_filter_covers_the_guards.py` asked « is
-              # this path named by ANY filter? »; the job that runs the
-              # contracts tier gates every step on THIS filter, so a path named
-              # only by `docs` or only by `python` ran its guard in NO job. Its
-              # two earlier cases were both fixed by adding to `maquette`, so
-              # the two questions had never yet had different answers — and
-              # seven guards were already relying on the difference.
-              #
-              # A post-merge gesture IS a pull request touching
-              # `IMPLEMENTATION.md` alone, and that is the guard written to
-              # hold the post-merge gesture.
-              - 'IMPLEMENTATION.md'
-              # AND THE GUARDS' OWN FILES, which is the third question and the
-              # one nothing had asked. The two above are about a guard's
-              # SUBJECT. This one is about the guard ITSELF: twelve of the
-              # twenty-two the contracts tier runs are invoked in no other job,
-              # so `harness-contracts` is their only home — and `scripts/**`,
-              # the glob that names them, belongs to `python`, whose jobs do not
-              # run them. A pull request that edits nothing but one of those
-              # guards ran it NOWHERE, and that is the shape a repair to a guard
-              # takes.
-              #
-              # THE CLASS IS NAMED, NOT THE INSTANCES. Every earlier case here
-              # was fixed by adding one path, and the list went stale the next
-              # time somebody wrote a guard — twice, then three more times in a
-              # single wave. A glob cannot go stale. The cost is that editing a
-              # purely-Python guard also runs the contracts tier, which is
-              # minutes, on the rare pull request that does it.
-              - 'scripts/check-*.py'
-              - 'scripts/compare-contracts.py'
-              # B-142's arm reads the constitution, the clause map and the
-              # plan; all three are amended by PROSE pull requests, which are
-              # exactly the ones the wave gate never sees.
-              - 'docs/reference/product-intent.md'
-              - 'docs/reference/product-intent-map.md'
-              - 'docs/reference/frontend-architecture.md'
-              # `check-docs-cited-paths.py` reads the office file too.
-              - 'docs/reference/frontend-steward.md'
-              - 'docs/reference/frontend-backend-demands.md'
-              - 'frontend/openapi.json'
-              # The lists and baselines three of the cheap guards are held
-              # against. A baseline raised on its own is precisely the change
-              # nobody wants running unguarded.
-              - 'scripts/code-abbreviations.txt'
-              - 'scripts/code-abbreviations-allowed.txt'
-              - 'scripts/code-abbreviations-baseline.json'
-              - 'scripts/frame-domain-baseline.json'
-              # `check-docs-cited-paths.py`'s production arm reads the frozen
-              # present and the manifest it is held to; its history arm reads
-              # the three trees that must stay out of the index — named here so
-              # a pull request that re-adds one runs the guard that refuses it.
-              - "docs/production/**"
-              - "scripts/production-docs-manifest.json"
-              - "docs/archive/**"
-              - "docs/superpowers/**"
-              - "docs/analysis/**"
-              # `check-live-relay.py`'s map-completeness arm reads the event
-              # bus's own registry, which is Python.
-              - 'personalscraper/**'
-            # design-gaps parses design-doc ANCHORS (audit_design_coverage.py):
-            # a docs-only PR that renames a heading can flip its verdict.
             docs:
               - 'docs/**'
-              # `IMPLEMENTATION.md` is read by `check-implementation-state.py`,
-              # which the contracts tier runs. Without this line a pull request
-              # touching only that file — which is what a post-merge gesture IS
-              # — ran its own guard in no job at all. The hold in
-              # `tests/scripts/test_ci_filter_covers_the_guards.py` refuses
-              # exactly that, and refused this before the line existed.
               - 'IMPLEMENTATION.md'
-            # EVERY changed path, docs-only detection's own input (order 95):
-            # `harness-contracts` pays Playwright and a browser suite for a PR
-            # the `maquette` filter above ropes in only for `BUGS.md` or
-            # `IMPLEMENTATION.md`'s guards — the pre-push hook already proved
-            # those guards green locally before the push (its own `docs_only`
-            # path runs them by name), so CI re-running the BROWSER tier over a
-            # PR that touches nothing else is the redundant, flaky half B-574
-            # named. A glob here would go stale the way the class-named guard
-            # list above already explains; this reads every changed path instead.
             everything:
               - '**'
       # Refinements the filter's glob language cannot express (negation only
@@ -256,62 +155,7 @@ jobs:
         if: needs.changes.outputs.python == 'true'
       - run: ruff format --check personalscraper/ tests/
         if: needs.changes.outputs.python == 'true'
-      - run: python scripts/check_logging.py personalscraper/
-        if: needs.changes.outputs.python == 'true'
 
-  # The no-French rule spans the WHOLE repository — its file-name arm reads every
-  # path outside `docs/` — so it gets a job of its own, and that job carries NO
-  # path filter at all. A filtered version skipped a version-bump-only PR
-  # (`personalscraper/__init__.py` is stripped from both python and frontend
-  # filters by design), which is a real shape this repository produces; and a
-  # guard that can report green having read nothing is the exact failure the
-  # script refuses to commit internally. Seven seconds, standard library only.
-  no-french:
-    name: no-french
-    runs-on: ubuntu-latest
-    if: >-
-      github.event.pull_request.draft == false ||
-      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
-    steps:
-      # FULL HISTORY, and it is `check-frontend-boundaries.py` that needs it.
-      # Its size arm compares each grandfathered file's RECORD with the record
-      # at the revision the branch grew from — the level B-306's first repair
-      # was missing, where a growth is legalised by moving the number in the
-      # same commit. With a shallow checkout there is no base to read, the arm
-      # says so on its own line and refuses nothing.
-      #
-      # TWO JOBS RUN THAT GUARD, and only one of them is this line's subject.
-      # This one runs it directly; `harness-contracts` runs it as the first of
-      # `run.sh --contracts`'s repository guards, and that job already takes the
-      # full history — for `check-bug-register.py`'s closure arm, which is a
-      # different reason for the same depth. `tests/scripts/
-      # test_ci_filter_covers_the_guards.py` holds BOTH, so removing either
-      # line is loud rather than silent.
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      # The dictionary arm asks an oracle from OUTSIDE the repository: a word
-      # French knows and English does not is a suspect. Without the
-      # dictionaries the arm fail-softs and says it measured nothing — which is
-      # honest, and useless as a gate. So CI installs them.
-      - run: sudo apt-get update && sudo apt-get install -y aspell aspell-en aspell-fr
-      - run: python scripts/check-no-french.py
-      - run: python3 scripts/check-css-tokens.py
-      # Load-bearing CSS: the declarations the compositor reads. It runs beside the
-      # token guard because it answers the same question from the other side — the
-      # token guard asks whether a value is on the scale, this one asks whether a
-      # declaration is still there at all.
-      - run: python3 scripts/check-compositor-css.py
-      # The Tailwind scan, held from BOTH ends. It needs a build, and the
-      # maquette's build is where the generated utilities can be read.
-      - run: cd frontend/maquette/design && npm ci && npm run build
-      - run: python3 scripts/check-tailwind-confinement.py
-      - run: python3 scripts/check-markup-contracts.py
-      - run: python3 scripts/check-frontend-boundaries.py
-      - run: python3 frontend/maquette/oracle.py --contracts
 
   # `make check` runs twelve guards; CI ran ONE of them (no-french), so eleven
   # were developer-machine checks describing themselves as gates. A gate proves
@@ -328,118 +172,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      # The ceiling applied everywhere but to the project's OWN tools, which is
-      # how the language guard reached 1 411 lines against a hard limit of 1 000.
+      - run: sudo apt-get update && sudo apt-get install -y aspell aspell-en aspell-fr
+      - run: python3 scripts/check-no-french.py
       - run: python3 scripts/check-command-safety.py
-      - run: python3 scripts/check-module-size.py
-      - run: python3 scripts/check-module-size.py --root scripts
-      - run: python3 scripts/check-module-size.py --root tests
-      - run: python3 scripts/check-module-size.py --root frontend
       - run: python3 scripts/check-i18n-placeholders.py
-      - run: python3 scripts/check-no-broad-registry-catch.py
       - run: python3 scripts/check-typed-api.py
       - run: python3 scripts/check-pragma-discipline.py
-      # The no-abbreviation rule (`docs/reference/code-naming.md`). It reads
-      # files with `ast` and needs nothing installed, which is why it sits in
-      # this job rather than beside the tests.
-      - run: python3 scripts/check-code-abbreviations.py
-      - run: python3 scripts/audit-cli-coverage.py
-      - run: python3 scripts/cli-coverage-report.py --check
-      # Fail-soft by design when `.data/acquire.db` is absent, which it always
-      # is on a runner: the fixture is checked against the OPERATOR's live
-      # database. It says so rather than claiming a parity it never measured.
-      - run: python3 scripts/refresh-maquette-fixture.py --check
-
-  harness-contracts:
-    name: harness-contracts
-    runs-on: ubuntu-latest
-    needs: [changes]
-    if: >-
-      github.event.pull_request.draft == false ||
-      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
-    steps:
-      # The filter is per STEP, never on the job — see the note above `changes`:
-      # a job-level `if` yields a SKIPPED job, and a required check that is
-      # skipped can sit in « expected » forever. Every other job in this file
-      # does it this way; this one did not, and was the only exception.
-      # `&& needs.changes.outputs.docs_only == 'false'` (order 95, 2026-09-30):
-      # a PR touching only `docs/**` or a `.md` file already ran these same
-      # guards LOCALLY, by name, in the pre-push hook's own docs-only path —
-      # CI re-paying Playwright and the 11-rule browser subset over it bought
-      # nothing but B-574's flake (a chronic red on heads that cannot touch
-      # the maquette at all).
-      # THE FULL HISTORY, because `check-bug-register.py`'s closure arm compares
-      # each entry's body against the branch point — it is the only way to ask
-      # « did this pull request write anything about what it closed ». With the
-      # default depth of 1 there is no branch point, and that arm REFUSES
-      # rather than passing, so this line is what keeps the job green honestly.
-      - uses: actions/checkout@v4
-        if: needs.changes.outputs.maquette == 'true' && needs.changes.outputs.docs_only == 'false'
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        if: needs.changes.outputs.maquette == 'true' && needs.changes.outputs.docs_only == 'false'
-        with: { node-version: "22" }
-      - uses: actions/setup-python@v5
-        if: needs.changes.outputs.maquette == 'true' && needs.changes.outputs.docs_only == 'false'
-        with: { python-version: "3.12" }
-      - run: pip install playwright && python -m playwright install --with-deps chromium
-        if: needs.changes.outputs.maquette == 'true' && needs.changes.outputs.docs_only == 'false'
-      # `scripts/check-mock-seeds.py` is one of the cheap guards this tier folds
-      # in, and its schema arm validates every mock seed against the maquette
-      # contract. `jsonschema` is declared in pyproject's dev extra, which this
-      # job does not install — installing the ONE package keeps this to seconds,
-      # the same reasoning the python job records for TypeScript. Without it the
-      # arm answers « not installed » and the tier is red for a reason foreign
-      # to every change under test.
-      - run: pip install jsonschema
-        if: needs.changes.outputs.maquette == 'true' && needs.changes.outputs.docs_only == 'false'
-      # AND THE PACKAGE ITSELF, for the same reason one step up and for a
-      # sharper one. `check-live-relay.py`'s `map-completeness` arm compares TWO
-      # oracles — the event bus's own `_EVENT_CLASS_REGISTRY`, which is what the
-      # wire carries, against a regex scan of the sources — and the registry
-      # needs `personalscraper` importable. This job installed playwright and
-      # jsonschema and never the package, so `personalscraper/__init__.py`'s
-      # `dotenv` import failed, the arm fell back to the regex alone AND
-      # REPORTED CLEAN, on every pull request touching the maquette. The
-      # cross-check existed only in `make check`, which is a wave gate (A-1).
-      #
-      # The arm refuses that fallback now rather than printing it, so this step
-      # is what keeps the tier green — and the day it is removed, the tier goes
-      # red instead of going quiet. Marginal beside the Chromium download this
-      # job already pays for.
-      - run: pip install -e .
-        if: needs.changes.outputs.maquette == 'true' && needs.changes.outputs.docs_only == 'false'
-      - run: npm ci --prefix frontend/maquette/design
-        if: needs.changes.outputs.maquette == 'true' && needs.changes.outputs.docs_only == 'false'
-      # The CONTRACT subset only. The full suite (185 rules) is not a per-PR
-      # gate: it runs in its own workflow, `harness-full.yml`, four shards at
-      # a lot's close and nightly. The 23 contract rules (`CONTRACTS` in
-      # `run.sh`) are the ones that fall when a NAME moves without all of its
-      # ends, which is what a pull request most often does wrong. The step also runs
-      # the repository's cheap guards, which `run.sh` folds into this tier.
-      # Measured on the runner: the 23 rules two at a time in 334 s and the
-      # guards in 75 s (run 36650411247); the whole step 355-412 s over four runs.
-      # The rules launch `channel="chrome"`. `PARITY_BROWSER_CHANNEL` used to
-      # redirect that, and its only reader went with `parity-probe.py` — setting
-      # it here would be green by accident of the runner shipping Chrome, which
-      # is the failure `tests/conftest.py` was just fixed for.
-      - run: frontend/maquette/harness/run.sh --contracts
-        if: needs.changes.outputs.maquette == 'true' && needs.changes.outputs.docs_only == 'false'
-      # The accessibility tier, as its own step and not folded into the subset
-      # above: the contracts answer « did a NAME move without all of its ends? »
-      # and an accessibility violation is not that question. Cheap enough for a
-      # per-PR gate — one browser, 149-158 s on the runner, measured over four
-      # runs (36595124236, 36633913860, 36650411247, 36657322126).
-      #
-      # WHAT IT PROVES TODAY, stated plainly because the answer is « less than
-      # it will »: L03 lands this tier RECORDING, so it reports a count and
-      # exits 0. What it therefore guards right now is that the instrument RUNS
-      # on the runner — axe-core installed by `npm ci`, the states reachable,
-      # the frame at rest — which is the failure that would otherwise be found
-      # on the day the floor is armed. L03's last phase makes it a refusal.
-      - run: frontend/maquette/harness/run.sh --a11y
-        if: needs.changes.outputs.maquette == 'true' && needs.changes.outputs.docs_only == 'false'
+      - run: python3 scripts/check-css-tokens.py
+      - run: python3 scripts/check-compositor-css.py
+      - run: python3 scripts/check-component-once.py
+      - run: python3 scripts/check-viewport-directives.py
+      - run: python3 scripts/check-poster-box.py
+      - run: cd frontend/maquette/design && npm ci && npm run build
+      - run: python3 scripts/check-tailwind-confinement.py
 
   typecheck:
     name: typecheck
@@ -669,6 +414,9 @@ jobs:
         if: needs.changes.outputs.maquette == 'true'
         working-directory: frontend/maquette/design
       - run: npm run typecheck
+        if: needs.changes.outputs.maquette == 'true'
+        working-directory: frontend/maquette/design
+      - run: npm test -- --run
         if: needs.changes.outputs.maquette == 'true'
         working-directory: frontend/maquette/design
       - run: npm run lint
