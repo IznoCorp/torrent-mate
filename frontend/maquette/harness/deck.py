@@ -8,14 +8,14 @@ names: a suggestion's title is read as `title`, where they were the engine's
 short keys. The holds and what they compare are unchanged.
 """
 import asyncio
-from common import chrome_launch_args
+from common import browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 SEL = '[data-part="deck/card"][data-depth="0"]'
 
 async def main():
   async with async_playwright() as p:
-    b = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
+    b = await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
     ctx = await b.new_context(viewport={"width":390,"height":844}, device_scale_factor=2,
                               is_mobile=True, has_touch=True)
     pg = await ctx.new_page(); errs = []

@@ -11,7 +11,14 @@
 // `panel.isOpen()` reads the store.
 import i18next from "../i18n";
 import { addressSeam } from "../lib/addresses";
-import { entryPatch, layerRecordOf, type LayerRecord } from "../lib/navigation-entry";
+import {
+  entryIndex,
+  entryPatch,
+  layerRecordOf,
+  TRAIL_KEY,
+  type LayerRecord,
+  type TrailStop,
+} from "../lib/navigation-entry";
 import { bridge, panel, redraw, toast } from "../lib/shell-doors";
 import { store } from "../lib/store-access";
 import { reopenAddressedPanel } from "./addressed-panels";
@@ -245,22 +252,27 @@ export function onEngineBack(
      opened on: a Back from the screen an action opened, or a Forward back onto
      the panel. Nothing is pushed, because this entry IS the panel's.
 
-     And it is STEPPED OVER when the page has changed under it: that is the
-     leftover a page switch buries when it is made while a panel is up — no
-     finger reaches a tab over a layer today, `node.click()` does — and
-     reopening it would raise the panel over a page it was never opened on.
-     That second pop is NOT announced: the interface is on the page the switch
-     moved it to, and only the entry beneath can put it back — so the pop must
-     be READ, through the `tm: "nav"` branch below, exactly as the operator's
-     own second back.
+     And when the page has changed under it — a link of the panel led
+     elsewhere and stacked there — a Back gives back the page the panel was
+     opened on, then the panel.
 
      An entry that records nothing — a panel no kind produces — keeps the
      direction's old reading: a Forward asks for its address again, a Back
-     steps over it. */
+     steps over it, and that second pop is READ, through the `tm: "nav"`
+     branch below, exactly as the operator's own second back. */
   if (state && state.layer === "sheet" && !registeredLayers.isOpen("sheet")) {
     const record = layerRecordOf(state, "sheet");
     const samePage = record?.openedOn === String(store.read().state.page ?? "");
     if (record && (direction === "FORWARD" || samePage)) {
+      reopenPanelOfRecord(record, true);
+      return;
+    }
+    /* A PANEL LEFT FOR ANOTHER PAGE by one of its links (§ 16, Q12: a link
+       stacks, the layer's entry kept): Retour gives back the page it was
+       opened on, then the panel. The page switches of the bar and the menus
+       unwind the trail, so no switch buries a panel's entry any longer. */
+    if (record && record.openedOn && direction === "BACK") {
+      restorePage({ ...entryPatch(store.read().state), page: record.openedOn });
       reopenPanelOfRecord(record, true);
       return;
     }
@@ -292,6 +304,23 @@ export function onEngineBack(
     restorePage(entryPatch(state));
     walk.driven = false;
     return;
+  }
+
+  /* A SCREEN'S ENTRY stepped back onto from the page one of its links led to
+     (§ 16, Q12: a link stacks): the router draws the screen by its address,
+     and the page under it is the top of the trail the entry carries — put back
+     when the interface is on another. */
+  const trail = state && state.tm === undefined && state.layer === undefined
+    ? state[TRAIL_KEY] : undefined;
+  if (Array.isArray(trail) && trail.length > 0) {
+    const top = trail[trail.length - 1] as TrailStop;
+    const under = String(top.page);
+    /* ABOVE its page's own entry, or it is the page's entry itself — which a
+       driven state leaves naming another page than the one drawn. */
+    if (top.at < entryIndex(state) && under !== String(store.read().state.page ?? "")) {
+      restorePage({ ...entryPatch(store.read().state), page: under });
+      return;
+    }
   }
 
   // Ownership, once more, decided by the entry's own SHAPE: only an entry that

@@ -66,7 +66,7 @@ import json
 import os
 import time
 
-from common import PHONE, PROTOTYPE, SETTLED, Journal, chrome_launch_args, served_copy, STARTED_AGAINST
+from common import PHONE, PROTOTYPE, SETTLED, Journal, browser_channel, chrome_launch_args, served_copy, STARTED_AGAINST
 from playwright.async_api import async_playwright
 
 PHONES = (320, 360, 369, 390, 412)
@@ -304,7 +304,7 @@ async def main():
     async with async_playwright() as playwright:
         browsers = {}
         if any(engine == "chromium" for _, engine, *_ in passes):
-            browsers["chromium"] = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+            browsers["chromium"] = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         if any(engine == "webkit" for _, engine, *_ in passes):
             browsers["webkit"] = await playwright.webkit.launch()
         gate = asyncio.Semaphore(PARALLEL)

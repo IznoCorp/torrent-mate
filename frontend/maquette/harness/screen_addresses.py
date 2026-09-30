@@ -68,7 +68,9 @@ Système. (q) a cold address to a run the layer holds opens that run's screen wi
 Système beneath it, and a Retour lands on Système's own address; (r) a run
 nobody holds is SAID — « Ce passage n'existe pas » — with a door back to the
 passages (DOIT-7), and the address stays exactly as typed. The uid is read from
-the layer's own history, never written here.
+the layer's own history, never written here. RE-AIMED OUT LOUD (the navigation
+lot, N6): the door is the screen's own Retour now, a button with no `data-go` —
+a `data-go="sys"` stacked a second Système over the screen.
 
 RE-AIMED, said out loud: the two sheet addresses were read from `addressIdsFor`. The engine's sheet table and
 its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
@@ -91,7 +93,7 @@ import urllib.parse
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PAGE_PATHS, PHONE, SCREEN_PARENTS, Journal, chrome_launch_args
+from common import PAGE_PATHS, PHONE, SCREEN_PARENTS, Journal, browser_channel, chrome_launch_args
 from server import start_server
 
 SERVED_ROOT = pathlib.Path("/tmp/tm-refonte")
@@ -245,7 +247,7 @@ RUN_STATE = """() => {
     key: screen?.dataset.key ?? null,
     page: state.page,
     missing: missing ? (missing.textContent || '').replace(/\\s+/g, ' ').trim() : null,
-    doorBack: !!missing?.querySelector('[data-go="sys"]'),
+    doorBack: !!missing?.querySelector('button'),
     steps: screen ? screen.querySelectorAll('[data-part="run/step"]').length : 0,
     pathname: location.pathname,
   };
@@ -288,7 +290,7 @@ async def main():
     journal = Journal("R75 — the screen addresses")
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
 
         with start_server(SERVED_ROOT) as port:
             base = f"http://127.0.0.1:{port}"

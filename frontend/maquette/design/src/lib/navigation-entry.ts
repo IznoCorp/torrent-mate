@@ -96,6 +96,74 @@ export function navigationState(): Record<string, unknown> {
   return { tm: "nav", ...entryPatch(store.read().state) };
 }
 
+/* THE TRAIL — the pages under the one an entry stands for, from the floor up,
+   each with the history index of its own entry (§ 16 as amended: the menu's
+   pages and the links inside a page STACK, so Retour replays the arrival path).
+   It answers the one question no verb could: how far down the floor is from
+   here, and where a page already walked lies — a page revisited moves to the
+   top of the trail and is never on it twice (DECIDED 1, 2026-09-30).
+
+   A few ids and numbers, never a body, and it survives a reload because the
+   history does. EVERY entry carries the trail of the page it stands on — a
+   screen's, a layer's and a rubric's included — so a switch made from any of
+   them reads it off the entry it is on. */
+export const TRAIL_KEY = "trail";
+
+/** One page of the trail: its id, and the history index of its entry. */
+export type TrailStop = { page: string; at: number };
+
+/* The router's own index on every entry, which is what `at` counts. */
+const INDEX_KEY = "__TSR_index";
+
+/**
+ * The history index an entry carries.
+ *
+ * Args:
+ *     state: An entry's state, as the history holds it.
+ *
+ * Returns:
+ *     Its index, 0 for an entry the router never stamped.
+ */
+export function entryIndex(state: unknown): number {
+  const index = (state as Record<string, unknown> | null | undefined)?.[INDEX_KEY];
+  return typeof index === "number" ? index : 0;
+}
+
+/**
+ * The trail an entry stands on.
+ *
+ * Args:
+ *     state: An entry's state, as the history holds it.
+ *     homePage: The entry page — the floor every trail starts on.
+ *     page: The page drawn, read when the entry names none.
+ *
+ * Returns:
+ *     The stops from the floor up. An entry written before trails existed
+ *     reads as the floor under its page (no backward compatibility, 09-29).
+ */
+export function trailOf(state: unknown, homePage: string, page: string): TrailStop[] {
+  const held = (state as Record<string, unknown> | null | undefined)?.[TRAIL_KEY];
+  if (Array.isArray(held) && held.length > 0) return held as TrailStop[];
+  const at = entryIndex(state);
+  return page === homePage ? [{ page, at }] : [{ page: homePage, at: at - 1 }, { page, at }];
+}
+
+/**
+ * How many entries stand above the page's own — the screens, panels and
+ * rubrics a surface that CLOSES back to the page gives back in one traversal.
+ *
+ * Args:
+ *     homePage: The entry page.
+ *     page: The page drawn.
+ *
+ * Returns:
+ *     The count, read off the entry one stands on and its trail.
+ */
+export function entriesAbovePage(homePage: string, page: string): number {
+  const trail = trailOf(history.state, homePage, page);
+  return entryIndex(history.state) - trail[trail.length - 1].at;
+}
+
 /* WHAT A LAYER'S ENTRY RECORDS, so a Back onto it can put the layer back. A
    layer left for an arrival keeps its entry, and the entry is all that is left
    of it once the arrival has closed it: the kind and the subject it was

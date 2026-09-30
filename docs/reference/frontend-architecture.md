@@ -128,17 +128,19 @@ considered and rejected — see rule 4 below.
 
 1. **Back pops, and the stack holds only deliberate arrivals.** Opening a surface — a sheet, a
    resolution, a panel — pushes. Adjusting one — a filter, an inner tab, a sort, a lens — replaces.
-2. **Switching a BAR page REPLACES, with the entry page kept beneath — from wherever it is
-   opened.** The rule reads by DESTINATION: a page of the bottom bar (Acquisition, Médiathèque,
-   Trackers, Découvrir) replaces whether the bar, the side menu or a link opened it. The stack under
-   it is `[guard, /acquisition]`, or `[guard, /acquisition, /page]` for a bar page other than the
-   entry. Going TO `/acquisition` from the bar pops back onto the floor already there; Back from any
-   bar page lands on `/acquisition` — Android's `popUpTo(startDestination)` in this codebase's terms.
-   **A page the side menu opens STACKS** — Système, Réglages, Maintenance, Comptes, Profil and the
-   others — and Back replays the arrival path. **A link placed inside a page STACKS, even when it
-   leads to the entry page**, and the exit guard arms only when the entry page is at the bottom of
-   the stack. This half is § 16 as amended on 2026-09-29 (#635, #643); it is NOT delivered — the
-   code still replaces for every page, and the navigation lot (§ 4) owes it.
+2. **The rule reads by DESTINATION and by where the tap was made.** A page of the bottom bar
+   (Acquisition, Médiathèque, Trackers, Découvrir) chosen from the bar or the side menu UNWINDS the
+   trail onto the floor, from any depth: the stack under it is `[guard, /acquisition]`, or
+   `[guard, /acquisition, /page]` for a bar page other than the entry, and Back from it lands on
+   `/acquisition` — Android's `popUpTo(startDestination)` in this codebase's terms. **A page the side
+   menu or the account menu opens STACKS** on the page left — Système, Réglages, Maintenance, Profil —
+   the menu's entry and any rubric open under it given back first, and Back replays the arrival path.
+   **A link placed inside a page, a screen or a panel STACKS, even when it leads to the entry page**,
+   and the exit guard arms only when the entry page is at the bottom of the stack. **A page already
+   on the trail moves to its top, never stacked twice** (the operator's ruling of 2026-09-30). § 16 as
+   amended on 2026-09-29 (#635, #643); delivered by the navigation lot: every entry carries its trail
+   (`lib/navigation-entry.ts`, `app/trail.ts`), and the verb says how a tap lands
+   (`app/frame-verbs.ts`). Held by R-navigation-a and R-navigation-b (`frontend/maquette/harness/journey.py`).
 3. **Where no stack exists, synthesise it from the hierarchy.** A cold link poses the real parent
    under the screen — read off the emitter of the screen's own opener, not guessed — and that
    parent is **rendered**, not merely recorded (`SCREEN_PARENTS` in `lib/addresses.ts`).

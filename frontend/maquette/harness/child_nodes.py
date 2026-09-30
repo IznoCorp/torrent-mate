@@ -39,7 +39,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, PROTOTYPE, Journal, chrome_launch_args
+from common import PHONE, PROTOTYPE, Journal, browser_channel, chrome_launch_args
 
 # A state that opens a confirmation, and one that raises the selection bar.
 DIALOG_STATE = "lib-delete"
@@ -198,7 +198,7 @@ async def hold(journal):
     """Drives both child-node reads."""
     errors = []
     async with async_playwright() as play:
-        browser = await play.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await play.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         await hold_the_dialog_paragraph(journal, browser, "dark")
         await hold_the_dialog_paragraph(journal, browser, "light")
         await hold_the_danger_action(journal, browser)

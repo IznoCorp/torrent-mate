@@ -25,7 +25,7 @@ phase and re-prove its readers each time. A family is one mechanism, its emitter
 | # | Family | DESIGN rows | Rules | Page |
 | ---: | --- | --- | --- | --- |
 | 1 | The machinery and Système's page links — the trail, the destination's class, B-577 | N1–N3, M4, M5, T1–T5, Y5 | a (written whole), b | [phase-01](phase-01-the-machinery-and-b577.md) |
-| 2 | The side menu and the account sheet — then the MIDPOINT | M1–M3, M6, M7, P1 | a | [phase-02](phase-02-the-menu-and-the-account-sheet.md) |
+| 2 | The side menu and the account sheet | M1–M3, M6, M7, P1 | a | [phase-02](phase-02-the-menu-and-the-account-sheet.md) |
 | 3 | The links to Acquisition, and the screens' exits | N4–N6, L1–L4, S1–S7 | a | [phase-03](phase-03-links-home-and-screen-exits.md) |
 | 4 | The close — the lot's gate, the documents, the pull request | § 7 | all, by name | [phase-04](phase-04-the-close.md) |
 
@@ -35,23 +35,19 @@ flips its own rows from red to green and the rule never lies about the rows it h
 
 ## The gates (order 99, amending the office's « The gate »)
 
-- **A phase gate — light**: the static guards on the files touched; the ORACLE ALONE, accepting only the states the
-  page names (the declared list built BY SCRIPT); `run.sh --rules journey.py` plus the rules the page re-aims, each new
-  hold read RED on the old code first; R-conformity-a on the touched states. Every browser run names
+- **A phase gate — light**: `CLAUDE.md` § Gates; `run.sh --rules journey.py` plus the rules the page re-aims, each new
+  hold read RED on the old code first. Every browser run names
   `TM_HARNESS_JOBS=2` (order 88); every pytest `-n 2`. **Navigation is proved by a finger walk** (office): every row
   the phase flips is walked at 369 px, cold, by taps and the system Retour.
-- **The midpoint, after phase 2**: `--contracts` and the full responsive sweep, once.
-- **Once per lot, at phase 4**: the full suite (CI its authority), `--a11y`, the hold counts, each rule of the lot by
-  name. The reader round follows the pull request (`docs/reference/method.md`, the reading; navigation against § 16 first).
+- **Once per lot, at phase 4**: `make check`; the full harness is CI's, on the pull request. The reader round follows the pull request (`docs/reference/method.md`, the reading; navigation against § 16 first).
 
 ## The stops
 
-**STOP A** — the oracle diverging on a state the page did not name. **STOP B** — the pull request. **STOP C** — none
+**STOP B** — the pull request. **STOP C** — none
 left: OPEN 1–3 are DECIDED (DESIGN § 6, 2026-09-30); phase 1 is re-read under DECIDED 1, his own reading. **STOP D** — a ceiling (`grep -cv '^\s*$'`, 400): `add-screen.tsx` **382**,
 `run-screen.tsx` **324**, `page-switch.ts` **294** — a phase landing near 400 moves lines out. Anything outside these
 pages: STOP, ask the orchestrator.
 
 ## The gate of THIS docs pull request
 
-`python3 scripts/check-docs-cited-paths.py`, `check-no-french.py`, `check-implementation-state.py`,
-`check-intent-map.py`, `make lint` — the implementer's gates above do not apply to it.
+`check-no-french.py`, `make lint` — the implementer's gates above do not apply to it.

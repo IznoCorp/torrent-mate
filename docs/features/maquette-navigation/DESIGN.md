@@ -163,20 +163,10 @@ hold**: the emitters of § 0.2's command, read from the source, each map to an e
 not name fails the rule (the edge nobody classified is B-577's escape). **Its second hold**: nothing but the three
 verbs writes `page` into the store (§ 0.2 counts 2 outside them today, `acquisition/verbs.ts:96` and `acquisition/add-screen.tsx:117` — L3 and L4, and they are the fix).
 
-| Mutation | Falls on |
-| --- | --- |
-| **B-577's mechanism**: a stacking destination reached by `data-page` from a non-home page REPLACES again (`replacePath()` where the fix records) | N1, N2, N3 — and R-navigation-b |
-| the layer switch rewinds to the floor for every destination (`(leaving === homePage ? 1 : 2)` restored) | M2, M3, P1 |
-| a bar destination rewinds one entry instead of the trail | T4, M4 from a trail |
-| an in-page link arriving home steps back onto the floor again | N4, N5, Y5 |
-| `complete` writes `page` itself again | L3, the second hold |
-| an unlisted `data-page="sys"` added to a page | the completeness hold |
-
 **R-navigation-b — B-577, red first (order 57).** One hold, its own label because the register row names it: cold
 `/system`, a FINGER on the Réglages row (anchored `[data-part="topic"][data-page="cfg"]`, true on `main` and on the
 train's `TopicRow`, `ui/topic-row.tsx:33` there), Réglages drawn, ONE Retour → the address is `/system`, Système is drawn, `armedExit` is 0.
-**Red on `f71a44f7b`** (read: `replacePath` at `page-switch.ts:250` → `/acquisition`). Mutation: B-577's mechanism
-above → falls.
+**Red on `f71a44f7b`** (read: `replacePath` at `page-switch.ts:250` → `/acquisition`).
 
 ---
 
@@ -259,5 +249,4 @@ Retour → the page's root.
 - `app/frame-verbs.ts:99–101` (« a drawer entry is a top-level destination like any other ») and
   `app/page-switch.ts:173–197, 254–277` (the two docstrings, « § 16 rule 2 … for every page ») — the code's, phase 2
   and phase 1.
-- `BUGS.md` B-577 closed with R-navigation-b's red reading and its mutation (office: a row a phase closes is closed
-  in it).
+- `BUGS.md` B-577 closed with R-navigation-b's red reading (office: a row a phase closes is closed in it).

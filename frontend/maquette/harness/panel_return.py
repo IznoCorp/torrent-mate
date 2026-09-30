@@ -30,7 +30,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import Journal, chrome_launch_args  # noqa: E402
+from common import Journal, browser_channel, chrome_launch_args  # noqa: E402
 from transition import FROM_STATE, TILE, open_page_with  # noqa: E402
 
 from playwright.async_api import async_playwright  # noqa: E402
@@ -104,7 +104,7 @@ async def walk_back_from_the_sheet(browser, motion):
 
 async def main():
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
 
         walked = await walk_back_from_the_sheet(browser, "no-preference")
         if walked:

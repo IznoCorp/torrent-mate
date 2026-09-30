@@ -34,7 +34,7 @@ name is the same, and so is this rule's hold count.
 """
 import asyncio
 
-from common import Journal, open_page, chrome_launch_args
+from common import Journal, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 # WCAG AA for body text. The current entry sat at 1.00 — the floor exists so a
@@ -141,7 +141,7 @@ async def main():
     journal = Journal("R65 — the drawer is a passage, not a route")
 
     async with async_playwright() as p:
-        b = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
+        b = await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
 
         # ── 1. Every entry names a page that exists, and reaching it arrives ──
         ctx, pg = await open_page(b)
