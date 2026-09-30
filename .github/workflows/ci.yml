@@ -412,11 +412,14 @@ jobs:
         if: needs.changes.outputs.maquette == 'true' && needs.changes.outputs.docs_only == 'false'
       - run: npm ci --prefix frontend/maquette/design
         if: needs.changes.outputs.maquette == 'true' && needs.changes.outputs.docs_only == 'false'
-      # The CONTRACT subset only. The 71-rule suite is a wave gate, not a
-      # per-PR one: 71 headless-Chrome runs cost 20-25 minutes, and these ELEVEN
-      # are the ones that fall when a NAME moves without all of its ends —
-      # which is what a pull request most often does wrong. The step also runs
+      # The CONTRACT subset only. The full suite (185 rules) is not a per-PR
+      # gate: it runs in its own workflow, `harness-full.yml`, four shards at
+      # a lot's close and nightly. The 23 contract rules (`CONTRACTS` in
+      # `run.sh`) are the ones that fall when a NAME moves without all of its
+      # ends, which is what a pull request most often does wrong. The step also runs
       # the repository's cheap guards, which `run.sh` folds into this tier.
+      # Measured on the runner: the 23 rules two at a time in 334 s and the
+      # guards in 75 s (run 36650411247); the whole step 355-412 s over four runs.
       # The rules launch `channel="chrome"`. `PARITY_BROWSER_CHANNEL` used to
       # redirect that, and its only reader went with `parity-probe.py` — setting
       # it here would be green by accident of the runner shipping Chrome, which
@@ -426,7 +429,8 @@ jobs:
       # The accessibility tier, as its own step and not folded into the subset
       # above: the contracts answer « did a NAME move without all of its ends? »
       # and an accessibility violation is not that question. Cheap enough for a
-      # per-PR gate — one browser, 83 states, ~25 s.
+      # per-PR gate — one browser, 149-158 s on the runner, measured over four
+      # runs (36595124236, 36633913860, 36650411247, 36657322126).
       #
       # WHAT IT PROVES TODAY, stated plainly because the answer is « less than
       # it will »: L03 lands this tier RECORDING, so it reports a count and
