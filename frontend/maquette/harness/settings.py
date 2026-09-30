@@ -214,9 +214,16 @@ async def main():
             (r for r in shown["rows"] if r.startswith("Nouvelle valeur")), "")
         stored = next(
             (r for r in shown["rows"] if r.startswith("Valeur enregistrée")), "")
+        # A BOOLEAN EDIT IS SAID IN ITS WORDS (B-611): the panel phrases a
+        # pending `false` « inactif » as every on/off pair of the app does, so
+        # the raw value is read through those words — the first edited row
+        # became a switch when the trackers' settings joined the catalogue.
+        words = await pg.evaluate("""()=>({true: window.__i18n.t('states.active'),
+                                          false: window.__i18n.t('states.inactive')})""")
+        said = [words.get(value, value) for value in shown["pending"]]
         check("an edited setting's panel says the EDIT as its NEW value",
               bool(edited) and bool(shown["pending"])
-              and any(value in pending_line for value in shown["pending"]),
+              and any(value in pending_line for value in said),
               f"{pending_line!r} · pending {shown['pending']}")
         check("and the file's own value beside it, as the STORED one",
               bool(stored) and pending_line != stored,
