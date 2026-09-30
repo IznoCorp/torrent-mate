@@ -57,7 +57,7 @@ export const providerSwitchPlace = cva("self-start");
 export const byIdentifierBody = cva("byidin mt-2 mb-4 flex flex-col gap-4");
 
 /** Why an action is refused. */
-export const refusalReason = cva("whyoff text-2 text-danger");
+export const refusalReason = cva("whyoff text-2 text-danger-text");
 
 /**
  * The screen's footer.
@@ -189,7 +189,7 @@ export const deckHint = cva(
           "l left-[14px] [transform:rotate(-9deg)] border-muted-foreground text-muted-foreground " +
           "[background:color-mix(in_oklab,var(--color-muted-foreground)_12%,var(--color-card))]",
         right:
-          "r right-[14px] [transform:rotate(9deg)] border-danger text-danger " +
+          "r right-[14px] [transform:rotate(9deg)] border-danger text-danger-text " +
           "[background:color-mix(in_oklab,var(--color-danger)_14%,var(--color-card))]",
       },
     },

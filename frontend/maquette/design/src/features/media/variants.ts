@@ -201,7 +201,7 @@ export const seasonFraction = cva(
  * The question an incomplete sheet answers is « which ones », not « how many ».
  */
 export const missingList = cva(
-  "missing [margin:var(--spacing-4)_0_0] text-3 font-semibold text-warning [font-variant-numeric:tabular-nums]",
+  "missing [margin:var(--spacing-4)_0_0] text-3 font-semibold text-warning-text [font-variant-numeric:tabular-nums]",
 );
 
 /** Where an empty place of the sheet sits: a step below what precedes it. */
@@ -297,9 +297,6 @@ export const sheetHeadingPlace = cva("mb-3");
 
 /** A panel of the sheet, a step above the next. */
 export const sheetPanelPlace = cva("mb-5");
-
-/** The sheet's address, at the bar's right end. */
-export const sheetAddress = cva("ml-auto text-2 text-muted-foreground");
 
 /** The synopsis, as the sheet reads it. */
 export const synopsisText = cva("m-0 text-3 leading-[1.55] text-muted-foreground");

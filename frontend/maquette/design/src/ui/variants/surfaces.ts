@@ -379,8 +379,12 @@ export const topicRow = cva(
  *
  * IN `ui/` because two surfaces count: the add screen's search and the release
  * screen's candidates. Two features never import each other (invariant 7).
+ * `flush` is the count set in a panel that already pads it.
  */
-export const resultCount = cva("rescount pt-6 px-7 pb-0 text-2 text-muted-foreground");
+export const resultCount = cva("rescount text-2 text-muted-foreground", {
+  variants: { flush: { true: "p-0", false: "pt-6 px-7 pb-0" } },
+  defaultVariants: { flush: false },
+});
 
 /**
  * A disclosure: a summary a finger opens, and what it folds away.

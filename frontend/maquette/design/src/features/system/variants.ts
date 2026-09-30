@@ -20,7 +20,7 @@ export const runStepCounts = cva("text-2 text-foreground");
 export const runReason = cva("text-1 font-mono text-muted-foreground break-all");
 
 /** The error a failed passage recorded, drawn whole. */
-export const runError = cva("text-2 font-mono text-danger break-all");
+export const runError = cva("text-2 font-mono text-danger-text break-all");
 
 /**
  * The raw output, monospaced, its lines WRAPPED and broken anywhere: nothing on

@@ -50,6 +50,9 @@ export const screen = cva(
  */
 export const screenBar = cva("screenbar flex-none flex items-center gap-3 py-5 px-6 bg-background");
 
+/** What a screen's bar says at its right end — the sheet's address, the profile's name. */
+export const screenBarNote = cva("ml-auto text-2 text-muted-foreground");
+
 /**
  * The back control itself.
  *

@@ -20,12 +20,12 @@
 import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { sheetAddress, sheetHeadingPlace, synopsisText } from "./variants";
+import { sheetHeadingPlace, synopsisText } from "./variants";
 import { type MediaSheet, type Trailer } from "../../features/media/types";
 import { useStoreContent } from "../../lib/store-access";
 import { isRequestFailure } from "../../lib/query-client";
 import { carriedSheet, seasonsHeld, useMediaSeasons, useMediaSheet } from "./queries";
-import { backAction, body as bodyClass, screen, screenBar, scrollport, sectionHeading } from "../../ui/variants";
+import { backAction, body as bodyClass, screen, screenBar, scrollport, sectionHeading, screenBarNote } from "../../ui/variants";
 import { Icon } from "../../ui/icon";
 import { SkeletonLine, SurfaceError } from "../../ui/state-surfaces";
 import { MediaCast } from "./media-cast";
@@ -228,7 +228,7 @@ export function MediaScreen({ readFollows }: MediaScreenProperties) {
           <Icon paths={icons.left} />
           {t("screens.media.back")}
         </button>{" "}
-        <span className={sheetAddress()}>
+        <span className={screenBarNote()}>
           {url ?? t("screens.media.unidentified")}
         </span>
       </div>

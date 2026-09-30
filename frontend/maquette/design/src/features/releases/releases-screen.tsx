@@ -18,7 +18,7 @@ import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useReleases } from "./queries";
-import { actionButton, backAction, body, chip, emptyNote, qualityHint, resultCount, screen, screenBar, scrollport } from "../../ui/variants";
+import { actionButton, backAction, body, chip, emptyNote, qualityHint, resultCount, screen, screenBar, scrollport, screenBarNote } from "../../ui/variants";
 import { releaseName, releaseRow, releaseScore, releaseTags } from "../../features/releases/variants";
 import { Icon } from "../../ui/icon";
 import { bridge } from "../../lib/shell-doors";
@@ -49,13 +49,7 @@ export function ReleasesScreen() {
           <Icon paths={icons.left} />
           {t("screens.releases.back")}
         </button>{" "}
-        <span
-          style={{
-            marginLeft: "auto",
-            fontSize: "11px",
-            color: "var(--color-muted-foreground)",
-          }}
-        >
+        <span className={screenBarNote()}>
           {baseTitle(title)}
         </span>
       </div>
@@ -67,7 +61,7 @@ export function ReleasesScreen() {
             <em>{t("screens.releases.notePourquoi")}</em>{" "}
             {t("screens.releases.noteAfterPourquoi")}
           </div>
-          <p className={resultCount()} data-part="result/count" style={{ padding: 0 }}>
+          <p className={resultCount({ flush: true })} data-part="result/count">
             <b>{RELEASES.length}</b> {t("screens.releases.rescount")}
           </p>
           {RELEASES.map((release, index) => (
@@ -124,9 +118,8 @@ export function ReleasesScreen() {
             <b>{t("screens.releases.emptyTitle")}</b>
             {t("screens.releases.emptyBody")}
             <button
-              className={actionButton({ kind: "cardFoot" })}
+              className={`${actionButton({ kind: "cardFoot" })} mt-5`}
               data-part="card/foot"
-              style={{ marginTop: "10px" }}
               data-profile={title}
             >
               {t("screens.releases.openProfile")}
