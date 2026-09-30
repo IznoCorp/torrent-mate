@@ -14,7 +14,7 @@ import { registerProducer, type Action, type FactLine, type PanelCache, type Pan
 import { read } from "../../lib/query-client";
 import { dayOf, sizeOf, written } from "./format";
 import { downloadsKey, obligationsKey, type Download, type Obligation } from "./queries";
-import { ORIGIN_MARK, addedOf, episodeCode, owedBy, sourcesOf, transferOf } from "./torrent-card";
+import { ORIGIN_MARK, episodeCode, owedBy, sourcesOf, transferOf } from "./torrent-card";
 import { isSeeding } from "./cross-seed-state";
 // The cross-seed block an origin's panel draws, declared to the panel as it evaluates.
 import "./panel-cross-seed";
@@ -51,7 +51,7 @@ function obligationOf(obligation: Obligation | undefined): string {
  * @param obligation The obligation it owes, when it owes one.
  * @returns The facts, every absence said.
  */
-function factsOf(entry: Download, obligation: Obligation | undefined): FactLine[] {
+export function factsOf(entry: Download, obligation: Obligation | undefined): FactLine[] {
   const code = episodeCode(entry);
   const medium = entry.ids === null ? say("unknown") : code === "" ? entry.title : `${entry.title} · ${code}`;
   const lines: FactLine[] = [
@@ -71,7 +71,8 @@ function factsOf(entry: Download, obligation: Obligation | undefined): FactLine[
   lines.push(
     { c: say("transfer"), v: transferOf(entry).text },
     { c: say("sources"), v: sourcesOf(entry) },
-    { c: say("added"), v: addedOf(entry) },
+    // THE LABEL SAYS « AJOUTÉ LE », so the value is the day alone (B-614) — the card's sentence is the card's.
+    { c: say("added"), v: entry.addedAt === null ? say("unknown") : dayOf(entry.addedAt) },
     { c: say("ratio"), v: written(entry.ratio, 2) },
     { c: say("obligation"), v: obligationOf(obligation) },
     ...(obligation?.crossSeedOf ? [{ c: say("crossSeedOf"), v: obligation.crossSeedOf.title }] : []),
