@@ -59,7 +59,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, Journal, open_page, browser_channel, chrome_launch_args
+from common import PAGE_PATHS, PHONE, Journal, open_page, browser_channel, chrome_launch_args
 
 # The page viewport and the open screen's, by their `data-*` anchors — the same
 # pair `app/scroll-restoration.ts` resolves, so the rule and the code read one
@@ -74,6 +74,13 @@ PAGE_PORT = "#port"
 LIBRARY_PATH = "/media"
 SCREEN_PORT = '[data-part="screen"][data-open] [data-part="viewport"]'
 
+# The page the walk leaves FOR, by the side menu. A menu page stacks on the page
+# left (§ 16 rule 2 as amended, DESIGN T1–T5), so Retour owes the library back;
+# a bar page unwinds the trail to the entry page and owes nothing of the kind.
+# Système because it is the menu's own and is long enough to hold the offset —
+# the hold below measures that rather than trusting it.
+AWAY = "sys"
+
 # How far down to scroll before leaving. Far enough that landing at the top is
 # unmistakable, close enough that any list of the library's length can reach it.
 OFFSET = 300
@@ -86,7 +93,7 @@ TOLERANCE = 12
 
 
 async def walk_a_page(page):
-    """Scrolls a page, leaves it for another top-level page, and comes back.
+    """Scrolls a page, leaves it for a side-menu page, and comes back.
 
     THE JOURNEY IS THE ONE THAT REPRODUCES, and it was found by measuring rather
     than by reasoning. The first version of this rule scrolled the library,
@@ -99,9 +106,22 @@ async def walk_a_page(page):
     content is replaced, `#port` becomes a different length, and the browser
     clamps the offset to zero. Measured on the same build, one selector apart:
     back at 0 with `.screen.open .port`, back at 300 with the repair.
+
+    RE-AIMED OUT LOUD (§ 16 rule 2 as amended, operator 09-29): the walk left by
+    the bottom bar's « Découvrir », and a bar page now unwinds the trail to the
+    entry page, so Retour landed on Acquisition by design. It leaves by the side
+    menu instead, whose pages stack on the page left — the path where coming
+    back is still owed.
+
+    Args:
+        page: The Playwright page, booted on the prototype.
+
+    Returns:
+        What the walk measured: the arrival, the offset left and the page's
+        height, the page left for, and where Retour landed with its offset.
     """
     return await page.evaluate(
-        """async ({ offset }) => {
+        """async ({ offset, away }) => {
              const wait = (ms) => new Promise((r) => setTimeout(r, ms));
              const port = () => document.querySelector("#port");
              const tab = (page) => document.querySelector(`#nav [data-page="${page}"]`);
@@ -131,35 +151,29 @@ async def walk_a_page(page):
              const tall = port().scrollHeight;
              if (left < 20) return { reached: null, why: `page too short: ${left}` };
 
-             // OPEN AN ITEM FIRST, and it is not decoration. A top-level tab
-             // REPLACES the current entry (D1b), so leaving the page directly
-             // would consume the very entry the return needs and there would be
-             // nothing to go back to. The item's push is what the tab then
-             // replaces, leaving the page's own entry underneath. It is also
-             // the operator's own journey: the position is not lost coming back
-             // FROM the item, it is lost coming back from somewhere else.
-             const tile = document.querySelector('[data-part="tile"]');
-             if (!tile) return { reached: null, why: "the grid drew no tile" };
-             tile.click();
-             await window.__mocks.quiet();
-             await wait(600);
-
-             // RE-AIMED OUT LOUD: Système left the bar (ruling 15). The walk
-             // leaves for another top-level tab READ OFF THE BAR — neither the
-             // library nor the entry page, whose tap rewinds the stack.
-             // RE-AIMED OUT LOUD, again: « Trackers » joined the bar third, and
-             // the walk needs a page long enough to hold an offset, so it leaves
-             // by the bar's LAST such tab, « Découvrir », rather than the first.
-             const away = [...document.querySelectorAll('#nav [data-page]')]
-               .map((button) => button.dataset.page).filter((one) => one !== "lib" && one !== "acq").pop();
-             if (!away) return { reached: null, why: "the bar offers no third tab to leave by" };
-             tab(away).click();
+             // RE-AIMED OUT LOUD, a third time: § 16 rule 2 as amended
+             // (operator 09-29) unwinds the trail to the entry page when a page
+             // is chosen from the BOTTOM BAR, so Retour from « Découvrir » lands
+             // on Acquisition BY DESIGN and a walk out by the bar can no longer
+             // come back. The walk now leaves by the SIDE MENU: a menu page
+             // stacks on the page left (DESIGN T1–T5), which is the path where
+             // coming back is owed. It no longer opens an item first — that
+             // push existed only because a bar tab replaced the page's entry,
+             // and a menu page does not.
+             const opener = document.querySelector(
+               '[data-part="shell/header"] [data-drawer]');
+             if (!opener) return { reached: null, why: "no drawer control" };
+             opener.click();
+             await wait(400);
+             const entry = document.querySelector(`#drawer [data-navgo="${away}"]`);
+             if (!entry) return { reached: null, why: `the menu offers no « ${away} »` };
+             entry.click();
              await window.__mocks.quiet();
              await wait(700);
              const elsewhere = {
                offset: port().scrollTop,
                reachable: port().scrollHeight - port().clientHeight,
-               page: current(),
+               where: location.pathname,
                away,
              };
 
@@ -171,7 +185,7 @@ async def walk_a_page(page):
                       where: location.pathname, page: current(),
                       backTall: port().scrollHeight, why: "" };
            }""",
-        {"offset": OFFSET})
+        {"offset": OFFSET, "away": AWAY})
 
 
 async def hold(journal):
@@ -193,10 +207,11 @@ async def hold(journal):
             journal.check(
                 "the walk really reached the library, and really left it",
                 walked["arrived"]["where"] == LIBRARY_PATH
-                and walked["elsewhere"]["page"] == walked["elsewhere"]["away"],
+                and walked["elsewhere"]["where"] == PAGE_PATHS[AWAY],
                 f"it arrived at {walked['arrived']['where']!r} on tab "
-                f"{walked['arrived']['page']!r} and left for tab "
-                f"{walked['elsewhere']['page']!r}")
+                f"{walked['arrived']['page']!r} and left for "
+                f"{walked['elsewhere']['where']!r}, where the menu's "
+                f"{AWAY!r} lives at {PAGE_PATHS[AWAY]!r}")
             journal.check(
                 "the other page could have held the offset and did not",
                 walked["elsewhere"]["offset"] < TOLERANCE
@@ -217,6 +232,23 @@ async def hold(journal):
                 "main page scrolls in is "
                 "`#port`, and the selector this replaced could only ever find an "
                 "open screen's (B-140)")
+
+        # AND IT SURVIVES BEING DONE TWICE. A restoration that fires once and
+        # then leaves its token stale would pass the hold above.
+        # MOVED BEFORE THE SCREEN'S HOLD, out loud: that hold draws its screen
+        # through `__go`, whose reset replaces the library's entry with « / »
+        # while the entries pushed above it still say the library is there. A
+        # walk made after it stacked Système on a trail that named an index
+        # holding « / », and Retour landed there — a state no finger can make,
+        # measured as a failure of the memory it was not about.
+        again = await walk_a_page(page)
+        journal.check(
+            "and it still does the second time",
+            again["reached"] is not None
+            and abs(again["reached"] - again["left"]) <= TOLERANCE
+            and again["where"] == LIBRARY_PATH,
+            f"the second walk left at {again['left']} and came back to "
+            f"{again['reached']} at {again['where']!r}")
 
         # THE SCREEN, so the repair is not proved by breaking what worked.
         on_screen = await page.evaluate(
@@ -320,16 +352,6 @@ async def hold(journal):
              "replaces nothing, so there is no position to put back and an "
              "older one written over it is a loss the operator caused nothing "
              "to happen for"))
-
-        # AND IT SURVIVES BEING DONE TWICE. A restoration that fires once and
-        # then leaves its token stale would pass every hold above.
-        again = await walk_a_page(page)
-        journal.check(
-            "and it still does the second time",
-            again["reached"] is not None
-            and abs(again["reached"] - again["left"]) <= TOLERANCE,
-            f"the second walk left at {again['left']} and came back to "
-            f"{again['reached']}")
 
         await context.close()
         await browser.close()
