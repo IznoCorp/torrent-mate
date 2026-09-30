@@ -154,7 +154,7 @@ from common import (
     PROTOTYPE,
     SCREEN_PARENTS,
     SCREEN_PATHS,
-    chrome_launch_args,
+    browser_channel, chrome_launch_args,
     design_source,
     refuse_one_boot_write,
 )
@@ -289,7 +289,7 @@ async def main():
                   len(DIAL_PARAMETERS) == 8, f"{len(DIAL_PARAMETERS)}: {DIAL_PARAMETERS}")
 
     async with async_playwright() as p:
-        b = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
+        b = await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
 
         # ── 1. the opening address is the home page's, and it is clean ─────
         ctx, pg, errors = await open_page(b)

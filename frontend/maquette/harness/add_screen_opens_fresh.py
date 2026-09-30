@@ -10,7 +10,8 @@ WHAT THE OPERATOR EXPECTS. « + » opens a FRESH screen: an empty query, the
 follow mode, nothing added. « Identifier » from a resolution keeps seeding the
 folder's name, as it does.
 
-THE WALK is the one the screenshot came from — back from the resolution, over to
+THE WALK is the one the screenshot came from — back from the search, back from
+the resolution under it (the search stacks, DECIDED 2 = A), over to
 Acquisition by its tab, where « + » lives — taken by a finger from one
 named state and never driven again in between — a named state resets the store,
 and a reset in the middle would wipe the very leftovers this rule is about.
@@ -33,7 +34,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, PANEL_IN, SETTLED, Journal, open_page, chrome_launch_args
+from common import ACTED, PANEL_IN, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -116,7 +117,7 @@ async def main():
     """Walks the screenshot's journey and reads the add screen at each opening."""
     journal = Journal("R196 — « + » opens a fresh add screen, « Identifier » still seeds")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
         errors: list[str] = []
         page.on("pageerror", lambda error: errors.append(str(error)))
@@ -134,7 +135,12 @@ async def main():
                       and bool(identify["query"]),
                       f"resolution {aim.get('found')}, manual {manual}, screen {identify}")
 
+        # RE-AIMED OUT LOUD (DECIDED 2 = A, the navigation lot): the search
+        # STACKS over the resolution, so its Retour gives the resolution back,
+        # and the resolution's own Retour gives back the list.
         back = await tap(page, '[data-part="screen/back"]')
+        if back["tapped"]:
+            back = await tap(page, '[data-part="screen"][data-open] [data-part="screen/back"]')
         opened = await tap_the_add_button(page)
         first = await page.evaluate(SCREEN)
         journal.check("« + » after it opens empty, in the follow mode",

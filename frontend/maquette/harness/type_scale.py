@@ -32,7 +32,7 @@ measures the scale as it was on the day the list was typed.
 import asyncio
 import json
 
-from common import ROOT, Journal, open_page, chrome_launch_args
+from common import ROOT, Journal, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 # The form fields, each with the sentence a refusal has to be able to speak.
@@ -201,7 +201,7 @@ async def main():
     selectors = region_selectors()
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         ctx, pg = await open_page(browser)
         errors = []
         pg.on("pageerror", lambda e: errors.append(str(e)))

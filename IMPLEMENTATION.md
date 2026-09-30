@@ -8,16 +8,15 @@ file: `git log -- IMPLEMENTATION.md` (the last long one is `IMPLEMENTATION.md@63
 
 | | |
 | --- | --- |
-| **Last landed** | the conformity train — one need, one component, every state at every width, PR #655, version 0.98.114, 2026-09-30 |
-| **In flight** | L16-bis — the Trackers page's correction and Découvrir, `feat/maquette-l16bis`, 5 phases, all done (the torrent card, the « Torrents » tab, the « Trackers » tab, Découvrir's header and swipe, the close), version 0.98.115; its pull request is opened by the orchestrator after the lot's one reader at 390 px on tm-design, and a follow-up commit writes its number here and on the register rows B-595–B-597 |
-| **Next** | `maquette-navigation` (B-577, § 16 by destination, 4 phases) — `docs/features/maquette-navigation/DESIGN.md`, in flight beside L16-bis |
-| **Then** | C1 settings save bar (micro-wave, beside or before L17) · L17 cross-seed · L18 accounts · L23 upload · L24 orphans · the desktop milestone. The season recovery (5 phases, re-cut from 13 on 2026-09-30) is built by the next lot that touches Acquisition |
+| **Last landed** | `maquette-navigation` — every navigation edge against § 16 as amended, PR #656, version 0.98.115, 2026-09-30 |
+| **In flight** | L16-bis — the Trackers page's correction and Découvrir, `feat/maquette-l16bis`, 5 phases, all done (the torrent card, the « Torrents » tab, the « Trackers » tab, Découvrir's header and swipe, the close), version 0.98.116; its pull request is opened by the orchestrator after the lot's one reader at 390 px on tm-design, and a follow-up commit writes its number here and on the register rows B-595–B-597 |
+| **Next** | C1 settings save bar (the next micro-wave) — L17 cross-seed is built on L16-bis in its own worktree |
+| **Then** | L17 cross-seed · L18 accounts · L23 upload · L24 orphans · the desktop milestone. The season recovery (5 phases, re-cut from 13 on 2026-09-30) is built by the next lot that touches Acquisition |
 | **Landed, in order** | L01 · L02 · L03 · L04 · L05 · L06 · L07 · L08 · L09 · L10 · L15 · L11 · L12 · L14 · L19 · L21 · L13a · L13b · L20 · L13r · L13c · L22a · L22b · L16 (plus the correction waves L07-bis, L08-bis, L10-bis and the design phase L10-ter) |
 | **Freeze** | reached at L24's close, with every case of every surface drawn as a named state |
 
 ## Designs ready, code not started
 
-- Navigation — `docs/features/maquette-navigation/DESIGN.md` (OPEN 1–3 ruled 2026-09-30; OPEN 1 by his own reading)
 - Season recovery — `docs/features/maquette-season-recovery/DESIGN.md` (Q14–Q19 ruled; OPEN 8 ruled 2026-09-30)
 - L17 — `docs/features/maquette-l17/DESIGN.md` · L18 — `docs/features/maquette-l18/DESIGN.md`
 - L23 — `docs/features/maquette-l23/DESIGN.md` · L24 — `docs/features/maquette-l24/DESIGN.md`

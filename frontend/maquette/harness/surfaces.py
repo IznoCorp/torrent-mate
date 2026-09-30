@@ -8,13 +8,13 @@ is unchanged.
 
 import asyncio
 
-from common import shot, chrome_launch_args
+from common import shot, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 
 async def main():
   async with async_playwright() as p:
-    b=await p.chromium.launch(channel="chrome", args=chrome_launch_args())
+    b=await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
     c=await b.new_context(viewport={"width":390,"height":844},device_scale_factor=2,is_mobile=True,has_touch=True)
     pg=await c.new_page(); errs=[]
     pg.on("pageerror", lambda e: errs.append(str(e)))

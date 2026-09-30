@@ -36,7 +36,7 @@ over nothing is the defect this rule is the demonstration of.
 """
 import asyncio
 
-from common import Journal, open_page, chrome_launch_args
+from common import Journal, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 _journal = None
@@ -144,7 +144,7 @@ async def main():
     _journal = Journal("R80 — how React renders a boolean into an attribute")
 
     async with async_playwright() as p:
-        b = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
+        b = await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         ctx, pg = await open_page(b)
         errors = []
         pg.on("pageerror", lambda e: errors.append(str(e)))

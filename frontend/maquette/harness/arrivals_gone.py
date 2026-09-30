@@ -28,7 +28,7 @@ import json
 import pathlib
 import re
 
-from common import PROTOTYPE, SETTLED, Journal, open_page, chrome_launch_args
+from common import PROTOTYPE, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
@@ -62,7 +62,7 @@ async def main():
                   IN_BAR == THE_BAR_WANTED, str(IN_BAR))
 
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))

@@ -25,7 +25,7 @@ prepared before the document loads, so what is read is what the boot reads:
 import asyncio
 import json
 
-from common import ACTED, PAGE_PATHS, PHONE, PROTOTYPE, SETTLED, Journal, chrome_launch_args
+from common import ACTED, PAGE_PATHS, PHONE, PROTOTYPE, SETTLED, Journal, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 ENTRY = PROTOTYPE.rstrip("/") + PAGE_PATHS["acq"]
@@ -63,7 +63,7 @@ async def cold(browser, script, address=ENTRY):
 async def main():
     journal = Journal("R202 — « Suivis », then the last tab opened")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
 
         for label, script, address, wanted in (
             ("empty storage opens « Suivis »", prepared(), ENTRY, FIRST),

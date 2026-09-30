@@ -24,7 +24,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, PROTOTYPE, Journal, chrome_launch_args
+from common import PHONE, PROTOTYPE, Journal, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 from server import start_server
 
@@ -122,7 +122,7 @@ async def main() -> None:
     journal = Journal("B-572 — tm-design opens on the dense world, cold")
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(
-            channel="chrome", args=chrome_launch_args())
+            channel=browser_channel(), args=chrome_launch_args())
         try:
             # THE REAL WORLD, COLD — the harness's own build, unmodified: the
             # rule that keeps `run.sh`'s copy and the unit suite untouched by

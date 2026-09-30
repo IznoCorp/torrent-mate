@@ -25,39 +25,9 @@
 //     entry is gone; a delay chosen by hand would be a delay that outlives the
 //     thing it was set against.
 //
-// AND THE SWITCH MADE FROM A LAYER IS THE OTHER HALF, answered by COUNTING
-// rather than by intercepting. A layer's entry sits above the surface's, so
-// there is nothing here a back could take: the rewind that unwinds the layer
-// has to know the surface is there. It asks — `stackedSurfaces()` — and every
-// surface that pushes inside a page answers. Nothing else changes: the
-// engine's rewind read a count it ASSUMED, and the rewind reads one that is
-// told to it.
+// A SWITCH MADE FROM A LAYER needs none of this: the entry's trail says where
+// the page's own entry lies (`app/trail.ts`), and the switch rewinds to it.
 import { bridge } from "./shell-doors";
-
-// EVERY SURFACE THAT HAS PUSHED INSIDE A PAGE, asked rather than counted here:
-// each one knows whether it is open and this module never learns what any of
-// them IS. The answer is what the ladder's rewind adds to its own two entries.
-//
-// « OPEN » IS NOT « HAS AN ENTRY », and that distinction is the whole of the
-// `posed` flag. A surface is open at a COLD LOAD of its own address, where
-// nothing was pushed because nothing was navigated; and it is open when a rule
-// DRIVES the state directly, which the harness does constantly. Counting those
-// would have the rewind step over an entry that is not there, and the reader
-// would leave the application from a tab tap. So a surface says it has posed an
-// entry when it pushes one, and the flag goes out by itself the moment the
-// surface is no longer open — read lazily, so nothing has to remember to clear
-// it.
-const stacked: (() => boolean)[] = [];
-
-/**
- * How many surfaces inside the page have an entry of their own right now.
- *
- * Exported for the page switch's rewind (`app/page-switch.ts`), which asked it
- * through `engine/seams.ts@c0a5062ac` while the engine lived and imports it now.
- */
-export function stackedSurfaces(): number {
-  return stacked.filter((isOpen) => isOpen()).length;
-}
 
 /** The `data-*` a control carries when tapping it changes the page. */
 const PAGE_CHANGING = ["page", "go", "navgo"];
@@ -89,7 +59,8 @@ function pageChanger(target: EventTarget | null): HTMLElement | null {
  *
  * Returns:
  *     What to call when the surface has PUSHED an entry of its own. Open is not
- *     the same as having an entry — see the note on `posed` above — and a
+ *     the same as having an entry: a surface is open at a cold load of its own
+ *     address, and when a rule drives the state, with nothing pushed — and a
  *     surface that never calls this is one nothing here will ever step over.
  */
 export function giveTheEntryBackFirst(isOpen: () => boolean): () => void {
@@ -98,7 +69,6 @@ export function giveTheEntryBackFirst(isOpen: () => boolean): () => void {
     if (!isOpen()) posed = false;
     return posed;
   };
-  stacked.push(hasItsOwnEntry);
   document.addEventListener("click", (event) => {
     if (!hasItsOwnEntry()) return;
     if ((history.state as { layer?: unknown } | null)?.layer !== undefined) return;
@@ -128,32 +98,6 @@ export function giveTheEntryBackFirst(isOpen: () => boolean): () => void {
   // WHAT THE SURFACE CALLS WHEN IT HAS PUSHED. Handed back rather than
   // exported, so there is no way to claim an entry for a surface that never
   // registered one.
-  return () => {
-    posed = true;
-  };
-}
-
-/**
- * Counts one surface's history entry into the step home, without replaying the tap.
- *
- * FOR A SURFACE WHOSE CONTROLS DIE WITH IT — a screen whose own control leaves
- * for another page. Giving the entry back first unmounts the screen, and the
- * replayed tap lands on a detached element no listener hears: the landing
- * never happens. So this surface is not intercepted: the step home counts its
- * entry (`stackedSurfaces()`) and walks over it in one traversal.
- *
- * Args:
- *     isOpen: Whether the surface is open right now.
- *
- * Returns:
- *     What to call when the surface has PUSHED an entry of its own.
- */
-export function countTheEntry(isOpen: () => boolean): () => void {
-  let posed = false;
-  stacked.push(() => {
-    if (!isOpen()) posed = false;
-    return posed;
-  });
   return () => {
     posed = true;
   };

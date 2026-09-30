@@ -4,7 +4,7 @@
 // what the oracle's reference names, the label says the state in words, and
 // `run` builds the state. The driver resets the interface before every state,
 // so an entry pins only what its state means to show.
-import { applyState, type NamedState } from "../drive";
+import { applyState, poseTrail, type NamedState } from "../drive";
 import type { components } from "../../contract/types";
 
 // How long a read is held back to show a section that is still waiting. Long
@@ -310,6 +310,22 @@ export function systemStates(): NamedState[] {
         window.__mocks?.reset();
         window.__mocks?.setTmpOrphans(true);
         applyState({ page: "sys", phase: "ready", fault: false });
+      },
+    ],
+    [
+      "run-not-found",
+      "Passage introuvable — un lien vers un passage que le moteur ne connaît plus",
+      () => {
+        applyState({ page: "sys", phase: "ready", fault: false });
+        window.__screens.run("a-run-nobody-knows");
+      },
+    ],
+    [
+      "nav-acquisition-over-system",
+      "Navigation — À traiter ouvert par le lien de Système : Retour ramène à Système",
+      () => {
+        applyState({ page: "acq", acqTab: "todo", phase: "ready" });
+        poseTrail(["acq", "sys", "acq"]);
       },
     ],
   ];

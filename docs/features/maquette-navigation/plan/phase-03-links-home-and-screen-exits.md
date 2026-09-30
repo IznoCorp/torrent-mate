@@ -29,14 +29,11 @@ walked menu → Système → link, `floor + 3` through the run screen), its docs
 
 ## Acceptance — red first on the old code, then green
 
-- **R-navigation-a**: N4–N6, L3, L4, S2, S3 red at phase 2's head (declared), green here; mutations by NAME —
-  « an in-page link arriving home steps back onto the floor » → N4, N5, Y5 fall; « `complete` writes `page`
-  itself » → L3 and the second hold fall.
+- **R-navigation-a**: N4–N6, L3, L4, S2, S3 red at phase 2's head (declared), green here.
 - **R239 re-aimed** as above; R187/R75 (`back.py`, `screen_addresses.py`) green — the run screen's Retour unchanged.
 - Walked by finger at 369 px: Système › passages « Acquisition → » → Retour → Système → Retour → Acquisition →
   Retour → the guard; Médiathèque › Incomplets › a series › « Compléter » → Retour → Médiathèque, panel open;
   Acquisition « + » → « Voir mes suivis » → Retour → the guard; a release → « profil » → Retour → the releases.
-- Oracle: accepts `nav-acquisition-over-system`, `run-not-found` by name; R-conformity-a on both.
 
 ## Commit
 

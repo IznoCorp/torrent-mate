@@ -49,7 +49,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, Journal, open_page, chrome_launch_args
+from common import PHONE, Journal, open_page, browser_channel, chrome_launch_args
 
 # Long enough for the first backoff delay (250 ms) plus the handshake, short
 # enough that the rule costs nothing. Read from the relay rather than guessed
@@ -90,7 +90,7 @@ LOST_WINDOW_MS = 4200
 async def hold(journal):
     """Drives the relay through a loss and reads what came back."""
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser, **PHONE)
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))

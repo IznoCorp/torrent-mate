@@ -617,6 +617,7 @@ large
 last
 late
 latency
+lay
 layer
 layers
 leading
@@ -1023,6 +1024,7 @@ retry
 return
 returns
 reversed
+revisited
 rich
 right
 ring
@@ -1406,6 +1408,7 @@ succeeded
 summary
 swept
 timing
+trail
 trigger
 turn
 verified

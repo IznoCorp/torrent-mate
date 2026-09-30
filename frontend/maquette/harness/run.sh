@@ -72,7 +72,7 @@ else
   for s in "$HERE"/*.py; do
     rule="$(basename "$s")"
     case "$rule" in
-      common.py|desktop_frame_page.py|factories.py|server.py|served_copy.py) continue ;;
+      common.py|desktop_frame_page.py|factories.py|navigation_edges.py|server.py|served_copy.py) continue ;;
     esac
     if [ "$CI_MODE" -eq 1 ]; then
       case " ${CI_EXCLUDED[*]} " in

@@ -12,7 +12,7 @@ one line drew its poster lower than a neighbour whose title took three.
 """
 import asyncio
 
-from common import chrome_launch_args
+from common import browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 # THE WIDTHS THE ROW IS READ AT: the narrowest phone, the reference, and one
@@ -44,7 +44,7 @@ GALLERIES = [
 
 async def main():
   async with async_playwright() as p:
-    b = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
+    b = await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
     failures = []
     for touch in (True, False):
       ctx = await b.new_context(viewport={"width":390,"height":844},

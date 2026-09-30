@@ -32,13 +32,11 @@ row anchored `[data-part="topic"][data-page="cfg"]` (`features/system/page.tsx:1
 
 ## Acceptance — red first on the old code, then green
 
-- **R-navigation-b**: red on `f71a44f7b` (`/acquisition` after Retour), green here; mutation « B-577's mechanism »
-  (`replacePath()` where the non-bar branch records) → falls, read by NAME.
+- **R-navigation-b**: red on `f71a44f7b` (`/acquisition` after Retour), green here.
 - **R-navigation-a**: rows N1–N3, M4, M5, T1–T5, Y5 green; every `owed` row red AS DECLARED; the completeness hold
-  green on 13 emitters; mutation « a bar destination rewinds one entry » → T4 falls.
+  green on 13 emitters.
 - Walked by finger at 369 px: Médiathèque → menu → Système → Réglages → Retour ×3 (Système, Acquisition — the menu
   rows still `owed: 2` —, the guard); Système → Réglages → bar Trackers → Retour → Acquisition.
-- Oracle: accepts `nav-exit-armed`, `nav-trail-settings` by name, and nothing else moves.
 - `run.sh --rules journey.py back.py drawer.py url_state.py` green (R59, R65, R69 walk the same verbs).
 
 ## Commit

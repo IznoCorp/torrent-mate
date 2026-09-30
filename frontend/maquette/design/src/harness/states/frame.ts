@@ -4,7 +4,10 @@
 // what the oracle's reference names, the label says the state in words, and
 // `run` builds the state. The driver resets the interface before every state,
 // so an entry pins only what its state means to show.
-import { applyState, type NamedState } from "../drive";
+import i18next from "../../i18n";
+import { applyState, poseTrail, type NamedState } from "../drive";
+import { walk } from "../../app/page-switch";
+import { toast } from "../../lib/shell-doors";
 import { openDrawer } from "../../app/frame-verbs";
 
 export function drawerStates(): NamedState[] {
@@ -74,6 +77,39 @@ export function notFoundStates(): NamedState[] {
       "not-found",
       "Une adresse qui n'existe pas",
       () => applyState({ page: "une-page-qui-n-existe-pas", phase: "ready" }),
+    ],
+  ];
+}
+
+/* THE NAVIGATION STATES: each lays the trail it shows under the page it draws,
+   so Retour on tm-design replays the path (DESIGN maquette-navigation § 4). */
+export function navigationStates(): NamedState[] {
+  return [
+    [
+      "nav-exit-armed",
+      "Navigation — Retour sur la page d'entrée : la garde de sortie armée",
+      () => {
+        applyState({ page: "acq", acqTab: "follows", phase: "ready" });
+        poseTrail(["acq"]);
+        walk.armedExit = Date.now();
+        toast?.show({ message: i18next.t("message.oneMoreBack") });
+      },
+    ],
+    [
+      "nav-trail-settings",
+      "Navigation — Réglages ouverts par Système, lui-même ouvert depuis la Médiathèque",
+      () => {
+        applyState({ page: "cfg", phase: "ready" });
+        poseTrail(["acq", "lib", "sys", "cfg"]);
+      },
+    ],
+    [
+      "nav-trail-revisited",
+      "Navigation — Acquisition → Système → Acquisition → Réglages → Système : Système remonte en haut de la piste, Retour ramène à Réglages puis à la page d'entrée",
+      () => {
+        applyState({ page: "sys", phase: "ready" });
+        poseTrail(["acq", "cfg", "sys"]);
+      },
     ],
   ];
 }

@@ -31,7 +31,7 @@ import json
 import pathlib
 from urllib.parse import quote
 
-from common import ACTED, PAGE_PATHS, PHONE, PROTOTYPE, SETTLED, Journal, chrome_launch_args
+from common import ACTED, PAGE_PATHS, PHONE, PROTOTYPE, SETTLED, Journal, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 ROOT = PROTOTYPE.rstrip("/")
@@ -103,7 +103,7 @@ async def main():
     """Runs the rule."""
     journal = Journal("R205 — the candidates screen returns to « À traiter », no « Suivant »")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
 
         for label, selector in EXITS:
             context, page, errors = await fresh(browser)

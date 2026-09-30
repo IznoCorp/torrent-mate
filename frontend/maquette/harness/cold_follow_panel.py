@@ -32,7 +32,7 @@ import sys
 import urllib.parse
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, PROTOTYPE, SETTLED, Journal, open_page, chrome_launch_args
+from common import PHONE, PROTOTYPE, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
 
 from playwright.async_api import async_playwright
 
@@ -109,7 +109,7 @@ async def read_until(page, done, deadline):
 async def main():
     journal = Journal("R176 — a follow panel opened cold on a typed address reads the medium's identity")
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
 
         # WARM: the page loads the identity itself. Read once the cells stop
         # moving — the owned numbers arrive after the panel does.

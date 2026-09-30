@@ -24,7 +24,7 @@ Red before the move: the list rejected both ways, with the same word on both sid
 import json
 import pathlib
 import asyncio
-from common import PROTOTYPE, chrome_launch_args
+from common import PROTOTYPE, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 SEL = '[data-part="deck/card"][data-depth="0"]'
@@ -34,7 +34,7 @@ WORDS = json.loads((pathlib.Path(__file__).resolve().parents[1] / "design/src/i1
 
 async def main():
   async with async_playwright() as p:
-    b = await p.chromium.launch(channel="chrome", args=chrome_launch_args())
+    b = await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
     ctx = await b.new_context(viewport={"width":390,"height":844}, device_scale_factor=2,
                               is_mobile=True, has_touch=True)
     pg = await ctx.new_page(); errs = []
