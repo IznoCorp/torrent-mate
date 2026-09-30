@@ -1,60 +1,81 @@
 # Season recovery — a whole-season recovery, visible and exclusive · PLAN
 
-Design: `docs/features/maquette-season-recovery/DESIGN.md`; the implementer is held to `docs/reference/implementer-office.md`.
+Design: `docs/features/maquette-season-recovery/DESIGN.md`. The implementer is held to
+`docs/reference/implementer-office.md`, AMENDED by the auditor's orders 98 and 99 (§ « The gates » below).
 
-**Written 2026-09-29, on `main` at `b63a45438`.** The CODE is built inside the next lot that touches Acquisition
-(order 69 — the orchestrator names it); every figure below was taken by a command on `b63a45438` and is RE-TAKEN at
-the phase's real opening — a figure that moved is re-taken, a figure that no longer supports its phase's cut is
-STOP D. The backend demand it relies on is `docs/reference/backend-demands-architecture.md` § 14, with the
-absorption detail DESIGN § 6 proposes (SR1–SR4); the maquette answers from its mock layer until the engine does.
+**Re-cut 2026-09-30, on `main` at `9234341fc`** (orders 97, 98, 99), after the operator's round Q14–Q19: 13 phases
+become **5**, one per surface. The old plan is `docs/features/maquette-season-recovery/plan/INDEX.md@9234341fc`; its
+correspondence is the last table. The CODE is built inside the next lot that touches Acquisition (order 69 — the
+orchestrator names it), after the conformity train has merged (its phase 9 makes the row's mark the chip). The
+backend demands it relies on are DESIGN § 6's SR1–SR5; the maquette answers from its mock layer until the engine does.
+
+## The operator's principles, and the phase that proves each (order 97 — the design's table is DESIGN § 0.3)
+
+| Principle, his words | Phase |
+| --- | --- |
+| « Il faut uniformiser les comportements » — followed or one-off, manual or automatic, one card, one mark, one absorption; the pointer lands like « Voir le tracker » | 1 · 2 · 3 |
+| « on crée pas de nouveau composant on adapte » — nothing new drawn (DESIGN § 1.8); rule f | 4 |
+| « seule une maquette montrant tout les cas possibles est utile » — 30 named states, none conditional | every phase |
+| « tout doit être responsive … sur tous ! » — R-conformity-a on the touched states at each gate; the full sweep at the midpoint and the close | every phase; 2 · 5 |
+| « une différence entre film et série » — a recovery is a series'; a film's releases untouched (a hold of rule d) | 4 |
+| Constitution § 16 — the pointer stacks, Retour returns to the journey's page, walked by finger | 3 |
+
+## The phases — one surface each, sized by the context (gauge + the last phase's cost ≤ 80), no point cap
+
+| # | Surface | DESIGN | Rules | Page |
+| ---: | --- | --- | --- | --- |
+| 1 | « En cours » — the season's card and the absorption, and the data they read | S2, S3, S6; § 1.7, § 2 | a, e, g (card) | [phase-01](phase-01-the-season-card-and-the-absorption.md) |
+| 2 | The season's row on both sheets — then the MIDPOINT | S1, S6 | b, g (row) | [phase-02](phase-02-the-season-row.md) |
+| 3 | The journeys and the pointer | S4, S2's journey | c | [phase-03](phase-03-the-journeys-and-the-pointer.md) |
+| 4 | The release picker's refusal | S5 | d, f | [phase-04](phase-04-the-release-picker.md) |
+| 5 | The close — the lot's gate, the records, the pull request | — | all, by name | [phase-05](phase-05-the-close.md) |
+
+**Measured**: 13 phases → **5** (4 surfaces + the close). The end (S6) is not a phase of its own: each of its states
+lands with the surface it shows (the card's in 1, the row's in 2, the pointer's in 3, the picker's in 4).
+
+## The gates (order 99, amending the office's « The gate »)
+
+- **A phase gate — light**: the static guards on the files touched; the ORACLE ALONE, accepting only the states the
+  page names (built by script); `run.sh --rules` on the rules of the surfaces touched — each new hold read RED on the
+  old code first, then green (no per-phase mutation, no per-phase `--a11y`); R-conformity-a on the touched states.
+  Every browser run names `TM_HARNESS_JOBS=2`; every pytest `-n 2`. Navigation (3, 4) walked by finger.
+- **The midpoint, after phase 2**: `--contracts` and the full responsive sweep (Chromium + WebKit), once.
+- **Once per lot, at phase 5**: the full suite, `--a11y`, the full sweep, the hold counts, each rule a–g re-run BY
+  NAME (order 98); the reader round follows (ten random mutations, the finger walk, the principles).
 
 ## The stops
 
-- **STOP A** — the oracle diverging on a state the phase did not name. **STOP B** — the pull request.
-- **STOP C — OPEN.** DESIGN § 5's seven questions go to ONE operator round before phase 1 opens. Phases 1, 3, 6, 7,
-  8, 9 and 10 carry one; each is written for the RECOMMENDED reading and names what its other reading changes.
-- **STOP D** — a measurement that contradicts a home the design decided. Near already (non-blank lines, ceiling
-  400): `lib/queue.ts` **390**, `features/media/season-list.tsx` **390**, `mocks/state.ts` **393** — none of them
-  grows (the derivation lands in its own `lib/` module, the seeds in seed files, the row's marks already exist).
-  Anything outside this plan and its design: STOP, and ask the orchestrator first.
+**STOP A** — the oracle diverging on a state the page did not name. **STOP B** — the pull request. **STOP C** — OPEN 8
+(DESIGN § 5), written for A in phase 1; the operator's answer is read before phase 1 opens. **STOP D** — a ceiling
+(`grep -cv '^\s*$'`, 400): `lib/queue.ts` **390**, `features/media/season-list.tsx` **390**, `mocks/state.ts` **393** —
+none grows (the derivation lands in its own `lib/` module). Anything outside these pages: STOP, ask the orchestrator.
 
-## Points, and the mean
+## The gate of THIS docs pull request
 
-The scale is L23's (`docs/features/maquette-l23/plan/INDEX.md` « Points »). A phase whose re-measure at its opening
-exceeds 15 is cut there, never begun, and the orchestrator told.
+`python3 scripts/check-docs-cited-paths.py`, `check-no-french.py`, `check-implementation-state.py`,
+`check-intent-map.py`, `make lint`.
 
-| # | Phase | Kind | Rule | Points | OPEN |
-| ---: | --- | --- | --- | ---: | --- |
-| 1 | [The contract](phase-01-the-contract.md) | contract | — | 8 | 1, 5 |
-| 2 | [The seeds](phase-02-the-seeds.md) | seed | — | 7 | — |
-| 3 | [The mocks that move](phase-03-the-mocks-that-move.md) | mock | — | 13 | 1, 3, 5 |
-| 4 | [The derivation moves to lib](phase-04-the-derivation-moves-to-lib.md) | move | — | 6 | — |
-| 5 | [The absorption](phase-05-the-absorption.md) | behaviour (S3) | a, e | 13 | — |
-| 6 | [« Demandée » on both sheets](phase-06-requested-on-both-sheets.md) | surface (S1) | b | 14 | 4, 6 |
-| 7 | [The mark is the chip](phase-07-the-mark-is-the-chip.md) | refactor | — (re-aims) | 5 | 7 |
-| 8 | [The season's card and its journey](phase-08-the-season-card-and-its-journey.md) | surface (S2) | — (holds on a, b) | 14 | 1, 3, 6 |
-| 9 | [The pointer](phase-09-the-pointer.md) | navigation (S4) | c | 14 | 1, 2 |
-| 10 | [The refusal](phase-10-the-refusal.md) | surface (S5) | d, f | 12 | 7 |
-| 11 | [The end](phase-11-the-end.md) | behaviour (S6) | — (holds on b, c, d) | 9 | — |
-| 12 | [The records](phase-12-the-records.md) | records | — | 6 | — |
-| 13 | [The close](phase-13-the-close.md) | close | — | 6 | — |
+## Correspondence — every element of the old plan, every ruling → its phase
 
-**Measured** (`python3 -c "print(8+7+13+6+13+14+5+14+14+12+9+6+6)"` → **127**): **127 points over 13 phases, mean
-≈ 9.8, max 14** (phases 6, 8 and 9). **The midpoint** — the full suite, its falls repaired before the next phase — is after
-phase 6: the derivation, the absorption and the row are in place, every surface after it reads them.
+Old pages: `docs/features/maquette-season-recovery/plan/phase-NN-….md@9234341fc`.
 
-## Why this order
-
-The contract (1) before the seeds (2) before the mocks (3): `scripts/compare-contracts.py --check` refuses a field
-apart from its schema, and a handler with no seed answers nothing. The derivation is MOVED (4) before it is extended
-(5); the row (6) reads the same derivation; the mark's component (7) precedes the two surfaces that draw it (8, 10);
-the card and its journey (8) precede the pointer (9) that lands on the one from the other; the end (11) walks every
-surface back to rest; the records (12) and the close (13) end it.
-
-## Gates
-
-Per phase: the office's phase gate (`docs/reference/implementer-office.md` § « The gate »), divergences ONLY on the
-states the phase names, the declared list built BY SCRIPT; every navigation (5, 9, 10) walked by finger at order 85's
-seven widths; the harness budget read at the midpoint and the close; the pre-PR gate, the patch bump. **THIS docs
-pull request's gate** is `check-docs-cited-paths.py`, `check-no-french.py`, `check-implementation-state.py`,
-`check-intent-map.py` and `make lint`.
+| Element | → |
+| --- | --- |
+| old 1 the contract: `QueueCard.season`, `episode`, `absorbedBy`; the grab's `200` (`reused`) · the journey read per acquisition | 1 · 3 |
+| old 2 the seeds: Silo's season card, its episode card, the season pack | 1 (the pack is read at 4) |
+| old 3 the mocks: `grabSeasonForFollow` for a followed series, the absorption, the ladder to « rangé » · `readJourney` per acquisition | 1 · 3 |
+| old 4 the derivation moves to `lib/` (a move, proved by the oracle alone before it is extended) | 1 |
+| old 5 the absorption, R-a, R-e, R224 re-aimed | 1 |
+| old 6 « Demandée » on both sheets, R-b, the key renamed `seasonRequested` | 2 |
+| old 7 the mark is the chip (OPEN 7) | **REMOVED — subject taken** by the conformity train's phase 9 (D.1 #5); the harness re-aims of R138 / R158 go with it there |
+| old 8 the season's card states · its journey (per acquisition, the absorbed listed) | 1 · 3 |
+| old 9 the pointer, R-c, the landing door adapted | 3 |
+| old 10 the refusal, R-d, R-f | 4 |
+| old 11 the end: shelved rows `7/7` · closed short, abandoned · the ended pointer · `S03E07` takes again · `season-row-ask-failed`, `-ask-held` | 2 · 1 · 3 · 4 · 2 |
+| old 12 the records: the four register rows of DESIGN § 6 | 1 (a followed ask draws no card; an episode card beside its season) · 2 (« Demandée » reads another list) · train 9 (`queuedMark`) |
+| old 12 · old 13 — the demands SR1–SR5 regenerated, the map's proposal, the report | 5 |
+| old midpoint « after phase 6 » | after 2 |
+| Q14 = DECIDED 1 (journey per acquisition) · Q15 = DECIDED 2 (the landing) · Q16 = DECIDED 3 (the absorbed downloading, listed) | 3 · 3 · 3 |
+| Q17 = DECIDED 4 (one mark at a time) · Q18 = DECIDED 5 (the served link) · Q19 = DECIDED 6 (the auto / manual mark) | 2 · 1 · 1 (card, the field) and 2 (row) |
+| OPEN 8 (where the card carries « auto ») | 1 (written for A) |
+| B-rows owned: `grep -n -i "season-recovery\|season recovery" BUGS.md \| wc -l` → **0** on `9234341fc` | — |
