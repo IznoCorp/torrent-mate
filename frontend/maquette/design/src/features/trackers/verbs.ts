@@ -7,9 +7,9 @@ import { fillLandingDoor, panel, recordAddress, redraw, replaceAddress } from ".
 import { read, send, sharedQueryClient } from "../../lib/query-client";
 import { store } from "../../lib/store-access";
 import { trackersKey, type Tracker } from "./queries";
-import { pendingEdits } from "../../lib/save-bar-door";
+import { pendingEdits } from "../../lib/pending-edits-door";
 import { activationSetting } from "./trackers-tab";
-import { onEditsWritten } from "../../lib/save-bar-door";
+import { onEditsWritten } from "../../lib/pending-edits-door";
 import { tabMemory } from "../../lib/tab-memory";
 // « Retirer de qBittorrent » declares its own verb, and a torrent's panel its producer.
 import "./remove-verb";

@@ -39,7 +39,7 @@ import { settingInWords } from "./format";
 import { useConfigurationStatus, useSecrets, useSettings } from "./queries";
 import { settingLabel } from "../../features/settings/labels";
 import { backAction, emptyNote, factsPanel, loadError, loadErrorAction, qualityHint, searchClear, searchField, searchInput, sectionHeading } from "../../ui/variants";
-import { SaveBar, SettingsBanners } from "./banners";
+import { SettingsBanners } from "./banners";
 import { flattenSettings, settingIdentifier } from "./catalog";
 import { settingsRow } from "./variants";
 import { guidance } from "../../ui/variants/layout";
@@ -210,7 +210,6 @@ export function SettingsPage(): ReactElement | null {
           <b>{t("screens.settings.secretsNoteLead")}</b>
           {t("screens.settings.secretsNoteRest")}
         </div>
-        <SaveBar />
       </>
     );
   }
@@ -224,7 +223,6 @@ export function SettingsPage(): ReactElement | null {
             className={emptyNote()} data-part="empty-state"
             html={emptyNoteMarkup(t("screens.settings.unknownTopic"), "")}
           />
-          <SaveBar />
         </>
       );
     }
@@ -232,7 +230,6 @@ export function SettingsPage(): ReactElement | null {
       <>
         <SettingsBanners />
         <TopicView topic={topic} />
-        <SaveBar />
       </>
     );
   }
@@ -278,7 +275,6 @@ export function SettingsPage(): ReactElement | null {
             </div>
           </>
         )}
-        <SaveBar />
       </>
     );
   }
@@ -299,7 +295,6 @@ export function SettingsPage(): ReactElement | null {
         <b>{t("screens.settings.mapNoteLead")}</b>
         {t("screens.settings.mapNoteRest")}
       </div>
-      <SaveBar />
     </>
   );
 }
