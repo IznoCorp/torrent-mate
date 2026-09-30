@@ -32,11 +32,11 @@ One page: `docs/reference/method.md`. The generic lifecycle lives in the skills 
 The implement skills read these two lines.
 
 - **Phase gate**: `make lint`; `cd frontend/maquette/design && npm run typecheck && npm test`; pytest of
-  the touched modules (`-n 2`); `TM_HARNESS_JOBS=2 frontend/maquette/harness/run.sh --rules <rules of the touched surface>`.
-- **Lot-close gate**: `make check` (it runs the full harness once).
+  the touched modules.
+- **Lot-close gate**: `make check`.
 
-The full pytest runs in CI. A harness rule broken by an intended change is updated or deleted in
-the same phase.
+The full pytest and every harness rule run in CI (`.github/workflows/ci.yml`, `harness-full.yml` on a
+pull request touching the maquette), not on this machine. `make harness` runs the rules by hand.
 
 ## Authority — the operator's word (BINDING)
 
@@ -57,19 +57,17 @@ the same phase.
 - What the maquette must become technically, and the lot order: `docs/reference/frontend-architecture.md`
   (BINDING). Developer reference of the prototype: `frontend/maquette/README.md`.
 
-## Safety (MANDATORY — IznoServer)
+## The machine (IznoServer)
 
 - `rg` ALWAYS with `--type py` or a `-g '*.ext'` glob: `tests/e2e/perf/.fixture/` is 14 GB of binary
   media and an unfiltered `rg` crashes the machine.
-- curl/wget/fetch ALWAYS with `--connect-timeout 10 --max-time 30` (hook-enforced).
 - qBittorrent: NEVER enable « Bypass authentication for clients on localhost » (nor any whitelist
   variant) — behind the reverse proxy it exposes the WebUI to the Internet (`docs/reference/qbittorrent-api.md`).
 - NEVER start a server on 8710/8711 (Caddy routes `tm.`/`tm-staging.` there), nor on 8712/8899 by
   hand (design host, harness host). Test the frontend via `tm-staging.iznogoudatall.xyz` / `tm-design`.
-- Heavy runs one at a time under `scripts/heavy.sh`, the fan-out named on the command line
-  (`TM_HARNESS_JOBS=2`, `pytest -n 2`): Plex comes first.
-- Kill what you start, delete what you build (verify with `ps`). Nothing launched after 04:15 on
-  Monday (weekly reboot at 05:00).
+- A heavy local run goes through `scripts/heavy.sh`, one at a time; `make test` and `run.sh` default
+  to half the processors. Kill what you start, delete what you build. The machine reboots every
+  Monday at 05:00.
 - `personalscraper run` and any long pipeline command: foreground only, `timeout=600000` (hook-enforced);
   create TODO tasks before launching; show output step by step; kill on 2 identical consecutive
   errors, then check for orphans, lock files and temp dirs. Or run the steps one by one

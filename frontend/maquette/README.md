@@ -581,12 +581,13 @@ and a stale one measures the previous build without saying so. Every script fail
 exit code, not through its output: a script that only prints cannot fail.
 
 ```bash
-TM_HARNESS_JOBS=2 frontend/maquette/harness/run.sh                            # every rule — once, at a lot's close
-TM_HARNESS_JOBS=2 frontend/maquette/harness/run.sh --rules settings.py back.py # only the named rules, over one build — a phase
+frontend/maquette/harness/run.sh                             # every rule (CI runs it on a lot's pull request)
+frontend/maquette/harness/run.sh --rules settings.py back.py # only the named rules, over one build
+frontend/maquette/harness/run.sh --ci --shard 2/4            # a CI runner's share
 ```
 
-Name the fan-out on every command line (`TM_HARNESS_JOBS=2`), and run a long suite under
-`scripts/heavy.sh`: the machine also serves Plex. One headless Chrome per rule; the rules below are
+The full suite runs in CI (`.github/workflows/harness-full.yml`), not on IznoServer. The fan-out
+defaults to half the processors (`TM_HARNESS_JOBS` overrides it). One headless Chrome per rule; the rules below are
 committed because they encode recipes that cost time to get right, and because a rule with no
 script is a sentence in a file.
 
