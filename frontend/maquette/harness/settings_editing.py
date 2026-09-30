@@ -146,7 +146,7 @@ async def main():
             # the platform's own « select all », which `Control+A` is not here:
             # typed after it, the probe was APPENDED to the stored path and the
             # read-back compared two strings that were both wrong.
-            await page.keyboard.press("Meta+A")
+            await page.keyboard.press("ControlOrMeta+A")
             await page.keyboard.type(TYPED)
             before_commit = await page.evaluate(STANDING)
             journal.check(

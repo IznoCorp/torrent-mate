@@ -152,7 +152,7 @@ async def main():
         walked = {"row": await tapped(page, row)}
         walked["field"] = await tapped(page, '#sheetin [data-part="field/input"]')
         if walked["field"]:
-            await page.keyboard.press("Meta+A")
+            await page.keyboard.press("ControlOrMeta+A")
             await page.keyboard.type(TYPED)
         walked["commit"] = await tapped(page, "#sheetin [data-commitsetting]")
         # « Valider » files the edit and keeps the panel up, showing it pending;
@@ -202,7 +202,7 @@ async def main():
                       ALERT_LABEL in title and "alert threshold" not in title.lower(), repr(title))
         walked["field"] = await tapped(page, '#sheetin [data-part="field/input"]')
         if walked["field"]:
-            await page.keyboard.press("Meta+A")
+            await page.keyboard.press("ControlOrMeta+A")
             await page.keyboard.type(THRESHOLD)
         walked["commit"] = await tapped(page, "#sheetin [data-commitsetting]")
         await page.go_back()

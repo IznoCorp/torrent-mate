@@ -1,7 +1,7 @@
 # Season recovery — a whole-season recovery, visible and exclusive · DESIGN
 
 Contract: the operator's words of 2026-09-29 17:36 and his rulings Q5 and Q6 of the same evening
-(`/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md` §§ Q5, Q6), read against the conformity
+(`docs/features/maquette-conformity/rulings-2026-09-29.md` §§ Q5, Q6), read against the conformity
 reading's § A.3 (`/Users/izno/dev/review-archive/conformity-80/REPORT.md`). Verbatim:
 
 - 17:36: « Lors d'une récupération d'une saison entière sur une série suivit, on doit pouvoir voir qu'une
@@ -27,7 +27,7 @@ numbers. Every figure carries the command that produced it, run from the worktre
 questions go to ONE operator round before any code.
 
 **Amended 2026-09-30, on `main` at `9234341fc`** (the auditor's orders 97, 98, 99): the round is done — Q14–Q19
-(`/Users/izno/dev/review-archive/season-recovery/rulings-2026-09-29.md`) close OPEN 1–6 as DECIDED 1–6 (§ 5), the
+(`docs/features/maquette-season-recovery/rulings-2026-09-29.md`) close OPEN 1–6 as DECIDED 1–6 (§ 5), the
 named states and the rules follow them, and Q19's automatic / manual mark is drawn (§ 1.9, rule g); OPEN 7's subject
 is the conformity train's (§ 5); the drawing leaves ONE question, OPEN 8 (where the card carries the mark). § 0.3 is
 the conformity table of order 97. The plan is re-cut BY SURFACE — 13 phases become **5** (`plan/INDEX.md`, its
@@ -392,7 +392,7 @@ draws its ladder, one medium).
 
 ### DECIDED — the operator's round of 2026-09-29 (Q14–Q19), recorded 2026-09-30
 
-Each item quotes the ruling verbatim from `/Users/izno/dev/review-archive/season-recovery/rulings-2026-09-29.md`,
+Each item quotes the ruling verbatim from `docs/features/maquette-season-recovery/rulings-2026-09-29.md`,
 gives its meaning as that file records it, and says what changes against the reading costed above (the readings A /
 B are kept in `docs/features/maquette-season-recovery/DESIGN.md@9234341fc` § 5). Nothing here is re-argued.
 

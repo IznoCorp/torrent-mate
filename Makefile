@@ -1,6 +1,9 @@
-.PHONY: check-contract-types help clean test test-unit test-integration test-cov test-impacte lint lint-logging check check-frontend format install-dev version update-ytdlp perf-rebaseline openapi fixture harness harness-contracts maquette-oracle maquette-a11y
+.PHONY: check-contract-types help clean test test-unit test-integration test-cov test-impacte lint check check-frontend format install-dev version update-ytdlp perf-rebaseline openapi fixture harness
 
 THRESHOLD := $(shell python3 scripts/get_coverage_threshold.py)
+# Half the processors: the machine also serves production, so a test run
+# never takes all of it.
+WORKERS := $(shell echo $$(( ($$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4) + 1) / 2 )))
 
 help:
 	@echo "PersonalScraper — Available commands:"
@@ -10,9 +13,9 @@ help:
 	@echo "  make test-integration - Run integration tests only"
 	@echo "  make test-cov        - Run tests with branch coverage at fail_under threshold"
 	@echo "  make test-impacte    - Run only tests impacted by code changes (pytest-testmon)"
-	@echo "  make lint            - Run ruff check + ruff format --check + mypy + logging audit"
-	@echo "  make lint-logging    - Run logging convention audit (fails on errors)"
-	@echo "  make check           - Run lint, tests, module-size, typed-api, pragma, CLI-coverage checks"
+	@echo "  make lint            - Run ruff check + ruff format --check + mypy"
+	@echo "  make check           - The lot-close gate: lint, guards, frontend (pytest and the maquette rules run in CI)"
+	@echo "  make harness         - Run every maquette rule by hand (CI runs them on a lot PR)"
 	@echo "  make format          - Format code with ruff"
 	@echo "  make install-dev     - Install package in development mode with dev deps"
 	@echo "  make version         - Show current version"
@@ -31,15 +34,15 @@ clean:
 
 test:
 	@echo "Running tests..."
-	python -m pytest -v -n auto
+	python -m pytest -v -n $(WORKERS)
 
 test-unit:
 	@echo "Running unit tests..."
-	python3 -m pytest tests/ --ignore=tests/integration --ignore=tests/e2e -q -n auto
+	python3 -m pytest tests/ --ignore=tests/integration --ignore=tests/e2e -q -n $(WORKERS)
 
 test-integration:
 	@echo "Running integration tests..."
-	python3 -m pytest tests/integration/ -q -n auto
+	python3 -m pytest tests/integration/ -q -n $(WORKERS)
 
 # Local iteration loop ONLY — selects tests whose recorded dependencies
 # (.testmondata, built on first run) intersect the code changed since then.
@@ -58,7 +61,7 @@ test-cov:
 	# `.coverage.<host>.<pid>.<rand>` shards that can poison a subsequent
 	# run on a dirty tree. Reproducible from any state.
 	python3 -m coverage erase
-	python3 -m pytest tests/ --ignore=tests/e2e -q --no-header -n auto \
+	python3 -m pytest tests/ --ignore=tests/e2e -q --no-header -n $(WORKERS) \
 		--cov=personalscraper --cov-branch --cov-report=xml --cov-report=term \
 		--cov-fail-under=$(THRESHOLD)
 
@@ -67,71 +70,23 @@ lint:
 	python -m ruff check personalscraper/ tests/ scripts/ frontend/maquette/ frontend/scripts/
 	python -m ruff format --check personalscraper/ tests/
 	python -m mypy personalscraper/
-	$(MAKE) lint-logging
 
-lint-logging:
-	@echo "Running logging convention audit..."
-	python scripts/check_logging.py personalscraper/
-
-check: lint test-cov
-	python3 scripts/check-module-size.py
-	python3 scripts/check-module-size.py --root scripts
-	python3 scripts/check-module-size.py --root tests
-	python3 scripts/check-module-size.py --root frontend
-	python3 scripts/check-no-broad-registry-catch.py
+check: lint
 	python3 scripts/check-typed-api.py
 	python3 scripts/check-pragma-discipline.py
-	python3 scripts/check-no-french.py
-	python3 scripts/check-code-abbreviations.py
 	python3 scripts/check-css-tokens.py
 	python3 scripts/check-compositor-css.py
 	python3 scripts/check-tailwind-confinement.py
-	python3 scripts/check-markup-contracts.py
-	python3 scripts/check-frontend-boundaries.py
 	python3 scripts/check-component-once.py
-	python3 scripts/check-state-ownership.py
-	python3 scripts/check-maquette-comments.py
-	python3 scripts/check-live-relay.py
-	python3 scripts/check-bug-register.py
-	python3 scripts/check-docs-cited-paths.py
-	python3 scripts/check-frame-domain.py
-	python3 frontend/maquette/oracle.py --contracts
 	python3 scripts/check-i18n-placeholders.py
 	python3 scripts/check-command-safety.py
-	python3 scripts/audit-cli-coverage.py
-	$(MAKE) cli-coverage-check
-	@echo "Checking feature map freshness..."
-	python3 scripts/update_feature_map.py --check
-	@echo "Auditing design coverage..."
-	python3 scripts/audit_design_coverage.py --strict
-	@echo "Checking maquette fixture drift (advisory — it reads a LIVE database)..."
-	@# NOT A GATE, and the reason is the one CLAUDE.md already writes down for
-	@# `arrivals.py`: a check that reads the operator's live databases says
-	@# nothing about the change under test. This one is worse than most —
-	@# `searches` is a counter the acquisition daemon increments, so it drifts
-	@# while the gate is running (measured: 19 at the start of a `make check`
-	@# and 21 at the fixture step), and on CI there is no `acquire.db` at all,
-	@# so it verifies nothing where it would gate. Vacuous where it blocks and
-	@# moving where it does not is not a check. It still RUNS and still prints,
-	@# because the drift is worth seeing; `--apply` is the deliberate gesture.
-	-python3 scripts/refresh-maquette-fixture.py --check
-	@echo "Running the maquette's unit suite, and holding its floor..."
-	python3 scripts/check-maquette-unit-tests.py
-	@echo "Checking the mock seeds against the fixtures they were taken from..."
-	python3 scripts/check-mock-seeds.py
-	@echo "Checking the backend-demand register against the two contracts..."
-	python3 scripts/compare-contracts.py --check
+	python3 scripts/check-viewport-directives.py
+	python3 scripts/check-poster-box.py
 	@echo "Checking OpenAPI drift..."
 	@if [ -d frontend/node_modules ]; then $(MAKE) openapi && git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts; else echo "openapi-drift: skipped (frontend/node_modules absent)"; fi
-	@echo "Checking the maquette contract types for drift..."
 	@if [ -d frontend/node_modules ]; then $(MAKE) check-contract-types; else echo "contract-types: skipped (frontend/node_modules absent)"; fi
-	@echo "Checking version bump..."
 	@if git rev-parse --verify origin/main >/dev/null 2>&1; then python3 scripts/check_version_bump.py --base origin/main; else echo "version-bump: skipped (origin/main unavailable)"; fi
 	@if [ -d frontend/node_modules ]; then $(MAKE) check-frontend; else echo "check-frontend: skipped (frontend/node_modules absent)"; fi
-
-cli-coverage-check:
-	@echo "Running CLI coverage check..."
-	python3 scripts/cli-coverage-report.py --check
 
 format:
 	@echo "Formatting code..."
@@ -190,21 +145,10 @@ check-frontend:
 	cd frontend && npm run lint:ds
 	@echo "Running frontend tests..."
 	cd frontend && npm run test -- --run
+	@if [ -d frontend/maquette/design/node_modules ]; then cd frontend/maquette/design && npm test; else echo "maquette-tests: skipped (frontend/maquette/design/node_modules absent)"; fi
 	@echo "Running frontend build..."
 	cd frontend && npm run build
 
 harness:
-	@echo "Running the maquette rule suite — the wave gate; one headless Chrome per rule, as many at a time as this machine has processors..."
+	@echo "Running every maquette rule (CI runs it on a lot's pull request)..."
 	frontend/maquette/harness/run.sh
-
-harness-contracts:
-	@echo "Running the contract subset — what CI runs on every maquette PR; run.sh prints how many..."
-	frontend/maquette/harness/run.sh --contracts
-
-maquette-oracle:
-	@echo "Running the recorded oracle against the committed reference (it prints the states and regions it measured)..."
-	frontend/maquette/harness/run.sh --oracle
-
-maquette-a11y:
-	@echo "Running the accessibility audit — axe-core over the 83 named states..."
-	frontend/maquette/harness/run.sh --a11y

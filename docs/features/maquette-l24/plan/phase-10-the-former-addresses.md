@@ -1,7 +1,7 @@
 # Phase 10 — The former addresses answer not-found (S4, PROOF)
 
 **RULED OPEN 9 = A + the no-backward-compatibility PRINCIPLE** (operator, 2026-09-29,
-`review-archive/l24/rulings-2026-09-29.md`, verbatim « A, pas de gestion de rétro-compatibilité ! »): the new
+`docs/features/maquette-l24/rulings-2026-09-29.md`, verbatim « A, pas de gestion de rétro-compatibilité ! »): the new
 version handles NO backward compatibility of former addresses or links — no alias, no redirect (precedents
 `/arrivals`, the French addresses of OPEN 4 = A). **S4 dies as a surface**: no table, no five states, no code —
 `destinationOf` already answers the not-found page for every path outside `PAGE_PATHS`, which is every former

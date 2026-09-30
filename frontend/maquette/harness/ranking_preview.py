@@ -115,7 +115,7 @@ async def main():
         weight = f'[data-part="ranking/criterion"][data-field="{target["field"]}"] [data-part="ranking/weight"]'
         if await page.locator(weight).count():
             await page.locator(weight).first.tap()
-            await page.keyboard.press("Meta+A")
+            await page.keyboard.press("ControlOrMeta+A")
             await page.keyboard.type(str(typed))
             await page.wait_for_timeout(SETTLED)
         retyped = await page.evaluate(ROWS)

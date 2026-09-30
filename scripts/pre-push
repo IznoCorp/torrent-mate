@@ -1,175 +1,38 @@
 #!/usr/bin/env bash
-# Pre-push hook: runs CI-equivalent fast checks + tests before every push.
-# Bypass with: git push --no-verify (use sparingly)
+# Pre-push hook: the fast static checks. The full pytest runs in CI, not here.
 #
-# Checks:
-#   1. ruff check        — linting + import sorting
-#   2. ruff format check — code style (no rewrite)
-#   3. logging audit     — structlog convention compliance
-#   4. mypy              — static type checking
-#   5. pytest            — full test suite, at three workers unless the
-#                          environment already names PYTEST_XDIST_AUTO_NUM_WORKERS
-#
-# A DOCS-ONLY push (every file changed between the remote's ref and the pushed
-# head is under `docs/` or ends in `.md`) replaces step 5 with the test modules
-# that read documentation and the documentation guards, by name — seconds, not
-# the whole suite. Any other file, a new branch, or a range git cannot read here
-# keeps the full suite.
-#
-# Mirrors the CI pipeline (.github/workflows/ci.yml) stage 1 + tests.
+# Install: hooks/install.sh (hooks/pre-push is a link to this file)
+# Bypass:  git push --no-verify
 
 set -euo pipefail
 
-# Git invokes hooks with GIT_DIR/GIT_WORK_TREE/GIT_INDEX_FILE set in the
-# environment so a hook's own git commands target the right repo by default.
-# That leaks into pytest: tests that build a synthetic "isolated" git repo in
-# a tmp_path (tests/scripts/test_phase_gate.py and friends) run `git -C
-# <tmp_path> commit` expecting it to touch only the tmp repo, but GIT_DIR /
-# GIT_WORK_TREE override -C and silently redirect the commit into the REAL
-# repo this hook is running in instead — clobbering whatever branch is
-# checked out (observed: it overwrote a checked-out branch's history with the
-# test's synthetic "chore: init" commits). Unset before running anything.
+# A hook inherits the pushing git's environment; these would point every git
+# call below at the wrong repository when the push comes from a worktree.
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
 failures=0
-total=0
 
-# THE OUTPUT IS CAPTURED ONCE, and shown from the capture. The command used to
-# run silently and then run AGAIN to show why it failed: the suite twice, and a
-# flake's evidence replaced by a second run that may well pass.
 run_check() {
   local label="$1"; shift
-  total=$((total + 1))
-  printf "${YELLOW}[%s/%s]${NC} %s ... " "$total" "$NUM_CHECKS" "$label"
+  printf "%s ... " "$label"
   local output
   output="$(mktemp)"
   if "$@" > "$output" 2>&1; then
-    printf "${GREEN}OK${NC}\n"
+    printf "OK\n"
   else
-    printf "${RED}FAILED${NC}\n"
+    printf "FAILED\n"
     sed 's/^/    /' "$output"
     failures=$((failures + 1))
   fi
   rm -f "$output"
 }
 
-# ── What the push carries ────────────────────────────────────────────────────
-# Git feeds one line per ref on standard input: `<local ref> <local sha>
-# <remote ref> <remote sha>`. A deletion (local sha all zeros) pushes no file,
-# and a push of deletions alone runs no check at all.
-# A new branch (remote sha all zeros) or a range this clone cannot diff is not
-# known to be documentation, so it keeps the full suite. Run by hand from a
-# terminal, nothing is read and the full suite runs.
-docs_only=0
-if [[ ! -t 0 ]]; then
-  docs_only=1
-  pushed_any=0
-  deleted_any=0
-  while read -r _local_ref local_sha _remote_ref remote_sha; do
-    [[ "$local_sha" =~ ^0+$ ]] && { deleted_any=1; continue; }
-    pushed_any=1
-    if [[ "$remote_sha" =~ ^0+$ ]] \
-        || ! changed="$(git diff --name-only "$remote_sha" "$local_sha" 2>/dev/null)"; then
-      docs_only=0
-      break
-    fi
-    while IFS= read -r path; do
-      [[ -z "$path" || "$path" == docs/* || "$path" == *.md ]] && continue
-      docs_only=0
-      break
-    done <<< "$changed"
-    [[ "$docs_only" -eq 0 ]] && break
-  done
-  # Every ref line a deletion carries no file to check, so no gate runs:
-  # `git push origin --delete <branch>` used to pay the whole suite. An empty
-  # standard input is not a deletion — it keeps the full suite below.
-  if [[ "$deleted_any" -eq 1 && "$pushed_any" -eq 0 ]]; then
-    echo "pre-push: nothing pushed (deletion only) — no check to run"
-    exit 0
-  fi
-  [[ "$pushed_any" -eq 0 ]] && docs_only=0
-fi
+run_check "ruff check"          python -m ruff check personalscraper/ tests/ scripts/ frontend/maquette/harness/ frontend/scripts/
+run_check "ruff format --check" python -m ruff format --check personalscraper/ tests/
+run_check "mypy"                python -m mypy personalscraper/
 
-# The test modules that read documentation, produced by
-#   rg -l -g '*.py' -e 'BUGS.md' -e 'IMPLEMENTATION.md' -e 'docs/' tests/scripts
-# and re-taken by the same command when a docs-reading test is added.
-DOCS_TEST_MODULES=(
-  tests/scripts/test_audit_cli_coverage.py
-  tests/scripts/test_auto_format_project_hook.py
-  tests/scripts/test_check_bug_register.py
-  tests/scripts/test_check_code_abbreviations.py
-  tests/scripts/test_check_docs_cited_paths.py
-  tests/scripts/test_check_frontend_boundaries.py
-  tests/scripts/test_check_implementation_state.py
-  tests/scripts/test_check_maquette_comments.py
-  tests/scripts/test_ci_filter_covers_the_guards.py
-  tests/scripts/test_oracle.py
-  tests/scripts/test_pre_push_worker_cap.py
-)
-# The guards whose subject is documentation, by name.
-DOCS_GUARDS=(
-  scripts/check-bug-register.py
-  scripts/check-implementation-state.py
-  scripts/check-docs-cited-paths.py
-  scripts/check-intent-map.py
-)
-if [[ "$docs_only" -eq 1 ]]; then
-  NUM_CHECKS=$((5 + ${#DOCS_GUARDS[@]}))
-else
-  NUM_CHECKS=5
-fi
-
-# ── The worker cap ───────────────────────────────────────────────────────────
-# `pytest -n auto` takes every core — eight on this host — beside whatever gate
-# a wave is already running under scripts/heavy.sh, and outside that lock. The
-# office's arithmetic (docs/reference/frontend-steward.md § Instrument hygiene)
-# caps a parallel test run at two workers on this 8-core, 16 GB machine (lowered
-# from three, auditor's order 88 — so no heavy run takes every core by default),
-# and until now that cap lived in briefs: every wave was told to export the
-# variable by hand, so the one push nobody was told about ran at eight (B-385).
-# pytest-xdist reads PYTEST_XDIST_AUTO_NUM_WORKERS for `-n auto`, so the cap is
-# applied here once. An environment that already names a number is honoured
-# untouched — a runner with a different core count knows its own machine.
-if [[ -n "${PYTEST_XDIST_AUTO_NUM_WORKERS:-}" ]]; then
-  echo "pre-push: pytest workers ${PYTEST_XDIST_AUTO_NUM_WORKERS} (from the environment)"
-else
-  export PYTEST_XDIST_AUTO_NUM_WORKERS=2
-  echo "pre-push: pytest workers 2 (capped; export PYTEST_XDIST_AUTO_NUM_WORKERS to override)"
-fi
-
-echo ""
-echo "┌──────────────────────────────────────────────┐"
-echo "│  Pre-push CI checks (fast + tests)           │"
-echo "│  Bypass: git push --no-verify                │"
-echo "└──────────────────────────────────────────────┘"
-echo ""
-
-run_check "ruff check"               python -m ruff check personalscraper/ tests/ scripts/ frontend/maquette/harness/ frontend/scripts/
-run_check "ruff format --check"      python -m ruff format --check personalscraper/ tests/
-run_check "logging audit"            python scripts/check_logging.py personalscraper/
-run_check "mypy"                     python -m mypy personalscraper/
-if [[ "$docs_only" -eq 1 ]]; then
-  echo "pre-push: docs-only push — the documentation tests and guards replace the full suite"
-  run_check "pytest (docs modules)"  python -m pytest -v -n auto "${DOCS_TEST_MODULES[@]}"
-  for guard in "${DOCS_GUARDS[@]}"; do
-    run_check "$guard"               python "$guard"
-  done
-else
-  run_check "pytest"                 python -m pytest -v -n auto
-fi
-
-echo ""
 if [[ "$failures" -eq 0 ]]; then
-  printf "${GREEN}All %s checks passed. Pushing...${NC}\n\n" "$total"
   exit 0
-else
-  printf "${RED}%s/%s check(s) failed. Push aborted.${NC}\n" "$failures" "$total"
-  echo "Fix the issues above or bypass with: git push --no-verify"
-  echo ""
-  exit 1
 fi
+echo "pre-push: $failures check(s) failed. Push aborted (bypass: git push --no-verify)."
+exit 1

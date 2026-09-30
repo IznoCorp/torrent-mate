@@ -1,7 +1,7 @@
 """R63 — a card says what the engine knows, and two tabs say it the same way.
 
 A followed medium's card was three short lines beside a poster and the rest of
-it was empty — while every fact it was missing already sat in `acquire.db`, and
+it was empty — while every fact it was missing already sat in the acquisition data, and
 « En cours » was already printing most of them for the same media. The void was
 not a lack of ideas; it was two tabs describing the same objects and saying
 different amounts about them.
@@ -27,16 +27,20 @@ contract's names: a library row's title is read as `title`, where they were the
 engine's short keys. The holds and what they compare are unchanged.
 """
 import asyncio
-import os
+import json
 import pathlib
 import re
-import sqlite3
 
 from common import Journal, open_page, chrome_launch_args
 from playwright.async_api import async_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-ACQUIRE = pathlib.Path(os.path.expanduser("~/dev/PersonalScraper/.data/acquire.db"))
+# The versioned data set the mock layer serves — never the operator's live
+# `acquire.db`: a gate judges the code that changes, not data that moves on its
+# own (a daemon incremented one show's count from 10 to 11 and turned a suite
+# red with no code change). `scripts/refresh-maquette-fixture.py --apply`
+# refreshes this file from the database when the data is worth refreshing.
+FOLLOWS_SEED = ROOT / "design" / "src" / "mocks" / "seeds" / "follows.json"
 
 _journal = None
 
@@ -46,24 +50,16 @@ def check(name, condition, detail=""):
     return _journal.check(name, condition, detail)
 
 
-def real_facts():
-    """Returns, per followed title, the numbers `acquire.db` really holds.
+def seeded_facts():
+    """Returns, per followed title, the numbers the versioned data set holds.
 
     Returns:
-        A dict title → {searches}. Empty when the database is not present, in
-        which case the comparison against it is skipped and SAID to be skipped.
+        A dict title → {searches, series}.
     """
-    if not ACQUIRE.is_file():
-        return {}
-    db = sqlite3.connect(f"file:{ACQUIRE}?mode=ro", uri=True)
-    db.row_factory = sqlite3.Row
-    out = {}
-    for f in db.execute("SELECT title, media_ref_json, series_status FROM followed_series"):
-        w = db.execute("SELECT sum(attempts) att FROM wanted WHERE media_ref_json = ?",
-                       (f["media_ref_json"],)).fetchone()
-        out[f["title"]] = {"searches": w["att"] or 0, "series": f["series_status"]}
-    db.close()
-    return out
+    held = json.loads(FOLLOWS_SEED.read_text(encoding="utf-8"))
+    return {entry["title"]: {"searches": entry.get("searches", 0),
+                             "series": entry.get("showStatus")}
+            for entry in held}
 
 
 async def main():
@@ -95,50 +91,20 @@ async def main():
         check("and since when it is searched for, and how many times",
               not without_facts, str(without_facts[:3]))
 
-        # Compared against the DATABASE, not against itself: a card printing a
-        # number the engine never held would otherwise pass.
-        #
-        # AND IT REPORTS RATHER THAN GATES, which is the same ruling B-121 took
-        # on the repository side. `searches` is a counter the acquisition daemon
-        # increments: it moved from 18 to 19 to 21 for one show across two days
-        # of this wave, all by itself. A gate that fails because a daemon ran
-        # overnight says nothing about the change under test — CLAUDE.md already
-        # names this exact shape for `arrivals.py` — and on any machine without
-        # the operator's `acquire.db` it verifies nothing at all.
-        #
-        # What it still does, and it is the part worth keeping: it PRINTS the
-        # drift, by title, with both numbers. `scripts/refresh-maquette-fixture.py
-        # --apply` is the deliberate gesture that closes it.
-        real = real_facts()
-        if not real:
-            print(f"    [advisory] no database at {ACQUIRE} — the follow counts "
-                  f"were not compared against anything")
-        else:
-            wrong = []
-            for s in follows:
-                r = real.get(s["title"])
-                if not r:
-                    continue
-                # Word-boundary match, not substring: « 1 recherche » must not
-                # pass against a card actually printing « 11 recherches ».
-                pattern = rf"\b{r['searches']}\s+recherche"
-                if not re.search(pattern, s["facts"]):
-                    wrong.append(f"{s['title']} : « {s['facts']} » vs {r['searches']}")
-            if wrong:
-                print(f"    [advisory] {len(wrong)} follow(s) drifted from "
-                      f"acquire.db — run `scripts/refresh-maquette-fixture.py "
-                      f"--apply`: {wrong[:3]}")
-            else:
-                print("    [advisory] the follow counts agree with the "
-                      "operator's acquisition database")
-            # WHAT STILL GATES is the half that is about the INTERFACE rather
-            # than about the operator's data: a card must print a number of
-            # searches at all, and it must be the seed's own — which is what
-            # `check-mock-seeds.py` re-derives and refuses.
-            check("every follow card prints a search count",
-                  all(re.search(r"\b\d+\s+recherche", s["facts"]) for s in follows),
-                  str([s["title"] for s in follows
-                       if not re.search(r"\b\d+\s+recherche", s["facts"])][:3]))
+        # Compared against the DATA SET the mock layer serves, not against
+        # itself: a card printing a number the data never held would pass.
+        seeded = seeded_facts()
+        wrong = []
+        for s in follows:
+            r = seeded.get(s["title"])
+            if not r:
+                continue
+            # Word-boundary match, not substring: « 1 recherche » must not
+            # pass against a card actually printing « 11 recherches ».
+            if not re.search(rf"\b{r['searches']}\s+recherche", s["facts"]):
+                wrong.append(f"{s['title']} : « {s['facts']} » vs {r['searches']}")
+        check("every follow card prints the search count of the data set",
+              not wrong, str(wrong[:3]))
 
         # The cron the follows tab was given, read while the tab is still the one
         # drawn — the acquisition status in the query cache. It was the dying

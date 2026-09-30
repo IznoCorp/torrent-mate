@@ -168,6 +168,10 @@ async def main():
         context, page = await open_page(browser)
         errors: list[str] = []
         page.on("pageerror", lambda error: errors.append(str(error)))
+        # Measurement mode, as the other rules read: without it the prototype's
+        # welcome hint (a harness toast, z above the bar) lands on the bar
+        # whenever the boot is slow enough — under load, never alone (B-512).
+        await page.evaluate("()=>window.__measure(true)")
 
         await page.evaluate("(id)=>window.__go(id)", SELECTION_STATE)
         await page.wait_for_timeout(SETTLED)

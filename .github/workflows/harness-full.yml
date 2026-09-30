@@ -1,36 +1,17 @@
+# Every maquette rule, on GitHub's runners rather than on IznoServer (the
+# operator's ruling of 2026-09-30: the machine serves production too, and the
+# heavy verification of a lot goes to CI). Runs for a pull request that touches
+# the maquette — a lot's — and on demand; four shards in parallel.
 name: Harness full suite
-
-# THE MAQUETTE HARNESS'S FULL SUITE, off the operator's machine. `ci.yml` runs
-# the contracts tier on every pull request touching the maquette; this runs
-# every rule a runner can run, split into four shards, when it is asked for:
-#
-#   * `workflow_dispatch` — by hand, on any branch;
-#   * `schedule` — nightly, on `main`;
-#   * a pull request carrying the `full-suite` label — the lot's close. Every
-#     push to that pull request re-runs it while the label stays.
-#
-# IT IS ITS OWN WORKFLOW, not a job of `ci.yml`. Every job there stands down
-# on a draft by reading `github.event.pull_request`, which is null under
-# `schedule` and `workflow_dispatch`: those triggers would stand the whole
-# pipeline down in silence, and `tests/scripts/test_ci_skips_draft_pull_requests.py`
-# refuses them there for that reason.
-#
-# NOT A REQUIRED CHECK. The per-rule flake rate the contracts tier shows on the
-# runner (B-574) would make a gate of every rule red on most pull requests for
-# reasons foreign to them; this run is where that rate is measured, rule by
-# rule, from the durations and logs each shard uploads.
-#
-# `run.sh --ci` leaves out, BY NAME, the rules a runner cannot run and the
-# oracle — `CI_EXCLUDED` in `run.sh` lists them and why. They stay on the
-# operator's machine.
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "30 2 * * *"
   pull_request:
     branches: [main]
-    types: [labeled, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
+    paths:
+      - 'frontend/maquette/**'
+      - '.github/workflows/harness-full.yml'
 
 permissions:
   contents: read
@@ -43,44 +24,27 @@ jobs:
   harness-full:
     name: harness-full (shard ${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
-    # The draft gate `ci.yml` holds, guarded by the event's name: outside a
-    # pull request there is no draft to stand down for, and the clause would
-    # read a null and stand the job down.
     if: >-
       github.event_name != 'pull_request' ||
-      (contains(github.event.pull_request.labels.*.name, 'full-suite') &&
-      (github.event.pull_request.draft == false ||
-      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')))
+      github.event.pull_request.draft == false ||
+      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     strategy:
-      # One shard's red never cancels the others: the reading is per rule.
       fail-fast: false
       matrix:
         shard: [1, 2, 3, 4]
     steps:
-      # The full history: the first shard runs the repository's guards, and
-      # `check-bug-register.py` compares against the branch point.
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with: { node-version: "22" }
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      # WebKit as well as Chromium: `drag.py` and the responsive rule measure
-      # both engines. Linux WebKit is not macOS WebKit, and neither is the
-      # phone's Safari — a different proxy, read as one.
       - run: pip install playwright && python -m playwright install --with-deps chromium webkit
-      # The same three installs as `harness-contracts`, for the same reasons
-      # recorded there.
       - run: pip install jsonschema
       - run: pip install -e .
       - run: npm ci --prefix frontend/maquette/design
       - run: frontend/maquette/harness/run.sh --ci --shard ${{ matrix.shard }}/4
         env:
-          TM_HARNESS_JOBS: "2"
           TM_HARNESS_LOG_DIR: harness-logs
-      # Kept whichever way the run went: a red shard's logs are the ones read.
-      # The four `durations.tsv` together are what a later split balances by.
       - if: always()
         uses: actions/upload-artifact@v4
         with:

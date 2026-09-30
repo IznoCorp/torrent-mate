@@ -169,7 +169,7 @@ DESIGN § 4.1 names for that phase, each accepted with its written reason (D8). 
 **STOP A**.
 
 **Before the pull request** (the maquette wave's own gate — a maquette wave does not run `make check`; CI's `test`
-job is the authority, `frontend-steward.md` measure 19): `make lint`; the full suite (`frontend/maquette/harness/run.sh`,
+job is the authority, `docs/reference/method.md`): `make lint`; the full suite (`frontend/maquette/harness/run.sh`,
 not the `--contracts` tier), expected no failure; the `--a11y` tier at 0 over the states this lot adds (twelve,
 DESIGN § 4); `python3 scripts/harness-hold-counts.py --compare` with **`failed` read FIRST** (B-291) and every
 movement written down; the pre-push pytest; `python3 scripts/check-intent-map.py`, `python3 scripts/check-bug-register.py`

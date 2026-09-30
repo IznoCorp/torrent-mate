@@ -16,8 +16,8 @@ What this holds to:
    seven red rows on a machine in perfect health. A service is judged on
    whether it is UP, a scheduler on whether it RAN, and the two lists never
    share a vocabulary.
-3. **Every service and scheduler shown really exists**, checked against
-   `pm2 jlist` rather than against a list written beside it.
+3. **Every service and scheduler shown really exists**, checked against the
+   PM2 processes the repository's ecosystem files declare.
 4. **Maintenance is navigated by what one wants to DO**, and every command it
    draws is one the engine really registers — checked against the registry,
    count included, so a command cannot silently disappear from the drawing.
@@ -360,16 +360,29 @@ def setting_labels():
         return None
 
 
+# The PM2 processes the repository DECLARES — the two versioned ecosystem
+# files — rather than what `pm2 jlist` reports on whichever machine runs the
+# rule: a gate judges the code, not the machine it runs on.
+ECOSYSTEMS = (ROOT / "ecosystem.config.js",
+              ROOT / "frontend" / "maquette" / "ecosystem.design.config.cjs")
+
+
 def real_processes():
-    """The process names PM2 really runs, or None when pm2 cannot be read."""
+    """The PM2 processes the ecosystem files declare, or None when unreadable.
+
+    Returns:
+        A dict name → {"cron_restart": …}, the shape `pm2 jlist` gives under
+        `pm2_env`, or None when node cannot read the files.
+    """
+    script = ("const files = process.argv.slice(1);"
+              "const apps = files.flatMap(f => require(f).apps || []);"
+              "console.log(JSON.stringify(apps.map(a => ({name: a.name,"
+              " pm2_env: {cron_restart: a.cron_restart || null}}))));")
     try:
-        out = subprocess.run(["pm2", "jlist"], capture_output=True, text=True,
-                                timeout=25)
-    except Exception:  # noqa: BLE001 — pm2 absent is a skip, not a verdict
-        return None
-    try:
+        out = subprocess.run(["node", "-e", script, *map(str, ECOSYSTEMS)],
+                             capture_output=True, text=True, timeout=25)
         items = json.loads(out.stdout)
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 — unreadable is reported by the caller
         return None
     return {p["name"]: p.get("pm2_env", {}) for p in items}
 
@@ -497,7 +510,7 @@ async def main():
         pm2 = real_processes()
         if pm2 is None:
             journal.check("the processes drawn really exist", False,
-                          "pm2 unreadable — the comparison could not be made")
+                          "the ecosystem files unreadable — the comparison could not be made")
         else:
             services = len(sys_view["services"] or [])
             schedulers_drawn = len(sys_view["schedulers"] or [])

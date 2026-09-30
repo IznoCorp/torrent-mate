@@ -215,7 +215,7 @@ async def main():
         await page.wait_for_timeout(ACTED)
         walked = {"field": await tapped(page, '#sheetin [data-part="field/input"]')}
         if walked["field"]:
-            await page.keyboard.press("Meta+A")
+            await page.keyboard.press("ControlOrMeta+A")
             await page.keyboard.type(THRESHOLD)
         walked["commit"] = await tapped(page, "#sheetin [data-commitsetting]")
         await page.go_back()

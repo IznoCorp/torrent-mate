@@ -4,7 +4,7 @@ Contract: B-577 (`BUGS.md`) — the operator, verbatim: « … quand je fais Sys
 arrière … je reviens pas sur la page précédente mais à la racine sur Acquisions. C'est une violation du système de
 routing demandé. Vérifier les autres cas également » — read against constitution § 16 as amended by #635 and #643
 (`docs/reference/product-intent.md` § 16, the last paragraph of rule 2) and the rulings Q11 = A, Q12 = A of
-`/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md`. The first reading is the conformity report's
+`docs/features/maquette-conformity/rulings-2026-09-29.md`. The first reading is the conformity report's
 § C (`/Users/izno/dev/review-archive/conformity-80/REPORT.md`, 21 edges): every claim of it was re-read in the code
 here, and this table supersedes it (§ 1.1 says what moved).
 
