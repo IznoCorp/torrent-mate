@@ -11,14 +11,14 @@ numbers. Every figure carries the command that produced it.
 
 **Written 2026-09-29, on `main` at `f3d8fed01`** (L16 merged, #634). The plan's order becomes `… L22 · L16 · L16-bis ·
 L17 · L18 · L23 · L24`. **Amended 2026-09-29**, PR #637's correction round: § 5's nine OPEN questions are DECIDED, the
-operator's own words in `/Users/izno/dev/review-archive/l16bis/rulings-2026-09-29.md` — nothing left open in this
+operator's own words in `docs/features/maquette-l16bis/rulings-2026-09-29.md` — nothing left open in this
 document.
 
 **Amended 2026-09-30, on `main` at `9234341fc`** (the auditor's orders 97, 98, 99): L16-bis is a CORRECTION of L16,
 so it is cut into correction phases BY SURFACE, not drawn as a lot — the plan runs **5 phases** where it ran 18
 (`plan/INDEX.md`, and `plan/CORRESPONDENCE.md` for where every old item went). § 0.5 is the conformity table of
 order 97. The operator's ruling Q7 on Découvrir's swipe
-(`/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md` § Q7) joins as DECIDED 10 and surface **S9**
+(`docs/features/maquette-conformity/rulings-2026-09-29.md` § Q7) joins as DECIDED 10 and surface **S9**
 (§ 1.11); it leaves ONE question open, OPEN 10 (§ 5). § 0.4 records what the conformity train already built, so
 nothing is drawn twice.
 
@@ -394,7 +394,7 @@ switch » are the conformity train's already; this lot consumes them.
 ### 1.9 The guards — cost evaluated (order 79 (3), order 80)
 
 Both are specified for the **conformity train** (order 80), NOT for L16-bis: a lot adds no guard, arm or tool
-(`docs/reference/implementer-office.md`, « Fixed non-goals »), and both would be red on `main` at landing until the
+(`docs/reference/method.md`), and both would be red on `main` at landing until the
 train converts the other sites.
 
 **The fold chevron — an ARM of `scripts/check-component-once.py`** (« a component is written once »: its subject
@@ -609,7 +609,7 @@ one; the harness at 369 px — order 60. **Not drawn**: a push notification (L16
 ### DECIDED — the operator's nine rulings, 2026-09-29 (round of PR #637)
 
 Every OPEN question of this section is now closed — save OPEN 10, added 2026-09-30 with DECIDED 10 (below). Each item below quotes the operator verbatim (in « guillemets »,
-`/Users/izno/dev/review-archive/l16bis/rulings-2026-09-29.md`), gives its English meaning, and states what changes
+`docs/features/maquette-l16bis/rulings-2026-09-29.md`), gives its English meaning, and states what changes
 against the reading that was costed above. Nothing here is re-argued.
 
 **DECIDED 1 (was OPEN 1) — « Réception / Envoi ».** Verbatim: « Les 2, B par défaut. Mais lors du téléchargement la
@@ -681,7 +681,7 @@ the row travels one way until L17 adds the left drawer with its verb; nothing is
 (`torrent-swipe-cross-seed`), dropped from § 3.
 
 **DECIDED 10 (added 2026-09-30) — Découvrir's swipe, the operator's Q7 of the conformity round.** Verbatim
-(`/Users/izno/dev/review-archive/conformity-80/rulings-2026-09-29.md` § Q7): « Glissé à droite et à gauche à le même
+(`docs/features/maquette-conformity/rulings-2026-09-29.md` § Q7): « Glissé à droite et à gauche à le même
 comportement que glissé une carte du mode deck de decouvrir, rejet, ou passé. (on garde le même sens que pour le
 deck) la carte disparait, notification pour annulé si rejet (tout comme le deck) c'est un nouveau comportement propre
 à découvrir qu'on pourra réutiliser dans un autre cas. » and, asked to be precise: « vers gauche = passer / vers la

@@ -277,11 +277,19 @@ async def hold(journal):
         ("desktop out of the frame",
          {"finger": DESKTOP_FINGER, "wheel": DESKTOP_WHEEL}, True, ("fresh arrival",)),
     )
+    # THE FINGER IS WALKED WHERE THE BROWSER CAN SYNTHESISE IT. Headless Chrome
+    # on Linux (the CI runner) accepts a touch `synthesizeScrollGesture` and
+    # scrolls nothing, so every finger walk there read 0 px; the wheel walks
+    # the same list and holds the same place on every platform.
+    kinds = ("finger", "wheel") if sys.platform == "darwin" else ("wheel",)
+    if "finger" not in kinds:
+        print("    [not measured here] the finger walks: this platform's headless "
+              "Chrome does not scroll under a synthesised touch gesture")
     errors = []
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel="chrome", args=chrome_launch_args())
         for width, contexts, out_of_frame, paths in frames:
-            for kind in ("finger", "wheel"):
+            for kind in kinds:
                 for path in paths:
                     label = f"{width}, {kind}, {path}"
                     context, page = await arrive(browser, contexts[kind], out_of_frame)

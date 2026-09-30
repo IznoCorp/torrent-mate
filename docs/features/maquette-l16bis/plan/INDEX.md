@@ -1,7 +1,6 @@
 # L16-bis — the Trackers page's correction, and Découvrir · PLAN
 
-Design: `docs/features/maquette-l16bis/DESIGN.md`. The implementer is held to `docs/reference/implementer-office.md`,
-AMENDED by the auditor's orders 98 and 99 (§ « The gates » below); this plan carries only what is the lot's own.
+Design: `docs/features/maquette-l16bis/DESIGN.md`. The method is `docs/reference/method.md` and the gates are `CLAUDE.md` § Gates; this plan carries only what is the lot's own.
 
 **Re-cut 2026-09-30, on `main` at `9234341fc`** (orders 97, 98, 99): L16-bis is the CORRECTION of L16 — « bis veut
 dire correction » (the operator, 2026-09-14) — so it is cut BY SURFACE, one page each, not drawn as a lot. The plan
@@ -49,7 +48,7 @@ the train: the chevron (old phase 15's `ui/Disclosure` half), the tab bar (train
 - **The midpoint, after phase 2**: `--contracts` and the full responsive sweep (Chromium + WebKit), once.
 - **Once per lot, at phase 5**: the full suite (CI is its authority), `--a11y`, the full sweep, the hold counts, each
   rule of this lot re-run BY NAME (order 98). The reader round follows the pull request: ten claimed mutations drawn
-  at random, the finger walk at the seven widths, the principles (`docs/reference/reader-office.md`).
+  at random, the finger walk at the seven widths, the principles (`docs/reference/method.md`, the reading).
 
 ## The stops
 

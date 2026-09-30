@@ -39,6 +39,7 @@ import json
 import os
 import re
 import secrets
+import shutil
 import socketserver
 import subprocess
 import sys
@@ -186,7 +187,10 @@ def mtime_sources() -> int:
     return max(stamps)
 
 
-NPM = "/Users/izno/.nvm/versions/node/v22.13.1/bin/npm"
+# The operator's own npm when this machine has it (the host runs under PM2,
+# whose PATH need not hold it); any other machine uses the npm on its PATH.
+_OPERATOR_NPM = "/Users/izno/.nvm/versions/node/v22.13.1/bin/npm"
+NPM = _OPERATOR_NPM if os.path.exists(_OPERATOR_NPM) else (shutil.which("npm") or "npm")
 # Overridable so the timeout path itself can be proven live, the same way
 # TM_DESIGN_ROOT lets a rule serve a scratch root.
 BUILD_TIMEOUT = float(

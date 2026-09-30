@@ -1,7 +1,6 @@
 # maquette-navigation — every edge against § 16, and the rule that walks them · PLAN
 
-Design: `docs/features/maquette-navigation/DESIGN.md`. The implementer is held to `docs/reference/implementer-office.md`,
-AMENDED by the auditor's orders 98 and 99 (§ « The gates » below); this plan carries only what is the lot's own.
+Design: `docs/features/maquette-navigation/DESIGN.md`. The method is `docs/reference/method.md` and the gates are `CLAUDE.md` § Gates; this plan carries only what is the lot's own.
 Written 2026-09-30 on `main` at `f71a44f7b`. **The code opens after the conformity train has merged** (DESIGN § 0.3:
 its phases 5 and 10 touch Système and the drawer), on `main` holding it — every `file:line` re-read there.
 
@@ -43,7 +42,7 @@ flips its own rows from red to green and the rule never lies about the rows it h
   the phase flips is walked at 369 px, cold, by taps and the system Retour.
 - **The midpoint, after phase 2**: `--contracts` and the full responsive sweep, once.
 - **Once per lot, at phase 4**: the full suite (CI its authority), `--a11y`, the hold counts, each rule of the lot by
-  name. The reader round follows the pull request (`docs/reference/reader-office.md`, order 81's lens first).
+  name. The reader round follows the pull request (`docs/reference/method.md`, the reading; navigation against § 16 first).
 
 ## The stops
 

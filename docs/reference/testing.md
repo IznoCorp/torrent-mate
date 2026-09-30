@@ -57,7 +57,7 @@ Mock **everything** → unit. Mock **nothing** → manual E2E.
 ### Default suite — unit + integration (CI, everyday use)
 
 ```bash
-make test                               # unit + integration, parallel (-n auto)
+make test                               # unit + integration, parallel
 python -m pytest -v                     # same, verbose
 python -m pytest tests/ -x -q          # stop on first failure
 ```
@@ -115,14 +115,11 @@ than duplicating setup logic.
 
 ## Feature Map
 
-`tests/feature_map/<codename>.json` maps test designs to the features they
-cover. The files are **generated, not hand-edited**: the pre-commit hook
-regenerates the relevant `<codename>.json` whenever a `test_design_*.py` file
-is staged. CI catches drift via `update_feature_map.py --check` when the hook
-is bypassed (`git commit --no-verify`). Current map files include
-`api-unify.json`, `architecture.json`, `dispatch.json`, `indexer.json`,
-`indexer-json-shapes.json`, `pipeline.json`, `scraper.json`, and
-`trailers.json`.
+`tests/feature_map/<codename>.json` maps `test_design_*.py` tests to the design sections they cover.
+The files are **generated, never hand-edited**: the pre-commit hook runs
+`scripts/update_feature_map.py` when a `test_design_*.py` file is staged, and CI's required
+`design-gaps` job runs `update_feature_map.py --check` (drift) and `scripts/audit_design_coverage.py`
+(stale anchors and uncovered design sections).
 
 ## Golden Files
 
@@ -197,4 +194,4 @@ a fixture MP4. Covers the full TrailerFinder -> placement -> state stack without
 
 ## Testing Requirement
 
-Every bug fix MUST have a test reproducing the bug. No exception.
+Every bug fix MUST have a test reproducing the bug, shown to FAIL against the code before the fix. No exception.

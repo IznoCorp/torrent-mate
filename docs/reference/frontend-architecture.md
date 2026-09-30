@@ -12,34 +12,13 @@ is the plan for it.
 
 ---
 
-## 0. Picking up work — read this first
+## 0. Picking up work
 
-1. Read `IMPLEMENTATION.md` § « Where the frontend work stands » — which lot landed, which is
-   next. Its § THE OBJECTIVE carries the measured inventory, not the state; the two are different
-   sections and this file used to name only the second.
-2. Come back here and find **the first lot that has not landed and whose dependencies all
-   have**. That is the work. There is no other selection rule, and lots are not reordered for
-   convenience. **This file carries no status** — only the ORDER and the DEPENDENCIES — because a
-   status here would be a second copy of what `IMPLEMENTATION.md` already owns as the only state;
-   a fact that exists once cannot go stale. Story: `docs/reference/frontend-architecture.md@6a47304a4` § 0.
-   **If that lot carries a blocking note**, take the next one that satisfies the same rule, and
-   say in the wave's plan which lot you skipped and why. A blocked lot is not a reason to stop
-   or to go asking where to start — this file is where to start.
-3. Read that lot's **Done when**. It is the contract. A lot is not finished because its code
-   exists; it is finished when every line of that list is true.
-4. Write the wave's plan under `docs/features/<codename>/plan/`, on its own branch, as every wave here
-   has been done.
-
-**Three rules bind everything below.**
-
-- **No figure in this file without the command that produces it.** Numbers rot. A number nobody
-  can re-measure is a number nobody can contest, and this repository has already read a stale
-  table as current for three days.
-- **One kind of change per wave.** A conversion proves the rendering did not change; a
-  behaviour change proves the behaviour did. Never both in one wave — an edit hidden inside a
-  move is an edit nobody can review.
-- **If a lot has lost its subject, stop and say so.** Do not execute it faithfully because it is
-  written here. See § 7.
+Read `IMPLEMENTATION.md` for what landed, then take the first lot of § 4 that has not landed and whose
+dependencies all have (a blocked lot is skipped, and the plan says why); its **Done when** is the contract.
+Lots run one at a time — one lot, one branch, one squash merge (operator, 2026-08-22). One kind of change
+per phase: a conversion proves the rendering did not change, a behaviour change proves the behaviour did.
+The method is `docs/reference/method.md`.
 
 ---
 
@@ -59,7 +38,7 @@ the method they all follow.
 
 **L10-ter — the application template** (operator, 2026-08-28, ran 2026-08-29). A design phase, not
 a lot — it writes no code, nothing schedules it, § 0's selection rule must not reach it, and it may
-amend this file's lots and their order under § 7.1. Its products: `docs/reference/frame-survey.md`
+amend this file's lots and their order. Its products: `docs/reference/frame-survey.md`
 (the inventory of every surface the engine still draws — chrome, entry, the ladder's handler, all
 ten bottom-panel producers, the Découvrir feed, 71 delegation verbs), `docs/reference/frame-model.md`
 (the frame modelled in thirteen parts under invariant 10), and `docs/reference/product-intent-map.md`
@@ -644,7 +623,7 @@ on that day land, and before L20: **the order is now L14 · L19 · L21 · L13 ·
 and no dependency already written moved — L13's five (L07, L09, L12, L15, L19) are all landed. What
 it makes void: « L20 opens after the `maquette-settings` micro-wave merges » — L20's design and plan
 stay on `main` (#587) and the lot opens after L13. The measure and its six siblings are recorded in
-`docs/reference/frontend-steward.md` § « The operator's measures of 2026-09-12 »; reversal is his.
+`docs/reference/frontend-steward.md@638ebcfc` § « The operator's measures of 2026-09-12 »; reversal is his.
 
 **Re-cut again on 2026-09-15, by the auditor's lot-order delegation (C10).** L22 (Arrivées dans
 Acquisition) is inserted before L16, after L13: the order was L14 · L19 · L21 · L13 · L20 · L22 ·
@@ -749,7 +728,7 @@ and each line below replaces what the entry said before it:**
 - **The raw log's fold needs a disclosure primitive that `ui/` does not have**; three feature files
   write `<details>` raw (`features/acquisition/add-screen.tsx`, `features/media/season-list.tsx`,
   `features/media/panel-seasons.tsx`, plus `legacy.js:30695`). L20 adds the primitive for its own
-  fold; converting the three sites is a conversion debt in § 5's block, not this behaviour lot's.
+  fold; converting the three sites is a conversion debt, not this behaviour lot's.
 
 **Where it lives (invariant 10).** `features/system/` — the design put the levers and the
 history there (ruled, above); the bound is a setting and reads through the settings feature's
@@ -1019,7 +998,7 @@ state holds at a desktop width, the galleries widening; the three questions the 
 each amended into the design in one line.
 
 **Design and plan written 2026-09-29, on `e65130ab1`; re-cut the same day on the six rulings, on `77e7b8436`; amended
-a second time, same day, on the operator's second round** (`review-archive/l24/rulings-2026-09-29.md`) —
+a second time, same day, on the operator's second round** (`docs/features/maquette-l24/rulings-2026-09-29.md`) —
 `docs/features/maquette-l24/DESIGN.md`, `plan/INDEX.md` (20 phases, 151 points, mean ≈ 7.6); the three open questions
 the rulings raised (OPEN 7–9) are now ALL RULED = A, plus the no-backward-compatibility PRINCIPLE (OPEN 9), which
 kills S4's redirect table and its five states. The version before the rulings is
@@ -1052,7 +1031,7 @@ harness's driving seams (`__go`, `__states`, `__queries`, `__relay`, `__mocks`) 
 module and die at switchover with `harness.css`; the suite is green at unchanged hold counts; the
 oracle is green.
 
-**Two inheritances written in here by L19, ratified by the operator on 2026-09-05** (§ 7.1: an
+**Two inheritances written in here by L19, ratified by the operator on 2026-09-05** (an
 addition, not an edit of the sentence above).
 
 - **The nine fixture families L19 measured it could not kill** — 9 declarations over 100 lines,
@@ -1127,177 +1106,7 @@ temps et en heure quand la maquette sera prête ». It follows every drawn lot, 
 
 ---
 
-## 5. The method every lot follows
-
-**The wave.** One lot, one branch, one squash merge onto `main` after green CI and a clean final
-adversarial review. This holds for a two-line documentation fix as much as for a conversion.
-
-**The proof.** A change lands with its rule, and the rule is mutation-tested — break the
-behaviour on purpose, confirm the rule falls and names the right defect, restore. A rule that
-never bit proves nothing. A rule must cover the path actually walked: cold load, real finger,
-real browser menu.
-
-**The instruments' own debts, and who takes them (2026-08-31).** A register entry naming no lot is
-B-253's species: the plan is where a lot's obligations live, so a defect nobody's lot names is a
-defect nobody schedules. **The harness and the repository's guards belong to no lot** — every wave
-uses them and none owns them — so their debts are named here, with one rule that decides them:
-**the next wave that touches the tool takes its debt**, in the same pull request, and says so in
-its report.
-
-- **B-269** — five corpus floors in `served_copy.py` calibrated by hand, one figure per corpus.
-- **B-272's open form** — nothing RE-TAKES a floor, so every floor in the repository drifts under a
-  green guard until somebody measures it. The compositor manifest's floors were re-taken in L12;
-  the mechanism that would keep them true does not exist.
-- **B-273** — `scripts/mutate.sh` cannot judge a GUARD: it decides by reading journal `FAIL` lines,
-  which a guard in `scripts/` never prints, so it answers « no hold fell » whatever the guard says
-  and whatever its exit code. Two arms were rewritten on that false reading before it was found. It
-  also exits SILENTLY when a mutation breaks the build, which reads the same way.
-- **B-276** — a delay set by hand in an instrument outlives the drawn duration it was set against.
-  Three rules were repaired for it in L12 alone; the species stays open because nothing refuses the
-  next one.
-- **B-277** — `exits.py`'s frame-count control flakes under the suite's parallel load.
-- **B-278** — the drawer's dismiss acknowledges itself twice, unexplained, with the decisive
-  experiment written down in the entry.
-- **B-287** — 263 maquette/harness comments (326 with docstrings) name a date, a lot or a phase,
-  against the rule in `CLAUDE.md` § Language, and nothing counts them. The arm's shape is already
-  in this repository twice: a per-file baseline that refuses the count going up.
-- **B-291** — `scripts/harness-hold-counts.py --record` produces a reference nobody can tell from
-  a good one, two ways: a `taken_at_commit` no guard checks (L12's gesture left it naming a
-  squashed-away commit), and a baseline written over a rule that FAILED (`"failed": 1` in the
-  totals, the count the rule printed while falling, and a zero exit). The form: refuse a pointer
-  that is not an ancestor of `main`, as `oracle.py --check` refuses a dangling one, and refuse to
-  write when `failed > 0`.
-- **B-306 — DISCHARGED by L19 in #558, and the line is kept saying so rather than deleted.** A
-  grandfathered file could grow without limit: the size arm read the label and never a count, so the
-  engine gained 77 non-blank lines at L14 under « dies by subtraction » and the arm printed clean.
-  It records a count per `GRANDFATHERED` entry now, refused upward and re-recorded downward — **and
-  the record itself is compared with the record at the branch's base**, which is the level the first
-  repair was missing: a growth was otherwise legalised by moving the number in the same commit.
-  Both halves are mutation-proven and the register carries the readings (B-306). **Nothing is owed
-  here.**
-- **B-305's hold** — the operator ruled on 2026-09-04 that a swipe left open survives an unrelated
-  store write; nothing reads that property. The next wave that opens `virtual.py` writes the hold
-  (open a swipe, `window.__store.write({})`, the swipe still open), and sees it red on a component
-  that re-keys its rows.
-- **B-307** — three rules have fallen under the suite's parallel load and passed alone, and nine
-  passes at the largest fan-out this machine allows (three) reproduced nothing. The instrument is not a
-  bigger run: `exits.py`, `outbox.py` and `drag.py` PRINT, when they fall, the evidence their diagnosis
-  needs (frames sampled against milliseconds drawn; wait elapsed against timeout given), so the next
-  fall under the suite carries its own reading. The next wave that touches any of the three takes it.
-- **B-325** — no rule can be pointed at a build. `common.PROTOTYPE` is hard-coded to 8899 with no
-  override and every rule self-runs on import, so an independent reader cannot run one against its
-  own copy without rebinding the constant from outside the tree — and once rebound, the B-256 stamp
-  certifies `/tmp/tm-refonte`, a build the run never read. **Taken by the tooling micro-wave, #589**:
-  `TM_PROTOTYPE_URL` and `TM_SERVED_COPY` move together and a URL override with no root override is
-  refused at import; 84 of 117 rule modules gained an entry-point guard. The residue is bounded and
-  frozen by a hold — 31 rules still carry the address as a literal, and `run.sh` still owns 8899.
-- **B-323** — the inventory of the engine's `setTimeout(…, 260)` sites in `exits.py`'s own comment is
-  taken by a command that reads one line (`grep -n "setTimeout(.*260)"`), so it names five where seven
-  remain; the two it cannot see span several lines and are named in the register. The next wave that
-  touches `exits.py` re-takes the inventory with `grep -n ', 260)'` and names all seven by the call
-  they wrap.
-- **B-346** — `check-bug-register.py`'s closure arm reads an entry's body up to the first paragraph that
-  OPENS with another entry's identifier (`**B-249's FAMILY…`), so that paragraph ends the entry it lives
-  in and claims the body of the entry it names: measured by the departure micro-wave, which the arm
-  refused an honest `fixed #573` on B-310 while it would have accepted a silent closure of B-249; 25 of
-  278 heads were second-or-later on the day, one reworded, twenty-four unread. The repair is one line
-  either way (a head is `**B-NNN —`, never `**B-NNN's`; or the LONGEST span wins). **Taken by the
-  tooling micro-wave, #589**, and it took BOTH plus a third rule: each candidate is wrong alone — the
-  delimiter alone takes a body away from the twelve entries written as a sentence, and the longest
-  span alone picks a wave's recap over the entry it recaps. The count re-taken there: the old regex
-  reads 26 of 320, the parser now reads 17 of 311, and 294 identifiers keep a body, exactly as many
-  as before.
-- **Round two's minors of the resolution-card micro-wave (B-460 to B-466, filed by its post-merge
-  gesture)** — five instrument debts (R161's floor hold green over an invisible mark; R162's
-  `LAST_FRAME` sentence and its one armed direction; the ranks arm's site attribution and its three
-  unread scopes; `ui/variants/frame.ts` at 399 of 400), one stale engine comment (L13's), and the
-  card's accessible name, RULED by the operator on 2026-09-12 to announce the confidence and the
-  provider. Owner: the next wave that opens each file, named in each entry.
-- **Three raw `<details>` sites** (`features/acquisition/add-screen.tsx`, `features/media/season-list.tsx`,
-  `features/media/panel-seasons.tsx`) are converted to the disclosure primitive L20 adds to `ui/`, by a
-  conversion wave after L20 — never inside a behaviour lot.
-
-**The gate.** Before every wave's closing commit: `make lint` at zero errors, `make test` with no
-failure and **no error** (an error means collection crashed and everything after it was skipped),
-`make check`, the **full** rule suite via `frontend/maquette/harness/run.sh` — not the
-`--contracts` tier, which is the per-pull-request one — and the oracle green or its divergences
-accepted with reasons. The suite runs itself now; it used to run only when someone remembered,
-and on the day it did not, six contracts broke under three green gates.
-
-**Write the landed row when the pull request opens, not after the merge** — a row waiting for the
-merge is a row that never gets written; the PR number exists the moment the PR does, and a wave
-that does not merge fixes its own row. **The row is written a second time, in the post-merge
-gesture** (below), because the branch that could write it is consumed by the merge — checked by
-`scripts/check-implementation-state.py` (built 2026-08-29, in the contracts tier): a row naming a
-version `main` has already reached is stale, offline and exact. Story:
-`docs/reference/frontend-architecture.md@6a47304a4` § 5.
-
-**The oracle is a LOCAL gate, and that changes who can close a wave.** Its measurements are bound
-to the machine that took them, so `--check` never runs in CI. An agent working anywhere but that
-machine can establish that a wave *claims* the rendering held, but cannot certify it.
-
-**Two references carry a commit pointer and both are re-recorded after the squash**: the oracle's
-`baseCommit` and the hold-count baseline's `taken_at_commit`
-(`frontend/maquette/hold-counts-baseline.json`) — both must name the squash, checked by
-`git merge-base --is-ancestor <pointer> origin/main` until an arm does it. **The baseline is never
-re-recorded while a rule is failing** — the gesture reads `failed` first; if not zero, the rule is
-repaired first, or the reason is written into the baseline's record and the register entry that
-owns it.
-
-**The post-merge gesture, four steps, all at the same moment, none optional:**
-
-1. **Re-record the oracle's reference against the squash** — two commands, the first not optional:
-   ```
-   make maquette-oracle                            # builds, copies to the served root, starts 8899
-   python3 frontend/maquette/oracle.py --record    # then records against what is actually served
-   ```
-2. **Move the wave's row from « In flight » to « Last landed »**, and name the next lot.
-3. **Delete the wave's folder and cite it by commit** — `docs/features/<codename>/` leaves the
-   tree (`git rm -r`), and every citation still needed is rewritten to `` `path@sha` `` in the same
-   step, `sha` being `origin/main` at that moment (`docs/reference/documentation-model.md` § 2). A
-   file that became a durable reference (a model, a survey, a rule) moves to `docs/reference/`
-   under its own name instead of staying in the folder as an exception.
-4. **Re-record the hold-count baseline's `taken_at_commit`** against the same squash.
-
-(2026-09-29: the fifth step, the per-wave recount of « guards green over what they do not read »,
-is removed with the table it fed — last kept at `BUGS.md@0e523349f`; the escape count lives in
-each register row's « escaped from / why / family repaired by » field, order 57.)
-
-**The maquette first.** Nothing about a surface is decided anywhere else. A surface is drawn
-before it is coded, with named states and a rule that bites.
-
-**Five register entries are placed here by the operator's rulings of 2026-09-06** (B-312, B-327,
-B-331, B-336, B-340 — each `fixed` under a rule seen red first, or placed elsewhere by a ruling
-written here); a further eight are routed to the `maquette-settings` and `maquette-desktop-frame`
-micro-waves instead (B-334, B-335, B-341, B-342, B-343, B-332, B-361, B-344), and the library's
-share of B-345 stays here. Full readings: `BUGS.md`. Story:
-`docs/reference/frontend-architecture.md@6a47304a4` § 5.
-
-### One lot at a time
-
-**The lots run strictly in sequence — one lot, one branch, one merge, then the next** (operator,
-2026-08-22). A parallelism criterion was tried and refused: the oracle's reference is the single
-shared proof artefact, and two branches that each accept divergences can merge two "validated"
-states where one masks the other's regression, with nothing to show for it — unlike an ordinary
-file conflict, this one arrives as green. Story:
-`docs/reference/frontend-architecture.md@6a47304a4` § 5.
-
-**What is refused, and why it stays refused:**
-
-- **Two agents on one lot.** Conflicts on the same markup, and failures nobody can attribute.
-- **Merging L07 and L09 into one per-surface wave.** It is the tempting optimisation — it halves
-  the number of waves — and it destroys both proofs. L07 proves the rendering did not change;
-  L09 changes where the data comes from. Together, a conversion defect and a wiring defect are
-  indistinguishable. Sequence does not make this one safe: it is not a scheduling question.
-- **Skipping the oracle to move faster.** It is what makes everything else provable. Removing it
-  does not save time; it removes the ability to know.
-
-**Which lot is next is decided by § 0's selection rule** — the first lot in this file's order
-that `IMPLEMENTATION.md` does not record as landed and whose every dependency it does — and never
-by which one happens to be unblocked earliest. Where two are eligible, **this file's order decides,
-not the number**: L16 is written after L13 and runs after it.
-
----
+## 5. (removed — the method is `docs/reference/method.md`)
 
 ## 6. The traps that cross lots
 
@@ -1327,61 +1136,3 @@ a permanently green gate).
 **And one that has not gone off yet, named because its shape is known**: a `var()` naming a token
 nobody declared renders as nothing rather than failing — a landmine, not a crash. `scripts/check-css-tokens.py`
 refuses it today, and R84 holds every publisher of a runtime token to being the only one.
-
----
-
-## 7. Amending this file, and who watches it
-
-### 7.1 Amending
-
-**A plan that runs for months will outlive some of its own decisions.** That is not a failure of
-the plan; executing a decision that has lost its subject is.
-
-**When you find a lot that no longer has a subject** — its problem was solved elsewhere, its
-premise was reversed, its tooling has no reader — **stop and report it. Do not execute it.** The
-report goes to the operator with what changed and what becomes void. This is the whole lesson of
-the tooling that survived a reversed decision by seven months: nobody dared delete machinery
-nobody could justify.
-
-**Who may change this file.** The operator arbitrates; an agent proposes. A decision in § 2 is
-amended by adding what replaces it and naming what it makes void — never by quietly editing the
-old text, and never in a wave that also implements it.
-
-**One thing that is NOT an amendment, and the distinction is load-bearing.** A decision's
-*measured rationale* expires when a wave does the work that decision scheduled — D6 said
-accessibility was « nearly absent » and L03 made that false by construction. Refreshing that
-measurement, in the wave that caused it, is the wave's DUTY, not an amendment: what it decided is
-untouched, and leaving the old figure standing is the stale-directive disease this file exists to
-fight. **The decision is the operator's; the measurement under it belongs to whoever made it
-move.** This paragraph exists because the rule above, read literally, would have obliged L03 to
-leave D4 asserting that the markup could not carry roles on the day it made it carry them — and
-the wave rightly ignored it. It refreshed D4 and missed D6, which is a lapse of execution, not of
-principle.
-
-**When a decision changes, the implementation directives change in the same move.** What loses
-its subject is removed, not kept "just in case".
-
-**Deferred, on purpose.** An executable check — one that refuses a lot recorded as landed whose
-files do not exist, or a cross-reference pointing at a dead path — is wanted and is not built
-yet. **The paragraph above cost something the day the status left this file**: five sentences here
-went on describing a `LANDED` token that no longer existed, this one among them, and one guard read
-it. « The directives change in the same move » is not advice; it is the whole of B-150. It is built once this plan has proved its shape, and not before: a guard written against a
-structure still moving guards the wrong thing. This paragraph is its record, so that "we meant to"
-does not become "we forgot".
-
-### 7.2 Someone audits this file against the work — and it is not you
-
-**A standing audit checks each landed lot against this plan. It is held by a steward, and the
-steward is never the agent who implemented the lot.** That separation is the point: an
-implementer auditing their own lot compares their intention with their work, and those two always
-agree.
-
-**So nothing in that office is yours.** Do not audit your own wave, do not fold an audit into it,
-and do not read the steward's licence to contest this plan as yours — mid-wave, a lot that has
-lost its subject is reported and stopped (§ 7.1), not re-argued. What you owe your wave is § 0 and
-your lot's **Done when**.
-
-The office is written down in `docs/reference/frontend-steward.md`, which is addressed to the
-steward and to the operator who instantiates one. It is deliberately not in this file: everything
-here is binding on the agent doing the work, and a procedure meant for someone else, sitting in
-that same reading, becomes an instruction nobody asked for.

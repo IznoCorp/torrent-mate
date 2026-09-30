@@ -9,7 +9,7 @@ numbers.
 
 **Written 2026-09-29, on `main` at `e65130ab1`; amended the same day, on `77e7b8436`, on the operator's six rulings
 of 2026-09-29; amended a second time, same day, on the operator's second round** (§ 5,
-`review-archive/l24/rulings-2026-09-29.md`) **— all nine OPEN questions are now RULED.** The version before the
+`docs/features/maquette-l24/rulings-2026-09-29.md`) **— all nine OPEN questions are now RULED.** The version before the
 rulings is `docs/features/maquette-l24/DESIGN.md@e6d63bffe`. The plan's order is `L14 · L19 · L21 · L13 · L20 · L22 ·
 L16 · L17 · L18 · L23`; L24 opens after L23, and the desktop milestone (§ 1.6) follows L24. Unlike L16–L23, nothing
 here was decided by the constitution for this document to transcribe: the subjects below are what the mission of
@@ -298,7 +298,7 @@ agréable sur desktop. On en décidera des contours en temps et en heure quand l
 L24's desktop half is the proof R-L24-k alone; the desktop adaptation is a milestone after the drawn lots (§ 1.6).
 
 ### Three questions the rulings raised — ALL THREE NOW RULED (operator, 2026-09-29, second round;
-`review-archive/l24/rulings-2026-09-29.md`)
+`docs/features/maquette-l24/rulings-2026-09-29.md`)
 
 **OPEN 7 — RULED = A** (~11:0x, verbatim « A »). The block's « Corriger » (OPEN 1 = C) and the journey sheet's act
 for a doubted engine match (S5, proposed at `@e6d63bffe` as a third act « Choisir un autre média ») answered the

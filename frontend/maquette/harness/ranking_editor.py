@@ -184,7 +184,7 @@ async def main():
         walked = {"field": await page.locator(weight).count(), "save": await page.locator('[data-part="ranking/save"]').count()}
         if walked["field"]:
             await page.locator(weight).first.tap()
-            await page.keyboard.press("Meta+A")
+            await page.keyboard.press("ControlOrMeta+A")
             await page.keyboard.type(str(typed))
         if walked["save"]:
             await page.locator('[data-part="ranking/save"]').first.tap()
@@ -241,7 +241,7 @@ async def main():
         await page.evaluate(WATCH_TOASTS)
         if await page.locator(weight).count():
             await page.locator(weight).first.tap()
-            await page.keyboard.press("Meta+A")
+            await page.keyboard.press("ControlOrMeta+A")
             await page.keyboard.type(str(typed))
         if await page.locator('[data-part="ranking/save"]').count():
             await page.locator('[data-part="ranking/save"]').first.tap()

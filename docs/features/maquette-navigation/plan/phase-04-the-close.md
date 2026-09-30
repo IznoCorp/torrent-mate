@@ -1,8 +1,8 @@
 # Phase 4 — The close: the lot's gate, the documents, the pull request
 
 **Opening measure**: R-navigation-a with NO `owed` row left (`grep -c "owed" frontend/maquette/harness/navigation_edges.py`
-→ 0); the emitters of DESIGN § 0.2's command re-counted on the head, each an edge id; the harness budget (office,
-order 52) — the two `git diff --numstat` of `docs/reference/implementer-office.md` § « The gate », ≤ 0.6.
+→ 0); the emitters of DESIGN § 0.2's command re-counted on the head, each an edge id; the harness budget of order 52 is
+retired (`docs/reference/method.md`).
 
 ## What changes
 

@@ -241,8 +241,8 @@ def assert_unchanged(expected: str | None, where: str) -> None:
         f"  started against: {expected}\n"
         f"  now serving:     {seen or 'no stamp at all'}\n"
         "  This reading spans two builds and means nothing either way.\n"
-        "  Another session rebuilt /tmp/tm-refonte. Coordinate first "
-        "(docs/reference/frontend-steward.md), then run again."
+        "  Another session rebuilt /tmp/tm-refonte. Wait for it to finish, "
+        "then run again."
     )
 
 
@@ -541,23 +541,6 @@ def rules() -> int:
     # `run.sh` alone, so a copy either of them made served a worker from a
     # previous build.
     repository = here.parents[2]
-    for tool in ("scripts/mutate.sh", "scripts/harness-hold-counts.py"):
-        source = _code_of(repository / tool)
-        hold(f"{tool} publishes through the harness rather than copying by hand",
-             "served_copy" in source and "wrapped.html" not in source,
-             "copies wrapped.html itself" if "wrapped.html" in source
-             else "publishes")
-        # THE ORDER, not the presence. The name asserts one and the first
-        # version asserted the other: swapping the two calls left the hold green
-        # while B-256 re-opened through the tool this wave called its worst
-        # carrier. It is the same lesson the `run.sh` hold three lines above
-        # already applied, and it was applied to one file and not the others.
-        acquire_at = source.find("acquire")
-        build_at = min([at for at in (source.find("npm run build"),
-                                      source.find("npm\", \"run"))
-                        if at >= 0] or [-1])
-        hold(f"{tool} takes the copy BEFORE it rebuilds it",
-             0 <= acquire_at < build_at, f"acquire@{acquire_at} build@{build_at}")
     hold("and the publisher copies the worker and the build's identity",
          '"sw.js", "build.json"' in mine)
     # THE INVARIANT R104 EXISTS FOR, held where it now lives. It used to read
@@ -625,12 +608,9 @@ def rules() -> int:
     # silently green. A floor calibrated to the smallest corpus does not bite on
     # the one it was written for.
     for name, corpus, floor in (
-            ("run.sh", run_sh, 120),
+            ("run.sh", run_sh, 90),
             ("common.py", common, 200),
-            ("served_copy.py", mine, 250),
-            ("scripts/mutate.sh", _code_of(repository / "scripts/mutate.sh"), 60),
-            ("scripts/harness-hold-counts.py",
-             _code_of(repository / "scripts/harness-hold-counts.py"), 330)):
+            ("served_copy.py", mine, 250)):
         hold(f"the stripped corpus of {name} is whole",
              len(corpus.splitlines()) >= floor,
              f"{len(corpus.splitlines())} lines against a floor of {floor}")

@@ -13,7 +13,7 @@ command that produces it, every decision carries its reason, every screen carrie
 (in part), Q8, Q9, Q10 and Q11 are this lot's; round 10, 7 questions of which Q3 and Q5 are this lot's;
 `docs/reference/operator-method.md`), the auditor's coherence audit of 2026-09-27
 (`review-archive/coherence-2026-09-27.md`, its triage `review-archive/coherence-2026-09-27-triage.md` § C) and the
-auditor's rulings-coherence round the same day (`review-archive/rulings-coherence-2026-09-27.md`, M1–M9, of which
+auditor's rulings-coherence round the same day (`docs/reference/rulings-coherence-2026-09-27.md`, M1–M9, of which
 M4, M5 and M6 are this lot's). **This is an AMENDMENT, not a redraw from a blank page**: the surface model of
 § 3 below changes in one place only — the cross-seed no longer has a section of its own, because ORGANISATION
 RULING 19 (round 9) killed the `/trackers/$name` detail screen it would have lived on and replaced it with L16's two
