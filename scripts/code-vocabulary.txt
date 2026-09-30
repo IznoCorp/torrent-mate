@@ -1224,6 +1224,7 @@ sugload
 sugmode
 sugmore
 suite
+sum
 surf
 surface
 surfaces

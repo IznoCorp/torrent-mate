@@ -20,6 +20,7 @@ import { Switch } from "../../ui/switch";
 import type { Schemas } from "../../lib/contract-schemas";
 import { actionButton, sheetActions, factDetail, factList, factName, factRow, factRowBody } from "../../ui/variants";
 import { dayOf } from "./format";
+import { useDownloads, useTrackers } from "./queries";
 import {
   CROSS_SEED_TONE, familyWord, isFailure, reasonSentence, stateWord, type CrossSeedPair,
 } from "./cross-seed-state";
@@ -182,8 +183,14 @@ function PairRow({ pair, origin, titleExcluded }: {
  * @param props.block The origin, its pairs, and whether its title is excluded.
  * @returns The block.
  */
-function CrossSeedBlock({ block }: { block: { type: "crossSeed" } & PanelBlockMap["crossSeed"] }): ReactElement {
+function CrossSeedBlock({ block: posed }: { block: { type: "crossSeed" } & PanelBlockMap["crossSeed"] }): ReactElement {
   const { t } = useTranslation();
+  // THE BLOCK READS THE CACHE ITSELF: a panel draws what it read at open, and a
+  // pair moved by an event, a search or a cut is drawn again in the render that
+  // follows — never a stale « en file » (F59). The descriptor's pairs stand in
+  // until the read is held.
+  const held = useDownloads().data?.downloads.find((entry) => entry.infoHash === posed.origin.infoHash)?.crossSeed;
+  const block = held ? { ...posed, pairs: held.pairs, titleExcluded: held.titleExcluded } : posed;
   const say = (key: string) => t(`screens.crossSeed.panel.${key}`);
   return (
     <section data-part="torrents/cross-seed" data-region="torrents/cross-seed" data-entry={block.origin.infoHash}
@@ -224,8 +231,11 @@ function CrossSeedBlock({ block }: { block: { type: "crossSeed" } & PanelBlockMa
  * @param props.block The tracker, its summary, and whether its switch moved in this visit.
  * @returns The block.
  */
-function CrossSeedSwitchBlock({ block }: { block: { type: "crossSeedSwitch" } & PanelBlockMap["crossSeedSwitch"] }): ReactElement {
+function CrossSeedSwitchBlock({ block: posed }: { block: { type: "crossSeedSwitch" } & PanelBlockMap["crossSeedSwitch"] }): ReactElement {
   const { t } = useTranslation();
+  // THE SUMMARY READ ITSELF, so the switch moves in the render the write's answer lands in.
+  const summary = useTrackers().data?.find((one) => one.name === posed.tracker)?.crossSeed;
+  const block = summary ? { ...posed, summary } : posed;
   const say = (key: string, values: Record<string, string> = {}) => t(`screens.crossSeed.switch.${key}`, values);
   const on = block.summary.enabled;
   return (

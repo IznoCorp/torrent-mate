@@ -108,7 +108,9 @@ SUM = """() => {
   const breached = obligations.filter((one) => one.breachedAt !== null && one.satisfiedAt === null
     && one.releasedAt === null && active.has(`${one.infoHash}:${one.sourceTracker}`)).length;
   const unseen = trackers.reduce((total, one) => total + one.brokenObligations.filter((row) => !row.seen).length, 0);
-  return { under, failed, breached, unseen, total: under + failed + breached + unseen };
+  // RE-AIMED OUT LOUD (L17, R-L17-g): the cross-seed's failures are the badge's fifth term.
+  const crossSeed = trackers.reduce((total, one) => total + (one.crossSeed?.failed ?? 0), 0);
+  return { under, failed, breached, unseen, crossSeed, total: under + failed + breached + unseen + crossSeed };
 }"""
 BROKEN_WORDS = SCREENS["trackers"]
 
