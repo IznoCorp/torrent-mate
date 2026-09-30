@@ -20,7 +20,11 @@ WHAT IS READ, every expected word from the ONE settled read the layer answered
      running rung's words (« en cours depuis … ») — a done rung borrowed the
      template's time while the mock laid it done;
   6. a medium whose decision is PENDING (« Lucky », an « À traiter » card), its
-     ladder laid past identification: no block — its card opens the arbitration.
+     ladder laid past identification: no block — its card opens the arbitration;
+  7. that decision settled now (`resolveDecision`, « Choisir »): the block's
+     date is the settling's, never the pending decision's creation — RE-AIMED
+     (reader, 2026-10-01): it read « 15 juillet », older than the card's
+     « arrivé », for a choice just made.
 """
 import asyncio
 import json
@@ -85,7 +89,7 @@ def expected(decision):
     Returns:
         The rows keyed by their part.
     """
-    rows = {"count": count_words(decision["candidatesCount"]), "when": decision["when"]}
+    rows = {"count": count_words(len(decision["candidates"])), "when": decision["when"]}
     if decision["state"] == "resolved" and decision.get("choice"):
         choice = decision["choice"]
         rows["choice"] = f"{choice['title']} · {choice['provider'].upper()} {choice['id']}"
@@ -137,6 +141,23 @@ async def main():
         pending = await page.evaluate(READ, "Lucky")
         journal.check("a medium whose decision is pending draws no block",
                       pending["open"] and not pending["block"], str(pending["block"]))
+
+        waited = await page.evaluate("""async () => {
+          const pending = window.__queries.getQueryData(['/api/decisions/']).pending.find((one) => one.folder === 'Lucky');
+          const kept = pending.candidates[0];
+          await fetch('/api/decisions/Lucky/resolve', {method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({provider: kept.provider, providerId: kept.id})});
+          await window.__queries.refetchQueries({queryKey: ['/api/decisions/']});
+          window.__panel.close(); window.__panel.produce('journey', 'Lucky');
+          return {when: pending.when};
+        }""")
+        await page.wait_for_timeout(PANEL_IN + SETTLED)
+        chosen = await page.evaluate(READ, "Lucky")
+        seeded = {decision["when"] for decision in json.loads(
+            (SOURCE / "mocks/seeds/settled-decisions.json").read_text(encoding="utf-8"))}
+        journal.check("a decision settled now reads now, never the pending decision's creation",
+                      chosen["block"] and chosen["rows"].get("when") not in {waited["when"], "", None} | seeded,
+                      f"block {chosen['rows'].get('when')!r}, pending since {waited['when']!r}")
 
         await context.close()
         await browser.close()

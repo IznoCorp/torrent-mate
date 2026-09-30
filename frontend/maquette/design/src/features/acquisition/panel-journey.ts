@@ -42,6 +42,13 @@ const STAGE_PIP: Record<Stage["state"], string> = {
 // The mark of a time nobody recorded — never a reconstructed one.
 const NO_TIME = "—";
 
+// A RUNNING LINE SAYS SO IN WORDS when no start was recorded for it: « — »
+// read the same for running and never reached. A done line is never given a
+// word in place of its time — the time is what « done » owes.
+const RUNNING_WITHOUT_TIME: Partial<Record<Stage["state"], string>> = {
+  now: "surfaces.ladder.nowUntimed",
+};
+
 /**
  * One rung as a line of the sheet — or, for a step of « rangé », a line under it.
  *
@@ -50,9 +57,10 @@ const NO_TIME = "—";
  * @returns The line.
  */
 function stageLine(stage: Stage, name: string) {
+  const words = RUNNING_WITHOUT_TIME[stage.state];
   return {
     c: name,
-    v: stage.when || NO_TIME,
+    v: stage.when || (words ? i18next.t(words) : NO_TIME),
     pip: STAGE_PIP[stage.state] ?? "neutral",
     terne: stage.state === "pending" || stage.state === "skipped",
   };

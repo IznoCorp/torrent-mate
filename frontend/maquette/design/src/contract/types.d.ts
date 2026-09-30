@@ -1298,6 +1298,11 @@ export interface components {
             title: string;
             /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             secondaryLine: string;
+            /**
+             * @description whether the medium is a film or a series — carried by the card, so a panel opened from it never loses it (B-612)
+             * @enum {string}
+             */
+            kind: "movie" | "show";
             /** @description why this card is where it is, in full prose. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             reason?: string;
             chip?: components["schemas"]["Chip"];
@@ -1632,6 +1637,8 @@ export interface components {
             candidates: components["schemas"]["DecisionCandidate"][];
             /** @description the year, where the folder names one */
             year?: number | null;
+            /** @description a re-opened decision's earlier choice — the candidate it kept, marked among the candidates it offers again; absent on a decision never settled */
+            kept?: components["schemas"]["DecisionChoice"];
         };
         SettledDecision: {
             /** @description the decision, as `resolveDecision`, `dismissDecision` and `searchForDecision` address it — what « Corriger » re-opens */
@@ -1646,8 +1653,8 @@ export interface components {
             when: string;
             year?: number;
             choice?: components["schemas"]["DecisionChoice"];
-            /** @description how many candidates the decision offered when it was settled (the engine's `candidates_count`) */
-            candidatesCount: number;
+            /** @description the candidates the decision offered, as it offered them (the engine's `candidates_json`) — how many it was settled among, and what « Corriger » offers again */
+            candidates: components["schemas"]["DecisionCandidate"][];
             settledBy: components["schemas"]["DecisionAuthor"];
         };
         CastMember: {

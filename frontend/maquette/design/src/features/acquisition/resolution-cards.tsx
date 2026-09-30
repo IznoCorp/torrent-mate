@@ -54,6 +54,8 @@ export function ReleaseCard({
     overview?: string;
     /** The provider identity the poster opens the sheet at, when the cache holds none under the title. */
     identity?: { provider: string; id: number | string };
+    /** The candidate a re-opened decision had kept (« Corriger »): marked, so the choice being corrected is seen. */
+    kept?: boolean;
   };
 }) {
   const reference = useEngineDrawing();
@@ -83,7 +85,7 @@ export function ReleaseCard({
     "aria-label": t("surfaces.card.sheetOf", { title }),
   };
   return (
-    <Card data-nonmedia={opts.genre || "release"}>
+    <Card data-nonmedia={opts.genre || "release"} data-kept={opts.kept ? "" : undefined}>
       <CardTop>
         <CardPoster
           as="button"
@@ -106,9 +108,14 @@ export function ReleaseCard({
               unnecessary: an arbitration that sends you to a full sheet to
               decide loses the queue you were working through. */}
           {opts.overview ? <CardOverview>{opts.overview}</CardOverview> : ""}
-          {confidence ? (
+          {confidence || opts.kept ? (
             <CardMeta>
-              <Chip tone="info" label={<>{t("screens.resolution.confidence")} {confidence}</>} />
+              {opts.kept ? <Chip tone="success" label={t("screens.resolution.kept")} /> : ""}
+              {confidence ? (
+                <Chip tone="info" label={<>{t("screens.resolution.confidence")} {confidence}</>} />
+              ) : (
+                ""
+              )}
             </CardMeta>
           ) : (
             ""
@@ -243,6 +250,9 @@ export function Candidates({ decision }: { decision: PendingDecision }) {
             noPoster: candidate.withoutPoster,
             overview: candidate.overview,
             identity: { provider: candidate.provider, id: candidate.id },
+            // A RE-OPENED DECISION OFFERS ITS OWN CANDIDATES, the one it kept
+            // marked: « Corriger » is read against what is being corrected.
+            kept: decision.kept?.provider === candidate.provider && decision.kept?.id === candidate.id,
           }}
         />
       ))}

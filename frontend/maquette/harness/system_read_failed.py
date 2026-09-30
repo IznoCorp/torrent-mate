@@ -16,7 +16,11 @@ alone (`system-<section>-unavailable`, the layer's `setOperationOutcome`):
   2. its value is the interface's word for « unavailable » (`fr.json`), never
      an empty list;
   3. every OTHER machine section still draws its own rows, none of them the
-     unavailable row — one failed read does not take the page down.
+     unavailable row — one failed read does not take the page down;
+  4. the menu's badge counts the section that cannot be read as ONE fault, in
+     place of what that section counted when it answered — never as fine.
+     RE-AIMED (reader, 2026-10-01): the badge DROPPED, 3 → 2, when `readDisks`
+     or `readIndexHealth` failed.
 
 And in the healthy state `system`, no section draws the unavailable row.
 """
@@ -61,6 +65,13 @@ READ = """() => {
 }"""
 
 
+BADGE = """() => document.querySelector('[data-drawer] [data-part="shell/menu-badge"]')?.textContent.trim() ?? null"""
+
+# The tone each section's rows are counted on by the badge: a machine fault is
+# an alert (`danger`), a disk or the index asking for care a warning.
+COUNTED = {"services": "danger", "dependencies": "danger", "disks": "warning", "index": "warning"}
+
+
 async def main():
     journal = Journal("R400 — a Système section whose own read failed says so")
     async with async_playwright() as playwright:
@@ -70,6 +81,7 @@ async def main():
         page.on("pageerror", lambda error: errors.append(str(error)))
 
         healthy = await read_at(page, "system", READ)
+        at_rest = int(await page.evaluate(BADGE) or 0)
         stray = [heading for heading, rows in healthy.items()
                  if any(row["value"] == UNAVAILABLE for row in rows)]
         journal.check("healthy, no section draws the unavailable row", stray == [], str(stray))
@@ -88,6 +100,11 @@ async def main():
                            for rows in others.values())
             journal.check(f"{state}: every other machine section still draws its rows", standing,
                           str({name: len(rows) for name, rows in others.items()}))
+            counted = sum(1 for row in healthy.get(heading, []) if row["tone"] == COUNTED[key])
+            badge = int(await page.evaluate(BADGE) or 0)
+            journal.check(f"{state}: the badge counts the unreadable section as one fault, never as fine",
+                          badge == at_rest - counted + 1,
+                          f"badge {badge}, at rest {at_rest}, the section counted {counted} when read")
 
         await context.close()
         await browser.close()

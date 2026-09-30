@@ -13,11 +13,17 @@ WHAT IS READ:
   2. every line of that sheet is a word of that vocabulary — a rung, a step or
      a part — never one typed elsewhere;
   3. on « En cours » (`acq-card-rungs`), every card's fraction counts the
-     eight rungs and its chip names a rung — the unfold is the sheet's alone.
+     eight rungs and its chip names a rung — the unfold is the sheet's alone;
+  4. every step of « rangé » and every part of « enrichi » says its state in
+     words, as the rungs do: a done one its time, a running one « en cours
+     depuis … », one not reached « à venir » — never « — » for all three.
+     RE-AIMED (reader, 2026-10-01): « — » stood for done, running and never
+     reached alike.
 """
 import asyncio
 import json
 import pathlib
+import re
 
 from common import PANEL_IN, SETTLED, Journal, open_page, read_at, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
@@ -86,6 +92,27 @@ async def main():
         journal.check("a part begun never reads « not yet »", begun == [], str(begun))
         journal.check("the parts are not all at one state — each says its own",
                       len({part["state"] for part in parts}) > 1, str([part["state"] for part in parts]))
+        # 4. Each step and part says its state in words, read off the seed's own
+        # running rung for « en cours depuis ».
+        running = next(stage["when"] for stage in json.loads(
+            (SOURCE / "mocks/seeds/journey-stages.json").read_text(encoding="utf-8")) if stage["state"] == "now")
+        running_lead = re.split(r"\d", running)[0].strip()
+        steps = shelved.get("steps", [])
+        lines = [(step_word(step["rung"]), step["state"]) for step in steps] + [
+            (part_word(part["rung"]), part["state"]) for part in parts]
+        by_name = {row["name"]: row["value"] for row in seen["rows"]}
+
+        def says(state, value):
+            """Whether a line's value says its state in words."""
+            if state == "done":
+                return bool(re.search(r"\d{1,2} h \d{2}", value or ""))
+            if state == "now":
+                return (value or "").startswith(running_lead)
+            return value == upcoming
+
+        mute = [(name, state, by_name.get(name)) for name, state in lines if not says(state, by_name.get(name))]
+        journal.check("every step and part says its state in words — a time, « en cours depuis … », « à venir »",
+                      lines and mute == [], str(mute))
         stray = [name for name in names if name not in VOCABULARY]
         stray = [name for name in stray if name not in BLOCK_ROWS]
         journal.check("every ladder line of the sheet is a word of the one vocabulary", stray == [], str(stray))

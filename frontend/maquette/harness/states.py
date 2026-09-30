@@ -1,4 +1,10 @@
-"""Every named state is reachable and renders something.
+"""Every named state is reachable and renders something — and says no design note.
+
+A DESIGN NOTE IS NOT INTERFACE TEXT (B-613). The prototype's annotations live
+in `.note` blocks, hidden until the reader asks for them; a sentence citing the
+constitution (« — §8 », « (DOIT-7) ») drawn in the interface itself is a note
+that leaked into the product. Every state's VISIBLE text (`innerText`, which
+skips the hidden notes) cites no § and no DOIT / NE-DOIT-PAS.
 
 THE ROOT LADDER HAS NO `#screen` RUNG. It had one, for a legacy node nothing
 ever opened, so the rung was identically false; it was removed rather than
@@ -54,6 +60,7 @@ async def main():
           const target = layer ? (dg.hasAttribute('data-open')?dg
                                  :sh.hasAttribute('data-open')?sh:rt) : v;
           return {sk:target.querySelectorAll('[data-skeleton]').length, txt:target.textContent.replace(/\\s+/g,' ').trim().length,
+                  notes:target.innerText.match(/§\\s?\\d+|\\b(?:NE-)?DOIT(?:-PAS)?-\\d+/g)||[],
                   doc:document.documentElement.scrollWidth,
                   // An overflow clipped by an ancestor is not overflow:
                   // getBoundingClientRect measures BEFORE clipping. Verify the
@@ -80,7 +87,7 @@ async def main():
                     return true;
                   }).length,
                   layer};}""")
-        ok = (r['txt']>60 or r['sk']>0) and r['doc']<=390 and r['spills']==0
+        ok = (r['txt']>60 or r['sk']>0) and r['doc']<=390 and r['spills']==0 and not r['notes']
         if not ok: bad.append((i,r))
         print(("  PASS" if ok else "  FAIL"), f"{i:28}", r)
         await shot(pg, f"states-{i}")

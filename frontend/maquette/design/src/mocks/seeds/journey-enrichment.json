@@ -1,0 +1,39 @@
+{
+  "rung": "shelved",
+  "when": "en cours depuis 3 min",
+  "state": "now",
+  "steps": [
+    {
+      "rung": "sorted",
+      "when": "10 août, 04 h 31",
+      "state": "done"
+    },
+    {
+      "rung": "enriched",
+      "when": "en cours depuis 2 min",
+      "state": "now",
+      "steps": [
+        {
+          "rung": "metadata",
+          "when": "10 août, 04 h 32",
+          "state": "done"
+        },
+        {
+          "rung": "posters",
+          "when": "en cours depuis 1 min",
+          "state": "now"
+        },
+        {
+          "rung": "trailer",
+          "when": "à venir",
+          "state": "pending"
+        }
+      ]
+    },
+    {
+      "rung": "shelved",
+      "when": "à venir",
+      "state": "pending"
+    }
+  ]
+}

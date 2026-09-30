@@ -7,6 +7,7 @@
 // card and `readJourney` answer the SAME array — and a verb that moves the
 // journey moves the card with it.
 import JOURNEY_STAGES from "../seeds/journey-stages.json";
+import JOURNEY_ENRICHMENT from "../seeds/journey-enrichment.json";
 import { mockState } from "../state";
 import type { components } from "../../contract/types";
 
@@ -93,20 +94,16 @@ function laid(seeded: Rung, state: RungState): Rung {
  * « trié » done, « enrichi » running — its metadata fetched, its posters being
  * fetched, its trailer still to come.
  *
+ * EACH STEP WITH ITS OWN TIME, read off the seed of that moment: a done one
+ * when it ended, a running one since when, one not reached « à venir ». A step
+ * drawn with no time at all read « — » for all three alike.
+ *
  * @param subject The medium.
  */
 export function placeInEnrichment(subject: string): void {
   delete mockState().journeyStages[subject];
   const ladder = ladderOf(subject, { current: rungIndex("shelved"), state: RUNNING_NOW });
-  const [sorted, enriched] = ladder[rungIndex("shelved")].steps ?? [];
-  if (sorted === undefined || enriched === undefined) return;
-  // No time was recorded for these: a step that has begun is drawn with none,
-  // never with « à venir », which says it has not.
-  Object.assign(sorted, { state: DONE, when: "" });
-  Object.assign(enriched, { state: RUNNING_NOW, when: "" });
-  (enriched.steps ?? []).forEach((step, index) => {
-    if (index < 2) Object.assign(step, { state: index === 0 ? DONE : RUNNING_NOW, when: "" });
-  });
+  ladder[rungIndex("shelved")] = structuredClone(JOURNEY_ENRICHMENT as Rung);
 }
 
 /**

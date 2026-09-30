@@ -8,13 +8,29 @@
 // on the pre-filled manual search when the providers offered none (§ 3): the
 // call comes BEFORE the screen, never a screen opened on nothing.
 //
-// A refused call says its reason and opens nothing.
+// A refused call opens nothing, and says why in the interface's OWN sentence
+// for that kind of refusal — never the server's text, which is English and
+// written for a log (« reopenDecision is set to answer 404 »).
 import i18next from "i18next";
 import type { QueryClient } from "@tanstack/react-query";
 import { HELD, isRequestFailure, send } from "../../lib/query-client";
 import { registerVerb } from "../../lib/verbs";
 import { screens, toast } from "../../lib/shell-doors";
 import type { Decisions } from "./decision-queries";
+
+/** The kinds of refusal the interface words, by the status that says each. */
+const REFUSAL_KIND: Record<number, "gone" | "conflict"> = { 404: "gone", 409: "conflict" };
+
+/**
+ * The interface's sentence for a refused correction.
+ *
+ * @param error What the send threw.
+ * @returns The sentence for its kind — the thing gone, a conflict, or any other refusal.
+ */
+function refusalSentence(error: unknown): string {
+  const kind = (isRequestFailure(error) ? REFUSAL_KIND[error.status] : undefined) ?? "other";
+  return i18next.t(`verbs.decision.correctRefused.${kind}`);
+}
 
 /**
  * Sends one settled decision back to arbitration, then opens it.
@@ -41,11 +57,7 @@ async function correct(client: QueryClient, decisionId: string): Promise<void> {
     await client.refetchQueries({ queryKey: ["/api/decisions/"] });
     screens.resolution(decision.folder);
   } catch (error) {
-    toast?.show({
-      message: i18next.t("verbs.decision.correctRefused", {
-        reason: isRequestFailure(error) ? error.detail : String(error),
-      }),
-    });
+    toast?.show({ message: refusalSentence(error) });
   }
 }
 

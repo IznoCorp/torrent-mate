@@ -2,7 +2,7 @@
 import { GET, POST, route, text } from "./shared";
 import { mockState } from "../state";
 import { refused, type MockRoute } from "../router";
-import MEDIA_SHEETS from "../seeds/media-sheets.json";
+import { scenario } from "../scenario";
 import type { components } from "../../contract/types";
 
 /** Where a decision has got to, as the contract's own enum names it. */
@@ -25,6 +25,27 @@ const OPERATOR: DecisionAuthor = "operator";
 
 /** How a candidate was reached when it came from the offered list. */
 const PICKED: DecisionRoute = "pick";
+
+/** The language the seeds' dates are written in, which a stamp written now matches. */
+const SEED_WRITTEN_IN = "fr-FR";
+
+/**
+ * The moment a decision is settled, in the shape the seeds carry one.
+ *
+ * A DECISION SETTLED NOW READS NOW. It carried the pending decision's creation
+ * — « 15 juillet » for a choice just made, older than the card's « arrivé ».
+ * The day is the layer's frozen clock, the one every date-derived state reads;
+ * the hour is the wall clock's, the one moment the layer has for « now ».
+ *
+ * @returns The day and the hour, as « 10 août, 14 h 05 ».
+ */
+function settledNow(): string {
+  const day = new Intl.DateTimeFormat(SEED_WRITTEN_IN, { day: "numeric", month: "long", timeZone: "UTC" })
+    .format(new Date(scenario().now));
+  const clock = new Date();
+  const two = (value: number) => String(value).padStart(2, "0");
+  return `${day}, ${two(clock.getHours())} h ${two(clock.getMinutes())}`;
+}
 
 /**
  * Moves one decision from the pending list to the settled one.
@@ -69,10 +90,10 @@ function settle(
       kind: found.kind,
       title: found.title,
       reason: found.reason,
-      when: found.when,
+      when: settledNow(),
       year: found.year ?? undefined,
       state,
-      candidatesCount: found.candidates.length,
+      candidates: found.candidates,
       settledBy: OPERATOR,
       ...(candidate === undefined
         ? {}
@@ -111,52 +132,11 @@ export function settleChosen(folder: string, chosenTitle: string): boolean {
   return true;
 }
 
-/** One candidate a decision offers, as the contract names it. */
-type DecisionCandidate = components["schemas"]["DecisionCandidate"];
-
-/** A media sheet of the seed, as far as a candidate reads it. */
-type SeededSheet = { year?: string; overview?: string; ids?: Record<string, string | number> };
-
 /** Why a folder sent to arbitration by hand is waiting, as the contract's token. */
 const SENT_BY_HAND = "manual";
 
 /** The status of an enqueue that finds nothing to send. */
 const NOT_FOUND = 404;
-
-/** The score a provider search gives a title found under its own name. */
-const OWN_NAME_SCORE = 1;
-
-/**
- * The candidates a provider search finds for one title, read off the seeded sheets.
- *
- * A SHEET IS A MEDIUM THE PROVIDERS KNOW, so the sheets filed under the title —
- * « Furious » and « Furious (2026) » — are what a search on that name answers.
- * One identity is offered once, whichever key it was filed under.
- *
- * @param titles The names searched — a folder, a title, a choice's title.
- * @returns The candidates, none when no sheet carries any of those names.
- */
-function candidatesFor(...titles: (string | undefined)[]): DecisionCandidate[] {
-  const found = new Map<string, DecisionCandidate>();
-  const named = titles.filter((title): title is string => Boolean(title));
-  for (const [name, sheet] of Object.entries(MEDIA_SHEETS as unknown as Record<string, SeededSheet>)) {
-    if (!named.some((title) => name === title || name.startsWith(`${title} (`))) continue;
-    const provider = sheet.ids?.tvdb ? "tvdb" : "tmdb";
-    const id = Number(sheet.ids?.[provider]);
-    if (!Number.isFinite(id) || found.has(`${provider}:${id}`)) continue;
-    found.set(`${provider}:${id}`, {
-      title: name,
-      year: Number(sheet.year),
-      provider,
-      id,
-      score: OWN_NAME_SCORE,
-      withoutPoster: true,
-      overview: sheet.overview ?? "",
-      poster: null,
-    });
-  }
-  return [...found.values()];
-}
 
 /**
  * Sends a staged medium to arbitration: a pending decision, with candidates.
@@ -164,8 +144,8 @@ function candidatesFor(...titles: (string | undefined)[]): DecisionCandidate[] {
  * IDEMPOTENT, the one refusal DOIT-4 allows: a folder already waiting answers
  * the decision it has. A medium the engine identified alone leaves the settled
  * list — its identification is what is being doubted — and waits again with
- * the candidates a search on its title finds, or none, when the screen opens
- * on the pre-filled manual search.
+ * the candidates its own decision offered, the engine's pick among them marked
+ * as kept.
  *
  * @param mediaId The staged medium, which the layer names by its folder.
  * @returns The enqueue's answer, or a refusal when nothing is staged under that name.
@@ -186,7 +166,8 @@ function enqueue(mediaId: string): unknown {
     reason: SENT_BY_HAND,
     when: identified!.when,
     year: identified!.year ?? null,
-    candidates: candidatesFor(identified!.folder, identified!.title, identified!.choice?.title),
+    candidates: identified!.candidates,
+    kept: identified!.choice,
   };
   if (waiting === undefined) {
     held.settledDecisions = held.settledDecisions.filter((settled) => settled !== identified);
@@ -207,8 +188,9 @@ function enqueue(mediaId: string): unknown {
  *
  * « CORRIGER » ON THE OPERATOR'S OWN CHOICE (L24 OPEN 7 = A) — in Acquisition,
  * and on a shelved medium's sheet (OPEN 8 = A). The settled row leaves the
- * settled list and is pending again, with the candidates a search on its title
- * finds; its choice among them is the operator's again.
+ * settled list and is pending again, with THE CANDIDATES IT OFFERED — never a
+ * search's, which answered one card for « Parmi 3 candidats » — its earlier
+ * choice marked as kept; the choice among them is the operator's again.
  *
  * @param decisionId The settled decision.
  * @returns The re-opened decision's address, or a refusal when none is settled under that id.
@@ -217,7 +199,7 @@ function reopen(decisionId: string): unknown {
   const held = mockState();
   const settled = held.settledDecisions.find((decision) => decision.id === decisionId);
   if (settled === undefined) return refused(NOT_FOUND, "no settled decision carries that id");
-  const candidates = candidatesFor(settled.folder, settled.title, settled.choice?.title);
+  const candidates = settled.candidates;
   held.settledDecisions = held.settledDecisions.filter((decision) => decision !== settled);
   held.pendingDecisions = [
     {
@@ -228,6 +210,7 @@ function reopen(decisionId: string): unknown {
       when: settled.when,
       year: settled.year ?? null,
       candidates,
+      kept: settled.choice,
     },
     ...held.pendingDecisions.filter((decision) => decision.folder !== settled.folder),
   ];

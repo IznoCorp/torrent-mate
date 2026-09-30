@@ -72,7 +72,7 @@ export function DecisionBlock({ subject }: { subject: DecisionSubject }) {
       ? ["choice", t("surfaces.decision.chosen"),
          `${decision.choice.title} · ${decision.choice.provider.toUpperCase()} ${decision.choice.id}`]
       : ["state", t("surfaces.decision.state"), state?.[1] ?? decision.state],
-    ["count", t("surfaces.decision.among"), t("surfaces.decision.candidates", { count: decision.candidatesCount })],
+    ["count", t("surfaces.decision.among"), t("surfaces.decision.candidates", { count: decision.candidates.length })],
     ["author", t("surfaces.decision.by"),
      decision.settledBy === "engine"
        ? t("surfaces.decision.byEngine")

@@ -169,6 +169,8 @@ function oneOff(title: string, season: number): Schemas["QueueCard"] {
   return {
     title,
     secondaryLine: SEASON_MARK + String(season).padStart(SEASON_DIGITS, DIGITS_FILL),
+    // A SEASON IS ASKED OF A SERIES, always.
+    kind: "show",
     ids: (show?.ids ?? null) as Schemas["QueueCard"]["ids"],
     poster: show?.poster ?? null,
     strip: [0, 0, 0, 0, 0],

@@ -101,6 +101,11 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
   // membership and the seasons are read from the cache the layer fills, never
   // from a copy the layer does not write.
   const incompleteShows = incompleteAnswer;
+  const scenario = String(store.read().state.scen) === "loaded" ? "loaded" : "";
+  const answer = cache.held<AcquisitionQueue>(queueKey(scenario));
+  const todo = answer ? todoCards(answer).find((one) => one.title === title) : undefined;
+  const arrival = answer?.arrivals.find((one) => one.title === title);
+  const acquisition = todo ?? (answer ? inFlightCards(answer).find((one) => one.title === title) : undefined);
   const follow: FollowSubject =
     followed.find((one) => one.title === title) ??
     incompleteShows
@@ -108,10 +113,11 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
         title: show.title, kind: "show", year: "", status: "to_grab", owned: show.owned, aired: show.aired,
       }))
       .find((one) => one.title === title) ??
-    // THE KIND IS THE MEDIUM'S OWN, as the library answers it for this very
-    // title — a film nobody follows was drawn as a series (B-581) — and a
-    // series only when the library does not hold it either.
-    { title, kind: membership.kind ?? "show", year: "", status: "up_to_date" };
+    // THE KIND IS THE MEDIUM'S OWN: its acquisition card carries it — a film
+    // added by hand and still in flight was drawn as a series (B-612) — else
+    // the library answers it for this very title (B-581), and a series only
+    // when neither holds it.
+    { title, kind: (acquisition ?? arrival)?.kind ?? membership.kind ?? "show", year: "", status: "up_to_date" };
   const address = providerAddress(follow.ids ?? heldIdentity(title)?.ids);
   const seasonsAnswer = address
     ? cache.held<SeasonsAnswer>(seasonsQuery(address.provider, address.id).queryKey)
@@ -131,11 +137,6 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
   const inLibrary = incomplete || membership.inLibrary;
   const queue = queueNow();
   const toTake = queue.takeable.some((one) => one.title === title);
-  const scenario = String(store.read().state.scen) === "loaded" ? "loaded" : "";
-  const answer = cache.held<AcquisitionQueue>(queueKey(scenario));
-  const todo = answer ? todoCards(answer).find((one) => one.title === title) : undefined;
-  const arrival = answer?.arrivals.find((one) => one.title === title);
-  const acquisition = todo ?? (answer ? inFlightCards(answer).find((one) => one.title === title) : undefined);
   // WHAT MAY BE OFFERED « Suivre »: an arrival, or a season asked once — a
   // one-off acquisition of a series nobody follows (round 10 Q2).
   const offered = arrival ?? (acquisition?.requester?.via === ASKED_ONCE ? acquisition : undefined);

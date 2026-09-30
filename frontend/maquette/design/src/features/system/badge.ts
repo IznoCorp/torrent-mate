@@ -66,6 +66,13 @@ export function systemBadge(): number {
     const answer = sharedQueryClient?.getQueryData<unknown>(key);
     return Array.isArray(answer) ? (answer as Fact[]) : [];
   };
+  // A SECTION THAT CANNOT BE READ IS ONE FAULT, as the page draws it — one row,
+  // « indisponible », in the alert tone — and never « nothing to report »: the
+  // badge dropped when the disks or the index could not be read. What its last
+  // answer held is not counted over it, since the page does not draw it.
+  const unreadable = (key: string[]) => sharedQueryClient?.getQueryState(key)?.status === "error";
+  const counted = (key: string[], tone: string) =>
+    unreadable(key) ? 1 : listAt(key).filter((fact) => factTone(fact) === tone).length;
   const services = listAt(SERVICES_KEY);
   const dependencies = listAt(DEPENDENCIES_KEY);
   const drawn = store.read().state.fault === true
@@ -78,10 +85,11 @@ export function systemBadge(): number {
         locks.sweep.status !== SWEEP_PENDING && locks.sweep.orphans.length > 0,
       ].filter(Boolean).length
     : 0;
-  const faults = [...drawn, ...dependencies].filter((fact) => factTone(fact) === ALERT).length;
+  const faults = (unreadable(SERVICES_KEY) ? 1 : drawn.filter((fact) => factTone(fact) === ALERT).length)
+    + counted(DEPENDENCIES_KEY, ALERT);
   // A DISK NEARLY FULL AND AN INDEX ANOMALY COUNT TOO (L24, OPEN 2 = A), each
   // read on the fact's own tone, never on its words.
-  const care = [...listAt(DISKS_KEY), ...listAt(INDEX_KEY)].filter((fact) => factTone(fact) === WARNING).length;
+  const care = counted(DISKS_KEY, WARNING) + counted(INDEX_KEY, WARNING);
   return maintenance + faults + care;
 }
 
