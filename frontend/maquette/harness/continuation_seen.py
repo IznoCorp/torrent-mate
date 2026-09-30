@@ -10,12 +10,14 @@ WHAT IS READ, once the pick's undo window has closed and its send has left:
     1. the card has left « À traiter »;
     2. on « En cours », the card of the medium chosen stands PAST « identifié » —
        its rung word is one the ladder orders after it;
-    3. the decision it waited on is no longer pending — it is settled, with the
+    3. and it no longer says why it was stopped — the blocked card's reason is
+       not carried onto the card that goes on;
+    4. the decision it waited on is no longer pending — it is settled, with the
        candidate chosen.
 
   From « Corriger » (`acq-resolution-enqueued`, the engine's « Furious »):
-    4. the decision « Corriger » created is no longer pending;
-    5. the medium's journey sheet reads the NEW settled decision — the operator's
+    5. the decision « Corriger » created is no longer pending;
+    6. the medium's journey sheet reads the NEW settled decision — the operator's
        choice, among the candidates « Corriger » filed.
 """
 import asyncio
@@ -44,7 +46,11 @@ PICK = """() => {
 
 CARDS = """() => [...document.querySelectorAll('#view [data-part="card"]')].map((card) => ({
   title: card.querySelector('[data-part="card/title"]')?.textContent.trim() ?? '',
+  text: card.textContent.replace(/\\s+/g, ' '),
   chips: [...card.querySelectorAll('[data-part="chip"]')].map((chip) => chip.textContent.trim())}))"""
+
+BLOCKED_REASON = next(card["reason"] for card in json.loads((SOURCE / "mocks/seeds/blocked.json").read_text(encoding="utf-8"))
+                      if card["title"] == "Lucky")
 
 # Re-read from the layer: no surface on « En cours » observes the decisions read.
 PENDING = """async () => {
@@ -96,6 +102,8 @@ async def main():
         journal.check("« En cours »: it stands past « identifié »",
                       card is not None and any(chip in PAST_IDENTIFIED for chip in card["chips"]),
                       str(card and card["chips"]))
+        journal.check("« En cours »: it no longer says why it was stopped",
+                      card is not None and BLOCKED_REASON not in card["text"], str(card and card["text"][:160]))
         pending = await page.evaluate(PENDING)
         journal.check("the decision « Lucky » waited on is no longer pending", "Lucky" not in pending, str(pending))
 

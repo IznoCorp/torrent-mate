@@ -58,10 +58,12 @@ export function continueMedia(asked: string, named: string): boolean {
     // A folder set aside and then resolved does not carry its aside rung
     // into the pipeline: its ladder is laid again from where it now stands.
     if (state.journeyStages[found.title]?.some((rung) => rung.state === ASIDE)) forgetLadder(found.title);
+    // WHY IT WAS STOPPED DOES NOT GO ON WITH IT: the answer ended that reason.
+    const { reason: _answered, ...going } = found;
     for (const list of to) {
       state[list] = [
         {
-          ...found,
+          ...going,
           title: named === "" ? found.title : named,
           strip: [1, 1, 1, 1, RUNNING_NOW],
           chip: { tone: INFORMATIVE, text: SCRAPING_LABEL },
