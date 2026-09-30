@@ -100,10 +100,12 @@ export function placeInEnrichment(subject: string): void {
   const ladder = ladderOf(subject, { current: rungIndex("shelved"), state: RUNNING_NOW });
   const [sorted, enriched] = ladder[rungIndex("shelved")].steps ?? [];
   if (sorted === undefined || enriched === undefined) return;
-  sorted.state = DONE;
-  enriched.state = RUNNING_NOW;
+  // No time was recorded for these: a step that has begun is drawn with none,
+  // never with « à venir », which says it has not.
+  Object.assign(sorted, { state: DONE, when: "" });
+  Object.assign(enriched, { state: RUNNING_NOW, when: "" });
   (enriched.steps ?? []).forEach((step, index) => {
-    step.state = index === 0 ? DONE : index === 1 ? RUNNING_NOW : PENDING;
+    if (index < 2) Object.assign(step, { state: index === 0 ? DONE : RUNNING_NOW, when: "" });
   });
 }
 

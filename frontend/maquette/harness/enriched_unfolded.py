@@ -49,7 +49,8 @@ VOCABULARY = ({*LADDER["rungs"].values()} | {step_word(token) for token in LADDE
 SHEET = """(subject) => ({
   rows: [...document.querySelectorAll('#sheet[data-open] [data-part="key-value"]')].map((row) => ({
     name: row.querySelector(':scope > span')?.textContent.trim(),
-    tone: row.querySelector('[data-part="status-dot"]')?.dataset.tone ?? null})),
+    tone: row.querySelector('[data-part="status-dot"]')?.dataset.tone ?? null,
+    value: row.querySelectorAll(':scope > span')[1]?.textContent.trim()})),
   stages: window.__queries.getQueryData(['/api/acquisition/journeys', subject]) ?? []})"""
 
 CARDS = """() => [...document.querySelectorAll('#view [data-part="card"]')].map((card) => ({
@@ -79,6 +80,10 @@ async def main():
         journal.check("each part with the state its journey holds",
                       len(drawn) == len(parts) and all(row["tone"] == PIP[part["state"]] for row, part in zip(drawn, parts)),
                       str([(row["tone"], part["state"]) for row, part in zip(drawn, parts)]))
+        upcoming = LADDER.get("upcoming") or next(stage["when"] for stage in json.loads(
+            (SOURCE / "mocks/seeds/journey-stages.json").read_text(encoding="utf-8")) if stage["state"] == "pending" and stage["when"])
+        begun = [row for row, part in zip(drawn, parts) if part["state"] != "pending" and row.get("value") == upcoming]
+        journal.check("a part begun never reads « not yet »", begun == [], str(begun))
         journal.check("the parts are not all at one state — each says its own",
                       len({part["state"] for part in parts}) > 1, str([part["state"] for part in parts]))
         stray = [name for name in names if name not in VOCABULARY]
