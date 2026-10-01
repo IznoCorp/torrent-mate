@@ -68,7 +68,7 @@ import json
 import os
 import time
 
-from common import PHONE, PROTOTYPE, SETTLED, Journal, browser_channel, chrome_launch_args, served_copy, STARTED_AGAINST
+from common import PHONE, PROTOTYPE, SETTLED, Journal, browser_channel, chrome_launch_args, served_copy, settle, STARTED_AGAINST
 from playwright.async_api import async_playwright
 
 PHONES = (320, 360, 369, 390, 412)
@@ -317,11 +317,19 @@ async def read_pass(browser, label, width, wanted, engine, scheme):
         # 17–32 px past the window's right edge and fell `outside` (at rest it sits at [840, 1280]
         # at 1280 px). The phone's sheet makes the same trip on y, which this rule does not read,
         # so it never showed. The wait is the LAYERS' own running transitions, read from the page
-        # (B-276) — not every animation of the page, which cost this whole sweep a minute.
-        # IN A WINDOW ONLY, where a layer slides on x: a phone's layers rise on y, and WebKit's
-        # page dies when `getAnimations()` is asked under `media-sheet-decision-corrected`'s two
-        # chained view transitions (both WebKit passes, CI and here).
-        if width in WINDOWS:
+        # (B-276) — not every animation of the page, which cost this whole sweep a minute at three
+        # passes at a time.
+        # IN CHROMIUM, EVERY FINITE ANIMATION, not only the layers': with the nine passes side by
+        # side (`PARALLEL`), a runner draws slower than `SETTLED` assumes, and a drawer still
+        # sliding in (`drawer-navigation`, `shell/device` at [-5, 283]) or a deck card still
+        # leaving (`discover-deck-passed`) read as `cut` on one pass of nine (PR #677's first
+        # run). The page says when its motion ends (`settle`, common.py). WebKit keeps the
+        # layers-only wait, in a window only: its page dies when `getAnimations()` is asked under
+        # `media-sheet-decision-corrected`'s two chained view transitions (both WebKit passes,
+        # CI and here), and its passes read at the phone's width, where a layer rises on y.
+        if engine == "chromium":
+            await settle(page)
+        elif width in WINDOWS:
             await page.evaluate(LAYERS_AT_REST, LAYER_CEILING_MS)
         readings[state] = await page.evaluate(MEASURE, width)
         if engine == "webkit":
