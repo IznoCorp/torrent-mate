@@ -5,8 +5,8 @@ has none of the context it was produced in. **Nothing live was touched to write 
 repository setting, no branch on origin but `docs/git-flow`, nothing under `~/deploy` or `~/staging`. Every figure
 carries the command that produced it, run from the worktree root (read-only).
 
-**Written 2026-10-01, on `docs/git-flow` cut from `main` at `50fff4832`.** The lot follows PRs #672/#673 and comes
-before the « À traiter » lot ships.
+**Written 2026-10-01, on `docs/git-flow` cut from `main` at `50fff4832`; his rulings on § 5 entered the same day.**
+The lot follows PRs #672/#673 and comes before the « À traiter » lot ships.
 
 ## 0. The ruling
 
@@ -129,8 +129,8 @@ served `build.json` equals the disk's. tm-design serves the maquette on mocks: n
 | `feat/<c>`, `fix/<c>`, `docs/<c>` | an implementer | commits, pushed at every commit | CI on its PR into `develop`; tm-design when it is the lot in flight | tm-design (merged on the fly onto `develop`) | mocks |
 | `develop` | GitHub, at a PR's merge | squash merge, auto-merge armed at PR open; a merge commit only for a hotfix's merge-back | tm-design rebuild (follower) | tm-design :8712 | mocks (tm-design has no backend) |
 | `main` | the orchestrator | `scripts/promote.sh main <sha>` — fast-forward to a commit of `develop` whose lots are validated | nothing deploys | — | — |
-| `staging` | the operator (or the orchestrator ON HIS WORD) | `scripts/promote.sh staging [<sha>]` — fast-forward to a commit of `main`, when a user story is complete | the poller: `deploy-staging.sh` | `~/staging/torrentmate`, :8711, `tm-staging.` | its own (`acquire-staging.db`, `app-staging.db`; `library.db` read-only) once K0 delivers Q2/Q4; until then today's read-only web |
-| `prod` | the operator (or the orchestrator ON HIS WORD) | `scripts/promote.sh prod [<sha>]` — fast-forward to a commit of `staging`, then the tag `v<__version__>` | the poller: `deploy.sh`, plus the watcher and the crons (they run the prod clone) | `~/deploy/torrentmate`, :8710, `tm.` | prod's (`acquire.db`, `app.db`, `library.db` written) |
+| `staging` | any session ON HIS WORD (the orchestrator or any agent, DECIDED 1) | `scripts/promote.sh staging [<sha>]` — fast-forward to a commit of `main`, when a user story is complete | the poller: `deploy-staging.sh` | `~/staging/torrentmate`, :8711, `tm-staging.` | its own (`acquire-staging.db`, `app-staging.db`; `library.db` read-only) once K0 delivers Q2/Q4; until then today's read-only web |
+| `prod` | any session ON HIS WORD (the orchestrator or any agent, DECIDED 1) | `scripts/promote.sh prod [<sha>]` — fast-forward to a commit of `staging`, then the tag `v<__version__>` | the poller: `deploy.sh`, plus the watcher and the crons (they run the prod clone) | `~/deploy/torrentmate`, :8710, `tm.` | prod's (`acquire.db`, `app.db`, `library.db` written) |
 | `hotfix/<c>` | an implementer | cut from `prod`; PR into `prod` (squash); then merged back into `develop` | CI on its PR into `prod`; prod's deploy at its merge | prod | prod's |
 
 Rules the table implies:
@@ -146,7 +146,7 @@ Rules the table implies:
   everything merged after it. The orchestrator therefore keeps ONE lot at a time on `develop` beyond `main`; a fix
   that must reach `main` sooner goes in before the lot's first merge, or waits.
 - **The version**: every PR into `develop` bumps the patch (`0.98.131 → 0.98.132`); promotions bump nothing. The
-  release tag on `prod` is `v` + the `__version__` of the promoted commit (OPEN 2). A hotfix bumps a fourth component
+  release tag on `prod` is `v` + the `__version__` of the promoted commit (DECIDED 2). A hotfix bumps a fourth component
   from prod's version (`0.98.131 → 0.98.131.1`): it can never collide with a patch number `develop` has already used,
   and the merge-back keeps `develop`'s (higher) version.
 - **The API versions**: § 3.8.
@@ -155,9 +155,13 @@ Rules the table implies:
 
 ### 3.1 `scripts/promote.sh` (new) — the only way `main`, `staging` and `prod` move
 
+A plain script any session runs — the orchestrator or any agent (DECIDED 1); it keeps no state but origin's refs.
 `scripts/promote.sh <main|staging|prod> [<sha>]`; `<sha>` defaults to the source branch's tip. Source of each target:
 `main ← develop`, `staging ← main`, `prod ← staging`. `scripts/promote.sh tag` tags `prod`'s tip alone (rule 4), for
-a hotfix that reached `prod` through its PR (§ 3.7). It refuses, with one line saying why, unless ALL hold:
+a hotfix that reached `prod` through its PR (§ 3.7). `scripts/promote.sh backport <c>` is a hotfix's merge-back
+(§ 3.7 step 3): it pushes `prod`'s tip to `backport/<c>` and opens its PR into `develop` with auto-merge armed by the
+MERGE method; it refuses when `prod` is already an ancestor of `develop` (nothing to bring back). A promotion refuses,
+with one line saying why, unless ALL hold:
 
 1. `<sha>` is on the source branch (`git merge-base --is-ancestor <sha> origin/<source>`).
 2. The target's tip is an ancestor of `<sha>` — a fast-forward (this is what refuses a promotion while a hotfix is
@@ -227,6 +231,9 @@ poller.
   only); a hotfix is cut from `prod`, PR into `prod`, then merged back into `develop` by a merge-commit PR from a
   `backport/<c>` branch cut at `prod`'s tip (§ 3.7). « Web environments »: prod tracks `prod`, staging tracks
   `staging`.
+- `method.md` gains « The flow's scripts »: each run-by-hand step with its exact invocation (`scripts/promote.sh main`,
+  `staging`, `prod`, `tag`, `backport <c>`, `--dry-run`), who may call it (any session; `staging` and `prod` on his
+  word only) and what it prints — so the orchestrator or any agent runs it without reading this DESIGN (DECIDED 1).
 - `method.md` « Lots here »: a lot's PRs merge into `develop` at green CI; done = gates + reader on tm-design; then
   the orchestrator promotes it to `main`; staging and prod move on his word. « He decides the functional; everything
   else goes on without him: decide, merge, deploy » is AMENDED by his ruling for `staging` and `prod`: those two
@@ -242,15 +249,18 @@ poller.
 - The DEV checkout `~/dev/PersonalScraper` stands on `develop`: `torrentmate-design` loads `serve.py` from it, and
   `qbit-watchdog` and the follower run from it.
 - No change to the build, the mutex or the proof.
+- From the cut-over, tm-design is no longer served by `main` and evolves on its own (DECIDED 3): a PR merged into
+  `develop` reaches it with no word of his; only `staging` and `prod` wait for him.
 
 ### 3.7 The hotfix, step by step
 
 1. `git switch -c hotfix/<c> origin/prod`; fix with its regression test; bump `__version__` to prod's plus `.1`.
 2. PR `hotfix/<c>` → `prod`, squash, auto-merge armed; CI runs (trigger § 3.4). At its merge `prod` moves; the poller
    deploys it; the orchestrator tags it (`scripts/promote.sh tag` — the tag arm alone, rule 4).
-3. Merge-back: `git push origin origin/prod:refs/heads/backport/<c>`; PR `backport/<c>` → `develop` with the MERGE
-   method (a merge commit makes `prod`'s tip an ancestor of `develop`, which is what restores § 0's chain; a squash
-   would not). A conflict on `__version__` keeps `develop`'s. `delete_branch_on_merge` deletes `backport/<c>`.
+3. Merge-back: `scripts/promote.sh backport <c>` — it pushes `prod`'s tip to `backport/<c>` and opens the PR
+   `backport/<c>` → `develop`, auto-merge armed with the MERGE method (a merge commit makes `prod`'s tip an ancestor of
+   `develop`, which is what restores § 0's chain; a squash would not). A conflict on `__version__` is resolved on
+   `backport/<c>` by keeping `develop`'s. `delete_branch_on_merge` deletes `backport/<c>`.
 4. Until the backport merges, a promotion to `prod` is refused by rule 2 — by design. `main` and `staging` then
    receive the hotfix with the next promotions, and the chain is whole again.
 
@@ -279,7 +289,9 @@ it names the deploy branch.
 
 The repository's rule before v1 is no back-compat: the flow changes in ONE window, not branch by branch. Phases 1–4
 (§ 6) ship as ONE PR into `main` (the last PR `main` receives); phase 5 is the window. It needs his sign-off: it
-rewrites `staging`, changes the rulesets and restarts the poller — live actions this lot's author may not take.
+rewrites `staging`, changes the rulesets and restarts the poller — live actions this lot's author may not take. Until
+the window, today's flow continues unchanged (a merge into `main` deploys prod); from it, `staging` and `prod` move on
+his word only (DECIDED 3).
 
 Preconditions: #672 merged or retargeted; no PR armed into `main` but the cut-over PR; no deploy in flight
 (`pm2 logs torrentmate-autodeploy --lines 5 --nostream`); the current rulesets saved
@@ -288,7 +300,7 @@ Preconditions: #672 merged or retargeted; no PR armed into `main` but the cut-ov
 1. `pm2 stop torrentmate-autodeploy` — nothing deploys during the window.
 2. The cut-over PR merges into `main` (auto-merge, CI green). Call its SHA `S`.
 3. Branches on origin: `git push origin S:refs/heads/develop S:refs/heads/prod`; `staging` is archived then moved:
-   `git push origin origin/staging:refs/tags/archive/staging-2026-08-14` (OPEN 4), then
+   `git push origin origin/staging:refs/tags/archive/staging-2026-08-14` (DECIDED 4), then
    `git push --force-with-lease=staging:67ea6509b origin S:refs/heads/staging` — the only non-fast-forward of the lot.
 4. Rulesets: create `develop`, `prod`, `staging` from `docs/features/git-flow/rulesets/*.json`; amend `main`
    (`gh api -X PUT …/rulesets/15201125 --input …`). Default branch → `develop`
@@ -311,50 +323,37 @@ if the old playground is wanted back; revert the cut-over commit by a PR into `m
 torrentmate-autodeploy`. `develop` and `prod` may stay on origin unused or be deleted (with his word). No data is
 touched by the lot: nothing to restore under `.data/` or the stores.
 
-## 5. OPEN — for him
+## 5. DECIDED — his rulings of 2026-10-01
 
-Each question is one the ruling leaves open. Two readings, their cost, one recommendation.
+The five questions this DESIGN left open, answered by him on 2026-10-01 (recorded in `docs/reference/operator-method.md`
+§ 3 « Environnements et back-end », the lines « 10-01 · git flow … »). Not reopenable; the paragraphs they change above
+are rewritten to match.
 
-**OPEN 1 — His gesture to deploy staging and prod.**
-- A: he says it to the orchestrator (« passe en staging », « mets en prod »), which runs `scripts/promote.sh` and
-  reports what moved. Cost: none to build; he goes through a session.
-- B: a « Promote » button — a GitHub Actions `workflow_dispatch` he presses from GitHub on his phone, which runs the
-  same script. Cost: a workflow with write access, the Actions bot added as a bypass actor on `staging`/`prod`, and
-  the PR-check rule run from a runner.
-- Recommendation: **A** now — the promotion needs the reading « is this user story complete? », which the orchestrator
-  can prepare (the list of what goes along); B can come later without changing the flow.
+**DECIDED 1 — His gesture to deploy staging and prod: A, and scripts any session calls.** His words: « A et des
+scripts à lancer au besoin que l'orchestrateur ou tout autre agent peut également appelé. » He says it to the
+orchestrator (« passe en staging », « mets en prod »); the promotion — and every step of the flow that is run by hand
+(the promotions, the release tag, a hotfix's merge-back) — is a plain script in `scripts/` that ANY session runs, the
+orchestrator or any agent, with no skill, no workflow and no state of its own. `docs/reference/method.md` names each
+one with its exact invocation (§ 3.5). No GitHub Actions « Promote » button (reading B) is built.
 
-**OPEN 2 — The release tag's name.**
-- A: `v` + the version the promoted commit carries (`v0.98.160`): the patch numbers jump between two releases (one per
-  PR, not per release). Cost: none.
-- B: a release number of its own (a minor bump per prod release, `v0.99.0`), which needs a commit bumping the minor on
-  `develop` before the promotion chain. Cost: a release commit that travels `develop → main → staging → prod` before
-  each prod deploy.
-- Recommendation: **A** — the tag names exactly what `/api/version` already shows; a promotion stays a pure
-  fast-forward.
+**DECIDED 2 — The release tag's name: A.** `v` + the `__version__` the promoted commit carries (`v0.98.160`); the patch
+numbers jump between two releases. A promotion stays a pure fast-forward, and the tag names exactly what
+`/api/version`'s commit carries.
 
-**OPEN 3 — Until the preprod exists (K0, Q4), does a prod deploy still wait for him?**
-- A: yes, from the cut-over: `prod` moves only on his word, after he has looked at `tm-staging` — which until K0 is
-  today's read-only web on prod's data. Cost: a backend fix merged into `develop` reaches production only when he
-  says so; an urgent one goes as a hotfix.
-- B: until K0 delivers the preprod, the orchestrator promotes `main → staging → prod` itself when a lot is validated,
-  as today's « merge = deploy »; his voluntary gates start with the preprod. Cost: it suspends his ruling for the
-  interval.
-- Recommendation: **A** — it is his ruling as written, and before the switchover few lots touch what prod serves.
+**DECIDED 3 — When a prod deploy waits for him: A, from the cut-over.** His words: « A, pour l'instant les "mise en
+prod" ne touche pas la prod (tm.iznogoudatall.xyz) donc on peut y aller, quand on fera la bascule à ce moment on
+attendra mon mot pour les mises en prod et staging, mais à ce moment tm design ne sera plus servi par main et pourra
+continué d'évolué en toute autonomie ». Read: « la bascule » is this lot's cut-over (§ 4), the moment tm-design stops
+being served by `main`. Until it, today's flow continues — a merge into `main` deploys prod, which today touches
+nothing he reads on tm.; from it, `staging` and `prod` move on his word only, and tm-design follows `develop` and
+evolves on its own, with no gate of his.
 
-**OPEN 4 — Today's `staging` branch (`67ea6509b`, 2026-08-14, 99 commits not on `main`).**
-- A: archived as the tag `archive/staging-2026-08-14`, then moved to `main`'s tip at the cut-over. Cost: the tag stays
-  on origin.
-- B: discarded with no archive. Cost: the August playground's commits are gone (they are a `feat/shell-mobile` merge,
-  shipped since through `main`).
-- Recommendation: **A** — one tag keeps the cut-over reversible (§ 4 rollback).
+**DECIDED 4 — Today's `staging` branch: A.** Archived as the tag `archive/staging-2026-08-14`, then moved to the
+cut-over commit (§ 4 step 3). The tag keeps the cut-over reversible (§ 4 rollback).
 
-**OPEN 5 — The hotfix path: straight to prod, or through staging?**
-- A: a hotfix PR merges into `prod` and deploys at once; staging receives it later with the normal flow. Cost: a
-  hotfix is not tried on the preprod first.
-- B: the hotfix goes to `staging` first, then `prod`. Cost: `staging` then carries a commit that is not on `main`,
-  which breaks the fast-forward chain until the backport; two promotions for one urgent fix.
-- Recommendation: **A** — « hotfix/ from prod » in his ruling reads as urgency; CI still runs on its PR.
+**DECIDED 5 — The hotfix path: A, straight to prod.** A `hotfix/<c>` PR merges into `prod` and deploys at once, with
+CI on its PR; it is backported to `develop` (§ 3.7), and `main` and `staging` receive it with the next promotions. It
+is not tried on the preprod first.
 
 ## 6. Phases
 
@@ -365,11 +364,11 @@ bumps the patch. Each phase's gate: `make lint`; pytest of the touched modules.
 | # | Phase | Files | Done when | The command that proves it |
 | --- | --- | --- | --- | --- |
 | 1 | CI and the version check follow the new bases | `.github/workflows/ci.yml`, `harness-full.yml` (`[main, develop, prod]`), `Makefile` (`--base origin/develop`), `scripts/check_version_bump.py` (default, docstring), `tests/scripts/test_check_version_bump.py` (four-component cases) | the triggers name the three bases; the bump check passes `0.98.131 → 0.98.131.1 → 0.98.132` and refuses the reverse | `grep -n "branches:" .github/workflows/*.yml`; `pytest tests/scripts/test_check_version_bump.py tests/scripts/test_ci_skips_draft_pull_requests.py` |
-| 2 | `scripts/promote.sh` | `scripts/promote.sh`, `tests/scripts/test_promote.py` | the four refusals and the three promotions and the tag are tested against a bare remote in `tmp_path`; `--dry-run` pushes nothing | `pytest tests/scripts/test_promote.py` |
+| 2 | `scripts/promote.sh` | `scripts/promote.sh`, `tests/scripts/test_promote.py` | the four refusals, the three promotions, the tag and the backport are tested against a bare remote in `tmp_path`; `--dry-run` pushes nothing | `pytest tests/scripts/test_promote.py` |
 | 3 | The poller and the deploy scripts follow `prod` and `staging` | `scripts/autodeploy-poll.sh`, `scripts/deploy.sh`, `scripts/deploy-staging.sh`, `ecosystem.config.js` (comments), `tests/scripts/test_autodeploy_branches.py`, `tests/indexer/test_ecosystem.py` if a pinned string moves | prod follows `prod` only; staging follows fast-forwards and refuses a diverged history; `deploy.sh` refuses `main`; `deploy-staging.sh` refuses any branch but `staging` | `pytest tests/scripts/test_autodeploy_branches.py tests/scripts/test_autodeploy_design_restart.py tests/indexer/test_ecosystem.py` |
 | 4 | The words: method, CLAUDE.md, runbook, rulesets as files | `CLAUDE.md`, `docs/reference/method.md`, `docs/production/web-ui.md` § Deploy Runbook, `docs/features/git-flow/rulesets/{develop,prod,staging,main}.json` | no text in the repository names `main` as a PR base or as the deployed branch | `rg -n "origin/main\|tracks .main.\|--base main" -g '*.md' -g '*.sh' -g '*.yml' -g 'Makefile' .` returns only history and this DESIGN; `python3 scripts/check-no-french.py`; `make lint` |
 | 5 | The cut-over (live, his sign-off, the orchestrator executes) | none in the repository; `review-archive/tm-design-lot.txt`, the two clones, origin's branches, the rulesets, PM2 | § 4 steps 1–9 done; prod and staging serve `S`; tm-design serves `develop` + the lot | `git ls-remote origin develop main staging prod` (four × `S`); `gh api repos/IznoCorp/torrent-mate/rulesets --jq '.[].name'`; `pm2 logs torrentmate-autodeploy --lines 5 --nostream`; the prod and staging `/api/version` (`S`, `staging @ S`); `tail -2 ~/Library/Logs/tm-design-follow.log` |
 | 6 | The flow proven end to end | `.github/workflows/ci.yml`, `harness-full.yml` (drop `main`) — carried by the first ordinary PR into `develop` | a PR into `develop` runs CI and auto-merges; tm-design serves it; `scripts/promote.sh main` moves `main` to it; the poller logs no deploy (only `staging`/`prod` deploy) | `gh pr checks <n>`; `scripts/promote.sh main --dry-run` then without; `git rev-parse origin/main origin/develop` equal; `pm2 logs torrentmate-autodeploy --lines 5 --nostream` |
 
-The first `staging` and `prod` promotions after the cut-over are his (OPEN 1, OPEN 3); they are not a phase of this
-lot.
+The first `staging` and `prod` promotions after the cut-over are on his word (DECIDED 1, DECIDED 3); they are not a
+phase of this lot.
