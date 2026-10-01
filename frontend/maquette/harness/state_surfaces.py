@@ -23,6 +23,12 @@ WHAT IT DOES NOT READ, said before what it does:
     that no reader has to judge it.
   - It does not read the LOADING surfaces. Their placeholders carry no text and
     no control; the oracle measures them, and now it measures them non-blank.
+  - It reads the loading surfaces in ONE respect: LEAVING them (B-320). A tab
+    that returns its placeholder before calling the hooks its loaded body calls
+    renders more hooks on the next pass, and React logs #310 — and #300 the
+    other way — on the CONSOLE, where `pageerror` never hears it, while the
+    surface still draws. So each non-ready state is followed by its tab's
+    loaded state, and the console is read for React's own errors.
   - It does not read whether a retry re-asks anything REAL. No surface is wired
     to the query cache yet — that is L09's later phases, and asserting it now
     would be a rule certifying the fixture.
@@ -54,6 +60,19 @@ ERROR_STATES = {
     "lib-error": "votre médiathèque",              # french-ok: the app's rendered output
     "system-error": None,
 }
+
+# Each tab's non-ready states, and the loaded state of the same tab: the pass
+# from one to the other is where a hook called after an early return changes
+# the hook count (B-320). Read off the named-state table, like the list above.
+NON_READY_TO_READY = (
+    ("acq-now-loading", "acq-now-loaded"),
+    ("acq-now-error", "acq-now-loaded"),
+    ("acq-todo-loading", "acq-todo-loaded"),
+    ("acq-todo-error", "acq-todo-loaded"),
+    ("lib-loading", "lib-list"),
+    ("lib-error", "lib-list"),
+)
+REACT_ERROR = "Minified React error"
 
 # What every one of them says, whatever its subject. Extracted from the engine
 # into `i18n/fr.json`; quoted here because it is the app's rendered output, and
@@ -154,6 +173,20 @@ async def hold(journal):
         }""")
         journal.check("discover-degraded's TMDB notice is the warning notice, and no alert",
                       bool(notice) and notice["warning"] and not notice["alert"], f"{notice}")
+
+        # LEAVING A NON-READY STATE re-renders the tab with its loaded body,
+        # and React says a changed hook count on the console only (B-320).
+        logged: list[str] = []
+        page.on("console", lambda message: logged.append(message.text)
+                if message.type == "error" and REACT_ERROR in message.text else None)
+        for waiting, loaded in NON_READY_TO_READY:
+            logged.clear()
+            await page.evaluate("(id)=>window.__go(id)", waiting)
+            await page.wait_for_timeout(400)
+            await page.evaluate("(id)=>window.__go(id)", loaded)
+            await page.wait_for_timeout(400)
+            journal.check(f"{waiting} → {loaded}: React logs no error on the way (B-320)",
+                          not logged, "; ".join(sorted({one[:40] for one in logged})) or "none")
 
         # No React error anywhere in the walk. B-108 was 22 of them over 83
         # states, and nothing read them.

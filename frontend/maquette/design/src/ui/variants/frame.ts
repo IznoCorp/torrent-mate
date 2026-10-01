@@ -212,9 +212,12 @@ export const messageHost = cva(
       // `app/layer-presence.ts` measures and publishes. The bar holds the
       // screen's « Retour », and a message over it made the way out a control
       // that did nothing. Same width, same type, same rank; only the edge it is
-      // measured from changes.
+      // measured from changes. AND ABOVE THE SAVE BAR while it shows: its height
+      // is published beside the tab bar's (`app/bar-height.ts`), zero when it is
+      // not drawn, and a message measured from the tab bar alone lay over
+      // « Enregistrer » — the tap did nothing for its five seconds (B-317).
       edge: {
-        bottom: "bottom-[calc(var(--tm-bottom-bar-h,0px)+16px)]",
+        bottom: "bottom-[calc(var(--tm-bottom-bar-h,0px)+var(--tm-save-bar-h,0px)+16px)]",
         top: "top-[calc(max(env(safe-area-inset-top),var(--tm-screen-bar-bottom,0px))+16px)]",
       },
       shown: {

@@ -94,6 +94,12 @@ TWO QUESTIONS, READ SEPARATELY, because each half can be broken alone:
        With the clock running through the crossing, a message that changed edge
        at 4 419 ms came back with 181 ms left — whole for about twenty
        milliseconds, a flash of a sentence the reader had just watched go.
+   13. WITH THE SAVE BAR UP and no layer open, the message meets none of the
+       bar's buttons, and « Enregistrer » is what a finger at its centre lands
+       on (B-317). The message's bottom box cleared the tab bar and nothing
+       else, so on Réglages with an edit waiting, the sentence a verb chose —
+       « Modification annulée », after cancelling one edit of two — lay over
+       « Enregistrer » for its five seconds, and the tap did nothing.
 
 WHAT IT DOES NOT READ: whether the message covers something it should not on a
 bare screen — R101 holds the message against the tab bar.
@@ -220,6 +226,18 @@ SHEET_CONTROLS = "#sheetin button"
 CONFIRMATION_BUTTONS = '#dlg [data-part="dialog/button"]'
 BARE_STATE = "lib-list"
 SELECTION_STATE = "lib-selection"
+# One edit waiting on Réglages' root, no layer open: the frame's save bar drawn.
+SAVE_BAR_STATE = "settings-save-bar-frame"
+SAVE_BAR_BUTTONS = "#savebar button"
+# « Enregistrer », at its centre, with nothing lifted: no layer is open, so
+# nothing is `inert` and the hit test answers what a finger meets.
+SAVE_UNDER = """()=>{
+  const save = document.querySelector('#savebar [data-save]');
+  if (!save) return {save: false};
+  const box = save.getBoundingClientRect();
+  const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+  return {save: true, reachable: !!hit && (hit === save || save.contains(hit)),
+          hit: hit ? hit.tagName + (hit.id ? '#' + hit.id : '') : null};}"""
 
 # The exit is a fade and a visibility step after it; a box read before both have
 # run is still the leaving message, not the host at rest.
@@ -595,6 +613,18 @@ async def main():
                       over_dialog["shown"] and over_dialog["controls"] > 0 and not over_dialog["met"],
                       str(over_dialog))
         await page.evaluate("()=>window.__dialog.close()")
+
+        # 13. With the save bar up, the message leaves « Enregistrer » free.
+        await show_over(page, SAVE_BAR_STATE, SETTLED * 2)
+        over_save_bar = await page.evaluate(MEETS, SAVE_BAR_BUTTONS)
+        journal.check("with the save bar up, the message meets none of its buttons (B-317)",
+                      over_save_bar["shown"] and over_save_bar["controls"] > 0
+                      and not over_save_bar["met"], str(over_save_bar))
+        under_save = await page.evaluate(SAVE_UNDER)
+        journal.check("and « Enregistrer » is what a finger at its centre lands on — nothing lifted",
+                      under_save.get("reachable") is True, str(under_save))
+        await page.evaluate(HIDE)
+        await page.wait_for_timeout(EXITED)
 
         # 10. On every kind of screen, « Retour » takes a finger with a message up.
         for kind, state in SCREEN_STATES.items():

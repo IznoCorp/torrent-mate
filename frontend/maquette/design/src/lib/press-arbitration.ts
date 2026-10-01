@@ -69,8 +69,14 @@ const PRESSING_ATTRIBUTE = "data-pressing";
 /** How long the finger must stay down before a press is a press. */
 const PRESS_MILLISECONDS = 480;
 
-/** How far the finger may drift and still be pressing rather than scrolling. */
-const PRESS_TOLERANCE_PIXELS = 12;
+/**
+ * How far the finger may drift and still be pressing rather than scrolling.
+ *
+ * Exported because it is a fact about a THUMB, not about a press: the swipe
+ * reads it too, so a tap drifting this little is never taken for a drag of its
+ * row (B-337).
+ */
+export const PRESS_TOLERANCE_PIXELS = 12;
 
 /** A point in client coordinates — where a finger landed or a click arrived. */
 type Point = { readonly x: number; readonly y: number };
