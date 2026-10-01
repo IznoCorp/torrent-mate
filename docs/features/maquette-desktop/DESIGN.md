@@ -4,7 +4,7 @@ Contract: `docs/reference/frontend-architecture.md` § 4, entry `#### Desktop ad
 not a lot`, whose whole body is the operator's sentence of 2026-09-29 (L24's OPEN 6), verbatim: « A dans un premier
 temps, mais prévoir une phase final d'adaptation des écrans pour une utilisation plus agréable sur desktop. On en
 décidera des contours en temps et en heure quand la maquette sera prête ». The maquette is ready (every drawn lot
-merged, `main` at `27b304157`). **This document prepared his decision; § 3 now records it (DECIDED 1–7, 2026-10-01).** It measures what the
+merged, `main` at `27b304157`). **This document prepared his decision; § 3 now records it (DECIDED 1–8, 2026-10-01).** It measures what the
 maquette does on a desktop today (§ 1), lists what an adaptation can mean in his own principles' terms with the
 cost of each (§ 2), asks the open questions in the shape `/orchestrator:decide` presents (§ 3), and cuts a first
 order of phases for after his rulings (§ 4).
@@ -139,7 +139,7 @@ sheet's hero (an image upscaled to 1 280) is a backend image-size limitation —
 
 ---
 
-## 3. The rulings — DECIDED 1…7 (2026-10-01)
+## 3. The rulings — DECIDED 1…8 (2026-10-01)
 
 The operator ruled the seven questions on 2026-10-01, through the orchestrator's decision round (the questions as
 they were put to him: this file at `287b5438d`, § 3). Each ruling is non-reopenable; each has its dated line in
@@ -174,6 +174,12 @@ or only on a key.
 
 **DECIDED 7 — Where do « + » and the selection bar go on a desktop? = B.** Both are bounded to the column: the « + »
 at the column's bottom-right, the selection bar spanning the column only.
+
+**DECIDED 8 — What does a right click do on a desktop? = A** (his second round of 2026-10-01, q8). « sur
+ordinateur, un clic droit sur un élément qui a un panneau (carte, affiche, tuile) ouvre ce panneau, le même que
+l'appui long (qui reste) ; le menu natif reste refusé là, les champs de texte gardent le leur ». A mouse's right
+click opens the panel a long press opens (`lib/press-arbitration.ts`), a card's body included; the long press
+stays; a finger's `contextmenu` opens nothing more; a text field keeps the browser's menu. Held by R488.
 
 ## 4. A first cut of phases — after his rulings
 

@@ -242,6 +242,7 @@ d'audit en cours.
 - 10-01 · bureau Q3 = C, sa précision (« latérale droit du coup le panneau sur desktop (pas gauche côté menu) ») : sur bureau le panneau s'ouvre en feuille latérale à DROITE, à l'opposé du menu, ≈ 440 px, pleine hauteur ; on la ferme en la tirant à l'horizontale ; Échap et le voile inchangés.
 - 10-01 · bureau Q5 = B : les colonnes d'une galerie suivent la largeur de la vignette (7 vers 1 100 px, 8 vers 1 300) ; la carte du deck garde une affiche 2:3, centrée.
 - 10-01 · bureau Q7 = B : le « + » et la barre de sélection sont bornés à la colonne.
+- 10-01 · bureau ronde 2 q8 = A : « sur ordinateur, un clic droit sur un élément qui a un panneau (carte, affiche, tuile) ouvre ce panneau, le même que l'appui long (qui reste) ; le menu natif reste refusé là, les champs de texte gardent le leur ».
 
 ### Documents et carte d'intention
 

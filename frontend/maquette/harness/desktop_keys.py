@@ -14,7 +14,11 @@ WHAT IS READ, out of the harness's phone frame, with a keyboard and a mouse, at 
   3. Enter opens the focused card, Escape closes what it opened and gives the focus back to the card;
   4. under an open panel no arrow reaches the page behind it;
   5. a card, a tile, a topic, a setting, a fact row and a tracker answer the pointer with a ground, and
-     the pointer reveals no control the row did not already show.
+     the pointer reveals no control the row did not already show;
+  6. a right click on what has a panel — a card (its body too, which a tap opens), a tile, a torrent —
+     opens that panel, the browser's menu refused there, and a text field keeps its own menu and opens
+     nothing (DECIDED 8 = A, 2026-10-01: « sur ordinateur, un clic droit sur un élément qui a un panneau
+     (carte, affiche, tuile) ouvre ce panneau, le même que l'appui long (qui reste) »).
 
 And at 390, with a finger: no ground under a tap — hover is behind `@media (hover: hover)`.
 """
@@ -140,6 +144,60 @@ async def grounds(journal, page, width):
                       hovered["controls"] == still["controls"], f"{still['controls']} → {hovered['controls']}")
 
 
+# What a right click lands on, and the panel it must open. A card's BODY is the case the long press
+# refuses to arm on (a tap opens it already); a right click has no tap after it, so it opens there too.
+SECONDARY = (
+    ("acq-now-loaded", '#view [data-part="card/body"]'),
+    ("lib-grid", '#view [data-part="tile"]'),
+    ("trackers-page", '#view [data-part="torrents/row"] [data-panel]'),
+)
+
+# Whether the last `contextmenu` was refused, read where it ends: the window, after the document's own
+# listener has answered it.
+MENU_WATCH = """() => { window.__menuRefused = null;
+  window.addEventListener('contextmenu', (e) => { window.__menuRefused = e.defaultPrevented; }); }"""
+
+POINT = """(selector) => {
+  const e = [...document.querySelectorAll(selector)].find((x) => x.getBoundingClientRect().width > 0 && x.getBoundingClientRect().top > 60);
+  if (!e) return null;
+  e.scrollIntoView({block: 'center'});
+  const r = e.getBoundingClientRect();
+  return {x: r.left + r.width / 2, y: r.top + Math.min(r.height / 2, 30)};
+}"""
+
+SHEET_OPEN = "() => !!document.querySelector('#sheet[data-open]')"
+
+
+async def secondary(journal, page, width):
+    """A right click opens the panel of what it lands on; a text field keeps its menu."""
+    await page.evaluate(MENU_WATCH)
+    for state, selector in SECONDARY:
+        await read_at(page, state, BLUR)
+        await page.keyboard.press("Escape")
+        await page.wait_for_timeout(PANEL_IN)
+        point = await page.evaluate(POINT, selector)
+        if point is None:
+            journal.check(f"{width} {state}: {selector} drawn", False, "none found")
+            continue
+        await page.mouse.click(point["x"], point["y"], button="right")
+        await page.wait_for_timeout(PANEL_IN)
+        opened = await page.evaluate(SHEET_OPEN)
+        refused = await page.evaluate("() => window.__menuRefused")
+        journal.check(f"{width} {state}: a right click on {selector} opens its panel, the browser's menu refused",
+                      opened and refused is True, f"panel {opened}, menu refused {refused}")
+        await page.keyboard.press("Escape")
+        await page.wait_for_timeout(PANEL_IN)
+    await read_at(page, "lib-grid", BLUR)
+    point = await page.evaluate(POINT, "#libq")
+    await page.mouse.click(point["x"], point["y"], button="right")
+    await page.wait_for_timeout(PANEL_IN)
+    opened = await page.evaluate(SHEET_OPEN)
+    refused = await page.evaluate("() => window.__menuRefused")
+    await page.keyboard.press("Escape")
+    journal.check(f"{width} lib-grid: a right click in the search opens nothing and keeps the field's menu",
+                  not opened and refused is False, f"panel {opened}, menu refused {refused}")
+
+
 async def main():
     journal = Journal("R488 — Keys and hover on a desktop: `/`, ↑/↓, Enter, Escape, and a ground under the pointer")
     errors = []
@@ -153,6 +211,7 @@ async def main():
             page.on("pageerror", lambda error: errors.append(str(error)))
             await keys(journal, page, width)
             await grounds(journal, page, width)
+            await secondary(journal, page, width)
             await context.close()
 
         context, page = await open_page(browser)
