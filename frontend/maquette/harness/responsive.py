@@ -261,9 +261,11 @@ def context_for(width, scheme="dark"):
 LAYER_CEILING_MS = 1500
 LAYERS_AT_REST = """(ceiling)=>new Promise((done)=>{
   const start = performance.now();
-  const sliding = () => document.getAnimations().some((one) => one.playState === 'running'
-    && one.effect?.target?.closest?.('#sheet, #dlg, #drawer, [data-part="screen"]')
-    && one.effect.getComputedTiming().endTime !== Infinity);
+  // A view transition still active is a layer still arriving, animated or not yet.
+  const sliding = () => document.documentElement.matches(':active-view-transition')
+    || document.getAnimations().some((one) => one.playState === 'running'
+      && one.effect?.target?.closest?.('#sheet, #dlg, #drawer, [data-part="screen"]')
+      && one.effect.getComputedTiming().endTime !== Infinity);
   const look = () => (!sliding() || performance.now() - start > ceiling) ? done() : setTimeout(look, 16);
   setTimeout(look, 16);
 })"""

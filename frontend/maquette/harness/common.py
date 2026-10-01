@@ -501,13 +501,16 @@ ACTED = 700         # an action tapped: the mutation, the refetch, the redraw
 # and returns once none is left, whatever the stylesheet draws them at. It
 # starts after one frame, so a transition the call just caused is running by
 # then, and it gives up at `SETTLE_CEILING_MS`, its answer saying how long it
-# waited.
+# waited. A view transition still active counts as moving: before it has
+# committed the new page it runs no animation, and `getAnimations()` alone
+# answers « still » over a page about to be replaced.
 SETTLE_CEILING_MS = 5000
 SETTLE = """(ceiling)=>new Promise((done)=>{
   const start = performance.now();
-  const moving = () => document.getAnimations().some((one) =>
-    one.playState === 'running' && one.effect
-    && one.effect.getComputedTiming().endTime !== Infinity);
+  const moving = () => document.documentElement.matches(':active-view-transition')
+    || document.getAnimations().some((one) =>
+      one.playState === 'running' && one.effect
+      && one.effect.getComputedTiming().endTime !== Infinity);
   const look = () => {
     const waited = performance.now() - start;
     if ((waited > 20 && !moving()) || waited > ceiling) return done(waited);

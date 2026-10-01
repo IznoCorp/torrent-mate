@@ -231,5 +231,11 @@ OUTSIDE = """(argument)=>{
   return !document.querySelector(device)
             .contains(document.querySelector(switchSelector));
 }"""
-NOTHING_IS_MOVING = """()=>document.getAnimations()
-  .every((one)=>one.playState !== 'running')"""
+# NOR A VIEW TRANSITION STILL TO START. `startViewTransition` captures the old
+# page at the next rendering update and starts its animations only once the
+# new one has committed: asked in between, `getAnimations()` holds nothing and
+# answers « still ». On a slow runner that gap outran `SETTLE_FLOOR` and the
+# way back read `HTML` under `mediasheet-no-poster` (PR #677's second run) —
+# the transition's own hit test, not a coverer.
+NOTHING_IS_MOVING = """()=>!document.documentElement.matches(':active-view-transition')
+  && document.getAnimations().every((one)=>one.playState !== 'running')"""
