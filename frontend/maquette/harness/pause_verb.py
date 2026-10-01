@@ -30,6 +30,14 @@ WHAT IT READS, and each fails differently:
      state must have moved. If it takes two, this hold falls and the reading
      says which listener consumed the first.
   5. NO ERROR IS RAISED.
+  6. AND WITH A THUMB'S DRIFT (B-337, 2026-10-01). A finger is never still: the
+     tap of 4 lifts with no movement, and stayed green over the defect. The
+     same tap drifting 8 px — under the ±10 px a real thumb drifts, measured by
+     `lib/press-arbitration.ts` — was read by the swipe as a DRAG of the open
+     row: past the 6 px dead zone it committed to the side axis, past 4 px it
+     armed the drag's click-swallow, and the click the tap made was eaten. Held
+     on the revealed action and on a CLOSED card, whose tap opens its sheet and
+     was eaten the same way.
 
 WHAT IT DOES NOT SETTLE, said here because the register asks for it: WHICH
 listener eats a swallowed first click. The hold reports that it was eaten and
@@ -84,6 +92,27 @@ THE_PAUSE = """()=>{
           reachable: !!hit && (hit === act || act.contains(hit))};}"""
 
 
+# A follow's ROW by its title — the card's centre, where a finger lands on it.
+ROW_OF = """(title)=>{
+  const cards = [...document.querySelectorAll('[data-part="swipe"]')];
+  const one = cards.find((card) => (card.textContent || '').includes(title));
+  if (!one) return {found: false};
+  const box = one.querySelector('[data-part="card"]').getBoundingClientRect();
+  return {found: true, x: box.left + box.width / 2, y: box.top + box.height / 2};}"""
+
+# The revealed pause in that row — where a finger lands on it, if one reaches it.
+PAUSE_OF = """(title)=>{
+  const row = [...document.querySelectorAll('[data-part="swipe"]')]
+    .find((card) => (card.textContent || '').includes(title));
+  const act = row && row.querySelector('[data-part="swipe/action"][data-pause]');
+  if (!act) return null;
+  const box = act.getBoundingClientRect();
+  const x = box.left + box.width / 2;
+  const y = box.top + box.height / 2;
+  const hit = document.elementFromPoint(x, y);
+  return hit && (hit === act || act.contains(hit)) ? {x, y} : null;}"""
+
+
 async def finger_swipe(page, start, end, dwell=120):
     """Drags one finger across the screen, through the browser's input pipeline.
 
@@ -120,11 +149,29 @@ async def finger_swipe(page, start, end, dwell=120):
     await session.detach()
 
 
-async def finger_tap(page, point, dwell=60):
-    """Puts one finger down and lifts it, with a dwell and no movement."""
+# A THUMB'S DRIFT DURING A TAP: two moves, ending 8 px aside — inside the
+# ±10 px a real thumb drifts, which `lib/press-arbitration.ts` measured.
+THUMB_DRIFT = ((5, 3), (8, 0))
+
+
+async def finger_tap(page, point, dwell=60, drift=()):
+    """Puts one finger down and lifts it, with a dwell.
+
+    Args:
+        page: The page.
+        point: The (x, y) the finger goes down at.
+        dwell: How long it rests before lifting, in milliseconds.
+        drift: The (dx, dy) offsets it moves through while down — none for a
+            still finger, `THUMB_DRIFT` for a real one.
+    """
     session = await page.context.new_cdp_session(page)
     await session.send("Input.dispatchTouchEvent", {
         "type": "touchStart", "touchPoints": [{"x": point[0], "y": point[1]}]})
+    for dx, dy in drift:
+        await session.send("Input.dispatchTouchEvent", {
+            "type": "touchMove",
+            "touchPoints": [{"x": point[0] + dx, "y": point[1] + dy}]})
+        await page.wait_for_timeout(16)
     await page.wait_for_timeout(dwell)
     await session.send("Input.dispatchTouchEvent",
                        {"type": "touchEnd", "touchPoints": []})
@@ -300,6 +347,40 @@ async def main():
                 "a pending follow's « Chercher » says the search and the row comes back to rest",
                 f"{search['label']} — {pending_row['title']}" in after["said"] and after["rest"],
                 f"{search['label']} / {pending_row['title']}: {after}")
+
+        # ── B-337 AGAIN, WITH A THUMB'S DRIFT ─────────────────────────────
+        await page.evaluate("(id)=>window.__go(id)", FOLLOWS_STATE)
+        await page.wait_for_timeout(SETTLED)
+        drifting_before = await page.evaluate(FOLLOWS)
+        drifting_row = await page.evaluate(ROW_OF, drifting_before[0]["t"])
+        drifted = None
+        if drifting_row.get("found"):
+            await finger_swipe(page, (drifting_row["x"] + 100, drifting_row["y"]),
+                               (drifting_row["x"] - 60, drifting_row["y"]))
+            await page.wait_for_timeout(SETTLED)
+            action = await page.evaluate(PAUSE_OF, drifting_before[0]["t"])
+            if action:
+                await finger_tap(page, (action["x"], action["y"]), drift=THUMB_DRIFT)
+                await page.wait_for_timeout(ACTED)
+                drifted = next((one for one in await page.evaluate(FOLLOWS)
+                                if one["t"] == drifting_before[0]["t"]), None)
+        journal.check(
+            "ONE tap drifting like a thumb on the revealed action acts (B-337)",
+            drifted is not None and drifted["st"] != drifting_before[0]["st"],
+            f"{drifting_before[0]['st']} → {drifted['st'] if drifted else None}, "
+            f"row {drifting_row.get('found')}")
+
+        await page.evaluate("(id)=>window.__go(id)", FOLLOWS_STATE)
+        await page.wait_for_timeout(SETTLED)
+        closed = await page.evaluate(ROW_OF, drifting_before[0]["t"])
+        if closed.get("found"):
+            await finger_tap(page, (closed["x"], closed["y"]), drift=THUMB_DRIFT)
+            await page.wait_for_timeout(PANEL_IN)
+        opened = await page.evaluate(
+            "()=>document.querySelector('#sheet')?.hasAttribute('data-open') === true")
+        journal.check(
+            "and ONE tap drifting like a thumb on a closed card opens its sheet (B-337)",
+            closed.get("found") and opened, f"row {closed.get('found')}, sheet open {opened}")
 
         journal.check("and the whole gesture raises no error", not errors, str(errors))
 

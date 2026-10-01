@@ -93,7 +93,10 @@ export function AddScreen() {
   // IMDB identifier is « tt » and digits, a TMDB or TVDB one digits only.
   const [typedId, setTypedId] = useState("");
   const idRefused = typedId.trim() !== "" && !(idProv === "IMDB" ? /^tt\d+$/ : /^\d+$/).test(typedId.trim());
-  const recents = (state.recents as string[]) ?? [];
+  // `recent`, the store's own key (`app/arrival.ts`): read as `recents` after
+  // the English rename, it was always absent, and the empty screen lost the
+  // searches its note says sit above it (B-314).
+  const recents = (state.recent as string[]) ?? [];
   const resolveTarget = state.resolveTarget as string | null;
 
   const { icons } = useEngineDrawing();

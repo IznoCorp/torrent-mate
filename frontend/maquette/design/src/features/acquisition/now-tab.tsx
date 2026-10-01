@@ -20,54 +20,87 @@ import { Markup, emptyNoteMarkup, sectionInnerMarkup } from "../../ui/markup";
 export function NowTab(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
+  // EVERY HOOK BEFORE THE PLACEHOLDER'S RETURN. Called after it, the loaded body
+  // rendered two hooks more than the pass before, and React logged #310 on the
+  // console each time a non-ready state gave way to a loaded one (B-320).
+  //
+  // WHICH WORLD. The prototype carries two and the harness switches between
+  // them; the key carries it, so a surface never reads the other one's cards.
+  const scenario = state.scen === "loaded" ? "loaded" : "";
+  const { data: queue } = useAcquisitionQueue(scenario);
+  const { data: follows } = useFollows();
   // THE ACTS ARE THE ACCOUNT'S (§ 17): a card it may only read draws no foot.
   const rights = useRights();
 
   if (state.phase !== "ready") {
     return (
-      <div className={body()} data-part="surface/body" data-region="acquisition/body">
+      <div
+        className={body()}
+        data-part="surface/body"
+        data-region="acquisition/body"
+      >
         {state.phase === "error" ? (
           <SurfaceError subject={t("screens.acquisition.errorNow")} />
         ) : (
-          <div className={sectionClass()} data-part="section"><Skeletons count={4} shape="card" /></div>
+          <div className={sectionClass()} data-part="section">
+            <Skeletons count={4} shape="card" />
+          </div>
         )}
       </div>
     );
   }
 
-  // WHICH WORLD. The prototype carries two and the harness switches between
-  // them; the key carries it, so a surface never reads the other one's cards.
-  const scenario = state.scen === "loaded" ? "loaded" : "";
-  const { data: queue } = useAcquisitionQueue(scenario);
   // THE ARRIVALS ARE CARDS HERE (ruling 2), on their way; what is blocked is
   // « À traiter »'s, a tab of its own with its count, and is not repeated here.
   const inflight = queue ? inFlightCards(queue) : [];
-  const { data: follows } = useFollows();
 
   return (
-    <div className={body()} data-part="surface/body" data-region="acquisition/body">
+    <div
+      className={body()}
+      data-part="surface/body"
+      data-region="acquisition/body"
+    >
       <div className="note" data-part="note">
         <b>{t("screens.acquisition.nowNoteLead")}</b>
         {t("screens.acquisition.nowNoteRest")}
       </div>
       {inflight.length === 0 ? (
         <Markup
-          className={emptyNote()} data-part="empty-state"
+          className={emptyNote()}
+          data-part="empty-state"
           html={emptyNoteMarkup(t("screens.acquisition.nowEmpty"), "")}
         />
       ) : null}
       {inflight.length > 0 ? (
-        <Markup tag="section"
-          className={sectionClass()} data-part="section"
+        <Markup
+          tag="section"
+          className={sectionClass()}
+          data-part="section"
           html={sectionInnerMarkup(
             "info",
             t("screens.acquisition.inflight"),
             String(inflight.length),
             // « Suivre », PROPOSED on an arrived series nobody follows (ruling 1).
-            inflight.map((card) => mediumCardMarkup(card, offeredFeet(followOffered(card, follows ?? []) ? {
-              label: t("screens.acquisition.followFoot"),
-              attributes: { "data-follow": card.title, "data-follow-ids": JSON.stringify(card.ids) },
-            } : undefined, card, rights))).join(""),
+            inflight
+              .map((card) =>
+                mediumCardMarkup(
+                  card,
+                  offeredFeet(
+                    followOffered(card, follows ?? [])
+                      ? {
+                          label: t("screens.acquisition.followFoot"),
+                          attributes: {
+                            "data-follow": card.title,
+                            "data-follow-ids": JSON.stringify(card.ids),
+                          },
+                        }
+                      : undefined,
+                    card,
+                    rights,
+                  ),
+                ),
+              )
+              .join(""),
           )}
         />
       ) : null}

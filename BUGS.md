@@ -32,7 +32,7 @@
 | B-154 | `staleTime: Infinity` with no focus or reconnect refetch: a missed invalidation never heals. **Owner:** the backend brief, after the freeze. | by design | `open` |
 | B-235 | No desktop navigation exists beyond the drawer. **Owner:** L24 (the orphans; the desktop-adaptation milestone). | by survey | `open` |
 | B-247 | A store bump replaces a feature page's nodes, so a write between press and click destroys the click. **Owner:** the defects fast lane. | by L15 | `open` |
-| B-249 | The screen flashes when a sheet action closes the sheet AND opens a page. **Owner:** the defects fast lane. | 1× | `open` |
+| B-249 | The screen flashes when a sheet action closes the sheet AND opens a page. **Owner:** the defects fast lane. | 1× | `fixed #601` |
 | B-255 | `check-frontend-boundaries.py` is back at 952 lines, 48 from the hard ceiling it was cut away from. **Owner:** the tooling train. | by audit | `open` |
 | B-267 | The real backend answers `{detail}`, which the queue's failure shape does not match — every refusal would be QUEUED at switchover. **Owner:** the backend brief, after the freeze. | by review | `open` |
 | B-268 | R104 lives in the file it measures, and has been defeated twice by exactly that. **Owner:** the tooling train. | by audit | `open` |
@@ -53,11 +53,11 @@
 | B-309 | « Récupérer maintenant » on a medium's own panel THROWS and takes nothing: the release screen's `data-take` branch is checked first, has no guard, and swallows every `data-take` in the document. **Owner:** the defects fast lane. | by L19 | `to confirm` |
 | B-311 | Coming back to a list after a medium's sheet does not restore the scroll position the list was left at. **Owner:** the defects fast lane. | 1× | `open` |
 | B-312 | Changing the library's lens during a selection DROPS it — L14's own decision, RULED against by the operator on 2026-09-05. **Owner:** the defects fast lane. | 2× | `to confirm` |
-| B-314 | The add screen's search shows no example result to try the flow with. **Owner:** the defects fast lane. | 1× | `open` |
-| B-317 | The prototype's greeting toast covers the settings save bar, so a finger there does nothing while it lives. **Owner:** the defects fast lane. | 1× | `open` |
+| B-314 | The add screen's search shows no example result to try the flow with. **Owner:** the defects fast lane. | 1× | `fixed #664` |
+| B-317 | The prototype's greeting toast covers the settings save bar, so a finger there does nothing while it lives. **Owner:** the defects fast lane. | 1× | `fixed #664` |
 | B-318 | The build races its own output on a fresh `dist` again — B-098's shape, in two hooks this time. **Owner:** the tooling train. | 1× | `open` |
 | B-319 | `fanout.py` holds the invalidation map against itself: a key dropped from the declaration is invisible to it. **Owner:** the tooling train. | 1× | `open` |
-| B-320 | React #300 and #310 on the two non-ready acquisition surfaces, from a cold page, on head and on `main` alike. **Owner:** the defects fast lane. | 1× | `open` |
+| B-320 | React #300 and #310 on the two non-ready acquisition surfaces, from a cold page, on head and on `main` alike. **Owner:** the defects fast lane. | 1× | `fixed #664` |
 | B-324 | The BACKEND's own mirror of the PM2 crons names three of the seven the machine runs, and nothing reads it against `pm2 jlist` — B-308's finding on the end that has no guard at all. **Owner:** the backend brief, after the freeze. | by the backend brief | `open` |
 | B-326 | `heavy.sh` offers no way to ask who holds its lock, so the natural probe — `cat` on what is a DIRECTORY — reads « free » whether the lock is held or not, and two sessions reached for it independently on the same night. **Owner:** the tooling train. | by the steward's office | `open` |
 | B-327 | « Réglages » draws SIX scheduled jobs while the machine runs seven, and the same six are named twice in two French vocabularies that disagree on five of them — the row cannot be added until `SETTINGS` leaves the engine. **Owner:** the backend brief, after the freeze. | by L13 | `to confirm` |
@@ -65,9 +65,9 @@
 | B-329 | The backend's GENERATED contract does not declare the `409` its own route raises, so no diff between the two contracts can read it — the demand register is structurally blind to a refusal NE-DOIT-PAS-3 forbids the interface to show. **Owner:** the backend brief, after the freeze. | by the backend brief | `open` |
 | B-330 | `scripts/mutate.sh` answers « no hold fell » when the RULE PATH it was given does not exist — a typo and a rule that does not bite are the same sentence, and the second is a finding while the first is a mistake. **Owner:** the tooling train. | by the instruments' debts block | `open` |
 | B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » — R199 `pull_follows_the_refresh.py`: the CLOSING half is repaired (L13c c·5, the indicator now closes with the refresh's own answer time, 233/532/1716 ms against the control's fixed 1356/1347/1350 ms). **The CENTRING half is unmeasurable here** (reader C13's C6, round one: offset 0 on BOTH builds at every moment on this machine — the mechanism is real, proved by the centring mutation alone (−187 px, drawing the operator's own screenshot), but nothing on this machine separates candidate from control). **Owner:** the conformity train. | 1×; L13c c·5 | `to confirm` |
-| B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed. **Owner:** the defects fast lane. | 1× | `open` |
+| B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed. **Owner:** the defects fast lane. | 1× | `fixed #588` |
 | B-336 | The library's kind chips (« Tout · Films · Séries », with counts) scroll horizontally with a VISIBLE scrollbar on the phone; the strip should hide it as `pillscroll` does. **Owner:** the conformity train. | 1× | `to confirm` |
-| B-337 | A follow card swiped open: the first tap on a revealed action does nothing, the second acts — systematic on the phone. **Owner:** the defects fast lane. | 1× | `open` |
+| B-337 | A follow card swiped open: the first tap on a revealed action does nothing, the second acts — systematic on the phone. **Owner:** the defects fast lane. | 1× | `fixed #664` |
 | B-339 | A DISABLED panel action is drawn exactly like an enabled one — « ✓ Ajouté » on the add screen's panel is `disabled` in the markup and full primary yellow on the screen, so the reader taps a spent act and « nothing happens ». **Owner:** the conformity train. | 1× | `to confirm` |
 | B-340 | The « + » button reopens the add screen with the LAST query and mode still in place — after identifying an arrival, a new search starts on « Marvels Spider-Man 2 v1 526 0 -Mephis… », 0 results, and the « 2 médias ajoutés » strip of the previous visit. **Owner:** the defects fast lane. | 1× | `to confirm` |
 | B-345 | The seeded data does not show every state a surface can take — the operator could not find a single medium « à prendre » to try « Récupérer maintenant » on; his ruling: the test data must always hold enough simulated states to exercise every case by hand. **The LIBRARY half closes as already satisfied, now guarded** (L13c c·8: the seeds already held every state the library draws — 345 loaded rows, a title held twice, a followed title, five incomplete, 20 without a poster; R128 gains eight holds, GREEN from the start, no seed touched — reader C13's C4, round one: nothing here for the operator to walk). Acquisition's share is L21's, settings' is #588's. **The OTHER surfaces' share stays open**, owner: a later lot. **Owner:** the defects fast lane. | 1×; L13c c·8 | `to confirm` |
@@ -76,7 +76,7 @@
 | B-363 | `residue.py` reads a typed variant's base through its string LITERALS, so a factory built from a shared constant reads EMPTY and is reported unreadable — a token scale cannot be written once and shared between two variants while that is true, and the repair that suggests itself (concatenating a literal with the constant) silences the report and leaves the reader comparing one token. **Owner:** the tooling train. | 1× | `open` |
 | B-364 | Two hit-test helpers in `busy.py` press `hit.click()` on whatever `elementFromPoint` returns, and an SVG element has no `click` — so a rule that hit-tests an ICON-ONLY action throws `hit.click is not a function` instead of pressing it, and the same helpers print `hit.className` as the coverer, which on an SVG is an `SVGAnimatedString` and reads `[object SVGAnimatedString]`. **Owner:** the tooling train. | 1× | `open` |
 | B-366 | A follow with NO MEDIA SHEET is drawn at all — a grid tile emits `data-mediasheet` for it, a poster that leads nowhere. RE-RULED by the operator: a follow without a sheet is not a state the product may represent, so the repair is to make it unrepresentable rather than to guard the tile. **Owner:** the defects fast lane. | by audit | `to confirm` |
-| B-367 | The drawer's appearance control applies the theme and does not move its selection: pressing one of the three writes the choice and repaints the document, and `aria-pressed` stays on whatever was drawn when the drawer opened — so the operator reads « Clair » selected over a dark interface. Closing and reopening the drawer draws it correctly. **Owner:** the defects fast lane. | 1× | `open` |
+| B-367 | The drawer's appearance control applies the theme and does not move its selection: pressing one of the three writes the choice and repaints the document, and `aria-pressed` stays on whatever was drawn when the drawer opened — so the operator reads « Clair » selected over a dark interface. Closing and reopening the drawer draws it correctly. **Owner:** the defects fast lane. | 1× | `fixed #655` |
 | B-370 | `harness-hold-counts.py --compare` with no FILE exits 2 on an argparse usage error, which a gate reading exit codes cannot tell from a comparison that found drift — one pass of L21's gate compared nothing while looking like it ran. **Owner:** the tooling train. | 1× | `open` |
 | B-388 | R51 promises « the prototype's own controls never sit on top of the app's » and reads ONE piece of harness chrome by literal — `[data-part="harness/bar"]` — so a second piece is outside it whatever the docstring says; the property now holds by two rules each naming its own subject, and a third would be held by neither. **Owner:** the tooling train. | by audit | `open` |
 | B-389 | The 8899 harness host does not survive the invocation that starts it when that invocation runs under `scripts/heavy.sh` — `set -m` puts the run in its own process group and the release signals the group, so `mutate.sh`, which starts no host, runs its rule against a refused port and B-273 reads the crash as « no hold fell ». **Owner:** the tooling train. | by audit | `open` |
@@ -926,6 +926,15 @@ give, and the entry does not say it.
 
 <sub>reported through the steward, 2026-09-04 · probe on 8899 and on a control of `4c0e274a7` served on 8902 · `git diff --stat origin/main...HEAD -- …/ui/reader-place.ts …/ui/virtual-rows.tsx …/app/scroll-restoration.ts` → empty</sub>
 
+**WALKED A THIRD TIME ON `main` `1e6aa6a69`, AND STILL NOT REPRODUCED** (2026-10-01). A real load, « En cours » tapped,
+a TOUCH scroll gesture (`Input.synthesizeScrollGesture`, not a wheel), a tap on a card, then Back — by
+`history.back()` (what the system gesture calls) and by the screen's own « Retour », with and without « Voir la fiche
+» between: `#port` 219 → 219 on every path, in the dense world tm-design opens on (the real world's « En cours » does
+not scroll). The same on « Suivis » and the library (702 → 702). Nothing landed since 09-04 can be named as the
+repair: #593 (B-490, the late re-apply on a lazy poster) touches the same restoration on the same tab but a different
+symptom, and no build on this machine ever reproduced B-311. The entry stays `open` on the two differences this
+machine cannot close — the installed PWA, and a real device's momentum — and needs the operator's hand on the phone.
+
 **B-312 — changing the lens during a selection drops it.**
 Reported by the operator on 2026-09-04, verbatim: « sur médiathèque, à la sélection de médias,
 quand je change de filtre — je passe de Tout à Films ou Séries — et que je sélectionne un média,
@@ -1009,6 +1018,17 @@ closed on a reading that does not contradict him.
 
 <sub>reported through the steward, 2026-09-05 · probe on 8899 and on a control of `4c0e274a7` served on 8902</sub>
 
+**IT WAS THE RECENT SEARCHES, AND THEY DIED IN A RENAME** (2026-10-01, `main` `1e6aa6a69`). Walked by finger — the
+Acquisition tab, « + » — the empty add screen drew NO chip, under the note « Vos recherches récentes sont au-dessus ».
+The 09-05 walk read the named states, which drew no chip either and so could not tell. **Cause**: #456's English
+rename moved the store's key `recents: ["star wars", "silo", "the bear"]` to `recent` (`app/arrival.ts`), and the add
+screen kept reading `state.recents` — always absent, always `[]`. « Ne montre PLUS » is exactly that: the chips were
+the example one tried the flow with. A scan of every `state.<key>` read against every key written finds no other.
+**Repaired**: the screen reads `state.recent` (`features/acquisition/add-screen.tsx`). **R196**
+(`add_screen_opens_fresh.py`) r1–r2: « + » opens with the store's recent searches as chips, and a finger on one puts
+its words in the field and draws results — RED on the tree before the move (`chips []`, store three; no chip to tap),
+green after (`star wars`, 5 rows).
+
 **B-317 — the greeting toast covers the settings save bar.**
 At the centre of `#savebar [data-save]` — point (327, 758) at 390 px — `elementFromPoint` returns
 a `SPAN` inside `DIV.toast`, on the head AND on a control of `4c0e274a7`. A finger there does
@@ -1024,6 +1044,17 @@ bar without dismissing the toast measures the toast.
 is the page's, and which of them yields is a drawing decision.
 
 <sub>found in round one's walk of PR #558, 2026-09-05 · `elementFromPoint` at the save bar's centre, head and control</sub>
+
+**THE GREETING NO LONGER REACHES IT, AND THE FAMILY STILL DID** (2026-10-01, `main` `1e6aa6a69`). By finger, the
+greeting cannot be up while the bar is: the bar needs an edit, an edit needs a tap, and the first `pointerdown` of a
+session takes the greeting off (`harness/panel.ts`). But the cause was the message's place, not the greeting: its
+bottom box cleared the TAB bar and nothing else. On Réglages with two edits waiting, cancelling one says « Modification
+annulée — rien n'avait été écrit. » — and `elementFromPoint` at « Enregistrer »'s centre returned `DIV.toast` for its
+five seconds. **Repaired**: the bottom edge adds the save bar's published height (`--tm-save-bar-h`, zero while it is
+not drawn — `ui/variants/frame.ts`). **R159** (`message_over_layers.py`) leg 13 drives `settings-save-bar-frame`,
+shows a message, and holds that it meets none of the bar's buttons and that « Enregistrer » takes a finger — RED on
+the tree before the move (`met: ['Enregistrer@732']`, hit `DIV#toast`), green after. Swept over all 266 named states:
+the five that draw the bar (Réglages and Trackers) place the message above it, and none draws the action button.
 
 **B-318 — the build races its own output on a fresh `dist`, again.**
 B-098 was this defect in ONE hook and is recorded `fixed #503`. It is back in two:
@@ -1076,6 +1107,17 @@ one read « zero console errors » honestly — no walk drove those two.
 repaired here: a hook-order defect is a component change, and this lot's contract forbids one.
 
 <sub>found in round two of PR #558, 2026-09-05 · 87 states swept and the two isolated on a fresh page each, head `583247947` and control `2f8503614`, three `#300` per state on both</sub>
+
+**REPRODUCED ON `main` `1e6aa6a69`, AND IT IS TWO TABS** (2026-10-01). From a cold page the two states now log
+nothing; the defect is the PASS out of them. `acq-now-loading` or `acq-now-error`, then `acq-now-loaded`, logs `#310`
+(and `#300` from the error); `acq-todo-loading` / `acq-todo-error` → `acq-todo-loaded` does the same. **Cause**:
+`NowTab` and `TodoTab` return their placeholder BEFORE calling `useAcquisitionQueue`, `useFollows` and `useStaging`, so
+the loaded pass renders more hooks than the one before it. **Repaired**: every hook is called before the return, in
+both tabs (`features/acquisition/now-tab.tsx`, `todo-tab.tsx`); a source scan for a hook after an early return finds
+no third. **R90** (`state_surfaces.py`) now follows each non-ready state of the acquisition tabs and the library with
+its loaded state and reads the CONSOLE for React's errors — `pageerror` never hears them — RED on the tree before the
+move (the four acquisition pairs, `#310`, `#300` from the errors), green after. A walk of all 266 named states in one
+page logs no React error.
 
 **B-324 — the backend's mirror of the PM2 crons names three of the seven, and nothing reads it.**
 `personalscraper/web/schedulers/registry.py`'s `CRON_JOBS` is, by its own header, « a static mirror
@@ -1334,6 +1376,14 @@ resolution by the real path — no card on the design host carried `data-resolve
 
 <sub>steward, 2026-09-06 · `scratchpad/cdp-back-inventory.py` (29 states, `back-inventory.jsonl`) and `cdp-back-real.py` / `cdp-back-real2.py` (`back-real*.jsonl`), raw CDP on the phone's tm-design tab; `window.__go` builds its own stack, so the FIRST pass reads the affordance and where Back lands, and only the SECOND pass reads whether entering pushes</sub>
 
+**FIXED BY #588, and the inventory retaken by finger on `main` `1e6aa6a69`** (2026-10-01). The one FALSE class —
+the rubrics of Réglages and Maintenance (B-332, B-361) — was repaired in #588 and is held by R165 (`topics.py`). Walked
+by taps at 390 px with `history.back()` as the system gesture: every rubric of both pages draws « Retour » and Back
+lands on the page's own list; the add, media, releases, quality and resolution screens push an entry, draw « Retour »
+and Back lands under them (the follow panel reopened beneath its screens); the panels (journey, follow, user,
+Trackers', Découvrir's) close on Back onto their page; the seven drawer pages draw none, as D1b rules, and Back lands
+on `/acquisition`.
+
 **B-336 — the library's kind chips show their scrollbar.**
 Reported by the operator on 2026-09-06, verbatim: « Filtre médiathèque Tout/films/séries il y a un
 scroll horizontal, la barre de scroll est visible elle ne devrait pas l'être ». The strip under the
@@ -1383,6 +1433,23 @@ revealed actions ARE those verbs, and a rule that taps them once is the rule the
 otherwise **L13**, with the engine's swipe.
 
 <sub>operator, 2026-09-06 · `grep -n "clickAfterDrag" frontend/maquette/design/src/engine/legacy.js` · `grep -n "swallowClick" frontend/maquette/design/src/lib/press-arbitration.ts` · to measure: a touch swipe then ONE touch tap on `[data-part="swipe/action"]`, reading which listener consumed the click</sub>
+
+**REPRODUCED, AND IT IS MECHANISM (a) — THE TAP IS READ AS A DRAG** (2026-10-01, `main` `1e6aa6a69`). R132 tapped
+with a STILL finger, and a still finger is the one tap no thumb makes. The same CDP touch drifting through two moves
+to 7.5–8 px aside: the first tap on « Ne plus chercher » did nothing, on every swipe length tried; 0 and 3 px acted.
+**Cause** (`lib/swipe-arbitration.ts`, now that `legacy.js` is gone): the revealed action lies inside the row, so its
+`pointerdown` arms a drag of the open row; the drift passes the 6 px dead zone and commits to the side axis, passes
+the 4 px travel and arms `clickAfterDrag` at the lift — and the tap's own click lands inside its 24 px and is eaten.
+**The family**: a tap with the same drift on a CLOSED card did not open its sheet either. Those are a mouse's numbers;
+`lib/press-arbitration.ts` measured a thumb at ±10 px and tolerates 12. **Repaired**: the axis commits, and the
+release's click is swallowed, only past that tolerance — `PRESS_TOLERANCE_PIXELS`, exported from the press
+arbitration and read by the swipe. The two other horizontal gestures (`commit-swipe.ts`, Découvrir's deck) swallow no
+click: a drift there snaps back and the tap goes through. **R132** (`pause_verb.py`) leg 6 taps with `THUMB_DRIFT`,
+the revealed action once and a closed card once — RED on the tree before the move (`pending → pending`, sheet not
+open), green after; R132's other legs and the swipe's other readers (`drag`, `mouse`, `gestures`, `press`, `touch`,
+`remove_verb`, `follows`, `follow_verb`, `virtual`, `trackers_card`, `trackers_removal`, `pull_on_a_card`, `actions`)
+stay green. **Still the operator's to confirm on the phone**: CDP's touch with drift is the closest this machine
+comes to a thumb, and it is still not one.
 
 **B-339 — a disabled panel action looks enabled.**
 Reported by the operator on 2026-09-06 with a screenshot, verbatim: « Le bouton ajouter ne fait rien
@@ -1704,6 +1771,11 @@ mounted again.
 
 **Owner: the « settings » MICRO-WAVE** (`docs/features/maquette-settings/BRIEF.md@a155b54fb`), with B-332 and
 B-361 — the drawer's own behaviour, not the surface this lot draws. Filed, not repaired.
+
+**FIXED IN #655, and not reproduced on `main` `1e6aa6a69`** (2026-10-01): the same defect filed again as B-580 —
+the drawer now subscribes to the store's version (`app/drawer.tsx`), and R102 (`appearance.py`) holds the pressed
+control after each tap with no reload. By finger at 390 px — the menu tapped, then « dark », « light », « system »,
+« light » — `aria-pressed` followed every press.
 
 <sub>operator, on the design host · a real drawer open, four presses through the control: `{"theme": null, "stored": null, "pressed": ["system=true", "light=false", "dark=false"]}` at rest, then `stored` `light` / `dark` / `system` / `light` with `pressed` unchanged at every reading, then after a close and a reopen `["system=false", "light=true", "dark=false"]` · `app/appearance.ts` (`chooseAppearance`, `STORAGE_KEY = "tm-apparence"`), `app/drawer.tsx` (the control, and the comment)</sub>
 
@@ -2728,6 +2800,13 @@ refused a number nobody in this wave may change would be a rule against the wron
 number nobody prints is a number nobody acts on. **Left `open` for that half.**
 
 <sub>`python3 frontend/maquette/harness/exits.py` — 5 holds, no violation, and the gap printed. Mutation: `visibility` taken back out; both exit holds fall.</sub>
+
+**THE PRODUCER'S HALF WENT WITH #601, and the flash does not reproduce on `main` `1e6aa6a69`** (2026-10-01). L13b
+(#601) removed the 260 ms waits with the one-ladder shape, and R103 now REFUSES any `setTimeout` after a `.close(`, a
+`bridge.back(` or a `.rewind(` in the same verb. Read as PAINTS, not styles — the CDP screencast, the luminance of the
+page's upper band frame by frame — on a long press of a library tile then « Voir la fiche », and on a follow's sheet
+then « Voir la fiche » and « Chercher une autre release »: the luminance climbs monotonically while the screen fades
+in over the still-dimmed page, and no frame shows the page bare.
 
 **B-143 — the constitution gained a section, and nothing in the plan answers it.**
 The operator dictated **§17 — Comptes, droits et identité Plex** on 2026-08-26: the application

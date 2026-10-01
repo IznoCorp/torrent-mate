@@ -29,6 +29,8 @@
 // so a row follows the finger without easing and eases again when released. A
 // state the drawing reads by class is written by class.
 
+import { PRESS_TOLERANCE_PIXELS } from "./press-arbitration";
+
 /**
  * How wide one action is, in pixels.
  *
@@ -39,8 +41,17 @@
  */
 const ACTION_WIDTH_PIXELS = 84;
 
-/** How far a finger travels before the gesture commits to an axis. */
-const AXIS_DEAD_ZONE_PIXELS = 6;
+/**
+ * How far a finger travels before the gesture commits to an axis — and before
+ * its release is a drag whose click is swallowed.
+ *
+ * A THUMB'S DRIFT, read from the press arbitration that measured it (±10 px
+ * holds), and not a mouse's few pixels. At 6 px to commit and 4 px to swallow,
+ * a tap drifting 8 px — any real tap — was a DRAG: on a row swiped open its
+ * click on the revealed action was eaten, and on a closed card the click that
+ * opens its sheet was too. « Le premier clic ne fait rien » (B-337).
+ */
+const AXIS_DEAD_ZONE_PIXELS = PRESS_TOLERANCE_PIXELS;
 
 /** How much more a drag must travel to the SIDE than down to be a swipe. */
 const SIDE_OVER_DOWN = 1.2;
@@ -52,7 +63,7 @@ const OPEN_AT = 1 / 2.4;
 const CLOSE_AT = 2 / 3;
 
 /** How far the FINGER must travel for the release's click to be swallowed. */
-const DRAG_TRAVEL_PIXELS = 4;
+const DRAG_TRAVEL_PIXELS = PRESS_TOLERANCE_PIXELS;
 
 /** How near that release a click must land to be the drag's own. */
 const SWALLOW_RADIUS_PIXELS = 24;
