@@ -503,11 +503,13 @@ ACTED = 700         # an action tapped: the mutation, the refetch, the redraw
 # then, and it gives up at `SETTLE_CEILING_MS`, its answer saying how long it
 # waited. A view transition still active counts as moving: before it has
 # committed the new page it runs no animation, and `getAnimations()` alone
-# answers « still » over a page about to be replaced.
+# answers « still » over a page about to be replaced. The pseudo-class is asked
+# inside a `try`: an engine that lacks it throws, and a guard that throws inside
+# a frame callback would end the wait never.
 SETTLE_CEILING_MS = 5000
 SETTLE = """(ceiling)=>new Promise((done)=>{
   const start = performance.now();
-  const moving = () => document.documentElement.matches(':active-view-transition')
+  const moving = () => (() => { try { return document.documentElement.matches(':active-view-transition'); } catch (error) { return false; } })()
     || document.getAnimations().some((one) =>
       one.playState === 'running' && one.effect
       && one.effect.getComputedTiming().endTime !== Infinity);
@@ -552,7 +554,7 @@ READY_CEILING_MS = 5000
 READY = """(ceiling)=>new Promise((done)=>{
   const start = performance.now();
   let quiet = 0;
-  const busy = () => document.documentElement.matches(':active-view-transition')
+  const busy = () => (() => { try { return document.documentElement.matches(':active-view-transition'); } catch (error) { return false; } })()
     || (window.__queries?.isFetching() ?? 0) > 0
     || (window.__queries?.isMutating() ?? 0) > 0
     || document.getAnimations().some((one) => one.playState === 'running' && one.effect

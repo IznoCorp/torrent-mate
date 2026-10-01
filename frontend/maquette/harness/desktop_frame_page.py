@@ -236,6 +236,7 @@ OUTSIDE = """(argument)=>{
 # new one has committed: asked in between, `getAnimations()` holds nothing and
 # answers « still ». On a slow runner that gap outran `SETTLE_FLOOR` and the
 # way back read `HTML` under `mediasheet-no-poster` (PR #677's second run) —
-# the transition's own hit test, not a coverer.
-NOTHING_IS_MOVING = """()=>!document.documentElement.matches(':active-view-transition')
+# the transition's own hit test, not a coverer. Asked inside a `try`, so an
+# engine without the pseudo-class reads « no transition » rather than throwing.
+NOTHING_IS_MOVING = """()=>!(() => { try { return document.documentElement.matches(':active-view-transition'); } catch (error) { return false; } })()
   && document.getAnimations().every((one)=>one.playState !== 'running')"""

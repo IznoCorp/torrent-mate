@@ -256,18 +256,28 @@ def context_for(width, scheme="dark"):
             "is_mobile": False, "has_touch": False, "color_scheme": scheme}
 
 
-# The layers a state may pose, whose entrance must end before the state is read, and how long that
+# The layers a state may pose, whose arrival must end before the state is read, and how long that
 # may take at most — `--duration-4` is 450 ms; a state posing its panel late adds a beat to it.
 LAYER_CEILING_MS = 1500
-LAYERS_AT_REST = """(ceiling)=>new Promise((done)=>{
+# IN WEBKIT, READ BY GEOMETRY, NOT BY `getAnimations()`: WebKit's page dies when it is asked under
+# `media-sheet-decision-corrected`'s two chained view transitions. A layer at rest is a layer
+# whose box no longer changes: the boxes of the drawer, the sheet, the dialog and the screens,
+# read on each frame, the same three frames in a row.
+LAYERS_STILL = """(ceiling)=>new Promise((done)=>{
   const start = performance.now();
-  // A view transition still active is a layer still arriving, animated or not yet.
-  const sliding = () => document.documentElement.matches(':active-view-transition')
-    || document.getAnimations().some((one) => one.playState === 'running'
-      && one.effect?.target?.closest?.('#sheet, #dlg, #drawer, [data-part="screen"]')
-      && one.effect.getComputedTiming().endTime !== Infinity);
-  const look = () => (!sliding() || performance.now() - start > ceiling) ? done() : setTimeout(look, 16);
-  setTimeout(look, 16);
+  let last = null;
+  let same = 0;
+  const boxes = () => [...document.querySelectorAll('#drawer, #sheet, #dlg, [data-part="screen"]')]
+    .map((one) => { const box = one.getBoundingClientRect(); return [box.left, box.top, box.width, box.height].map(Math.round).join(','); })
+    .join(';');
+  const look = () => {
+    const now = boxes();
+    same = now === last ? same + 1 : 0;
+    last = now;
+    if (same >= 3 || performance.now() - start > ceiling) return done();
+    requestAnimationFrame(look);
+  };
+  requestAnimationFrame(look);
 })"""
 
 
@@ -325,14 +335,14 @@ async def read_pass(browser, label, width, wanted, engine, scheme):
         # side (`PARALLEL`), a runner draws slower than `SETTLED` assumes, and a drawer still
         # sliding in (`drawer-navigation`, `shell/device` at [-5, 283]) or a deck card still
         # leaving (`discover-deck-passed`) read as `cut` on one pass of nine (PR #677's first
-        # run). The page says when its motion ends (`settle`, common.py). WebKit keeps the
-        # layers-only wait, in a window only: its page dies when `getAnimations()` is asked under
-        # `media-sheet-decision-corrected`'s two chained view transitions (both WebKit passes,
-        # CI and here), and its passes read at the phone's width, where a layer rises on y.
+        # run). The page says when its motion ends (`settle`, common.py). IN WEBKIT, THE LAYERS'
+        # BOXES HELD STILL (`LAYERS_STILL`), at every width: the drawer `drawer-navigation` left
+        # open was still closing under `bar-trackers-alert` (`shell/device` at [-286, 2],
+        # webkit-dark, PR #677's third run) — the same fall, in the engine the first fix left out.
         if engine == "chromium":
             await settle(page)
-        elif width in WINDOWS:
-            await page.evaluate(LAYERS_AT_REST, LAYER_CEILING_MS)
+        else:
+            await page.evaluate(LAYERS_STILL, LAYER_CEILING_MS)
         readings[state] = await page.evaluate(MEASURE, width)
         if engine == "webkit":
             readings[state] += await page.evaluate(VISIBLE, width)
