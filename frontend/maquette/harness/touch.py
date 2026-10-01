@@ -25,7 +25,7 @@ is unchanged.
 """
 import asyncio
 
-from common import Journal, browser_channel, chrome_launch_args
+from common import SETTLED, Journal, browser_channel, chrome_launch_args, settle
 from playwright.async_api import async_playwright
 
 # HOW LONG A PRESS TAKES IS READ FROM THE PAGE, never typed here. A probe
@@ -222,8 +222,11 @@ async def main():
             # previous sheet was still closing and was swallowed. Two of the
             # five surfaces failed, and in isolation both opened perfectly:
             # a hand-set delay that outlives the duration it was set against is
-            # B-269's species in an instrument rather than in a guard.
-            await pg.wait_for_timeout(700)
+            # B-269's species in an instrument rather than in a guard. It was
+            # raised to 700 and is READ now: the state's answer, then the
+            # drawn transitions ending, whatever the stylesheet draws (B-276).
+            await pg.wait_for_timeout(SETTLED)
+            await settle(pg)
             # The recorded act carries the ANCHOR beside the class: the
             # assertion below asks whether a sheet action fired, and a class
             # name is not what identifies one any more.
@@ -251,7 +254,7 @@ async def main():
             if any("sheet/action" in act for act in out["acts"]):
                 fired.append(f"{name} → {out['acts']}")
             await pg.evaluate("()=>window.__panel.close()")
-            await pg.wait_for_timeout(150)
+            await settle(pg)
         check(f"the long press opens the panel on the {len(press_surfaces)} surfaces",
                  not without_panel, " · ".join(without_panel))
         check("and never selects anything", not with_selection, " · ".join(with_selection))
@@ -363,8 +366,8 @@ async def main():
         # against a duration that later changed. The other was the 420ms between
         # press surfaces. Neither was wrong when written; both outlived the
         # number they were written against, which is B-269's shape in an
-        # instrument.
-        await pg.wait_for_timeout(700)
+        # instrument. Both are READ from the page now (B-276).
+        await settle(pg)
         check("the panel starts closed", not await pg.evaluate(
             "()=>document.querySelector('#sheet').hasAttribute('data-open')"))
         target = await pg.evaluate("""()=>{
@@ -389,7 +392,7 @@ async def main():
             await pg.wait_for_timeout(320)
             check("and a long press there opens the panel, finger still down", during)
             await pg.evaluate("()=>closeSheet()")
-            await pg.wait_for_timeout(300)
+            await settle(pg)
 
         # ── 6. THE SHEET HANDLE, dragged down by a real finger ────────────
         # It read the pointer stream with neither capture nor a claimed axis, so
@@ -398,7 +401,7 @@ async def main():
         # sheet stayed open. Same mechanism as the pull-to-refresh and the view
         # swipe, on a third gesture no rule had looked at.
         await pg.evaluate("()=>{closeSheet(); window.__panel.produce('follow', 'Silo');}")
-        await pg.wait_for_timeout(450)
+        await settle(pg)
         check("a sheet is open", await pg.evaluate(
             "()=>document.querySelector('#sheet').hasAttribute('data-open')"))
 
@@ -417,7 +420,7 @@ async def main():
                 await asyncio.sleep(0.016)
             await cdp.send("Input.dispatchTouchEvent",
                            {"type": "touchEnd", "touchPoints": []})
-            await pg.wait_for_timeout(420)
+            await settle(pg)
 
         await drag_handle(0, 150)
         check("a 150px drag closes the sheet", not await pg.evaluate(
@@ -426,7 +429,7 @@ async def main():
         # A short drag is not a dismissal: it must spring back, and it must not
         # leave the sheet displaced.
         await pg.evaluate("()=>window.__panel.produce('follow', 'Silo')")
-        await pg.wait_for_timeout(450)
+        await settle(pg)
         await drag_handle(0, 24)
         sheet_state = await pg.evaluate("""()=>({
           open: document.querySelector('#sheet').hasAttribute('data-open'),
@@ -439,7 +442,7 @@ async def main():
         # cursor leaves a 22px strip, which is the first centimetre of a 70px
         # gesture.
         await pg.evaluate("()=>window.__panel.produce('follow', 'Silo')")
-        await pg.wait_for_timeout(450)
+        await settle(pg)
         r = await pg.evaluate(
             "()=>{const b=document.querySelector('#sheetgrab').getBoundingClientRect();"
             "return {x:b.x+b.width/2, y:b.y+b.height/2};}")
@@ -449,7 +452,7 @@ async def main():
             await pg.mouse.move(r["x"], r["y"] + dy)
             await asyncio.sleep(0.016)
         await pg.mouse.up()
-        await pg.wait_for_timeout(420)
+        await settle(pg)
         check("with a mouse too, a 150px drag closes it", not await pg.evaluate(
             "()=>document.querySelector('#sheet').hasAttribute('data-open')"))
 
@@ -457,7 +460,7 @@ async def main():
         # second finger, a system edge swipe — and the sheet must go back where
         # it was rather than close on something the operator did not finish.
         await pg.evaluate("()=>window.__panel.produce('follow', 'Silo')")
-        await pg.wait_for_timeout(450)
+        await settle(pg)
         # Driven as a REAL cancelled touch, not as synthetic events: a
         # hand-built PointerEvent carries an id no pointer owns, so the capture
         # the handler takes throws and the probe measures its own artefact.
@@ -473,14 +476,14 @@ async def main():
                             "touchPoints": [{"x": r["x"], "y": r["y"] + dy, "id": 1}]})
             await asyncio.sleep(0.016)
         await cdp.send("Input.dispatchTouchEvent", {"type": "touchCancel", "touchPoints": []})
-        await pg.wait_for_timeout(420)
+        await settle(pg)
         cancelled = await pg.evaluate("""()=>{
           const s = document.querySelector('#sheet');
           return {open: s.hasAttribute('data-open'), moved: s.style.transform || ''};}""")
         check("a cancel does not close the sheet", cancelled["open"], str(cancelled))
         check("and puts it back in place", not cancelled["moved"], cancelled["moved"])
         await pg.evaluate("()=>closeSheet()")
-        await pg.wait_for_timeout(320)
+        await settle(pg)
 
         check("no JS error", not errors, str(errors))
         await b.close()
