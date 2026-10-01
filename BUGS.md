@@ -20,8 +20,8 @@
 | B-035 | `test_continues_on_per_file_error` writes no backup    | by gate     | `open`       |
 | B-039 | `actions.py` prints `.freshtag` presence, asserts nothing | by mutation | `open`       |
 | B-052 | A synthesised follow panel labels a film « Série »                  | by review   | `open`       |
-| B-053 | A panel's layer entry is taken by a tab tap on the same layer (revisit) | by review | `open`     |
-| B-054 | `data-go="acq"` no longer forces the « now » tab (revisit)           | by review   | `open`       |
+| B-053 | A panel's layer entry is taken by a tab tap on the same layer (revisit). **Walked on `main` `27b304157` (register train 2):** a panel is modal now — the bar is inert under it — so the panel half is gone; over a SCREEN the bar's own tab replaced the screen's entry with the page's root, over the root's own entry, and the first Retour changed nothing (`/media` → `/media`). **Fix:** the page one is on, chosen from the bar over a screen of it, steps back onto the page's own entry (`app/page-switch.ts`). Hold: `harness/back.py` B-053, seen red. | by review | `fixing` |
+| B-054 | `data-go="acq"` no longer forces the « now » tab (revisit). **Ruled since**: 09-26 Rd 7 Q4 — Acquisition opens on « Suivis », then the tab opened last; a link naming its tab is obeyed (`features/acquisition/verbs.ts`'s landing door). Walked on `main` `27b304157`: a `data-go="acq"` from the Médiathèque lands on the tab left. | by review | `fixed #619` |
 | B-056 | A `@keyframes` name is French (`splashremplit`), invisible to no-french. **Owner:** the tooling train.  | by review | `open` |
 | B-061 | The oracle cannot see a pseudo-element, so a class that generates nothing reads green. **Owner:** the tooling train. | by rule | `open` |
 | B-068 | The wave's documentation drifted in forty small places, and one figure family is wrong. **Owner:** the steward's docs round. | by review | `open` |
