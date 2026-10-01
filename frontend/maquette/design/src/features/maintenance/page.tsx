@@ -1,4 +1,4 @@
-// design/src/pages/maintenance.tsx
+// design/src/features/maintenance/page.tsx
 // The second migrated PAGE: legacy `viewMaintenance()` (`refonte.html@60530dbd8`) reborn
 // as a final component. Markup is TRANSPLANTED, not translated.
 //
