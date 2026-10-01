@@ -164,10 +164,10 @@ function setBackgroundInert(layer: Element | null): void {
 function focusInto(layer: Element): void {
   const target = layer.querySelector<HTMLElement>(NAMED_ENTRY)
     ?? layer.querySelector<HTMLElement>(ENTRY);
-  // `preventScroll`, AS ON THE WAY BACK (below): a layer's first control can sit
-  // far under its head — a torrent's panel opened 605 px down on « Chercher un
-  // cross-seed », its title out of view (B-615). Focus moves in; the layer opens
-  // at its head.
+  // WITHOUT SCROLLING: a layer opens at its top (`ui/sheet.tsx`). Focusing an
+  // entry below the fold scrolled the journey sheet 177px the moment it opened,
+  // and a sheet not at its top disarms its drag band — the swipe that closes
+  // it scrolled instead (gestures.py, once L24's decision block grew the sheet).
   if (target) {
     target.focus({ preventScroll: true });
     return;
