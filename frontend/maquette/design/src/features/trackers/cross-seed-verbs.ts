@@ -404,7 +404,7 @@ export function openUploadConfirm(infoHash: string, tracker: string): void {
         { text: say("cancel"), tone: "ghost", dismiss: true },
       ],
     });
-  });
+  }, quietWhenCancelled);
 }
 
 /* « CRÉER ET PUBLIER UN TORRENT » on a pair, from the torrent's panel: `<origin hash>:<tracker>`. */

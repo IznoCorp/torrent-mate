@@ -254,7 +254,14 @@ export function switchPage(leaving: string, landing: Landing = "stack"): void {
   const arriving = String(currentState().page);
   const homePage = addressSeam.homePage;
   if (arriving === leaving) {
-    replacePath();
+    /* THE PAGE ONE IS ON, CHOSEN OVER A SCREEN OF IT (B-053): the screen's entry
+       is stepped back off onto the page's own. Replaced by the page's root, it
+       left two entries of that root in a row — a Retour that changes nothing. */
+    const own = standingTrail(leaving);
+    const top = own[own.length - 1];
+    if (landing === "unwind" && walk.homeFloorExists && top.at < standingIndex())
+      layTrail(own.slice(0, -1), [arriving], top.at);
+    else replacePath();
     return;
   }
   if (!walk.homeFloorExists) {
