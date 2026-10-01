@@ -178,8 +178,13 @@ function setBackgroundInert(layer: Element | null): void {
  * @param layer The layer's root.
  */
 function focusInto(layer: Element): void {
-  const target = layer.querySelector<HTMLElement>(NAMED_ENTRY)
-    ?? layer.querySelector<HTMLElement>(ENTRY);
+  // THE FIRST CONTROL THAT IS DRAWN, never merely the first in the markup. The menu's fold
+  // toggle leads its head and is `hidden` below the desktop threshold: `focus()` on an element
+  // that is not rendered does nothing, so the phone's drawer opened with the caret on `<body>`.
+  const drawnFirst = (selector: string) =>
+    [...layer.querySelectorAll<HTMLElement>(selector)]
+      .find((node) => node.getClientRects().length > 0) ?? null;
+  const target = drawnFirst(NAMED_ENTRY) ?? drawnFirst(ENTRY);
   // WITHOUT SCROLLING: a layer opens at its top (`ui/sheet.tsx`). Focusing an
   // entry below the fold scrolled the journey sheet 177px the moment it opened,
   // and a sheet not at its top disarms its drag band — the swipe that closes
