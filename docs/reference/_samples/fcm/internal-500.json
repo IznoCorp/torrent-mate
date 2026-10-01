@@ -1,0 +1,17 @@
+{
+  "status": 500,
+  "headers": {},
+  "body": {
+    "error": {
+      "code": 500,
+      "message": "Internal error encountered.",
+      "status": "INTERNAL",
+      "details": [
+        {
+          "@type": "type.googleapis.com/google.firebase.fcm.v1.FcmError",
+          "errorCode": "INTERNAL"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "status": 200,
+  "headers": {},
+  "body": {
+    "name": "projects/example-project/messages/0:1700000000000000%abcdef0123456789"
+  }
+}
