@@ -45,19 +45,18 @@ WHAT IT DOES NOT READ, said before what it does:
     real are R93's.
   - It does not read the DRAWN conditions. R92 reads those.
   - It does not read whether the map is COMPLETE against the backend's forty
-    event classes. That is a source question and it is
-    `scripts/check-live-relay.py --arm map-completeness`'s, which costs no
-    browser at all.
+    event classes. That is a source question, and no instrument asks it since
+    `scripts/check-live-relay.py` was retired with #654 (B-319).
   - AND IT DOES NOT READ WHETHER A RULE REFRESHES THE RIGHT THING. It holds the
     IMPLEMENTATION against the DECLARATION: the keys it expects are read from
     each feature's `live.ts`, so a rule that declares the wrong key and
     invalidates that same wrong key passes. Measured, not assumed — pointing
     `ItemProgressed` at the pipeline status instead of staging leaves every
-    per-rule hold green. What catches THAT is the map's key coverage
-    (`check-live-relay.py --arm map-completeness`: every key a feature's
-    `queries.ts` declares is named by a rule or exempted) and the `because` line
-    a reviewer reads. Stated here rather than left to be discovered, because a
-    rule whose limit is not written down is read as proving more than it does.
+    per-rule hold green, and a key DROPPED from a rule is invisible for the same
+    reason (B-319). What catches THAT is the `because` line a reviewer reads:
+    the map's key-coverage arm (`check-live-relay.py`) was retired with #654.
+    Stated here rather than left to be discovered, because a rule whose limit
+    is not written down is read as proving more than it does.
 """
 import asyncio
 import json

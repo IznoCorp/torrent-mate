@@ -1,4 +1,4 @@
-// design/src/screens/releases.tsx
+// design/src/features/releases/releases-screen.tsx
 // Legacy `openReleases(title)` (`refonte.html@60530dbd8`) — "choose another release" —
 // reborn as a real route (`/releases/$title`) and a final component. Markup
 // is TRANSPLANTED, not translated: every tag, class and data-attribute below

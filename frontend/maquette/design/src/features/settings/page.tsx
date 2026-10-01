@@ -1,4 +1,4 @@
-// design/src/pages/settings.tsx
+// design/src/features/settings/page.tsx
 // The third migrated PAGE, and the largest data surface in the prototype:
 // legacy `viewReglages()` / `vueRubrique()` / `vueSecrets()` /
 // `chercheReglagesHTML()` / `ligneReglageHTML()` (`refonte.html@60530dbd8`) reborn as a

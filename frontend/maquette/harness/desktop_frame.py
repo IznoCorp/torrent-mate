@@ -109,42 +109,21 @@ FIXED_CHROME = ('[data-part="avatar"], [data-part="shell/header"] button, '
 # reached STRUCTURALLY rather than by the class the stylesheets select it with.
 FORCED = [('[data-part="shell/tab-bar"]', "display"),
           ('[data-part="shell/tab-bar"]', "position"),
-          ('[data-part="shell/tab-bar"]', "inset-inline-start"),
-          ('[data-part="shell/tab-bar"]', "inset-inline-end"),
-          ('[data-part="shell/tab-bar"]', "bottom"),
           ('[data-part="shell/header"]', "padding-left"),
           ('[data-part="shell/header"]', "padding-right"),
-          ('[data-part="shell/connection-mark"] > span:last-child', "display"),
-          ('[data-part="shell/add-action"]', "position"),
-          ('[data-part="selection/bar"]', "position")]
+          ('[data-part="shell/connection-mark"] > span:last-child', "display")]
 
-# The three elements this page always draws. The others in FORCED may be absent
-# from a given screen — the FAB and the selection bar are not on every one — and
-# an absent element is REPORTED rather than silently dropped, because a
-# comparison over a shrinking set of keys is the vacuity this rule exists to
-# refuse.
-# DECLARATIONS THE FRAME MAKES THAT THE APP ALREADY MAKES, so they read the
-# same on both sides and can witness nothing. They are listed rather than
-# tolerated: a property that cannot move is where a dead hold hides, and the
-# hold below refuses BOTH a new one appearing and a listed one coming alive.
-#
-# Each was read in the app's own variants, not guessed:
-#   `ui/variants/frame.ts:60`  the tab bar is `bottombar fixed inset-x-0
-#                              bottom-0` — so the frame's `inset-inline: 0`
-#                              and `bottom: 0` restate what the app declares,
-#                              and only `position` is a real deviation;
-#   `ui/variants/frame.ts:111` the action button is `fab absolute …`;
-#   `ui/variants/frame.ts:124` the selection bar is `selbar absolute …`.
-#
-# So of the five declarations in the DECLARED HARNESS DEVIATION block, ONE
-# deviates and four restate. The file's own comment calls that block « the
-# ONLY accepted divergence in the shell », and the divergence is narrower than
-# the block implementing it — B-391.
-REDUNDANT = {('[data-part="shell/tab-bar"]', "inset-inline-start"),
-             ('[data-part="shell/tab-bar"]', "inset-inline-end"),
-             ('[data-part="shell/tab-bar"]', "bottom"),
-             ('[data-part="shell/add-action"]', "position"),
-             ('[data-part="selection/bar"]', "position")}
+# The three elements this page always draws — every one FORCED names today. One
+# named later may be absent from a given screen, and an absent element is
+# REPORTED rather than silently dropped, because a comparison over a shrinking
+# set of keys is the vacuity this rule exists to refuse.
+# DECLARATIONS THE FRAME MAKES THAT THE APP ALREADY MAKES read the same on both
+# sides and can witness nothing, so there are none: the deviation block made
+# five, four of which restated the app's own variants (`ui/variants/frame.ts`:
+# the tab bar's `inset-x-0 bottom-0`, the action button's and the selection
+# bar's `absolute`), and they were deleted — B-391. The hold below refuses one
+# appearing again.
+REDUNDANT = set()
 
 
 def key(selector, property_name):

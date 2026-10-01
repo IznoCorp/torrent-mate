@@ -1,4 +1,4 @@
-// design/src/pages/account.tsx
+// design/src/features/account/page.tsx
 // « Profil et préférences » — the account surface the user menu points at. It
 // draws what EXISTS: one identity, one session, and the way that session ends.
 //

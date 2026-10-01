@@ -34,21 +34,19 @@
    WINDOW. The prototype therefore repositions it to `absolute` within the
    frame. This is the ONLY accepted divergence in the shell, and the
    parity probe carries it as a justified allowlist entry — not as a gap
-   someone discovers. Same for the FAB and the selection bar.
+   someone discovers. It is ONE property on one element: the action button
+   and the selection bar are `absolute` in the app's own variants, and the
+   bar's `inset-inline: 0` and `bottom: 0` are its own too (`ui/variants/
+   frame.ts`), so restating them here moved nothing and witnessed nothing
+   (B-391).
 
    AND IT IS SCOPED ON THE FRAME, because it exists only because the frame
    does. Out of the frame there is no frame to be `absolute` within: the
    device IS the window, `fixed` means what it says again, and leaving this
    applied would be the deviation outliving its own justification — a
    desktop window still wearing one of the phone's arrangements. */
-:root:not(:has(#desktop-switch:checked)) .device [data-part="shell/tab-bar"],
-:root:not(:has(#desktop-switch:checked)) .device [data-part="shell/add-action"],
-:root:not(:has(#desktop-switch:checked)) .device [data-part="selection/bar"] {
-  position: absolute;
-}
 :root:not(:has(#desktop-switch:checked)) .device [data-part="shell/tab-bar"] {
-  inset-inline: 0;
-  bottom: 0;
+  position: absolute;
 }
 
 /* Harness buttons — outside the shell, since the shell is a MEASURED

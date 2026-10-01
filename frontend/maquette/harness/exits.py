@@ -94,9 +94,21 @@ LAYERS = {
     "confirmation": "#dlg",
 }
 
-# One reading per animation frame, for as long as the exit lasts.
-SAMPLE = """([frames, layers])=>new Promise((done)=>{
+# One reading per animation frame, for as long as the exit lasts — and the
+# EXIT IS STARTED BY THE SAMPLER, inside the window it reads (B-277). The walk
+# counted 24 frames from a sampling started in one CDP round trip while the act
+# went in another: under the suite's parallel load the act could land after the
+# last frame, and the control read `0 frame(s)` over an exit that animated. The
+# act now runs in the page right after the first reading, and the window is
+# MILLISECONDS from the act — the old budget at 60 Hz (24 frames ≈ 400 ms, 20 ≈
+# 333 ms) — so a loaded machine yields fewer frames over the same exit, never
+# frames that miss it. Each reading carries `at`, its milliseconds since the act
+# (`null` for the one before it).
+LONG_WINDOW_MS = 400
+SHORT_WINDOW_MS = 333
+SAMPLE = """([act, layers, windowMs])=>new Promise((done)=>{
   const seen = [];
+  let actedAt = null;
   const read = () => {
     const of = (selector) => {
       const node = document.querySelector(selector);
@@ -115,8 +127,13 @@ SAMPLE = """([frames, layers])=>new Promise((done)=>{
     // the CONTENT becomes the journey's, which is what a reader sees.
     frame.journeyDrawn = !!document.querySelector(
       '#sheetin [data-part="key-value"]');
+    frame.at = actedAt === null ? null : performance.now() - actedAt;
+    if (frame.at !== null && frame.at >= windowMs) return done(seen);
     seen.push(frame);
-    if (seen.length >= frames) return done(seen);
+    if (actedAt === null) {
+      actedAt = performance.now();
+      (new Function('return ' + act))()();
+    }
     requestAnimationFrame(read);
   };
   requestAnimationFrame(read);
@@ -207,12 +224,10 @@ async def main():
             raised["open"] and len(raised["actions"]) > 1,
             str(raised["actions"]))
 
-        sampling = asyncio.create_task(page.evaluate(SAMPLE, [24, LAYERS]))
-        await asyncio.sleep(0.02)
-        await page.evaluate(
+        frames = await page.evaluate(SAMPLE, [
             """()=>[...document.querySelectorAll(
-                 '#sheet [data-part="sheet/action"]')][0].click()""")
-        frames = await sampling
+                 '#sheet [data-part="sheet/action"]')][0].click()""",
+            LAYERS, LONG_WINDOW_MS])
 
         # The sheet and the scrim leave TOGETHER on this path — one gesture, two
         # layers — so both are read from the same walk. The other three are
@@ -227,7 +242,9 @@ async def main():
             journal.check(
                 f"the {layer} is still VISIBLE while it is leaving (B-249)",
                 all(frame[layer]["visibility"] == "visible" for frame in moving),
-                str([frame[layer]["visibility"] for frame in moving][:6]))
+                str([(frame["at"], frame[layer]) for frame in moving
+                     if frame[layer]["visibility"] != "visible"][:4]
+                    or [frame[layer]["visibility"] for frame in moving][:6]))
 
         # MEASURED AND PRINTED, NEVER REFUSED. The gap is what the producer's
         # own `setTimeout(…, 260)` leaves between the layer being gone and the
@@ -281,27 +298,25 @@ async def main():
                 f"a « {verb} » action is REACHABLE from a panel, so this walk "
                 "drives the delegation and not the seam",
                 reachable)
-            sampling = asyncio.create_task(page.evaluate(SAMPLE, [24, LAYERS]))
-            await asyncio.sleep(0.02)
-            await page.evaluate(tap)
-            walked = await sampling
+            walked = await page.evaluate(SAMPLE, [tap, LAYERS, LONG_WINDOW_MS])
             # THE PANEL IS REPLACED, not raised: one panel closes and the
             # journey's opens. So what is read is the moment its CONTENT is the
             # journey's, which is what a wait delays and what a reader sees.
             landed = next(
-                (at for at, frame in enumerate(walked) if frame["journeyDrawn"]),
+                (frame["at"] for frame in walked
+                 if frame["journeyDrawn"] and frame["at"] is not None),
                 None)
             journal.check(
                 f"« {verb} » draws its panel inside the window this walk samples",
-                landed is not None, f"journey drawn at frame {landed}")
-            up = landed
-            # THE PANEL IS ALREADY THERE, or it arrived without a wait. 260 ms
-            # at 60 Hz is about 16 frames; anything under a third of that is the
-            # navigation's own commit rather than a timer.
+                landed is not None, f"journey drawn {landed} ms after the tap")
+            # THE PANEL IS ALREADY THERE, or it arrived without a wait — read on
+            # the clock, not in frames (B-277): a frame lasts longer under load.
+            # Anything under half the 260 ms timer is the navigation's own
+            # commit rather than a timer.
             journal.check(
                 f"and with no producer wait before it (B-249, « {verb} »)",
-                up is not None and up <= 5,
-                f"frame {up} — a 260 ms wait would put it past 15")
+                landed is not None and landed < 130,
+                f"{landed} ms — a 260 ms wait would put it past 260")
 
         # EVERY OTHER LAYER OF THE FRAME, each driven into its OWN exit. The
         # first version of this rule read the two above and nothing else —
@@ -329,10 +344,8 @@ async def main():
                 f"the {name} really opens, so its exit has a subject",
                 up == "visible",
                 f"visibility while open: {up!r}")
-            watching = asyncio.create_task(page.evaluate(SAMPLE, [20, LAYERS]))
-            await asyncio.sleep(0.02)
-            await page.evaluate(close_it)
-            leaving_frames = leaving(await watching, name)
+            leaving_frames = leaving(
+                await page.evaluate(SAMPLE, [close_it, LAYERS, SHORT_WINDOW_MS]), name)
             journal.check(
                 f"the {name}'s exit really animates",
                 len(leaving_frames) > 2,
@@ -341,7 +354,9 @@ async def main():
                 f"the {name} is still VISIBLE while it is leaving (B-249)",
                 all(frame[name]["visibility"] == "visible"
                     for frame in leaving_frames),
-                str([frame[name]["visibility"] for frame in leaving_frames][:6]))
+                str([(frame["at"], frame[name]) for frame in leaving_frames
+                     if frame[name]["visibility"] != "visible"][:4]
+                    or [frame[name]["visibility"] for frame in leaving_frames][:6]))
 
         await context.close()
         await browser.close()

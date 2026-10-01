@@ -92,7 +92,7 @@ WHAT_COVERS_IT = """(argument)=>{
     if (!top) { strangers.push('nothing'); continue; }
     if (node.contains(top) || (ours && ours.contains(top))) continue;
     strangers.push(top.getAttribute('data-part') || top.id
-                   || top.className || top.tagName);
+                   || top.getAttribute("class") || top.tagName);
   }
   return [...new Set(strangers)];
 }"""

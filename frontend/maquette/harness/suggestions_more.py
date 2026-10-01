@@ -90,7 +90,7 @@ THE_BUTTON = """()=>{
           label: (one.textContent || '').trim(),
           inside: box.top >= 0 && box.bottom <= window.innerHeight
                   && box.left >= 0 && box.right <= window.innerWidth,
-          covering: hit ? (hit.className || hit.tagName) : null,
+          covering: hit ? (hit.getAttribute("class") || hit.tagName) : null,
           reachable: !!hit && (hit === one || one.contains(hit))};}"""
 
 

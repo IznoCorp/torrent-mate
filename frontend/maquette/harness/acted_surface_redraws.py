@@ -700,7 +700,7 @@ async def main():
                     box.left + box.width / 2, box.top + box.height / 2);
                   if (!hit || !(hit === act || act.contains(hit)))
                     return {found: true, pressed: false,
-                            covering: String(hit && hit.className || '')};
+                            covering: (hit && hit.getAttribute('class') || '')};
                   act.click();
                   act.click();
                   return {found: true, pressed: true};}""",

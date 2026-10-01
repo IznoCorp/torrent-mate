@@ -26,7 +26,7 @@ exactly what was wrong on it.
 """
 import asyncio
 
-from common import Journal, open_page, browser_channel, chrome_launch_args
+from common import Journal, browser_channel, chrome_launch_args, open_page, settle
 from playwright.async_api import async_playwright
 
 
@@ -123,7 +123,7 @@ async def main():
                 await asyncio.sleep(0.016)
             await cdp.send("Input.dispatchTouchEvent",
                            {"type": "touchEnd", "touchPoints": []})
-            await pg.wait_for_timeout(430)
+            await settle(pg)
 
         rows = await pg.evaluate(
             """()=>[...document.querySelectorAll('#view [data-part="swipe"]')].slice(0, 2).map(s => {
@@ -184,7 +184,7 @@ async def main():
                 samples.append(await where_is_it())
             await cdp.send("Input.dispatchTouchEvent",
                            {"type": "touchEnd", "touchPoints": []})
-            await pg.wait_for_timeout(430)
+            await settle(pg)
             return samples
 
         rest = await where_is_it()
@@ -234,12 +234,12 @@ async def main():
         await pg.wait_for_timeout(70)
         await cdp.send("Input.dispatchTouchEvent",
                        {"type": "touchEnd", "touchPoints": []})
-        await pg.wait_for_timeout(450)
+        await settle(pg)
         check("a plain tap still opens the panel",
                  await pg.evaluate(
                      "()=>document.querySelector('#sheet').hasAttribute('data-open')"))
         await pg.evaluate("()=>closeSheet()")
-        await pg.wait_for_timeout(300)
+        await settle(pg)
 
         # And an action inside the drawer answers, which the click-swallowing
         # would otherwise have killed along with the tap. The row is measured
@@ -279,7 +279,7 @@ async def main():
             await pg.mouse.move(body["x"] - 14 * i, body["y"])
             await asyncio.sleep(0.016)
         await pg.mouse.up()
-        await pg.wait_for_timeout(450)
+        await settle(pg)
         check("with a mouse either, a drag does not open the panel",
                  not await pg.evaluate(
                      "()=>document.querySelector('#sheet').hasAttribute('data-open')"))

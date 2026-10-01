@@ -152,7 +152,7 @@ AIM_AT_THE_ROW = """(title)=>{
   return {found: true, x, y,
           reachable: !!hit && (hit === row || row.contains(hit)),
           covering: hit === null ? "nothing" :
-            (hit.tagName + (hit.className ? "." + String(hit.className).split(" ")[0] : ""))};}"""
+            (hit.tagName + (hit.getAttribute("class") ? "." + hit.getAttribute("class").split(" ")[0] : ""))};}"""
 
 # The greeting toast sits over the surface (B-317) and a tap under it lands on
 # the toast. No gesture dismisses it, so the element is emptied — said plainly,
