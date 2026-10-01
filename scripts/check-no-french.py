@@ -125,72 +125,39 @@ SELF = {Path(__file__).name, "nofrench_lexicon.py"}
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from nofrench_lexicon import *  # noqa: E402, F403
 from nofrench_scan import (  # noqa: E402
-    TS_DECLARATION,
-    code_only,
-    inside_quotes,
-    pragma_on,
-    python_declarations,
-    python_string_literals,
-    script_string_literals,
+    TS_DECLARATION, code_only, inside_quotes, pragma_on, python_declarations,
+    python_string_literals, script_string_literals,
 )
-
 # Arms 10 and 11 — the two that COUNT rather than refuse. They stay in `ARMS`;
 # only their bodies live next door, where that module's header says why.
 from nofrench_ratchets import (  # noqa: E402
-    check_app_interface_text,
-    check_test_prose,
-    jsx_text,
+    check_app_interface_text, check_test_prose, jsx_text,
 )
-
 # Arm 12 and the stylesheet machinery arm 4 borrows — see that module's header.
 from nofrench_css import (  # noqa: E402
-    CSS_SELECTOR,
-    allowed_class,
-    check_custom_properties,
-    css_allowlist,
+    CSS_SELECTOR, allowed_class, check_custom_properties, css_allowlist,
     declared_css_classes,
 )
-
 # The VALUE half of arm 7 — see that module's header for the seam, the five
 # spellings a value takes and why the attribute list is shared with the markup
 # guard rather than copied.
 from nofrench_values import (  # noqa: E402
-    check_data_attributes,
-    check_named_values,
+    check_data_attributes, check_named_values,
 )
-
 # Arm 13 — the named-state table, which no arm read until L10-bis. One arm, one
 # file, the seam every other arm here was split on. See its header for why the
 # corpus is cross-checked against the recorded oracle rather than parsed once.
 from nofrench_states import check_state_identifiers  # noqa: E402
-
 # Arm 9 — the one oracle from outside this repository. See its header.
 from nofrench_dictionary import check_dictionary  # noqa: E402
-
 # Arm 8 — the only arm whose corpus is the shell. See its header.
 from nofrench_shell import check_shell_scripts  # noqa: E402
 from nofrench_lexicon import (  # noqa: E402
-    vocabulary,
-    EXTRACTED_CSS,
-    FRENCH_TOKENS,
-    FROZEN_IDENTIFIERS,
-    FROZEN_PATH_SEGMENTS,
-    HARNESS,
-    MAQUETTE,
-    REGIONS,
-    ROOT,
-    SCRIPTS,
-    SHELL,
-    VOCABULARY,
-    deaccent,
-    french_tokens_in,
-    french_tokens_in_flat,
-    has_accent,
-    read,
-    relative,
-    scope_of,
-    split_identifier,
-    tracked_paths,
+    vocabulary, EXTRACTED_CSS,
+    FRENCH_TOKENS, FROZEN_IDENTIFIERS, FROZEN_PATH_SEGMENTS, HARNESS, MAQUETTE,
+    REGIONS, ROOT, SCRIPTS, SHELL, VOCABULARY, deaccent, french_tokens_in,
+    french_tokens_in_flat, has_accent, read, relative, scope_of,
+    split_identifier, tracked_paths,
 )
 # The words this codebase's names are built from — see its own header.
 # The line in that file below which the words are French on purpose, and the
@@ -207,9 +174,7 @@ from nofrench_lexicon import (  # noqa: E402
 HOLD_LABEL = re.compile(
     r"""(?:\bcheck|\bJournal|\bjournal\.check)\(\s*[frbuFRBU]{0,2}"""
     r"""(?P<q>'''|\"\"\"|'|")"""
-    r"""(?P<body>(?:\\.|(?!(?P=q))[^\\])*)(?P=q)""",
-    re.S,
-)
+    r"""(?P<body>(?:\\.|(?!(?P=q))[^\\])*)(?P=q)""", re.S)
 
 # The text between two tags. Interface copy in JSX carries no quotes at all, so
 # a scanner that only reads string literals walks straight past the very thing
@@ -239,14 +204,9 @@ def check_strings(violations: list[str]) -> None:
     # instrument's own chrome, in the operator's language, shipping nowhere, and
     # the French a harness ASSERTS is the app's output. Its identifiers stay held
     # by arm 2. The line dies with the directory.
-    strict: list[Path] = [
-        p
-        for p in SHELL.rglob("*")
-        if p.is_file()
-        and p.suffix in {".ts", ".tsx"}
-        and "i18n" not in p.parts
-        and p.relative_to(SHELL).parts[0] != "harness"
-    ]
+    strict: list[Path] = [p for p in SHELL.rglob("*") if p.is_file()
+                          and p.suffix in {".ts", ".tsx"} and "i18n" not in p.parts
+                          and p.relative_to(SHELL).parts[0] != "harness"]
     strict += maquette_servers()
     strict += sorted(HARNESS.glob("*.mjs"))
     # The repository's own tools speak to a DEVELOPER, so they speak English.
@@ -263,11 +223,13 @@ def check_strings(violations: list[str]) -> None:
     # French IS their subject — a list of French words cannot be written in
     # English, and pragmas on a word list would say nothing a reader does not
     # already see.
-    strict += [p for p in sorted(SCRIPTS.rglob("*.py")) if p.name not in SELF]
+    strict += [p for p in sorted(SCRIPTS.rglob("*.py"))
+               if p.name not in SELF]
     for path in sorted(strict):
         source = read(path)
         lines = source.splitlines()
-        literals = python_string_literals(source) if path.suffix == ".py" else script_string_literals(source)
+        literals = (python_string_literals(source) if path.suffix == ".py"
+                    else script_string_literals(source))
         examined[f"string literals / {scope_of(path)}"] += len(literals)
         for line_no, body in literals:
             reason = offending_string(body)
@@ -277,11 +239,13 @@ def check_strings(violations: list[str]) -> None:
             if cited:
                 continue
             if cited == "":
-                violations.append(f"{relative(path)}:{line_no}: a french-ok pragma citing no reason permits nothing")
+                violations.append(
+                    f"{relative(path)}:{line_no}: a french-ok pragma citing no "
+                    "reason permits nothing")
                 continue
             violations.append(
-                f"{relative(path)}:{line_no}: French string literal ({reason}) — {remedy(path)}: {body[:60]!r}"
-            )
+                f"{relative(path)}:{line_no}: French string literal "
+                f"({reason}) — {remedy(path)}: {body[:60]!r}")
 
         # The text BETWEEN two tags. Interface copy in JSX carries no quotes,
         # so the literal scan above walks straight past the commonest shape of
@@ -300,8 +264,7 @@ def check_strings(violations: list[str]) -> None:
                     continue
                 violations.append(
                     f"{relative(path)}:{line_no}: French text rendered from the "
-                    f"code ({reason}) — {remedy(path)}: {text.strip()[:60]!r}"
-                )
+                    f"code ({reason}) — {remedy(path)}: {text.strip()[:60]!r}")
 
     for path in sorted(HARNESS.glob("*.py")):
         source = read(path)
@@ -317,27 +280,26 @@ def check_strings(violations: list[str]) -> None:
             violations.append(
                 f"{relative(path)}:{line_no}: French hold label ({reason}) — a "
                 f"hold's label is the tool's own message: "
-                f"{match.group('body')[:60]!r}"
-            )
+                f"{match.group('body')[:60]!r}")
 
 
 # ── arm 2: identifiers ───────────────────────────────────────────────────────
 
 
+
 def check_identifiers(violations: list[str]) -> None:
     """Runs the identifier arm over the shell, the servers, the harness, the tools."""
-    python = (
-        maquette_servers()
-        + sorted(HARNESS.glob("*.py"))
-        + [p for p in sorted(SCRIPTS.rglob("*.py")) if p.name not in SELF]
-        # `frontend/scripts/` is not `scripts/`, and that one letter of
-        # scope left an entire tool — 18 French names, `SORTIE`, `JAUNE`,
-        # `anneau_depuis_staging` — outside every arm while the gate
-        # reported no violation.
-        + sorted((ROOT / "frontend" / "scripts").glob("*.py"))
-        + sorted((ROOT / "personalscraper").rglob("*.py"))
-        + sorted((ROOT / "tests").rglob("*.py"))
-    )
+    python = (maquette_servers()
+              + sorted(HARNESS.glob("*.py"))
+              + [p for p in sorted(SCRIPTS.rglob("*.py"))
+                 if p.name not in SELF]
+              # `frontend/scripts/` is not `scripts/`, and that one letter of
+              # scope left an entire tool — 18 French names, `SORTIE`, `JAUNE`,
+              # `anneau_depuis_staging` — outside every arm while the gate
+              # reported no violation.
+              + sorted((ROOT / "frontend" / "scripts").glob("*.py"))
+              + sorted((ROOT / "personalscraper").rglob("*.py"))
+              + sorted((ROOT / "tests").rglob("*.py")))
     for path in python:
         source = read(path)
         declarations = python_declarations(source)
@@ -348,12 +310,13 @@ def check_identifiers(violations: list[str]) -> None:
             hits = french_tokens_in(name, relative(path))
             if hits or has_accent(name):
                 violations.append(
-                    f"{relative(path)}:{line_no}: French identifier {name!r} ({', '.join(hits) or 'accented'})"
-                )
+                    f"{relative(path)}:{line_no}: French identifier {name!r} "
+                    f"({', '.join(hits) or 'accented'})")
 
     web = [p for p in SHELL.rglob("*") if p.is_file() and p.suffix in {".ts", ".tsx"}]
     web += sorted(HARNESS.glob("*.mjs"))
-    web += [p for p in (ROOT / "frontend" / "src").rglob("*") if p.is_file() and p.suffix in {".ts", ".tsx"}]
+    web += [p for p in (ROOT / "frontend" / "src").rglob("*")
+            if p.is_file() and p.suffix in {".ts", ".tsx"}]
     for path in sorted(web):
         if "i18n" in path.parts:
             continue
@@ -367,12 +330,11 @@ def check_identifiers(violations: list[str]) -> None:
             if hits or has_accent(name):
                 line_no = source.count("\n", 0, match.start()) + 1
                 violations.append(
-                    f"{relative(path)}:{line_no}: French identifier {name!r} ({', '.join(hits) or 'accented'})"
-                )
+                    f"{relative(path)}:{line_no}: French identifier {name!r} "
+                    f"({', '.join(hits) or 'accented'})")
 
 
 # ── arm 3: file names ────────────────────────────────────────────────────────
-
 
 def check_file_names(violations: list[str]) -> None:
     """Runs the file-name arm over every tracked path segment."""
@@ -385,24 +347,27 @@ def check_file_names(violations: list[str]) -> None:
             # appears — the directory, `extract-maquette-css.py`, the extracted
             # stylesheets — and each of those would otherwise need its own
             # entry, which is how an allowlist grows without anyone deciding.
-            hits = [h for h in french_tokens_in(stem, path) if h not in FROZEN_PATH_SEGMENTS]
+            hits = [h for h in french_tokens_in(stem, path)
+                    if h not in FROZEN_PATH_SEGMENTS]
             if not (hits or has_accent(segment)):
                 continue
             key = (segment, ", ".join(hits))
             if key in seen:
                 continue
             seen.add(key)
-            violations.append(f"{path}: French path segment {segment!r} ({', '.join(hits) or 'accented'})")
+            violations.append(
+                f"{path}: French path segment {segment!r} "
+                f"({', '.join(hits) or 'accented'})")
 
 
 # ── arm 4: class names ───────────────────────────────────────────────────────
-
 
 def check_class_names(violations: list[str]) -> None:
     """Runs the class-name arm over code classes and declared CSS classes."""
     allowed = css_allowlist()
 
-    for path in maquette_servers() + sorted(HARNESS.glob("*.py")):
+    for path in (maquette_servers()
+                 + sorted(HARNESS.glob("*.py"))):
         tree = ast.parse(read(path))
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
@@ -411,12 +376,13 @@ def check_class_names(violations: list[str]) -> None:
                 if hits or has_accent(node.name):
                     violations.append(
                         f"{relative(path)}:{node.lineno}: French class name "
-                        f"{node.name!r} ({', '.join(hits) or 'accented'})"
-                    )
+                        f"{node.name!r} ({', '.join(hits) or 'accented'})")
 
     code_class = re.compile(r"\bclass\s+(?P<name>[A-Za-z_$][\w$À-ɏ]*)")
-    typescript = [p for p in SHELL.rglob("*") if p.is_file() and p.suffix in {".ts", ".tsx"}]
-    typescript += [p for p in (ROOT / "frontend" / "src").rglob("*") if p.is_file() and p.suffix in {".ts", ".tsx"}]
+    typescript = [p for p in SHELL.rglob("*")
+                  if p.is_file() and p.suffix in {".ts", ".tsx"}]
+    typescript += [p for p in (ROOT / "frontend" / "src").rglob("*")
+                   if p.is_file() and p.suffix in {".ts", ".tsx"}]
     for path in sorted(typescript):
         source = read(path)
         for match in code_class.finditer(source):
@@ -426,8 +392,8 @@ def check_class_names(violations: list[str]) -> None:
             if hits or has_accent(name):
                 line_no = source.count("\n", 0, match.start()) + 1
                 violations.append(
-                    f"{relative(path)}:{line_no}: French class name {name!r} ({', '.join(hits) or 'accented'})"
-                )
+                    f"{relative(path)}:{line_no}: French class name {name!r} "
+                    f"({', '.join(hits) or 'accented'})")
 
     # `rglob`, and the whole styles tree: `ps/tokens/` holds six real
     # stylesheets and `globals.css` sits beside `ps/`, all of them unread while
@@ -442,8 +408,10 @@ def check_class_names(violations: list[str]) -> None:
     # the base layer and in the harness sheet. The arm went vacuous on the day the
     # last rule left, and refused itself: « its scope is empty, so its `no
     # violation` means nothing » is this guard working, not failing.
-    maquette_styles = sorted((ROOT / "frontend" / "maquette" / "design" / "src" / "styles").glob("*.css"))
-    sheets = maquette_styles + sorted((ROOT / "frontend" / "src").rglob("*.css"))
+    maquette_styles = sorted(
+        (ROOT / "frontend" / "maquette" / "design" / "src" / "styles").glob("*.css"))
+    sheets = (maquette_styles
+              + sorted((ROOT / "frontend" / "src").rglob("*.css")))
     for path in sheets:
         if not path.is_file():
             continue
@@ -465,8 +433,7 @@ def check_class_names(violations: list[str]) -> None:
                 violations.append(
                     f"{relative(path)}:{line_no}: French CSS class {name!r} "
                     f"({', '.join(hits) or 'accented'}) — a class name is one "
-                    "name shared by four worlds"
-                )
+                    "name shared by four worlds")
 
 
 KEYFRAMES = re.compile(r"@keyframes\s+(?P<name>[A-Za-z_][\w-]*)")
@@ -518,11 +485,12 @@ def check_vocabulary(violations: list[str]) -> None:
     """
     words = vocabulary()
     if not words:
-        violations.append(f"{relative(VOCABULARY)} is empty — the arm reading it would accept every name ever written")
+        violations.append(f"{relative(VOCABULARY)} is empty — the arm reading it "
+                          "would accept every name ever written")
         return
-    sources = [
-        p for p in SHELL.rglob("*") if p.is_file() and p.suffix in {".ts", ".tsx", ".js"} and "i18n" not in p.parts
-    ]
+    sources = [p for p in SHELL.rglob("*")
+               if p.is_file() and p.suffix in {".ts", ".tsx", ".js"}
+               and "i18n" not in p.parts]
     # A GENERATED file's names are the generator's, not a choice anyone made,
     # so this arm — and only this arm — steps over them. The count is PRINTED
     # rather than merely applied: an exemption nobody counts is
@@ -533,8 +501,7 @@ def check_vocabulary(violations: list[str]) -> None:
         if not (SHELL / name).is_file():
             violations.append(
                 f"{relative(SHELL / name)}: recorded as generated and is not in the "
-                "tree — the exemption has stopped describing anything"
-            )
+                "tree — the exemption has stopped describing anything")
     # THE MAQUETTE'S KEYFRAME NAMES, read here and not in the class-name arm:
     # that arm asks « is this French? », and `splashremplit` answered no (B-056).
     for sheet in sorted((ROOT / "frontend" / "maquette" / "design" / "src" / "styles").glob("*.css")):
@@ -544,8 +511,7 @@ def check_vocabulary(violations: list[str]) -> None:
             violations.append(
                 f"{relative(sheet)}:{line_no}: keyframe {name!r} is built from "
                 f"{', '.join(repr(w) for w in unknown)}, not in {relative(VOCABULARY)} — "
-                "rename it in English (the declaration and every `animation` reading it)"
-            )
+                "rename it in English (the declaration and every `animation` reading it)")
     sources = [p for p in sources if p not in generated]
     examined.setdefault("generated sources stepped over / shell", 0)
     examined["generated sources stepped over / shell"] += len(generated)
@@ -557,10 +523,8 @@ def check_vocabulary(violations: list[str]) -> None:
         # `this` — and eighty of those buried the four real findings.
         source = code_only(raw)
         for match in re.finditer(
-            r"(?:function|const|let|var|class|type|interface)\s+"
-            r"([A-Za-z_$][\w$]*)",
-            source,
-        ):
+                r"(?:function|const|let|var|class|type|interface)\s+"
+                r"([A-Za-z_$][\w$]*)", source):
             name = match.group(1)
             if name in FROZEN_IDENTIFIERS:
                 continue
@@ -570,15 +534,16 @@ def check_vocabulary(violations: list[str]) -> None:
             if pragma_on(lines, line_no):
                 continue
             examined["name words / shell"] += 1
-            unknown = [w for w in split_identifier(name) if len(w) > 1 and w.lower() not in words]
+            unknown = [w for w in split_identifier(name)
+                       if len(w) > 1 and w.lower() not in words]
             if unknown:
                 violations.append(
                     f"{relative(path)}:{line_no}: {name!r} is built from "
                     f"{', '.join(repr(w) for w in unknown)}, which "
                     f"{'is' if len(unknown) == 1 else 'are'} not in "
                     f"{relative(VOCABULARY)} — rename it in English, or add the "
-                    "word there if the codebase really speaks it"
-                )
+                    "word there if the codebase really speaks it")
+
 
 
 def check_unread_javascript(violations: list[str]) -> None:
@@ -600,8 +565,8 @@ def check_unread_javascript(violations: list[str]) -> None:
     walked = [path for path in SHELL.rglob("*") if path.is_file()]
     for path in sorted(path for path in walked if path.suffix == ".js"):
         violations.append(
-            f"{relative(path)} is JavaScript under the shell, which no arm reads — write it in TypeScript"
-        )
+            f"{relative(path)} is JavaScript under the shell, which no arm "
+            "reads — write it in TypeScript")
     examined["unread javascript / shell"] += len(walked)
 
 
@@ -632,26 +597,10 @@ CLAUDE_MD = ROOT / "CLAUDE.md"
 CLAUDE_MD_ARMS = re.compile(r"`scripts/check-no-french\.py`\s*\((?P<word>[a-z]+) arms")
 
 NUMBER_WORDS = {
-    1: "one",
-    2: "two",
-    3: "three",
-    4: "four",
-    5: "five",
-    6: "six",
-    7: "seven",
-    8: "eight",
-    9: "nine",
-    10: "ten",
-    11: "eleven",
-    12: "twelve",
-    13: "thirteen",
-    14: "fourteen",
-    15: "fifteen",
-    16: "sixteen",
-    17: "seventeen",
-    18: "eighteen",
-    19: "nineteen",
-    20: "twenty",
+    1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six",
+    7: "seven", 8: "eight", 9: "nine", 10: "ten", 11: "eleven", 12: "twelve",
+    13: "thirteen", 14: "fourteen", 15: "fifteen", 16: "sixteen",
+    17: "seventeen", 18: "eighteen", 19: "nineteen", 20: "twenty",
 }
 
 
@@ -673,15 +622,12 @@ def arms_bypassing_the_list() -> list[str]:
     """
     tree = ast.parse(read(Path(__file__)))
     ours = {node.name for node in tree.body if isinstance(node, ast.FunctionDef)}
-    body = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "main")
-    return [
-        node.value.func.id
-        for node in ast.walk(body)
-        if isinstance(node, ast.Expr)
-        and isinstance(node.value, ast.Call)
-        and isinstance(node.value.func, ast.Name)
-        and node.value.func.id in ours
-    ]
+    body = next(node for node in tree.body
+                if isinstance(node, ast.FunctionDef) and node.name == "main")
+    return [node.value.func.id for node in ast.walk(body)
+            if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Name)
+            and node.value.func.id in ours]
 
 
 def unregistered_arms() -> list[str]:
@@ -694,7 +640,8 @@ def unregistered_arms() -> list[str]:
         The unregistered `check_*` names. Empty is healthy.
     """
     tree = ast.parse(read(Path(__file__)))
-    defined = {node.name for node in tree.body if isinstance(node, ast.FunctionDef) and node.name.startswith("check_")}
+    defined = {node.name for node in tree.body
+               if isinstance(node, ast.FunctionDef) and node.name.startswith("check_")}
     return sorted(defined - {arm.__name__ for arm, _ in ARMS})
 
 
@@ -714,15 +661,13 @@ def check_arm_count(violations: list[str]) -> None:
         violations.append(
             f"`main` calls {bypassing} outside the `ARMS` loop — whatever runs "
             "there is documented by nothing and counted by nothing, which is "
-            "the state this arm exists to end"
-        )
+            "the state this arm exists to end")
     stranded = unregistered_arms()
     if stranded:
         violations.append(
             f"{stranded} is defined as an arm and absent from `ARMS`, so it "
             "never runs — a scope that reports « no violation » because nobody "
-            "called it"
-        )
+            "called it")
 
     doc = __doc__ or ""
     word = NUMBER_WORDS.get(len(ARMS), str(len(ARMS)))
@@ -730,26 +675,24 @@ def check_arm_count(violations: list[str]) -> None:
     # for a whole wave. The headings below it were held from the start and this
     # was not: an adversarial review set it back to « Four arms » and the gate
     # stayed green, so the very defect this arm is named for survived it.
-    heading = re.search(r"^(?P<word>[A-Z][a-z]+) arms, each with its own scope", doc, re.M)
+    heading = re.search(r"^(?P<word>[A-Z][a-z]+) arms, each with its own scope",
+                        doc, re.M)
     if heading is None:
         violations.append(
             "the module docstring no longer opens with « <N> arms, each with "
             "its own scope » — that sentence is what names the count in prose, "
-            "and this arm has nothing to hold once it is gone"
-        )
+            "and this arm has nothing to hold once it is gone")
     elif heading.group("word").lower() != word:
         violations.append(
             f"the module docstring says « {heading.group('word')} arms » and "
             f"there are {len(ARMS)} — write « {word.capitalize()} ». This is the "
-            "exact word that said « Four » while twelve arms ran."
-        )
+            "exact word that said « Four » while twelve arms ran.")
     for position, (_, label) in enumerate(ARMS, start=1):
         if f"{position}. **{label}**" not in doc:
             violations.append(
                 f"the module docstring carries no « {position}. **{label}** » "
                 "heading — an arm nobody documented is an arm nobody knows to "
-                "look for, which is how three of these went unnamed for a wave"
-            )
+                "look for, which is how three of these went unnamed for a wave")
 
     try:
         claimed = CLAUDE_MD_ARMS.search(read(CLAUDE_MD))
@@ -759,14 +702,12 @@ def check_arm_count(violations: list[str]) -> None:
         violations.append(
             f"{CLAUDE_MD.name} no longer carries the sentence naming this "
             "script's arm count — the cross-file reader that catches its drift "
-            "has nothing left to read, so restore it or retire this hold"
-        )
+            "has nothing left to read, so restore it or retire this hold")
     elif claimed.group("word") != word:
         violations.append(
             f"{CLAUDE_MD.name} says « {claimed.group('word')} arms » and there "
             f"are {len(ARMS)} — write « {word} ». That sentence was wrong for a "
-            "whole wave, for the single reason that nothing read it."
-        )
+            "whole wave, for the single reason that nothing read it.")
 
 
 # THE ONE LIST. Every count in this file is `len(ARMS)` or derived from it, and
@@ -811,29 +752,25 @@ def main(argv: list[str] | None = None) -> int:
     for what, count in examined.items():
         if count == 0:
             violations.append(
-                f"the arm reading {what} examined NOTHING — its scope is empty, so its « no violation » means nothing"
-            )
+                f"the arm reading {what} examined NOTHING — its scope is empty, "
+                "so its « no violation » means nothing")
     if violations:
         print("no-French guardrail violations:", file=sys.stderr)
         for violation in violations:
             print(f"  {violation}", file=sys.stderr)
-        print(
-            f"\n{len(violations)} violation(s). The rule: the code is English "
-            "(identifiers, class names, file names, tool messages); the French "
-            "a reader of the interface sees lives in the i18n resources.",
-            file=sys.stderr,
-        )
+        print(f"\n{len(violations)} violation(s). The rule: the code is English "
+              "(identifiers, class names, file names, tool messages); the French "
+              "a reader of the interface sees lives in the i18n resources.",
+              file=sys.stderr)
         return 1
     if counts_only:
         for what, count in examined.items():
             print(f"{count} {what}")
         return 0
-    print(
-        f"no-French guardrail: {len(ARMS)} arms ("
-        + ", ".join(label for _, label in ARMS)
-        + "), no violation — read "
-        + ", ".join(f"{count} {what}" for what, count in examined.items())
-    )
+    print(f"no-French guardrail: {len(ARMS)} arms ("
+          + ", ".join(label for _, label in ARMS)
+          + "), no violation — read "
+          + ", ".join(f"{count} {what}" for what, count in examined.items()))
     # Named out loud, every run. The operator ACCEPTED this French; what must
     # never happen again is it being invisible.
     for what, count in exempted.items():
