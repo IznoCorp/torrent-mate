@@ -31,14 +31,14 @@ function identifiedRows(node: unknown): IdentifiedRow[] {
 
 describe("the search seeds' identities", () => {
   it("never give one provider identifier to two kinds of medium", () => {
-    const kinds = new Map<string, Set<string>>();
+    const holdersById = new Map<string, Set<string>>();
     for (const row of identifiedRows(SEARCH_RESULTS)) {
       for (const [provider, identifier] of Object.entries(row.ids)) {
         const key = `${provider}:${String(identifier)}`;
-        kinds.set(key, (kinds.get(key) ?? new Set()).add(row.kind));
+        holdersById.set(key, (holdersById.get(key) ?? new Set()).add(row.kind));
       }
     }
-    const shared = [...kinds].filter(([, held]) => held.size > 1).map(([key]) => key);
+    const shared = [...holdersById].filter(([, held]) => held.size > 1).map(([key]) => key);
     expect(shared).toEqual([]);
   });
 });
