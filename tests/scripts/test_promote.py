@@ -426,3 +426,22 @@ def test_backport_refuses_when_prod_is_already_on_develop(flow: Flow) -> None:
     assert done.returncode == 1, _out(done)
     assert flow.tip("backport/nothing") == ""
     assert not any(c[:1] == ["pr"] for c in flow.gh_calls())
+
+
+def test_rule_3_counts_a_skipped_check_as_github_does(flow: Flow) -> None:
+    """A required check skipped at the head (harness-full off the maquette) passes, as on GitHub."""
+    flow.merged_pr("0.1.1", checks="skipped")
+    done = flow.promote("main")
+    assert done.returncode == 0, _out(done)
+
+
+def test_rule_3_refuses_a_required_check_that_never_ran(flow: Flow) -> None:
+    """A required check absent from the head's runs proves nothing: refused."""
+    sha = flow.merged_pr("0.1.1")
+    head = flow.answers[f"repos/{{owner}}/{{repo}}/commits/{sha}/pulls"][0]["head"]["sha"]  # type: ignore[index]
+    flow.answers[f"repos/{{owner}}/{{repo}}/commits/{head}/check-runs?per_page=100"] = {
+        "check_runs": [{"name": "lint", "conclusion": "success"}]
+    }
+    done = flow.promote("main")
+    assert done.returncode == 1, _out(done)
+    assert "not green at its head: test" in done.stderr

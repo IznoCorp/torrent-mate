@@ -26,7 +26,8 @@
 #      refuses a promotion while a hotfix is not yet merged back);
 #   3. main only: every first-parent commit it brings is the merge of a PR into
 #      `develop` whose required checks (read from develop's branch rules)
-#      concluded `success` at its head — a commit with no PR is named;
+#      passed at its head (`success`, or `skipped`/`neutral` as GitHub counts
+#      them) — a commit with no PR is named;
 #   4. prod and tag: the `__version__` at <sha> has no tag `v<version>` yet.
 #
 # `--dry-run` runs every check and prints what would move, pushing nothing.
@@ -132,8 +133,12 @@ for pull in json.load(sys.stdin):
     missing="$("$GH" api "repos/{owner}/{repo}/commits/$head/check-runs?per_page=100" | python3 -c '
 import json, sys
 required = sys.argv[1].split()
-runs = {run["name"]: run.get("conclusion") for run in json.load(sys.stdin).get("check_runs", [])}
-print(" ".join(name for name in required if runs.get(name) != "success"))
+# What GitHub itself counts as a passed required check; every run of the name must pass.
+passing = {"success", "skipped", "neutral"}
+runs = {}
+for run in json.load(sys.stdin).get("check_runs", []):
+    runs.setdefault(run["name"], []).append(run.get("conclusion"))
+print(" ".join(n for n in required if not runs.get(n) or any(c not in passing for c in runs[n])))
 ' "$required")" || refuse "cannot read the checks of PR #${pr%% *} through $GH"
     [ -z "$missing" ] || refuse "PR #${pr%% *} ($(short "$commit")): required checks not green at its head: $missing"
     numbers="$numbers #${pr%% *}"
