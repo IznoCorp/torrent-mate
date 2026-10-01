@@ -28,6 +28,13 @@ and a reset in the middle would wipe the very leftovers this rule is about.
   f5. AND THE SAME SEARCH TYPED AGAIN MARKS NO RESULT DONE — no row wears the
       check its earlier visit put on it. Held with the rows counted, so an
       answer that drew nothing cannot pass it.
+  r1. THE EMPTY SCREEN OFFERS THE RECENT SEARCHES its note points to (B-314):
+      the chips are the store's own list, and there is at least one. The
+      store's key was renamed `recent` and the screen kept reading `recents`,
+      so the chips were gone under a note reading « Vos recherches récentes
+      sont au-dessus » — the example the operator tried the flow with.
+  r2. AND A FINGER ON ONE RUNS IT: the field takes the chip's words and
+      results are drawn.
 """
 import asyncio
 import pathlib
@@ -170,6 +177,21 @@ async def main():
                       again["key"] == "add:follow", f"key {again['key']}")
         journal.check("and no strip says what a previous visit added",
                       again["open"] and not again["strip"], f"screen {again}")
+
+        recent = await page.evaluate("""()=>({
+          offered: [...document.querySelectorAll('[data-part="screen"][data-open] .sugg button')]
+            .map((chip) => chip.textContent.trim()),
+          stored: [...(window.__store.read().state.recent || [])]})""")
+        journal.check("the empty screen offers the recent searches its note points to (B-314)",
+                      len(recent["offered"]) > 0 and recent["offered"] == recent["stored"],
+                      f"chips {recent['offered']}, store {recent['stored']}")
+        chip = await tap(page, '[data-part="screen"][data-open] .sugg button')
+        await page.wait_for_timeout(SETTLED)
+        searched = await page.evaluate(SCREEN)
+        journal.check("and a finger on one runs it — its words in the field, results drawn",
+                      chip["tapped"] and bool(recent["offered"])
+                      and searched["query"] == recent["offered"][0] and searched["rows"] > 0,
+                      f"chip {chip.get('tapped')}, query {searched['query']!r}, {searched['rows']} row(s)")
 
         await type_query(page, QUERY)
         retyped = await page.evaluate(SCREEN)

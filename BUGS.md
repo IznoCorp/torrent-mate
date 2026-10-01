@@ -53,7 +53,7 @@
 | B-309 | « Récupérer maintenant » on a medium's own panel THROWS and takes nothing: the release screen's `data-take` branch is checked first, has no guard, and swallows every `data-take` in the document. **Owner:** the defects fast lane. | by L19 | `to confirm` |
 | B-311 | Coming back to a list after a medium's sheet does not restore the scroll position the list was left at. **Owner:** the defects fast lane. | 1× | `open` |
 | B-312 | Changing the library's lens during a selection DROPS it — L14's own decision, RULED against by the operator on 2026-09-05. **Owner:** the defects fast lane. | 2× | `to confirm` |
-| B-314 | The add screen's search shows no example result to try the flow with. **Owner:** the defects fast lane. | 1× | `open` |
+| B-314 | The add screen's search shows no example result to try the flow with. **Owner:** the defects fast lane. | 1× | `fixing` |
 | B-317 | The prototype's greeting toast covers the settings save bar, so a finger there does nothing while it lives. **Owner:** the defects fast lane. | 1× | `fixing` |
 | B-318 | The build races its own output on a fresh `dist` again — B-098's shape, in two hooks this time. **Owner:** the tooling train. | 1× | `open` |
 | B-319 | `fanout.py` holds the invalidation map against itself: a key dropped from the declaration is invisible to it. **Owner:** the tooling train. | 1× | `open` |
@@ -1002,6 +1002,17 @@ results — this walk does not reach it. The entry stays open for that answer ra
 closed on a reading that does not contradict him.
 
 <sub>reported through the steward, 2026-09-05 · probe on 8899 and on a control of `4c0e274a7` served on 8902</sub>
+
+**IT WAS THE RECENT SEARCHES, AND THEY DIED IN A RENAME** (2026-10-01, `main` `1e6aa6a69`). Walked by finger — the
+Acquisition tab, « + » — the empty add screen drew NO chip, under the note « Vos recherches récentes sont au-dessus ».
+The 09-05 walk read the named states, which drew no chip either and so could not tell. **Cause**: #456's English
+rename moved the store's key `recents: ["star wars", "silo", "the bear"]` to `recent` (`app/arrival.ts`), and the add
+screen kept reading `state.recents` — always absent, always `[]`. « Ne montre PLUS » is exactly that: the chips were
+the example one tried the flow with. A scan of every `state.<key>` read against every key written finds no other.
+**Repaired**: the screen reads `state.recent` (`features/acquisition/add-screen.tsx`). **R196**
+(`add_screen_opens_fresh.py`) r1–r2: « + » opens with the store's recent searches as chips, and a finger on one puts
+its words in the field and draws results — RED on the tree before the move (`chips []`, store three; no chip to tap),
+green after (`star wars`, 5 rows).
 
 **B-317 — the greeting toast covers the settings save bar.**
 At the centre of `#savebar [data-save]` — point (327, 758) at 390 px — `elementFromPoint` returns
