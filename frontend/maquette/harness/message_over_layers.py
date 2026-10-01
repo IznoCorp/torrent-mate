@@ -150,7 +150,7 @@ PAINTED_ON_TOP = """(words)=>{
   lifted.forEach((node) => node.setAttribute('inert', ''));
   return {host: true, carried: true, at: [Math.round(x), Math.round(y)], lifted: lifted.length,
           onTop: !!hit && host.contains(hit),
-          hit: hit ? hit.tagName + '.' + String(hit.className || '').split(' ')[0]
+          hit: hit ? hit.tagName + '.' + (hit.getAttribute('class') || '').split(' ')[0]
                      + (hit.dataset && hit.dataset.part ? '[' + hit.dataset.part + ']' : '') : null};}"""
 
 # WHERE A FINGER ON THE MESSAGE'S CLOSE WOULD LAND — nothing lifted.
@@ -161,7 +161,7 @@ AIM_AT_THE_CLOSE = """()=>{
   const x = box.left + box.width / 2, y = box.top + box.height / 2;
   const hit = document.elementFromPoint(x, y);
   return {found: true, x, y, reachable: !!hit && (hit === close || close.contains(hit)),
-          hit: hit ? hit.tagName + '.' + String(hit.className || '').split(' ')[0] : null,
+          hit: hit ? hit.tagName + '.' + (hit.getAttribute('class') || '').split(' ')[0] : null,
           inert: !!close.closest('[inert]')};}"""
 
 # The one follow with a hole, drawn on the follows list.

@@ -140,7 +140,7 @@ async def tap_part(page, part):
         return {found: true, x, y,
                 reachable: !!hit && (hit === one || one.contains(hit)),
                 covering: hit === null ? "nothing" :
-                  (hit.tagName + (hit.className ? "." + String(hit.className).split(" ")[0] : ""))};}""",
+                  (hit.tagName + (hit.getAttribute("class") ? "." + hit.getAttribute("class").split(" ")[0] : ""))};}""",
         part)
     if aim.get("found") and aim.get("reachable"):
         await page.touchscreen.tap(aim["x"], aim["y"])
