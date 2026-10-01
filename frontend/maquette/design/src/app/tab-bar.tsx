@@ -22,7 +22,8 @@ import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
 import { publishBarHeight } from "./bar-height";
-import { NAVIGATION, rowFor } from "./navigation";
+import { NAVIGATION, opensFor, rowFor } from "./navigation";
+import { useRights } from "../lib/account";
 import { Icon } from "../ui/icon";
 import { useServerStateVersion } from "../lib/query-client";
 import { useUiState } from "../lib/store-access";
@@ -50,6 +51,12 @@ export function TabBar(): ReactElement {
   // store writes alone and a badge showed the previous scenario's count until
   // something unrelated redrew it. The value is not used — the subscription is.
   useServerStateVersion();
+  // COMPOSED BY RIGHTS (§ 17 point 4): a row is drawn when it sits in the bar
+  // AND the account opens it. One page, or none, draws no bar at all (R232,
+  // OPEN 7 = A): one page IS no bar, never a bar of one.
+  const rights = useRights();
+  const rows = NAVIGATION.filter((row) => row.inBar && opensFor(row, rights));
+  const empty = rows.length < 2;
 
   // THE BAR'S HEIGHT IS PUBLISHED FROM HERE, and the move is not cosmetic.
   // `publishBarHeight()` used to run in the boot, after the engine had drawn
@@ -67,9 +74,10 @@ export function TabBar(): ReactElement {
       id="nav"
       data-part="shell/tab-bar"
       aria-label={t("navigation.barLabel")}
-      className={tabBar({ selecting })}
+      className={tabBar({ selecting, empty })}
+      data-empty={empty || undefined}
     >
-      {NAVIGATION.filter((row) => row.inBar).map((row) => {
+      {(empty ? [] : rows).map((row) => {
         // Read at render time, not stored: the count is server state in the
         // query cache, and the store bump that redraws this bar is what makes
         // the new number appear.

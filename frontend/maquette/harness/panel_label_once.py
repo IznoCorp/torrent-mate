@@ -69,9 +69,13 @@ SURFACES = ["acq-todo-dense", "acq-follows-paused", "acq-card-identity-unknown"]
 # THE DISTINCT PANELS A SURFACE ADDRESSES. A card offers the same panel from
 # its folder button and from its body; both are the same descriptor, so the
 # walk raises each address once and the second entry point costs nothing.
+# A CLOSED sheet is not the surface: closed is a class, not an absence, and it
+# keeps the last panel's acts below the window — read as the surface's, the
+# reassign act of a follow raised on the previous surface was « unreachable »
+# on the next one (L18).
 ADDRESSES = """()=>{
   const seen = [];
-  for (const one of document.querySelectorAll('[data-panel]'))
+  for (const one of document.querySelectorAll('[data-panel]:not(#sheet:not([data-open]) *)'))
     if (!seen.includes(one.dataset.panel)) seen.push(one.dataset.panel);
   return seen;}"""
 

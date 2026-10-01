@@ -1,0 +1,135 @@
+"""R428 — « Comptes »: the roster and the roles from the answer, a change that moves, and no escalation (§ 17).
+
+DESIGN maquette-l18 § 3.9, § 5 (R-L18-s, R-L18-t, R-L18-u, R-L18-v), round 8 Q9 = B, ruling 20,
+ruling 22, round 9 Q14 = A, M7, F2.
+
+1. R-L18-s — BOTH SIDES: « Comptes » is a menu entry, MARKED for a household member and its
+   page explains the right it lacks; forcing the roster answers 403.
+2. R-L18-t — FROM THE ANSWER: one row per account, its role by the served name, « sans droits »
+   for the Default role; one row per role; Admin's role panel offers nothing.
+3. R-L18-u — A CHANGE MOVES, AND REACHES THE ACCOUNT: giving `trackers.view` to the household
+   role through its panel calls updateRole, and a household member signed in afterwards has
+   Trackers in its bar. Demoting the last Admin answers 409.
+4. R-L18-u (M7) — NO ESCALATION: a manager who is not Admin sees no Admin account, sees the roles
+   beyond its own greyed, and forcing one, or touching its own role, answers 403.
+5. R-L18-v — A NEW ACCOUNT: refused without an e-mail; created with one, on its role, linked to
+   Plex when the e-mail matches.
+"""
+import asyncio
+import json
+import pathlib
+
+from common import SETTLED, PANEL_IN, ACTED, Journal, open_page, browser_channel, chrome_launch_args
+from playwright.async_api import async_playwright
+
+SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
+SEEDS = json.loads((SOURCE / "mocks/seeds/accounts.json").read_text(encoding="utf-8"))
+OWNER = json.loads((SOURCE / "mocks/seeds/account.json").read_text(encoding="utf-8"))
+
+ROWS = """() => ({
+  accounts: [...document.querySelectorAll('[data-part="accounts/account"]')].map((one) => ({
+    name: one.querySelector('[data-part="flux/name"]').textContent,
+    role: one.querySelector('[data-part="flux/value"]').textContent })),
+  roles: [...document.querySelectorAll('[data-part="accounts/role"] [data-part="flux/name"]')].map((one) => one.textContent) })"""
+ACTS = """(attribute) => [...document.querySelectorAll('#sheet [' + attribute + ']')].map((one) => ({
+  value: one.getAttribute(attribute), off: one.disabled || one.hasAttribute('aria-disabled') || one.hasAttribute('data-disabled') }))"""
+CALL = """async ([who, method, path, body]) => { if (who) window.__mocks.setIdentity(who);
+  return (await fetch(path, { method, body: body === null ? undefined : JSON.stringify(body) })).status; }"""
+
+
+async def main():
+    journal = Journal("R428 — « Comptes »")
+    async with async_playwright() as playwright:
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
+        context, page = await open_page(browser)
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+
+        async def go(state, wait=SETTLED):
+            await page.evaluate("(id)=>window.__go(id)", state)
+            await page.wait_for_timeout(wait)
+
+        await go("drawer-household")
+        marked = await page.evaluate("()=>document.querySelector('[data-navgo=\"accounts\"]')?.hasAttribute('data-reserved')")
+        journal.check("R-L18-s: « Comptes » is in a household member's menu, MARKED", marked is True, str(marked))
+        await go("accounts-forbidden")
+        right = await page.evaluate("()=>document.querySelector('[data-part=\"access/reserved\"]')?.dataset.right")
+        journal.check("R-L18-s: opened, it names the right it lacks", right == "accounts.manage", str(right))
+        forced = await page.evaluate(CALL, [None, "GET", "/api/accounts", None])
+        journal.check("R-L18-s: forcing the roster answers 403", forced == 403, str(forced))
+
+        await go("accounts-roster")
+        rows = await page.evaluate(ROWS)
+        every = [OWNER] + SEEDS["accounts"]
+        role_name = {role["id"]: role["name"] for role in SEEDS["roles"]}
+        journal.check("R-L18-t: one row per account, in the answer's order",
+                      [one["name"] for one in rows["accounts"]] == [one["name"] for one in every], str(rows["accounts"]))
+        bare = next(one for one in rows["accounts"] if one["name"] == next(
+            a["name"] for a in SEEDS["accounts"] if a["role"] == "default"))
+        journal.check("R-L18-t: the Default role reads « sans droits »", bare["role"] == "sans droits", str(bare))
+        others = [one for one in rows["accounts"] if one is not bare and one["name"] != OWNER["name"]]
+        journal.check("R-L18-t: every other account shows its role's served name",
+                      all(one["role"] in role_name.values() for one in others), str(others))
+        journal.check("R-L18-t: one row per role", rows["roles"] == [role["name"] for role in SEEDS["roles"]], str(rows["roles"]))
+        await page.evaluate("()=>window.__panel.produce('role', 'admin')")
+        await page.wait_for_timeout(PANEL_IN)
+        journal.check("R-L18-t: the Admin role offers nothing to change",
+                      not await page.evaluate(ACTS, "data-role-right"))
+
+        await go("accounts-roles", PANEL_IN + SETTLED)
+        grant = await page.evaluate("""()=>document.querySelector('#sheet [data-role-right="household|trackers.view|true"]')""")
+        journal.check("R-L18-u: the household role's panel offers « Donner : voir les trackers »", grant is not None)
+        await page.click('#sheet [data-role-right="household|trackers.view|true"]')
+        await page.wait_for_timeout(ACTED + SETTLED)
+        called = await page.evaluate("()=>window.__mocks.answered().filter((one)=>one.operationId==='updateRole').map((one)=>one.status)")
+        journal.check("R-L18-u: the tap calls updateRole", called == [200], str(called))
+        await page.evaluate("""async () => { window.__mocks.setIdentity('household-member');
+          await window.__queries.resetQueries({ queryKey: ['/api/auth/me'] }); }""")
+        await page.wait_for_timeout(SETTLED)
+        bar = await page.evaluate("()=>[...document.querySelectorAll('#nav button[data-page]')].map((one)=>one.dataset.page)")
+        journal.check("R-L18-u: a household member, read again, now has Trackers in its bar", "trackers" in bar, str(bar))
+
+        await go("accounts-roster")
+        last = await page.evaluate(CALL, [None, "PATCH", f"/api/accounts/{OWNER['id']}", {"role": "household"}])
+        journal.check("R-L18-u (F2): demoting the last Admin answers 409", last == 409, str(last))
+
+        await go("accounts-escalation-greyed", PANEL_IN + SETTLED)
+        rows = await page.evaluate(ROWS)
+        journal.check("M7: a manager who is not Admin sees no Admin account",
+                      OWNER["name"] not in [one["name"] for one in rows["accounts"]], str(rows["accounts"]))
+        acts = await page.evaluate(ACTS, "data-account-role")
+        greyed = {one["value"].split("|")[1] for one in acts if one["off"]}
+        journal.check("Q14 = A: the roles beyond the manager's own are greyed, Admin's among them",
+                      {"admin", "household"} <= greyed and "default" not in greyed, str(sorted(greyed)))
+        up = await page.evaluate(CALL, [None, "PATCH", "/api/accounts/household-member", {"role": "household-sees-all"}])
+        own = await page.evaluate(CALL, [None, "PATCH", "/api/roles/spectator", {"rights": ["library.read"]}])
+        admin = await page.evaluate(CALL, [None, "PATCH", f"/api/accounts/{OWNER['id']}", {"role": "default"}])
+        journal.check("Q14 = A / M7: forcing a wider role, its own role or an Admin account answers 403",
+                      (up, own, admin) == (403, 403, 403), str((up, own, admin)))
+
+        await go("accounts-create-refused", SETTLED + 600)
+        refusal = await page.evaluate("()=>document.querySelector('[data-part=\"accounts/refusal\"]')?.textContent")
+        created = await page.evaluate("()=>window.__mocks.answered().filter((one)=>one.operationId==='createAccount').length")
+        journal.check("R-L18-v: a new account without an e-mail is refused, and nothing is asked",
+                      refusal and created == 0, f"{refusal} / {created} calls")
+        forced = await page.evaluate(CALL, [None, "POST", "/api/accounts", {"name": "Maya", "email": "", "role": "default"}])
+        journal.check("R-L18-v: forced without an e-mail, the creation answers 400", forced == 400, str(forced))
+        await page.fill('[data-part="accounts/create"] input[name="name"]', "Maya")
+        await page.fill('[data-part="accounts/create"] input[name="email"]', SEEDS["plexUsers"][0])
+        await page.click('[data-part="accounts/create-submit"]')
+        await page.wait_for_timeout(ACTED + SETTLED)
+        roster = await page.evaluate("async()=>(await (await fetch('/api/accounts')).json()).accounts")
+        newcomer = next((one for one in roster if one["name"] == "Maya"), None)
+        journal.check("R-L18-v: with an e-mail, the account is created on its role and linked to Plex",
+                      newcomer is not None and newcomer["role"]["kind"] == "default" and newcomer["plexLinked"], str(newcomer))
+        rows = await page.evaluate(ROWS)
+        journal.check("R-L18-v: the roster draws it", "Maya" in [one["name"] for one in rows["accounts"]])
+
+        journal.check("no JS error", not errors, str(errors))
+        await context.close()
+        await browser.close()
+    journal.summary()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

@@ -12,7 +12,6 @@ export const SETTINGS_STATE: SettingsState = {
   modifs: new Map(),
   topic: null,
   q: "",
-  readOnly: false,
   conflict: false,
   refused: new Map(),
 };

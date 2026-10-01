@@ -285,6 +285,40 @@ async def main():
             f"{len(document_loads) - before} document load(s), "
             f"{await page.evaluate('()=>window.__restored ?? 0')} bfcache restore(s)")
 
+        # (j) A READ HELD, THE CACHE CLEARED MEANWHILE. The walk above drives
+        # the states back to back, and `__go`'s reset clears the cache under a
+        # read a previous state's act is still waiting on: the read rejects
+        # with `CancelledError`, and an act that does not catch it throws it
+        # at the page (CI run 36805775129, `torrents-cross-seed-search`). The
+        # walk met it only on a slow runner; here every act of the family is
+        # tapped with its reads held, and the cache is cleared before they
+        # answer — the act opens nothing and says nothing.
+        await page.evaluate("()=>window.__go('lib-list')")
+        await page.evaluate("()=>window.__mocks?.quiet()")
+        held_since = len(errors)
+        in_flight = await page.evaluate("""async (acts) => {
+          for (const id of ['readDownloads', 'readObligations', 'readLibraryIncomplete', 'readLibraryMembership'])
+            window.__mocks.setOperationOutcome(id, { latencyMilliseconds: 1500 });
+          window.__queries.removeQueries();
+          for (const [verb, value] of acts) {
+            const act = document.createElement('button');
+            act.setAttribute(`data-${verb}`, value);
+            document.body.append(act);
+            act.click();
+            act.remove();
+          }
+          await new Promise((settle) => setTimeout(settle, 100));
+          return window.__queries.isFetching();
+        }""", [["torrent-remove", "held:held"], ["cross-seed-cut", "held:held"],
+               ["cross-seed-exclude-title", "held"], ["del", "Les Animaniacs"]])
+        await page.evaluate("()=>window.__go('lib-list')")
+        await page.wait_for_timeout(2000)
+        cancelled = [error for error in errors[held_since:] if "CancelledError" in error]
+        journal.check(
+            "(j) a read held while the cache is cleared lets no CancelledError escape",
+            in_flight >= 4 and not cancelled,
+            f"{in_flight} read(s) in flight when cleared; escaped: {cancelled}")
+
         # (b) THE BAR'S BUTTONS KEEP THEIR IDENTITY across a page switch.
         await page.evaluate("()=>window.__go('acq-now-idle')")
         await page.wait_for_timeout(200)

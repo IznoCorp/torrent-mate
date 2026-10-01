@@ -7,6 +7,7 @@
 //
 // NO ADDRESS: the entry is a row of the client's list, which moves under the
 // operator as torrents come and go; Back closes the panel all the same.
+import { accountQuery, heldRights } from "../../lib/account";
 import i18next from "i18next";
 import { icons } from "../../lib/shell-doors";
 import type { Schemas } from "../../lib/contract-schemas";
@@ -127,7 +128,8 @@ function torrentPanel(subject: string, cache: PanelCache): PanelDescriptor | nul
         actions: [
           path,
           toOrigin,
-          {
+          // REMOVING IS A WRITE (`trackers.control`), absent without it.
+          !heldRights().holds("trackers.control") ? null : {
             text: i18next.t("screens.torrents.remove"),
             icone: icons.trash,
             ton: "danger",
@@ -144,6 +146,7 @@ registerProducer("torrent", {
   // A FUNCTION, NOT A LIST: resolved when a panel is asked for, never prefilled at
   // boot — a boot-time read would answer before a named state poses its entries.
   needs: () => [
+    accountQuery,
     { queryKey: downloadsKey, queryFn: async () => read<Schemas["Downloads"]>(downloadsKey[0]) },
     { queryKey: obligationsKey, queryFn: async () => read<Schemas["Obligations"]>(obligationsKey[0]) },
   ],

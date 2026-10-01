@@ -58,7 +58,7 @@ export const configurationStatusQuery = {
 };
 
 /** What the layer says about the configuration itself. */
-export type ConfigurationStatus = { readOnly: boolean; restartRequired: boolean };
+export type ConfigurationStatus = { restartRequired: boolean };
 
 /**
  * Whether this instance may write, and whether a restart is owed.

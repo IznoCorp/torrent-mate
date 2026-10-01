@@ -13,6 +13,8 @@
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
+import { offeredFeet } from "./act-rights";
+import { useRights } from "../../lib/account";
 import { mediumCardMarkup } from "./card-markup";
 import { setAsideCards, todoCards } from "../../lib/arrival-slots";
 import { Disclosure } from "../../ui/disclosure";
@@ -30,6 +32,8 @@ import { Markup, emptyNoteMarkup, sectionInnerMarkup } from "../../ui/markup";
 export function TodoTab(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
+  // THE ACTS ARE THE ACCOUNT'S (§ 17): a card it may only read draws no foot.
+  const rights = useRights();
   if (state.phase !== "ready") {
     return (
       <div className={body()} data-part="surface/body" data-region="acquisition/body">
@@ -76,10 +80,10 @@ export function TodoTab(): ReactElement {
         t("screens.acquisition.todoResolve"),
         toResolve,
         toResolve
-          .map((card) => mediumCardMarkup(card, {
+          .map((card) => mediumCardMarkup(card, offeredFeet({
             label: t("screens.acquisition.blockedFoot"),
             attributes: { "data-resolution": card.title },
-          }))
+          }, card, rights)))
           .join(""),
       )}
       {section(
@@ -87,10 +91,10 @@ export function TodoTab(): ReactElement {
         t("screens.acquisition.todoPlexMatch"),
         plexMatches,
         plexMatches
-          .map((card) => mediumCardMarkup(card, [
+          .map((card) => mediumCardMarkup(card, offeredFeet([
             { label: t("screens.acquisition.plexConfirmFoot"), solid: true, attributes: { "data-plex-confirm": card.title } },
             { label: t("screens.acquisition.plexCorrectFoot"), attributes: { "data-plex-correct": card.title } },
-          ]))
+          ], card, rights)))
           .join(""),
       )}
       {section(
@@ -98,10 +102,10 @@ export function TodoTab(): ReactElement {
         t("screens.acquisition.todoTunnelError"),
         tunnelErrors,
         tunnelErrors
-          .map((card) => mediumCardMarkup(card, [
+          .map((card) => mediumCardMarkup(card, offeredFeet([
             { label: t("screens.acquisition.todoRequeueFoot"), attributes: { "data-journey-requeue": card.title } },
             { label: t("screens.acquisition.abandonFoot"), attributes: { "data-journey-abandon": card.title } },
-          ]))
+          ], card, rights)))
           .join(""),
       )}
       {setAside.length === 0 ? null : (
@@ -109,10 +113,10 @@ export function TodoTab(): ReactElement {
           <Disclosure summary={<Markup html={sectionInnerMarkup("waiting", t("screens.acquisition.todoSetAside"), String(setAside.length), "")} />}>
             <Markup
               html={setAside
-                .map((card) => mediumCardMarkup(card, [
+                .map((card) => mediumCardMarkup(card, offeredFeet([
                   { label: t("screens.acquisition.blockedFoot"), attributes: { "data-resolution": card.title } },
                   { label: t("screens.acquisition.deleteFoot"), attributes: { "data-staging-delete": card.title } },
-                ]))
+                ], card, rights)))
                 .join("")}
             />
           </Disclosure>

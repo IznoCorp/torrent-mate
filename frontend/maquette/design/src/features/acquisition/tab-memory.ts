@@ -5,6 +5,8 @@
 // page shares (`lib/tab-memory.ts`) — this page brings its key, its first tab
 // and its tabs. Storage that is empty, refused or cleared opens « Suivis ».
 import { tabMemory } from "../../lib/tab-memory";
+import { heldRights } from "../../lib/account";
+import type { Rights } from "../../lib/rights";
 
 const STORAGE_KEY = "acquisition-tab";
 
@@ -49,7 +51,28 @@ const CANDIDATES_SCREEN = "/resolution/";
  */
 export function landingTab(asked?: string): string {
   if (asked !== undefined && TABS.has(asked)) return asked;
-  return location.pathname.startsWith(CANDIDATES_SCREEN) ? "todo" : rememberedTab();
+  if (location.pathname.startsWith(CANDIDATES_SCREEN)) return "todo";
+  // THE VIEWER'S MEMORY IS THE VIEWER'S (R-L18-x): a tab remembered under a role
+  // that opened it is ignored under one that does not.
+  // Before the account is read nothing is known to be closed: the memory stands.
+  const remembered = rememberedTab();
+  const rights = heldRights();
+  if (!rights.known) return remembered;
+  return tabsOpenTo(rights).includes(remembered) ? remembered : tabsOpenTo(rights)[0] ?? remembered;
+}
+
+/**
+ * The tabs of Acquisition an account opens, in their order (§ 17): « Suivis »
+ * to a role that manages follows or sees everyone's, « En cours » to any role
+ * that reaches the section, « À traiter » to a role holding its right (round 9
+ * Q13: « voir À traiter est un droit »).
+ *
+ * @param rights What the account may do.
+ * @returns The tab ids.
+ */
+export function tabsOpenTo(rights: Rights): string[] {
+  const follows = rights.holdsAny(["acquisition.follow", "acquisition.see.others"]);
+  return [...(follows ? ["follows"] : []), "now", ...(rights.holds("acquisition.todo.view") ? ["todo"] : [])];
 }
 
 /**
@@ -59,4 +82,18 @@ export function landingTab(asked?: string): string {
  */
 export function rememberTab(tab: string): void {
   MEMORY.remember(tab);
+}
+
+/**
+ * The tab Acquisition DRAWS for a dial: the dial's own when the account opens
+ * it, else its first open tab — so the bar marks the tab the body shows. Before
+ * the account is read, the dial stands.
+ *
+ * @param dial The tab the state holds.
+ * @param rights What the account may do.
+ * @returns The tab drawn.
+ */
+export function drawnTab(dial: string, rights: Rights): string {
+  const open = tabsOpenTo(rights);
+  return !rights.known || open.includes(dial) ? dial : open[0] ?? dial;
 }

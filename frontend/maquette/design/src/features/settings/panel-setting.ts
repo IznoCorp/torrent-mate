@@ -9,6 +9,7 @@
 // A PRODUCER IS NOT A HOOK: it is called from the click delegation and from the
 // addressed-panel table on a cold load at `?panel=setting:<file>:<key>`, so it
 // reads the query cache synchronously (invariant 10).
+import { accountQuery, heldRights } from "../../lib/account";
 import i18next from "i18next";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 import { registerVerb } from "../../lib/verbs";
@@ -76,7 +77,9 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
   // delegation verb that writes them, and that is the engine's last lot. Read
   // through the same slice the settings page reads, so the panel and the page
   // cannot disagree about what has been edited.
-  const { modifs: pending, readOnly } = SETTINGS_STATE;
+  const { modifs: pending } = SETTINGS_STATE;
+  // WRITING IS A RIGHT (`configuration.write`), subtracted by the ceiling (ruling 23).
+  const readOnly = !heldRights().holds("configuration.write");
   const shown = valueShown(setting, pending);
   const changed = pending.has(identifier);
   return {
@@ -381,6 +384,6 @@ registerVerb("commitsetting", commitEdit);
 
 registerProducer("setting", {
   produce: settingPanel,
-  needs: [settingsQuery],
+  needs: [settingsQuery, accountQuery],
   holds: (identifier, cache) => settingOf(identifier, cache) !== null,
 });

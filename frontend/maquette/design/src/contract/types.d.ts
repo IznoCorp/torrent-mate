@@ -181,6 +181,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/media/{provider}/{providerId}/cross-seed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The medium's cross-seed, tracker by tracker
+         * @description Demand C (L17's first drawing, taken over by L18, F25): for each origin torrent of the medium still in the client, its state on every other eligible tracker. Gated by `trackers.view`, the same right as the Trackers page it summarises (L18 DESIGN § 1.2), refused 403 to an account without it. Read once per visit of the sheet, never polled (R-L17-k); the stream's cross-seed events refresh it.
+         */
+        get: operations["readMediaCrossSeed"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/media/{provider}/{providerId}/rescrape": {
         parameters: {
             query?: never;
@@ -975,7 +995,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Whether the configuration is read-only, and whether a restart is owed */
+        /** Whether a restart is owed */
         get: operations["readConfigurationStatus"];
         put?: never;
         post?: never;
@@ -1282,6 +1302,143 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/plex": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Open a session through Plex */
+        post: operations["signInWithPlex"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/acquisition/requesters/reassign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Move one requester of an acquisition to another account */
+        post: operations["reassignRequester"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/acquisition/followed/{followedId}/quality": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set the caller's quality profile on one acquisition */
+        put: operations["setAcquisitionQuality"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/acquisition/followed/{followedId}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set the caller's pause on one acquisition */
+        put: operations["setAcquisitionPause"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every account and every role */
+        get: operations["readAccounts"];
+        put?: never;
+        /** Create an account */
+        post: operations["createAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/accounts/{accountId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Assign an account its one role */
+        patch: operations["updateAccount"];
+        trace?: never;
+    };
+    "/api/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create an ordinary role */
+        post: operations["createRole"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/roles/{roleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Rename a role or set its rights */
+        patch: operations["updateRole"];
+        trace?: never;
+    };
     "/api/torrents/{infoHash}/cross-seed/{tracker}/cut": {
         parameters: {
             query?: never;
@@ -1390,6 +1547,8 @@ export interface components {
             plexMatch?: components["schemas"]["PlexMatch"];
             /** @description the folder was put in the staging area by hand: no acquisition asked for it, so it carries no requester, and its ladder starts where its own row does — at « arrivé » */
             droppedByHand?: boolean;
+            /** @description WHO ASKED for this acquisition — PLURAL (round 9 Q16): a follow keeps a table of requesters, each piloting it. The lists an account reads are filtered on membership in it unless the account holds `acquisition.see.others`. */
+            requesters?: components["schemas"]["AccountRef"][];
             /** @description the season this acquisition is of, 1-based — read off the engine's wanted row, never off the line; null for a film. The engine holds it on the wanted row and does not serve it on the card yet: demand SR1. */
             season?: number | null;
             /** @description the episode this acquisition is of, 1-based — null for a film and for a whole season. Read off the engine's wanted row, never off the line: demand SR1. */
@@ -1499,6 +1658,16 @@ export interface components {
             ids: components["schemas"]["ProviderIds"];
             /** @description the poster's address, or null when none is known */
             poster: string | null;
+            /** @description WHO ASKED for this acquisition — PLURAL (round 9 Q16): a follow keeps a table of requesters, each piloting it. The lists an account reads are filtered on membership in it unless the account holds `acquisition.see.others`. */
+            requesters?: components["schemas"]["AccountRef"][];
+            /** @description the quality profile THE CALLER set on this acquisition, or null — offered under `acquisition.quality.own` (demand K) */
+            ownQuality?: string | null;
+            /** @description the profile in force: the HIGHEST of the settings of the requesters whose role holds `acquisition.quality.own` (round 10 Q6), null when none set one — the default profile applies */
+            quality?: string | null;
+            /** @description whether THE CALLER asked for a pause of this acquisition (demand P) */
+            ownPaused?: boolean;
+            /** @description whether the acquisition IS paused: every requester whose role holds `acquisition.pause.own` asked for it, and at least one did (round 10 Q6) */
+            paused?: boolean;
         };
         SearchResult: {
             title: string;
@@ -1676,10 +1845,18 @@ export interface components {
             /** @description whether a value exists. NEVER the value itself */
             defined: boolean;
         };
+        /** @description WHO IS SIGNED IN, and what the account may do (§ 17, demand D): its role, the rights the role carries, whether a Plex account is linked, and the instance's forbidden writes (ruling 23), subtracted from every role — Admin's included. */
         Account: {
             name: string;
             email: string;
             avatar: string;
+            /** @description the account's key */
+            id: string;
+            role: components["schemas"]["Role"];
+            /** @description whether a Plex account is linked to this one */
+            plexLinked: boolean;
+            /** @description THE INSTANCE'S forbidden writes (ruling 23): every write right on today's read-only instance, `library.delete` alone on the future preprod, empty on production. Read from the server, never guessed from an address. */
+            forbiddenWrites: components["schemas"]["Right"][];
         };
         DecisionCandidate: {
             title: string;
@@ -2344,6 +2521,43 @@ export interface components {
             /** @description epoch seconds */
             catalogRefreshedAt?: number | null;
         };
+        /**
+         * @description ONE RIGHT OF THE ACL (§ 17, ruling 17: every access, a view or an act, is a right). Rights belong to ROLES, never to an account (ruling 20). The interface reads the set an account holds and offers exactly what it opens; it never compares a role's name.
+         * @enum {string}
+         */
+        Right: "library.read" | "library.delete" | "library.rescrape" | "acquisition.request" | "acquisition.follow" | "acquisition.pilot.own" | "acquisition.pilot.any" | "acquisition.see.others" | "acquisition.todo.view" | "acquisition.quality.own" | "acquisition.pause.own" | "acquisition.reassign" | "pipeline.control" | "trackers.view" | "trackers.control" | "system.view" | "configuration.view" | "configuration.write" | "accounts.manage" | "auth.password";
+        /** @description A ROLE and the rights it carries (ruling 20: one role per account). Two are the system's and indelible (ruling 22): `admin` holds NO rights list — it bypasses the ACL, every right present and future — and `default` is the role every new account receives, its rights configurable. Every other role is `ordinary` configuration. */
+        Role: {
+            /** @description the role's key */
+            id: string;
+            /** @description its name, for display only — never compared */
+            name: string;
+            /**
+             * @description `admin` and `default` are the two system roles; `ordinary` is everything else
+             * @enum {string}
+             */
+            kind: "admin" | "default" | "ordinary";
+            /** @description the rights it carries — empty for `admin`, which bypasses the list */
+            rights: components["schemas"]["Right"][];
+        };
+        /** @description An account named by another answer — a requester, a chooser's row. */
+        AccountRef: {
+            id: string;
+            name: string;
+        };
+        /** @description ONE ACCOUNT OF THE ROSTER, as « Comptes » and the reassign chooser read it: its name, its mandatory e-mail, its ONE role (ruling 20) and its Plex link. */
+        AccountSummary: {
+            id: string;
+            name: string;
+            email: string;
+            role: components["schemas"]["Role"];
+            plexLinked: boolean;
+        };
+        /** @description Every account and every role (demand F). */
+        Roster: {
+            accounts: components["schemas"]["AccountSummary"][];
+            roles: components["schemas"]["Role"][];
+        };
         /** @description one tracker's cross-seed at rest (demand A) — the roster's line, the tracker's panel and the badge read this ONE answer (§ 13). The counts are the engine's, over the SAME pairs the downloads read answers, never recomputed by the interface. invented: no fixture exists for the cross-seed (L17 DESIGN § 2.3) */
         TrackerCrossSeed: {
             /** @description the tracker's own switch, read from `tracker.providers.<name>.cross_seed` — the setting Réglages and the tracker's panel both write */
@@ -2409,6 +2623,24 @@ export interface components {
             title: string;
             /** @description the origin's provider IDs, the path to its sheet (NE-DOIT-PAS-9), or null when unidentified */
             media: components["schemas"]["ProviderIds"] | null;
+        };
+        /** @description one ORIGIN torrent of the medium in the download client, with its cross-seed pairs — the same pairs the downloads read carries on that origin's row (R-L17-b). invented: no fixture exists for the cross-seed (L17 DESIGN § 2.3) */
+        MediaCrossSeedOrigin: {
+            /** @description the origin entry's hash */
+            infoHash: string;
+            /** @description the torrent's name in the client */
+            name: string;
+            /** @description the tracker the origin was grabbed on */
+            tracker: string;
+            /** @description one per other eligible tracker, in the operator's six words */
+            pairs: components["schemas"]["CrossSeedPair"][];
+            /** @description whether « Ne plus partager ce titre » excluded the whole title */
+            titleExcluded: boolean;
+        };
+        /** @description the media sheet's cross-seed block (demand C, § 19: « un bloc par tracker, réservé au profil administrateur »), taken over by L18 from L17 (F25). invented: no fixture exists for the cross-seed (L17 DESIGN § 2.3) */
+        MediaCrossSeed: {
+            /** @description every origin torrent of the medium still in the client; empty when none is */
+            torrents: components["schemas"]["MediaCrossSeedOrigin"][];
         };
     };
     responses: {
@@ -2766,6 +2998,37 @@ export interface operations {
                             [key: string]: number | null;
                         };
                     };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    readMediaCrossSeed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description tmdb or tvdb */
+                provider: string;
+                /** @description the identifier at that provider */
+                providerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the medium's origin torrents and their pairs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaCrossSeed"];
                 };
             };
             400: components["responses"]["Problem"];
@@ -4354,7 +4617,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        readOnly: boolean;
                         restartRequired: boolean;
                     };
                 };
@@ -4913,6 +5175,316 @@ export interface operations {
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    signInWithPlex: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the account the Plex identity signs in — a first sign-in creates it on the Default role */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Account"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    reassignRequester: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description a follow, or a card of the queue
+                     * @enum {string}
+                     */
+                    kind: "follow" | "card";
+                    /** @description the acquisition, by its title */
+                    title: string;
+                    /** @description the requester moved off */
+                    from: string;
+                    /** @description the account moved on */
+                    to: string;
+                };
+            };
+        };
+        responses: {
+            /** @description the acquisition's requesters after the move */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description WHO ASKED for this acquisition — PLURAL (round 9 Q16): a follow keeps a table of requesters, each piloting it. The lists an account reads are filtered on membership in it unless the account holds `acquisition.see.others`. */
+                        requesters: components["schemas"]["AccountRef"][];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    setAcquisitionQuality: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the follow */
+                followedId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description a quality profile's name, or null to follow the default */
+                    profile: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description the follow, its profile in force recomputed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Follow"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    setAcquisitionPause: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the follow */
+                followedId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    paused: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description the follow, its pause recomputed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Follow"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    readAccounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the roster */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Roster"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    createAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    /** @description MANDATORY: a local account carries an e-mail, and a Plex identity with the same e-mail is linked to it */
+                    email: string;
+                    /** @description the initial role's id */
+                    role: string;
+                };
+            };
+        };
+        responses: {
+            /** @description the account, on its initial role */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountSummary"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    updateAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the account */
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    role: string;
+                };
+            };
+        };
+        responses: {
+            /** @description the account, on its new role */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountSummary"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    createRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    rights: components["schemas"]["Right"][];
+                };
+            };
+        };
+        responses: {
+            /** @description the role */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Role"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    updateRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the role */
+                roleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description refused on a system role */
+                    name?: string;
+                    /** @description refused on the Admin role, which holds no list */
+                    rights?: components["schemas"]["Right"][];
+                };
+            };
+        };
+        responses: {
+            /** @description the role */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Role"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];

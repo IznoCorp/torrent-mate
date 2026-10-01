@@ -17,7 +17,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { useSyncExternalStore } from "react";
 import { markSeasonQueued, refreshPipelineStatus } from "./queued-seasons";
 import i18next from "i18next";
-import { HELD, send } from "../../lib/query-client";
+import { HELD, isRequestFailure, send } from "../../lib/query-client";
 import { panel, toast } from "../../lib/shell-doors";
 
 /** What the operation answers, as the contract declares it. */
@@ -102,6 +102,9 @@ export async function askForSeason(
    the same season is reachable from two surfaces, and a guard held by one
    component would not see a press on the other. */
 const inFlight = new Set<string>();
+
+// The status a refusal by the account's rights answers with (§ 17).
+const FORBIDDEN = 403;
 
 /* AND WHAT IS IN FLIGHT IS DRAWN. The guard below answers a second press with
    silence, and the operator saw a button that had taken nothing: with the answer
@@ -198,11 +201,13 @@ export async function grabSeason(title: string, season: number): Promise<boolean
       message: say(messageKey, { season, count, title }),
     });
     return grab?.queued === true;
-  } catch {
+  } catch (failure) {
     // THE REFUSAL IS SAID, and it is said as a refusal. Swallowing it would
     // leave the operator looking at a season that never moved with no reason
     // given — the silent failure this interface's own constitution refuses.
-    toast?.show({ message: say("seasonRefused", { season, title }) });
+    // A 403 SAYS WHY: the account's role does not open the take (§ 17).
+    const forbidden = isRequestFailure(failure) && failure.status === FORBIDDEN;
+    toast?.show({ message: say(forbidden ? "seasonForbidden" : "seasonRefused", { season, title }) });
     return false;
   } finally {
     // IN A `finally`, so a refused ask can be made again. Released on the

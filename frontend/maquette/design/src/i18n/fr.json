@@ -543,7 +543,9 @@
         "VF": "Piste française (VF, VFF, VFQ, TRUEFRENCH)",
         "VOSTFR": "Sous-titres français",
         "VO": "Version originale"
-      }
+      },
+      "inForce": "En vigueur : {{floor}} — la plus haute qualité demandée par ceux qui peuvent la choisir.",
+      "inForceDefault": "le profil par défaut"
     },
     "add": {
       "back": "Retour",
@@ -1015,8 +1017,8 @@
       "headerTitle": "À découvrir"
     },
     "accountPage": {
-      "noteLead": "Un seul compte existe sur ce serveur.",
-      "noteRest": " Ce qui est dessiné ici est ce qui existe : votre identité, votre session, et la façon dont elle se termine. La place des autres comptes est marquée et vide — la remplir de collègues inventés apprendrait à se méfier du reste de l'interface.",
+      "noteLead": "Ce compte, son rôle et ce qu'il peut faire.",
+      "noteRest": " Les droits appartiennent au rôle, jamais au compte : ce qui manque ici se donne en changeant de rôle, dans « Comptes ».",
       "you": "Vous",
       "identifier": "Identifiant",
       "identifierSub": "défini dans la configuration, pas ici",
@@ -1033,9 +1035,17 @@
       "whereValue": "sur le serveur",
       "whereSub": "la session EST le cookie ; se déconnecter demande au serveur de le lâcher, et l'écran ne fait que refléter ce qui a déjà eu lieu",
       "signOut": "Se déconnecter",
-      "others": "Les autres comptes",
-      "othersEmptyTitle": "Il n'y en a pas encore.",
-      "othersEmptyBody": "Les comptes multiples et leurs droits sont une mission à part. Leur place est ici, pour que la forme soit arrêtée avant que la fonctionnalité arrive — un menu qui gagne une entrée plus tard enseigne sa forme deux fois."
+      "role": "Rôle",
+      "roleSub": "un seul par compte ; ses droits sont les vôtres",
+      "plex": "Plex",
+      "plexLinked": "compte Plex lié",
+      "plexNotLinked": "aucun compte Plex lié",
+      "can": "Ce que ce compte peut faire",
+      "cannot": "Ce qu'il ne peut pas faire",
+      "forbiddenHere": "interdit sur cette instance, pour tous les comptes",
+      "addressPlexSub": "relie le compte Plex de même adresse",
+      "held": "détenu",
+      "noRight": "Aucun droit : ce rôle n'ouvre rien ici."
     },
     "notFound": {
       "title": "Cette adresse ne mène nulle part.",
@@ -1131,6 +1141,50 @@
       "leaveAbandon": "Abandonner les modifications",
       "leaveStay": "Rester sur {{page}}"
     },
+    "noAccess": {
+      "title": "Ce compte n'ouvre aucune page.",
+      "body": " Son rôle ne lui donne aucun droit ici : l'administrateur peut lui en attribuer un autre dans « Comptes »."
+    },
+    "gate": {
+      "plex": "Se connecter avec Plex",
+      "plexUnreachable": "Plex ne répond pas : connectez-vous avec un mot de passe.",
+      "usePassword": "Utiliser un mot de passe",
+      "invalid": "Identifiants invalides",
+      "passwordRefused": "Ce compte se connecte avec Plex : il n'a pas de mot de passe ici."
+    },
+    "accounts": {
+      "accounts": "Les comptes",
+      "roles": "Les rôles",
+      "rightless": "sans droits",
+      "bypass": "contourne tous les droits",
+      "roleCount_one": "{{count}} droit",
+      "roleCount_other": "{{count}} droits",
+      "plexLinked": "compte Plex lié",
+      "plexNotLinked": "aucun compte Plex lié",
+      "oneRole": "Un compte a un seul rôle ; ses droits sont ceux du rôle.",
+      "notOwnRole": "Votre propre rôle ne se change pas d'ici : un autre gestionnaire le fait.",
+      "current": "rôle actuel",
+      "adminRole": "Le rôle Admin ne tient pas de liste : il contourne tous les droits, présents et à venir. Il ne se restreint ni ne se modifie.",
+      "defaultRole": "Le rôle de tout nouveau compte. Ses droits se règlent ici ; il ne se supprime ni ne se renomme.",
+      "grant": "Donner : {{right}}",
+      "withdraw": "Retirer : {{right}}",
+      "saved": "Enregistré.",
+      "refused": "Refusé : ce changement dépasse vos droits, ou laisserait le serveur sans Admin.",
+      "newRole": "Nouveau rôle",
+      "newRoleName": "Rôle {{count}}",
+      "newAccount": "Nouveau compte",
+      "name": "Nom",
+      "email": "Adresse e-mail (obligatoire)",
+      "initialRole": "Rôle de départ",
+      "plexHint": "Un compte Plex de même adresse lui est lié : il peut alors entrer par Plex.",
+      "create": "Créer le compte",
+      "emailRequired": "L'adresse e-mail est obligatoire.",
+      "createRefused": "La création a été refusée.",
+      "roleName": "Nom du rôle",
+      "rename": "Renommer",
+      "nameRequired": "Un rôle porte un nom : il ne peut pas rester vide.",
+      "createBeyond": "Refusé : ce rôle de départ dépasse vos droits."
+    },
     "crossSeed": {
       "states": {
         "active": "actif",
@@ -1211,6 +1265,10 @@
         "offStoppedDetail": "Plus aucun nouveau cross-seed ici, et ceux qui tournaient ont été coupés.",
         "label": "Cross-seed sur {{tracker}}",
         "nextPass": "Pris en compte à la prochaine passe du moteur."
+      },
+      "media": {
+        "heading": "Cross-seed, tracker par tracker",
+        "origin": "{{name}} — l'original, sur {{tracker}}"
       }
     }
   },
@@ -1367,7 +1425,9 @@
       "maint": "Maintenance",
       "cfg": "Réglages",
       "profile": "Profil et préférences",
-      "404": "Adresse introuvable"
+      "404": "Adresse introuvable",
+      "noAccess": "Aucun accès",
+      "accounts": "Comptes"
     },
     "groups": {
       "supervision": "Supervision",
@@ -1525,7 +1585,18 @@
       "foundNextPassAt": "Trouvé, récupéré à la prochaine passe, à {{at}}.",
       "foundNextPass": "Trouvé, récupéré à la prochaine passe.",
       "filmLeavesNote": "Une fois acquis, ce film quittera automatiquement votre liste.",
-      "grabSeason": "Récupérer la saison {{season}}"
+      "grabSeason": "Récupérer la saison {{season}}",
+      "readOnly": "Cette acquisition est celle d'un autre compte : elle se lit ici, elle ne se pilote pas.",
+      "pauseOwn": "Mettre en pause pour moi",
+      "resumeOwn": "Reprendre pour moi",
+      "pausedForAll": "En pause : chaque demandeur qui peut la mettre en pause l'a demandé.",
+      "pauseWaitsForOthers": "Votre pause est notée ; l'acquisition continue tant que les autres demandeurs ne l'ont pas mise en pause."
+    },
+    "reassign": {
+      "act": "Réaffecter…",
+      "title": "Réaffecter « {{title}} »",
+      "note": "La demande de {{name}} passe au compte choisi. Seuls les comptes qui voient cette acquisition sont proposés.",
+      "empty": "Aucun autre compte ne voit cette acquisition."
     }
   },
   "verbs": {
@@ -1628,7 +1699,8 @@
       "rescrapeQueued": "Re-scrape de « {{title}} » en file — pipeline en cours.",
       "rescrapeHeld": "Re-scrape de « {{title}} » demandé — en attente du réseau, il partira au retour.",
       "rescrapeRefused": "Le re-scrape de « {{title}} » n'a pas abouti.",
-      "rescrapeUnidentified": "« {{title}} » n'a aucune identité fournisseur : il n'y a rien à re-scraper tant qu'il n'est pas identifié."
+      "rescrapeUnidentified": "« {{title}} » n'a aucune identité fournisseur : il n'y a rien à re-scraper tant qu'il n'est pas identifié.",
+      "seasonForbidden": "Saison {{season}} de « {{title}} » : votre rôle ne vous donne pas le droit de la récupérer."
     },
     "journey": {
       "requeueAsked": "Remis en file — le passage reprend où il s'est arrêté.",
@@ -1647,7 +1719,9 @@
       "searchStopped": "« {{title}} » ne sera plus cherché.",
       "paused": "« {{title}} » mis en pause.",
       "refused": "« {{title}} » n'a pas pu être enregistré : le serveur a refusé la demande.",
-      "removed": "« {{title}} » retiré de vos suivis."
+      "removed": "« {{title}} » retiré de vos suivis.",
+      "forbidden": "« {{title}} » : votre rôle ne vous donne pas ce droit sur ce suivi.",
+      "actRefused": "« {{title}} » : le changement n'a pas abouti."
     },
     "deck": {
       "loaded": "{{count}} suggestions de plus — la réserve en compte {{total}}.",
@@ -1691,6 +1765,15 @@
         "cancel": "Annuler",
         "done": "« {{title}} » a quitté qBittorrent."
       }
+    },
+    "reassign": {
+      "done": "Demande réaffectée à {{name}}.",
+      "refused": "La réaffectation a été refusée."
+    },
+    "acquisitionSettings": {
+      "paused": "Pause notée pour vous.",
+      "resumed": "Pause levée pour vous.",
+      "refused": "Ce réglage a été refusé."
     },
     "crossSeed": {
       "switchHeading": "Couper le cross-seed sur {{tracker}} ?",
@@ -1741,5 +1824,108 @@
     "airDateUnknown": "Date de diffusion inconnue.",
     "airsOn": "Sortie prévue le {{date}}",
     "airedOn": "Diffusé le {{date}}"
+  },
+  "access": {
+    "reservedTag": "Réservé",
+    "reservedTitle": "{{page}} — réservé.",
+    "reservedBody": "Ce compte n'a pas le droit de {{right}}.",
+    "rights": {
+      "library": {
+        "read": "voir la médiathèque",
+        "delete": "supprimer de la médiathèque",
+        "rescrape": "re-scraper un média"
+      },
+      "acquisition": {
+        "request": "demander un média",
+        "follow": "gérer ses suivis",
+        "pilot": {
+          "own": "piloter ses propres acquisitions",
+          "any": "piloter toutes les acquisitions"
+        },
+        "see": {
+          "others": "voir les acquisitions des autres"
+        },
+        "quality": {
+          "own": "choisir la qualité de ses acquisitions"
+        },
+        "pause": {
+          "own": "mettre ses acquisitions en pause"
+        },
+        "reassign": "réaffecter une acquisition",
+        "todo": {
+          "view": "voir « À traiter »"
+        }
+      },
+      "pipeline": {
+        "control": "piloter le traitement"
+      },
+      "trackers": {
+        "view": "voir les trackers",
+        "control": "agir sur les trackers"
+      },
+      "system": {
+        "view": "voir Système et Maintenance"
+      },
+      "configuration": {
+        "view": "voir les réglages",
+        "write": "modifier les réglages"
+      },
+      "accounts": {
+        "manage": "gérer les comptes"
+      },
+      "auth": {
+        "password": "se connecter par mot de passe"
+      }
+    },
+    "holders": {
+      "library": {
+        "read": "Tous les rôles le détiennent par défaut.",
+        "delete": "Par défaut, seul le rôle Admin le détient.",
+        "rescrape": "Par défaut, seul le rôle Admin le détient."
+      },
+      "acquisition": {
+        "request": "Par défaut : Admin, Membre du foyer et Invité Plex.",
+        "follow": "Par défaut : Admin, Membre du foyer et Invité Plex.",
+        "pilot": {
+          "own": "Par défaut : Admin, Membre du foyer et Invité Plex.",
+          "any": "Par défaut, seul le rôle Admin le détient."
+        },
+        "see": {
+          "others": "Par défaut, seul le rôle Admin le détient."
+        },
+        "quality": {
+          "own": "Par défaut : Admin et Membre du foyer."
+        },
+        "pause": {
+          "own": "Par défaut : Admin et Membre du foyer."
+        },
+        "reassign": "Par défaut, seul le rôle Admin le détient.",
+        "todo": {
+          "view": "Par défaut : Admin et Membre du foyer."
+        }
+      },
+      "pipeline": {
+        "control": "Par défaut, seul le rôle Admin le détient."
+      },
+      "trackers": {
+        "view": "Par défaut, seul le rôle Admin le détient.",
+        "control": "Par défaut, seul le rôle Admin le détient."
+      },
+      "system": {
+        "view": "Par défaut, seul le rôle Admin le détient."
+      },
+      "configuration": {
+        "view": "Par défaut, seul le rôle Admin le détient.",
+        "write": "Par défaut, seul le rôle Admin le détient."
+      },
+      "accounts": {
+        "manage": "Par défaut, seul le rôle Admin le détient."
+      },
+      "auth": {
+        "password": "Par défaut, seul le rôle Admin le détient."
+      }
+    },
+    "ceilingEvery": "Cette instance est en lecture seule : aucune écriture n'y est permise, pour aucun compte.",
+    "ceilingSome": "Cette instance interdit, pour tous les comptes : {{rights}}."
   }
 }

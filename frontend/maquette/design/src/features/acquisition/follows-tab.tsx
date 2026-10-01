@@ -15,6 +15,8 @@ import { tileMarkup } from "../../ui/tile";
 import { tileBadgeOf } from "./tile-badge";
 import { cadence } from "./variants";
 import { escapeHtml, svgIcon } from "../../lib/markup-text";
+import { useRights } from "../../lib/account";
+import { actOffered } from "./act-rights";
 import {
   STATUS_TONE,
   URGENCY,
@@ -44,6 +46,9 @@ export function FollowsTab(): ReactElement {
   // The schedule, as the scheduler returns it — undefined until the read lands,
   // and then neither the cadence line nor the next slot says anything.
   const { data: cadenceExpression } = useGrabCadence();
+  // WHAT THE SWIPE OFFERS IS WHAT THE PANEL OFFERS (§ 17): one table, keyed by
+  // the act's verb, gates both — never an act drawn here the server refuses.
+  const rights = useRights();
 
   // FROM THE CACHE (invariant 4). Following, unfollowing and grabbing are
   // mutations the engine's delegation still calls; their conversion is the
@@ -149,16 +154,18 @@ export function FollowsTab(): ReactElement {
         .join(" · ") || undefined,
   });
 
-  const rowOf = (follow: Follow, showStatus: boolean) =>
-    swipeRowMarkup(
+  const rowOf = (follow: Follow, showStatus: boolean) => {
+    const offered = (verb: string, markup: string) => (actOffered(verb, follow, rights) ? markup : "");
+    const title = escapeHtml(follow.title);
+    return swipeRowMarkup(
       mediumCardMarkup(descriptorOf(follow, showStatus)),
-      follow.kind === "movie"
-        ? `<button class="${swipeAction({ tone: "pause" })}" data-part="swipe/action" data-action="pause" data-swipeact="pause" data-pause="${escapeHtml(follow.title)}">${svgIcon(icons.x)}${t("screens.acquisition.swipeStopSearching")}</button><button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="remove" data-remove="${escapeHtml(follow.title)}">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`
-        : `<button class="${swipeAction({ tone: "pause" })}" data-part="swipe/action" data-action="pause" data-swipeact="pause" data-pause="${escapeHtml(follow.title)}">${svgIcon(icons.x)}${t("screens.acquisition.swipePause")}</button><button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="remove" data-remove="${escapeHtml(follow.title)}">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`,
+      offered("pause", `<button class="${swipeAction({ tone: "pause" })}" data-part="swipe/action" data-action="pause" data-swipeact="pause" data-pause="${title}">${svgIcon(icons.x)}${t(follow.kind === "movie" ? "screens.acquisition.swipeStopSearching" : "screens.acquisition.swipePause")}</button>`)
+        + offered("remove", `<button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="remove" data-remove="${title}">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`),
       follow.status === "pending" || follow.status === "to_grab"
-        ? `<button class="${swipeAction({ tone: "resume" })}" data-part="swipe/action" data-action="resume" data-swipeact="${SEARCH_AGAIN}" data-search-again="${escapeHtml(follow.title)}">${svgIcon(icons.refresh)}${t("screens.acquisition.swipeSearch")}</button>`
+        ? offered("search-again", `<button class="${swipeAction({ tone: "resume" })}" data-part="swipe/action" data-action="resume" data-swipeact="${SEARCH_AGAIN}" data-search-again="${title}">${svgIcon(icons.refresh)}${t("screens.acquisition.swipeSearch")}</button>`)
         : "",
     );
+  };
 
   // THE PAUSE IS SAID, AND IT USED TO BE SAID ONLY BY HALF THE TILES (B-350,
   // operator-reported). The subtitle was `followFraction(follow) ?? (disabled ? …)`,

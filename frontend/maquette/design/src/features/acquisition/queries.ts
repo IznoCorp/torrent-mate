@@ -3,10 +3,12 @@
 // THE QUEUE ITSELF IS `lib/queue.ts` — two surfaces read it, and invariant 7
 // forbids one feature importing another. What is here is this surface's alone:
 // the reserve of suggestions its deck draws, and the follows it lists.
+import { heldRights } from "../../lib/account";
+import { isOwn } from "../../lib/rights";
 import { useQuery, type QueryClient } from "@tanstack/react-query";
-import { HELD, read, send, sharedQueryClient } from "../../lib/query-client";
+import { HELD, isRequestFailure, read, send, sharedQueryClient } from "../../lib/query-client";
 import type { Schemas } from "../../lib/contract-schemas";
-import type { Follow, FollowOutcome } from "./types";
+import type { ActOutcome, Follow, FollowOutcome } from "./types";
 import { queueKey, useAcquisitionQueue, type AcquisitionQueue } from "../../lib/queue";
 import { store, useUiState } from "../../lib/store-access";
 import { todoCards } from "../../lib/arrival-slots";
@@ -206,6 +208,9 @@ export function useFollows() {
   return useQuery(followsQuery(world));
 }
 
+// The status a refusal by the account's rights answers with (§ 17).
+const FORBIDDEN = 403;
+
 /**
  * Installs the follows' verbs — the one place a follow is written.
  *
@@ -239,33 +244,38 @@ export function installFollowActions(queryClient: QueryClient): void {
   // next state names is not known yet.
   refillFollows = () => EVERY_WORLD.forEach((world) => void queryClient.prefetchQuery(followsQuery(world)));
   refillFollows();
+  // ONE ANSWER FOR THE PAUSE AND THE REMOVAL: a refusal puts back what was
+  // there and says which refusal it was, and every answer but a held one
+  // re-reads the list against the server.
+  const settle = (asked: Promise<unknown>, before: Follow[]): Promise<ActOutcome> =>
+    asked.then(
+      (outcome) => {
+        if (outcome === HELD) return "held" as const;
+        refresh();
+        return "done" as const;
+      },
+      (refusal: unknown) => {
+        write(before);
+        refresh();
+        return isRequestFailure(refusal) && refusal.status === FORBIDDEN ? "forbidden" as const : "refused" as const;
+      });
 
   followActions = {
+    // BOTH ANSWER THEIR CALLER, as `add` does: the row moves in the tap's own
+    // task, and what is SAID waits for the layer — a pause or a removal the
+    // layer refused was announced as done, and the row came back with nothing
+    // said (the reader's L18 round, a 403 behind « retiré »).
     setStatus: (title, status) => {
       const before = held();
       write(before.map((follow) =>
         follow.title === title ? { ...follow, st: status } : follow));
-      void send("PATCH", `/api/acquisition/followed/${encodeURIComponent(title)}`,
-                { status })
-        .catch((refusal) => { write(before); throw refusal; })
-        .then((outcome) => { if (outcome !== HELD) refresh(); },
-              // AND ON A REFUSAL. The `.finally` this replaced ran on both paths;
-              // only the HELD skip was intended, and the refused one was dropped by
-              // accident — leaving a row restored from a local snapshot and never
-              // re-synced against the server that refused it.
-              () => { refresh(); });
+      return settle(send("PATCH", `/api/acquisition/followed/${encodeURIComponent(title)}`,
+                         { status }), before);
     },
     remove: (title) => {
       const before = held();
       write(before.filter((follow) => follow.title !== title));
-      void send("DELETE", `/api/acquisition/followed/${encodeURIComponent(title)}`)
-        .catch((refusal) => { write(before); throw refusal; })
-        .then((outcome) => { if (outcome !== HELD) refresh(); },
-              // AND ON A REFUSAL. The `.finally` this replaced ran on both paths;
-              // only the HELD skip was intended, and the refused one was dropped by
-              // accident — leaving a row restored from a local snapshot and never
-              // re-synced against the server that refused it.
-              () => { refresh(); });
+      return settle(send("DELETE", `/api/acquisition/followed/${encodeURIComponent(title)}`), before);
     },
     // PUTTING A REMOVED FOLLOW BACK IS NOT ADDING ONE. `add` posts a title and
     // a kind, which is all a NEW follow has; a restored one has a year, a date
@@ -328,8 +338,8 @@ declare global {
   interface Window {
     /** The follows' verbs, called by the dying engine's delegation. */
     __followActions?: {
-      setStatus: (title: string, status: string) => void;
-      remove: (title: string) => void;
+      setStatus: (title: string, status: string) => Promise<ActOutcome>;
+      remove: (title: string) => Promise<ActOutcome>;
       /**
        * Adds a follow, or puts a removed one back.
        *
@@ -379,7 +389,12 @@ export function acquisitionBadge(): number {
   // THE ANSWER AS IT WAS READ, arrivals included: « À traiter » holds them too.
   const scenario = String(store.read().state.scen ?? "") === "loaded" ? "loaded" : "";
   const queue = sharedQueryClient?.getQueryData<AcquisitionQueue>(queueKey(scenario));
-  return queue ? todoCards(queue).length : 0;
+  // THE ACCOUNT'S OWN CARDS, as the tab counts them (R-L18-g).
+  // AND ONLY UNDER THE RIGHT TO SEE THEM (round 9 Q13): a count of a tab the
+  // account cannot open is a number it cannot explain.
+  const rights = heldRights();
+  if (!rights.holds("acquisition.todo.view")) return 0;
+  return queue ? todoCards(queue).filter((card) => isOwn(card, rights)).length : 0;
 }
 
 /**

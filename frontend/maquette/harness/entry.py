@@ -20,12 +20,19 @@ What this script holds to:
 
 RE-AIMED, count unchanged: signing out is asked of `window.__entry.signOut()`, the entry
 seam the harness publishes; the engine's global `signOut` went with its delegation branch.
+
+RE-AIMED AGAIN, count unchanged, for L18 (round 8 Q10 = B): the prototype's gate offers Plex
+FIRST and keeps the password behind « Utiliser un mot de passe », so it is read with that
+disclosure OPEN, its Plex block out of the comparison — the host's password page has none, by
+design (R-L18-q). Geometry is read against each part's own block (the wordmark against the
+brand, a field against the form), because the Plex block legitimately moves both blocks.
 """
 import asyncio
 import pathlib
 import re
 
 from common import (
+    PROTOTYPE,
     READ_THROUGH_LOCALHOST,
     Journal,
     browser_channel, chrome_launch_args,
@@ -41,7 +48,8 @@ HOST = "https://tm-design.iznogoudatall.xyz/"
 # box — because the host page and the phone frame are not required to sit at
 # the same place in the viewport, only to draw the same screen.
 READ = """() => {
-  const frame = document.querySelector('[data-part="login"]').getBoundingClientRect();
+  const brand = document.querySelector('[data-part="login"] [data-part="brand/large"]').getBoundingClientRect();
+  const form = document.querySelector('[data-part="login"] [data-part="login/form"]').getBoundingClientRect();
   const targets = ['[data-part="brand/large"] [data-part="brand/mark"]', '[data-part="brand/large"] [data-part="brand/wordmark"]', '[data-part="brand/large"] em', '[data-part="login/form"]',
                    '[data-part="login/field"] input', '[data-part="login/submit"]'];
   const out = {};
@@ -49,15 +57,17 @@ READ = """() => {
     const e = document.querySelector('[data-part="login"] ' + s);
     if (!e) { out[s] = 'ABSENT'; continue; }
     const r = e.getBoundingClientRect(), c = getComputedStyle(e);
+    const own = s === '[data-part="login/form"]' ? r : s.startsWith('[data-part="brand/large"]') ? brand : form;
     out[s] = {
-      w: r.width, h: r.height, dx: r.x - frame.x, dy: r.y - frame.y,
+      w: r.width, h: r.height, dx: r.x - own.x, dy: r.y - own.y,
       color: c.color, background: c.backgroundColor,
       font: c.fontFamily.split(',')[0], size: c.fontSize,
       weight: c.fontWeight, radius: c.borderRadius,
     };
   }
-  out['__words'] = document.querySelector('[data-part="login"]')
-                     .textContent.replace(/\\s+/g, ' ').trim();
+  out['__words'] = ['[data-part="brand/large"]', '[data-part="login/form"]']
+    .map((part) => document.querySelector('[data-part="login"] ' + part).textContent)
+    .join(' ').replace(/\\s+/g, ' ').trim();
   return out;
 }"""
 
@@ -104,11 +114,13 @@ async def main():
 
         pg2 = await ctx.new_page()
         pg2.on("pageerror", lambda e: errors.append(f"prototype: {e}"))
-        await pg2.goto("http://127.0.0.1:8899/", wait_until="load")
+        await pg2.goto(PROTOTYPE, wait_until="load")
         await pg2.evaluate("()=>document.querySelector('#toastx').click()")
         await pg2.wait_for_timeout(250)
         await pg2.evaluate("()=>window.__entry.signOut()")
         await pg2.wait_for_timeout(700)
+        await pg2.evaluate("()=>document.querySelector('[data-part=\"login/password-disclosure\"]')?.click()")
+        await pg2.wait_for_timeout(250)
         signout = await pg2.evaluate(READ)
         await b.close()
 

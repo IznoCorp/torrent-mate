@@ -254,7 +254,6 @@ export type MockState = {
    */
   movedFiles: string[];
   /** Whether the configuration refuses writes. Layer state, as above. */
-  readOnly: boolean;
 };
 
 /**
@@ -327,7 +326,6 @@ const seeded = (): MockState => ({
   // surprising one. Saving anything in `notify` reaches the banner; saving
   // anything else does not.
   movedFiles: [CHANGED_ON_DISK],
-  readOnly: false,
 });
 
 // BUILT ON FIRST USE, never at module evaluation. A top-level `seeded()` call

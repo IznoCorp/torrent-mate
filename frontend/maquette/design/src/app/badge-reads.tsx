@@ -15,7 +15,8 @@
 // IT NAMES NO FEATURE. The table does; this file only walks it.
 import type { ReactElement } from "react";
 
-import { NAVIGATION, type NavigationRow } from "./navigation";
+import { NAVIGATION, opensFor, type NavigationRow } from "./navigation";
+import { useRights } from "../lib/account";
 import { useServerStateVersion } from "../lib/query-client";
 
 /**
@@ -41,8 +42,12 @@ export function BadgeReads(): ReactElement {
   // it observes an entry the cache no longer holds, and nothing asks again.
   // Redrawing hands each hook the cache's new entry, which it then fetches.
   useServerStateVersion();
+  // AND ONLY THE ROWS THE ACCOUNT OPENS: a badge it may not read is a read the
+  // server refuses, and a count on a marked row would be a number it cannot
+  // explain (F29).
+  const rights = useRights();
   const drawn = NAVIGATION.filter(
-    (row) => row.useBadgeReads && (row.inBar || row.group !== undefined),
+    (row) => row.useBadgeReads && (row.inBar || row.group !== undefined) && opensFor(row, rights),
   );
   return (
     <>

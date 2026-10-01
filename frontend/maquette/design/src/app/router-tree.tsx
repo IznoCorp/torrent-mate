@@ -16,6 +16,8 @@ import { libraryRoute } from "../routes/library";
 import { maintenanceRoute } from "../routes/maintenance";
 import { settingsRoute } from "../routes/settings";
 import { systemRoute } from "../routes/system";
+import { noAccessRoute } from "../routes/no-access";
+import { accountsRoute } from "../routes/accounts";
 import { discoverRoute } from "../routes/discover";
 import { trackersRoute } from "../routes/trackers";
 import { mediaRoute } from "../routes/media-sheet";
@@ -74,6 +76,8 @@ export const router = createRouter({
     maintenanceRoute,
     settingsRoute,
     accountRoute,
+    noAccessRoute,
+    accountsRoute,
     // The screens, which do render.
     qualityRoute,
     rankingRoute,

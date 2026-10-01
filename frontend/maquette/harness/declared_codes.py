@@ -107,6 +107,11 @@ ASKED_FOR = {
     # a searchable state (DOIT-4's own corpus hold fell until this was asked).
     "searchCrossSeed": (
         "POST", "/api/torrents/8d51568b1a4f46e1fb7e7b535b52a5203312fc28/cross-seed/search"),
+    # « Comptes »' two creations answer 201 with what they made (L18). A creation
+    # carries its body, or the handler's refusal answers before the outcome.
+    "createAccount": ("POST", "/api/accounts",
+                      {"name": "Witness", "email": "witness@example.org", "role": "household"}),
+    "createRole": ("POST", "/api/roles", {"name": "Witness", "rights": []}),
     # The 200 family's witness. A read, because the plain success is what every
     # read answers and a rule holding only mutations would say nothing about
     # the fifty-five operations that make up the rest of the contract.
@@ -141,23 +146,24 @@ def declared_success_codes():
     return found
 
 
-async def ask(page, method, path):
+async def ask(page, method, path, body=None):
     """Asks the layer for one path and returns the status the response carried.
 
     Args:
         page: The prototype's page.
         method: The method, upper case.
         path: The path, with its parameters already resolved.
+        body: What a creation carries, or None.
 
     Returns:
         The response's own status.
     """
     return await page.evaluate(
-        """async ([method, path]) => {
-             const answer = await fetch(path, { method });
+        """async ([method, path, body]) => {
+             const answer = await fetch(path, body === null ? { method } : { method, body: JSON.stringify(body) });
              return answer.status;
            }""",
-        [method, path],
+        [method, path, body],
     )
 
 
@@ -227,9 +233,9 @@ async def main():
 
         # ── the families ────────────────────────────────────────────────────
         await page.evaluate("() => window.__mocks.reset()")
-        for operation_id, (method, path) in sorted(ASKED_FOR.items()):
+        for operation_id, (method, path, *body) in sorted(ASKED_FOR.items()):
             wanted = declared.get(operation_id)
-            carried = await ask(page, method, path)
+            carried = await ask(page, method, path, *body)
             recorded = await answered_status(page, operation_id)
             journal.check(
                 f"{operation_id} answers the {wanted} its contract declares",

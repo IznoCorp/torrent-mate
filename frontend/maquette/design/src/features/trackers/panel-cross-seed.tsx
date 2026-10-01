@@ -21,6 +21,7 @@ import type { Schemas } from "../../lib/contract-schemas";
 import { actionButton, sheetActions, factDetail, factList, factName, factRow, factRowBody } from "../../ui/variants";
 import { dayOf } from "./format";
 import { useDownloads, useTrackers } from "./queries";
+import { useRights } from "../../lib/account";
 import type { SwitchWrite } from "./cross-seed-verbs";
 import {
   CROSS_SEED_TONE, familyWord, isComplete, isFailure, isSearchable, isSwitchedOff, reasonSentence, stateWord,
@@ -114,7 +115,11 @@ function PairActs({ pair, origin, titleExcluded, trackerEnabled }: {
   const { t } = useTranslation();
   const say = (key: string) => t(`screens.crossSeed.panel.${key}`);
   const subject = `${origin.infoHash}:${pair.tracker}`;
+  // EVERY ACT HERE IS A WRITE (`trackers.control`), absent without it; what the
+  // pair waits on is still said.
+  const control = useRights().holds("trackers.control");
   if (pair.state === "active") {
+    if (!control) return null;
     return (
       <span className={factDetail()}>
         <button className={actionButton({ kind: "panelAction", tone: "danger" })} data-part="torrents/cross-seed-cut"
@@ -130,6 +135,7 @@ function PairActs({ pair, origin, titleExcluded, trackerEnabled }: {
   if (pair.searching) {
     return <span className={factDetail()} data-part="torrents/cross-seed-queued"><b>{say("queued")}</b></span>;
   }
+  if (!control) return null;
   if (isSearchable(pair, titleExcluded, isComplete(origin), trackerEnabled)) {
     return (
       <span className={factDetail()}>
@@ -218,6 +224,7 @@ function CrossSeedBlock({ block: posed }: { block: { type: "crossSeed" } & Panel
   // until the read is held.
   const downloads = useDownloads().data;
   const entry = downloads?.downloads.find((one) => one.infoHash === posed.origin.infoHash);
+  const control = useRights().holds("trackers.control");
   const held = entry?.crossSeed;
   const quota = downloads?.crossSeedQuota;
   // THE PAIR'S OWN TRACKER SWITCH (§ 17 point 1): the same `/api/trackers` read
@@ -255,8 +262,9 @@ function CrossSeedBlock({ block: posed }: { block: { type: "crossSeed" } & Panel
           })}
         </p>
       )}
-      {/* THE TITLE AS A WHOLE, on the origin, never on one tracker's line (round 9 Q11). */}
-      <div className={sheetActions()}>
+      {/* THE TITLE AS A WHOLE, on the origin, never on one tracker's line (round 9 Q11) —
+          a write (`trackers.control`), absent without it. */}
+      {control ? <div className={sheetActions()}>
         <button className={actionButton({ kind: "panelAction", tone: block.titleExcluded ? "plain" : "danger" })}
           data-part="torrents/cross-seed-exclude" data-whole=""
           {...(block.titleExcluded
@@ -264,7 +272,7 @@ function CrossSeedBlock({ block: posed }: { block: { type: "crossSeed" } & Panel
             : { "data-cross-seed-exclude-title": block.origin.infoHash })}>
           {say(block.titleExcluded ? "includeTitle" : "excludeTitle")}
         </button>
-      </div>
+      </div> : null}
     </section>
   );
 }
@@ -285,6 +293,7 @@ function CrossSeedSwitchBlock({ block: posed }: { block: { type: "crossSeedSwitc
   const block = summary ? { ...posed, summary } : posed;
   const say = (key: string, values: Record<string, string> = {}) => t(`screens.crossSeed.switch.${key}`, values);
   const on = block.summary.enabled;
+  const control = useRights().holds("trackers.control");
   // THE DETAIL SAYS WHAT IS TRUE: the engine off, the tracker on searches nothing
   // (M6, as the roster's line says it); the running ones cut, they no longer continue.
   const detail = on
@@ -303,8 +312,9 @@ function CrossSeedSwitchBlock({ block: posed }: { block: { type: "crossSeedSwitc
             </span>
             <span className={factDetail()} data-part="tracker/cross-seed-detail">{say(detail)}</span>
           </div>
-          <Switch checked={on} label={say("label", { tracker: block.tracker })}
-            data-part="tracker/cross-seed-switch" data-cross-seed-switch={block.tracker} />
+          {/* THE SWITCH IS A WRITE (`trackers.control`): the block still says its state. */}
+          {control ? <Switch checked={on} label={say("label", { tracker: block.tracker })}
+            data-part="tracker/cross-seed-switch" data-cross-seed-switch={block.tracker} /> : null}
         </li>
       </ol>
       {block.switched !== null ? (

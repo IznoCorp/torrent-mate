@@ -24,6 +24,7 @@
 // one piece of the entry that neither a server nor the first paint pins, so it
 // is the one that can move at any time, and moving it is forty lines of copy
 // into `fr.json` for no property this lot owes.
+import { installGate, restGate } from "./gate";
 import i18next from "../i18n";
 import { forgetOutbox } from "./outbox";
 import { store } from "../lib/store-access";
@@ -136,6 +137,7 @@ export function showSignIn(withError: boolean, silent = false): void {
   const gate = node("#login");
   const refusal = node("#loginerr");
   if (gate) gate.hidden = false;
+  restGate(withError);
   if (refusal) refusal.hidden = !withError;
   if (withError)
     (document.querySelector("#loginform") as HTMLFormElement | null)?.reset();
@@ -316,27 +318,13 @@ export function installEntry(): void {
     hideStartup();
   };
 
-  document
-    .querySelector("#loginform")
-    ?.addEventListener("submit", (event) => {
-      event.preventDefault();
-      const fields = new FormData(event.currentTarget as HTMLFormElement);
-      const username = String(fields.get("username") ?? "").trim();
-      const password = String(fields.get("password") ?? "");
-      // An empty field shows the refusal state; anything filled in walks
-      // through, because this surface demonstrates the SCREEN and not the
-      // check — the check lives where the file is served from.
-      if (!username || !password) {
-        const refusal = node("#loginerr");
-        if (refusal) refusal.hidden = false;
-        return;
-      }
-      hideSignIn();
-      // What actually follows a sign-in: the interface is not there yet, and
-      // the wait is covered rather than left blank — by the same screen, ended
-      // the same way, as the one a cold load puts up.
-      coverLoading();
-    });
+  // THE GATE'S TWO DOORS, Plex first (`./gate`). What follows a sign-in: the
+  // interface is not there yet, and the wait is covered rather than left blank —
+  // by the same screen, ended the same way, as the one a cold load puts up.
+  installGate(() => {
+    hideSignIn();
+    coverLoading();
+  });
 
   node("#installclose")?.addEventListener("click", () => {
     hideInstall();

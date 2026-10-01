@@ -16,6 +16,9 @@
 //
 // A PER-SUBJECT READ, so its need is a FUNCTION of the subject: a journey is
 // read per medium and a boot cannot know which one will be asked for.
+import { heldAcquisition, offeredActs } from "./act-rights";
+import { reassignAction } from "./reassign";
+import { accountQuery, heldRights } from "../../lib/account";
 import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";
 import { registerProducer, type Action, type PanelCache, type PanelDescriptor, type PanelNeed } from "../../ui/panel/contract";
@@ -300,7 +303,9 @@ function journeyPanel(subject: string, cache: PanelCache): PanelDescriptor | nul
       { type: "note", text: translate("panels.journey.provenanceNote") },
       {
         type: "actions",
-        actions: pointer !== null
+        // OWN TUNNEL (§ 17): the tunnel's verbs are offered on an acquisition
+        // the account asked for, or to one that pilots every acquisition.
+        actions: offeredActs<Action | null>(pointer !== null
           // A COVERED EPISODE IS NOT RELAUNCHED ALONE (17:36: « aucun
           // téléchargement … en parallèle »): its journey offers the pointer.
           ? [...(pointer.action === null ? [] : [pointer.action]), ...(tab === undefined || toSheet === null ? [] : [{
@@ -336,7 +341,9 @@ function journeyPanel(subject: string, cache: PanelCache): PanelDescriptor | nul
             icone: icons.eye,
             target: toSheet,
           }]),
-        ],
+          // « RÉAFFECTER… », to whoever holds the right (round 8 Q13 = A).
+          heldRights().holds("acquisition.reassign") ? reassignAction("card", title) : null,
+        ], heldAcquisition(title), heldRights()),
       },
     ],
   };
@@ -347,5 +354,5 @@ registerProducer("journey", {
   // THE QUEUE FIRST: it lays the acquisition's ladder where its card stands,
   // and the stages are then read off that one ladder; the decisions name the
   // release when the card carries none.
-  needs: (subject) => [queueQuery(), journeyQuery(subject), DECISIONS_QUERY],
+  needs: (subject) => [queueQuery(), journeyQuery(subject), DECISIONS_QUERY, accountQuery],
 });
