@@ -2,6 +2,10 @@
 
 It PRINTS what it reads, and HOLDS one act: the search cross empties the filter and the
 list is whole again — a FAIL line printed at once and exit 1 when it does not.
+
+AND ONE DRAWING (B-498): a grid tile's status badge wears its tone's DECLARED
+fill — the tone the follow's chip says — never the bare ring over the poster
+it was drawn as while its fills named custom properties no stylesheet declared.
 """
 
 import asyncio
@@ -41,10 +45,25 @@ async def main():
        return d? d.querySelectorAll('[data-part="chip"]').length>0 : 'group absent';}"""))
     await shot(pg, "follows-groups")
 
+    failures = []
     await pg.click('[data-fmode="grid"]'); await pg.wait_for_timeout(350)
     print("tiles             :", await pg.evaluate("""()=>document.querySelectorAll('[data-part="tile"]').length"""),
           "| badges :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="tile/badge"]')].map(e=>e.textContent)"""))
     await shot(pg, "follows-grid")
+    # Each badge's fill against its tone's own token, resolved by the browser.
+    painted = await pg.evaluate("""()=>{
+      const resolve = (token) => { const probe = document.createElement('span');
+        probe.style.background = `var(${token})`; document.body.appendChild(probe);
+        const value = getComputedStyle(probe).backgroundColor; probe.remove(); return value; };
+      return [...document.querySelectorAll('[data-part="tile/badge"]')].map((badge) => ({
+        text: badge.textContent, tone: badge.dataset.tone || null,
+        fill: getComputedStyle(badge).backgroundColor,
+        wanted: badge.dataset.tone ? resolve(`--color-${badge.dataset.tone === 'neutral' ? 'neutral-signal' : badge.dataset.tone}`) : null}));
+    }""")
+    unpainted = [one for one in painted if not one["tone"] or one["fill"] != one["wanted"]]
+    if not painted or unpainted:
+        failures.append("every status badge wears its tone's declared fill (B-498)")
+        print(f"  FAIL every status badge wears its tone's declared fill (B-498) — {unpainted[:3] or 'no badge'}")
 
     await pg.click('[data-fmode="list"]'); await pg.click('[data-pill="movies"]'); await pg.wait_for_timeout(300)
     print("Films filter      :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card/title"]')].map(e=>e.textContent)"""))
@@ -54,7 +73,6 @@ async def main():
     # THE SEARCH CROSS EMPTIES THE FILTER, and the list is whole again. Read on
     # the store and on the rows, never on the field alone: a cross that only
     # blanked the input would leave the list filtered under an empty box.
-    failures = []
     await pg.click('[data-pill="tout"]'); await pg.wait_for_timeout(250)  # french-ok: the « everything » pill's id, a data value the markup emits
     whole = await pg.evaluate("""()=>document.querySelectorAll('#view [data-part="card/title"]').length""")
     await pg.fill('#follq', 'zzz-no-such-follow'); await pg.wait_for_timeout(300)

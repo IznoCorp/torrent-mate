@@ -66,19 +66,30 @@ export const tileSubtitle = cva(
 /**
  * The badge over a poster's corner.
  *
- * ONE TONE CARRIES A FILL, the neutral scrim a rating reads over. Every other
- * tone a caller names paints none, and that is what they have always painted:
- * the fills they were drawn with named custom properties no stylesheet declares,
- * so the badge's ring and its figure were all there ever was.
+ * EVERY TONE CARRIES ITS FILL (B-498). A rating reads over the neutral scrim;
+ * a follow's status badge wears the tone its chip says, solid, with the dark
+ * ink the primary action uses over a light fill. The status fills named custom
+ * properties no stylesheet declared, so the badge was a bare ring and its
+ * figure over the picture — the tone that sorts the grid at a glance was gone.
  */
 export const tileBadge = cva(
   "tilebadge absolute top-[5px] right-[5px] grid place-items-center h-[17px] min-w-[17px] py-0 px-2 " +
-    "rounded-full border-2 border-background text-1 font-bold text-white",
-  { variants: { tone: { overlay: "[background:var(--color-tile-overlay)]" } } },
+    "rounded-full border-2 border-background text-1 font-bold",
+  {
+    variants: {
+      tone: {
+        overlay: "[background:var(--color-tile-overlay)] text-white",
+        warning: "[background:var(--color-warning)] text-primary-foreground",
+        info: "[background:var(--color-info)] text-primary-foreground",
+        waiting: "[background:var(--color-waiting)] text-primary-foreground",
+        neutral: "[background:var(--color-neutral-signal)] text-primary-foreground",
+      },
+    },
+  },
 );
 
 /** Which tone a badge is drawn in. */
-export type TileBadgeTone = "overlay";
+export type TileBadgeTone = "overlay" | "warning" | "info" | "waiting" | "neutral";
 
 /**
  * The selection check. Over a tile it is a ring in the poster's corner that fills

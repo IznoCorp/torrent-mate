@@ -52,8 +52,10 @@ WHAT IT READS, and each hold fails differently:
       would be a control nobody asked for. Counted, not asserted: every
       focusable inside the card, `tabindex="-1"` and disabled controls left out
       because neither takes a tab.
-  h9. EVERY PICK IS ANNOUNCED BY ITS WORD, ITS TITLE AND ITS YEAR, and by
-      nothing longer. The card being the button, its name used to be its whole
+  h9. EVERY PICK IS ANNOUNCED BY ITS WORD, ITS TITLE AND ITS YEAR, ITS
+      CONFIDENCE AND ITS PROVIDER (B-462, the operator's ruling of 2026-09-12:
+      « Titre Année · 90 % · TMDB » — the datum that says which candidate the
+      system believes was announced to nobody), and by nothing longer. The card being the button, its name used to be its whole
       text — up to 521 characters, opening on the poster fallback's initial
       where the provider had no picture, and identical in substance from one
       candidate to the next after the first few words; five « Choisir » alone
@@ -177,7 +179,14 @@ NAME_SUBJECTS = """(choose) => {
     const title = (card.querySelector('[data-part="card/title"]')?.textContent || '').trim();
     const subtitle = (card.querySelector('[data-part="card/subtitle"]')?.textContent || '').trim();
     const year = (subtitle.match(/^(\d{4})\s*·/) || [])[1] || '';
-    return choose + ' ' + (year ? title + ' ' + year : title);
+    // AND WHAT SEPARATES THEM (B-462, ruled 2026-09-12: « Titre Année · 90 % ·
+    // TMDB »): the confidence its chip prints, when it prints one, and the
+    // provider its subtitle names.
+    const confidence = ((card.querySelector('[data-part="card/meta"]')?.textContent || '')
+      .match(/\d+\s?%/) || [])[0] || '';
+    const provider = (subtitle.match(/·\s*([A-Z]+)\s+\S+$/) || [])[1] || '';
+    return [choose + ' ' + (year ? title + ' ' + year : title), confidence, provider]
+      .filter(Boolean).join(' · ');
   });
 }"""
 
@@ -435,7 +444,7 @@ async def main():
         # assistive technology would hear it.
         expected = await page.evaluate(NAME_SUBJECTS, CHOOSE)
         heard = await announced_names(context, page, CANDIDATE_CARDS)
-        journal.check("every pick is announced by its word, its title and its year",
+        journal.check("every pick is announced by its word, its title, its year, its confidence and its provider (B-462)",
                       bool(expected) and heard == expected,
                       str([{"heard": one[:70], "for": want}
                            for one, want in zip(heard, expected) if one != want][:2])

@@ -366,6 +366,15 @@ async def main():
         journal.check(
             "and a library series' panel still names it a series (B-581's control)",
             series_word in said["meta"], f"meta {said['meta']!r}")
+        # AND A SERIES WITH NO SEASON DATA SAYS SO, AND ONLY THAT (register
+        # train 2): its note carried the designer's reason — « La fraction
+        # affiche « — », jamais « 0/0 » qui se lirait comme une série vide ».
+        said = await library_panel(title="Famille Pirate")
+        no_data = await page.evaluate("()=>window.__i18n.t('panels.follow.noSeasonData')")
+        journal.check(
+            "a library series with no season data says so, with no design note in the sentence",
+            no_data in said["body"] and "se lirait" not in said["body"] and "0/0" not in said["body"],
+            f"body {said['body'][:220]!r}")
 
         # 5c. A FILM IN ACQUISITION IS A FILM IN ITS FOLLOW PANEL (B-612). A
         # film added by hand in the download client and still in flight — on
