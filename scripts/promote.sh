@@ -5,8 +5,8 @@
 #   feature ──PR──▶ develop ──promote main──▶ main ──promote staging──▶ staging ──promote prod──▶ prod (+ tag v<version>)
 #
 # A plain script any session runs — the orchestrator or any agent — from any
-# clone of the repository (operator, 2026-10-01: « des scripts à lancer au
-# besoin que l'orchestrateur ou tout autre agent peut également appelé »).
+# clone of the repository (the operator's ruling of 2026-10-01,
+# docs/reference/operator-method.md § 3 « Environnements et back-end »).
 # `main` moves when a lot is validated; `staging` and `prod` move on the
 # operator's word only. Design: docs/features/git-flow/DESIGN.md § 3.1.
 #

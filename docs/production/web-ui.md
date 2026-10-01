@@ -354,14 +354,19 @@ npm run build      # writes to ../personalscraper/web/static/
 
 ## Deploy Runbook
 
-Two deploy clones mirror KanbanMate's model — per-clone venvs for isolation
-from the dev editable install.
+Two deploy clones — per-clone venvs for isolation from the dev editable install
+— each follow one branch of the git flow
+(`feature → develop → main → staging → prod`, `docs/features/git-flow/DESIGN.md`).
+`develop` and `main` deploy nothing here: `develop` is served on tm-design (mocks,
+no backend), `main` holds what is validated. `staging` and `prod` move only through
+`scripts/promote.sh`, by fast-forward, on the operator's word; the poller then
+deploys them.
 
 ### Clones
 
 | Role    | Path                    | Tracks    | PM2 app                   | Port |
 | ------- | ----------------------- | --------- | ------------------------- | ---- |
-| Prod    | `~/deploy/torrentmate`  | `main`    | `torrentmate-web`         | 8710 |
+| Prod    | `~/deploy/torrentmate`  | `prod`    | `torrentmate-web`         | 8710 |
 | Staging | `~/staging/torrentmate` | `staging` | `torrentmate-web-staging` | 8711 |
 
 Both clones share the **real config directory** via
@@ -375,10 +380,10 @@ Each clone has its own venv at `~/deploy/torrentmate-venv` /
 
 ### Deploy scripts
 
-**`scripts/deploy.sh`** (prod only — refuses anything but a clean `main` synced
-with `origin/main`):
+**`scripts/deploy.sh`** (prod only — refuses anything but a clean `prod` synced
+with `origin/prod`):
 
-1. Guard: branch == `main`, tree clean, `HEAD == origin/main`, prod venv exists.
+1. Guard: branch == `prod`, tree clean, `HEAD == origin/prod`, prod venv exists.
 2. `cd frontend && npm ci && TM_BUILD_COMMIT=<sha> npm run build`.
 3. `rsync -a --delete frontend/dist/ → personalscraper/web/static/`.
 4. Stamp `BUILD_COMMIT` with the exact served SHA.
@@ -387,10 +392,11 @@ with `origin/main`):
 7. Post-check: `curl http://127.0.0.1:8710/api/health` → 200 (retries up to
    15 × 2 s = 30 s).
 
-**`scripts/deploy-staging.sh`** (serves the current branch of the staging
-clone, refuses dirty trees):
+**`scripts/deploy-staging.sh`** (staging only — refuses anything but a clean
+`staging` synced with `origin/staging`; a feature branch is never served here):
 
-1. Guard: tree clean, staging venv exists.
+1. Guard: tree clean, branch == `staging`, `HEAD == origin/staging`, staging venv
+   exists.
 2. Bake `"branch @ sha"` as `TM_BUILD_COMMIT` for the SPA and `BUILD_COMMIT`
    (byte-for-byte identical — prevents perpetual phantom updates from the PWA
    comparing "sha" against "branch @ sha").
@@ -402,11 +408,13 @@ clone, refuses dirty trees):
 **`scripts/autodeploy-poll.sh`** — PM2 app `torrentmate-autodeploy`, 60-second
 loop:
 
-- Prod (`~/deploy/torrentmate`): `git fetch origin main` → if `main` advanced
+- Prod (`~/deploy/torrentmate`): `git fetch origin prod` → if `prod` advanced
   → `git pull --ff-only` → `deploy.sh`.
 - Staging (`~/staging/torrentmate`): `git fetch origin staging` → if `staging`
-  advanced → `git reset --hard origin/staging` (staging may be rebased) →
-  `deploy-staging.sh`.
+  advanced → `git pull --ff-only` → `deploy-staging.sh`.
+- Both follow by fast-forward only. A branch rewritten on origin (not a
+  fast-forward of the clone's HEAD) is logged « not a fast-forward … NOT
+  followed », the pass is skipped and the clone stays where it was.
 - `--once` flag for testing; `AUTODEPLOY_INTERVAL` env overrides the loop
   interval.
 - Fail-soft per cycle — one failed pass never kills the loop.
@@ -468,7 +476,7 @@ and the storage disks are **shared** (the canonical config lives at
 | Role        | Path                    | Branch                 | Runs                                                          |
 | ----------- | ----------------------- | ---------------------- | ------------------------------------------------------------- |
 | **dev**     | `~/dev/PersonalScraper` | feature branches       | nothing under PM2 — development checkout only                 |
-| **prod**    | `~/deploy/torrentmate`  | `main` (autodeploy)    | `torrentmate-web` + the watch daemon + all crons + autodeploy |
+| **prod**    | `~/deploy/torrentmate`  | `prod` (autodeploy)    | `torrentmate-web` + the watch daemon + all crons + autodeploy |
 | **staging** | `~/staging/torrentmate` | `staging` (autodeploy) | `torrentmate-web-staging` **only** (read-only, no crons)      |
 
 Rationale: the crons/watch used to run from the dev checkout via the pyenv
@@ -488,7 +496,7 @@ the `autorestart: true` daemon.
 ### BUILD_COMMIT stamping
 
 - **Prod**: `BUILD_COMMIT` contains the full SHA of the deployed commit.
-- **Staging**: `BUILD_COMMIT` contains `"<branch> @ <sha>"`.
+- **Staging**: `BUILD_COMMIT` contains `"staging @ <sha>"`.
 - Both match the `TM_BUILD_COMMIT` baked into the SPA at build time
   (`vite.config.ts` → `define __BUILD_COMMIT__`), so the PWA's version poll
   compares byte-for-byte.

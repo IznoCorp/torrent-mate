@@ -80,13 +80,20 @@ pull request touching the maquette), not on this machine. `make harness` runs th
 
 - Conventional Commits `<type>[(<scope>)]: <description>` (`feat|fix|chore|refactor|style|docs|test|perf|build|ci`);
   no version prefix; no AI attribution (`hooks/commit-msg` refuses both; it cannot reach a message
-  composed on GitHub). Branches `feat/<codename>` / `fix/<codename>`, scope = codename, squash merge.
-- Every PR bumps the patch version (CI `version-bump`), or carries the label `no-version-bump` when it
-  touches no code under `personalscraper/`, `frontend/maquette/design/src/`, `frontend/maquette/harness/`,
-  `scripts/` or `.github/workflows/`.
+  composed on GitHub). Branches `feat/<codename>` / `fix/<codename>` cut from `develop`, scope =
+  codename, squash merge.
+- Git flow `feature → develop → main → staging → prod` (`docs/features/git-flow/DESIGN.md`): a PR
+  targets `develop` (`--base develop`, the default branch), or `prod` for a hotfix — never `main` nor
+  `staging`. `main`, `staging` and `prod` move only through `scripts/promote.sh`, by fast-forward:
+  `main` when a lot is validated (the orchestrator), `staging` and `prod` on the operator's word only;
+  any session may run it (`docs/reference/method.md` « The flow's scripts »). A hotfix is cut from
+  `prod`, PR into `prod`, then `scripts/promote.sh backport <c>` merges it back into `develop`.
+- Every PR bumps the patch version above its base (CI `version-bump`; a hotfix adds a fourth component
+  to prod's), or carries the label `no-version-bump` when it touches no code under `personalscraper/`,
+  `frontend/maquette/design/src/`, `frontend/maquette/harness/`, `scripts/` or `.github/workflows/`.
 - A DRAFT PR runs no CI: open it READY (or add `run-ci-on-draft`, never both transitions at once).
   Once its diff is verified, arm `gh pr merge <n> --auto --squash --match-head-commit <sha>` (re-arm if
-  the head moves). After `main` moves, `gh pr update-branch`.
+  the head moves). After `develop` moves, `gh pr update-branch`.
 - Claim a KanbanMate ticket that ALREADY EXISTS (`/kanban-work <ticket>`) before coding it; never
   create one for work this session is about to do.
 - A worktree is removed once its PR is merged (local branch deleted, then `ExitWorktree` remove).
@@ -125,7 +132,7 @@ document; French inside an English one only quotes UI copy, media titles or the 
   `tv_shows_animation`, `tv_shows_documentary`, `anime`, `tv_programs`): new episodes are MERGED into
   the existing folder, replacing any that exist. New media go to the disk with the most free space.
 - **Web environments** — three checkouts share `library.db`, `.data/` and the disks: dev
-  `~/dev/PersonalScraper` (no PM2 daemons), prod `~/deploy/torrentmate` (tracks `main`, 8710),
+  `~/dev/PersonalScraper` (no PM2 daemons), prod `~/deploy/torrentmate` (tracks `prod`, 8710),
   staging `~/staging/torrentmate` (tracks `staging`, 8711, read-only role → 403 on writes).
   Canonical config: `~/.torrentmate/config`. Topology and deploy: `docs/production/web-ui.md`.
 - **Web invariants (tests enforce)** — every mutating endpoint is `require_not_staging` and typed
