@@ -6,7 +6,8 @@ DESIGN maquette-l18 § 3.7, § 5 (R-L18-o, R-L18-b's source holds).
    guesses the ceiling from an address or a port: the list comes with the account.
 2. R-L18-o — EVERY WRITE ABSENT, ADMIN INCLUDED: on today's read-only instance the owner has no
    « ＋ », no lever in Système, no selection in the Médiathèque, no switch on Trackers, no field
-   in Réglages; forcing a run answers 403; the page says « lecture seule » once.
+   in Réglages, no « Corriger » on a settled decision; forcing a run answers 403; the page says
+   « lecture seule » once.
 3. PREPROD — ONLY WHAT THE LIST NAMES: with `library.delete` alone forbidden, the media sheet
    keeps « Re-scraper » and loses « Supprimer », forcing the delete answers 403 and the rescrape
    does not, and the notice names the forbidden right rather than saying « lecture seule ».
@@ -26,6 +27,8 @@ QUIET = """async () => { for (let i = 0; i < 40 && document.querySelector('#toas
   document.querySelector('#toastx')?.click(); await new Promise((settle) => setTimeout(settle, 250)); } }"""
 NOTICE = "() => document.querySelector('[data-part=\"access/ceiling\"]')?.textContent || null"
 PRESENT = "(selector) => !!document.querySelector(selector)"
+# A medium in the library whose identification was settled by a decision.
+DECIDED = "The Bombing of Pan Am 103"
 
 
 def product_sources():
@@ -80,6 +83,14 @@ async def main():
                           not await page.evaluate(PRESENT, selector), selector)
         forced = await page.evaluate("async()=>(await fetch('/api/pipeline/run',{method:'POST',body:'{}'})).status")
         journal.check("R-L18-o: forcing a run as the owner answers 403", forced == 403, str(forced))
+        # « CORRIGER » (L24) decides for the pipeline: the settled decision is read, its act absent.
+        await page.evaluate("(title)=>window.__screens.mediaSheet(title, window.__carriedFor(title) ?? undefined)",
+                            DECIDED)
+        await page.wait_for_timeout(SETTLED)
+        block = await page.evaluate("""() => ({ block: !!document.querySelector('[data-part="decision"]'),
+          correct: !!document.querySelector('[data-decision-correct]') })""")
+        journal.check("R-L18-o: the decision block is read, « Corriger » absent under the ceiling",
+                      block["block"] and not block["correct"], str(block))
 
         await go("settings-read-only")
         await page.evaluate("()=>window.__panel.produce('setting', 'paths.torrent_complete_dir')")

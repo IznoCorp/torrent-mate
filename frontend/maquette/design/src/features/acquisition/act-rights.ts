@@ -31,6 +31,7 @@ const ACTS: Readonly<Record<string, Asked>> = {
   "plex-confirm": PIPELINE,
   "plex-correct": PIPELINE,
   resolution: PIPELINE,
+  "decision-correct": PIPELINE,
   "journey-abandon": PIPELINE,
   "staging-delete": PIPELINE,
   "journey-requeue": PILOT,

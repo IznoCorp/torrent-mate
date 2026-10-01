@@ -16,6 +16,7 @@ import { registerBlock } from "../../ui/panel/contract";
 import { actionButton, factsPanel, keyValueRow, ruleNote, sheetActions, sheetFacts, sectionHeading } from "../../ui/variants";
 import { Icon } from "../../ui/icon";
 import { useEngineDrawing } from "../../lib/engine-drawing";
+import { useRights } from "../../lib/account";
 import { useDecisions, type Decisions } from "./decision-queries";
 import { decisionHeadingPlace } from "./variants";
 import { decisionState, decisionStateDetail, viaLabel } from "./decision-vocabulary";
@@ -64,6 +65,8 @@ export function DecisionBlock({ subject }: { subject: DecisionSubject }) {
   const { t } = useTranslation();
   const { icons } = useEngineDrawing();
   const { data } = useDecisions();
+  // « CORRIGER » DECIDES FOR THE PIPELINE: absent, not refused, without the right (§ 17).
+  const correctOffered = useRights().holds("pipeline.control");
   const decision = settledDecisionOf(data, subject);
   if (decision === null) return null;
   const state = decisionState(decision.state);
@@ -99,7 +102,7 @@ export function DecisionBlock({ subject }: { subject: DecisionSubject }) {
       </div>
       {/* « CORRIGER », the block's one act (S5): its verb creates or re-opens
           the decision, then opens the candidates screen. */}
-      <div className={sheetActions()}>
+      {correctOffered ? <div className={sheetActions()}>
         <button
           className={actionButton({ kind: "panelAction" })}
           data-part="decision/correct"
@@ -108,7 +111,7 @@ export function DecisionBlock({ subject }: { subject: DecisionSubject }) {
           <Icon paths={icons.search} />
           {t("surfaces.decision.correct")}
         </button>
-      </div>
+      </div> : null}
     </section>
   );
 }
