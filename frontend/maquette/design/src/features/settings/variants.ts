@@ -22,7 +22,7 @@ export const settingsRow = cva(
   // width utilities are sorted by the generator, all-sides before one-side,
   // which is the order the prototype wrote by hand.
   "settingrow flex items-center gap-5 w-full text-left border-0 " +
-    "border-b border-border bg-transparent py-5 px-1 text-foreground last:border-b-0 " +
+    "border-b border-border bg-transparent hover:bg-muted py-5 px-1 text-foreground last:border-b-0 " +
     "[&_.rl]:block [&_.rl]:min-w-0 [&_.rl]:flex-1 [&_.rl]:text-4 " +
     "[&_.rf]:block [&_.rf]:mt-1 [&_.rf]:text-2 [&_.rf]:text-muted-foreground [&_.rf]:font-mono " +
     "[&_.rv]:flex-none [&_.rv]:max-w-[45%] [&_.rv]:overflow-hidden [&_.rv]:text-ellipsis " +

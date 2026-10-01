@@ -150,6 +150,7 @@ borne
 bottom
 bound
 box
+boxes
 brand
 breached
 broken
@@ -760,6 +761,7 @@ met
 meta
 method
 methods
+middle
 migrated
 milliseconds
 min
@@ -824,6 +826,7 @@ nothing
 notice
 noticed
 now
+nowhere
 number
 numbers
 numeric
@@ -1428,6 +1431,7 @@ twin
 two
 type
 typed
+typing
 ua
 ui
 uid

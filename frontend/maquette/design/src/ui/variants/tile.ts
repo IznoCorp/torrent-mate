@@ -41,6 +41,9 @@ export const posterGrid = cva(
  */
 export const tile = cva(
   "group relative min-w-0 [border:0] [background:transparent] p-0 text-left block w-full " +
+    // A HOVER GROUND (DECIDED 6 = B), spread past the tile by a shadow so the gallery's grid does
+    // not move: the pointer sees which poster it would open.
+    "rounded-3 hover:[background:var(--color-muted)] hover:shadow-[0_0_0_6px_var(--color-muted)] " +
     // A held tile offers the long press, never the browser's own menu or a drag of its picture.
     "select-none [-webkit-touch-callout:none] [&_img]:[-webkit-user-drag:none] [&_img]:[-webkit-touch-callout:none]",
   { variants: { muted: { true: "off" } } },
