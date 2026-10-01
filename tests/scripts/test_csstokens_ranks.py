@@ -121,6 +121,44 @@ class TestWhatTheSourcesDeclare:
 
         assert found == [(".topbar", 40, "index.html:6")]
 
+    def test_a_utility_outside_any_export_names_no_site(self, tmp_path: Path) -> None:
+        """B-463: the rank belongs to the binding that holds it, never to the export above.
+
+        A local helper written under `tabBar` declared its rank AS `tabBar`'s, so
+        at the same number it passed silently and at any other it named the
+        wrong site.
+        """
+        variants = (
+            'export const tabBar = cva(\n  "bottombar fixed z-50",\n);\n\n'
+            'const helper = "relative z-50";\n'
+        )
+        found = arm.declared(tree(tmp_path, variants=variants)[1])
+
+        assert ("tabBar", 50, "ui/variants/frame.ts:2") in found
+        assert ("", 50, "ui/variants/frame.ts:5") in found
+
+    def test_a_stylesheet_in_a_subdirectory_is_read(self, tmp_path: Path) -> None:
+        """B-464: `styles/` is a tree, and a sheet one level down paints all the same."""
+        design = tree(tmp_path)[1]
+        (design / "styles" / "parts").mkdir()
+        (design / "styles" / "parts" / "drawer.css").write_text(".drawer {\n  z-index: 55;\n}\n", encoding="utf-8")
+
+        assert (".drawer", 55, "styles/parts/drawer.css:2") in arm.declared(design)
+
+    def test_a_style_block_in_the_shell_markup_is_read(self, tmp_path: Path) -> None:
+        """B-464: the shell's markup can declare a rank in CSS as well as in a utility."""
+        markup = "<head>\n<style>\n  .splash {\n    z-index: 70;\n  }\n</style>\n</head>\n"
+        found = arm.declared(tree(tmp_path, markup=markup)[1])
+
+        assert found == [(".splash", 70, "index.html:4")]
+
+    def test_a_negative_utility_is_read_at_its_negative_rank(self, tmp_path: Path) -> None:
+        """B-464: `-z-10` is a rank too — under everything — and was not a utility to the arm."""
+        variants = 'export const backdrop = cva(\n  "absolute -z-10 inset-0",\n);\n'
+        found = arm.declared(tree(tmp_path, variants=variants)[1])
+
+        assert found == [("backdrop", -10, "ui/variants/frame.ts:2")]
+
 
 class TestWhatItRefuses:
     """One case per direction the record and the sources can disagree."""
