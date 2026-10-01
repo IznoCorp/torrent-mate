@@ -15,7 +15,7 @@ import { cva } from "../cva";
 
 /**
  * A grid of posters: three columns on a phone, one more at each width the port
- * reaches. A container query, because the frame is narrower than the window it
+ * reaches, up to eight. A container query, because the frame is narrower than the window it
  * sits in, and the port is what the columns have room in.
  *
  * ITS TILES SIT AT THE TOP OF THEIR ROW. A tile is a `<button>`, and a stretched
@@ -27,7 +27,11 @@ export const posterGrid = cva(
   "gallery grid grid-cols-[repeat(3,minmax(0,1fr))] items-start gap-5 " +
     "@min-[460px]/port:grid-cols-[repeat(4,minmax(0,1fr))] " +
     "@min-[620px]/port:grid-cols-[repeat(5,minmax(0,1fr))] " +
-    "@min-[820px]/port:grid-cols-[repeat(6,minmax(0,1fr))]",
+    "@min-[820px]/port:grid-cols-[repeat(6,minmax(0,1fr))] " +
+    // AND ON BY THE TILE'S WIDTH on a desktop (DECIDED 5 = B): 7 from ≈ 1 100 px of gallery, 8 from
+    // ≈ 1 300, so a tile stays ≈ 160–180 px — the same tile, more of the library per screen.
+    "@min-[1100px]/port:grid-cols-[repeat(7,minmax(0,1fr))] " +
+    "@min-[1300px]/port:grid-cols-[repeat(8,minmax(0,1fr))]",
 );
 
 /**

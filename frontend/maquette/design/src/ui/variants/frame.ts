@@ -158,7 +158,11 @@ export const addActionDrawing = cva("w-[23px] h-[23px]");
 export const selectionBar = cva(
   "selbar absolute left-0 right-0 bottom-0 z-[51] flex items-center gap-5 "
     + "pt-5 px-7 pb-[calc(env(safe-area-inset-bottom)+var(--spacing-5))] "
-    + "bg-popover border-t border-border",
+    + "bg-popover border-t border-border "
+    // SPANNING THE COLUMN ONLY on a desktop (DECIDED 7 = B): « Annuler » and « Supprimer » within
+    // one glance, beside the pinned menu, never across the window.
+    + "desk:left-[var(--tm-rail-w)] desk:mx-auto desk:max-w-[var(--tm-column-w)] "
+    + "desk:border-x desk:rounded-t-4",
 );
 
 export const selectionCaption = cva("n text-3 font-semibold");
