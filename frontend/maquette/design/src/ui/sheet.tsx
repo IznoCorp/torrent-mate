@@ -20,6 +20,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { closeLayers } from "../app/layers";
 import { useUiState } from "../lib/store-access";
 import { feedback } from "../lib/feedback";
+import { isDesktop } from "../app/rail";
 import { PanelContent } from "../ui/panel";
 import type { PanelDescriptor } from "../ui/panel/contract";
 import { bottomSheet, dialogScrim, sheetDragBand, sheetGrab, sheetScrim, sheetViewport } from "./variants";
@@ -28,7 +29,9 @@ import { bottomSheet, dialogScrim, sheetDragBand, sheetGrab, sheetScrim, sheetVi
 // `SEUIL_FERMETURE`, unchanged.
 const CLOSE_THRESHOLD = 70;
 
-type Drag = { y: number; dy: number };
+// THE AXIS THE SHEET LEAVES BY: down on a phone, to the right on a desktop, where it is a side
+// sheet (DECIDED 3) — the drag follows the edge the sheet is anchored to. `dy` is the travel along it.
+type Drag = { y: number; dy: number; axis: "x" | "y" };
 
 export function Sheet({
   close,
@@ -161,16 +164,20 @@ export function Sheet({
           id="sheetgrab"
           className={sheetGrab()}
           onPointerDown={(event) => {
-            dragRef.current = { y: event.clientY, dy: 0 };
+            const axis = isDesktop() ? "x" : "y";
+            dragRef.current = { y: axis === "x" ? event.clientX : event.clientY, dy: 0, axis };
             sheetRef.current?.classList.add("dragging");
             event.currentTarget.setPointerCapture(event.pointerId);
           }}
           onPointerMove={(event) => {
             const current = dragRef.current;
             if (!current) return;
-            current.dy = Math.max(0, event.clientY - current.y);
+            const position = current.axis === "x" ? event.clientX : event.clientY;
+            current.dy = Math.max(0, position - current.y);
             const node = sheetRef.current;
-            if (node) node.style.transform = `translateY(${current.dy}px)`;
+            if (node)
+              node.style.transform =
+                current.axis === "x" ? `translateX(${current.dy}px)` : `translateY(${current.dy}px)`;
           }}
           onPointerUp={() => endDrag(false)}
           // A cancel is not a lift: it must put the sheet back where it was
@@ -193,7 +200,7 @@ export function Sheet({
             // The primary button only: a right-drag is a context menu on its
             // way, and dismissing on it takes the sheet out from under it.
             if (event.button !== 0) return;
-            dragRef.current = { y: event.clientY, dy: 0 };
+            dragRef.current = { y: event.clientY, dy: 0, axis: "y" };
             sheetRef.current?.classList.add("dragging");
             event.currentTarget.setPointerCapture(event.pointerId);
           }}

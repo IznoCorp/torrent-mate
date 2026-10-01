@@ -25,6 +25,7 @@
 // Marking `document.body` inert would mark the layer too.
 import { setLayerOpen } from "./layer-presence";
 import { closeLayers } from "./layers";
+import { isDesktop } from "./rail";
 import { bridge } from "../lib/shell-doors";
 
 // The layer roots, in the stacking order the engine already unwinds — drawer,
@@ -155,6 +156,14 @@ function setBackgroundInert(layer: Element | null): void {
         node.removeAttribute("inert");
         continue;
       }
+      // ON A DESKTOP THE MENU IS PINNED BESIDE THE CONTENT (DECIDED 2): not a closed layer but
+      // chrome. Beside a screen it stays reachable — a screen covers the page, never the menu —
+      // and under a scrim (the sheet, the confirmation) it is background like the page.
+      if (node.id === "drawer" && isDesktop()) {
+        if (!layer || layer.matches(SCREEN)) node.removeAttribute("inert");
+        else node.setAttribute("inert", "");
+        continue;
+      }
       const contains = layer ? node === layer || node.contains(layer) : false;
       if (!contains && node.matches(KEPT_WHEN_CLOSED) && !isOpen(node)) node.setAttribute("inert", "");
       else if (layer && !contains) node.setAttribute("inert", "");
@@ -169,8 +178,13 @@ function setBackgroundInert(layer: Element | null): void {
  * @param layer The layer's root.
  */
 function focusInto(layer: Element): void {
-  const target = layer.querySelector<HTMLElement>(NAMED_ENTRY)
-    ?? layer.querySelector<HTMLElement>(ENTRY);
+  // THE FIRST CONTROL THAT IS DRAWN, never merely the first in the markup. The menu's fold
+  // toggle leads its head and is `hidden` below the desktop threshold: `focus()` on an element
+  // that is not rendered does nothing, so the phone's drawer opened with the caret on `<body>`.
+  const drawnFirst = (selector: string) =>
+    [...layer.querySelectorAll<HTMLElement>(selector)]
+      .find((node) => node.getClientRects().length > 0) ?? null;
+  const target = drawnFirst(NAMED_ENTRY) ?? drawnFirst(ENTRY);
   // WITHOUT SCROLLING: a layer opens at its top (`ui/sheet.tsx`). Focusing an
   // entry below the fold scrolled the journey sheet 177px the moment it opened,
   // and a sheet not at its top disarms its drag band — the swipe that closes
@@ -266,6 +280,11 @@ export function installFocusManager(): void {
     attributes: true,
     attributeFilter: ["data-open"],
   });
+  // THE MENU CHANGES NATURE AT THE DESKTOP THRESHOLD — a layer below it, pinned chrome above —
+  // so crossing it, by the window or by the harness's way out of the frame (a `change`), asks
+  // the marks again.
+  matchMedia("(min-width: 64rem)").addEventListener("change", reconcile);
+  document.addEventListener("change", reconcile);
   // THE SKIP LINK IS DRIVEN HERE, not left to the browser. `<a href="#port">`
   // should move focus to a target carrying `tabindex="-1"`, and measured, it
   // does not in this prototype: the router owns the URL and the hash never

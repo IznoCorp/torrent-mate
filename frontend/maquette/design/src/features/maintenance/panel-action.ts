@@ -89,7 +89,13 @@ function maintenancePanel(
         ],
       },
       deletes
-        ? { type: "note", text: translate("panels.maintenance.destructiveNote") }
+        ? {
+            type: "note",
+            text: [
+              { e: translate("panels.maintenance.destructiveEmphasis") },
+              translate("panels.maintenance.destructiveNote"),
+            ],
+          }
         : null,
       // RUNNING A COMMAND IS A WRITE (`pipeline.control`): the panel still says
       // what the command is and costs, and offers no run to an account that may not.

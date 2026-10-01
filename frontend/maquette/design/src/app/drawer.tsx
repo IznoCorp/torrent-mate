@@ -25,6 +25,7 @@ import {
   currentAppearance,
 } from "./appearance";
 import { installDrawerDismissGesture } from "./drawer-gesture";
+import { chooseRail, currentRail } from "./rail";
 import { registerLayer, unwindLayer } from "./layers";
 import { NAVIGATION, absentFor, opensFor, type NavigationGroup, type NavigationRow } from "./navigation";
 import { icons } from "./icons";
@@ -38,8 +39,11 @@ import { useStoreContent, useUiState, writeUiState, store } from "../lib/store-a
 import {
   drawerAppearance,
   drawerAppearanceSwitch,
+  drawerBrand,
   drawerEntry,
   drawerEntryCount,
+  drawerEntryCountCollapsed,
+  drawerEntryLabel,
   drawerEntryDrawing,
   drawerEntryReserved,
   drawerGroup,
@@ -50,6 +54,8 @@ import {
   drawerIdentityPrimary,
   drawerIdentitySecondary,
   drawerNavigation,
+  drawerRailToggle,
+  drawerUnfoldedOnly,
   viewSwitch,
   viewSwitchButton,
 } from "../ui/variants";
@@ -84,6 +90,9 @@ export function NavigationDrawer(): ReactElement {
   const rights = useRights();
   const identity = servedIdentityLines();
   const appearance = currentAppearance();
+  // FOLDED OR NOT, on a desktop (DECIDED 2). Read on every draw: the choice lives in
+  // `localStorage`, and the toggle's `store.touch()` is what redraws it, as the appearance's does.
+  const collapsed = currentRail() === "collapsed";
   const closing = useRef(false);
 
   // THE GESTURE ATTACHES ONCE THE NODE EXISTS. It used to be installed from the
@@ -122,7 +131,8 @@ export function NavigationDrawer(): ReactElement {
 
   return (
     <Drawer open={open} label={t("navigation.drawerLabel")}>
-      <div className={drawerHead()}>
+      <div className={drawerHead({ collapsed })}>
+        <span className={drawerBrand({ collapsed })}>
         <svg
           viewBox="0 0 24 24"
           fill="none"
@@ -139,11 +149,26 @@ export function NavigationDrawer(): ReactElement {
           Torrent
           <em className="[font-style:normal] text-primary">Mate</em>
         </span>
+        </span>
+        <button
+          type="button"
+          className={drawerRailToggle({ collapsed })}
+          data-part="shell/rail-toggle"
+          aria-label={t(collapsed ? "navigation.railExpand" : "navigation.railCollapse")}
+          aria-expanded={!collapsed}
+          title={t(collapsed ? "navigation.railExpand" : "navigation.railCollapse")}
+          onClick={() => {
+            chooseRail(collapsed ? "open" : "collapsed");
+            store.touch();
+          }}
+        >
+          <Icon paths={collapsed ? icons.right : icons.left} className={drawerEntryDrawing()} />
+        </button>
       </div>
       <nav className={drawerNavigation()}>
         {grouped(rights).map((group) => (
           <div key={group.key} className={drawerGroup()}>
-            <p className={drawerGroupTitle()}>
+            <p className={drawerGroupTitle({ collapsed })}>
               {t(`navigation.groups.${group.key}`)}
             </p>
             {group.rows.map((row) => {
@@ -158,18 +183,22 @@ export function NavigationDrawer(): ReactElement {
                   data-navgo={row.id}
                   data-reserved={reserved || undefined}
                   aria-current={page === row.id ? "page" : undefined}
-                  className={drawerEntry({ current: page === row.id, reserved })}
+                  title={collapsed ? t(row.labelKey) : undefined}
+                  className={drawerEntry({ current: page === row.id, reserved, collapsed })}
                 >
                   <Icon paths={row.icon} className={drawerEntryDrawing()} />
-                  <span>{t(row.labelKey)}</span>
+                  <span className={drawerEntryLabel({ collapsed })}>{t(row.labelKey)}</span>
                   {reserved ? (
-                    <span className={drawerEntryReserved()} data-part="shell/drawer-reserved">
+                    <span className={drawerEntryReserved({ collapsed })} data-part="shell/drawer-reserved">
                       <Icon paths={icons.lock} className={drawerEntryDrawing()} />
                       {t("access.reservedTag")}
                     </span>
                   ) : null}
                   {badge ? (
-                    <span className={drawerEntryCount()} data-part="shell/drawer-count">
+                    <span
+                      className={`${drawerEntryCount()} ${collapsed ? drawerEntryCountCollapsed() : ""}`}
+                      data-part="shell/drawer-count"
+                    >
                       {badge}
                     </span>
                   ) : null}
@@ -179,7 +208,7 @@ export function NavigationDrawer(): ReactElement {
           </div>
         ))}
       </nav>
-      <div className={`${drawerGroup()} ${drawerAppearance()}`}>
+      <div className={`${drawerGroup()} ${drawerAppearance()} ${drawerUnfoldedOnly({ collapsed })}`}>
         <p className={drawerGroupTitle()}>{t("navigation.appearanceGroup")}</p>
         <div
           className={`${viewSwitch()} ${drawerAppearanceSwitch()}`}
@@ -215,7 +244,7 @@ export function NavigationDrawer(): ReactElement {
           so a rule can tell the two apart without reading the words — by
           PRESENCE, like every other boolean state attribute here. */}
       <div
-        className={drawerIdentity()}
+        className={`${drawerIdentity()} ${drawerUnfoldedOnly({ collapsed })}`}
         data-part="shell/served-identity"
         data-known={identity.known || undefined}
       >

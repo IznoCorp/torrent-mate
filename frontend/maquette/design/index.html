@@ -77,6 +77,10 @@
               matchMedia("(prefers-color-scheme: light)").matches);
           if (light)
             document.documentElement.setAttribute("data-theme", "light");
+          // THE PINNED MENU'S WIDTH, for the same reason: a desktop that folded it opens folded
+          // (`app/rail.ts`, DECIDED 2).
+          if (localStorage.getItem("tm-rail") === "collapsed")
+            document.documentElement.setAttribute("data-rail", "collapsed");
         } catch (error) {}
       })();
     </script>
@@ -93,7 +97,7 @@
          `order-2`): the one thing it draws IN THE FLOW is the connection
          notice, which belongs under the header. Last in the frame, it was drawn
          after the page, under the bottom bar, out of a finger's reach (B-594). -->
-    <div id="shell" class="order-1"></div>
+    <div id="shell" class="order-1 desk:ml-[var(--tm-rail-w)]"></div>
     <script type="module" src="/src/app/shell.tsx"></script>
     <!-- The application shell. It used to live in the fragment, and it is here
          now for one reason: the engine captures its containers at module
@@ -228,12 +232,13 @@
 
     <header
       class="topbar relative z-40 flex shrink-0 items-center gap-7 border-b border-border
-             bg-background pt-[calc(env(safe-area-inset-top)+var(--spacing-6))] px-7 pb-6 md:px-9"
+             bg-background pt-[calc(env(safe-area-inset-top)+var(--spacing-6))] px-7 pb-6 md:px-9
+             desk:ml-[var(--tm-rail-w)]"
       data-part="shell/header"
     >
       <button
         class="burger relative -ml-2 inline-flex w-[44px] h-[44px] shrink-0 items-center justify-center
-               [border:0] rounded-2 bg-transparent text-muted-foreground"
+               [border:0] rounded-2 bg-transparent text-muted-foreground desk:hidden"
         aria-label="Ouvrir le menu de navigation"
         data-drawer="1"
       >
@@ -253,7 +258,13 @@
           <path d="M4 6h16M4 12h16M4 18h16" />
         </svg>
       </button>
-      <a class="brand flex items-center gap-4" href="#" onclick="return false;">
+      <!-- ON A DESKTOP THE PINNED MENU CARRIES THE BRAND (DECIDED 2); the header draws it again
+           only when the menu is folded to its icons. -->
+      <a
+        class="brand flex items-center gap-4 desk:[:root:not([data-rail=collapsed])_&]:hidden"
+        href="#"
+        onclick="return false;"
+      >
         <svg
           class="mk w-[28px] h-[28px] text-primary"
           data-part="brand/mark"
@@ -317,7 +328,8 @@
     <main
       class="port @container/port order-2 flex-auto min-h-0 overflow-y-auto overflow-x-clip
              overscroll-y-none [-webkit-overflow-scrolling:touch]
-             pb-[calc(var(--tm-bottom-bar-h,0px)+var(--tm-save-bar-h,0px)+var(--spacing-7))]"
+             pb-[calc(var(--tm-bottom-bar-h,0px)+var(--tm-save-bar-h,0px)+var(--spacing-7))]
+             desk:ml-[var(--tm-rail-w)]"
       id="port"
       data-part="viewport"
       tabindex="-1"
@@ -345,7 +357,14 @@
                  [.ptr.loading_&]:[animation:spin_var(--duration-loop-1)_linear_infinite]"
         ></div>
       </div>
-      <div id="view"></div>
+      <!-- THE READING COLUMN on a desktop (DECIDED 1 = C): the page is centred and capped, and a
+           page drawing a gallery (`.gallery`, the tile grids) or the deck (`.deck`) keeps the
+           port's whole width — the galleries' columns read the port, never this box. -->
+      <div
+        id="view"
+        class="desk:mx-auto desk:max-w-[var(--tm-column-w)]
+               desk:has-[.gallery]:max-w-none desk:has-[.deck]:max-w-none"
+      ></div>
     </main>
 
     <!-- Install proposal. Two paths, because the two platforms do not offer the

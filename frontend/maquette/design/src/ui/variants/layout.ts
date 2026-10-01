@@ -26,7 +26,9 @@ export const sectionCount = cva("k ml-auto text-2 font-bold text-muted-foregroun
 /** A screen: the layer that slides in over a page. */
 export const screen = cva(
   "screen absolute inset-0 bg-background z-[45] flex flex-col " +
-    "transition-[transform] duration-300 ease-standard",
+    "transition-[transform] duration-300 ease-standard " +
+    // ON A DESKTOP A SCREEN COVERS THE PAGE, NEVER THE MENU pinned beside it (DECIDED 2, 4).
+    "desk:left-[var(--tm-rail-w)]",
   {
     variants: {
       // OPEN IS A STATE THE VARIANT SAYS. A screen waits off to the right and
@@ -48,7 +50,12 @@ export const screen = cva(
  * title instead of pushing it. A bar in the flow can cover nothing, and it
  * reads the same everywhere.
  */
-export const screenBar = cva("screenbar flex-none flex items-center gap-3 py-5 px-6 bg-background");
+export const screenBar = cva(
+  "screenbar flex-none flex items-center gap-3 py-5 px-6 bg-background " +
+    // ITS CONTROLS ON THE READING COLUMN'S EDGES on a desktop (DECIDED 1): « Retour » above the
+    // column it leaves, never at the window's far left.
+    "desk:px-[max(var(--spacing-6),calc((100%-var(--tm-column-w))/2+var(--spacing-6)))]",
+);
 
 /** What a screen's bar says at its right end — the sheet's address, the profile's name. */
 export const screenBarNote = cva("ml-auto text-2 text-muted-foreground");
@@ -87,7 +94,10 @@ export const backAction = cva(
 export const scrollport = cva(
   "port @container/port flex-auto min-h-0 overflow-y-auto overflow-x-clip " +
     "overscroll-y-none [-webkit-overflow-scrolling:touch] " +
-    "pb-[calc(var(--tm-bottom-bar-h,0px)+var(--spacing-7))]",
+    "pb-[calc(var(--tm-bottom-bar-h,0px)+var(--spacing-7))] " +
+    // A SCREEN READS IN THE COLUMN on a desktop (DECIDED 1, 4): what it holds is centred and
+    // capped, and the scrolling stays the whole port's, so a wheel over the margin scrolls it.
+    "desk:[&>*]:mx-auto desk:[&>*]:max-w-[var(--tm-column-w)]",
 );
 
 /** The scrim behind a sheet. */
@@ -185,7 +195,12 @@ export const bottomSheet = cva(
     // The step is `--duration-4` and the curve `--ease-emphasized`; both are
     // the scale's own, and the exact pair is a DRAWING that the operator
     // validates on video, not a constant with a proof.
-    "duration-450 ease-emphasized",
+    "duration-450 ease-emphasized " +
+    // A SIDE SHEET ON A DESKTOP (DECIDED 3, his precision « latérale droit du coup le panneau sur
+    // desktop (pas gauche côté menu) »): the same layer on the RIGHT edge, opposite the menu, full
+    // height, the list readable beside it. It leaves to the right, and its drag follows that axis.
+    "desk:left-auto desk:top-0 desk:w-[440px] desk:max-h-none desk:border-t-0 desk:border-l " +
+    "desk:rounded-t-none desk:rounded-l-4",
   {
     variants: {
       open: {
@@ -196,7 +211,7 @@ export const bottomSheet = cva(
         // three lines above moved to `--duration-4` — 450 — so the sheet went
         // `invisible` 150ms before it had finished sliding, which is the cut
         // the idiom exists to prevent, in the wave that lengthened the step.
-        false: "[transform:translateY(100%)] invisible "
+        false: "[transform:translateY(100%)] desk:[transform:translateX(100%)] invisible "
           + "transition-[transform,visibility] [transition-delay:0s,450ms]",
       },
     },
@@ -212,7 +227,10 @@ export const bottomSheet = cva(
  */
 export const sheetGrab = cva(
   "sheetgrab h-[22px] grid place-items-center flex-none touch-none cursor-grab " +
-    "before:content-[''] before:w-[36px] before:h-[4px] before:rounded-full before:bg-border",
+    "before:content-[''] before:w-[36px] before:h-[4px] before:rounded-full before:bg-border " +
+    // ON THE SIDE SHEET'S LEADING EDGE on a desktop, upright: the grip the sheet is dragged right by.
+    "desk:absolute desk:z-[1] desk:inset-y-0 desk:left-0 desk:h-auto desk:w-[14px] " +
+    "desk:before:w-[4px] desk:before:h-[36px]",
 );
 
 /**
@@ -241,7 +259,8 @@ export const sheetGrab = cva(
  * press/drag/scroll arbitration is L12's.
  */
 export const sheetDragBand = cva(
-  "absolute top-0 left-0 right-0 h-[88px] z-[1]",
+  // NOT ON A DESKTOP: a side sheet is dragged by its edge, and a downward pull is a scroll there.
+  "absolute top-0 left-0 right-0 h-[88px] z-[1] desk:hidden",
   {
     variants: {
       // `touch-none` claims the gesture from the compositor; without it a real
@@ -263,7 +282,10 @@ export const sheetViewport = cva(
   // NO BAR HEIGHT RESERVED SINCE B-248: the sheet paints over the tab bar, so
   // there is nothing underneath for its last action to be stuck behind. The
   // bottom padding is the sheet's own, and the safe area is the frame's.
-  "sheetin overflow-y-auto pt-1 px-7 pb-8",
+  "sheetin overflow-y-auto pt-1 px-7 pb-8 " +
+    // The side sheet has no handle above its content (its grip is the leading edge, DECIDED 3):
+    // the content keeps the room the handle gave it on a phone.
+    "desk:pt-[calc(env(safe-area-inset-top)+var(--spacing-9))]",
 );
 
 /** The sheet's title. */
