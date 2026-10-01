@@ -45,3 +45,24 @@ export function timeOfDay(epoch: number): string {
   const two = (value: number) => String(value).padStart(2, "0");
   return i18next.t("surfaces.clock.timeOfDay", { hour: two(instant.getHours()), minute: two(instant.getMinutes()) });
 }
+
+/**
+ * The moment an instant falls on, as « depuis … » names it: its time alone on
+ * the day it is read, the day and the time before it — « 02 h 00 » about a
+ * tracker down since 12 September read as this morning (M4 of the lot's
+ * reading).
+ *
+ * READ AGAINST THE WALL CLOCK, not the frozen day: what « since » names — a
+ * block, a service down — is posed and served against the instant it is read
+ * at, never against the layer's frozen catalogue day.
+ *
+ * @param epoch The instant, epoch seconds.
+ * @param now The moment it is read at.
+ * @returns The moment, in the interface's language.
+ */
+export function momentOf(epoch: number, now: Date = new Date()): string {
+  const instant = new Date(epoch * 1000);
+  if (instant.toDateString() === now.toDateString()) return timeOfDay(epoch);
+  const day = new Intl.DateTimeFormat(i18next.language, { day: "numeric", month: "long" }).format(instant);
+  return i18next.t("surfaces.clock.dayAndTime", { day, time: timeOfDay(epoch) });
+}

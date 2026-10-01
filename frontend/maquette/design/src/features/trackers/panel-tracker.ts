@@ -16,7 +16,7 @@ import { read, sharedQueryClient } from "../../lib/query-client";
 import { registerProducer, type Action, type FactLine, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 import { written } from "../../lib/byte-size";
 import { dayOf } from "./format";
-import { timeOfDay } from "../../lib/clock";
+import { momentOf } from "../../lib/clock";
 import { trackersKey, type Setting, type Tracker } from "./queries";
 import { failureSentence } from "./trackers-tab";
 import { switchedThisVisit } from "./cross-seed-verbs";
@@ -138,7 +138,7 @@ function trackerPanel(name: string, cache: PanelCache): PanelDescriptor | null {
       c: say("panel.reachability"),
       v: tracker.reachable || tracker.unreachableSince === null
         ? say("panel.reachable")
-        : say("panel.unreachableSince", { time: timeOfDay(tracker.unreachableSince) }),
+        : say("panel.unreachableSince", { time: momentOf(tracker.unreachableSince) }),
     },
     { c: say("panel.ratio"), v: tracker.ratio === null ? say("ratioUnknown") : written(tracker.ratio, 2) },
     { c: say("panel.trend"), v: say(`trends.${tracker.trend}`) },

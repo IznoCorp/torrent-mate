@@ -126,7 +126,7 @@ export function cadenceSentence(cron: string): string {
   const minute = matched[1].padStart(2, "0");
   const hours = matched[2]
     .split(",")
-    .map((hour) => i18next.t("screens.acquisition.cadence.hour", { hour: hour, minute: minute }));
+    .map((hour) => i18next.t("surfaces.clock.timeOfDay", { hour: hour, minute: minute }));
   const when =
     hours.length === 1
       ? i18next.t("screens.acquisition.cadence.atOne", { hour: hours[0] })
@@ -163,7 +163,7 @@ export function nextSearchTime(cron: string, now: Date): string | null {
   const next =
     hours.find((candidate) => candidate > hour || (candidate === hour && minute > minuteNow)) ??
     hours[0];
-  return i18next.t("screens.acquisition.cadence.hour", {
+  return i18next.t("surfaces.clock.timeOfDay", {
     hour: next,
     minute: String(minute).padStart(2, "0"),
   });

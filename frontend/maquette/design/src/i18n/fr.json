@@ -1024,8 +1024,7 @@
         "onceADay": "une fois par jour",
         "timesADay": "{{times}} fois par jour",
         "atOne": "à {{hour}}",
-        "atMany": "à {{hours}} et {{last}}",
-        "hour": "{{hour}} h {{minute}}"
+        "atMany": "à {{hours}} et {{last}}"
       },
       "todoEmptyTitle": "Rien n'est bloqué.",
       "todoEmptyBody": "Ce qui avance est dans « En cours ».",
@@ -1452,7 +1451,8 @@
       "liftWithoutThreshold": "Il repart seul dès que ce ratio remonte."
     },
     "clock": {
-      "timeOfDay": "{{hour}} h {{minute}}"
+      "timeOfDay": "{{hour}} h {{minute}}",
+      "dayAndTime": "le {{day}} à {{time}}"
     },
     "season": {
       "offCatalogue": "hors catalogue ({{count}})"

@@ -5,7 +5,7 @@
 // The data carry a CODE now; the word is the interface's (`states` in fr.json)
 // and the tone is derived here, once, for the page and for the badge.
 import type { FactRow } from "../../ui/fact-rows";
-import { timeOfDay } from "../../lib/clock";
+import { momentOf } from "../../lib/clock";
 import type { Schemas } from "../../lib/contract-schemas";
 
 type Fact = Schemas["Fact"];
@@ -55,6 +55,6 @@ export function factRow(
     tone: factTone(fact),
     secondaryLine: fact.since == null
       ? fact.secondaryLine
-      : say("screens.system.downSince", { time: timeOfDay(fact.since) }),
+      : say("screens.system.downSince", { time: momentOf(fact.since) }),
   };
 }

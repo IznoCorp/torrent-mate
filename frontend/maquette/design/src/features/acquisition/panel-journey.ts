@@ -16,7 +16,7 @@
 //
 // A PER-SUBJECT READ, so its need is a FUNCTION of the subject: a journey is
 // read per medium and a boot cannot know which one will be asked for.
-import { timeOfDay } from "../../lib/clock";
+import { momentOf } from "../../lib/clock";
 import { heldAcquisition, offeredActs } from "./act-rights";
 import { reassignAction } from "./reassign";
 import { accountQuery, heldRights } from "../../lib/account";
@@ -289,8 +289,8 @@ function journeyPanel(subject: string, cache: PanelCache): PanelDescriptor | nul
           // maquette-blocked § 1.4): « bloqué — <cause> » and « repris », timed.
           ...(stage.blocks ?? []).flatMap((block) => [
             { c: translate("surfaces.ladder.blockedLine", { cause: translate(`surfaces.ladder.causeShort.${block.reason}`) }),
-              v: timeOfDay(block.since), pip: STAGE_PIP.waiting, terne: false },
-            { c: translate("surfaces.ladder.resumedLine"), v: timeOfDay(block.resumedAt), pip: STAGE_PIP.now, terne: false },
+              v: momentOf(block.since), pip: STAGE_PIP.waiting, terne: false },
+            { c: translate("surfaces.ladder.resumedLine"), v: momentOf(block.resumedAt), pip: STAGE_PIP.now, terne: false },
           ]),
           // EACH EPISODE A PACK'S FILING LEFT IN PLACE, a later choice holding
           // its file (Q9, maquette-blocked § 1.6): named here, no card drawn.
