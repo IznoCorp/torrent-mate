@@ -2026,6 +2026,8 @@ export interface components {
             episodes: number | null;
             /** @description the season's first air date, when the catalogue gives one */
             airDate?: string | null;
+            /** @description the held episode numbers of this season ABOVE what the catalogue lists (`episodes`), ascending; empty when the library holds nothing beyond it — what the row's line « hors catalogue (n) » counts, without judgement, the fraction staying on what aired (maquette-blocked § 1.10, B-475 = B). A DEMAND (BK7): the backend reads the held numbers and does not serve those off the catalogue */
+            offCatalogue: number[];
         };
         /** @description ONE RUNG OF A MEDIUM'S LADDER, from the wish to Plex (ruling 4; eight rungs, OPEN 4 ruled B). The card's strip and the journey sheet read the same list; « rangé » carries the three pipeline steps it merges as `steps`. « enrichi » carries, in turn, the three things the enrichment fetched as its own `steps`: the metadata, the posters, the trailer (L24 OPEN 5 = B). */
         JourneyStage: {

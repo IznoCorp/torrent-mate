@@ -7,7 +7,7 @@ import { Disclosure } from "../../ui/disclosure";
 import { today } from "../../lib/clock";
 import { SkeletonLine } from "../../ui/state-surfaces";
 import { actionButton, chip, factsPanel, statusDot } from "../../ui/variants";
-import { seasonGrabSpacing, seasonGrabTaken, upcomingMark, episodeCell, episodeDate, episodeNumber, episodeRow, episodeSet, episodeTitle, missingList, noInfo, noInfoPlace, seasonFraction, seasonListPlace } from "./variants";
+import { seasonGrabSpacing, seasonGrabTaken, upcomingMark, offCatalogueMark, episodeCell, episodeDate, episodeNumber, episodeRow, episodeSet, episodeTitle, missingList, noInfo, noInfoPlace, seasonFraction, seasonListPlace } from "./variants";
 import { EPISODE_DOT, EpisodeLegend } from "./episode-legend";
 import { useQueuedSeasons } from "./queued-seasons";
 import { useAskedSeasons } from "./asked-seasons";
@@ -32,6 +32,7 @@ export function SeasonList({
   ownershipKnown,
   seasons,
   owned,
+  offCatalogue,
   owns,
   catalog,
   title,
@@ -56,6 +57,11 @@ export function SeasonList({
   seasons: [number, number | null, number][];
   /** The episode numbers held, season by season, as the seasons read answered them. */
   owned: MediaSeasons["owned"] | undefined;
+  /**
+   * How many held numbers each season's catalogue does not list, by season
+   * number (BK7) — the line under the row, never the fraction.
+   */
+  offCatalogue: Record<string, number>;
   owns: boolean;
   catalog: CatalogSeason[];
   title: string;
@@ -337,6 +343,16 @@ export function SeasonList({
                   className={upcomingMark()} data-part="season/aired-on"
                 >
                   {dateLabel(row.air)}
+                </span>
+              ) : (
+                ""
+              )}{" "}
+              {/* WHAT IS HELD BEYOND THE CATALOGUE (§ 1.10, B-475 = B), under
+                  the row and outside its fraction — the panel's row says it too.
+                  Ownership first: a count of what one holds waits for it. */}
+              {ownershipKnown && owns && offCatalogue[String(row.n)] ? (
+                <span className={offCatalogueMark()} data-part="season/off-catalogue">
+                  {t("surfaces.season.offCatalogue", { count: offCatalogue[String(row.n)] })}
                 </span>
               ) : (
                 ""

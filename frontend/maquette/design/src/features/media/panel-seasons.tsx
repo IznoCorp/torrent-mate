@@ -17,9 +17,9 @@ import { useRights } from "../../lib/account";
 import { seasonTakeOffered } from "../../lib/rights";
 import { heldIdentity, providerAddress } from "../../lib/held-identity";
 import { useServerStateVersion } from "../../lib/query-client";
-import { ownedSeason, useMediaSeasons, useMediaSheet, type MediaSeasons } from "./queries";
+import { offCatalogueBySeason, ownedSeason, useMediaSeasons, useMediaSheet, type MediaSeasons } from "./queries";
 import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
-import { seasonGrabSpacing, seasonGrabTaken, episodeCell, episodeSet, seasonFraction, type EpisodeState } from "./variants";
+import { seasonGrabSpacing, seasonGrabTaken, episodeCell, episodeSet, offCatalogueMark, seasonFraction, type EpisodeState } from "./variants";
 import { actionButton, chip } from "../../ui/variants";
 import { EpisodeLegend } from "./episode-legend";
 import { askForSeason, useAskedInFlight } from "./season-grab";
@@ -57,6 +57,8 @@ type EpisodeCatalog = { number: number; airDate?: string | null }[];
 type Served = {
   owned: MediaSeasons["owned"] | undefined;
   episodes: Record<string, EpisodeCatalog> | undefined;
+  /** How many held numbers each season's catalogue does not list, by season number (BK7). */
+  offCatalogue: Record<string, number>;
 };
 
 // Presence is read from the LIST of owned numbers when the seasons read
@@ -192,7 +194,14 @@ function SeasonDetails({
             {missing}{" "}
             {missing > 1 ? t("common.missingPlural") : t("common.missing")}
           </span>
-        )}
+        )}{" "}
+        {/* WHAT IS HELD BEYOND THE CATALOGUE (§ 1.10, B-475 = B), under the
+            row and outside its fraction — the sheet's row says it the same way. */}
+        {owns && served.offCatalogue[String(num)] ? (
+          <span className={offCatalogueMark()} data-part="season/off-catalogue">
+            {t("surfaces.season.offCatalogue", { count: served.offCatalogue[String(num)] })}
+          </span>
+        ) : null}
       </>}>
       <div className={episodeSet()} data-part="episode/set">
         {cells}
@@ -251,7 +260,7 @@ function SeasonsBlock({
   // keyed on nothing, each observed while the panel was open.
   return address
     ? <SeasonsAt block={block} provider={address.provider} id={address.id} />
-    : <SeasonsDrawn block={block} served={{ owned: undefined, episodes: undefined }} owns={false} />;
+    : <SeasonsDrawn block={block} served={{ owned: undefined, episodes: undefined, offCatalogue: {} }} owns={false} />;
 }
 
 /** The season block once the medium's address is known: its two served reads. */
@@ -272,6 +281,7 @@ function SeasonsAt({
   const served: Served = {
     owned: seasonsRead.data?.owned,
     episodes: (sheetRead.data as { episodes?: Record<string, EpisodeCatalog> } | null | undefined)?.episodes,
+    offCatalogue: offCatalogueBySeason(seasonsRead.data),
   };
   return <SeasonsDrawn block={block} served={served} owns={owns} />;
 }

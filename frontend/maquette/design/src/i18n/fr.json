@@ -1453,6 +1453,9 @@
     },
     "clock": {
       "timeOfDay": "{{hour}} h {{minute}}"
+    },
+    "season": {
+      "offCatalogue": "hors catalogue ({{count}})"
     }
   },
   "states": {

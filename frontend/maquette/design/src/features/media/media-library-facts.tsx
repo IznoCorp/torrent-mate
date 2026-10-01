@@ -23,6 +23,7 @@ export function MediaLibraryFacts({
   followTitle,
   seasons,
   owned,
+  offCatalogue,
   own,
   aired,
   pct,
@@ -54,6 +55,8 @@ export function MediaLibraryFacts({
   seasons: [number, number | null, number][];
   /** The episode numbers held, season by season — handed to the season list. */
   owned: MediaSeasons["owned"] | undefined;
+  /** How many held numbers each season's catalogue does not list — handed to the season list. */
+  offCatalogue: Record<string, number>;
   own: number;
   aired: number;
   pct: number | null;
@@ -221,6 +224,7 @@ export function MediaLibraryFacts({
         sheet={sheet}
         seasons={seasons}
         owned={owned}
+        offCatalogue={offCatalogue}
         owns={owns}
         catalog={catalog}
         title={title}

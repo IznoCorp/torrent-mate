@@ -1,5 +1,6 @@
-// The named states of « À traiter » holding every block (Q7, Q8, Q9), and of
-// the one pill on the Médiathèque and Suivis (§ 1.9) — the maquette-blocked
+// The named states of « À traiter » holding every block (Q7, Q8, Q9), of the
+// one pill on the Médiathèque and Suivis (§ 1.9), and of a season's episodes
+// off the catalogue (§ 1.10) — the maquette-blocked
 // lot's own file (its DESIGN § 0.1 item 11: `tunnel.ts` is
 // near its ceiling).
 //
@@ -306,8 +307,20 @@ export function blockedStates(): NamedState[] {
       () => pillsOf(FOLLOWS, "data-follows-sort-pill")],
     ["follows-sort-next-release", "Suivis — triés « Prochaine sortie » : la plus proche d'abord, sans date en dernier",
       () => pillsOf({ ...FOLLOWS, followSort: "nextRelease" })],
+    // THE EPISODES THE CATALOGUE DOES NOT LIST (§ 1.10, B-475 = B): the seeds
+    // already hold them, so the state poses nothing — it opens the sheet.
+    ["media-season-off-catalogue",
+      "Fiche — American Dad! : la saison 16 lit 20/20 et « hors catalogue (4) » sous sa ligne (BK7)",
+      () => {
+        window.__mocks?.reset();
+        applyState({ page: "lib", phase: "ready" });
+        window.__screens.mediaSheet(OFF_CATALOGUE, window.__carriedFor(OFF_CATALOGUE) ?? undefined);
+      }],
   ];
 }
+
+// The series whose season 16 holds four numbers its catalogue does not list.
+const OFF_CATALOGUE = "American Dad!";
 
 // The Médiathèque and Suivis as their pills' states draw them.
 const LIBRARY = { page: "lib", libLens: "cat", libMode: "list", libCat: "all", q: "", phase: "ready", selMode: false };

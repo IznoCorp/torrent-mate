@@ -25,7 +25,7 @@ import { sheetHeadingPlace, synopsisText } from "./variants";
 import { type MediaSheet, type Trailer } from "../../features/media/types";
 import { useStoreContent } from "../../lib/store-access";
 import { isRequestFailure } from "../../lib/query-client";
-import { carriedSheet, completenessHeld, seasonsHeld, useFollowCompleteness, useMediaSeasons, useMediaSheet } from "./queries";
+import { carriedSheet, completenessHeld, offCatalogueBySeason, seasonsHeld, useFollowCompleteness, useMediaSeasons, useMediaSheet } from "./queries";
 import { backAction, body as bodyClass, screen, screenBar, scrollport, sectionHeading, screenBarNote } from "../../ui/variants";
 import { Icon } from "../../ui/icon";
 import { SkeletonLine, SurfaceError } from "../../ui/state-surfaces";
@@ -321,6 +321,7 @@ export function MediaScreen({ readFollows, crossSeed }: MediaScreenProperties) {
             followTitle={followTitle}
             seasons={sorted}
             owned={catalogue?.owned}
+            offCatalogue={offCatalogueBySeason(catalogue)}
             own={own}
             aired={aired}
             pct={pct}
