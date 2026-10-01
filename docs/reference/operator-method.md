@@ -102,6 +102,9 @@ d'audit en cours.
 - 09-30 · Rd 09-30 Q8 (navigation OPEN 3) = B : quitter Réglages ou Maintenance par le menu avec une rubrique ouverte rend d'abord la rubrique ; Retour → la racine de la page.
 - 09-29 · Rd Q10 (L24 OPEN 6) : le grand écran reste mobile d'abord, avec une phase finale « bureau » au plan.
 - 09-12 · A6 : « × » veut dire « vu » partout ; la sortie est « Annuler », visible et distincte.
+- 10-01 · bureau Q2 = B, son mot (« B, le même menu latéral, épinglé ouvert par défaut, avec possibilité de le "fermé" version réduite (barre verticale avec icones seulement) ») : dès ≈ 1 024 px le même menu latéral est épinglé ouvert, repliable en barre verticale d'icônes (le même composant, une variante), le choix retenu par appareil (localStorage) ; amende Q1 du 08-30.
+- 10-01 · bureau Q4 = A : pas de deux volets ; les écrans restent des routes plein écran, dans la colonne ; § 16 inchangé.
+- 10-01 · bureau Q6 = B : un petit jeu de touches déclaré (`/` vers la recherche de la page, ↑/↓ dans une liste, Entrée ouvre, Échap ferme) et un fond au survol des lignes, cartes et vignettes ; aucune action seulement au survol ou seulement au clavier.
 
 ### Acquisition
 
@@ -240,6 +243,11 @@ d'audit en cours.
 - 09-29 · Rd 3 Q4 : le chevron des saisons est la seule flèche de pliage de l'application.
 - 09-29 · défauts signalés (« Sur iphone on voit pas l'icone "hamburger" qui ouvre le menu sidebar ni en clair ni en dark mode. De plus sur tout les téléphones, le menu dans la sidebar "Apparence" Système/clair/sombre ne change plus d'état de manière réactive, le theme change mais pas le selecteur. ») : le hamburger est visible sur iPhone (WebKit) en clair et en sombre ; le sélecteur « Apparence » montre l'état choisi dès le toucher.
 - 09-29 · Rd conformité Q9 = A : un ton « à venir » est ajouté au point coloré et à la puce du design système, avec la couleur existante (`--color-upcoming`) ; les endroits qui le dessinaient à part y sont rebranchés.
+- 10-01 · bureau Q1 = C : sur bureau une colonne de lecture ≈ 760 px (dialogues ≈ 480 px) ; les galeries et le deck en pleine largeur.
+- 10-01 · bureau Q3 = C, sa précision (« latérale droit du coup le panneau sur desktop (pas gauche côté menu) ») : sur bureau le panneau s'ouvre en feuille latérale à DROITE, à l'opposé du menu, ≈ 440 px, pleine hauteur ; on la ferme en la tirant à l'horizontale ; Échap et le voile inchangés.
+- 10-01 · bureau Q5 = B : les colonnes d'une galerie suivent la largeur de la vignette (7 vers 1 100 px, 8 vers 1 300) ; la carte du deck garde une affiche 2:3, centrée.
+- 10-01 · bureau Q7 = B : le « + » et la barre de sélection sont bornés à la colonne.
+- 10-01 · bureau ronde 2 q8 = A : « sur ordinateur, un clic droit sur un élément qui a un panneau (carte, affiche, tuile) ouvre ce panneau, le même que l'appui long (qui reste) ; le menu natif reste refusé là, les champs de texte gardent le leur ».
 
 ### Documents et carte d'intention
 

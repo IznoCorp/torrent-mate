@@ -47,6 +47,7 @@ import "./panel-contributions";
 import "./frame-verbs";
 import { createStore } from "./store";
 import { installFocusManager } from "./focus";
+import { installKeys } from "./keys";
 import { installMockNetwork } from "../mocks";
 import { scenario } from "../mocks/scenario";
 import { freezeClock } from "../lib/clock";
@@ -209,6 +210,8 @@ if (device) device.appendChild(mountNode);
 // very first drawer an operator opens is already covered. It asks nothing of
 // the engine: it watches the `data-open` attribute both worlds already emit.
 installFocusManager();
+// The declared keys (DECIDED 6): `/` to the page's search, ↑/↓ through its rows.
+installKeys();
 
 // E-002 IS NOT INSTALLED HERE ANY MORE. It attached to the `#drawer` the
 // engine owned, which was static markup and existed at boot; the drawer is a

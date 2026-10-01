@@ -8,15 +8,15 @@ file: `git log -- IMPLEMENTATION.md` (the last long one is `IMPLEMENTATION.md@63
 
 | | |
 | --- | --- |
-| **Last landed** | **L18** — accounts, rights and Plex identity (§ 17), PR #663, version 0.98.123, rules R420–R430, 2026-10-01: the rights model and its 403 guard, the frame, Acquisition by requester, reassign, quality and pause, the library read-only, the forbidden writes, Profil, the Plex-first gate, « Comptes », the media sheet's per-tracker cross-seed block (after L24 #662, L17 #660, `maquette-season-recovery` #659, C1 #661) |
-| **In flight** | **L23** — § 19 point 5, the upload to a tracker, `feat/maquette-l23`, merged with L18: the contract, seed and mock (`uploadCrossSeed`, `creation_failed` / `publish_failed`, a pair's `via` and the tracker's reason, a tracker's « accepte les uploads », an entry's provenance); « Créer et publier un torrent » offered where nothing cross-seeds, confirmed, « en file », read on its row, counted by the badge; the tracker panel's « accepte les uploads » switch; the third origin mark « Publié par vous »; the gesture held by its right `trackers.upload` (DESIGN § 0.2, R-L23-f). Rules R450–R457. Version 0.98.125 |
-| **Then** | the desktop milestone (to draw) |
-| **Landed, in order** | L01 · L02 · L03 · L04 · L05 · L06 · L07 · L08 · L09 · L10 · L15 · L11 · L12 · L14 · L19 · L21 · L13a · L13b · L20 · L13r · L13c · L22a · L22b · L16 · L16-bis · L17 · L24 · L18 (plus the correction waves L07-bis, L08-bis, L10-bis and the design phase L10-ter) |
+| **Last landed** | **L23** — § 19 point 5, the upload to a tracker, PR #665, 2026-10-01; then the register's corrections #668, #669, #670 |
+| **In flight** | **The desktop milestone** — `docs/features/maquette-desktop/DESIGN.md`, `feat/maquette-desktop`, the operator's seven rulings of 2026-10-01 (DECIDED 1–7), phases 1–10 drawn: the shell (the menu pinned beside a 760 px reading column, foldable to its icons, remembered per device; the confirmation 480 px), the panel a 440 px side sheet on the right, Acquisition, Médiathèque, Découvrir, Trackers, Système / a run / Maintenance, Réglages / Classement / Comptes / Profil / the gates, the declared keys (`/`, ↑/↓, Enter, Escape) and the hover ground; R413 re-aimed at the three widths and the pinned menu. Rules R480–R488. Version 0.98.129; the lot's reader at 1280 on tm-design before the PR |
+| **Then** | the backend mission, after the freeze (`docs/reference/frontend-backend-demands.md`) |
+| **Landed, in order** | L01 · L02 · L03 · L04 · L05 · L06 · L07 · L08 · L09 · L10 · L15 · L11 · L12 · L14 · L19 · L21 · L13a · L13b · L20 · L13r · L13c · L22a · L22b · L16 · L16-bis · L17 · L24 · L18 · L23 (plus the correction waves L07-bis, L08-bis, L10-bis and the design phase L10-ter) |
 | **Freeze** | reached at L24's close, with every case of every surface drawn as a named state |
 
 ## Designs ready, code not started
 
-- L23 — `docs/features/maquette-l23/DESIGN.md` · L24 — `docs/features/maquette-l24/DESIGN.md`
+- none — the desktop milestone is in flight
 
 ## Pages still due — no surface is out of scope
 

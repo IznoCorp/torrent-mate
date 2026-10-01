@@ -35,6 +35,7 @@ import {
 import { hideLayers, registeredLayers } from "./layers";
 import { heldLeave } from "./leave-confirm";
 import { rowFor } from "./navigation";
+import { chooseRail, currentRail, isDesktop } from "./rail";
 import { recordArrivalInPage, switchPage, switchPageFromLayer, type Landing } from "./page-switch";
 import { holdLeavingOffset } from "./scroll-restoration";
 
@@ -239,6 +240,13 @@ export function landSignedIn(page: string): void {
    it is up — and a state driving the interface through a synthetic click would
    be measuring the registry rather than the drawer. */
 export function openDrawer(): void {
+  // ON A DESKTOP THE MENU IS ALREADY THERE, pinned beside the content (DECIDED 2): asking for it
+  // unfolds it when it is folded, and raises no layer — there is nothing to close.
+  if (isDesktop()) {
+    if (currentRail() === "collapsed") chooseRail("open");
+    store.touch();
+    return;
+  }
   store.write({ drawerOpen: true });
   try {
     bridge?.pushLayer("drawer");

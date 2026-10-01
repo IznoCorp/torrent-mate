@@ -85,6 +85,14 @@ export function giveTheEntryBackFirst(isOpen: () => boolean): () => void {
        entry with it. Measured: the maintenance topic's entry gone
        (`url_state.py`), `history.length` 5 → 3. */
     event.stopImmediatePropagation();
+    /* AND THE LINK'S OWN DEFAULT IS REFUSED HERE, because the tap registry that
+       refuses it never sees this click. The pinned menu's entries are `<a
+       href="#">`s: on a desktop no layer sits over the surface, so this branch
+       took the click, and the browser followed the href — the document
+       reloaded, landed on the opening page and dropped the edits waiting
+       (the desktop reader, 2026-10-01). The two other swallowers on the
+       document (`press-arbitration`, `swipe-arbitration`) already refuse it. */
+    event.preventDefault();
     window.addEventListener("popstate", () => {
       // THE TAP IS MADE AGAIN, not simulated: the same element, the same
       // listeners, the same delegation — over a stack that is now the shape the
