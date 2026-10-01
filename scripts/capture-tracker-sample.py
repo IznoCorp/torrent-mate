@@ -12,13 +12,17 @@ Per tracker it calls, with raw ``requests`` and the key from ``.env``:
 - one movie search and one TV search (the queries are arguments);
 - one call with a deliberately INVALID key, to record the auth failure's shape.
 
-**Every key and passkey is redacted** before anything is written: each secret read
-from the environment is replaced wherever it appears (bodies, recorded request
-paths), and every URL query parameter whose name says « key », « pass » or
-« token » loses its value whatever it is — an enclosure link may carry a
-per-user secret this script was never told about. A final scan refuses the WHOLE
-set when a known secret survives: nothing is written, and the refusal names no
-secret.
+**Every key and passkey is redacted** before anything is written: each secret of
+every tracker the code declares (``secret_envs``) is replaced wherever it appears,
+raw or percent-encoded (bodies, recorded request paths). A link may also carry a
+per-user secret this script was never told about, so, whatever its value: every
+URL parameter whose name says « key », « pass », « token » (``apikey``,
+``x-api-key``, ``torrent_pass``), its separators literal or percent-encoded
+(``%3F``, ``%26``, ``%3D``); the whole announce of a magnet (``tr=``); and every
+opaque path segment (16+ alphanumerics) of an announce or download URL
+(``/dl/55/<passkey>/file.torrent``). A final scan, over the text and its decoded
+forms, refuses the WHOLE set when a known secret survives: nothing is written,
+and the refusal names no secret.
 
 Usage (his hand only):
     python scripts/capture-tracker-sample.py <tracker> [--movie "Inception"] [--tv "The Office"]
@@ -27,6 +31,7 @@ Usage (his hand only):
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import os
 import re
@@ -35,6 +40,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote, quote_plus, unquote, unquote_plus
 
 import requests
 
@@ -43,10 +49,41 @@ _TIMEOUT: tuple[float, float] = (5.0, 30.0)
 #: Sent instead of the real key, once, to record the auth failure.
 INVALID_KEY = "invalid-key-for-the-auth-capture"
 REDACTED = "REDACTED"
-#: A URL query parameter whose NAME marks a secret: its value goes, whatever it is.
+#: A query-parameter separator, literal, HTML-escaped or percent-encoded (``?``, ``&``, ``&amp;``, ``%3F``, ``%26``).
+_SEP = r"(?:[?&;]|&amp;|%3F|%26)"
+#: A URL query parameter whose NAME marks a secret (``apikey``, ``x-api-key``, ``torrent_pass``…), its ``=``
+#: literal or encoded (``%3D``): its value goes, whatever it is.
 _SECRET_PARAM = re.compile(
-    r"(?P<name>[?&](?:amp;)?[A-Za-z_]*(?:key|pass|token|auth|rss)[A-Za-z_]*=)(?P<value>[^&\"'<>\s]+)", re.IGNORECASE
+    rf"(?P<name>{_SEP}[A-Za-z_-]*(?:key|pass|token|auth|rss)[A-Za-z_-]*(?:=|%3D))(?P<value>(?:(?!%26)[^&\"'<>\s])+)",
+    re.IGNORECASE,
 )
+#: A magnet's announce (``tr=``): its WHOLE value goes — it is a tracker URL, and its passkey hides in any shape.
+_ANNOUNCE_PARAM = re.compile(rf"(?P<name>{_SEP}tr(?:=|%3D))(?P<value>[^&\"'<>\s]+)", re.IGNORECASE)
+#: A URL, plain or percent-encoded (``https%3A%2F%2F…``).
+_URL = re.compile(r"(?:https?|udp)(?::|%3A)(?://|%2F%2F)[^\s\"'<>]+", re.IGNORECASE)
+#: What makes a URL an announce or a download link: where a tracker puts a passkey as a path segment.
+_ANNOUNCE_OR_DOWNLOAD = re.compile(r"announce|/dl/|%2Fdl%2F|download|\.torrent|/rss", re.IGNORECASE)
+#: What splits a URL into segments, literal or percent-encoded: ``/``, ``?``, ``&``, ``=``, ``:``.
+_URL_SPLIT = re.compile(r"(%2F|%3F|%26|%3D|%3A|&amp;|[/?&=:;#])", re.IGNORECASE)
+#: An opaque segment: 16+ alphanumerics, never a word, an id or a release name (those carry dots or dashes).
+_OPAQUE_SEGMENT = re.compile(r"[A-Za-z0-9]{16,}")
+
+
+def secret_envs() -> set[str]:
+    """Names every tracker credential the code declares, and those of the trackers this script captures.
+
+    Every tracker's, not only the captured one's: an answer may echo any key the operator holds
+    (a cross-posted release, a shared announce), and redacting a value that never appears costs nothing.
+
+    Returns:
+        The environment variable names whose values are secrets.
+    """
+    from personalscraper.api._activation import PROVIDER_CREDS, PROVIDER_OPTIONAL_SECRETS
+    from personalscraper.api.tracker._factory import _TRACKER_CLASSES
+
+    declared = {name for tracker in _TRACKER_CLASSES for name in PROVIDER_CREDS.get(tracker, [])}
+    declared |= {name for names in PROVIDER_OPTIONAL_SECRETS.values() for name in names}
+    return declared | {name for t in TRACKERS.values() for name in (t.key_env, *t.extra_secret_envs)}
 
 
 @dataclass(frozen=True)
@@ -176,23 +213,57 @@ class RedactionLeak(CaptureError):
     """A known secret survived redaction — nothing is written."""
 
 
+def _forms(secret: str) -> set[str]:
+    """Returns a secret as it may be written: raw, percent-encoded, form-encoded.
+
+    Args:
+        secret: The secret.
+
+    Returns:
+        Its distinct written forms.
+    """
+    return {secret, quote(secret, safe=""), quote_plus(secret, safe="")}
+
+
+def _strip_opaque_segments(match: re.Match[str]) -> str:
+    """Replaces the opaque path segments of an announce or download URL.
+
+    Args:
+        match: A URL.
+
+    Returns:
+        The URL, each opaque segment ``REDACTED`` when it is an announce or a download link — its
+        query values too: an opaque value there is as likely a secret.
+    """
+    url = match.group(0)
+    if not _ANNOUNCE_OR_DOWNLOAD.search(url):
+        return url
+    parts = _URL_SPLIT.split(url)
+    return "".join(REDACTED if _OPAQUE_SEGMENT.fullmatch(part) else part for part in parts)
+
+
 def redact(text: str, secrets: list[str]) -> str:
-    """Removes every known secret and every secret-named URL parameter's value.
+    """Removes every known secret, and every value a tracker URL hides a secret in.
 
     Args:
         text: A body or a recorded request path.
         secrets: The secrets read from the environment.
 
     Returns:
-        The redacted text.
+        The text without each known secret (raw or percent-encoded), each secret-named parameter's
+        value (separators literal or encoded, names hyphenated or not), each magnet announce, and
+        each opaque path segment of an announce or download URL.
     """
-    for secret in sorted((s for s in secrets if s), key=len, reverse=True):
-        text = text.replace(secret, REDACTED)
-    return _SECRET_PARAM.sub(lambda m: m.group("name") + REDACTED, text)
+    forms = {form for s in secrets if s for form in _forms(s)}
+    for form in sorted(forms, key=len, reverse=True):
+        text = text.replace(form, REDACTED)
+    text = _ANNOUNCE_PARAM.sub(lambda m: m.group("name") + REDACTED, text)
+    text = _SECRET_PARAM.sub(lambda m: m.group("name") + REDACTED, text)
+    return _URL.sub(_strip_opaque_segments, text)
 
 
 def check(text: str, secrets: list[str]) -> None:
-    """Refuses a text in which a known secret remains.
+    """Refuses a text in which a known secret remains, as written or once decoded.
 
     Args:
         text: A file's full text as it would be written.
@@ -201,7 +272,8 @@ def check(text: str, secrets: list[str]) -> None:
     Raises:
         RedactionLeak: A secret survived (the secret itself is not in the message).
     """
-    if any(secret and secret in text for secret in secrets):
+    views = {text, unquote(text), unquote_plus(text), html.unescape(text), unquote(unquote(text))}
+    if any(secret and secret in view for secret in secrets for view in views):
         raise RedactionLeak("a key survived redaction; nothing written")
 
 
@@ -268,11 +340,7 @@ def capture(
     key = env.get(spec.key_env, "")
     if not key:
         raise CaptureError(f"{spec.key_env} is not set")
-    # Every tracker's secrets, not only this one's: an answer may echo any key the
-    # operator holds (a cross-posted release, a shared announce), and redacting a
-    # value that never appears costs nothing.
-    secret_envs = {name for t in TRACKERS.values() for name in (t.key_env, *t.extra_secret_envs)}
-    secrets = [key, *(env.get(name, "") for name in sorted(secret_envs))]
+    secrets = [key, *(env.get(name, "") for name in sorted(secret_envs()))]
 
     calls = spec.calls(movie, tv)
     answers: list[tuple[str, Call, requests.Response]] = [(c.name, c, _request(session, spec, c, key)) for c in calls]

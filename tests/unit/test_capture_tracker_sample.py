@@ -41,6 +41,12 @@ capture = _load()
 KEY = "PLANTEDkey0123456789abcdef"
 PASSKEY = "PLANTEDpass9876543210fedcba"
 UNKNOWN_SECRET = "unknownrsssecret55555"
+# The keys of the trackers already wired (c411, tr4ker): an answer may echo any key the operator holds.
+C411_KEY = "PLANTEDc411key00000000aaaa"
+C411_PASSKEY = "PLANTEDc411pass1111111bbbb"
+TR4KER_KEY = "PLANTEDtr4kerkey222222cccc"
+TR4KER_PASSKEY = "PLANTEDtr4kerpass33333dddd"
+WIRED_SECRETS = (C411_KEY, C411_PASSKEY, TR4KER_KEY, TR4KER_PASSKEY)
 
 
 class _Response:
@@ -95,6 +101,7 @@ class _FakeTracker:
                 "download": f"https://api.v3x.club/dl/1?apikey={KEY}",
                 "announce": f"https://tracker.example/announce?passkey={PASSKEY}",
                 "note": f"raw {PASSKEY} and {KEY}",
+                "crossposted": f"also on c411 ({C411_KEY}, {C411_PASSKEY}) and tr4ker ({TR4KER_KEY}, {TR4KER_PASSKEY})",
             }
         ]
         return _Response(200, json.dumps({"results": rows}), "application/json")
@@ -106,7 +113,16 @@ def _env() -> dict[str, str]:
     Returns:
         Every tracker's key, and digitalcore's passkey.
     """
-    return {"DRAUPNIRR_API_KEY": KEY, "V3X_API_KEY": KEY, "DIGITALCORE_API_KEY": KEY, "DIGITALCORE_PASSKEY": PASSKEY}
+    return {
+        "DRAUPNIRR_API_KEY": KEY,
+        "V3X_API_KEY": KEY,
+        "DIGITALCORE_API_KEY": KEY,
+        "DIGITALCORE_PASSKEY": PASSKEY,
+        "C411_API_KEY": C411_KEY,
+        "C411_PASSKEY": C411_PASSKEY,
+        "TR4KER_API_KEY": TR4KER_KEY,
+        "TR4KER_PASSKEY": TR4KER_PASSKEY,
+    }
 
 
 def _capture(tracker: str, tmp_path: Path, fake: _FakeTracker | None = None) -> dict[str, str]:
@@ -139,8 +155,58 @@ def test_no_key_or_passkey_reaches_a_written_file(tracker: str, tmp_path: Path) 
     files = _capture(tracker, tmp_path)
     assert files
     for name, text in files.items():
-        for secret in (KEY, PASSKEY, UNKNOWN_SECRET):
+        for secret in (KEY, PASSKEY, UNKNOWN_SECRET, *WIRED_SECRETS):
             assert secret not in text, f"a planted secret leaked into {tracker}/{name}"
+
+
+def test_every_declared_tracker_credential_is_a_secret() -> None:
+    """The keys of every tracker the code wires (c411, tr4ker included) are redacted, not only the new three."""
+    envs = capture.secret_envs()
+    assert {"C411_API_KEY", "C411_PASSKEY", "TR4KER_API_KEY", "TR4KER_PASSKEY"} <= envs
+    assert {"DRAUPNIRR_API_KEY", "V3X_API_KEY", "DIGITALCORE_API_KEY", "DIGITALCORE_PASSKEY"} <= envs
+
+
+#: A passkey nobody declared, in each URL shape a tracker answer carries it.
+OPAQUE = "Zq8unknownPasskey4242Xy"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        # A magnet's announce, percent-encoded: no literal ``?``, ``&`` or ``=`` around the passkey.
+        f"magnet:?xt=urn:btih:abc&dn=Inception&tr=https%3A%2F%2Fx%2Fannounce.php%3Fpasskey%3D{OPAQUE}",
+        f"magnet:?xt=urn:btih:abc&amp;tr=udp%3A%2F%2Fx%3A80%2F{OPAQUE}%2Fannounce&amp;dn=x",
+        # The passkey as a path segment of a download or announce URL.
+        f'<enclosure url="https://x.example/dl/55/{OPAQUE}/file.torrent"/>',
+        f"https://x.example/announce/{OPAQUE}",
+        f"https://x.example/{OPAQUE}/announce",
+        f"https%3A%2F%2Fx.example%2Fdl%2F55%2F{OPAQUE}%2Ffile.torrent",
+        # A hyphenated parameter name.
+        f"https://x.example/api?x-api-key={OPAQUE}&q=1",
+        f"https://x.example/rss?id=1&amp;torrent-pass={OPAQUE}",
+        # Percent-encoded separators outside a magnet.
+        f"https://x.example/out?u=https%3A%2F%2Fy%2Fdl%3Fid%3D1%26passkey%3D{OPAQUE}",
+    ],
+)
+def test_an_undeclared_passkey_goes_in_every_url_shape(text: str) -> None:
+    """Encoded separators, a path segment, a hyphenated name: the passkey goes, though nobody declared it."""
+    assert OPAQUE not in capture.redact(text, [])
+
+
+def test_a_known_secret_goes_in_its_percent_encoded_form() -> None:
+    """A declared key with reserved characters is redacted as written in a URL, and the scan sees it."""
+    secret = "k3y/with+reserved=chars"
+    encoded = "k3y%2Fwith%2Breserved%3Dchars"
+    text = f"https://x.example/dl?id=1&ref={encoded}"
+    assert encoded not in capture.redact(text, [secret])
+    with pytest.raises(capture.RedactionLeak):
+        capture.check(text, [secret])
+
+
+def test_a_public_download_url_keeps_its_readable_segments() -> None:
+    """Only opaque 16+ alphanumeric segments go: ids, words and the file name stay."""
+    text = "https://x.example/dl/55/Inception.2010.1080p.torrent?id=1"
+    assert capture.redact(text, []) == text
 
 
 def test_draupnirr_records_caps_both_searches_and_the_auth_failure(tmp_path: Path) -> None:
