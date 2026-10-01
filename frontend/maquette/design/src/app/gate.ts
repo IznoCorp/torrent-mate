@@ -14,6 +14,7 @@
 //
 // THE GATE READS NO RIGHT ITSELF: after a sign-in the frame reads the account,
 // and the account's entry page is where it lands (round 10 Q7).
+import { CancelledError } from "@tanstack/react-query";
 import i18next from "i18next";
 
 import { entryPageFor } from "./navigation";
@@ -104,15 +105,25 @@ export function restGate(passwordOpen: boolean): void {
 
 /**
  * Lands the signed-in account on its entry page once its rights are read.
+ *
+ * A read CANCELLED — the cache cleared under it, by a sign-out or a driven
+ * state — lands nowhere and says nothing: whatever cleared it has moved the
+ * interface on. Any other failure is left to surface.
  */
 async function land(): Promise<void> {
   const client = sharedQueryClient;
   if (client === undefined) return ending();
   await client.resetQueries();
-  const account = await client.fetchQuery({
-    queryKey: ["/api/auth/me"],
-    queryFn: async () => (await fetch("/api/auth/me")).json() as Promise<Schemas["Account"]>,
-  });
+  let account: Schemas["Account"];
+  try {
+    account = await client.fetchQuery({
+      queryKey: ["/api/auth/me"],
+      queryFn: async () => (await fetch("/api/auth/me")).json() as Promise<Schemas["Account"]>,
+    });
+  } catch (failure) {
+    if (failure instanceof CancelledError) return;
+    throw failure;
+  }
   landSignedIn(entryPageFor(rightsOf(account)));
   ending();
 }

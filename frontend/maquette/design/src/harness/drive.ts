@@ -74,6 +74,21 @@ export function poseTrail(pages: string[]): void {
   posedTrail = pages;
 }
 
+// What a state left listening after its drive, stopped when the next one is driven.
+let leaving: (() => void) | null = null;
+
+/**
+ * Asks for a stop to run when the next state is driven — for a state whose
+ * subject arrives after its drive (an asynchronous landing), so what it left
+ * listening never acts on a state that is not its own.
+ *
+ * Args:
+ *     stop: What ends the listening.
+ */
+export function onLeave(stop: () => void): void {
+  leaving = stop;
+}
+
 /** One named state: the id `__go` takes, its label in words, and how to build it. */
 export type NamedState = [id: string, label: string, run: () => void];
 
@@ -169,6 +184,8 @@ function go(stateId: string, options?: { keep?: boolean }): string {
       table.length
         ? "état inconnu : " + stateId
         : "aucun état enregistré — la table du harnais est vide");
+  leaving?.();
+  leaving = null;
   if (!stateId.startsWith("signin")) window.__entry?.hideSignIn(true);
   if (stateId !== "startup") window.__entry?.hideStartup();
   if (!stateId.startsWith("pwa-")) window.__entry?.hideInstall();

@@ -11,6 +11,8 @@ DESIGN maquette-l18 § 3.1, § 5 (R-L18-q, R-L18-r), round 8 Q10 = B, F47.
    the owner's password (Admin holds the right) walks through.
 5. R-L18-r — A Default-only Plex account is admitted, read-only: it lands on the Médiathèque,
    with no bar.
+6. A landing whose account read is CANCELLED — the cache cleared under it — lands nowhere and
+   raises nothing.
 """
 import asyncio
 import pathlib
@@ -33,11 +35,30 @@ GATE = """() => ({
   bar: document.querySelector('#nav')?.checkVisibility() || false })"""
 
 
+MAIN = "origin/main"
+
+
 def main_region():
-    """The `login:markup` region as `main` holds it."""
-    shown = subprocess.run(["git", "show", "origin/main:frontend/maquette/design/index.html"],
-                           capture_output=True, text=True, cwd=ROOT, check=True).stdout
-    return REGION.search(shown).group(0)
+    """The `login:markup` region as `main` holds it.
+
+    A CI checkout is one commit deep and carries no `origin/main`: the ref is
+    fetched, one commit deep, when it is absent — never compared against
+    nothing.
+
+    Returns:
+        The region, markers included.
+
+    Raises:
+        subprocess.CalledProcessError: When `main` cannot be read or fetched.
+    """
+    def git(*arguments):
+        return subprocess.run(["git", *arguments], capture_output=True, text=True, cwd=ROOT, check=True).stdout
+
+    known = subprocess.run(["git", "rev-parse", "--verify", "--quiet", MAIN],
+                           capture_output=True, cwd=ROOT).returncode == 0
+    if not known:
+        git("fetch", "--depth=1", "origin", f"main:refs/remotes/{MAIN}")
+    return REGION.search(git("show", f"{MAIN}:frontend/maquette/design/index.html")).group(0)
 
 
 async def main():
@@ -85,6 +106,29 @@ async def main():
         bare = await at("signin-plex-bare", ACTED + SETTLED)
         journal.check("R-L18-r: a Default-only Plex account lands on the Médiathèque, with no bar",
                       not bare["shown"] and bare["page"] == "lib" and not bare["bar"], str(bare))
+
+        # A LANDING WHOSE ACCOUNT READ IS CANCELLED — the cache cleared under it,
+        # as every driven state's reset does — lands nowhere and raises nothing.
+        # The account read is held back so the clears fall inside it: on a slow
+        # runner the persistence walk's zero-wait drive did exactly that, and
+        # the page threw « CancelledError » twice.
+        await page.evaluate("""()=>{
+          const ask = window.fetch;
+          window.__heldFetch = ask;
+          window.fetch = async (...asked) => {
+            if (String(asked[0]?.url ?? asked[0]).includes('/api/auth/me'))
+              await new Promise((done) => setTimeout(done, 800));
+            return ask(...asked);
+          };}""")
+        before = len(errors)
+        await page.evaluate("(id)=>window.__go(id)", "signin-plex-bare")
+        for _ in range(12):
+            await page.wait_for_timeout(150)
+            await page.evaluate("()=>window.__queries.clear()")
+        await page.wait_for_timeout(ACTED)
+        await page.evaluate("()=>{window.fetch = window.__heldFetch;}")
+        journal.check("R-L18-r: a landing whose account read is cancelled raises nothing",
+                      len(errors) == before, str(errors[before:]))
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()

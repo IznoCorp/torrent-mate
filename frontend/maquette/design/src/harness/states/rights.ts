@@ -6,7 +6,7 @@
 // Each entry is `[id, label, run]`: the id is what `window.__go(id)` takes and
 // what the oracle's reference names, the label says the state in words, and
 // `run` builds the state.
-import { applyState, type NamedState } from "../drive";
+import { applyState, onLeave, type NamedState } from "../drive";
 import { openDrawer } from "../../app/frame-verbs";
 import { WRITE_RIGHTS, type Right } from "../../lib/rights";
 
@@ -38,6 +38,27 @@ export const EVERY_WRITE: Right[] = [...WRITE_RIGHTS];
 /** Raises the gate without writing history, as a driven state does. */
 function showGate(): void {
   window.__entry?.showSignIn(false, true);
+}
+
+/**
+ * Ends the gate's played wait as soon as it rises.
+ *
+ * A sign-in that walks through covers its landing with the startup screen for
+ * the five seconds a real load is budgeted (`coverLoading`). A state whose
+ * subject is the account's FIRST FRAME is the landing, not that wait: it rises
+ * after the drive — the landing is asynchronous — so it is watched for, and
+ * the watch stops when the next state is driven.
+ */
+function endStartupCover(): void {
+  const splash = document.querySelector<HTMLElement>("#splash");
+  if (!splash) return;
+  const watch = new MutationObserver(() => {
+    if (splash.hidden) return;
+    watch.disconnect();
+    window.__loadingDone?.();
+  });
+  watch.observe(splash, { attributes: true, attributeFilter: ["hidden"] });
+  onLeave(() => watch.disconnect());
 }
 
 /** Taps one control of the gate. */
@@ -285,6 +306,7 @@ export function rightsStates(): NamedState[] {
       "Connexion — un compte Plex sans droit entre par Plex et arrive sur la Médiathèque, sans barre",
       () => {
         window.__mocks?.setIdentity("plex-without-rights");
+        endStartupCover();
         showGate();
         tap('[data-part="login/plex-submit"]');
       },
