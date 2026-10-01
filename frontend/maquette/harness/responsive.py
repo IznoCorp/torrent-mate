@@ -311,7 +311,11 @@ async def read_pass(browser, label, width, wanted, engine, scheme):
         # at 1280 px). The phone's sheet makes the same trip on y, which this rule does not read,
         # so it never showed. The wait is the LAYERS' own running transitions, read from the page
         # (B-276) — not every animation of the page, which cost this whole sweep a minute.
-        await page.evaluate(LAYERS_AT_REST, LAYER_CEILING_MS)
+        # IN A WINDOW ONLY, where a layer slides on x: a phone's layers rise on y, and WebKit's
+        # page dies when `getAnimations()` is asked under `media-sheet-decision-corrected`'s two
+        # chained view transitions (both WebKit passes, CI and here).
+        if width in WINDOWS:
+            await page.evaluate(LAYERS_AT_REST, LAYER_CEILING_MS)
         readings[state] = await page.evaluate(MEASURE, width)
         if engine == "webkit":
             readings[state] += await page.evaluate(VISIBLE, width)
