@@ -240,14 +240,32 @@ function SeasonsBlock({
 }: {
   block: { type: "saisons" } & PanelBlockMap["saisons"];
 }) {
-  const { follow, seasons } = block;
+  const { follow } = block;
   // THE MEDIUM'S IDENTITY, from the record or from the cache — re-asked when any
   // read lands, because the list that holds a medium nobody follows can land
   // after the panel opened.
   useServerStateVersion();
   const address = providerAddress(follow.ids ?? heldIdentity(follow.title)?.ids);
-  const seasonsRead = useMediaSeasons(address?.provider ?? "", address?.id ?? "");
-  const sheetRead = useMediaSheet(address?.provider ?? "", address?.id ?? "");
+  // THE READS ARE MOUNTED ONLY WITH AN ADDRESS (B-503). Asked with an empty
+  // provider and id, they were disabled but still built: two cache entries
+  // keyed on nothing, each observed while the panel was open.
+  return address
+    ? <SeasonsAt block={block} provider={address.provider} id={address.id} />
+    : <SeasonsDrawn block={block} served={{ owned: undefined, episodes: undefined }} owns={false} />;
+}
+
+/** The season block once the medium's address is known: its two served reads. */
+function SeasonsAt({
+  block,
+  provider,
+  id,
+}: {
+  block: { type: "saisons" } & PanelBlockMap["saisons"];
+  provider: string;
+  id: string;
+}) {
+  const seasonsRead = useMediaSeasons(provider, id);
+  const sheetRead = useMediaSheet(provider, id);
   // WHETHER WE HOLD IT, read where the sheet reads it — the sheet's own
   // `owned` — so the panel and the sheet state one fact about one season.
   const owns = (sheetRead.data as { owned?: boolean } | null | undefined)?.owned === true;
@@ -255,6 +273,20 @@ function SeasonsBlock({
     owned: seasonsRead.data?.owned,
     episodes: (sheetRead.data as { episodes?: Record<string, EpisodeCatalog> } | null | undefined)?.episodes,
   };
+  return <SeasonsDrawn block={block} served={served} owns={owns} />;
+}
+
+/** The legend and the season rows, from what the served reads answered. */
+function SeasonsDrawn({
+  block,
+  served,
+  owns,
+}: {
+  block: { type: "saisons" } & PanelBlockMap["saisons"];
+  served: Served;
+  owns: boolean;
+}) {
+  const { follow, seasons } = block;
   const hasUpcoming = seasons.some((season) =>
     (catalogFor(served, season[0]) ?? []).some(
       (episode) => episode.airDate && episode.airDate > today(),

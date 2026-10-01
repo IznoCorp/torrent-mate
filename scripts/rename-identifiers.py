@@ -324,9 +324,15 @@ def apply(text, mapping, in_python=False, properties=False, spans=None):
                     # is told which mode owns it. A lone `{etat}` keeps being
                     # renamed: in JSX that is exactly right, and in a one-key
                     # object `--properties` is the mode that moves both ends.
-                    ambiguous = re.search(
-                        rf"\{{[^{{}}\n]*,\s*{re.escape(fr)}\s*[,}}]"
-                        rf"|\{{\s*{re.escape(fr)}\s*,[^{{}}\n]*\}}", chunk)
+                    # AN IMPORT OR EXPORT LIST IS NOT AN OBJECT (B-540):
+                    # `import { useX, type Y }` lists bindings, no key is
+                    # emitted there, and renaming the binding is the job.
+                    ambiguous = next(
+                        (hit for hit in re.finditer(
+                            rf"\{{[^{{}}\n]*,\s*{re.escape(fr)}\s*[,}}]"
+                            rf"|\{{\s*{re.escape(fr)}\s*,[^{{}}\n]*\}}", chunk)
+                         if not BINDING_LIST.search(chunk[:hit.start()])),
+                        None)
                     if ambiguous:
                         raise SystemExit(
                             f"{fr!r} appears as a SHORTHAND PROPERTY "
@@ -361,6 +367,10 @@ def apply(text, mapping, in_python=False, properties=False, spans=None):
         pieces.append(chunk)
     return "".join(pieces)
 
+
+# What opens a list of bindings rather than an object: the braces of an
+# `import` or `export` statement, `type` included.
+BINDING_LIST = re.compile(r"\b(?:import|export)(?:\s+type)?\s*$")
 
 PROSE_WORD = re.compile(r"[A-Za-z\u00c0-\u00ff]{2,}")
 CODE_MARK = re.compile(r"[(){}\[\]=><;]|=>|\$\{|\bwindow\b|\bdocument\b")
@@ -548,8 +558,17 @@ if __name__ == "__main__":
             after = apply_values(before, mapping, spans=spans,
                                  whole_only=WHOLE_ONLY, inner_words=INNER_WORDS)
         else:
-            after = apply(before, mapping, in_python=path.suffix == ".py",
-                          properties=PROPERTIES, spans=spans)
+            try:
+                after = apply(before, mapping, in_python=path.suffix == ".py",
+                              properties=PROPERTIES, spans=spans)
+            except SystemExit:
+                # ALL OR NOTHING here too (B-540): a refusal raised inside one
+                # file's rename says « Nothing written, in any file », which is
+                # only true once every file written before it is put back.
+                for done_path, original in reversed(written):
+                    with done_path.open("w", encoding="utf-8", newline="") as handle:
+                        handle.write(original)
+                raise
         if after == before:
             continue
         # Written BEFORE the proof, because the proof runs the parser over the

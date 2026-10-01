@@ -301,3 +301,27 @@ class TestTheSelfDescription:
         guard.check_arm_count(violations)
 
         assert any("CLAUDE.md" in v for v in violations), violations
+
+
+class TestTheTrackedTree:
+    """B-545: what the guard reads is the commit, never the files lying beside it."""
+
+    def test_an_untracked_file_is_neither_read_nor_counted(self, tmp_path: Path, monkeypatch) -> None:
+        """A PR body said 372 files where the head tracked 370: the count read the working tree.
+
+        An untracked `.js` under the shell is somebody's scratch, not the commit's
+        code — refusing it, or counting it, makes the verdict a property of the
+        machine it ran on.
+        """
+        subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+        (tmp_path / "kept.ts").write_text("export const kept = 1;\n", encoding="utf-8")
+        (tmp_path / "scratch.js").write_text("const brouillon = 1;\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(tmp_path), "add", "kept.ts"], check=True)
+        monkeypatch.setattr(guard, "SHELL", tmp_path)
+        monkeypatch.setitem(guard.examined, "unread javascript / shell", 0)
+        violations: list[str] = []
+
+        guard.check_unread_javascript(violations)
+
+        assert violations == []
+        assert guard.examined["unread javascript / shell"] == 1

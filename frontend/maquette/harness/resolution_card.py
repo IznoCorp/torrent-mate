@@ -24,7 +24,8 @@ WHAT IT READS, and each hold fails differently:
       and said so: this hold used to read ONE affordance held to the icon
       button's size — the check mark B-500 retired. It now reads EVERY
       candidate card: its `card/pick` says the word `fr.json` holds for it, is
-      drawn (a box, not made invisible) at least a finger tall, is painted in
+      drawn (a box inside its card, neither transparent, hidden nor clipped) at
+      least a finger tall, is painted in
       the primary ground (compared with a probe wearing `bg-primary`, so no
       colour is written here), and is a BUTTON of its own — it was a mark
       inside the body's button, `aria-hidden`, until B-578's end made it the
@@ -223,12 +224,20 @@ PILLS = """() => {
   return cards.map((card) => {
     const pill = card.querySelector('[data-part="card/pick"]');
     const box = pill?.getBoundingClientRect();
+    const frame = card.getBoundingClientRect();
     return {title: (card.querySelector('[data-part="card/title"]')?.textContent || '').trim(),
             tag: pill?.tagName ?? null,
             text: (pill?.textContent || '').trim(),
             hidden: pill?.getAttribute('aria-hidden') === 'true',
-            drawn: !!pill && getComputedStyle(pill).visibility !== 'hidden'
-                   && !!box && box.width > 0 && box.height > 0,
+            // DRAWN BY EVERY WAY A MARK CAN BE TAKEN AWAY (B-460): a box above
+            // zero and `visibility` were two of five — `opacity: 0` on it or an
+            // ancestor, a clip, and a transform carrying it out of its card
+            // left a box and passed.
+            drawn: !!pill && !!box && box.width > 0 && box.height > 0
+                   && pill.checkVisibility({opacityProperty: true, visibilityProperty: true})
+                   && getComputedStyle(pill).clipPath === 'none'
+                   && box.left >= frame.left - 1 && box.right <= frame.right + 1
+                   && box.top >= frame.top - 1 && box.bottom <= frame.bottom + 1,
             height: box?.height ?? 0,
             primary: !!pill && getComputedStyle(pill).backgroundColor === primary,
             drawing: !!pill?.querySelector('svg')};

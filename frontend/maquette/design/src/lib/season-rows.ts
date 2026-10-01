@@ -12,7 +12,7 @@ export type FollowCompleteness = components["schemas"]["FollowCompleteness"];
 
 /** What the seasons read answers: the catalogue, and what we hold of it. */
 export type SeasonsAnswer = {
-  seasons: { number: number; episodes?: number | null }[];
+  seasons: components["schemas"]["Season"][];
   owned: Record<string, number[]>;
   /**
    * How many episodes of each season have AIRED, keyed by season number: the

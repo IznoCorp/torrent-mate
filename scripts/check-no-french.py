@@ -156,6 +156,7 @@ from nofrench_dictionary import check_dictionary  # noqa: E402
 # Arm 8 — the only arm whose corpus is the shell. See its header.
 from nofrench_shell import check_shell_scripts  # noqa: E402
 from nofrench_lexicon import (  # noqa: E402
+    walk,
     vocabulary, EXTRACTED_CSS,
     FRENCH_TOKENS, FROZEN_IDENTIFIERS, FROZEN_PATH_SEGMENTS, HARNESS, MAQUETTE,
     REGIONS, ROOT, SCRIPTS, SHELL, VOCABULARY, deaccent, french_tokens_in,
@@ -207,11 +208,11 @@ def check_strings(violations: list[str]) -> None:
     # instrument's own chrome, in the operator's language, shipping nowhere, and
     # the French a harness ASSERTS is the app's output. Its identifiers stay held
     # by arm 2. The line dies with the directory.
-    strict: list[Path] = [p for p in SHELL.rglob("*") if p.is_file()
+    strict: list[Path] = [p for p in walk(SHELL, "*") if p.is_file()
                           and p.suffix in {".ts", ".tsx"} and "i18n" not in p.parts
                           and p.relative_to(SHELL).parts[0] != "harness"]
     strict += maquette_servers()
-    strict += sorted(HARNESS.glob("*.mjs"))
+    strict += sorted(walk(HARNESS, "*.mjs", recursive=False))
     # The repository's own tools speak to a DEVELOPER, so they speak English.
     # (The `personalscraper` CLI is a different case entirely: it speaks to the
     # OPERATOR, in French, and it is interface — no arm reads it.)
@@ -226,7 +227,7 @@ def check_strings(violations: list[str]) -> None:
     # French IS their subject — a list of French words cannot be written in
     # English, and pragmas on a word list would say nothing a reader does not
     # already see.
-    strict += [p for p in sorted(SCRIPTS.rglob("*.py"))
+    strict += [p for p in sorted(walk(SCRIPTS, "*.py"))
                if p.name not in SELF]
     for path in sorted(strict):
         source = read(path)
@@ -269,7 +270,7 @@ def check_strings(violations: list[str]) -> None:
                     f"{relative(path)}:{line_no}: French text rendered from the "
                     f"code ({reason}) — {remedy(path)}: {text.strip()[:60]!r}")
 
-    for path in sorted(HARNESS.glob("*.py")):
+    for path in sorted(walk(HARNESS, "*.py", recursive=False)):
         source = read(path)
         lines = source.splitlines()
         for match in HOLD_LABEL.finditer(source):
@@ -293,16 +294,16 @@ def check_strings(violations: list[str]) -> None:
 def check_identifiers(violations: list[str]) -> None:
     """Runs the identifier arm over the shell, the servers, the harness, the tools."""
     python = (maquette_servers()
-              + sorted(HARNESS.glob("*.py"))
-              + [p for p in sorted(SCRIPTS.rglob("*.py"))
+              + sorted(walk(HARNESS, "*.py", recursive=False))
+              + [p for p in sorted(walk(SCRIPTS, "*.py"))
                  if p.name not in SELF]
               # `frontend/scripts/` is not `scripts/`, and that one letter of
               # scope left an entire tool — 18 French names, `SORTIE`, `JAUNE`,
               # `anneau_depuis_staging` — outside every arm while the gate
               # reported no violation.
-              + sorted((ROOT / "frontend" / "scripts").glob("*.py"))
-              + sorted((ROOT / "personalscraper").rglob("*.py"))
-              + sorted((ROOT / "tests").rglob("*.py")))
+              + sorted(walk((ROOT / "frontend" / "scripts"), "*.py", recursive=False))
+              + sorted(walk((ROOT / "personalscraper"), "*.py"))
+              + sorted(walk((ROOT / "tests"), "*.py")))
     for path in python:
         source = read(path)
         declarations = python_declarations(source)
@@ -316,9 +317,9 @@ def check_identifiers(violations: list[str]) -> None:
                     f"{relative(path)}:{line_no}: French identifier {name!r} "
                     f"({', '.join(hits) or 'accented'})")
 
-    web = [p for p in SHELL.rglob("*") if p.is_file() and p.suffix in {".ts", ".tsx"}]
-    web += sorted(HARNESS.glob("*.mjs"))
-    web += [p for p in (ROOT / "frontend" / "src").rglob("*")
+    web = [p for p in walk(SHELL, "*") if p.is_file() and p.suffix in {".ts", ".tsx"}]
+    web += sorted(walk(HARNESS, "*.mjs", recursive=False))
+    web += [p for p in walk((ROOT / "frontend" / "src"), "*")
             if p.is_file() and p.suffix in {".ts", ".tsx"}]
     for path in sorted(web):
         if "i18n" in path.parts:
@@ -370,7 +371,7 @@ def check_class_names(violations: list[str]) -> None:
     allowed = css_allowlist()
 
     for path in (maquette_servers()
-                 + sorted(HARNESS.glob("*.py"))):
+                 + sorted(walk(HARNESS, "*.py", recursive=False))):
         tree = ast.parse(read(path))
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
@@ -382,9 +383,9 @@ def check_class_names(violations: list[str]) -> None:
                         f"{node.name!r} ({', '.join(hits) or 'accented'})")
 
     code_class = re.compile(r"\bclass\s+(?P<name>[A-Za-z_$][\w$À-ɏ]*)")
-    typescript = [p for p in SHELL.rglob("*")
+    typescript = [p for p in walk(SHELL, "*")
                   if p.is_file() and p.suffix in {".ts", ".tsx"}]
-    typescript += [p for p in (ROOT / "frontend" / "src").rglob("*")
+    typescript += [p for p in walk((ROOT / "frontend" / "src"), "*")
                    if p.is_file() and p.suffix in {".ts", ".tsx"}]
     for path in sorted(typescript):
         source = read(path)
@@ -412,9 +413,9 @@ def check_class_names(violations: list[str]) -> None:
     # last rule left, and refused itself: « its scope is empty, so its `no
     # violation` means nothing » is this guard working, not failing.
     maquette_styles = sorted(
-        (ROOT / "frontend" / "maquette" / "design" / "src" / "styles").glob("*.css"))
+        walk((ROOT / "frontend" / "maquette" / "design" / "src" / "styles"), "*.css", recursive=False))
     sheets = (maquette_styles
-              + sorted((ROOT / "frontend" / "src").rglob("*.css")))
+              + sorted(walk((ROOT / "frontend" / "src"), "*.css")))
     for path in sheets:
         if not path.is_file():
             continue
@@ -491,7 +492,7 @@ def check_vocabulary(violations: list[str]) -> None:
         violations.append(f"{relative(VOCABULARY)} is empty — the arm reading it "
                           "would accept every name ever written")
         return
-    sources = [p for p in SHELL.rglob("*")
+    sources = [p for p in walk(SHELL, "*")
                if p.is_file() and p.suffix in {".ts", ".tsx", ".js"}
                and "i18n" not in p.parts]
     # A GENERATED file's names are the generator's, not a choice anyone made,
@@ -507,7 +508,7 @@ def check_vocabulary(violations: list[str]) -> None:
                 "tree — the exemption has stopped describing anything")
     # THE MAQUETTE'S KEYFRAME NAMES, read here and not in the class-name arm:
     # that arm asks « is this French? », and `splashremplit` answered no (B-056).
-    for sheet in sorted((ROOT / "frontend" / "maquette" / "design" / "src" / "styles").glob("*.css")):
+    for sheet in sorted(walk((ROOT / "frontend" / "maquette" / "design" / "src" / "styles"), "*.css", recursive=False)):
         css = read(sheet)
         examined["keyframe names / maquette"] += len(KEYFRAMES.findall(css))
         for name, line_no, unknown in unknown_keyframe_words(css, words):
@@ -565,7 +566,7 @@ def check_unread_javascript(violations: list[str]) -> None:
     Args:
         violations: The accumulator every arm appends to.
     """
-    walked = [path for path in SHELL.rglob("*") if path.is_file()]
+    walked = [path for path in walk(SHELL, "*") if path.is_file()]
     for path in sorted(path for path in walked if path.suffix == ".js"):
         violations.append(
             f"{relative(path)} is JavaScript under the shell, which no arm "
