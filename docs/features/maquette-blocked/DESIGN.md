@@ -297,7 +297,11 @@ Voir la fiche » where a sheet stands behind it (`panels.journey.seeSheet`, exis
 (DECIDED 2)**: a tap on the card opens its bottom panel, as every card's, and « Marquer comme vu »
 (`panels.journey.markSeen`, proposed) is one of its actions. That action removes the card everywhere for that
 account, at once (optimistic, the error said and the card restored if the write fails — NE-DOIT-PAS-5), and it does
-not come back on a reload (the seen mark is the engine's, BK5).
+not come back on a reload (the seen mark is the engine's, BK5). The panel marks the closure of the TOUCHED card, by
+its acquisition key (the title, then the season or the episode it is of) — never by its title alone: two closures of
+one title are two cards, each marked by its own key (`acq-closure-two-one-title`). « Marquer comme vu » is gated by
+`acquisition.todo.view`, the right that opens « À traiter » and its badge (whoever sees the card may say he has read
+it), not by `acquisition.request`.
 
 **Filed by hand elsewhere** — the medium appears in the library by its provider identifiers: the tunnel ends with no
 card at all (« il part simplement »). **A medium that comes back** opens a new tunnel: a fresh card in « En cours »;
@@ -362,7 +366,9 @@ count, `aria-pressed`, `aria-haspopup="dialog"`, a `data-select` naming its pane
   order, `follows-tab.tsx`: fresh, then the status's urgency, then the title), « A → Z », « Z → A », « Suivi
   récemment » (the follow's creation date), « Prochaine sortie » (the date of the next release, a follow with none
   last). Neither date is served by the contract today: the maquette carries them in its follows seed (`addedAt`,
-  `nextAirDate`) and the demand is BK8.
+  `nextAirDate`) and the demand is BK8. The pill and its panel count on ONE basis, the search applied: the pill's
+  count, each choice's count in the panel and the list drawn all read the follows the search field lets through
+  (`followsInView`), so a count never names follows the list cannot show.
 - The search field and the view switch keep their places in the same filter zone.
 
 ### 1.10 Episodes the catalogue does not list — « hors catalogue (n) » (B-475 = B)
@@ -380,21 +386,30 @@ the held numbers above the catalogue per season (BK7).
 
 **The contract first** (`scripts/compare-contracts.py --check` refuses a field apart from its schema).
 
-- The rung's `reason` keeps carrying the cause token (`contract/types.d.ts:2016`); its token set grows by
+- The rung's `reason` keeps carrying the cause token (`contract/openapi.json`, `Rung.reason`); its token set grows by
   `library_full`, `tracker_unreachable`, `provider_unreachable`, `plex_unreachable`, `client_unreachable`. The rung
   gains `resumes: "auto" | "hand" | null` — who lifts it, the ENGINE's classification (never the interface's guess
   from the token), and `blockedSince: number | null` (epoch). `tracker` / `minimumRatio` (exist) are joined by
   `provider: string | null` and `size: number | null` (bytes, for `library_full`).
 - The card gains `closure: { reason: "torrent_removed" | "files_absent" | "superseded"; at: number; winner: string |
   null } | null` — present until the account has seen it.
+- The rung gains `blocks: LiftedBlock[]` (`reason`, `since`, `resumedAt`) — the blocks the engine lifted on it, oldest
+  first, the journey's « bloqué — … » / « repris » trace (§ 1.4, BK2) — and, on « rangé », `keptNewer: string[]` —
+  the episodes a pack's filing left in place for a later choice, « S03E07 » (§ 1.6, BK4).
 - A new operation `dismissClosure` (`POST`, the acquisition's key) — `200 {ok}`, idempotent; declares `403`.
+- A tracker (`readTrackers`) gains `reachable: boolean` and `unreachableSince: number | null` (epoch; null while it
+  answers) — no separate `since` (BK6).
+- The shared `Fact` (served by `readServices`, `readDependencies`, `readDisks`, `readIndexHealth`, `readSchedulers`)
+  gains `since: number | null` — for a fact that does not answer, since when (« ne répond pas depuis … », § 1.3); the
+  Plex row is one more `Fact` of `readDependencies` (BK6).
 - `readAcquisitionQueue` answers blocks wherever they stand; `todoCards` reads `resumes` and `closure`, never a token
   list of its own.
 
 **The mocks.** Posed, never seeded where the real world has none (RULINGS 7): `poseBlock(title, token, details)`
 generalises `poseDeferral`; `liftBlock(title)` lifts it AND emits the live event that invalidates the queue (the
 auto-resume's subject); `poseClosure(title, reason, winner?)`; the mock's `dismissClosure` handler forgets the closure
-in every world. Système's dependencies seed gains a Plex row; the trackers seed gains `reachable` (+ `since`).
+in every world. Système's dependencies seed gains a Plex row; the trackers seed gains `reachable` and
+`unreachableSince`; a fact's `since` is posed with its block, absent at rest.
 
 ---
 
@@ -605,7 +620,7 @@ orchestrator, who owns the brief:
 | **BK3 — a vanished medium closes** | `requeue_missing` (`_wanted_store.py:585`) no longer re-opens silently: the tunnel closes with `torrent_removed` or `files_absent` (the volume present — DECIDED 4 = A; the volume absent stays the `content_missing` block); a medium found filed by hand (by provider id) ends with no closure; a medium back opens a new tunnel | Q8 |
 | **BK4 — the last chosen wins at filing** | first verify that the engine knows, at filing, the choice date of the release whose file is in place (`staging_provenance.grabbed_at` per hash exists, `_provenance_store.py:173`; the file → hash link is not measured); a file with no known date is older than anything; an older-chosen release is not filed, its torrent seeds, its tunnel closes `superseded` with the winner's release line; a pack files every episode but the ones held by a later choice, named in its journey | Q9 |
 | **BK5 — seen is stored** | `dismissClosure` records that the account saw the closure; the queue answers `closure` until then, per account (the badge counts the account's own cards, R-L18-g) | Q8, Q9 « une fois », A6 |
-| **BK6 — reachability served** | Plex as a dependency of `readDependencies`; `reachable` and `since` per tracker on `readTrackers`; « ne répond pas depuis » on every dependency | § 1.3: the door lands on a page that says the same cause |
+| **BK6 — reachability served** | Plex as a dependency of `readDependencies`; `reachable` and `unreachableSince` per tracker on `readTrackers`; `since` on the shared `Fact` (`readDependencies`, `readServices`, `readDisks`, `readIndexHealth`, `readSchedulers`) — « ne répond pas depuis » on every dependency | § 1.3: the door lands on a page that says the same cause |
 | **BK7 — held episodes off the catalogue** | per season, the held episode numbers the catalogue does not list (`offCatalogue: number[]`), the fraction staying on what aired | B-475 = B, § 1.10 |
 | **BK8 — two dates per follow** | `addedAt` (the follow's creation) and `nextAirDate` (the next release, null when none) on `readFollows` | his round 3 q1 = C, Suivis' sort pill, § 1.9 |
 
