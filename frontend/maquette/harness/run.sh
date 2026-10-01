@@ -14,12 +14,22 @@
 # Chrome per rule, and the machine's other half stays free for what else runs
 # on it.
 # `TM_HARNESS_LOG_DIR` keeps the per-rule logs and a `durations.tsv`.
+#
+# Where it writes: `served_copy.py` decides. With the scratch volume mounted
+# (`/Volumes/TMScratch`), the served copy, every Chrome profile (TMPDIR) and the
+# logs go there — the system disk's file events cost `fseventsd` and
+# `syspolicyd` up to a core (2026-10-01); without it (CI), `/tmp` as before.
 
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 DESIGN="$(cd "$HERE/../design" && pwd)"
-SERVED="/tmp/tm-refonte"
+SERVED="$(python3 "$HERE/served_copy.py" --root)"
+SCRATCH="$(python3 "$HERE/served_copy.py" --scratch)"
+if [ -n "$SCRATCH" ]; then
+  mkdir -p "$SCRATCH/tmp" "$SCRATCH/logs"
+  export TMPDIR="$SCRATCH/tmp"
+fi
 
 # Rules that read what only the operator's machine has (the live config, the
 # installed PWA): left out under --ci.
@@ -128,6 +138,35 @@ if [ -z "$STAMP_TOKEN" ]; then
   exit 1
 fi
 
+# THE HOST ON 8899 MUST SERVE THIS COPY. One left by a run that served another
+# root — the one in /tmp, before the scratch volume — would answer every rule
+# with a build the stamp does not vouch for, silently. It is replaced when no
+# suite holds its root, and the run is refused when one does.
+HOST_PID="$(lsof -nP -t -iTCP:8899 -sTCP:LISTEN 2>/dev/null | head -1 || true)"
+if [ -n "$HOST_PID" ]; then
+  HOST_COMMAND="$(ps -o command= -p "$HOST_PID" 2>/dev/null || true)"
+  case "$HOST_COMMAND" in
+    *"server.py --serve 8899 $SERVED") ;;
+    *"server.py --serve 8899 "*)
+      HOST_ROOT="${HOST_COMMAND##*--serve 8899 }"
+      HOST_HOLDER="$(cat "$HOST_ROOT/.lock/pid" 2>/dev/null || true)"
+      if [ -n "$HOST_HOLDER" ] && kill -0 "$HOST_HOLDER" 2>/dev/null; then
+        echo "run.sh: the host on 8899 serves $HOST_ROOT, which a suite holds (pid $HOST_HOLDER) — wait for it" >&2
+        exit 1
+      fi
+      echo "Replacing the harness host on 8899, which served $HOST_ROOT…"
+      kill "$HOST_PID"
+      for _ in 1 2 3 4 5 6 7 8 9 10; do
+        lsof -nP -iTCP:8899 -sTCP:LISTEN >/dev/null 2>&1 || break
+        sleep 1
+      done
+      ;;
+    *)
+      echo "run.sh: 8899 is held by something that is not the harness host: ${HOST_COMMAND:-pid $HOST_PID}" >&2
+      exit 1
+      ;;
+  esac
+fi
 if ! lsof -nP -iTCP:8899 -sTCP:LISTEN >/dev/null 2>&1; then
   echo "Starting the harness host on 127.0.0.1:8899…"
   (python3 "$HERE/server.py" --serve 8899 "$SERVED" >/dev/null 2>&1 &)
@@ -141,6 +180,8 @@ PROCESSORS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)"
 JOBS="${TM_HARNESS_JOBS:-$(( (PROCESSORS + 1) / 2 ))}"
 if [ "$KEEP_LOGS" -eq 1 ]; then
   LOGS="$(cd "$TM_HARNESS_LOG_DIR" && pwd)"
+elif [ -n "$SCRATCH" ]; then
+  LOGS="$(mktemp -d "$SCRATCH/logs/run.XXXXXX")"
 else
   LOGS="$(mktemp -d)"
 fi

@@ -26,6 +26,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from common import PHONE, PROTOTYPE, Journal, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
+from served_copy import SERVED
 from server import start_server
 
 # « En cours » COLD, not the page's own default landing tab — `follows` is
@@ -34,7 +35,7 @@ from server import start_server
 COLD_PATH = "acquisition?tab=now"
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SCRATCH_HOME = pathlib.Path("/tmp/tm-refonte/_dense_boot")
+SCRATCH_HOME = SERVED / "_dense_boot"
 SCRATCH = SCRATCH_HOME / "design"
 
 

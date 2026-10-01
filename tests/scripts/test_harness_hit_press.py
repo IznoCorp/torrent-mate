@@ -26,7 +26,7 @@ pytest.importorskip("playwright")
 
 import busy  # noqa: E402
 import queued_ask_mark  # noqa: E402
-from common import browser_channel  # noqa: E402
+from common import browser_channel, chrome_launch_args  # noqa: E402
 
 # Two controls whose whole centre is an icon — a sheet action and a named
 # control — and a row an icon covers.
@@ -58,7 +58,7 @@ def page():
     playwright_api = pytest.importorskip("playwright.sync_api")
     with playwright_api.sync_playwright() as playwright:
         try:
-            browser = playwright.chromium.launch(channel=browser_channel())
+            browser = playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         except Exception as error:  # noqa: BLE001 — any launch failure means « no browser here »
             pytest.skip(f"no browser can be launched here: {error}")
         tab = browser.new_page()

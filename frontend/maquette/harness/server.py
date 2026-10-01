@@ -352,7 +352,7 @@ if __name__ == "__main__":
     # The scratch port is ephemeral: 0 asks the kernel for a free one and the
     # port actually bound comes back from the context manager. A fixed port is
     # a list that drifts, and rules picking from the same list collide on it.
-    PROOF_ROOT = pathlib.Path("/tmp/tm-refonte")
+    from served_copy import SERVED as PROOF_ROOT
 
     journal = Journal("server.py — the fallback answers deep addresses")
 

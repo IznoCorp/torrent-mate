@@ -90,17 +90,40 @@ def resolve_deployed_host_locally(host_url):
 # else in the group's access class ever prunes. The mock keychain answers
 # ephemeral with ephemeral: the key lives in the run's own process and dies
 # with it.
+#
+# THE OTHER FIVE STOP WRITES NOBODY READS (the audit, 2026-10-01): a disk cache
+# and a shader cache per profile, component downloads, the first-run setup and
+# the background fetches. Each was a file event `fseventsd` and `syspolicyd`
+# paid for, hundreds of launches a run, for a profile thrown away seconds later.
+CHROME_SWITCHES = (
+    "--use-mock-keychain",
+    "--disk-cache-size=1",
+    "--disable-gpu-shader-disk-cache",
+    "--disable-component-update",
+    "--no-first-run",
+    "--disable-background-networking",
+)
+
+
 def chrome_launch_args(extra=None):
     """Chrome launch arguments every harness rule's `chromium.launch` takes.
 
     Args:
         extra: Any per-rule arguments (e.g. `resolve_deployed_host_locally`'s
-            host-resolver mapping), appended after the mock-keychain flag.
+            host-resolver mapping), appended after `CHROME_SWITCHES`.
 
     Returns:
         The `args` list `chromium.launch` accepts.
     """
-    return ["--use-mock-keychain", *(extra or [])]
+    return [*CHROME_SWITCHES, *(extra or [])]
+
+
+# AND EVERY PROFILE IS MADE ON THE SCRATCH VOLUME, from this import on: the rule
+# starts Playwright after importing this module, and Playwright's driver makes
+# each profile under the TMPDIR it inherits. `run.sh` sets the same directory;
+# this covers a rule run by hand. Without the volume (CI) nothing moves, and
+# this is None.
+PROFILES = served_copy.redirect_tmpdir()
 
 
 # THE BROWSER EVERY RULE LAUNCHES, and on macOS it is not Google's Chrome. The

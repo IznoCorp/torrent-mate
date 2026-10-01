@@ -22,6 +22,7 @@ import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from common import ROOT, Journal
+from served_copy import SERVED
 
 PORT = 8918
 # The scratch design root is NESTED, because the tree it copies is not
@@ -29,7 +30,7 @@ PORT = 8918
 # from `frontend/maquette/`, one level above the design root, and the
 # boundaries guard names that reach as a decision. A flat scratch made the copy unbuildable — every hold here answered 503
 # and the rule read a broken host where there was only an incomplete copy.
-SCRATCH_HOME = pathlib.Path("/tmp/tm-refonte/_r73")
+SCRATCH_HOME = SERVED / "_r73"
 SCRATCH = SCRATCH_HOME / "design"
 PASSWORD = "epreuve"
 
