@@ -54,7 +54,7 @@
 | B-311 | Coming back to a list after a medium's sheet does not restore the scroll position the list was left at. **Owner:** the defects fast lane. | 1× | `open` |
 | B-312 | Changing the library's lens during a selection DROPS it — L14's own decision, RULED against by the operator on 2026-09-05. **Owner:** the defects fast lane. | 2× | `to confirm` |
 | B-314 | The add screen's search shows no example result to try the flow with. **Owner:** the defects fast lane. | 1× | `open` |
-| B-317 | The prototype's greeting toast covers the settings save bar, so a finger there does nothing while it lives. **Owner:** the defects fast lane. | 1× | `open` |
+| B-317 | The prototype's greeting toast covers the settings save bar, so a finger there does nothing while it lives. **Owner:** the defects fast lane. | 1× | `fixing` |
 | B-318 | The build races its own output on a fresh `dist` again — B-098's shape, in two hooks this time. **Owner:** the tooling train. | 1× | `open` |
 | B-319 | `fanout.py` holds the invalidation map against itself: a key dropped from the declaration is invisible to it. **Owner:** the tooling train. | 1× | `open` |
 | B-320 | React #300 and #310 on the two non-ready acquisition surfaces, from a cold page, on head and on `main` alike. **Owner:** the defects fast lane. | 1× | `open` |
@@ -76,7 +76,7 @@
 | B-363 | `residue.py` reads a typed variant's base through its string LITERALS, so a factory built from a shared constant reads EMPTY and is reported unreadable — a token scale cannot be written once and shared between two variants while that is true, and the repair that suggests itself (concatenating a literal with the constant) silences the report and leaves the reader comparing one token. **Owner:** the tooling train. | 1× | `open` |
 | B-364 | Two hit-test helpers in `busy.py` press `hit.click()` on whatever `elementFromPoint` returns, and an SVG element has no `click` — so a rule that hit-tests an ICON-ONLY action throws `hit.click is not a function` instead of pressing it, and the same helpers print `hit.className` as the coverer, which on an SVG is an `SVGAnimatedString` and reads `[object SVGAnimatedString]`. **Owner:** the tooling train. | 1× | `open` |
 | B-366 | A follow with NO MEDIA SHEET is drawn at all — a grid tile emits `data-mediasheet` for it, a poster that leads nowhere. RE-RULED by the operator: a follow without a sheet is not a state the product may represent, so the repair is to make it unrepresentable rather than to guard the tile. **Owner:** the defects fast lane. | by audit | `to confirm` |
-| B-367 | The drawer's appearance control applies the theme and does not move its selection: pressing one of the three writes the choice and repaints the document, and `aria-pressed` stays on whatever was drawn when the drawer opened — so the operator reads « Clair » selected over a dark interface. Closing and reopening the drawer draws it correctly. **Owner:** the defects fast lane. | 1× | `open` |
+| B-367 | The drawer's appearance control applies the theme and does not move its selection: pressing one of the three writes the choice and repaints the document, and `aria-pressed` stays on whatever was drawn when the drawer opened — so the operator reads « Clair » selected over a dark interface. Closing and reopening the drawer draws it correctly. **Owner:** the defects fast lane. | 1× | `fixed #655` |
 | B-370 | `harness-hold-counts.py --compare` with no FILE exits 2 on an argparse usage error, which a gate reading exit codes cannot tell from a comparison that found drift — one pass of L21's gate compared nothing while looking like it ran. **Owner:** the tooling train. | 1× | `open` |
 | B-388 | R51 promises « the prototype's own controls never sit on top of the app's » and reads ONE piece of harness chrome by literal — `[data-part="harness/bar"]` — so a second piece is outside it whatever the docstring says; the property now holds by two rules each naming its own subject, and a third would be held by neither. **Owner:** the tooling train. | by audit | `open` |
 | B-389 | The 8899 harness host does not survive the invocation that starts it when that invocation runs under `scripts/heavy.sh` — `set -m` puts the run in its own process group and the release signals the group, so `mutate.sh`, which starts no host, runs its rule against a refused port and B-273 reads the crash as « no hold fell ». **Owner:** the tooling train. | by audit | `open` |
@@ -1019,6 +1019,17 @@ is the page's, and which of them yields is a drawing decision.
 
 <sub>found in round one's walk of PR #558, 2026-09-05 · `elementFromPoint` at the save bar's centre, head and control</sub>
 
+**THE GREETING NO LONGER REACHES IT, AND THE FAMILY STILL DID** (2026-10-01, `main` `1e6aa6a69`). By finger, the
+greeting cannot be up while the bar is: the bar needs an edit, an edit needs a tap, and the first `pointerdown` of a
+session takes the greeting off (`harness/panel.ts`). But the cause was the message's place, not the greeting: its
+bottom box cleared the TAB bar and nothing else. On Réglages with two edits waiting, cancelling one says « Modification
+annulée — rien n'avait été écrit. » — and `elementFromPoint` at « Enregistrer »'s centre returned `DIV.toast` for its
+five seconds. **Repaired**: the bottom edge adds the save bar's published height (`--tm-save-bar-h`, zero while it is
+not drawn — `ui/variants/frame.ts`). **R159** (`message_over_layers.py`) leg 13 drives `settings-save-bar-frame`,
+shows a message, and holds that it meets none of the bar's buttons and that « Enregistrer » takes a finger — RED on
+the tree before the move (`met: ['Enregistrer@732']`, hit `DIV#toast`), green after. Swept over all 266 named states:
+the five that draw the bar (Réglages and Trackers) place the message above it, and none draws the action button.
+
 **B-318 — the build races its own output on a fresh `dist`, again.**
 B-098 was this defect in ONE hook and is recorded `fixed #503`. It is back in two:
 `frontend/maquette/design/vite.config.mjs` `:62-78` and `:103-116` — both `closeBundle` hooks run
@@ -1698,6 +1709,11 @@ mounted again.
 
 **Owner: the « settings » MICRO-WAVE** (`docs/features/maquette-settings/BRIEF.md@a155b54fb`), with B-332 and
 B-361 — the drawer's own behaviour, not the surface this lot draws. Filed, not repaired.
+
+**FIXED IN #655, and not reproduced on `main` `1e6aa6a69`** (2026-10-01): the same defect filed again as B-580 —
+the drawer now subscribes to the store's version (`app/drawer.tsx`), and R102 (`appearance.py`) holds the pressed
+control after each tap with no reload. By finger at 390 px — the menu tapped, then « dark », « light », « system »,
+« light » — `aria-pressed` followed every press.
 
 <sub>operator, on the design host · a real drawer open, four presses through the control: `{"theme": null, "stored": null, "pressed": ["system=true", "light=false", "dark=false"]}` at rest, then `stored` `light` / `dark` / `system` / `light` with `pressed` unchanged at every reading, then after a close and a reopen `["system=false", "light=true", "dark=false"]` · `app/appearance.ts` (`chooseAppearance`, `STORAGE_KEY = "tm-apparence"`), `app/drawer.tsx` (the control, and the comment)</sub>
 
