@@ -172,8 +172,8 @@ export function Sheet({
           onPointerMove={(event) => {
             const current = dragRef.current;
             if (!current) return;
-            const along = current.axis === "x" ? event.clientX : event.clientY;
-            current.dy = Math.max(0, along - current.y);
+            const position = current.axis === "x" ? event.clientX : event.clientY;
+            current.dy = Math.max(0, position - current.y);
             const node = sheetRef.current;
             if (node)
               node.style.transform =
