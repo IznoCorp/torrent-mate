@@ -19,9 +19,9 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 92 |
+| operations the interface requires | 93 |
 | operations the backend has | 65 |
-| required and missing | 39 |
+| required and missing | 40 |
 | declared by both, different response shape | 53 |
 | declared by both, path parameter spelled differently | 17 |
 | declared by both, answered with a different status | 11 |
@@ -69,6 +69,7 @@ than a blank page.
 | `POST /api/staging/media/{mediaId}/reclassify` | `reclassifyStagedMedia` | File a folder that is not a medium where the sort files its kind |
 | `POST /api/torrents/{infoHash}/cross-seed/search` | `searchCrossSeed` | Search a cross-seed for one torrent, on one tracker or on every eligible one |
 | `POST /api/torrents/{infoHash}/cross-seed/{tracker}/cut` | `cutCrossSeed` | Cut one torrent's cross-seed on one tracker |
+| `POST /api/torrents/{infoHash}/cross-seed/{tracker}/upload` | `uploadCrossSeed` | Create a torrent from one origin's files and publish it on one tracker |
 | `POST /api/trackers/{tracker}/broken-obligations/{infoHash}/seen` | `markBrokenObligationSeen` | Mark one broken obligation of a tracker seen |
 | `PUT /api/acquisition/followed/{followedId}/pause` | `setAcquisitionPause` | Set the caller's pause on one acquisition |
 | `PUT /api/acquisition/followed/{followedId}/quality` | `setAcquisitionQuality` | Set the caller's quality profile on one acquisition |
@@ -82,7 +83,7 @@ reports a difference for every optional field and drowns the real findings.
 | operation | the interface adds | the backend has and the interface does not use |
 | --- | --- | --- |
 | `DELETE /api/acquisition/followed/{followedId}` (`deleteFollow`) | `ok` | — |
-| `GET /api/acquisition/downloads` (`readDownloads`) | `addedAt`, `at`, `candidate`, `clientAvailable`, `crossSeed`, `crossSeedQuota`, `deadline`, `delaySeconds`, `downloadRate`, `downloadedBytes`, `entryHash`, `errorReason`, `etaSeconds`, `excluded`, `folder`, `ids`, `infoHash`, `origin`, `pairs`, `perDay`, `poster`, `ratio`, `reason`, `searching`, `sizeBytes`, `stopCause`, `stoppedAt`, `swarmLeechers`, `swarmSeeds`, `titleExcluded`, `tracker`, `uploadRate`, `uploadedBytes`, `used`, `waitReason` | `client_available`, `error_reason`, `eta_seconds`, `imdb_id`, `info_hash`, `media_ref`, `size_bytes`, `tmdb_id`, `tvdb_id` |
+| `GET /api/acquisition/downloads` (`readDownloads`) | `addedAt`, `at`, `candidate`, `clientAvailable`, `crossSeed`, `crossSeedQuota`, `deadline`, `delaySeconds`, `downloadRate`, `downloadedBytes`, `entryHash`, `errorReason`, `etaSeconds`, `excluded`, `folder`, `ids`, `infoHash`, `pairs`, `perDay`, `poster`, `provenance`, `ratio`, `reason`, `searching`, `sizeBytes`, `stopCause`, `stoppedAt`, `swarmLeechers`, `swarmSeeds`, `titleExcluded`, `tracker`, `trackerReason`, `uploadRate`, `uploadedBytes`, `uploading`, `used`, `via`, `waitReason` | `client_available`, `error_reason`, `eta_seconds`, `imdb_id`, `info_hash`, `media_ref`, `size_bytes`, `tmdb_id`, `tvdb_id` |
 | `GET /api/acquisition/followed` (`readFollows`) | `aired`, `fresh`, `ids`, `name`, `ownPaused`, `ownQuality`, `paused`, `poster`, `quality`, `requesters`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `imdb_id`, `items`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
 | `GET /api/acquisition/followed/{followedId}/completeness` (`readFollowCompleteness`) | `airDate`, `catalogRefreshedAt`, `followedId`, `lastSearchOutcome`, `providerCatalogEmpty` | `air_date`, `catalog_refreshed_at`, `followed_id`, `last_search_outcome`, `provider_catalog_empty` |
 | `GET /api/acquisition/obligations` (`readObligations`) | `accumulatedSeedTimeSeconds`, `addedAt`, `breachedAt`, `crossSeedOf`, `dispatchedPath`, `hitAndRunCount`, `infoHash`, `media`, `minimumRatio`, `minimumSeedTimeSeconds`, `observedRatio`, `releasedAt`, `satisfiedAt`, `sourceTracker` | `accumulated_seed_time_s`, `added_at`, `breached_at`, `dispatched_path`, `hnr_count`, `info_hash`, `min_ratio`, `min_seed_time_s`, `observed_ratio`, `released_at`, `satisfied_at`, `source_tracker` |

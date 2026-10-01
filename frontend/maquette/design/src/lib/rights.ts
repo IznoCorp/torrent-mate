@@ -27,8 +27,8 @@ export const RIGHTS: readonly Right[] = [
   "library.read", "library.delete", "library.rescrape",
   "acquisition.request", "acquisition.follow", "acquisition.pilot.own", "acquisition.pilot.any",
   "acquisition.see.others", "acquisition.todo.view", "acquisition.quality.own", "acquisition.pause.own",
-  "acquisition.reassign", "pipeline.control", "trackers.view", "trackers.control", "system.view",
-  "configuration.view", "configuration.write", "accounts.manage", "auth.password",
+  "acquisition.reassign", "pipeline.control", "trackers.view", "trackers.control", "trackers.upload",
+  "system.view", "configuration.view", "configuration.write", "accounts.manage", "auth.password",
 ];
 
 /**
@@ -38,7 +38,8 @@ export const RIGHTS: readonly Right[] = [
 export const WRITE_RIGHTS: readonly Right[] = [
   "library.delete", "library.rescrape", "acquisition.request", "acquisition.follow",
   "acquisition.pilot.own", "acquisition.pilot.any", "acquisition.quality.own", "acquisition.pause.own",
-  "acquisition.reassign", "pipeline.control", "trackers.control", "configuration.write", "accounts.manage",
+  "acquisition.reassign", "pipeline.control", "trackers.control", "trackers.upload", "configuration.write",
+  "accounts.manage",
 ];
 
 /** The account as `readAccount` answers it. */

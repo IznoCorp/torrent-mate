@@ -43,7 +43,7 @@ export function trackersState(): TrackersHeld {
   if (subject === undefined) {
     subject = {
       trackers: structuredClone(TRACKERS) as unknown as HeldTracker[],
-      downloads: structuredClone(DOWNLOADS) as HeldDownload[],
+      downloads: structuredClone(DOWNLOADS) as unknown as HeldDownload[],
       // THE OBLIGATIONS A CROSS-SEED CREATED, invented (L17 § 2.3), beside the real ones.
       obligations: structuredClone([...OBLIGATIONS, ...CROSS_SEED_OBLIGATIONS]) as HeldObligation[],
       removals: [],
@@ -134,7 +134,7 @@ export const trackerDials: TrackerDials = {
   },
   setDownloadsEmpty: (empty: boolean) => {
     // NOTHING ACTIVE ANYWHERE, the client reachable: a real answer, empty.
-    trackersState().downloads = empty ? [] : (structuredClone(DOWNLOADS) as HeldDownload[]);
+    trackersState().downloads = empty ? [] : (structuredClone(DOWNLOADS) as unknown as HeldDownload[]);
   },
   setTrackerIdle: (tracker: string) => {
     // ONE TRACKER WITH NOTHING ACTIVE, the others unchanged.

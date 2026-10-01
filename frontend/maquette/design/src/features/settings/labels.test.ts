@@ -17,6 +17,8 @@ describe("a tracker's subject", () => {
   it("keeps a domain whole, on every field a tracker owns", () => {
     expect(settingLabels.subject(trackerSetting("tracker.providers.v3x.club.cross_seed"))).toBe("v3x.club");
     expect(settingLabels.subject(trackerSetting("tracker.providers.draupnirr.xyz.enabled"))).toBe("draupnirr.xyz");
+    // « ACCEPTE LES UPLOADS » is a field a tracker owns too (L23, round 11 OPEN 2 = B).
+    expect(settingLabels.subject(trackerSetting("tracker.providers.v3x.club.accepts_uploads"))).toBe("v3x.club");
     expect(settingLabels.subject(trackerSetting("tracker.providers.digitalcore.club.economy.min_ratio")))
       .toMatch(/^digitalcore\.club · /);
   });

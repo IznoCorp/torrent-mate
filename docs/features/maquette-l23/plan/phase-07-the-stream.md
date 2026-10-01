@@ -20,7 +20,7 @@
 Nothing new is red — the two events and their claim already exist by this phase's opening (L17's own phase 13).
 The only thing this phase can be red ABOUT is the untested path: an upload's own outcome firing
 `CrossSeedInjected`/`CrossSeedRejected` and the row NOT moving without a refetch, which is red until this phase's
-own mutation proves it moves.
+~~own mutation proves it moves.~~
 
 ## Move
 
@@ -31,8 +31,8 @@ it.
 
 ## Mutation
 
-**R-L17-h, re-aimed** — leave the rule unable to catch an upload-caused `CrossSeedRejected` (an artificial
-narrowing, by cause, added only to prove the fall) → the state stops moving and falls, naming the cause.
+~~**R-L17-h, re-aimed** — leave the rule unable to catch an upload-caused `CrossSeedRejected` (an artificial~~
+~~narrowing, by cause, added only to prove the fall) → the state stops moving and falls, naming the cause.~~
 
 ## Register
 
@@ -42,11 +42,11 @@ event name would be inventing one).
 
 ## Oracle: states that diverge, declared by name
 
-None — a live rule moves no rectangle by itself.
+~~None — a live rule moves no rectangle by itself.~~
 
 ## Gate
 
-Per INDEX « Gates »; the re-aimed mutation replayed and named.
+~~Per INDEX « Gates »; the re-aimed mutation replayed and named.~~
 
 ## Commit
 

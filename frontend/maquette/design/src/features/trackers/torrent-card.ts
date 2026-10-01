@@ -23,8 +23,8 @@ import { svgIcon } from "../../lib/markup-text";
 import type { LegendEntry } from "../../ui/legend";
 import { swipeAction, type ChipTone, type LegendTone } from "../../ui/variants";
 import { dayOf, rateOf, sizeOf, written } from "./format";
-import type { Download, Obligation } from "./queries";
-import { isComplete, isSearchable } from "./cross-seed-state";
+import type { Download, Obligation, Tracker } from "./queries";
+import { isComplete, isSearchable, trackerOffBy } from "./cross-seed-state";
 
 /** The tone each of the client's states wears — the legend reads the same map. */
 export const STATE_TONE: Readonly<Record<Download["state"], ChipTone>> = {
@@ -38,8 +38,17 @@ export const STATE_TONE: Readonly<Record<Download["state"], ChipTone>> = {
   in_client: "neutral",
 };
 
-/** The tone of the origin dot: the original grab, or a cross-seed of the same files. */
-export const ORIGIN_TONE = { origin: "info", cross: "waiting" } as const;
+/**
+ * The origin dot: the original grab, a cross-seed of the same files, or a
+ * torrent this application created from them and published there — « publié
+ * par vous », its own colour (round 11 OPEN 5 = B). Keyed by the value the
+ * card's `data-origin` carries, each with the word the card says.
+ */
+export const ORIGIN_MARK: Readonly<Record<Download["provenance"], { value: string; tone: "info" | "waiting" | "upcoming"; word: string }>> = {
+  downloaded: { value: "origin", tone: "info", word: "origin" },
+  crossSeed: { value: "cross", tone: "waiting", word: "crossSeed" },
+  published: { value: "published", tone: "upcoming", word: "published" },
+};
 
 /** One colour code a card draws: a chip or a dot, its tone, and what it means. */
 export type Code = { kind: "chip" | "dot"; tone: LegendTone; word: string };
@@ -153,12 +162,12 @@ function marksOf(entry: Download, obligation: Obligation | undefined, breached: 
     && obligation.satisfiedAt === null && obligation.breachedAt === null && obligation.releasedAt === null;
   // MET AND STILL SEEDING: the entry kept going past its own requirement.
   const done = obligation !== undefined && obligation.satisfiedAt !== null && obligation.releasedAt === null;
-  const origin = entry.origin ? "origin" : "cross";
+  const origin = ORIGIN_MARK[entry.provenance];
   const marks: MarkWithWord[] = [
     {
-      label: say(entry.origin ? "origin" : "crossSeed"),
-      dot: ORIGIN_TONE[origin],
-      attributes: { "data-part": "torrents/origin", "data-origin": origin },
+      label: say(origin.word),
+      dot: origin.tone,
+      attributes: { "data-part": "torrents/origin", "data-origin": origin.value },
     },
     { label: entry.tracker, attributes: { "data-part": "torrents/tracker" } },
   ];
@@ -249,12 +258,13 @@ export function legendOf(codes: readonly Code[]): LegendEntry[] {
  * @param entry The download client's entry.
  * @param obligation The obligation it owes, when it owes one.
  * @param breached Whether the page's alert reads its obligation broken.
- * @param trackerEnabled Whether a tracker's own cross-seed switch is on (§ 17
- *     point 1): a pair on a tracker whose switch is off offers no search here.
+ * @param trackerOf A tracker as `/api/trackers` answers it, or undefined while
+ *     unread (§ 17 point 1): a pair on a tracker off, down or whose cross-seed
+ *     switch is off offers no search here.
  * @returns The item's markup.
  */
 export function torrentItemMarkup(
-  entry: Download, obligation: Obligation | undefined, breached: boolean, trackerEnabled: (tracker: string) => boolean,
+  entry: Download, obligation: Obligation | undefined, breached: boolean, trackerOf: (tracker: string) => Tracker | undefined,
 ): string {
   const say = (key: string, values: Record<string, string> = {}) => i18next.t(`screens.torrents.${key}`, values);
   const panelAddress = torrentPanelAddress(entry);
@@ -300,9 +310,11 @@ export function torrentItemMarkup(
   // search on an origin, over every pair the engine would act on — drawn only
   // when there is one; nothing is drawn that does nothing.
   const searchable = entry.crossSeed !== null
-    && entry.crossSeed.pairs.some((pair) => isSearchable(
-      pair, entry.crossSeed?.titleExcluded ?? false, isComplete(entry), trackerEnabled(pair.tracker),
-    ));
+    && entry.crossSeed.pairs.some((pair) => {
+      const tracker = trackerOf(pair.tracker);
+      return isSearchable(pair, entry.crossSeed?.titleExcluded ?? false, isComplete(entry),
+        tracker?.crossSeed.enabled ?? true, trackerOffBy(tracker) === null);
+    });
   const search = searchable
     ? `<button class="${swipeAction({ tone: "resume" })}" data-part="swipe/action" data-action="cross-seed-search" data-swipeact="cross-seed-search" data-cross-seed-search-all="${escapeMarkup(entry.infoHash)}">${svgIcon(icons.search)}${escapeMarkup(say("swipeSearch"))}</button>`
     : undefined;

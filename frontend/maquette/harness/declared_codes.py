@@ -107,6 +107,11 @@ ASKED_FOR = {
     # a searchable state (DOIT-4's own corpus hold fell until this was asked).
     "searchCrossSeed": (
         "POST", "/api/torrents/8d51568b1a4f46e1fb7e7b535b52a5203312fc28/cross-seed/search"),
+    # An upload answers 202 too: the engine builds and publishes on its own time.
+    # The origin is the seeded complete, seeding one whose `v3x.club` pair has no
+    # match and whose tracker accepts uploads (L23 § 2.3).
+    "uploadCrossSeed": (
+        "POST", "/api/torrents/e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb/cross-seed/v3x.club/upload"),
     # « Comptes »' two creations answer 201 with what they made (L18). A creation
     # carries its body, or the handler's refusal answers before the outcome.
     "createAccount": ("POST", "/api/accounts",

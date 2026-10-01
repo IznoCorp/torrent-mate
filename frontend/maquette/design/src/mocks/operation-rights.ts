@@ -116,6 +116,8 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   markBrokenObligationSeen: "trackers.control",
   cutCrossSeed: "trackers.control",
   searchCrossSeed: "trackers.control",
+  // PUBLISHING AT A THIRD PARTY is its own right, never implied by `trackers.control` (L23 DESIGN § 0.2).
+  uploadCrossSeed: "trackers.upload",
   writeCrossSeedExclusion: "trackers.control",
   undoCrossSeedExclusion: "trackers.control",
 

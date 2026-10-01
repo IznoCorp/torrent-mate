@@ -44,7 +44,7 @@ CROSS_SEEDING = "66e23ab395c438b7db4f7c855bd451d8bb1f0046"
 REFUSED = "8d51568b1a4f46e1fb7e7b535b52a5203312fc28"
 COPY = "7c1e0b2f95c438b7db4f7c855bd451d8bb1f0046"
 FAILURES = {"fetch_failed", "verify_timeout", "recheck_failed", "magnet_not_supported", "parse_failed",
-            "inject_failed", "obligation_write_failed", "upload_failed"}
+            "inject_failed", "obligation_write_failed", "creation_failed", "publish_failed"}
 FAMILY = {"root_name_mismatch": "files", "fetch_failed": "attempt", "verify_timeout": "attempt"}
 RANK = {"error": 1, "active": 2, "stopped": 3, "trackerWithout": 4, "noMatch": 5, "notSearched": 5}
 BARE = re.compile(r"\b[a-z0-9]+_[a-z0-9_]+\b")

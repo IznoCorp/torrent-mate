@@ -27,8 +27,8 @@ Not applicable — a close is a report, not a rule.
 
 ## Mutation
 
-None — the close re-runs every earlier phase's own mutations once, to confirm none has drifted, and names any
-that has.
+~~None — the close re-runs every earlier phase's own mutations once, to confirm none has drifted, and names any~~
+~~that has.~~
 
 ## Register
 
@@ -37,7 +37,7 @@ the file. B-145 stays `open` unless L23's own close makes its reading half fully
 
 ## Oracle: states that diverge, declared by name
 
-None beyond what phases 4–5 already named — the close re-reads the SAME six, confirming no seventh crept in.
+~~None beyond what phases 4–5 already named — the close re-reads the SAME six, confirming no seventh crept in.~~
 
 ## Gate
 

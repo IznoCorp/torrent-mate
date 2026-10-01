@@ -112,6 +112,7 @@
       "alert_threshold": "Seuil d'alerte du ratio",
       "hit_and_run_grace": "Tolérance avant de considérer un abandon",
       "cross_seed": "Cross-seed",
+      "accepts_uploads": "Accepte les uploads",
       "verify_seed_pure": "Vérifier qu'un partage reste intact",
       "cutoff_days": "Ancienneté au-delà de laquelle on n'insiste plus",
       "budget_seconds": "Temps accordé à une recherche",
@@ -312,6 +313,7 @@
       "errorSubject": "les torrents",
       "origin": "Téléchargé ici en premier",
       "crossSeed": "Cross-seed d'un torrent déjà présent",
+      "published": "Publié par vous",
       "deadline": "Échéance le {{date}}",
       "noDeadline": "Aucune échéance",
       "obligationOpen": "Obligation en cours",
@@ -1207,19 +1209,21 @@
         "parse_failed": "Le fichier .torrent reçu est illisible.",
         "inject_failed": "qBittorrent a refusé l'ajout du torrent.",
         "obligation_write_failed": "Le torrent a été ajouté, mais son obligation de partage n'a pas pu être enregistrée.",
-        "upload_failed": "L'envoi ou la création du torrent sur le tracker a échoué."
+        "creation_failed": "Le torrent n'a pas pu être créé à partir des fichiers de l'original.",
+        "publish_failed": "Le tracker n'a pas accepté la publication du torrent."
       },
       "families": {
         "files": "Pas les mêmes fichiers",
         "self": "Le même torrent",
         "attempt": "La tentative a échoué",
-        "engine": "Le moteur n'a pas pu finir",
-        "upload": "L'envoi au tracker a échoué"
+        "engine": "Le moteur n'a pas pu finir"
       },
       "waits": {
         "downloading": "l'original est encore en téléchargement",
         "quota": "en attente du quota du jour",
-        "switchOff": "l'interrupteur cross-seed du tracker est coupé"
+        "switchOff": "l'interrupteur cross-seed du tracker est coupé",
+        "trackerOff": "le tracker est désactivé : rien n'y est cherché ni publié",
+        "trackerDown": "le tracker est désactivé par une panne : rien n'y est cherché ni publié"
       },
       "line": {
         "active_one": "Cross-seed : actif — {{count}} torrent",
@@ -1238,6 +1242,10 @@
       "panel": {
         "lead": "Cross-seed, tracker par tracker",
         "injected": "injecté le {{date}}",
+        "published": "publié par vous le {{date}}",
+        "publishTried": "publication tentée le {{date}}",
+        "trackerReason": "Réponse de {{tracker}} : {{reason}}",
+        "uploadOff": "Publier ici : {{tracker}} n'accepte pas les uploads",
         "stoppedBySwitch": "stoppé le {{date}} — l'interrupteur du tracker a coupé les cross-seeds en cours",
         "stoppedByCut": "stoppé le {{date}} — coupé depuis ce torrent",
         "tried": "cherché le {{date}}",
@@ -1253,6 +1261,8 @@
         "includeTitle": "Partager de nouveau ce titre",
         "search": "Chercher un cross-seed",
         "queued": "En file — la recherche attend son tour dans le moteur",
+        "upload": "Créer et publier un torrent",
+        "uploadQueued": "En file — la publication attend son tour dans le moteur",
         "quota": "Recherches aujourd'hui : {{used}} sur {{perDay}} · une au plus toutes les {{delay}} min"
       },
       "switch": {
@@ -1264,7 +1274,12 @@
         "offDetail": "Plus aucun nouveau cross-seed ici ; ceux en cours continuent tant qu'on ne les coupe pas.",
         "offStoppedDetail": "Plus aucun nouveau cross-seed ici, et ceux qui tournaient ont été coupés.",
         "label": "Cross-seed sur {{tracker}}",
-        "nextPass": "Pris en compte à la prochaine passe du moteur."
+        "nextPass": "Pris en compte à la prochaine passe du moteur.",
+        "uploadsOn": "Accepte les uploads",
+        "uploadsOff": "N'accepte pas les uploads",
+        "uploadsOnDetail": "Un torrent peut y être créé et publié depuis un torrent en partage, là où aucun cross-seed n'a été trouvé.",
+        "uploadsOffDetail": "Aucun torrent n'y sera publié ; ceux déjà publiés continuent.",
+        "uploadsLabel": "Uploads sur {{tracker}}"
       },
       "media": {
         "heading": "Cross-seed, tracker par tracker",
@@ -1805,7 +1820,16 @@
       "includeTitleDone": "« {{title}} » peut de nouveau être partagé en cross-seed.",
       "searchQueued": "Recherche de cross-seed en file.",
       "searchWaiting": "En file : le quota du jour est atteint, la recherche partira demain.",
-      "searchDuplicate": "Une recherche est déjà en file pour ce cross-seed."
+      "searchDuplicate": "Une recherche est déjà en file pour ce cross-seed.",
+      "uploadHeading": "Créer et publier un torrent sur {{tracker}} ?",
+      "uploadBody": "Le moteur crée un torrent à partir des fichiers de « {{title}} » et le publie sur {{tracker}}, à votre nom, pour y ouvrir un cross-seed.",
+      "uploadFiles": "Fichiers publiés :",
+      "uploadRules": "{{tracker}} applique ses propres règles de publication : s'il refuse, la ligne du torrent le dira, avec sa raison.",
+      "uploadConfirm": "Créer et publier",
+      "uploadQueued": "Publication en file pour {{tracker}}.",
+      "uploadRefused": "{{tracker}} ne peut pas recevoir cette publication maintenant.",
+      "uploadsOnDone": "{{tracker}} accepte les uploads.",
+      "uploadsOffDone": "{{tracker}} n'accepte plus les uploads : aucun torrent n'y sera publié."
     }
   },
   "discover": {
@@ -1861,7 +1885,8 @@
       },
       "trackers": {
         "view": "voir les trackers",
-        "control": "agir sur les trackers"
+        "control": "agir sur les trackers",
+        "upload": "créer et publier un torrent"
       },
       "system": {
         "view": "voir Système et Maintenance"
@@ -1909,7 +1934,8 @@
       },
       "trackers": {
         "view": "Par défaut, seul le rôle Admin le détient.",
-        "control": "Par défaut, seul le rôle Admin le détient."
+        "control": "Par défaut, seul le rôle Admin le détient.",
+        "upload": "Par défaut, seul le rôle Admin le détient."
       },
       "system": {
         "view": "Par défaut, seul le rôle Admin le détient."

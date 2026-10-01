@@ -26,7 +26,8 @@ division a cross-seed would make by zero. So, on `torrents-list`:
    on the tracker's volume;
 8. each row's deadline is its own — its day AND its month — or says there is
    none;
-9. each row's origin mark says origin grab or cross-seed, as its entry does,
+9. each row's origin mark says origin grab, cross-seed or published by you, as
+   its entry's provenance does (L23, round 11 OPEN 5 = B),
    and is DRAWN — a box a finger's eye can see, never 0×0 — and its ratio sits
    on its state's own line, inside its own card;
 10. an open obligation is a MARK on its own row, never on a row that owes none;
@@ -148,6 +149,8 @@ def french(number, decimals):
     """The number as the interface writes it: a decimal comma, fixed decimals."""
     return f"{number:.{decimals}f}".replace(".", ",")
 
+# The value each provenance's mark carries on the card (`ORIGIN_MARK` of torrent-card.ts).
+ORIGIN_MARK = {"downloaded": "origin", "crossSeed": "cross", "published": "published"}
 
 async def enter(page, state):
     """Drives a named state; returns the error it raised, or None."""
@@ -196,9 +199,9 @@ async def torrents(page, journal):
             day = f"{moment.day} {MONTHS[moment.month - 1]}"
             journal.check(f"{name}: its deadline is its own, the {day} — day and month",
                           prefix in deadline and day in deadline, repr(deadline))
-        journal.check(f"{name}: its origin mark says {'origin grab' if entry['origin'] else 'cross-seed'}, "
+        journal.check(f"{name}: its origin mark says its provenance, {entry['provenance']!r}, "
                       "drawn with a box, and its ratio sits on its state's own line",
-                      row.get("origin") == ("origin" if entry["origin"] else "cross")
+                      row.get("origin") == ORIGIN_MARK[entry["provenance"]]
                       and bool(row.get("mark")) and min(row["mark"]) > 0 and row.get("onLine") is True,
                       f"{row.get('origin')!r} · mark {row.get('mark')} · on its line {row.get('onLine')}")
         obligation = owed(entry)

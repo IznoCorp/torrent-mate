@@ -284,7 +284,8 @@ async def main():
         partial = (panel or {}).get("facts", {})
         journal.check("a partial panel says every unread figure unknown, none blank",
                       panel is not None and partial.get(PANEL_WORDS.get("sources")) == WORDS.get("sourcesUnknown")
-                      and partial.get(PANEL_WORDS.get("added")) == WORDS.get("addedUnknown")
+                      # « Ajouté le » labels the line, so its value is the day alone (B-614).
+                      and partial.get(PANEL_WORDS.get("added")) == PANEL_WORDS.get("unknown")
                       and partial.get(PANEL_WORDS.get("transfer")) == WORDS.get("volumesUnknown")
                       and all(value for value in partial.values()), repr(partial))
 

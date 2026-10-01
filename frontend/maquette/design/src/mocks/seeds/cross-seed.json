@@ -1,50 +1,51 @@
 {
-  "about": "INVENTED (L17 DESIGN § 2.3): nothing records a cross-seed per (torrent, tracker) pair today, so every row below is composed from the cases the design names, on the mock's own library entries and the roster's trackers. None is lived data.",
+  "about": "INVENTED (L17 DESIGN § 2.3): nothing records a cross-seed per (torrent, tracker) pair today, so every row below is composed from the cases the design names, on the mock's own library entries and the roster's trackers. None is lived data. `publishRefusal` is a tracker\u0027s own answer to a refused publication, invented too (L23 DESIGN § 2.2, round 11 OPEN 3 = A): no upload was ever refused.",
   "quota": { "used": 3, "perDay": 20, "delaySeconds": 300 },
+  "publishRefusal": "Upload refused: a torrent with the same content already exists on this tracker (rule 4.2, no duplicates).",
   "torrents": {
     "66e23ab395c438b7db4f7c855bd451d8bb1f0046": {
       "titleExcluded": false,
       "pairs": [
-        { "tracker": "tr4ker", "state": "active", "reason": null, "candidate": "President.Curtis.S01E10.FiNAL.MULTi.VFF.1080p.WEB.EAC3.5.1.H264-GL0P", "waitReason": null, "at": 1790323200, "stoppedAt": null, "stopCause": null, "entryHash": "7c1e0b2f95c438b7db4f7c855bd451d8bb1f0046", "excluded": false, "searching": false },
-        { "tracker": "v3x.club", "state": "active", "reason": null, "candidate": "President.Curtis.S01E10.MULTi.1080p.WEB.H264-GL0P", "waitReason": null, "at": 1790496000, "stoppedAt": null, "stopCause": null, "entryHash": "b2c70e1a95c438b7db4f7c855bd451d8bb1f0046", "excluded": false, "searching": false },
-        { "tracker": "lacale", "state": "trackerWithout", "reason": null, "candidate": null, "waitReason": null, "at": null, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": false, "searching": false }
+        { "tracker": "tr4ker", "state": "active", "reason": null, "candidate": "President.Curtis.S01E10.FiNAL.MULTi.VFF.1080p.WEB.EAC3.5.1.H264-GL0P", "via": "search", "trackerReason": null, "waitReason": null, "at": 1790323200, "stoppedAt": null, "stopCause": null, "entryHash": "7c1e0b2f95c438b7db4f7c855bd451d8bb1f0046", "excluded": false, "searching": false, "uploading": false },
+        { "tracker": "v3x.club", "state": "active", "reason": null, "candidate": "President.Curtis.S01E10.MULTi.1080p.WEB.H264-GL0P", "via": "search", "trackerReason": null, "waitReason": null, "at": 1790496000, "stoppedAt": null, "stopCause": null, "entryHash": "b2c70e1a95c438b7db4f7c855bd451d8bb1f0046", "excluded": false, "searching": false, "uploading": false },
+        { "tracker": "lacale", "state": "trackerWithout", "reason": null, "candidate": null, "via": null, "trackerReason": null, "waitReason": null, "at": null, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": false, "searching": false, "uploading": false }
       ]
     },
     "e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb": {
       "titleExcluded": false,
       "pairs": [
-        { "tracker": "v3x.club", "state": "error", "reason": "root_name_mismatch", "candidate": "American.Dad.S22.MULTi.1080p.WEB.H264-NoTag", "waitReason": null, "at": 1790409600, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": false, "searching": false },
-        { "tracker": "tr4ker", "state": "stopped", "reason": null, "candidate": null, "waitReason": null, "at": 1789977600, "stoppedAt": 1790236800, "stopCause": "switch", "entryHash": null, "excluded": false, "searching": false },
-        { "tracker": "lacale", "state": "trackerWithout", "reason": null, "candidate": null, "waitReason": null, "at": null, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": false, "searching": false }
+        { "tracker": "v3x.club", "state": "error", "reason": "root_name_mismatch", "candidate": "American.Dad.S22.MULTi.1080p.WEB.H264-NoTag", "via": "search", "trackerReason": null, "waitReason": null, "at": 1790409600, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": false, "searching": false, "uploading": false },
+        { "tracker": "tr4ker", "state": "stopped", "reason": null, "candidate": null, "via": null, "trackerReason": null, "waitReason": null, "at": 1789977600, "stoppedAt": 1790236800, "stopCause": "switch", "entryHash": null, "excluded": false, "searching": false, "uploading": false },
+        { "tracker": "lacale", "state": "trackerWithout", "reason": null, "candidate": null, "via": null, "trackerReason": null, "waitReason": null, "at": null, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": false, "searching": false, "uploading": false }
       ]
     },
     "8d51568b1a4f46e1fb7e7b535b52a5203312fc28": {
       "titleExcluded": false,
       "pairs": [
-        { "tracker": "lacale", "state": "error", "reason": "fetch_failed", "candidate": "Star.Trek.Strange.New.Worlds.S04E10.MULTi.1080p.WEB.H264-FW", "waitReason": null, "at": 1790553600, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": false, "searching": false },
-        { "tracker": "v3x.club", "state": "error", "reason": "verify_timeout", "candidate": "Star.Trek.Strange.New.Worlds.S04E10.FiNAL.MULTi.1080p.WEB.H264-FW", "waitReason": null, "at": 1790467200, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": false, "searching": false },
-        { "tracker": "tr4ker", "state": "stopped", "reason": null, "candidate": null, "waitReason": null, "at": 1789891200, "stoppedAt": 1790150400, "stopCause": "removed", "entryHash": null, "excluded": true, "searching": false }
+        { "tracker": "lacale", "state": "error", "reason": "fetch_failed", "candidate": "Star.Trek.Strange.New.Worlds.S04E10.MULTi.1080p.WEB.H264-FW", "via": "search", "trackerReason": null, "waitReason": null, "at": 1790553600, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": false, "searching": false, "uploading": false },
+        { "tracker": "v3x.club", "state": "error", "reason": "verify_timeout", "candidate": "Star.Trek.Strange.New.Worlds.S04E10.FiNAL.MULTi.1080p.WEB.H264-FW", "via": "search", "trackerReason": null, "waitReason": null, "at": 1790467200, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": false, "searching": false, "uploading": false },
+        { "tracker": "tr4ker", "state": "stopped", "reason": null, "candidate": null, "via": null, "trackerReason": null, "waitReason": null, "at": 1789891200, "stoppedAt": 1790150400, "stopCause": "removed", "entryHash": null, "excluded": true, "searching": false, "uploading": false }
       ]
     },
     "e1af6819d9e3159e0aa191b534b6a66af4344788": {
       "titleExcluded": true,
       "pairs": [
-        { "tracker": "tr4ker", "state": "noMatch", "reason": null, "candidate": null, "waitReason": null, "at": 1790380800, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": true, "searching": false },
-        { "tracker": "v3x.club", "state": "noMatch", "reason": null, "candidate": null, "waitReason": null, "at": 1790380800, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": true, "searching": false }
+        { "tracker": "tr4ker", "state": "noMatch", "reason": null, "candidate": null, "via": null, "trackerReason": null, "waitReason": null, "at": 1790380800, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": true, "searching": false, "uploading": false },
+        { "tracker": "v3x.club", "state": "noMatch", "reason": null, "candidate": null, "via": null, "trackerReason": null, "waitReason": null, "at": 1790380800, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": true, "searching": false, "uploading": false }
       ]
     },
     "0ff265e478d97d9eae4d1cabd13748e23b9e6cba": {
       "titleExcluded": false,
       "pairs": [
-        { "tracker": "tr4ker", "state": "error", "reason": "inject_failed", "candidate": "Lanterns.S01E06.MULTi.1080p.WEB.H264-SUPPLY", "waitReason": null, "at": 1790524800, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": false, "searching": false },
-        { "tracker": "v3x.club", "state": "error", "reason": "self_candidate", "candidate": "Lanterns.S01E06.MULTi.VFF.1080p.WEB.SDR.H265-FW", "waitReason": null, "at": 1790438400, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": true, "searching": false }
+        { "tracker": "tr4ker", "state": "error", "reason": "inject_failed", "candidate": "Lanterns.S01E06.MULTi.1080p.WEB.H264-SUPPLY", "via": "search", "trackerReason": null, "waitReason": null, "at": 1790524800, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": false, "searching": false, "uploading": false },
+        { "tracker": "v3x.club", "state": "error", "reason": "self_candidate", "candidate": "Lanterns.S01E06.MULTi.VFF.1080p.WEB.SDR.H265-FW", "via": "search", "trackerReason": null, "waitReason": null, "at": 1790438400, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": true, "searching": false, "uploading": false }
       ]
     },
     "c44e8cd75bec37a8337175c6580e85d4e2079da3": {
       "titleExcluded": false,
       "pairs": [
-        { "tracker": "tr4ker", "state": "notSearched", "reason": null, "candidate": null, "waitReason": "downloading", "at": null, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": false, "searching": false },
-        { "tracker": "v3x.club", "state": "notSearched", "reason": null, "candidate": null, "waitReason": "downloading", "at": null, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": false, "searching": false }
+        { "tracker": "tr4ker", "state": "notSearched", "reason": null, "candidate": null, "via": null, "trackerReason": null, "waitReason": "downloading", "at": null, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": false, "searching": false, "uploading": false },
+        { "tracker": "v3x.club", "state": "notSearched", "reason": null, "candidate": null, "via": null, "trackerReason": null, "waitReason": "downloading", "at": null, "stoppedAt": null, "stopCause": null, "entryHash": null, "excluded": false, "searching": false, "uploading": false }
       ]
     }
   },

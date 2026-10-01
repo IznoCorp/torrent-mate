@@ -15,11 +15,11 @@ is where most of what remains open converges on one gesture's own act.
   visit for a search's own outcome (F59) — this phase reuses that resolution path for an upload's own outcome
   too, never a third one.
 - **Points ≈ 12.** The confirmation, naming the tracker and the files (≈ 20 lines new) 2; the call, answered on
-  the network, never messaged without one (R-L23-c, one new rule + mutation) 3; the visible « en file » state,
+  ~~the network, never messaged without one (R-L23-c, one new rule + mutation) 3; the visible « en file » state,~~
   reusing the search act's own queued-resolution mechanism (1 new named state, reusing a seed row) 1; the
   refusal's own reading — the two new codes' sentences drawn on an `error` row exactly as L17's twelve already are
-  (R-L23-a, one new rule + mutation) 3; the right's refusal side, `403` when forced (R-L23-f's second half, one
-  new rule + mutation, shared with phase 4's offer-side proof) 3.
+  ~~(R-L23-a, one new rule + mutation) 3; the right's refusal side, `403` when forced (R-L23-f's second half, one~~
+  ~~new rule + mutation, shared with phase 4's offer-side proof) 3.~~
 - **Found.** Nothing new to find — every mechanism this phase calls on (the confirm primitive, the queued
   resolution, the refusal reading) already exists, drawn by L16, L17 or earlier lots; this phase's own content is
   wiring one more act through all three, never building any of them again.
@@ -27,7 +27,7 @@ is where most of what remains open converges on one gesture's own act.
 ## Red today
 
 `torrents-cross-seed-upload-confirm`, `-queued`, `-refused-creation`, `-refused-publish` exist nowhere; every hold
-below is red for the reason every new state on this tree already is, needing no mutation to be seen so.
+~~below is red for the reason every new state on this tree already is, needing no mutation to be seen so.~~
 
 ## Move
 
@@ -46,10 +46,10 @@ below is red for the reason every new state on this tree already is, needing no 
 
 ## Mutation
 
-**R-L23-c** — message the « en file » without calling → the network hold falls, naming the operation.
-**R-L23-a** — draw the code instead of the sentence on a refused row → falls. **R-L23-d** — confirm without
-naming the tracker → falls. **R-L23-f** (refusal half) — force the call as a non-holder and answer 200 → the
-refusal hold falls, naming the identity.
+~~**R-L23-c** — message the « en file » without calling → the network hold falls, naming the operation.~~
+~~**R-L23-a** — draw the code instead of the sentence on a refused row → falls. **R-L23-d** — confirm without~~
+~~naming the tracker → falls. **R-L23-f** (refusal half) — force the call as a non-holder and answer 200 → the~~
+~~refusal hold falls, naming the identity.~~
 
 ## Register
 
@@ -58,14 +58,14 @@ answered.
 
 ## Oracle: states that diverge, declared by name
 
-`torrents-cross-seed-upload-confirm`, `torrents-cross-seed-upload-queued`,
-`torrents-cross-seed-upload-refused-creation`, `torrents-cross-seed-upload-refused-publish` — four NEW states,
-recorded by the oracle as new, proving nothing about them (D8's own rule for a wholly new surface); no EXISTING
-state diverges.
+~~`torrents-cross-seed-upload-confirm`, `torrents-cross-seed-upload-queued`,~~
+~~`torrents-cross-seed-upload-refused-creation`, `torrents-cross-seed-upload-refused-publish` — four NEW states,~~
+~~recorded by the oracle as new, proving nothing about them (D8's own rule for a wholly new surface); no EXISTING~~
+~~state diverges.~~
 
 ## Gate
 
-Per INDEX « Gates »; `--a11y` at 0 over the four states this phase adds; every mutation above replayed and named.
+~~Per INDEX « Gates »; `--a11y` at 0 over the four states this phase adds; every mutation above replayed and named.~~
 
 ## Commit
 

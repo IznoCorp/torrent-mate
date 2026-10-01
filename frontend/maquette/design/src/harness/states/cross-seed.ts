@@ -4,7 +4,7 @@
 // is INVENTED (L17 DESIGN § 2.3) and its default is the live states: every
 // switch on. A state that needs another scenario turns a dial and says so.
 import { applyState, type NamedState } from "../drive";
-import { openCutConfirm, openSwitchConfirm } from "../../features/trackers/cross-seed-verbs";
+import { openCutConfirm, openSwitchConfirm, openUploadConfirm } from "../../features/trackers/cross-seed-verbs";
 
 // The page's reads, and the settings the switches are kept in: dropped before a
 // state so the page asks the layer again rather than drawing a state before's.
@@ -40,6 +40,9 @@ export const COPY = "7c1e0b2f95c438b7db4f7c855bd451d8bb1f0046";
 export const UNSEARCHED = "c44e8cd75bec37a8337175c6580e85d4e2079da3";
 // Ted Lasso, its whole title excluded.
 export const EXCLUDED = "e1af6819d9e3159e0aa191b534b6a66af4344788";
+// American Dad!, seeding, refused on v3x.club for a mismatch: nothing cross-seeds
+// there, so « Créer et publier un torrent » is offered (L23 § 2.3).
+export const UPLOADABLE = "e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb";
 
 /**
  * A DERIVATION, SHOWN AS ONE: Les Zinzins finished downloading, so the engine
@@ -146,6 +149,47 @@ export function crossSeedStates(): NamedState[] {
         completeUnsearched();
         window.__mocks?.poseCrossSeedQuotaSpent();
         window.__mocks?.poseCrossSeedPair(UNSEARCHED, "tr4ker", { searching: true });
+      }),
+    ],
+    // ── L23: « Créer et publier un torrent » (§ 19 point 5, round 11) ──
+    [
+      "torrents-cross-seed-upload",
+      "Torrents — « Créer et publier un torrent » offert là où rien ne cross-seed, l'original en partage (INVENTÉ, L23 § 2.3)",
+      () => torrentPanel(`${UPLOADABLE}:c411`),
+    ],
+    [
+      "torrents-cross-seed-upload-confirm",
+      "Torrents — confirmer la publication sur v3x.club : le tracker et les fichiers nommés (INVENTÉ)",
+      () => torrentPanel(`${UPLOADABLE}:c411`, () => undefined, () => openUploadConfirm(UPLOADABLE, "v3x.club")),
+    ],
+    [
+      "torrents-cross-seed-upload-queued",
+      "Torrents — la publication est en file, dite, jamais « occupé » (INVENTÉ, POSÉ)",
+      () => torrentPanel(`${UPLOADABLE}:c411`, () => window.__mocks?.poseCrossSeedPair(UPLOADABLE, "v3x.club", { uploading: true })),
+    ],
+    [
+      "torrents-cross-seed-upload-refused-creation",
+      "Torrents — la création du torrent a échoué : « erreur de cross-seed », sa phrase (INVENTÉ, POSÉ)",
+      () => torrentPanel(`${UPLOADABLE}:c411`,
+        () => window.__mocks?.posePairRefusedByUpload(UPLOADABLE, "v3x.club", "creation_failed")),
+    ],
+    [
+      "torrents-cross-seed-upload-refused-publish",
+      "Torrents — le tracker a refusé la publication : sa phrase et la raison du tracker (INVENTÉ, POSÉ)",
+      () => torrentPanel(`${UPLOADABLE}:c411`,
+        () => window.__mocks?.posePairRefusedByUpload(UPLOADABLE, "v3x.club", "publish_failed")),
+    ],
+    [
+      "tracker-upload-disabled",
+      "Tracker — v3x.club n'accepte pas les uploads, son cross-seed actif (INVENTÉ, POSÉ)",
+      () => trackerPanel("v3x.club", () => window.__mocks?.poseUploadsOff("v3x.club")),
+    ],
+    [
+      "torrents-cross-seed-published",
+      "Torrents — un torrent publié par vous sur tr4ker, sa marque d'origine à part (INVENTÉ, POSÉ, round 11 OPEN 5)",
+      () => torrentPanel(`${COPY}:tr4ker`, () => {
+        window.__mocks?.poseEntry(COPY, { provenance: "published" });
+        window.__mocks?.poseCrossSeedPair(CROSS_SEEDING, "tr4ker", { via: "upload" });
       }),
     ],
   ];

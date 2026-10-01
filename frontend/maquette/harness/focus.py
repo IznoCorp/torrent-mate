@@ -31,7 +31,7 @@ by owner, and acquisition's `plus` became a valueless `data-more`.
 import asyncio
 import sys
 
-from common import BAR, Journal, open_page, browser_channel, chrome_launch_args
+from common import BAR, PANEL_IN, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 # One entry per layer this rule drives: the control that opens it, the layer's
@@ -46,6 +46,21 @@ LAYERS = (
     # green over a manager selecting `#screen`.
     ("screen", '[data-mediasheet]', '[data-part="screen"][data-open]'),
 )
+
+# Panels whose first control sits below the fold, each opened by a finger on
+# what opens it: the focus they take on opening must not scroll them (B-615).
+LONG_PANELS = (
+    ("torrents-cross-seed", "torrent",
+     '#view [data-part="torrents/row"][data-entry="8d51568b1a4f46e1fb7e7b535b52a5203312fc28"] [data-panel]'),
+)
+
+# Where an open panel's viewport stands, and whether focus went inside it.
+PANEL_SCROLL = """() => {
+  const sheet = document.querySelector('#sheet[data-open]');
+  const viewport = sheet?.querySelector('[data-part="sheet/viewport"]');
+  return { open: !!sheet, top: viewport ? viewport.scrollTop : null,
+           inside: !!sheet && sheet.contains(document.activeElement) };
+}"""
 
 # Where the tab order must stop while a layer is up. `#port` is the main region
 # behind every layer; if it is still reachable, so is the whole page.
@@ -187,6 +202,25 @@ async def main():
                 f"{landed_in_dialog['isTheWayOut']}")
             await page.keyboard.press("Escape")
             await page.wait_for_timeout(350)
+
+        # A PANEL TAKES FOCUS WITHOUT SCROLLING (B-615): its first control can sit
+        # far below its head, and the browser's default scroll-into-view opened a
+        # torrent's panel 369 px down, its head out of view. Focus still moves in.
+        # Each on a FRESH page: a layer the holds above left open would take the finger.
+        for state, producer, opener in LONG_PANELS:
+            panel_context, panel_page = await open_page(browser)
+            await panel_page.evaluate("(id)=>window.__go(id)", state)
+            await panel_page.wait_for_timeout(SETTLED)
+            # A state may pose a panel of its own: closed, so the finger opens the one measured.
+            await panel_page.keyboard.press("Escape")
+            await panel_page.wait_for_timeout(PANEL_IN)
+            await panel_page.locator(opener).first.tap()
+            await panel_page.wait_for_timeout(PANEL_IN)
+            opened = await panel_page.evaluate(PANEL_SCROLL)
+            journal.check(
+                f"the {producer} panel opens at its head: focus moves in, the panel does not scroll (B-615)",
+                opened["open"] and opened["inside"] and opened["top"] == 0, repr(opened))
+            await panel_context.close()
 
         # THE SKIP LINK, on a FRESH PAGE, which is also how a reader meets it.
         #

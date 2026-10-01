@@ -374,9 +374,11 @@ export const dialogHeading = cva("mt-0 mx-0 mb-4 text-5 font-bold");
    and three of the four were restated. The oracle measures `color` — but on
    `#dlg` itself, never on its children — so a confirmation's explanatory
    sentence read at full foreground weight, the same weight as its heading, and
-   nothing said so. */
+   nothing said so.
+   A RELEASE NAME IS ONE WORD with no break in it (« Fichiers publiés : … »): it
+   breaks where it must, like a card's title, never past the dialog's edge. */
 export const dialogParagraph = cva(
-  "mt-0 mx-0 mb-5 text-3 leading-[1.45] text-muted-foreground",
+  "mt-0 mx-0 mb-5 text-3 leading-[1.45] text-muted-foreground [overflow-wrap:anywhere]",
 );
 
 export const dialogDryRun = cva(
