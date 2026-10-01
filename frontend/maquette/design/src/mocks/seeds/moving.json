@@ -2,6 +2,7 @@
   {
     "title": "President Curtis",
     "secondaryLine": "S01E02 · suivi",
+    "kind": "show",
     "strip": [
       1,
       1,
@@ -23,6 +24,7 @@
   {
     "title": "Furious",
     "secondaryLine": "S01E01 · suivi",
+    "kind": "show",
     "strip": [
       1,
       1,
@@ -44,6 +46,7 @@
   {
     "title": "The Alabama Solution",
     "secondaryLine": "2025 · qBittorrent (manuel)",
+    "kind": "movie",
     "strip": [
       1,
       1,
@@ -64,6 +67,7 @@
   {
     "title": "Conclave",
     "secondaryLine": "2024 · qBittorrent (manuel)",
+    "kind": "movie",
     "strip": [
       1,
       1,
@@ -84,6 +88,7 @@
   {
     "title": "Les Zinzins de l'Espace",
     "secondaryLine": "S03E14 · qBittorrent (manuel)",
+    "kind": "show",
     "strip": [
       1,
       "now",

@@ -46,13 +46,14 @@ export function SystemPage(): ReactElement | null {
   // FROM THE CACHE (invariant 4). Both fault variants are derived here from
   // what the layer sent (`./fault`): the healthy lists are its answer, and the
   // simulated fault is the interface's own replay of them.
-  const { data: SERVICES = [] } = useServices();
+  const services = useServices();
+  const SERVICES = services.data ?? [];
   const SERVICES_DOWN = useServicesDown(SERVICES);
   const { data: SCHEDULERS = [] } = useSchedulers();
   const SCHEDULERS_DOWN = useSchedulersDown(SCHEDULERS);
-  const { data: DISKS = [] } = useDisks();
-  const { data: INDEX = [] } = useIndexHealth();
-  const { data: DEPENDENCIES = [] } = useDependencies();
+  const disks = useDisks();
+  const index = useIndexHealth();
+  const dependencies = useDependencies();
   // The errors are an OBJECT, not a list, so the empty case is the shape
   // rather than an empty array — and it is stated here rather than left to a
   // question mark at each of its five readers.
@@ -77,6 +78,20 @@ export function SystemPage(): ReactElement | null {
       <FactRows rows={rows.map((fact) => factRow(fact, t))} />
     </ol>
   );
+  // A SECTION WHOSE OWN READ FAILED SAYS SO, in its place, while the others
+  // stay drawn (L24 S2). Defaulting the answer to `[]` drew the heading over
+  // nothing: « rien ne se passe » without a reason, which § 8 forbids.
+  const factsOf = (read: { data?: Fact[]; isError: boolean }, section: string) =>
+    facts(
+      read.isError
+        ? [{
+            label: t("screens.system.unavailableLabel"),
+            tone: "alert",
+            value: t("screens.system.unavailable"),
+            secondaryLine: t(`screens.system.unavailableLine.${section}`),
+          }]
+        : read.data ?? [],
+    );
 
   return (
     <>
@@ -91,7 +106,7 @@ export function SystemPage(): ReactElement | null {
         </div>
       ) : null}
       <h2 className={sectionHeading()} data-part="heading">{t("screens.system.services")}</h2>
-      {facts(state.fault ? SERVICES_DOWN : SERVICES)}
+      {state.fault ? facts(SERVICES_DOWN) : factsOf(services, "services")}
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.system.schedulers")}</h2>
       <div className={guidance()} data-part="guidance">
@@ -105,17 +120,17 @@ export function SystemPage(): ReactElement | null {
       <RunList />
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.system.disks")}</h2>
-      {facts(DISKS)}
+      {factsOf(disks, "disks")}
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.system.index")}</h2>
-      {facts(INDEX)}
+      {factsOf(index, "index")}
       <button className={crossReference()} data-part="cross-reference" data-page="maint">
         {t("screens.system.toMaintenance")}
         <span className={crossReferenceLink()}>{t("screens.system.toMaintenanceLink")}</span>
       </button>
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.system.dependencies")}</h2>
-      {facts(DEPENDENCIES)}
+      {factsOf(dependencies, "dependencies")}
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.system.codeErrors")}</h2>
       {facts([

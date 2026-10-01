@@ -1228,6 +1228,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/followed/{followedId}/completeness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What has aired against what the library holds, season by season, for one follow */
+        get: operations["readFollowCompleteness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staging/media/{mediaId}/enqueue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a staged medium to arbitration: a pending decision, with the candidates a provider search found */
+        post: operations["enqueueForResolution"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/decisions/{decisionId}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Re-open a settled decision for arbitration, with the candidates a provider search finds
+         * @description « Corriger » on a decision the operator settled — in Acquisition or on a shelved medium (L24 OPEN 7 = A, OPEN 8 = A). DEMAND: the engine has no operation that re-opens a settled decision, nor one that re-identifies a shelved medium against candidates.
+         */
+        post: operations["reopenDecision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/torrents/{infoHash}/cross-seed/{tracker}/cut": {
         parameters: {
             query?: never;
@@ -1308,6 +1362,11 @@ export interface components {
             title: string;
             /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             secondaryLine: string;
+            /**
+             * @description whether the medium is a film or a series — carried by the card, so a panel opened from it never loses it (B-612)
+             * @enum {string}
+             */
+            kind: "movie" | "show";
             /** @description why this card is where it is, in full prose. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             reason?: string;
             chip?: components["schemas"]["Chip"];
@@ -1655,8 +1714,12 @@ export interface components {
             candidates: components["schemas"]["DecisionCandidate"][];
             /** @description the year, where the folder names one */
             year?: number | null;
+            /** @description a re-opened decision's earlier choice — the candidate it kept, marked among the candidates it offers again; absent on a decision never settled */
+            kept?: components["schemas"]["DecisionChoice"];
         };
         SettledDecision: {
+            /** @description the decision, as `resolveDecision`, `dismissDecision` and `searchForDecision` address it — what « Corriger » re-opens */
+            id: string;
             folder: string;
             kind: string;
             title: string;
@@ -1667,6 +1730,9 @@ export interface components {
             when: string;
             year?: number;
             choice?: components["schemas"]["DecisionChoice"];
+            /** @description the candidates the decision offered, as it offered them (the engine's `candidates_json`) — how many it was settled among, and what « Corriger » offers again */
+            candidates: components["schemas"]["DecisionCandidate"][];
+            settledBy: components["schemas"]["DecisionAuthor"];
         };
         CastMember: {
             name: string;
@@ -1735,13 +1801,13 @@ export interface components {
             /** @description how many episodes the provider catalogue lists, or null when it does not say. The interface then shows a question mark rather than an invented total */
             aired: number | null;
         };
-        /** @description ONE RUNG OF A MEDIUM'S LADDER, from the wish to Plex (ruling 4; eight rungs, OPEN 4 ruled B). The card's strip and the journey sheet read the same list; « rangé » carries the three pipeline steps it merges as `steps`. */
+        /** @description ONE RUNG OF A MEDIUM'S LADDER, from the wish to Plex (ruling 4; eight rungs, OPEN 4 ruled B). The card's strip and the journey sheet read the same list; « rangé » carries the three pipeline steps it merges as `steps`. « enrichi » carries, in turn, the three things the enrichment fetched as its own `steps`: the metadata, the posters, the trailer (L24 OPEN 5 = B). */
         JourneyStage: {
             /**
              * @description which rung, as a token — its name is the interface's
              * @enum {string}
              */
-            rung: "requested" | "searched" | "grabbed" | "downloading" | "arrived" | "identified" | "shelved" | "verified" | "sorted" | "enriched";
+            rung: "requested" | "searched" | "grabbed" | "downloading" | "arrived" | "identified" | "shelved" | "verified" | "sorted" | "enriched" | "metadata" | "posters" | "trailer";
             /**
              * @description passed, in motion, queued behind something else, waiting for the operator's hand, set aside by him, never lived by this medium (a direct add begins at « arrivé »), or not reached
              * @enum {string}
@@ -2237,6 +2303,46 @@ export interface components {
             message: string | null;
             /** @description since when it is off by failure, Unix-epoch seconds, or null when the operator switched it off */
             since: number | null;
+        };
+        /**
+         * @description who settled a decision: the operator, by a pick or a manual search, or the engine, by an identification it made alone. DIVERGENCE: the engine writes no decision row for an identification it made alone — the interface reads one here, as a settled row with `engine` as its author.
+         * @enum {string}
+         */
+        DecisionAuthor: "operator" | "engine";
+        EpisodeCompleteness: {
+            episode: number;
+            title?: string | null;
+            /** @description ISO `YYYY-MM-DD` */
+            airDate?: string | null;
+            /** @enum {string} */
+            state: "announced" | "in_library" | "to_grab" | "acquiring" | "pending" | "unverified" | "absorbed";
+            lastSearchOutcome?: string | null;
+        };
+        SeasonCompleteness: {
+            season: number;
+            /** @description the season's aired episodes */
+            total: number;
+            /** @description of those, the ones in the library */
+            owned: number;
+            /** @description of those, the ones wanted and not yet held */
+            queued: number;
+            /** @description episodes announced and not yet aired */
+            announced: number;
+            episodes: components["schemas"]["EpisodeCompleteness"][];
+        };
+        FollowCompleteness: {
+            followedId: number;
+            title: string;
+            kind: string;
+            seasons: components["schemas"]["SeasonCompleteness"][];
+            /**
+             * @description `unknown` when no aired catalog is cached: the seasons are then empty, never a fabricated all-missing grid
+             * @enum {string}
+             */
+            source: "cache" | "unknown";
+            providerCatalogEmpty: boolean;
+            /** @description epoch seconds */
+            catalogRefreshedAt?: number | null;
         };
         /** @description one tracker's cross-seed at rest (demand A) — the roster's line, the tracker's panel and the badge read this ONE answer (§ 13). The counts are the engine's, over the SAME pairs the downloads read answers, never recomputed by the interface. invented: no fixture exists for the cross-seed (L17 DESIGN § 2.3) */
         TrackerCrossSeed: {
@@ -4697,6 +4803,119 @@ export interface operations {
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
+        };
+    };
+    readFollowCompleteness: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the follow */
+                followedId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the follow's completeness */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowCompleteness"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    enqueueForResolution: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the staged medium */
+                mediaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** @enum {string|null} */
+                    mediaKind?: "movie" | "tvshow" | null;
+                };
+            };
+        };
+        responses: {
+            /** @description the decision filed, or the one already pending (idempotent) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                        /** @enum {string} */
+                        mediaKind: "movie" | "tvshow" | "ebook" | "audio" | "app" | "other" | "unsorted";
+                        /** @description the folder-derived title sent to arbitration */
+                        title: string;
+                        /** @description the pending decision, so the candidates screen opens on it */
+                        decisionId?: string | null;
+                        candidatesCount: number;
+                        /** @description false when no provider answered: the decision is filed with no candidate, and the screen opens on the pre-filled manual search */
+                        candidatesSeeded: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    reopenDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the settled decision */
+                decisionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the decision pending again */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        decisionId: string;
+                        /** @description the folder the candidates screen is addressed by */
+                        folder: string;
+                        candidatesCount: number;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
         };
     };
     cutCrossSeed: {

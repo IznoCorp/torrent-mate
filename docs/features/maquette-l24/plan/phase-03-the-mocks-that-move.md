@@ -23,17 +23,11 @@ None — the rules that read these answers are written in phases 4, 7 and 14, re
 2. The failure scenario is a dial of the layer (`window.__go` resets it, `frontend/maquette/README.md` § « The mock
    layer »), never a flag a surface reads.
 
-## Mutation
-
-None.
 
 ## Register
 
 None.
 
-## Oracle: states that diverge, declared by name
-
-None — no state walks the new scenario before phase 4.
 
 ## Commit
 

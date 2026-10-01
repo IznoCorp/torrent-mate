@@ -1,7 +1,8 @@
 // What the scrape could not decide alone.
 import { GET, POST, route, text } from "./shared";
 import { mockState } from "../state";
-import type { MockRoute } from "../router";
+import { refused, type MockRoute } from "../router";
+import { scenario } from "../scenario";
 import type { components } from "../../contract/types";
 
 /** Where a decision has got to, as the contract's own enum names it. */
@@ -16,8 +17,35 @@ type DecisionRoute = components["schemas"]["DecisionRoute"];
 const RESOLVED: DecisionState = "resolved";
 const DISMISSED: DecisionState = "dismissed";
 
+/** Who settled a decision, as the contract's own enum names it. */
+type DecisionAuthor = components["schemas"]["DecisionAuthor"];
+
+/** A decision settled through this screen is the operator's. */
+const OPERATOR: DecisionAuthor = "operator";
+
 /** How a candidate was reached when it came from the offered list. */
 const PICKED: DecisionRoute = "pick";
+
+/** The language the seeds' dates are written in, which a stamp written now matches. */
+const SEED_WRITTEN_IN = "fr-FR";
+
+/**
+ * The moment a decision is settled, in the shape the seeds carry one.
+ *
+ * A DECISION SETTLED NOW READS NOW. It carried the pending decision's creation
+ * — « 15 juillet » for a choice just made, older than the card's « arrivé ».
+ * The day is the layer's frozen clock, the one every date-derived state reads;
+ * the hour is the wall clock's, the one moment the layer has for « now ».
+ *
+ * @returns The day and the hour, as « 10 août, 14 h 05 ».
+ */
+export function settledNow(): string {
+  const day = new Intl.DateTimeFormat(SEED_WRITTEN_IN, { day: "numeric", month: "long", timeZone: "UTC" })
+    .format(new Date(scenario().now));
+  const clock = new Date();
+  const two = (value: number) => String(value).padStart(2, "0");
+  return `${day}, ${two(clock.getHours())} h ${two(clock.getMinutes())}`;
+}
 
 /**
  * Moves one decision from the pending list to the settled one.
@@ -56,13 +84,17 @@ function settle(
         );
   held.settledDecisions = [
     {
+      // The mocks address a decision by its folder, so its id is the folder.
+      id: found.folder,
       folder: found.folder,
       kind: found.kind,
       title: found.title,
       reason: found.reason,
-      when: found.when,
+      when: settledNow(),
       year: found.year ?? undefined,
       state,
+      candidates: found.candidates,
+      settledBy: OPERATOR,
       ...(candidate === undefined
         ? {}
         : {
@@ -79,6 +111,110 @@ function settle(
     ...held.settledDecisions,
   ];
   return { state };
+}
+
+/**
+ * Settles the decision a folder waits on with the candidate chosen by its title.
+ *
+ * The queue's « continue » carries the candidate's TITLE, which is what the
+ * screen's pick names; the decision records it by provider and id, from its
+ * own candidate list.
+ *
+ * @param folder The staging folder.
+ * @param chosenTitle The candidate's title, or an empty string.
+ * @returns Whether a pending decision was settled.
+ */
+export function settleChosen(folder: string, chosenTitle: string): boolean {
+  const found = mockState().pendingDecisions.find((decision) => decision.folder === folder);
+  const candidate = found?.candidates.find((offered) => offered.title === chosenTitle);
+  if (found === undefined) return false;
+  settle(folder, RESOLVED, candidate && { provider: candidate.provider, providerId: candidate.id });
+  return true;
+}
+
+/** Why a folder sent to arbitration by hand is waiting, as the contract's token. */
+const SENT_BY_HAND = "manual";
+
+/** The status of an enqueue that finds nothing to send. */
+const NOT_FOUND = 404;
+
+/**
+ * Sends a staged medium to arbitration: a pending decision, with candidates.
+ *
+ * IDEMPOTENT, the one refusal DOIT-4 allows: a folder already waiting answers
+ * the decision it has. A medium the engine identified alone leaves the settled
+ * list — its identification is what is being doubted — and waits again with
+ * the candidates its own decision offered, the engine's pick among them marked
+ * as kept.
+ *
+ * @param mediaId The staged medium, which the layer names by its folder.
+ * @returns The enqueue's answer, or a refusal when nothing is staged under that name.
+ */
+function enqueue(mediaId: string): unknown {
+  const held = mockState();
+  const waiting = held.pendingDecisions.find((decision) => decision.folder === mediaId);
+  const identified = held.settledDecisions.find(
+    (decision) => decision.id === mediaId && decision.settledBy === "engine",
+  );
+  if (waiting === undefined && identified === undefined) {
+    return refused(NOT_FOUND, "no staged medium the engine identified is filed under that folder");
+  }
+  const decision = waiting ?? {
+    folder: identified!.folder,
+    kind: identified!.kind,
+    title: identified!.title,
+    reason: SENT_BY_HAND,
+    when: identified!.when,
+    year: identified!.year ?? null,
+    candidates: identified!.candidates,
+    kept: identified!.choice,
+  };
+  if (waiting === undefined) {
+    held.settledDecisions = held.settledDecisions.filter((settled) => settled !== identified);
+    held.pendingDecisions = [decision, ...held.pendingDecisions];
+  }
+  return {
+    ok: true,
+    mediaKind: decision.kind === "movie" ? "movie" : "tvshow",
+    title: decision.title,
+    decisionId: decision.folder,
+    candidatesCount: decision.candidates.length,
+    candidatesSeeded: decision.candidates.length > 0,
+  };
+}
+
+/**
+ * Re-opens a decision the operator settled: it waits again, with candidates.
+ *
+ * « CORRIGER » ON THE OPERATOR'S OWN CHOICE (L24 OPEN 7 = A) — in Acquisition,
+ * and on a shelved medium's sheet (OPEN 8 = A). The settled row leaves the
+ * settled list and is pending again, with THE CANDIDATES IT OFFERED — never a
+ * search's, which answered one card for « Parmi 3 candidats » — its earlier
+ * choice marked as kept; the choice among them is the operator's again.
+ *
+ * @param decisionId The settled decision.
+ * @returns The re-opened decision's address, or a refusal when none is settled under that id.
+ */
+function reopen(decisionId: string): unknown {
+  const held = mockState();
+  const settled = held.settledDecisions.find((decision) => decision.id === decisionId);
+  if (settled === undefined) return refused(NOT_FOUND, "no settled decision carries that id");
+  const candidates = settled.candidates;
+  held.settledDecisions = held.settledDecisions.filter((decision) => decision !== settled);
+  held.pendingDecisions = [
+    {
+      folder: settled.folder,
+      kind: settled.kind,
+      title: settled.title,
+      reason: settled.reason,
+      when: settled.when,
+      year: settled.year ?? null,
+      candidates,
+      kept: settled.choice,
+    },
+    ...held.pendingDecisions.filter((decision) => decision.folder !== settled.folder),
+  ];
+  return { decisionId: settled.folder, folder: settled.folder, candidatesCount: candidates.length };
 }
 
 /** Every route this subject answers. */
@@ -99,6 +235,12 @@ export function decisionRoutes(): MockRoute[] {
     }),
     route("dismissDecision", POST, "/api/decisions/{decisionId}/dismiss", (request) =>
       settle(request.parameters.decisionId, DISMISSED),
+    ),
+    route("enqueueForResolution", POST, "/api/staging/media/{mediaId}/enqueue", (request) =>
+      enqueue(request.parameters.mediaId),
+    ),
+    route("reopenDecision", POST, "/api/decisions/{decisionId}/reopen", (request) =>
+      reopen(request.parameters.decisionId),
     ),
     route("searchForDecision", POST, "/api/decisions/{decisionId}/search", (request) => {
       // A manual search over data that already exists: the candidates a

@@ -33,6 +33,28 @@ function openRun(which: (run: RunDetail) => boolean = (run) => run.kind === "pip
   if (run) window.__screens.run(run.runUid);
 }
 
+// ONE MACHINE SECTION WHOSE OWN READ FAILED, the others answering: the section
+// says so in its place, the page stays drawn (L24 S2).
+const UNAVAILABLE_READS = [
+  ["services", "readServices", "Services"],
+  ["disks", "readDisks", "Disques"],
+  ["index", "readIndexHealth", "Index de la médiathèque"],
+  ["dependencies", "readDependencies", "Dépendances"],
+] as const;
+
+/** One state per machine section, its read alone failing. */
+function unavailableStates(): NamedState[] {
+  return UNAVAILABLE_READS.map(([section, operation, heading]) => [
+    `system-${section}-unavailable`,
+    `Système — « ${heading} » n'a pas pu être lu, le reste répond`,
+    () => {
+      window.__mocks?.reset();
+      window.__mocks?.setOperationOutcome(operation, { status: 500 });
+      applyState({ page: "sys", phase: "ready", fault: false });
+    },
+  ]);
+}
+
 // THE PIPELINE'S STATES JOIN THIS TABLE ONE SURFACE AT A TIME. The global
 // levers, the veille, the locks, the passages and a passage's detail add their
 // named states here in the commit that draws the surface behind each id —
@@ -59,6 +81,7 @@ export function systemStates(): NamedState[] {
       "Système — erreur",
       () => applyState({ page: "sys", phase: "error", fault: false }),
     ],
+    ...unavailableStates(),
     [
       "levers-idle",
       "Leviers — rien ne tourne",

@@ -134,9 +134,11 @@ export function ResolutionScreen() {
               ""
             )}
           </CardMeta>
-          {decision ? (
+          {/* A DECISION WITH NO CANDIDATE says so too: the providers offered
+              nothing, and the manual search below is the way on (§ 3). */}
+          {decision && decision.candidates.length > 0 ? (
             <Candidates decision={decision} />
-          ) : held ? (
+          ) : held && !decision ? (
             <ReleaseCard
               title={held.title}
               year={null}

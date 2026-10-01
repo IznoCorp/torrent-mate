@@ -15,23 +15,17 @@
 ## Red today
 
 Read at the opening over every state; a card already failing is a DEFECT found, reported to the steward before the
-phase goes on (STOP A's kind).
+phase goes on.
 
 ## Move
 
 The rule only; the print goes.
 
-## Mutation
-
-Put the state word on the title's line in `ui/card.tsx` → the composition hold falls by name.
 
 ## Register
 
 The map's DOIT-9 « unproved » card half; proposed at phase 20.
 
-## Oracle: states that diverge, declared by name
-
-None.
 
 ## Commit
 

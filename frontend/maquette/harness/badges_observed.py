@@ -20,7 +20,8 @@ nor of Système:
    having opened Acquisition.
 
 THE MENU BUTTON carries the badge of the rows the bar does not hold — Système's,
-which counts the maintenance facts AND the machine's faults. Its expected number
+which counts the maintenance facts AND the machine's faults, and — since L24
+(OPEN 2 = A) — a disk nearly full and an index anomaly. Its expected number
 is computed HERE from the three answers the server gives (a stale lock, a sweep
 that has not finished, leftover temporary entries; a service or a dependency in
 alert), never read off the interface:
@@ -64,13 +65,15 @@ MENU = """() => {
 # the interface. A tone is the contract's token, not interface copy.
 SERVER_COUNT = """async () => {
   const read = async (address) => (await fetch(address)).json();
-  const [locks, services, dependencies] = await Promise.all([
-    read('/api/maintenance/locks'), read('/api/system/services'), read('/api/system/dependencies')]);
+  const [locks, services, dependencies, disks, index] = await Promise.all([
+    read('/api/maintenance/locks'), read('/api/system/services'), read('/api/system/dependencies'),
+    read('/api/maintenance/disks'), read('/api/maintenance/index-health')]);
   const maintenance = (locks.pipelineLock.stale ? 1 : 0)
     + (locks.sweep.status === 'pending' ? 1 : 0)
     + (locks.sweep.status !== 'pending' && locks.sweep.orphans.length > 0 ? 1 : 0);
   const faults = [...services, ...dependencies].filter((fact) => fact.tone === 'alert').length;
-  return maintenance + faults;
+  const care = [...disks, ...index].filter((fact) => fact.state === 'nearly_full' || fact.state === 'to_clean').length;
+  return maintenance + faults + care;
 }"""
 CURRENT = "() => document.querySelector('#nav button[aria-current=\"page\"]')?.dataset.page ?? null"
 RUN_ENDED = """async () => {
@@ -134,7 +137,12 @@ async def main():
                       f"expected {stale + 1}, button {menu['button']}, entry {menu['entry']}")
 
         await page.evaluate("()=>window.__store.write({ fault: false })")
-        await page.evaluate("()=>{ window.__mocks.setLockStale(false); window.__mocks.setTmpOrphans(false); }")
+        # RE-AIMED OUT LOUD (L24): nothing to say now also POSES a healthy machine —
+        # the seed at rest is the operator's, a disk nearly full among it.
+        await page.evaluate("()=>{ window.__mocks.setLockStale(false); window.__mocks.setTmpOrphans(false);"
+                            " window.__mocks.setMachineHealthy(true);"
+                            " window.__queries.invalidateQueries({ queryKey: ['/api/maintenance/disks'] });"
+                            " window.__queries.invalidateQueries({ queryKey: ['/api/maintenance/index-health'] }); }")
         await page.evaluate(RUN_ENDED)
         await settle(page)
         quiet = await page.evaluate(SERVER_COUNT)

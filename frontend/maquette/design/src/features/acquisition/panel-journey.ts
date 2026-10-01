@@ -24,6 +24,9 @@ import { acquisitionKey, tabHolding } from "../../lib/arrival-slots";
 import { queueKey, type AcquisitionQueue } from "../../lib/queue";
 import { store } from "../../lib/store-access";
 import type { Schemas } from "../../lib/contract-schemas";
+import { DECISIONS_QUERY, type Decisions } from "./decision-queries";
+import { settledDecisionOf } from "./decision-block";
+import { heldIdentity, providerAddress } from "../../lib/held-identity";
 
 
 /** One rung of a medium's ladder, as the contract answers it. */
@@ -46,6 +49,15 @@ const DIAL_SEPARATOR = ":";
 // The mark of a time nobody recorded — never a reconstructed one.
 const NO_TIME = "—";
 
+// A LINE SAYS ITS STATE IN WORDS when no time was recorded for it: « — » read
+// the same for done, running and never reached. Only a rung never lived keeps
+// the mark. A done rung still owes its time — the acts that pass one write it —
+// and the word stands only where nothing recorded it.
+const WITHOUT_TIME: Partial<Record<Stage["state"], string>> = {
+  done: "surfaces.ladder.doneUntimed",
+  now: "surfaces.ladder.nowUntimed",
+};
+
 /**
  * One rung as a line of the sheet — or, for a step of « rangé », a line under it.
  *
@@ -54,12 +66,77 @@ const NO_TIME = "—";
  * @returns The line.
  */
 function stageLine(stage: Stage, name: string) {
+  const words = WITHOUT_TIME[stage.state];
   return {
     c: name,
-    v: stage.when || NO_TIME,
+    v: stage.when || (words ? i18next.t(words) : NO_TIME),
     pip: STAGE_PIP[stage.state] ?? "neutral",
     terne: stage.state === "pending" || stage.state === "skipped",
   };
+}
+
+/**
+ * The release a journey followed: the folder of ITS OWN acquisition's decision.
+ *
+ * A FIXTURE NAMED ONE RELEASE FOR EVERY JOURNEY — President Curtis's journey
+ * read « release Furious.S01E01… ». The contract's `readJourney` answers the
+ * stages alone (demand D7), so the release is read where the layer does hold
+ * it: the decision about this medium, settled or pending, names its folder.
+ * None known, none named.
+ *
+ * @param title The medium.
+ * @param decisions The decisions read, both lists.
+ * @returns The release's folder, or null.
+ */
+function releaseOf(title: string, decisions: Decisions | undefined): string | null {
+  const pending = decisions?.pending.find((decision) => decision.title === title || decision.folder === title);
+  return pending?.folder ?? settledDecisionOf(decisions, { title })?.folder ?? null;
+}
+
+/**
+ * What « Voir la fiche » carries from a journey: the medium's identity, or nothing.
+ *
+ * A TITLE IS NOT AN ADDRESS (B-616). The sheet is addressed by provider identity
+ * (DOIT-11), and a journey's title is the acquisition's — « The Alabama
+ * Solution », which the library holds as « The Alabama Solution dans l'enfer de
+ * la prison ». Handed the title alone, the crossing asked the cache, found no
+ * read naming it, and opened the resolution of « élément inconnu ». So the act
+ * carries the identity the journey knows, as a candidate's poster does
+ * (B-578): its card's, else the one its decision chose, else what a held read
+ * says of that title. Knowing none — a medium left as it was — the act is not
+ * offered: never a button that leads nowhere (DOIT-7).
+ *
+ * @param title The medium.
+ * @param ids Its own card's provider identifiers, when the queue holds it.
+ * @param decisions The decisions read, both lists.
+ * @returns The act's target, or null when no identity is known.
+ */
+function sheetTarget(
+  title: string,
+  ids: Record<string, string | number | null | undefined> | null | undefined,
+  decisions: Decisions | undefined,
+): Record<string, string> | null {
+  const known = (held: typeof ids) => providerAddress(held
+    ? Object.fromEntries(Object.entries(held).filter((entry): entry is [string, string | number] =>
+      entry[1] !== null && entry[1] !== undefined && entry[1] !== ""))
+    : null);
+  const choice = settledDecisionOf(decisions, { title })?.choice;
+  const address = known(ids)
+    ?? (choice ? { provider: choice.provider, id: String(choice.id) } : null)
+    ?? known(heldIdentity(title)?.ids);
+  return address === null
+    ? null
+    : { mediasheet: title, provider: address.provider, "provider-id": address.id };
+}
+
+/**
+ * Whether the medium's identification is behind it: the rung « identifié » done.
+ *
+ * @param stages The journey's rungs.
+ * @returns True once that rung is done.
+ */
+function identifiedDone(stages: Stage[]): boolean {
+  return stages.some((stage) => stage.rung === "identified" && stage.state === "done");
 }
 
 /** The stages of one journey, as a query definition. */
@@ -166,10 +243,13 @@ function journeyPanel(subject: string, cache: PanelCache): PanelDescriptor | nul
   const title = subject.split(KEY_SEPARATOR)[0];
   const { own, cover, tab, covered } = coverOf(subject, cache.held<AcquisitionQueue>(queueQuery().queryKey));
   const season = own?.season ?? null;
+  const decisions = cache.held<Decisions>(DECISIONS_QUERY.queryKey);
+  const release = own?.release || releaseOf(title, decisions);
+  const toSheet = sheetTarget(title, own?.ids, decisions);
   // COVERED BY A WHOLE SEASON'S RECOVERY (Q6): the pointer, FOLLOWED (§ 13) —
   // the tab holding the season's card now, that card named — or, once the
   // season has left both tabs, where it went and the sheet.
-  const pointer: { note: string; action: Action } | null = cover === undefined ? null : tab !== undefined
+  const pointer: { note: string; action: Action | null } | null = cover === undefined ? null : tab !== undefined
     ? {
         note: translate("panels.journey.absorbedBy", { season }),
         action: {
@@ -179,17 +259,18 @@ function journeyPanel(subject: string, cache: PanelCache): PanelDescriptor | nul
       }
     : {
         note: translate("panels.journey.absorbedEnded", { season }),
-        action: { text: translate("panels.journey.seeSheet"), icone: icons.eye, ton: "primary" as const,
-          target: { mediasheet: title } },
+        action: toSheet === null ? null : { text: translate("panels.journey.seeSheet"), icone: icons.eye,
+          ton: "primary" as const, target: toSheet },
       };
   return {
     address: "journey:" + subject,
     title: itemOf(subject) === "" ? title : `${title} · ${itemOf(subject)}`,
-    // THE RELEASE ITS OWN ACQUISITION FOLLOWED, served on its card (SR4): the
-    // season's pack for a season, the episode's own for an episode — none named
-    // while nothing is taken, never another journey's.
-    meta: own?.release ? [translate("panels.journey.metaBefore"), { m: own.release }]
-      : [translate("panels.journey.metaAlone")],
+    // THE RELEASE ITS OWN ACQUISITION FOLLOWED: the one its card carries (SR4 —
+    // the season's pack for a season, the episode's own for an episode), else
+    // the folder of its decision; none named while neither knows, never
+    // another journey's.
+    meta: release === null ? [translate("panels.journey.metaAlone")]
+      : [translate("panels.journey.metaBefore"), { m: release }],
     blocs: [
       ...(pointer === null ? [] : [{ type: "note" as const, text: pointer.note }]),
       {
@@ -200,19 +281,30 @@ function journeyPanel(subject: string, cache: PanelCache): PanelDescriptor | nul
         // progress is the season's to say.
         lignes: stages.flatMap((stage) => [
           stageLine(stage, translate(`surfaces.ladder.rungs.${stage.rung}`)),
-          ...(stage.steps ?? []).map((step) => stageLine(step, translate("surfaces.ladder.step", {
-            name: translate(`surfaces.ladder.steps.${step.rung}`),
-          }))),
+          ...(stage.steps ?? []).flatMap((step) => [
+            stageLine(step, translate("surfaces.ladder.step", {
+              name: translate(`surfaces.ladder.steps.${step.rung}`),
+            })),
+            // « ENRICHI » UNFOLDED (L24 OPEN 5 = B): what the enrichment
+            // fetched, each part with its own state — the sheet only; the
+            // card keeps its eight rungs.
+            ...(step.steps ?? []).map((part) => stageLine(part, translate("surfaces.ladder.subStep", {
+              name: translate(`surfaces.ladder.steps.${part.rung}`),
+            }))),
+          ]),
         ]),
       },
+      // THE DECISION THAT IDENTIFIED IT, once « identifié » is passed (L24 S1):
+      // the block says itself nothing when the medium has none.
+      identifiedDone(stages) ? { type: "decision", subject: title } : null,
       { type: "note", text: translate("panels.journey.provenanceNote") },
       {
         type: "actions",
         actions: pointer !== null
           // A COVERED EPISODE IS NOT RELAUNCHED ALONE (17:36: « aucun
           // téléchargement … en parallèle »): its journey offers the pointer.
-          ? [pointer.action, ...(tab === undefined ? [] : [{
-              text: translate("panels.journey.seeSheet"), icone: icons.eye, target: { mediasheet: title },
+          ? [...(pointer.action === null ? [] : [pointer.action]), ...(tab === undefined || toSheet === null ? [] : [{
+              text: translate("panels.journey.seeSheet"), icone: icons.eye, target: toSheet,
             }])]
           : [
           // THE SEASON'S JOURNEY NAMES EACH EPISODE IT COVERS, with its state,
@@ -239,11 +331,11 @@ function journeyPanel(subject: string, cache: PanelCache): PanelDescriptor | nul
             icone: icons.search,
             target: { "journey-rescrape": subject },
           },
-          {
+          ...(toSheet === null ? [] : [{
             text: translate("panels.journey.seeSheet"),
             icone: icons.eye,
-            target: { mediasheet: title },
-          },
+            target: toSheet,
+          }]),
         ],
       },
     ],
@@ -253,6 +345,7 @@ function journeyPanel(subject: string, cache: PanelCache): PanelDescriptor | nul
 registerProducer("journey", {
   produce: journeyPanel,
   // THE QUEUE FIRST: it lays the acquisition's ladder where its card stands,
-  // and the stages are then read off that one ladder.
-  needs: (subject) => [queueQuery(), journeyQuery(subject)],
+  // and the stages are then read off that one ladder; the decisions name the
+  // release when the card carries none.
+  needs: (subject) => [queueQuery(), journeyQuery(subject), DECISIONS_QUERY],
 });

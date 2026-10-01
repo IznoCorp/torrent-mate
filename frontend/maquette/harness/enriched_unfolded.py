@@ -1,0 +1,136 @@
+"""R411 — the ladder's words, and « enrichi » unfolded (L24, DOIT-1, OPEN 5 = B).
+
+The operator, 2026-09-29, « B »: on the journey sheet « enrichi » unfolds into
+what the enrichment fetched — the metadata, the posters, the trailer — each with
+its own state; the card's ladder keeps its eight rungs (round 5 Q4).
+
+WHAT IS READ:
+
+  1. `sheet-journey-enriched-unfolded`: right under « · enrichi » stand its
+     three parts, in the seed's order, each spelled from the ladder's one
+     vocabulary (`surfaces.ladder`), each with the state the medium's own
+     journey read holds for it;
+  2. every line of that sheet is a word of that vocabulary — a rung, a step or
+     a part — never one typed elsewhere;
+  3. on « En cours » (`acq-card-rungs`), every card's fraction counts the
+     eight rungs and its chip names a rung — the unfold is the sheet's alone;
+  4. every step of « rangé » and every part of « enrichi » says its state in
+     words, as the rungs do: a done one its time, a running one « en cours
+     depuis … », one not reached « à venir » — never « — » for all three.
+     RE-AIMED (reader, 2026-10-01): « — » stood for done, running and never
+     reached alike.
+"""
+import asyncio
+import json
+import pathlib
+import re
+
+from common import PANEL_IN, SETTLED, Journal, open_page, read_at, browser_channel, chrome_launch_args
+from playwright.async_api import async_playwright
+
+SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
+WORDS = json.loads((SOURCE / "i18n/fr.json").read_text(encoding="utf-8"))
+LADDER = WORDS["surfaces"]["ladder"]
+# The decision block shares the sheet; its rows are R401's to read.
+BLOCK_ROWS = {WORDS["surfaces"]["decision"][key] for key in ("chosen", "among", "by", "when", "state")}
+SUBJECT = "President Curtis"
+PIP = {"done": "success", "now": "info", "waiting": "waiting", "blocked": "danger",
+       "aside": "neutral", "skipped": "neutral", "pending": "neutral"}
+RUNG_COUNT = len(LADDER["rungs"])
+
+
+def step_word(token):
+    """A step's line, as the vocabulary spells it."""
+    return LADDER["step"].replace("{{name}}", LADDER["steps"][token])
+
+
+def part_word(token):
+    """A part of « enrichi »'s line, as the vocabulary spells it."""
+    return LADDER["subStep"].replace("{{name}}", LADDER["steps"][token])
+
+
+VOCABULARY = ({*LADDER["rungs"].values()} | {step_word(token) for token in LADDER["steps"]}
+              | {part_word(token) for token in LADDER["steps"]})
+
+SHEET = """(subject) => ({
+  rows: [...document.querySelectorAll('#sheet[data-open] [data-part="key-value"]')].map((row) => ({
+    name: row.querySelector(':scope > span')?.textContent.trim(),
+    tone: row.querySelector('[data-part="status-dot"]')?.dataset.tone ?? null,
+    value: row.querySelectorAll(':scope > span')[1]?.textContent.trim()})),
+  stages: window.__queries.getQueryData(['/api/acquisition/journeys', subject]) ?? []})"""
+
+CARDS = """() => [...document.querySelectorAll('#view [data-part="card"]')].map((card) => ({
+  text: card.textContent.replace(/\\s+/g, ' '),
+  chips: [...card.querySelectorAll('[data-part="chip"]')].map((chip) => chip.textContent.trim())}))"""
+
+
+async def main():
+    journal = Journal("R411 — the ladder's words, and « enrichi » unfolded")
+    async with async_playwright() as playwright:
+        browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
+        context, page = await open_page(browser)
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+
+        seen = await read_at(page, "sheet-journey-enriched-unfolded", SHEET, SUBJECT, wait=PANEL_IN + SETTLED)
+        shelved = next((stage for stage in seen["stages"] if stage["rung"] == "shelved"), {})
+        enriched = next((step for step in shelved.get("steps", []) if step["rung"] == "enriched"), {})
+        parts = enriched.get("steps", [])
+        journal.check("the journey read holds « enrichi »'s three parts", len(parts) == 3, str(parts))
+        names = [row["name"] for row in seen["rows"]]
+        at = names.index(step_word("enriched")) if step_word("enriched") in names else -1
+        drawn = seen["rows"][at + 1:at + 1 + len(parts)] if at >= 0 else []
+        journal.check("right under « enrichi », its parts, each spelled from the one vocabulary",
+                      [row["name"] for row in drawn] == [part_word(part["rung"]) for part in parts],
+                      str([row["name"] for row in drawn]))
+        journal.check("each part with the state its journey holds",
+                      len(drawn) == len(parts) and all(row["tone"] == PIP[part["state"]] for row, part in zip(drawn, parts)),
+                      str([(row["tone"], part["state"]) for row, part in zip(drawn, parts)]))
+        upcoming = LADDER.get("upcoming") or next(stage["when"] for stage in json.loads(
+            (SOURCE / "mocks/seeds/journey-stages.json").read_text(encoding="utf-8")) if stage["state"] == "pending" and stage["when"])
+        begun = [row for row, part in zip(drawn, parts) if part["state"] != "pending" and row.get("value") == upcoming]
+        journal.check("a part begun never reads « not yet »", begun == [], str(begun))
+        journal.check("the parts are not all at one state — each says its own",
+                      len({part["state"] for part in parts}) > 1, str([part["state"] for part in parts]))
+        # 4. Each step and part says its state in words, read off the seed's own
+        # running rung for « en cours depuis ».
+        running = next(stage["when"] for stage in json.loads(
+            (SOURCE / "mocks/seeds/journey-stages.json").read_text(encoding="utf-8")) if stage["state"] == "now")
+        running_lead = re.split(r"\d", running)[0].strip()
+        steps = shelved.get("steps", [])
+        lines = [(step_word(step["rung"]), step["state"]) for step in steps] + [
+            (part_word(part["rung"]), part["state"]) for part in parts]
+        by_name = {row["name"]: row["value"] for row in seen["rows"]}
+
+        def says(state, value):
+            """Whether a line's value says its state in words."""
+            if state == "done":
+                return bool(re.search(r"\d{1,2} h \d{2}", value or ""))
+            if state == "now":
+                return (value or "").startswith(running_lead)
+            return value == upcoming
+
+        mute = [(name, state, by_name.get(name)) for name, state in lines if not says(state, by_name.get(name))]
+        journal.check("every step and part says its state in words — a time, « en cours depuis … », « à venir »",
+                      lines and mute == [], str(mute))
+        stray = [name for name in names if name not in VOCABULARY]
+        stray = [name for name in stray if name not in BLOCK_ROWS]
+        journal.check("every ladder line of the sheet is a word of the one vocabulary", stray == [], str(stray))
+
+        cards = await read_at(page, "acq-card-rungs", CARDS)
+        counted = LADDER["figure"].split("{{position}}")[1].replace("{{count}}", str(RUNG_COUNT))
+        fractions = [card for card in cards if counted not in card["text"]]
+        journal.check(f"every card on « En cours » counts the {RUNG_COUNT} rungs, never the parts",
+                      cards and fractions == [], str([card["text"][:60] for card in fractions]))
+        rungs = set(LADDER["rungs"].values())
+        journal.check("every card names a rung, never a step nor a part",
+                      all(any(chip in rungs for chip in card["chips"]) for card in cards),
+                      str([card["chips"] for card in cards]))
+
+        await context.close()
+        await browser.close()
+    journal.summary(errors)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

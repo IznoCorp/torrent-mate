@@ -20,17 +20,11 @@ The badge over `system-disk-filling` reads the services' count only — `badge 0
 
 The two terms, each read on the fact's own `tone`, never on its words.
 
-## Mutation
-
-Drop the disk term → the filling hold falls by name.
 
 ## Register
 
 None.
 
-## Oracle: states that diverge, declared by name
-
-`system-disk-filling` (new), and `menu-system-badge` if its count moves — declared, never discovered.
 
 ## Commit
 
