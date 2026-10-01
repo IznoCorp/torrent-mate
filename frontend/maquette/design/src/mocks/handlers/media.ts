@@ -2,6 +2,7 @@
 import CAST_PORTRAITS from "../seeds/cast-portraits.json";
 import HERO_IMAGES from "../seeds/hero-images.json";
 import OWNED_EPISODES from "../seeds/owned-episodes.json";
+import { shelvedEpisodes } from "./season-recovery";
 import POSTERS from "../seeds/posters.json";
 import POSTERS_HIGH_DEFINITION from "../seeds/posters-high-definition.json";
 import SEASONS from "../seeds/seasons.json";
@@ -256,7 +257,8 @@ export function seasonsAnswer(titles: string[]) {
   const catalogue = (found?.seasons ?? counted ?? []) as unknown[];
   return {
     seasons: catalogue,
-    owned: (underAnyTitle(OWNED_EPISODES as ByTitle, titles) ?? {}) as Record<string, number[]>,
+    // A SEASON SHELVED BY ITS RECOVERY is held whole from then on.
+    owned: { ...(underAnyTitle(OWNED_EPISODES as ByTitle, titles) ?? {}), ...shelvedEpisodes(titles) } as Record<string, number[]>,
     aired: airedBySeason(found, counted),
   };
 }

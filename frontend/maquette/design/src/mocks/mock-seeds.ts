@@ -28,6 +28,10 @@ import { poseTunnelError } from "./handlers/follow-errors";
 import { poseUnknownIdentity } from "./handlers/posed-identity";
 import { poseDeferral } from "./handlers/posed-deferral";
 import { sameItem } from "./handlers/same-item";
+import {
+  SEARCHING, poseAutomatic, poseBeforeAsk, poseSeasonArrived, poseSeasonAt, poseSeasonBlocked, poseSeasonEnded,
+  poseSeasonShelved, poseReleaseTried,
+} from "./handlers/season-recovery";
 import { poseKeepsItsFiles } from "./handlers/staged-folders";
 import { confirmInPlex, placeAtPlexCheck, placeInEnrichment } from "./handlers/ladder";
 import { emit } from "./stream";
@@ -65,6 +69,21 @@ export type MockSeeds = {
   poseUnknownIdentity: typeof poseUnknownIdentity;
   /** Poses a deferral of a finished torrent on an acquisition in flight — a DERIVATION, never read: the backend reads `classify_deferrals`. */
   poseDeferral: typeof poseDeferral;
+  /**
+   * A whole season's recovery, POSED on the one the dense world holds — each a
+   * DERIVATION until the layer is next reset: the moment before the ask, a rung
+   * of the season's card, stopped, arrived, launched by the engine, ended.
+   */
+  seasonRecovery: {
+    beforeAsk: typeof poseBeforeAsk;
+    searching: (title: string, season: number) => void;
+    blocked: typeof poseSeasonBlocked;
+    arrived: typeof poseSeasonArrived;
+    automatic: typeof poseAutomatic;
+    ended: typeof poseSeasonEnded;
+    shelved: typeof poseSeasonShelved;
+    releaseTried: typeof poseReleaseTried;
+  };
   /** Whether two queue cards stand for one item — the layer's own rapprochement (R238). */
   sameItem: typeof sameItem;
   /** Lays a medium's ladder one event away from « vérifié dans Plex » — a DERIVATION from its real row (RULINGS 14). */
@@ -140,6 +159,16 @@ export const mockSeeds: MockSeeds = {
   poseTunnelError,
   poseUnknownIdentity,
   poseDeferral,
+  seasonRecovery: {
+    beforeAsk: poseBeforeAsk,
+    searching: (title, season) => poseSeasonAt(title, season, SEARCHING),
+    blocked: poseSeasonBlocked,
+    arrived: poseSeasonArrived,
+    automatic: poseAutomatic,
+    ended: poseSeasonEnded,
+    shelved: poseSeasonShelved,
+    releaseTried: poseReleaseTried,
+  },
   sameItem,
   placeAtPlexCheck,
   placeInEnrichment,

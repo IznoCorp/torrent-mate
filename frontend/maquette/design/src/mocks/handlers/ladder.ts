@@ -32,7 +32,23 @@ export type Origin = {
   asked?: string;
   /** Added by hand in the download client: nothing before « arrivé » was lived. */
   direct?: boolean;
+  /**
+   * The times its OWN row carries, rung by rung — a journey per acquisition
+   * (SR4): the season's pack was taken at its own hour, not at the seed's.
+   */
+  times?: Partial<Record<Rung["rung"], string>>;
 };
+
+/**
+ * The times a seeded card's own rungs carry, read off the rungs it was seeded with.
+ *
+ * @param card The card, as seeded.
+ * @returns Its times by rung, or undefined for a card seeded with none.
+ */
+export function ownTimeOf(card: { ladder?: Rung[] }): Origin["times"] {
+  if (card.ladder === undefined) return undefined;
+  return Object.fromEntries(card.ladder.map((rung) => [rung.rung, rung.when]));
+}
 
 // The seed is ONE journey, followed from the wish to Plex; every ladder is laid
 // on its rungs and takes its times from it.
@@ -130,7 +146,10 @@ function positioned(position: Position, origin: Origin): Rung[] {
     if (index < position.current && index === asked && origin.asked !== undefined && from > asked)
       return { rung: seeded.rung, state: DONE, when: origin.asked };
     if (index < position.current && index < from) return { rung: seeded.rung, state: PENDING, when: "" };
-    const rung = laid(seeded, index < position.current ? DONE : index === position.current ? position.state : PENDING);
+    // ITS OWN TIME where its row carries one: a lived rung, at its own hour.
+    const own = origin.times?.[seeded.rung];
+    const source: Rung = own === undefined ? seeded : { ...seeded, when: own, state: DONE };
+    const rung = laid(source, index < position.current ? DONE : index === position.current ? position.state : PENDING);
     if (index === position.current && position.reason !== undefined) rung.reason = position.reason;
     return rung;
   });

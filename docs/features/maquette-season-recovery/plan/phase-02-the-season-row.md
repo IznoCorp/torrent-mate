@@ -26,11 +26,6 @@ frontend/maquette/design/src/features/media/season-list.tsx` → **390** (nothin
 - Named states: every S1 id; `season-recovery-shelved-sheet`, `season-recovery-shelved-panel`.
 - Walked by finger: the media sheet and the follow panel, the same row, the same mark.
 
-## The midpoint — after this phase, once
-
-`run.sh --contracts` and the full responsive sweep (Chromium + WebKit), `TM_HARNESS_JOBS=2`; their real falls
-repaired before phase 3 opens.
-
 ## Commit
 
 `feat(maquette-season-recovery): the season's row says « Demandée » on both sheets until the library, and « auto » when the engine asked`

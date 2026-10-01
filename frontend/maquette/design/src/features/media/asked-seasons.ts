@@ -1,49 +1,47 @@
-// WHICH SEASONS OF A MEDIUM ARE ASKED ONCE — « demandée » on the season's row.
+// WHICH SEASONS OF A MEDIUM ARE BEING RECOVERED WHOLE — « Demandée » on the
+// season's row, on the media sheet and on the follow panel (Q5).
 //
-// A season of a series nobody follows is a ONE-OFF acquisition (round 10 Q2):
-// the ask queues one card, asked by the account (`Requester.via` = `request`),
-// and begins no follow. So nothing the panel or the sheet draws of the follow
-// moves, and the surface pressed would read exactly as before — the act still
-// offered, a second tap one tap away. While that card lives in the queue the
-// season's row says « demandée » and withdraws the act.
+// A WHOLE SEASON'S RECOVERY IS ONE ACQUISITION CARD (the season named, no
+// episode), followed or not, asked by a person or launched by the engine. While
+// that card is live — on its way, arrived in the staging area, or stopped for his
+// hand in « À traiter » — the row says « Demandée » and withdraws the act; it
+// goes when the card is shelved, and the fraction then reads the library.
 //
-// READ FROM THE QUEUE THE SERVER ANSWERS, never remembered by the interface:
-// the card is the fact, so the mark goes when the card does.
-//
-// THE SEASON IS READ OFF THE CARD'S `secondaryLine` (« S03 »), which is fragile:
-// the queue card carries no season field, a demand filed beside the one-off.
+// READ FROM THE ONE DERIVATION « En cours » reads (`liveCards`, §13), never from
+// one list filtered on one requester, and the season from the card's served
+// `season` field, never off its line (DECIDED 5).
+import { liveCards } from "../../lib/arrival-slots";
 import { useAcquisitionQueue, type AcquisitionQueue } from "../../lib/queue";
 import { useStoreContent } from "../../lib/store-access";
 
-// The contract's token for a season asked once, in the application.
-const ASKED_ONCE = "request";
-// A one-off card's line names its season alone: « S03 ».
-const SEASON_LINE = /^S(\d+)$/;
+// The contract's token for an acquisition the engine launched on its own.
+const AUTOMATIC = "automatic";
 
 /**
- * The seasons of one medium a one-off acquisition is asked for.
+ * The seasons of one medium a whole-season recovery is live for.
  *
  * @param queue The queue as the server answered it.
  * @param title The medium, as the queue names it.
- * @returns Their numbers, empty when none is asked.
+ * @returns Each season recovered, and whether the engine launched it (Q19).
  */
-export function askedSeasons(queue: AcquisitionQueue | undefined, title: string): number[] {
-  const seasons: number[] = [];
-  for (const card of queue?.inFlight ?? []) {
-    if (card.title !== title || card.requester?.via !== ASKED_ONCE) continue;
-    const line = SEASON_LINE.exec(card.secondaryLine ?? "");
-    if (line) seasons.push(Number(line[1]));
+export function askedSeasons(queue: AcquisitionQueue | undefined, title: string): Map<number, boolean> {
+  const seasons = new Map<number, boolean>();
+  if (queue === undefined) return seasons;
+  for (const card of liveCards(queue)) {
+    if (card.title !== title || card.season == null || card.episode != null) continue;
+    seasons.set(card.season, card.trigger === AUTOMATIC);
   }
   return seasons;
 }
 
 /**
- * The seasons of one medium asked once, for a surface drawing its rows.
+ * The seasons of one medium being recovered whole, for a surface drawing its rows.
  *
  * @param title The medium.
- * @returns Their numbers, redrawn when the queue is read again.
+ * @returns Each season recovered and whether the engine launched it, redrawn
+ *     when the queue is read again.
  */
-export function useAskedSeasons(title: string): number[] {
+export function useAskedSeasons(title: string): Map<number, boolean> {
   const scenario = useStoreContent((content) => (content.state.scen === "loaded" ? "loaded" : ""));
   const { data } = useAcquisitionQueue(scenario);
   return askedSeasons(data, title);

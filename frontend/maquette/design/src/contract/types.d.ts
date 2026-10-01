@@ -1326,6 +1326,19 @@ export interface components {
             plexMatch?: components["schemas"]["PlexMatch"];
             /** @description the folder was put in the staging area by hand: no acquisition asked for it, so it carries no requester, and its ladder starts where its own row does — at « arrivé » */
             droppedByHand?: boolean;
+            /** @description the season this acquisition is of, 1-based — read off the engine's wanted row, never off the line; null for a film. The engine holds it on the wanted row and does not serve it on the card yet: demand SR1. */
+            season?: number | null;
+            /** @description the episode this acquisition is of, 1-based — null for a film and for a whole season. Read off the engine's wanted row, never off the line: demand SR1. */
+            episode?: number | null;
+            /** @description the acquisition that COVERS this one — a whole season's, while it runs — named by its title and its season (« Silo|S03 »), the key the interface composes from `title`, `season` and `episode`; null when nothing covers it. The engine holds it as the wanted row's `absorbed_by` and does not serve it yet: demand SR1. The interface reads it as is and compares no label. */
+            absorbedBy?: string | null;
+            /**
+             * @description who launched the acquisition: `manual` a person's ask, `automatic` the engine's own rule (the season detection, R4); null when it is not known, and then nothing is drawn. The engine records no such column yet: demand SR5.
+             * @enum {string|null}
+             */
+            trigger?: "manual" | "automatic" | null;
+            /** @description the release this acquisition follows — the name its torrent carries, a season's pack for a whole season's recovery, an episode's own for an episode; null until one is taken, and then no release is named. The engine holds it on the wanted row's grab and does not serve it on the card yet: demand SR4 (a journey per acquisition, with the release it followed). */
+            release?: string | null;
         };
         Fact: {
             /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
@@ -2669,7 +2682,10 @@ export interface operations {
     };
     readFollows: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description which body of data to answer with — the same dial `readAcquisitionQueue` takes. A follow's status reads what is on its way IN THAT WORLD: a whole season's recovery seeded in the dense one serves its follow `acquiring` there, never in the real one, where nothing of it runs. */
+                scenario?: "real" | "loaded";
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2879,6 +2895,26 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description the season was already being recovered: nothing more is queued, and the answer says so (`reused`) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description the season that was asked for, 1-based */
+                        season: number;
+                        /** @description how many episode-level asks this season's ask absorbed */
+                        absorbedCount: number;
+                        /** @description whether the ask is WAITING on the pipeline rather than running now. DOIT-4: an ask that arrives while the pipeline runs, or while §20's parallelism bound is met, is queued VISIBLY — the interface draws « En file — pipeline en cours » and never « occupé ». The backend has no such field and answers 409 for the case instead, which NE-DOIT-PAS-3 forbids the interface to show: that difference is a demand, not a shape to reconcile here. */
+                        queued: boolean;
+                        /** @description the run to follow, when one was started. Null when the ask is queued and nothing runs yet. */
+                        runUid: string | null;
+                        /** @description true when a live recovery of that season was already running and this ask queued nothing more — the engine answers it with a 200 (`acquisition_seasons.py`); false when this ask started it (201). */
+                        reused: boolean;
+                    };
+                };
+            };
             /** @description the season is taken — and the state the interface draws from it */
             201: {
                 headers: {
@@ -2894,6 +2930,8 @@ export interface operations {
                         queued: boolean;
                         /** @description the run to follow, when one was started. Null when the ask is queued and nothing runs yet. */
                         runUid: string | null;
+                        /** @description true when a live recovery of that season was already running and this ask queued nothing more — the engine answers it with a 200 (`acquisition_seasons.py`); false when this ask started it (201). */
+                        reused: boolean;
                     };
                 };
             };

@@ -20,6 +20,10 @@ What this holds, at the phone's real width:
    a card of the first state was read against the other world's journey, and
    agreed only while the reset re-read the queue under the previous state's
    scenario — an accident the frame's boot list carried, gone with it.
+   RE-AIMED OUT LOUD (maquette-season-recovery, DECIDED 1): a journey is one
+   ACQUISITION's, not a title's — the sheet is opened on the key the card
+   carries (`data-acquisition`, « Silo|S03 »). Opened by title, Silo's season
+   card was read against the title's own journey, another acquisition.
 3. THE ORDER. The sheet draws the eight rungs in the ruled order, read from the
    i18n resources by their keys, and opens « rangé » into its three steps —
    trié, enrichi, rangé — from the same answer, right under it.
@@ -136,6 +140,7 @@ CARDS = """() => [...document.querySelectorAll('#view [data-part="card"]')]
     const figure = card.querySelector('[data-part="card/meta"] > span:first-child');
     return {
       title: card.querySelector('[data-part="card/title"]').textContent,
+      acquisition: card.dataset.acquisition || card.querySelector('[data-part="card/title"]').textContent,
       cells: cells.length,
       states: cells.map(cell => cell.dataset.state),
       overflow: strip.scrollWidth > strip.clientWidth + 1,
@@ -214,7 +219,7 @@ async def main():
                 drawn_in = card["state"]
                 await go(page, journal, drawn_in)
                 await page.wait_for_timeout(SETTLED)
-            await page.evaluate(f"()=>window.__panel.produce('journey', {json.dumps(card['title'])})")
+            await page.evaluate(f"()=>window.__panel.produce('journey', {json.dumps(card['acquisition'])})")
             await page.wait_for_timeout(PANEL_IN)
             rows = await page.evaluate(SHEET)
             ladder_rows = [row for row in rows if row["name"] in

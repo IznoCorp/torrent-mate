@@ -124,7 +124,7 @@ His principles are `docs/reference/operator-method.md` § 1 (the dates 09-29).
 | Uniform behaviours — « Il faut uniformiser les comportements. Sauf exception volontaire de ma part. » | a followed series and a one-off draw the same card, the same mark, the same absorption (§ 1.1–1.3); an automatic recovery draws like a manual one, save the one word Q19 asks for (§ 1.9); the pointer lands the way « Voir le tracker » does (§ 1.4). No exception declared | 1 · 2 · 3 |
 | The design system reused — « on crée pas de nouveau composant on adapte » | § 1.8, element by element: nothing new; two adaptations written (the landing door reads a named acquisition; the row's mark is the chip, the train's) | every phase; rule f at 4 |
 | Every case — « seule une maquette montrant tout les cas possibles est utile. » | § 3: 30 named states, none conditional any more, the automatic ones included | every phase |
-| Every width 320–1280 — « tout doit être responsive » | one mark at a time on the row (DECIDED 4: two chips at 320 px refused); the word « auto » is a word, not a second chip (DECIDED 8 = A); R-conformity-a on every touched state at each gate, the full sweep at the midpoint and the close | every phase; 5 |
+| Every width 320–1280 — « tout doit être responsive » | one mark at a time on the row (DECIDED 4: two chips at 320 px refused); the word « auto » is a word, not a second chip (DECIDED 8 = A); the widths are CI's (`harness-full`) since #654 | every phase |
 | Film / series variant — « une différence entre film et série » | a season recovery exists for a SERIES only: every state is a series'; a film's release list draws no refusal and keeps its acts — a hold of rule d | 4 |
 | Navigation § 16 — Retour replays the arrival path | the pointer is a link inside a page, so it STACKS, even onto the entry page (Rd conformité Q12); Retour from the landed tab returns to the journey sheet's page; walked by finger | 3 |
 
@@ -370,7 +370,7 @@ a time (DECIDED 4).
 
 Labels, never numbers: they bind to the range the steward reserves in the lot's launch brief.
 
-| Rule | What it READS | The mutation that fells it |
+| Rule | What it READS | The change that fells it (seen red on the old code) |
 | --- | --- | --- |
 | **R-season-recovery-a** — exclusive in « En cours » | at rest (dense) and after the finger's ask from `season-recovery-before-ask`: no card of « En cours » names an episode of a season whose season card of the same medium is on its way; « En vol »'s count equals the cards drawn | drop the absorption from the derivation → falls; count « En vol » before the absorption → falls on the count |
 | **R-season-recovery-b** — « Demandée » on both sheets, until the library | Silo S03 (followed) and the one-off read « Demandée » on the media sheet AND the follow panel, act withdrawn; at `season-card-arrived` and `season-card-blocked` still; at `season-recovery-shelved-*` gone, fraction `7/7` | restore the `via === "request"` filter → falls; read `queue.inFlight` instead of the derivation → falls at `season-card-arrived` |
@@ -471,3 +471,34 @@ orchestrator, who owns that file; proposed rows in its shape:
 
 **`docs/reference/product-intent-map.md`**, read, not edited: the lot adds proofs under DOIT-2 (the refusal said,
 R-d), DOIT-4's visible half (the mark, R-b) and § 13's pointer (R-c) — proposed to the operator at the close.
+
+---
+
+## 7. Built — the record (2026-09-30, `feat/maquette-season-recovery`, version 0.98.117)
+
+The five phases, each rule seen red on the old behaviour, then green (`frontend/maquette/harness/`):
+`season_recovery_now.py` (R-season-recovery-a, -e, -g's card half), `season_recovery_row.py` (-b, -g's row half),
+`season_recovery_pointer.py` (-c), `season_recovery_refusal.py` (-d, -f). Re-aimed out loud: R224
+(`now_holds_in_flight.py`) and R238 (`one_card_per_medium.py`, an item is its title and its served season and
+episode). The 30 named states of § 3 are declared in `frontend/maquette/design/src/harness/states/season-recovery.ts`.
+Register rows: B-598 (a followed ask drew no card), B-599 (an episode card beside its season), B-600 (« Demandée »
+read another list); the `queuedMark` row went with the conformity train.
+
+What differs from the text above, and why:
+
+- **The named states live in one file of their own**, not in `acquisition.ts` and `media.ts`: the recovery draws on
+  five surfaces, and `acquisition.ts` would have passed its ceiling holding them.
+- **The derivation kept its module's name**, moved whole to `lib/arrival-slots.ts` (§ 1.7); `inFlightCards` hides
+  every card carrying a served `absorbedBy`, `liveCards` feeds the row, `tabHolding` the pointer, `acquisitionKey`
+  (« Silo|S03 », « Silo|S03E07 ») names an acquisition from its served fields.
+- **A covered episode is never revived by the interface** (§ 1.6): once its season is shelved it keeps its pointer
+  and stays out of « En cours », its journey then saying « La saison 3 est arrivée en médiathèque » (§ 1.4); an
+  abandoned recovery's covered cards go with it; a closed-short fallback re-enqueues ORDINARY cards, with no pointer.
+- **The release picker reads the episode off the release's NAME**: the release read carries no season field — a
+  demand beside SR1. The row's « Retenue » hint is not drawn on a covered release.
+- **A link to another tab of the page it is tapped on stacks** (§ 16, Q12): « Voir la carte de la saison » from a
+  journey over « Suivis », or from the release screen, lands on « En cours » or « À traiter » and Retour gives back
+  what it was tapped on. Built on the mechanism #657 brought (`recordArrivalInPage`, `restoreDials`), called by
+  `goTo` (`app/frame-verbs.ts`); R-navigation-a gains L5 and L6 (`navigation_edges.py`).
+- **The mock's recovery is per world**: an ask queues the season card in every world that lacks it, and answers
+  `reused` only where every world held it — the dense world's seeded recovery made a real-world ask « reused ».
