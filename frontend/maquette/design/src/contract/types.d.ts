@@ -1991,12 +1991,13 @@ export interface components {
             /** @description the title the sheet is filed under */
             title: string;
         };
+        /** @description one season of the provider catalogue, as the media sheet carries it; what the library holds of it is the answer's own `owned`, and what has aired its `aired` */
         Season: {
-            season: number;
-            /** @description how many of them the library holds */
-            owned: number;
-            /** @description how many episodes the provider catalogue lists, or null when it does not say. The interface then shows a question mark rather than an invented total */
-            aired: number | null;
+            number: number;
+            /** @description how many episodes the provider catalogue lists, announced ones included, or null when it does not say */
+            episodes: number | null;
+            /** @description the season's first air date, when the catalogue gives one */
+            airDate?: string | null;
         };
         /** @description ONE RUNG OF A MEDIUM'S LADDER, from the wish to Plex (ruling 4; eight rungs, OPEN 4 ruled B). The card's strip and the journey sheet read the same list; « rangé » carries the three pipeline steps it merges as `steps`. « enrichi » carries, in turn, the three things the enrichment fetched as its own `steps`: the metadata, the posters, the trailer (L24 OPEN 5 = B). */
         JourneyStage: {
