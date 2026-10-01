@@ -10,7 +10,7 @@
 // likewise stayed in the document with its content after closing.
 import type { ReactElement, ReactNode } from "react";
 
-import { drawer } from "./variants";
+import { drawer, drawerPinned } from "./variants";
 
 export function Drawer({
   open,
@@ -29,7 +29,7 @@ export function Drawer({
       id="drawer"
       aria-label={label}
       data-open={open || undefined}
-      className={drawer({ open })}
+      className={`${drawer({ open })} ${drawerPinned()}`}
     >
       {children}
     </aside>

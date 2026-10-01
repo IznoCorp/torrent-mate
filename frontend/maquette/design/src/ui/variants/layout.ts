@@ -26,7 +26,9 @@ export const sectionCount = cva("k ml-auto text-2 font-bold text-muted-foregroun
 /** A screen: the layer that slides in over a page. */
 export const screen = cva(
   "screen absolute inset-0 bg-background z-[45] flex flex-col " +
-    "transition-[transform] duration-300 ease-standard",
+    "transition-[transform] duration-300 ease-standard " +
+    // ON A DESKTOP A SCREEN COVERS THE PAGE, NEVER THE MENU pinned beside it (DECIDED 2, 4).
+    "desk:left-[var(--tm-rail-w)]",
   {
     variants: {
       // OPEN IS A STATE THE VARIANT SAYS. A screen waits off to the right and
@@ -48,7 +50,12 @@ export const screen = cva(
  * title instead of pushing it. A bar in the flow can cover nothing, and it
  * reads the same everywhere.
  */
-export const screenBar = cva("screenbar flex-none flex items-center gap-3 py-5 px-6 bg-background");
+export const screenBar = cva(
+  "screenbar flex-none flex items-center gap-3 py-5 px-6 bg-background " +
+    // ITS CONTROLS ON THE READING COLUMN'S EDGES on a desktop (DECIDED 1): « Retour » above the
+    // column it leaves, never at the window's far left.
+    "desk:px-[max(var(--spacing-6),calc((100%-var(--tm-column-w))/2+var(--spacing-6)))]",
+);
 
 /** What a screen's bar says at its right end — the sheet's address, the profile's name. */
 export const screenBarNote = cva("ml-auto text-2 text-muted-foreground");
@@ -87,7 +94,10 @@ export const backAction = cva(
 export const scrollport = cva(
   "port @container/port flex-auto min-h-0 overflow-y-auto overflow-x-clip " +
     "overscroll-y-none [-webkit-overflow-scrolling:touch] " +
-    "pb-[calc(var(--tm-bottom-bar-h,0px)+var(--spacing-7))]",
+    "pb-[calc(var(--tm-bottom-bar-h,0px)+var(--spacing-7))] " +
+    // A SCREEN READS IN THE COLUMN on a desktop (DECIDED 1, 4): what it holds is centred and
+    // capped, and the scrolling stays the whole port's, so a wheel over the margin scrolls it.
+    "desk:[&>*]:mx-auto desk:[&>*]:max-w-[var(--tm-column-w)]",
 );
 
 /** The scrim behind a sheet. */

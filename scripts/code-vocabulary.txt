@@ -233,6 +233,7 @@ code
 codes
 cold
 collapse
+collapsed
 collation
 color
 columns
@@ -913,6 +914,7 @@ pill
 pills
 pilot
 ping
+pinned
 pip
 pipe
 pipeline
@@ -993,6 +995,7 @@ queues
 quiet
 quota
 radius
+rail
 ranges
 rank
 ranking

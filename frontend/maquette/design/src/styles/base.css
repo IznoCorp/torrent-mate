@@ -99,6 +99,26 @@
     background: oklch(0.93 0.002 286);
   }
   /* login:socle:end */
+  /* THE DESKTOP'S THREE MEASURES (the desktop milestone, DECIDED 1–2). The menu's width when it is
+     pinned beside the content, open or collapsed to its icons (`data-rail`, written by
+     `app/rail.ts` and by the envelope's pre-paint script); the reading column's cap. Read only
+     under the `desk:` variant (`styles/theme.css`), so a phone never spends them.
+     `--tm-desk` says whether that variant holds, for a script: the same condition, spelt once
+     more here because a custom property is the one thing a script can read of a media query AND
+     a selector together. */
+  :root {
+    --tm-rail-w: 288px;
+    --tm-column-w: 760px;
+    --tm-desk: 0;
+  }
+  :root[data-rail="collapsed"] {
+    --tm-rail-w: 72px;
+  }
+  @media (min-width: 64rem) {
+    :root:not(:has(#desktop-switch:not(:checked))) {
+      --tm-desk: 1;
+    }
+  }
   /* The app inherits this from the Tailwind preflight; the prototype must
      declare it, otherwise the brand link renders as underlined blue. */
   a {
