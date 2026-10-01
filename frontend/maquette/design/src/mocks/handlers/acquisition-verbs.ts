@@ -25,6 +25,7 @@ import { accountName } from "../account";
 import type { MockRoute } from "../router";
 import type { components } from "../../contract/types";
 import { seasonsAnswer } from "./media";
+import { recoverSeason } from "./season-recovery";
 
 type Schemas = components["schemas"];
 
@@ -49,6 +50,9 @@ const BEING_ACQUIRED = "acquiring";
 // Who asked for a one-off season: the account, once, in the application — the
 // contract's own `Requester.via` token.
 const ASKED_ONCE = "request";
+// Who launched a season asked for on a sheet: a person — the contract's own
+// `QueueCard.trigger` token.
+const ASKED_BY_HAND = "manual";
 // A one-off card's line names its season the way an episode line does: « S03 ».
 const SEASON_MARK = "S";
 const SEASON_DIGITS = 2;
@@ -155,24 +159,34 @@ function episodesMissingFromSeason(title: string, season: number): number {
 }
 
 /**
- * A one-off acquisition of one season, as the queue holds it.
+ * A whole season's acquisition, as the queue holds it — followed or not, ONE
+ * card of the same shape (« uniformiser les comportements »).
  *
- * @param title The show, as the incomplete shows name it.
+ * @param title The show.
  * @param season The season asked for, 1-based.
- * @returns Its card: the show's identity and poster, the season on its line,
- *     and who asked — the account, once, in the application.
+ * @param follow The follow that asks for it, or undefined for a series nobody
+ *     follows — a one-off, asked by the account, once, in the application.
+ * @returns Its card: the show's identity and poster, the season on its line and
+ *     in its fields, and a person's ask as its trigger.
  */
-function oneOff(title: string, season: number): Schemas["QueueCard"] {
-  const show = (INCOMPLETE_SHOWS as {
+function seasonCard(
+  title: string, season: number, follow: { ids?: unknown; poster?: string | null } | undefined,
+): Schemas["QueueCard"] {
+  const show = follow ?? (INCOMPLETE_SHOWS as {
     title: string; ids: Record<string, string | number> | null; poster: string | null;
   }[]).find((one) => one.title === title);
   return {
     title,
     secondaryLine: SEASON_MARK + String(season).padStart(SEASON_DIGITS, DIGITS_FILL),
+    season,
+    episode: null,
+    trigger: ASKED_BY_HAND,
     ids: (show?.ids ?? null) as Schemas["QueueCard"]["ids"],
     poster: show?.poster ?? null,
     strip: [0, 0, 0, 0, 0],
-    requester: { name: accountName(), via: ASKED_ONCE },
+    // A FOLLOW'S CARD NAMES THE FOLLOW as its requester, read where every card's
+    // is; a one-off names the account's ask.
+    ...(follow === undefined ? { requester: { name: accountName(), via: ASKED_ONCE } } : {}),
   };
 }
 
@@ -199,21 +213,20 @@ export function acquisitionVerbRoutes(): MockRoute[] {
         // on the follow's row and panel, beside the sentence « aucun épisode à
         // récupérer » just said. Nothing is acquired, so nothing moves.
         if (found !== undefined && !queued() && missing > 0) found.status = BEING_ACQUIRED;
-        // A SEASON OF A SERIES NOBODY FOLLOWS IS A ONE-OFF (round 10 Q2): the ask
-        // moves the world — never a success over an unchanged one (B-378) — by
-        // queueing ONE acquisition of that season, asked by the account, and it
-        // begins no follow. Both worlds hold it, as the flight lists do.
-        // ONE ITEM, ONE CARD: a second ask of the same season queues nothing more.
-        const card = oneOff(title, season);
-        const held = (one: Schemas["QueueCard"]) => one.title === card.title && one.secondaryLine === card.secondaryLine;
-        if (found === undefined && !state.inFlight.some(held)) {
-          state.inFlightReel = [card, ...state.inFlightReel];
-          state.inFlight = [card, ...state.inFlight];
-        }
+        // THE SEASON'S RECOVERY IS ONE CARD, followed or not (Q5): a series
+        // nobody follows begins no follow (round 10 Q2) and its card is a
+        // one-off; a followed series' card is the follow's. The ask moves the
+        // world — never a success over an unchanged one (B-378) — and the
+        // episodes of that season it covers leave « En cours » (Q6). ONE ITEM,
+        // ONE CARD: a second ask queues nothing more, and says so.
+        const recovery = found !== undefined && missing === 0
+          ? { reused: false }
+          : recoverSeason(seasonCard(title, season, found));
         return {
           season,
           absorbedCount: missing,
           queued: queued(),
+          reused: recovery.reused,
           // NULL, ALWAYS, and it is not a placeholder. The layer holds no run
           // identifier at all — `runPipeline` answers `uid: null` for the same
           // reason — and the register asks the backend for one.

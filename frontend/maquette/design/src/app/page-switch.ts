@@ -298,7 +298,7 @@ export function switchPage(leaving: string, landing: Landing = "stack"): void {
  * Returns:
  *     Whether the entry was really written.
  */
-function recordArrivalInPage(): boolean {
+export function recordArrivalInPage(): boolean {
   const page = String(currentState().page);
   const homePage = addressSeam.homePage;
   const standing = standingIndex();

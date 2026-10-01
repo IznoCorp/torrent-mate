@@ -257,8 +257,12 @@ export const episodeNumber = cva(
   },
 );
 
-/** The row's title. */
-export const episodeTitle = cva("et min-w-[0] flex-1 overflow-hidden text-ellipsis whitespace-nowrap");
+/**
+ * The row's title, WHOLE: a long one wraps under itself, never ellipsised —
+ * « Les aventures de Tintin »'s titles were cut at 320 px (§ 12: the layout
+ * changes, the text is never cut).
+ */
+export const episodeTitle = cva("et min-w-[0] flex-1 [overflow-wrap:anywhere]");
 
 /** The row's air date and state. */
 export const episodeDate = cva("ed flex-[0_0_auto] text-2 text-muted-foreground [font-variant-numeric:tabular-nums]");

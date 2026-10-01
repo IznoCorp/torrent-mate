@@ -23,7 +23,7 @@ TAB alone); the model to adapt: `grep -n "split(DIAL_SEPARATOR)" frontend/maquet
 
 - **R-season-recovery-c** — red on `absorbed-journey-pointer` (no note, no action) and on
   `absorbed-journey-pointer-blocked` (a fixed « En cours » landing).
-- Named states: every S4 id, `season-card-journey`, `season-recovery-absorbed-downloading`; the oracle accepts the
+- Named states: every S4 id, `season-card-journey`, `season-recovery-absorbed-downloading`; declared with the
   journey states by name.
 - Walked by finger at 369 px: the journey → « Voir la carte de la saison » → the tab, the card highlighted → Retour
   → the journey's page; the same from `absorbed-journey-pointer-blocked`; the ended pointer → the sheet.

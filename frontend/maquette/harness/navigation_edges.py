@@ -55,6 +55,10 @@ RATIO_DEFERRAL = ("js:(()=>{window.__mocks.poseDeferral('This City Is Ours',"
                   "window.__queries.removeQueries({queryKey:['/api/staging/media']});"
                   "window.__store.write({scen:'loaded'});return true})()")
 
+# The dense world, where Silo's whole-season recovery runs at rest (maquette-season-recovery).
+LOADED_WORLD = ("js:(()=>{window.__queries.removeQueries({queryKey:['/api/acquisition/to-handle']});"
+                "window.__store.write({scen:'loaded'});return true})()")
+
 # A real add, so the add screen's footer exists: a query, a result's panel, its act.
 A_REAL_ADD = [
     ADD_ACTION,
@@ -125,6 +129,16 @@ EDGES = [
      "stops": [(LIBRARY, "lib", False, True)], "emits": ["features/acquisition/verbs.ts:followLink=acq"]},
     {"edge": "L4", "walk": [*A_REAL_ADD, 'tap:[data-part="add/foot"] button'],
      "stops": [GUARD], "emits": []},
+    # « Voir la carte de la saison » (maquette-season-recovery, DECIDED 2): a link to ANOTHER DIAL of
+    # the page it is tapped on stacks too (Q12) — from the covered episode's journey, Retour gives the
+    # journey back over « Suivis »; from a covered release, the release screen.
+    {"edge": "L5", "walk": [LOADED_WORLD, "tap:[data-acqtab=follows]", "tap:#view [data-panel$=':Silo']",
+                            "tap:#sheet [data-journey]", "tap:#sheet [data-journey='Silo|S03E07']",
+                            "tap:#sheet [data-dial='now:Silo|S03']"],
+     "stops": [(HOME, HOME_PAGE, False, True)], "emits": ["features/acquisition/panel-journey.ts:go=acq"]},
+    {"edge": "L6", "walk": [LOADED_WORLD, SILO_PANEL, "tap:#sheet [data-releases]",
+                            'tap:[data-part="screen"][data-open] [data-part="release"] [data-go="acq"]'],
+     "stops": [("/releases/*", HOME_PAGE, False)], "emits": ["features/releases/releases-screen.tsx:go=acq"]},
     # ── S — the screens ──────────────────────────────────────────────────────
     {"edge": "S1", "walk": ["bar:lib", "tap:#view [data-panel]"],
      "stops": [(LIBRARY, "lib", False)], "emits": []},
