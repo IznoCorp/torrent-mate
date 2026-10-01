@@ -20,7 +20,9 @@ With ``--record`` it also writes every answer to ``docs/reference/_samples/plex-
 after REDACTION, plus a ``user`` 401 (a deliberately invalid token) and an
 expired PIN (``--record-expired``, which waits out a fresh unclaimed PIN).
 
-**Redaction is the whole point of the record path.** Every token, PIN code,
+**Redaction is the whole point of the record path.** Each answer keeps only the
+keys of its ALLOW-LIST (``_KEPT``: what the account client's parser reads); every
+other leaf becomes ``DROPPED``. Among the kept keys, every token, PIN code,
 e-mail, account / resource id, uuid, name, address and URL is replaced by a
 placeholder, CONSISTENTLY — one real value maps to one placeholder across every
 file, so the server's ``machineIdentifier`` still equals its resource's
@@ -69,34 +71,95 @@ _EXPIRE_POLL_SECONDS = 30.0
 #: An invalid token, sent once to record plex.tv's 401.
 _INVALID_TOKEN = "invalid-token-for-the-401-capture"
 
-#: Keys whose value is replaced wherever they appear, by placeholder family.
-_SECRET_KEYS: Mapping[str, str] = {
-    "authToken": "token",
-    "accessToken": "token",
-    "token": "token",
-    "code": "code",
-    "email": "email",
-    "id": "id",
-    "ownerId": "id",
-    "sourceTitle": "name",
-    "uuid": "uuid",
-    "clientIdentifier": "machine",
-    "machineIdentifier": "machine",
-    "username": "name",
-    "title": "name",
-    "friendlyName": "name",
-    "name": "name",
-    "thumb": "url",
-    "uri": "url",
-    "address": "address",
-    "publicAddress": "address",
-    "localAddresses": "address",
-    "host": "address",
-    "clientIdentifierHash": "machine",
-    "subscriptionId": "id",
-    "joinedAt": "time",
-    "lastSeenAt": "time",
+#: What replaces every leaf outside the kept keys — a constant, so it says nothing about the value.
+DROPPED = "REDACTED"
+
+#: A key path: the dict keys from the body's root, list levels skipped (``("connections", "uri")``).
+KeyPath = tuple[str, ...]
+
+#: plex.tv's error envelope, kept on every answer: the parser tells a refusal from an expiry by it.
+_ERRORS: Mapping[KeyPath, str | None] = {
+    ("errors", "code"): None,
+    ("errors", "message"): None,
+    ("errors", "status"): None,
 }
+
+#: The ALLOW-LIST, per recorded answer: the only key paths written, each kept verbatim (``None``) or
+#: replaced by a CONSISTENT placeholder of its family (one real value, one placeholder across every file).
+#: It holds what the account client's parser reads and nothing more. Every other leaf — the PIN's
+#: ``location`` block, the user's ``services`` secrets, ``pin``, billing, subscription, any key plex.tv adds
+#: tomorrow — becomes ``DROPPED``: a deny-list misses what nobody thought of, an allow-list cannot.
+_KEPT: Mapping[str, Mapping[KeyPath, str | None]] = {
+    "server-identity": {
+        ("MediaContainer", "size"): None,
+        ("MediaContainer", "machineIdentifier"): "machine",
+        ("MediaContainer", "version"): None,
+        ("MediaContainer", "claimed"): None,
+    },
+    "pin": {
+        **_ERRORS,
+        ("id",): "id",
+        ("code",): "code",
+        ("authToken",): "token",
+        ("clientIdentifier",): "machine",
+        ("expiresIn",): None,
+        ("expiresAt",): None,
+        ("createdAt",): None,
+        ("trusted",): None,
+    },
+    "user": {
+        **_ERRORS,
+        ("id",): "id",
+        ("uuid",): "uuid",
+        ("username",): "name",
+        ("title",): "name",
+        ("friendlyName",): "name",
+        ("email",): "email",
+        ("thumb",): "url",
+        ("authToken",): "token",
+    },
+    "resources": {
+        **_ERRORS,
+        ("name",): "name",
+        ("product",): None,
+        ("productVersion",): None,
+        ("platform",): None,
+        ("provides",): None,
+        ("owned",): None,
+        ("ownerId",): "id",
+        ("home",): None,
+        ("sourceTitle",): "name",
+        ("clientIdentifier",): "machine",
+        ("accessToken",): "token",
+        ("publicAddress",): "address",
+        ("httpsRequired",): None,
+        ("presence",): None,
+        ("createdAt",): "time",
+        ("lastSeenAt",): "time",
+        ("connections", "protocol"): None,
+        ("connections", "address"): "address",
+        ("connections", "port"): None,
+        ("connections", "uri"): "url",
+        ("connections", "local"): None,
+        ("connections", "relay"): None,
+        ("connections", "IPv6"): None,
+    },
+}
+
+
+def kept_keys(answer_name: str) -> Mapping[KeyPath, str | None]:
+    """Returns the allow-list of one recorded answer, by its fixture stem.
+
+    Args:
+        answer_name: ``server-identity``, ``pin-created``, ``user-200``, ``resources-owner``…
+
+    Returns:
+        The key paths kept for that answer; an unknown answer keeps plex.tv's error envelope only.
+    """
+    for prefix, kept in _KEPT.items():
+        if answer_name == prefix or answer_name.startswith(f"{prefix}-"):
+            return kept
+    return _ERRORS
 
 
 class ProbeError(Exception):
@@ -163,25 +226,32 @@ class Redactor:
             self.secrets.add(value)
         return placeholder
 
-    def redact(self, node: Any, family: str | None = None) -> Any:
-        """Returns a redacted copy of a JSON node.
+    def redact(self, node: Any, kept: Mapping[KeyPath, str | None], path: KeyPath = ()) -> Any:
+        """Returns a redacted copy of a JSON node: the kept keys only, every other leaf ``DROPPED``.
 
         Args:
             node: A parsed JSON value.
-            family: The placeholder family inherited from the parent key, if secret.
+            kept: The answer's allow-list (``kept_keys``).
+            path: The node's key path from the body's root.
 
         Returns:
-            The node with every value under a secret key replaced.
+            The node, its structure intact, each leaf kept verbatim, replaced by its family's
+            placeholder, or ``DROPPED``; ``None`` stays ``None``.
         """
         if isinstance(node, dict):
-            return {k: self.redact(v, _SECRET_KEYS.get(k)) for k, v in node.items()}
+            return {k: self.redact(v, kept, (*path, str(k))) for k, v in node.items()}
         if isinstance(node, list):
-            return [self.redact(v, family) for v in node]
+            return [self.redact(v, kept, path) for v in node]
+        if node is None:
+            return None
+        if path not in kept:
+            return DROPPED
+        family = kept[path]
+        if family is None:
+            return node
         if family == "time":
             return 1_700_000_000 if isinstance(node, (int, float)) and not isinstance(node, bool) else node
-        if family is not None:
-            return self._placeholder(family, node)
-        return node
+        return self._placeholder(family, node)
 
     def scrub_tree(self, node: Any) -> Any:
         """Scrubs every string of an already-redacted tree, once every secret is known.
@@ -510,7 +580,7 @@ def write_samples(answers: list[Answer], redactor: Redactor, out_dir: Path) -> l
     """
     # Redact every body first, so every secret is known before any free text is scrubbed:
     # a URL in the first answer may carry an identifier only the last answer names.
-    redacted = [(a, redactor.redact(a.body)) for a in answers]
+    redacted = [(a, redactor.redact(a.body, kept_keys(a.name))) for a in answers]
     rendered: list[tuple[Path, str]] = []
     for answer, body in redacted:
         payload = {

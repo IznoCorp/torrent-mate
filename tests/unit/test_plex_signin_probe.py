@@ -53,6 +53,18 @@ CLIENT_ID = "planted-client-identifier-42"
 USERNAME = "planted-username"
 TITLE = "Planted Title"
 PLEX_URL = "http://planted-server.local:32400"
+# Personal data plex.tv returns under keys no parser reads: the PIN answer's ``location`` block and the
+# user answer's service secrets, PIN and payment method. None may reach a fixture, whatever its key.
+CITY = "Plantedville-sur-Mer"
+POSTAL_CODE = "PC-94817"
+COORDINATES = "48.85661,2.35222"
+SUBDIVISION = "Planted Subdivision"
+SERVICE_SECRET = "planted-service-secret-c0ffee"
+SERVICE_TOKEN = "planted-service-token-beef"
+USER_PIN = "planted-hashed-pin-4242"
+PAYMENT_ID = "pm_planted_payment_5150"
+
+PERSONAL_STRINGS = (CITY, POSTAL_CODE, COORDINATES, SUBDIVISION, SERVICE_SECRET, SERVICE_TOKEN, USER_PIN, PAYMENT_ID)
 
 PLANTED_STRINGS = (
     TOKEN,
@@ -70,7 +82,96 @@ PLANTED_STRINGS = (
     str(PIN_ID),
     "planted-server.local",
     "192-168-1-2",
+    *PERSONAL_STRINGS,
 )
+
+
+def _pin(pin_id: int, code: str, auth_token: str | None) -> dict[str, Any]:
+    """A complete ``/api/v2/pins`` answer, as plex.tv sends it — ``location`` block included.
+
+    Args:
+        pin_id: The PIN id.
+        code: The PIN code.
+        auth_token: The token once claimed, else None.
+
+    Returns:
+        The JSON body.
+    """
+    return {
+        "id": pin_id,
+        "code": code,
+        "product": "TorrentMate (probe)",
+        "trusted": False,
+        "qr": f"https://plex.tv/api/v2/pins/qr/{code}",
+        "clientIdentifier": CLIENT_ID,
+        "location": {
+            "code": "FR",
+            "european_union_member": True,
+            "continent_code": "EU",
+            "country": "France",
+            "city": CITY,
+            "time_zone": "Europe/Paris",
+            "postal_code": POSTAL_CODE,
+            "in_privacy_restricted_country": True,
+            "in_privacy_restricted_region": False,
+            "subdivisions": SUBDIVISION,
+            "coordinates": COORDINATES,
+        },
+        "expiresIn": 1800,
+        "createdAt": "2026-10-01T08:00:00Z",
+        "expiresAt": "2026-10-01T08:30:00Z",
+        "authToken": auth_token,
+        "newRegistration": None,
+    }
+
+
+def _user() -> dict[str, Any]:
+    """A complete ``/api/v2/user`` answer, as plex.tv sends it — services, PIN and billing included.
+
+    Returns:
+        The JSON body.
+    """
+    return {
+        "id": USER_ID,
+        "uuid": UUID,
+        "username": USERNAME,
+        "title": TITLE,
+        "email": EMAIL,
+        "friendlyName": USERNAME,
+        "locale": None,
+        "confirmed": True,
+        "joinedAt": 1500000000,
+        "emailOnlyAuth": False,
+        "hasPassword": True,
+        "protected": False,
+        "thumb": f"https://plex.tv/users/{UUID}/avatar?c=1",
+        "authToken": TOKEN,
+        "mailingListStatus": "active",
+        "country": "FR",
+        "subscription": {"active": True, "id": 31337, "status": "Active", "plan": "lifetime"},
+        "restricted": False,
+        "home": True,
+        "homeAdmin": True,
+        "services": [
+            {
+                "identifier": "metadata-dev",
+                "endpoint": "https://epg.provider.plex.tv",
+                "token": SERVICE_TOKEN,
+                "secret": SERVICE_SECRET,
+                "status": "online",
+            }
+        ],
+        "pin": USER_PIN,
+        "pastSubscriptions": [
+            {
+                "id": "sub-planted",
+                "mode": "lifetime",
+                "billing": {"paymentMethodId": PAYMENT_ID, "internalPaymentMethod": {}},
+                "state": "ended",
+            }
+        ],
+        "note": f"free text that happens to carry {TOKEN} and {EMAIL}",
+    }
 
 
 class _Response:
@@ -131,32 +232,20 @@ class _FakePlex:
         if method == "POST" and url.endswith("/api/v2/pins"):
             self.pins_created += 1
             if self.pins_created == 1:
-                return _Response(201, {"id": PIN_ID, "code": CODE, "authToken": None, "expiresIn": 1800})
-            return _Response(201, {"id": PIN_ID + 1, "code": EXPIRED_CODE, "authToken": None})
+                return _Response(201, _pin(PIN_ID, CODE, None))
+            return _Response(201, _pin(PIN_ID + 1, EXPIRED_CODE, None))
         if url.endswith(f"/api/v2/pins/{PIN_ID}"):
             if self.pending_left > 0:
                 self.pending_left -= 1
-                return _Response(200, {"id": PIN_ID, "code": CODE, "authToken": None})
-            return _Response(200, {"id": PIN_ID, "code": CODE, "authToken": TOKEN, "clientIdentifier": CLIENT_ID})
+                return _Response(200, _pin(PIN_ID, CODE, None))
+            return _Response(200, _pin(PIN_ID, CODE, TOKEN))
         if url.endswith(f"/api/v2/pins/{PIN_ID + 1}"):
-            return _Response(404, {"errors": [{"code": 1020, "message": "Code not found or expired"}]})
+            # The message is a kept, verbatim key: only the scrub stands between the code and the file.
+            return _Response(404, {"errors": [{"code": 1020, "message": f"Code {EXPIRED_CODE} not found or expired"}]})
         if url.endswith("/api/v2/user"):
             if headers.get("X-Plex-Token") != TOKEN:
                 return _Response(401, {"errors": [{"code": 1001, "message": "User could not be authenticated"}]})
-            return _Response(
-                200,
-                {
-                    "id": USER_ID,
-                    "uuid": UUID,
-                    "username": USERNAME,
-                    "title": TITLE,
-                    "email": EMAIL,
-                    "thumb": f"https://plex.tv/users/{UUID}/avatar?c=1",
-                    "authToken": TOKEN,
-                    "subscription": {"active": True, "id": 31337},
-                    "note": f"free text that happens to carry {TOKEN} and {EMAIL}",
-                },
-            )
+            return _Response(200, _user())
         if url.endswith("/api/v2/resources"):
             return _Response(
                 200,
@@ -255,6 +344,29 @@ def test_no_planted_value_reaches_a_written_file(tmp_path: Path) -> None:
     for name, text in _files(tmp_path).items():
         for planted in PLANTED_STRINGS:
             assert planted not in text, f"{planted!r} leaked into {name}"
+
+
+def test_no_personal_data_outside_the_kept_keys_reaches_a_file(tmp_path: Path) -> None:
+    """The PIN's location, the user's service secrets, PIN and payment id: replaced, under any key."""
+    _run(tmp_path, _FakePlex())
+    for name, text in _files(tmp_path).items():
+        for planted in PERSONAL_STRINGS:
+            assert planted not in text, f"{planted!r} leaked into {name}"
+
+
+def test_the_kept_keys_stay_verbatim_and_the_others_become_placeholders(tmp_path: Path) -> None:
+    """What the parser reads is kept as plex.tv sent it; every other leaf is the placeholder."""
+    _run(tmp_path, _FakePlex())
+    files = {name: json.loads(text) for name, text in _files(tmp_path).items()}
+    pin = files["pin-created.json"]["body"]
+    assert pin["expiresIn"] == 1800 and pin["expiresAt"] == "2026-10-01T08:30:00Z"
+    assert pin["location"]["city"] == probe.DROPPED and pin["location"]["code"] == probe.DROPPED
+    user = files["user-200.json"]["body"]
+    assert user["services"][0]["secret"] == probe.DROPPED and user["pin"] == probe.DROPPED
+    assert user["pastSubscriptions"][0]["billing"]["paymentMethodId"] == probe.DROPPED
+    connection = files["resources-owner.json"]["body"][0]["connections"][0]
+    assert connection["port"] == 32400 and connection["protocol"] == "https" and connection["local"] is True
+    assert files["pin-expired.json"]["body"]["errors"][0]["code"] == 1020
 
 
 def test_redaction_is_consistent_across_files(tmp_path: Path) -> None:
