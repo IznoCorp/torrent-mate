@@ -2,6 +2,7 @@
   {
     "title": "The Bombing of Pan Am 103",
     "secondaryLine": "S01E05 · Disk2 · 14 h 12",
+    "kind": "show",
     "ids": {
       "tvdb": "456595",
       "tmdb": "248226",
@@ -12,6 +13,7 @@
   {
     "title": "Smiling Friends",
     "secondaryLine": "S03E02 · Disk1 · 11 h 40",
+    "kind": "show",
     "ids": {
       "tmdb": "126506",
       "imdb": "tt12074628",
@@ -22,6 +24,7 @@
   {
     "title": "On l'appelait Robin des Bois",
     "secondaryLine": "2026 · Disk3 · 09 h 27",
+    "kind": "movie",
     "ids": {
       "tmdb": "1284465",
       "imdb": "tt32273171"
@@ -31,6 +34,7 @@
   {
     "title": "Ninja Turtles",
     "secondaryLine": "2014 · Disk1 · 08 h 03",
+    "kind": "movie",
     "ids": {
       "tmdb": "98566",
       "imdb": "tt1291150"
@@ -40,6 +44,7 @@
   {
     "title": "Marjorie Prime",
     "secondaryLine": "2017 · Disk3 · 07 h 55",
+    "kind": "movie",
     "ids": {
       "tmdb": "426254",
       "imdb": "tt4978710"
@@ -49,6 +54,7 @@
   {
     "title": "Big Chicken",
     "secondaryLine": "2026 · Disk2 · 07 h 12",
+    "kind": "movie",
     "ids": {
       "tmdb": "1728056",
       "imdb": "tt43657327"
@@ -58,6 +64,7 @@
   {
     "title": "Margin Call",
     "secondaryLine": "2011 · Disk1 · 06 h 48",
+    "kind": "movie",
     "ids": {
       "tmdb": "50839",
       "imdb": "tt1615147"

@@ -20,18 +20,11 @@ R-L24-c over `system-disks-unavailable`: the « Disques » heading draws over no
 
 Each section reads its query's error; a failed one draws one `Fact` row (`tone: alert`), the others unchanged.
 
-## Mutation
-
-`sh scripts/mutate.sh frontend/maquette/design/src/features/system/page.tsx "<the failed row dropped>"
-frontend/maquette/harness/<R-L24-c's file>.py` → the named `FAIL` on the disks hold.
 
 ## Register
 
 None.
 
-## Oracle: states that diverge, declared by name
-
-The three new states (new, recorded). `system` and `system-outage` at zero.
 
 ## Commit
 

@@ -21,17 +21,11 @@ Not applicable — a close is a report.
 2. Record what the rulings made unnecessary (the journal, `decisions/activity` served by the cards, the French
    aliases dead) and what OPEN 8 B would drop (phase 8).
 
-## Mutation
-
-The lot's mutations re-run once; one that no longer fells its rule is named.
 
 ## Register
 
 Proposed, never written: the map's rows; B-235's index line (`open`, answered in its body).
 
-## Oracle: states that diverge, declared by name
-
-None beyond phase 19's.
 
 ## Commit
 

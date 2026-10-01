@@ -15,7 +15,6 @@ phase's cut is STOP D.
 
 ## The stops
 
-- **STOP A** — the oracle diverging on a state the phase did not name.
 - **STOP B** — the pull request.
 - **STOP C — NONE LEFT.** All nine OPEN questions are RULED (the six of 2026-09-29's first round, then OPEN 7, 8
   and 9 the rulings themselves raised, ruled in the second round — `docs/features/maquette-l24/rulings-2026-09-29.md`).
@@ -31,7 +30,7 @@ Anything outside this plan and its design: STOP, and ask the steward first.
 ## Points, and the mean
 
 The scale is L23's (`docs/features/maquette-l23/plan/INDEX.md` « Points »): a line edited 1 per 5, written new 1 per
-10; a new rule with its mutation 3; a rule re-aimed 1; a named state 1 (re-using a seed) or 2 (a new seed row); an
+10; a new rule 3; a rule re-aimed 1; a named state 1 (re-using a seed) or 2 (a new seed row); an
 operation declared new 2, edited 1; a mock route new 2, re-answered 1; a sentence rewritten 1; a documentation row 1.
 
 A phase whose re-measure at its opening exceeds 15 is cut there, never begun, and the steward told.
@@ -83,8 +82,5 @@ reading surfaces already drawn; **the records** (19) and **the close** (20) end 
 
 ## Gates
 
-Per phase: the phase gate (`CLAUDE.md` § Gates), with divergences ONLY on
-the states the phase names. Before the pull request: the office's pre-PR gate. The pull request bumps the version
-(patch). **None of this applies to THIS docs pull request**, whose gate is `check-docs-cited-paths.py`,
-`check-no-french.py`, `check-implementation-state.py`, `check-intent-map.py`, `check-bug-register.py` and `make
-lint`.
+Per phase and at the lot's close: `docs/reference/method.md` and `CLAUDE.md` § Gates (reset 2026-09-30). The
+pull request bumps the version (patch).

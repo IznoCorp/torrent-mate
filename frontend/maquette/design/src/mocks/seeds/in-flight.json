@@ -68,6 +68,7 @@
   {
     "title": "President Curtis",
     "secondaryLine": "S01E02 · 1080p · VOSTFR",
+    "kind": "show",
     "strip": [
       1,
       1,
@@ -89,6 +90,7 @@
   {
     "title": "Furious",
     "secondaryLine": "S01E01 · 2160p",
+    "kind": "show",
     "strip": [
       1,
       1,
@@ -110,6 +112,7 @@
   {
     "title": "This City Is Ours",
     "secondaryLine": "S01E06 · 1080p",
+    "kind": "show",
     "strip": [
       1,
       "now",

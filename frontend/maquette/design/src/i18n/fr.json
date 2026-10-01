@@ -436,7 +436,7 @@
       "seriesStatus": "Série {{statut}}",
       "ratingSource": "sur TMDB",
       "trailer": "Bande-annonce",
-      "noTrailer": "Aucune bande-annonce fournie par le provider. La fiche le dit plutôt que de masquer la section — §8.",
+      "noTrailer": "Aucune bande-annonce fournie par le provider.",
       "synopsis": "Synopsis",
       "synopsisUnknown": "Synopsis inconnu — le provider n'en fournit pas.",
       "castHeadingFilm": "Réalisation et distribution",
@@ -536,7 +536,7 @@
       "scopeThisFollow": "ce suivi seulement",
       "scopeAllFollows": "tous les suivis",
       "rankingWeights": "Poids du classement (global) →",
-      "rulenote": "Un profil qui n'accepte plus rien se dit : le suivi le dit, et sa recherche en direct répond « aucun torrent trouvé », jamais un silence (§8).",
+      "rulenote": "Un profil qui n'accepte plus rien se dit : le suivi le dit, et sa recherche en direct répond « aucun torrent trouvé », jamais un silence.",
       "saveToast": "Profil enregistré — la prochaine recherche l'appliquera.",
       "save": "Enregistrer",
       "audioOptions": {
@@ -596,6 +596,7 @@
       "noPosterTitle": "Aucune affiche chez le provider pour ce candidat.",
       "confidence": "confiance",
       "choose": "Choisir",
+      "kept": "Retenu",
       "chooseOf": "Choisir {{name}}",
       "numbers": [
         "",
@@ -615,7 +616,7 @@
       "plexHeld": "Plex l'a reconnu comme « {{title}} ». Si c'est bien lui, choisissez-le ; sinon, cherchez la bonne identité.",
       "noCandidates": "Les providers n'ont renvoyé aucun candidat pour ce nom. Il n'y a rien à choisir : la recherche manuelle est la seule voie.",
       "emptyTitle": "Aucun de ceux-là ?",
-      "emptyBody": "La recherche manuelle s'ouvre pré-remplie avec le nom du dossier. Jamais un cul-de-sac (DOIT-7).",
+      "emptyBody": "La recherche manuelle s'ouvre pré-remplie avec le nom du dossier.",
       "searchManually": "Chercher manuellement →",
       "leaveAsIs": "Laisser tel quel",
       "notMedia": "Ce n'est pas un média",
@@ -670,6 +671,14 @@
       "toMaintenance": "Réparer ce que l'index signale se fait depuis Maintenance. ",
       "toMaintenanceLink": "Maintenance →",
       "dependencies": "Dépendances",
+      "unavailableLabel": "État",
+      "unavailable": "indisponible",
+      "unavailableLine": {
+        "services": "L'état des services n'a pas pu être lu.",
+        "disks": "La place des disques n'a pas pu être lue.",
+        "index": "La santé de l'index n'a pas pu être lue.",
+        "dependencies": "Redis et les providers n'ont pas pu être interrogés."
+      },
       "codeErrors": "Erreurs de code",
       "errorsRaised": "Du code a levé",
       "errorsValue": "des erreurs",
@@ -1206,6 +1215,20 @@
     }
   },
   "surfaces": {
+    "decision": {
+      "heading": "Identification",
+      "chosen": "Retenu",
+      "among": "Parmi",
+      "candidates_one": "{{count}} candidat",
+      "candidates_other": "{{count}} candidats",
+      "by": "Par",
+      "byOperator": "vous — {{via}}",
+      "byOperatorAlone": "vous",
+      "byEngine": "le moteur, seul",
+      "when": "Le",
+      "state": "Décision",
+      "correct": "Corriger"
+    },
     "card": {
       "sheetOf": "Fiche de {{title}}",
       "folderActions": "Actions pour le dossier {{title}}",
@@ -1248,9 +1271,15 @@
       "steps": {
         "sorted": "trié",
         "enriched": "enrichi",
-        "shelved": "rangé"
+        "shelved": "rangé",
+        "metadata": "métadonnées",
+        "posters": "posters récupérés",
+        "trailer": "bande-annonce"
       },
       "step": "· {{name}}",
+      "subStep": "· · {{name}}",
+      "doneUntimed": "fait",
+      "nowUntimed": "en cours",
       "toConfirm": "{{rung}} — à confirmer",
       "ratioWithoutThreshold": "Différé : le ratio sur {{tracker}} est trop bas, et ce tracker n'a aucun seuil réglé.",
       "reasons": {
@@ -1459,7 +1488,7 @@
       "followSeries": "Suivre",
       "seeSheet": "Voir la fiche",
       "notInterested": "Pas intéressé",
-      "filmLeavesNote": "Une fois acquis, ce film quittera automatiquement votre liste (§5)."
+      "filmLeavesNote": "Une fois acquis, ce film quittera automatiquement votre liste."
     },
     "add": {
       "meta": "{{year}} · {{kind}} · TMDB",
@@ -1495,11 +1524,19 @@
       "deleteStaged": "Supprimer du disque",
       "foundNextPassAt": "Trouvé, récupéré à la prochaine passe, à {{at}}.",
       "foundNextPass": "Trouvé, récupéré à la prochaine passe.",
-      "filmLeavesNote": "Une fois acquis, ce film quittera automatiquement votre liste (§5).",
+      "filmLeavesNote": "Une fois acquis, ce film quittera automatiquement votre liste.",
       "grabSeason": "Récupérer la saison {{season}}"
     }
   },
   "verbs": {
+    "decision": {
+      "correctHeld": "Correction demandée — en attente du réseau.",
+      "correctRefused": {
+        "gone": "Cette identification n'est plus sur le serveur : il n'y a plus rien à corriger.",
+        "conflict": "L'état de ce média a changé entre-temps : rouvrez sa fiche et réessayez.",
+        "other": "Le serveur a refusé la correction."
+      }
+    },
     "library": {
       "sorted": "Trié par {{way}}.",
       "delete": {

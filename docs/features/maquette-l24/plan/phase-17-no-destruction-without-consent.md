@@ -22,17 +22,11 @@ Read at the opening; a verb that writes before its dialog is a DEFECT found, rep
 
 The rule only.
 
-## Mutation
-
-Fire the staged folder's deletion before its dialog → the network hold falls by name.
 
 ## Register
 
 The map's NE-DOIT-PAS-6 owed half is discharged by #528; the whole-clause proof lands here; proposed at phase 20.
 
-## Oracle: states that diverge, declared by name
-
-None.
 
 ## Commit
 

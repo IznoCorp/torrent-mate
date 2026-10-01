@@ -4673,6 +4673,253 @@
         }
       }
     },
+    "/api/acquisition/followed/{followedId}/completeness": {
+      "get": {
+        "operationId": "readFollowCompleteness",
+        "summary": "What has aired against what the library holds, season by season, for one follow",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "200": {
+            "description": "the follow's completeness",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowCompleteness"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "followedId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the follow"
+          }
+        ],
+        "x-seeded-from": [
+          "FOLLOW_COMPLETENESS"
+        ]
+      }
+    },
+    "/api/staging/media/{mediaId}/enqueue": {
+      "post": {
+        "operationId": "enqueueForResolution",
+        "summary": "Send a staged medium to arbitration: a pending decision, with the candidates a provider search found",
+        "tags": [
+          "staging"
+        ],
+        "responses": {
+          "200": {
+            "description": "the decision filed, or the one already pending (idempotent)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "mediaKind": {
+                      "type": "string",
+                      "enum": [
+                        "movie",
+                        "tvshow",
+                        "ebook",
+                        "audio",
+                        "app",
+                        "other",
+                        "unsorted"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "the folder-derived title sent to arbitration"
+                    },
+                    "decisionId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "the pending decision, so the candidates screen opens on it"
+                    },
+                    "candidatesCount": {
+                      "type": "integer"
+                    },
+                    "candidatesSeeded": {
+                      "type": "boolean",
+                      "description": "false when no provider answered: the decision is filed with no candidate, and the screen opens on the pre-filled manual search"
+                    }
+                  },
+                  "required": [
+                    "candidatesCount",
+                    "candidatesSeeded",
+                    "mediaKind",
+                    "ok",
+                    "title"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "mediaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the staged medium"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mediaKind": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "movie",
+                      "tvshow",
+                      null
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-unseeded": "the pending decision filed in the seeded decisions, with the candidates the seeds offer for that title."
+      }
+    },
+    "/api/decisions/{decisionId}/reopen": {
+      "post": {
+        "operationId": "reopenDecision",
+        "summary": "Re-open a settled decision for arbitration, with the candidates a provider search finds",
+        "tags": [
+          "decisions"
+        ],
+        "description": "« Corriger » on a decision the operator settled — in Acquisition or on a shelved medium (L24 OPEN 7 = A, OPEN 8 = A). DEMAND: the engine has no operation that re-opens a settled decision, nor one that re-identifies a shelved medium against candidates.",
+        "responses": {
+          "200": {
+            "description": "the decision pending again",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "decisionId": {
+                      "type": "string"
+                    },
+                    "folder": {
+                      "type": "string",
+                      "description": "the folder the candidates screen is addressed by"
+                    },
+                    "candidatesCount": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "candidatesCount",
+                    "decisionId",
+                    "folder"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "decisionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the settled decision"
+          }
+        ],
+        "x-unseeded": "the settled decision moved back to the pending list, with the candidates the seeds offer for its title."
+      }
+    },
     "/api/torrents/{infoHash}/cross-seed/{tracker}/cut": {
       "post": {
         "operationId": "cutCrossSeed",
@@ -5101,6 +5348,14 @@
             "type": "string",
             "description": "CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
           },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "movie",
+              "show"
+            ],
+            "description": "whether the medium is a film or a series — carried by the card, so a panel opened from it never loses it (B-612)"
+          },
           "reason": {
             "type": "string",
             "description": "why this card is where it is, in full prose. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
@@ -5209,10 +5464,11 @@
           }
         },
         "required": [
-          "title",
-          "secondaryLine",
           "ids",
-          "poster"
+          "kind",
+          "poster",
+          "secondaryLine",
+          "title"
         ]
       },
       "Fact": {
@@ -6242,6 +6498,10 @@
               "null"
             ],
             "description": "the year, where the folder names one"
+          },
+          "kept": {
+            "$ref": "#/components/schemas/DecisionChoice",
+            "description": "a re-opened decision's earlier choice — the candidate it kept, marked among the candidates it offers again; absent on a decision never settled"
           }
         },
         "required": [
@@ -6256,6 +6516,10 @@
       "SettledDecision": {
         "type": "object",
         "properties": {
+          "id": {
+            "type": "string",
+            "description": "the decision, as `resolveDecision`, `dismissDecision` and `searchForDecision` address it — what « Corriger » re-opens"
+          },
           "folder": {
             "type": "string"
           },
@@ -6281,14 +6545,27 @@
           },
           "choice": {
             "$ref": "#/components/schemas/DecisionChoice"
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecisionCandidate"
+            },
+            "description": "the candidates the decision offered, as it offered them (the engine's `candidates_json`) — how many it was settled among, and what « Corriger » offers again"
+          },
+          "settledBy": {
+            "$ref": "#/components/schemas/DecisionAuthor"
           }
         },
         "required": [
+          "candidates",
           "folder",
+          "id",
           "kind",
-          "title",
           "reason",
+          "settledBy",
           "state",
+          "title",
           "when"
         ]
       },
@@ -6531,7 +6808,7 @@
       },
       "JourneyStage": {
         "type": "object",
-        "description": "ONE RUNG OF A MEDIUM'S LADDER, from the wish to Plex (ruling 4; eight rungs, OPEN 4 ruled B). The card's strip and the journey sheet read the same list; « rangé » carries the three pipeline steps it merges as `steps`.",
+        "description": "ONE RUNG OF A MEDIUM'S LADDER, from the wish to Plex (ruling 4; eight rungs, OPEN 4 ruled B). The card's strip and the journey sheet read the same list; « rangé » carries the three pipeline steps it merges as `steps`. « enrichi » carries, in turn, the three things the enrichment fetched as its own `steps`: the metadata, the posters, the trailer (L24 OPEN 5 = B).",
         "properties": {
           "rung": {
             "type": "string",
@@ -6545,7 +6822,10 @@
               "shelved",
               "verified",
               "sorted",
-              "enriched"
+              "enriched",
+              "metadata",
+              "posters",
+              "trailer"
             ],
             "description": "which rung, as a token — its name is the interface's"
           },
@@ -8142,6 +8422,141 @@
           "message",
           "reason",
           "since"
+        ]
+      },
+      "DecisionAuthor": {
+        "type": "string",
+        "enum": [
+          "operator",
+          "engine"
+        ],
+        "description": "who settled a decision: the operator, by a pick or a manual search, or the engine, by an identification it made alone. DIVERGENCE: the engine writes no decision row for an identification it made alone — the interface reads one here, as a settled row with `engine` as its author."
+      },
+      "EpisodeCompleteness": {
+        "type": "object",
+        "properties": {
+          "episode": {
+            "type": "integer"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "airDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ISO `YYYY-MM-DD`"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "announced",
+              "in_library",
+              "to_grab",
+              "acquiring",
+              "pending",
+              "unverified",
+              "absorbed"
+            ]
+          },
+          "lastSearchOutcome": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "episode",
+          "state"
+        ]
+      },
+      "SeasonCompleteness": {
+        "type": "object",
+        "properties": {
+          "season": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer",
+            "description": "the season's aired episodes"
+          },
+          "owned": {
+            "type": "integer",
+            "description": "of those, the ones in the library"
+          },
+          "queued": {
+            "type": "integer",
+            "description": "of those, the ones wanted and not yet held"
+          },
+          "announced": {
+            "type": "integer",
+            "description": "episodes announced and not yet aired"
+          },
+          "episodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EpisodeCompleteness"
+            }
+          }
+        },
+        "required": [
+          "announced",
+          "episodes",
+          "owned",
+          "queued",
+          "season",
+          "total"
+        ]
+      },
+      "FollowCompleteness": {
+        "type": "object",
+        "properties": {
+          "followedId": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "seasons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeasonCompleteness"
+            }
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "cache",
+              "unknown"
+            ],
+            "description": "`unknown` when no aired catalog is cached: the seasons are then empty, never a fabricated all-missing grid"
+          },
+          "providerCatalogEmpty": {
+            "type": "boolean"
+          },
+          "catalogRefreshedAt": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "epoch seconds"
+          }
+        },
+        "required": [
+          "followedId",
+          "kind",
+          "providerCatalogEmpty",
+          "seasons",
+          "source",
+          "title"
         ]
       },
       "TrackerCrossSeed": {

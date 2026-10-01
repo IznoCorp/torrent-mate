@@ -93,7 +93,7 @@ sentence (`decisionStateDetail`) in the block's place of the choice. It is drawn
 
 While the decision is PENDING the block is not drawn: the medium is an « À traiter » card and its card opens the
 arbitration (L22), unchanged. The block lives in one module of `features/acquisition/` that `features/media/`
-imports (its fan-in is read at the phase's opening against `check-frontend-boundaries.py`'s ceiling of four).
+imports.
 
 **What it reads** — § 2 demand D: the settled decisions read carries each decision's id (the ruling keeps it, for
 « Corriger »), its candidates' count, and who settled it; an identification the engine made alone is a settled
@@ -237,7 +237,7 @@ The desktop proof (§ 1.6) adds no state: it walks the existing ones at another 
 
 Labels, never numbers: they bind to the range the steward reserves in the lot's launch brief.
 
-| Rule | What it READS | The mutation that fells it |
+| Rule | What it READS | The change that fells it |
 | --- | --- | --- |
 | **R-L24-a** — a settled decision is read on its medium (OPEN 1 = C, NE-DOIT-PAS-1) | on the journey sheet: the choice, the candidates' count, the author, the date and « Corriger », each from the one settled read; nothing drawn while the decision is pending | draw the count as a fixed figure → falls |
 | **R-L24-b** — one block, two sheets (§ 13) | the Médiathèque sheet's block says the same words as the journey sheet's for the same decision | retype the author word in the Médiathèque sheet → falls |

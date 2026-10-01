@@ -347,6 +347,11 @@ async def hold_tab_bar_over_a_screen(browser, journal):
     context, page, errors = await open_at(browser, "trackers")
     await tap(page, '[data-trackers-tab="torrents"]', PANEL_IN)
     opened = await tap(page, '#view [data-part="card/poster"]', PANEL_IN)
+    # A SCREEN STILL ARRIVING IS NOT READ, as `responsive.py` does: pushing the
+    # media sheet is a view transition, and while it runs its overlay takes
+    # every hit test — `html` answered at the tab's centre on a slow runner. A
+    # finger lands after the crossing, and so does this reading.
+    await page.wait_for_function("()=>!document.documentElement.matches(':active-view-transition')")
     reach = await page.evaluate("""()=>{
       const screen = document.querySelector('[data-part="screen"][data-open]');
       const tab = document.querySelector('[data-part="shell/tab-bar"] [data-page="acq"]');

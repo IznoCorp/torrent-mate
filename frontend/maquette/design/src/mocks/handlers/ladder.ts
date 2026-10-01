@@ -7,6 +7,7 @@
 // card and `readJourney` answer the SAME array — and a verb that moves the
 // journey moves the card with it.
 import JOURNEY_STAGES from "../seeds/journey-stages.json";
+import JOURNEY_ENRICHMENT from "../seeds/journey-enrichment.json";
 import { mockState } from "../state";
 import type { components } from "../../contract/types";
 
@@ -79,6 +80,9 @@ const STRIP_OFFSET = TEMPLATE.findIndex((rung) => rung.rung === "grabbed");
  */
 function timeOf(seeded: Rung, state: RungState): string {
   if (state === PENDING) return UPCOMING_WHEN;
+  // A RUNG LAID DONE keeps only a DONE rung's time: the template's running rung
+  // carries « en cours depuis 4 min », which is no date an ended rung can wear.
+  if (state === DONE) return seeded.state === DONE ? seeded.when : "";
   return seeded.state === DONE || seeded.state === RUNNING_NOW ? seeded.when : "";
 }
 
@@ -93,12 +97,29 @@ function timeOf(seeded: Rung, state: RungState): string {
 function laid(seeded: Rung, state: RungState): Rung {
   const rung: Rung = { rung: seeded.rung, state, when: timeOf(seeded, state) };
   if (seeded.steps !== undefined) {
-    rung.steps = seeded.steps.map((step, index) => {
-      const stepState = state === DONE ? DONE : index === 0 && state !== PENDING ? state : PENDING;
-      return { rung: step.rung, state: stepState, when: timeOf(step, stepState) };
-    });
+    // AND THE STEPS' OWN STEPS, laid the same way: « enrichi » carries what the
+    // enrichment fetched (L24 OPEN 5 = B).
+    rung.steps = seeded.steps.map((step, index) =>
+      laid(step, state === DONE ? DONE : index === 0 && state !== PENDING ? state : PENDING));
   }
   return rung;
+}
+
+/**
+ * Lays one medium's ladder in the middle of its enrichment: « rangé » running,
+ * « trié » done, « enrichi » running — its metadata fetched, its posters being
+ * fetched, its trailer still to come.
+ *
+ * EACH STEP WITH ITS OWN TIME, read off the seed of that moment: a done one
+ * when it ended, a running one since when, one not reached « à venir ». A step
+ * drawn with no time at all read « — » for all three alike.
+ *
+ * @param subject The medium.
+ */
+export function placeInEnrichment(subject: string): void {
+  delete mockState().journeyStages[subject];
+  const ladder = ladderOf(subject, { current: rungIndex("shelved"), state: RUNNING_NOW });
+  ladder[rungIndex("shelved")] = structuredClone(JOURNEY_ENRICHMENT as Rung);
 }
 
 /**
@@ -173,13 +194,16 @@ export function rungIndex(token: Rung["rung"]): number {
  */
 export function ladderOf(subject: string, position?: Position, origin: Origin = {}): Rung[] {
   const state = mockState();
-  const held = state.journeyStages[subject];
-  if (held !== undefined) return held;
-  const fresh = position === undefined
+  const ladder = state.journeyStages[subject] ?? (position === undefined
     ? TEMPLATE.map((seeded) => laid(seeded, seeded.state))
-    : positioned(position, origin);
-  state.journeyStages[subject] = fresh;
-  return fresh;
+    : positioned(position, origin));
+  // AN IDENTIFICATION SETTLED BY A CHOICE is passed at the time it was made —
+  // on a ladder laid before the choice as much as on one laid after it.
+  const identified = ladder[rungIndex("identified")];
+  const settledAt = state.identifiedAt[subject];
+  if (settledAt !== undefined && identified.state === DONE && identified.when === "") identified.when = settledAt;
+  state.journeyStages[subject] = ladder;
+  return ladder;
 }
 
 /**

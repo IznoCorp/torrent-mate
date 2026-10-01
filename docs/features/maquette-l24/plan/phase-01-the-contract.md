@@ -30,18 +30,12 @@ None — a contract has no rule; `python3 scripts/compare-contracts.py --check` 
 2. `python3 scripts/compare-contracts.py --write`, then `--check`; `npm --prefix frontend/maquette/design run
    generate-contract-types`. Counters before and after into the report.
 
-## Mutation
-
-None.
 
 ## Register
 
 Demands A, B and D filed by the regenerated `docs/reference/frontend-backend-demands.md`; C recorded as served
 differently (DESIGN § 1.3).
 
-## Oracle: states that diverge, declared by name
-
-None — a contract moves no surface.
 
 ## Commit
 

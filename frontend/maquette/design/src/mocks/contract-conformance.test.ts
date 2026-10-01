@@ -58,6 +58,8 @@ function successShape(operation: {
 const KNOWN_VALUE: Record<string, string> = {
   mediaId: "Backrooms 2026",
   title: "Silo",
+  // A follow the layer holds: the layer names a follow by its title.
+  followedId: "Silo",
   folder: "Backrooms.2026.MULTi.2160p.WEB-DL",
   provider: "tmdb",
   providerId: "1",

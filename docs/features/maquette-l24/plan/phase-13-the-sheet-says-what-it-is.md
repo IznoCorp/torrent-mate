@@ -15,23 +15,17 @@
 
 ## Red today
 
-Read at the opening; if every field is drawn, the red is the mutation's.
+Read at the opening.
 
 ## Move
 
 The rule only.
 
-## Mutation
-
-Drop the director row → its hold falls by name.
 
 ## Register
 
 The map's DOIT-11 « unproved » content half is proved; proposed at phase 20.
 
-## Oracle: states that diverge, declared by name
-
-None.
 
 ## Commit
 
