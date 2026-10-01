@@ -17,8 +17,8 @@
 #
 # Where it writes: `served_copy.py` decides. With the scratch volume mounted
 # (`/Volumes/TMScratch`), the served copy, every Chrome profile (TMPDIR) and the
-# logs go there — the system disk's file events cost `fseventsd` and
-# `syspolicyd` up to a core (2026-10-01); without it (CI), `/tmp` as before.
+# logs go there, off the system disk, as prevention (`served_copy.py` says
+# why); without it (CI), `/tmp` as before.
 
 set -euo pipefail
 

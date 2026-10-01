@@ -1,14 +1,14 @@
 """Where the harness writes its waste: the scratch volume, never the system disk.
 
 WHAT IT PAID FOR. Every harness Chrome is a throw-away profile of about two
-hundred files, written under the system disk's `$TMPDIR`; with several sessions
-running rules, `fseventsd` sat at 75–115 % CPU and `syspolicyd` at 22 %, both
-paid for files nobody reads (the audit's measurement, 2026-10-01). The operator
-made an APFS volume for that waste, `/Volumes/TMScratch`, with its event log
-switched off. These tests hold that the harness writes there when the volume is
-mounted, falls back to `/tmp` when it is not (CI), never mistakes a bare
-directory at the volume's path for the volume, and launches every Chrome with
-the switches that stop it caching and fetching.
+hundred files, written under the system disk's `$TMPDIR`, that nobody reads.
+The operator made an APFS volume for that waste, `/Volumes/TMScratch`, with its
+event log switched off — as prevention: the `fseventsd` load of 2026-10-01 came
+from its own event history, purged since, not from the harness. These tests
+hold that the harness writes there when the volume is mounted, falls back to
+`/tmp` when it is not (CI), never mistakes a bare directory at the volume's path
+for the volume, and launches every Chrome with the switches that stop it caching
+and fetching.
 """
 
 from __future__ import annotations
@@ -63,8 +63,7 @@ def mounted(tmp_path, monkeypatch):
 def test_every_chrome_launch_neither_caches_nor_fetches(tmp_path, monkeypatch) -> None:
     """Each launch wrote a disk cache, a shader cache and component downloads.
 
-    Those writes are the files `fseventsd` and `syspolicyd` were paying for, and
-    no rule reads any of them back.
+    No rule reads any of those files back.
     """
     # `common` moves TMPDIR at import; without a volume it leaves this process's alone.
     monkeypatch.setenv("TM_SCRATCH_VOLUME", str(tmp_path / "absent"))

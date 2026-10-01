@@ -57,11 +57,12 @@ from pathlib import Path
 ROOT_VARIABLE = "TM_SERVED_COPY"
 
 # THE HARNESS'S WASTE GOES TO A VOLUME OF ITS OWN WHEN THE MACHINE HAS ONE. Each
-# harness Chrome is a throw-away profile of about two hundred files, and written
-# on the system disk they kept `fseventsd` at 75–115 % CPU and `syspolicyd` at
-# 22 % (the audit, 2026-10-01). The operator made `/Volumes/TMScratch` for them,
-# an APFS volume with its event log switched off. Where it is not mounted — CI —
-# everything stays in `/tmp` as before.
+# harness Chrome is a throw-away profile of about two hundred files that nobody
+# reads back. The operator made `/Volumes/TMScratch` for them, an APFS volume with
+# its event log switched off, AS PREVENTION: the `fseventsd` load seen on
+# 2026-10-01 (86 % CPU) came from its own 4.5 GB event history (147,754 files),
+# which the operator purged — not from the harness. Where the volume is not
+# mounted — CI — everything stays in `/tmp` as before.
 #
 # THE SERVED COPY STAYS ONE PER MACHINE, and only the profiles and the logs are
 # per checkout: one harness host on 8899 serves one directory, so a copy per

@@ -93,8 +93,8 @@ def resolve_deployed_host_locally(host_url):
 #
 # THE OTHER FIVE STOP WRITES NOBODY READS (the audit, 2026-10-01): a disk cache
 # and a shader cache per profile, component downloads, the first-run setup and
-# the background fetches. Each was a file event `fseventsd` and `syspolicyd`
-# paid for, hundreds of launches a run, for a profile thrown away seconds later.
+# the background fetches. Each is a write nobody reads back, hundreds of
+# launches a run, for a profile thrown away seconds later.
 CHROME_SWITCHES = (
     "--use-mock-keychain",
     "--disk-cache-size=1",
