@@ -165,4 +165,4 @@ git: a path cited `path@sha` is read with `git show sha:path`.
 | Maquette (prototype reference) | `frontend/maquette/README.md` |
 | Frontend target and lots | `docs/reference/frontend-architecture.md` |
 | Frame model and survey | `docs/reference/frame-model.md`, `docs/reference/frame-survey.md` |
-| Backend demands | `docs/reference/backend-demands-architecture.md`, `docs/reference/frontend-backend-demands.md` |
+| Backend demands, and the backend brief (draft) | `docs/reference/backend-demands-architecture.md`, `docs/reference/frontend-backend-demands.md`, `docs/reference/backend-brief.md` |
