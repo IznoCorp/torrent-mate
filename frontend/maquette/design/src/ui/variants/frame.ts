@@ -345,13 +345,13 @@ export const drawerGroupTitle = cva(
 );
 
 /** What the folded bar does not draw: the appearance and the served identity, one unfold away. */
-export const drawerUnfoldedOnly = cva("", {
+export const drawerUnfoldedOnly = cva("unfolded-only", {
   variants: { collapsed: { true: "desk:hidden", false: "" } },
   defaultVariants: { collapsed: false },
 });
 
 /** An entry's word — read aloud, and shown as the pointer's tooltip, when the bar is folded. */
-export const drawerEntryLabel = cva("", {
+export const drawerEntryLabel = cva("entry-label", {
   variants: { collapsed: { true: "desk:sr-only", false: "" } },
   defaultVariants: { collapsed: false },
 });
