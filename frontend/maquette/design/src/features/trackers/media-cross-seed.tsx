@@ -15,10 +15,9 @@ import { useRights } from "../../lib/account";
 import { read } from "../../lib/query-client";
 import type { Schemas } from "../../lib/contract-schemas";
 import { Chip } from "../../ui/chip";
-import { factDetail, factList, factName, factRow, factRowBody, sectionHeading } from "../../ui/variants";
+import { factDetail, factList, factName, factRow, factRowBody, optionKind, sectionHeading, sheetFacts } from "../../ui/variants";
 import { CROSS_SEED_TONE, familyWord, reasonSentence, stateWord, type CrossSeedPair } from "./cross-seed-state";
 import { orderedPairs } from "./panel-cross-seed";
-import { mediaCrossSeedHeading, mediaCrossSeedOrigin } from "./variants";
 
 /**
  * The key the block is cached under — its own, so the stream's cross-seed
@@ -91,13 +90,13 @@ export function MediaCrossSeed({ provider, identifier }: { provider: string; ide
   const { data } = useMediaCrossSeed(provider, identifier, sees);
   if (!sees || data === undefined || data.torrents.length === 0) return null;
   return (
-    <section data-part="media/cross-seed" aria-label={t("screens.crossSeed.media.heading")}>
-      <h2 className={`${sectionHeading()} ${mediaCrossSeedHeading()}`} data-part="heading">
+    <section className={sheetFacts()} data-part="media/cross-seed" aria-label={t("screens.crossSeed.media.heading")}>
+      <h2 className={sectionHeading()} data-part="heading">
         {t("screens.crossSeed.media.heading")}
       </h2>
       {data.torrents.map((origin) => (
         <div key={origin.infoHash} data-part="media/cross-seed-origin" data-origin={origin.infoHash}>
-          <p className={mediaCrossSeedOrigin()}>
+          <p className={optionKind()} data-part="media/cross-seed-origin-name">
             {t("screens.crossSeed.media.origin", { name: origin.name, tracker: origin.tracker })}
           </p>
           {origin.pairs.length === 0 ? (
