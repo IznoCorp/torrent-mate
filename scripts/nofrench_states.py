@@ -53,6 +53,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from nofrench_lexicon import (  # noqa: E402
+    walk,
     MAQUETTE, VOCABULARY, examined, read, relative, split_identifier,
     vocabulary,
 )
@@ -170,7 +171,7 @@ def check_state_identifiers(violations: list[str]) -> None:
     # state table was never `legacy.js`. The engine and the debt section are
     # both gone since L13r r·16 — `vocabulary()` is now the whole of it.
     words = vocabulary()
-    source = "\n".join(read(path) for path in sorted(STATES.glob("*.ts")))
+    source = "\n".join(read(path) for path in sorted(walk(STATES, "*.ts", recursive=False)))
     declared = declared_state_identifiers(source)
 
     examined["state identifiers / engine"] += len(declared)
