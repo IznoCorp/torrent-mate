@@ -67,7 +67,7 @@
 | B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » — R199 `pull_follows_the_refresh.py`: the CLOSING half is repaired (L13c c·5, the indicator now closes with the refresh's own answer time, 233/532/1716 ms against the control's fixed 1356/1347/1350 ms). **The CENTRING half is unmeasurable here** (reader C13's C6, round one: offset 0 on BOTH builds at every moment on this machine — the mechanism is real, proved by the centring mutation alone (−187 px, drawing the operator's own screenshot), but nothing on this machine separates candidate from control). **Owner:** the conformity train. | 1×; L13c c·5 | `to confirm` |
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed. **Owner:** the defects fast lane. | 1× | `open` |
 | B-336 | The library's kind chips (« Tout · Films · Séries », with counts) scroll horizontally with a VISIBLE scrollbar on the phone; the strip should hide it as `pillscroll` does. **Owner:** the conformity train. | 1× | `to confirm` |
-| B-337 | A follow card swiped open: the first tap on a revealed action does nothing, the second acts — systematic on the phone. **Owner:** the defects fast lane. | 1× | `open` |
+| B-337 | A follow card swiped open: the first tap on a revealed action does nothing, the second acts — systematic on the phone. **Owner:** the defects fast lane. | 1× | `fixing` |
 | B-339 | A DISABLED panel action is drawn exactly like an enabled one — « ✓ Ajouté » on the add screen's panel is `disabled` in the markup and full primary yellow on the screen, so the reader taps a spent act and « nothing happens ». **Owner:** the conformity train. | 1× | `to confirm` |
 | B-340 | The « + » button reopens the add screen with the LAST query and mode still in place — after identifying an arrival, a new search starts on « Marvels Spider-Man 2 v1 526 0 -Mephis… », 0 results, and the « 2 médias ajoutés » strip of the previous visit. **Owner:** the defects fast lane. | 1× | `to confirm` |
 | B-345 | The seeded data does not show every state a surface can take — the operator could not find a single medium « à prendre » to try « Récupérer maintenant » on; his ruling: the test data must always hold enough simulated states to exercise every case by hand. **The LIBRARY half closes as already satisfied, now guarded** (L13c c·8: the seeds already held every state the library draws — 345 loaded rows, a title held twice, a followed title, five incomplete, 20 without a poster; R128 gains eight holds, GREEN from the start, no seed touched — reader C13's C4, round one: nothing here for the operator to walk). Acquisition's share is L21's, settings' is #588's. **The OTHER surfaces' share stays open**, owner: a later lot. **Owner:** the defects fast lane. | 1×; L13c c·8 | `to confirm` |
@@ -1410,6 +1410,23 @@ revealed actions ARE those verbs, and a rule that taps them once is the rule the
 otherwise **L13**, with the engine's swipe.
 
 <sub>operator, 2026-09-06 · `grep -n "clickAfterDrag" frontend/maquette/design/src/engine/legacy.js` · `grep -n "swallowClick" frontend/maquette/design/src/lib/press-arbitration.ts` · to measure: a touch swipe then ONE touch tap on `[data-part="swipe/action"]`, reading which listener consumed the click</sub>
+
+**REPRODUCED, AND IT IS MECHANISM (a) — THE TAP IS READ AS A DRAG** (2026-10-01, `main` `1e6aa6a69`). R132 tapped
+with a STILL finger, and a still finger is the one tap no thumb makes. The same CDP touch drifting through two moves
+to 7.5–8 px aside: the first tap on « Ne plus chercher » did nothing, on every swipe length tried; 0 and 3 px acted.
+**Cause** (`lib/swipe-arbitration.ts`, now that `legacy.js` is gone): the revealed action lies inside the row, so its
+`pointerdown` arms a drag of the open row; the drift passes the 6 px dead zone and commits to the side axis, passes
+the 4 px travel and arms `clickAfterDrag` at the lift — and the tap's own click lands inside its 24 px and is eaten.
+**The family**: a tap with the same drift on a CLOSED card did not open its sheet either. Those are a mouse's numbers;
+`lib/press-arbitration.ts` measured a thumb at ±10 px and tolerates 12. **Repaired**: the axis commits, and the
+release's click is swallowed, only past that tolerance — `PRESS_TOLERANCE_PIXELS`, exported from the press
+arbitration and read by the swipe. The two other horizontal gestures (`commit-swipe.ts`, Découvrir's deck) swallow no
+click: a drift there snaps back and the tap goes through. **R132** (`pause_verb.py`) leg 6 taps with `THUMB_DRIFT`,
+the revealed action once and a closed card once — RED on the tree before the move (`pending → pending`, sheet not
+open), green after; R132's other legs and the swipe's other readers (`drag`, `mouse`, `gestures`, `press`, `touch`,
+`remove_verb`, `follows`, `follow_verb`, `virtual`, `trackers_card`, `trackers_removal`, `pull_on_a_card`, `actions`)
+stay green. **Still the operator's to confirm on the phone**: CDP's touch with drift is the closest this machine
+comes to a thumb, and it is still not one.
 
 **B-339 — a disabled panel action looks enabled.**
 Reported by the operator on 2026-09-06 with a screenshot, verbatim: « Le bouton ajouter ne fait rien
