@@ -83,16 +83,44 @@ export function durationInWords(seconds: number | null | undefined,
 }
 
 /**
+ * How long a passage still going has been going, as its row says it.
+ *
+ * THE RUNNING ROW HAD NOTHING ON ITS SECOND LINE (B-538): its duration is null
+ * until it ends, so it read one text line shorter than the same row once ended.
+ * It says the time elapsed instead, in the words the rungs use for a step under
+ * way — « en cours » — counted in whole minutes, and in words under the first
+ * one: « 0 min » would read as a passage that has not begun.
+ *
+ * @param startedAt When the run started, as the history answers it.
+ * @param say The translator.
+ * @param now The instant it is read at, in milliseconds.
+ * @returns The elapsed time in words, or an empty string when the start does not parse.
+ */
+function runningSince(startedAt: string, say: (key: string, options?: { count: number }) => string,
+                      now: number): string {
+  const started = Date.parse(startedAt);
+  if (Number.isNaN(started)) return "";
+  const minutes = Math.floor(Math.max(0, now - started) / 1000 / MINUTE);
+  return minutes === 0
+    ? say("screens.system.runRunningJustNow")
+    : say("screens.system.runRunningSince", { count: minutes });
+}
+
+/**
  * What one passage DID, composed from the counts it recorded.
  *
  * @param run The run, as the history answers it.
  * @param say The translator.
+ * @param now The instant a running passage's elapsed time is read at, in milliseconds.
  * @returns The composite line.
  */
-function whatItDid(run: RunSummary,
-                   say: (key: string, options?: { count: number }) => string): string {
+export function whatItDid(run: RunSummary,
+                   say: (key: string, options?: { count: number }) => string,
+                   now: number = Date.now()): string {
   const steps = run.steps ?? [];
-  const duration = durationInWords(run.durationS, say);
+  const duration = run.outcome === "running"
+    ? runningSince(run.startedAt, say, now)
+    : durationInWords(run.durationS, say);
   // PER KIND. A detection counts what it detected, and « rien de nouveau »
   // over a count is the report contradicting itself; a run still going and a
   // command whose steps count nothing have nothing to report yet but their time.

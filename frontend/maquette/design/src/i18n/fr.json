@@ -748,6 +748,9 @@
       "runMinutesSeconds_one": "{{count}} min {{seconds}}",
       "runMinutesSeconds_other": "{{count}} min {{seconds}}",
       "runCommand": "commande {{command}}",
+      "runRunningSince_one": "en cours depuis {{count}} min",
+      "runRunningSince_other": "en cours depuis {{count}} min",
+      "runRunningJustNow": "en cours depuis moins d'une minute",
       "trigger": {
         "completion": "un téléchargement terminé",
         "safety_net": "le filet de sécurité",

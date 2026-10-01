@@ -46,6 +46,7 @@ its own context): the empty list of passages, and a media sheet's empty place.
 import asyncio
 import json
 import pathlib
+import re
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -308,6 +309,15 @@ async def main():
             journal.check(f"the {row['outcome']} row {row['runUid'][:8]} says its own outcome word",
                           bool(expected) and row["word"] == expected,
                           f"said {row['word']!r}, expected {expected!r}")
+        # 6b — A RUNNING ROW SAYS HOW LONG IT HAS BEEN GOING (B-538). Its
+        # duration is null until it ends, and its second line was EMPTY — one
+        # text line shorter than the same row once ended.
+        elapsed = re.compile("|".join(
+            re.escape(SENTENCES[key]).replace(re.escape("{{count}}"), r"\d+")
+            for key in ("runRunningSince_one", "runRunningSince_other", "runRunningJustNow")))
+        for row in going:
+            journal.check(f"the running row {row['runUid'][:8]}'s second line says how long it has been going",
+                          bool(elapsed.search(row["line"] or "")), f"line {row['line']!r}")
         detections = [row for row in rows
                       if row["command"] == "follow-detect" and row["detected"]]
         journal.check("a detection that counted something is listed", bool(detections),

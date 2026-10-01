@@ -113,6 +113,21 @@ function afterTheLastRun(state: ReturnType<typeof mockState>): string {
 }
 
 /**
+ * The instant a run started by hand that is STILL GOING is dated: now, on the
+ * real clock, and never before the history it follows.
+ *
+ * ITS ROW SAYS HOW LONG IT HAS BEEN GOING (B-538), counted on the reader's
+ * clock — a run dated by the layer's clock, months behind, would read as going
+ * for months the moment it was asked.
+ *
+ * @param state The layer's state, whose history it must follow.
+ * @returns The instant, ISO.
+ */
+function startedNow(state: ReturnType<typeof mockState>): string {
+  return new Date(Math.max(Date.now(), Date.parse(afterTheLastRun(state)))).toISOString();
+}
+
+/**
  * One step reduced to what a list row needs: its name, its status, its counts.
  *
  * @param step The step in full.
@@ -209,7 +224,7 @@ export function launchDetection(): { runUid: string } {
       runUid,
       trigger: DETECTION_TRIGGER,
       dryRun: false,
-      startedAt: afterTheLastRun(state),
+      startedAt: startedNow(state),
       endedAt: null,
       outcome: STILL_RUNNING,
       durationS: null,
