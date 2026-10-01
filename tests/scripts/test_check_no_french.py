@@ -120,6 +120,22 @@ class TestSplitIdentifier:
         assert guard.split_identifier(name) == expected
 
 
+class TestKeyframeNames:
+    """A `@keyframes` name is a name someone chose, read against the vocabulary (B-056)."""
+
+    def test_a_keyframe_built_from_an_unknown_word_is_refused(self) -> None:
+        """`splashremplit` sat in a stylesheet no arm read: the vocabulary does not know it."""
+        source = "@keyframes splashremplit {\n  to { width: 100%; }\n}\n"
+        assert guard.unknown_keyframe_words(source, {"splash", "fill"}) == [
+            ("splashremplit", 1, ["splashremplit"])
+        ]
+
+    def test_a_keyframe_in_the_vocabulary_passes_wherever_it_is_declared(self) -> None:
+        """Kebab names split; a declaration nested in a block is read too."""
+        source = "@media (x) {\n  @keyframes splash-fill { to { width: 1px; } }\n}\n"
+        assert guard.unknown_keyframe_words(source, {"splash", "fill"}) == []
+
+
 class TestDictionaryArm:
     """The oracle from OUTSIDE the repository."""
 

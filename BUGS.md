@@ -22,7 +22,7 @@
 | B-052 | A synthesised follow panel labels a film « Série »                  | by review   | `open`       |
 | B-053 | A panel's layer entry is taken by a tab tap on the same layer (revisit) | by review | `open`     |
 | B-054 | `data-go="acq"` no longer forces the « now » tab (revisit)           | by review   | `open`       |
-| B-056 | A `@keyframes` name is French (`splashremplit`), invisible to no-french. **Owner:** the tooling train.  | by review | `open` |
+| B-056 | A `@keyframes` name is French (`splashremplit`), invisible to no-french. **Owner:** the tooling train. **Register train 3:** still there on `main` `27b304157`, and no French list could see it — a flat compound holds no token. Renamed `splash-fill` at both ends (with `sh` → `shimmer`), and the vocabulary arm now reads the maquette's `@keyframes` names (`unknown_keyframe_words`), red over `splashremplit` before the rename. | by review | `fixing` |
 | B-061 | The oracle cannot see a pseudo-element, so a class that generates nothing reads green. **Owner:** the tooling train. | by rule | `open` |
 | B-068 | The wave's documentation drifted in forty small places, and one figure family is wrong. **Owner:** the steward's docs round. | by review | `open` |
 | B-101 | The steward's brief predicted an oracle movement that could not happen. **Owner:** the steward's docs round. | by audit | `open` |
