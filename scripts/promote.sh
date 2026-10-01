@@ -85,7 +85,7 @@ check_untagged() {
   version="$(version_at "$sha")"
   [ -n "$version" ] || refuse "no __version__ readable in $INIT_PATH at $(short "$sha")"
   if [ -n "$(timeout "$GIT_NET_TIMEOUT" git ls-remote --tags origin "refs/tags/v$version")" ]; then
-    refuse "tag v$version already exists on origin — bump the version (a hotfix adds a fourth component)"
+    refuse "tag v$version already exists on origin — $(short "$sha") carries a released version (a no-version-bump change): it ships with the next version bump to develop"
   fi
   printf '%s' "$version"
 }

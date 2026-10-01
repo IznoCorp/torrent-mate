@@ -381,6 +381,21 @@ def test_rule_4_refuses_a_version_already_tagged(flow: Flow) -> None:
     assert flow.tip("prod") == flow.base
 
 
+def test_rule_4_says_an_unbumped_change_ships_with_the_next_bump(flow: Flow) -> None:
+    """A `no-version-bump` PR carries its base's version: it waits for the next bumped PR, nothing to bump by hand."""
+    flow.merged_pr("0.1.1")
+    assert flow.promote("main").returncode == 0
+    assert flow.promote("staging").returncode == 0
+    assert flow.promote("prod").returncode == 0
+    flow.merged_pr("0.1.1")
+    assert flow.promote("main").returncode == 0
+    assert flow.promote("staging").returncode == 0
+    done = flow.promote("prod")
+    assert done.returncode == 1, _out(done)
+    assert "ships with the next version bump to develop" in done.stderr
+    assert "bump the version" not in done.stderr
+
+
 # ── dry run ──────────────────────────────────────────────────────────────────
 
 
