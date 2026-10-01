@@ -144,10 +144,10 @@ describe("the build's substitution", () => {
   });
 
   it("writes a push text holding replacement patterns ($&, $', $`) as it is", async () => {
-    const literal = "Ratio $& $' $` $$ $1";
-    const worker = bootWorker({ ...TEST_TEXTS, generic: { title: literal, body: literal } });
+    const text = "Ratio $& $' $` $$ $1";
+    const worker = bootWorker({ ...TEST_TEXTS, generic: { title: text, body: text } });
     await worker.push({ data: { code: "nobody.knows" } });
-    expect(worker.shown[0]).toEqual({ title: literal, options: expect.objectContaining({ body: literal }) });
+    expect(worker.shown[0]).toEqual({ title: text, options: expect.objectContaining({ body: text }) });
   });
 
   it("refuses a worker whose __PUSH_TEXTS__ survived", () => {
