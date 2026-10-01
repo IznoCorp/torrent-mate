@@ -11,9 +11,12 @@ from __future__ import annotations
 
 import os
 import re
+import signal
 import subprocess
 import time
 from pathlib import Path
+
+import pytest
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "heavy.sh"
 
@@ -123,6 +126,12 @@ def test_two_runs_that_fit_the_budget_run_together(tmp_path: Path) -> None:
     )
     try:
         assert wait_for(lambda: any((home / "running").glob("*"))), "the first run was never admitted"
+        held = subprocess.run(
+            ["sh", str(SCRIPT), "--held"], env=signals, capture_output=True, text=True, timeout=30, check=False
+        )
+        # The admitted run's entry was written to `running/*`, the loop variable
+        # of the count that ran just before, and the next count removed it.
+        assert "first (test, 2 cores)" in held.stdout, held.stdout
 
         second = subprocess.run(
             ["sh", str(SCRIPT), "--class", "test", "second", "true"],
@@ -240,7 +249,7 @@ def test_an_older_waiter_goes_before_a_newer_one(tmp_path: Path) -> None:
 def test_a_reserve_counts_only_while_its_service_serves(tmp_path: Path) -> None:
     """A fixed ceiling reserved Plex's share even with nobody watching.
 
-    Plex holds 2 cores per transcoded session and 0.3 per direct play, Parsec 1
+    Plex holds 1 core per transcoded session and 0.3 per direct play, Parsec 1
     while a session is open, qBittorrent 0.5 while it downloads, macOS 1 always.
     """
     status = tmp_path / "sessions.xml"
@@ -266,10 +275,10 @@ def test_a_reserve_counts_only_while_its_service_serves(tmp_path: Path) -> None:
     )
 
     assert busy.returncode == 0, busy.stderr
-    assert "plex 2.3 (1 transcoded, 1 direct)" in busy.stdout, busy.stdout
+    assert "plex 1.3 (1 transcoded, 1 direct)" in busy.stdout, busy.stdout
     assert "parsec 1" in busy.stdout, busy.stdout
     assert "qbittorrent 0.5" in busy.stdout, busy.stdout
-    assert "free 3.2 of 8" in busy.stdout, busy.stdout
+    assert "free 4.2 of 8" in busy.stdout, busy.stdout
     assert "plex 0 (" in quiet.stdout, quiet.stdout
     assert "free 7 of 8" in quiet.stdout, quiet.stdout
 
@@ -362,3 +371,163 @@ def test_a_run_under_the_previous_script_is_counted(tmp_path: Path) -> None:
     _, errors = newcomer.communicate(timeout=30)
     assert newcomer.returncode == 0, errors
     assert "the served copy is older checkout's" in errors
+
+
+def sessions(*transcodes: str, direct: int = 0) -> str:
+    """A fake `/status/sessions` answer: one session per transcode, plus direct plays.
+
+    Args:
+        *transcodes: The attributes of each session's `<TranscodeSession>`.
+        direct: How many sessions play directly.
+
+    Returns:
+        The XML Plex would answer.
+    """
+    videos = [
+        f'<Video title="T{index}"><Player state="playing" />'
+        f'<TranscodeSession key="/transcode/sessions/{index}" videoDecision="transcode" {attributes} /></Video>'
+        for index, attributes in enumerate(transcodes)
+    ]
+    videos += [f'<Video title="D{index}"><Player state="playing" /></Video>' for index in range(direct)]
+    return (
+        f'<?xml version="1.0" encoding="UTF-8"?>\n<MediaContainer size="{len(videos)}">\n'
+        + "\n".join(videos)
+        + "\n</MediaContainer>\n"
+    )
+
+
+# Sessions and speeds → the decision. `suspended` is the run heavy.sh already
+# stopped, `latest` the most recent of the runs it admitted that still run.
+PLEX_DECISIONS = [
+    ("no session", "", "-", "-", "admit"),
+    ("a direct play only", sessions(direct=2), "-", "222", "admit"),
+    ("a transcode ahead", sessions('speed="2.4" throttled="0"'), "-", "222", "admit"),
+    ("a transcode exactly at 1.5", sessions('speed="1.5" throttled="0"'), "-", "222", "admit"),
+    ("a transcode under 1.5", sessions('speed="1.3" throttled="0"'), "-", "222", "hold"),
+    ("a transcode under 1.5 but braking itself", sessions('speed="1.3" throttled="1"'), "-", "222", "admit"),
+    ("a transcode under 1.1", sessions('speed="0.9" throttled="0"'), "-", "222", "suspend 222"),
+    ("a transcode under 1.1 and no run of ours", sessions('speed="0.9" throttled="0"'), "-", "-", "hold"),
+    ("a transcode under 1.1 but braking itself", sessions('speed="0.9" throttled="1"'), "-", "222", "admit"),
+    ("any transcode under 1.5 holds", sessions('speed="3.0"', 'speed="1.2"'), "-", "222", "hold"),
+    ("a finished transcode has no speed to keep", sessions('speed="0.0" complete="1"'), "-", "222", "admit"),
+    ("a transcode with no speed yet", sessions('throttled="0"'), "-", "222", "admit"),
+    ("suspended, still under 1.1", sessions('speed="0.8"'), "111", "222", "hold"),
+    ("suspended, back over 1.1 but not 1.5", sessions('speed="1.4"'), "111", "222", "hold"),
+    ("suspended, exactly 1.5 is not above", sessions('speed="1.5"'), "111", "222", "hold"),
+    ("suspended, above 1.5", sessions('speed="1.6"'), "111", "222", "resume 111"),
+    ("suspended, braking itself", sessions('speed="0.8" throttled="1"'), "111", "-", "resume 111"),
+    ("suspended, the session ended", "", "111", "-", "resume 111"),
+]
+
+
+@pytest.mark.parametrize(
+    ("status", "suspended", "latest", "decision"),
+    [case[1:] for case in PLEX_DECISIONS],
+    ids=[case[0] for case in PLEX_DECISIONS],
+)
+def test_plex_decision_follows_the_transcode_speed(status: str, suspended: str, latest: str, decision: str) -> None:
+    """A calibrated Plex reserve needed a measurement nobody has time for.
+
+    Plex says itself whether it keeps up: a transcode's `speed` under 1.5 holds
+    new runs, under 1.1 stops the most recent of heavy.sh's own runs until the
+    speed is back above 1.5; `throttled="1"` means Plex is ahead and brakes.
+    """
+    result = subprocess.run(
+        ["sh", str(SCRIPT), "--plex-decision", suspended, latest],
+        input=status,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == decision
+
+
+def process_state(pid: int) -> str:
+    """The process's state letter as `ps` prints it (T when stopped).
+
+    Args:
+        pid: The process id.
+
+    Returns:
+        The state, empty once the process is gone.
+    """
+    return subprocess.run(
+        ["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True, check=False
+    ).stdout.strip()
+
+
+def test_a_slow_transcode_suspends_the_latest_run_and_resumes_it(tmp_path: Path) -> None:
+    """Under 1.1 the most recent run of heavy.sh's own is stopped, above 1.5 continued.
+
+    A process the script did not launch — here a `sleep` written as a newer
+    admitted run — is named by the decision but touched by no one.
+    """
+    home = tmp_path / "home"
+    status = tmp_path / "sessions.xml"
+    status.write_text(sessions('speed="2.0"'), encoding="utf-8")
+    pid_file = tmp_path / "child.pid"
+    child_script = f"echo $$ > {pid_file}; exec sleep 60"
+    stranger = None
+    run = subprocess.Popen(
+        ["sh", str(SCRIPT), "--class", "test", "ours", "sh", "-c", child_script],
+        env=environment(home, capacity="8", HEAVY_PLEX_URL=status.as_uri(), HEAVY_WATCH_SECONDS="1"),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        assert wait_for(pid_file.exists), "the run never started"
+        child = int(pid_file.read_text().strip())
+
+        status.write_text(sessions('speed="0.9"'), encoding="utf-8")
+        assert wait_for(lambda: process_state(child).startswith("T")), "a slow transcode left our run running"
+
+        status.write_text(sessions('speed="1.3"'), encoding="utf-8")
+        time.sleep(3)
+        assert process_state(child).startswith("T"), "the run resumed before the speed was back above 1.5"
+
+        status.write_text(sessions('speed="1.6"'), encoding="utf-8")
+        assert wait_for(lambda: not process_state(child).startswith("T")), "the run was never resumed"
+
+        stranger = subprocess.Popen(["sleep", "60"])
+        running(home, stranger.pid, "stranger", "test", "2")
+        (home / "running" / str(stranger.pid)).write_text(f"stranger\ntest\n2\n{int(time.time()) + 100}\n")
+        status.write_text(sessions('speed="0.9"'), encoding="utf-8")
+        time.sleep(4)
+        assert not process_state(stranger.pid).startswith("T"), "heavy.sh stopped a process it did not launch"
+        assert not process_state(child).startswith("T"), "the older run was stopped instead of the latest"
+    finally:
+        run.send_signal(signal.SIGTERM)
+        _, errors = run.communicate(timeout=30)
+        if stranger is not None:
+            stranger.kill()
+            stranger.wait()
+    assert "suspending ours" in errors, errors
+    assert "resuming ours" in errors, errors
+
+
+def test_a_slow_transcode_holds_new_runs(tmp_path: Path) -> None:
+    """While a transcode runs under 1.5, no new heavy run is admitted."""
+    status = tmp_path / "sessions.xml"
+    status.write_text(sessions('speed="1.3"'), encoding="utf-8")
+    run = subprocess.Popen(
+        ["sh", str(SCRIPT), "--class", "test", "newcomer", "true"],
+        env=environment(tmp_path / "home", capacity="8", HEAVY_PLEX_URL=status.as_uri()),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        time.sleep(4)
+        assert run.poll() is None, "a run started over a transcode that falls behind"
+        status.write_text(sessions('speed="1.3" throttled="1"'), encoding="utf-8")
+        _, errors = run.communicate(timeout=30)
+    finally:
+        if run.poll() is None:
+            run.kill()
+            run.wait()
+    assert run.returncode == 0, errors
+    assert "Plex transcodes at 1.3" in errors, errors

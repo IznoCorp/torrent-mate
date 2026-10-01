@@ -6,6 +6,8 @@
 #   sh scripts/heavy.sh [--class browser|rule|test|build] "<who>" <command...>
 #   sh scripts/heavy.sh --held      # prints the runs admitted, or « free » (exit 1)
 #   sh scripts/heavy.sh --budget    # prints the capacity, the reserves and what is left
+#   sh scripts/heavy.sh --plex-decision <suspended|-> <latest|-> < sessions.xml
+#                                   # the Plex loop's decision, for the tests
 #
 # A BUDGET, NOT A LOCK (2026-10-01). One lock and a load ceiling of 6 ran one
 # heavy run at a time whatever the machine had left, and still let a run start
@@ -20,6 +22,18 @@
 #
 # and, for the classes that use the served copy (`browser`, `rule`), when no
 # other such run is admitted: there is one served copy per machine.
+#
+# PLEX IS FOLLOWED ON ITS OWN SIGNAL, NOT A CALIBRATED SHARE (2026-10-01).
+# Nobody has the time to measure what a transcode costs under rising load;
+# Plex says itself whether it keeps up. Each `<TranscodeSession>` of
+# `/status/sessions` carries a `speed` (1 is real time) and `throttled="1"`
+# when Plex is ahead and brakes itself. No session holds nothing, a direct
+# play 0.3 core, a transcode 1 core at its start; then, while a transcode that
+# is not braking runs under PLEX_HOLD_SPEED, no new run is admitted, and under
+# PLEX_SUSPEND_SPEED the most recent run this script admitted is stopped
+# (SIGSTOP) until the speed is back above PLEX_HOLD_SPEED, then continued
+# (SIGCONT). One run is stopped at a time. Each run's own watcher decides and
+# acts only on its own run: nothing this script did not launch is touched.
 #
 # A run that drops the machine under HARD_FLOOR_MB for 45 s is stopped: only
 # what this script started is ever touched. `HEAVY_HOME` moves the script's
@@ -37,14 +51,19 @@
 HOME_DIR=${HEAVY_HOME:-/private/tmp/tm-heavy}
 QUEUE="$HOME_DIR/queue"
 RUNNING="$HOME_DIR/running"
+SUSPENDED="$HOME_DIR/suspended"
 ADMIT="$HOME_DIR/admit"
 
 CAPACITY_CORES=${HEAVY_CAPACITY_CORES:-8}
 MACOS_RESERVE_CORES=1
-# CALIBRATION PENDING: the operator and the auditor measure a transcoded film
-# under rising load at this lot's end, and their figure replaces this one.
-PLEX_TRANSCODE_CORES=2
+# What a transcode holds at its start; its speed says the rest.
+PLEX_TRANSCODE_START_CORES=1
 PLEX_DIRECT_CORES=0.3
+# Under this speed a transcode holds new runs; a stopped run resumes only
+# above it.
+PLEX_HOLD_SPEED=1.5
+# Under this speed a transcode stops the most recent run of this script's.
+PLEX_SUSPEND_SPEED=1.1
 PARSEC_SESSION_CORES=1
 QBIT_DOWNLOAD_CORES=0.5
 # qBittorrent downloads when more than this comes in per second.
@@ -52,6 +71,9 @@ QBIT_DOWNLOAD_BYTES_PER_SECOND=1048576
 # A Parsec session encodes the screen: VideoToolbox's encoder above this % CPU.
 PARSEC_ENCODER_PERCENT=1
 PLEX_URL=${HEAVY_PLEX_URL:-http://127.0.0.1:32400/status/sessions}
+
+# How often a run's watcher looks at the memory and at Plex, in seconds.
+WATCH_SECONDS=${HEAVY_WATCH_SECONDS:-15}
 
 export LC_ALL=C
 
@@ -73,14 +95,16 @@ at_least() {
 
 # --- What the services that serve someone hold -------------------------------
 
-# Sets plex_cores and plex_said. Plex not running holds nothing; a Plex that
-# answers something unreadable is held at one transcode, the safe guess.
+# Sets plex_cores, plex_said and plex_status (the answer, for the speed loop).
+# Plex not running holds nothing; a Plex that answers something unreadable is
+# held at one transcode, the safe guess.
 plex_reserve() {
     token=$(defaults read com.plexapp.plexmediaserver PlexOnlineToken 2>/dev/null || true)
     status=$(printf 'X-Plex-Token: %s\nAccept: application/xml\n' "$token" |
         curl -s --connect-timeout 2 --max-time 5 -H @- "$PLEX_URL" 2>/dev/null)
     reached=$?
     token=""
+    plex_status=$status
     if [ "$reached" -eq 7 ]; then
         plex_cores=0
         plex_said="0 (not running)"
@@ -89,7 +113,7 @@ plex_reserve() {
     case "$status" in
         *"<MediaContainer"*) ;;
         *)
-            plex_cores=$PLEX_TRANSCODE_CORES
+            plex_cores=$PLEX_TRANSCODE_START_CORES
             plex_said="$plex_cores (unreadable: held as one transcode)"
             return
             ;;
@@ -98,8 +122,56 @@ plex_reserve() {
     transcoded=$(printf '%s' "$status" | grep -o '<TranscodeSession [^>]*videoDecision="transcode"' | wc -l | tr -d ' ')
     direct=$((sessions - transcoded))
     [ "$direct" -lt 0 ] && direct=0
-    plex_cores=$(add "$(multiply "$transcoded" "$PLEX_TRANSCODE_CORES")" "$(multiply "$direct" "$PLEX_DIRECT_CORES")")
+    plex_cores=$(add "$(multiply "$transcoded" "$PLEX_TRANSCODE_START_CORES")" "$(multiply "$direct" "$PLEX_DIRECT_CORES")")
     plex_said="$plex_cores ($transcoded transcoded, $direct direct)"
+}
+
+# The slowest speed among the transcodes that must keep up, read from a
+# `/status/sessions` answer on stdin; nothing when there is none. A transcode
+# braking itself (throttled) is ahead, a finished one (complete) needs nothing,
+# one with no speed yet has not said.
+plex_slowest() {
+    awk '
+        function attribute(element, name) {
+            if (match(element, "[ \t]" name "=\"[^\"]*\""))
+                return substr(element, RSTART + length(name) + 3, RLENGTH - length(name) - 4)
+            return ""
+        }
+        { answer = answer $0 " " }
+        END {
+            count = split(answer, elements, "<")
+            for (i = 1; i <= count; i++) {
+                if (elements[i] !~ /^TranscodeSession[ \t\/>]/) continue
+                if (attribute(elements[i], "throttled") == "1") continue
+                if (attribute(elements[i], "complete") == "1") continue
+                speed = attribute(elements[i], "speed")
+                if (speed == "") continue
+                if (slowest == "" || speed + 0 < slowest + 0) slowest = speed
+            }
+            if (slowest != "") printf "%g\n", slowest
+        }'
+}
+
+# THE PLEX LOOP'S DECISION, pure: a `/status/sessions` answer on stdin, the run
+# already stopped ($1) and the most recent run still running ($2), "" or "-"
+# for none. Prints admit, hold, suspend <run> or resume <run>.
+plex_decision() {
+    stopped=${1#-}
+    latest=${2#-}
+    slowest=$(plex_slowest)
+    if [ -n "$stopped" ]; then
+        if [ -z "$slowest" ] || [ "$(at_least "$PLEX_HOLD_SPEED" "$slowest")" = 0 ]; then
+            echo "resume $stopped"
+        else
+            echo hold
+        fi
+    elif [ -z "$slowest" ] || [ "$(at_least "$slowest" "$PLEX_HOLD_SPEED")" = 1 ]; then
+        echo admit
+    elif [ -n "$latest" ] && [ "$(at_least "$slowest" "$PLEX_SUSPEND_SPEED")" = 0 ]; then
+        echo "suspend $latest"
+    else
+        echo hold
+    fi
 }
 
 parsec_active() {
@@ -138,19 +210,38 @@ reserves() {
 
 # --- What the admitted runs hold ---------------------------------------------
 
-# Sets admitted_cores and served_copy_holder; removes the entries of runs gone.
+# Its loop variables are not `entry` nor `marker`: those name this run's own.
+# Sets admitted_cores, served_copy_holder, stopped_run (the run the Plex loop
+# stopped) and latest_run (the most recent admitted run still running);
+# removes the entries of runs gone.
 admitted() {
     admitted_cores=0
     served_copy_holder=""
-    for entry in "$RUNNING"/*; do
-        [ -f "$entry" ] || continue
-        if ! kill -0 "${entry##*/}" 2>/dev/null; then
-            rm -f "$entry"
+    stopped_run=""
+    latest_run=""
+    latest_since=-1
+    for stop in "$SUSPENDED"/*; do
+        [ -f "$stop" ] || continue
+        if kill -0 "${stop##*/}" 2>/dev/null; then
+            stopped_run=${stop##*/}
+        else
+            rm -f "$stop"
+        fi
+    done
+    for other in "$RUNNING"/*; do
+        [ -f "$other" ] || continue
+        if ! kill -0 "${other##*/}" 2>/dev/null; then
+            rm -f "$other"
             continue
         fi
-        admitted_cores=$(add "$admitted_cores" "$(sed -n 3p "$entry")")
-        case "$(sed -n 2p "$entry")" in
-            browser|rule) served_copy_holder=$(sed -n 1p "$entry") ;;
+        admitted_cores=$(add "$admitted_cores" "$(sed -n 3p "$other")")
+        since=$(sed -n 4p "$other")
+        if [ "${other##*/}" != "$stopped_run" ] && [ "${since:-0}" -ge "$latest_since" ]; then
+            latest_since=${since:-0}
+            latest_run=${other##*/}
+        fi
+        case "$(sed -n 2p "$other")" in
+            browser|rule) served_copy_holder=$(sed -n 1p "$other") ;;
         esac
     done
     # A run under the previous script, from a checkout older than the budget,
@@ -218,12 +309,17 @@ one_minute_load() {
     uptime | sed 's/.*load averages*: *//' | awk '{ print $1 }' | tr ',' '.' | sed 's/\.$//'
 }
 
+if [ "${1:-}" = "--plex-decision" ]; then
+    plex_decision "${2:-}" "${3:-}"
+    exit 0
+fi
+
 if [ "${1:-}" = "--held" ]; then
     admitted
     found=1
-    for entry in "$RUNNING"/*; do
-        [ -f "$entry" ] || continue
-        echo "$(sed -n 1p "$entry") ($(sed -n 2p "$entry"), $(sed -n 3p "$entry") cores)"
+    for other in "$RUNNING"/*; do
+        [ -f "$other" ] || continue
+        echo "$(sed -n 1p "$other") ($(sed -n 2p "$other"), $(sed -n 3p "$other") cores)"
         found=0
     done
     [ "$found" -eq 0 ] && exit 0
@@ -237,6 +333,7 @@ if [ "${1:-}" = "--budget" ]; then
     echo "capacity $CAPACITY_CORES cores"
     echo "reserves: $reserves_said"
     echo "admitted runs: $admitted_cores"
+    echo "plex: slowest transcode $(printf '%s' "$plex_status" | plex_slowest | grep . || echo none), $(printf '%s' "$plex_status" | plex_decision "$stopped_run" "$latest_run")"
     left=$(add "$CAPACITY_CORES" "-$(add "$reserved_cores" "$admitted_cores")")
     echo "free $left of $CAPACITY_CORES"
     exit 0
@@ -290,6 +387,16 @@ room_fits() {
             [ -n "$served_copy_holder" ] && refuse copy "the served copy is $served_copy_holder's"
             ;;
     esac
+    case "$(printf '%s' "$plex_status" | plex_decision "$stopped_run" "$latest_run")" in
+        admit) ;;
+        *)
+            if [ -n "$stopped_run" ]; then
+                refuse plex "a run is stopped for Plex until its transcodes are back above $PLEX_HOLD_SPEED"
+            else
+                refuse plex "Plex transcodes at $(printf '%s' "$plex_status" | plex_slowest), under $PLEX_HOLD_SPEED"
+            fi
+            ;;
+    esac
     [ "$(at_least "$left" "$COST")" = 0 ] &&
         refuse budget "$left of $CAPACITY_CORES cores free, $RUN_CLASS needs $COST ($reserves_said; admitted $admitted_cores)"
     [ -n "$idle" ] && [ "$(at_least "$idle" "$COST")" = 0 ] &&
@@ -314,10 +421,13 @@ ticket="$QUEUE/$(printf '%012d.%08d' "$ASKED" "$$")"
 entry="$RUNNING/$$"
 echo "$WHO" > "$ticket"
 
+marker="$SUSPENDED/$$"
 child=""
+# A stopped process keeps a TERM pending until it is continued.
 release() {
     [ -n "$child" ] && { kill -TERM -"$child" 2>/dev/null || kill -TERM "$child" 2>/dev/null; }
-    rm -f "$ticket" "$entry"
+    [ -n "$child" ] && [ -f "$marker" ] && { kill -CONT -"$child" 2>/dev/null || kill -CONT "$child" 2>/dev/null; }
+    rm -f "$ticket" "$entry" "$marker"
     [ "$(cat "$ADMIT/pid" 2>/dev/null)" = "$$" ] && rm -rf "$ADMIT"
 }
 trap 'release; exit 130' INT TERM
@@ -364,7 +474,7 @@ while :; do
     fi
     take_admit
     if room_fits; then
-        printf '%s\n%s\n%s\n' "$WHO" "$RUN_CLASS" "$COST" > "$entry"
+        printf '%s\n%s\n%s\n%s\n' "$WHO" "$RUN_CLASS" "$COST" "$(date +%s)" > "$entry"
         rm -rf "$ADMIT"
         break
     fi
@@ -384,12 +494,34 @@ set -m
 child=$!
 set +m
 
+# The Plex loop, for this run only: every watcher reads the same decision, and
+# only the run it names acts, on its own process group.
+follow_plex() {
+    mkdir -p "$SUSPENDED" 2>/dev/null || return
+    plex_reserve
+    admitted
+    decision=$(printf '%s' "$plex_status" | plex_decision "$stopped_run" "$latest_run")
+    case "$decision" in
+        "suspend $$")
+            : > "$marker"
+            kill -STOP -"$child" 2>/dev/null || kill -STOP "$child" 2>/dev/null
+            say "suspending $WHO's run — Plex transcodes at $(printf '%s' "$plex_status" | plex_slowest), under $PLEX_SUSPEND_SPEED"
+            ;;
+        "resume $$")
+            kill -CONT -"$child" 2>/dev/null || kill -CONT "$child" 2>/dev/null
+            rm -f "$marker"
+            say "resuming $WHO's run — Plex keeps up again"
+            ;;
+    esac
+}
+
 strikes=0
 ticks=0
 while kill -0 "$child" 2>/dev/null; do
     sleep 1
     ticks=$((ticks + 1))
-    [ "$((ticks % 15))" -eq 0 ] || continue
+    [ "$((ticks % WATCH_SECONDS))" -eq 0 ] || continue
+    follow_plex
     free=$(free_megabytes)
     [ -z "$free" ] && continue
     if [ "$(at_least "$free" "$HARD_FLOOR_MB")" = 0 ]; then
@@ -398,6 +530,7 @@ while kill -0 "$child" 2>/dev/null; do
         if [ "$strikes" -ge "$HARD_STRIKES" ]; then
             say "STOPPING $WHO's run — the machine is out of room"
             kill -TERM -"$child" 2>/dev/null || kill -TERM "$child" 2>/dev/null
+            kill -CONT -"$child" 2>/dev/null || kill -CONT "$child" 2>/dev/null
             sleep 5
             kill -KILL -"$child" 2>/dev/null || kill -KILL "$child" 2>/dev/null
             wait "$child" 2>/dev/null
