@@ -16,6 +16,8 @@ import { read } from "../../lib/query-client";
 import { dayOf, sizeOf, written } from "./format";
 import { downloadsKey, obligationsKey, type Download, type Obligation } from "./queries";
 import { addedOf, episodeCode, owedBy, sourcesOf, transferOf } from "./torrent-card";
+// The cross-seed block an origin's panel draws, declared to the panel as it evaluates.
+import "./panel-cross-seed";
 
 /**
  * A sentence of the panel, in the interface's language.
@@ -72,6 +74,7 @@ function factsOf(entry: Download, obligation: Obligation | undefined): FactLine[
     { c: say("added"), v: addedOf(entry) },
     { c: say("ratio"), v: written(entry.ratio, 2) },
     { c: say("obligation"), v: obligationOf(obligation) },
+    ...(obligation?.crossSeedOf ? [{ c: say("crossSeedOf"), v: obligation.crossSeedOf.title }] : []),
     {
       c: say("deadline"),
       v: entry.deadline === null ? i18next.t("screens.torrents.noDeadline") : dayOf(entry.deadline),
@@ -101,16 +104,30 @@ function torrentPanel(subject: string, cache: PanelCache): PanelDescriptor | nul
     : entry.folder !== null
       ? { text: say("identify"), icone: icons.play, ton: "primary", target: { resolution: entry.folder } }
       : null;
+  const owed = owedBy(entry, obligations);
+  // A CROSS-SEED'S OBLIGATION SAYS WHOSE COPY IT IS, and leads to the original's sheet (S4).
+  const origin = owed?.crossSeedOf ?? null;
+  const toOrigin: Action | null = origin === null || origin.media === null
+    ? null
+    : { text: say("seeOrigin"), icone: icons.eye, target: { mediasheet: origin.title } };
   return {
     title: entry.title,
     meta: entry.tracker,
     blocs: [
-      { type: "faits", lignes: factsOf(entry, owedBy(entry, obligations)) },
+      { type: "faits", lignes: factsOf(entry, owed) },
       path === null ? { type: "note", text: say("noFolder") } : null,
+      // AN ORIGIN'S CROSS-SEED, tracker by tracker — never repeated on a cross-seed's own entry.
+      entry.crossSeed === null ? null : {
+        type: "crossSeed",
+        origin: { infoHash: entry.infoHash, name: entry.name, tracker: entry.tracker, progress: entry.progress },
+        pairs: entry.crossSeed.pairs,
+        titleExcluded: entry.crossSeed.titleExcluded,
+      },
       {
         type: "actions",
         actions: [
           path,
+          toOrigin,
           // REMOVING IS A WRITE (`trackers.control`), absent without it.
           !heldRights().holds("trackers.control") ? null : {
             text: i18next.t("screens.torrents.remove"),

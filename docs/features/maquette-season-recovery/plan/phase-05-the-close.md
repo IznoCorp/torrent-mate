@@ -14,11 +14,8 @@ declared against DESIGN § 3's **30**; the harness budget (`git diff --numstat o
 
 ## The gate of the lot (once)
 
-The full suite (`TM_HARNESS_JOBS=2`), each rule a–g re-run BY NAME and read in its log; `--a11y`; the full responsive
-sweep, Chromium × 7 widths + WebKit light and dark;
-`scripts/harness-hold-counts.py --compare frontend/maquette/hold-counts-baseline.json` (`failed` read first);
-`check-bug-register.py`, `check-intent-map.py`, `check-docs-cited-paths.py`; the pre-push pytest (`-n 2`). The ten
-random mutations, the finger walk and the principles are the reader round's.
+`make check`; `python3 scripts/check-no-french.py`. The full harness runs in CI on the pull request (`harness-full`).
+The finger walk and the principles are the reader round's.
 
 ## The pull request
 

@@ -24,6 +24,7 @@ import type { LegendEntry } from "../../ui/legend";
 import { swipeAction, type ChipTone, type LegendTone } from "../../ui/variants";
 import { dayOf, rateOf, sizeOf, written } from "./format";
 import type { Download, Obligation } from "./queries";
+import { isComplete, isSearchable } from "./cross-seed-state";
 
 /** The tone each of the client's states wears — the legend reads the same map. */
 export const STATE_TONE: Readonly<Record<Download["state"], ChipTone>> = {
@@ -164,6 +165,22 @@ function marksOf(entry: Download, obligation: Obligation | undefined, breached: 
   if (running) {
     marks.push({ label: say("obligationOpen"), tone: "info", attributes: { "data-part": "torrents/obligation-open" } });
   }
+  // AN OBLIGATION A CROSS-SEED CREATED says whose copy it is (§ 19 point 2) — one that
+  // is not reads as it did, no mark and no empty slot.
+  if (obligation?.crossSeedOf) {
+    marks.push({
+      label: say("crossSeedOf", { title: obligation.crossSeedOf.title }),
+      attributes: { "data-part": "torrents/obligation-origin", "data-origin-entry": obligation.crossSeedOf.infoHash },
+    });
+  }
+  // AN ORIGIN SAYS WHERE IT CROSS-SEEDS, as the server counts its pairs; its panel says each one.
+  if (entry.crossSeed !== null && entry.crossSeed.pairs.length > 0) {
+    const active = entry.crossSeed.pairs.filter((pair) => pair.state === "active").length;
+    marks.push({
+      label: active === 0 ? say("crossSeedNone") : i18next.t("screens.torrents.crossSeedActive", { count: active }),
+      attributes: { "data-part": "torrents/cross-seed-summary", "data-active": String(active) },
+    });
+  }
   // BROKEN, THE TORRENT STILL HERE: the alert's own reading, never recomputed on
   // the card — « en infraction », never « rompue », which names the torrent gone.
   if (breached) {
@@ -225,16 +242,20 @@ export function legendOf(codes: readonly Code[]): LegendEntry[] {
 /**
  * One entry's card, in its swipe row, in the row that names the entry.
  *
- * THE SWIPE UNCOVERS « Retirer » ONLY, and its tap is the panel's own removal:
- * it opens the confirmation, never removes by itself. The cross-seed side is
- * not drawn until its verb exists — nothing is drawn that does nothing.
+ * TRAVEL LEFT UNCOVERS « Retirer », and its tap is the panel's own removal: it
+ * opens the confirmation, never removes by itself. TRAVEL RIGHT uncovers
+ * « Chercher », a cross-seed search, on an origin with a pair to search.
  *
  * @param entry The download client's entry.
  * @param obligation The obligation it owes, when it owes one.
  * @param breached Whether the page's alert reads its obligation broken.
+ * @param trackerEnabled Whether a tracker's own cross-seed switch is on (§ 17
+ *     point 1): a pair on a tracker whose switch is off offers no search here.
  * @returns The item's markup.
  */
-export function torrentItemMarkup(entry: Download, obligation: Obligation | undefined, breached: boolean): string {
+export function torrentItemMarkup(
+  entry: Download, obligation: Obligation | undefined, breached: boolean, trackerEnabled: (tracker: string) => boolean,
+): string {
   const say = (key: string, values: Record<string, string> = {}) => i18next.t(`screens.torrents.${key}`, values);
   const panelAddress = torrentPanelAddress(entry);
   const transfer = transferOf(entry);
@@ -275,7 +296,18 @@ export function torrentItemMarkup(entry: Download, obligation: Obligation | unde
     marks: marksOf(entry, obligation, breached),
   });
   const remove = `<button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="remove" data-torrent-remove="${escapeMarkup(`${entry.infoHash}:${entry.tracker}`)}">${svgIcon(icons.trash)}${escapeMarkup(say("swipeRemove"))}</button>`;
-  // THE SWIPE REMOVES, so it is offered to an account that may (`trackers.control`).
-  const row = heldRights().holds("trackers.control") ? swipeRowMarkup(card, remove) : card;
+  // THE LEFT DRAWER IS THE ROW'S ONE « FOR » ACTION (L16-bis § 1.6): a cross-seed
+  // search on an origin, over every pair the engine would act on — drawn only
+  // when there is one; nothing is drawn that does nothing.
+  const searchable = entry.crossSeed !== null
+    && entry.crossSeed.pairs.some((pair) => isSearchable(
+      pair, entry.crossSeed?.titleExcluded ?? false, isComplete(entry), trackerEnabled(pair.tracker),
+    ));
+  const search = searchable
+    ? `<button class="${swipeAction({ tone: "resume" })}" data-part="swipe/action" data-action="cross-seed-search" data-swipeact="cross-seed-search" data-cross-seed-search-all="${escapeMarkup(entry.infoHash)}">${svgIcon(icons.search)}${escapeMarkup(say("swipeSearch"))}</button>`
+    : undefined;
+  // THE SWIPE REMOVES AND SEARCHES, both writes, so it is offered to an account
+  // that may (`trackers.control`).
+  const row = heldRights().holds("trackers.control") ? swipeRowMarkup(card, remove, search) : card;
   return `<div data-part="torrents/row" data-entry="${escapeMarkup(entry.infoHash)}" data-tracker="${escapeMarkup(entry.tracker)}">${row}</div>`;
 }

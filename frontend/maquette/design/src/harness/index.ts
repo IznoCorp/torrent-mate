@@ -9,6 +9,7 @@ import { installHarnessPanel } from "./panel";
 import { publishSeams } from "./publish";
 import { accountStates } from "./states/account";
 import { acquisitionStates } from "./states/acquisition";
+import { seasonRecoveryStates } from "./states/season-recovery";
 import { entryStates } from "./states/entry";
 import { drawerStates, menuStates, navigationStates, notFoundStates } from "./states/frame";
 import { libraryStates } from "./states/library";
@@ -19,6 +20,7 @@ import { rightsStates } from "./states/rights";
 import { settingsStates } from "./states/settings";
 import { systemStates } from "./states/system";
 import { trackersStates } from "./states/trackers";
+import { crossSeedStates } from "./states/cross-seed";
 import { tunnelStates } from "./states/tunnel";
 
 /**
@@ -35,6 +37,7 @@ function namedStates(): NamedState[] {
   return [
     ...entryStates(),
     ...acquisitionStates(),
+    ...seasonRecoveryStates(),
     ...libraryStates(),
     ...tunnelStates(),
     ...mediaStates(),
@@ -45,6 +48,7 @@ function namedStates(): NamedState[] {
     ...navigationStates(),
     ...accountStates(),
     ...trackersStates(),
+    ...crossSeedStates(),
     ...maintenanceStates(),
     ...settingsStates(),
     ...relayStates(),

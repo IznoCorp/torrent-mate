@@ -9,6 +9,7 @@
 // NO HANDLER IS ATTACHED HERE. The document-level delegation answers
 // `data-mediasheet` and `data-panel` on the button tapped, which is
 // why every attribute below is one the delegation reads.
+import { acquisitionKey } from "../../lib/arrival-slots";
 import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";
 import { initials } from "../../lib/titles";
@@ -34,6 +35,9 @@ type Rung = {
   minimumRatio?: number | null;
 };
 /** A medium as an acquisition list holds one, in the engine's field names. */
+// The contract's token for an acquisition the engine launched on its own.
+const AUTOMATIC = "automatic";
+
 export type MediumCard = {
   title: string;
   k?: string;
@@ -61,6 +65,11 @@ export type MediumCard = {
   poster?: string | null;
   /** The provider identifiers — null for a title no sheet stands behind. */
   ids?: Record<string, number | string> | null;
+  /** The season and the episode the acquisition is of, as the engine serves them. */
+  season?: number | null;
+  episode?: number | null;
+  /** Who launched it: a person's ask, or the engine's own rule — null when not known. */
+  trigger?: "manual" | "automatic" | null;
 };
 
 /** The foot a section offers for its own action. */
@@ -234,7 +243,9 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot | Med
   return cardMarkup({
     title,
     // french-ok: the non-medium marker R46 reads, a contract value
-    attributes: hasSheet ? {} : { "data-nonmedia": "dossier" },
+    // THE ACQUISITION IT STANDS FOR, the key a landing names it by (DESIGN
+    // maquette-season-recovery § 1.4: « Voir la carte de la saison »).
+    attributes: { "data-acquisition": acquisitionKey(medium), ...(hasSheet ? {} : { "data-nonmedia": "dossier" }) },
     side: hasSheet
       ? {
           poster: artworkMarkup,
@@ -249,7 +260,12 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot | Med
           },
         },
     body: { "data-panel": medium.panel || (hasSheet ? `media:${title}` : folderAddress) },
-    subtitle: medium.secondaryLine,
+    // AN AUTOMATIC RECOVERY SAYS SO in its subtitle, « S03 · auto » (Q19,
+    // DECIDED 8 = A): a word, never a second chip beside the rung's. A manual
+    // one reads nothing more; an unknown trigger draws nothing, never a guess.
+    subtitle: medium.trigger === AUTOMATIC
+      ? i18next.t("surfaces.card.automatic", { line: medium.secondaryLine })
+      : medium.secondaryLine,
     reason: medium.plexMatch
       ? escapeMarkup(i18next.t("surfaces.card.plexMatch", { title: medium.plexMatch.title }))
       : onLadder?.setAside

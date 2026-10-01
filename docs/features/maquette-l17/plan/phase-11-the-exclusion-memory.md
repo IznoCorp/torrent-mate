@@ -11,7 +11,7 @@ operator just cut.
   frontend/maquette/design/src/features/acquisition/follow-verbs.ts` — phase 10's verb pattern, reused for the undo.
 - **Points ≈ 11.** The two operations declared new (§ 2.1) 2; the mock route(s) ≈ 25 lines 2½; « Ne plus partager ce
   titre » ≈ 20 lines 2; the undo ≈ 10 lines 1; the state, re-using phase 2's excluded-pair and excluded-title rows,
-  1; R-L17-j with its mutations 3 → ≈ 11½, 11 by folding the undo into the SAME named state, read both ways.
+  ~~1; R-L17-j with its mutations 3 → ≈ 11½, 11 by folding the undo into the SAME named state, read both ways.~~
 
 ## What it builds
 
@@ -39,16 +39,16 @@ exclusion exists anywhere.
 3. « Ne plus partager ce titre » and its confirmation; the undo.
 4. R-L17-j written first, seen red.
 
-## Mutation
+## ~~Mutation~~
 
 Commit first: leave a cut pair searchable again without an undo having been asked → falls; require a confirmation
 on the undo → the undo hold falls; exclude only the tapped tracker when « Ne plus partager ce titre » is used → the
 whole-title hold falls. **Register**: both demands filed by the regenerated register.
 
-## Oracle and gate — done when
+## ~~Oracle and gate — done when~~
 
-Oracle: none — an exclusion's flag moves no rectangle it reads; R-L17-j holds it. Gate: per INDEX « Gates »;
-`python3 scripts/compare-contracts.py --check`; `python3 scripts/check-mock-seeds.py`; `--a11y` on
+~~Oracle: none — an exclusion's flag moves no rectangle it reads; R-L17-j holds it. Gate: per INDEX « Gates »;~~
+~~`python3 scripts/compare-contracts.py --check`; `python3 scripts/check-mock-seeds.py`; `--a11y` on~~
 `torrents-cross-seed-exclude`.
 
 ## Commit

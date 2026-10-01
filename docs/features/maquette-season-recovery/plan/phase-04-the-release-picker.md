@@ -22,7 +22,7 @@ phase 1: 4 × `S03E07` and the season pack.
   panel `note` + `actions`) — red if drawn with a feature's own variant.
 - Re-aimed OUT LOUD: `release_candidates.py`, `release_take_sentence.py` (a subject on Silo during the recovery moved
   to a title with none).
-- Named states: every S5 id; the oracle accepts the release-screen states by name.
+- Named states: every S5 id.
 - Walked by finger: a covered release → « Voir la carte de la saison » → the card → Retour → the release screen.
 
 ## Commit

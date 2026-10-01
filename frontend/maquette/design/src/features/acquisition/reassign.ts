@@ -84,7 +84,7 @@ const queueAtRest = {
   queryFn: async () => read<Schemas["AcquisitionQueue"]>("/api/acquisition/to-handle"),
 };
 
-registerProducer("reassign", { produce: reassignPanel, needs: [accountsQuery, queueAtRest, followsQuery] });
+registerProducer("reassign", { produce: reassignPanel, needs: () => [accountsQuery, queueAtRest, followsQuery()] });
 
 /**
  * The act that opens the chooser, for a panel to carry.

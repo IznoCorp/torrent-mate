@@ -88,7 +88,8 @@ CATALOGUE = """(key) => (window.__queries?.getQueryData(['/api/config/schema']) 
   .flatMap(topic => topic.settings).find(one => one.key === key)?.raw"""
 BADGE = """() => document.querySelector('[data-part="shell/tab-bar"] [data-page="trackers"] [data-part="shell/tab-badge"]')
   ?.textContent.trim() ?? ''"""
-SERVED = """() => (window.__queries?.getQueryData(['/api/trackers']) || []).map(t => ({name: t.name, by: t.disabled?.by ?? null}))"""
+SERVED = """() => (window.__queries?.getQueryData(['/api/trackers']) || []).map(t => ({name: t.name, by: t.disabled?.by ?? null,
+  crossSeedFailed: t.crossSeed?.failed ?? 0}))"""
 TOASTS = """() => { window.__seen = []; const toast = document.getElementById('toast');
   if (toast) new MutationObserver(() => window.__seen.push(toast.textContent.trim()))
     .observe(toast, {childList: true, subtree: true, characterData: true}); }"""
@@ -209,7 +210,9 @@ async def main():
         badge = await page.evaluate(BADGE)
         failed = [one["name"] for one in served if one["by"] == "failure"]
         journal.check(f"the badge counts one per tracker a failure switched off ({', '.join(failed)}), none for the operator's",
-                      len(failed) == 2 and badge == str(len(failed)), f"badge {badge!r} · served {served}")
+                      # RE-AIMED OUT LOUD (L17): the cross-seed's failures join the badge beside them.
+                      len(failed) == 2 and badge == str(len(failed) + sum(one["crossSeedFailed"] for one in served)),
+                      f"badge {badge!r} · served {served}")
 
         # ── c: the legend on « Trackers » ────────────────────────────────────
         for state in ("trackers-roster", "trackers-legend"):

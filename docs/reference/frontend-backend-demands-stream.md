@@ -74,8 +74,11 @@ as an oversight when nobody wrote it down.
 **Asked for by** the same two files, as exemptions.
 
 `RatioMeasured`, `SeedObligationRecorded` / `Satisfied` / `Breached`, `CrossSeedInjected` and
-`CrossSeedRejected` are emitted, reach the stream, and are claimed by no rule — because the
-surfaces they belong to have no page in the maquette yet (B-144, B-145).
+`CrossSeedRejected` are emitted, reach the stream, and were claimed by no rule — because the
+surfaces they belong to had no page in the maquette (B-144, B-145). **All six are claimed now** by
+`features/trackers/live.ts` (L16 the ratio's four, L17 the cross-seed's two), and L17 asks for a
+third cross-seed event, `CrossSeedSearched` — a hand-asked search's outcome, so a queued search is
+seen to end in the same visit (demand I, F59); the engine emits no such event today.
 
 **What would close it**: the pages, not the backend. Listed here so that « the map does not
 name them » reads as a consequence of a known gap rather than as an omission.

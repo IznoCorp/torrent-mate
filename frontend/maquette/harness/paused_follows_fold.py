@@ -25,8 +25,11 @@ from playwright.async_api import async_playwright
 
 SECTION = '[data-part="section/paused"]'
 
+# The follows are cached PER WORLD (`followsQuery(world)`): the rule reads the
+# entry of the world the named state drives, as the list it looks at does.
 READING = f"""() => {{
-  const follows = window.__queries?.getQueryData(["/api/acquisition/followed"]) || [];
+  const world = String(window.__store?.read().state.scen) === "loaded" ? "loaded" : "";
+  const follows = window.__queries?.getQueryData(["/api/acquisition/followed", world]) || [];
   const paused = follows.filter(one => one.status === "disabled").map(one => one.title);
   const fold = document.querySelector('#view {SECTION}');
   const titles = (root) => [...root.querySelectorAll('[data-part="card/title"]')].map(one => one.textContent);

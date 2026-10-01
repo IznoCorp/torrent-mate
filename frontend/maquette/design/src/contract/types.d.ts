@@ -1365,6 +1365,70 @@ export interface paths {
         patch: operations["updateRole"];
         trace?: never;
     };
+    "/api/torrents/{infoHash}/cross-seed/{tracker}/cut": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cut one torrent's cross-seed on one tracker
+         * @description « Couper le cross-seed sur ce tracker » (round 9 Q5, Q8; M4): the cross-seed's own client entry on that tracker is REMOVED without its files — the origin keeps its copy and keeps seeding — the pair reads `stopped`, `stopCause: removed`, dated; a running obligation there is closed « libérée » (`releasedAt` set, never left in breach); and the pair is EXCLUDED from future passes in the SAME call (round 9 Q11).
+         */
+        post: operations["cutCrossSeed"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/torrents/{infoHash}/cross-seed/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Search a cross-seed for one torrent, on one tracker or on every eligible one
+         * @description « Chercher un cross-seed » (OPEN 3 = A, round 9 Q10; demand E): ONE search, asked once, bounded ONLY by the engine's daily quota and its delay between searches — never by the 3-day exclusion window, which governs the automatic sweep alone (F45). The answer is a visible « en file », never « occupé » (DOIT-4, NE-DOIT-PAS-3); a second ask on a pair already searching is the one refusal (409, a duplicate). `tracker` names one pair (the torrent's panel); null asks every eligible pair in the engine's one search (the card's swipe). Its outcome arrives on the stream (`CrossSeedSearched`).
+         */
+        post: operations["searchCrossSeed"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/torrents/{infoHash}/cross-seed/exclusions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Exclude one pair, or a whole title, from the engine's future cross-seed passes
+         * @description « Ne plus partager ce titre » with `tracker` null (round 9 Q11): every running pair is cut the way `cutCrossSeed` cuts one, and the WHOLE title is excluded from every future pass on every tracker; the origin itself keeps seeding. With a tracker, one pair is excluded (a cut does this in its own call).
+         */
+        put: operations["writeCrossSeedExclusion"];
+        post?: never;
+        /**
+         * Lift an exclusion, of one pair or of a whole title
+         * @description The undo (round 9 Q11): never destructive, so never confirmed; the pair (or the title) is searchable again — by the engine's next pass or by « Chercher un cross-seed ». A stopped pair stays `stopped` until a search moves it.
+         */
+        delete: operations["undoCrossSeedExclusion"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1406,6 +1470,19 @@ export interface components {
             droppedByHand?: boolean;
             /** @description WHO ASKED for this acquisition — PLURAL (round 9 Q16): a follow keeps a table of requesters, each piloting it. The lists an account reads are filtered on membership in it unless the account holds `acquisition.see.others`. */
             requesters?: components["schemas"]["AccountRef"][];
+            /** @description the season this acquisition is of, 1-based — read off the engine's wanted row, never off the line; null for a film. The engine holds it on the wanted row and does not serve it on the card yet: demand SR1. */
+            season?: number | null;
+            /** @description the episode this acquisition is of, 1-based — null for a film and for a whole season. Read off the engine's wanted row, never off the line: demand SR1. */
+            episode?: number | null;
+            /** @description the acquisition that COVERS this one — a whole season's, while it runs — named by its title and its season (« Silo|S03 »), the key the interface composes from `title`, `season` and `episode`; null when nothing covers it. The engine holds it as the wanted row's `absorbed_by` and does not serve it yet: demand SR1. The interface reads it as is and compares no label. */
+            absorbedBy?: string | null;
+            /**
+             * @description who launched the acquisition: `manual` a person's ask, `automatic` the engine's own rule (the season detection, R4); null when it is not known, and then nothing is drawn. The engine records no such column yet: demand SR5.
+             * @enum {string|null}
+             */
+            trigger?: "manual" | "automatic" | null;
+            /** @description the release this acquisition follows — the name its torrent carries, a season's pack for a whole season's recovery, an episode's own for an episode; null until one is taken, and then no release is named. The engine holds it on the wanted row's grab and does not serve it on the card yet: demand SR4 (a journey per acquisition, with the release it followed). */
+            release?: string | null;
         };
         Fact: {
             /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
@@ -2073,6 +2150,8 @@ export interface components {
             breachedAt: number | null;
             /** @description when it ended early — a removal confirmed in the app always sets this — Unix-epoch seconds, or null */
             releasedAt: number | null;
+            /** @description when a cross-seed CREATED the obligation, the torrent it is the copy of; null otherwise */
+            crossSeedOf: components["schemas"]["CrossSeedOrigin"] | null;
         };
         /** @description every seeding obligation the engine holds */
         Obligations: {
@@ -2137,6 +2216,8 @@ export interface components {
             poster: string | null;
             /** @description the staging folder the engine holds for this entry — the path to its resolution when no medium is linked — or null when it holds none (a demand) */
             folder: string | null;
+            /** @description on an ORIGIN entry, its cross-seed tracker by tracker; null on a cross-seed's own entry (its origin's row carries it) */
+            crossSeed: components["schemas"]["TorrentCrossSeed"] | null;
         };
         /** @description every entry the download client holds */
         Downloads: {
@@ -2144,6 +2225,7 @@ export interface components {
             clientAvailable: boolean;
             /** @description one per entry, never folded */
             downloads: components["schemas"]["Download"][];
+            crossSeedQuota: components["schemas"]["CrossSeedQuota"];
         };
         /** @description an obligation the ENGINE broke whose torrent has already left the client — kept, never lost, until the operator marks it seen */
         BrokenObligation: {
@@ -2179,6 +2261,7 @@ export interface components {
             enabled: boolean;
             /** @description null while the tracker is on; otherwise who switched it off and why. A refused identifier is `reason: identifierRefused` here — one field per fact (a demand, T2: the engine switches nothing off by itself today) */
             disabled: components["schemas"]["TrackerDisabled"] | null;
+            crossSeed: components["schemas"]["TrackerCrossSeed"];
         };
         /** @description a size-or-count threshold and the score it awards */
         RankingThreshold: {
@@ -2348,6 +2431,72 @@ export interface components {
         Roster: {
             accounts: components["schemas"]["AccountSummary"][];
             roles: components["schemas"]["Role"][];
+        };
+        /** @description one tracker's cross-seed at rest (demand A) — the roster's line, the tracker's panel and the badge read this ONE answer (§ 13). The counts are the engine's, over the SAME pairs the downloads read answers, never recomputed by the interface. invented: no fixture exists for the cross-seed (L17 DESIGN § 2.3) */
+        TrackerCrossSeed: {
+            /** @description the tracker's own switch, read from `tracker.providers.<name>.cross_seed` — the setting Réglages and the tracker's panel both write */
+            enabled: boolean;
+            /** @description the engine's own switch, `cross_seed.enabled`; a separate fact from the tracker's (M6) — it cuts nothing running */
+            engineEnabled: boolean;
+            /** @description how many torrents cross-seed onto this tracker now (pairs in state `active`) */
+            active: number;
+            /** @description how many pairs on this tracker read `error` with a FAILURE-kind reason (the attempt failed, the engine could not finish, the reserved upload slot) — never an ordinary mismatch, never `noMatch` (OPEN 8 = A); a failure leaves the count the moment its pair's state changes (M5) */
+            failed: number;
+            /** @description the last injection onto this tracker, Unix-epoch seconds, or null when none ever happened */
+            lastInjectedAt: number | null;
+        };
+        /** @description one (torrent, tracker) pair of a cross-seed, read on the ORIGIN entry (demand B): the pair's CURRENT state, the last attempt's own result (§ 13). invented: no fixture exists for the cross-seed (L17 DESIGN § 2.3) */
+        CrossSeedPair: {
+            /** @description the OTHER tracker the pair names — the engine's `CrossSeedInjected.source_tracker` names this TARGET tracker; the contract says `tracker` */
+            tracker: string;
+            /**
+             * @description the pair's state, one of the operator's six words: actif, stoppé (by HISTORY — it ran and was stopped), tracker sans cross-seed (none ever ran and none can), erreur de cross-seed, sans correspondance, pas encore cherché
+             * @enum {string}
+             */
+            state: "active" | "stopped" | "trackerWithout" | "error" | "noMatch" | "notSearched";
+            /** @description on `error` only: the last attempt's code — the engine's twelve, closed, plus the slot reserved for an upload or tracker-side creation failure (round 8 Q18 = B, no code path emits it today); null otherwise */
+            reason: ("piece_length_mismatch" | "file_list_mismatch" | "root_name_mismatch" | "v2_hybrid" | "self_candidate" | "fetch_failed" | "verify_timeout" | "recheck_failed" | "magnet_not_supported" | "parse_failed" | "inject_failed" | "obligation_write_failed" | "upload_failed") | null;
+            /** @description on `active` and `error`: the candidate's release name on that tracker, or null */
+            candidate: string | null;
+            /** @description on `notSearched`: why not yet, when the engine knows — the origin still downloading, or waiting for the daily quota; null otherwise */
+            waitReason: ("downloading" | "quota") | null;
+            /** @description when the state was taken — the injection on `active`, the attempt on `error` and `noMatch` — Unix-epoch seconds, or null */
+            at: number | null;
+            /** @description on `stopped`: when the pair was stopped, Unix-epoch seconds; null otherwise */
+            stoppedAt: number | null;
+            /** @description on `stopped`: the tracker's switch cut with its « running ones too » option, or the pair cut from the torrent (or its origin removed); null otherwise. The engine's own switch is NEVER a stop cause (M6) */
+            stopCause: ("switch" | "removed") | null;
+            /** @description on `active`: the hash of the cross-seed's own client entry on that tracker, or null */
+            entryHash: string | null;
+            /** @description whether the pair is excluded from the engine's future passes (round 9 Q11) — a cut excludes it; an undo lifts it */
+            excluded: boolean;
+            /** @description whether a search asked by hand is queued or running for the pair */
+            searching: boolean;
+        };
+        /** @description an ORIGIN entry's cross-seed (demand B): one pair per OTHER tracker eligible for it. The backend must ATTEMPT every eligible, switched-on tracker — the engine today stops at the first verified injection (DESIGN fact 16) — and must KEEP a state for the pairs no event fires for. invented: no fixture exists for the cross-seed (L17 DESIGN § 2.3) */
+        TorrentCrossSeed: {
+            /** @description one per other eligible tracker */
+            pairs: components["schemas"]["CrossSeedPair"][];
+            /** @description whether « Ne plus partager ce titre » excluded the whole title from every future pass, on every tracker */
+            titleExcluded: boolean;
+        };
+        /** @description the engine's own bounds on a search, shown and never set here (Réglages sets them): the daily quota and the delay between two searches. The 3-day exclusion window governs the automatic sweep only and is never a bound on a hand-provoked search (F45). invented: no fixture exists for the cross-seed (L17 DESIGN § 2.3) */
+        CrossSeedQuota: {
+            /** @description searches spent today */
+            used: number;
+            /** @description `cross_seed.max_searches_per_day` */
+            perDay: number;
+            /** @description `cross_seed.min_delay_between_searches_s` */
+            delaySeconds: number;
+        };
+        /** @description the torrent a cross-seed's obligation is the copy of (demand D, § 19 point 2). invented: no fixture exists for the cross-seed (L17 DESIGN § 2.3) */
+        CrossSeedOrigin: {
+            /** @description the origin entry's hash */
+            infoHash: string;
+            /** @description the origin's medium title */
+            title: string;
+            /** @description the origin's provider IDs, the path to its sheet (NE-DOIT-PAS-9), or null when unidentified */
+            media: components["schemas"]["ProviderIds"] | null;
         };
     };
     responses: {
@@ -2757,7 +2906,10 @@ export interface operations {
     };
     readFollows: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description which body of data to answer with — the same dial `readAcquisitionQueue` takes. A follow's status reads what is on its way IN THAT WORLD: a whole season's recovery seeded in the dense one serves its follow `acquiring` there, never in the real one, where nothing of it runs. */
+                scenario?: "real" | "loaded";
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2967,6 +3119,26 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description the season was already being recovered: nothing more is queued, and the answer says so (`reused`) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description the season that was asked for, 1-based */
+                        season: number;
+                        /** @description how many episode-level asks this season's ask absorbed */
+                        absorbedCount: number;
+                        /** @description whether the ask is WAITING on the pipeline rather than running now. DOIT-4: an ask that arrives while the pipeline runs, or while §20's parallelism bound is met, is queued VISIBLY — the interface draws « En file — pipeline en cours » and never « occupé ». The backend has no such field and answers 409 for the case instead, which NE-DOIT-PAS-3 forbids the interface to show: that difference is a demand, not a shape to reconcile here. */
+                        queued: boolean;
+                        /** @description the run to follow, when one was started. Null when the ask is queued and nothing runs yet. */
+                        runUid: string | null;
+                        /** @description true when a live recovery of that season was already running and this ask queued nothing more — the engine answers it with a 200 (`acquisition_seasons.py`); false when this ask started it (201). */
+                        reused: boolean;
+                    };
+                };
+            };
             /** @description the season is taken — and the state the interface draws from it */
             201: {
                 headers: {
@@ -2982,6 +3154,8 @@ export interface operations {
                         queued: boolean;
                         /** @description the run to follow, when one was started. Null when the ask is queued and nothing runs yet. */
                         runUid: string | null;
+                        /** @description true when a live recovery of that season was already running and this ask queued nothing more — the engine answers it with a 200 (`acquisition_seasons.py`); false when this ask started it (201). */
+                        reused: boolean;
                     };
                 };
             };
@@ -4184,7 +4358,10 @@ export interface operations {
     };
     updateConfigurationFile: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description L17 (round 9 Q5): when this write turns a tracker's `cross_seed` OFF, ALSO stop every pair running on it — each reads `stopped`, `stopCause: switch`, dated — in this SAME call. Absent or false, the switch cuts NEW cross-seeds only and every running pair keeps seeding (M6). Invented: no fixture exists for the cross-seed. */
+                stopRunningCrossSeeds?: boolean;
+            };
             header?: never;
             path: {
                 /** @description the file */
@@ -5020,6 +5197,175 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    cutCrossSeed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the ORIGIN entry's hash */
+                infoHash: string;
+                /** @description the other tracker the pair names */
+                tracker: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the cross-seed is cut */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description the hashes of the client entries that left */
+                        removed: string[];
+                        /** @description the hashes whose running obligation was closed « libérée » */
+                        released: string[];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    searchCrossSeed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the ORIGIN entry's hash */
+                infoHash: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description the pair's tracker, or null for every eligible pair */
+                    tracker: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description the search is queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description always true: the ask is in the engine's queue */
+                        queued: boolean;
+                        /** @description the pairs the search covers */
+                        trackers: string[];
+                        /** @description when the engine's delay lets it start, Unix-epoch seconds, or null when at once */
+                        startsAt: number | null;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    writeCrossSeedExclusion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the ORIGIN entry's hash */
+                infoHash: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description one pair's tracker, or null for the whole title */
+                    tracker: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description it is excluded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description the origin entry's hash */
+                        infoHash: string;
+                        /** @description the pair's tracker, or null for the whole title */
+                        tracker: string | null;
+                        /** @description whether it is now excluded */
+                        excluded: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    undoCrossSeedExclusion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the ORIGIN entry's hash */
+                infoHash: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description one pair's tracker, or null for the whole title */
+                    tracker: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description the exclusion is lifted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description the origin entry's hash */
+                        infoHash: string;
+                        /** @description the pair's tracker, or null for the whole title */
+                        tracker: string | null;
+                        /** @description whether it is now excluded */
+                        excluded: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];

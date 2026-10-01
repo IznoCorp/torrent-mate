@@ -17,6 +17,8 @@ import { registerProducer, type Action, type FactLine, type PanelCache, type Pan
 import { dayOf, written } from "./format";
 import { trackersKey, type Setting, type Tracker } from "./queries";
 import { failureSentence } from "./trackers-tab";
+import { switchedThisVisit } from "./cross-seed-verbs";
+import "./panel-cross-seed";
 
 // THE POLICY IS THE TRACKER'S ECONOMY BLOCK, in the tracker's configuration
 // file: the floor, the seed time and the alert threshold, in that order.
@@ -145,6 +147,8 @@ function trackerPanel(name: string, cache: PanelCache): PanelDescriptor | null {
     meta: tracker.ratio === null ? say("ratioUnknown") : say("ratio", { ratio: written(tracker.ratio, 2) }),
     blocs: [
       { type: "faits", lignes: facts },
+      // ITS CROSS-SEED SWITCH, a row of its own beside the policy (S2) — never the activation's.
+      { type: "crossSeedSwitch", tracker: tracker.name, summary: tracker.crossSeed, switched: switchedThisVisit.get(tracker.name) ?? null },
       { type: "note", text: policyNote(catalogue, policy.length) },
       policy.length === 0 ? null : { type: "actions", actions: policy },
       broken.length === 0 ? null : { type: "note", text: say("panel.brokenLead") },

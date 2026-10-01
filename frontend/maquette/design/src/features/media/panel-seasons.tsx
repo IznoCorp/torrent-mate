@@ -26,6 +26,7 @@ import { askForSeason, useAskedInFlight } from "./season-grab";
 import { episodeStateLabel } from "./format";
 import { useQueuedSeasons } from "./queued-seasons";
 import { useAskedSeasons } from "./asked-seasons";
+import { SeasonRequested } from "./season-requested";
 
 // The slice of a "follow" record the season blocks read: `ids` for the medium's
 // two served reads — the owned numbers and the episode catalogue — `title` for
@@ -105,8 +106,10 @@ function SeasonDetails({
   // redraws the moment one is answered « queued ».
   const waiting = useQueuedSeasons(follow.title);
   const askedInFlight = useAskedInFlight();
-  // WHICH SEASONS ARE ASKED ONCE — a one-off acquisition in the queue.
-  const askedOnce = useAskedSeasons(follow.title).includes(season[0]);
+  // WHETHER THE SEASON'S WHOLE RECOVERY IS LIVE, followed or not (Q5), and
+  // whether the engine launched it (Q19) — undefined when nothing recovers it.
+  const recovery = useAskedSeasons(follow.title).get(season[0]);
+  const askedOnce = recovery !== undefined;
   // PILOTING, ON ONE'S OWN FOLLOW (§ 17) — absent otherwise, never refused.
   const takeOffered = seasonTakeOffered(follow.requesters === undefined ? undefined : follow, useRights());
   const [num, rawAired, owned] = season;
@@ -176,12 +179,11 @@ function SeasonDetails({
             {t("screens.media.seasonWaitingOnPipeline")}
           </span>
         ) : null}{" "}
-        {/* « DEMANDÉE » WHILE A ONE-OFF ACQUISITION OF THE SEASON LIVES, and the
-            act below is withdrawn: the surface pressed says what the ask did. */}
-        {askedOnce ? (
-          <span className={chip({ tone: "info" })} data-tone="info" data-part="season/asked" data-asked-season={`${follow.title}|${num}`}>
-            {t("screens.media.seasonAskedOnce")}
-          </span>
+        {/* « DEMANDÉE » WHILE THE SEASON'S RECOVERY LIVES, and the act below is
+            withdrawn: the surface pressed says what the ask did. ONE MARK AT A
+            TIME (DECIDED 4): « En file » while the ask waits, then « Demandée ». */}
+        {askedOnce && !waiting.includes(num) ? (
+          <SeasonRequested title={follow.title} season={num} automatic={recovery === true} />
         ) : null}{" "}
         {/* A shortfall is an episode that AIRED and is not held — never one
             of a medium nobody holds, nor of a count nobody knows. */}

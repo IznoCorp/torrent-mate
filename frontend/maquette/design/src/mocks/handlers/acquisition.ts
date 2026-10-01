@@ -2,15 +2,17 @@
 import GRAB_CADENCE from "../seeds/grab-cadence.json";
 import { releasesFor } from "./releases-of";
 import { sameItem } from "./same-item";
+import { acquisitionKey } from "../../lib/arrival-slots";
 import SEARCH_RESULTS from "../seeds/search-results.json";
 import SUGGESTIONS from "../seeds/suggestions.json";
 import { DELETE, GET, PATCH, POST, field, route, text } from "./shared";
 import { launchDetection } from "./pipeline";
 import { arrivalsOf, originOf } from "./staging";
-import { isVerifiedInPlex, forgetLadder, ladderOf, rungIndex, stripPosition, type Position } from "./ladder";
+import { isVerifiedInPlex, forgetLadder, ladderOf, rungIndex, stripPosition, ownTimeOf, type Position } from "./ladder";
 import type { components } from "../../contract/types";
 import { stagesOf } from "./acquisition-verbs";
 import { withAcquisitionFacts, withRequesters } from "./requesters";
+import { recoveringSeason } from "./season-recovery";
 import { mockState } from "../state";
 import { claimRequest, releaseRequest, requestersOf, signedInId, signedInRights } from "../identity";
 import { refused, type MockRequest, type MockRoute } from "../router";
@@ -52,7 +54,8 @@ function onTheLadder(cards: components["schemas"]["QueueCard"][], at?: Position)
     // follow names carries none, and the card says its origin is unknown.
     const { requester, origin } = originOf(card, false);
     const asked = requester === undefined ? card : { ...card, requester };
-    return position === undefined ? asked : { ...asked, ladder: ladderOf(card.title, position, origin) };
+    return position === undefined ? asked
+      : { ...asked, ladder: ladderOf(acquisitionKey(card), position, { ...origin, times: ownTimeOf(card) }) };
   });
 }
 
@@ -60,6 +63,10 @@ function onTheLadder(cards: components["schemas"]["QueueCard"][], at?: Position)
 const LOADED = "loaded";
 
 const FILM_KIND = "movie"; // A follow of this kind ends alone once confirmed in Plex.
+
+// The statuses of a follow still waiting on a grab, and the one a running grab moves it to.
+const WAITING_ON_A_GRAB = new Set(["pending", "to_grab"]);
+const BEING_ACQUIRED = "acquiring";
 
 // What a follow the request does not fully describe starts as. Every one of
 // these is a token or a blank, never a value copied off another record.
@@ -120,8 +127,17 @@ export function acquisitionRoutes(): MockRoute[] {
   return [
     // A FILM'S FOLLOW ENDS ALONE once its last rung, « vérifié dans Plex », is done (ruling 3); a series' never
     // does. The engine deletes it at DETECTION today, earlier: a demand owed (DESIGN § 6.2).
-    route("readFollows", GET, "/api/acquisition/followed", () =>
-      withAcquisitionFacts(mockState().follows.filter((follow) => follow.kind !== FILM_KIND || !isVerifiedInPlex(follow.title)))),
+    // A FOLLOW WHOSE WHOLE SEASON IS ON ITS WAY IS BEING ACQUIRED, as the engine
+    // says of a follow with a grab running: never « en attente de torrent »
+    // beside the season's pack downloading. IN THE WORLD ASKED, as the queue
+    // is: a recovery the dense world holds runs nowhere in the real one.
+    route("readFollows", GET, "/api/acquisition/followed", (request) => {
+      const dense = request.query.get("scenario") === LOADED;
+      return withAcquisitionFacts(mockState().follows
+        .filter((follow) => follow.kind !== FILM_KIND || !isVerifiedInPlex(follow.title))
+        .map((follow) => (WAITING_ON_A_GRAB.has(follow.status) && recoveringSeason(follow.title, dense)
+          ? { ...follow, status: BEING_ACQUIRED } : follow)));
+    }),
     route("createFollow", POST, "/api/acquisition/followed", (request) => {
       const state = mockState();
       // BUILT FROM ITS OWN REQUEST, and from nothing else. An earlier version

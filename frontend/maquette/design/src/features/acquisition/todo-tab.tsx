@@ -16,7 +16,7 @@ import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { offeredFeet } from "./act-rights";
 import { useRights } from "../../lib/account";
 import { mediumCardMarkup } from "./card-markup";
-import { setAsideCards, todoCards } from "./arrival-slots";
+import { setAsideCards, todoCards } from "../../lib/arrival-slots";
 import { Disclosure } from "../../ui/disclosure";
 import { useAcquisitionQueue, useStaging } from "../../lib/queue";
 import { type QueueCard } from "../../lib/engine-queue";

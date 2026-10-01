@@ -6,6 +6,7 @@ import { useQuery, type QueryClient } from "@tanstack/react-query";
 
 import { read, send } from "./query-client";
 import { toast } from "./shell-doors";
+import { useUiState } from "./store-access";
 import type { Schemas } from "./contract-schemas";
 
 // The follows' own read — the key the acquisition feature reads them under.
@@ -18,9 +19,13 @@ const FOLLOWS_KEY = ["/api/acquisition/followed"];
  * @returns The follow, or undefined when none carries that title.
  */
 export function useFollowOf(title: string): Schemas["Follow"] | undefined {
+  // PER WORLD, under the key the acquisition feature caches them at: the dense
+  // world's follows are not the real one's.
+  const world = useUiState().scen === "loaded" ? "loaded" : "";
   const { data } = useQuery({
-    queryKey: FOLLOWS_KEY,
-    queryFn: async () => read<Schemas["Follow"][]>("/api/acquisition/followed"),
+    queryKey: [...FOLLOWS_KEY, world],
+    queryFn: async () =>
+      read<Schemas["Follow"][]>("/api/acquisition/followed", new URLSearchParams(world ? { scenario: world } : {})),
   });
   return data?.find((one) => one.title === title);
 }

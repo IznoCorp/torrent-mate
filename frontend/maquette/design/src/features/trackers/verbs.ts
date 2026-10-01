@@ -16,6 +16,7 @@ import "./remove-verb";
 import "./panel-torrent";
 import "./panel-selector";
 import "./panel-tracker";
+import "./cross-seed-verbs";
 
 // « TORRENTS » THE FIRST TIME, THEN THE TAB OPENED LAST on this device — the
 // rule every tabbed page follows, through the memory they share.

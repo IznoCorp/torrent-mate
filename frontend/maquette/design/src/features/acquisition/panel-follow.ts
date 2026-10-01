@@ -90,7 +90,7 @@ function redrawOnIdentityArrival(title: string): void {
  */
 function pendingSeasons(title: string) {
   if (sharedQueryClient === undefined) return null;
-  const followed = sharedQueryClient.getQueryData<Follow[]>(followsQuery.queryKey) ?? [];
+  const followed = sharedQueryClient.getQueryData<Follow[]>(followsQuery().queryKey) ?? [];
   const ids = followed.find((one) => one.title === title)?.ids ?? heldIdentity(title)?.ids;
   const address = providerAddress(ids);
   if (address === null) return null;
@@ -206,5 +206,5 @@ registerProducer("follow", {
   // first open about any title goes down the deferred path.
   // AND THE SCHEDULER'S CADENCE, which names the hour a found release is taken
   // at anyway.
-  needs: (subject) => [followsQuery, incompleteShowsQuery, membershipQuery(subject), acquisitionStatusQuery, accountQuery],
+  needs: (subject) => [followsQuery(), incompleteShowsQuery, membershipQuery(subject), acquisitionStatusQuery, accountQuery],
 });

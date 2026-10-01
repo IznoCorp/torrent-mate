@@ -27,6 +27,7 @@ import {
 } from "../../ui/variants";
 import { dayOf, written } from "./format";
 import { legendOf, type Code } from "./torrent-card";
+import { rosterLine } from "./cross-seed-state";
 import { alertOf, useDownloads, useObligations, useSettingsCatalogue, useTrackers, type Alert, type Tracker } from "./queries";
 
 // The status of a write the engine refuses: the value will not be taken.
@@ -141,6 +142,12 @@ function TrackerRow({ tracker, alert }: { tracker: Tracker; alert: Alert }): Rea
         {failureSentence(tracker) === null ? null : (
           <span className={factDetail()} data-part="trackers/failure">{failureSentence(tracker)}</span>
         )}
+        {/* ITS CROSS-SEED AT REST, on its own line of the body's grid, never beside the ratio (S1). */}
+        <span className={factDetail()} data-part="trackers/cross-seed"
+          data-engine={String(tracker.crossSeed.engineEnabled)} data-own={String(tracker.crossSeed.enabled)}
+          data-active={tracker.crossSeed.active} data-failed={tracker.crossSeed.failed}>
+          {rosterLine(tracker.crossSeed)}
+        </span>
         {marks.length > 0 ? (
           <span className={factDetail()}>
             {marks.map((mark) => (

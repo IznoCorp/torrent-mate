@@ -19,12 +19,12 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 84 |
+| operations the interface requires | 88 |
 | operations the backend has | 65 |
-| required and missing | 33 |
+| required and missing | 37 |
 | declared by both, different response shape | 51 |
 | declared by both, path parameter spelled differently | 15 |
-| declared by both, answered with a different status | 10 |
+| declared by both, answered with a different status | 11 |
 | fields carried pre-formatted | 25 |
 | the backend has and the interface does not use | 14 |
 
@@ -38,6 +38,7 @@ than a blank page.
 | `DELETE /api/library/items` | `deleteLibraryItems` | Delete titles from the library |
 | `DELETE /api/staging/media/{mediaId}` | `deleteStagedMedia` | Delete a staged folder from the disk |
 | `DELETE /api/staging/media/{mediaId}/reclassify` | `restoreReclassifiedMedia` | Put a reclassified folder back in the staging area |
+| `DELETE /api/torrents/{infoHash}/cross-seed/exclusions` | `undoCrossSeedExclusion` | Lift an exclusion, of one pair or of a whole title |
 | `GET /api/accounts` | `readAccounts` | Every account and every role |
 | `GET /api/acquisition/journeys/{infoHash}` | `readJourney` | One medium's ladder, rung by rung |
 | `GET /api/acquisition/releases` | `readReleases` | The release candidates for one wanted item |
@@ -64,9 +65,12 @@ than a blank page.
 | `POST /api/media/{provider}/{providerId}/rescrape` | `rescrapeMedia` | Ask the providers for one medium's metadata again |
 | `POST /api/roles` | `createRole` | Create an ordinary role |
 | `POST /api/staging/media/{mediaId}/reclassify` | `reclassifyStagedMedia` | File a folder that is not a medium where the sort files its kind |
+| `POST /api/torrents/{infoHash}/cross-seed/search` | `searchCrossSeed` | Search a cross-seed for one torrent, on one tracker or on every eligible one |
+| `POST /api/torrents/{infoHash}/cross-seed/{tracker}/cut` | `cutCrossSeed` | Cut one torrent's cross-seed on one tracker |
 | `POST /api/trackers/{tracker}/broken-obligations/{infoHash}/seen` | `markBrokenObligationSeen` | Mark one broken obligation of a tracker seen |
 | `PUT /api/acquisition/followed/{followedId}/pause` | `setAcquisitionPause` | Set the caller's pause on one acquisition |
 | `PUT /api/acquisition/followed/{followedId}/quality` | `setAcquisitionQuality` | Set the caller's quality profile on one acquisition |
+| `PUT /api/torrents/{infoHash}/cross-seed/exclusions` | `writeCrossSeedExclusion` | Exclude one pair, or a whole title, from the engine's future cross-seed passes |
 
 ## 2. Operations both declare, whose response carries different property names
 
@@ -76,12 +80,12 @@ reports a difference for every optional field and drowns the real findings.
 | operation | the interface adds | the backend has and the interface does not use |
 | --- | --- | --- |
 | `DELETE /api/acquisition/followed/{followedId}` (`deleteFollow`) | `ok` | — |
-| `GET /api/acquisition/downloads` (`readDownloads`) | `addedAt`, `clientAvailable`, `deadline`, `downloadRate`, `downloadedBytes`, `errorReason`, `etaSeconds`, `folder`, `ids`, `infoHash`, `origin`, `poster`, `ratio`, `sizeBytes`, `swarmLeechers`, `swarmSeeds`, `tracker`, `uploadRate`, `uploadedBytes` | `client_available`, `error_reason`, `eta_seconds`, `imdb_id`, `info_hash`, `media_ref`, `size_bytes`, `tmdb_id`, `tvdb_id` |
+| `GET /api/acquisition/downloads` (`readDownloads`) | `addedAt`, `at`, `candidate`, `clientAvailable`, `crossSeed`, `crossSeedQuota`, `deadline`, `delaySeconds`, `downloadRate`, `downloadedBytes`, `entryHash`, `errorReason`, `etaSeconds`, `excluded`, `folder`, `ids`, `infoHash`, `origin`, `pairs`, `perDay`, `poster`, `ratio`, `reason`, `searching`, `sizeBytes`, `stopCause`, `stoppedAt`, `swarmLeechers`, `swarmSeeds`, `titleExcluded`, `tracker`, `uploadRate`, `uploadedBytes`, `used`, `waitReason` | `client_available`, `error_reason`, `eta_seconds`, `imdb_id`, `info_hash`, `media_ref`, `size_bytes`, `tmdb_id`, `tvdb_id` |
 | `GET /api/acquisition/followed` (`readFollows`) | `aired`, `fresh`, `ids`, `name`, `ownPaused`, `ownQuality`, `paused`, `poster`, `quality`, `requesters`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `imdb_id`, `items`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
-| `GET /api/acquisition/obligations` (`readObligations`) | `accumulatedSeedTimeSeconds`, `addedAt`, `breachedAt`, `dispatchedPath`, `hitAndRunCount`, `infoHash`, `minimumRatio`, `minimumSeedTimeSeconds`, `observedRatio`, `releasedAt`, `satisfiedAt`, `sourceTracker` | `accumulated_seed_time_s`, `added_at`, `breached_at`, `dispatched_path`, `hnr_count`, `info_hash`, `min_ratio`, `min_seed_time_s`, `observed_ratio`, `released_at`, `satisfied_at`, `source_tracker` |
+| `GET /api/acquisition/obligations` (`readObligations`) | `accumulatedSeedTimeSeconds`, `addedAt`, `breachedAt`, `crossSeedOf`, `dispatchedPath`, `hitAndRunCount`, `infoHash`, `media`, `minimumRatio`, `minimumSeedTimeSeconds`, `observedRatio`, `releasedAt`, `satisfiedAt`, `sourceTracker` | `accumulated_seed_time_s`, `added_at`, `breached_at`, `dispatched_path`, `hnr_count`, `info_hash`, `min_ratio`, `min_seed_time_s`, `observed_ratio`, `released_at`, `satisfied_at`, `source_tracker` |
 | `GET /api/acquisition/search` (`searchProviders`) | `followed`, `ids`, `owned`, `poster`, `shown` | `already_owned`, `limit`, `offset`, `poster_url`, `provider`, `provider_id`, `score` |
 | `GET /api/acquisition/status` (`readAcquisitionStatus`) | `cadence`, `nextSearch` | `command`, `deferred`, `ended_at`, `last_successful_run_at`, `name`, `outcome`, `reason`, `recent_runs`, `result`, `run_uid`, `started_at`, `trigger`, `watcher_enabled` |
-| `GET /api/acquisition/to-handle` (`readAcquisitionQueue`) | `arrivals`, `blocked`, `chip`, `droppedByHand`, `failedStep`, `id`, `ids`, `inFlight`, `ladder`, `minimumRatio`, `name`, `plexMatch`, `poster`, `requester`, `requesters`, `rung`, `secondaryLine`, `state`, `steps`, `strip`, `takeable`, `text`, `tone`, `tracker`, `via`, `when`, `withoutPoster` | `candidates_count`, `created_at`, `decision_id`, `degraded`, `episode`, `followed_id`, `info_hash`, `items`, `kind`, `orphan_count`, `season`, `stage`, `year` |
+| `GET /api/acquisition/to-handle` (`readAcquisitionQueue`) | `absorbedBy`, `arrivals`, `blocked`, `chip`, `droppedByHand`, `failedStep`, `id`, `ids`, `inFlight`, `ladder`, `minimumRatio`, `name`, `plexMatch`, `poster`, `release`, `requester`, `requesters`, `rung`, `secondaryLine`, `state`, `steps`, `strip`, `takeable`, `text`, `tone`, `tracker`, `trigger`, `via`, `when`, `withoutPoster` | `candidates_count`, `created_at`, `decision_id`, `degraded`, `followed_id`, `info_hash`, `items`, `kind`, `orphan_count`, `stage`, `year` |
 | `GET /api/auth/me` (`readAccount`) | `avatar`, `email`, `forbiddenWrites`, `id`, `kind`, `name`, `plexLinked`, `rights`, `role` | — |
 | `GET /api/config/files` (`readConfigurationFiles`) | `changed` | `files`, `mtime`, `owned_keys`, `sha256`, `shadowed_keys`, `size` |
 | `GET /api/config/files/{name}` (`readConfigurationFile`) | `digest`, `shadowedKeys` | `sha256`, `shadowed_keys` |
@@ -99,14 +103,14 @@ reports a difference for every optional field and drowns the real findings.
 | `GET /api/pipeline/history` (`readPipelineHistory`) | `available`, `cause`, `counts`, `detected`, `dryRun`, `durationS`, `endedAt`, `errorCount`, `grabbed`, `name`, `result`, `runUid`, `skipCount`, `startedAt`, `status`, `steps`, `succeeded`, `successCount`, `unmatchedCount`, `when` | `dry_run`, `duration_s`, `ended_at`, `run_uid`, `started_at` |
 | `GET /api/pipeline/history/{runUid}` (`readRun`) | `available`, `detected`, `dryRun`, `durationS`, `elapsedS`, `endedAt`, `errorCount`, `grabbed`, `optionsJson`, `outputTail`, `runUid`, `skipCount`, `startedAt`, `successCount`, `unmatchedCount` | `dry_run`, `duration_s`, `elapsed_s`, `ended_at`, `error_count`, `options_json`, `output_tail`, `run_uid`, `skip_count`, `started_at`, `success_count`, `unmatched_count` |
 | `GET /api/pipeline/status` (`readPipeline`) | `blockedCount`, `description`, `duration`, `facts`, `label`, `last`, `name`, `outcome`, `result`, `secondaryLine`, `steps`, `trigger`, `triggers`, `uid`, `watcherDown`, `watcherEnabled`, `when` | `paused`, `pid`, `run_uid`, `step`, `watcher_enabled` |
-| `GET /api/staging/media` (`readStaging`) | `chip`, `droppedByHand`, `failedStep`, `ids`, `ladder`, `minimumRatio`, `moving`, `name`, `plexMatch`, `poster`, `requester`, `requesters`, `rung`, `secondaryLine`, `settled`, `steps`, `strip`, `stuck`, `text`, `tone`, `tracker`, `via`, `when`, `withoutPoster` | `absent`, `ambiguous`, `awaiting_action`, `blocked_reason`, `category`, `category_id`, `continuation_requested_at`, `counts`, `decision_id`, `decision_trigger`, `disk`, `dispatch_target`, `episode_count`, `folder`, `has_nfo`, `has_poster`, `has_trailer`, `items`, `key`, `label`, `match`, `matched`, `media_kind`, `mode`, `modified_at`, `overview`, `page`, `page_size`, `position_stage`, `position_state`, `poster_url`, `provider_ids`, `relative_path`, `scraped`, `season`, `seasons`, `size_bytes`, `stages`, `total`, `video_count`, `with_trailer`, `year` |
+| `GET /api/staging/media` (`readStaging`) | `absorbedBy`, `chip`, `droppedByHand`, `episode`, `failedStep`, `ids`, `ladder`, `minimumRatio`, `moving`, `name`, `plexMatch`, `poster`, `release`, `requester`, `requesters`, `rung`, `secondaryLine`, `settled`, `steps`, `strip`, `stuck`, `text`, `tone`, `tracker`, `trigger`, `via`, `when`, `withoutPoster` | `absent`, `ambiguous`, `awaiting_action`, `blocked_reason`, `category`, `category_id`, `continuation_requested_at`, `counts`, `decision_id`, `decision_trigger`, `disk`, `dispatch_target`, `episode_count`, `folder`, `has_nfo`, `has_poster`, `has_trailer`, `items`, `key`, `label`, `match`, `matched`, `media_kind`, `mode`, `modified_at`, `overview`, `page`, `page_size`, `position_stage`, `position_state`, `poster_url`, `provider_ids`, `relative_path`, `scraped`, `seasons`, `size_bytes`, `stages`, `total`, `video_count`, `with_trailer`, `year` |
 | `GET /api/version` (`readVersion`) | `commit` | `build_commit` |
 | `PATCH /api/acquisition/followed/{followedId}` (`updateFollow`) | `aired`, `fresh`, `ids`, `name`, `ownPaused`, `ownQuality`, `paused`, `poster`, `quality`, `requesters`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `imdb_id`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
 | `POST /api/acquisition/detect` (`runDetection`) | `runUid` | `run_uid` |
 | `POST /api/acquisition/followed` (`createFollow`) | `aired`, `fresh`, `ids`, `name`, `ownPaused`, `ownQuality`, `paused`, `poster`, `quality`, `requesters`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `imdb_id`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
 | `POST /api/acquisition/followed/{followedId}/grab` (`grabForFollow`) | `runUid` | `run_uid` |
 | `POST /api/acquisition/followed/{followedId}/search` (`searchForFollow`) | `found` | `run_uid` |
-| `POST /api/acquisition/follows/{followedId}/seasons/{season}/grab` (`grabSeasonForFollow`) | `absorbedCount`, `queued`, `runUid` | `absorbed_count`, `reused`, `run_started`, `run_uid`, `season_wanted_id` |
+| `POST /api/acquisition/follows/{followedId}/seasons/{season}/grab` (`grabSeasonForFollow`) | `absorbedCount`, `queued`, `runUid` | `absorbed_count`, `run_started`, `run_uid`, `season_wanted_id` |
 | `POST /api/acquisition/journeys/{infoHash}/requeue` (`requeueJourney`) | `queued`, `runUid` | `run_uid` |
 | `POST /api/acquisition/journeys/{infoHash}/rescrape` (`rescrapeJourney`) | `queued`, `runUid` | `run_uid` |
 | `POST /api/acquisition/ranking/preview` (`previewRanking`) | `freeleech`, `knownTrackers`, `sizeBytes`, `trackerRatioState` | `is_freeleech`, `known_trackers` |
@@ -170,6 +174,7 @@ a 200 is not a defect in either document, it is a decision nobody had written do
 | `DELETE /api/acquisition/followed/{followedId}` | `deleteFollow` | `200` | `204` |
 | `POST /api/acquisition/followed` | `createFollow` | `200` | `201` |
 | `POST /api/acquisition/followed/{followedId}/search` | `searchForFollow` | `200` | `202` |
+| `POST /api/acquisition/follows/{followedId}/seasons/{season}/grab` | `grabSeasonForFollow` | `200`, `201` | `201` |
 | `POST /api/auth/login` | `signIn` | `200` | `204` |
 | `POST /api/auth/logout` | `signOut` | `200` | `204` |
 | `POST /api/config/restart-web` | `restartWeb` | `200` | `202` |

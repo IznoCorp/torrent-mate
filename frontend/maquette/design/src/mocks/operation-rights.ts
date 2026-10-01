@@ -109,6 +109,10 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   readObligations: "trackers.view",
   removeDownload: "trackers.control",
   markBrokenObligationSeen: "trackers.control",
+  cutCrossSeed: "trackers.control",
+  searchCrossSeed: "trackers.control",
+  writeCrossSeedExclusion: "trackers.control",
+  undoCrossSeedExclusion: "trackers.control",
 
   readSettings: ["configuration.view", "trackers.view", "system.view"],
   readConfigurationStatus: ["configuration.view", "system.view"],

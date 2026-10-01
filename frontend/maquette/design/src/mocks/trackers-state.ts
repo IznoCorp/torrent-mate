@@ -10,15 +10,22 @@ import TRACKERS from "./seeds/trackers.json";
 import { mockState } from "./state";
 import { forgetLadder } from "./handlers/ladder";
 import { scenario } from "./scenario";
+import { CROSS_SEED_OBLIGATIONS } from "./cross-seed-state";
 import type { components } from "../contract/types";
 
 type Schemas = components["schemas"];
 
+// WHAT THE LAYER HOLDS, before the cross-seed's projections are folded in at the
+// read: the cross-seed's own subject answers those fields (`cross-seed-state.ts`).
+type HeldTracker = Omit<Schemas["Tracker"], "crossSeed">;
+type HeldDownload = Omit<Schemas["Download"], "crossSeed">;
+type HeldObligation = Omit<Schemas["Obligation"], "crossSeedOf">;
+
 /** The trackers' subject, as the layer holds it. */
 export type TrackersHeld = {
-  trackers: Schemas["Tracker"][];
-  downloads: Schemas["Download"][];
-  obligations: Schemas["Obligation"][];
+  trackers: HeldTracker[];
+  downloads: HeldDownload[];
+  obligations: HeldObligation[];
   /** Every removal asked for, in order: what a rule reads the request by. */
   removals: { infoHash: string; deleteFiles: boolean }[];
 };
@@ -35,9 +42,10 @@ export function trackersState(): TrackersHeld {
   let subject = held.get(owner);
   if (subject === undefined) {
     subject = {
-      trackers: structuredClone(TRACKERS) as unknown as Schemas["Tracker"][],
-      downloads: structuredClone(DOWNLOADS) as Schemas["Download"][],
-      obligations: structuredClone(OBLIGATIONS) as Schemas["Obligation"][],
+      trackers: structuredClone(TRACKERS) as unknown as HeldTracker[],
+      downloads: structuredClone(DOWNLOADS) as HeldDownload[],
+      // THE OBLIGATIONS A CROSS-SEED CREATED, invented (L17 § 2.3), beside the real ones.
+      obligations: structuredClone([...OBLIGATIONS, ...CROSS_SEED_OBLIGATIONS]) as HeldObligation[],
       removals: [],
     };
     held.set(owner, subject);
@@ -122,11 +130,11 @@ const COMPLETE = 1;
 export const trackerDials: TrackerDials = {
   setTrackersEmpty: (empty: boolean) => {
     // NO TRACKER CONFIGURED, which a configuration can hold: a real answer, empty.
-    trackersState().trackers = empty ? [] : (structuredClone(TRACKERS) as unknown as Schemas["Tracker"][]);
+    trackersState().trackers = empty ? [] : (structuredClone(TRACKERS) as unknown as HeldTracker[]);
   },
   setDownloadsEmpty: (empty: boolean) => {
     // NOTHING ACTIVE ANYWHERE, the client reachable: a real answer, empty.
-    trackersState().downloads = empty ? [] : (structuredClone(DOWNLOADS) as Schemas["Download"][]);
+    trackersState().downloads = empty ? [] : (structuredClone(DOWNLOADS) as HeldDownload[]);
   },
   setTrackerIdle: (tracker: string) => {
     // ONE TRACKER WITH NOTHING ACTIVE, the others unchanged.

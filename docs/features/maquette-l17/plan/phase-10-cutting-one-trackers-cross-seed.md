@@ -16,7 +16,7 @@ exactly as L16's removal does.
   'registerVerb' frontend/maquette/design/src/features/acquisition/follow-verbs.ts` — the verb pattern followed.
 - **Points ≈ 13.** `cutCrossSeed` declared new (§ 2.1) 2; its mock route ≈ 30 lines 3; the gesture and its verb ≈
   20 lines 2; the confirmation ≈ 25 lines 2½; the state `torrents-cross-seed-cut-confirm`, needing a new seed row (a
-  pair with a running obligation) 2; R-L17-f with its mutations 3 → ≈ 14½, cut to 13 by drawing the confirmation's
+  ~~pair with a running obligation) 2; R-L17-f with its mutations 3 → ≈ 14½, cut to 13 by drawing the confirmation's~~
   two branches (with/without a running obligation) as one component with a conditional line.
 
 ## What it builds
@@ -42,18 +42,18 @@ tab if it was active there; the pair `stopped`, `stopCause: "removed"`, its own 
 2. The mock route; the gesture and its confirmation; the state.
 3. R-L17-f written first, seen red.
 
-## Mutation
+## ~~Mutation~~
 
 Commit first: message without calling → the network hold falls; leave the obligation in breach → falls; skip the
 confirmation's obligation name → falls; leave a sibling active entry present after the cut → the removal hold
 falls; leave the pair included after the cut → phase 11's R-L17-j falls (proved there, once the exclusion exists).
 **Register**: demand `cutCrossSeed` filed by the regenerated register.
 
-## Oracle and gate — done when
+## ~~Oracle and gate — done when~~
 
-Oracle: L16's `torrents-list`, where a pair is cut, accepted with « L17 § 3.3: the cross-seed cut »; any other
-divergence is STOP A. Gate: per INDEX « Gates »; `python3 scripts/compare-contracts.py --check`;
-`python3 scripts/check-mock-seeds.py`; `--a11y` on `torrents-cross-seed-cut-confirm`.
+~~Oracle: L16's `torrents-list`, where a pair is cut, accepted with « L17 § 3.3: the cross-seed cut »; any other~~
+~~divergence is STOP A. Gate: per INDEX « Gates »; `python3 scripts/compare-contracts.py --check`;~~
+~~`python3 scripts/check-mock-seeds.py`; `--a11y` on `torrents-cross-seed-cut-confirm`.~~
 
 ## Commit
 

@@ -4,7 +4,7 @@ import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { offeredFeet } from "./act-rights";
 import { useRights } from "../../lib/account";
 import { mediumCardMarkup } from "./card-markup";
-import { inFlightCards } from "./arrival-slots";
+import { inFlightCards } from "../../lib/arrival-slots";
 import { followOffered } from "./follow-offer";
 import { useFollows } from "./queries";
 import { useAcquisitionQueue } from "../../lib/queue";

@@ -6,7 +6,7 @@ import { useAcquisitionQueue } from "../../lib/queue";
 import { useUiState } from "../../lib/store-access";
 import { Tabs } from "../../ui/tabs";
 import { moreButton } from "../../ui/variants";
-import { inFlightCards, todoCards } from "./arrival-slots";
+import { inFlightCards, todoCards } from "../../lib/arrival-slots";
 import { useRights } from "../../lib/account";
 import { isOwn } from "../../lib/rights";
 import { drawnTab, tabsOpenTo } from "./tab-memory";
