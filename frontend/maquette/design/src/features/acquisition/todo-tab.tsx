@@ -3,7 +3,7 @@
 // A TAB OF ITS OWN (ruling 10), ONE FLAT LIST (DECIDED 1 of maquette-blocked,
 // amending ruling 10's sections): no section says what unblocks a card — its
 // cause line does — and the one-pill filter and sort stand above it, the
-// order by urgency by default (`lib/todo-order.ts`). Never an empty screen
+// order by urgency by default (`todo-order.ts`). Never an empty screen
 // (DOIT-7): with nothing blocked, it says so and says where the rest is; a
 // filter that keeps nothing says so in its own words.
 //
@@ -19,7 +19,7 @@ import { useRights } from "../../lib/account";
 import { blockDoor, mediumCardMarkup } from "./card-markup";
 import { closureFoot } from "./closure-markup";
 import { setAsideCards, todoCards } from "../../lib/arrival-slots";
-import { causeOf, orderTodo } from "../../lib/todo-order";
+import { causeOf, orderTodo } from "./todo-order";
 import { TodoPills, todoFilterInForce, todoSortInForce } from "./todo-pills";
 import { useResumedMessage } from "./resumed";
 import { Disclosure } from "../../ui/disclosure";

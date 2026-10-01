@@ -69,14 +69,21 @@ export function todoCards(queue: { blocked: QueueCard[]; arrivals: QueueCard[]; 
 }
 
 /**
- * Every card « Mis de côté » holds: what he set aside, from the queue and from
- * the arrivals. Read by the folded section alone — it counts for nothing else.
+ * Every card « Mis de côté » holds: what he set aside, from EVERY list
+ * `todoCards` reads — the queue's stopped cards, the arrivals, and the cards in
+ * flight — so a row set aside lands here and in no other list (m3 of the lot's
+ * reading). Read by the folded section alone — it counts for nothing else.
+ *
+ * ONE CARD PER MEDIUM, as `todoCards` keeps it: an in-flight row whose arrival
+ * is drawn already is the arrival's.
  *
  * @param queue The queue's answer.
  * @returns The cards, in the order the section draws them.
  */
 export function setAsideCards(queue: { blocked: QueueCard[]; arrivals: QueueCard[]; inFlight: QueueCard[] }): QueueCard[] {
-  return [...queue.blocked.filter(isSetAside), ...slotArrivals(queue.arrivals).setAside];
+  const inFlight = queue.inFlight.filter((row) => isSetAside(row)
+    && !queue.arrivals.some((arrival) => sameMedium(row, arrival)));
+  return [...queue.blocked.filter(isSetAside), ...slotArrivals(queue.arrivals).setAside, ...inFlight];
 }
 
 // The episode a card's subtitle opens with, when it names one.
@@ -176,8 +183,9 @@ function onTheirWay(queue: { inFlight: QueueCard[]; arrivals: QueueCard[] }): Qu
  * @returns The cards, in the order the tab draws them.
  */
 export function inFlightCards(queue: { inFlight: QueueCard[]; arrivals: QueueCard[] }): QueueCard[] {
-  // A BLOCK IS NOT ON ITS WAY (Q7): « À traiter » draws it, whichever list holds it.
-  return onTheirWay(queue).filter((card) => card.absorbedBy == null && !isBlock(card));
+  // A BLOCK IS NOT ON ITS WAY (Q7): « À traiter » draws it, whichever list holds
+  // it — nor is a card set aside: « Mis de côté » draws it (m3).
+  return onTheirWay(queue).filter((card) => card.absorbedBy == null && !isBlock(card) && !isSetAside(card));
 }
 
 /**

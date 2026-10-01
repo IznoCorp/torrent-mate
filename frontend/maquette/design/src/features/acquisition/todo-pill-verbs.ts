@@ -7,7 +7,7 @@ import { todoCards } from "../../lib/arrival-slots";
 import { queueKey, type AcquisitionQueue } from "../../lib/queue";
 import { panel, redraw } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
-import { TODO_FILTERS, TODO_SORTS, todoCounts, type TodoFilter, type TodoSort } from "../../lib/todo-order";
+import { TODO_FILTERS, TODO_SORTS, todoCounts, type TodoFilter, type TodoSort } from "./todo-order";
 import { registerVerb } from "../../lib/verbs";
 import { registerProducer, type PanelCache } from "../../ui/panel/contract";
 import { choicesDescriptor, closeThenApply } from "../../ui/pill-select";

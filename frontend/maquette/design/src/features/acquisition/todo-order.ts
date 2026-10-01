@@ -7,7 +7,7 @@
 // external blocks the engine lifts on its own, then the closures not yet seen —
 // newest first inside each group. The filter keeps one cause; the sort may also
 // order every card by its time alone.
-import type { QueueCard } from "./engine-queue";
+import type { QueueCard } from "../../lib/engine-queue";
 
 /** The filter's choices, in the order its panel offers them. */
 export const TODO_FILTERS = ["all", "resolve", "plex", "step", "disks", "ratio", "unreachable", "closed"] as const;

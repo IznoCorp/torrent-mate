@@ -5,7 +5,7 @@
 // the expected ones, so an identity sort fails every case; the groups and the
 // times disagree on purpose (the newest card is a closure, last by urgency).
 import { describe, expect, it } from "vitest";
-import type { QueueCard } from "./engine-queue";
+import type { QueueCard } from "../../lib/engine-queue";
 import { causeOf, orderTodo, todoCounts } from "./todo-order";
 
 /**

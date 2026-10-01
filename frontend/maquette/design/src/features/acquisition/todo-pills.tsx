@@ -7,7 +7,7 @@
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 import { tabMemory } from "../../lib/tab-memory";
-import { TODO_FILTERS, TODO_SORTS, type TodoFilter, type TodoSort } from "../../lib/todo-order";
+import { TODO_FILTERS, TODO_SORTS, type TodoFilter, type TodoSort } from "./todo-order";
 import { useUiState } from "../../lib/store-access";
 import { PillSelect } from "../../ui/pill-select";
 import { filterZone, pillBar, pillScroll } from "../../ui/variants";
