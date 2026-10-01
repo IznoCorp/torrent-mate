@@ -1885,7 +1885,8 @@
       },
       "trackers": {
         "view": "voir les trackers",
-        "control": "agir sur les trackers"
+        "control": "agir sur les trackers",
+        "upload": "créer et publier un torrent"
       },
       "system": {
         "view": "voir Système et Maintenance"
@@ -1933,7 +1934,8 @@
       },
       "trackers": {
         "view": "Par défaut, seul le rôle Admin le détient.",
-        "control": "Par défaut, seul le rôle Admin le détient."
+        "control": "Par défaut, seul le rôle Admin le détient.",
+        "upload": "Par défaut, seul le rôle Admin le détient."
       },
       "system": {
         "view": "Par défaut, seul le rôle Admin le détient."

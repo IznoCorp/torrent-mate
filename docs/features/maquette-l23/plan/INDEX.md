@@ -23,9 +23,11 @@ uploads » switch) and R456 (the third origin mark) — `harness/cross_seed_uplo
 `2b69c0fdf` (no act, no state), then green. `cross_seed_mark.py` and `trackers_roster.py` were re-aimed by the
 intended change.
 
-**Waiting on L18** (not on `main` at the close): the right `trackers.upload` (DESIGN § 0.2) and R-L23-f, its two
-halves — the act absent for a non-holder, the call refused `403` when forced. Wired to L18's rights model once
-`main` holds it.
+**The right, wired once L18 reached `main`** (#663): `trackers.upload` (DESIGN § 0.2) is in the contract's `Right`
+set, the model's write rights and « Comptes »' words; no shipped role carries it (Admin by its bypass);
+`uploadCrossSeed` asks for it (`operation-rights.ts`), and the panel offers the act only to its holder, the search
+staying `trackers.control`'s. R457 = R-L23-f — `harness/cross_seed_upload_right.py`, its two halves under four
+identities — was seen red on the merged head `408340aa6` (six violations), then green.
 
 **Named states** (DESIGN § 3): 1–6 real; 7 (`-rule-refused`) and 8 (`tracker-upload-failures`) dropped — Q3 and Q4
 ruled A; `torrents-cross-seed-published` added for Q5 = B.

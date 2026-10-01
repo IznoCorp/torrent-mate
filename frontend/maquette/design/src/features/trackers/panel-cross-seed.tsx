@@ -147,8 +147,11 @@ function PairActs(context: PairContext): ReactElement | null {
   const say = (key: string) => t(`screens.crossSeed.panel.${key}`);
   const subject = `${origin.infoHash}:${pair.tracker}`;
   // EVERY ACT HERE IS A WRITE (`trackers.control`), absent without it; what the
-  // pair waits on is still said.
-  const control = useRights().holds("trackers.control");
+  // pair waits on is still said. Publishing a new torrent is its own right
+  // (`trackers.upload`, L23 DESIGN § 0.2): one may be held without the other.
+  const rights = useRights();
+  const control = rights.holds("trackers.control");
+  const publish = rights.holds("trackers.upload");
   if (pair.state === "active") {
     if (!control) return null;
     return (
@@ -170,9 +173,8 @@ function PairActs(context: PairContext): ReactElement | null {
   if (pair.uploading) {
     return <span className={factDetail()} data-part="torrents/cross-seed-upload-queued"><b>{say("uploadQueued")}</b></span>;
   }
-  if (!control) return null;
-  const searchable = isSearchable(pair, titleExcluded, isComplete(origin), trackerEnabled, trackerOff === null);
-  const uploadable = isUploadable(pair, gateOf(context));
+  const searchable = control && isSearchable(pair, titleExcluded, isComplete(origin), trackerEnabled, trackerOff === null);
+  const uploadable = publish && isUploadable(pair, gateOf(context));
   if (searchable || uploadable) {
     return (
       <span className={factDetail()}><span className={factActions()}>
@@ -191,6 +193,7 @@ function PairActs(context: PairContext): ReactElement | null {
       </span></span>
     );
   }
+  if (!control) return null;
   if (pair.excluded && !titleExcluded) {
     return (
       <span className={factDetail()}>
