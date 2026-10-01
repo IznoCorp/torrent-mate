@@ -3,7 +3,8 @@
 DESIGN maquette-l18 § 3.1, § 5 (R-L18-q, R-L18-r), round 8 Q10 = B, F47.
 
 1. R-L18-q — THE HOST'S PAGE IS UNCHANGED: `index.html`'s `login:markup` region is byte for
-   byte `main`'s, and nothing of the Plex block is in it — the design host extracts it.
+   byte the base branch's (`develop`, `main` before the git flow's cut-over), and nothing of the
+   Plex block is in it — the design host extracts it.
 2. R-L18-q — PLEX FIRST: the gate draws « Se connecter avec Plex » and keeps the password form
    CLOSED behind « Utiliser un mot de passe »; tapped, the disclosure opens the form.
 3. R-L18-r — PLEX UNREACHABLE opens the disclosure by itself and says why.
@@ -35,36 +36,48 @@ GATE = """() => ({
   bar: document.querySelector('#nav')?.checkVisibility() || false })"""
 
 
-MAIN = "origin/main"
+# After the git flow's cut-over the checkout serving tm-design stands on `develop`
+# (docs/features/git-flow/DESIGN.md § 3.6); before it, `develop` does not exist.
+BASES = ("develop", "main")
 
 
-def main_region():
-    """The `login:markup` region as `main` holds it.
+def base_region(root=ROOT):
+    """The `login:markup` region as the base branch holds it: `develop`, else `main`.
 
-    A CI checkout is one commit deep and carries no `origin/main`: the ref is
+    A CI checkout is one commit deep and carries neither remote branch: each is
     fetched, one commit deep, when it is absent — never compared against
     nothing.
+
+    Args:
+        root: The `frontend/maquette` directory of the checkout to read.
 
     Returns:
         The region, markers included.
 
     Raises:
-        subprocess.CalledProcessError: When `main` cannot be read or fetched.
+        subprocess.CalledProcessError: When neither branch can be read or fetched.
     """
     def git(*arguments):
-        return subprocess.run(["git", *arguments], capture_output=True, text=True, cwd=ROOT, check=True).stdout
+        return subprocess.run(["git", *arguments], capture_output=True, text=True, cwd=root, check=True).stdout
 
-    known = subprocess.run(["git", "rev-parse", "--verify", "--quiet", MAIN],
-                           capture_output=True, cwd=ROOT).returncode == 0
-    if not known:
-        git("fetch", "--depth=1", "origin", f"main:refs/remotes/{MAIN}")
-    return REGION.search(git("show", f"{MAIN}:frontend/maquette/design/index.html")).group(0)
+    def known(ref):
+        return subprocess.run(["git", "rev-parse", "--verify", "--quiet", ref],
+                              capture_output=True, cwd=root).returncode == 0
+
+    for branch in BASES:
+        ref = f"origin/{branch}"
+        if not known(ref):
+            fetched = subprocess.run(["git", "fetch", "--depth=1", "origin", f"{branch}:refs/remotes/{ref}"],
+                                     capture_output=True, cwd=root).returncode == 0
+            if not fetched and branch != BASES[-1]:
+                continue
+        return REGION.search(git("show", f"{ref}:frontend/maquette/design/index.html")).group(0)
 
 
 async def main():
     journal = Journal("R427 — Plex first, the password behind a disclosure")
     here = REGION.search((ROOT / "design/index.html").read_text(encoding="utf-8")).group(0)
-    journal.check("R-L18-q: the host's password region is byte for byte main's", here == main_region())
+    journal.check("R-L18-q: the host's password region is byte for byte the base branch's", here == base_region())
     journal.check("R-L18-q: nothing of Plex is in the region the host extracts", "plex" not in here.lower())
 
     async with async_playwright() as playwright:
