@@ -90,7 +90,8 @@ def test_an_unsafe_command_is_refused_without_a_design_test(tmp_path: Path) -> N
     assert done.returncode != 0
 
 
-def test_an_ordinary_file_passes(tmp_path: Path) -> None:
-    """Nothing else is refused."""
-    done = stage_and_run(repository(tmp_path), "notes.md", "a note\n")
+def test_prose_quoting_a_command_passes(tmp_path: Path) -> None:
+    """A note that QUOTES a command is not one: only scripts are read."""
+    quoted = "r" + "g pattern"
+    done = stage_and_run(repository(tmp_path), "notes.md", f"It was found with `{quoted}`.\n")
     assert done.returncode == 0, done.stderr
