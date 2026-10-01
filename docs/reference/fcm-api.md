@@ -123,6 +123,20 @@ Source: `https://firebase.google.com/docs/cloud-messaging/js/client`.
 - The SDK registers its own `firebase-messaging-sw.js` by default; the application passes its OWN
   worker registration instead (`serviceWorkerRegistration`) — one worker, no second one.
 - The permission is asked from a direct user gesture only.
+- **The token API, settled against the pinned SDK** (`firebase` 12.19.0, exact pin in
+  `frontend/maquette/design/package.json`): `getToken` is marked deprecated there in favour of
+  `register` + `onRegistered`, which deliver a Firebase Installation id (FID), the SDK noting that
+  « the backend send API supports FID as a target ». The HTTP v1 reference documents `message.token`
+  as an FCM REGISTRATION TOKEN, and that is what `getToken` returns — so the client uses `getToken`.
+  The switch to the FID, once Firebase documents it as a v1 target, is confined to
+  `src/lib/push-registration.ts`. The SDK is imported lazily, on the device that turns
+  notifications on.
+- `frontend/maquette/design/src/lib/push-registration.ts`: `pushSupport()` (`unsupported`,
+  `needs-install` — told BEFORE the API check, since a Safari tab on iOS defines no push API —,
+  `available` with the permission), `registerPush(config, submit)` (asks first, before any await),
+  `refreshPush(config, submit)` (every start, never asks), `unregisterPush(config, revoke)` (the
+  server forgets the token, then the SDK deletes it — the configuration is needed to reach the SDK's
+  messaging instance, which the DESIGN's signature omitted).
 
 ## iOS
 
@@ -136,6 +150,23 @@ Source: `https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/`
   catalogue's generic line).
 - The permission may read `default` after a reload (`firebase-js-sdk#8269`): the client re-registers
   at every start, the server upserts.
+
+## The worker
+
+`frontend/maquette/design/sw.js` — `push` composes the notification from the `push` namespace of
+`fr.json` (written into the worker at build time at `__PUSH_TEXTS__`; the build refuses a catalogue
+without `push.generic` and a worker where a placeholder survived — `worker-source.mjs`): the code
+looked up as a dotted path, `{{param}}` filled from the JSON-encoded `params`, the generic line for
+anything it cannot word. `notificationclick` focuses an open window of the application and sends it
+to the message's link, or opens one there; any link that is not a same-origin path opens `/`.
+
+## The dispatcher
+
+`personalscraper/push/dispatch.py` — `PushDispatcher.notify_account(account_id, message)`; its
+`DispatchReport` adds `retry_after_seconds` (the longest back-off a deferral asked for) to the
+DESIGN's fields, since the re-send is the caller's. A `misconfigured` answer and a quota (429 /
+`QUOTA_EXCEEDED`) stop the fan-out; the store is `personalscraper/push/store.py`, its DDL adopted
+by K0's `app` baseline.
 
 ## Setup — the operator's steps
 

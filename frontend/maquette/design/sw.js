@@ -45,12 +45,15 @@
 // itself the next time the operator opens the application.
 //
 // THIS FILE IS A SOURCE, NOT THE SERVED FILE. The build writes `dist/sw.js`,
-// substituting the three placeholders below with what it actually emitted —
+// substituting the four placeholders below with what it actually emitted —
 // the bundle names carry content hashes and cannot be written here by hand.
 
 const BUILD = "__BUILD__";
 const SHELL = __SHELL__;
 const EXTRAS = __EXTRAS__;
+// The words of a push, from the `push` namespace of `fr.json` — the build writes
+// them here. The wire carries a CODE and its parameters, never a sentence.
+const PUSH_TEXTS = __PUSH_TEXTS__;
 
 // The cache's name carries the build, so a new build is a NEW cache and the old
 // one is deleted on activation rather than merged into. A single cache reused
@@ -217,4 +220,91 @@ self.addEventListener("fetch", (event) => {
       return Response.error();
     }
   })());
+});
+
+// PUSH (fcm-push DESIGN § 3.5). A data-only FCM message arrives as
+// `{ data: { code, params, link, tag }, … }`; the words are looked up here.
+//
+// ALWAYS SHOWN. iOS revokes the permission of a web app whose push shows
+// nothing, so a payload this worker cannot read, or a code `fr.json` does not
+// word yet, shows the catalogue's GENERIC line — never silence, and never a
+// sentence typed into this file.
+
+// `tracker.ratio_low` → `PUSH_TEXTS.tracker.ratio_low`, when it holds a title
+// and a body; anything else is the generic line.
+const pushWords = (code) => {
+  let node = PUSH_TEXTS;
+  for (const part of String(code || "").split(".")) {
+    node = node && typeof node === "object" ? node[part] : undefined;
+  }
+  const entry = node && typeof node.title === "string" && typeof node.body === "string" ? node : null;
+  return entry || PUSH_TEXTS.generic;
+};
+
+// `{{name}}` filled from the parameters; a placeholder with no parameter stays
+// visible rather than turning into « undefined ».
+const fillParams = (text, params) =>
+  String(text).replace(/\{\{(\w+)\}\}/g, (whole, name) =>
+    Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : whole);
+
+// A same-origin PATH only; anything else (an absolute URL, `//host`, a
+// backslash trick, garbage) opens the application's root.
+const safeLink = (link) => {
+  if (typeof link !== "string" || !link.startsWith("/") || link.startsWith("//") || link.includes("\\")) {
+    return "/";
+  }
+  try {
+    const url = new URL(link, self.location.origin);
+    return url.origin === self.location.origin ? url.pathname + url.search + url.hash : "/";
+  } catch {
+    return "/";
+  }
+};
+
+const composePush = (payload) => {
+  const data = (payload && typeof payload === "object" && (payload.data || payload)) || {};
+  let params = {};
+  try {
+    const parsed = typeof data.params === "string" ? JSON.parse(data.params) : data.params;
+    if (parsed && typeof parsed === "object") params = parsed;
+  } catch {
+    params = {};
+  }
+  const words = pushWords(data.code);
+  const options = {
+    body: fillParams(words.body, params),
+    icon: "/pwa-192.png",
+    badge: "/maskable-192.png",
+    data: { link: safeLink(data.link) },
+  };
+  if (typeof data.tag === "string" && data.tag) options.tag = data.tag;
+  return { title: fillParams(words.title, params), options };
+};
+
+const readPayload = (data) => {
+  if (!data) return null;
+  try {
+    return data.json();
+  } catch {
+    return null;
+  }
+};
+
+self.addEventListener("push", (event) => {
+  const { title, options } = composePush(readPayload(event.data));
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// The click focuses a window of the application already open — sent to the
+// message's page — or opens one there.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const link = safeLink(event.notification.data && event.notification.data.link);
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+      const open = windows.find((client) => new URL(client.url).origin === self.location.origin);
+      if (open) return open.focus().then((client) => (client || open).navigate(link));
+      return self.clients.openWindow(link);
+    }),
+  );
 });
