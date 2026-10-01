@@ -77,6 +77,18 @@ FOCUS_STATE = """([layer, background])=>{
     backgroundInert: Boolean(behind && behind.hasAttribute('inert')),
   };}"""
 
+# WHAT A CLOSED LAYER STILL OFFERS. The drawer, the sheet and the confirmation
+# stay in the document when they close, the sheet with its last panel drawn so
+# its exit can slide (B-617, found by L18's CI agent): a control in there that is
+# neither `inert` nor emptied out is one a keyboard or a screen reader reaches
+# behind nothing. A migrated screen is unmounted, so it has nothing to offer.
+CLOSED_REACH = """(selector)=>{
+  const root = document.querySelector(selector);
+  if (!root || root.hasAttribute('data-open')) return {present: false};
+  const controls = [...root.querySelectorAll(
+    'button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')];
+  return {present: true, inert: !!root.closest('[inert]'), controls: controls.length};}"""
+
 # The error surfaces of one state, and how many of them announce. Hosted in a
 # triple-quoted string on purpose: `check-markup-contracts.py` reads this file
 # as TEXT to pair every `data-*` a rule selects with the markup that emits it,
@@ -127,6 +139,12 @@ async def main():
                 f"closing the {name} gives the background back",
                 not closed["backgroundInert"],
                 f"{BACKGROUND} inert: {closed['backgroundInert']}")
+            if name != "screen":
+                left = await page.evaluate(CLOSED_REACH, layer)
+                journal.check(
+                    f"the closed {name} leaves no control reachable — inert, or emptied (B-617)",
+                    left["present"] and (left["inert"] or left["controls"] == 0),
+                    str(left))
             landed_on = await page.evaluate(RESTORED, opener)
             journal.check(
                 f"closing the {name} puts focus back somewhere the reader was",
@@ -202,6 +220,10 @@ async def main():
                 f"{landed_in_dialog['isTheWayOut']}")
             await page.keyboard.press("Escape")
             await page.wait_for_timeout(350)
+            left = await page.evaluate(CLOSED_REACH, "#dlg")
+            journal.check(
+                f"{what}, closed, leaves no control reachable — inert, or emptied (B-617)",
+                left["present"] and (left["inert"] or left["controls"] == 0), str(left))
 
         # A PANEL TAKES FOCUS WITHOUT SCROLLING (B-615): its first control can sit
         # far below its head, and the browser's default scroll-into-view opened a
