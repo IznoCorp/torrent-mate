@@ -17,12 +17,14 @@ export function pushTexts(catalogue) {
   return push;
 }
 
+// Each value is written through a replacer FUNCTION: a replacement STRING reads `$&`,
+// `$'`, `` $` `` and `$$` as patterns, and a push text of `fr.json` may hold them.
 export function substituteWorker(source, { build, shell, extras, push }) {
   const worker = source
-    .replace("__BUILD__", build)
-    .replace("__SHELL__", JSON.stringify(shell))
-    .replace("__EXTRAS__", JSON.stringify(extras))
-    .replace("__PUSH_TEXTS__", JSON.stringify(push));
+    .replace("__BUILD__", () => build)
+    .replace("__SHELL__", () => JSON.stringify(shell))
+    .replace("__EXTRAS__", () => JSON.stringify(extras))
+    .replace("__PUSH_TEXTS__", () => JSON.stringify(push));
   if (PLACEHOLDERS.some((placeholder) => worker.includes(placeholder))) {
     throw new Error("build-worker: a placeholder survived substitution");
   }

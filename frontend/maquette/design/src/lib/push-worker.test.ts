@@ -115,6 +115,20 @@ describe("the worker's notificationclick listener", () => {
     expect(worker.opened).toEqual([]);
   });
 
+  it("opens a window at the page when the open one cannot be navigated (an uncontrolled client)", async () => {
+    const worker = bootWorker();
+    const open = {
+      url: `${ORIGIN}/acquisition`,
+      focus: vi.fn(),
+      navigate: vi.fn(() => Promise.reject(new TypeError("not controlled"))),
+    };
+    open.focus.mockImplementation(() => Promise.resolve(open));
+    worker.windows.push(open);
+    await worker.click("/trackers");
+    expect(open.navigate).toHaveBeenCalledWith("/trackers");
+    expect(worker.opened).toEqual(["/trackers"]);
+  });
+
   it("never follows a link off the application", async () => {
     const worker = bootWorker();
     await worker.click("https://evil.example/");
@@ -127,6 +141,13 @@ describe("the build's substitution", () => {
     const built = substituteWorker(workerSource, { build: "b1", shell: ["/"], extras: [], push: pushTexts(catalogue) });
     for (const placeholder of PLACEHOLDERS) expect(built).not.toContain(placeholder);
     expect(built).toContain(JSON.stringify(generic.title));
+  });
+
+  it("writes a push text holding replacement patterns ($&, $', $`) as it is", async () => {
+    const literal = "Ratio $& $' $` $$ $1";
+    const worker = bootWorker({ ...TEST_TEXTS, generic: { title: literal, body: literal } });
+    await worker.push({ data: { code: "nobody.knows" } });
+    expect(worker.shown[0]).toEqual({ title: literal, options: expect.objectContaining({ body: literal }) });
   });
 
   it("refuses a worker whose __PUSH_TEXTS__ survived", () => {

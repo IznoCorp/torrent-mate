@@ -296,15 +296,19 @@ self.addEventListener("push", (event) => {
 });
 
 // The click focuses a window of the application already open — sent to the
-// message's page — or opens one there.
+// message's page — or opens one there. `navigate()` rejects on a window this
+// worker does not control: the link is never lost, a window is opened at it.
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const link = safeLink(event.notification.data && event.notification.data.link);
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
       const open = windows.find((client) => new URL(client.url).origin === self.location.origin);
-      if (open) return open.focus().then((client) => (client || open).navigate(link));
-      return self.clients.openWindow(link);
+      if (!open) return self.clients.openWindow(link);
+      return open
+        .focus()
+        .then((client) => (client || open).navigate(link))
+        .catch(() => self.clients.openWindow(link));
     }),
   );
 });
