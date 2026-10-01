@@ -16,7 +16,7 @@ import type { ReactElement } from "react";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { offeredFeet } from "./act-rights";
 import { useRights } from "../../lib/account";
-import { mediumCardMarkup } from "./card-markup";
+import { blockDoor, mediumCardMarkup } from "./card-markup";
 import { setAsideCards, todoCards } from "../../lib/arrival-slots";
 import { causeOf, orderTodo } from "../../lib/todo-order";
 import { TodoPills, todoFilterInForce, todoSortInForce } from "./todo-pills";
@@ -85,9 +85,9 @@ export function TodoTab(): ReactElement {
     if (cause === "resolve")
       return offeredFeet({ label: t("screens.acquisition.blockedFoot"), attributes: { "data-resolution": card.title } },
         card, rights);
-    // AN EXTERNAL BLOCK'S FOOT HOLDS ITS DOOR ALONE (DECIDED 6), drawn by the
-    // card from its cause; « Abandonner » stays in its panel.
-    return undefined;
+    // AN EXTERNAL BLOCK'S FOOT HOLDS ITS DOOR ALONE (DECIDED 6), where its
+    // cause is settled; « Abandonner » stays in its panel.
+    return blockDoor(card, rights);
   };
   return (
     <div

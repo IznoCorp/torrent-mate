@@ -7,6 +7,7 @@ import SCHEDULERS from "../seeds/schedulers.json";
 import SERVICES from "../seeds/services.json";
 import { GET, route } from "./shared";
 import { mockState } from "../state";
+import { serviceDownSince } from "./posed-block";
 import type { Schemas } from "../../lib/contract-schemas";
 import type { MockRoute } from "../router";
 
@@ -30,6 +31,20 @@ function asPosed(facts: unknown): Schemas["Fact"][] {
       : fact);
 }
 
+// The contract's state of a dependency that does not answer.
+const OFFLINE = "offline";
+
+/**
+ * A dependency as the layer answers it: down since when it was posed down.
+ *
+ * @param fact The seeded dependency.
+ * @returns The fact, down with its `since` when a block posed it so.
+ */
+function downWhenPosed(fact: Schemas["Fact"]): Schemas["Fact"] {
+  const since = serviceDownSince(fact.label);
+  return since === undefined ? fact : { ...fact, state: OFFLINE, since, secondaryLine: undefined };
+}
+
 // What an answer carries when the maquette genuinely has nothing to put there.
 const NOTHING_TO_REPORT = "";
 
@@ -37,7 +52,7 @@ const NOTHING_TO_REPORT = "";
 export function systemRoutes(): MockRoute[] {
   return [
     route("readServices", GET, "/api/system/services", () => SERVICES),
-    route("readDependencies", GET, "/api/system/dependencies", () => DEPENDENCIES),
+    route("readDependencies", GET, "/api/system/dependencies", () => (DEPENDENCIES as Schemas["Fact"][]).map(downWhenPosed)),
     route("readErrors", GET, "/api/system/errors", () => ERRORS),
     route("readSchedulers", GET, "/api/maintenance/schedulers", () => SCHEDULERS),
     route("readDisks", GET, "/api/maintenance/disks", () => asPosed(DISKS)),

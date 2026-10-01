@@ -1599,6 +1599,8 @@ export interface components {
              * @enum {string}
              */
             state?: "reachable" | "on_time" | "room" | "nearly_full" | "succeeded" | "none" | "to_clean" | "offline" | "late";
+            /** @description for a dependency that does not answer, since when, epoch seconds — the row then says « ne répond pas depuis … » (maquette-blocked § 1.3). A DEMAND (BK6) */
+            since?: number | null;
         };
         /** @description A library row as a LISTING shows it. The recents carry no category — that is what the fixture holds — so the category lives on LibraryItem below rather than here. */
         LibraryRow: {
@@ -2385,6 +2387,10 @@ export interface components {
             /** @description null while the tracker is on; otherwise who switched it off and why. A refused identifier is `reason: identifierRefused` here — one field per fact (a demand, T2: the engine switches nothing off by itself today) */
             disabled: components["schemas"]["TrackerDisabled"] | null;
             crossSeed: components["schemas"]["TrackerCrossSeed"];
+            /** @description whether the tracker answers — what « Voir le tracker » lands on for `tracker_unreachable` (maquette-blocked § 1.3). A DEMAND (BK6) */
+            reachable: boolean;
+            /** @description since when the tracker does not answer, epoch seconds; null while it answers. A DEMAND (BK6) */
+            unreachableSince: number | null;
         };
         /** @description a size-or-count threshold and the score it awards */
         RankingThreshold: {

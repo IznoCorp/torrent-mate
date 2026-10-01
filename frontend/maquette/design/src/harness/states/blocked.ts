@@ -7,6 +7,7 @@
 // the cause is posed (`poseBlock`) on a real acquisition, and the backend
 // serves it (BK1).
 import { applyState, type NamedState } from "../drive";
+import { as } from "./rights";
 import type { BlockDetails } from "../../mocks/handlers/posed-block";
 
 // The one acquisition in flight of the dense world that has not arrived: the
@@ -67,6 +68,20 @@ function tapPill(pill: string): void {
   document.querySelector<HTMLElement>(`#view [${pill}]`)?.click();
 }
 
+/**
+ * A finger on one card's door, the way a finger does.
+ *
+ * @param key The acquisition the card stands for.
+ */
+function tapDoor(key: string): void {
+  document.querySelector<HTMLElement>(`#view [data-part="card"][data-acquisition="${CSS.escape(key)}"] [data-go]`)?.click();
+}
+
+// An account that reads every card of « À traiter » and may not open Système.
+const WITHOUT_SYSTEM = "household-member-sees-all";
+// How long ago Plex stopped answering, on Système's own state.
+const PLEX_DOWN_FOR = 25;
+
 // The dense world's cards in flight, by the key their ladder is held under.
 const SEASON_IN_FLIGHT = "Silo|S03";
 const SECOND_SERIES = "President Curtis";
@@ -123,6 +138,28 @@ export function blockedStates(): NamedState[] {
     posed("acq-block-content-volume",
       "À traiter — le disque où qBittorrent l'a téléchargé n'est pas lisible : un blocage, pas une clôture (DECIDED 4)",
       [[SUBJECT, "content_missing"]]),
+    // THE DOORS (§ 1.3) — after the finger on each, where it landed.
+    posed("acq-block-door-disks",
+      "Système, « Disques » en vue — après le doigt sur « Voir les disques » d'une carte différée faute d'espace",
+      [[SUBJECT, "insufficient_space"]], { after: () => tapDoor(SUBJECT) }),
+    posed("acq-block-door-dependencies",
+      "Système, « Dépendances » en vue, Plex hors ligne — après le doigt sur « Voir les dépendances »",
+      [[SECOND_FILM, "plex_unreachable", { minutesAgo: 12 }]], { after: () => tapDoor(SECOND_FILM) }),
+    posed("acq-block-door-tracker",
+      "Trackers, le panneau de c411 « Ne répond pas depuis … » — après le doigt sur « Voir le tracker »",
+      [[SEASON_IN_FLIGHT, "tracker_unreachable", { tracker: "c411", minutesAgo: 30 }]],
+      { after: () => tapDoor(SEASON_IN_FLIGHT) }),
+    posed("acq-block-door-reserved",
+      "À traiter, un compte sans « system.view » : la cause et ce qui la lève, aucune porte",
+      [[SUBJECT, "insufficient_space"]], { before: () => as(WITHOUT_SYSTEM) }),
+    ["system-dependency-plex-down",
+      "Système — Plex parmi les dépendances, hors ligne depuis 25 min (le back-end servira la joignabilité — BK6)",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.poseServiceDown("Plex", PLEX_DOWN_FOR);
+        window.__queries?.removeQueries({ queryKey: ["/api/system/dependencies"] });
+        applyState({ page: "sys", phase: "ready", fault: false });
+      }],
     // THE LIST WHOLE — one card per cause, flat, in the urgency order.
     posed("acq-todo-every-cause",
       "À traiter — une carte par cause, à plat, par urgence : jugement, puis ce qui repart seul",

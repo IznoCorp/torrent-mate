@@ -119,7 +119,8 @@ export function SystemPage(): ReactElement | null {
 
       <RunList />
 
-      <h2 className={sectionHeading()} data-part="heading">{t("screens.system.disks")}</h2>
+      {/* A SECTION A DOOR LANDS ON is named and takes the focus (`./landing`). */}
+      <h2 className={sectionHeading()} data-part="heading" data-section="disks" tabIndex={-1}>{t("screens.system.disks")}</h2>
       {factsOf(disks, "disks")}
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.system.index")}</h2>
@@ -129,7 +130,9 @@ export function SystemPage(): ReactElement | null {
         <span className={crossReferenceLink()}>{t("screens.system.toMaintenanceLink")}</span>
       </button>
 
-      <h2 className={sectionHeading()} data-part="heading">{t("screens.system.dependencies")}</h2>
+      <h2 className={sectionHeading()} data-part="heading" data-section="dependencies" tabIndex={-1}>
+        {t("screens.system.dependencies")}
+      </h2>
       {factsOf(dependencies, "dependencies")}
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.system.codeErrors")}</h2>

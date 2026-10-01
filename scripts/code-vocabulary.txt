@@ -1577,7 +1577,14 @@ zone
 # The words the maquette's `@keyframes` names are built from, read since
 # B-056 put those names under the vocabulary arm.
 banner
+dependency
+judgement
+newest
+offline
+props
 pulse
 rise
 shimmer
+sorts
 spin
+then

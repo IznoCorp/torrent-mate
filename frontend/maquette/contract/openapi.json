@@ -6244,6 +6244,13 @@
               "late"
             ],
             "description": "the state a fact is in, as a CODE: the interface says it in its own words (one word per state, `states` in fr.json) and derives its tone. A row that is a quantity carries `value` and `tone` instead."
+          },
+          "since": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "for a dependency that does not answer, since when, epoch seconds — the row then says « ne répond pas depuis … » (maquette-blocked § 1.3). A DEMAND (BK6)"
           }
         },
         "required": [
@@ -8864,6 +8871,17 @@
           },
           "crossSeed": {
             "$ref": "#/components/schemas/TrackerCrossSeed"
+          },
+          "reachable": {
+            "type": "boolean",
+            "description": "whether the tracker answers — what « Voir le tracker » lands on for `tracker_unreachable` (maquette-blocked § 1.3). A DEMAND (BK6)"
+          },
+          "unreachableSince": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "since when the tracker does not answer, epoch seconds; null while it answers. A DEMAND (BK6)"
           }
         },
         "required": [
@@ -8875,7 +8893,9 @@
           "enabled",
           "name",
           "ratio",
+          "reachable",
           "trend",
+          "unreachableSince",
           "uploadedBytes"
         ]
       },

@@ -23,6 +23,7 @@ import { richTextMarkup } from "./rich-text";
 import { originRow, footRow } from "./variants";
 import { currentRung } from "../../lib/current-rung";
 import { sizeOf } from "../trackers/format";
+import type { Right, Rights } from "../../lib/rights";
 
 
 /** One rung of a card's ladder, as the card reads it. */
@@ -113,12 +114,50 @@ const RUNG_TONE: Record<StripState, string> = {
 
 // The reason a rung waits for the operator's answer rather than for his hand.
 const TO_CONFIRM = "confirmation";
-// The engine's token for a ratio deferral, and where its path lands: the
-// Trackers page, its « Trackers » tab, the tracker named after the separator.
+// The engine's token for a ratio deferral.
 const RATIO_DEFERRAL = "ratio_below_threshold";
+// Where a door lands: the Trackers page, its « Trackers » tab, the tracker named
+// after the separator; Système, the section named by the dial.
 const TRACKERS_PAGE = "trackers";
 const TRACKERS_TAB = "trackers";
 const DIAL_SEPARATOR = ":";
+const SYSTEM_PAGE = "sys";
+
+/** A door: its words, the right that opens the page it lands on, where it lands. */
+type Door = { label: string; right: Right; attributes: (rung: Rung) => Record<string, string> | undefined };
+
+// To the tracker the block names, its panel up — none where the rung names none.
+const TRACKER_DOOR: Door = {
+  label: "screens.acquisition.ratioReasonTracker",
+  right: "trackers.view",
+  attributes: (rung) => rung.tracker
+    ? { "data-go": TRACKERS_PAGE, "data-dial": `${TRACKERS_TAB}${DIAL_SEPARATOR}${rung.tracker}` }
+    : undefined,
+};
+// To Système, one of its sections in view.
+const systemDoor = (label: string, section: string): Door => ({
+  label,
+  right: "system.view",
+  attributes: () => ({ "data-go": SYSTEM_PAGE, "data-dial": section }),
+});
+const DISKS_DOOR = systemDoor("screens.acquisition.blockDisks", "disks");
+const DEPENDENCIES_DOOR = systemDoor("screens.acquisition.blockDependencies", "dependencies");
+
+/**
+ * WHERE EACH EXTERNAL CAUSE IS SETTLED (Q7, « où elle se règle »;
+ * maquette-blocked § 1.3): one table, cause token → door. The ratio's door,
+ * generalised to every cause the engine lifts on its own.
+ */
+const DOORS: Readonly<Record<string, Door>> = {
+  ratio_below_threshold: TRACKER_DOOR,
+  tracker_unreachable: TRACKER_DOOR,
+  insufficient_space: DISKS_DOOR,
+  content_missing: DISKS_DOOR,
+  library_full: DISKS_DOOR,
+  provider_unreachable: DEPENDENCIES_DOOR,
+  plex_unreachable: DEPENDENCIES_DOOR,
+  client_unreachable: DEPENDENCIES_DOOR,
+};
 
 /**
  * A date, as a sentence says it: the day and the month.
@@ -145,14 +184,22 @@ function dayOf(date: string): string {
  * @returns The strip, the figure and the current rung's chip.
  */
 /**
- * The tracker a ratio deferral is under, when the rung the card stands on is one.
+ * The door of a card stopped by an external cause: the card's foot ALONE
+ * (DECIDED 6), a link to where the cause is settled. A link, not an act: it is
+ * drawn when the account may open the page it lands on, and only then (§ 17) —
+ * the cause and the lift are drawn either way.
  *
- * @param ladder The medium's rungs.
- * @returns The tracker's name, or undefined for any other rung.
+ * @param medium The card's row.
+ * @param rights What the account may do.
+ * @returns The door, or undefined for a card no external cause stops.
  */
-function ratioDeferralTracker(ladder: Rung[]): string | undefined {
-  const rung = ladder[currentRung(ladder)];
-  return rung.reason === RATIO_DEFERRAL && rung.tracker ? rung.tracker : undefined;
+export function blockDoor(medium: Pick<MediumCard, "ladder">, rights: Rights): MediumCardFoot | undefined {
+  if (!medium.ladder || medium.ladder.length === 0) return undefined;
+  const rung = medium.ladder[currentRung(medium.ladder)];
+  const door = rung.resumes === "auto" ? DOORS[rung.reason ?? ""] : undefined;
+  const attributes = door?.attributes(rung);
+  if (door === undefined || attributes === undefined || !rights.holds(door.right)) return undefined;
+  return { label: i18next.t(door.label), attributes };
 }
 
 /**
@@ -261,14 +308,7 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot | Med
     : posterArtworkMarkup(posterArtwork(icons, medium.poster, title, medium.k));
   const stages = i18next.t("surfaces.card.stages", { returnObjects: true }) as string[];
   const onLadder = medium.ladder ? ladderMarkup(medium.ladder) : null;
-  // A RATIO DEFERRAL IS A PATH to the tracker it is under: « Voir le tracker »
-  // lands on the Trackers tab, that tracker's entry open. An ADDRESS the page
-  // reads through its own landing door — never an import of that page's feature.
-  const deferredOn = medium.ladder ? ratioDeferralTracker(medium.ladder) : undefined;
-  const footOptions = [...(foot === undefined ? [] : Array.isArray(foot) ? foot : [foot]), ...(deferredOn === undefined ? [] : [{
-    label: i18next.t("screens.acquisition.ratioReasonTracker"),
-    attributes: { "data-go": TRACKERS_PAGE, "data-dial": `${TRACKERS_TAB}${DIAL_SEPARATOR}${deferredOn}` },
-  }])];
+  const footOptions = foot === undefined ? [] : Array.isArray(foot) ? foot : [foot];
   return cardMarkup({
     title,
     // french-ok: the non-medium marker R46 reads, a contract value

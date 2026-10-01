@@ -10,6 +10,7 @@
 //
 // A DOOR, not a constant, because what freezes it is the boot's business and
 // `lib/` may not import the mock layer (only `app/` may).
+import i18next from "i18next";
 
 // The frozen day, once the boot has filled it; the real date until then.
 let frozen: string | undefined;
@@ -31,4 +32,14 @@ export function freezeClock(date: string): void {
  */
 export function today(): string {
   return frozen ?? new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * The time of day an instant falls on, as a sentence names it.
+ *
+ * @param epoch The instant, epoch seconds.
+ * @returns The hour and the minute, in the interface's language.
+ */
+export function timeOfDay(epoch: number): string {
+  return new Intl.DateTimeFormat(i18next.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(epoch * 1000));
 }

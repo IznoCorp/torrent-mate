@@ -2,6 +2,7 @@
 import type { components } from "../../contract/types";
 import { mockState } from "../state";
 import { forgetLadder, ladderOf, rungIndex } from "./ladder";
+import { trackersState } from "../trackers-state";
 
 type Rung = components["schemas"]["JourneyStage"];
 
@@ -31,6 +32,43 @@ export const BLOCK_RUNG: Record<string, Rung["rung"]> = {
   plex_unreachable: "verified",
   client_unreachable: "downloading",
 };
+
+// WHICH DEPENDENCY each unreachable service's cause is read on, by the row's
+// name in Système (maquette-blocked § 1.3: the door lands on a page saying the
+// same cause). An unreachable tracker is read on the tracker's own entry.
+const SERVICE_OF: Record<string, string> = {
+  provider_unreachable: "TMDB / TVDB",
+  plex_unreachable: "Plex",
+  client_unreachable: "qBittorrent",
+};
+const TRACKER_CAUSE = "tracker_unreachable";
+
+/** The services posed down, since when, per state of the layer — renewed by a reset. */
+const down = new WeakMap<object, Map<string, number>>();
+
+/**
+ * Since when one dependency does not answer, when it was posed down.
+ *
+ * @param service The dependency's row name.
+ * @returns The epoch seconds it stopped answering, or undefined while it answers.
+ */
+export function serviceDownSince(service: string): number | undefined {
+  return down.get(mockState())?.get(service);
+}
+
+/**
+ * Poses one dependency down, until the layer is next reset — a derivation: the
+ * backend serves its reachability (BK6).
+ *
+ * @param service The dependency's row name (« Plex », « qBittorrent »…).
+ * @param minutesAgo How long ago it stopped answering.
+ */
+export function poseServiceDown(service: string, minutesAgo = 0): void {
+  const owner = mockState();
+  const held = down.get(owner) ?? new Map<string, number>();
+  if (!held.has(service)) held.set(service, Math.floor(Date.now() / 1000) - minutesAgo * MINUTE);
+  down.set(owner, held);
+}
 
 /** What a block names besides its cause — each read by its own sentence. */
 export type BlockDetails = {
@@ -65,6 +103,17 @@ export function poseBlock(title: string, cause: string, details: BlockDetails = 
   const rung = ladder[at];
   rung.resumes = "auto";
   rung.blockedSince = Math.floor(Date.now() / 1000) - (details.minutesAgo ?? 0) * MINUTE;
+  // THE LANDING SAYS THE SAME CAUSE: the service the block waits on is down
+  // where its door lands — Système's dependency row, the tracker's entry.
+  const service = SERVICE_OF[cause];
+  if (service !== undefined) poseServiceDown(service, details.minutesAgo);
+  if (cause === TRACKER_CAUSE && details.tracker !== undefined) {
+    const tracker = trackersState().trackers.find((one) => one.name === details.tracker);
+    if (tracker !== undefined) {
+      tracker.reachable = false;
+      tracker.unreachableSince = rung.blockedSince;
+    }
+  }
   if (details.provider !== undefined) rung.provider = details.provider;
   if (details.size !== undefined) rung.size = details.size;
   if (details.tracker === undefined) return;

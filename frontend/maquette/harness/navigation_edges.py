@@ -57,6 +57,13 @@ RATIO_DEFERRAL = ("js:(()=>{window.__mocks.poseBlock('This City Is Ours',"
                   "window.__queries.removeQueries({queryKey:['/api/staging/media']});"
                   "window.__store.write({scen:'loaded'});return true})()")
 
+# A space deferral, posed the same way: the card then offers « Voir les disques »
+# (maquette-blocked § 1.3, the ratio's door generalised to every external cause).
+SPACE_DEFERRAL = ("js:(()=>{window.__mocks.poseBlock('This City Is Ours','insufficient_space');"
+                  "window.__queries.removeQueries({queryKey:['/api/acquisition/to-handle']});"
+                  "window.__queries.removeQueries({queryKey:['/api/staging/media']});"
+                  "window.__store.write({scen:'loaded'});return true})()")
+
 # The dense world, where Silo's whole-season recovery runs at rest (maquette-season-recovery).
 LOADED_WORLD = ("js:(()=>{window.__queries.removeQueries({queryKey:['/api/acquisition/to-handle']});"
                 "window.__store.write({scen:'loaded'});return true})()")
@@ -124,6 +131,10 @@ EDGES = [
      "landing": (TRACKERS, "trackers", False, True),
      "stops": [(TRACKERS, "trackers", False, False), HOME_STOP],
      "emits": ["features/acquisition/card-markup.ts:go=TRACKERS_PAGE"]},
+    # « Voir les disques » (maquette-blocked, R502): a link inside a page, it STACKS —
+    # Retour from Système gives « À traiter » back.
+    {"edge": "L7", "walk": [SPACE_DEFERRAL, "tap:[data-acqtab=todo]", 'tap:#view [data-go="sys"]'],
+     "stops": [HOME_STOP], "emits": ["features/acquisition/card-markup.ts:go=SYSTEM_PAGE"]},
     {"edge": "L2", "start": "nimportequoi", "walk": ['tap:[data-go="acq"]'],
      "stops": [("/nimportequoi", "404", False)], "emits": ["app/not-found.tsx:go=acq"]},
     {"edge": "L3", "walk": ["bar:lib", "tap:[data-lens=inc]", "press:#view [data-panel]",

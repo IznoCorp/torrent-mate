@@ -8,7 +8,9 @@
     "alertThreshold": null,
     "enabled": true,
     "disabled": null,
-    "brokenObligations": []
+    "brokenObligations": [],
+    "reachable": true,
+    "unreachableSince": null
   },
   {
     "name": "tr4ker",
@@ -19,7 +21,9 @@
     "alertThreshold": null,
     "enabled": true,
     "disabled": null,
-    "brokenObligations": []
+    "brokenObligations": [],
+    "reachable": true,
+    "unreachableSince": null
   },
   {
     "name": "lacale",
@@ -35,7 +39,9 @@
       "message": "Tracker injoignable : la-cale.space ne répond plus.",
       "since": 1789171200
     },
-    "brokenObligations": []
+    "brokenObligations": [],
+    "reachable": true,
+    "unreachableSince": null
   },
   {
     "name": "v3x.club",
@@ -46,7 +52,9 @@
     "alertThreshold": null,
     "enabled": true,
     "disabled": null,
-    "brokenObligations": []
+    "brokenObligations": [],
+    "reachable": true,
+    "unreachableSince": null
   },
   {
     "name": "draupnirr.xyz",
@@ -62,7 +70,9 @@
       "message": null,
       "since": null
     },
-    "brokenObligations": []
+    "brokenObligations": [],
+    "reachable": true,
+    "unreachableSince": null
   },
   {
     "name": "digitalcore.club",
@@ -78,6 +88,8 @@
       "message": "Identifiant refusé par le tracker (HTTP 403).",
       "since": 1789862400
     },
-    "brokenObligations": []
+    "brokenObligations": [],
+    "reachable": true,
+    "unreachableSince": null
   }
 ]
