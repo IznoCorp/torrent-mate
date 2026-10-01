@@ -168,3 +168,33 @@ class TestTheStamp:
         """A machine whose copy predates this file has nothing to compare."""
         served_copy.write_stamp("appeared-later")
         served_copy.assert_unchanged(None, "measuring")
+
+
+class TestThePublisher:
+    """`publish()` stamps the copy only once the copy has landed (R104, moved here by B-268)."""
+
+    def test_the_stamp_is_written_after_the_document_the_worker_and_the_identity_land(self, copy_at, tmp_path, monkeypatch):
+        """The original B-256 defect is a stamp written first: read by what exists when it is written.
+
+        This hold lived inside `served_copy.py`, the file it measures, and was
+        beaten twice by finding its own search strings there (B-268). Held here
+        by behaviour instead, where the measuring source and the measured one
+        cannot be the same text.
+        """
+        design = tmp_path / "design"
+        (design / "dist").mkdir(parents=True)
+        (design / "assets").mkdir()
+        (design / "dist" / "index.html").write_text("<html></html>")
+        (design / "dist" / "sw.js").write_text("// worker")
+        (design / "dist" / "build.json").write_text("{}")
+        landed = {}
+
+        def stamp_after(token=None):
+            landed["document"] = (copy_at / "wrapped.html").is_file()
+            landed["worker"] = (copy_at / "sw.js").is_file()
+            landed["identity"] = (copy_at / "build.json").is_file()
+            return {"token": token or "stamped"}
+
+        monkeypatch.setattr(served_copy, "write_stamp", stamp_after)
+        assert served_copy.publish(design) == {"token": "stamped"}
+        assert landed == {"document": True, "worker": True, "identity": True}
