@@ -132,7 +132,7 @@ describe("every answer carries what the contract requires of it", () => {
       // is held on its first element too. `readMediaSeasons` declared
       // `Season[]` and answered the sheet's catalogue, a different shape at
       // one operation, and a reading of the first level alone could not see it.
-      const nested: string[] = [];
+      const lackingInElement: string[] = [];
       for (const [name, property] of Object.entries(wanted?.properties ?? {})) {
         const list = property as Shape;
         if (list.type !== "array") continue;
@@ -140,10 +140,10 @@ describe("every answer carries what the contract requires of it", () => {
         const first = ((subject as Record<string, unknown>)[name] as unknown[] | undefined)?.[0];
         if (!element?.required || first === undefined || first === null) continue;
         for (const field of element.required) {
-          if (!(field in (first as Record<string, unknown>))) nested.push(`${name}[0].${field}`);
+          if (!(field in (first as Record<string, unknown>))) lackingInElement.push(`${name}[0].${field}`);
         }
       }
-      expect(nested, `${route.operationId} answers elements missing ${nested.join(", ")}`)
+      expect(lackingInElement, `${route.operationId} answers elements missing ${lackingInElement.join(", ")}`)
         .toEqual([]);
     });
   }

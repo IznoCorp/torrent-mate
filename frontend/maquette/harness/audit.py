@@ -313,6 +313,9 @@ async def main():
                       show:{add:'Suivre',pause:'Mettre en pause',retrait:'Retirer le suivi'}};
       for (const f of (window.__followActions?.all()||[])) {
         const lab = stLabel(f);
+        // A follow with no kind of the two was read by nothing (B-542): the
+        // vocabulary check below is a question about a film.
+        if (!(f.kind in expected)) out.push(`« ${f.title} » carries no film/series kind (${f.kind})`);
         if (f.kind==='movie' && /jour|Terminé/.test(lab)) out.push(`movie « ${f.title} » wears « ${lab} » (series vocabulary)`);
       }
       return out;}""")

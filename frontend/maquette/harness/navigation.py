@@ -216,6 +216,11 @@ def go_body_bounds(cleaned):
     return body_start, len(cleaned)
 
 
+# THE NAVIGATION DIALS a named state can leave unnamed.
+DIALS = """()=>{const state = window.__store.read().state;
+  return {page: state.page, acqTab: state.acqTab, libLens: state.libLens, libMode: state.libMode};}"""
+
+
 async def main():
     journal = Journal("R76 — navigation through one door")
 
@@ -306,6 +311,32 @@ async def main():
         journal.check("a second back leaves the screen",
                       not two_backs["open"], two_backs["pathname"])
         journal.check("no JS error during the two calls", not errors, str(errors))
+        await ctx.close()
+
+        # ─── Hold 4: a named state inherits no dial (B-548, B-554) ─────
+        # « mediasheet-movie » names its page and not the library's lens;
+        # « signin » names no page at all. Each is driven right after a state
+        # that moved what it leaves unnamed, and must read the opening value.
+        ctx, pg = await open_page(browser)
+        await pg.evaluate("()=>window.__go('lib-recent')")
+        await pg.wait_for_timeout(300)
+        await pg.evaluate("()=>window.__go('mediasheet-movie')")
+        await pg.wait_for_timeout(300)
+        after_lens = await pg.evaluate(DIALS)
+        journal.check(
+            "a named state that does not name the library's lens draws the opening one, "
+            "not the lens the state before it left",
+            after_lens["libLens"] == "cat" and after_lens["libMode"] == "grid",
+            str(after_lens))
+        await pg.evaluate("()=>window.__go('system')")
+        await pg.wait_for_timeout(300)
+        await pg.evaluate("()=>window.__go('signin')")
+        await pg.wait_for_timeout(300)
+        after_page = await pg.evaluate(DIALS)
+        journal.check(
+            "a named state that names no page draws the opening page, "
+            "not the page the state before it drew",
+            after_page["page"] == "acq", str(after_page))
         await ctx.close()
 
         await browser.close()

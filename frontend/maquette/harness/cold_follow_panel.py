@@ -19,7 +19,9 @@ WHAT IT READS, and each reading is the ELEMENT, never a box or a count:
     threshold can never draw: without it the comparison would be two
     thresholds agreeing;
   - an `<img>` inside the panel head's poster. The initials fill the same box
-    at the same size, so the box says nothing.
+    at the same size, so the box says nothing;
+  - the query cache, for a medium's read built on an empty address while the
+    identity was unknown (B-503).
 
 THE WAIT HAS A DEADLINE. The identity read lands in a few hundred milliseconds;
 the typed panel is read as soon as it matches, and at the latest after
@@ -62,6 +64,13 @@ PANEL = """(label)=>{
     initials: poster && !image ? poster.textContent.trim() : null,
   };
 }"""
+
+
+# EVERY CACHE ENTRY OF A MEDIUM'S READS whose address is empty (B-503).
+EMPTY_ADDRESS_READS = """()=>window.__queries.getQueryCache().getAll()
+  .map((query) => query.queryKey)
+  .filter((key) => key[0] === '/api/media' && (key[1] === '' || key[2] === ''))
+  .map((key) => JSON.stringify(key))"""
 
 
 def internal_holes(cells):
@@ -158,6 +167,12 @@ async def main():
             "the panel head draws the poster as an image, not the initials",
             typed["image"] is not None,
             f"image {typed['image']}" if typed["image"] else f"initials « {typed['initials']} »")
+        # B-503: before the identity landed, the season block asked its two
+        # reads with an empty provider and id — disabled, but built, and kept.
+        empty = await page.evaluate(EMPTY_ADDRESS_READS)
+        journal.check(
+            "and no read about the medium was built on an empty address while the identity was unknown",
+            empty == [], str(empty[:4]))
         await context.close()
         await browser.close()
     journal.summary()

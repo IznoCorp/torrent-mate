@@ -72,7 +72,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createQueryClient, installSharedQueryClient } from "../lib/query-client";
 import { installDecisionLookup } from "../features/acquisition/decision-queries";
 import { installLibraryDelete, installLibraryPaging } from "../features/library/queries";
-import { installEngineRedraw } from "./engine-redraw";
+import { installLandingRedraw } from "./landing-redraw";
 import { installNavigationSeam } from "./navigation-seam";
 import {
   installFollowActions,
@@ -179,6 +179,10 @@ installRedraw();
 
 installArrival(store);
 if (__MOCKS_BUILT_IN__) installHarness();
+// WITHOUT THE LAYER THE HARNESS'S BAR IS MARKUP NOBODY WIRES (B-506): its
+// notes and world buttons are installed by `installHarness` alone, so a build
+// that drops the layer would draw two buttons that answer nothing.
+else document.querySelector('[data-part="harness/bar"]')?.remove();
 
 // `#shell` starts, in the markup, as a static sibling of `.stage` —
 // index.html knows nothing about the phone frame the fragment draws. A
@@ -256,8 +260,8 @@ installVerbs();
 installFeatureVerbs(queryClient);
 installReleasesLookup(queryClient);
 installSearchLookup(queryClient);
-// The engine draws surfaces that read the cache, and it draws them once.
-installEngineRedraw(queryClient);
+// The deck is drawn once from the cache, not by React: redrawn when a read lands.
+installLandingRedraw(queryClient);
 // WHAT THE PRODUCERS NEED, ASKED FOR ONCE THE MOCKS ANSWER. Each feature
 // declares its producers' reads beside them; this is only the first asking,
 // placed after the mock layer for the reason `refillProducers` gives.

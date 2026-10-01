@@ -270,6 +270,12 @@ async def main():
         )
         await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card/poster"]').click()""")
         await pg.wait_for_timeout(450)
+        # B-509: « the media sheet is gone » below means something only if the
+        # poster opened it — a tap that opened nothing leaves it « gone » too.
+        opened = await pg.evaluate(
+            """()=>!!document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]')"""
+        )
+        check("the poster opens the media sheet over the results", opened, f"media sheet open={opened}")
 
         await pg.go_back()
         await pg.wait_for_timeout(500)

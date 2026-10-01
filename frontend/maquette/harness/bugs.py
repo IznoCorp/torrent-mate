@@ -10,6 +10,13 @@ from common import shot, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 
+# « Voir la fiche » in the open panel's actions: whether it is offered, and a tap.
+SEE_SHEET = """[...document.querySelectorAll('#sheet [data-part="sheet/action"]')]
+  .find(x=>x.textContent.includes('Voir la fiche'))"""  # french-ok: the interface text the rule asserts
+SEE_SHEET_OFFERED = "()=>!!" + SEE_SHEET
+SEE_SHEET_CLICK = "()=>" + SEE_SHEET + "?.click()"
+
+
 async def main():
   async with async_playwright() as p:
     b=await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
@@ -31,9 +38,13 @@ async def main():
     cad = await pg.evaluate("""()=>document.querySelector('[data-part="cadence"]').textContent.trim()""")
     chk("1. cadence in words", "*" not in cad, f"→ « {cad} »")
 
-    # 2 — « Voir la fiche » from a follow sheet
+    # 2 — « Voir la fiche » from a follow sheet. Its presence is a hold of its
+    # own (B-510): a click on a missing button crashed the rule, and a crash
+    # names no defect.
     await pg.evaluate("()=>window.__go('followsheet-gaps')"); await pg.wait_for_timeout(400)
-    await pg.evaluate("""()=>[...document.querySelectorAll('#sheet [data-part="sheet/action"]')].find(x=>x.textContent.includes('Voir la fiche')).click()""")
+    offered = await pg.evaluate(SEE_SHEET_OFFERED)
+    chk("2. a follow sheet offers « Voir la fiche »", offered)
+    await pg.evaluate(SEE_SHEET_CLICK)
     await pg.wait_for_timeout(700)
     # The media sheet left `#screen` for a real route (`/mediasheet/$title`, rendered
     # inside `#coquille`), so it is read by the identity it carries —
@@ -46,7 +57,9 @@ async def main():
     # 2b — from Découvrir
     await pg.evaluate("()=>window.__go('discover-full')"); await pg.wait_for_timeout(400)
     await pg.evaluate("()=>[...document.querySelectorAll('[data-panel]')].find(e=>e.dataset.panel.startsWith('sug:')).click()"); await pg.wait_for_timeout(400)
-    await pg.evaluate("""()=>[...document.querySelectorAll('#sheet [data-part="sheet/action"]')].find(x=>x.textContent.includes('Voir la fiche')).click()""")
+    offered = await pg.evaluate(SEE_SHEET_OFFERED)
+    chk("2b. a Découvrir panel offers « Voir la fiche »", offered)
+    await pg.evaluate(SEE_SHEET_CLICK)
     await pg.wait_for_timeout(700)
     r = await pg.evaluate("""()=>({sheet:document.querySelector('#sheet').hasAttribute('data-open'),
       screen:!!document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]')})""")

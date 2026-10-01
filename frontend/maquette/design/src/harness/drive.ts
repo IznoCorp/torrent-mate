@@ -22,6 +22,7 @@ import { hideLayers } from "../app/layers";
 import { redraw } from "../lib/shell-doors";
 import { resetSettings } from "./settings-reset";
 import { resetPullIndicator } from "../app/pull-indicator";
+import { OPENING_DIALS } from "../app/opening-dials";
 import { heldIdentity, providerAddress } from "../lib/held-identity";
 import type { CarriedIdentity } from "../lib/navigation-entry";
 
@@ -131,11 +132,12 @@ function reset(): boolean {
     pill: "tout",
     filter: "",
     q: "",
-    // The library's category and sort are dials a state or a rule can move; one
-    // that does must not leave the next state's listing read under them.
-    libCat: "all",
-    // The trackers' filter too: left set, it filters the next state's torrents.
-    trackersFilter: "",
+    // EVERY NAVIGATION DIAL, from the table the interface opens on (B-548,
+    // B-554): the page, the Acquisition and Trackers tabs, the library's lens,
+    // mode and category. A dial left here was inherited by the next named
+    // state — nine states drew the library in the lens the state before them
+    // left, the sign-in states over whatever page it drew.
+    ...OPENING_DIALS,
     sortKey: "recent",
     sortReversed: false,
     sugCount: 30,
