@@ -4,7 +4,7 @@ Contract: `docs/reference/frontend-architecture.md` § 4, entry `#### Desktop ad
 not a lot`, whose whole body is the operator's sentence of 2026-09-29 (L24's OPEN 6), verbatim: « A dans un premier
 temps, mais prévoir une phase final d'adaptation des écrans pour une utilisation plus agréable sur desktop. On en
 décidera des contours en temps et en heure quand la maquette sera prête ». The maquette is ready (every drawn lot
-merged, `main` at `27b304157`). **This document prepares his decision; it decides nothing.** It measures what the
+merged, `main` at `27b304157`). **This document prepared his decision; § 3 now records it (DECIDED 1–7, 2026-10-01).** It measures what the
 maquette does on a desktop today (§ 1), lists what an adaptation can mean in his own principles' terms with the
 cost of each (§ 2), asks the open questions in the shape `/orchestrator:decide` presents (§ 3), and cuts a first
 order of phases for after his rulings (§ 4).
@@ -139,117 +139,52 @@ sheet's hero (an image upscaled to 1 280) is a backend image-size limitation —
 
 ---
 
-## 3. The open questions — OPEN 1…7, written for `/orchestrator:decide`
+## 3. The rulings — DECIDED 1…7 (2026-10-01)
 
-Each: the thing on the screen, the choices with their cost and gain, ONE recommendation and its reason. None is
-answered here.
+The operator ruled the seven questions on 2026-10-01, through the orchestrator's decision round (the questions as
+they were put to him: this file at `287b5438d`, § 3). Each ruling is non-reopenable; each has its dated line in
+`operator-method.md` § 3.
 
-**OPEN 1 — How wide is a page on a desktop?** On the screen: every list, form, fact row and button runs the whole
-window (1 250 px at 1280); 144 states carry a line over 90 characters; the confirmation dialog is 1 248 px wide.
-- *A — as today*: everything fills. Cost: none. Gain: none; every awkward line of § 1.3 stays.
-- *B — one column for everything*: pages, screens and galleries capped at ≈ 760 px, centred. Cost: one shell
-  variant, one rule. Gain: reading width everywhere; but a gallery of 760 px on a 1 440 window shows FEWER posters
-  than today.
-- *C — a column for reading, the full width for galleries*: lists, forms, screens, fact rows and dialogs capped
-  (≈ 760 px; the dialog ≈ 480 px, the sign-in card's width), the tile grids and the deck keep the window. Cost: one
-  shell variant + the gallery's own opt-out, one rule. Gain: every awkward reading line goes, the galleries keep
-  their room.
+**DECIDED 1 — How wide is a page on a desktop? = C.** A reading column ≈ 760 px for lists, forms, screens and fact
+rows, centred; a confirmation dialog ≈ 480 px (the sign-in card's width); the galleries (the tile grids) and the deck
+keep the full width.
 
-**Recommendation: C.** It is the phone surface given air, which is § 12's own phrase; it removes most of § 1.3 with a
-single component change (the components re-read their container, invariant 12); and it is the arrangement the
-operator's only already-bounded surface — the sign-in card — already uses.
+**DECIDED 2 — How does one change page on a desktop? = B, with his word.** « B, le même menu latéral, épinglé ouvert
+par défaut, avec possibilité de le "fermé" version réduite (barre verticale avec icones seulement) ». From ≈ 1 024 px
+the SAME drawer (`ui/drawer.tsx`, `drawer` in `ui/variants/frame.ts`) is pinned open beside the content by default,
+the burger hidden; it can be collapsed to an icon-only vertical bar — the same component in a collapsed variant, the
+same entries, groups, order and badges, never a second menu. The choice (open or collapsed) is remembered per device
+in `localStorage` (his 09-08 ruling « desktop = localStorage »). **This amends Q1 of 2026-08-30** (« the drawer
+alone, at every width »): below ≈ 1 024 px the drawer is unchanged.
 
-**OPEN 2 — How does one change page on a desktop?** On the screen: the tab bar is hidden from 768 px, so the four bar
-pages and their badges are behind the burger; every page change is two clicks and a scrim. **This reopens Q1
-(2026-08-30, « the drawer alone, at every width — and not frozen »)**, which said a rail is drawn « only if real use
-asks for it »; this milestone is the moment he named for that call.
-- *A — the drawer alone* (Q1 as ruled). Cost: none. Gain: nothing changes; two clicks per page change.
-- *B — the same drawer pinned open* from ≈ 1 024 px, beside the column: the same component, entries, groups, badges,
-  order; the burger hidden. Cost: one variant of `drawer`, the shell's layout, the drawer rules re-aimed. Gain: one
-  click, the badges always seen — the native desktop navigation drawer.
-- *C — a compact icon rail* (icons and badges, 72 px), the full drawer still behind the burger. Cost: a second
-  arrangement of the entries (icons only), tooltips for the names, its own rules. Gain: less width taken; but a
-  second way to draw the same menu, which the « cohérence » principle resists.
+**DECIDED 3 — Where does a panel open on a desktop? = C, with his precision.** « latérale droit du coup le panneau
+sur desktop (pas gauche côté menu) »: the bottom sheet becomes a side sheet on the RIGHT edge, opposite the menu,
+≈ 440 px wide and full height, the list readable beside it; drag-to-close follows the horizontal axis; Escape and the
+scrim are unchanged.
 
-**Recommendation: B.** It adapts the existing component rather than creating one (« on crée pas de nouveau composant
-on adapte »), restores the badges the hidden bar took away, and with C1 the column leaves the room for it at 1 024
-and above.
+**DECIDED 4 — Does a desktop show a list and a screen side by side? = A.** No two panes: screens stay full-window
+routes, drawn in the column; § 16 unchanged.
 
-**OPEN 3 — Where does a panel open on a desktop?** On the screen: a medium's panel, the journey, the follow sheet, the
-« ⋮ » sheet, a torrent's panel (66 states) rise from the bottom over the full 1 280 px, covering half the list.
-- *A — the bottom sheet as today*. Cost: none. Gain: nothing.
-- *B — the bottom sheet, bounded*: the same rise, capped to the column and centred. Cost: one variant. Gain: the
-  panel reads as one; it still covers the list.
-- *C — a side sheet*: the same panel slides in from the right edge, ≈ 440 px, full height, the list readable beside
-  it; drag-to-close follows the horizontal axis; Escape and the scrim unchanged. Cost: one variant (anchoring and
-  closed transform), the drag reads one more axis, 66 states re-photographed, the panel rules re-aimed. Gain: the
-  native desktop arrangement (Material 3 side sheet), the list and its panel at once.
+**DECIDED 5 — How many posters in a gallery? = B.** The gallery's columns follow the tile's width (7 at ≈ 1 100 px
+of gallery, 8 at ≈ 1 300); the deck's card keeps a 2:3 poster, centred.
 
-**Recommendation: C.** The panel is the app's most-used layer; the side sheet is the expanded-width form of the very
-same component in the native design languages he cites, and it gives most of « two panes » (OPEN 4) at the cost of
-one variant.
+**DECIDED 6 — Does the desktop get keys and hover? = B.** A small declared key set — `/` to the page's search, ↑/↓
+in a list, Enter opens, Escape closes — and a hover ground on rows, cards and tiles. No action exists only on hover
+or only on a key.
 
-**OPEN 4 — Does a desktop show a list and a screen side by side?** On the screen: a medium's screen (`/media/…`), a
-resolution, the releases, a run open over the whole window, their list gone until Back.
-- *A — no*: screens stay full-window routes (with OPEN 1 = C, in the column). Cost: none. Gain: § 16 stays exactly
-  as delivered.
-- *B — two panes on the list pages*: the screen opens beside its list on Acquisition, Médiathèque, Trackers from
-  ≈ 1 280 px. Cost: high — the page host draws two routes at once, every screen gets a pane arrangement, § 16's
-  « parent rendered » and the stack get new rules, every screen state re-walked. Gain: the desktop « mail » layout.
-
-**Recommendation: A.** With OPEN 3 = C the frequent case (glance at a medium from its list) already keeps the list in
-sight; B is the costliest contour of all and the one most likely to bend § 16, for a gain the side sheet mostly
-gives.
-
-**OPEN 5 — How many posters in a gallery?** On the screen: the library, the follows grid and Découvrir's posters stop
-at 6 columns; tiles grow to ≈ 200 px at 1280 and 227 px at 1440, two rows per screen; the deck's single card is a
-portrait poster cropped into a 1 250 × 640 landscape.
-- *A — as today* (6 at most). Cost: none.
-- *B — columns by tile width*: one or two more container steps (7 at ≈ 1 100 px of gallery, 8 at ≈ 1 300) so a tile
-  stays ≈ 160–180 px; the deck's card keeps a poster's proportion, centred. Cost: `tile.ts` steps, the deck card's
-  variant, R41–R50 re-aimed. Gain: a third more of the library per screen; the deck shows the poster.
-
-**Recommendation: B.** It is the existing container query given one more step, the tile itself unchanged (R50 « the
-same tile at the same metrics »), and the deck stops showing a crop.
-
-**OPEN 6 — Does the desktop get keys and hover?** On the screen: only Escape and Tab work; nothing but buttons answers
-the pointer.
-- *A — as today*. Cost: none.
-- *B — a small declared set*: `/` to the page's search, ↑/↓ through a list, Enter opens, Escape closes; rows, cards
-  and tiles answer the pointer with a hover ground. No action exists only on hover or only on a key. Cost: one
-  keymap module beside Escape's, one base rule, one harness rule. Gain: a desktop used from the keyboard and the
-  pointer like a native app.
-- *C — B plus per-action shortcuts* (e.g. a key to follow, to delete) and a shortcut legend. Cost: every action
-  given a key, a legend surface, i18n, rules per action. Gain: power use; but a second way to every action, to keep
-  consistent forever.
-
-**Recommendation: B.** It is what a native desktop app gives by default, it adds no action anywhere, and it is one
-module.
-
-**OPEN 7 — Where do « + » and the selection bar go on a desktop?** On the screen: the « + » floats at the bottom-right
-corner of the window (98 Acquisition states); in selection, « Annuler » sits at x 110 and « Supprimer » at x 1 180.
-- *A — as today*. Cost: none.
-- *B — bounded to the column*: the « + » sits at the column's bottom-right, the selection bar spans the column only.
-  Cost: two variants. Gain: within one glance; the phone arrangement unchanged.
-- *C — into the chrome*: the « + » joins the rail's top (OPEN 2 = B) or the header; the selection bar becomes the
-  header's selection mode. Cost: two variants and a header arrangement; R-FAB rules re-aimed. Gain: Material 3's
-  expanded layout (the FAB in the rail).
-
-**Recommendation: B.** It follows mechanically from OPEN 1 = C, moves no action to a new place (the phone's « + »
-stays the same button at the same corner of the content), and stays valid whatever OPEN 2 decides.
-
----
+**DECIDED 7 — Where do « + » and the selection bar go on a desktop? = B.** Both are bounded to the column: the « + »
+at the column's bottom-right, the selection bar spanning the column only.
 
 ## 4. A first cut of phases — after his rulings
 
-Cut by surface, as `method.md` asks (« A phase is one surface »), for the recommended answers (1 C · 2 B · 3 C · 4 A ·
-5 B · 6 B · 7 B). A refused contour removes its phase or its line. Each phase changes the maquette FIRST, lands with a
+Cut by surface, as `method.md` asks (« A phase is one surface »), for the rulings (1 C · 2 B with the collapsed
+variant · 3 C on the right · 4 A · 5 B · 6 B · 7 B). Each phase changes the maquette FIRST, lands with a
 rule that bites (invariant 11) and photographs its states at 1024, 1280 and 1440, and at 390 to prove the phone is
 untouched.
 
 | Phase | Surface | What lands | Its rule |
 | --- | --- | --- | --- |
-| 1 | **The shell** | the desktop threshold (one token, the shell's media query); the content column (C1) with the gallery opt-out; the drawer pinned (C2); the dialog bounded | every named state at 1024/1280/1440: the column ≤ its cap, no prose line > 90 characters, the drawer pinned and every page one click away; 390 unchanged |
+| 1 | **The shell** | the desktop threshold (one token, the shell's media query); the content column (C1) with the gallery opt-out; the drawer pinned (C2) and its collapsed icon-only variant, remembered per device; the dialog bounded | every named state at 1024/1280/1440: the column ≤ its cap, no prose line > 90 characters, the drawer pinned and every page one click away; 390 unchanged |
 | 2 | **The layers** | the side sheet (C3): anchoring, closed transform, drag axis, focus and scrim unchanged | every sheet state: the sheet at the right edge, ≤ its width, the list's first row visible beside it; drag-to-close by mouse |
 | 3 | **Acquisition** | its three tabs, the cards and the ladder read in the column; `/add`, the resolution and the releases screens; the « + » bounded (C7) | the ladder's eight rungs within the card at every width; « Choisir » aligned on every candidate |
 | 4 | **Médiathèque + the media sheet** | the grid's columns (C5), the list, the panel as a side sheet, the selection bar bounded (C7), the hero bounded | columns by width (7 at 1280, 8 at 1440); the selection's two buttons within the column |
