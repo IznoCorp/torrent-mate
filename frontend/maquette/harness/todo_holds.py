@@ -11,9 +11,11 @@ in is a function of its state, never of its origin.
 
 What this holds:
 
-1. every card in « À traiter » is STOPPED on its ladder — blocked for his hand, or
-   waiting on an external cause its reason line names — and none in « En cours »
-   is blocked;
+1. every card in « À traiter » is STOPPED on its ladder as the engine SERVES it —
+   blocked for his hand, or classified a block it lifts on its own (`resumes`
+   set), or closed — and none in « En cours » is: the served row is read, never
+   the strip's `blocked` cell nor « waiting with any reason » (r4 of
+   maquette-blocked's reading);
 2. a card to resolve offers « Résoudre → », the candidates screen;
 3. the tunnel error — derived from Top Chef's real stuck row, whose reason is a
    step that cannot finish — offers « Relancer », its reason in full, and NEVER
@@ -25,7 +27,7 @@ import asyncio
 import json
 import pathlib
 
-from common import ACTED, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
+from common import ACTED, SERVED_CARDS, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 SEEDS = pathlib.Path(__file__).resolve().parents[1] / "design/src/mocks/seeds"
@@ -74,10 +76,10 @@ async def main():
 
         await go(page, journal, "acq-todo-loaded")
         todo = await page.evaluate(CARDS)
-        journal.check("« À traiter » draws cards, every one stopped on its ladder",
-                      bool(todo) and all("blocked" in card["states"]
-                                         or ("waiting" in card["states"] and card["reason"]) for card in todo),
-                      str([(card["title"], card["states"]) for card in todo]))
+        served = await page.evaluate(SERVED_CARDS)
+        journal.check("« À traiter » draws cards, every one served stopped — blocked, `resumes` set, or closed",
+                      bool(served) and all(card["blocked"] or card["resumes"] or card["closure"] for card in served),
+                      str(served))
         # RE-READ WITH THE THIRD KIND: a Plex match to confirm is blocked in the tab
         # too, answered on the match and never by « Résoudre ».
         to_resolve = [card for card in todo if card["title"] != TUNNEL_ERROR["title"] and not card["plex"]]
@@ -107,9 +109,10 @@ async def main():
         # ones a maintenance holds; that section left « En cours ».
         await go(page, journal, "acq-card-waiting")
         now = await page.evaluate(CARDS)
-        journal.check("« En cours » holds no blocked card",
-                      bool(now) and not any("blocked" in card["states"] for card in now),
-                      str([(card["title"], card["states"]) for card in now if "blocked" in card["states"]]))
+        served = await page.evaluate(SERVED_CARDS)
+        journal.check("« En cours » holds no card served stopped — no blocked rung, no `resumes`, no closure",
+                      bool(served) and not any(card["blocked"] or card["resumes"] or card["closure"] for card in served),
+                      str([card for card in served if card["blocked"] or card["resumes"] or card["closure"]]))
         waiting = [card for card in now if "waiting" in card["states"]
                    and card["reason"]]
         journal.check("a card waiting behind a maintenance run is in « En cours », with its reason",

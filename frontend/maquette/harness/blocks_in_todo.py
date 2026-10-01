@@ -13,7 +13,15 @@ What this holds:
 2. on the same states, « En cours » does not draw it, and its count is the
    cards it draws;
 3. on `acq-card-waiting`, the « En file » cards a maintenance run holds are in
-   « En cours » and not in « À traiter ».
+   « En cours » and not in « À traiter »;
+4. on EVERY state posing a block — the three moved deferrals, each external
+   cause Q7 adds (`acq-block-*`) and `acq-todo-every-cause` — « En cours »
+   draws no card whose SERVED row the engine stopped (`resumes` set on a rung,
+   a `blocked` rung) or closed (`closure`), and every card « À traiter » draws
+   is one of those: the served classification is read, never a token list nor
+   the strip's colour (r1 of the lot's reading — the hold read the three moved
+   reports alone, and an `inFlightCards` letting the five new tokens through
+   stayed green).
 
 Red before the move: the deferred card is drawn in « En vol », not in « À
 traiter » (maquette-blocked DESIGN § 0.1: « En cours » 6 on every deferral).
@@ -22,7 +30,7 @@ import asyncio
 import json
 import pathlib
 
-from common import ACTED, SETTLED, Journal, browser_channel, chrome_launch_args, open_page
+from common import ACTED, SERVED_CARDS, SETTLED, Journal, browser_channel, chrome_launch_args, open_page
 from playwright.async_api import async_playwright
 
 SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
@@ -32,6 +40,12 @@ MOVED = [
     ("acq-card-deferred-ratio", "ratio_below_threshold"),
     ("acq-card-deferred-space", "insufficient_space"),
     ("acq-card-deferred-missing", "content_missing"),
+]
+# Every state that poses a block or a closure on « À traiter ».
+BLOCK_STATES = [state for state, _ in MOVED] + [
+    "acq-block-ratio-no-threshold", "acq-block-library-full", "acq-block-tracker-unreachable",
+    "acq-block-provider-unreachable", "acq-block-plex-unreachable", "acq-block-client-unreachable",
+    "acq-block-film", "acq-block-content-volume", "acq-todo-every-cause",
 ]
 CARDS = """() => [...document.querySelectorAll('#view [data-region="acquisition/body"] [data-part="card"]')]
   .filter(card => !card.closest('[data-part="section/set-aside"]'))
@@ -93,6 +107,22 @@ async def main():
         journal.check("and none of them is in « À traiter »",
                       bool(queued) and not set(queued) & {one["title"] for one in todo},
                       str([one["title"] for one in todo]))
+
+        for state in BLOCK_STATES:
+            await page.evaluate("(id)=>window.__go(id)", state)
+            await page.wait_for_timeout(SETTLED)
+            await tab(page, "now")
+            now = await page.evaluate(SERVED_CARDS)
+            stopped = [card["key"] for card in now if card["resumes"] or card["blocked"] or card["closure"]]
+            journal.check(f"{state}: « En cours » draws no card the engine stopped or closed",
+                          # « En cours » MAY BE EMPTY: on the list whole every card in flight is held.
+                          not stopped, f"stopped {stopped} of {[card['key'] for card in now]}")
+            await tab(page, "todo")
+            todo = await page.evaluate(SERVED_CARDS)
+            moving = [card["key"] for card in todo
+                      if not (card["resumes"] or card["blocked"] or card["closure"])]
+            journal.check(f"{state}: every card « À traiter » draws is served stopped or closed",
+                          bool(todo) and not moving, f"moving {moving} of {[card['key'] for card in todo]}")
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()
