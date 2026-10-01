@@ -55,6 +55,10 @@ RATIO_DEFERRAL = ("js:(()=>{window.__mocks.poseDeferral('This City Is Ours',"
                   "window.__queries.removeQueries({queryKey:['/api/staging/media']});"
                   "window.__store.write({scen:'loaded'});return true})()")
 
+# The dense world, where Silo's whole-season recovery runs at rest (maquette-season-recovery).
+LOADED_WORLD = ("js:(()=>{window.__queries.removeQueries({queryKey:['/api/acquisition/to-handle']});"
+                "window.__store.write({scen:'loaded'});return true})()")
+
 # A real add, so the add screen's footer exists: a query, a result's panel, its act.
 A_REAL_ADD = [
     ADD_ACTION,
@@ -111,8 +115,13 @@ EDGES = [
      "stops": [HOME_STOP, GUARD], "emits": [TAB_BAR]},
     {"edge": "T5", "walk": ["bar:lib", "bar:lib"], "stops": [HOME_STOP], "emits": [TAB_BAR]},
     # ── L — the links inside a page ─────────────────────────────────────────
+    # « Voir le tracker » lands on Trackers WITH THE TRACKER'S PANEL UP (#657): a
+    # layer, so the first Retour closes it, as every panel's does, and the next
+    # returns to Acquisition — re-aimed 2026-09-30.
     {"edge": "L1", "walk": [RATIO_DEFERRAL, "tap:[data-acqtab=now]", 'tap:#view [data-go="trackers"]'],
-     "stops": [HOME_STOP], "emits": ["features/acquisition/card-markup.ts:go=TRACKERS_PAGE"]},
+     "landing": (TRACKERS, "trackers", False, True),
+     "stops": [(TRACKERS, "trackers", False, False), HOME_STOP],
+     "emits": ["features/acquisition/card-markup.ts:go=TRACKERS_PAGE"]},
     {"edge": "L2", "start": "nimportequoi", "walk": ['tap:[data-go="acq"]'],
      "stops": [("/nimportequoi", "404", False)], "emits": ["app/not-found.tsx:go=acq"]},
     {"edge": "L3", "walk": ["bar:lib", "tap:[data-lens=inc]", "press:#view [data-panel]",
@@ -120,6 +129,16 @@ EDGES = [
      "stops": [(LIBRARY, "lib", False, True)], "emits": ["features/acquisition/verbs.ts:followLink=acq"]},
     {"edge": "L4", "walk": [*A_REAL_ADD, 'tap:[data-part="add/foot"] button'],
      "stops": [GUARD], "emits": []},
+    # « Voir la carte de la saison » (maquette-season-recovery, DECIDED 2): a link to ANOTHER DIAL of
+    # the page it is tapped on stacks too (Q12) — from the covered episode's journey, Retour gives the
+    # journey back over « Suivis »; from a covered release, the release screen.
+    {"edge": "L5", "walk": [LOADED_WORLD, "tap:[data-acqtab=follows]", "tap:#view [data-panel$=':Silo']",
+                            "tap:#sheet [data-journey]", "tap:#sheet [data-journey='Silo|S03E07']",
+                            "tap:#sheet [data-dial='now:Silo|S03']"],
+     "stops": [(HOME, HOME_PAGE, False, True)], "emits": ["features/acquisition/panel-journey.ts:go=acq"]},
+    {"edge": "L6", "walk": [LOADED_WORLD, SILO_PANEL, "tap:#sheet [data-releases]",
+                            'tap:[data-part="screen"][data-open] [data-part="release"] [data-go="acq"]'],
+     "stops": [("/releases/*", HOME_PAGE, False)], "emits": ["features/releases/releases-screen.tsx:go=acq"]},
     # ── S — the screens ──────────────────────────────────────────────────────
     {"edge": "S1", "walk": ["bar:lib", "tap:#view [data-panel]"],
      "stops": [(LIBRARY, "lib", False)], "emits": []},

@@ -18,7 +18,10 @@ export const card = cva(
   "card relative grid grid-cols-[auto_1fr] w-full items-stretch rounded-3 border border-border bg-card " +
     "overflow-hidden min-h-[126px] [transition:transform_var(--duration-2)_var(--ease-standard)] " +
     // The swipe gesture writes `dragging` straight to the card while a finger holds it.
-    "[&.dragging]:transition-none",
+    "[&.dragging]:transition-none " +
+    // A LANDING NAMED THIS CARD (« Voir la carte de la saison »): it wears the
+    // focus ring the base layer draws — the same outline, never a new one.
+    "data-[landed]:[outline:2px_solid_var(--color-primary)] data-[landed]:[outline-offset:2px]",
 );
 
 /** The column beside the poster: the top, then the strip, then the foot. */
@@ -60,8 +63,15 @@ export const cardOverview = cva(
     "mt-2 text-2 leading-[1.4] text-muted-foreground",
 );
 
-/** The state line: what the medium is, at a glance. */
-export const cardMeta = cva("cmeta mt-3 flex flex-wrap items-center gap-2");
+/**
+ * The state line: what the medium is, at a glance.
+ *
+ * A CHIP ON IT WRAPS its words when it alone is wider than the line (§ 12, a
+ * text is never cut: the broken obligation's dated chip at 320 px, B-607). A
+ * chip that fits still reads on one line, since a wrapping row breaks before an
+ * item before it shrinks one.
+ */
+export const cardMeta = cva("cmeta mt-3 flex flex-wrap items-center gap-2 [&>.chip]:whitespace-normal");
 
 /** A numeric aside. */
 export const cardCaption = cva("caption text-2 text-muted-foreground");

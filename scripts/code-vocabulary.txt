@@ -37,6 +37,9 @@
 abandon
 abandoned
 above
+absorb
+absorbed
+absorbs
 accent
 accepted
 account
@@ -105,6 +108,7 @@ attributes
 audio
 audios
 authentication
+automatic
 avatar
 axis
 back
@@ -251,6 +255,8 @@ cote
 count
 counted
 cover
+coverable
+covered
 create
 criteria
 criterion
@@ -508,6 +514,7 @@ groups
 guard
 guidance
 had
+hand
 harness
 has
 hash
@@ -530,6 +537,7 @@ history
 hold
 holder
 holders
+holding
 holds
 home
 hooks
@@ -611,6 +619,7 @@ label
 labels
 ladder
 laid
+land
 landed
 landing
 lanes
@@ -638,6 +647,7 @@ libload
 libq
 library
 libretry
+lifted
 light
 like
 limit
@@ -666,6 +676,7 @@ login
 loginerr
 loginform
 long
+look
 lookup
 loop
 lossy
@@ -813,6 +824,8 @@ owned
 owner
 ownership
 owns
+pack
+pad
 page
 pages
 paging
@@ -863,8 +876,10 @@ platform
 play
 plex
 point
+pointer
 points
 policy
+poll
 pong
 pop
 popover
@@ -950,6 +965,9 @@ reconnect
 reconnecting
 reconnection
 record
+recover
+recovered
+recovering
 recovery
 rect
 redirect
@@ -1002,6 +1020,7 @@ replaced
 replay
 report
 request
+requested
 requester
 required
 requeue
@@ -1024,6 +1043,7 @@ resumed
 retry
 return
 returns
+reused
 reversed
 revisited
 rich
@@ -1080,6 +1100,7 @@ seams
 search
 searchable
 searched
+searching
 season
 seasons
 sec
@@ -1130,6 +1151,7 @@ sheetin
 sheets
 shell
 shelved
+short
 shortfall
 shorthands
 shot
@@ -1192,6 +1214,7 @@ standard
 standby
 standing
 start
+started
 startup
 state
 states
@@ -1256,6 +1279,7 @@ take
 takeable
 taken
 takes
+tap
 target
 teardown
 temp
@@ -1266,6 +1290,7 @@ text
 that
 thawed
 the
+their
 theme
 there
 this
@@ -1317,6 +1342,7 @@ translate
 travel
 travelled
 trend
+tried
 trim
 tunnel
 tuples
@@ -1339,6 +1365,7 @@ unlinked
 unmatched
 unnamed
 unreachable
+unread
 unreadable
 unsearched
 unseen

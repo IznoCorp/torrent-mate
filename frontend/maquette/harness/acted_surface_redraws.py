@@ -142,6 +142,15 @@ PLACE = """()=>{
           meets: String(hit && (hit.textContent || '').trim().slice(0, 40)
                         || '')};}"""
 
+# THE PANEL'S OWN OFFSET, read with no act to anchor it. RE-AIMED OUT LOUD
+# (maquette-season-recovery § 1.1): the act a finger pressed is WITHDRAWN once
+# the season's recovery lives — « Demandée » stands in the row's head — so the
+# place after the redraw is the port's, never the act's: `PLACE` answered
+# nothing there, and the hold read « None » over a place that was kept.
+PORT_OFFSET = """()=>{
+  const port = document.querySelector('#sheetin');
+  return port ? {scrollTop: port.scrollTop} : null;}"""
+
 # THE LEAST A PANEL MUST SCROLL to have a place worth keeping, in pixels.
 SCROLL_ROOM = 80
 
@@ -267,7 +276,7 @@ async def hold_the_place(page, journal):
              or before["queued"] != after["queued"]),
         f"texts {'differ' if before and after and before['text'] != after['text'] else 'AGREE'}")
 
-    kept = await page.evaluate(PLACE)
+    kept = await page.evaluate(PORT_OFFSET)
     journal.check(
         "the redraw KEPT THE READER'S PLACE — the panel's scroll offset is "
         "where the finger left it, not thrown back to the top with the act "

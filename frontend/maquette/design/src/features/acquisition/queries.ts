@@ -9,7 +9,7 @@ import type { Schemas } from "../../lib/contract-schemas";
 import type { Follow, FollowOutcome } from "./types";
 import { queueKey, useAcquisitionQueue, type AcquisitionQueue } from "../../lib/queue";
 import { store, useUiState } from "../../lib/store-access";
-import { todoCards } from "./arrival-slots";
+import { todoCards } from "../../lib/arrival-slots";
 import { fillFollowedTitlesDoor } from "../../lib/shell-doors";
 
 /**
@@ -123,6 +123,17 @@ export function installSuggestionsLookup(queryClient: QueryClient): void {
   refillSuggestions();
 }
 
+// The prefix every world's follows are cached under: a write invalidates them all.
+const FOLLOWS_KEY = ["/api/acquisition/followed"];
+
+// The worlds the harness's dial can name: the real one, and the dense one.
+const EVERY_WORLD = ["", "loaded"] as const;
+
+/** The world the harness's dial names now — the key the queue is cached under carries it. */
+function currentWorld(): string {
+  return String(store.read().state.scen) === "loaded" ? "loaded" : "";
+}
+
 /**
  * What the operator follows, as a query DEFINITION.
  *
@@ -130,12 +141,22 @@ export function installSuggestionsLookup(queryClient: QueryClient): void {
  * PANEL is produced from a long press — and from a cold load at
  * `?panel=follow:<title>`, where no tab has mounted. One definition, so the two
  * cannot drift into two shapes of one answer (§13).
+ *
+ * PER WORLD, as the queue is: a follow's status reads what is on its way in the
+ * world the dial names — Silo's season recovery, seeded in the dense world, runs
+ * nowhere in the real one, and its follow must not say it does there.
+ *
+ * @param world The world asked for, « loaded » or empty for the real one; by
+ *     default the one the dial names now.
+ * @returns The query definition.
  */
-export const followsQuery = {
-  queryKey: ["/api/acquisition/followed"],
-  queryFn: async () =>
-    read<Follow[]>("/api/acquisition/followed"),
-};
+export function followsQuery(world: string = currentWorld()) {
+  return {
+    queryKey: [...FOLLOWS_KEY, world],
+    queryFn: async () =>
+      read<Follow[]>("/api/acquisition/followed", new URLSearchParams(world ? { scenario: world } : {})),
+  };
+}
 
 /**
  * The shows the library holds incomplete, asked for the IDENTITY they carry.
@@ -181,11 +202,9 @@ export function useGrabCadence() {
 
 /** What the operator follows. */
 export function useFollows() {
-  return useQuery(followsQuery);
+  const world = useUiState().scen === "loaded" ? "loaded" : "";
+  return useQuery(followsQuery(world));
 }
-
-/** The key the follows are cached under. */
-const followsKey = followsQuery.queryKey;
 
 /**
  * Installs the follows' verbs — the one place a follow is written.
@@ -208,15 +227,17 @@ const followsKey = followsQuery.queryKey;
  * @param queryClient The cache the surfaces read.
  */
 export function installFollowActions(queryClient: QueryClient): void {
-  const held = () => queryClient.getQueryData<Follow[]>(followsKey) ?? [];
-  const write = (follows: Follow[]) => queryClient.setQueryData(followsKey, follows);
-  const refresh = () => void queryClient.invalidateQueries({ queryKey: followsKey });
+  const held = () => queryClient.getQueryData<Follow[]>(followsQuery().queryKey) ?? [];
+  const write = (follows: Follow[]) => queryClient.setQueryData(followsQuery().queryKey, follows);
+  const refresh = () => void queryClient.invalidateQueries({ queryKey: FOLLOWS_KEY });
   fillFollowedTitlesDoor(() => held().map((follow) => follow.title));
   // AND THE FOLLOWS ARE ASKED FOR HERE, because two readers of that door have
   // no component to ask: an addressed follow panel resolving on a cold load,
   // and the Médiathèque's delete dialog. Published, as `refillSuggestions` is,
   // for the reset that clears the cache.
-  refillFollows = () => void queryClient.prefetchQuery(followsQuery);
+  // BOTH WORLDS: the reset re-asks before it sets the dial, so the world the
+  // next state names is not known yet.
+  refillFollows = () => EVERY_WORLD.forEach((world) => void queryClient.prefetchQuery(followsQuery(world)));
   refillFollows();
 
   followActions = {

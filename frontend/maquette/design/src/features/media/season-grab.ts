@@ -15,7 +15,7 @@
 // 6 asks for the cut before the ceiling rather than after it.
 import type { QueryClient } from "@tanstack/react-query";
 import { useSyncExternalStore } from "react";
-import { markSeasonQueued } from "./queued-seasons";
+import { markSeasonQueued, refreshPipelineStatus } from "./queued-seasons";
 import i18next from "i18next";
 import { HELD, send } from "../../lib/query-client";
 import { panel, toast } from "../../lib/shell-doors";
@@ -25,6 +25,8 @@ type SeasonGrab = {
   season: number;
   absorbedCount: number;
   queued: boolean;
+  /** A live recovery of that season was already there: nothing more is queued. */
+  reused: boolean;
   runUid: string | null;
 };
 
@@ -83,7 +85,12 @@ export async function askForSeason(
   season: number,
 ): Promise<void> {
   const waiting = await grabSeason(title, season);
-  if (waiting) markSeasonQueued(client, title, season);
+  if (waiting) {
+    // A STATUS THAT CANNOT BE READ keeps the mark: the answer said « queued »,
+    // and an unread status asserts nothing against it.
+    await refreshPipelineStatus(client).catch(() => undefined);
+    markSeasonQueued(client, title, season);
+  }
   await client.refetchQueries({ queryKey: ["/api/acquisition/followed"] });
   // AND THE QUEUE: a season of a series nobody follows is queued as a one-off
   // card, and the season's row says « demandée » from that card.
@@ -176,7 +183,11 @@ export async function grabSeason(title: string, season: number): Promise<boolean
     // panel read as about American Dad!, where the ask was Silo's. The take's
     // own sentence already names its show.
     const count = grab?.absorbedCount ?? 0;
-    const messageKey = grab?.queued
+    // A LIVE RECOVERY OF THAT SEASON WAS ALREADY THERE — the engine answers
+    // `reused` and queues nothing more: said so, never as a new ask.
+    const messageKey = grab?.reused
+      ? "seasonAlreadyAsked"
+      : grab?.queued
       ? "seasonQueued"
       : count === 0
         ? "seasonAskedNone"

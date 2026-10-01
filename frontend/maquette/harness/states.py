@@ -58,13 +58,24 @@ async def main():
                   // An overflow clipped by an ancestor is not overflow:
                   // getBoundingClientRect measures BEFORE clipping. Verify the
                   // clipping instead of whitelisting the class — and the
-                  // clipper must itself fit.
+                  // clipper must itself fit. A clipper that does NOT fit
+                  // hands the question to the next one, but only one INSIDE
+                  // the surface — a card that clips its own poster, slid
+                  // mid-swipe past the edge, is clipped by its row, which
+                  // fits; the frame's port and device clip everything and
+                  // excuse nothing (re-aimed 2026-09-30 — the walk stopped at
+                  // the first clipper and read a swipe mid-travel as a spill).
                   spills:[...target.querySelectorAll('*')].filter(e=>{
                     if (e.getBoundingClientRect().right<=390.5) return false;
                     if (e.closest('[data-part="pill/list"]')||e.closest('[data-part="episode/set"]')||e.closest('[data-part="cast"]')) return false;
+                    let first=true;
                     for (let p=e.parentElement; p; p=p.parentElement) {
+                      if (!first && !target.contains(p)) return true;
                       const ox=getComputedStyle(p).overflowX;
-                      if (ox==='hidden'||ox==='clip') return p.getBoundingClientRect().right>390.5;
+                      if (ox==='hidden'||ox==='clip') {
+                        if (p.getBoundingClientRect().right<=390.5) return false;
+                        first=false;
+                      }
                     }
                     return true;
                   }).length,

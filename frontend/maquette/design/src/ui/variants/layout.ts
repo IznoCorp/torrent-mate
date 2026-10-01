@@ -124,15 +124,24 @@ export const scrollport = cva(
    was not mis-routed; it was lost. `pointer-events` is neither delayed nor
    transitioned: the exit is SEEN for its whole length and reachable for none of
    it, which is the half of B-249's idiom that was never the point. */
+// The scrim darkens WITH the rise rather than ahead of it — same step, so the
+// ground and the layer are one gesture (operator, 2026-08-31).
+const SCRIM_OPEN = {
+  variants: { open: { true: "open opacity-100 visible transition-[opacity]",
+                      false: "opacity-0 invisible pointer-events-none "
+                             + "transition-[opacity,visibility] "
+                             + "[transition-delay:0s,450ms]" } },
+  defaultVariants: { open: false },
+} as const;
 export const sheetScrim = cva(
-  // The scrim darkens WITH the rise rather than ahead of it — same step, so the
-  // ground and the layer are one gesture (operator, 2026-08-31).
-  "scrim absolute inset-0 bg-scrim z-[46] duration-450 ease-emphasized",
-  { variants: { open: { true: "open opacity-100 visible transition-[opacity]",
-                        false: "opacity-0 invisible pointer-events-none "
-                               + "transition-[opacity,visibility] "
-                               + "[transition-delay:0s,450ms]" } },
-    defaultVariants: { open: false } },
+  "scrim absolute inset-0 bg-scrim duration-450 ease-emphasized z-[46]",
+  SCRIM_OPEN,
+);
+// UNDER A CONFIRMATION the same ground is ranked above the menu and the sheet, so
+// it covers them as it covers a page (C1's reader, 2026-09-30).
+export const dialogScrim = cva(
+  "scrim absolute inset-0 bg-scrim duration-450 ease-emphasized z-[55]",
+  SCRIM_OPEN,
 );
 
 /**

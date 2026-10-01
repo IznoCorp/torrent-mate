@@ -146,7 +146,18 @@ MEASURE = """(width) => {
       && (rect.left < left - 0.5 || rect.right > right + 0.5);
     if (holder === null) {
       if (partly(0, width)) push('outside', element, rect);
-    } else if (!holder.scrolls && (text || painted)) {
+    } else if (!holder.scrolls && (text || painted)
+               // A ROW HELD MID-SWIPE: its card travels past the row that clips
+               // it, which is the gesture's own drawing — the word of that side
+               // uncovered under it — not a cut (re-aimed 2026-09-30,
+               // `discover-list-travel-left/right`; the row still fits, and
+               // anything past IT still falls). The design system's drawer
+               // swipe is the same drawing: a card of a `swipe` row, held open
+               // on its drawer (its inline travel), uncovers the drawer's
+               // action (`torrent-swipe-remove`); at rest it is still read.
+               && !(holder.parent.hasAttribute('data-travel') && element.closest('[data-part="card"]'))
+               && !(holder.parent.dataset.part === 'swipe'
+                    && element.closest('[data-part="card"]')?.style.transform)) {
       const box = holder.parent.getBoundingClientRect();
       if (partly(box.left, box.right)) push('cut', element, rect);
     }
@@ -268,6 +279,14 @@ async def read_pass(browser, label, width, wanted, engine, scheme):
             readings[state] = [{"arm": "unreachable", "part": str(error)[:80], "rect": None}]
             continue
         await page.wait_for_timeout(SETTLED)
+        # A STATE STILL ARRIVING IS NOT READ. Pushing a screen is a view
+        # transition (`--duration-4`, base.css), and while it runs the
+        # `::view-transition` overlay on the root takes every hit test: WebKit
+        # answers `html` at any point of the page, so the bottom bar read
+        # « unseen » at the tail of the crossing (C1, once B-609 stopped the bar
+        # being inert over a screen). A finger lands after the crossing, and so
+        # does this reading.
+        await page.wait_for_function("()=>!document.documentElement.matches(':active-view-transition')")
         readings[state] = await page.evaluate(MEASURE, width)
         if engine == "webkit":
             readings[state] += await page.evaluate(VISIBLE, width)

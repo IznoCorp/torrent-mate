@@ -6,9 +6,10 @@ import { mockState } from "../state";
 import { FROM_BLOCKED, FROM_DENSE, FROM_REAL, SOURCE_LISTS, arrivedOnly, copiesOf, takeOutOfStaging } from "./staged-folders";
 import { scenario } from "../scenario";
 import { refused, type MockRequest, type MockRoute } from "../router";
-import { confirmInPlex, forgetLadder, ladderOf, rungIndex, stripPosition, type Origin, type Position } from "./ladder";
+import { confirmInPlex, forgetLadder, ladderOf, rungIndex, stripPosition, ownTimeOf, type Origin, type Position } from "./ladder";
 import { accountName } from "../account";
 import { backToSearch } from "./follow-errors";
+import { acquisitionKey } from "../../lib/arrival-slots";
 import type { components } from "../../contract/types";
 
 type QueueCard = components["schemas"]["QueueCard"];
@@ -226,7 +227,8 @@ export function arrivalsOf(dense: boolean): QueueCard[] {
     const position = at({ ...card, strip });
     const { requester, origin } = originOf(card, true);
     const asked = requester === undefined ? card : { ...card, requester };
-    return position === undefined ? asked : { ...asked, ladder: ladderOf(card.title, position, origin) };
+    return position === undefined ? asked
+      : { ...asked, ladder: ladderOf(acquisitionKey(card), position, { ...origin, times: ownTimeOf(card) }) };
   }));
   return inStaging;
 }
