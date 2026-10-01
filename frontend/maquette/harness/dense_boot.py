@@ -49,7 +49,7 @@ def prepare_scratch() -> None:
     SCRATCH.mkdir(parents=True)
     design = ROOT / "design"
     for name in ("index.html", "vite.config.mjs", "build-identity.mjs",
-                 "package.json", "sw.js"):
+                 "worker-source.mjs", "package.json", "sw.js"):
         shutil.copy(design / name, SCRATCH / name)
     shutil.copytree(design / "src", SCRATCH / "src")
     (SCRATCH / "node_modules").symlink_to(design / "node_modules")
