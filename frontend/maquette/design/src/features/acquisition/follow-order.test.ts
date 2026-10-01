@@ -80,9 +80,9 @@ describe("the pill and its panel count on one basis — the search applied", () 
   it("a choice counts what the list shows once chosen, the paused follows out", () => {
     const every = [...FOLLOWS, follow("Delta paused", { kind: "movie", status: "disabled" })];
     // « el » is in « Delta » alone, accents and case ignored, and in the paused one.
-    const looked = followsInView(every, "EL");
-    const counts = followCounts(looked);
+    const shown = followsInView(every, "EL");
+    const counts = followCounts(shown);
     expect(counts).toEqual({ tout: 1, series: 0, movies: 1 });
-    expect(orderFollows(looked, "movies", "urgency").map((one) => one.title)).toEqual(["Delta"]);
+    expect(orderFollows(shown, "movies", "urgency").map((one) => one.title)).toEqual(["Delta"]);
   });
 });
