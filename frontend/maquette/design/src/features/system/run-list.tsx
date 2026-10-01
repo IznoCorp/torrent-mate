@@ -100,10 +100,10 @@ function runningSince(startedAt: string, say: (key: string, options?: { count: n
                       now: number): string {
   const started = Date.parse(startedAt);
   if (Number.isNaN(started)) return "";
-  const minutes = Math.floor(Math.max(0, now - started) / 1000 / MINUTE);
-  return minutes === 0
+  const count = Math.floor(Math.max(0, now - started) / 1000 / MINUTE);
+  return count === 0
     ? say("screens.system.runRunningJustNow")
-    : say("screens.system.runRunningSince", { count: minutes });
+    : say("screens.system.runRunningSince", { count });
 }
 
 /**

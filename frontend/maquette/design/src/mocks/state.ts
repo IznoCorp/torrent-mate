@@ -424,9 +424,9 @@ export const mockDials: MockDials = {
       // on the reader's clock, so the run is moved to have begun as long ago as
       // its five finished steps took — every instant shifted by one delta, so
       // the steps keep their order and their lengths.
-      const shift = Date.now() - Date.parse(live.startedAt ?? run.startedAt);
+      const delta = Date.now() - Date.parse(live.startedAt ?? run.startedAt);
       const moved = (instant: string | null | undefined) =>
-        instant ? new Date(Date.parse(instant) + shift).toISOString() : instant;
+        instant ? new Date(Date.parse(instant) + delta).toISOString() : instant;
       for (const step of run.steps) Object.assign(step, { startedAt: moved(step.startedAt), endedAt: moved(step.endedAt) });
       run.startedAt = moved(run.startedAt) as string;
       run.steps = [...run.steps.slice(0, STEPS_FINISHED), { name: live.name, status: "running" }];
