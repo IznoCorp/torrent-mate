@@ -529,6 +529,54 @@ async def settle(page):
     return await page.evaluate(SETTLE, SETTLE_CEILING_MS)
 
 
+# A NAMED STATE READ ONCE IT SAYS IT HAS ARRIVED, NOT AFTER A NUMBER. A state
+# that pushes a screen goes through `startViewTransition` (lib/navigate.ts): the
+# route commits inside its callback, so the screen mounts a frame or more after
+# `__go` returns, and only then does it ask the cache for what it draws — the
+# resolution screen's `/api/decisions/` among them. A fixed wait is a bet on how
+# fast a runner is: `attrs.py`'s 420 ms read `acq-resolution-tie` with the screen
+# mounted, the transition still active and `/api/decisions/` still in flight
+# (measured under a throttled CPU), so it counted 0 candidate posters — the
+# fall CI met on two runs of three. The page says itself when that is over: no
+# view transition active, no query fetching, no mutation pending, no finite
+# animation running. Held for TWO frames in a row, because a query that answers
+# notifies its readers on the next task and React draws on the frame after.
+# Not for a state that acts on a timer of its own (a tap posed `setTimeout`
+# after the draw): the page cannot say a timer is still owed, and those states
+# keep the wait they name. Chromium's reading: WebKit's page dies when
+# `getAnimations()` is asked under chained view transitions (`responsive.py`).
+READY_CEILING_MS = 5000
+READY = """(ceiling)=>new Promise((done)=>{
+  const start = performance.now();
+  let quiet = 0;
+  const busy = () => document.documentElement.matches(':active-view-transition')
+    || (window.__queries?.isFetching() ?? 0) > 0
+    || (window.__queries?.isMutating() ?? 0) > 0
+    || document.getAnimations().some((one) => one.playState === 'running' && one.effect
+         && one.effect.getComputedTiming().endTime !== Infinity);
+  const look = () => {
+    const waited = performance.now() - start;
+    quiet = busy() ? 0 : quiet + 1;
+    if (quiet >= 2 || waited > ceiling) return done(waited);
+    requestAnimationFrame(look);
+  };
+  requestAnimationFrame(look);
+})"""
+
+
+async def ready(page):
+    """Waits until the page says the state just asked for has arrived.
+
+    Args:
+        page: The Playwright page, a named state just asked for through `__go`.
+
+    Returns:
+        The milliseconds it waited — the ceiling's value when it gave up, so a
+        reading taken then is read as the late one it is.
+    """
+    return await page.evaluate(READY, READY_CEILING_MS)
+
+
 class Journal:
     """Collects the verdicts of one script and decides its exit code.
 

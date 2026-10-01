@@ -60,7 +60,8 @@ stops clipping.
 
 SUBSETS. `TM_RESPONSIVE_STATES` (comma-separated ids), `TM_RESPONSIVE_WIDTHS`
 (Chromium's widths) and `TM_RESPONSIVE_ENGINES` (`chromium`, `webkit`) narrow a run to the states a change touches; a narrowed run never judges the owed
-list's staleness, since it did not read what the list covers.
+list's staleness, since it did not read what the list covers. `TM_RESPONSIVE_PARALLEL`
+sets how many passes run side by side (see `PARALLEL`).
 """
 import asyncio
 import json
@@ -76,8 +77,14 @@ HEIGHT = 844
 # The iPhone's format, measured in the iPhone's engine.
 IPHONE = 390
 # Three pages at a time, one per width, the harness's own ceiling
-# (`TM_HARNESS_JOBS=3`, docs/reference/implementer-office.md § the mutex).
-PARALLEL = int(os.environ.get("TM_HARNESS_JOBS", "3"))
+# (`TM_HARNESS_JOBS=3`, docs/reference/implementer-office.md § the mutex) — on
+# this machine. A CI runner is the harness's alone, and there the sweep runs
+# every pass at once (`TM_RESPONSIVE_PARALLEL`, harness-full.yml): its cost is
+# the `SETTLED` wait each state is let settle, idle, one per state per pass,
+# so it grows with the catalogue — 319 states read in 515–554 s against
+# run.sh's 600 s bound, and the 43 that maquette-blocked adds pushed it past
+# (PR #675's run 36897555465). Run side by side, the nine passes wait together.
+PARALLEL = int(os.environ.get("TM_RESPONSIVE_PARALLEL") or os.environ.get("TM_HARNESS_JOBS", "3"))
 
 # arm · data-part → its owner. Every entry is a fall read on this tree and
 # repaired by its owner, named beside it — never silenced.
