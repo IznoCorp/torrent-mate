@@ -140,6 +140,10 @@ function reset(): boolean {
     ...OPENING_DIALS,
     sortKey: "recent",
     sortReversed: false,
+    // « À traiter »'s filter and sort, pinned: the device's memory of them would
+    // otherwise carry one state's choice into the next.
+    todoFilter: "all",
+    todoSort: "urgency",
     sugCount: 30,
     selMode: false,
     selected: new Set(),

@@ -10,6 +10,7 @@ import type { Schemas } from "../../lib/contract-schemas";
 import { read } from "../../lib/query-client";
 import { store } from "../../lib/store-access";
 import { registerProducer, type Choice, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
+import { choicesDescriptor } from "../../ui/pill-select";
 import { downloadsKey, trackersKey, type Tracker } from "./queries";
 
 /**
@@ -35,23 +36,14 @@ function selectorPanel(_subject: string, cache: PanelCache): PanelDescriptor | n
     checked: current === name,
     target: { "trackers-choose": name },
   });
-  return {
-    title: say("selectorTitle"),
-    // THE HEAD SAYS WHAT THE COUNTS ARE, and it keeps the first choice clear of
-    // the band a finger drags the panel by.
-    meta: say("selectorMeta"),
-    blocs: [
-      {
-        type: "choices",
-        options: [
-          choice("", say("selectorAll"), downloads.length),
-          ...trackers.map((tracker) =>
-            choice(tracker.name, tracker.name, downloads.filter((entry) => entry.tracker === tracker.name).length,
-              offWord(tracker))),
-        ],
-      },
-    ],
-  };
+  // THE HEAD SAYS WHAT THE COUNTS ARE, and it keeps the first choice clear of
+  // the band a finger drags the panel by.
+  return choicesDescriptor(say("selectorTitle"), say("selectorMeta"), [
+    choice("", say("selectorAll"), downloads.length),
+    ...trackers.map((tracker) =>
+      choice(tracker.name, tracker.name, downloads.filter((entry) => entry.tracker === tracker.name).length,
+        offWord(tracker))),
+  ]);
 }
 
 /**

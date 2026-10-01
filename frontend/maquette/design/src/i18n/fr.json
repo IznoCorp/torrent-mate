@@ -1020,7 +1020,29 @@
       "headerCount": "{{series}} et {{films}} à découvrir",
       "headerLoading": "Suggestions en cours de lecture…",
       "headerUnavailable": "Suggestions indisponibles pour le moment.",
-      "headerTitle": "À découvrir"
+      "headerTitle": "À découvrir",
+      "todoFilter": {
+        "all": "Tout",
+        "resolve": "À résoudre",
+        "plex": "Match Plex à confirmer",
+        "step": "Une étape ne passe pas",
+        "disks": "Disque plein",
+        "ratio": "Ratio trop bas",
+        "unreachable": "Service injoignable",
+        "closed": "Clos — à lire"
+      },
+      "todoFilterTitle": "Afficher dans « À traiter »",
+      "todoFilterMeta": "Chaque cause avec le nombre de ses cartes.",
+      "todoFilterEmpty": "Aucune carte pour ce filtre.",
+      "todoSort": {
+        "urgency": "Urgence",
+        "newest": "Plus récent",
+        "oldest": "Plus ancien"
+      },
+      "todoSortTitle": "Trier « À traiter »",
+      "todoSortMeta": "L'urgence d'abord : ce qui attend votre jugement, puis ce qui repart seul, puis ce qui est clos.",
+      "todoFilterCount_one": "{{count}} carte",
+      "todoFilterCount_other": "{{count}} cartes"
     },
     "accountPage": {
       "noteLead": "Ce compte, son rôle et ce qu'il peut faire.",
@@ -1325,7 +1347,8 @@
         "request": "demandé par {{name}}, pour cette saison",
         "unknown": "origine inconnue"
       },
-      "plexMatch": "Plex l'a reconnu comme « {{title}} », pas comme ce titre."
+      "plexMatch": "Plex l'a reconnu comme « {{title}} », pas comme ce titre.",
+      "failedStep": "L'étape « {{step}} » a échoué."
     },
     "error": {
       "lead": "Impossible de charger {{subject}}.",
@@ -1363,9 +1386,25 @@
         "queued": "En file — ce passage attend que la maintenance en cours se termine.",
         "confirmation": "Le match Plex attend votre confirmation.",
         "ratio_below_threshold": "Différé : le ratio sur {{tracker}} est sous son seuil de {{minimum}}.",
-        "insufficient_space": "Différé : pas assez d'espace pour le recevoir.",
-        "content_missing": "Différé : une partie du contenu manque encore."
-      }
+        "insufficient_space": "Différé : pas assez d'espace sur le disque de staging pour le recevoir.",
+        "content_missing": "Différé : le disque où qBittorrent l'a téléchargé n'est pas lisible.",
+        "library_full": "Aucun disque de la médiathèque n'a la place de le recevoir ({{size}}).",
+        "tracker_unreachable": "{{tracker}} ne répond pas : le torrent ne peut pas être récupéré.",
+        "provider_unreachable": "{{provider}} ne répond pas : l'identification attend.",
+        "plex_unreachable": "Plex ne répond pas : le match ne peut pas être vérifié.",
+        "client_unreachable": "qBittorrent ne répond pas : le téléchargement n'est plus suivi."
+      },
+      "lifts": {
+        "ratio_below_threshold": "Il repart seul dès que ce ratio dépasse {{minimum}}.",
+        "insufficient_space": "Il repart seul dès que la place est faite.",
+        "content_missing": "Il repart seul dès que ce disque est de retour.",
+        "library_full": "Il est rangé seul dès qu'un disque a la place.",
+        "tracker_unreachable": "Il repart seul dès que {{tracker}} répond.",
+        "provider_unreachable": "Elle reprend seule dès que {{provider}} répond.",
+        "plex_unreachable": "La vérification reprend seule dès que Plex répond.",
+        "client_unreachable": "Le suivi reprend seul dès que qBittorrent répond."
+      },
+      "liftWithoutThreshold": "Il repart seul dès que ce ratio remonte."
     }
   },
   "states": {

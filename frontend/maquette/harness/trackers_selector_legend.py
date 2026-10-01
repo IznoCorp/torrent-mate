@@ -63,11 +63,11 @@ def off_word(tracker):
 ALL = WORDS.get("selectorAll", "<no copy>")
 CHOSEN = "tr4ker"
 
-PILL = """() => { const pills = [...document.querySelectorAll('#view [data-part="torrents/selector"]')];
+PILL = """() => { const pills = [...document.querySelectorAll('#view [data-part="pill/select"][data-trackers-selector]')];
   const pill = pills[0];
   return pill ? {count: pills.length, text: pill.firstChild?.textContent.trim() ?? '',
     pressed: pill.getAttribute('aria-pressed') === 'true',
-    number: Number(pill.querySelector('[data-part="torrents/selector-count"]')?.textContent ?? NaN),
+    number: Number(pill.querySelector('[data-part="pill/select-count"]')?.textContent ?? NaN),
     line: document.querySelector('#view [data-part="torrents/filter"]') !== null} : null; }"""
 ROWS = """() => [...document.querySelectorAll('#view [data-part="torrents/row"]')].map(row => row.dataset.tracker)"""
 CHOICES = """() => { const sheet = document.querySelector('#sheet');
@@ -135,7 +135,7 @@ async def main():
         await page.evaluate("()=>window.__loadingDone?.()")
         await page.wait_for_timeout(SETTLED)
         roster = await page.evaluate("()=>(window.__queries?.getQueryData(['/api/trackers']) || []).map(t => t.name)")
-        selector = page.locator('#view [data-part="torrents/selector"]')
+        selector = page.locator('#view [data-part="pill/select"][data-trackers-selector]')
         if await selector.count():
             await selector.first.tap()
             await page.wait_for_timeout(ACTED)

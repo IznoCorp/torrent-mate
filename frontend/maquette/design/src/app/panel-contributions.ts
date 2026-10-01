@@ -48,6 +48,7 @@ import "../features/releases/verbs";
 import "../features/acquisition/follow-verbs";
 import "../features/acquisition/deck-verbs";
 import "../features/acquisition/verbs";
+import "../features/acquisition/todo-pill-verbs";
 import "../features/acquisition/add-verbs";
 // And the library's verbs: the lens, the category, the layout, the sort, the
 // search's clear cross, the selection and the removals.

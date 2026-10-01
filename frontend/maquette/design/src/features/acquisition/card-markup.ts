@@ -22,6 +22,7 @@ import { posterArtwork } from "../../lib/engine-drawing";
 import { richTextMarkup } from "./rich-text";
 import { originRow, footRow } from "./variants";
 import { currentRung } from "../../lib/current-rung";
+import { sizeOf } from "../trackers/format";
 
 
 /** One rung of a card's ladder, as the card reads it. */
@@ -33,6 +34,11 @@ type Rung = {
   /** For a ratio deferral, the tracker it is under, and that tracker's own threshold. */
   tracker?: string | null;
   minimumRatio?: number | null;
+  /** For an unreachable provider, its name; for a full library, the bytes needed. */
+  provider?: string | null;
+  size?: number | null;
+  /** Who lifts a stopped rung: the engine (`auto`) or his hand — the engine's word (BK1). */
+  resumes?: "auto" | "hand" | null;
 };
 /** A medium as an acquisition list holds one, in the engine's field names. */
 // The contract's token for an acquisition the engine launched on its own.
@@ -70,6 +76,8 @@ export type MediumCard = {
   episode?: number | null;
   /** Who launched it: a person's ask, or the engine's own rule — null when not known. */
   trigger?: "manual" | "automatic" | null;
+  /** The pipeline step a tunnel error stopped on. */
+  failedStep?: string;
 };
 
 /** The foot a section offers for its own action. */
@@ -147,6 +155,32 @@ function ratioDeferralTracker(ladder: Rung[]): string | undefined {
   return rung.reason === RATIO_DEFERRAL && rung.tracker ? rung.tracker : undefined;
 }
 
+/**
+ * What a stopped rung says (Q7, « chaque carte dit sa cause, ce qui la lève »):
+ * its cause, then — for a block the ENGINE lifts on its own — what lifts it.
+ *
+ * @param rung The rung the card stands on, its reason set.
+ * @returns The sentence, or the two.
+ */
+function causeSentence(rung: Rung): string {
+  const reason = rung.reason ?? "";
+  const unset = reason === RATIO_DEFERRAL && rung.minimumRatio == null;
+  const values = {
+    tracker: rung.tracker ?? "",
+    provider: rung.provider ?? "",
+    size: rung.size == null ? "" : sizeOf(rung.size),
+    minimum: new Intl.NumberFormat(i18next.language).format(rung.minimumRatio ?? 0),
+  };
+  // A TRACKER WITH NO THRESHOLD OF ITS OWN is said to have none — never an
+  // invented « 0 ».
+  const cause = unset
+    ? i18next.t("surfaces.ladder.ratioWithoutThreshold", values)
+    : i18next.t(`surfaces.ladder.reasons.${reason}`, values);
+  if (rung.resumes !== "auto") return cause;
+  const resume = unset ? "surfaces.ladder.liftWithoutThreshold" : `surfaces.ladder.lifts.${reason}`;
+  return i18next.exists(resume) ? `${cause} ${i18next.t(resume, values)}` : cause;
+}
+
 function ladderMarkup(ladder: Rung[]) {
   const current = currentRung(ladder);
   const strip: StripCell[] = ladder.map((rung) => ({ state: rung.state }));
@@ -163,12 +197,7 @@ function ladderMarkup(ladder: Rung[]) {
     // — a ratio deferral naming its tracker and THAT tracker's own threshold.
     // A TRACKER WITH NO THRESHOLD OF ITS OWN is said to have none — never an
     // invented « 0 ».
-    reason: reason === undefined ? undefined : reason === RATIO_DEFERRAL && ladder[current].minimumRatio == null
-      ? i18next.t("surfaces.ladder.ratioWithoutThreshold", { tracker: ladder[current].tracker ?? "" })
-      : i18next.t(`surfaces.ladder.reasons.${reason}`, {
-        tracker: ladder[current].tracker ?? "",
-        minimum: new Intl.NumberFormat(i18next.language).format(ladder[current].minimumRatio ?? 0),
-      }),
+    reason: reason === undefined ? undefined : causeSentence(ladder[current]),
     fraction: i18next.t("surfaces.ladder.figure", { position: current + 1, count: ladder.length }),
     chip: {
       tone: reason === TO_CONFIRM ? RUNG_TONE.waiting : RUNG_TONE[ladder[current].state],
@@ -272,7 +301,12 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot | Med
       ? escapeMarkup(onLadder.setAside)
       : medium.reason
       ? richTextMarkup(medium.reason)
-      : onLadder?.reason ? escapeMarkup(onLadder.reason) : undefined,
+      : onLadder?.reason ? escapeMarkup(onLadder.reason)
+      // A STEP THAT FAILED WITH NO SENTENCE says which step (B-671): a card of
+      // « À traiter » always says its cause, never nothing.
+      : medium.failedStep ? escapeMarkup(i18next.t("surfaces.card.failedStep", {
+        step: i18next.t(`screens.run.step.${medium.failedStep}`) }))
+      : undefined,
     overview: medium.overview,
     fraction: onLadder ? onLadder.fraction : medium.f,
     chip: onLadder ? onLadder.chip : medium.chip ? { tone: medium.chip.tone, label: medium.chip.text } : null,
