@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 #
-# deploy-staging.sh — build the CURRENT branch of THIS (staging) clone and
-# restart the staging TorrentMate UI. The non-main playground.
+# deploy-staging.sh — build `staging` in THIS (staging) clone and restart the
+# staging TorrentMate UI.
 #
-# Unlike scripts/deploy.sh (prod, main-only), staging serves whatever branch is
-# checked out here (~/staging/torrentmate) — so a not-yet-merged feature can be
-# validated remotely on tm-staging.iznogoudatall.xyz. It still refuses a dirty
-# tree: only committed code is ever served, and the stamp records "branch @ sha"
-# so what is live on staging is always verifiable via GET /api/version.
+# The git flow (docs/features/git-flow/DESIGN.md): `staging` moves only through
+# scripts/promote.sh, by fast-forward from `main`, when a user story is complete
+# — it is no longer a playground a feature branch is checked out on. This
+# script serves `staging` alone, clean and equal to origin/staging; the stamp
+# records "branch @ sha" so what is live on staging is always verifiable via
+# GET /api/version.
 #
 # S1 is read-only, so staging against the real config/data is safe (KanbanMate
 # "no test board" rule).
@@ -35,14 +36,20 @@ if [ -n "$(git status --porcelain)" ]; then
   fail "working tree not clean — commit first (only committed code is tested)."
 fi
 
-# ── Guard 2: the staging venv must exist (per-clone isolation) ────────────────
+# ── Guard 2: must be `staging`, equal to origin/staging ───────────────────────
+branch="$(git rev-parse --abbrev-ref HEAD)"
+[ "$branch" = "staging" ] || fail "branch '$branch' is not staging. ONLY staging is deployed here."
+timeout 30 git fetch --quiet origin staging || fail "git fetch origin staging failed (network?)."
+sha="$(git rev-parse HEAD)"
+remote_sha="$(git rev-parse origin/staging)"
+[ "$sha" = "$remote_sha" ] \
+  || fail "local staging ($sha) ≠ origin/staging ($remote_sha). Run 'git pull --ff-only origin staging' first."
+
+# ── Guard 3: the staging venv must exist (per-clone isolation) ────────────────
 [ -x "$VENV/bin/pip" ] \
   || fail "staging venv not found: $VENV (expected $VENV/bin/pip). Create it first (python -m venv \"$VENV\") or export TM_STAGING_VENV."
 
-branch="$(git rev-parse --abbrev-ref HEAD)"
-sha="$(git rev-parse HEAD)"
-[ "$branch" != "main" ] && printf 'ℹ staging is serving a non-main branch: %s (intended).\n' "$branch"
-printf '→ build staging : %s @ %s — build du SPA…\n' "$branch" "$sha"
+printf '→ build staging: %s @ %s — building the SPA…\n' "$branch" "$sha"
 
 # ── Build: reproducible from source only; bake the served identity into the bundle ─
 # TM_BUILD_COMMIT is read by vite.config.ts (define __BUILD_COMMIT__) so the SPA

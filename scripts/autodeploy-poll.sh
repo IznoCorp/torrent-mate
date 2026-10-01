@@ -3,11 +3,13 @@
 # autodeploy-poll.sh — branch-driven continuous deployment (TorrentMate).
 #
 # Watches origin and redeploys a clone when the branch it tracks advances:
-#   prod    : ~/deploy/torrentmate   ⟵ main     → scripts/deploy.sh
+#   prod    : ~/deploy/torrentmate   ⟵ prod     → scripts/deploy.sh
 #   staging : ~/staging/torrentmate  ⟵ staging  → scripts/deploy-staging.sh
 #
-# The operator's CD model, mirroring KanbanMate: a push to `main` redeploys
-# prod, a push to `staging` redeploys staging. Runs as the PM2 app
+# The git flow (docs/features/git-flow/DESIGN.md): `prod` and `staging` move
+# only through scripts/promote.sh, by fast-forward, on the operator's word; a
+# move of either redeploys its clone. `develop` and `main` deploy nothing here
+# (tm-design follows `develop` outside this poller). Runs as the PM2 app
 # `torrentmate-autodeploy`, looping every AUTODEPLOY_INTERVAL seconds (60 by
 # default). `--once` runs a single pass, which is what a test or CI wants.
 #
@@ -28,19 +30,16 @@ GIT_NET_TIMEOUT="${TM_GIT_NET_TIMEOUT:-60}"
 
 stamp() { date "+%Y-%m-%d %H:%M:%S"; }
 
-# redeploy_if_advanced <clone> <branch> <strategy> <deploy_script>
+# redeploy_if_advanced <clone> <branch> <deploy_script>
 #
-#   strategy = "pull"  → git pull --ff-only origin <branch>
-#                        (prod: `main` only moves forward — strict fast-forward)
-#            = "reset" → git reset --hard origin/<branch>
-#                        (staging: the clone FOLLOWS the remote, which a
-#                         feature branch may rebase or force-push; a
-#                         fast-forward would fail on a diverged history)
+# Both branches only ever move forward, so the clone follows by a strict
+# fast-forward. A branch rewritten on origin is a fault to SEE: it is logged,
+# the pass is skipped and the clone stays where it was — never followed.
 #
 # Fail-soft: any error — a missing clone, the network, the script — is logged
 # and returns without propagating, so the calling loop carries on.
 redeploy_if_advanced() {
-  local clone="$1" branch="$2" strategy="$3" deploy="$4"
+  local clone="$1" branch="$2" deploy="$3"
 
   cd "$clone" 2>/dev/null || { echo "[$(stamp)] no such clone: $clone — skipped"; return 0; }
 
@@ -64,28 +63,16 @@ redeploy_if_advanced() {
   # Stand on the right branch — this is what makes a clone's first run work.
   git checkout -q "$branch" 2>/dev/null || git checkout -q -B "$branch" "origin/$branch" 2>/dev/null
 
-  case "$strategy" in
-    pull)
-      # main only moves forward, so a strict fast-forward. After the pull HEAD
-      # equals origin/main, which is what deploy.sh's own guard asks for.
-      if ! timeout "$GIT_NET_TIMEOUT" git pull --ff-only --quiet origin "$branch"; then
-        echo "[$(stamp)] $clone: git pull --ff-only origin $branch failed — pass skipped"
-        return 0
-      fi
-      ;;
-    reset)
-      # staging follows the remote strictly. The deploy scripts refuse a dirty
-      # tree, so a clone never carries local work there is anything to lose.
-      if ! git reset -q --hard "origin/$branch"; then
-        echo "[$(stamp)] $clone: reset --hard origin/$branch failed — pass skipped"
-        return 0
-      fi
-      ;;
-    *)
-      echo "[$(stamp)] $clone: unknown strategy '$strategy' — pass skipped"
-      return 0
-      ;;
-  esac
+  if ! git merge-base --is-ancestor HEAD "origin/$branch" 2>/dev/null; then
+    echo "[$(stamp)] $clone: origin/$branch (${rem:0:8}) is not a fast-forward of $(git rev-parse --short HEAD) — history rewritten on origin, NOT followed; pass skipped"
+    return 0
+  fi
+  # After the pull HEAD equals origin/<branch>, which is what the deploy
+  # scripts' own guards ask for.
+  if ! timeout "$GIT_NET_TIMEOUT" git pull --ff-only --quiet origin "$branch"; then
+    echo "[$(stamp)] $clone: git pull --ff-only origin $branch failed — pass skipped"
+    return 0
+  fi
 
   # Deployment: every line is stamped, for the PM2 log.
   if [ ! -f "$deploy" ]; then
@@ -177,8 +164,8 @@ for app in apps:
 }
 
 one_pass() {
-  redeploy_if_advanced "$PROD_CLONE"    main    pull  "$PROD_CLONE/scripts/deploy.sh"
-  redeploy_if_advanced "$STAGING_CLONE" staging reset "$STAGING_CLONE/scripts/deploy-staging.sh"
+  redeploy_if_advanced "$PROD_CLONE"    prod    "$PROD_CLONE/scripts/deploy.sh"
+  redeploy_if_advanced "$STAGING_CLONE" staging "$STAGING_CLONE/scripts/deploy-staging.sh"
   restart_design_if_stale
 }
 
@@ -197,7 +184,7 @@ if [ "${1:-}" = "--once" ]; then
 fi
 
 INTERVAL="${AUTODEPLOY_INTERVAL:-60}"
-echo "[$(stamp)] autodeploy poller up (every ${INTERVAL}s): deploy<-main, staging<-staging"
+echo "[$(stamp)] autodeploy poller up (every ${INTERVAL}s): deploy<-prod, staging<-staging"
 while true; do
   # Fail-soft per cycle: a failed pass must NEVER kill the loop. `if ! one_pass`
   # neutralises errexit inside the function, so a failed cycle is logged and
