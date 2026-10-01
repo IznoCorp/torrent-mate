@@ -151,16 +151,29 @@ def test_envelope_round_trip(event_bus: EventBus, web_config: WebConfig, fake_re
 
 
 def test_maxlen_trims_stream(event_bus: EventBus, fake_redis: fakeredis.FakeRedis) -> None:
-    """A small ``stream_maxlen`` keeps the stream length bounded under many adds."""
+    """Every ``XADD`` carries the configured ``maxlen`` with approximate trimming.
+
+    The publisher asks for ``MAXLEN ~``, which real Redis only honours at macro-node
+    granularity: the stream may overshoot ``maxlen``, so the exact bound is not
+    asserted (fakeredis 2.39 models that and keeps 10 entries for ``maxlen=3``).
+    What the contract does promise is the call shape, and that the stream does not
+    keep every add.
+    """
     cfg = WebConfig.model_validate({"stream_maxlen": 3})
     publisher = RedisEventPublisher(event_bus, cfg)
-    publisher._redis = fake_redis  # noqa: SLF001
+    spy = MagicMock(wraps=fake_redis)
+    publisher._redis = spy  # noqa: SLF001
+    adds = 20
     try:
-        for i in range(20):
+        for i in range(adds):
             publisher._publish(_make_event(scope=f"round_{i}", scanned=i))  # noqa: SLF001
 
+        assert spy.xadd.call_count == adds
+        for call in spy.xadd.call_args_list:
+            assert call.kwargs["maxlen"] == 3
+            assert call.kwargs["approximate"] is True
         length = fake_redis.xlen(cfg.stream_key)
-        assert 0 < length <= 3
+        assert 0 < length < adds
     finally:
         publisher.close()
 
