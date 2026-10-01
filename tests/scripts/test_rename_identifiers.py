@@ -772,3 +772,43 @@ def test_a_corpus_that_was_entirely_excluded_says_so(tmp_path):
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert "0 file(s) read" in result.stdout
+
+
+@needs_typescript
+def test_an_import_specifier_is_a_binding_not_a_shorthand(tmp_path: Path) -> None:
+    """B-540: `import { useX, type Y }` lists bindings; no object emits a key there.
+
+    The shorthand refusal read the import's braces as an object and refused
+    `useAcquisitionReference` at L13r r·5, where renaming the binding is exactly
+    the job.
+    """
+    source = tree(
+        tmp_path,
+        "a_reader.ts",
+        'import { useSuivi, type Shape } from "./hooks";\nconst shape: Shape = useSuivi();\n',
+    )
+
+    result = run(tmp_path, {"useSuivi": "useFollow"})
+
+    assert result.returncode == 0, result.stderr
+    assert source.read_text(encoding="utf-8") == (
+        'import { useFollow, type Shape } from "./hooks";\nconst shape: Shape = useFollow();\n'
+    )
+
+
+@needs_typescript
+def test_a_shorthand_refusal_puts_back_the_files_already_written(tmp_path: Path) -> None:
+    """B-540: « Nothing written, in any file » was printed over files the walk had rewritten.
+
+    The shorthand refusal is raised inside one file's rename; every file the
+    walk wrote before it must be restored, or the message is false of the tree.
+    """
+    first = tree(tmp_path, "a_first.js", "const etat = 1;\nconsole.log(etat);\n")
+    tree(tmp_path, "b_shorthand.js", "const etat = 1;\nconst bag = { a, etat };\n")
+    before = first.read_text(encoding="utf-8")
+
+    result = run(tmp_path, {"etat": "state"})
+
+    assert result.returncode != 0
+    assert "SHORTHAND PROPERTY" in result.stderr
+    assert first.read_text(encoding="utf-8") == before
