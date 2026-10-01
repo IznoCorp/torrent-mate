@@ -204,10 +204,10 @@ queried — and the timings and counts of the `loaded` scenario, which exist so 
 judged. Both are labelled as such in the design notes.
 
 **The copy ages by design.** The system keeps running: the scheduler searches twice a day and
-increments each follow's attempt counter in `acquire.db`, so the embedded counters drift and
-`content.py` (which compares the cards against the LIVE database) goes red with no code change.
-`resync.py`, the tool that rewrote those counters, is broken since the engine's removal (B-563);
-until it is repaired, correct a counter by hand, as data, in a commit of its own.
+increments each follow's attempt counter in `acquire.db`, so the seeded counters drift from it.
+The rules compare a card to the versioned seed, never to the live database, so the drift turns
+nothing red; `python3 scripts/refresh-maquette-fixture.py --apply` rewrites the seed from `acquire.db`
+when the copy should catch up, as data, in a commit of its own.
 
 **Two scenarios**, switched from the harness (the **≡** button):
 
