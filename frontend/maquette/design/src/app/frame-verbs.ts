@@ -220,6 +220,17 @@ function menuLanding(page: string): void {
   settleLanding(fromDrawer, leaving, "navgo", landing);
 }
 
+/**
+ * Puts the account just signed in on its entry page (round 10 Q7) — the gate's
+ * landing, kept with the three verbs because only this file switches a page.
+ * NO HISTORY ENTRY: signing in is not a step Retour walks back through.
+ *
+ * @param page The account's entry page.
+ */
+export function landSignedIn(page: string): void {
+  store.write({ page });
+}
+
 /* THE DRAWER. Its entry is pushed so a back closes it, and a refusal of the
    history write leaves the drawer open rather than the interface stuck.
 

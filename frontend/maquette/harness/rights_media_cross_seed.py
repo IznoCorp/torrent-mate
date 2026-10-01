@@ -1,4 +1,4 @@
-"""R429 — the media sheet's cross-seed block, on the model (§ 19; § 17; DOIT-14).
+"""R430 — the media sheet's cross-seed block, on the model (§ 19; § 17; DOIT-14).
 
 DESIGN maquette-l18 § 3.6, § 5 (R-L18-w), F25; L17's R-L17-b and R-L17-k, carried.
 
@@ -61,7 +61,7 @@ OPEN = "(title) => window.__screens.mediaSheet(title, window.__carriedFor(title)
 
 
 async def main():
-    journal = Journal("R429 — the media sheet's cross-seed block, on the model")
+    journal = Journal("R430 — the media sheet's cross-seed block, on the model")
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)

@@ -19,7 +19,7 @@ import i18next from "i18next";
 import { entryPageFor } from "./navigation";
 import { rightsOf } from "../lib/rights";
 import { sharedQueryClient } from "../lib/query-client";
-import { store } from "../lib/store-access";
+import { landSignedIn } from "./frame-verbs";
 import type { Schemas } from "../lib/contract-schemas";
 import { actionButton, crossReferenceLink } from "../ui/variants";
 
@@ -113,7 +113,7 @@ async function land(): Promise<void> {
     queryKey: ["/api/auth/me"],
     queryFn: async () => (await fetch("/api/auth/me")).json() as Promise<Schemas["Account"]>,
   });
-  store.write({ page: entryPageFor(rightsOf(account)) });
+  landSignedIn(entryPageFor(rightsOf(account)));
   ending();
 }
 
