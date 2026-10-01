@@ -28,10 +28,17 @@ const READER_MOVES = ["touchstart", "wheel", "keydown", "mousedown"] as const;
  * it: the landing stops at their first gesture — never at a change of offset,
  * which the browser's own scroll anchoring makes as the page grows.
  *
+ * AND IT STOPS THE MOMENT THE PAGE IS LEFT: a Retour within its watch found
+ * Système's heading still in the port for a frame, centred it, and the page
+ * given back — « À traiter » — kept Système's offset instead of its own (R502,
+ * the scroll kept after Retour).
+ *
  * @param section The section's name, as its heading's `data-section` carries it.
  */
 function landOnSection(section: string): void {
   const started = Date.now();
+  // The address Système was landed on, once its section is drawn there.
+  let address: string | undefined;
   let top: number | undefined;
   let taken = false;
   const take = () => {
@@ -39,7 +46,9 @@ function landOnSection(section: string): void {
   };
   for (const move of READER_MOVES) document.addEventListener(move, take, { once: true, capture: true });
   const round = () => {
+    if (address !== undefined && location.href !== address) taken = true;
     const heading = document.querySelector<HTMLElement>(`#view [data-section="${CSS.escape(section)}"]`);
+    if (heading !== null) address ??= location.href;
     if (!taken && heading !== null) {
       if (document.activeElement === null || document.activeElement === document.body)
         heading.focus({ preventScroll: true });

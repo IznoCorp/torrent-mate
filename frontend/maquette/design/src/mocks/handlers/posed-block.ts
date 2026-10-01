@@ -71,6 +71,17 @@ export function poseServiceDown(service: string, minutesAgo = 0): void {
   down.set(owner, held);
 }
 
+/**
+ * The external causes a posed block holds now, across every ladder of the layer.
+ *
+ * @returns The cause tokens, each once.
+ */
+export function heldCauses(): Set<string> {
+  return new Set(Object.values(mockState().journeyStages)
+    .flatMap((ladder) => ladder.filter((rung) => rung.resumes === "auto" && rung.reason !== undefined))
+    .map((rung) => rung.reason as string));
+}
+
 /** What a block names besides its cause — each read by its own sentence. */
 export type BlockDetails = {
   /** For a ratio cause or an unreachable tracker, the tracker. */
