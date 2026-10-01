@@ -1,4 +1,4 @@
-// design/src/screens/add.tsx
+// design/src/features/acquisition/add-screen.tsx
 // The second pilot: legacy `openAddScreen(query, mode)` (`refonte.html@60530dbd8`) reborn
 // as a real route (`/add`) and a final component. Markup is TRANSPLANTED,
 // not translated — every tag and class below is one `refonte.html@60530dbd8`'s BLOCK 2

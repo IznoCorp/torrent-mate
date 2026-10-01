@@ -138,9 +138,13 @@ PRESS_THE_ACTION = """(verb)=>{
   const y = box.top + box.height / 2;
   const hit = document.elementFromPoint(x, y);
   const mine = !!hit && (hit === act || act.contains(hit));
-  if (mine) hit.click();
+  if (mine) {
+    // An icon is an SVGElement and has no `click` (B-364): it is sent the event a finger would.
+    if (typeof hit.click === "function") hit.click();
+    else hit.dispatchEvent(new MouseEvent("click", {bubbles: true, cancelable: true, view: window}));
+  }
   return {found: true, pressed: mine,
-          covering: hit ? (hit.className || hit.tagName) : null,
+          covering: hit ? (hit.getAttribute("class") || hit.tagName) : null,
           inside: box.top >= 0 && box.bottom <= window.innerHeight};}"""
 
 
@@ -171,9 +175,13 @@ PRESS_THE_ACTION_BY_PART = """(part)=>{
   const y = box.top + box.height / 2;
   const hit = document.elementFromPoint(x, y);
   const mine = !!hit && (hit === act || act.contains(hit));
-  if (mine) hit.click();
+  if (mine) {
+    // An icon is an SVGElement and has no `click` (B-364): it is sent the event a finger would.
+    if (typeof hit.click === "function") hit.click();
+    else hit.dispatchEvent(new MouseEvent("click", {bubbles: true, cancelable: true, view: window}));
+  }
   return {found: true, pressed: mine,
-          covering: hit ? (hit.className || hit.tagName) : null};}"""
+          covering: hit ? (hit.getAttribute("class") || hit.tagName) : null};}"""
 
 # WHERE THE ROW IS AND WHETHER A FINGER WOULD REACH IT — read, never assumed.
 # `elementFromPoint` at the row's own centre answers what a tap there would
@@ -190,7 +198,7 @@ AIM_AT_THE_ROW = """(title)=>{
   return {found: true, x, y,
           reachable: !!hit && (hit === row || row.contains(hit)),
           covering: hit === null ? "nothing" :
-            (hit.tagName + (hit.className ? "." + String(hit.className).split(" ")[0] : ""))};}"""
+            (hit.tagName + (hit.getAttribute("class") ? "." + hit.getAttribute("class").split(" ")[0] : ""))};}"""
 
 # WHAT COVERS THE ROW IS TAKEN OUT OF THE WAY FIRST, and this is a DOM EDIT
 # rather than a gesture — said plainly, because naming a thing for what it is

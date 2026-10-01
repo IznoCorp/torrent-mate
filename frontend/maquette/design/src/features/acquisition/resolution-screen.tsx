@@ -1,4 +1,4 @@
-// design/src/screens/resolution.tsx
+// design/src/features/acquisition/resolution-screen.tsx
 // Legacy `openResolve(cible)` (`refonte.html@60530dbd8`) — the arbitration screen —
 // reborn as a real route (`/resolution/$folder`) and a final component.
 // Markup is TRANSPLANTED, not translated: every tag, class and data-attribute

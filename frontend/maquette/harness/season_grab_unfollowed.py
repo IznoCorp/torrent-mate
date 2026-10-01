@@ -232,7 +232,7 @@ AIM = """([part, attribute, value])=>{
   return {found: true, x, y,
           reachable: !!hit && (hit === target || target.contains(hit)),
           covering: hit === null ? "nothing" :
-            (hit.tagName + (hit.className ? "." + String(hit.className).split(" ")[0] : ""))};}"""
+            (hit.tagName + (hit.getAttribute("class") ? "." + hit.getAttribute("class").split(" ")[0] : ""))};}"""
 
 # THE FIRST SEASON IN THE SURFACE THAT PRINTS A SHORTFALL, and the act on it.
 SEASON_ON_OFFER = """(scope)=>{
@@ -273,7 +273,7 @@ AIM_BY_ATTRIBUTE = """([attribute, value])=>{
   return {found: true, x, y,
           reachable: !!hit && (hit === target || target.contains(hit)),
           covering: hit === null ? "nothing" :
-            (hit.tagName + (hit.className ? "." + String(hit.className).split(" ")[0] : ""))};}"""
+            (hit.tagName + (hit.getAttribute("class") ? "." + hit.getAttribute("class").split(" ")[0] : ""))};}"""
 
 # EVERY SEASON ROW ON THE SHEET: its number (the summary's first figure), and
 # whether it offers the act.

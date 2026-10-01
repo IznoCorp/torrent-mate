@@ -1,4 +1,4 @@
-// design/src/components/sheet.tsx
+// design/src/ui/sheet.tsx
 // The bottom-sheet LAYER — the scrim behind it, the panel body, the handle one
 // drags down to dismiss. It replaces the envelope's `#scrim`/`#sheet` cluster
 // at IDENTICAL ids, tags and class chains (`div#scrim.scrim`,

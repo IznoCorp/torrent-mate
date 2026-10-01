@@ -28,7 +28,10 @@ const BUILD_ID = buildIdentity(ROOT);
 function injectPrototype() {
   return {
     name: "inject-prototype",
-    closeBundle() {
+    // `writeBundle`, never `closeBundle`: rolldown may close the bundle before
+    // its files are on disk, and on a tree never built the hooks below then met
+    // no `dist/` at all (B-318).
+    writeBundle() {
       // The fragment's image URLs are relative `assets/...`; the build links
       // the real files in rather than copying 10 MB per build. `dist/` is
       // gitignored, so the symlink never reaches the repository.
@@ -66,10 +69,12 @@ const OPTIONAL_ASSETS = [
 function buildWorker() {
   return {
     name: "build-worker",
-    // AFTER `injectPrototype`'s own `closeBundle`, which is why this plugin is
+    // AFTER `injectPrototype`'s own `writeBundle`, which is why this plugin is
     // listed after it: both read `dist/`, and this one needs the bundles to be
-    // on disk before it can name them.
-    closeBundle() {
+    // on disk before it can name them — `writeBundle` is the hook that runs once
+    // they are, where `closeBundle` read the PREVIOUS build's `dist/vite` when
+    // one was left, and failed when none was (B-318).
+    writeBundle() {
       const output = resolve(ROOT, "dist");
       // THE BUNDLE NAMES ARE READ, NEVER WRITTEN BY HAND. They carry content
       // hashes, so a list kept in the worker source would be wrong the moment
@@ -144,7 +149,7 @@ export default defineConfig(({ mode }) => ({
   build: {
     outDir: "dist",
     // The symlink below owns `dist/assets`; bundled output must live under
-    // another name or closeBundle would silently delete it on every build.
+    // another name or writeBundle would silently delete it on every build.
     assetsDir: "vite",
     emptyOutDir: true,
   },

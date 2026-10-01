@@ -1,4 +1,4 @@
-// design/src/focus.ts
+// design/src/app/focus.ts
 // FOCUS, WHEN A LAYER OPENS AND WHEN IT CLOSES.
 //
 // A layer that opens without taking focus leaves a keyboard on the page behind

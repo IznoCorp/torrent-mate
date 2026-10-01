@@ -1,4 +1,4 @@
-// design/src/screens/profile.tsx
+// design/src/features/releases/quality-screen.tsx
 // The pilot screen: legacy `openProfil(titre)` (the per-title quality-profile
 // screen — resolution floor, required audio, two locks; NOT the account page
 // at `?page=profil`, which stays legacy) reborn as a real route and a final

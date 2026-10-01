@@ -1,4 +1,4 @@
-// design/src/pages/library.tsx
+// design/src/features/library/page.tsx
 // The fifth migrated PAGE, and the first whose CONTENT the fragment used to
 // write after the page was drawn: legacy `viewLibrary()` returned a skeleton —
 // an empty `#libitems`, an empty `#libcount` — and `fillLib()` / `libFoot()` /

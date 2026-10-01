@@ -55,7 +55,11 @@ RAISE = """(title) => {
   const box = row.getBoundingClientRect();
   const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
   const mine = !!hit && (hit === row || row.contains(hit));
-  if (mine) hit.click();
+  if (mine) {
+    // An icon is an SVGElement and has no `click` (B-364): it is sent the event a finger would.
+    if (typeof hit.click === "function") hit.click();
+    else hit.dispatchEvent(new MouseEvent("click", {bubbles: true, cancelable: true, view: window}));
+  }
   return {found: true, reachable: mine};
 }"""
 

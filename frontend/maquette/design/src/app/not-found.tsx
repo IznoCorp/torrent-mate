@@ -1,4 +1,4 @@
-// design/src/pages/not-found.tsx
+// design/src/app/not-found.tsx
 // An address that leads nowhere, answered honestly: what was asked for is
 // NAMED, nothing is claimed to be broken, and two ways out are offered — the
 // page one would have gone to anyway, and the menu that lists every page.
