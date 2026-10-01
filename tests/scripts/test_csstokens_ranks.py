@@ -128,10 +128,7 @@ class TestWhatTheSourcesDeclare:
         at the same number it passed silently and at any other it named the
         wrong site.
         """
-        variants = (
-            'export const tabBar = cva(\n  "bottombar fixed z-50",\n);\n\n'
-            'const helper = "relative z-50";\n'
-        )
+        variants = 'export const tabBar = cva(\n  "bottombar fixed z-50",\n);\n\nconst helper = "relative z-50";\n'
         found = arm.declared(tree(tmp_path, variants=variants)[1])
 
         assert ("tabBar", 50, "ui/variants/frame.ts:2") in found
