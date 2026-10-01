@@ -853,7 +853,6 @@ class TestScrapeResolveLockLifecycle:
     def test_item_lock_held_during_body_pipeline_lock_untouched(self, tmp_path: Path, test_config: Any) -> None:
         """A real scrape-resolve holds its per-item scrape lock mid-body, frees it after.
 
-        Design: docs/features/webui-ux/plan/phase-04-scraping.md §4.2
         Contract: scrape-resolve acquires a per-staging-item lock under
         ``<data_dir>/locks/scrape/`` for its lifetime — that lock file exists and
         is held by a live PID during the scrape/NFO body, and is removed when the

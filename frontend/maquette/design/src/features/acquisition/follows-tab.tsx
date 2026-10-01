@@ -131,6 +131,10 @@ export function FollowsTab(): ReactElement {
             .join(" ")
         : undefined,
     f: followFraction(follow) ?? undefined,
+    // « NOUVEAU », the tag the card draws for a follow just made: the record
+    // carried it and the row dropped it on the way (B-039), so nothing said
+    // which follow was new but the order.
+    fresh: follow.fresh,
     chip: showStatus
       ? { tone: STATUS_TONE[follow.status], text: followStatusLabel(follow) }
       : undefined,
