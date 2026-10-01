@@ -2,10 +2,10 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, develop, prod]
     types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
     # No paths-ignore: doc-only PRs (archive, README updates, plan files) would
-    # otherwise skip the workflow entirely. Required-status-check rules on main
+    # otherwise skip the workflow entirely. Required-status-check rules on a base
     # then leave the PR stuck in "expected" state forever (no run = no result).
     # Running CI on every PR (~3-5 min) is cheaper than diagnosing stuck PRs.
     # `labeled`/`unlabeled`: `version-bump`'s `no-version-bump` exemption reads

@@ -180,3 +180,17 @@ def test_no_trigger_reaches_the_condition_without_a_pull_request() -> None:
         f"the workflow declares {sorted(declared)} and not `pull_request`, and "
         "every hold in this file is about a pull request's draft state"
     )
+
+
+# The bases a pull request may target once the git flow is cut over: `develop` for every
+# change, `prod` for a hotfix. `main` stays until the cut-over PR, the last one it receives,
+# has merged (docs/features/git-flow/DESIGN.md § 3.4).
+PULL_REQUEST_BASES = ["main", "develop", "prod"]
+
+
+@pytest.mark.parametrize("name", ["ci.yml", "harness-full.yml"])
+def test_pull_requests_into_each_base_run_the_checks(name: str) -> None:
+    """A PR into `develop` or `prod` must dispatch the required checks, or it never merges."""
+    parsed = yaml.safe_load((WORKFLOW.parent / name).read_text(encoding="utf-8"))
+    on = parsed.get("on", parsed.get(True))
+    assert on["pull_request"]["branches"] == PULL_REQUEST_BASES
