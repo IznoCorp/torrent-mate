@@ -9,3 +9,7 @@ import "./panel-suggestion";
 import "./panel-discover-header";
 import "./panel-add";
 import "./panel-follow";
+// And the settled decision's block, which the journey sheet and the media screen
+// draw: it registers the « decision » kind, so it is named here like every other
+// block module rather than reached through whichever file imports its helpers.
+import "./decision-block";

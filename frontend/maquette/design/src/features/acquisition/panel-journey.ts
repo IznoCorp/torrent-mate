@@ -26,6 +26,7 @@ import { store } from "../../lib/store-access";
 import type { Schemas } from "../../lib/contract-schemas";
 import { DECISIONS_QUERY, type Decisions } from "./decision-queries";
 import { settledDecisionOf } from "./decision-block";
+import { heldIdentity, providerAddress } from "../../lib/held-identity";
 
 
 /** One rung of a medium's ladder, as the contract answers it. */
@@ -90,6 +91,42 @@ function stageLine(stage: Stage, name: string) {
 function releaseOf(title: string, decisions: Decisions | undefined): string | null {
   const pending = decisions?.pending.find((decision) => decision.title === title || decision.folder === title);
   return pending?.folder ?? settledDecisionOf(decisions, { title })?.folder ?? null;
+}
+
+/**
+ * What « Voir la fiche » carries from a journey: the medium's identity, or nothing.
+ *
+ * A TITLE IS NOT AN ADDRESS (B-616). The sheet is addressed by provider identity
+ * (DOIT-11), and a journey's title is the acquisition's — « The Alabama
+ * Solution », which the library holds as « The Alabama Solution dans l'enfer de
+ * la prison ». Handed the title alone, the crossing asked the cache, found no
+ * read naming it, and opened the resolution of « élément inconnu ». So the act
+ * carries the identity the journey knows, as a candidate's poster does
+ * (B-578): its card's, else the one its decision chose, else what a held read
+ * says of that title. Knowing none — a medium left as it was — the act is not
+ * offered: never a button that leads nowhere (DOIT-7).
+ *
+ * @param title The medium.
+ * @param ids Its own card's provider identifiers, when the queue holds it.
+ * @param decisions The decisions read, both lists.
+ * @returns The act's target, or null when no identity is known.
+ */
+function sheetTarget(
+  title: string,
+  ids: Record<string, string | number | null | undefined> | null | undefined,
+  decisions: Decisions | undefined,
+): Record<string, string> | null {
+  const known = (held: typeof ids) => providerAddress(held
+    ? Object.fromEntries(Object.entries(held).filter((entry): entry is [string, string | number] =>
+      entry[1] !== null && entry[1] !== undefined && entry[1] !== ""))
+    : null);
+  const choice = settledDecisionOf(decisions, { title })?.choice;
+  const address = known(ids)
+    ?? (choice ? { provider: choice.provider, id: String(choice.id) } : null)
+    ?? known(heldIdentity(title)?.ids);
+  return address === null
+    ? null
+    : { mediasheet: title, provider: address.provider, "provider-id": address.id };
 }
 
 /**
@@ -206,11 +243,13 @@ function journeyPanel(subject: string, cache: PanelCache): PanelDescriptor | nul
   const title = subject.split(KEY_SEPARATOR)[0];
   const { own, cover, tab, covered } = coverOf(subject, cache.held<AcquisitionQueue>(queueQuery().queryKey));
   const season = own?.season ?? null;
-  const release = own?.release || releaseOf(title, cache.held<Decisions>(DECISIONS_QUERY.queryKey));
+  const decisions = cache.held<Decisions>(DECISIONS_QUERY.queryKey);
+  const release = own?.release || releaseOf(title, decisions);
+  const toSheet = sheetTarget(title, own?.ids, decisions);
   // COVERED BY A WHOLE SEASON'S RECOVERY (Q6): the pointer, FOLLOWED (§ 13) —
   // the tab holding the season's card now, that card named — or, once the
   // season has left both tabs, where it went and the sheet.
-  const pointer: { note: string; action: Action } | null = cover === undefined ? null : tab !== undefined
+  const pointer: { note: string; action: Action | null } | null = cover === undefined ? null : tab !== undefined
     ? {
         note: translate("panels.journey.absorbedBy", { season }),
         action: {
@@ -220,8 +259,8 @@ function journeyPanel(subject: string, cache: PanelCache): PanelDescriptor | nul
       }
     : {
         note: translate("panels.journey.absorbedEnded", { season }),
-        action: { text: translate("panels.journey.seeSheet"), icone: icons.eye, ton: "primary" as const,
-          target: { mediasheet: title } },
+        action: toSheet === null ? null : { text: translate("panels.journey.seeSheet"), icone: icons.eye,
+          ton: "primary" as const, target: toSheet },
       };
   return {
     address: "journey:" + subject,
@@ -264,8 +303,8 @@ function journeyPanel(subject: string, cache: PanelCache): PanelDescriptor | nul
         actions: pointer !== null
           // A COVERED EPISODE IS NOT RELAUNCHED ALONE (17:36: « aucun
           // téléchargement … en parallèle »): its journey offers the pointer.
-          ? [pointer.action, ...(tab === undefined ? [] : [{
-              text: translate("panels.journey.seeSheet"), icone: icons.eye, target: { mediasheet: title },
+          ? [...(pointer.action === null ? [] : [pointer.action]), ...(tab === undefined || toSheet === null ? [] : [{
+              text: translate("panels.journey.seeSheet"), icone: icons.eye, target: toSheet,
             }])]
           : [
           // THE SEASON'S JOURNEY NAMES EACH EPISODE IT COVERS, with its state,
@@ -292,11 +331,11 @@ function journeyPanel(subject: string, cache: PanelCache): PanelDescriptor | nul
             icone: icons.search,
             target: { "journey-rescrape": subject },
           },
-          {
+          ...(toSheet === null ? [] : [{
             text: translate("panels.journey.seeSheet"),
             icone: icons.eye,
-            target: { mediasheet: title },
-          },
+            target: toSheet,
+          }]),
         ],
       },
     ],

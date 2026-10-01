@@ -164,8 +164,12 @@ function setBackgroundInert(layer: Element | null): void {
 function focusInto(layer: Element): void {
   const target = layer.querySelector<HTMLElement>(NAMED_ENTRY)
     ?? layer.querySelector<HTMLElement>(ENTRY);
+  // WITHOUT SCROLLING: a layer opens at its top (`ui/sheet.tsx`). Focusing an
+  // entry below the fold scrolled the journey sheet 177px the moment it opened,
+  // and a sheet not at its top disarms its drag band — the swipe that closes
+  // it scrolled instead (gestures.py, once L24's decision block grew the sheet).
   if (target) {
-    target.focus();
+    target.focus({ preventScroll: true });
     return;
   }
   // A layer with no control of its own still has to receive focus, or the
@@ -173,7 +177,7 @@ function focusInto(layer: Element): void {
   // without adding a stop to the tab order.
   const root = layer as HTMLElement;
   root.setAttribute("tabindex", "-1");
-  root.focus();
+  root.focus({ preventScroll: true });
 }
 
 /** Reconciles the focus stack with what the markup currently says is open. */
