@@ -401,6 +401,7 @@ examined: dict[str, int] = {
     "declared CSS classes / app": 0,
     "unread javascript / shell": 0,
     "name words / shell": 0,
+    "keyframe names / maquette": 0,
     "data-* names / markup": 0,
     "lines / shell scripts": 0,
     "interface text / app (exempt)": 0,

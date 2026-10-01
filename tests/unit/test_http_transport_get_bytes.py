@@ -87,7 +87,6 @@ class TestGetBytesUrlHandling:
     def test_absolute_url_used_verbatim(self) -> None:
         """An absolute URL is forwarded to ``requests.request`` unchanged.
 
-        Design: docs/features/torrent-fetch/DESIGN.md (§5.1, D10)
         Contract: ``get_bytes('https://c411.org/dl/abc?apikey=xyz')`` reaches
         the session with that exact URL — no base_url prefix, no rewrite.
         """
@@ -103,7 +102,6 @@ class TestGetBytesUrlHandling:
     def test_relative_url_joined_onto_base_url(self) -> None:
         """A relative URL is joined onto ``policy.base_url``.
 
-        Design: docs/features/torrent-fetch/DESIGN.md (§5.1, D10)
         Contract: ``get_bytes('/api/download/abc123?token=jwt')`` with
         ``base_url='https://c411.io'`` reaches the session as the full
         ``https://c411.io/api/download/abc123?token=jwt``.
@@ -124,7 +122,6 @@ class TestGetBytesNoAuthRemerge:
     def test_no_apikey_appended_to_absolute_url(self) -> None:
         """Query auth params are NOT re-appended on the download path.
 
-        Design: docs/features/torrent-fetch/DESIGN.md (§5.1, D9)
         Contract: even with ``ApiKeyAuth(location='query')`` configured, the
         verbatim absolute URL already carries its key, so ``params`` passed to
         ``requests.request`` is ``None``/empty — no second ``apikey``.
@@ -145,7 +142,6 @@ class TestGetBytesSizeCap:
     def test_oversize_body_raises_value_error(self) -> None:
         """A body exceeding ``max_bytes`` aborts with a ``ValueError``.
 
-        Design: docs/features/torrent-fetch/DESIGN.md (§5.1, D5)
         Contract: ``iter_content`` yielding 100 bytes with ``max_bytes=10``
         raises a provider-agnostic ``ValueError`` mentioning ``max_bytes`` —
         NOT a ``TorrentFetchError`` (transport stays decoupled).
@@ -160,7 +156,6 @@ class TestGetBytesSizeCap:
     def test_empty_body_raises_value_error(self) -> None:
         """An empty body aborts with a ``ValueError``.
 
-        Design: docs/features/torrent-fetch/DESIGN.md (§5.1, D5)
         Contract: ``iter_content`` yielding no chunks raises a
         provider-agnostic ``ValueError`` mentioning ``empty`` — NOT a
         ``TorrentFetchError`` (transport stays decoupled).
@@ -175,7 +170,6 @@ class TestGetBytesSizeCap:
     def test_oversize_closes_response(self) -> None:
         """The streamed response is closed even when the oversize abort fires.
 
-        Design: docs/features/torrent-fetch/DESIGN.md (§5.1, D5)
         Contract: aborting mid-stream on ``max_bytes`` must still ``close()``
         the response so the underlying connection is not leaked on the exact
         path defending against an unbounded stream.
@@ -193,7 +187,6 @@ class TestGetBytesSizeCap:
     def test_success_closes_response(self) -> None:
         """The streamed response is closed on the success path too.
 
-        Design: docs/features/torrent-fetch/DESIGN.md (§5.1, D5)
         Contract: a normal download closes the response after the body has been
         fully consumed (close happens after the bytes are read, never before).
         """
@@ -214,7 +207,6 @@ class TestGetBytesNon2xx:
     def test_401_raises_api_error(self) -> None:
         """A 401 response raises ``ApiError(http_status=401)``.
 
-        Design: docs/features/torrent-fetch/DESIGN.md (§5.1)
         Contract: the download path shares ``_do_request_raw``'s non-2xx
         raise, so an unauthorized download surfaces as ``ApiError``.
         """
@@ -229,7 +221,6 @@ class TestGetBytesNon2xx:
     def test_500_raises_api_error(self) -> None:
         """A 500 response raises ``ApiError(http_status=500)``.
 
-        Design: docs/features/torrent-fetch/DESIGN.md (§5.1)
         Contract: a server error on the download path surfaces as
         ``ApiError`` with the upstream status preserved.
         """
@@ -248,7 +239,6 @@ class TestDownloadCircuitIsolation:
     def test_download_500_does_not_open_search_circuit(self) -> None:
         """Download 5xx failures open the download circuit, not the search one.
 
-        Design: docs/features/torrent-fetch/DESIGN.md (§5.1, D3)
         Contract: with ``failure_threshold=2``, two failing ``get_bytes``
         calls open ``_download_circuit`` (OPEN) while ``_circuit`` (search)
         stays CLOSED — a download outage never trips the search breaker.
@@ -267,7 +257,6 @@ class TestDownloadCircuitIsolation:
     def test_search_rate_limiter_not_acquired_by_get_bytes(self) -> None:
         """``get_bytes`` acquires the download limiter, never the search one.
 
-        Design: docs/features/torrent-fetch/DESIGN.md (§5.1, D3)
         Contract: spying on ``_rate_limiter.acquire`` (search) shows it is
         never called by a succeeding ``get_bytes`` — only the dedicated
         ``_download_rate_limiter`` is used.
@@ -289,7 +278,6 @@ class TestGetBytesResponseFormat:
     def test_xml_transport_returns_raw_bytes(self) -> None:
         """An ``xml`` transport's ``get_bytes`` returns raw ``bytes``.
 
-        Design: docs/features/torrent-fetch/DESIGN.md (§5.1, F9)
         Contract: ``response_format='xml'`` does not route the download body
         through the XML parser — ``get_bytes`` returns the raw ``bytes``, not
         a parsed dict.
@@ -310,8 +298,7 @@ class TestProviderName:
     def test_provider_name_exposes_policy_value(self) -> None:
         """``HttpTransport.provider_name`` returns the policy's provider name.
 
-        Design: docs/features/torrent-fetch/DESIGN.md (§5.2) — the tracker fetch
-        boundary reads ``transport.provider_name`` for error context instead of
+        The tracker fetch boundary reads ``transport.provider_name`` for error context instead of
         reaching into the private ``_policy`` attribute.
         Contract: the property delegates to ``policy.provider_name`` (read-only).
         """

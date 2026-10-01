@@ -57,11 +57,13 @@ Note on pyfakefs + sqlite3:
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import re
 import sqlite3
 import time
+from collections.abc import Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
@@ -106,6 +108,38 @@ MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "inde
 # ---------------------------------------------------------------------------
 
 _GUARD_PATCH = "personalscraper.indexer.scanner.guard_disk_mounted"
+
+
+@contextlib.contextmanager
+def _walker_scandir_calls() -> Iterator[list[str]]:
+    """Records the paths the walker hands to ``os.scandir``, and only the walker's.
+
+    B-034: patching ``_walker.os.scandir`` patched the SHARED ``os`` module, so
+    every other caller inside the block was recorded too — a file descriptor
+    from a platform's own ``scandir`` user crashed the holds on
+    ``int.startswith``. The walker's own ``os`` name is replaced instead, by a
+    proxy that delegates everything but ``scandir``.
+
+    Yields:
+        The paths, in call order.
+    """
+    from personalscraper.indexer.scanner import _walker
+
+    calls: list[str] = []
+    real_os = _walker.os
+
+    class _TrackedOs:
+        def __getattr__(self, name: str) -> Any:
+            return getattr(real_os, name)
+
+        def scandir(self, path: Any) -> Any:
+            calls.append(path)
+            return real_os.scandir(path)
+
+    with patch.object(_walker, "os", _TrackedOs()):
+        yield calls
+
+
 _VERIFY_PATCH = "personalscraper.indexer.scanner.verify_disk_mounted"
 
 
@@ -721,15 +755,8 @@ class TestQuickMode:
         assert updated_disk is not None
 
         # Quick scan — scandir for the mount path must NOT be called.
-        scandir_calls: list[str] = []
-        real_scandir = __import__("os").scandir
-
-        def _tracking_scandir(path: str) -> object:
-            scandir_calls.append(path)
-            return real_scandir(path)
-
         with patch(_GUARD_PATCH, return_value=None):
-            with patch("personalscraper.indexer.scanner._walker.os.scandir", side_effect=_tracking_scandir):
+            with _walker_scandir_calls() as scandir_calls:
                 result = scan([updated_disk], ScanMode.quick, generation=2, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
@@ -737,6 +764,24 @@ class TestQuickMode:
         # No scandir call should have touched the mount path subtree.
         mount_calls = [c for c in scandir_calls if c.startswith(mount)]
         assert mount_calls == [], f"scandir was called for mount path: {mount_calls}"
+
+    def test_scandir_recorder_hears_the_walker_alone(self, tmp_path: Path) -> None:
+        """A foreign ``os.scandir`` caller inside the block is not recorded (B-034).
+
+        The caller here passes a file descriptor, the shape that crashed the two
+        quick-mode holds on Linux: recorded, ``c.startswith(mount)`` raised
+        ``AttributeError: 'int' object has no attribute 'startswith'``.
+        """
+        if os.scandir not in os.supports_fd:
+            pytest.skip("this platform's os.scandir takes no file descriptor")
+        descriptor = os.open(tmp_path, os.O_RDONLY)
+        try:
+            with _walker_scandir_calls() as scandir_calls:
+                with os.scandir(descriptor) as entries:
+                    list(entries)
+        finally:
+            os.close(descriptor)
+        assert scandir_calls == []
 
     # ------------------------------------------------------------------
     # Test 2: Merkle miss → full dir walk is performed
@@ -760,15 +805,8 @@ class TestQuickMode:
         # Insert disk with a deliberately wrong merkle_root.
         disk = _insert_disk(conn, mount, merkle_root="deadbeefdeadbeef" * 4)
 
-        scandir_calls: list[str] = []
-        real_scandir = __import__("os").scandir
-
-        def _tracking_scandir(path: str) -> object:
-            scandir_calls.append(path)
-            return real_scandir(path)
-
         with patch(_GUARD_PATCH, return_value=None):
-            with patch("personalscraper.indexer.scanner._walker.os.scandir", side_effect=_tracking_scandir):
+            with _walker_scandir_calls() as scandir_calls:
                 result = scan([disk], ScanMode.quick, generation=1, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"

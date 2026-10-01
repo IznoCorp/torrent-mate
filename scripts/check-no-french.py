@@ -436,6 +436,33 @@ def check_class_names(violations: list[str]) -> None:
                     "name shared by four worlds")
 
 
+KEYFRAMES = re.compile(r"@keyframes\s+(?P<name>[A-Za-z_][\w-]*)")
+
+
+def unknown_keyframe_words(source: str, words: set[str]) -> list[tuple[str, int, list[str]]]:
+    """Returns the `@keyframes` names of a stylesheet built from words the codebase does not use.
+
+    A keyframe name is a name someone chose, and no arm read one: `splashremplit`
+    sat in the maquette's base layer under a green gate (B-056). Read against the
+    vocabulary rather than a French list, because a flat compound like that one
+    holds no token a list of French words could match.
+
+    Args:
+        source: The stylesheet.
+        words: The vocabulary, lower-cased.
+
+    Returns:
+        One `(name, line, unknown words)` per refused declaration, in source order.
+    """
+    refused = []
+    for match in KEYFRAMES.finditer(source):
+        name = match.group("name")
+        unknown = [w for w in split_identifier(name) if len(w) > 1 and w.lower() not in words]
+        if unknown:
+            refused.append((name, source.count("\n", 0, match.start()) + 1, unknown))
+    return refused
+
+
 def check_vocabulary(violations: list[str]) -> None:
     """Refuses a declared name built from a word this codebase does not use.
 
@@ -475,6 +502,16 @@ def check_vocabulary(violations: list[str]) -> None:
             violations.append(
                 f"{relative(SHELL / name)}: recorded as generated and is not in the "
                 "tree — the exemption has stopped describing anything")
+    # THE MAQUETTE'S KEYFRAME NAMES, read here and not in the class-name arm:
+    # that arm asks « is this French? », and `splashremplit` answered no (B-056).
+    for sheet in sorted((ROOT / "frontend" / "maquette" / "design" / "src" / "styles").glob("*.css")):
+        css = read(sheet)
+        examined["keyframe names / maquette"] += len(KEYFRAMES.findall(css))
+        for name, line_no, unknown in unknown_keyframe_words(css, words):
+            violations.append(
+                f"{relative(sheet)}:{line_no}: keyframe {name!r} is built from "
+                f"{', '.join(repr(w) for w in unknown)}, not in {relative(VOCABULARY)} — "
+                "rename it in English (the declaration and every `animation` reading it)")
     sources = [p for p in sources if p not in generated]
     examined.setdefault("generated sources stepped over / shell", 0)
     examined["generated sources stepped over / shell"] += len(generated)

@@ -18,7 +18,7 @@ import { useSyncExternalStore } from "react";
 import { markSeasonQueued, refreshPipelineStatus } from "./queued-seasons";
 import i18next from "i18next";
 import { HELD, isRequestFailure, send } from "../../lib/query-client";
-import { panel, toast } from "../../lib/shell-doors";
+import { followedTitles, panel, toast } from "../../lib/shell-doors";
 
 /** What the operation answers, as the contract declares it. */
 type SeasonGrab = {
@@ -188,11 +188,18 @@ export async function grabSeason(title: string, season: number): Promise<boolean
     const count = grab?.absorbedCount ?? 0;
     // A LIVE RECOVERY OF THAT SEASON WAS ALREADY THERE — the engine answers
     // `reused` and queues nothing more: said so, never as a new ask.
+    // A ONE-OFF SAYS WHERE IT WENT, as « taken » does (B-562): a season of a
+    // series nobody follows becomes a card of its own in « En cours », and the
+    // follow's count sentence pointed nowhere. A door not yet filled says
+    // nothing about the follows, so the follow's sentence stands there.
+    const oneOff = followedTitles !== undefined && !followedTitles().includes(title);
     const messageKey = grab?.reused
       ? "seasonAlreadyAsked"
       : grab?.queued
       ? "seasonQueued"
-      : count === 0
+      : oneOff
+        ? "seasonAskedOneOff"
+        : count === 0
         ? "seasonAskedNone"
         : count === 1
           ? "seasonAskedOne"
