@@ -42,16 +42,16 @@ operation ONE call, and a wait on the page makes none (`window.__mocks.answered(
 3. R-L17-k written first, seen red; R-L17-b re-aimed (its second hold: the roster's count agrees with the mark's own
    rows, summed across torrents); R-L17-a re-aimed at the mark's chips.
 
-## Mutation
+## ~~Mutation~~
 
 Commit first: add a refetch interval to the mark's read → R-L17-k falls; declare a second operation for the mark
 → falls; render the count from a constant → R-L17-b falls; render a state as the raw enum value → R-L17-a falls;
 reorder the rows against F64 → the order hold falls. **Register**: —.
 
-## Oracle and gate — done when
+## ~~Oracle and gate — done when~~
 
-Oracle: L16's `torrents-list` (the origin row gains a disclosure) diverges, accepted with « L17 § 3.3: the
-cross-seed mark »; any other divergence is STOP A. Gate: per INDEX « Gates »; `--a11y` on `torrents-cross-seed`.
+~~Oracle: L16's `torrents-list` (the origin row gains a disclosure) diverges, accepted with « L17 § 3.3: the~~
+~~cross-seed mark »; any other divergence is STOP A. Gate: per INDEX « Gates »; `--a11y` on `torrents-cross-seed`.~~
 
 ## Commit
 

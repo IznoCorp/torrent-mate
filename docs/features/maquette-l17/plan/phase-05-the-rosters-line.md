@@ -35,9 +35,9 @@ draws equals the mock's own field. Red against `main`: no line exists.
    dial of phase 2.
 3. R-L17-a re-aimed: the chip the line draws reads one of the six words.
 
-## Mutation
+## ~~Mutation~~
 
-Commit first, then `scripts/mutate.sh`: compute the count client-side from a constant → R-L17-b falls; draw the
+~~Commit first, then `scripts/mutate.sh`: compute the count client-side from a constant → R-L17-b falls; draw the~~
 tracker's state from a hard-coded word → falls; draw the raw code → R-L17-a falls; hide the tracker's own switch
 cause when the engine is off → the M6 hold falls.
 
@@ -45,10 +45,10 @@ cause when the engine is off → the M6 hold falls.
 
 —
 
-## Oracle: states that diverge, declared by name
+## ~~Oracle: states that diverge, declared by name~~
 
 L16's `trackers-list` (each entry gains a line) and `tracker-alert-active` where it draws the roster — accepted
-with « L17 § 3.1: the entry's cross-seed line ». Any other divergence is STOP A.
+~~with « L17 § 3.1: the entry's cross-seed line ». Any other divergence is STOP A.~~
 
 ## Gate
 

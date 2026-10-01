@@ -19,12 +19,12 @@
   extended reads 1; the scenario dial's read (the default vs. the named off-scenarios) wired into both handlers 2;
   → 10, 11 by rounding.
 - **Found (2026-09-27).** The counts are DERIVED, not seeded (DESIGN § 2.3): `active` and `failed` are computed
-  from the SAME rows the downloads read answers, so R-L17-b's agreement holds by construction and a mutation that
+  ~~from the SAME rows the downloads read answers, so R-L17-b's agreement holds by construction and a mutation that~~
   seeds them twice is what the rule fells. **No media route is drawn here** — it is dropped, not merely deferred.
 
 ## Red today
 
-None — a handler has no rule; `contract-conformance.test.ts` and `check-mock-seeds.py` are the guards.
+~~None — a handler has no rule; `contract-conformance.test.ts` and `check-mock-seeds.py` are the guards.~~
 
 ## Move
 
@@ -33,7 +33,7 @@ None — a handler has no rule; `contract-conformance.test.ts` and `check-mock-s
    every projection in the same answer.
 2. Register the handler(s) in `mocks/handlers/index.ts`.
 
-## Mutation
+## ~~Mutation~~
 
 None.
 
@@ -41,13 +41,13 @@ None.
 
 —
 
-## Oracle: states that diverge, declared by name
+## ~~Oracle: states that diverge, declared by name~~
 
 None.
 
 ## Gate
 
-Per INDEX « Gates »; `python3 scripts/check-mock-seeds.py`; the contract-conformance unit test (`npm --prefix
+~~Per INDEX « Gates »; `python3 scripts/check-mock-seeds.py`; the contract-conformance unit test (`npm --prefix~~
 frontend/maquette/design test -- --run mocks/contract-conformance` — vitest, run under the test class of the mutex).
 
 ## Commit

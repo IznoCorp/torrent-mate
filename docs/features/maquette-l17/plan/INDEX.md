@@ -14,6 +14,18 @@ re-takes each phase's figures at the moment that phase opens** and reports a dif
 **Where L17 opens in the order: after L16.** The order is L13 · L22 · L16 · L17 · L18. L17 extends the two tabs L16
 lands and never opens between L16's phases.
 
+
+> **RE-GROUPED AT THE LOT'S OPENING, 2026-09-30 (the method's reset, `docs/reference/method.md`: a phase is one
+> surface).** The eighteen phases below were built as seven: (1) contract + seed + mocks — demands A, B, D, E,
+> K and the cut filed at once; (2) the six words and each tracker's line (S1); (3) the torrent's cross-seed
+> mark with its refusals and the obligation's origin (S3, S4), re-homed from the row onto the torrent's PANEL
+> by L16-bis § 1.5; (4) the tracker's switch and its confirmation (S2), in the tracker's panel; (5) the cut and
+> the exclusion memory (S3 cut, S3-bis); (6) the badge's failure term and the stream (S6); (7) « Chercher un
+> cross-seed » — the panel's per-pair act and the origin card's left drawer (L16-bis § 1.6) — then the close.
+> The virtual window (phase 16) was not built: the mark lives in a panel, never a list that grows with the
+> library. **Struck lines (~~…~~) name controls the reset retired** — mutations, the oracle and its
+> records, hold counts, the retired guards; they are kept as the record of the plan as cut.
+
 ---
 
 ## THE PHASES CHAIN. THEY DO NOT PAUSE.
@@ -26,7 +38,7 @@ file does not.
 the answer is yes, the next phase exists, and none of the STOPs below is the reason, **continue**. The only
 permitted halts:
 
-- **STOP A** — the oracle diverging on a state the phase did not name (DESIGN § 4.1).
+- ~~**STOP A** — the oracle diverging on a state the phase did not name (DESIGN § 4.1).~~
 - **STOP B** — the pull request.
 - **STOP C** — none of DESIGN § 7.2's eight questions is open any longer; this STOP is retired for this lot's own
   plan. **If a phase finds a NEW question a ruling did not answer, it is written OPEN with two readings and no
@@ -44,12 +56,12 @@ Anything believed necessary outside the contract: STOP and ask the steward first
 ## The rule that governs every phase
 
 **Rule first, seen RED, then the move, then the same rule green with its holds counted.** Here the red is the
-strongest form this repository asks for and needs no mutation: **none of these surfaces exists on `main`**, so
+~~strongest form this repository asks for and needs no mutation: **none of these surfaces exists on `main`**, so~~
 every hold fails there for the reason it was written. Each phase says so and the report records the red reading per
-rule. Where a phase re-aims a rule an earlier phase wrote, the mutation comes after the move: break it on purpose,
+~~rule. Where a phase re-aims a rule an earlier phase wrote, the mutation comes after the move: break it on purpose,~~
 confirm the rule falls and NAMES the right defect, restore.
 
-**Commit BEFORE every mutation**, and mutate with `scripts/mutate.sh <file> <expression> <rule…>` — by hand leaves
+~~**Commit BEFORE every mutation**, and mutate with `scripts/mutate.sh <file> <expression> <rule…>` — by hand leaves~~
 the served copy of the PREVIOUS build in place (B-303). It cannot judge a GUARD (B-273): a guard's exit code is read
 by hand.
 
@@ -70,7 +82,7 @@ ever.
 (`CLAUDE.md` § Code Conventions) — this lot renames Réglages' « Partage croisé » key (round 9 Q10) through it.
 
 **The mock is INVENTED** (DESIGN, opening). Every seed row this lot adds is marked `x-unseeded`, and the fixture
-register says so; a phase that writes a row and does not mark it is refused by `python3 scripts/check-mock-seeds.py`
+~~register says so; a phase that writes a row and does not mark it is refused by `python3 scripts/check-mock-seeds.py`~~
 — its exit code is read by OUTPUT, not by its status (B-346).
 
 ---
@@ -85,7 +97,7 @@ scale is L22's and L16's own:
 | a line **edited or deleted** in a site | 1 per 5 |
 | a line **written new** | 1 per 10 |
 | a file moved, or a file deleted | 1 · ½ |
-| a new rule with its mutation(s) | 3 |
+| ~~a new rule with its mutation(s)~~ | 3 |
 | a rule file re-aimed (its walk changes) · one id swapped | 1 · ½ |
 | a new named state (re-using a seed) · (needing a new seed row) | 1 · 2 |
 | a contract operation edited · declared new | 1 · 2 |
@@ -118,7 +130,7 @@ phase (16) on that clause.
 | 14 | [« Chercher un cross-seed »: its contract and mock](phase-14-provoke-contract-and-mock.md) | demand E, its route keyed by torrent and tracker, the throttle's answer, the quota on the mark's read — bounded by the quota and the delay ONLY | — | 9, 10 | 8 |
 | 15 | [« Chercher un cross-seed »: the act](phase-15-provoke-the-act.md) | the act on a mark's row, offered only on the three eligible states, bounded, visible, resolving within the visit | i | 9, 9-bis | 10 |
 | 16 | [The virtual window](phase-16-the-virtual-window.md) | `ui/virtual-rows.tsx` in fixed-size mode for the mark's rows once they pass a screenful; the opened-refusal row measured against it | — | — | 9 |
-| 17 | [The records](phase-17-the-records.md) | oracle, accessibility, regions, hold counts | — | — | 8 |
+| 17 | [The records](phase-17-the-records.md) | ~~oracle, accessibility, regions, hold counts~~ | — | — | 8 |
 | 18 | [The close](phase-18-the-close.md) | the register, the map's proposal, the demands' counters, the README's row extended, the report | — | 14 | 8 |
 
 **Opening measures**, each phase file's own head: 13, 13, 11, 15, 11, 15, 10, 13, 13, 13, 11, 9, 10, 8, 10, 9, 8,
@@ -129,7 +141,7 @@ phase (16) on that clause.
 ## Why eighteen phases, and what a phase costs
 
 **A phase is a unit of attribution, not a gate.** Each is ONE commit (two where the phase says « commit before the
-mutation »), and its gate is the contracts tier plus the oracle — minutes, not the full suite. The full gate runs
+~~mutation »), and its gate is the contracts tier plus the oracle — minutes, not the full suite. The full gate runs~~
 ONCE, before the pull request (STOP B). The count follows from two rules, not from appetite: **one kind of change
 per phase** (a contract, a seed and a handler are three commits) and **the 15-point ceiling**.
 
@@ -164,14 +176,14 @@ trusting what the phases claimed.
 ## Gates
 
 **Per phase**: the shared-lock `frontend/maquette/harness/run.sh --contracts` — the contract rules AND the
-repository's cheap guards, the script prints how many of each — and the oracle, with divergences ONLY on the states
+~~repository's cheap guards, the script prints how many of each — and the oracle, with divergences ONLY on the states~~
 DESIGN § 4.1 names for that phase, each accepted with its written reason (D8). Every other state at zero, or it is
-**STOP A**.
+~~**STOP A**.~~
 
 **Before the pull request** (the maquette wave's own gate — a maquette wave does not run `make check`; CI's `test`
 job is the authority, `docs/reference/method.md`): `make lint`; the full suite (`frontend/maquette/harness/run.sh`,
 not the `--contracts` tier), expected no failure; the `--a11y` tier at 0 over the states this lot adds (twelve,
-DESIGN § 4); `python3 scripts/harness-hold-counts.py --compare` with **`failed` read FIRST** (B-291) and every
+~~DESIGN § 4); `python3 scripts/harness-hold-counts.py --compare` with **`failed` read FIRST** (B-291) and every~~
 movement written down; the pre-push pytest; `python3 scripts/check-intent-map.py`, `python3 scripts/check-bug-register.py`
 and `python3 scripts/check-docs-cited-paths.py` read by OUTPUT, not by exit code (B-346). The pull request bumps the
 version (patch) — the `version-bump` job enforces it — because it changes `frontend/maquette/design/src/`.
@@ -184,7 +196,7 @@ amended): at least ten runs of each side, or as many as it takes to separate the
 explains.
 
 **The « In flight » row is written when the pull request opens** — pull request number first, then the version;
-`scripts/check-implementation-state.py` holds the row by both. **A DRAFT pull request runs no CI** (`CLAUDE.md` §
+~~`scripts/check-implementation-state.py` holds the row by both. **A DRAFT pull request runs no CI** (`CLAUDE.md` §~~
 Commit Convention): open it READY, or add `run-ci-on-draft` and read the run that label dispatches — never both in
 one breath.
 

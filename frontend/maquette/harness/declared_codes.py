@@ -101,6 +101,12 @@ ASKED_FOR = {
     # The veille answers 202 with the run it launched, since its figures are read
     # from that run rather than returned at once.
     "runDetection": ("POST", "/api/acquisition/detect"),
+    # A cross-seed search answers 202 with what it queued, since the engine
+    # searches on its own quota's time rather than at once. The origin is Star
+    # Trek's complete download, whose `lacale` and `v3x.club` pairs are each in
+    # a searchable state (DOIT-4's own corpus hold fell until this was asked).
+    "searchCrossSeed": (
+        "POST", "/api/torrents/8d51568b1a4f46e1fb7e7b535b52a5203312fc28/cross-seed/search"),
     # The 200 family's witness. A read, because the plain success is what every
     # read answers and a rule holding only mutations would say nothing about
     # the fifty-five operations that make up the rest of the contract.

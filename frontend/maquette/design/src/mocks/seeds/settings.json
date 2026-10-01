@@ -685,6 +685,15 @@
       },
       {
         "file": "tracker",
+        "key": "tracker.providers.v3x.club.cross_seed",
+        "type": "boolean",
+        "raw": false,
+        "name": "cross_seed",
+        "displayedValue": "inactif",
+        "note": "COMPOSED for the maquette: the cross-seed switch of a tracker the operator asked for (2026-09-29), absent from the engine — demand T1, off as the other trackers' example values are."
+      },
+      {
+        "file": "tracker",
         "key": "tracker.providers.draupnirr.xyz.enabled",
         "type": "boolean",
         "raw": false,
@@ -694,12 +703,30 @@
       },
       {
         "file": "tracker",
+        "key": "tracker.providers.draupnirr.xyz.cross_seed",
+        "type": "boolean",
+        "raw": false,
+        "name": "cross_seed",
+        "displayedValue": "inactif",
+        "note": "COMPOSED for the maquette: the cross-seed switch of a tracker the operator asked for (2026-09-29), absent from the engine — demand T1, off as the other trackers' example values are."
+      },
+      {
+        "file": "tracker",
         "key": "tracker.providers.digitalcore.club.enabled",
         "type": "boolean",
         "raw": false,
         "name": "enabled",
         "displayedValue": "inactif",
         "note": "COMPOSED for the maquette: a tracker the operator asked for (2026-09-29, « v3x.club et draupnirr.xyz, mais aussi digitalcore.club »), absent from the engine — demand T1."
+      },
+      {
+        "file": "tracker",
+        "key": "tracker.providers.digitalcore.club.cross_seed",
+        "type": "boolean",
+        "raw": false,
+        "name": "cross_seed",
+        "displayedValue": "inactif",
+        "note": "COMPOSED for the maquette: the cross-seed switch of a tracker the operator asked for (2026-09-29), absent from the engine — demand T1, off as the other trackers' example values are."
       },
       {
         "file": "tracker",

@@ -33,7 +33,7 @@ None — a contract and a handler carry no rule; R-L17-i (phase 15) reads them.
    `compare-contracts.py --write` / `--check`, types, counters before and after.
 2. The handler, and the quota field on the mark's read.
 
-## Mutation
+## ~~Mutation~~
 
 None.
 
@@ -41,13 +41,13 @@ None.
 
 Demand E filed by the regenerated register.
 
-## Oracle: states that diverge, declared by name
+## ~~Oracle: states that diverge, declared by name~~
 
 None.
 
 ## Gate
 
-Per INDEX « Gates »; `python3 scripts/compare-contracts.py --check`; `python3 scripts/check-mock-seeds.py`.
+~~Per INDEX « Gates »; `python3 scripts/compare-contracts.py --check`; `python3 scripts/check-mock-seeds.py`.~~
 
 ## Commit
 

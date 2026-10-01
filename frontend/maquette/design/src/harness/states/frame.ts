@@ -31,6 +31,20 @@ export function drawerStates(): NamedState[] {
         applyState({ page: "acq", acqTab: "follows", phase: "ready" });
       },
     ],
+    [
+      "bar-trackers-refused",
+      "La barre — l'onglet Trackers porte un badge que seuls les échecs de cross-seed justifient, hors de sa page (INVENTÉ ; les deux pannes de tracker levées, POSÉ)",
+      () => {
+        window.__mocks?.reset();
+        // THE TWO TRACKERS A FAILURE SWITCHED OFF RECOVER, so only the cross-seed's failures count.
+        window.__mocks?.poseRecovered("lacale");
+        window.__mocks?.poseRecovered("digitalcore.club");
+        for (const address of ["/api/trackers", "/api/acquisition/downloads", "/api/acquisition/obligations"]) {
+          window.__queries?.removeQueries({ queryKey: [address] });
+        }
+        applyState({ page: "acq", acqTab: "follows", phase: "ready" });
+      },
+    ],
   ];
 }
 

@@ -63,13 +63,40 @@ const SUBJECT_NAMES: Record<string, string> = fr.settings.subjects;
 // caught by reading the file the segment comes from.
 const unnamedSubjects = new Set<string>();
 
+// AN ENTRY MAY CARRY DOTS OF ITS OWN: a tracker is keyed by its domain
+// (`tracker.providers.v3x.club.cross_seed`), so splitting on every dot reads
+// « v3x » and « club » as two subjects. Under these collections the entry
+// runs from the collection to the FIRST of its own fields — `TrackerProviderConfig`'s
+// — and is one segment, whatever dots it holds.
+const ENTRY_OWN_FIELDS: Readonly<Record<string, ReadonlySet<string>>> = {
+  "tracker.providers": new Set(["enabled", "economy", "cross_seed"]),
+};
+
+/**
+ * A setting's key cut into its path segments, an entry keyed by a domain kept whole.
+ *
+ * @param key The setting's key.
+ * @returns The segments, the leaf included.
+ */
+function keySegments(key: string): string[] {
+  for (const [collection, fields] of Object.entries(ENTRY_OWN_FIELDS)) {
+    if (!key.startsWith(`${collection}.`)) continue;
+    const rest = key.slice(collection.length + 1).split(".");
+    const own = rest.findIndex((segment, index) => index > 0 && fields.has(segment));
+    if (own <= 0) break;
+    return [...collection.split("."), rest.slice(0, own).join("."), ...rest.slice(own)];
+  }
+  return key.split(".");
+}
+
 export function settingSubject(setting: Setting): string {
-  const segments = setting.key
-    .split(".")
+  const segments = keySegments(setting.key)
     .slice(0, -1)
     .filter((s) => s !== setting.file && !SETTING_CONTAINERS.has(s));
   return segments
     .map((s) => {
+      // A DOMAIN NAMES ITSELF: it is the tracker's name as the Trackers page reads it.
+      if (s.includes(".")) return SUBJECT_NAMES[s] ?? s;
       if (!SUBJECT_NAMES[s]) unnamedSubjects.add(s);
       return SUBJECT_NAMES[s] ?? s.replace(/_/g, " ");
     })
