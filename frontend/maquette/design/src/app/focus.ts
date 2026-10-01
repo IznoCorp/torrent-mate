@@ -164,8 +164,12 @@ function setBackgroundInert(layer: Element | null): void {
 function focusInto(layer: Element): void {
   const target = layer.querySelector<HTMLElement>(NAMED_ENTRY)
     ?? layer.querySelector<HTMLElement>(ENTRY);
+  // `preventScroll`, AS ON THE WAY BACK (below): a layer's first control can sit
+  // far under its head — a torrent's panel opened 605 px down on « Chercher un
+  // cross-seed », its title out of view (B-615). Focus moves in; the layer opens
+  // at its head.
   if (target) {
-    target.focus();
+    target.focus({ preventScroll: true });
     return;
   }
   // A layer with no control of its own still has to receive focus, or the
@@ -173,7 +177,7 @@ function focusInto(layer: Element): void {
   // without adding a stop to the tab order.
   const root = layer as HTMLElement;
   root.setAttribute("tabindex", "-1");
-  root.focus();
+  root.focus({ preventScroll: true });
 }
 
 /** Reconciles the focus stack with what the markup currently says is open. */
