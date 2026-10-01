@@ -11,8 +11,18 @@
 # under a memory watchdog, and releases the lock whatever happens. A run that
 # drops the machine under HARD_FLOOR_MB for 45 s is stopped: only what this
 # script started is ever touched. `HEAVY_LOCK` moves the lock.
+#
+# WAITERS ARE SERVED IN THE ORDER THEY ASKED (B-472). Each one writes a ticket
+# in the lock's `queue/` directory, named by the second it asked and its pid,
+# and only the oldest ticket whose process is alive may take the lock: a polled
+# `mkdir` alone gave whoever polled first after a release the turn, so with
+# several waves waiting the lock, not the work, set a wave's pace.
+#
+# EVERY LINE IS TIMED, and the start says how long the run waited (B-495): a
+# log otherwise cannot tell a run held for a minute from one held for an hour.
 
 LOCK=${HEAVY_LOCK:-/private/tmp/tm-heavy/holder}
+QUEUE="$(dirname "$LOCK")/queue"
 
 # The lock is a directory; `who` is written only by a holder.
 if [ "${1:-}" = "--held" ]; then
@@ -41,6 +51,12 @@ case "$RUN_CLASS" in
         exit 64
         ;;
 esac
+say() {
+    echo "heavy: $(date '+%H:%M:%S') $*" >&2
+}
+
+ASKED=$(date +%s)
+
 FREE_FLOOR_MB=${HEAVY_FREE_FLOOR_MB:-$CLASS_FLOOR_MB}
 LOAD_CEILING=${HEAVY_LOAD_CEILING:-$CLASS_LOAD_CEILING}
 HARD_FLOOR_MB=${HEAVY_HARD_FLOOR_MB:-2048}
@@ -86,18 +102,41 @@ room_fits() {
     [ "$(at_least "$free" "$FREE_FLOOR_MB")" = 1 ] && [ "$(at_most "$load" "$LOAD_CEILING")" = 1 ]
 }
 
-echo "heavy: wants ${FREE_FLOOR_MB}MB free and load ${LOAD_CEILING} or below (class ${RUN_CLASS:-none})" >&2
+say "wants ${FREE_FLOOR_MB}MB free and load ${LOAD_CEILING} or below (class ${RUN_CLASS:-none})"
 
 parent=$(dirname "$LOCK")
 mkdir -p "$parent" 2>/dev/null || true
 if [ ! -d "$parent" ] || [ ! -w "$parent" ]; then
-    echo "heavy: cannot use $parent as the lock's home — running unlocked" >&2
+    say "cannot use $parent as the lock's home — running unlocked"
     exec "$@"
 fi
+
+mkdir -p "$QUEUE" 2>/dev/null || true
+ticket="$QUEUE/$(printf '%012d.%08d' "$ASKED" "$$")"
+echo "$WHO" > "$ticket"
+trap 'rm -f "$ticket"; exit 130' INT TERM
+trap 'rm -f "$ticket"' EXIT
+
+# 0 when this run's ticket is the oldest one whose process is alive; a ticket
+# whose process is gone is removed on the way.
+my_turn() {
+    for waiting in "$QUEUE"/*; do
+        [ -f "$waiting" ] || continue
+        waiter=$(expr "${waiting##*.}" + 0 2>/dev/null) || waiter=""
+        if [ -z "$waiter" ] || ! kill -0 "$waiter" 2>/dev/null; then
+            rm -f "$waiting"
+            continue
+        fi
+        [ "$waiting" = "$ticket" ]
+        return
+    done
+    return 0
+}
 
 child=""
 release() {
     [ -n "$child" ] && { kill -TERM -"$child" 2>/dev/null || kill -TERM "$child" 2>/dev/null; }
+    rm -f "$ticket"
     rm -rf "$LOCK"
 }
 
@@ -109,16 +148,24 @@ while :; do
         room_fits
         rc=$?
         [ "$rc" -eq 2 ] &&
-            echo "heavy: this machine reports neither free memory nor load — running unmeasured" >&2
+            say "this machine reports neither free memory nor load — running unmeasured"
         [ "$rc" -ne 1 ] && break
         [ "$room_announced" -eq 0 ] &&
-            echo "heavy: holding off — ${free}MB free, load $load (wants ${FREE_FLOOR_MB}MB and $LOAD_CEILING)" >&2
+            say "holding off — ${free}MB free, load $load (wants ${FREE_FLOOR_MB}MB and $LOAD_CEILING)"
         room_announced=1
         sleep 5
     done
 
     lock_announced=0
+    turn_announced=0
     while :; do
+        if ! my_turn; then
+            [ "$turn_announced" -eq 0 ] &&
+                say "waiting behind an older demand in $QUEUE"
+            turn_announced=1
+            sleep 3
+            continue
+        fi
         if mkdir "$LOCK" 2>/dev/null; then
             echo "$WHO" > "$LOCK/who"
             echo "$$" > "$LOCK/pid"
@@ -130,26 +177,28 @@ while :; do
         holder_pid=$(cat "$LOCK/pid" 2>/dev/null || true)
         # A lock whose holder process is gone is stale, whatever its age.
         if [ -n "$holder_pid" ] && ! kill -0 "$holder_pid" 2>/dev/null; then
-            echo "heavy: breaking a stale lock held by $holder (pid $holder_pid is gone)" >&2
+            say "breaking a stale lock held by $holder (pid $holder_pid is gone)"
             rm -rf "$LOCK"
             continue
         fi
-        [ "$lock_announced" -eq 0 ] && echo "heavy: waiting for $holder to finish" >&2
+        [ "$lock_announced" -eq 0 ] && say "waiting for $holder to finish"
         lock_announced=1
         sleep 3
     done
 
     room_fits
     if [ "$?" -eq 1 ]; then
-        echo "heavy: ${free}MB free, load $load right after taking the lock — giving it back" >&2
-        trap - INT TERM EXIT
+        say "${free}MB free, load $load right after taking the lock — giving it back"
+        trap 'rm -f "$ticket"; exit 130' INT TERM
+        trap 'rm -f "$ticket"' EXIT
         rm -rf "$LOCK"
         continue
     fi
     break
 done
 
-echo "heavy: $WHO starts (${free}MB free, load $load)" >&2
+rm -f "$ticket"
+say "$WHO starts after $(( $(date +%s) - ASKED )) s waiting (${free}MB free, load $load)"
 # Job control puts the child in its own process group, so the watchdog can
 # stop the whole tree (browsers, workers), not only the direct child.
 set -m
@@ -167,9 +216,9 @@ while kill -0 "$child" 2>/dev/null; do
     [ -z "$free" ] && continue
     if [ "$(at_least "$free" "$HARD_FLOOR_MB")" = 0 ]; then
         strikes=$((strikes + 1))
-        echo "heavy: ${free}MB free — strike $strikes of $HARD_STRIKES" >&2
+        say "${free}MB free — strike $strikes of $HARD_STRIKES"
         if [ "$strikes" -ge "$HARD_STRIKES" ]; then
-            echo "heavy: STOPPING $WHO's run — the machine is out of room" >&2
+            say "STOPPING $WHO's run — the machine is out of room"
             kill -TERM -"$child" 2>/dev/null || kill -TERM "$child" 2>/dev/null
             sleep 5
             kill -KILL -"$child" 2>/dev/null || kill -KILL "$child" 2>/dev/null
@@ -183,5 +232,5 @@ done
 
 wait "$child"
 status=$?
-echo "heavy: $WHO done (exit $status)" >&2
+say "$WHO done (exit $status)"
 exit $status
