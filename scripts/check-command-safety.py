@@ -148,8 +148,15 @@ def tracked() -> list[pathlib.Path]:
 
 def main() -> int:
     """Reports every unsafe command, in the named files or the whole tree."""
-    argv = [pathlib.Path(a).resolve() for a in sys.argv[1:]]
-    paths = argv or tracked()
+    # A NAMED FILE PASSES THE SAME FILTER AS A TRACKED ONE: the pre-commit hook
+    # names every staged file, and prose that QUOTES a command (`BUGS.md`) is
+    # not a command anyone runs.
+    argv = [
+        path
+        for path in (pathlib.Path(a).resolve() for a in sys.argv[1:])
+        if path.suffix in SUFFIXES or path.name in EXTENSIONLESS
+    ]
+    paths = argv if sys.argv[1:] else tracked()
     violations: list[str] = []
     for path in paths:
         if path.is_file():

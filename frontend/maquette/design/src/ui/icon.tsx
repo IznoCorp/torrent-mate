@@ -1,4 +1,4 @@
-// design/src/components/icon.tsx
+// design/src/ui/icon.tsx
 // The exact shape `svgIcon(paths, strokeWidth)` produces as an HTML string
 // (`refonte.html@60530dbd8`), rebuilt as a real element so it composes with JSX.
 //

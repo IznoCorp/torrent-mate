@@ -1,4 +1,4 @@
-// design/src/pages/host.tsx
+// design/src/app/page-host.tsx
 // The PAGE host — the machinery a page needs and a screen never did.
 //
 // Every surface migrated before the pages is an overlay SCREEN: it has its own

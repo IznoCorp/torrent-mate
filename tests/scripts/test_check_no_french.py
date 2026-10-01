@@ -120,6 +120,20 @@ class TestSplitIdentifier:
         assert guard.split_identifier(name) == expected
 
 
+class TestKeyframeNames:
+    """A `@keyframes` name is a name someone chose, read against the vocabulary (B-056)."""
+
+    def test_a_keyframe_built_from_an_unknown_word_is_refused(self) -> None:
+        """`splashremplit` sat in a stylesheet no arm read: the vocabulary does not know it."""
+        source = "@keyframes splashremplit {\n  to { width: 100%; }\n}\n"
+        assert guard.unknown_keyframe_words(source, {"splash", "fill"}) == [("splashremplit", 1, ["splashremplit"])]
+
+    def test_a_keyframe_in_the_vocabulary_passes_wherever_it_is_declared(self) -> None:
+        """Kebab names split; a declaration nested in a block is read too."""
+        source = "@media (x) {\n  @keyframes splash-fill { to { width: 1px; } }\n}\n"
+        assert guard.unknown_keyframe_words(source, {"splash", "fill"}) == []
+
+
 class TestDictionaryArm:
     """The oracle from OUTSIDE the repository."""
 
@@ -178,6 +192,24 @@ class TestTheGuardItself:
         """A scope that empties must be visible AS ITSELF, so it needs a key."""
         assert "name words / dictionary" in guard.examined
         assert "interface text / app (exempt)" in guard.examined
+
+
+class TestTheShellMarkupIsNamed:
+    """The shell's markup text is read by no arm, and the guard says so (B-390).
+
+    `design/index.html` holds the splash, the sign-in gate and the install
+    proposal as static markup — a decision `app/entry.ts` records — and no arm
+    reads TEXT there: the Strings arm is rooted on `design/src`, the `data-*`
+    arm reads attributes. « The guard does not refuse these labels » was cited
+    as the tree confirming a ruling while no arm had them in front of it.
+    """
+
+    def test_the_ledger_names_the_markup_text_no_arm_reads(self) -> None:
+        """Every run prints how many strings of the shell's markup go unread."""
+        done = subprocess.run(["python3", str(SCRIPT)], capture_output=True, text=True)
+        line = next((one for one in done.stdout.splitlines() if "design/index.html" in one), "")
+        assert "read by no arm" in line, done.stdout[-2000:]
+        assert int(line.split(":", 1)[1].split()[0]) >= 20
 
 
 class TestTheSelfDescription:

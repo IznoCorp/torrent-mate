@@ -6,6 +6,13 @@ constitution (« — §8 », « (DOIT-7) ») drawn in the interface itself is a 
 that leaked into the product. Every state's VISIBLE text (`innerText`, which
 skips the hidden notes) cites no § and no DOIT / NE-DOIT-PAS.
 
+NOR A NOTE'S JUSTIFICATION, which needs no § to be one (register train 2): a
+sentence telling the DESIGNER why the interface says what it says — « jamais
+un silence », « plutôt que d'afficher une liste vide », « sinon chaque lettre
+coûte un appel aux providers », « la spine de provenance » — was drawn on four
+named states after B-613's § sweep. The clauses met are refused by name
+(`JUSTIFICATIONS`); each was read RED on its state before its string lost it.
+
 THE ROOT LADDER HAS NO `#screen` RUNG. It had one, for a legacy node nothing
 ever opened, so the rung was identically false; it was removed rather than
 replaced, because the generic `[data-part="screen"][data-open][data-key]` rung
@@ -16,6 +23,12 @@ import asyncio
 
 from common import shot, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
+
+# THE NOTES' OWN MARKERS: a reference to the constitution, and the justification
+# clauses a leaked note was met carrying. A JavaScript pattern, read on `innerText`.
+JUSTIFICATIONS = ("plutôt que d'afficher|se lirait comme|jamais un silence|jamais une date reconstruite|"
+                  "spine de provenance|sinon chaque lettre|lue par tout ce qui regarde")
+DESIGN_NOTE = r"§\s?\d+|\b(?:NE-)?DOIT(?:-PAS)?-\d+|" + JUSTIFICATIONS
 
 
 async def main():
@@ -39,7 +52,7 @@ async def main():
         except Exception as ex:
             bad.append((i,"__go failed: "+str(ex)[:60])); print(f"  FAIL {i:28} __go"); continue
         await pg.wait_for_timeout(320)
-        r=await pg.evaluate("""()=>{const v=document.querySelector('#view');
+        r=await pg.evaluate("""(pattern)=>{const v=document.querySelector('#view');
           const sh=document.querySelector('#sheet'), dg=document.querySelector('#dlg');
           // Every screen migrated off `#screen` onto a real route (the mediaSheet
           // at `/mediasheet/$title`, the add screen at `/add`, the arbitration
@@ -60,7 +73,7 @@ async def main():
           const target = layer ? (dg.hasAttribute('data-open')?dg
                                  :sh.hasAttribute('data-open')?sh:rt) : v;
           return {sk:target.querySelectorAll('[data-skeleton]').length, txt:target.textContent.replace(/\\s+/g,' ').trim().length,
-                  notes:target.innerText.match(/§\\s?\\d+|\\b(?:NE-)?DOIT(?:-PAS)?-\\d+/g)||[],
+                  notes:target.innerText.match(new RegExp(pattern, 'g'))||[],
                   doc:document.documentElement.scrollWidth,
                   // An overflow clipped by an ancestor is not overflow:
                   // getBoundingClientRect measures BEFORE clipping. Verify the
@@ -86,7 +99,7 @@ async def main():
                     }
                     return true;
                   }).length,
-                  layer};}""")
+                  layer};}""", DESIGN_NOTE)
         ok = (r['txt']>60 or r['sk']>0) and r['doc']<=390 and r['spills']==0 and not r['notes']
         if not ok: bad.append((i,r))
         print(("  PASS" if ok else "  FAIL"), f"{i:28}", r)

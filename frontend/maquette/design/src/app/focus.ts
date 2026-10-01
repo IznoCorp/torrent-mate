@@ -1,4 +1,4 @@
-// design/src/focus.ts
+// design/src/app/focus.ts
 // FOCUS, WHEN A LAYER OPENS AND WHEN IT CLOSES.
 //
 // A layer that opens without taking focus leaves a keyboard on the page behind
@@ -42,6 +42,12 @@ const LAYERS = [
   "#sheet",
   "#dlg",
 ] as const;
+
+// THE LAYERS THAT STAY IN THE DOCUMENT WHEN THEY CLOSE — a screen is unmounted
+// instead. Closed is a class, not an absence (the exit has to slide), and the
+// sheet keeps its last panel drawn: so a closed one is `inert`, or its buttons
+// stay in the tab order and in the accessibility tree behind nothing (B-617).
+const KEPT_WHEN_CLOSED = "#drawer, #sheet, #dlg";
 
 // The tab bar, by the part its markup names.
 const TAB_BAR = '[data-part="shell/tab-bar"]';
@@ -150,7 +156,8 @@ function setBackgroundInert(layer: Element | null): void {
         continue;
       }
       const contains = layer ? node === layer || node.contains(layer) : false;
-      if (layer && !contains) node.setAttribute("inert", "");
+      if (!contains && node.matches(KEPT_WHEN_CLOSED) && !isOpen(node)) node.setAttribute("inert", "");
+      else if (layer && !contains) node.setAttribute("inert", "");
       else node.removeAttribute("inert");
     }
   }

@@ -435,6 +435,7 @@ def test_x():
     """
 ''',
         )
+        _write_test_file(fake_repo, "docs/features/api-unify/DESIGN.md", "# Design\n")
         rc = main(["--repo-root", str(fake_repo)])
         assert rc == 0
         path = fake_repo / "tests" / "feature_map" / "api-unify.json"
@@ -442,6 +443,50 @@ def test_x():
         data = json.loads(path.read_text(encoding="utf-8"))
         assert data["feature"] == "api-unify"
         assert "x" in data["sections"]
+
+
+class TestDanglingDesign:
+    """A ``Design:`` line naming a path that left the tree is refused (B-293)."""
+
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "Design: docs/features/torrent-fetch/DESIGN.md (§5.1, D10)",
+            "Design: docs/features/gone/DESIGN.md#anchor",
+        ],
+    )
+    def test_main_refuses_a_design_path_not_in_the_tree(
+        self, fake_repo: Path, capsys: pytest.CaptureFixture[str], line: str
+    ) -> None:
+        """Anchored or not, a marker pointing nowhere fails both modes and is named."""
+        _write_test_file(
+            fake_repo,
+            "tests/unit/test_gone.py",
+            f'''
+def test_x():
+    """X.
+
+    {line}
+    Contract: clause.
+    """
+''',
+        )
+        for argv in (["--check"], []):
+            rc = main([*argv, "--repo-root", str(fake_repo)])
+            assert rc == 1
+            assert "tests/unit/test_gone.py::test_x" in capsys.readouterr().err
+
+    def test_prose_beginning_with_design_is_not_a_marker(self, fake_repo: Path) -> None:
+        """Only a line naming a ``docs/`` path is read as a pointer."""
+        _write_test_file(
+            fake_repo,
+            "tests/unit/test_prose.py",
+            '''
+def test_x():
+    """Design: line without Contract: skips the test with a warning."""
+''',
+        )
+        assert main(["--check", "--repo-root", str(fake_repo)]) == 0
 
 
 @pytest.fixture(autouse=True)

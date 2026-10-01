@@ -18,6 +18,32 @@ if ! STAGED_ALL=$(git diff --cached --name-only --diff-filter=ACM); then
   exit 1
 fi
 
+# THE REFUSALS EVERY COMMIT PASSES, ahead of the feature-map step below and its
+# early exit — the command-safety check sat after that exit, so it ran only on
+# a commit that staged a design-contract test (B-304).
+#
+# A VENDORED TREE IS NEVER COMMITTED. `git add -f` on a path rather than on the
+# ignored files it was meant for swept 28 375 files of `node_modules` into one
+# commit, and nothing refused it (B-304).
+VENDORED=$(grep -E '(^|/)node_modules/' <<< "$STAGED_ALL" || true)
+if [ -n "$VENDORED" ]; then
+  {
+    echo "pre-commit: refusing $(wc -l <<< "$VENDORED" | tr -d ' ') staged path(s) under node_modules/, e.g.:"
+    head -3 <<< "$VENDORED" | sed 's/^/              /'
+    echo "            Unstage them: git restore --staged -- '*node_modules/*'"
+  } >&2
+  exit 1
+fi
+
+# §Search Safety and §Network Timeout Safety guard the AGENT'S session through
+# `.claude/` hooks; nothing stopped either command being COMMITTED, and the next
+# person to run the script paid the price. Staged files only, so the hook stays
+# fast.
+if [ -n "$STAGED_ALL" ]; then
+  # shellcheck disable=SC2086
+  python3 scripts/check-command-safety.py $STAGED_ALL || exit 1
+fi
+
 STAGED_DESIGN_TESTS=$(grep 'test_design_.*\.py$' <<< "$STAGED_ALL" || true)
 
 if [ -z "$STAGED_DESIGN_TESTS" ]; then
@@ -98,12 +124,3 @@ fi
 
 echo "pre-commit: feature maps up to date."
 
-# §Search Safety and §Network Timeout Safety guard the AGENT'S session through
-# `.claude/` hooks; nothing stopped either command being COMMITTED, and the next
-# person to run the script paid the price. Staged files only, so the hook stays
-# fast.
-staged=$(git diff --cached --name-only --diff-filter=ACM)
-if [ -n "$staged" ]; then
-  # shellcheck disable=SC2086
-  python3 scripts/check-command-safety.py $staged || exit 1
-fi

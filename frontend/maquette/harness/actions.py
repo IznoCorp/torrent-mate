@@ -7,6 +7,9 @@ the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
 RE-AIMED OUT LOUD: the grab is taken from the follow's sheet, where « Récupérer
 maintenant » lives; « En cours » no longer carries it.
 
+HELD OUT LOUD (B-039): the follow just made draws its card in « Suivis »
+wearing its « Nouveau » — this printed the tag's presence and asserted nothing.
+
 RE-AIMED OUT LOUD: « Laisser tel quel » means LATER (ruling 6, placed by ruling
 16) — the folder stays queued, set aside, where this read it leaving the stuck
 list. R226 holds the section it goes to.
@@ -97,12 +100,21 @@ async def main():
     await pg.evaluate("()=>window.__go('discover-full')"); await pg.wait_for_timeout(350)
     a=await pg.evaluate(cnt)
     await pg.evaluate("()=>[...document.querySelectorAll('[data-panel]')].find(e=>e.dataset.panel.startsWith('sug:')).click()"); await pg.wait_for_timeout(400)
+    followed=await pg.evaluate("()=>(window.__store.read().state.panelDescriptor || {}).title || ''")
     await pg.evaluate("""()=>document.querySelector('#sheet [data-part="sheet/action"][data-tone="primary"]').click()"""); await pg.wait_for_timeout(450)
     b6=await pg.evaluate(cnt); print("\nfollow a suggestion  :", a["follows"], "→", b6["follows"])
     assert b6["follows"]==a["follows"]+1
     await pg.evaluate("()=>window.__go('acq-follows-list',{keep:true})"); await pg.wait_for_timeout(350)
-    print("  → at the head of Suivis :", await pg.evaluate("""()=>document.querySelector('[data-part="card/title"]').textContent"""),
-          "| chip Nouveau :", await pg.evaluate("""()=>!!document.querySelector('[data-part="card/fresh-tag"]')"""))
+    # THE NEW FOLLOW'S CARD WEARS ITS « Nouveau » (B-039). This PRINTED the
+    # tag's presence at the head of the list and asserted nothing: no state
+    # produced a fresh follow then. One just followed is fresh, and « Suivis »
+    # groups by status, so its own card is read wherever its group puts it.
+    card=await pg.evaluate("""(t)=>{const card = [...document.querySelectorAll('#view [data-part="card/title"]')]
+        .find((title) => title.textContent === t)?.closest('[data-panel]');
+      return {drawn: !!card, fresh: !!card?.querySelector('[data-part="card/fresh-tag"]')};}""", followed)
+    print("  → its card in Suivis   :", followed, card)
+    assert followed and card["drawn"], f"the new follow {followed!r} draws no card in « Suivis »: {card}"
+    assert card["fresh"], f"the new follow {followed!r} carries no « Nouveau »: {card}"
 
     await pg.evaluate("()=>window.__go('lib-selection')"); await pg.wait_for_timeout(350)
     a=await pg.evaluate(cnt)

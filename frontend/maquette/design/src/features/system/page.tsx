@@ -1,4 +1,4 @@
-// design/src/pages/system.tsx
+// design/src/features/system/page.tsx
 // The first migrated PAGE: legacy `viewSystem()` (`refonte.html@60530dbd8`) reborn as a
 // final component. Markup is TRANSPLANTED, not translated — every tag, class,
 // attribute and inline style below is one the fragment's BLOCK 2 CSS already
@@ -9,7 +9,7 @@
 // the services, the schedulers, what holds the pipeline, the passages — and the
 // « Le pipeline » section is where what governs ALL media at once is read and,
 // as its levers land, set. Its own inputs stay `state.phase` (the skeleton and
-// error surfaces) and `state.panne` (the simulated-fault state, which no UI
+// error surfaces) and `state.fault` (the simulated-fault state, which no UI
 // control toggles: only the harness drives it, and only through `__go`).
 //
 // The fact lists are `FactRows`, inside the `<ol class="flux">` this component

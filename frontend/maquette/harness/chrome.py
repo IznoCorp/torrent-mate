@@ -1,7 +1,14 @@
 """The prototype's own controls never sit on top of the app's.
 
-R51 — the harness bar overlaps none of the app's FIXED controls, in any named
-      state, at any width.
+R51 — no piece of the harness's chrome overlaps the app's FIXED controls, in
+      any named state, at any width.
+
+THE SUBJECT IS THE CLASS, read by its prefix (B-388): every element whose
+`data-part` begins `harness/` and that no other such element contains — the bar
+and the desktop switch today. It read the bar alone by its literal, so a second
+piece of chrome was outside a rule whose first line promises it, and a third
+would have been held by nothing. A floor keeps the reading from going vacuous
+the day one is renamed.
 
 The bar is not part of the product: it switches the design notes, the data
 scenario and the theme, and `window.__measure(true)` clears it before any
@@ -36,6 +43,10 @@ WIDTHS = [390, 1280]
 # nobody could satisfy rather than a rule that catches anything.
 CONTROLS = '[data-part="avatar"], [data-part="shell/header"] button, [data-part="shell/tab-bar"] button, #fab, [data-part="shell/add-action"]'
 
+# How many pieces of harness chrome the document holds today: the bar and the
+# desktop switch. Fewer means a piece was renamed out of the prefix.
+CHROME_FLOOR = 2
+
 
 async def main():
     """Runs R51 and reports how many state/width pairs it actually measured.
@@ -63,22 +74,34 @@ async def main():
                 await pg.wait_for_timeout(300)
                 hits = await pg.evaluate(
                     """(sel)=>{
-                      const bar=document.querySelector('[data-part="harness/bar"]');
-                      if(!bar) return ['ABSENT'];
-                      const a=bar.getBoundingClientRect();
-                      if(!a.width) return [];
-                      const crosses=(b)=>!(a.right<=b.left||b.right<=a.left||
-                                          a.bottom<=b.top||b.bottom<=a.top);
-                      return [...document.querySelectorAll(sel)]
-                        .filter(el=>el.getClientRects().length>0)
-                        .filter(el=>crosses(el.getBoundingClientRect()))
-                        .map(el=>el.className||el.id||el.tagName);}""",
+                      const pieces=[...document.querySelectorAll('[data-part^="harness/"]')]
+                        .filter(el=>!el.parentElement.closest('[data-part^="harness/"]'));
+                      const controls=[...document.querySelectorAll(sel)]
+                        .filter(el=>el.getClientRects().length>0);
+                      const hits=[];
+                      for(const piece of pieces){
+                        const a=piece.getBoundingClientRect();
+                        if(!a.width) continue;
+                        const crosses=(b)=>!(a.right<=b.left||b.right<=a.left||
+                                            a.bottom<=b.top||b.bottom<=a.top);
+                        for(const el of controls){
+                          if(crosses(el.getBoundingClientRect()))
+                            hits.push(piece.dataset.part+' over '+
+                                      (el.getAttribute('class')||el.id||el.tagName));
+                        }
+                      }
+                      return {pieces: pieces.length, hits};}""",
                     CONTROLS,
                 )
                 executed += 1
-                if hits:
+                if hits["pieces"] < CHROME_FLOOR:
                     failures.append(
-                        f"R51 {state_} @{width}px: the harness bar covers {hits}"
+                        f"R51 {state_} @{width}px: {hits['pieces']} piece(s) of harness chrome "
+                        f"found, the floor is {CHROME_FLOOR} — one left the `harness/` prefix"
+                    )
+                if hits["hits"]:
+                    failures.append(
+                        f"R51 {state_} @{width}px: the harness's chrome covers {hits['hits']}"
                     )
             await ctx.close()
         await b.close()
@@ -88,7 +111,7 @@ async def main():
     print(f"\n{executed} state/width pairs EXECUTED · {len(failures)} failures")
     print(
         "VERDICT:",
-        "the harness bar covers no app control"
+        "the harness's chrome covers no app control"
         if not failures
         else "the harness bar sits on top of the product",
     )

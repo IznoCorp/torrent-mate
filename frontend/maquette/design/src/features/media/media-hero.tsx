@@ -50,7 +50,10 @@ export function MediaHero({
         ></div>
         <div className={heroText()} data-part="hero/content">
           <h2 className={heroTitle()} data-part="hero/title">
-            {title ? title.split(" (")[0] : inFlight ? <SkeletonLine width="half" /> : null}
+            {/* A TYPED ADDRESS WHOSE READ FAILED has no title to print: it says the
+                title unread rather than an empty heading (B-508). */}
+            {title ? title.split(" (")[0] : inFlight ? <SkeletonLine width="half" />
+              : failed ? t("screens.media.titleUnread") : null}
           </h2>
           <p className={heroMeta()}>
             {/* FIELD BY FIELD, NEVER BLOCK BY BLOCK, and this line is where the

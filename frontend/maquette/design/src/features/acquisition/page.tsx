@@ -1,4 +1,4 @@
-// design/src/pages/acquisition.tsx
+// design/src/features/acquisition/page.tsx
 // The largest migrated PAGE: legacy `viewAcquisition()`
 // (290 lines, three tabs) reborn as a final component. Markup is TRANSPLANTED,
 // not translated.

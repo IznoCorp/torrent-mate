@@ -420,6 +420,15 @@ export const mockDials: MockDials = {
     const run = runs.find((one) => one.kind === "pipeline");
     if (going && run) {
       const live = run.steps[STEPS_FINISHED];
+      // AND IT IS GOING NOW: its row says how long it has been going (B-538),
+      // on the reader's clock, so the run is moved to have begun as long ago as
+      // its five finished steps took — every instant shifted by one delta, so
+      // the steps keep their order and their lengths.
+      const delta = Date.now() - Date.parse(live.startedAt ?? run.startedAt);
+      const moved = (instant: string | null | undefined) =>
+        instant ? new Date(Date.parse(instant) + delta).toISOString() : instant;
+      for (const step of run.steps) Object.assign(step, { startedAt: moved(step.startedAt), endedAt: moved(step.endedAt) });
+      run.startedAt = moved(run.startedAt) as string;
       run.steps = [...run.steps.slice(0, STEPS_FINISHED), { name: live.name, status: "running" }];
       Object.assign(run, { outcome: "running", endedAt: null, durationS: null, outputTail: null });
     }

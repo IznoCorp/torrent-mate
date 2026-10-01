@@ -482,7 +482,7 @@ async def hold_the_screen_act_taken(page, journal):
 SEASON_SENTENCE_KEYS = (
     # The four « …NewlyFollowed » sentences retired: a season of an unfollowed
     # series begins no follow (round 10 Q2), so none says one was begun.
-    "seasonAsked", "seasonAskedOne", "seasonAskedNone",
+    "seasonAsked", "seasonAskedOne", "seasonAskedNone", "seasonAskedOneOff",
     "seasonQueued",
     "seasonHeld", "seasonRefused",
 )
@@ -700,7 +700,7 @@ async def main():
                     box.left + box.width / 2, box.top + box.height / 2);
                   if (!hit || !(hit === act || act.contains(hit)))
                     return {found: true, pressed: false,
-                            covering: String(hit && hit.className || '')};
+                            covering: (hit && hit.getAttribute('class') || '')};
                   act.click();
                   act.click();
                   return {found: true, pressed: true};}""",

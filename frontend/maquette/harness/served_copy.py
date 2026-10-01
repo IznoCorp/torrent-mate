@@ -462,29 +462,6 @@ def _code_of(path: Path) -> str:
     return "\n".join(kept)
 
 
-def _function_body(source: str, signature: str) -> str:
-    """Returns one function's own text, from its `def` to the next one.
-
-    A RULE THAT SEARCHES A WHOLE FILE SEARCHES ITSELF. This module holds both
-    `publish()` and the rule that measures it, and the rule quotes the very
-    strings it looks for — so a hold about the ORDER of two lines inside
-    `publish()` was satisfied by the order of two lines inside `rules()`.
-
-    Args:
-        source: The stripped file.
-        signature: The `def ...(` the function starts with.
-
-    Returns:
-        Its body, or an empty string when the function is absent — which fails
-        every `find()` on it, in the loud direction.
-    """
-    start = source.find(signature)
-    if start < 0:
-        return ""
-    following = source.find("\ndef ", start + len(signature))
-    return source[start:] if following < 0 else source[start:following]
-
-
 def rules() -> int:
     """R104 — the served copy is held while it is rebuilt, and stamped after.
 
@@ -503,7 +480,6 @@ def rules() -> int:
     here = Path(__file__).resolve().parent
     run_sh = _code_of(here / "run.sh")
     common = _code_of(here / "common.py")
-    mine = _code_of(here / "served_copy.py")
 
     def hold(name, condition, detail=""):
         nonlocal executed
@@ -533,32 +509,11 @@ def rules() -> int:
          "trap 'cleanup; exit 130' INT" in run_sh
          and "trap 'cleanup; exit 143' TERM" in run_sh)
 
-    # ONE ASSEMBLY, and this is the hold that keeps it one. Three copies of this
-    # step existed; two wrote neither the lock nor the stamp, and one of those
-    # is the tool that records the hold-count baseline while the other is the
-    # mutation tool this project's method mandates. They also fell behind on
-    # WHAT the copy contains: `sw.js` and `build.json` joined it at L11 in
-    # `run.sh` alone, so a copy either of them made served a worker from a
-    # previous build.
-    repository = here.parents[2]
-    hold("and the publisher copies the worker and the build's identity",
-         '"sw.js", "build.json"' in mine)
-    # THE INVARIANT R104 EXISTS FOR, held where it now lives. It used to read
-    # `run.sh`'s own `cp` and `--stamp` lines; the assembly moved into
-    # `publish()` and the hold moved with the wrong half — so writing the stamp
-    # at the TOP of `publish()`, which is the original B-256 defect, passed
-    # every hold in this file.
-    # READ OVER `publish()`'s OWN BODY, never the whole file. The file also
-    # contains this rule, and this rule contains both search strings — so the
-    # anchors survived the mutation and the hold passed with the stamp written
-    # at the TOP of `publish()`, which is the original B-256 defect. Measured by
-    # simulation: 1419 < 9068, where 9068 was this very line.
-    body = _function_body(mine, "def publish(")
-    document_at = body.find('copy2(dist / "index.html"')
-    stamp_at = body.find("return write_stamp()")
-    hold("the publisher stamps the copy AFTER it lands",
-         0 <= document_at < stamp_at,
-         f"copy@{document_at} stamp@{stamp_at} within publish()")
+    # ONE ASSEMBLY, AND ITS ORDER, are held by `tests/scripts/test_served_copy.py`
+    # (`TestThePublisher`), by what exists when the stamp is written. They were
+    # read HERE, in the file they measure, and were beaten twice by finding
+    # their own search strings in this rule (B-268): the worker-and-identity
+    # hold was true of its own line whatever `publish()` copied.
 
     # THE COMPARISON ITSELF, and not substrings that survive without it. Two of
     # the three the first version searched for were satisfied by the assignment
@@ -599,7 +554,7 @@ def rules() -> int:
     # the two tools mentions `wrapped.html` only inside docstrings, so it passes
     # only because the stripper works. The other three fail loudly on a shrunken
     # corpus (`find()` returns -1 and `0 <= -1` is false), so they were the ones
-    # that needed it least. All five are floored now.
+    # that needed it least. Every corpus read is floored.
     # EACH FLOOR IS SET NEAR ITS OWN CORPUS, not one number applied to five. A
     # floor of 60 against a 378-line corpus leaves 318 lines of slack: that file
     # could lose 84 % of itself and the floor would still pass while the
@@ -607,10 +562,13 @@ def rules() -> int:
     # because the stripper removes the docstrings that mention it — went
     # silently green. A floor calibrated to the smallest corpus does not bite on
     # the one it was written for.
+    # EACH FIGURE IS RE-MEASURED BY ONE COMMAND (B-269), so a corpus a refactor
+    # legitimately shrank is told from a stripper that lost text: on 2026-10-01
+    # it printed run.sh 174 and common.py 248.
+    #   python3 -c "import sys; sys.path.insert(0, 'frontend/maquette/harness'); from pathlib import Path; from served_copy import _code_of; [print(n, len(_code_of(Path('frontend/maquette/harness', n)).splitlines())) for n in ('run.sh', 'common.py')]"
     for name, corpus, floor in (
             ("run.sh", run_sh, 90),
-            ("common.py", common, 200),
-            ("served_copy.py", mine, 250)):
+            ("common.py", common, 200)):
         hold(f"the stripped corpus of {name} is whole",
              len(corpus.splitlines()) >= floor,
              f"{len(corpus.splitlines())} lines against a floor of {floor}")

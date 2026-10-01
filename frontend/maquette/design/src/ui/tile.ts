@@ -61,7 +61,7 @@ export function tileMarkup({
     check !== undefined
       ? `<span class="${selectionCheck({ within: "tile" })}" data-part="selection/check">${check}</span>`
       : badge
-        ? `<span class="${tileBadge({ tone: badge.tone })}" data-part="tile/badge">${escapeMarkup(badge.text)}</span>`
+        ? `<span class="${tileBadge({ tone: badge.tone })}" data-part="tile/badge"${badge.tone ? ` data-tone="${badge.tone}"` : ""}>${escapeMarkup(badge.text)}</span>`
         : "";
   return `<button class="tile ${tile({ muted })}" data-part="tile"${attributesMarkup(attributes)}>
       <span class="${tilePoster({ muted })}">${posterArtworkMarkup(artwork)}</span>

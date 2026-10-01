@@ -183,7 +183,7 @@
   }
 
   /* A skeleton's shimmer: the gradient walks across the box once per loop. */
-  @keyframes sh {
+  @keyframes shimmer {
     to {
       background-position: -400% 0;
     }
@@ -1258,10 +1258,10 @@ input[type="search"]::-webkit-search-decoration {
   height: 100%;
   border-radius: var(--radius-full);
   background: var(--color-primary);
-  animation: splashremplit var(--duration-loop-3) linear forwards;
+  animation: splash-fill var(--duration-loop-3) linear forwards;
 }
 
-@keyframes splashremplit {
+@keyframes splash-fill {
   from {
     width: 0%;
   }

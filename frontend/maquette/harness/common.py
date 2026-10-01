@@ -471,6 +471,40 @@ PANEL_OUT = 250     # the panel's exit AS THE STORE REPORTS IT, which is the onl
                     # be claiming something no reading supports
 ACTED = 700         # an action tapped: the mutation, the refetch, the redraw
 
+# A LAYER'S WAIT READ FROM THE PAGE, NOT TYPED BESIDE IT (B-276). A sheet, a
+# scrim, a drawer: what a rule waits for after opening or closing one is its
+# drawn transitions ending, and the page knows when that is. So the wait asks
+# the document for its running animations — finite ones; a spinner never ends —
+# and returns once none is left, whatever the stylesheet draws them at. It
+# starts after one frame, so a transition the call just caused is running by
+# then, and it gives up at `SETTLE_CEILING_MS`, its answer saying how long it
+# waited.
+SETTLE_CEILING_MS = 5000
+SETTLE = """(ceiling)=>new Promise((done)=>{
+  const start = performance.now();
+  const moving = () => document.getAnimations().some((one) =>
+    one.playState === 'running' && one.effect
+    && one.effect.getComputedTiming().endTime !== Infinity);
+  const look = () => {
+    const waited = performance.now() - start;
+    if ((waited > 20 && !moving()) || waited > ceiling) return done(waited);
+    requestAnimationFrame(look);
+  };
+  requestAnimationFrame(look);
+})"""
+
+
+async def settle(page):
+    """Waits until no finite animation is running in the page.
+
+    Args:
+        page: The Playwright page.
+
+    Returns:
+        The milliseconds it waited.
+    """
+    return await page.evaluate(SETTLE, SETTLE_CEILING_MS)
+
 
 class Journal:
     """Collects the verdicts of one script and decides its exit code.

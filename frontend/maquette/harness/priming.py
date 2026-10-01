@@ -700,6 +700,38 @@ async def main():
         journal.check("no JS error on the failed walk", not errors, str(errors))
         await context.close()
 
+        # ─── (e-typed) A TYPED ADDRESS WHOSE READ FAILS (B-508) ────────────
+        # No tap carried a title, so the hero kept an EMPTY one — the screen's
+        # accessible name was « » — and the trailer said « Bande-annonce
+        # inconnue. » where every sibling over a failed read says « non lue ».
+        # The screen names its title as unread, and the trailer as unread.
+        typed = await browser.new_context(**PHONE)
+        await typed.add_init_script(
+            f"({INTERCEPT})({{ latency: {LATENCY_MILLISECONDS}, fail: true, failSeasons: false, "
+            f"ownershipUnknown: false, bareUnknownWord: {BARE_UNKNOWN!r}, seasonsFirst: false }})")
+        typed_page = await typed.new_page()
+        await typed_page.goto(address, wait_until="load")
+        await typed_page.evaluate("()=>window.__loadingDone?.()")
+        await typed_page.wait_for_timeout(LATENCY_MILLISECONDS + 900)
+        unread = await typed_page.evaluate("""()=>{
+          const screen = document.querySelector('[data-part="screen"][data-open]');
+          return {open: !!screen, name: screen ? screen.getAttribute('aria-label') || '' : '',
+                  title: ((screen && screen.querySelector('[data-part="hero/title"]')) || {}).textContent || '',
+                  noInfos: screen ? [...screen.querySelectorAll('[data-part="no-info"]')].map((one) => one.textContent) : [],
+                  titleUnread: window.__i18n.t('screens.media.titleUnread'),
+                  trailerUnread: window.__i18n.t('screens.media.trailerUnread'),
+                  unreadWord: window.__i18n.t('screens.media.unreadFeminine')};
+        }""")
+        journal.check(
+            "(e-typed) a typed address whose read fails names its title as unread, in its heading and its name (B-508)",
+            unread["open"] and unread["title"].strip() == unread["titleUnread"]
+            and unread["name"].strip() == unread["titleUnread"], str(unread))
+        journal.check(
+            "(e-typed) and says its trailer UNREAD, in the word its siblings say it with (B-508)",
+            unread["trailerUnread"] in unread["noInfos"] and unread["unreadWord"] in unread["trailerUnread"],
+            str(unread["noInfos"]))
+        await typed.close()
+
         # ─── (e-iii) THE FAILURE HOLDING A THIN FALLBACK, which is the real
         # projection's error case and the one the walk above cannot reach: with
         # the complete placeholder every field is content, so there is nothing

@@ -154,7 +154,8 @@ async def main():
         blocks = await page.evaluate("""() => {
           const sheet = document.querySelector('#sheet');
           const notes = [...sheet.querySelectorAll('p')].filter((one) => /couvert par/.test(one.textContent));
-          const provenance = [...sheet.querySelectorAll('p')].find((one) => /spine de provenance/.test(one.textContent));
+          const said = window.__i18n.t('panels.journey.provenanceNote');
+          const provenance = [...sheet.querySelectorAll('p')].find((one) => one.textContent.trim() === said);
           const action = [...sheet.querySelectorAll('[data-part="sheet/action"]')]
             .find((one) => one.dataset.go === 'acq');
           return {note: notes.length === 1 && !!provenance && notes[0].className === provenance.className,

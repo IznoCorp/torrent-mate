@@ -41,9 +41,12 @@ each walked on a freshly seeded layer, for each subject:
      exact defect of B-378. RE-AIMED OUT LOUD: this hold read « the medium is
      followed afterwards » — the act implied the follow until the operator
      ruled that a season of an unfollowed series is one-off, never a follow.
-  4. THE SENTENCE IS THE SEASON'S OWN, with no follow in it — read from
-     `fr.json`; RE-AIMED OUT LOUD from the `…NewlyFollowed` sentences, which
-     retire with the follow the act no longer begins.
+  4. THE SENTENCE IS THE ONE-OFF'S OWN, with no follow in it, and it says where
+     the ask went — « En cours » — read from `fr.json`; RE-AIMED OUT LOUD from
+     the `…NewlyFollowed` sentences, which retire with the follow the act no
+     longer begins, then from the follow's count sentences (B-562): the one-off
+     states no count, so the hold « its count is the row's shortfall » retired
+     with it.
   5. THE SURFACE PRESSED READS DIFFERENTLY afterwards — the one the operator was
      looking at is not the only one that does not know. GIVEN BACK, said out
      loud (RULINGS 28): it was set aside for one phase while a one-off ask
@@ -159,7 +162,9 @@ REACHED_BY = {
 SENTENCES = json.loads(
     (ROOT / "design" / "src" / "i18n" / "fr.json").read_text(encoding="utf-8")
 )["verbs"]["media"]
-SEASON_KEYS = ("seasonAsked", "seasonAskedOne", "seasonAskedNone", "seasonQueued")
+SEASON_KEYS = ("seasonAsked", "seasonAskedOne", "seasonAskedNone", "seasonAskedOneOff", "seasonQueued")
+# The one-off's own sentence: it says where the ask went, as « taken » does (B-562).
+ONE_OFF_KEY = "seasonAskedOneOff"
 # The season's own mark while its one-off acquisition lives.
 ASKED_MARK = json.loads(
     (ROOT / "design" / "src" / "i18n" / "fr.json").read_text(encoding="utf-8")
@@ -227,7 +232,7 @@ AIM = """([part, attribute, value])=>{
   return {found: true, x, y,
           reachable: !!hit && (hit === target || target.contains(hit)),
           covering: hit === null ? "nothing" :
-            (hit.tagName + (hit.className ? "." + String(hit.className).split(" ")[0] : ""))};}"""
+            (hit.tagName + (hit.getAttribute("class") ? "." + hit.getAttribute("class").split(" ")[0] : ""))};}"""
 
 # THE FIRST SEASON IN THE SURFACE THAT PRINTS A SHORTFALL, and the act on it.
 SEASON_ON_OFFER = """(scope)=>{
@@ -268,7 +273,7 @@ AIM_BY_ATTRIBUTE = """([attribute, value])=>{
   return {found: true, x, y,
           reachable: !!hit && (hit === target || target.contains(hit)),
           covering: hit === null ? "nothing" :
-            (hit.tagName + (hit.className ? "." + String(hit.className).split(" ")[0] : ""))};}"""
+            (hit.tagName + (hit.getAttribute("class") ? "." + hit.getAttribute("class").split(" ")[0] : ""))};}"""
 
 # EVERY SEASON ROW ON THE SHEET: its number (the summary's first figure), and
 # whether it offers the act.
@@ -331,30 +336,12 @@ ONE_OFF = """async ({ title, season }) => {
 
 SURFACE_TEXT = "(scope)=>(document.querySelector(scope)?.textContent || '')"
 
-# THE SHORTFALL THE SEASON'S ROW DRAWS before the ask — « n manquants » — the
-# count the answer's sentence must agree with.
+# THE SHORTFALL THE SEASON'S ROW DRAWS before the ask — « n manquants » — what
+# made the act worth offering.
 ROW_MISSING = """([scope, key])=>{
   const act = document.querySelector(scope)?.querySelector(`[data-grab-season="${CSS.escape(key)}"]`);
   const shortfall = act?.closest('[data-part="season"]')?.querySelector('[data-part="season/missing"]');
   return shortfall ? parseInt(shortfall.textContent, 10) : null;}"""
-
-
-def said_count(said, key):
-    """Reads the episode count a season's sentence states.
-
-    Args:
-        said: The sentence.
-        key: Its key, as `the_seasons_own` matched it.
-
-    Returns:
-        The count, 0 for « aucun », 1 for the singular sentence.
-    """
-    if key == "seasonAskedNone":
-        return 0
-    if key == "seasonAskedOne":
-        return 1
-    found = re.search(r"(\d+) épisodes", said)  # french-ok: the sentence the interface renders
-    return int(found.group(1)) if found else None
 
 # THE SEASON'S ROW after the ask: its mark, and whether it still offers the act.
 SEASON_ROW = """([scope, key])=>{
@@ -458,11 +445,10 @@ async def take_a_season(page, journal, errors, title, surface):
     journal.check(f"{where}: and NO follow is born of it (round 10 Q2)",
                   title not in after, f"status after: {after.get(title)!r}")
     said = await page.evaluate(SAID)
-    journal.check(f"{where}: the sentence is the season's own, with no follow in it",
-                  bool(the_seasons_own(said, number, title)), repr(said))
-    journal.check(f"{where}: its count is the shortfall the season's row drew",
-                  row_missing is not None and said_count(said, the_seasons_own(said, number, title)) == row_missing,
-                  f"row « {row_missing} manquants », said {said!r}")
+    journal.check(f"{where}: the sentence is the one-off's own, saying where it went, with no follow in it",
+                  the_seasons_own(said, number, title) == ONE_OFF_KEY, repr(said))
+    journal.check(f"{where}: and the season's row drew a shortfall before the act",
+                  bool(row_missing), f"row « {row_missing} manquants »")
     journal.check(f"{where}: the surface pressed reads differently afterwards",
                   await page.evaluate(SURFACE_TEXT, scope) != looked_at)
     row = await page.evaluate(SEASON_ROW, [scope, season["value"]])

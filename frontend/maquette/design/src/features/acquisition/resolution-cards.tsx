@@ -56,6 +56,8 @@ export function ReleaseCard({
     identity?: { provider: string; id: number | string };
     /** The candidate a re-opened decision had kept (« Corriger »): marked, so the choice being corrected is seen. */
     kept?: boolean;
+    /** The provider that names the candidate, announced with the pick. */
+    provider?: string;
   };
 }) {
   const reference = useEngineDrawing();
@@ -78,6 +80,13 @@ export function ReleaseCard({
   // because re-parsing a display string to recover a datum the caller already
   // holds is how the two drift apart. The poster and the body are announced as
   // the sheet they open.
+  // AND THE PICK SAYS WHAT SEPARATES NEAR-IDENTICAL CANDIDATES (B-462, ruled
+  // 2026-09-12: « Titre Année · 90 % · TMDB »): the confidence the card prints,
+  // when it prints one, and the provider — on the screen whose whole job is
+  // choosing, the system's belief was announced to nobody.
+  const pickName = [year ? `${title} ${year}` : title, confidence, opts.provider?.toUpperCase()]
+    .filter(Boolean)
+    .join(" · ");
   const sheet = {
     "data-mediasheet": title || undefined,
     "data-provider": opts.identity?.provider,
@@ -127,7 +136,7 @@ export function ReleaseCard({
             className={actionButton({ kind: "panelAction", tone: "primary" })}
             data-part="card/pick"
             data-resolve={title || undefined}
-            aria-label={t("screens.resolution.chooseOf", { name: year ? `${title} ${year}` : title })}
+            aria-label={t("screens.resolution.chooseOf", { name: pickName })}
           >
             {t("screens.resolution.choose")}
           </button>
@@ -246,6 +255,7 @@ export function Candidates({ decision }: { decision: PendingDecision }) {
           opts={{
             genre: "candidat",
             k: decision.kind as "movie" | "show",
+            provider: candidate.provider,
             poster: candidate.poster,
             noPoster: candidate.withoutPoster,
             overview: candidate.overview,

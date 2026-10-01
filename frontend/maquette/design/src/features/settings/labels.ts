@@ -1,4 +1,4 @@
-// design/src/settings-labels.ts
+// design/src/features/settings/labels.ts
 // HOW A SETTING IS NAMED — the one implementation, for both the page that
 // lists the settings and the panel that edits one.
 //
