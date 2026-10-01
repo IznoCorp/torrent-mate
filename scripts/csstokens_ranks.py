@@ -3,9 +3,8 @@
 
 WHY IT IS A FILE, AND WHY IT IS THIS FILE'S NEIGHBOUR. `check-css-tokens.py` is
 the arm that reads the maquette's stylesheets against a declared record, so this
-is its subject; it also stands at 742 non-blank lines against a 800-line soft
-warning, and its two other arms — `csstokens_login.py`, `csstokens_motion.py` —
-already live in modules of their own for exactly that reason. Imported by
+is its subject; its two other arms — `csstokens_login.py`, `csstokens_motion.py`
+— live in modules of their own too, one arm per module. Imported by
 `check-css-tokens.py` and by nothing else, so it runs wherever that guard runs:
 `make check`, the repository guards `run.sh` lists, and CI.
 
@@ -46,8 +45,7 @@ WHAT IS NOT A FRAME RANK is named in `LOCAL_DETAILS` below, each with the reason
 it is not: a stacking detail local to one box is still a number someone chose,
 and « it is only local » is the sentence a real rank would hide behind. It lives
 here rather than in the frame's list because that list's claim is about what the
-FRAME paints — and because `ui/variants/frame.ts` is 400 non-blank lines from
-its own ceiling, which is a real constraint and not a preference.
+FRAME paints.
 """
 import pathlib
 import re
@@ -68,8 +66,7 @@ CLASS_ATTRIBUTE = re.compile(r'class="([^"]*)"', re.DOTALL)
 # ONE LINE OF THE RANKED LIST: the rank at its head, then one or more sites, each
 # in backticks with the file that declares it. SEVERAL PER LINE, because four
 # things share rank 60 and the list is written one line per RANK — a reader
-# comparing two layers looks up a number, not a name, and `ui/variants/frame.ts`
-# is 400 non-blank lines from its own ceiling with no room for a line each.
+# comparing two layers looks up a number, not a name.
 LINE = re.compile(r"^\s{5}(\d+)\s+\S")
 SITE = re.compile(r"`([^`]+)`\s+\(([^)]+)\)")
 
