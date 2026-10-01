@@ -84,8 +84,10 @@ from Plex's public article, or from the public source of projects that implement
 2. **`PlexClient.machine_identifier()`** on the existing SERVER client (adapt, `api/plex.py`): `GET /identity`, read
    once and cached for the process, fail-soft (`None`), under the module's three token rules.
 3. **The token discipline of `api/plex.py`, applied to a token that is not ours.** The user's Plex token lives in a
-   local variable for the length of one sign-in: header only, never logged, never in a `repr`, never in an exception
-   text, no redirect followed (`allow_redirects=False`), `except Exception` at every call with `error=type(exc).__name__`.
+   local variable for the length of one sign-in, then is handed to the caller and to nothing else (P-3): header only,
+   never logged, never returned by any other path, never persisted by the brick, never in a `repr`, never in an
+   exception text, no redirect followed (`allow_redirects=False`), `except Exception` at every call with
+   `error=type(exc).__name__`.
 4. **A probe script** `scripts/plex-signin-probe.py` — the operator's E2E and the fixtures' capture in one (§ 4).
 5. **The reference** `docs/reference/plex-account-api.md` (the account side; `plex-api.md` keeps the server side and
    links to it).
@@ -94,7 +96,8 @@ from Plex's public article, or from the public source of projects that implement
 
 | Left | To | Why |
 | --- | --- | --- |
-| the route(s): `signInWithPlex`'s request body, whether a « start » operation exists (OPEN P-2), the `Problem` codes of each refusal | K1 + the maquette's contract | the contract declares the operation and no body yet |
+| the route(s): `startPlexSignIn` → `{pinId, signInUrl}` and `signInWithPlex {pinId}` (P-2 = B), the server-side polling of the PIN, the `Problem` codes of each refusal (`403` for an account the server is not shared with, P-1 = A) | K1 + the maquette's contract (the new operation is drawn design-side) | the contract declares `signInWithPlex` and no body yet |
+| the user's Plex token KEPT after the sign-in, encrypted (P-3 = B): the key, its rotation, the revocation | K1 | the store does not exist; the brick only hands the token to its caller |
 | the account it creates or links: the Default role at a first sign-in, the e-mail link to a local account, `plexLinked`, the owner's attribution of existing acquisitions (ruling 9) | K1 | `app.db` accounts and roles do not exist (Q2) |
 | the session the sign-in opens (today's `tm_session` reshaped onto an account id) | K1 | `web/auth` transform (brief § 2.4) |
 | where the client identifier is persisted per environment | K0 / K1 (`app.db`, per environment — Q2) | the store does not exist; the brick takes the identifier as a parameter |
@@ -232,7 +235,8 @@ def machine_identifier(self) -> str | None:
 - **The classic strong PIN, not the JWT device flow.** The application needs the identity ONCE per sign-in, then
   opens its own session; a 7-day JWT to refresh buys nothing it uses, and the classic flow is what Plex's own article
   documents. If plex.tv retires it, only this module changes.
-- **The Plex token is not kept** past the sign-in (unless OPEN P-3 says otherwise): nothing in the brief reads plex.tv
+- **The brick keeps no Plex token** past the call that obtained it (P-3 = B decides the token is kept, by K1, encrypted,
+  for a future feature — the brick stays stateless and only hands it to its caller). Nothing in the brief reads plex.tv
   on a user's behalf afterwards.
 - **One client identifier and one product name per environment**, so plex.tv's « Authorized Devices » tells the
   three apart and a revocation of one leaves the others.
@@ -268,37 +272,25 @@ A second run with a household member's Plex account, if he chooses, captures `sh
 
 ---
 
-## 5. OPEN — for him
+## 5. DECIDED — his rulings of 2026-10-01 (decision round 4)
 
-**P-1 — Who may sign in with Plex.** § 17 says both « Quelqu'un qui a accès au serveur Plex du foyer » and « Un
-utilisateur Plex sans aucun droit ici est admis en lecture seule ».
+**P-1 = A** — his words « A surtout pas B ! »: **access to this Plex server is the door.** Only the server's OWNER and
+the accounts the server is SHARED with sign in (a first sign-in → the Default role); any other plex.tv account is
+refused (`403`), whatever it is on plex.tv. « Sans aucun droit ici » means « no role beyond Default ». The brick
+gives K1 the three codes it decides on (`server_access` → OWNER / SHARED / NONE); `NONE` is the refusal.
 
-- *Reading A* — **access to this Plex server is the door**: owner or shared user signs in (a first sign-in → Default
-  role, read-only); an account the server is NOT shared with is refused (`403`), whatever it is on plex.tv. « Sans
-  aucun droit ici » then means « no role beyond Default ».
-- *Reading B* — **any plex.tv account** signs in, read-only by default. Cost: anyone with a free Plex account who
-  finds the address reads the library listing.
-- *Recommendation*: **A** — the household is the server's share list, which he already manages in Plex.
+**P-2 = B** — **the PIN runs on the server.** `startPlexSignIn` answers `{pinId, signInUrl}`; the page opens the URL,
+then calls `signInWithPlex {pinId}`, and the SERVER checks the PIN (`check_pin`, one call at a time, at the caller's
+cadence ≥ 1 s). The user's Plex token never leaves the server; it works the same from an installed iOS PWA, whichever
+window finishes on plex.tv. The contract's new operation is drawn design-side, with the maquette.
 
-**P-2 — Where the PIN runs** (it shapes the contract, not the brick — the brick serves both).
+**P-3 = B** — **the user's Plex token is KEPT, encrypted**, for a future feature (a watchlist read, Plex's own
+sharing). K1 owns the encrypted storage: the key, its rotation, the revocation. The brick stays stateless: nothing in
+it may log, return or persist the token beyond handing it to its caller (`check_pin`'s return value, the argument of
+`account` / `server_access`).
 
-- *Reading A* — **in the browser**, as Overseerr: the page creates the PIN on plex.tv, opens the sign-in, polls, and
-  posts the token to `signInWithPlex`; the server verifies it (`account` + `server_access`). One operation, as the
-  contract declares it. Cost: the user's Plex token passes through the page's JavaScript.
-- *Reading B* — **on the server**: a new `startPlexSignIn` answers `{pinId, signInUrl}`; the page opens the URL, then
-  calls `signInWithPlex {pinId}`, and the SERVER polls the PIN. The token never leaves the server; it works the same
-  from an installed iOS PWA, whichever window finishes on plex.tv, because only the server reads the PIN. Cost: one
-  more operation in the contract (non-visual), drawn by the maquette.
-- *Recommendation*: **B**.
-
-**P-3 — Keep a user's Plex token after the sign-in?** *A* — no (nothing reads plex.tv for a user afterwards); *B* —
-keep it, encrypted, for a future feature (a watchlist read, Plex's own sharing). *Recommendation*: **A** until a
-feature asks for it; B is then a K-lot decision with its own storage.
-
-**P-4 — Plex Home's managed users** (profiles with no plex.tv login of their own — INFERRED: they cannot complete a
-plex.tv sign-in). They cannot use the SSO; under § 17 a local password is held by `auth.password` alone.
-*Recommendation*: nothing to build now; should one of them need to enter, he grants that local account
-`auth.password` in Comptes.
+**P-4 = A** — **nothing to build for Plex Home's managed profiles** (no plex.tv login of their own — INFERRED: they
+cannot complete a plex.tv sign-in). One that must enter gets a local account with `auth.password` in Comptes.
 
 **Accounts and credentials he must create: none.** plex.tv requires no application registration (Plex's article:
 choose a product name, generate an identifier). The probe reads the server address from the existing `PLEX_URL`
@@ -315,5 +307,5 @@ and the server token from the existing `PLEX_TOKEN` for `/identity`, by his hand
 | 3 | **`PlexClient.machine_identifier()`** + `plex-account-api.md` (and the link from `plex-api.md`) | parsed, cached, fail-soft; the server suite still green | `pytest tests/unit/test_plex_refresh.py tests/unit/test_plex_account.py -q` |
 | — | **The operator's E2E** — the probe, without `--record`, on the merged client | his identity and `owner` printed, through the client this time | `! python scripts/plex-signin-probe.py` |
 
-Gate per phase: `make lint`; pytest of the touched modules. Nothing waits on his answers: P-1 to P-4 are K1's
-decisions, the brick serves every reading.
+Gate per phase: `make lint`; pytest of the touched modules. His rulings P-1 to P-4 are decided (§ 5) and applied by K1;
+the brick's phases wait only the operator's `--record` (phase 2 reads his captures).

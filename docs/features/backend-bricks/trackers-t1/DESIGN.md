@@ -19,7 +19,7 @@ to write it; no tracker was called — every fact below is public documentation 
 | --- | --- | --- |
 | `backend-brief.md` § 1.3 « three more trackers » (engine, § 18, L16-bis T1) | `v3x.club`, `draupnirr.xyz`, `digitalcore.club` as providers (search, grab, ratio, cross-seed), each with the `c411` block | three clients, registered like `c411` / `tr4ker`, with the `enabled` / `cross_seed` / `economy` block (§ 3) |
 | § 2.3 `api/tracker/*` — adapt | « three more providers (T1) » | the same family, no new protocol layer; one new capability (account statistics, § 3.4) |
-| § 6 K5 | `readTrackers`: « the ratio the TRACKER recognises » (NE-DOIT-PAS-1) | the provider-side read of that ratio, where the tracker publishes it (§ 3.4, OPEN T-1) |
+| § 6 K5 | `readTrackers`: « the ratio the TRACKER recognises » (NE-DOIT-PAS-1) | the provider-side read of that ratio, where the tracker publishes it (§ 3.4, T-1 = A) — UNKNOWN where it does not |
 | § 6 K6 | the cross-seed engine attempts every eligible switched-on tracker | three more eligible trackers; the engine itself is K6's |
 
 The maquette already draws the three as « composed » rows of the Trackers page (L16-bis § 4.3: `v3x.club` active,
@@ -82,13 +82,13 @@ each site's public landing page fetched once (no sign-in). CONFIRMED = read in o
 3. **Registration**: three `ProviderName` members (`V3X = "v3x"`, `DRAUPNIRR = "draupnirr"`, `DIGITALCORE =
    "digitalcore"`), three `PROVIDER_CREDS` entries, three `_TRACKER_CLASSES` lines, three blocks in
    `config.example/tracker.json5` (`enabled: false`, `cross_seed: false`, the `economy` block commented — the `c411`
-   block), the three names appended to the example's `priority`.
+   block), the three names LAST in the example's `priority` (T-4 = A).
 4. **Grab and cross-seed work through the EXISTING paths** — `resolve_source` downloads each result's `.torrent`
    through the tracker's own transport; the cross-seed engine searches by release name and verifies by layout. No
    change to `acquire/`.
 5. **One new capability, declared once for every tracker**: `AccountStatsReadable.account_stats() ->
    TrackerAccountStats` (§ 3.4) — the ratio and volumes AS THE TRACKER RECOGNISES THEM. It is implemented by a client
-   only where the tracker publishes them (OPEN T-1); a client that cannot does NOT claim it, and the composition
+   only where the tracker publishes them (T-1 = A: he finds the endpoint, signed in); a client that cannot does NOT claim it, and the composition
    tests assert that. Nothing computes a ratio locally in its place (NE-DOIT-PAS-1).
 6. **Three reference documents** `docs/reference/{v3x,draupnirr,digitalcore}-api.md` in the shape of `tr4ker-api.md`,
    and the redacted captures under `docs/reference/_samples/<tracker>/`.
@@ -272,7 +272,7 @@ class AccountStatsReadable(Protocol):
 ```
 
 Raises the family's existing errors (`TrackerAuthError` on 401/403, `ApiError` otherwise, `CircuitOpenError`). A
-client composes it only on a documented endpoint (OPEN T-1).
+client composes it only on a documented endpoint (T-1 = A); without one, K5 shows that tracker's ratio as UNKNOWN.
 
 ### 3.5 Kinds a tracker has no class for
 
@@ -322,22 +322,17 @@ torrent he knows that tracker carries, read for one `search` per tracker and a v
 
 ---
 
-## 5. OPEN — for him
+## 5. DECIDED — his rulings of 2026-10-01 (decision round 4)
 
-**T-1 — The ratio « the tracker recognises », for the three (and, already today, for c411 and tr4ker).** No public
+**T-1 = A — the ratio « the tracker recognises », for the three (and, already today, for c411 and tr4ker).** No public
 source shows an account-statistics endpoint for any of the three; `ratio_state` has no writer today for c411 and
-tr4ker either (§ 1). § 18 requires the TRACKER's figure (NE-DOIT-PAS-1).
+tr4ker either (§ 1). § 18 requires the TRACKER's figure (NE-DOIT-PAS-1). He looks, on each site signed in, for an API
+offering the account's statistics (v3x's « Réglages → Intégrations » lists key SCOPES: a stats scope would be it) and
+gives the endpoint or its doc page; each found endpoint becomes that client's `account_stats()` (phase 5). **Where
+none exists, the tracker's ratio shows UNKNOWN** — never a locally computed figure, and never a scraped profile page
+unless he orders it for a named tracker (§ 18 point 4: never mistreat a tracker).
 
-- *Reading A* — he looks, on each site signed in, for an API page offering the account's statistics (v3x's
-  « Réglages → Intégrations » lists key SCOPES: a stats scope would be it), and gives the endpoint or its doc page;
-  each found endpoint becomes that client's `account_stats()`. Cost: ten minutes per site on his side; zero risk.
-- *Reading B* — where no API exists, read the signed-in profile PAGE with a session cookie. Cost: a stored cookie per
-  site, a parser that breaks with the site's HTML, and automation the sites' rules may forbid (§ 18 point 4: never
-  mistreat a tracker).
-- *Recommendation*: **A, and where A finds nothing, the tracker shows its ratio as UNKNOWN** — never a locally
-  computed figure and never a scraped page unless he orders B for a named tracker.
-
-**T-2 — The accounts and the keys he must provide** (none is assumed):
+**T-2 — The accounts and the keys he must provide — stays his hand** (none is assumed):
 
 | Tracker | Account | Secret to create | Where (public definitions) |
 | --- | --- | --- | --- |
@@ -348,21 +343,17 @@ tr4ker either (§ 1). § 18 requires the TRACKER's figure (NE-DOIT-PAS-1).
 He confirms he holds an account on each; the secrets go to `.env` by his hand (`V3X_API_KEY`, `DRAUPNIRR_API_KEY`,
 `DIGITALCORE_API_KEY`), never through an agent.
 
-**T-3 — Who captures the fixtures.** Each phase needs ONE recorded answer per endpoint, and that is a live call with
-his key.
+**T-3 = B — he captures the fixtures himself**: `! python scripts/capture-tracker-sample.py <tracker>` reads the key
+from `.env`, calls caps / one movie search / one TV search / one bad-key call, REDACTS every key and passkey, and
+writes `docs/reference/_samples/<tracker>/`; a session reads only the redacted files. No key ever enters an agent's
+context; the script is reused for any later tracker.
 
-- *Reading A* — a session he authorises once per tracker reads the key and captures.
-- *Reading B* — he runs a capture script himself (`! python scripts/capture-tracker-sample.py <tracker>`): it reads
-  the key from `.env`, calls caps / one movie search / one TV search / one bad-key call, REDACTS every key and
-  passkey, and writes `docs/reference/_samples/<tracker>/`; the session reads only the redacted files.
-- *Recommendation*: **B** — no key ever enters an agent's context, and the script is reused for any later tracker.
-
-**T-4 — Each tracker's economy and rank.** The `economy` block's `min_ratio` / `min_seed_time` are the site's rules,
-which only he reads signed in. Public hints: digitalcore ratio 1.0 and 5 days (its definition), v3x 0.8 (Jackett's
-value, unconfirmed), draupnirr per torrent (`minimumratio` / `minimumseedtime` attrs, while enforcement is on). And
-the `priority` rank of each: digitalcore is an English scene tracker with no French class — its value for a French
-library is MULTI / VO releases and cross-seed. *Recommendation*: the example config ships the three LAST in
-`priority`, economy commented; he fills the economy from each site's rules and moves ranks in Réglages.
+**T-4 = A — the example config ships the three LAST in `priority`, their `economy` commented.** The `economy` block's
+`min_ratio` / `min_seed_time` are the site's rules, which only he reads signed in; he fills each from the site and
+moves ranks in Réglages. Public hints, for him: digitalcore ratio 1.0 and 5 days (its definition), v3x 0.8 (Jackett's
+value, unconfirmed), draupnirr per torrent (`minimumratio` / `minimumseedtime` attrs, while enforcement is on);
+digitalcore is an English scene tracker with no French class — its value for a French library is MULTI / VO releases
+and cross-seed.
 
 ---
 

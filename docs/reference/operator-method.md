@@ -179,6 +179,10 @@ d'audit en cours.
 - 09-29 · Rd 3 Q5 : la légende est le composant de légende des saisons, réutilisé tel quel.
 - 09-29 · Rd 3 Q9 : pas de glissé « cross-seed » avant L17.
 - 09-29 · la liste des trackers accueillera d'autres trackers au back-end (v3x.club, draupnirr.xyz, …).
+- 10-01 · briques Rd 4 T-1 = A : il cherche lui-même, connecté, une API de statistiques par site ; sans API, le ratio du tracker s'affiche INCONNU — jamais un chiffre calculé localement, jamais une page lue en scraping sauf s'il l'ordonne pour un tracker nommé.
+- 10-01 · briques Rd 4 T-3 = B : il lance lui-même `scripts/capture-tracker-sample.py` ; aucune clé n'entre dans le contexte d'un agent.
+- 10-01 · briques Rd 4 T-4 = A : la configuration d'exemple livre v3x.club, draupnirr.xyz et digitalcore.club EN DERNIER dans `priority`, leur bloc `economy` en commentaire.
+- 10-01 · briques Rd 4 F-4 = A : tout compte qui porte `trackers.view` reçoit l'alerte de ratio.
 
 ### Système, Maintenance, Réglages
 
@@ -214,6 +218,11 @@ d'audit en cours.
 - 09-27 · Rd 9 Q12 (ruling 17) : les droits se donnent à des rôles, jamais à un utilisateur ; ruling 20 : un compte a un seul rôle.
 - 09-27 · Rd 9 Q14 : pas d'escalade — un compte n'attribue qu'un rôle dont les droits sont inclus dans les siens ; les droits et les rôles livrés sont définis en amont, modifiables par l'interface.
 - 09-27 · Rd 9 Q15 (ruling 22) : deux rôles système indélébiles — le rôle par défaut (tout nouveau compte, modifiable) et le rôle Admin (sans droits : un contournement des ACL, ni restreint ni modifiable) ; ruling 22, précision : un rôle qui ne donne aucune page envoie sur une page dédiée.
+- 10-01 · briques Rd 4 P-1 = A (« A surtout pas B ! ») : seuls le propriétaire du serveur Plex et les comptes avec qui il est partagé se connectent par Plex ; tout autre compte plex.tv est refusé (403).
+- 10-01 · briques Rd 4 P-2 = B : le PIN tourne sur le serveur — `startPlexSignIn` → `{pinId, signInUrl}`, puis `signInWithPlex {pinId}` ; le jeton Plex ne quitte jamais le serveur.
+- 10-01 · briques Rd 4 P-3 = B : le jeton Plex de l'utilisateur est GARDÉ, chiffré, pour une fonction future (lecture de la watchlist, partage Plex) ; K1 porte son stockage chiffré (clé, rotation, révocation), la brique reste sans état.
+- 10-01 · briques Rd 4 P-4 = A : rien à construire pour les profils gérés de Plex Home ; celui qui doit entrer reçoit un compte local avec `auth.password` dans Comptes.
+- 10-01 · briques Rd 4 F-3 (« A l'ouverture (installation ?) de la PWA », puis « proposition à l'ouverture et aussi via profil ») : LES DEUX — une proposition « Activer les notifications sur cet appareil » à l'ouverture de la PWA installée (le toucher est le geste qu'iOS exige) ET la ligne par appareil de Profil avec ses quatre états ; dessinées d'abord dans la maquette.
 
 ### Environnements et back-end
 
@@ -230,6 +239,7 @@ d'audit en cours.
 - 10-01 · Q8 = A : un tunnel dont le média a disparu (torrent retiré, fichiers absents) se ferme avec sa raison ; la carte le dit une fois dans « À traiter », écartée par « × » (= vu) ; rangé à la main ailleurs, il part simplement ; un média qui revient plus tard ouvre un nouveau tunnel.
 - 10-01 · Q9 (sa règle après discussion, « oui, enregistre ») : rien n'est annulé ni filtré, chaque tunnel va à son terme (un épisode pris AVANT la demande de saison n'est pas couvert par « aucun téléchargement … se lance en parallèle » du 17:36, qui n'interdit que les lancements APRÈS la demande ; cette règle tient) ; au rangement, le DERNIER CHOISI gagne — la date d'ajout/de grab de la release décide, pas son heure d'arrivée — pour TOUS les médias, films compris ; un fichier sans date de choix connue (rangé avant la bascule) compte comme plus ancien que tout ; une release choisie plus tôt qui arrive après n'est PAS rangée, son torrent continue de semer, son tunnel se ferme avec la raison « remplacé par un choix plus récent », dite une fois dans « À traiter », écartée par « × ». Son pourquoi : le pack apporte le plus souvent une version meilleure ou corrigée (codec, corruption, sous-titre ou audio manquant) et une qualité cohérente sur la saison. Exigence back-end : le moteur doit connaître, au rangement, la date de choix de la release qui a rangé le fichier en place.
 - 10-01 · Q10 (parole de l'opérateur) : FCM est le canal de l'alerte de ratio (« Telegram est pollué et je veux m'en débarrasser » — Telegram refusé, son souhait de s'en défaire noté, sa suppression NON ordonnée) ; pas pressé, mais le projet FCM peut être préparé dès maintenant : notifications et web push sur la PWA installée, Android et iOS ; seuil d'alerte par défaut à un ratio de 1,2, réglable tracker par tracker.
+- 10-01 · briques Rd 4 F-2 = A : un seul projet Firebase pour dev, staging et prod.
 
 ### Design système et composants
 

@@ -104,9 +104,9 @@ and no Google endpoint was called — the facts below are Firebase's and WebKit'
 | Left | To | Why |
 | --- | --- | --- |
 | the TRIGGER: a tracker's ratio under `economy.alert_threshold` (default 1.2), its hysteresis, how often it may repeat | K5 | brief § 1.3, Q10 — « only the channel is drawn » |
-| WHO receives a message (which accounts — the holders of `trackers.view`?) | K5 + K1 | rights are K1's |
+| WHO receives a message: for the ratio alert, every account holding `trackers.view` (F-4 = A) | K5 + K1 | rights are K1's |
 | the WORDS of each message and where its click lands | the maquette (`fr.json`) + K5 | every UI string lives in `fr.json`; the target page is a design decision |
-| the opt-in SURFACE — the gesture « Activer les notifications », and its states (not installed on iOS, denied, unsupported, on for this device) | the maquette, FIRST (OPEN F-3) | a surface is drawn before it is coded; the maquette draws none today (§ 1) |
+| the opt-in SURFACES (F-3): the offer « Activer les notifications sur cet appareil » at the opening of the installed PWA, AND the Profil per-device line with the four states (not installed on iOS, denied, unsupported, on for this device) | the maquette, FIRST | a surface is drawn before it is coded; the maquette draws none today (§ 1) |
 | the routes: post a subscription, remove one, list this account's devices | K5 (+ the contract) | shaped by the opt-in surface |
 | the subscription table's place in `app.db`'s baseline and its foreign key to the accounts table | K0 / K1 | the store and the accounts do not exist yet |
 | Telegram | nobody | Q10: its removal is NOT ordered; this brick neither touches nor replaces it |
@@ -276,7 +276,7 @@ export function unregisterPush(revoke: (token: string) => Promise<void>): Promis
 
 `FcmWebConfig` is the Web app's public `firebaseConfig` and the VAPID public key — not secrets (Firebase's own
 statement); served to the page by K5 from the configuration, the same on every environment if one project serves
-them all (OPEN F-2).
+them all (F-2 = A: one Firebase project serves the three).
 
 ---
 
@@ -315,7 +315,7 @@ them all (OPEN F-2).
 
 ---
 
-## 5. OPEN — for him
+## 5. DECIDED — his rulings of 2026-10-01 (decision round 4)
 
 **F-1 — The Firebase project: the steps HE takes, with his Google account** (nothing is assumed created):
 
@@ -333,25 +333,24 @@ them all (OPEN F-2).
 The public values go into the configuration overlay (`push.fcm.web` — a new key, written at K5), never into git with
 anything secret.
 
-**F-2 — One project for the three environments, or one each?**
+**F-1 stays his hand, as written above** — the project, the web app, the VAPID key pair and the service-account file are
+created by him; no agent creates, reads or holds any of them.
 
-- *Reading A* — **one project**: one service account, one web config; dev, staging and prod are three origins, so
-  their tokens never mix, and each environment's `app` file holds its own subscriptions (Q2).
-- *Reading B* — **one per environment**: three consoles, three keys; a test push from dev can never reach a prod token
-  even by a bug. Cost: three times the setup and three secrets.
-- *Recommendation*: **A** — the separation Q2 asked is already in the stores and the origins.
+**F-2 = A** — **one Firebase project for dev, staging and prod**: one service account, one web config; the three are
+three origins, so their tokens never mix, and each environment's `app` file holds its own subscriptions (Q2).
 
-**F-3 — Where an account turns notifications on** (a surface to draw FIRST; the brick serves any).
+**F-3 — BOTH surfaces**, his words « A l'ouverture (installation ?) de la PWA », then « proposition à l'ouverture et
+aussi via profil »:
 
-- *Reading A* — in **Profil**, per device: « Notifications sur cet appareil », with the four states of § 3.6 (iOS: « à
-  installer d'abord sur l'écran d'accueil »).
-- *Reading B* — on the **Trackers** page, next to the alert threshold it serves.
-- *Recommendation*: **A** — a device setting belongs to the account's page, and the next push (beyond the ratio) will
-  not be a tracker's.
+- an offer « Activer les notifications sur cet appareil » at the opening of the INSTALLED PWA — tapped, it is the user
+  gesture iOS needs for the permission;
+- the **Profil** per-device line « Notifications sur cet appareil », with the four states of § 3.6 (iOS: « à installer
+  d'abord sur l'écran d'accueil »).
 
-**F-4 — Which accounts receive the ratio alert** — K5's, flagged now because it decides who sees F-3's offer: *A* the
-accounts holding `trackers.view`; *B* the Admin accounts only. *Recommendation*: **A** — the alert concerns what
-that right shows.
+Both are drawn in the maquette first; this brick builds neither — `lib/push-registration.ts` serves both from one
+gesture-bound `registerPush`.
+
+**F-4 = A** — **every account holding `trackers.view` receives the ratio alert** (K5 applies it).
 
 ---
 
@@ -365,4 +364,4 @@ that right shows.
 | — | **Delivery E2E** — after phase 3 and the opt-in surface (F-3) bound by K5 | one notification read and tapped on Android and on iOS (installed PWA) | `! python scripts/fcm-probe.py --account <id> --record` |
 
 Gate per phase: `make lint`; the maquette's typecheck and tests for phase 3; pytest of the touched modules. Phase 1's
-proof by his hand waits F-1; phases 2 and 3 wait nothing.
+proof by his hand waits F-1; phases 2 and 3 wait nothing; the delivery E2E waits the two F-3 surfaces, drawn and bound.
