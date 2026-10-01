@@ -50,7 +50,7 @@ function useMediaCrossSeed(provider: string, identifier: string, enabled: boolea
  * @param props.origin The origin torrent's hash.
  * @returns The row.
  */
-function PairRow({ pair, origin }: { pair: CrossSeedPair; origin: string }): ReactElement {
+function MediaPairRow({ pair, origin }: { pair: CrossSeedPair; origin: string }): ReactElement {
   const { t } = useTranslation();
   return (
     <li className={factRow()} data-part="media/cross-seed-pair" data-origin={origin} data-tracker={pair.tracker}
@@ -104,7 +104,7 @@ export function MediaCrossSeed({ provider, identifier }: { provider: string; ide
           ) : (
             <ol className={factList()}>
               {orderedPairs(origin.pairs).map((pair) => (
-                <PairRow key={pair.tracker} pair={pair} origin={origin.infoHash} />
+                <MediaPairRow key={pair.tracker} pair={pair} origin={origin.infoHash} />
               ))}
             </ol>
           )}
