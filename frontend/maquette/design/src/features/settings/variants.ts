@@ -127,7 +127,18 @@ export const saveBar = cva(
     // THE BUTTON KEEPS ITS WORD'S WIDTH: a submit is `w-full` and `flex-none`,
     // which in this row took the whole width and crushed the sentence beside it
     // to a word per line at 320 px.
-    "[&>button]:w-auto",
+    "[&>button]:w-auto " +
+    // SPANNING THE COLUMN ONLY on a desktop, as the selection bar does (DECIDED 1 = C, 7 = B): what
+    // it will write and « Enregistrer » within one glance, beside the pinned menu, never across the window.
+    "desk:left-[var(--tm-rail-w)] desk:mx-auto desk:max-w-[var(--tm-column-w)] desk:border-x desk:rounded-t-4",
+);
+
+/**
+ * A ranking criterion's row on a desktop: the weight BESIDE its criterion, at the row's end, as a
+ * switch sits beside its row (DECIDED 1 = C). On a phone the field keeps its line under the criterion.
+ */
+export const rankingCriterion = cva(
+  "desk:flex desk:items-center desk:gap-x-4 desk:pr-5 desk:[&>.fw]:flex-1 desk:[&>.fw]:min-w-0",
 );
 
 /** « Relire le classement »: the conflict's way out, at a finger's height. */
