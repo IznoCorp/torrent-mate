@@ -16,6 +16,9 @@ import { cva } from "../cva";
 /** A card: its poster or its folder beside a column, in one frame. */
 export const card = cva(
   "card relative grid grid-cols-[auto_1fr] w-full items-stretch rounded-3 border border-border bg-card " +
+    // A HOVER GROUND (DECIDED 6 = B): the pointer sees what it would open. `hover:` is Tailwind's,
+    // behind `@media (hover: hover)`, so a finger never leaves it stuck.
+    "hover:bg-muted " +
     "overflow-hidden min-h-[126px] [transition:transform_var(--duration-2)_var(--ease-standard)] " +
     // The swipe gesture writes `dragging` straight to the card while a finger holds it.
     "[&.dragging]:transition-none " +

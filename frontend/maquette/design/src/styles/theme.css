@@ -89,6 +89,25 @@
 @source "../routes";
 @source "../ui";
 
+/* THE DESKTOP — ONE THRESHOLD, THE SHELL'S (the desktop milestone, DECIDED 1–7, 2026-10-01).
+   `desk:` is the one width at which the shell re-arranges for a desktop: the menu pinned beside the
+   content, the reading column, the side sheet, the bounded dialog. It is a MEDIA query because it is the
+   shell's (invariant 12); a component inside asks the width it has, through its container.
+
+   AND IT IS OFF INSIDE THE HARNESS'S PHONE FRAME. The window is wide there while the app is drawn 390 px
+   wide, so a window query would draw the desktop inside a phone — the deviation `styles/harness.css`
+   otherwise re-asserts property by property. The condition names the harness's switch NEGATIVELY: where
+   there is no switch (every shipped build) it is simply true; where the switch is drawn it holds only out
+   of the frame. That clause dies with the frame. `--tm-desk` in `styles/base.css` spells the same
+   condition for a script, so a script never re-derives it. */
+@custom-variant desk {
+  @media (min-width: 64rem) {
+    &:where(:root:not(:has(#desktop-switch:not(:checked))) *) {
+      @slot;
+    }
+  }
+}
+
 /* The scale. Every design constant the stylesheet uses is a step declared
    here, and nowhere else. The space ramp also serves gap and margin. Loop
    periods are rhythms, not responses to a touch: they are named apart so

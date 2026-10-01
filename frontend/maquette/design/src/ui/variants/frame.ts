@@ -24,7 +24,7 @@ import { cva } from "../cva";
    class name, so the list is the record and the variants are the spelling.
 
      30  the action button        `addAction` (ui/variants/frame.ts)
-     40  the shell's top bar `.topbar` (index.html) · the settings save bar `saveBar` (features/settings/variants.ts)
+     40  the shell's top bar `.topbar` (index.html) · the settings save bar `saveBar` (features/settings/variants.ts) · the drawer pinned on a desktop `drawerPinned` (ui/variants/frame.ts)
      45  a screen                `screen` (ui/variants/layout.ts)
      46  the scrim               `sheetScrim` (ui/variants/layout.ts)
      50  the tab bar             `tabBar` (ui/variants/frame.ts)
@@ -142,7 +142,10 @@ export const tabBarLabel = cva("lb overflow-hidden text-ellipsis whitespace-nowr
 export const addAction = cva(
   "fab absolute right-[16px] bottom-[calc(var(--tm-bottom-bar-h,0px)+16px)] "
     + "w-[52px] h-[52px] rounded-full [border:0] bg-primary text-primary-foreground "
-    + "grid place-items-center [box-shadow:var(--mq-shadow-fab)] z-30",
+    + "grid place-items-center [box-shadow:var(--mq-shadow-fab)] z-30 "
+    // AT THE COLUMN'S BOTTOM-RIGHT on a desktop (DECIDED 7 = B): the same button at the same corner
+    // of the content, never at the far corner of a wide window.
+    + "desk:right-[max(16px,calc((100%-var(--tm-rail-w)-var(--tm-column-w))/2+16px))]",
 );
 
 export const addActionDrawing = cva("w-[23px] h-[23px]");
@@ -155,7 +158,11 @@ export const addActionDrawing = cva("w-[23px] h-[23px]");
 export const selectionBar = cva(
   "selbar absolute left-0 right-0 bottom-0 z-[51] flex items-center gap-5 "
     + "pt-5 px-7 pb-[calc(env(safe-area-inset-bottom)+var(--spacing-5))] "
-    + "bg-popover border-t border-border",
+    + "bg-popover border-t border-border "
+    // SPANNING THE COLUMN ONLY on a desktop (DECIDED 7 = B): « Annuler » and « Supprimer » within
+    // one glance, beside the pinned menu, never across the window.
+    + "desk:left-[var(--tm-rail-w)] desk:mx-auto desk:max-w-[var(--tm-column-w)] "
+    + "desk:border-x desk:rounded-t-4",
 );
 
 export const selectionCaption = cva("n text-3 font-semibold");
@@ -201,7 +208,10 @@ export const selectionAction = cva(
 export const messageHost = cva(
   "toast absolute left-[14px] right-[14px] z-[57] flex items-center gap-5 "
     + "bg-popover border border-border rounded-3 py-5 px-6 text-3 "
-    + "[box-shadow:var(--mq-shadow-toast)] duration-200 ease-standard",
+    + "[box-shadow:var(--mq-shadow-toast)] duration-200 ease-standard "
+    // ON THE READING COLUMN on a desktop (DECIDED 1): beside the pinned menu, never under it.
+    + "desk:left-[calc(var(--tm-rail-w)+14px)] desk:mx-auto "
+    + "desk:max-w-[calc(var(--tm-column-w)-28px)]",
   {
     variants: {
       // WHERE IT IS PLACED — the ranked list above says why it moves at all.
@@ -218,7 +228,12 @@ export const messageHost = cva(
       // « Enregistrer » — the tap did nothing for its five seconds (B-317).
       edge: {
         bottom: "bottom-[calc(var(--tm-bottom-bar-h,0px)+var(--tm-save-bar-h,0px)+16px)]",
-        top: "top-[calc(max(env(safe-area-inset-top),var(--tm-screen-bar-bottom,0px))+16px)]",
+        top: "top-[calc(max(env(safe-area-inset-top),var(--tm-screen-bar-bottom,0px))+16px)] "
+          // ON A DESKTOP NOTHING HOLDS A VERB ALONG THE COLUMN'S FOOT while a layer is open — the
+          // sheet is at the side (DECIDED 3), the confirmation centred and bounded — so the message
+          // stays at the foot, beside the side sheet rather than over its head.
+          + "desk:top-auto desk:bottom-[16px] "
+          + "desk:[:root:has(#sheet[data-open])_&]:right-[calc(440px+16px)]",
       },
       shown: {
         true: "show opacity-100 visible transition-[opacity,transform]",
@@ -267,10 +282,42 @@ export const drawer = cva(
   },
 );
 
+/**
+ * The same drawer PINNED ON A DESKTOP (DECIDED 2): it stays beside the content, at the width the
+ * reader chose (`--tm-rail-w`, open or folded to its icons), never over a scrim. A variant of its
+ * own because it carries a rank of its own — 40, the header's, so a sheet's or a confirmation's
+ * scrim covers it as it covers the page — and the ranked list records one rank per name.
+ */
+export const drawerPinned = cva(
+  "desk:[transform:none] desk:visible desk:transition-none desk:z-40 "
+    + "desk:w-[var(--tm-rail-w)] desk:max-w-none",
+);
+
 export const drawerHead = cva(
   "dh flex items-center gap-4 "
     + "pt-[calc(env(safe-area-inset-top)+var(--spacing-7))] px-7 pb-7 "
-    + "border-b border-border text-5 font-semibold tracking-[-0.01em]",
+    + "border-b border-border text-5 font-semibold tracking-[-0.01em] "
+    // PINNED, THE MENU IS A WINDOW'S HEIGHT AND NO MORE: at 1024 × 768 its entries, the appearance and
+    // the served identity are all seen unscrolled (the desktop reader, 2026-10-01: « Comptes » sat
+    // under the appearance at 1280 × 800). A pointer needs no 44 px row, so the pinned menu takes a
+    // denser rhythm — here, on the group titles and on the entries; the phone's drawer is untouched.
+    + "desk:pt-5 desk:pb-5",
+  // FOLDED, the head holds the one control that unfolds it, centred in the bar.
+  { variants: { collapsed: { true: "desk:justify-center desk:px-0", false: "" } },
+    defaultVariants: { collapsed: false } },
+);
+
+/** The brand in the head — gone from the folded bar, which is icons only. */
+export const drawerBrand = cva("flex items-center gap-4", {
+  variants: { collapsed: { true: "desk:hidden", false: "" } },
+  defaultVariants: { collapsed: false },
+});
+
+/** The control that folds the pinned menu to its icons and unfolds it — a desktop's only. */
+export const drawerRailToggle = cva(
+  "hidden desk:inline-flex ml-auto w-[44px] h-[44px] flex-none items-center justify-center "
+    + "rounded-2 [border:0] bg-transparent text-muted-foreground",
+  { variants: { collapsed: { true: "desk:ml-0", false: "" } }, defaultVariants: { collapsed: false } },
 );
 
 export const drawerNavigation = cva(
@@ -293,11 +340,25 @@ export const drawerAppearanceSwitch = cva("mx-6");
 
 export const drawerGroupTitle = cva(
   "sect pt-5 px-6 pb-2 text-1 font-medium uppercase tracking-[0.08em] "
-    + "text-muted-foreground",
+    + "text-muted-foreground desk:pt-3",
+  { variants: { collapsed: { true: "desk:hidden", false: "" } }, defaultVariants: { collapsed: false } },
 );
 
+/** What the folded bar does not draw: the appearance and the served identity, one unfold away. */
+export const drawerUnfoldedOnly = cva("unfolded-only", {
+  variants: { collapsed: { true: "desk:hidden", false: "" } },
+  defaultVariants: { collapsed: false },
+});
+
+/** An entry's word — read aloud, and shown as the pointer's tooltip, when the bar is folded. */
+export const drawerEntryLabel = cva("entry-label", {
+  variants: { collapsed: { true: "desk:sr-only", false: "" } },
+  defaultVariants: { collapsed: false },
+});
+
 export const drawerEntry = cva(
-  "flex items-center gap-6 min-h-[44px] py-4 px-6 rounded-3 text-4 text-foreground",
+  "flex items-center gap-6 min-h-[44px] py-4 px-6 rounded-3 text-4 text-foreground "
+    + "desk:min-h-[36px] desk:py-3",
   {
     variants: {
       current: {
@@ -315,13 +376,22 @@ export const drawerEntry = cva(
       // A PLACE THIS ACCOUNT DOES NOT HOLD is drawn, MARKED, never hidden
       // (OPEN 3 = B): muted, with its lock and its word, and no count.
       reserved: { true: "text-muted-foreground", false: "" },
+      // FOLDED TO ITS ICON on a desktop: the row centres it, and its count rides the icon's
+      // corner (`drawerEntryCountFolded`).
+      collapsed: { true: "desk:relative desk:justify-center desk:px-0", false: "" },
     },
-    defaultVariants: { current: false, reserved: false },
+    defaultVariants: { current: false, reserved: false, collapsed: false },
   },
 );
 
 /** The mark a reserved entry carries at its end: the lock and « Réservé ». */
-export const drawerEntryReserved = cva("ml-auto inline-flex items-center gap-2 text-2");
+export const drawerEntryReserved = cva("ml-auto inline-flex items-center gap-2 text-2", {
+  variants: { collapsed: { true: "desk:sr-only", false: "" } },
+  defaultVariants: { collapsed: false },
+});
+
+/** Where the count sits when the bar is folded: the icon's corner, as on the tab bar. */
+export const drawerEntryCountCollapsed = cva("desk:absolute desk:top-[2px] desk:right-[4px] desk:ml-0");
 
 export const drawerEntryDrawing = cva("w-[20px] h-[20px] flex-none");
 
@@ -351,7 +421,9 @@ export const drawerIdentitySecondary = cva(
 export const dialog = cva(
   "dlg absolute left-[16px] right-[16px] top-1/2 z-[56] bg-popover "
     + "border border-border rounded-4 p-7 [box-shadow:var(--mq-shadow-dlg)] "
-    + "duration-200 ease-standard",
+    + "duration-200 ease-standard "
+    // A CONFIRMATION READS AS ONE on a desktop (DECIDED 1): the sign-in card's bounded width, centred.
+    + "desk:mx-auto desk:max-w-[480px]",
   {
     variants: {
       open: {

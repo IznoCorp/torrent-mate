@@ -1543,6 +1543,8 @@
     "barLabel": "Navigation principale",
     "actionButtonLabel": "Ajouter un média",
     "drawerLabel": "Menu",
+    "railCollapse": "Réduire le menu",
+    "railExpand": "Déployer le menu",
     "appearanceGroup": "Apparence",
     "appearanceLabel": "Thème",
     "appearance": {
@@ -1569,7 +1571,8 @@
       "durationImmediate": "immédiate",
       "dryRun": "Essai à blanc",
       "dryRunImpossible": "impossible",
-      "destructiveNote": "**Cette commande supprime.** L'essai à blanc reste activé tant que rien n'a montré ce qui serait détruit : un « êtes-vous sûr ? » se répond sans lire, une liste se regarde. Lancez-la à blanc, lisez ce qu'elle nomme, puis relancez-la pour de vrai.",
+      "destructiveEmphasis": "Cette commande supprime.",
+      "destructiveNote": " L'essai à blanc reste activé tant que rien n'a montré ce qui serait détruit : un « êtes-vous sûr ? » se répond sans lire, une liste se regarde. Lancez-la à blanc, lisez ce qu'elle nomme, puis relancez-la pour de vrai.",
       "runDry": "Lancer à blanc",
       "run": "Lancer",
       "runForReal": "Lancer pour de vrai",

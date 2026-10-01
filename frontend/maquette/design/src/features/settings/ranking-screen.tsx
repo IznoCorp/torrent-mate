@@ -21,7 +21,7 @@ import {
   screen, screenBar, scrollport,
 } from "../../ui/variants";
 import { configurationStatusQuery, writeConfigurationFile } from "./queries";
-import { readAgainAction, weightInput } from "./variants";
+import { rankingCriterion, readAgainAction, weightInput } from "./variants";
 import { RankingPreview, type RankingFileBlock } from "./ranking-preview";
 
 type Criterion = Schemas["RankingCriterion"];
@@ -164,7 +164,7 @@ export function RankingScreen(): ReactElement {
           ) : null}
           <ol className={factList()} data-part="ranking/criteria">
             {criteria.map((criterion) => (
-              <li key={criterion.field} className={factRow()} data-part="ranking/criterion" data-field={criterion.field}>
+              <li key={criterion.field} className={`${factRow()} ${rankingCriterion()}`} data-part="ranking/criterion" data-field={criterion.field}>
                 <span className={factRowBody()}>
                   <span className={factName()}>{criterion.field}</span>
                   <span className={factDetail()} data-part="ranking/scoring">{scoring(criterion, t)}</span>

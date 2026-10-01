@@ -305,7 +305,8 @@ export const factRowBody = cva(
   "fw grid grid-cols-[minmax(0,1fr)_minmax(0,auto)] items-baseline gap-x-5 gap-y-1 py-4 px-5 w-full " +
     "text-left [border:0] bg-transparent",
   {
-    variants: { withTarget: { true: "min-h-[44px] cursor-pointer", false: "" } },
+    // A row that opens answers the pointer with a ground (DECIDED 6 = B).
+    variants: { withTarget: { true: "min-h-[44px] cursor-pointer hover:bg-muted", false: "" } },
     defaultVariants: { withTarget: false },
   },
 );
@@ -397,7 +398,7 @@ export const loadFooterAction = cva(
  * (was: A topic: a rubric of settings, or of maintenance actions.) */
 export const topicRow = cva(
   "topic flex items-center gap-6 w-full text-left border border-border " +
-    "rounded-3 bg-card p-6 mb-4 text-foreground " +
+    "rounded-3 bg-card hover:bg-muted p-6 mb-4 text-foreground " +
     "[&_.rt]:block [&_.rt]:text-5 [&_.rt]:font-semibold " +
     "[&_.rs]:block [&_.rs]:mt-1 [&_.rs]:text-3 [&_.rs]:text-muted-foreground [&_.rs]:leading-[1.4] " +
     "[&_.rn]:flex-none [&_.rn]:text-3 [&_.rn]:font-semibold [&_.rn]:text-muted-foreground",

@@ -22,7 +22,7 @@ export const settingsRow = cva(
   // width utilities are sorted by the generator, all-sides before one-side,
   // which is the order the prototype wrote by hand.
   "settingrow flex items-center gap-5 w-full text-left border-0 " +
-    "border-b border-border bg-transparent py-5 px-1 text-foreground last:border-b-0 " +
+    "border-b border-border bg-transparent hover:bg-muted py-5 px-1 text-foreground last:border-b-0 " +
     "[&_.rl]:block [&_.rl]:min-w-0 [&_.rl]:flex-1 [&_.rl]:text-4 " +
     "[&_.rf]:block [&_.rf]:mt-1 [&_.rf]:text-2 [&_.rf]:text-muted-foreground [&_.rf]:font-mono " +
     "[&_.rv]:flex-none [&_.rv]:max-w-[45%] [&_.rv]:overflow-hidden [&_.rv]:text-ellipsis " +
@@ -127,7 +127,18 @@ export const saveBar = cva(
     // THE BUTTON KEEPS ITS WORD'S WIDTH: a submit is `w-full` and `flex-none`,
     // which in this row took the whole width and crushed the sentence beside it
     // to a word per line at 320 px.
-    "[&>button]:w-auto",
+    "[&>button]:w-auto " +
+    // SPANNING THE COLUMN ONLY on a desktop, as the selection bar does (DECIDED 1 = C, 7 = B): what
+    // it will write and « Enregistrer » within one glance, beside the pinned menu, never across the window.
+    "desk:left-[var(--tm-rail-w)] desk:mx-auto desk:max-w-[var(--tm-column-w)] desk:border-x desk:rounded-t-4",
+);
+
+/**
+ * A ranking criterion's row on a desktop: the weight BESIDE its criterion, at the row's end, as a
+ * switch sits beside its row (DECIDED 1 = C). On a phone the field keeps its line under the criterion.
+ */
+export const rankingCriterion = cva(
+  "desk:flex desk:items-center desk:gap-x-4 desk:pr-5 desk:[&>.fw]:flex-1 desk:[&>.fw]:min-w-0",
 );
 
 /** « Relire le classement »: the conflict's way out, at a finger's height. */

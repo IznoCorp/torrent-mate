@@ -1112,6 +1112,8 @@ temps et en heure quand la maquette sera prête ». It follows every drawn lot, 
 
 **« Contour à décider par l'opérateur quand la maquette sera prête. »**
 
+**Contours decided by the operator on 2026-10-01** (DECIDED 1–7, `docs/features/maquette-desktop/DESIGN.md` § 3; dated in `operator-method.md` § 3). **Delivered** by the desktop milestone, `feat/maquette-desktop`, phases 1–10, rules R480–R488 and R413 re-aimed: the menu pinned beside a 760 px reading column and foldable to its icons, the confirmation 480 px, the panel a 440 px side sheet on the right, galleries by the tile's width and the deck a 2:3 poster, « + » and the bottom bars bounded to the column, the declared keys and the hover ground; the phone untouched below 64 rem.
+
 ---
 
 ## 5. (removed — the method is `docs/reference/method.md`)

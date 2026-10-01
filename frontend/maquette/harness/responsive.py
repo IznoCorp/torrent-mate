@@ -249,6 +249,19 @@ def context_for(width, scheme="dark"):
             "is_mobile": False, "has_touch": False, "color_scheme": scheme}
 
 
+# The layers a state may pose, whose entrance must end before the state is read, and how long that
+# may take at most — `--duration-4` is 450 ms; a state posing its panel late adds a beat to it.
+LAYER_CEILING_MS = 1500
+LAYERS_AT_REST = """(ceiling)=>new Promise((done)=>{
+  const start = performance.now();
+  const sliding = () => document.getAnimations().some((one) => one.playState === 'running'
+    && one.effect?.target?.closest?.('#sheet, #dlg, #drawer, [data-part="screen"]')
+    && one.effect.getComputedTiming().endTime !== Infinity);
+  const look = () => (!sliding() || performance.now() - start > ceiling) ? done() : setTimeout(look, 16);
+  setTimeout(look, 16);
+})"""
+
+
 async def read_pass(browser, label, width, wanted, engine, scheme):
     """Opens the prototype for one pass and measures every wanted state.
 
@@ -292,6 +305,17 @@ async def read_pass(browser, label, width, wanted, engine, scheme):
         # being inert over a screen). A finger lands after the crossing, and so
         # does this reading.
         await page.wait_for_function("()=>!document.documentElement.matches(':active-view-transition')")
+        # NOR A LAYER STILL SLIDING IN. A state may pose its panel a beat after it is asked for,
+        # and the panel's entrance is `--duration-4`: at 500 ms a desktop's side sheet was still
+        # 17–32 px past the window's right edge and fell `outside` (at rest it sits at [840, 1280]
+        # at 1280 px). The phone's sheet makes the same trip on y, which this rule does not read,
+        # so it never showed. The wait is the LAYERS' own running transitions, read from the page
+        # (B-276) — not every animation of the page, which cost this whole sweep a minute.
+        # IN A WINDOW ONLY, where a layer slides on x: a phone's layers rise on y, and WebKit's
+        # page dies when `getAnimations()` is asked under `media-sheet-decision-corrected`'s two
+        # chained view transitions (both WebKit passes, CI and here).
+        if width in WINDOWS:
+            await page.evaluate(LAYERS_AT_REST, LAYER_CEILING_MS)
         readings[state] = await page.evaluate(MEASURE, width)
         if engine == "webkit":
             readings[state] += await page.evaluate(VISIBLE, width)

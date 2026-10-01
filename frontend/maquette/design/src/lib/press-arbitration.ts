@@ -111,6 +111,13 @@ export type PressArbitrationOptions = {
   readonly resolveTarget: (target: Element) => Element | null;
   /** What opening the press means, once the finger has held long enough. */
   readonly onPress: (element: Element) => void;
+  /**
+   * Which element, if any, a RIGHT CLICK on `target` addresses — opened through `onPress`.
+   *
+   * Its own question because a right click is followed by no tap: what a press refuses for fear of
+   * opening twice (a surface a tap already opens) a right click may open.
+   */
+  readonly resolveSecondaryTarget: (target: Element) => Element | null;
 };
 
 /**
@@ -180,6 +187,9 @@ export function installPressArbitration(
 ): PressArbitration {
   let press: PressInFlight | null = null;
   let swallowClick: Point | null = null;
+  // Whether the gesture under way began on a mouse's right button — the one `contextmenu` that
+  // opens a panel. Android raises the same event from a long press, which the timer already answers.
+  let secondaryDown = false;
 
   pressSwallowClick = () => swallowClick !== null;
   pressNumbers = {
@@ -276,7 +286,9 @@ export function installPressArbitration(
     (event) => {
       // A new gesture clears any mark the previous one left unconsumed.
       swallowClick = null;
-      if (event.isPrimary && event.target instanceof Element) {
+      // Only the MAIN button arms a press: a held right button is a right click, answered below.
+      secondaryDown = event.pointerType === "mouse" && event.button === 2;
+      if (event.isPrimary && event.button === 0 && event.target instanceof Element) {
         armPress({ x: event.clientX, y: event.clientY }, event.target);
       }
     },
@@ -319,6 +331,17 @@ export function installPressArbitration(
       return;
     }
     event.preventDefault();
+    // ON A COMPUTER, A RIGHT CLICK OPENS THE PANEL a long press opens (DECIDED 8 = A, 2026-10-01:
+    // « sur ordinateur, un clic droit sur un élément qui a un panneau (carte, affiche, tuile) ouvre ce
+    // panneau, le même que l'appui long (qui reste) »). From a mouse's right button only: a finger's
+    // `contextmenu` follows a long press whose own timer opens the panel, and must not open it twice.
+    if (!secondaryDown || !(target instanceof Element)) return;
+    secondaryDown = false;
+    const element = options.resolveSecondaryTarget(target);
+    if (!element) return;
+    cancelPress();
+    feedback("commit", element);
+    options.onPress(element);
   });
 
   // A press that opened the panel must not ALSO fire what the lift lands on.
@@ -395,5 +418,6 @@ export function installPanelPress(): PressArbitration {
       return element;
     },
     onPress: (element) => openAddressedPanel?.(element),
+    resolveSecondaryTarget: (target) => (store.read().state.selMode ? null : panelUnderFinger(target)),
   });
 }

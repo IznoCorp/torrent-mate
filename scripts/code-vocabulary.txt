@@ -150,6 +150,7 @@ borne
 bottom
 bound
 box
+boxes
 brand
 breached
 break
@@ -235,6 +236,7 @@ code
 codes
 cold
 collapse
+collapsed
 collation
 color
 columns
@@ -765,6 +767,7 @@ met
 meta
 method
 methods
+middle
 migrated
 milliseconds
 min
@@ -829,6 +832,7 @@ nothing
 notice
 noticed
 now
+nowhere
 number
 numbers
 numeric
@@ -919,6 +923,7 @@ pill
 pills
 pilot
 ping
+pinned
 pip
 pipe
 pipeline
@@ -1000,6 +1005,7 @@ queues
 quiet
 quota
 radius
+rail
 ranges
 rank
 ranking
@@ -1433,6 +1439,7 @@ twin
 two
 type
 typed
+typing
 ua
 ui
 uid

@@ -117,7 +117,10 @@ export const deckBody = cva("deckbody [&.deckbody]:pb-5 [overflow-x:clip]");
  * vertical axis, which silently overrides the height the deck measures.
  */
 export const deckPile = cva(
-  "deck relative flex-[0_0_auto] min-h-[340px] touch-pan-y select-none [&_img]:[-webkit-user-drag:none]",
+  "deck relative flex-[0_0_auto] min-h-[340px] touch-pan-y select-none [&_img]:[-webkit-user-drag:none] " +
+    // A POSTER'S PROPORTION on a desktop (DECIDED 5 = B): the pile keeps the height the deck measures and
+    // takes its width from it, 2:3, centred — a portrait poster, never cropped into a landscape.
+    "desk:self-center desk:aspect-[2/3]",
 );
 
 /**
