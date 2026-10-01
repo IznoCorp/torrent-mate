@@ -73,15 +73,29 @@ describe("pushSupport", () => {
   });
 });
 
-function deps(permission: NotificationPermission, environment: PushEnvironment = ANDROID) {
-  const registration = { scope: "/" } as ServiceWorkerRegistration;
+// The push subscription models what the SDK does to it: `getToken` subscribes, `deleteToken`
+// unsubscribes. It is what tells a device turned on from one turned off, whatever the permission reads.
+function deps(
+  permission: NotificationPermission,
+  environment: PushEnvironment = ANDROID,
+  subscribed = permission === "granted",
+) {
+  const state = { subscription: subscribed ? ({ endpoint: "https://push.example/1" } as PushSubscription) : null };
+  const registration = {
+    scope: "/",
+    pushManager: { getSubscription: vi.fn(async () => state.subscription) },
+  } as unknown as ServiceWorkerRegistration;
   const order: string[] = [];
   const sdk = {
     token: vi.fn(async (_config: FcmWebConfig, _registration: ServiceWorkerRegistration) => {
       order.push("token");
+      state.subscription = { endpoint: "https://push.example/1" } as PushSubscription;
       return "fcm-token-1";
     }),
-    forget: vi.fn(async () => { order.push("forget"); }),
+    forget: vi.fn(async () => {
+      order.push("forget");
+      state.subscription = null;
+    }),
   };
   const value: PushDeps = {
     requestPermission: vi.fn(() => { order.push("ask"); return Promise.resolve(permission); }),
@@ -128,8 +142,26 @@ describe("refreshPush", () => {
     expect(submit).toHaveBeenCalledWith("fcm-token-1");
   });
 
-  it("does nothing without a grant, nor on an iPhone tab", async () => {
-    for (const d of [deps("default"), deps("granted", IPHONE_TAB)]) {
+  it("re-sends the token when iOS reads the permission as default but the device is subscribed (#8269)", async () => {
+    const d = deps("default", ANDROID, true);
+    const submit = vi.fn(async () => undefined);
+    await refreshPush(CONFIG, submit, d.value);
+    expect(d.value.requestPermission).not.toHaveBeenCalled();
+    expect(submit).toHaveBeenCalledWith("fcm-token-1");
+  });
+
+  it("submits nothing once the device was turned off, though the permission still reads granted", async () => {
+    const d = deps("granted");
+    await unregisterPush(CONFIG, async () => undefined, d.value);
+    d.sdk.token.mockClear();
+    const submit = vi.fn(async () => undefined);
+    await refreshPush(CONFIG, submit, d.value);
+    expect(submit).not.toHaveBeenCalled();
+    expect(d.sdk.token).not.toHaveBeenCalled();
+  });
+
+  it("does nothing on a device never subscribed, nor on an iPhone tab", async () => {
+    for (const d of [deps("default"), deps("granted", ANDROID, false), deps("granted", IPHONE_TAB)]) {
       const submit = vi.fn(async () => undefined);
       await refreshPush(CONFIG, submit, d.value);
       expect(submit).not.toHaveBeenCalled();
@@ -145,5 +177,37 @@ describe("unregisterPush", () => {
     await unregisterPush(CONFIG, revoke, d.value);
     expect(revoke).toHaveBeenCalledWith("fcm-token-1");
     expect(d.order.slice(-3)).toEqual(["token", "revoke", "forget"]);
+  });
+});
+
+describe("firebaseSdk.forget", () => {
+  it("deletes the token through the application's registration, never firebase's default worker", async () => {
+    vi.resetModules();
+    const sdkState: { swRegistration?: ServiceWorkerRegistration } = {};
+    const registerDefaultWorker = vi.fn();
+    vi.doMock("firebase/app", () => ({
+      getApps: () => [],
+      initializeApp: (_options: unknown, name: string) => ({ name }),
+    }));
+    // What the pinned SDK does: `getToken` binds the registration it is given; `deleteToken`
+    // registers `firebase-messaging-sw.js` when no registration is bound yet.
+    vi.doMock("firebase/messaging", () => ({
+      getMessaging: () => sdkState,
+      getToken: vi.fn(async (_m: unknown, options: { serviceWorkerRegistration: ServiceWorkerRegistration }) => {
+        sdkState.swRegistration = options.serviceWorkerRegistration;
+        return "fcm-token-1";
+      }),
+      deleteToken: vi.fn(async () => {
+        if (!sdkState.swRegistration) registerDefaultWorker();
+        return true;
+      }),
+    }));
+    const { firebaseSdk } = await import("./push-registration");
+    const registration = { scope: "/" } as ServiceWorkerRegistration;
+    await firebaseSdk.forget(CONFIG, registration);
+    expect(registerDefaultWorker).not.toHaveBeenCalled();
+    expect(sdkState.swRegistration).toBe(registration);
+    vi.doUnmock("firebase/app");
+    vi.doUnmock("firebase/messaging");
   });
 });

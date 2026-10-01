@@ -68,7 +68,8 @@ and no Google endpoint was called — the facts below are Firebase's and WebKit'
   HOME SCREEN with `display: standalone` (or `fullscreen`); the permission asked from a DIRECT user gesture; no Apple
   developer account; delivery through `*.push.apple.com`. Every push must SHOW a notification (no silent push).
   Known: on an iOS PWA the permission may read `default` after a reload (`firebase-js-sdk#8269`), so the client
-  re-registers at every start and the server UPSERTS. The EU's iOS 17.4 removal of home-screen apps (Feb. 2024) was
+  re-sends its token at every start while the push subscription exists, whatever the permission reads, and the
+  server UPSERTS. The EU's iOS 17.4 removal of home-screen apps (Feb. 2024) was
   reverted before release.
 - **Server library** (PyPI): `firebase-admin` 7.x pulls gRPC, Firestore and Storage; `google-auth` 2.x (+
   `cryptography`, `pyasn1-modules`) mints the access token, and the send is one HTTP call — Firebase's own Python
@@ -269,7 +270,8 @@ export function pushSupport(): PushSupport;
 /** Asks the permission — MUST be called inside a user gesture (iOS) — and returns the FCM token, obtained through
  *  the application's OWN worker registration (no second worker). */
 export function registerPush(config: FcmWebConfig, submit: (token: string) => Promise<void>): Promise<"on" | "denied">;
-/** Re-sends the current token at every start when the permission is granted (iOS #8269, Firebase's refresh). */
+/** Re-sends the current token at every start while this device's push subscription exists, whatever the permission
+ *  reads — iOS may read `default` (#8269), and `unregisterPush` leaves it granted (Firebase's refresh). */
 export function refreshPush(config: FcmWebConfig, submit: (token: string) => Promise<void>): Promise<void>;
 export function unregisterPush(revoke: (token: string) => Promise<void>): Promise<void>;
 ```

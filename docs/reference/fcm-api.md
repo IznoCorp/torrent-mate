@@ -134,9 +134,15 @@ Source: `https://firebase.google.com/docs/cloud-messaging/js/client`.
 - `frontend/maquette/design/src/lib/push-registration.ts`: `pushSupport()` (`unsupported`,
   `needs-install` — told BEFORE the API check, since a Safari tab on iOS defines no push API —,
   `available` with the permission), `registerPush(config, submit)` (asks first, before any await),
-  `refreshPush(config, submit)` (every start, never asks), `unregisterPush(config, revoke)` (the
-  server forgets the token, then the SDK deletes it — the configuration is needed to reach the SDK's
-  messaging instance, which the DESIGN's signature omitted).
+  `refreshPush(config, submit)` (every start, never asks; it re-sends the token only while this
+  device's push subscription exists — `registration.pushManager.getSubscription()` not null —,
+  WHATEVER the permission reads: `unregisterPush` removes the subscription and leaves the permission
+  granted, so a device turned off stays off, and iOS may read `default` with the subscription still
+  there), `unregisterPush(config, revoke)` (the server forgets the token, then the SDK deletes it — the
+  configuration is needed to reach the SDK's messaging instance, which the DESIGN's signature omitted).
+- `deleteToken` takes no registration and, on a messaging instance none is bound to, registers the
+  default `firebase-messaging-sw.js`: the client's `forget` first binds the application's registration
+  with `getToken` (the SDK's only public way; an existing token is read back, none minted).
 
 ## iOS
 
@@ -148,8 +154,9 @@ Source: `https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/`
 - The permission from a direct user gesture — the opening offer's tap (F-3).
 - Every push must SHOW a notification: the worker never stays silent (an unknown code shows the
   catalogue's generic line).
-- The permission may read `default` after a reload (`firebase-js-sdk#8269`): the client re-registers
-  at every start, the server upserts.
+- The permission may read `default` after a reload (`firebase-js-sdk#8269`): the client re-sends its
+  token at every start when the device's push subscription exists, whatever the permission reads; the
+  server upserts.
 
 ## The worker
 

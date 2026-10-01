@@ -107,8 +107,13 @@ export const firebaseSdk: MessagingSdk = {
     const { messaging, sdk } = await messagingFor(config);
     return sdk.getToken(messaging, { vapidKey: config.vapidKey, serviceWorkerRegistration: registration });
   },
-  async forget(config) {
+  // `deleteToken` takes no registration: on an instance none is bound to, it registers firebase's
+  // default `firebase-messaging-sw.js` — a second worker. `getToken` with the application's
+  // registration is the SDK's only public way to bind it; with a token already held it reads it
+  // back from the SDK's store, nothing new is minted.
+  async forget(config, registration) {
     const { messaging, sdk } = await messagingFor(config);
+    await sdk.getToken(messaging, { vapidKey: config.vapidKey, serviceWorkerRegistration: registration });
     await sdk.deleteToken(messaging);
   },
 };
@@ -152,17 +157,21 @@ export async function registerPush(
 }
 
 /**
- * Re-sends the current token at every start when the permission is granted — Firebase's monthly
- * refresh, and iOS reading the permission as `default` after a reload (firebase-js-sdk#8269).
- * Never asks: without a grant it does nothing.
+ * Re-sends the current token at every start when THIS DEVICE IS SUBSCRIBED — Firebase's monthly
+ * refresh. The push subscription decides, not the permission: `unregisterPush` removes the
+ * subscription (the SDK's `deleteToken`) and leaves the permission granted, so a device turned off
+ * stays off; and iOS may read the permission as `default` after a reload while the subscription is
+ * still there (firebase-js-sdk#8269), so the token is re-sent all the same. Never asks.
  */
 export async function refreshPush(
   config: FcmWebConfig,
   submit: (token: string) => Promise<void>,
   deps: PushDeps = browserDeps(),
 ): Promise<void> {
-  if (pushSupport(deps.environment()).kind !== "available" || deps.permission() !== "granted") return;
-  await submit(await deps.sdk.token(config, await deps.registration()));
+  if (pushSupport(deps.environment()).kind !== "available") return;
+  const registration = await deps.registration();
+  if ((await registration.pushManager.getSubscription()) === null) return;
+  await submit(await deps.sdk.token(config, registration));
 }
 
 /**
