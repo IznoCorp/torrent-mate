@@ -7699,6 +7699,13 @@
             ],
             "description": "when the rung stopped, epoch seconds — what the urgency order sorts by inside a group (DECIDED 1). A DEMAND (BK1)"
           },
+          "blocks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LiftedBlock"
+            },
+            "description": "the blocks this rung went through and the engine lifted, oldest first — the journey's trace « bloqué — … » / « repris » (maquette-blocked § 1.4). A DEMAND (BK2)"
+          },
           "steps": {
             "type": "array",
             "items": {
@@ -9894,6 +9901,29 @@
           "reason",
           "at",
           "winner"
+        ]
+      },
+      "LiftedBlock": {
+        "type": "object",
+        "description": "A BLOCK THE ENGINE LIFTED on one rung (Q7, maquette-blocked § 1.4): its cause, when it stopped, when it resumed. A DEMAND (BK2)",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "the cause's token, as the rung carried it while stopped"
+          },
+          "since": {
+            "type": "number",
+            "description": "when the rung stopped, epoch seconds"
+          },
+          "resumedAt": {
+            "type": "number",
+            "description": "when the engine saw the cause lifted and the rung resumed, epoch seconds"
+          }
+        },
+        "required": [
+          "reason",
+          "resumedAt",
+          "since"
         ]
       }
     },

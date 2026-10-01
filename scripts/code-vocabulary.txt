@@ -1579,11 +1579,14 @@ zone
 banner
 dependency
 judgement
+lift
+moves
 newest
 offline
 props
 pulse
 rise
+round
 shimmer
 sorts
 spin

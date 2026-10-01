@@ -41,5 +41,7 @@ export function today(): string {
  * @returns The hour and the minute, in the interface's language.
  */
 export function timeOfDay(epoch: number): string {
-  return new Intl.DateTimeFormat(i18next.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(epoch * 1000));
+  const instant = new Date(epoch * 1000);
+  const two = (value: number) => String(value).padStart(2, "0");
+  return i18next.t("surfaces.clock.timeOfDay", { hour: two(instant.getHours()), minute: two(instant.getMinutes()) });
 }

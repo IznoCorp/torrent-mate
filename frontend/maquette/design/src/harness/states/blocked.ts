@@ -96,6 +96,9 @@ const EVERY_CAUSE: Pose[] = [
   [SEASON_IN_FLIGHT, "tracker_unreachable", { tracker: "c411", minutesAgo: 90 }],
   [FIRST_FILM, "provider_unreachable", { provider: "TMDB", minutesAgo: 20 }],
 ];
+// What qBittorrent's outage holds on the lift of many: every card in flight
+// but the subject, which another cause holds.
+const HELD_BY_CLIENT = [SEASON_IN_FLIGHT, SECOND_SERIES, TUNNEL_ERROR];
 /** A tunnel error on a follow's card, the judgement's third kind. */
 const tunnelError = () => window.__mocks?.poseTunnelError(TUNNEL_ERROR, "scrape");
 // What a film needs, in bytes, for a library with no disk to receive it.
@@ -160,6 +163,26 @@ export function blockedStates(): NamedState[] {
         window.__queries?.removeQueries({ queryKey: ["/api/system/dependencies"] });
         applyState({ page: "sys", phase: "ready", fault: false });
       }],
+    // THE AUTO-RESUME (§ 1.4) — the engine lifts, the card leaves on its own.
+    posed("acq-block-lifted",
+      "En cours — après que le moteur a levé la cause : This City Is Ours y est revenu, l'échelon « arrivé » en cours",
+      [[SUBJECT, "insufficient_space"]],
+      { dials: { acqTab: "now" }, after: () => window.__mocks?.liftBlock(SUBJECT) }),
+    posed("acq-block-lifted-many",
+      "À traiter — qBittorrent répond de nouveau : chaque carte qu'il tenait est repartie, celle d'une autre cause reste",
+      [...HELD_BY_CLIENT.map((key, index): Pose => [key, "client_unreachable", { minutesAgo: index }]),
+        [SUBJECT, "insufficient_space"]],
+      { after: () => window.__mocks?.liftCause("client_unreachable") }),
+    posed("acq-resumed-message",
+      "À traiter — le moteur lève la cause sous ses yeux : le message « This City Is Ours est reparti »",
+      [[SUBJECT, "insufficient_space"]], { after: () => window.__mocks?.liftBlock(SUBJECT) }),
+    posed("acq-block-lifted-journey",
+      "Le parcours de This City Is Ours après la reprise : « bloqué — disque de staging plein » puis « repris »",
+      [[SUBJECT, "insufficient_space", { minutesAgo: 40 }]],
+      { after: () => {
+        window.__mocks?.liftBlock(SUBJECT);
+        window.__panel.produce("journey", SUBJECT);
+      } }),
     // THE LIST WHOLE — one card per cause, flat, in the urgency order.
     posed("acq-todo-every-cause",
       "À traiter — une carte par cause, à plat, par urgence : jugement, puis ce qui repart seul",

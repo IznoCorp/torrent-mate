@@ -20,6 +20,7 @@ import { blockDoor, mediumCardMarkup } from "./card-markup";
 import { setAsideCards, todoCards } from "../../lib/arrival-slots";
 import { causeOf, orderTodo } from "../../lib/todo-order";
 import { TodoPills, todoFilterInForce, todoSortInForce } from "./todo-pills";
+import { useResumedMessage } from "./resumed";
 import { Disclosure } from "../../ui/disclosure";
 import { useAcquisitionQueue, useStaging } from "../../lib/queue";
 import { type QueueCard } from "../../lib/engine-queue";
@@ -45,6 +46,8 @@ export function TodoTab(): ReactElement {
   useStaging(scenario);
   // THE ACTS ARE THE ACCOUNT'S (§ 17): a card it may only read draws no foot.
   const rights = useRights();
+  // A BLOCK THE ENGINE LIFTS while he looks at this tab is said (DECIDED 5).
+  useResumedMessage(queue);
   if (state.phase !== "ready") {
     return (
       <div

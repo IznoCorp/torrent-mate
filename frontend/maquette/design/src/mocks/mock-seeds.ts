@@ -26,7 +26,7 @@ import { mockState } from "./state";
 import { poseDisagreement, setAside } from "./handlers/staging";
 import { poseTunnelError } from "./handlers/follow-errors";
 import { poseUnknownIdentity } from "./handlers/posed-identity";
-import { poseBlock, poseServiceDown } from "./handlers/posed-block";
+import { liftBlock, liftCause, poseBlock, poseServiceDown } from "./handlers/posed-block";
 import { sameItem } from "./handlers/same-item";
 import {
   SEARCHING, poseAutomatic, poseBeforeAsk, poseSeasonArrived, poseSeasonAt, poseSeasonBlocked, poseSeasonEnded,
@@ -71,6 +71,10 @@ export type MockSeeds = {
   poseBlock: typeof poseBlock;
   /** Poses one dependency down — a DERIVATION, never read: the backend serves its reachability (BK6). */
   poseServiceDown: typeof poseServiceDown;
+  /** The engine sees one acquisition's cause lifted and resumes it, with its live event (BK2). */
+  liftBlock: typeof liftBlock;
+  /** The engine sees one cause lifted and resumes every acquisition it held, in one live event (BK2). */
+  liftCause: typeof liftCause;
   /**
    * A whole season's recovery, POSED on the one the dense world holds — each a
    * DERIVATION until the layer is next reset: the moment before the ask, a rung
@@ -160,6 +164,8 @@ export const mockSeeds: MockSeeds = {
   poseUnknownIdentity,
   poseBlock,
   poseServiceDown,
+  liftBlock,
+  liftCause,
   seasonRecovery: {
     beforeAsk: poseBeforeAsk,
     searching: (title, season) => poseSeasonAt(title, season, SEARCHING),

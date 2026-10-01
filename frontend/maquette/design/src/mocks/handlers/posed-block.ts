@@ -3,6 +3,7 @@ import type { components } from "../../contract/types";
 import { mockState } from "../state";
 import { forgetLadder, ladderOf, rungIndex } from "./ladder";
 import { trackersState } from "../trackers-state";
+import { emit } from "../stream";
 
 type Rung = components["schemas"]["JourneyStage"];
 
@@ -122,4 +123,80 @@ export function poseBlock(title: string, cause: string, details: BlockDetails = 
   const key = SETTING_PREFIX + details.tracker + FLOOR_SUFFIX;
   const threshold = mockState().settings.flatMap((topic) => topic.settings).find((row) => row.key === key)?.raw;
   rung.minimumRatio = typeof threshold === "number" ? threshold : null;
+}
+
+// The live event the engine emits when it sees a cause lifted and resumes the
+// step (BK2): « À traiter » and « En cours » read the queue again.
+const LIFTED_EVENT = "BlockLifted";
+// The state a resumed rung runs in.
+const RUNNING = "now";
+
+/**
+ * Lifts the block one ladder stands on, as the engine does once it sees the
+ * cause gone: the rung runs again, its block kept in the rung's trace.
+ *
+ * @param subject The acquisition's key.
+ * @returns The cause it was stopped by, or undefined when it stood on none.
+ */
+function liftOne(subject: string): string | undefined {
+  const ladder = mockState().journeyStages[subject];
+  const rung = ladder?.find((one) => one.resumes === "auto");
+  if (rung === undefined || rung.reason === undefined) return undefined;
+  const reason = rung.reason;
+  const resumedAt = Math.floor(Date.now() / 1000);
+  rung.blocks = [...(rung.blocks ?? []), { reason, since: rung.blockedSince ?? resumedAt, resumedAt }];
+  rung.state = RUNNING;
+  for (const field of ["reason", "resumes", "blockedSince", "tracker", "minimumRatio", "provider", "size"] as const)
+    delete rung[field];
+  return reason;
+}
+
+/**
+ * What a cause's lift puts back where its door lands: the service answering,
+ * once no block waits on it any more.
+ *
+ * @param cause The cause lifted.
+ */
+function answerAgain(cause: string): void {
+  const stillHeld = Object.values(mockState().journeyStages)
+    .some((ladder) => ladder.some((rung) => rung.resumes === "auto" && rung.reason === cause));
+  if (stillHeld) return;
+  const service = SERVICE_OF[cause];
+  if (service !== undefined) down.get(mockState())?.delete(service);
+  if (cause !== TRACKER_CAUSE) return;
+  for (const tracker of trackersState().trackers) {
+    tracker.reachable = true;
+    tracker.unreachableSince = null;
+  }
+}
+
+/**
+ * The engine sees ONE acquisition's cause lifted, resumes it, and says so with
+ * a live event — a derivation, shown as one: the backend watches each cause's
+ * lift (BK2).
+ *
+ * @param subject The acquisition's key.
+ */
+export function liftBlock(subject: string): void {
+  const cause = liftOne(subject);
+  if (cause === undefined) return;
+  answerAgain(cause);
+  emit(LIFTED_EVENT, { subjects: [subject], cause });
+}
+
+/**
+ * The engine sees ONE cause lifted — qBittorrent answering again — and resumes
+ * every acquisition it held, in one lift and one live event; a card another
+ * cause holds stays.
+ *
+ * @param cause The cause's token.
+ */
+export function liftCause(cause: string): void {
+  const subjects = Object.entries(mockState().journeyStages)
+    .filter(([, ladder]) => ladder.some((rung) => rung.resumes === "auto" && rung.reason === cause))
+    .map(([subject]) => subject);
+  for (const subject of subjects) liftOne(subject);
+  if (subjects.length === 0) return;
+  answerAgain(cause);
+  emit(LIFTED_EVENT, { subjects, cause });
 }

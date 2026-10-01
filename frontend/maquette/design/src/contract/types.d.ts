@@ -2034,6 +2034,8 @@ export interface components {
             resumes?: "auto" | "hand" | null;
             /** @description when the rung stopped, epoch seconds — what the urgency order sorts by inside a group (DECIDED 1). A DEMAND (BK1) */
             blockedSince?: number | null;
+            /** @description the blocks this rung went through and the engine lifted, oldest first — the journey's trace « bloqué — … » / « repris » (maquette-blocked § 1.4). A DEMAND (BK2) */
+            blocks?: components["schemas"]["LiftedBlock"][];
             /** @description the pipeline steps this rung merges, in order — carried by « rangé » alone */
             steps?: components["schemas"]["JourneyStage"][];
         };
@@ -2704,6 +2706,15 @@ export interface components {
             at: number;
             /** @description for `superseded`, the release line of the file in place */
             winner: string | null;
+        };
+        /** @description A BLOCK THE ENGINE LIFTED on one rung (Q7, maquette-blocked § 1.4): its cause, when it stopped, when it resumed. A DEMAND (BK2) */
+        LiftedBlock: {
+            /** @description the cause's token, as the rung carried it while stopped */
+            reason: string;
+            /** @description when the rung stopped, epoch seconds */
+            since: number;
+            /** @description when the engine saw the cause lifted and the rung resumed, epoch seconds */
+            resumedAt: number;
         };
     };
     responses: {

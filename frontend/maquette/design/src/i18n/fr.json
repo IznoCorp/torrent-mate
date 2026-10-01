@@ -928,6 +928,8 @@
       "ratioReasonTracker": "Voir le tracker",
       "blockDisks": "Voir les disques",
       "blockDependencies": "Voir les dépendances",
+      "resumedOne": "{{title}} est reparti",
+      "resumedMany": "{{count}} acquisitions sont reparties",
       "nowEmpty": "Rien en cours.",
       "blocked": "À traiter",
       "blockedFoot": "Résoudre →",
@@ -1410,7 +1412,22 @@
         "plex_unreachable": "La vérification reprend seule dès que Plex répond.",
         "client_unreachable": "Le suivi reprend seul dès que qBittorrent répond."
       },
+      "blockedLine": "bloqué — {{cause}}",
+      "resumedLine": "repris",
+      "causeShort": {
+        "ratio_below_threshold": "ratio trop bas",
+        "insufficient_space": "disque de staging plein",
+        "content_missing": "disque de qBittorrent illisible",
+        "library_full": "médiathèque pleine",
+        "tracker_unreachable": "tracker injoignable",
+        "provider_unreachable": "fournisseur injoignable",
+        "plex_unreachable": "Plex injoignable",
+        "client_unreachable": "qBittorrent injoignable"
+      },
       "liftWithoutThreshold": "Il repart seul dès que ce ratio remonte."
+    },
+    "clock": {
+      "timeOfDay": "{{hour}} h {{minute}}"
     }
   },
   "states": {
