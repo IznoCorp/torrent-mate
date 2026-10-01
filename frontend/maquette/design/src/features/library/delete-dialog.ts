@@ -14,7 +14,7 @@
 // the `followedTitles` door, because the library never imports acquisition.
 import i18next from "i18next";
 import { membershipQuery, type Membership } from "../../lib/membership";
-import { sharedQueryClient } from "../../lib/query-client";
+import { quietWhenCancelled, sharedQueryClient } from "../../lib/query-client";
 import { dialog, followedTitles, toast, redraw } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
 import { deleteLibraryItems, libraryIncompleteQuery } from "./queries";
@@ -113,11 +113,17 @@ function totalOf(titles: string[], figure: (title: string) => number): number {
 export async function openDeleteDialog(title: string | null, many?: string[]): Promise<void> {
   const titles = many && many.length > 0 ? many : [title ?? ""];
   // THE ANSWERS FIRST: a dialog whose whole purpose is to say exactly what
-  // would go does not open on figures it has not read.
-  await Promise.all([
-    sharedQueryClient?.ensureQueryData(libraryIncompleteQuery),
-    ...titles.map((one) => sharedQueryClient?.ensureQueryData(membershipQuery(one))),
-  ]);
+  // would go does not open on figures it has not read — nor at all when the
+  // cache's reset cancels a read.
+  try {
+    await Promise.all([
+      sharedQueryClient?.ensureQueryData(libraryIncompleteQuery),
+      ...titles.map((one) => sharedQueryClient?.ensureQueryData(membershipQuery(one))),
+    ]);
+  } catch (failure) {
+    quietWhenCancelled(failure);
+    return;
+  }
   const followingNow = followedTitles?.() ?? [];
   const followed = titles.filter(
     (one) => followingNow.includes(one) || incompleteShow(one) !== undefined,

@@ -13,6 +13,8 @@ import { AcquisitionTabs } from "./acquisition-tabs";
 import { FollowsTab } from "./follows-tab";
 import { NowTab } from "./now-tab";
 import { TodoTab } from "./todo-tab";
+import { useRights } from "../../lib/account";
+import { drawnTab } from "./tab-memory";
 
 export function AcquisitionPage(): ReactElement | null {
   const state = useUiState();
@@ -24,7 +26,10 @@ export function AcquisitionPage(): ReactElement | null {
   // moved the medium and left every counter on screen unchanged. The two other
   // pages that read mutable data subscribe the same way, for the same reason.
   useStoreContent((content) => content.version);
-  if (state.acqTab === "now") {
+  // A TAB THE ACCOUNT DOES NOT OPEN IS NEVER DRAWN (§ 17), whatever the dial
+  // holds: its first open tab is. Before the account is read, the dial stands.
+  const tab = drawnTab(String(state.acqTab), useRights());
+  if (tab === "now") {
     return (
       <>
         <AcquisitionTabs />
@@ -32,7 +37,7 @@ export function AcquisitionPage(): ReactElement | null {
       </>
     );
   }
-  if (state.acqTab === "todo") {
+  if (tab === "todo") {
     return (
       <>
         <AcquisitionTabs />

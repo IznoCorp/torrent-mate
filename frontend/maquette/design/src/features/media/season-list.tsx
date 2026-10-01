@@ -15,8 +15,13 @@ import { SeasonRequested } from "./season-requested";
 import { askForSeason, useAskedInFlight } from "./season-grab";
 import { announcedAfter, ownedSeason, type MediaSeasons } from "./queries";
 import { useQueryClient } from "@tanstack/react-query";
+import { useRights } from "../../lib/account";
+import { seasonTakeOffered } from "../../lib/rights";
 import type { CatalogSeason, MediaSheetFields, SeasonRow } from "./sheet-fields";
 import { dateLabel, episodeStateLabel, episodeRanges } from "./format";
+
+// The follows' cache key — the one read the season's take asks who requested.
+const FOLLOWS_KEY = ["/api/acquisition/followed"];
 
 export function SeasonList({
   followed,
@@ -84,6 +89,17 @@ export function SeasonList({
   // rather than threaded through props: this component is rendered, so
   // it has a hook to read it from, which the panel's producer does not.
   const client = useQueryClient();
+  // THE TAKE IS OFFERED BY RIGHTS (§ 17): piloting, on one's own follow — the
+  // follow read by the key every list shares (invariant 7 keeps its query in
+  // Acquisition).
+  const rights = useRights();
+  const follow = followed
+    // EVERY WORLD'S FOLLOWS: they are cached per world, and a title's
+    // requesters are the same in each.
+    ? client.getQueriesData<{ title: string; requesters?: { id: string }[] }[]>({ queryKey: FOLLOWS_KEY })
+      .flatMap(([, answer]) => answer ?? []).find((one) => one.title === followTitle) ?? { requesters: [] }
+    : undefined;
+  const takeOffered = seasonTakeOffered(follow, rights);
   const eps = sheet?.episodes ?? {};
   // WHICH ROWS EXIST is the SEASONS read's answer; how full each one is, is the
   // sheet's. With ownership still out the rows are drawn from what has landed —
@@ -363,7 +379,7 @@ export function SeasonList({
                 `askForSeason` — so the two surfaces cannot drift apart. */}
             {/* THE ACT IS WITHDRAWN WHILE THE SEASON'S RECOVERY LIVES: its mark
                 stands in the row's head. */}
-            {asked.has(row.n) ? null : (owns || followed) && !complete && !seasonUpcoming ? (
+            {asked.has(row.n) ? null : (owns || followed) && takeOffered && !complete && !seasonUpcoming ? (
               <button
                 type="button"
                 className={`${actionButton({ kind: "panelAction" })} ${seasonGrabSpacing()} ${seasonGrabTaken()}`}

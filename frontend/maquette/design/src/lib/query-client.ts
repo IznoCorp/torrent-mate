@@ -18,10 +18,25 @@
 // snapshot a failed mutation departed from — across concurrent mutations on one
 // key — is the first kind. None of it is an arbitration this repository has
 // proved, and all of it is code somebody else has.
-import { QueryClient, useQueryClient } from "@tanstack/react-query";
+import { CancelledError, QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useSyncExternalStore } from "react";
 import { holdBack, setDeparture } from "../app/outbox";
 import type { paths } from "../contract/types";
+
+/**
+ * Lets a read CANCELLED by the cache's own reset pass in silence.
+ *
+ * Clearing the cache (`__go`'s reset, a sign-out) cancels every read in flight,
+ * and an act still waiting on one would otherwise throw the cancellation at the
+ * page: whatever cleared it has moved the interface on, so the act opens
+ * nothing and says nothing. Any other failure is left to surface.
+ *
+ * @param failure What the read was refused with.
+ * @throws The failure itself, when it is anything but a cancellation.
+ */
+export function quietWhenCancelled(failure: unknown): void {
+  if (!(failure instanceof CancelledError)) throw failure;
+}
 
 /**
  * Builds the query client, with the policy every surface shares.

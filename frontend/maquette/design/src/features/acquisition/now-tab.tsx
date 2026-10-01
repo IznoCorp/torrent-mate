@@ -1,6 +1,8 @@
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
+import { offeredFeet } from "./act-rights";
+import { useRights } from "../../lib/account";
 import { mediumCardMarkup } from "./card-markup";
 import { inFlightCards } from "../../lib/arrival-slots";
 import { followOffered } from "./follow-offer";
@@ -27,14 +29,22 @@ export function NowTab(): ReactElement {
   const scenario = state.scen === "loaded" ? "loaded" : "";
   const { data: queue } = useAcquisitionQueue(scenario);
   const { data: follows } = useFollows();
+  // THE ACTS ARE THE ACCOUNT'S (§ 17): a card it may only read draws no foot.
+  const rights = useRights();
 
   if (state.phase !== "ready") {
     return (
-      <div className={body()} data-part="surface/body" data-region="acquisition/body">
+      <div
+        className={body()}
+        data-part="surface/body"
+        data-region="acquisition/body"
+      >
         {state.phase === "error" ? (
           <SurfaceError subject={t("screens.acquisition.errorNow")} />
         ) : (
-          <div className={sectionClass()} data-part="section"><Skeletons count={4} shape="card" /></div>
+          <div className={sectionClass()} data-part="section">
+            <Skeletons count={4} shape="card" />
+          </div>
         )}
       </div>
     );
@@ -45,29 +55,52 @@ export function NowTab(): ReactElement {
   const inflight = queue ? inFlightCards(queue) : [];
 
   return (
-    <div className={body()} data-part="surface/body" data-region="acquisition/body">
+    <div
+      className={body()}
+      data-part="surface/body"
+      data-region="acquisition/body"
+    >
       <div className="note" data-part="note">
         <b>{t("screens.acquisition.nowNoteLead")}</b>
         {t("screens.acquisition.nowNoteRest")}
       </div>
       {inflight.length === 0 ? (
         <Markup
-          className={emptyNote()} data-part="empty-state"
+          className={emptyNote()}
+          data-part="empty-state"
           html={emptyNoteMarkup(t("screens.acquisition.nowEmpty"), "")}
         />
       ) : null}
       {inflight.length > 0 ? (
-        <Markup tag="section"
-          className={sectionClass()} data-part="section"
+        <Markup
+          tag="section"
+          className={sectionClass()}
+          data-part="section"
           html={sectionInnerMarkup(
             "info",
             t("screens.acquisition.inflight"),
             String(inflight.length),
             // « Suivre », PROPOSED on an arrived series nobody follows (ruling 1).
-            inflight.map((card) => mediumCardMarkup(card, followOffered(card, follows ?? []) ? {
-              label: t("screens.acquisition.followFoot"),
-              attributes: { "data-follow": card.title, "data-follow-ids": JSON.stringify(card.ids) },
-            } : undefined)).join(""),
+            inflight
+              .map((card) =>
+                mediumCardMarkup(
+                  card,
+                  offeredFeet(
+                    followOffered(card, follows ?? [])
+                      ? {
+                          label: t("screens.acquisition.followFoot"),
+                          attributes: {
+                            "data-follow": card.title,
+                            "data-follow-ids": JSON.stringify(card.ids),
+                          },
+                        }
+                      : undefined,
+                    card,
+                    rights,
+                  ),
+                ),
+              )
+              .join(""),
           )}
         />
       ) : null}

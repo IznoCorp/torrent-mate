@@ -13,6 +13,8 @@ import { useTranslation } from "react-i18next";
 import { Disclosure } from "../../ui/disclosure";
 import { today } from "../../lib/clock";
 import { useQueryClient } from "@tanstack/react-query";
+import { useRights } from "../../lib/account";
+import { seasonTakeOffered } from "../../lib/rights";
 import { heldIdentity, providerAddress } from "../../lib/held-identity";
 import { useServerStateVersion } from "../../lib/query-client";
 import { ownedSeason, useMediaSeasons, useMediaSheet, type MediaSeasons } from "./queries";
@@ -30,7 +32,13 @@ import { SeasonRequested } from "./season-requested";
 // two served reads — the owned numbers and the episode catalogue — `title` for
 // the cache to be asked when the record carries no `ids`, and `status` as the fallback
 // state when a season has no per-episode ownership data.
-export type Follow = { title: string; status?: string; ids?: Record<string, number | string> | null };
+export type Follow = {
+  title: string;
+  status?: string;
+  ids?: Record<string, number | string> | null;
+  /** Who asked for it (F27) — what decides whether its seasons are the account's to take. */
+  requesters?: readonly { id: string }[];
+};
 
 /** A season of a series: its number, the episodes aired (null when unknown), the episodes owned. */
 export type Season = [number, number | null, number];
@@ -102,6 +110,8 @@ function SeasonDetails({
   // whether the engine launched it (Q19) — undefined when nothing recovers it.
   const recovery = useAskedSeasons(follow.title).get(season[0]);
   const askedOnce = recovery !== undefined;
+  // PILOTING, ON ONE'S OWN FOLLOW (§ 17) — absent otherwise, never refused.
+  const takeOffered = seasonTakeOffered(follow.requesters === undefined ? undefined : follow, useRights());
   const [num, rawAired, owned] = season;
   const aired = rawAired ?? 0;
   const complete = owned >= aired;
@@ -204,7 +214,7 @@ function SeasonDetails({
           call to the wrong one. The act itself is a React handler and NOT a
           delegation target: the engine died by subtraction (D5), and a verb
           that needed a line in it was a verb that had not moved. */}
-      {complete || askedOnce ? null : (
+      {complete || askedOnce || !takeOffered ? null : (
         <button
           type="button"
           className={`${actionButton({ kind: "panelAction" })} ${seasonGrabSpacing()} ${seasonGrabTaken()}`}

@@ -22,7 +22,7 @@ import "../features/media/panel-seasons";
 // And what the episode popover SAYS — the frame places it, the feature says it.
 import "../features/media/popover-episode";
 import "../features/settings/panels";
-import "../features/account/panel-account";
+import "../features/account/panels";
 import "../features/account/verbs";
 import "../features/maintenance/panel-action";
 import "../features/library/panel-sort";

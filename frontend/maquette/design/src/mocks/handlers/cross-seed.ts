@@ -1,11 +1,12 @@
 // The cross-seed's acts: cut one pair, search, exclude and undo — each moving
 // every reader in the SAME call (L17 DESIGN § 2.3: « a mock that answers
-// without moving certifies nothing »).
+// without moving certifies nothing »). And the media sheet's read of it (L18,
+// demand C), answered from the same pairs.
 //
 // INVENTED, like its seed: no engine route answers any of these today.
-import { DELETE, POST, PUT, field, route } from "./shared";
+import { DELETE, GET, POST, PUT, field, route } from "./shared";
 import { mockState } from "../state";
-import { crossSeedKey, crossSeedState, nowSeconds, stopRunningOn, switchOf } from "../cross-seed-state";
+import { crossSeedKey, crossSeedOfEntry, crossSeedState, nowSeconds, stopRunningOn, switchOf } from "../cross-seed-state";
 import { trackersState } from "../trackers-state";
 import { refused, type MockRoute } from "../router";
 import { emit } from "../stream";
@@ -108,9 +109,33 @@ function endSearch(state: object, pair: Schemas["CrossSeedPair"], infoHash: stri
   emit(SEARCHED, { info_hash: infoHash, tracker: pair.tracker, state: pair.state });
 }
 
+/**
+ * The media sheet's cross-seed block: every origin torrent of one medium still
+ * in the client, with its pairs — THE SAME PAIRS the downloads read folds onto
+ * that origin's row (R-L17-b), never a second derivation.
+ *
+ * @param provider The provider the sheet is addressed by.
+ * @param providerId The medium's identifier there.
+ * @returns The medium's origins and their pairs.
+ */
+function mediaCrossSeed(provider: string, providerId: string): Schemas["MediaCrossSeed"] {
+  const torrents = trackersState().downloads
+    .filter((entry) => entry.origin && String(entry.ids?.[provider] ?? "") === providerId)
+    .flatMap((entry) => {
+      const crossSeed = crossSeedOfEntry(entry);
+      return crossSeed === null ? [] : [{
+        infoHash: entry.infoHash, name: entry.name, tracker: entry.tracker,
+        pairs: crossSeed.pairs, titleExcluded: crossSeed.titleExcluded,
+      }];
+    });
+  return { torrents };
+}
+
 /** Every route this subject answers. */
 export function crossSeedRoutes(): MockRoute[] {
   return [
+    route("readMediaCrossSeed", GET, "/api/media/{provider}/{providerId}/cross-seed",
+          (request) => mediaCrossSeed(request.parameters.provider, request.parameters.providerId)),
     route("cutCrossSeed", POST, "/api/torrents/{infoHash}/cross-seed/{tracker}/cut", (request) => {
       const torrent = torrentOf(request.parameters.infoHash);
       if (torrent === undefined) return refused(404, NO_TORRENT);

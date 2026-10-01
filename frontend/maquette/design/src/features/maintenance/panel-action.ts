@@ -14,6 +14,7 @@
 // translated: same fields, same order, same `data-*` targets.
 import i18next from "i18next";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
+import { accountQuery, heldRights } from "../../lib/account";
 import { maintenanceActionsQuery } from "./queries";
 import { riskLabel, riskPip } from "./risks";
 import type { MaintenanceAction } from "./types";
@@ -90,7 +91,9 @@ function maintenancePanel(
       deletes
         ? { type: "note", text: translate("panels.maintenance.destructiveNote") }
         : null,
-      {
+      // RUNNING A COMMAND IS A WRITE (`pipeline.control`): the panel still says
+      // what the command is and costs, and offers no run to an account that may not.
+      !heldRights().holds("pipeline.control") ? null : {
         type: "actions",
         actions: [
           {
@@ -143,6 +146,6 @@ function maintenancePanel(
 // its own fixture to decide.
 registerProducer("action", {
   produce: maintenancePanel,
-  needs: [maintenanceActionsQuery],
+  needs: [maintenanceActionsQuery, accountQuery],
   holds: (identifier, cache) => actionOf(identifier, cache) !== null,
 });

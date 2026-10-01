@@ -4,7 +4,7 @@
 // `app/panel-contributions.ts`, like its neighbours.
 import { registerVerb } from "../../lib/verbs";
 import { fillLandingDoor, panel, recordAddress, redraw, replaceAddress } from "../../lib/shell-doors";
-import { read, send, sharedQueryClient } from "../../lib/query-client";
+import { quietWhenCancelled, read, send, sharedQueryClient } from "../../lib/query-client";
 import { store } from "../../lib/store-access";
 import { trackersKey, type Tracker } from "./queries";
 import { pendingEdits } from "../../lib/pending-edits-door";
@@ -54,12 +54,18 @@ fillLandingDoor((page, dial) => {
 });
 
 /**
- * Opens one tracker's panel once the roster holds it.
+ * Opens one tracker's panel once the roster holds it — and none when the
+ * cache's reset cancels the read.
  *
  * @param tracker The tracker's configured name.
  */
 async function openTrackerWhenRead(tracker: string): Promise<void> {
-  await sharedQueryClient?.ensureQueryData({ queryKey: trackersKey, queryFn: async () => read<Tracker[]>(trackersKey[0]) });
+  try {
+    await sharedQueryClient?.ensureQueryData({ queryKey: trackersKey, queryFn: async () => read<Tracker[]>(trackersKey[0]) });
+  } catch (failure) {
+    quietWhenCancelled(failure);
+    return;
+  }
   panel.produce("tracker", tracker);
 }
 

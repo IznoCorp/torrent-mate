@@ -180,6 +180,8 @@ PAGE_WALKS = {
     "maint": ['[data-drawer]', '#drawer [data-navgo="sys"]', '[data-page="maint"]'],
     "cfg": ['[data-drawer]', '#drawer [data-navgo="sys"]', '[data-page="cfg"]'],
     "profile": ['JS:window.__panel.produce("account")', '[data-go="profile"]'],
+    # « Comptes » (L18): a first-level page of the menu, beside Réglages.
+    "accounts": ['[data-drawer]', '#drawer [data-navgo="accounts"]'],
 }
 
 # The four kinds the boot's REOPEN table carries, and where the SUBJECT of

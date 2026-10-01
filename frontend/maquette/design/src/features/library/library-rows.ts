@@ -18,6 +18,7 @@ import { selectionRowMarkup, swipeRowMarkup } from "../../ui/rows";
 import { tileMarkup } from "../../ui/tile";
 import type { LibraryRow } from "./types";
 import { swipeAction } from "../../ui/variants";
+import { heldRights } from "../../lib/account";
 
 /** A row of the listing: the title, the line under it and, where the medium has one, its synopsis. */
 type Row = LibraryRow & { k?: string };
@@ -83,8 +84,12 @@ export function libraryRowMarkup(
       },
     });
   }
+  const card = libraryCardMarkup({ title: row.title, secondaryLine: row.secondaryLine, overview: row.overview, poster: row.poster, ids: row.ids });
+  // THE SWIPE DELETES, so it is offered to an account that may delete (§ 17):
+  // without `library.delete` the row is the card alone.
+  if (!heldRights().holds("library.delete")) return card;
   return swipeRowMarkup(
-    libraryCardMarkup({ title: row.title, secondaryLine: row.secondaryLine, overview: row.overview, poster: row.poster, ids: row.ids }),
+    card,
     `<button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="del" data-del="${escapeHtml(row.title)}">${svgIcon(reference.icons.trash)}${removeLabel}</button>`,
   );
 }

@@ -1,0 +1,163 @@
+{
+  "x-unseeded": "INVENTED: no account but the Plex owner exists yet (§ 17, demand D). These roles and accounts are read only while a named state dials one of them; the resting maquette is the owner's alone (DESIGN maquette-l18 § 2.2).",
+  "roles": [
+    {
+      "id": "admin",
+      "name": "Admin",
+      "kind": "admin",
+      "rights": []
+    },
+    {
+      "id": "default",
+      "name": "Par défaut",
+      "kind": "default",
+      "rights": [
+        "library.read"
+      ]
+    },
+    {
+      "id": "household",
+      "name": "Membre du foyer",
+      "kind": "ordinary",
+      "rights": [
+        "library.read",
+        "acquisition.request",
+        "acquisition.follow",
+        "acquisition.todo.view",
+        "acquisition.pilot.own",
+        "acquisition.quality.own",
+        "acquisition.pause.own"
+      ]
+    },
+    {
+      "id": "household-sees-all",
+      "name": "Membre du foyer (voit tout)",
+      "kind": "ordinary",
+      "rights": [
+        "library.read",
+        "acquisition.request",
+        "acquisition.follow",
+        "acquisition.todo.view",
+        "acquisition.pilot.own",
+        "acquisition.quality.own",
+        "acquisition.pause.own",
+        "acquisition.see.others"
+      ]
+    },
+    {
+      "id": "guest",
+      "name": "Invité Plex",
+      "kind": "ordinary",
+      "rights": [
+        "library.read",
+        "acquisition.request",
+        "acquisition.follow",
+        "acquisition.pilot.own"
+      ]
+    },
+    {
+      "id": "guest-quality",
+      "name": "Invité Plex (qualité)",
+      "kind": "ordinary",
+      "rights": [
+        "library.read",
+        "acquisition.request",
+        "acquisition.follow",
+        "acquisition.pilot.own",
+        "acquisition.quality.own",
+        "acquisition.pause.own"
+      ]
+    },
+    {
+      "id": "spectator",
+      "name": "Spectateur",
+      "kind": "ordinary",
+      "rights": [
+        "library.read",
+        "acquisition.see.others"
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "id": "household-member",
+      "name": "Léa",
+      "email": "lea@example.invalid",
+      "role": "household",
+      "plexLinked": true
+    },
+    {
+      "id": "household-member-sees-all",
+      "name": "Sam",
+      "email": "sam@example.invalid",
+      "role": "household-sees-all",
+      "plexLinked": true
+    },
+    {
+      "id": "guest",
+      "name": "Noé",
+      "email": "noe@example.invalid",
+      "role": "guest",
+      "plexLinked": true
+    },
+    {
+      "id": "guest-with-quality",
+      "name": "Alix",
+      "email": "alix@example.invalid",
+      "role": "guest-quality",
+      "plexLinked": true
+    },
+    {
+      "id": "see-only",
+      "name": "Eden",
+      "email": "eden@example.invalid",
+      "role": "spectator",
+      "plexLinked": true
+    },
+    {
+      "id": "plex-without-rights",
+      "name": "Tom",
+      "email": "tom@example.invalid",
+      "role": "default",
+      "plexLinked": true
+    }
+  ],
+  "requests": {
+    "household-member": [
+      "Wicker",
+      "Kyma, l'onde mystérieuse",
+      "President Curtis",
+      "Star Trek: Strange New Worlds",
+      "Star Trek: Strange New Worlds (2022)"
+    ],
+    "household-member-sees-all": [
+      "Silo",
+      "Star Trek: Strange New Worlds (2022)"
+    ],
+    "guest": [
+      "Lucky",
+      "Kyma, l'onde mystérieuse"
+    ],
+    "guest-with-quality": [
+      "Kyma, l'onde mystérieuse"
+    ]
+  },
+  "preferences": {
+    "Kyma, l'onde mystérieuse": {
+      "household-member": {
+        "quality": "1080p",
+        "paused": true
+      },
+      "guest-with-quality": {
+        "quality": "720p"
+      },
+      "guest": {
+        "quality": "2160p",
+        "paused": true
+      }
+    }
+  },
+  "plexUsers": [
+    "maya@example.invalid"
+  ]
+}

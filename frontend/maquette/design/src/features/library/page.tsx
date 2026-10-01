@@ -26,6 +26,7 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { useUiState } from "../../lib/store-access";
 import { useLibraryIncomplete } from "./queries";
+import { useRights } from "../../lib/account";
 import { IncompleteLens } from "./incomplete-lens";
 import { CountLine, SortLabel } from "./library-count";
 import { INCOMPLETE_COUNT, LibraryHead } from "./library-head";
@@ -36,6 +37,7 @@ export function LibraryPage(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
   const { data: INCOMPLETE = [] } = useLibraryIncomplete();
+  const rights = useRights();
   // THE « INCOMPLETS » LENS'S RESOURCE IS READ HERE, for every lens, exactly
   // where it was read before this page was cut: the read starts when the page
   // mounts, so the lens paints full on its first frame instead of over an empty
@@ -83,9 +85,12 @@ export function LibraryPage(): ReactElement | null {
       <LibraryHead />
       <div className={countLine()} data-part="count-line" data-region="library/count-line">
         <CountLine />
-        <button className={countLineAction()} data-selmode="1">
-          {t("screens.library.select")}
-        </button>
+        {/* SELECTING IS FOR DELETING: absent without `library.delete` (§ 17). */}
+        {rights.holds("library.delete") ? (
+          <button className={countLineAction()} data-selmode="1">
+            {t("screens.library.select")}
+          </button>
+        ) : null}
         <button className={countLineAction()} data-sort="1">
           <SortLabel />
         </button>

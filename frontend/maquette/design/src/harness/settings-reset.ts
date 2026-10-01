@@ -12,7 +12,6 @@ export function resetSettings(): void {
   SETTINGS_STATE.modifs.clear();
   SETTINGS_STATE.topic = null;
   SETTINGS_STATE.q = "";
-  SETTINGS_STATE.readOnly = false;
   window.__mocks?.setRestartRequired(false);
   SETTINGS_STATE.conflict = false;
   SETTINGS_STATE.refused.clear();

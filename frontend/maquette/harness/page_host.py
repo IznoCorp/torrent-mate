@@ -33,7 +33,9 @@ from playwright.async_api import async_playwright
 # « discover » JOINED as a page of the bar, said out loud: « Découvrir » left
 # Acquisition's tabs.
 # « trackers » JOINED as the bar's third page (organisation ruling 20).
-SHELL_OWNED = ["sys", "maint", "cfg", "lib", "acq", "trackers", "discover", "profile", "404"]
+SHELL_OWNED = ["sys", "maint", "cfg", "lib", "acq", "trackers", "discover", "profile", "404",
+               # L18's pages: « Comptes », and the page of an account no right opens anything for.
+               "accounts", "no-access"]
 
 # What each page really emits, less a small margin. Measured, not guessed: one
 # floor for eight pages is either too high for the smallest or too low to notice
@@ -41,7 +43,8 @@ SHELL_OWNED = ["sys", "maint", "cfg", "lib", "acq", "trackers", "discover", "pro
 # first floor counted the heading, the body and a container, and a page that lost
 # its roster stayed green; the roster page emits 46 (correction round C16).
 FLOORS = {"sys": 180, "maint": 50, "cfg": 40, "lib": 150,
-          "acq": 55, "trackers": 40, "discover": 40, "profile": 30, "404": 5}
+          "acq": 55, "trackers": 40, "discover": 40, "profile": 30, "404": 5,
+          "accounts": 85, "no-access": 4}
 # EMPTY, and that is the point of this wave: no page is drawn by the fragment
 # any more. The hold below says so out loud rather than passing over an empty
 # list — a scope that silently empties is a rule that stopped measuring.
@@ -171,13 +174,16 @@ async def main():
         # every page left is still reached from two predecessors — « discover »
         # among them, from « 404 » and from « sys ».
         # RE-AIMED OUT LOUD: « trackers » joined the bar, so it joins the walk,
-        # reached from « discover » and from « sys ».
+        # reached from « discover » and from « sys ». And L18's « accounts » and
+        # « no-access », each from the page before it and from another.
         walk = ["lib", "sys", "lib", "acq", "sys", "acq",
                 "maint", "lib", "maint", "cfg", "maint", "sys", "cfg",
                 "sys", "cfg", "lib", "acq", "profile",
                 "acq", "profile", "404", "lib", "404",
                 "discover", "sys", "discover",
-                "trackers", "sys", "trackers"]
+                "trackers", "sys", "trackers",
+                "accounts", "lib", "accounts",
+                "no-access", "sys", "no-access"]
         signatures: dict[str, set[str]] = {}
         residue = []
         absent = []

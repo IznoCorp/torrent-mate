@@ -5,7 +5,7 @@
 // bar's badge moves with them, without the page open, because the frame
 // observes the same reads for it. THE CROSS-SEED'S EVENTS TOO (L17): an
 // injection, a refusal and a search's outcome move a torrent's pairs and its
-// tracker's counts — never a media-sheet key, which is L18's.
+// tracker's counts, and the media sheet's block that reads the same pairs (L18).
 import type { LiveRule } from "../../lib/live-rule";
 
 const TRACKERS_KEY = ["/api/trackers"];
@@ -13,6 +13,8 @@ const TRACKERS_KEY = ["/api/trackers"];
 const DOWNLOADS_KEY = ["/api/acquisition/downloads"];
 
 const OBLIGATIONS_KEY = ["/api/acquisition/obligations"];
+
+const MEDIA_CROSS_SEED_KEY = ["/api/media/cross-seed"];
 
 /** Every rule this feature contributes to the relay. */
 export const trackersLiveRules: readonly LiveRule[] = [
@@ -48,18 +50,19 @@ export const trackersLiveRules: readonly LiveRule[] = [
   },
   {
     types: ["CrossSeedInjected"],
-    keys: [TRACKERS_KEY, DOWNLOADS_KEY, OBLIGATIONS_KEY],
+    keys: [TRACKERS_KEY, DOWNLOADS_KEY, OBLIGATIONS_KEY, MEDIA_CROSS_SEED_KEY],
     because:
-      "an injection is a pair turning « actif » on its origin's row, a new "
-      + "entry in the client, its tracker's count, and the obligation the "
-      + "engine persists before it emits",
+      "an injection is a pair turning « actif » on its origin's row and on its "
+      + "medium's sheet, a new entry in the client, its tracker's count, and "
+      + "the obligation the engine persists before it emits",
   },
   {
     types: ["CrossSeedRejected", "CrossSeedSearched"],
-    keys: [TRACKERS_KEY, DOWNLOADS_KEY],
+    keys: [TRACKERS_KEY, DOWNLOADS_KEY, MEDIA_CROSS_SEED_KEY],
     because:
       "a refusal, or a search's outcome, is a pair's state moving on its "
-      + "origin's row — and a failure is its tracker's count and the badge's "
-      + "term; a queued search is seen to end in the same visit",
+      + "origin's row and on its medium's sheet — and a failure is its "
+      + "tracker's count and the badge's term; a queued search is seen to end "
+      + "in the same visit",
   },
 ];

@@ -19,9 +19,9 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 82 |
+| operations the interface requires | 92 |
 | operations the backend has | 65 |
-| required and missing | 29 |
+| required and missing | 39 |
 | declared by both, different response shape | 53 |
 | declared by both, path parameter spelled differently | 17 |
 | declared by both, answered with a different status | 11 |
@@ -39,6 +39,7 @@ than a blank page.
 | `DELETE /api/staging/media/{mediaId}` | `deleteStagedMedia` | Delete a staged folder from the disk |
 | `DELETE /api/staging/media/{mediaId}/reclassify` | `restoreReclassifiedMedia` | Put a reclassified folder back in the staging area |
 | `DELETE /api/torrents/{infoHash}/cross-seed/exclusions` | `undoCrossSeedExclusion` | Lift an exclusion, of one pair or of a whole title |
+| `GET /api/accounts` | `readAccounts` | Every account and every role |
 | `GET /api/acquisition/journeys/{infoHash}` | `readJourney` | One medium's ladder, rung by rung |
 | `GET /api/acquisition/releases` | `readReleases` | The release candidates for one wanted item |
 | `GET /api/acquisition/suggestions` | `readSuggestions` | Titles worth following, and why |
@@ -47,6 +48,7 @@ than a blank page.
 | `GET /api/library/items` | `readLibraryItems` | The library listing, one page of it |
 | `GET /api/library/membership` | `readLibraryMembership` | Whether the library holds one medium, asked by its exact title |
 | `GET /api/library/recent` | `readLibraryRecent` | The most recently added titles |
+| `GET /api/media/{provider}/{providerId}/cross-seed` | `readMediaCrossSeed` | The medium's cross-seed, tracker by tracker |
 | `GET /api/media/{provider}/{providerId}/seasons` | `readMediaSeasons` | The seasons of a show, and what the library holds of each |
 | `GET /api/staging/destinations` | `readStagingDestinations` | Where the sort files what is not a medium |
 | `GET /api/staging/media/{mediaId}/copies` | `readStagedMediaCopies` | Whether a staged folder is the only copy of its files — POSED in the maquette (RULINGS 22); the backend reads the torrent's presence in qBittorrent at the gesture |
@@ -54,14 +56,22 @@ than a blank page.
 | `GET /api/system/errors` | `readErrors` | How many errors, out of how many runs, and the latest |
 | `GET /api/system/services` | `readServices` | The services, and whether each answers |
 | `GET /api/trackers` | `readTrackers` | Every configured tracker, its ratio, volumes, trend, alert threshold and health |
+| `PATCH /api/accounts/{accountId}` | `updateAccount` | Assign an account its one role |
+| `PATCH /api/roles/{roleId}` | `updateRole` | Rename a role or set its rights |
+| `POST /api/accounts` | `createAccount` | Create an account |
 | `POST /api/acquisition/followed/{followedId}/restore` | `restoreFollow` | Put a removed follow back, as it was |
 | `POST /api/acquisition/journeys/{infoHash}/plex-match` | `resolvePlexMatch` | Confirm or correct the match Plex made for a medium — the Plex match's CORRECTION VERB, OPEN 9's fifth demand; the disagreement is POSED in the maquette (RULINGS 24), the backend compares Plex's real match with the identity held |
+| `POST /api/acquisition/requesters/reassign` | `reassignRequester` | Move one requester of an acquisition to another account |
+| `POST /api/auth/plex` | `signInWithPlex` | Open a session through Plex |
 | `POST /api/decisions/{decisionId}/reopen` | `reopenDecision` | Re-open a settled decision for arbitration, with the candidates a provider search finds |
 | `POST /api/media/{provider}/{providerId}/rescrape` | `rescrapeMedia` | Ask the providers for one medium's metadata again |
+| `POST /api/roles` | `createRole` | Create an ordinary role |
 | `POST /api/staging/media/{mediaId}/reclassify` | `reclassifyStagedMedia` | File a folder that is not a medium where the sort files its kind |
 | `POST /api/torrents/{infoHash}/cross-seed/search` | `searchCrossSeed` | Search a cross-seed for one torrent, on one tracker or on every eligible one |
 | `POST /api/torrents/{infoHash}/cross-seed/{tracker}/cut` | `cutCrossSeed` | Cut one torrent's cross-seed on one tracker |
 | `POST /api/trackers/{tracker}/broken-obligations/{infoHash}/seen` | `markBrokenObligationSeen` | Mark one broken obligation of a tracker seen |
+| `PUT /api/acquisition/followed/{followedId}/pause` | `setAcquisitionPause` | Set the caller's pause on one acquisition |
+| `PUT /api/acquisition/followed/{followedId}/quality` | `setAcquisitionQuality` | Set the caller's quality profile on one acquisition |
 | `PUT /api/torrents/{infoHash}/cross-seed/exclusions` | `writeCrossSeedExclusion` | Exclude one pair, or a whole title, from the engine's future cross-seed passes |
 
 ## 2. Operations both declare, whose response carries different property names
@@ -73,18 +83,18 @@ reports a difference for every optional field and drowns the real findings.
 | --- | --- | --- |
 | `DELETE /api/acquisition/followed/{followedId}` (`deleteFollow`) | `ok` | — |
 | `GET /api/acquisition/downloads` (`readDownloads`) | `addedAt`, `at`, `candidate`, `clientAvailable`, `crossSeed`, `crossSeedQuota`, `deadline`, `delaySeconds`, `downloadRate`, `downloadedBytes`, `entryHash`, `errorReason`, `etaSeconds`, `excluded`, `folder`, `ids`, `infoHash`, `origin`, `pairs`, `perDay`, `poster`, `ratio`, `reason`, `searching`, `sizeBytes`, `stopCause`, `stoppedAt`, `swarmLeechers`, `swarmSeeds`, `titleExcluded`, `tracker`, `uploadRate`, `uploadedBytes`, `used`, `waitReason` | `client_available`, `error_reason`, `eta_seconds`, `imdb_id`, `info_hash`, `media_ref`, `size_bytes`, `tmdb_id`, `tvdb_id` |
-| `GET /api/acquisition/followed` (`readFollows`) | `aired`, `fresh`, `ids`, `poster`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `id`, `imdb_id`, `items`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
+| `GET /api/acquisition/followed` (`readFollows`) | `aired`, `fresh`, `ids`, `name`, `ownPaused`, `ownQuality`, `paused`, `poster`, `quality`, `requesters`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `imdb_id`, `items`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
 | `GET /api/acquisition/followed/{followedId}/completeness` (`readFollowCompleteness`) | `airDate`, `catalogRefreshedAt`, `followedId`, `lastSearchOutcome`, `providerCatalogEmpty` | `air_date`, `catalog_refreshed_at`, `followed_id`, `last_search_outcome`, `provider_catalog_empty` |
 | `GET /api/acquisition/obligations` (`readObligations`) | `accumulatedSeedTimeSeconds`, `addedAt`, `breachedAt`, `crossSeedOf`, `dispatchedPath`, `hitAndRunCount`, `infoHash`, `media`, `minimumRatio`, `minimumSeedTimeSeconds`, `observedRatio`, `releasedAt`, `satisfiedAt`, `sourceTracker` | `accumulated_seed_time_s`, `added_at`, `breached_at`, `dispatched_path`, `hnr_count`, `info_hash`, `min_ratio`, `min_seed_time_s`, `observed_ratio`, `released_at`, `satisfied_at`, `source_tracker` |
 | `GET /api/acquisition/search` (`searchProviders`) | `followed`, `ids`, `owned`, `poster`, `shown` | `already_owned`, `limit`, `offset`, `poster_url`, `provider`, `provider_id`, `score` |
 | `GET /api/acquisition/status` (`readAcquisitionStatus`) | `cadence`, `nextSearch` | `command`, `deferred`, `ended_at`, `last_successful_run_at`, `name`, `outcome`, `reason`, `recent_runs`, `result`, `run_uid`, `started_at`, `trigger`, `watcher_enabled` |
-| `GET /api/acquisition/to-handle` (`readAcquisitionQueue`) | `absorbedBy`, `arrivals`, `blocked`, `chip`, `droppedByHand`, `failedStep`, `ids`, `inFlight`, `ladder`, `minimumRatio`, `name`, `plexMatch`, `poster`, `release`, `requester`, `rung`, `secondaryLine`, `state`, `steps`, `strip`, `takeable`, `text`, `tone`, `tracker`, `trigger`, `via`, `when`, `withoutPoster` | `candidates_count`, `created_at`, `decision_id`, `degraded`, `followed_id`, `info_hash`, `items`, `orphan_count`, `stage`, `year` |
-| `GET /api/auth/me` (`readAccount`) | `avatar`, `email`, `name` | — |
+| `GET /api/acquisition/to-handle` (`readAcquisitionQueue`) | `absorbedBy`, `arrivals`, `blocked`, `chip`, `droppedByHand`, `failedStep`, `id`, `ids`, `inFlight`, `ladder`, `minimumRatio`, `name`, `plexMatch`, `poster`, `release`, `requester`, `requesters`, `rung`, `secondaryLine`, `state`, `steps`, `strip`, `takeable`, `text`, `tone`, `tracker`, `trigger`, `via`, `when`, `withoutPoster` | `candidates_count`, `created_at`, `decision_id`, `degraded`, `followed_id`, `info_hash`, `items`, `orphan_count`, `stage`, `year` |
+| `GET /api/auth/me` (`readAccount`) | `avatar`, `email`, `forbiddenWrites`, `id`, `kind`, `name`, `plexLinked`, `rights`, `role` | — |
 | `GET /api/config/files` (`readConfigurationFiles`) | `changed` | `files`, `mtime`, `owned_keys`, `sha256`, `shadowed_keys`, `size` |
 | `GET /api/config/files/{name}` (`readConfigurationFile`) | `digest`, `shadowedKeys` | `sha256`, `shadowed_keys` |
 | `GET /api/config/schema` (`readSettings`) | `displayedValue`, `file`, `fileNames`, `id`, `key`, `name`, `note`, `precision`, `raw`, `secondaryLine`, `settings`, `title`, `type` | `json_schema`, `ownership`, `restart_impact` |
 | `GET /api/config/secrets` (`readSecrets`) | `defined`, `label` | `description`, `is_set`, `secrets` |
-| `GET /api/config/status` (`readConfigurationStatus`) | `readOnly`, `restartRequired` | `read_only`, `restart_configured`, `restart_required`, `role`, `stale_files` |
+| `GET /api/config/status` (`readConfigurationStatus`) | `restartRequired` | `read_only`, `restart_configured`, `restart_required`, `role`, `stale_files` |
 | `GET /api/decisions/` (`readDecisions`) | `candidates`, `choice`, `folder`, `kept`, `kind`, `overview`, `pending`, `poster`, `provider`, `reason`, `score`, `settled`, `settledBy`, `state`, `title`, `via`, `when`, `withoutPoster`, `year` | `candidates_count`, `created_at`, `extracted_title`, `extracted_year`, `items`, `media_kind`, `page`, `page_size`, `pending_count`, `staging_path`, `status`, `total`, `trigger` |
 | `GET /api/maintenance/actions` (`readMaintenanceActions`) | `dryRun`, `group`, `long` | `actions`, `category`, `category_counts`, `default`, `dry_run`, `enum_values`, `help`, `long_running`, `name`, `options`, `required`, `title`, `type` |
 | `GET /api/maintenance/destructive-log` (`readDeletionJournal`) | `label`, `rows`, `secondaryLine`, `total`, `value` | `actor`, `detail`, `entries`, `op`, `path`, `run_uid`, `ts` |
@@ -96,18 +106,18 @@ reports a difference for every optional field and drowns the real findings.
 | `GET /api/pipeline/history` (`readPipelineHistory`) | `available`, `cause`, `counts`, `detected`, `dryRun`, `durationS`, `endedAt`, `errorCount`, `grabbed`, `name`, `result`, `runUid`, `skipCount`, `startedAt`, `status`, `steps`, `succeeded`, `successCount`, `unmatchedCount`, `when` | `dry_run`, `duration_s`, `ended_at`, `run_uid`, `started_at` |
 | `GET /api/pipeline/history/{runUid}` (`readRun`) | `available`, `detected`, `dryRun`, `durationS`, `elapsedS`, `endedAt`, `errorCount`, `grabbed`, `optionsJson`, `outputTail`, `runUid`, `skipCount`, `startedAt`, `successCount`, `unmatchedCount` | `dry_run`, `duration_s`, `elapsed_s`, `ended_at`, `error_count`, `options_json`, `output_tail`, `run_uid`, `skip_count`, `started_at`, `success_count`, `unmatched_count` |
 | `GET /api/pipeline/status` (`readPipeline`) | `blockedCount`, `description`, `duration`, `facts`, `label`, `last`, `name`, `outcome`, `result`, `secondaryLine`, `steps`, `trigger`, `triggers`, `uid`, `watcherDown`, `watcherEnabled`, `when` | `paused`, `pid`, `run_uid`, `step`, `watcher_enabled` |
-| `GET /api/staging/media` (`readStaging`) | `absorbedBy`, `chip`, `droppedByHand`, `episode`, `failedStep`, `ids`, `kind`, `ladder`, `minimumRatio`, `moving`, `name`, `plexMatch`, `poster`, `release`, `requester`, `rung`, `secondaryLine`, `settled`, `steps`, `strip`, `stuck`, `text`, `tone`, `tracker`, `trigger`, `via`, `when`, `withoutPoster` | `absent`, `ambiguous`, `awaiting_action`, `blocked_reason`, `category`, `category_id`, `continuation_requested_at`, `counts`, `decision_id`, `decision_trigger`, `disk`, `dispatch_target`, `episode_count`, `folder`, `has_nfo`, `has_poster`, `has_trailer`, `id`, `items`, `key`, `label`, `match`, `matched`, `media_kind`, `mode`, `modified_at`, `overview`, `page`, `page_size`, `position_stage`, `position_state`, `poster_url`, `provider_ids`, `relative_path`, `scraped`, `seasons`, `size_bytes`, `stages`, `total`, `video_count`, `with_trailer`, `year` |
+| `GET /api/staging/media` (`readStaging`) | `absorbedBy`, `chip`, `droppedByHand`, `episode`, `failedStep`, `ids`, `kind`, `ladder`, `minimumRatio`, `moving`, `name`, `plexMatch`, `poster`, `release`, `requester`, `requesters`, `rung`, `secondaryLine`, `settled`, `steps`, `strip`, `stuck`, `text`, `tone`, `tracker`, `trigger`, `via`, `when`, `withoutPoster` | `absent`, `ambiguous`, `awaiting_action`, `blocked_reason`, `category`, `category_id`, `continuation_requested_at`, `counts`, `decision_id`, `decision_trigger`, `disk`, `dispatch_target`, `episode_count`, `folder`, `has_nfo`, `has_poster`, `has_trailer`, `items`, `key`, `label`, `match`, `matched`, `media_kind`, `mode`, `modified_at`, `overview`, `page`, `page_size`, `position_stage`, `position_state`, `poster_url`, `provider_ids`, `relative_path`, `scraped`, `seasons`, `size_bytes`, `stages`, `total`, `video_count`, `with_trailer`, `year` |
 | `GET /api/version` (`readVersion`) | `commit` | `build_commit` |
-| `PATCH /api/acquisition/followed/{followedId}` (`updateFollow`) | `aired`, `fresh`, `ids`, `poster`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `id`, `imdb_id`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
+| `PATCH /api/acquisition/followed/{followedId}` (`updateFollow`) | `aired`, `fresh`, `ids`, `name`, `ownPaused`, `ownQuality`, `paused`, `poster`, `quality`, `requesters`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `imdb_id`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
 | `POST /api/acquisition/detect` (`runDetection`) | `runUid` | `run_uid` |
-| `POST /api/acquisition/followed` (`createFollow`) | `aired`, `fresh`, `ids`, `poster`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `id`, `imdb_id`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
+| `POST /api/acquisition/followed` (`createFollow`) | `aired`, `fresh`, `ids`, `name`, `ownPaused`, `ownQuality`, `paused`, `poster`, `quality`, `requesters`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `imdb_id`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
 | `POST /api/acquisition/followed/{followedId}/grab` (`grabForFollow`) | `runUid` | `run_uid` |
 | `POST /api/acquisition/followed/{followedId}/search` (`searchForFollow`) | `found` | `run_uid` |
 | `POST /api/acquisition/follows/{followedId}/seasons/{season}/grab` (`grabSeasonForFollow`) | `absorbedCount`, `queued`, `runUid` | `absorbed_count`, `run_started`, `run_uid`, `season_wanted_id` |
 | `POST /api/acquisition/journeys/{infoHash}/requeue` (`requeueJourney`) | `queued`, `runUid` | `run_uid` |
 | `POST /api/acquisition/journeys/{infoHash}/rescrape` (`rescrapeJourney`) | `queued`, `runUid` | `run_uid` |
 | `POST /api/acquisition/ranking/preview` (`previewRanking`) | `freeleech`, `knownTrackers`, `sizeBytes`, `trackerRatioState` | `is_freeleech`, `known_trackers` |
-| `POST /api/auth/login` (`signIn`) | `avatar`, `email`, `name` | — |
+| `POST /api/auth/login` (`signIn`) | `avatar`, `email`, `forbiddenWrites`, `id`, `kind`, `name`, `plexLinked`, `rights`, `role` | — |
 | `POST /api/auth/logout` (`signOut`) | `ok` | — |
 | `POST /api/config/restart-web` (`restartWeb`) | `ok` | `status` |
 | `POST /api/decisions/{decisionId}/dismiss` (`dismissDecision`) | `state` | `candidates`, `candidates_count`, `created_at`, `extracted_title`, `extracted_year`, `id`, `media_kind`, `overview`, `poster_url`, `provider`, `provider_id`, `resolution_json`, `score`, `staging_path`, `status`, `title`, `trigger`, `year` |
