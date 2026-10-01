@@ -63,6 +63,6 @@ export function timeOfDay(epoch: number): string {
 export function momentOf(epoch: number, now: Date = new Date()): string {
   const instant = new Date(epoch * 1000);
   if (instant.toDateString() === now.toDateString()) return timeOfDay(epoch);
-  const day = new Intl.DateTimeFormat(i18next.language, { day: "numeric", month: "long" }).format(instant);
-  return i18next.t("surfaces.clock.dayAndTime", { day, time: timeOfDay(epoch) });
+  const date = new Intl.DateTimeFormat(i18next.language, { day: "numeric", month: "long" }).format(instant);
+  return i18next.t("surfaces.clock.dayAndTime", { day: date, time: timeOfDay(epoch) });
 }
