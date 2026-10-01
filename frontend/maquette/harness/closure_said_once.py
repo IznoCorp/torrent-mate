@@ -24,7 +24,12 @@ What this holds:
    error is said;
 6. `acq-closure-filed-by-hand`: no card, in « À traiter » nor in « En cours »;
 7. `acq-closure-medium-back`: a new card in « En cours », the old closure
-   still in « À traiter », unseen.
+   still in « À traiter », unseen;
+8. `acq-closure-two-one-title`: two closures of ONE title (Silo · S03 and Silo
+   · S03E07) each stand as a card; « Marquer comme vu » from the episode's
+   card removes that card and leaves the season's — the panel acts on the
+   TOUCHED card's acquisition, never on the first closure of its title (M1 of
+   the lot's reading).
 
 WHAT IT DOES NOT READ: a reload of the DOCUMENT — the mock's world resets with
 the document (`rights_frame.py`'s note), so a posed closure cannot outlive one.
@@ -56,6 +61,9 @@ def opening(sentence):
 
 
 SUBJECT = "This City Is Ours"
+# Two closures of one title: the season's pack and an episode of it.
+SEASON_CLOSED = "Silo|S03"
+EPISODE_CLOSED = "Silo|S03E07"
 # Each closure of a vanished medium, the card it is posed on, and its reason.
 CLOSURES = [
     ("acq-closure-torrent-removed", SUBJECT, "torrent_removed"),
@@ -203,6 +211,17 @@ async def main():
         journal.check("acq-closure-medium-back: a new card in « En cours », the old closure still unseen in « À traiter »",
                       said(card, "torrent_removed") and fresh is not None and fresh["chip"] != CLOSED,
                       f"todo {card} · now {fresh}")
+
+        # ── 8. two closures, one title: the touched one is seen ───────────
+        await go(page, journal, "acq-closure-two-one-title")
+        posed = await page.evaluate(KEYS)
+        both = [await page.evaluate(CARD, key) for key in (SEASON_CLOSED, EPISODE_CLOSED)]
+        await tap_card(page, EPISODE_CLOSED)
+        await tap_action(page, MARK_SEEN)
+        left = await page.evaluate(KEYS)
+        journal.check(f"acq-closure-two-one-title: « {MARK_SEEN} » on « {EPISODE_CLOSED} » removes that card and "
+                      f"keeps « {SEASON_CLOSED} »",
+                      None not in both and EPISODE_CLOSED not in left and SEASON_CLOSED in left, f"posed {posed} · left {left}")
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()

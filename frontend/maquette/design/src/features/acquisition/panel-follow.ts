@@ -23,6 +23,7 @@ import { membershipQuery } from "../../lib/membership";
 import { sharedQueryClient } from "../../lib/query-client";
 import { panel } from "../../lib/shell-doors";
 import { completenessQuery, seasonsQuery } from "../../lib/season-rows";
+import { keyTitle } from "../../lib/arrival-slots";
 import { store } from "../../lib/store-access";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 import { followFacts, type Follow } from "./follow-facts";
@@ -56,13 +57,14 @@ let cancelWaiting: (() => void) | null = null;
  * wait, and a closed panel has nothing to put back.
  *
  * Args:
- *     title: The medium the panel is about.
+ *     subject: The panel's subject — the medium's title, or a closed tunnel's key.
  */
-function redrawOnIdentityArrival(title: string): void {
+function redrawOnIdentityArrival(subject: string): void {
   cancelWaiting?.();
   cancelWaiting = null;
   if (sharedQueryClient === undefined) return;
-  const address = "follow:" + title;
+  const title = keyTitle(subject);
+  const address = "follow:" + subject;
   const cancel = sharedQueryClient.getQueryCache().subscribe((event) => {
     if (event.type !== "updated" || event.query.state.data === undefined) return;
     const shown = store.read().state.panelDescriptor as PanelDescriptor | undefined;
@@ -114,32 +116,33 @@ function pendingSeasons(title: string): { queryKey: readonly unknown[]; queryFn:
  * standing.
  *
  * Args:
- *     title: The medium.
+ *     subject: The panel's subject — the medium's title, or a closed tunnel's key.
  */
-function askForSeasons(title: string): void {
-  const query = pendingSeasons(title);
+function askForSeasons(subject: string): void {
+  const query = pendingSeasons(keyTitle(subject));
   if (query === null || sharedQueryClient === undefined) return;
   void sharedQueryClient.prefetchQuery(query);
-  redrawOnIdentityArrival(title);
+  redrawOnIdentityArrival(subject);
 }
 
 /**
  * Builds a medium's follow panel.
  *
  * Args:
- *     title: The medium.
+ *     subject: The medium's title, or a closed tunnel's acquisition key.
  *     cache: What the query cache holds.
  *
  * Returns:
  *     The descriptor, or null while the follows have not landed.
  */
-function followPanel(title: string, cache: PanelCache): PanelDescriptor | null {
-  const facts = followFacts(title, cache);
+function followPanel(subject: string, cache: PanelCache): PanelDescriptor | null {
+  const title = keyTitle(subject);
+  const facts = followFacts(subject, cache);
   if (facts === null) return null;
   // AND A MEDIUM STILL BEING IDENTIFIED — a queued folder, never a follow since
   // B-366 — waits for its identity to arrive and redraws when it does.
-  if (!facts.hasSheet) redrawOnIdentityArrival(title);
-  else if (facts.seasonsPending) askForSeasons(title);
+  if (!facts.hasSheet) redrawOnIdentityArrival(subject);
+  else if (facts.seasonsPending) askForSeasons(subject);
   const translate = i18next.t.bind(i18next);
   const { follow, isFilm, seasons, fraction } = facts;
   const kind = translate(isFilm ? "panels.follow.film" : "panels.follow.series");
@@ -159,7 +162,7 @@ function followPanel(title: string, cache: PanelCache): PanelDescriptor | null {
   const readOnly = follow.requesters !== undefined && !isOwn(follow, rights);
   const pause = pauseOffer(follow, rights);
   return {
-    address: "follow:" + title,
+    address: "follow:" + subject,
     title: follow.title,
     poster: { t: follow.title, k: follow.kind, source: follow.poster ?? heldIdentity(title)?.poster },
     meta:
@@ -215,5 +218,6 @@ registerProducer("follow", {
   // first open about any title goes down the deferred path.
   // AND THE SCHEDULER'S CADENCE, which names the hour a found release is taken
   // at anyway.
-  needs: (subject) => [followsQuery(), incompleteShowsQuery, membershipQuery(subject), acquisitionStatusQuery, accountQuery],
+  needs: (subject) => [followsQuery(), incompleteShowsQuery, membershipQuery(keyTitle(subject)), acquisitionStatusQuery,
+    accountQuery],
 });

@@ -31,7 +31,7 @@ import { followsQuery, incompleteShowsQuery } from "./queries";
 // undefined, which is what the engine's object literal did in practice.
 import type { Follow, FollowSubject } from "./types";
 import { followFraction } from "./follow-vocabulary";
-import { acquisitionKey, inFlightCards, liveCards, setAsideCards, todoCards } from "../../lib/arrival-slots";
+import { acquisitionKey, inFlightCards, keyTitle, liveCards, setAsideCards, todoCards } from "../../lib/arrival-slots";
 import { originLine } from "./card-markup";
 import { followOffered } from "./follow-offer";
 
@@ -95,14 +95,16 @@ export type FollowFacts = {
  * medium nobody follows still has facts to state.
  *
  * Args:
- *     title: The medium.
+ *     subject: The medium's title — or, from a closed tunnel's card, the
+ *         acquisition's key (« Silo|S03E07 »), which names the closure.
  *     cache: What the query cache holds.
  *
  * Returns:
  *     The facts, or null while the follows have not landed — the one read this
  *     panel cannot draw without.
  */
-export function followFacts(title: string, cache: PanelCache): FollowFacts | null {
+export function followFacts(subject: string, cache: PanelCache): FollowFacts | null {
+  const title = keyTitle(subject);
   const followed = cache.held<Follow[]>(followsQuery().queryKey);
   // NOT BEFORE WHAT IT STATES HAS LANDED: a panel drawn without the membership
   // or the incomplete shows says « not in the library » and « complete » about
@@ -120,9 +122,12 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
   const answer = cache.held<AcquisitionQueue>(queueKey(scenario));
   const todo = answer ? todoCards(answer).find((one) => one.title === title) : undefined;
   const arrival = answer?.arrivals.find((one) => one.title === title);
-  // A CLOSED TUNNEL OF THIS MEDIUM, not yet seen — beside a new one, when the
-  // medium came back (Q8).
-  const closed = answer ? todoCards(answer).find((one) => one.title === title && one.closure != null) : undefined;
+  // THE CLOSED TUNNEL THE TOUCHED CARD STANDS FOR, not yet seen — beside a new
+  // one, when the medium came back (Q8). BY ITS KEY, never its title: a pack
+  // and an episode of it closed together are two closures of one title (M1).
+  const closed = answer
+    ? todoCards(answer).find((one) => acquisitionKey(one) === subject && one.closure != null)
+    : undefined;
   const acquisition = todo ?? (answer ? inFlightCards(answer).find((one) => one.title === title) : undefined);
   // A MEDIUM IN FLIGHT IS NOT « À JOUR » NOR « ACQUIS »: until its ladder's last
   // rung is passed it is being acquired, at the rung its card stands on.

@@ -15,7 +15,7 @@
 // Split on the FIRST colon only, because a subject carries its own: a setting is
 // addressed `<file>:<key>`, and a title like « Dexter: Resurrection » would
 // otherwise name a medium that does not exist.
-import { acquisitionKey } from "../lib/arrival-slots";
+import { acquisitionKey, keyTitle } from "../lib/arrival-slots";
 import { addressSeam } from "../lib/addresses";
 import { membershipQuery, type Membership } from "../lib/membership";
 import { sharedQueryClient } from "../lib/query-client";
@@ -54,7 +54,8 @@ const REOPEN: Readonly<Record<string, Opener | undefined>> = {
      construction, which is the shape a typed address must be refused by. */
   follow: {
     open: (subject) => panel.produce("follow", subject),
-    resolves: (subject) => heldMedium(subject),
+    // A CLOSED TUNNEL'S PANEL names its acquisition's key, « Silo|S03E07 ».
+    resolves: (subject) => heldMedium(keyTitle(subject)),
   },
   journey: {
     open: (subject) => panel.produce("journey", subject),

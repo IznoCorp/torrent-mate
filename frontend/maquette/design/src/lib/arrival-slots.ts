@@ -109,6 +109,16 @@ export function acquisitionKey(card: AcquisitionNamed): string {
 }
 
 /**
+ * The title a key names — « Silo » for « Silo|S03E07 », a bare title for itself.
+ *
+ * @param key An acquisition's key, or a title.
+ * @returns The title before the separator.
+ */
+export function keyTitle(key: string): string {
+  return key.split(KEY_SEPARATOR)[0];
+}
+
+/**
  * Whether two cards name the same medium: one provider identifier shared, and
  * the same season and episode.
  *

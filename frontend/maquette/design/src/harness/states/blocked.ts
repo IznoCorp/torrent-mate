@@ -146,6 +146,11 @@ const supersededEpisode = () => {
   window.__mocks?.poseFiled(SEASON_IN_FLIGHT);
   window.__mocks?.poseClosure(SUPERSEDED_EPISODE, "superseded", PACK_RELEASE, { minutesAgo: 15 });
 };
+/** Two tunnels of one title closed: the season's pack and an episode of it (M1 of the lot's reading). */
+const twoClosuresOneTitle = () => {
+  window.__mocks?.poseClosure(SEASON_IN_FLIGHT, "files_absent", null, { minutesAgo: 5 });
+  window.__mocks?.poseClosure(SUPERSEDED_EPISODE, "torrent_removed", null, { minutesAgo: 30 });
+};
 // What a film needs, in bytes, for a library with no disk to receive it.
 const FILM_SIZE = 58_000_000_000;
 
@@ -256,6 +261,9 @@ export function blockedStates(): NamedState[] {
         torrentRemoved();
         window.__mocks?.poseMediumBack(SUBJECT);
       } }),
+    posed("acq-closure-two-one-title",
+      "À traiter — deux parcours clos d'un même titre : Silo · S03 (fichiers disparus) et Silo · S03E07 (torrent retiré), chacun sa carte, « Marquer comme vu » n'écarte que celle touchée",
+      [], { before: twoClosuresOneTitle }),
     // SUPERSEDED (Q9) — the last chosen wins; the earlier one is said once, its torrent seeding.
     posed("acq-superseded-episode",
       "À traiter — Silo · S03E07, choisi avant le pack de la saison et arrivé après : remplacé, son torrent sème (BK4)",

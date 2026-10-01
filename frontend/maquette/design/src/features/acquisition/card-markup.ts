@@ -22,7 +22,7 @@ import { posterArtwork } from "../../lib/engine-drawing";
 import { richTextMarkup } from "./rich-text";
 import { originRow, footRow } from "./variants";
 import { currentRung } from "../../lib/current-rung";
-import { sizeOf } from "../trackers/format";
+import { sizeOf } from "../../lib/byte-size";
 import type { Right, Rights } from "../../lib/rights";
 import { CLOSED_TONE, closureMarkup } from "./closure-markup";
 
@@ -331,7 +331,11 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot | Med
             "data-panel": medium.panel || folderAddress,
           },
         },
-    body: { "data-panel": medium.panel || (hasSheet ? `media:${title}` : folderAddress) },
+    // A CLOSED TUNNEL'S PANEL is addressed by its ACQUISITION'S KEY, never its
+    // title: two closures of one title (a pack and an episode of it) each mark
+    // their own seen (M1 of the lot's reading).
+    body: { "data-panel": medium.panel || (hasSheet ? `media:${medium.closure != null ? acquisitionKey(medium) : title}`
+      : folderAddress) },
     // AN AUTOMATIC RECOVERY SAYS SO in its subtitle, « S03 · auto » (Q19,
     // DECIDED 8 = A): a word, never a second chip beside the rung's. A manual
     // one reads nothing more; an unknown trigger draws nothing, never a guess.

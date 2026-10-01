@@ -1,7 +1,7 @@
-// The byte counts the « Torrents » tab writes: a size and a rate, in decimal units.
+// The byte counts the interface writes: a size and a rate, in decimal units.
 import { describe, expect, it } from "vitest";
-import "../../lib/unit-words";
-import { rateOf, sizeOf } from "./format";
+import "./unit-words";
+import { rateOf, sizeOf } from "./byte-size";
 
 describe("sizeOf", () => {
   it("writes a size in the largest unit that keeps it at one or more", () => {
