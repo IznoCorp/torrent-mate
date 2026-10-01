@@ -323,3 +323,10 @@ def test_deploy_staging_refuses_a_clone_behind_origin(origin: Origin) -> None:
     done = _real_deploy(origin, "deploy-staging.sh", "staging", origin_moves=True)
     assert done.returncode == 1
     assert "origin/staging" in done.stderr, done.stderr
+
+
+def test_deploy_refuses_a_clone_behind_origin(origin: Origin) -> None:
+    """deploy.sh serves what origin's `prod` holds, nothing older."""
+    done = _real_deploy(origin, "deploy.sh", "prod", origin_moves=True)
+    assert done.returncode == 1
+    assert "≠ origin/prod" in done.stderr, done.stderr

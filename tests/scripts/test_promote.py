@@ -360,6 +360,27 @@ def test_rule_3_refuses_a_pr_whose_checks_were_not_green(flow: Flow) -> None:
     assert flow.tip("main") == flow.base
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [(("base", "ref"), "prod"), (("merged_at",), None)],
+    ids=["pr-into-prod", "pr-not-merged"],
+)
+def test_rule_3_refuses_a_commit_whose_pr_is_not_a_merge_into_develop(
+    flow: Flow, field: tuple[str, ...], value: object
+) -> None:
+    """The commit's PR must be MERGED into `develop`: one into another base, or closed unmerged, proves nothing."""
+    sha = flow.merged_pr("0.1.1")
+    pull = flow.answers[f"repos/{{owner}}/{{repo}}/commits/{sha}/pulls"][0]  # type: ignore[index]
+    target = pull
+    for key in field[:-1]:
+        target = target[key]
+    target[field[-1]] = value
+    done = flow.promote("main")
+    assert done.returncode == 1, _out(done)
+    assert "is no merged PR into develop" in done.stderr
+    assert flow.tip("main") == flow.base
+
+
 def test_rule_3_refuses_when_develop_requires_no_check(flow: Flow) -> None:
     """With no required check readable, nothing proves a PR passed: refuse, never pass vacuously."""
     flow.merged_pr("0.1.1")
