@@ -42,9 +42,26 @@ COUNTS = """() => ({
   badge: Number(document.querySelector('#nav button[data-page="acq"] [data-part="shell/tab-badge"]')?.textContent || 0),
   fab: !document.querySelector('#fab')?.hidden })"""
 # A MESSAGE HIDES THE « ＋ » while it is shown (R86), so the button is read once
-# no message stands — the welcome hint included.
-QUIET = """async () => { for (let i = 0; i < 40 && document.querySelector('#toast[data-shown]'); i += 1) {
-  document.querySelector('#toastx')?.click(); await new Promise((settle) => setTimeout(settle, 250)); } }"""
+# no message stands and none is still owed. F65 read red in CI with the right
+# held ({'tab': 0, 'badge': 0, 'fab': False}, run 36831342708): the welcome hint
+# is armed at the module's evaluation with 900 ms, this read starts about 750 ms
+# after `load`, and a hint landing just after the loop looked hid the button at
+# the read — reproduced by moving the hint's delay to 950 ms. The session's
+# first touch is what stops it for good (`harness/panel.ts`), so the loop
+# starts with one. Two neighbours of the same race are closed with it:
+# - the button comes back AFTER_A_MESSAGE_MS (200 ms) after the message has
+#   left, counted from React's commit, not from the click — 250 ms after the
+#   click left a slow runner 50 ms of margin. The read waits past the hold;
+# - the account the state signed in is read again (`as()`), and until it is the
+#   rights are none.
+QUIET = """async (who) => {
+  const pause = (ms) => new Promise((settle) => setTimeout(settle, ms));
+  document.dispatchEvent(new PointerEvent('pointerdown'));
+  for (let i = 0; i < 40 && document.querySelector('#toast[data-shown]'); i += 1) {
+    document.querySelector('#toastx')?.click(); await pause(250); }
+  for (let i = 0; i < 40 && window.__queries.getQueryData(['/api/auth/me'])?.id !== who; i += 1) await pause(100);
+  await pause(300);
+  await new Promise((settle) => requestAnimationFrame(() => requestAnimationFrame(settle))); }"""
 PANEL_VERBS = """() => [...document.querySelectorAll('#sheet [data-journey-requeue], #sheet [data-journey-rescrape]')]
   .map((one) => one.getAttribute('data-journey-requeue') ? 'requeue' : 'rescrape')"""
 FORCE_REQUEUE = """async ([who, title]) => { window.__mocks.setIdentity(who);
@@ -68,7 +85,7 @@ async def main():
                       str(tab))
 
         await go("acq-household")
-        await page.evaluate(QUIET)
+        await page.evaluate(QUIET, "household-member")
         member = await page.evaluate(ANSWER, "household-member")
         journal.check("R-L18-g: a household member reads only the acquisitions it asked for",
                       member["all"] > 0 and not member["others"], str(member))
@@ -91,7 +108,7 @@ async def main():
                       str(counts))
 
         await go("acq-see-only")
-        await page.evaluate(QUIET)
+        await page.evaluate(QUIET, "see-only")
         counts = await page.evaluate(COUNTS)
         journal.check("F65: a role that only sees has no « ＋ »", not counts["fab"], str(counts))
 
