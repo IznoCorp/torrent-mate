@@ -32,7 +32,7 @@
 | B-154 | `staleTime: Infinity` with no focus or reconnect refetch: a missed invalidation never heals. **Owner:** the backend brief, after the freeze. | by design | `open` |
 | B-235 | No desktop navigation exists beyond the drawer. **Owner:** L24 (the orphans; the desktop-adaptation milestone). | by survey | `open` |
 | B-247 | A store bump replaces a feature page's nodes, so a write between press and click destroys the click. **Owner:** the defects fast lane. | by L15 | `open` |
-| B-249 | The screen flashes when a sheet action closes the sheet AND opens a page. **Owner:** the defects fast lane. | 1× | `open` |
+| B-249 | The screen flashes when a sheet action closes the sheet AND opens a page. **Owner:** the defects fast lane. | 1× | `fixed #601` |
 | B-255 | `check-frontend-boundaries.py` is back at 952 lines, 48 from the hard ceiling it was cut away from. **Owner:** the tooling train. | by audit | `open` |
 | B-267 | The real backend answers `{detail}`, which the queue's failure shape does not match — every refusal would be QUEUED at switchover. **Owner:** the backend brief, after the freeze. | by review | `open` |
 | B-268 | R104 lives in the file it measures, and has been defeated twice by exactly that. **Owner:** the tooling train. | by audit | `open` |
@@ -65,7 +65,7 @@
 | B-329 | The backend's GENERATED contract does not declare the `409` its own route raises, so no diff between the two contracts can read it — the demand register is structurally blind to a refusal NE-DOIT-PAS-3 forbids the interface to show. **Owner:** the backend brief, after the freeze. | by the backend brief | `open` |
 | B-330 | `scripts/mutate.sh` answers « no hold fell » when the RULE PATH it was given does not exist — a typo and a rule that does not bite are the same sentence, and the second is a finding while the first is a mistake. **Owner:** the tooling train. | by the instruments' debts block | `open` |
 | B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » — R199 `pull_follows_the_refresh.py`: the CLOSING half is repaired (L13c c·5, the indicator now closes with the refresh's own answer time, 233/532/1716 ms against the control's fixed 1356/1347/1350 ms). **The CENTRING half is unmeasurable here** (reader C13's C6, round one: offset 0 on BOTH builds at every moment on this machine — the mechanism is real, proved by the centring mutation alone (−187 px, drawing the operator's own screenshot), but nothing on this machine separates candidate from control). **Owner:** the conformity train. | 1×; L13c c·5 | `to confirm` |
-| B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed. **Owner:** the defects fast lane. | 1× | `open` |
+| B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed. **Owner:** the defects fast lane. | 1× | `fixed #588` |
 | B-336 | The library's kind chips (« Tout · Films · Séries », with counts) scroll horizontally with a VISIBLE scrollbar on the phone; the strip should hide it as `pillscroll` does. **Owner:** the conformity train. | 1× | `to confirm` |
 | B-337 | A follow card swiped open: the first tap on a revealed action does nothing, the second acts — systematic on the phone. **Owner:** the defects fast lane. | 1× | `fixing` |
 | B-339 | A DISABLED panel action is drawn exactly like an enabled one — « ✓ Ajouté » on the add screen's panel is `disabled` in the markup and full primary yellow on the screen, so the reader taps a spent act and « nothing happens ». **Owner:** the conformity train. | 1× | `to confirm` |
@@ -923,6 +923,15 @@ give, and the entry does not say it.
 
 <sub>reported through the steward, 2026-09-04 · probe on 8899 and on a control of `4c0e274a7` served on 8902 · `git diff --stat origin/main...HEAD -- …/ui/reader-place.ts …/ui/virtual-rows.tsx …/app/scroll-restoration.ts` → empty</sub>
 
+**WALKED A THIRD TIME ON `main` `1e6aa6a69`, AND STILL NOT REPRODUCED** (2026-10-01). A real load, « En cours » tapped,
+a TOUCH scroll gesture (`Input.synthesizeScrollGesture`, not a wheel), a tap on a card, then Back — by
+`history.back()` (what the system gesture calls) and by the screen's own « Retour », with and without « Voir la fiche
+» between: `#port` 219 → 219 on every path, in the dense world tm-design opens on (the real world's « En cours » does
+not scroll). The same on « Suivis » and the library (702 → 702). Nothing landed since 09-04 can be named as the
+repair: #593 (B-490, the late re-apply on a lazy poster) touches the same restoration on the same tab but a different
+symptom, and no build on this machine ever reproduced B-311. The entry stays `open` on the two differences this
+machine cannot close — the installed PWA, and a real device's momentum — and needs the operator's hand on the phone.
+
 **B-312 — changing the lens during a selection drops it.**
 Reported by the operator on 2026-09-04, verbatim: « sur médiathèque, à la sélection de médias,
 quand je change de filtre — je passe de Tout à Films ou Séries — et que je sélectionne un média,
@@ -1363,6 +1372,14 @@ resolution by the real path — no card on the design host carried `data-resolve
 **Owner, per screen**: the topics are B-332's and B-361's owners; nothing else is owed by this entry.
 
 <sub>steward, 2026-09-06 · `scratchpad/cdp-back-inventory.py` (29 states, `back-inventory.jsonl`) and `cdp-back-real.py` / `cdp-back-real2.py` (`back-real*.jsonl`), raw CDP on the phone's tm-design tab; `window.__go` builds its own stack, so the FIRST pass reads the affordance and where Back lands, and only the SECOND pass reads whether entering pushes</sub>
+
+**FIXED BY #588, and the inventory retaken by finger on `main` `1e6aa6a69`** (2026-10-01). The one FALSE class —
+the rubrics of Réglages and Maintenance (B-332, B-361) — was repaired in #588 and is held by R165 (`topics.py`). Walked
+by taps at 390 px with `history.back()` as the system gesture: every rubric of both pages draws « Retour » and Back
+lands on the page's own list; the add, media, releases, quality and resolution screens push an entry, draw « Retour »
+and Back lands under them (the follow panel reopened beneath its screens); the panels (journey, follow, user,
+Trackers', Découvrir's) close on Back onto their page; the seven drawer pages draw none, as D1b rules, and Back lands
+on `/acquisition`.
 
 **B-336 — the library's kind chips show their scrollbar.**
 Reported by the operator on 2026-09-06, verbatim: « Filtre médiathèque Tout/films/séries il y a un
@@ -2780,6 +2797,13 @@ refused a number nobody in this wave may change would be a rule against the wron
 number nobody prints is a number nobody acts on. **Left `open` for that half.**
 
 <sub>`python3 frontend/maquette/harness/exits.py` — 5 holds, no violation, and the gap printed. Mutation: `visibility` taken back out; both exit holds fall.</sub>
+
+**THE PRODUCER'S HALF WENT WITH #601, and the flash does not reproduce on `main` `1e6aa6a69`** (2026-10-01). L13b
+(#601) removed the 260 ms waits with the one-ladder shape, and R103 now REFUSES any `setTimeout` after a `.close(`, a
+`bridge.back(` or a `.rewind(` in the same verb. Read as PAINTS, not styles — the CDP screencast, the luminance of the
+page's upper band frame by frame — on a long press of a library tile then « Voir la fiche », and on a follow's sheet
+then « Voir la fiche » and « Chercher une autre release »: the luminance climbs monotonically while the screen fades
+in over the still-dimmed page, and no frame shows the page bare.
 
 **B-143 — the constitution gained a section, and nothing in the plan answers it.**
 The operator dictated **§17 — Comptes, droits et identité Plex** on 2026-08-26: the application
