@@ -17,10 +17,22 @@ WHAT IS READ, out of the harness's phone frame, with a pointer and no touch:
      this device across a reload, and unfolding gives the open width back;
   5. the phone is untouched: at 390 the drawer is a closed layer behind the burger and the page fills
      the port; inside the frame at 1280 the same.
+
+The lot's reader, N-bis (2026-10-01), red on `edd817f08`:
+
+  6. from a Réglages rubric or a Maintenance topic ENTERED BY A POINTER CLICK, a click on the pinned
+     menu lands on the page clicked, in the same document (no reload), and Retour gives the rubric's page
+     back; with an edit waiting it asks first, the three-choice confirmation over Réglages;
+  7. at 1280 × 800 and 1024 × 768 every entry of the pinned menu is visible without scrolling it, open
+     and folded.
 """
 import asyncio
 
-from common import PHONE, SETTLED, Journal, browser_channel, chrome_launch_args, open_page, read_at
+import json
+import pathlib
+
+from common import (ACTED, PAGE_PATHS, PHONE, PROTOTYPE, SETTLED, Journal, browser_channel, chrome_launch_args,
+                    open_page, read_at)
 from playwright.async_api import async_playwright
 
 COLUMN = 760
@@ -103,6 +115,93 @@ async def one_click(page, journal, label):
                   f"{len(entries)} entries; missed {missed}")
 
 
+WORDS = json.loads((pathlib.Path(__file__).resolve().parents[1] / "design/src/i18n/fr.json").read_text(
+    encoding="utf-8"))["screens"]["settings"]
+# « Ce qui tourne », « Où vont les médias », « Ce qu'on va chercher » — the reader's three rubrics.
+RUBRICS = ("service", "rangement", "acquisition")
+EDITED = "thresholds:thresholds.min_free_space_staging_gb"
+LANDED = """() => ({page: window.state?.page ?? null, path: decodeURIComponent(location.pathname),
+  same: window.__sameDocument === true,
+  dialog: document.querySelector('#dlg[data-open] h2')?.textContent.trim() ?? null,
+  buttons: [...document.querySelectorAll('#dlg[data-open] [data-part="dialog/button"]')].length})"""
+
+
+async def cold_at(browser, page_id, width=1280, height=800):
+    """A desktop context out of the frame, cold at a page's address, marked as one document."""
+    context, page = await open_page(browser, **{**desktop(width), "viewport": {"width": width, "height": height}})
+    await context.add_init_script(OUT_OF_FRAME)
+    await page.goto(PROTOTYPE + PAGE_PATHS[page_id].lstrip("/"), wait_until="load")
+    await page.evaluate("()=>window.__loadingDone?.()")
+    await page.evaluate("()=>document.querySelector('#toastx')?.click()")
+    await page.wait_for_timeout(SETTLED)
+    await page.evaluate("()=>{window.__sameDocument = true}")
+    return context, page
+
+
+async def menu_from_a_topic(browser, journal):
+    """Hold 6: a pointer click on the pinned menu from a topic entered by a pointer click."""
+    entries = [("cfg", f'#view [data-topic="{rubric}"]') for rubric in RUBRICS]
+    entries.append(("maint", "#view [data-maintopic]"))
+    for page_id, topic in entries:
+        context, page = await cold_at(browser, page_id)
+        await page.click(topic)
+        await page.wait_for_timeout(ACTED)
+        await page.click('#drawer [data-navgo="sys"]')
+        await page.wait_for_timeout(ACTED)
+        landed = await page.evaluate(LANDED)
+        await page.go_back()
+        await page.wait_for_timeout(ACTED)
+        back = await page.evaluate(LANDED)
+        journal.check(f"6: from {topic} entered by a click, the pinned menu lands on Système in the same document, "
+                      "and Retour gives the page back",
+                      landed["page"] == "sys" and landed["path"] == PAGE_PATHS["sys"] and landed["same"]
+                      and back["page"] == page_id and back["same"], f"{landed} → {back}")
+        await context.close()
+
+    context, page = await cold_at(browser, "cfg")
+    await page.evaluate("""(identifier)=>{
+      const setting = window.__queries.getQueryData(['/api/config/schema']).flatMap(t => t.settings)
+        .find(s => window.settingId(s) === identifier);
+      window.__changeSetting(identifier, Number(setting.raw) + 7);}""", EDITED)
+    await page.wait_for_timeout(ACTED)
+    await page.click('#view [data-topic="acquisition"]')
+    await page.wait_for_timeout(ACTED)
+    await page.click('#drawer [data-navgo="sys"]')
+    await page.wait_for_timeout(ACTED)
+    asked = await page.evaluate(LANDED)
+    journal.check("6: with an edit waiting, the pinned menu from a rubric asks first — the three-choice "
+                  "confirmation over Réglages, same document",
+                  asked["page"] == "cfg" and asked["same"] and asked["dialog"] == WORDS["leaveHeading"]
+                  and asked["buttons"] == 3, f"{asked}")
+    await context.close()
+
+
+UNSCROLLED = """() => {
+  const drawer = document.querySelector('#drawer');
+  const scrolled = [drawer, ...drawer.querySelectorAll('*')].filter((n) => n.scrollTop > 0).length;
+  const hidden = [...drawer.querySelectorAll('[data-navgo]')].filter((entry) => {
+    const box = entry.getBoundingClientRect();
+    const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+    return box.bottom > innerHeight || !(hit && entry.contains(hit));
+  }).map((entry) => entry.dataset.navgo);
+  return {scrolled, hidden};
+}"""
+
+
+async def every_entry_seen(browser, journal):
+    """Hold 7: every entry of the pinned menu visible without scrolling it, open and folded."""
+    for width, height in ((1280, 800), (1024, 768)):
+        context, page = await cold_at(browser, "acq", width, height)
+        for fold in ("open", "folded"):
+            if fold == "folded":
+                await page.evaluate(TOGGLE)
+                await page.wait_for_timeout(SETTLED)
+            seen = await page.evaluate(UNSCROLLED)
+            journal.check(f"7: {width} × {height}, {fold}: every entry of the pinned menu is visible unscrolled",
+                          seen == {"scrolled": 0, "hidden": []}, f"{seen}")
+        await context.close()
+
+
 async def main():
     journal = Journal("R480 — the desktop shell: the menu pinned beside a reading column")
     errors = []
@@ -153,6 +252,9 @@ async def main():
           return {closed: getComputedStyle(drawer).visibility === 'hidden', burger: burger.getBoundingClientRect().width > 0,
                   fills: Math.abs(view.getBoundingClientRect().width - document.querySelector('#port').clientWidth) <= 1};
         }"""
+        await menu_from_a_topic(browser, journal)
+        await every_entry_seen(browser, journal)
+
         context, page = await open_page(browser)
         seen = await read_at(page, "acq-follows-list", phone)
         journal.check("390: the drawer a closed layer behind the burger, the page filling the port",
