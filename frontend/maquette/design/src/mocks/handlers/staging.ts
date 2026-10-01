@@ -3,12 +3,13 @@
 import DESTINATIONS from "../seeds/staging-destinations.json";
 import { DELETE, GET, POST, route, text } from "./shared";
 import { mockState } from "../state";
-import { FROM_BLOCKED, FROM_DENSE, FROM_REAL, SOURCE_LISTS, arrivedOnly, copiesOf, takeOutOfStaging } from "./staged-folders";
+import { FROM_BLOCKED, SOURCE_LISTS, arrivedOnly, copiesOf, takeOutOfStaging } from "./staged-folders";
 import { scenario } from "../scenario";
 import { refused, type MockRequest, type MockRoute } from "../router";
 import { confirmInPlex, forgetLadder, ladderOf, rungIndex, stripPosition, ownTimeOf, type Origin, type Position } from "./ladder";
 import { accountName } from "../account";
 import { backToSearch } from "./follow-errors";
+import { continueMedia } from "./continued";
 import { acquisitionKey } from "../../lib/arrival-slots";
 import type { components } from "../../contract/types";
 
@@ -23,20 +24,6 @@ const LOADED = "loaded";
 // folder back through the pipeline under the name that was picked; LEAVING it as
 // it is means LATER (ruling 6): the folder stays where it is queued, set aside.
 const LEFT_AS_IT_IS = "left";
-
-// THE STRIP'S FOURTH STEP, which is where a folder stands once it has been
-// answered: the first three are done and this one is running. « now » is the
-// engine's own token for it, carried like every other value on a card.
-const RUNNING_NOW = "now";
-
-// The tone a card wears once it went back through the pipeline.
-const INFORMATIVE = "info";
-
-// The list a continued card goes to, per staging world; the lists it comes
-// from are `staged-folders.ts`'s. Named because the pairing is the decision.
-const TO_REAL = "movingReel";
-const TO_DENSE = "moving";
-const SCRAPING_LABEL = "Scraping";          // french-ok: a carried fixture value
 
 // Where an arrival's asking happened: a follow of the account, or a direct add
 // in the download client. The contract's own `Requester.via` tokens.
@@ -288,43 +275,9 @@ export function stagingRoutes(): MockRoute[] {
       POST,
       "/api/staging/media/{mediaId}/continue",
       (request) => {
-        const state = mockState();
-        // FROM WHEREVER IT IS QUEUED, and the list it leaves decides the list
-        // it joins. The engine's `leaveQueue` walked the real stuck list, the
-        // dense one and the blocked one in that order; a card released from the
-        // real world moves within the real world, and one released from the
-        // dense world moves within it. Mixing them put a card in a queue no
-        // scenario would ever show it in.
         const asked = request.parameters.mediaId;
         if (text(request.body, "outcome") === LEFT_AS_IT_IS) return { ok: setAside(asked) };
-        const lists = [
-          { from: FROM_REAL, to: TO_REAL },
-          { from: FROM_DENSE, to: TO_DENSE },
-          { from: FROM_BLOCKED, to: TO_DENSE },
-        ] as const;
-        for (const { from, to } of lists) {
-          const found = state[from].find((card) => card.title === asked);
-          if (found === undefined) continue;
-          state[from] = state[from].filter((card) => card !== found);
-          // A folder set aside and then resolved does not carry its aside rung
-          // into the pipeline: its ladder is laid again from where it now stands.
-          if (state.journeyStages[found.title]?.some((rung) => rung.state === ASIDE)) forgetLadder(found.title);
-          // WHAT THE CARD SAYS AFTERWARDS is the engine's own: agreeing with a
-          // candidate puts it back in the pipeline and says « Scraping », the
-          // folder past the first three steps and at the fourth.
-          const named = text(request.body, "choice");
-          state[to] = [
-            {
-              ...found,
-              title: named === "" ? found.title : named,
-              strip: [1, 1, 1, RUNNING_NOW, 0],
-              chip: { tone: INFORMATIVE, text: SCRAPING_LABEL },
-            },
-            ...state[to],
-          ];
-          return { ok: true };
-        }
-        return { ok: false };
+        return { ok: continueMedia(asked, text(request.body, "choice")) };
       },
     ),
     route(

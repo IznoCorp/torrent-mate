@@ -22,11 +22,16 @@ import { heldIdentity, providerAddress } from "../../lib/held-identity";
 import { membershipQuery } from "../../lib/membership";
 import { sharedQueryClient } from "../../lib/query-client";
 import { panel } from "../../lib/shell-doors";
-import { seasonsQuery } from "../../lib/season-rows";
+import { completenessQuery, seasonsQuery } from "../../lib/season-rows";
 import { store } from "../../lib/store-access";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 import { followFacts, type Follow } from "./follow-facts";
 import { primaryAction, secondaryActions } from "./follow-actions";
+import { offeredActs } from "./act-rights";
+import { reassignAction } from "./reassign";
+import { pauseOffer } from "./acquisition-settings";
+import { accountQuery, heldRights } from "../../lib/account";
+import { isOwn } from "../../lib/rights";
 import { acquisitionStatusQuery, followsQuery, incompleteShowsQuery, type AcquisitionStatus } from "./queries";
 import { STATUS_TONE, followStatusLabel, nextSearchTime } from "./follow-vocabulary";
 
@@ -83,14 +88,19 @@ function redrawOnIdentityArrival(title: string): void {
  * Returns:
  *     The query to ask for, or null when nothing is out.
  */
-function pendingSeasons(title: string) {
+function pendingSeasons(title: string): { queryKey: readonly unknown[]; queryFn: () => Promise<unknown> } | null {
   if (sharedQueryClient === undefined) return null;
   const followed = sharedQueryClient.getQueryData<Follow[]>(followsQuery().queryKey) ?? [];
   const ids = followed.find((one) => one.title === title)?.ids ?? heldIdentity(title)?.ids;
   const address = providerAddress(ids);
   if (address === null) return null;
   const query = seasonsQuery(address.provider, address.id);
-  return sharedQueryClient.getQueryData(query.queryKey) === undefined ? query : null;
+  if (sharedQueryClient.getQueryData(query.queryKey) === undefined) return query;
+  // AND A FOLLOW'S COMPLETENESS, which a followed series' season figures read
+  // (NE-DOIT-PAS-1): the panel waits for it as it waits for the seasons.
+  const completeness = completenessQuery(title);
+  const followedHere = followed.some((one) => one.title === title);
+  return followedHere && sharedQueryClient.getQueryData(completeness.queryKey) === undefined ? completeness : null;
 }
 
 /**
@@ -140,6 +150,13 @@ function followPanel(title: string, cache: PanelCache): PanelDescriptor | null {
   const taken = facts.toTake
     ? translate(nextSearch ? "panels.follow.foundNextPassAt" : "panels.follow.foundNextPass", { at: nextSearch })
     : null;
+  // WHAT THIS ACCOUNT IS OFFERED (§ 17): the acts its rights open, on its own
+  // acquisition where an act asks that; another account's follow reads, and
+  // says it is read-only rather than falling silent.
+  const rights = heldRights();
+  const primary = offeredActs([primaryAction(facts)], follow, rights);
+  const readOnly = follow.requesters !== undefined && !isOwn(follow, rights);
+  const pause = pauseOffer(follow, rights);
   return {
     address: "follow:" + title,
     title: follow.title,
@@ -147,9 +164,12 @@ function followPanel(title: string, cache: PanelCache): PanelDescriptor | null {
     meta:
       `${follow.year ? String(follow.year) + " · " : ""}${kind}` +
       `${fraction ? " · " + fraction + translate("panels.follow.episodesSuffix") : ""}`,
-    puce: [STATUS_TONE[follow.status as string], followStatusLabel(follow)],
+    // A MEDIUM IN FLIGHT that nobody follows says the rung it stands on.
+    puce: [STATUS_TONE[follow.status as string], facts.stage ?? followStatusLabel(follow)],
     blocs: [
-      { type: "actions", actions: [primaryAction(facts)] },
+      primary.length ? { type: "actions", actions: primary } : null,
+      readOnly ? { type: "note", text: translate("panels.follow.readOnly") } : null,
+      facts.isFollowed && pause.note ? { type: "note", text: pause.note } : null,
       taken ? { type: "note", text: taken } : null,
       facts.origin ? { type: "note", text: facts.origin } : null,
       // A FILM'S VARIANT draws no seasons and no episodes, not even a note
@@ -159,7 +179,18 @@ function followPanel(title: string, cache: PanelCache): PanelDescriptor | null {
         : seasons.length
           ? { type: "saisons", follow, seasons }
           : { type: "note", text: translate("panels.follow.noSeasonData") },
-      { type: "actions", secondary: true, actions: secondaryActions(facts) },
+      {
+        type: "actions",
+        secondary: true,
+        actions: [
+          ...offeredActs(secondaryActions(facts), follow, rights),
+          // ITS OWN PAUSE, per requester (round 10 Q6): offered under
+          // `acquisition.pause.own`, on a follow the account asked for.
+          ...(facts.isFollowed ? offeredActs([pause.act], follow, rights) : []),
+          // « RÉAFFECTER… », on a follow, to whoever holds the right (round 8 Q13 = A).
+          facts.isFollowed && rights.holds("acquisition.reassign") ? reassignAction("follow", follow.title) : null,
+        ],
+      },
       // Only a film someone FOLLOWS leaves the list once acquired; one the
       // library already holds is in no list to leave.
       isFilm && facts.isFollowed
@@ -181,5 +212,5 @@ registerProducer("follow", {
   // first open about any title goes down the deferred path.
   // AND THE SCHEDULER'S CADENCE, which names the hour a found release is taken
   // at anyway.
-  needs: (subject) => [followsQuery(), incompleteShowsQuery, membershipQuery(subject), acquisitionStatusQuery],
+  needs: (subject) => [followsQuery(), incompleteShowsQuery, membershipQuery(subject), acquisitionStatusQuery, accountQuery],
 });

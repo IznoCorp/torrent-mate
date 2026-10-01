@@ -74,6 +74,21 @@ export function poseTrail(pages: string[]): void {
   posedTrail = pages;
 }
 
+// What a state left listening after its drive, stopped when the next one is driven.
+let leaving: (() => void) | null = null;
+
+/**
+ * Asks for a stop to run when the next state is driven — for a state whose
+ * subject arrives after its drive (an asynchronous landing), so what it left
+ * listening never acts on a state that is not its own.
+ *
+ * Args:
+ *     stop: What ends the listening.
+ */
+export function onLeave(stop: () => void): void {
+  leaving = stop;
+}
+
 /** One named state: the id `__go` takes, its label in words, and how to build it. */
 export type NamedState = [id: string, label: string, run: () => void];
 
@@ -169,6 +184,8 @@ function go(stateId: string, options?: { keep?: boolean }): string {
       table.length
         ? "état inconnu : " + stateId
         : "aucun état enregistré — la table du harnais est vide");
+  leaving?.();
+  leaving = null;
   if (!stateId.startsWith("signin")) window.__entry?.hideSignIn(true);
   if (stateId !== "startup") window.__entry?.hideStartup();
   if (!stateId.startsWith("pwa-")) window.__entry?.hideInstall();
@@ -216,9 +233,12 @@ function carriedFor(title: string): CarriedIdentity | null {
  * delete, an unavailable library database — is applied: a rule reads the facts a
  * sheet is composed from, and the screen for what it drew.
  *
- * A POSTER THAT CARRIES ITS IDENTITY is addressed by it: a resolution
- * candidate is in no seed, and the layer composes its sheet from the candidate
- * (B-578).
+ * A POSTER THAT CARRIES ITS IDENTITY is addressed by it, and answered as the
+ * served read answers it: the library's sheet carrying that identity first,
+ * else the sheet the layer composes from a resolution candidate (B-578). Read
+ * as the candidate's alone, an act carrying a library medium's identity — the
+ * journey's « Voir la fiche » (B-616) — read as hollow a sheet the screen draws
+ * full.
  *
  * Args:
  *     title: The title, as the seed or a drawn list spells it.
@@ -229,12 +249,15 @@ function carriedFor(title: string): CarriedIdentity | null {
  *     The seed sheet, or null when the title names no identified medium.
  */
 function sheetOf(title: string, provider?: string, identifier?: string): Record<string, unknown> | null {
-  if (provider && identifier) return window.__mocks?.candidateSheet(provider, identifier) ?? null;
-  const address = providerAddress(carriedFor(title)?.ids);
+  const address = provider && identifier
+    ? { provider, id: identifier }
+    : providerAddress(carriedFor(title)?.ids);
   if (address === null) return null;
   const sheets = Object.values(window.__mocks?.sheets() ?? {});
-  return sheets.find((sheet) =>
-    String((sheet.ids as Record<string, unknown> | undefined)?.[address.provider] ?? "") === address.id) ?? null;
+  const held = sheets.find((sheet) =>
+    String((sheet.ids as Record<string, unknown> | undefined)?.[address.provider] ?? "") === address.id);
+  if (held !== undefined) return held;
+  return provider && identifier ? window.__mocks?.candidateSheet(provider, identifier) ?? null : null;
 }
 
 /**

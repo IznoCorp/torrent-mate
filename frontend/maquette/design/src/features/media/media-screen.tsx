@@ -18,13 +18,14 @@
 // panel does. The trailer is a plain `<a>` WITHOUT `data-navgo` — that same
 // delegation must not preventDefault an external link.
 import { useEngineDrawing } from "../../lib/engine-drawing";
+import type { ReactNode } from "react";
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { sheetHeadingPlace, synopsisText } from "./variants";
 import { type MediaSheet, type Trailer } from "../../features/media/types";
 import { useStoreContent } from "../../lib/store-access";
 import { isRequestFailure } from "../../lib/query-client";
-import { carriedSheet, seasonsHeld, useMediaSeasons, useMediaSheet } from "./queries";
+import { carriedSheet, completenessHeld, seasonsHeld, useFollowCompleteness, useMediaSeasons, useMediaSheet } from "./queries";
 import { backAction, body as bodyClass, screen, screenBar, scrollport, sectionHeading, screenBarNote } from "../../ui/variants";
 import { Icon } from "../../ui/icon";
 import { SkeletonLine, SurfaceError } from "../../ui/state-surfaces";
@@ -35,11 +36,18 @@ import { MediaLibraryFacts } from "./media-library-facts";
 import type { Follow, MediaSheetFields } from "./sheet-fields";
 import { bridge } from "../../lib/shell-doors";
 import { baseTitle } from "../../lib/titles";
+import { DecisionBlock } from "../acquisition/decision-block";
 
-/** What the route hands the screen: the follows, owned by another feature, so they compose in the route. */
-export type MediaScreenProperties = { readFollows: () => unknown[] };
+/**
+ * What the route hands the screen, owned by other features, so they compose in
+ * the route: the follows, and the cross-seed block drawn for the address.
+ */
+export type MediaScreenProperties = {
+  readFollows: () => unknown[];
+  crossSeed: (provider: string, id: string) => ReactNode;
+};
 
-export function MediaScreen({ readFollows }: MediaScreenProperties) {
+export function MediaScreen({ readFollows, crossSeed }: MediaScreenProperties) {
   // The address names a PROVIDER ID (DOIT-11), and it is all the screen needs
   // to ask. The title is the sheet's own once the read lands, and what the tap
   // knew while it is out; an id nobody carries answers nothing and the screen
@@ -111,7 +119,14 @@ export function MediaScreen({ readFollows }: MediaScreenProperties) {
   // holds, derived from a read that never arrived — with no surface and no way
   // to ask again.
   const seasonsFailed = seasonsRead.isError;
-  const sorted = seasonsHeld(catalogue)
+  // A FOLLOWED SERIES READS THE ENGINE'S OWN COMPLETENESS, the one its follow
+  // sheet reads (NE-DOIT-PAS-1, § 13); a medium nobody follows keeps the figures
+  // its seasons read crosses.
+  const followedAs = follows.find((one) => baseTitle(one.title) === baseTitle(title))?.title ?? null;
+  const completenessRead = useFollowCompleteness(followedAs);
+  const sorted = (followedAs !== null && completenessRead.data !== undefined
+    ? completenessHeld(completenessRead.data)
+    : seasonsHeld(catalogue))
     .slice()
     .sort((slice, index) => index[0] - slice[0]);
   const own = sorted.reduce(
@@ -315,7 +330,15 @@ export function MediaScreen({ readFollows }: MediaScreenProperties) {
             sheetInFlight={inFlight}
           />
 
+          {/* THE DECISION THAT IDENTIFIED IT, the journey sheet's own block (L24
+              S1, § 13): found here by the medium's provider ids. */}
+          <DecisionBlock subject={{ title, ids: prov }} />
+
           <MediaDetails title={title} isFilm={isFilm} owns={owns} followed={followed} follows={follows} prov={prov} inFlight={inFlight} identified={identified} metadataRefreshedAt={sheet?.metadataRefreshedAt ?? null} />
+
+          {/* BELOW THE SHEET'S OWN CONTENT, the medium's cross-seed (§ 19) —
+              the trackers feature's block, for whoever may see the trackers. */}
+          {crossSeed(provider, id)}
 
           <div className="note" data-part="note">
             <b>{t("screens.media.noteTitle")}</b> {t("screens.media.noteBody")}

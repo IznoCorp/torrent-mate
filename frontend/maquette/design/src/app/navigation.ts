@@ -32,6 +32,7 @@
 import type { ReactElement } from "react";
 
 import { AccountPage } from "../features/account/page";
+import { AccountsPage } from "../features/account/accounts-page";
 import { AcquisitionPage } from "../features/acquisition/page";
 import { acquisitionBadge, useAcquisitionBadgeReads } from "../features/acquisition/queries";
 import { DiscoverPage } from "../features/acquisition/discover-page";
@@ -44,6 +45,8 @@ import { SystemPage } from "../features/system/page";
 import { TrackersPage } from "../features/trackers/page";
 import { trackersBadge, useTrackersBadgeReads } from "../features/trackers/queries";
 import { PAGE_PATHS } from "../lib/addresses";
+import type { Right, Rights } from "../lib/rights";
+import { NoAccessPage } from "./no-access";
 import { icons } from "./icons";
 
 /** The groups the drawer sorts its entries into, by what one goes there FOR. */
@@ -109,6 +112,18 @@ export type NavigationRow = {
    * that did not draw its subject. A row that carries a badge carries this.
    */
   useBadgeReads?: () => void;
+  /**
+   * The rights that open this page — any one of them (§ 17, ruling 17: every
+   * access is a right). A row with none opens for every account.
+   */
+  opens?: readonly Right[];
+  /**
+   * What an account without those rights sees of it (OPEN 3 = B). `reserved`:
+   * the drawer draws it MARKED and its address explains itself — hiding it
+   * would mislead. `absent`: no row, no badge, no address — the Acquisition
+   * section's named exception, and the pages that belong to it.
+   */
+  lacking?: "absent" | "reserved";
 };
 
 /**
@@ -128,6 +143,8 @@ export type NavigationRow = {
 export const NAVIGATION: readonly NavigationRow[] = [
   {
     id: "acq",
+    opens: ["acquisition.request", "acquisition.see.others"],
+    lacking: "absent",
     path: PAGE_PATHS.acq,
     Body: AcquisitionPage,
     labelKey: "navigation.pages.acq",
@@ -140,6 +157,8 @@ export const NAVIGATION: readonly NavigationRow[] = [
   },
   {
     id: "lib",
+    opens: ["library.read"],
+    lacking: "absent",
     path: PAGE_PATHS.lib,
     Body: LibraryPage,
     labelKey: "navigation.pages.lib",
@@ -153,6 +172,8 @@ export const NAVIGATION: readonly NavigationRow[] = [
     // Découvrir, never appended after a free slot. Its two tabs are dials of
     // the page, not pages.
     id: "trackers",
+    opens: ["trackers.view"],
+    lacking: "reserved",
     path: PAGE_PATHS.trackers,
     Body: TrackersPage,
     labelKey: "navigation.pages.trackers",
@@ -166,7 +187,12 @@ export const NAVIGATION: readonly NavigationRow[] = [
   {
     // « DÉCOUVRIR », A PAGE OF THE BAR: it left
     // Acquisition's tabs. It draws its own body, as Acquisition does.
+    // RESERVED, NOT ABSENT, where the account may not ask for a medium: a page
+    // of its own, it stays in the menu marked (round 8 Q11) — the section's
+    // exception is Acquisition's, and Découvrir left the section.
     id: "discover",
+    opens: ["acquisition.request"],
+    lacking: "reserved",
     path: PAGE_PATHS.discover,
     Body: DiscoverPage,
     labelKey: "navigation.pages.discover",
@@ -176,6 +202,8 @@ export const NAVIGATION: readonly NavigationRow[] = [
   },
   {
     id: "sys",
+    opens: ["system.view"],
+    lacking: "reserved",
     path: PAGE_PATHS.sys,
     Body: SystemPage,
     root: "body",
@@ -189,6 +217,8 @@ export const NAVIGATION: readonly NavigationRow[] = [
   },
   {
     id: "maint",
+    opens: ["system.view"],
+    lacking: "reserved",
     path: PAGE_PATHS.maint,
     Body: MaintenancePage,
     root: "body",
@@ -200,6 +230,8 @@ export const NAVIGATION: readonly NavigationRow[] = [
   },
   {
     id: "cfg",
+    opens: ["configuration.view"],
+    lacking: "reserved",
     path: PAGE_PATHS.cfg,
     Body: SettingsPage,
     root: "body",
@@ -209,6 +241,22 @@ export const NAVIGATION: readonly NavigationRow[] = [
     group: "configuration",
     inBar: false,
     holdsEdits: true,
+  },
+  {
+    // « COMPTES », A FIRST-LEVEL PAGE OF THE MENU, beside Réglages (round 8 Q9 =
+    // B): the accounts, their roles and the roles' rights. Marked, never hidden,
+    // for an account that does not manage them (OPEN 3 = B).
+    id: "accounts",
+    path: PAGE_PATHS.accounts,
+    Body: AccountsPage,
+    root: "body",
+    region: "accounts/body",
+    labelKey: "navigation.pages.accounts",
+    icon: icons.user,
+    group: "configuration",
+    inBar: false,
+    opens: ["accounts.manage"],
+    lacking: "reserved",
   },
   {
     // french-ok: this id IS the value of `state.page` and the page's address.
@@ -221,6 +269,18 @@ export const NAVIGATION: readonly NavigationRow[] = [
     region: "account/body",
     labelKey: "navigation.pages.profile",
     icon: icons.user,
+    inBar: false,
+  },
+  {
+    // WHERE A ROLE THAT OPENS NO PAGE LANDS (ruling 22, precision): it says so
+    // and offers only the way out. No group, no bar — there is nowhere to go.
+    id: "no-access",
+    path: PAGE_PATHS["no-access"],
+    Body: NoAccessPage,
+    root: "body",
+    region: "no-access/body",
+    labelKey: "navigation.pages.noAccess",
+    icon: icons.lock,
     inBar: false,
   },
   {
@@ -254,4 +314,53 @@ export const NOT_FOUND_ROW = NAVIGATION.find((row) => row.id === "404")!;
 export function rowFor(id: string | undefined): NavigationRow | undefined {
   if (id === undefined) return undefined;
   return NAVIGATION.find((row) => row.id === id);
+}
+
+/**
+ * Whether an account opens a page.
+ *
+ * Args:
+ *     row: The page's row.
+ *     rights: What the account may do.
+ *
+ * Returns:
+ *     True when the row asks for no right or the account holds one it asks for.
+ */
+export function opensFor(row: NavigationRow, rights: Rights): boolean {
+  return row.opens === undefined || rights.holdsAny(row.opens);
+}
+
+/**
+ * Whether a page is ABSENT for an account — not drawn, not counted, not addressed.
+ *
+ * Args:
+ *     row: The page's row.
+ *     rights: What the account may do.
+ *
+ * Returns:
+ *     True when the account does not open it and the page is one hiding cannot mislead about.
+ */
+export function absentFor(row: NavigationRow, rights: Rights): boolean {
+  return !opensFor(row, rights) && row.lacking === "absent";
+}
+
+/** The pages the drawer and the bar may draw — never the frame's own two. */
+const PLACES = NAVIGATION.filter((row) => row.inBar || row.group !== undefined);
+
+/**
+ * THE ACCOUNT'S ENTRY PAGE — where Back lands and the exit guard arms (round 10
+ * Q7): the first page of its bar, in bar order; else the first menu page it
+ * opens; else the page that says it opens none.
+ *
+ * Args:
+ *     rights: What the account may do.
+ *
+ * Returns:
+ *     The page id.
+ */
+export function entryPageFor(rights: Rights): string {
+  const bar = NAVIGATION.find((row) => row.inBar && opensFor(row, rights));
+  if (bar) return bar.id;
+  const menu = PLACES.find((row) => opensFor(row, rights));
+  return menu ? menu.id : "no-access";
 }

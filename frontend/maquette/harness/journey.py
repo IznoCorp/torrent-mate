@@ -1043,6 +1043,13 @@ async def main():
 
         await reopen_page.go_back()
         await reopen_page.wait_for_timeout(500)
+        # THE READ IS SLOWED BEFORE IT IS EVICTED, said out loud (L18): the page
+        # under the panel redraws on every move of the cache (it reads the
+        # account's rights), so an evicted read it shows is asked again at once.
+        # Answering in 800 ms keeps it cold through the Forward, which is the
+        # case this hold exists for — a reopen while the read is still out.
+        await reopen_page.evaluate(
+            """()=>window.__mocks.setOperationOutcome('readSettings', {latencyMilliseconds: 800})""")
         await reopen_page.evaluate(
             """()=>window.__queries.removeQueries(
                  {queryKey: ["/api/config/schema"]})""")

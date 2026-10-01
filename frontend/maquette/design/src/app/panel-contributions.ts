@@ -22,7 +22,7 @@ import "../features/media/panel-seasons";
 // And what the episode popover SAYS — the frame places it, the feature says it.
 import "../features/media/popover-episode";
 import "../features/settings/panels";
-import "../features/account/panel-account";
+import "../features/account/panels";
 import "../features/account/verbs";
 import "../features/maintenance/panel-action";
 import "../features/library/panel-sort";
@@ -52,6 +52,9 @@ import "../features/acquisition/add-verbs";
 // And the library's verbs: the lens, the category, the layout, the sort, the
 // search's clear cross, the selection and the removals.
 import "../features/library/verbs";
+// And the cross-seed block the Trackers page's panel draws — its own index,
+// since it is reached otherwise only one level further than the boot checks.
+import "../features/trackers/panels";
 // And the « Trackers » page's: its tab, a setting of the page.
 import "../features/trackers/verbs";
 // And Configuration contributes verbs beside its panels: the rubric one,

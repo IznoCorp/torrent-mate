@@ -12,13 +12,13 @@
 - **Points ≈ 13.** `id`, `candidatesCount`, `settledBy` on the ten settled rows (≈ 30 lines edited) 6; one dismissed
   decision (≈ 8 lines new) 1; one medium the engine identified alone, at « identifié », its settled row
   `settledBy: engine` — the subject of « Corriger » (≈ 10 lines) 1; completeness for two follows, one complete and one
-  holed (≈ 30 lines) 3; `python3 scripts/check-mock-seeds.py` read by OUTPUT 1; the report 1.
+  holed (≈ 30 lines) 3; the report 1.
 - **Readers.** `features/acquisition/resolution-screen.tsx:183` (« Réglées récemment », `.slice(0, 6)`) reads
   `settled` — the new rows must not displace one of its six (they are dated oldest).
 
 ## Red today
 
-None — seeds have no rule; `check-mock-seeds.py` is the guard.
+None — seeds have no rule.
 
 ## Move
 
@@ -28,17 +28,11 @@ None — seeds have no rule; `check-mock-seeds.py` is the guard.
 2. Add `mocks/seeds/follow-completeness.json`, two follows the follow sheet already draws, its rows derived from the
    same seasons `seasons.json` carries — never a second set of figures.
 
-## Mutation
-
-None.
 
 ## Register
 
 None.
 
-## Oracle: states that diverge, declared by name
-
-None expected; a state that moves because a list grew by one row is STOP A.
 
 ## Commit
 

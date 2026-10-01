@@ -32,6 +32,13 @@ export type SearchResults = Schemas["SearchResults"];
 // foldings are a sentence about the machine that is not true.
 export type FollowOutcome = "added" | "held" | "refused";
 
+/**
+ * What a pause or a removal came to, once the layer answered: done, held by the
+ * outbox (offline — not failed, not departed), refused, or refused because the
+ * account's role does not open it (a 403, said as such).
+ */
+export type ActOutcome = "done" | "held" | "refused" | "forbidden";
+
 // One TVDB/TMDB candidate offered for a decision still awaiting arbitration.
 // `withoutPoster` marks a candidate with no poster at the provider (the
 // placeholder is what says so on the card, never a truncating sentence);

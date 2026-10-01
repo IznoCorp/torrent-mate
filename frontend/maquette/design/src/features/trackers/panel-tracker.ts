@@ -8,6 +8,7 @@
 //
 // NO ADDRESS: the roster's landing names the tracker, and the page opens this
 // panel for it.
+import { accountQuery, heldRights } from "../../lib/account";
 import i18next from "i18next";
 import type { Schemas } from "../../lib/contract-schemas";
 import { icons, panel } from "../../lib/shell-doors";
@@ -159,7 +160,8 @@ function trackerPanel(name: string, cache: PanelCache): PanelDescriptor | null {
         })),
       },
       // « VU » ON EACH ONE NOT SEEN: seen is not gone, the row stays, marked seen.
-      broken.some((row) => !row.seen) ? {
+      // « VU » IS A WRITE (`trackers.control`), absent without it.
+      broken.some((row) => !row.seen) && heldRights().holds("trackers.control") ? {
         type: "actions",
         secondary: true,
         actions: broken.filter((row) => !row.seen).map((row) => ({
@@ -179,6 +181,7 @@ function trackerPanel(name: string, cache: PanelCache): PanelDescriptor | null {
 registerProducer("tracker", {
   produce: trackerPanel,
   needs: () => [
+    accountQuery,
     { queryKey: trackersKey, queryFn: async () => read<Tracker[]>(trackersKey[0]) },
     { queryKey: CATALOGUE_KEY, queryFn: async () => read<Schemas["SettingsTopic"][]>(CATALOGUE_KEY[0]) },
   ],

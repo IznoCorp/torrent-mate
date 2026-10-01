@@ -4,9 +4,11 @@
 // constant: a handler reads the mutable state, and a constant built at import
 // would capture the state object that existed then instead of the one a reset
 // has just replaced.
+import { accountRoutes } from "./accounts";
 import { acquisitionRoutes } from "./acquisition";
 import { acquisitionVerbRoutes } from "./acquisition-verbs";
 import { authenticationRoutes } from "./authentication";
+import { completenessRoutes } from "./completeness";
 import { configurationRoutes } from "./configuration";
 import { crossSeedRoutes } from "./cross-seed";
 import { decisionRoutes } from "./decisions";
@@ -15,6 +17,7 @@ import { maintenanceRoutes } from "./maintenance";
 import { membershipRoutes } from "./membership";
 import { mediaRoutes } from "./media";
 import { pipelineRoutes } from "./pipeline";
+import { requesterRoutes } from "./requesters";
 import { stagingRoutes } from "./staging";
 import { systemRoutes } from "./system";
 import { trackerRoutes } from "./trackers";
@@ -24,11 +27,14 @@ import type { MockRoute } from "../router";
 export function routes(): MockRoute[] {
   return [
     ...authenticationRoutes(),
+    ...accountRoutes(),
     ...libraryRoutes(),
     ...membershipRoutes(),
     ...mediaRoutes(),
     ...acquisitionRoutes(),
     ...acquisitionVerbRoutes(),
+    ...requesterRoutes(),
+    ...completenessRoutes(),
     ...stagingRoutes(),
     ...pipelineRoutes(),
     ...decisionRoutes(),

@@ -8,7 +8,7 @@
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { dialog, toast } from "../../lib/shell-doors";
-import { HELD, read, send, sharedQueryClient } from "../../lib/query-client";
+import { HELD, quietWhenCancelled, read, send, sharedQueryClient } from "../../lib/query-client";
 import type { DialogBlock } from "../../ui/dialog/contract";
 import type { Schemas } from "../../lib/contract-schemas";
 import { downloadsKey, obligationsKey } from "./queries";
@@ -49,7 +49,7 @@ async function removeEntry(entry: Schemas["Download"], deleteFiles: boolean): Pr
  *
  * THE ENTRY IS READ WHEN THE CONFIRMATION OPENS — from the cache the tab drew,
  * or asked for when it holds nothing — so the confirmation names what the
- * client holds now.
+ * client holds now. A read the cache's reset cancels opens nothing.
  *
  * @param infoHash The entry's hash.
  * @param tracker The tracker the entry runs on.
@@ -65,7 +65,7 @@ export function openRemoveConfirm(infoHash: string, tracker: string): void {
   ]).then(([downloads, obligations]) => {
     const entry = downloads.downloads.find((one) => one.infoHash === infoHash && one.tracker === tracker);
     if (entry !== undefined) openConfirm(entry, downloads.downloads, obligations.items);
-  });
+  }, quietWhenCancelled);
 }
 
 /**

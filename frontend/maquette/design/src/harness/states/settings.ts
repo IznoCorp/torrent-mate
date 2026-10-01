@@ -4,6 +4,7 @@
 // what the oracle's reference names, the label says the state in words, and
 // `run` builds the state. The driver resets the interface before every state,
 // so an entry pins only what its state means to show.
+import { EVERY_WRITE } from "./rights";
 import { applyState, type NamedState } from "../drive";
 import { resetSettings } from "../settings-reset";
 import { SETTINGS_STATE } from "../../features/settings/state";
@@ -163,7 +164,10 @@ export function settingsStates(): NamedState[] {
       "Réglages — instance en lecture seule",
       () => {
         resetSettings();
-        SETTINGS_STATE.readOnly = true;
+        // THE CEILING IS A NAMED LIST SERVED WITH THE ACCOUNT (ruling 23), never a
+        // page-local flag: today's read-only instance forbids every write.
+        window.__mocks?.setForbiddenWrites(EVERY_WRITE);
+        void window.__queries?.resetQueries({ queryKey: ["/api/auth/me"] });
         applyState({ page: "cfg", phase: "ready" });
       },
     ],

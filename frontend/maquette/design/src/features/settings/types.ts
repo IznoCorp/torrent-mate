@@ -29,7 +29,6 @@ export type SettingsState = {
   modifs: Map<string, unknown>;
   topic: string | null;
   q: string;
-  readOnly: boolean;
   conflict: boolean;
   /** Per setting, the failure its last write earned — its status and the layer's
    * words — kept until it is written again. */

@@ -16,9 +16,11 @@
 // answers to one question, and they part company on the first change (§13).
 import { heldIdentity, providerAddress } from "../../lib/held-identity";
 import { membershipQuery, type Membership } from "../../lib/membership";
-import { seasonsQuery, seasonsHeld, type SeasonsAnswer } from "../../lib/season-rows";
+import { completenessHeld, completenessQuery, seasonsQuery, seasonsHeld, type FollowCompleteness, type SeasonsAnswer } from "../../lib/season-rows";
 import { queueKey, queueNow, type AcquisitionQueue } from "../../lib/queue";
 import { store } from "../../lib/store-access";
+import { currentRung } from "../../lib/current-rung";
+import i18next from "i18next";
 import type { PanelCache } from "../../ui/panel/contract";
 import { followsQuery, incompleteShowsQuery } from "./queries";
 
@@ -51,6 +53,11 @@ export type FollowFacts = {
   /** Watched: something is looking for it. */
   isFollowed: boolean;
   inLibrary: boolean;
+  /**
+   * The rung a medium nobody follows stands on while its acquisition is in
+   * flight — what its chip says — or null.
+   */
+  stage: string | null;
   /** Waiting to be taken. */
   toTake: boolean;
   /** Waiting for the operator to resolve it. */
@@ -106,6 +113,15 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
   // membership and the seasons are read from the cache the layer fills, never
   // from a copy the layer does not write.
   const incompleteShows = incompleteAnswer;
+  const scenario = String(store.read().state.scen) === "loaded" ? "loaded" : "";
+  const answer = cache.held<AcquisitionQueue>(queueKey(scenario));
+  const todo = answer ? todoCards(answer).find((one) => one.title === title) : undefined;
+  const arrival = answer?.arrivals.find((one) => one.title === title);
+  const acquisition = todo ?? (answer ? inFlightCards(answer).find((one) => one.title === title) : undefined);
+  // A MEDIUM IN FLIGHT IS NOT « À JOUR » NOR « ACQUIS »: until its ladder's last
+  // rung is passed it is being acquired, at the rung its card stands on.
+  const ladder = (acquisition ?? arrival)?.ladder;
+  const inFlight = ladder !== undefined && ladder.length > 0 && ladder[ladder.length - 1].state !== "done";
   const follow: FollowSubject =
     followed.find((one) => one.title === title) ??
     incompleteShows
@@ -113,28 +129,35 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
         title: show.title, kind: "show", year: "", status: "to_grab", owned: show.owned, aired: show.aired,
       }))
       .find((one) => one.title === title) ??
-    // THE KIND IS THE MEDIUM'S OWN, as the library answers it for this very
-    // title — a film nobody follows was drawn as a series (B-581) — and a
-    // series only when the library does not hold it either.
-    { title, kind: membership.kind ?? "show", year: "", status: "up_to_date" };
+    // THE KIND IS THE MEDIUM'S OWN: its acquisition card carries it — a film
+    // added by hand and still in flight was drawn as a series (B-612) — else
+    // the library answers it for this very title (B-581), and a series only
+    // when neither holds it.
+    {
+      title,
+      kind: (acquisition ?? arrival)?.kind ?? membership.kind ?? "show",
+      year: "",
+      status: inFlight ? "acquiring" : "up_to_date",
+    };
   const address = providerAddress(follow.ids ?? heldIdentity(title)?.ids);
   const seasonsAnswer = address
     ? cache.held<SeasonsAnswer>(seasonsQuery(address.provider, address.id).queryKey)
     : undefined;
-  const seasons = seasonsHeld(seasonsAnswer)
+  const isFollowed = followed.some((one) => one.title === title);
+  // A FOLLOWED SERIES READS THE ENGINE'S OWN COMPLETENESS (NE-DOIT-PAS-1): the
+  // Médiathèque sheet reads the same answer, so the two cannot disagree. A
+  // medium nobody follows keeps the figures its seasons read crosses.
+  const completeness = isFollowed
+    ? cache.held<FollowCompleteness>(completenessQuery(title).queryKey)
+    : undefined;
+  const seasons = (isFollowed ? completenessHeld(completeness) : seasonsHeld(seasonsAnswer))
     .slice()
     .sort((one, other) => other[0] - one[0]);
   const isFilm = follow.kind === "movie";
   const incomplete = incompleteShows.some((show) => show.title === title);
-  const isFollowed = followed.some((one) => one.title === title);
   const inLibrary = incomplete || membership.inLibrary;
   const queue = queueNow();
   const toTake = queue.takeable.some((one) => one.title === title);
-  const scenario = String(store.read().state.scen) === "loaded" ? "loaded" : "";
-  const answer = cache.held<AcquisitionQueue>(queueKey(scenario));
-  const todo = answer ? todoCards(answer).find((one) => one.title === title) : undefined;
-  const arrival = answer?.arrivals.find((one) => one.title === title);
-  const acquisition = todo ?? (answer ? inFlightCards(answer).find((one) => one.title === title) : undefined);
   // A WHOLE SEASON'S RECOVERY OF IT, running — the journey « Voir le parcours » opens first.
   const recovery = answer ? liveCards(answer).find((one) => one.title === title && one.season != null
     && one.episode == null) : undefined;
@@ -149,11 +172,14 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
   return {
     follow,
     seasons,
-    seasonsPending: address !== null && seasonsAnswer === undefined,
+    seasonsPending: (address !== null && seasonsAnswer === undefined) || (isFollowed && completeness === undefined),
     isFilm,
     incomplete,
     isFollowed,
     inLibrary,
+    stage: !isFollowed && inFlight && ladder
+      ? i18next.t(`surfaces.ladder.rungs.${ladder[currentRung(ladder)].rung}`)
+      : null,
     toTake,
     toResolve,
     // THE SAME CARD, THE SAME ANSWERS: what « À traiter » offers at a card's
@@ -164,7 +190,11 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
     hasSheet: (follow.ids ?? heldIdentity(title)?.ids) != null,
     // THE SAME OFFER THE CARD'S FOOT MAKES, from the same derivation (R43).
     followOffer: offered !== undefined && followOffered(offered, followed) ? offered.ids ?? null : null,
-    origin: acquisition ? originLine(acquisition) ?? null : null,
+    // AND A FOLLOW SEVERAL ACCOUNTS ASKED FOR says who (round 9 Q16), where no
+    // card of it stands in a list to say it.
+    origin: acquisition
+      ? originLine(acquisition) ?? null
+      : (follow.requesters?.length ?? 0) > 1 ? originLine({ requesters: follow.requesters }) ?? null : null,
     journey: acquisitionKey(recovery ?? acquisition ?? { title }),
     // ONE DERIVATION: the card's fraction, the header's, and the sum of the
     // season headers all read this computation.

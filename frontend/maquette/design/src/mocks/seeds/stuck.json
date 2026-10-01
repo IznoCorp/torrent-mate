@@ -2,6 +2,7 @@
   {
     "title": "Top Chef Le Concours Parallèle (2026)",
     "secondaryLine": "002-TVSHOWS · déposé à la main",
+    "kind": "show",
     "droppedByHand": true,
     "reason": "Aucune donnée d'épisode chez TVDB ni chez TMDB pour cette série : la détection ne peut pas nommer les fichiers. Blocage connu, assumé ouvert.",
     "strip": [

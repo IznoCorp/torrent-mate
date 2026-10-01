@@ -12,8 +12,12 @@
 // attribute — `data-rescrape` is spelled in `features/media/`, where a medium
 // is known, and `data-maintenance-run` in `features/maintenance/`.
 import type { QueryClient } from "@tanstack/react-query";
+import { installCorrectVerb } from "../features/acquisition/correct-verb";
 import { installJourneyVerbs } from "../features/acquisition/journey-verbs";
 import { installPlexVerbs } from "../features/acquisition/plex-verbs";
+import { installReassignVerb } from "../features/acquisition/reassign";
+import { installAcquisitionSettingVerbs } from "../features/acquisition/acquisition-settings";
+import { installRosterVerbs } from "../features/account/roster-panels";
 import { installMaintenanceVerbs } from "../features/maintenance/action-verbs";
 import { installMediaVerbs } from "../features/media/media-verbs";
 
@@ -30,7 +34,11 @@ import { installMediaVerbs } from "../features/media/media-verbs";
  */
 export function installFeatureVerbs(client: QueryClient): void {
   installJourneyVerbs(client);
+  installCorrectVerb(client);
   installPlexVerbs(client);
+  installReassignVerb(client);
+  installAcquisitionSettingVerbs(client);
+  installRosterVerbs(client);
   installMaintenanceVerbs(client);
   installMediaVerbs(client);
 }

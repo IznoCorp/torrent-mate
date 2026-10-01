@@ -14,7 +14,7 @@
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { dialog, panel, toast } from "../../lib/shell-doors";
-import { read, send, sharedQueryClient } from "../../lib/query-client";
+import { quietWhenCancelled, read, send, sharedQueryClient } from "../../lib/query-client";
 import type { DialogBlock } from "../../ui/dialog/contract";
 import type { Schemas } from "../../lib/contract-schemas";
 import { downloadsKey, obligationsKey, trackersKey } from "./queries";
@@ -78,6 +78,8 @@ async function refresh(): Promise<void> {
 
 /**
  * The client's entries and their obligations, as held — or asked for when not.
+ *
+ * A read the cache's reset cancels rejects: each caller lets it pass in silence.
  *
  * @returns Both reads' answers.
  */
@@ -174,7 +176,7 @@ export function openSwitchConfirm(tracker: string): void {
         { text: say("cancel"), tone: "ghost", dismiss: true },
       ],
     });
-  });
+  }, quietWhenCancelled);
 }
 
 /* THE SWITCH ON A TRACKER'S PANEL: off asks first, on writes at once. */
@@ -227,7 +229,7 @@ export function openCutConfirm(infoHash: string, tracker: string): void {
         { text: say("cancel"), tone: "ghost", dismiss: true },
       ],
     });
-  });
+  }, quietWhenCancelled);
 }
 
 /**
@@ -264,7 +266,7 @@ export function openTitleConfirm(infoHash: string): void {
         { text: say("cancel"), tone: "ghost", dismiss: true },
       ],
     });
-  });
+  }, quietWhenCancelled);
 }
 
 /**

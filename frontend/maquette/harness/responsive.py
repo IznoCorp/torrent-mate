@@ -26,7 +26,8 @@ opens every named state at seven widths and refuses, over the whole device:
               3:1 against the colour beneath it — in light AND in dark. A
               control a surface covers ON PURPOSE is not unseen: under a pushed
               screen, the startup or the sign-in screen, or inside a page made
-              `inert` by a layer above it.
+              `inert` by a layer above it; nor is the menu a role that opens no
+              page is not offered (`no-access`, ruling 22).
 
 THE iPHONE'S ENGINE. The harness is Chromium and an iPhone is WebKit, so the
 same states are read once more in WebKit at 390 px, in both colour schemes: a
@@ -200,6 +201,10 @@ VISIBLE = """(width) => {
   ];
   for (const [name, control] of controls) {
     if (!control) { falls.push({arm: 'unseen', part: name, rect: null}); continue; }
+    // NOT OFFERED is not unseen: a role that opens no page has no menu (ruling
+    // 22) and the frame withdraws the button with `hidden` on that one entry
+    // page. Anywhere else a menu that does not show is still read, B-579's way.
+    if (name === 'menu' && control.hidden && document.documentElement.dataset.entryPage === 'no-access') continue;
     if (name !== 'menu' && !control.checkVisibility()) continue;
     // Made unreachable on purpose: a layer above marks the page `inert`, and
     // WebKit's hit test then passes through it to the document itself.

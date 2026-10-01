@@ -66,7 +66,9 @@ MOVED = ("account", "action", "journey", "more", "secret", "setting", "sort",
          "suggestion", "add", "follow", "not-media",
          # L16-bis's panels: Découvrir's header, the torrent and the tracker,
          # and the Trackers page's selector.
-         "discover-header", "torrent", "tracker", "trackers-selector")
+         "discover-header", "torrent", "tracker", "trackers-selector",
+         # L18's panels: « Réaffecter… »'s chooser, and « Comptes »' role and roster.
+         "reassign", "role", "roster")
 
 # What each kind is driven with, and what the panel must then say about it. The
 # expected title is read from the PROTOTYPE's own data at run time — the third
@@ -364,6 +366,27 @@ async def main():
         journal.check(
             "and a library series' panel still names it a series (B-581's control)",
             series_word in said["meta"], f"meta {said['meta']!r}")
+
+        # 5c. A FILM IN ACQUISITION IS A FILM IN ITS FOLLOW PANEL (B-612). A
+        # film added by hand in the download client and still in flight — on
+        # no follow and in no library — reached the panel from its « En cours »
+        # card as « Série · — épisodes » with the no-season note, while its
+        # Médiathèque sheet said « Film · 115 min »: the card carried no kind.
+        rung_words = set(await page.evaluate("()=>Object.values(window.__i18n.t('surfaces.ladder.rungs', {returnObjects: true}))"))
+        await page.evaluate("()=>window.__go('acq-now-loaded')")
+        await page.wait_for_timeout(SETTLED)
+        for title in ("Conclave", "The Alabama Solution"):
+            said = await library_panel(title=title)
+            journal.check(
+                f"a film in flight ({title}) opens its follow panel as a film, with no seasons or episodes (B-612)",
+                film_word in said["meta"] and series_word not in said["meta"] and not said["seasons"]
+                and not any(words in said["body"] for words in series_only),
+                f"meta {said['meta']!r} · body {said['body'][:160]!r}")
+            # AND ITS CHIP SAYS THE STEP IT STANDS ON, never « Acquis » for a
+            # film not yet in the library (orchestrator, 2026-10-01).
+            journal.check(
+                f"a film in flight ({title}): its chip names the rung it stands on, never « acquired »",
+                said["chip"].strip() in rung_words, f"chip {said['chip']!r}")
 
         # 6. THE HOLDER, both ways.
         for kind, real, invented in HOLDS:

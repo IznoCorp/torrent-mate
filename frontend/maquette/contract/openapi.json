@@ -764,6 +764,67 @@
         ]
       }
     },
+    "/api/media/{provider}/{providerId}/cross-seed": {
+      "get": {
+        "operationId": "readMediaCrossSeed",
+        "summary": "The medium's cross-seed, tracker by tracker",
+        "description": "Demand C (L17's first drawing, taken over by L18, F25): for each origin torrent of the medium still in the client, its state on every other eligible tracker. Gated by `trackers.view`, the same right as the Trackers page it summarises (L18 DESIGN § 1.2), refused 403 to an account without it. Read once per visit of the sheet, never polled (R-L17-k); the stream's cross-seed events refresh it.",
+        "tags": [
+          "media",
+          "trackers"
+        ],
+        "responses": {
+          "200": {
+            "description": "the medium's origin torrents and their pairs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaCrossSeed"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "tmdb or tvdb"
+          },
+          {
+            "name": "providerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the identifier at that provider"
+          }
+        ]
+      }
+    },
     "/api/media/{provider}/{providerId}/rescrape": {
       "post": {
         "operationId": "rescrapeMedia",
@@ -3799,7 +3860,7 @@
     "/api/config/status": {
       "get": {
         "operationId": "readConfigurationStatus",
-        "summary": "Whether the configuration is read-only, and whether a restart is owed",
+        "summary": "Whether a restart is owed",
         "tags": [
           "configuration"
         ],
@@ -3811,15 +3872,11 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "readOnly": {
-                      "type": "boolean"
-                    },
                     "restartRequired": {
                       "type": "boolean"
                     }
                   },
                   "required": [
-                    "readOnly",
                     "restartRequired"
                   ]
                 }
@@ -3845,7 +3902,7 @@
             "$ref": "#/components/responses/Problem"
           }
         },
-        "x-unseeded": "whether the configuration is read-only and whether a restart is owed. Both are layer state the engine holds in its STORE, not in a fixture."
+        "x-unseeded": "whether a restart is owed: layer state the engine holds in its STORE, not in a fixture. The instance's read-only ceiling left this answer: it is the account's forbidden writes (ruling 23, F66)."
       }
     },
     "/api/version": {
@@ -4673,6 +4730,840 @@
         }
       }
     },
+    "/api/acquisition/followed/{followedId}/completeness": {
+      "get": {
+        "operationId": "readFollowCompleteness",
+        "summary": "What has aired against what the library holds, season by season, for one follow",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "200": {
+            "description": "the follow's completeness",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowCompleteness"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "followedId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the follow"
+          }
+        ],
+        "x-seeded-from": [
+          "FOLLOW_COMPLETENESS"
+        ]
+      }
+    },
+    "/api/staging/media/{mediaId}/enqueue": {
+      "post": {
+        "operationId": "enqueueForResolution",
+        "summary": "Send a staged medium to arbitration: a pending decision, with the candidates a provider search found",
+        "tags": [
+          "staging"
+        ],
+        "responses": {
+          "200": {
+            "description": "the decision filed, or the one already pending (idempotent)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "mediaKind": {
+                      "type": "string",
+                      "enum": [
+                        "movie",
+                        "tvshow",
+                        "ebook",
+                        "audio",
+                        "app",
+                        "other",
+                        "unsorted"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "the folder-derived title sent to arbitration"
+                    },
+                    "decisionId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "the pending decision, so the candidates screen opens on it"
+                    },
+                    "candidatesCount": {
+                      "type": "integer"
+                    },
+                    "candidatesSeeded": {
+                      "type": "boolean",
+                      "description": "false when no provider answered: the decision is filed with no candidate, and the screen opens on the pre-filled manual search"
+                    }
+                  },
+                  "required": [
+                    "candidatesCount",
+                    "candidatesSeeded",
+                    "mediaKind",
+                    "ok",
+                    "title"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "mediaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the staged medium"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mediaKind": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "movie",
+                      "tvshow",
+                      null
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-unseeded": "the pending decision filed in the seeded decisions, with the candidates the seeds offer for that title."
+      }
+    },
+    "/api/decisions/{decisionId}/reopen": {
+      "post": {
+        "operationId": "reopenDecision",
+        "summary": "Re-open a settled decision for arbitration, with the candidates a provider search finds",
+        "tags": [
+          "decisions"
+        ],
+        "description": "« Corriger » on a decision the operator settled — in Acquisition or on a shelved medium (L24 OPEN 7 = A, OPEN 8 = A). DEMAND: the engine has no operation that re-opens a settled decision, nor one that re-identifies a shelved medium against candidates.",
+        "responses": {
+          "200": {
+            "description": "the decision pending again",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "decisionId": {
+                      "type": "string"
+                    },
+                    "folder": {
+                      "type": "string",
+                      "description": "the folder the candidates screen is addressed by"
+                    },
+                    "candidatesCount": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "candidatesCount",
+                    "decisionId",
+                    "folder"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "decisionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the settled decision"
+          }
+        ],
+        "x-unseeded": "the settled decision moved back to the pending list, with the candidates the seeds offer for its title."
+      }
+    },
+    "/api/auth/plex": {
+      "post": {
+        "operationId": "signInWithPlex",
+        "summary": "Open a session through Plex",
+        "tags": [
+          "authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "the account the Plex identity signs in — a first sign-in creates it on the Default role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "invented: the Plex SSO does not exist yet (demand E); the layer answers the identity a named state dials"
+      }
+    },
+    "/api/acquisition/requesters/reassign": {
+      "post": {
+        "operationId": "reassignRequester",
+        "summary": "Move one requester of an acquisition to another account",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "200": {
+            "description": "the acquisition's requesters after the move",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "requesters": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AccountRef"
+                      },
+                      "description": "WHO ASKED for this acquisition — PLURAL (round 9 Q16): a follow keeps a table of requesters, each piloting it. The lists an account reads are filtered on membership in it unless the account holds `acquisition.see.others`."
+                    }
+                  },
+                  "required": [
+                    "requesters"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "follow",
+                      "card"
+                    ],
+                    "description": "a follow, or a card of the queue"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "the acquisition, by its title"
+                  },
+                  "from": {
+                    "type": "string",
+                    "description": "the requester moved off"
+                  },
+                  "to": {
+                    "type": "string",
+                    "description": "the account moved on"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "title",
+                  "from",
+                  "to"
+                ]
+              }
+            }
+          }
+        },
+        "x-unseeded": "invented: no account but the Plex owner exists yet (demand I)"
+      }
+    },
+    "/api/acquisition/followed/{followedId}/quality": {
+      "put": {
+        "operationId": "setAcquisitionQuality",
+        "summary": "Set the caller's quality profile on one acquisition",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "200": {
+            "description": "the follow, its profile in force recomputed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Follow"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "followedId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the follow"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "profile": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "a quality profile's name, or null to follow the default"
+                  }
+                },
+                "required": [
+                  "profile"
+                ]
+              }
+            }
+          }
+        },
+        "x-unseeded": "invented: the engine has no per-acquisition profile (demand K)"
+      }
+    },
+    "/api/acquisition/followed/{followedId}/pause": {
+      "put": {
+        "operationId": "setAcquisitionPause",
+        "summary": "Set the caller's pause on one acquisition",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "200": {
+            "description": "the follow, its pause recomputed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Follow"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "followedId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the follow"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "paused": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "paused"
+                ]
+              }
+            }
+          }
+        },
+        "x-unseeded": "invented: the engine has no per-acquisition pause (demand P)"
+      }
+    },
+    "/api/accounts": {
+      "get": {
+        "operationId": "readAccounts",
+        "summary": "Every account and every role",
+        "tags": [
+          "authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "the roster",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Roster"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "invented: no account but the Plex owner exists yet (demand F); read by « Comptes » and, narrowly, by the reassign chooser"
+      },
+      "post": {
+        "operationId": "createAccount",
+        "summary": "Create an account",
+        "tags": [
+          "authentication"
+        ],
+        "responses": {
+          "201": {
+            "description": "the account, on its initial role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountSummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "MANDATORY: a local account carries an e-mail, and a Plex identity with the same e-mail is linked to it"
+                  },
+                  "role": {
+                    "type": "string",
+                    "description": "the initial role's id"
+                  }
+                },
+                "required": [
+                  "email",
+                  "name",
+                  "role"
+                ]
+              }
+            }
+          }
+        },
+        "x-unseeded": "invented: no account store exists yet (demand G). refused 409 when it would leave no account on the Admin role, or none holding `auth.password`; refused 403 to a manager who is not Admin when the role's rights are not included in its own role's, when it touches its own role, or when it touches an account on the Admin role (round 9 Q14 = A, M7)"
+      }
+    },
+    "/api/accounts/{accountId}": {
+      "patch": {
+        "operationId": "updateAccount",
+        "summary": "Assign an account its one role",
+        "tags": [
+          "authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "the account, on its new role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountSummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "role": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "role"
+                ]
+              }
+            }
+          }
+        },
+        "x-unseeded": "invented (demand H). The affected account re-reads `readAccount` on this answer — no poll (demand M). refused 409 when it would leave no account on the Admin role, or none holding `auth.password`; refused 403 to a manager who is not Admin when the role's rights are not included in its own role's, when it touches its own role, or when it touches an account on the Admin role (round 9 Q14 = A, M7)",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the account"
+          }
+        ]
+      }
+    },
+    "/api/roles": {
+      "post": {
+        "operationId": "createRole",
+        "summary": "Create an ordinary role",
+        "tags": [
+          "authentication"
+        ],
+        "responses": {
+          "201": {
+            "description": "the role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Role"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "rights": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Right"
+                    }
+                  }
+                },
+                "required": [
+                  "name",
+                  "rights"
+                ]
+              }
+            }
+          }
+        },
+        "x-unseeded": "invented (demand H): an ordinary role, never a system one. refused 409 when it would leave no account on the Admin role, or none holding `auth.password`; refused 403 to a manager who is not Admin when the role's rights are not included in its own role's, when it touches its own role, or when it touches an account on the Admin role (round 9 Q14 = A, M7)"
+      }
+    },
+    "/api/roles/{roleId}": {
+      "patch": {
+        "operationId": "updateRole",
+        "summary": "Rename a role or set its rights",
+        "tags": [
+          "authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "the role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Role"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "refused on a system role"
+                  },
+                  "rights": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Right"
+                    },
+                    "description": "refused on the Admin role, which holds no list"
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        },
+        "x-unseeded": "invented (demand H). Every account on the role re-reads `readAccount` on this answer (demand M). refused 409 when it would leave no account on the Admin role, or none holding `auth.password`; refused 403 to a manager who is not Admin when the role's rights are not included in its own role's, when it touches its own role, or when it touches an account on the Admin role (round 9 Q14 = A, M7)",
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the role"
+          }
+        ]
+      }
+    },
     "/api/torrents/{infoHash}/cross-seed/{tracker}/cut": {
       "post": {
         "operationId": "cutCrossSeed",
@@ -4755,84 +5646,6 @@
           }
         },
         "x-unseeded": "an acknowledgement naming what left and what was released. Derived from the layer's own state."
-      }
-    },
-    "/api/torrents/{infoHash}/cross-seed/{tracker}/upload": {
-      "post": {
-        "operationId": "uploadCrossSeed",
-        "summary": "Create a torrent from one origin's files and publish it on one tracker",
-        "description": "« Créer et publier un torrent » (§ 19 point 5; L23 demand Q): ONE torrent, ONE tracker, ONE call — the engine builds a `.torrent` from the origin's own files and publishes it on the named tracker, to open a cross-seed where its own search found none. Asked only on a pair with no match, in error or not yet searched, not excluded, its origin ACTIVE in the client, complete and seeding (round 11 OPEN 1 = A), its tracker's cross-seed switch on and its « accepte les uploads » switch on (OPEN 2 = B); anything else is refused (409). The answer is a visible « en file », never « occupé » (DOIT-4, NE-DOIT-PAS-3); a second ask on a pair already uploading is a duplicate (409). The engine applies the tracker's own publication rules and the interface pre-validates nothing (OPEN 3 = A). Its outcome arrives on the stream by the SAME two events a found cross-seed does — `CrossSeedInjected` on success (the pair `active`, `via: upload`), `CrossSeedRejected` on failure (the pair `error`, `creation_failed` or `publish_failed`, the tracker's reason in `trackerReason`) — never a third.",
-        "tags": [
-          "trackers"
-        ],
-        "parameters": [
-          {
-            "name": "infoHash",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "the ORIGIN entry's hash"
-          },
-          {
-            "name": "tracker",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "the tracker the torrent is published on — one of the pair's"
-          }
-        ],
-        "responses": {
-          "202": {
-            "description": "the upload is queued",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "queued": {
-                      "type": "boolean",
-                      "description": "always true: the ask is in the engine's queue"
-                    },
-                    "tracker": {
-                      "type": "string",
-                      "description": "the tracker the torrent will be published on"
-                    }
-                  },
-                  "required": [
-                    "queued",
-                    "tracker"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "401": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "403": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "404": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "409": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "500": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "503": {
-            "$ref": "#/components/responses/Problem"
-          }
-        },
-        "x-unseeded": "the queued ask, derived from the layer's own state: invented, no fixture exists for the upload (L23 DESIGN § 2.2)."
       }
     },
     "/api/torrents/{infoHash}/cross-seed/search": {
@@ -5132,6 +5945,84 @@
         },
         "x-unseeded": "the exclusion as it now reads. Derived from the layer's own state."
       }
+    },
+    "/api/torrents/{infoHash}/cross-seed/{tracker}/upload": {
+      "post": {
+        "operationId": "uploadCrossSeed",
+        "summary": "Create a torrent from one origin's files and publish it on one tracker",
+        "description": "« Créer et publier un torrent » (§ 19 point 5; L23 demand Q): ONE torrent, ONE tracker, ONE call — the engine builds a `.torrent` from the origin's own files and publishes it on the named tracker, to open a cross-seed where its own search found none. Asked only on a pair with no match, in error or not yet searched, not excluded, its origin ACTIVE in the client, complete and seeding (round 11 OPEN 1 = A), its tracker's cross-seed switch on and its « accepte les uploads » switch on (OPEN 2 = B); anything else is refused (409). The answer is a visible « en file », never « occupé » (DOIT-4, NE-DOIT-PAS-3); a second ask on a pair already uploading is a duplicate (409). The engine applies the tracker's own publication rules and the interface pre-validates nothing (OPEN 3 = A). Its outcome arrives on the stream by the SAME two events a found cross-seed does — `CrossSeedInjected` on success (the pair `active`, `via: upload`), `CrossSeedRejected` on failure (the pair `error`, `creation_failed` or `publish_failed`, the tracker's reason in `trackerReason`) — never a third.",
+        "tags": [
+          "trackers"
+        ],
+        "parameters": [
+          {
+            "name": "infoHash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the ORIGIN entry's hash"
+          },
+          {
+            "name": "tracker",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the tracker the torrent is published on — one of the pair's"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "the upload is queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "queued": {
+                      "type": "boolean",
+                      "description": "always true: the ask is in the engine's queue"
+                    },
+                    "tracker": {
+                      "type": "string",
+                      "description": "the tracker the torrent will be published on"
+                    }
+                  },
+                  "required": [
+                    "queued",
+                    "tracker"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "the queued ask, derived from the layer's own state: invented, no fixture exists for the upload (L23 DESIGN § 2.2)."
+      }
     }
   },
   "components": {
@@ -5178,6 +6069,14 @@
           "secondaryLine": {
             "type": "string",
             "description": "CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "movie",
+              "show"
+            ],
+            "description": "whether the medium is a film or a series — carried by the card, so a panel opened from it never loses it (B-612)"
           },
           "reason": {
             "type": "string",
@@ -5245,6 +6144,13 @@
             "type": "boolean",
             "description": "the folder was put in the staging area by hand: no acquisition asked for it, so it carries no requester, and its ladder starts where its own row does — at « arrivé »"
           },
+          "requesters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountRef"
+            },
+            "description": "WHO ASKED for this acquisition — PLURAL (round 9 Q16): a follow keeps a table of requesters, each piloting it. The lists an account reads are filtered on membership in it unless the account holds `acquisition.see.others`."
+          },
           "season": {
             "type": [
               "integer",
@@ -5287,10 +6193,11 @@
           }
         },
         "required": [
-          "title",
-          "secondaryLine",
           "ids",
-          "poster"
+          "kind",
+          "poster",
+          "secondaryLine",
+          "title"
         ]
       },
       "Fact": {
@@ -5609,6 +6516,35 @@
               "null"
             ],
             "description": "the poster's address, or null when none is known"
+          },
+          "requesters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountRef"
+            },
+            "description": "WHO ASKED for this acquisition — PLURAL (round 9 Q16): a follow keeps a table of requesters, each piloting it. The lists an account reads are filtered on membership in it unless the account holds `acquisition.see.others`."
+          },
+          "ownQuality": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the quality profile THE CALLER set on this acquisition, or null — offered under `acquisition.quality.own` (demand K)"
+          },
+          "quality": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the profile in force: the HIGHEST of the settings of the requesters whose role holds `acquisition.quality.own` (round 10 Q6), null when none set one — the default profile applies"
+          },
+          "ownPaused": {
+            "type": "boolean",
+            "description": "whether THE CALLER asked for a pause of this acquisition (demand P)"
+          },
+          "paused": {
+            "type": "boolean",
+            "description": "whether the acquisition IS paused: every requester whose role holds `acquisition.pause.own` asked for it, and at least one did (round 10 Q6)"
           }
         },
         "required": [
@@ -6205,13 +7141,36 @@
           },
           "avatar": {
             "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "description": "the account's key"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "plexLinked": {
+            "type": "boolean",
+            "description": "whether a Plex account is linked to this one"
+          },
+          "forbiddenWrites": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Right"
+            },
+            "description": "THE INSTANCE'S forbidden writes (ruling 23): every write right on today's read-only instance, `library.delete` alone on the future preprod, empty on production. Read from the server, never guessed from an address."
           }
         },
         "required": [
           "avatar",
           "email",
-          "name"
-        ]
+          "forbiddenWrites",
+          "id",
+          "name",
+          "plexLinked",
+          "role"
+        ],
+        "description": "WHO IS SIGNED IN, and what the account may do (§ 17, demand D): its role, the rights the role carries, whether a Plex account is linked, and the instance's forbidden writes (ruling 23), subtracted from every role — Admin's included."
       },
       "DecisionCandidate": {
         "type": "object",
@@ -6320,6 +7279,10 @@
               "null"
             ],
             "description": "the year, where the folder names one"
+          },
+          "kept": {
+            "$ref": "#/components/schemas/DecisionChoice",
+            "description": "a re-opened decision's earlier choice — the candidate it kept, marked among the candidates it offers again; absent on a decision never settled"
           }
         },
         "required": [
@@ -6334,6 +7297,10 @@
       "SettledDecision": {
         "type": "object",
         "properties": {
+          "id": {
+            "type": "string",
+            "description": "the decision, as `resolveDecision`, `dismissDecision` and `searchForDecision` address it — what « Corriger » re-opens"
+          },
           "folder": {
             "type": "string"
           },
@@ -6359,14 +7326,27 @@
           },
           "choice": {
             "$ref": "#/components/schemas/DecisionChoice"
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecisionCandidate"
+            },
+            "description": "the candidates the decision offered, as it offered them (the engine's `candidates_json`) — how many it was settled among, and what « Corriger » offers again"
+          },
+          "settledBy": {
+            "$ref": "#/components/schemas/DecisionAuthor"
           }
         },
         "required": [
+          "candidates",
           "folder",
+          "id",
           "kind",
-          "title",
           "reason",
+          "settledBy",
           "state",
+          "title",
           "when"
         ]
       },
@@ -6609,7 +7589,7 @@
       },
       "JourneyStage": {
         "type": "object",
-        "description": "ONE RUNG OF A MEDIUM'S LADDER, from the wish to Plex (ruling 4; eight rungs, OPEN 4 ruled B). The card's strip and the journey sheet read the same list; « rangé » carries the three pipeline steps it merges as `steps`.",
+        "description": "ONE RUNG OF A MEDIUM'S LADDER, from the wish to Plex (ruling 4; eight rungs, OPEN 4 ruled B). The card's strip and the journey sheet read the same list; « rangé » carries the three pipeline steps it merges as `steps`. « enrichi » carries, in turn, the three things the enrichment fetched as its own `steps`: the metadata, the posters, the trailer (L24 OPEN 5 = B).",
         "properties": {
           "rung": {
             "type": "string",
@@ -6623,7 +7603,10 @@
               "shelved",
               "verified",
               "sorted",
-              "enriched"
+              "enriched",
+              "metadata",
+              "posters",
+              "trailer"
             ],
             "description": "which rung, as a token — its name is the interface's"
           },
@@ -8227,6 +9210,269 @@
           "since"
         ]
       },
+      "DecisionAuthor": {
+        "type": "string",
+        "enum": [
+          "operator",
+          "engine"
+        ],
+        "description": "who settled a decision: the operator, by a pick or a manual search, or the engine, by an identification it made alone. DIVERGENCE: the engine writes no decision row for an identification it made alone — the interface reads one here, as a settled row with `engine` as its author."
+      },
+      "EpisodeCompleteness": {
+        "type": "object",
+        "properties": {
+          "episode": {
+            "type": "integer"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "airDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ISO `YYYY-MM-DD`"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "announced",
+              "in_library",
+              "to_grab",
+              "acquiring",
+              "pending",
+              "unverified",
+              "absorbed"
+            ]
+          },
+          "lastSearchOutcome": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "episode",
+          "state"
+        ]
+      },
+      "SeasonCompleteness": {
+        "type": "object",
+        "properties": {
+          "season": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer",
+            "description": "the season's aired episodes"
+          },
+          "owned": {
+            "type": "integer",
+            "description": "of those, the ones in the library"
+          },
+          "queued": {
+            "type": "integer",
+            "description": "of those, the ones wanted and not yet held"
+          },
+          "announced": {
+            "type": "integer",
+            "description": "episodes announced and not yet aired"
+          },
+          "episodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EpisodeCompleteness"
+            }
+          }
+        },
+        "required": [
+          "announced",
+          "episodes",
+          "owned",
+          "queued",
+          "season",
+          "total"
+        ]
+      },
+      "FollowCompleteness": {
+        "type": "object",
+        "properties": {
+          "followedId": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "seasons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeasonCompleteness"
+            }
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "cache",
+              "unknown"
+            ],
+            "description": "`unknown` when no aired catalog is cached: the seasons are then empty, never a fabricated all-missing grid"
+          },
+          "providerCatalogEmpty": {
+            "type": "boolean"
+          },
+          "catalogRefreshedAt": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "epoch seconds"
+          }
+        },
+        "required": [
+          "followedId",
+          "kind",
+          "providerCatalogEmpty",
+          "seasons",
+          "source",
+          "title"
+        ]
+      },
+      "Right": {
+        "type": "string",
+        "enum": [
+          "library.read",
+          "library.delete",
+          "library.rescrape",
+          "acquisition.request",
+          "acquisition.follow",
+          "acquisition.pilot.own",
+          "acquisition.pilot.any",
+          "acquisition.see.others",
+          "acquisition.todo.view",
+          "acquisition.quality.own",
+          "acquisition.pause.own",
+          "acquisition.reassign",
+          "pipeline.control",
+          "trackers.view",
+          "trackers.control",
+          "system.view",
+          "configuration.view",
+          "configuration.write",
+          "accounts.manage",
+          "auth.password"
+        ],
+        "description": "ONE RIGHT OF THE ACL (§ 17, ruling 17: every access, a view or an act, is a right). Rights belong to ROLES, never to an account (ruling 20). The interface reads the set an account holds and offers exactly what it opens; it never compares a role's name."
+      },
+      "Role": {
+        "type": "object",
+        "description": "A ROLE and the rights it carries (ruling 20: one role per account). Two are the system's and indelible (ruling 22): `admin` holds NO rights list — it bypasses the ACL, every right present and future — and `default` is the role every new account receives, its rights configurable. Every other role is `ordinary` configuration.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "the role's key"
+          },
+          "name": {
+            "type": "string",
+            "description": "its name, for display only — never compared"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "default",
+              "ordinary"
+            ],
+            "description": "`admin` and `default` are the two system roles; `ordinary` is everything else"
+          },
+          "rights": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Right"
+            },
+            "description": "the rights it carries — empty for `admin`, which bypasses the list"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "rights"
+        ]
+      },
+      "AccountRef": {
+        "type": "object",
+        "description": "An account named by another answer — a requester, a chooser's row.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "AccountSummary": {
+        "type": "object",
+        "description": "ONE ACCOUNT OF THE ROSTER, as « Comptes » and the reassign chooser read it: its name, its mandatory e-mail, its ONE role (ruling 20) and its Plex link.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "plexLinked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "email",
+          "id",
+          "name",
+          "plexLinked",
+          "role"
+        ]
+      },
+      "Roster": {
+        "type": "object",
+        "description": "Every account and every role (demand F).",
+        "properties": {
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountSummary"
+            }
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Role"
+            }
+          }
+        },
+        "required": [
+          "accounts",
+          "roles"
+        ]
+      },
       "TrackerCrossSeed": {
         "type": "object",
         "description": "one tracker's cross-seed at rest (demand A) — the roster's line, the tracker's panel and the badge read this ONE answer (§ 13). The counts are the engine's, over the SAME pairs the downloads read answers, never recomputed by the interface. invented: no fixture exists for the cross-seed (L17 DESIGN § 2.3)",
@@ -8497,6 +9743,58 @@
           "infoHash",
           "title",
           "media"
+        ]
+      },
+      "MediaCrossSeedOrigin": {
+        "type": "object",
+        "description": "one ORIGIN torrent of the medium in the download client, with its cross-seed pairs — the same pairs the downloads read carries on that origin's row (R-L17-b). invented: no fixture exists for the cross-seed (L17 DESIGN § 2.3)",
+        "properties": {
+          "infoHash": {
+            "type": "string",
+            "description": "the origin entry's hash"
+          },
+          "name": {
+            "type": "string",
+            "description": "the torrent's name in the client"
+          },
+          "tracker": {
+            "type": "string",
+            "description": "the tracker the origin was grabbed on"
+          },
+          "pairs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CrossSeedPair"
+            },
+            "description": "one per other eligible tracker, in the operator's six words"
+          },
+          "titleExcluded": {
+            "type": "boolean",
+            "description": "whether « Ne plus partager ce titre » excluded the whole title"
+          }
+        },
+        "required": [
+          "infoHash",
+          "name",
+          "tracker",
+          "pairs",
+          "titleExcluded"
+        ]
+      },
+      "MediaCrossSeed": {
+        "type": "object",
+        "description": "the media sheet's cross-seed block (demand C, § 19: « un bloc par tracker, réservé au profil administrateur »), taken over by L18 from L17 (F25). invented: no fixture exists for the cross-seed (L17 DESIGN § 2.3)",
+        "properties": {
+          "torrents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MediaCrossSeedOrigin"
+            },
+            "description": "every origin torrent of the medium still in the client; empty when none is"
+          }
+        },
+        "required": [
+          "torrents"
         ]
       }
     },

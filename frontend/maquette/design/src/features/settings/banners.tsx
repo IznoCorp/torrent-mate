@@ -13,6 +13,7 @@
 // out of a rubric, on two branches — is the page's own subject. These two are
 // not: one is a strip drawn over whatever branch is showing, the other a part of
 // the frame's bottom slot.
+import { useRights } from "../../lib/account";
 import { useTranslation } from "react-i18next";
 import { useStoreContent } from "../../lib/store-access";
 import type { ReactElement } from "react";
@@ -39,9 +40,11 @@ export function SettingsBanners(): ReactElement {
   // makes B-300's confirmation reachable by the path a hand walks.
   const { data: status } = useConfigurationStatus();
   const restartOwed = Boolean(status?.restartRequired);
+  // THE INSTANCE'S CEILING, said where the writes would have been (ruling 23).
+  const rights = useRights();
   return (
     <>
-      {SETTINGS_STATE.readOnly ? (
+      {rights.forbidden.includes("configuration.write") ? (
         <div data-part="settings/notice"><SurfaceError tone="info" part="notice">
           <b>{t("screens.settings.readOnlyLead")}</b>
           {t("screens.settings.readOnlyRest")}
@@ -112,7 +115,7 @@ export function SaveBar(): ReactElement | null {
         </b>{" "}
         {t("screens.settings.willWrite", { files })}
       </span>
-      <button className={actionButton({ kind: "submit" })} data-save="1" disabled={SETTINGS_STATE.readOnly}>
+      <button className={actionButton({ kind: "submit" })} data-save="1">
         {t("screens.settings.save")}
       </button>
     </div>

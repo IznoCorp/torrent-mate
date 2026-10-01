@@ -11,6 +11,7 @@
 // its volumes by default, a bar and the download rate while it downloads, the
 // upload rate alone while it sends. A figure the client does not give is said
 // unknown, never drawn as zero.
+import { heldRights } from "../../lib/account";
 import i18next from "i18next";
 import { icons } from "../../lib/shell-doors";
 import { posterArtwork } from "../../lib/engine-drawing";
@@ -317,5 +318,8 @@ export function torrentItemMarkup(
   const search = searchable
     ? `<button class="${swipeAction({ tone: "resume" })}" data-part="swipe/action" data-action="cross-seed-search" data-swipeact="cross-seed-search" data-cross-seed-search-all="${escapeMarkup(entry.infoHash)}">${svgIcon(icons.search)}${escapeMarkup(say("swipeSearch"))}</button>`
     : undefined;
-  return `<div data-part="torrents/row" data-entry="${escapeMarkup(entry.infoHash)}" data-tracker="${escapeMarkup(entry.tracker)}">${swipeRowMarkup(card, remove, search)}</div>`;
+  // THE SWIPE REMOVES AND SEARCHES, both writes, so it is offered to an account
+  // that may (`trackers.control`).
+  const row = heldRights().holds("trackers.control") ? swipeRowMarkup(card, remove, search) : card;
+  return `<div data-part="torrents/row" data-entry="${escapeMarkup(entry.infoHash)}" data-tracker="${escapeMarkup(entry.tracker)}">${row}</div>`;
 }

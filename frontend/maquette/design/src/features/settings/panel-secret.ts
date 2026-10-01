@@ -7,6 +7,7 @@
 //
 // A PRODUCER IS NOT A HOOK: it is called from the click delegation, so it reads
 // the query cache synchronously (invariant 10).
+import { accountQuery, heldRights } from "../../lib/account";
 import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
@@ -53,11 +54,9 @@ function secretPanel(key: string, cache: PanelCache): PanelDescriptor | null {
   const secret = secretOf(key, cache);
   if (secret === null) return null;
   const translate = i18next.t.bind(i18next);
-  // READ-ONLY IS THE ENGINE'S MUTABLE STATE, not server state and not this
-  // feature's yet: it moves with the last delegation verb that writes it, and
-  // that is the engine's last lot. Read through the same slice the page reads,
-  // so the panel and the page cannot disagree about the instance's rights.
-  const readOnly = Boolean(SETTINGS_STATE.readOnly);
+  // WRITING IS A RIGHT (`configuration.write`), and the instance's forbidden
+  // writes subtract it (ruling 23): read through the model, as every surface does.
+  const readOnly = !heldRights().holds("configuration.write");
   return {
     title: secret.label,
     meta: [{ m: secret.key }],
@@ -110,6 +109,6 @@ function secretPanel(key: string, cache: PanelCache): PanelDescriptor | null {
 
 registerProducer("secret", {
   produce: secretPanel,
-  needs: [secretsQuery],
+  needs: [secretsQuery, accountQuery],
   holds: (key, cache) => secretOf(key, cache) !== null,
 });

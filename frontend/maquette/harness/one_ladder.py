@@ -72,6 +72,9 @@ LADDER_STATES = ("acq-card-rungs", "acq-todo-loaded")
 REACHED = {"downloading", "arrived", "identified", "shelved"}
 # The three steps the sheet opens « rangé » into.
 STEPS = ["sorted", "enriched", "shelved"]
+# RE-AIMED OUT LOUD (L24, OPEN 5 = B): « enrichi » opens in turn into the three
+# things the enrichment fetched, right under it. R411 holds their states.
+PARTS = ["metadata", "posters", "trailer"]
 # The rows the seeds say were dropped in the staging area by hand.
 SEEDS = pathlib.Path(__file__).resolve().parents[1] / "design/src/mocks/seeds"
 DROPPED = {row["title"] for name in ("stuck.json", "stuck-loaded.json")
@@ -124,6 +127,9 @@ def current_of(states):
 WORDS = json.loads((pathlib.Path(__file__).resolve().parents[1]
                     / "design/src/i18n/fr.json").read_text(encoding="utf-8"))
 LADDER = WORDS["surfaces"].get("ladder", {"rungs": {}, "steps": {}, "step": "", "figure": ""})
+# RE-AIMED (2026-10-01): a done rung with no time recorded now says « fait »;
+# « demandé » and « cherché » passed owe their TIME, so the word is refused too.
+DONE_WORD = WORDS["surfaces"]["ladder"].get("doneUntimed")
 
 CARDS = """() => [...document.querySelectorAll('#view [data-part="card"]')]
   .filter(card => card.querySelector('[data-part="card/strip"]'))
@@ -231,8 +237,8 @@ async def main():
             asked = [row for row in ladder_rows if row["name"] in (rung_name("requested"), rung_name("searched"))]
             journal.check(
                 f"« {card['title']} »: « demandé » and « cherché », passed, carry their time",
-                len(asked) == 2 and all(row["value"] != NO_TIME for row in asked if row["done"]),
-                str([row["name"] for row in asked if row["done"] and row["value"] == NO_TIME]))
+                len(asked) == 2 and all(row["value"] not in (NO_TIME, DONE_WORD) for row in asked if row["done"]),
+                str([row["name"] for row in asked if row["done"] and row["value"] in (NO_TIME, DONE_WORD)]))
             if card["current"] > RUNGS.index("shelved") or all(state == "done" for state in card["states"]):
                 steps = [row for row in rows if row["name"] in {step_name(key) for key in STEPS}]
                 journal.check(
@@ -262,7 +268,10 @@ async def main():
         for key in RUNGS:
             wanted.append(rung_name(key))
             if key == "shelved":
-                wanted.extend(step_name(step) for step in STEPS)
+                for step in STEPS:
+                    wanted.append(step_name(step))
+                    if step == "enriched":
+                        wanted.extend(LADDER["subStep"].replace("{{name}}", LADDER["steps"][part]) for part in PARTS)
         journal.check("the sheet draws the eight rungs in the ruled order, « rangé » "
                       "opened into its three steps right under it",
                       rows[:len(wanted)] == wanted, str(rows))

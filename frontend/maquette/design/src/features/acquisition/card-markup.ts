@@ -53,6 +53,8 @@ export type MediumCard = {
   plexMatch?: { title: string };
   /** Who asked for it, and where: a follow of theirs, or a direct add. */
   requester?: { name: string; via: string };
+  /** EVERY account that asked for it (round 9 Q16) — the line names them all. */
+  requesters?: { id: string; name: string }[];
   /** Put in the staging area by hand: nobody asked, and its subtitle says so. */
   droppedByHand?: boolean;
   /** The medium's ladder — the same list its journey sheet reads. */
@@ -175,6 +177,9 @@ function ladderMarkup(ladder: Rung[]) {
   };
 }
 
+// How a card several accounts asked for says it — the follow's own words.
+const ASKED = "follow";
+
 /**
  * The line saying where an acquisition came from — ONE composition, read by its
  * card and by its panel, which carries it whole where the card truncates it.
@@ -186,9 +191,22 @@ function ladderMarkup(ladder: Rung[]) {
  * @param medium The card's row.
  * @returns The line, or undefined where the card draws none.
  */
-export function originLine(medium: Pick<MediumCard, "requester" | "ladder" | "droppedByHand">): string | undefined {
-  if (medium.requester)
-    return i18next.t(`surfaces.card.requester.${medium.requester.via}`, { name: medium.requester.name });
+export function originLine(
+  medium: Pick<MediumCard, "requester" | "requesters" | "ladder" | "droppedByHand">,
+): string | undefined {
+  // PLURAL WHERE SEVERAL ASKED (round 9 Q16): « demandé par izno et Léa ». The
+  // names are joined by the language's own list, never by a typed conjunction.
+  // THE REQUESTERS ARE WHO ASKED, whenever the answer carries them: a card
+  // reassigned to one other account names that account, never the name the
+  // row's origin was first recorded under (the reader's L18 round).
+  const names = medium.requesters && medium.requesters.length > 0
+    ? new Intl.ListFormat(i18next.language, { type: "conjunction" }).format(medium.requesters.map((one) => one.name))
+    : medium.requester?.name;
+  // A CARD SEVERAL ACCOUNTS ASKED FOR says so even where the answer names no
+  // single asking: they asked for it, and « demandé par » is what they did.
+  const via = medium.requester?.via ?? (medium.requesters && medium.requesters.length > 1 ? ASKED : undefined);
+  if (via)
+    return i18next.t(`surfaces.card.requester.${via}`, { name: names });
   return medium.ladder && !medium.droppedByHand ? i18next.t("surfaces.card.requester.unknown") : undefined;
 }
 

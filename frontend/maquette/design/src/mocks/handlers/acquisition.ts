@@ -11,8 +11,10 @@ import { arrivalsOf, originOf } from "./staging";
 import { isVerifiedInPlex, forgetLadder, ladderOf, rungIndex, stripPosition, ownTimeOf, type Position } from "./ladder";
 import type { components } from "../../contract/types";
 import { stagesOf } from "./acquisition-verbs";
+import { withAcquisitionFacts, withRequesters } from "./requesters";
 import { recoveringSeason } from "./season-recovery";
 import { mockState } from "../state";
+import { claimRequest, releaseRequest, requestersOf, signedInId, signedInRights } from "../identity";
 import { refused, type MockRequest, type MockRoute } from "../router";
 
 // How many suggestions one batch of the deck carries. The engine's own batch
@@ -102,6 +104,21 @@ function followedFrom(title: string) {
     ?? SUGGESTIONS.find((suggestion) => suggestion.title === title);
 }
 
+// Why a co-requester's generic pause is refused.
+const SHARED_PAUSE = "other accounts asked for this follow too: each pauses it for itself";
+
+/**
+ * Whether the caller shares a follow with other requesters and does not pilot
+ * every acquisition — the one who may not act on the whole of it.
+ *
+ * @param title The follow.
+ * @returns True for a co-requester.
+ */
+function sharedWithOthers(title: string): boolean {
+  if (signedInRights().holds("acquisition.pilot.any")) return false;
+  return requestersOf(title).some((one) => one.id !== signedInId());
+}
+
 // Why a follow nothing identifies is refused, in the problem body's own words.
 const NO_IDENTITY = "a follow with no provider identity has no sheet";
 
@@ -116,10 +133,10 @@ export function acquisitionRoutes(): MockRoute[] {
     // is: a recovery the dense world holds runs nowhere in the real one.
     route("readFollows", GET, "/api/acquisition/followed", (request) => {
       const dense = request.query.get("scenario") === LOADED;
-      return mockState().follows
+      return withAcquisitionFacts(mockState().follows
         .filter((follow) => follow.kind !== FILM_KIND || !isVerifiedInPlex(follow.title))
         .map((follow) => (WAITING_ON_A_GRAB.has(follow.status) && recoveringSeason(follow.title, dense)
-          ? { ...follow, status: BEING_ACQUIRED } : follow));
+          ? { ...follow, status: BEING_ACQUIRED } : follow)));
     }),
     route("createFollow", POST, "/api/acquisition/followed", (request) => {
       const state = mockState();
@@ -133,6 +150,13 @@ export function acquisitionRoutes(): MockRoute[] {
       const provider = field(request.body, "provider");
       const providerId = field(request.body, "providerId");
       const source = followedFrom(title);
+      // A MEDIUM ANOTHER ACCOUNT ALREADY FOLLOWS is joined, never duplicated:
+      // the caller becomes one more of its requesters (round 9 Q16).
+      const followed = state.follows.find((follow) => follow.title === title);
+      if (followed !== undefined) {
+        claimRequest(title, true);
+        return withAcquisitionFacts([followed])[0];
+      }
       // THE MEDIUM'S IDENTITY: the request's own AND the joined identity of the
       // entry it was followed from, MERGED. A create naming neither is REFUSED
       // (B-366): a follow with no identity has no sheet to open, and a follow
@@ -171,7 +195,8 @@ export function acquisitionRoutes(): MockRoute[] {
         poster: source?.poster ?? null,
       };
       state.follows = [added, ...state.follows];
-      return added;
+      claimRequest(title, false);
+      return withAcquisitionFacts([added])[0];
     }),
     route(
       "updateFollow",
@@ -180,6 +205,9 @@ export function acquisitionRoutes(): MockRoute[] {
       (request) => {
         const found = followFor(request.parameters.followedId);
         if (found === undefined) return null;
+        // THE GENERIC PAUSE IS THE WHOLE FOLLOW'S: a co-requester pauses for
+        // itself (`setAcquisitionPause`), never for the others (round 10 Q6).
+        if (sharedWithOthers(found.title)) return refused(403, SHARED_PAUSE);
         const asked = field(request.body, "status");
         if (typeof asked === "string") found.status = asked;
         return found;
@@ -196,6 +224,13 @@ export function acquisitionRoutes(): MockRoute[] {
       "/api/acquisition/followed/{followedId}",
       (request) => {
         const state = mockState();
+        // A FOLLOW OTHERS ASKED FOR TOO STAYS FOR THEM: the caller alone
+        // leaves its requesters; it goes with its last one (round 9 Q16).
+        if (requestersOf(request.parameters.followedId).length > 1
+          && requestersOf(request.parameters.followedId).some((one) => one.id === signedInId())) {
+          releaseRequest(request.parameters.followedId);
+          return { ok: true };
+        }
         const removed = state.follows.filter(
           (follow) => follow.title === request.parameters.followedId,
         );
@@ -217,6 +252,13 @@ export function acquisitionRoutes(): MockRoute[] {
       "/api/acquisition/followed/{followedId}/restore",
       (request) => {
         const state = mockState();
+        // A FOLLOW THE CALLER ONLY LEFT is still there: putting it back makes
+        // the caller one of its requesters again.
+        const standing = followFor(request.parameters.followedId);
+        if (standing !== undefined) {
+          claimRequest(standing.title, true);
+          return withAcquisitionFacts([standing])[0];
+        }
         const at = state.removedFollows.findIndex(
           (follow) => follow.title === request.parameters.followedId,
         );
@@ -336,10 +378,10 @@ export function acquisitionRoutes(): MockRoute[] {
       const inFlight = (dense ? state.inFlight : state.inFlightReel)
         .filter((card) => !arrivals.some((arrival) => sameItem(arrival, card)));
       return {
-        takeable: onTheLadder(state.takeable, TAKEABLE_AT),
-        blocked: onTheLadder(state.blocked),
-        inFlight: onTheLadder(inFlight),
-        arrivals,
+        takeable: withRequesters(onTheLadder(state.takeable, TAKEABLE_AT)),
+        blocked: withRequesters(onTheLadder(state.blocked)),
+        inFlight: withRequesters(onTheLadder(inFlight)),
+        arrivals: withRequesters(arrivals),
       };
     }),
     // THE STAGES THE VERBS MOVE, not the seed itself. This answered the

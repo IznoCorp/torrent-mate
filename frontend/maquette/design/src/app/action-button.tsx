@@ -29,6 +29,7 @@ import { useTranslation } from "react-i18next";
 import { icons } from "./icons";
 import { useMessagePresent } from "./message-presence";
 import { rowFor } from "./navigation";
+import { useRights } from "../lib/account";
 import { Icon } from "../ui/icon";
 import { useUiState } from "../lib/store-access";
 import { addAction, addActionDrawing } from "../ui/variants";
@@ -42,7 +43,11 @@ const AFTER_A_MESSAGE_MS = 200;
 export function ActionButton(): ReactElement {
   const { t } = useTranslation();
   const state = useUiState();
-  const wanted = rowFor(state.page as string | undefined)?.actionButton === true;
+  // THE « ＋ » ASKS FOR A MEDIUM, so it is offered to an account that may ask
+  // (F65) — absent for a role that only sees, and under a ceiling that forbids it.
+  const rights = useRights();
+  const wanted = rowFor(state.page as string | undefined)?.actionButton === true
+    && rights.holds("acquisition.request");
   const messageShown = useMessagePresent();
 
   // Held back only on the message's FALLING edge. `wasShown` is a ref rather

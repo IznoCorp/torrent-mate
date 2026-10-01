@@ -98,10 +98,16 @@ async def tap_action(page, label):
     Returns:
         What the aim read, with `tapped` saying whether a finger went down.
     """
+    # RE-AIMED OUT LOUD: the act is SCROLLED INTO VIEW first, as a finger
+    # scrolls the panel to reach it. The journey sheet grew with L24 (the
+    # decision block, « enrichi » unfolded) and its acts now sit below the
+    # fold of a panel that scrolls (`#sheetin`, capped at 78% of the frame);
+    # reachability is still read where the finger lands, unchanged.
     aim = await page.evaluate("""(word)=>{
         const act = [...document.querySelectorAll('#sheetin [data-part="sheet/action"]')]
           .find((one) => (one.textContent || '').toLowerCase().includes(word));
         if (!act) return {found: false};
+        act.scrollIntoView({block: "center"});
         const box = act.getBoundingClientRect();
         const x = box.left + box.width / 2;
         const y = box.top + box.height / 2;

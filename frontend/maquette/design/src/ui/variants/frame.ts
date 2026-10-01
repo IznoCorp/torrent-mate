@@ -104,8 +104,10 @@ export const tabBar = cva(
       // than from `html.selecting` — the class the engine used to toggle for
       // this one rule. A mode is state, and state lives in one place (D-L15-3).
       selecting: { true: "hidden", false: "" },
+      // ONE PAGE, OR NONE, DRAWS NO BAR (R232, OPEN 7 = A).
+      empty: { true: "hidden", false: "" },
     },
-    defaultVariants: { selecting: false },
+    defaultVariants: { selecting: false, empty: false },
   },
 );
 
@@ -307,10 +309,16 @@ export const drawerEntry = cva(
           + "text-primary-text font-semibold",
         false: "",
       },
+      // A PLACE THIS ACCOUNT DOES NOT HOLD is drawn, MARKED, never hidden
+      // (OPEN 3 = B): muted, with its lock and its word, and no count.
+      reserved: { true: "text-muted-foreground", false: "" },
     },
-    defaultVariants: { current: false },
+    defaultVariants: { current: false, reserved: false },
   },
 );
+
+/** The mark a reserved entry carries at its end: the lock and « Réservé ». */
+export const drawerEntryReserved = cva("ml-auto inline-flex items-center gap-2 text-2");
 
 export const drawerEntryDrawing = cva("w-[20px] h-[20px] flex-none");
 
