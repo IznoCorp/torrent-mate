@@ -70,6 +70,7 @@ async def main():
               || {}).textContent || "",
             destructiveDisabled: !!(destructive && destructive.disabled),
             named: node.getAttribute('aria-label') || null,
+            actions: [...node.querySelectorAll('button')].map((one) => Math.round(one.getBoundingClientRect().height)),
           };}""")
 
     at_rest = await bar()
@@ -88,6 +89,9 @@ async def main():
             failures.append("« Supprimer » is available with nothing selected")
         if any(character.isdigit() for character in empty["caption"]):
             failures.append(f"the empty caption states a count: {empty['caption']!r}")
+        # A THUMB'S FLOOR (B-550): « Annuler » and « Supprimer » measured 34 px tall.
+        if not empty["actions"] or min(empty["actions"]) < 44:
+            failures.append(f"the selection bar's actions sit under the 44 px touch floor: {empty['actions']!r}")
 
     # THE TAP TICKS THE MEDIUM ITS TILE NAMES. The titles are read off the tiles
     # before they are tapped, so the dialog below can be held to naming exactly

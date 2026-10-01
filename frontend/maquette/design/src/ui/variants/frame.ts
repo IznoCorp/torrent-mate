@@ -178,7 +178,7 @@ export const selectionCaption = cva("n text-3 font-semibold");
    colour — are declared per TONE and never in the base. Nothing then depends on
    the order two utilities happen to be emitted in. */
 export const selectionAction = cva(
-  "border text-3 font-semibold py-4 px-6 rounded-3",
+  "border text-3 font-semibold py-4 px-6 rounded-3 min-h-[44px]", // a thumb's floor (B-550)
   {
     variants: {
       tone: {
