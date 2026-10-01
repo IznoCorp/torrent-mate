@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The served copy the harness measures: who holds it, and which build it is.
 
-B-256. `run.sh` rebuilds and re-copies `/tmp/tm-refonte/wrapped.html`
+B-256. `run.sh` rebuilds and re-copies the served copy's `wrapped.html`
 unconditionally at every invocation, and until this file existed it did so with
 no lock and no stamp. On 2026-08-30 a second session's `make maquette-oracle`
 re-copied the prototype while a suite was mid-run, and two rules fell over a
@@ -39,6 +39,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -54,7 +55,87 @@ from pathlib import Path
 # moves the URL and leaves this behind, because the two are one fact split in
 # two places.
 ROOT_VARIABLE = "TM_SERVED_COPY"
-SERVED = Path(os.environ.get(ROOT_VARIABLE, "/tmp/tm-refonte"))
+
+# THE HARNESS'S WASTE GOES TO A VOLUME OF ITS OWN WHEN THE MACHINE HAS ONE. Each
+# harness Chrome is a throw-away profile of about two hundred files that nobody
+# reads back. The operator made `/Volumes/TMScratch` for them, an APFS volume with
+# its event log switched off, AS PREVENTION: the `fseventsd` load seen on
+# 2026-10-01 (86 % CPU) came from its own 4.5 GB event history (147,754 files),
+# which the operator purged — not from the harness. Where the volume is not
+# mounted — CI — everything stays in `/tmp` as before.
+#
+# THE SERVED COPY STAYS ONE PER MACHINE, and only the profiles and the logs are
+# per checkout: one harness host on 8899 serves one directory, so a copy per
+# checkout would let a rule read one build while its stamp vouched for another.
+SCRATCH_VOLUME_VARIABLE = "TM_SCRATCH_VOLUME"
+SCRATCH_VOLUME = Path(os.environ.get(SCRATCH_VOLUME_VARIABLE, "/Volumes/TMScratch"))
+FALLBACK_SCRATCH = Path("/tmp")
+SERVED_NAME = "tm-refonte"
+
+
+def scratch_volume() -> Path | None:
+    """The scratch volume, when it is mounted and writable.
+
+    A MOUNT, NOT A DIRECTORY: an unmounted volume can leave its mount point
+    behind as a plain directory on the system disk, and writing there would put
+    the waste back where it costs, under a name that says it is not.
+
+    Returns:
+        The volume's path, or None when the harness must fall back to `/tmp`.
+    """
+    if os.path.ismount(SCRATCH_VOLUME) and os.access(SCRATCH_VOLUME, os.W_OK):
+        return SCRATCH_VOLUME
+    return None
+
+
+def default_root() -> Path:
+    """Where the served copy lives when nothing overrides it.
+
+    Returns:
+        `tm-refonte` on the scratch volume, else under `/tmp`.
+    """
+    return (scratch_volume() or FALLBACK_SCRATCH) / SERVED_NAME
+
+
+def worktree_scratch() -> Path | None:
+    """This checkout's own directory on the scratch volume.
+
+    Named after the checkout, so two worktrees running rules side by side never
+    share a profile or a log directory.
+
+    Returns:
+        The directory, or None without the volume — the caller then leaves the
+        system's temporary directory as it is.
+    """
+    volume = scratch_volume()
+    if volume is None:
+        return None
+    return volume / Path(__file__).resolve().parents[3].name
+
+
+def redirect_tmpdir() -> Path | None:
+    """Points this process's temporary directory, and its children's, at the volume.
+
+    Playwright's driver makes each Chrome profile under its own TMPDIR, and the
+    driver is a child of the rule: setting it here, before the rule starts
+    Playwright, moves every profile the rule makes.
+
+    Returns:
+        The directory now in TMPDIR, or None when the volume is absent and
+        nothing was changed.
+    """
+    scratch = worktree_scratch()
+    if scratch is None:
+        return None
+    temporary = scratch / "tmp"
+    temporary.mkdir(parents=True, exist_ok=True)
+    os.environ["TMPDIR"] = str(temporary)
+    # `tempfile` caches the directory it found first; forget it.
+    tempfile.tempdir = None
+    return temporary
+
+
+SERVED = Path(os.environ.get(ROOT_VARIABLE) or default_root())
 STAMP = SERVED / "build-stamp.json"
 LOCK = SERVED / ".lock"
 
@@ -241,7 +322,7 @@ def assert_unchanged(expected: str | None, where: str) -> None:
         f"  started against: {expected}\n"
         f"  now serving:     {seen or 'no stamp at all'}\n"
         "  This reading spans two builds and means nothing either way.\n"
-        "  Another session rebuilt /tmp/tm-refonte. Wait for it to finish, "
+        f"  Another session rebuilt {SERVED}. Wait for it to finish, "
         "then run again."
     )
 
@@ -344,7 +425,7 @@ def acquire(holder: str, pid: int | None = None) -> None:
                 f"{held['holder']} (pid {held['pid']})")
             raise SystemExit(
                 f"The served copy is held by {described}.\n"
-                "  Two suites cannot share /tmp/tm-refonte: the second would "
+                f"  Two suites cannot share {SERVED}: the second would "
                 "rebuild under the first (B-256).\n"
                 "  Wait for it, or — if you are certain it is gone — "
                 f"rm -rf {LOCK}"
@@ -607,6 +688,10 @@ def main() -> int:
         print(json.dumps(write_stamp(), sort_keys=True))
     elif what == "--token":
         print(token() or "")
+    elif what == "--root":
+        print(SERVED)
+    elif what == "--scratch":
+        print(worktree_scratch() or "")
     else:
         print("─" * 62)
         print("served_copy.py — the copy is held while it is rebuilt, "

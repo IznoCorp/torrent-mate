@@ -65,9 +65,10 @@ pull request touching the maquette), not on this machine. `make harness` runs th
   variant) — behind the reverse proxy it exposes the WebUI to the Internet (`docs/reference/qbittorrent-api.md`).
 - NEVER start a server on 8710/8711 (Caddy routes `tm.`/`tm-staging.` there), nor on 8712/8899 by
   hand (design host, harness host). Test the frontend via `tm-staging.iznogoudatall.xyz` / `tm-design`.
-- A heavy local run goes through `scripts/heavy.sh`, one at a time; `make test` and `run.sh` default
-  to half the processors. Kill what you start, delete what you build. The machine reboots every
-  Monday at 05:00.
+- A heavy local run goes through `scripts/heavy.sh`, admitted by the machine's budget (`--budget`
+  prints it); `make test` and `run.sh` default to half the processors. The harness writes its
+  profiles, served copy and logs on `/Volumes/TMScratch` when it is mounted. Kill what you start,
+  delete what you build. The machine reboots every Monday at 05:00.
 - `personalscraper run` and any long pipeline command: foreground only, `timeout=600000` (hook-enforced);
   create TODO tasks before launching; show output step by step; kill on 2 identical consecutive
   errors, then check for orphans, lock files and temp dirs. Or run the steps one by one

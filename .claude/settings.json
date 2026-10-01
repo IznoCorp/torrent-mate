@@ -26,27 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "test -f $HOME/.claude/hooks/bash_logger.py && python3 $HOME/.claude/hooks/bash_logger.py || true"
-          },
-          {
-            "type": "command",
-            "command": "test -f $HOME/.claude/hooks/block_disk_destructive.py && python3 $HOME/.claude/hooks/block_disk_destructive.py || true"
-          },
-          {
-            "type": "command",
-            "command": "test -f $HOME/.claude/hooks/block_ai_attribution.py && python3 $HOME/.claude/hooks/block_ai_attribution.py || true"
-          },
-          {
-            "type": "command",
-            "command": "test -f $HOME/.claude/hooks/block_background_pipeline.py && python3 $HOME/.claude/hooks/block_background_pipeline.py || true"
-          },
-          {
-            "type": "command",
-            "command": "test -f $HOME/.claude/hooks/block_curl_without_timeout.py && python3 $HOME/.claude/hooks/block_curl_without_timeout.py || true"
-          },
-          {
-            "type": "command",
-            "command": "test -f .claude/hooks/block_rg_without_filter.py && python3 .claude/hooks/block_rg_without_filter.py || true"
+            "command": "D=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks\"; [ -f \"$D/dispatch.py\" ] || exit 0; exec \"${CLAUDE_HOOK_PYTHON:-python3}\" \"$D/dispatch.py\" \"$HOME/.claude/hooks/bash_logger.py\" \"$HOME/.claude/hooks/block_disk_destructive.py\" \"$HOME/.claude/hooks/block_ai_attribution.py\" \"$HOME/.claude/hooks/block_background_pipeline.py\" \"$HOME/.claude/hooks/block_curl_without_timeout.py\" \"$D/block_rg_without_filter.py\""
           }
         ]
       },
@@ -55,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "test -f $HOME/.claude/hooks/agent_logger.py && python3 $HOME/.claude/hooks/agent_logger.py || true"
+            "command": "D=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks\"; [ -f \"$D/dispatch.py\" ] || exit 0; exec \"${CLAUDE_HOOK_PYTHON:-python3}\" \"$D/dispatch.py\" \"$HOME/.claude/hooks/agent_logger.py\""
           }
         ]
       },
@@ -64,7 +44,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "test -f $HOME/.claude/hooks/skill_logger.py && python3 $HOME/.claude/hooks/skill_logger.py || true"
+            "command": "D=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks\"; [ -f \"$D/dispatch.py\" ] || exit 0; exec \"${CLAUDE_HOOK_PYTHON:-python3}\" \"$D/dispatch.py\" \"$HOME/.claude/hooks/skill_logger.py\""
           }
         ]
       },
@@ -73,11 +53,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "test -f $HOME/.claude/hooks/block_sensitive_files.py && python3 $HOME/.claude/hooks/block_sensitive_files.py || true"
-          },
-          {
-            "type": "command",
-            "command": "test -f $HOME/.claude/hooks/block_media_files.py && python3 $HOME/.claude/hooks/block_media_files.py || true"
+            "command": "D=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks\"; [ -f \"$D/dispatch.py\" ] || exit 0; exec \"${CLAUDE_HOOK_PYTHON:-python3}\" \"$D/dispatch.py\" \"$HOME/.claude/hooks/block_sensitive_files.py\" \"$HOME/.claude/hooks/block_media_files.py\""
           }
         ]
       },
@@ -86,7 +62,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "test -f $HOME/.claude/hooks/skill_frontmatter_validator.py && python3 $HOME/.claude/hooks/skill_frontmatter_validator.py || true"
+            "command": "D=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks\"; [ -f \"$D/dispatch.py\" ] || exit 0; exec \"${CLAUDE_HOOK_PYTHON:-python3}\" \"$D/dispatch.py\" \"$HOME/.claude/hooks/skill_frontmatter_validator.py\""
           }
         ]
       }
@@ -97,7 +73,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "test -f .claude/hooks/auto_format_project.py && python3 .claude/hooks/auto_format_project.py || true"
+            "command": "D=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks\"; [ -f \"$D/dispatch.py\" ] || exit 0; exec \"${CLAUDE_HOOK_PYTHON:-python3}\" \"$D/dispatch.py\" \"$D/auto_format_project.py\""
           }
         ]
       }

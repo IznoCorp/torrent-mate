@@ -9,7 +9,7 @@ R106 — P7's other half. The worker precaches the shell, so the application can
 
 WHY IT SERVES ITS OWN COPY. The rule has to make the served build MOVE, and the
 only way to do that honestly is to change what a server answers with. Doing that
-to `/tmp/tm-refonte` would rewrite the copy every other rule is reading at the
+to the served copy would rewrite the copy every other rule is reading at the
 same moment — which is B-256 exactly, committed on purpose by the rule that is
 supposed to catch it. It works on a duplicate, on a scratch port.
 
@@ -30,7 +30,7 @@ from common import browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 from server import start_server
 
-SERVED = pathlib.Path("/tmp/tm-refonte")
+from served_copy import SERVED
 PHONE = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 2,
          "is_mobile": True, "has_touch": True}
 

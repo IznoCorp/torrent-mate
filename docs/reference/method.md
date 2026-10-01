@@ -54,7 +54,14 @@ comes only from a defect that reached him or the product; rigour comes back when
 ## The machine (IznoServer)
 
 - Every `rg` has `--type py` or a `-g` glob (a 14 GB fixture). Heavy local runs go through
-  `scripts/heavy.sh`, one at a time; tools default to half the processors. Kill what you start
-  (his 09-02: « Toujours nettoyer […] TOUT ! »).
+  `scripts/heavy.sh`, which admits them by budget: 8 cores, minus the reserves of what serves
+  someone (Plex per session, Parsec while connected, qBittorrent while downloading, macOS), minus
+  the runs already admitted, each class at its declared cost; `--budget` prints it. Plex is
+  followed on its own signal, not a calibrated share (10-01): a direct play holds 0.3 core, a
+  transcode 1 at its start; while a transcode that is not throttled runs under speed 1.5 no run is
+  admitted, and under 1.1 the most recent run heavy.sh admitted is stopped (SIGSTOP) until the
+  speed is back above 1.5, then continued. Tools default to half the processors. Kill what you start (his 09-02: « Toujours nettoyer […] TOUT ! »).
+- Building agents have no fixed ceiling (10-01): one more only while `memory_pressure` is normal,
+  its heavy runs waiting their turn in `heavy.sh`'s budget.
 - Never a server on 8710/8711; never qBittorrent's localhost bypass; `personalscraper run` in the
   foreground. The machine reboots every Monday at 05:00.
