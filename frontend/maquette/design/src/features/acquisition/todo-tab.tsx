@@ -30,6 +30,14 @@ import { Markup, emptyNoteMarkup, sectionInnerMarkup } from "../../ui/markup";
 export function TodoTab(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
+  // EVERY HOOK BEFORE THE PLACEHOLDER'S RETURN — `NowTab`'s reason (B-320).
+  const scenario = state.scen === "loaded" ? "loaded" : "";
+  const { data: queue } = useAcquisitionQueue(scenario);
+  // THE STAGING READ IS OBSERVED HERE because the panels this tab opens derive
+  // their act from it (`queueNow().stuck`): a folder the read does not hold is
+  // offered its journey instead of « Résoudre ». An unobserved answer is not
+  // read at all on a cold load.
+  useStaging(scenario);
   if (state.phase !== "ready") {
     return (
       <div className={body()} data-part="surface/body" data-region="acquisition/body">
@@ -41,13 +49,6 @@ export function TodoTab(): ReactElement {
       </div>
     );
   }
-  const scenario = state.scen === "loaded" ? "loaded" : "";
-  const { data: queue } = useAcquisitionQueue(scenario);
-  // THE STAGING READ IS OBSERVED HERE because the panels this tab opens derive
-  // their act from it (`queueNow().stuck`): a folder the read does not hold is
-  // offered its journey instead of « Résoudre ». An unobserved answer is not
-  // read at all on a cold load.
-  useStaging(scenario);
   const blocked = queue ? todoCards(queue) : [];
   const setAside = queue ? setAsideCards(queue) : [];
   // A STEP THAT CANNOT FINISH is unblocked by a relaunch, never by an identity

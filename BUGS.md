@@ -57,7 +57,7 @@
 | B-317 | The prototype's greeting toast covers the settings save bar, so a finger there does nothing while it lives. **Owner:** the defects fast lane. | 1× | `fixing` |
 | B-318 | The build races its own output on a fresh `dist` again — B-098's shape, in two hooks this time. **Owner:** the tooling train. | 1× | `open` |
 | B-319 | `fanout.py` holds the invalidation map against itself: a key dropped from the declaration is invisible to it. **Owner:** the tooling train. | 1× | `open` |
-| B-320 | React #300 and #310 on the two non-ready acquisition surfaces, from a cold page, on head and on `main` alike. **Owner:** the defects fast lane. | 1× | `open` |
+| B-320 | React #300 and #310 on the two non-ready acquisition surfaces, from a cold page, on head and on `main` alike. **Owner:** the defects fast lane. | 1× | `fixing` |
 | B-324 | The BACKEND's own mirror of the PM2 crons names three of the seven the machine runs, and nothing reads it against `pm2 jlist` — B-308's finding on the end that has no guard at all. **Owner:** the backend brief, after the freeze. | by the backend brief | `open` |
 | B-326 | `heavy.sh` offers no way to ask who holds its lock, so the natural probe — `cat` on what is a DIRECTORY — reads « free » whether the lock is held or not, and two sessions reached for it independently on the same night. **Owner:** the tooling train. | by the steward's office | `open` |
 | B-327 | « Réglages » draws SIX scheduled jobs while the machine runs seven, and the same six are named twice in two French vocabularies that disagree on five of them — the row cannot be added until `SETTINGS` leaves the engine. **Owner:** the backend brief, after the freeze. | by L13 | `to confirm` |
@@ -1081,6 +1081,17 @@ one read « zero console errors » honestly — no walk drove those two.
 repaired here: a hook-order defect is a component change, and this lot's contract forbids one.
 
 <sub>found in round two of PR #558, 2026-09-05 · 87 states swept and the two isolated on a fresh page each, head `583247947` and control `2f8503614`, three `#300` per state on both</sub>
+
+**REPRODUCED ON `main` `1e6aa6a69`, AND IT IS TWO TABS** (2026-10-01). From a cold page the two states now log
+nothing; the defect is the PASS out of them. `acq-now-loading` or `acq-now-error`, then `acq-now-loaded`, logs `#310`
+(and `#300` from the error); `acq-todo-loading` / `acq-todo-error` → `acq-todo-loaded` does the same. **Cause**:
+`NowTab` and `TodoTab` return their placeholder BEFORE calling `useAcquisitionQueue`, `useFollows` and `useStaging`, so
+the loaded pass renders more hooks than the one before it. **Repaired**: every hook is called before the return, in
+both tabs (`features/acquisition/now-tab.tsx`, `todo-tab.tsx`); a source scan for a hook after an early return finds
+no third. **R90** (`state_surfaces.py`) now follows each non-ready state of the acquisition tabs and the library with
+its loaded state and reads the CONSOLE for React's errors — `pageerror` never hears them — RED on the tree before the
+move (the four acquisition pairs, `#310`, `#300` from the errors), green after. A walk of all 266 named states in one
+page logs no React error.
 
 **B-324 — the backend's mirror of the PM2 crons names three of the seven, and nothing reads it.**
 `personalscraper/web/schedulers/registry.py`'s `CRON_JOBS` is, by its own header, « a static mirror

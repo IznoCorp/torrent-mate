@@ -18,6 +18,15 @@ import { Markup, emptyNoteMarkup, sectionInnerMarkup } from "../../ui/markup";
 export function NowTab(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
+  // EVERY HOOK BEFORE THE PLACEHOLDER'S RETURN. Called after it, the loaded body
+  // rendered two hooks more than the pass before, and React logged #310 on the
+  // console each time a non-ready state gave way to a loaded one (B-320).
+  //
+  // WHICH WORLD. The prototype carries two and the harness switches between
+  // them; the key carries it, so a surface never reads the other one's cards.
+  const scenario = state.scen === "loaded" ? "loaded" : "";
+  const { data: queue } = useAcquisitionQueue(scenario);
+  const { data: follows } = useFollows();
 
   if (state.phase !== "ready") {
     return (
@@ -31,14 +40,9 @@ export function NowTab(): ReactElement {
     );
   }
 
-  // WHICH WORLD. The prototype carries two and the harness switches between
-  // them; the key carries it, so a surface never reads the other one's cards.
-  const scenario = state.scen === "loaded" ? "loaded" : "";
-  const { data: queue } = useAcquisitionQueue(scenario);
   // THE ARRIVALS ARE CARDS HERE (ruling 2), on their way; what is blocked is
   // « À traiter »'s, a tab of its own with its count, and is not repeated here.
   const inflight = queue ? inFlightCards(queue) : [];
-  const { data: follows } = useFollows();
 
   return (
     <div className={body()} data-part="surface/body" data-region="acquisition/body">
