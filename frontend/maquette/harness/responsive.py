@@ -67,7 +67,7 @@ import json
 import os
 import time
 
-from common import PHONE, PROTOTYPE, SETTLED, Journal, browser_channel, chrome_launch_args, served_copy, STARTED_AGAINST
+from common import PHONE, PROTOTYPE, SETTLED, Journal, browser_channel, chrome_launch_args, served_copy, settle, STARTED_AGAINST
 from playwright.async_api import async_playwright
 
 PHONES = (320, 360, 369, 390, 412)
@@ -292,6 +292,12 @@ async def read_pass(browser, label, width, wanted, engine, scheme):
         # being inert over a screen). A finger lands after the crossing, and so
         # does this reading.
         await page.wait_for_function("()=>!document.documentElement.matches(':active-view-transition')")
+        # NOR A LAYER STILL SLIDING IN. A state may pose its panel a beat after it is asked for,
+        # and the panel's entrance is `--duration-4`: at 500 ms a desktop's side sheet was still
+        # 17–32 px past the window's right edge and fell `outside` (at rest it sits at [840, 1280]
+        # at 1280 px). The phone's sheet makes the same trip on y, which this rule does not read,
+        # so it never showed. The wait is the page's own running transitions (B-276).
+        await settle(page)
         readings[state] = await page.evaluate(MEASURE, width)
         if engine == "webkit":
             readings[state] += await page.evaluate(VISIBLE, width)
