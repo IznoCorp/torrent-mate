@@ -26,8 +26,8 @@
 #      refuses a promotion while a hotfix is not yet merged back);
 #   3. main only: every first-parent commit it brings is the merge of a PR into
 #      `develop` whose required checks (read from develop's branch rules)
-#      passed at its head (`success`, or `skipped`/`neutral` as GitHub counts
-#      them) — a commit with no PR is named;
+#      passed at its head — the latest run of each name, as GitHub counts it,
+#      concluded `success`, `skipped` or `neutral`; a commit with no PR is named;
 #   4. prod and tag: the `__version__` at <sha> has no tag `v<version>` yet.
 #
 # `--dry-run` runs every check and prints what would move, pushing nothing.
@@ -133,12 +133,17 @@ for pull in json.load(sys.stdin):
     missing="$("$GH" api "repos/{owner}/{repo}/commits/$head/check-runs?per_page=100" | python3 -c '
 import json, sys
 required = sys.argv[1].split()
-# What GitHub itself counts as a passed required check; every run of the name must pass.
+# GitHub counts only the latest run of a name (a run cancelled by a newer event,
+# or a failure re-run green, precedes it at the same head): the most recent
+# completion wins, a tie broken by the run id; a run not completed yet is the
+# newest of all, and not passed. What GitHub counts as passed:
 passing = {"success", "skipped", "neutral"}
-runs = {}
+latest = {}
 for run in json.load(sys.stdin).get("check_runs", []):
-    runs.setdefault(run["name"], []).append(run.get("conclusion"))
-print(" ".join(n for n in required if not runs.get(n) or any(c not in passing for c in runs[n])))
+    key = (run.get("completed_at") or "9999", run.get("id") or 0)
+    if run["name"] not in latest or key > latest[run["name"]][0]:
+        latest[run["name"]] = (key, run.get("conclusion"))
+print(" ".join(n for n in required if n not in latest or latest[n][1] not in passing))
 ' "$required")" || refuse "cannot read the checks of PR #${pr%% *} through $GH"
     [ -z "$missing" ] || refuse "PR #${pr%% *} ($(short "$commit")): required checks not green at its head: $missing"
     numbers="$numbers #${pr%% *}"

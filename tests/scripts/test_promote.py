@@ -445,3 +445,79 @@ def test_rule_3_refuses_a_required_check_that_never_ran(flow: Flow) -> None:
     done = flow.promote("main")
     assert done.returncode == 1, _out(done)
     assert "not green at its head: test" in done.stderr
+
+
+def _check_runs(flow: Flow, sha: str, runs: list[dict[str, object]]) -> None:
+    """Replaces the check runs GitHub reports at the head of the PR that merged `sha`.
+
+    Args:
+        flow: The flow under test.
+        sha: The merge commit of the PR.
+        runs: The check runs to report, each with `name`, `conclusion`, `completed_at`, `id`.
+    """
+    head = flow.answers[f"repos/{{owner}}/{{repo}}/commits/{sha}/pulls"][0]["head"]["sha"]  # type: ignore[index]
+    flow.answers[f"repos/{{owner}}/{{repo}}/commits/{head}/check-runs?per_page=100"] = {"check_runs": runs}
+
+
+def _runs(name: str, *conclusions: str) -> list[dict[str, object]]:
+    """Successive runs of one check, oldest first, as GitHub lists them (newest first).
+
+    Args:
+        name: The check's name.
+        *conclusions: The conclusion of each run, oldest first.
+
+    Returns:
+        The runs, newest first, each completed a minute after the previous one.
+    """
+    runs: list[dict[str, object]] = [
+        {"name": name, "conclusion": c, "completed_at": f"2026-10-01T00:0{i}:00Z", "id": 1000 + i}
+        for i, c in enumerate(conclusions)
+    ]
+    return list(reversed(runs))
+
+
+@pytest.mark.parametrize(
+    ("lint_runs", "passes"),
+    [
+        (("cancelled", "success"), True),
+        (("failure", "success"), True),
+        (("success", "failure"), False),
+        (("success", "neutral"), True),
+    ],
+)
+def test_rule_3_reads_the_latest_run_of_each_check(flow: Flow, lint_runs: tuple[str, ...], passes: bool) -> None:
+    """GitHub counts a name's latest run: an earlier cancelled or failed run passes, a later failure refuses."""
+    sha = flow.merged_pr("0.1.1")
+    _check_runs(flow, sha, [*_runs("lint", *lint_runs), *_runs("test", "success")])
+    done = flow.promote("main")
+    assert (done.returncode == 0) is passes, _out(done)
+    assert (flow.tip("main") == sha) is passes
+
+
+def test_rule_3_breaks_a_completion_tie_by_run_id(flow: Flow) -> None:
+    """Two runs completed in the same second: the higher id is the later one."""
+    sha = flow.merged_pr("0.1.1")
+    same = "2026-10-01T00:00:00Z"
+    _check_runs(
+        flow,
+        sha,
+        [
+            {"name": "lint", "conclusion": "success", "completed_at": same, "id": 7},
+            {"name": "lint", "conclusion": "failure", "completed_at": same, "id": 8},
+            *_runs("test", "success"),
+        ],
+    )
+    done = flow.promote("main")
+    assert done.returncode == 1, _out(done)
+    assert "not green at its head: lint" in done.stderr
+
+
+def test_rule_3_refuses_a_check_still_running_after_a_success(flow: Flow) -> None:
+    """A re-run not completed yet is the latest run: the earlier success does not stand for it."""
+    sha = flow.merged_pr("0.1.1")
+    runs = _runs("lint", "success")
+    runs.insert(0, {"name": "lint", "conclusion": None, "completed_at": None, "id": 2000})
+    _check_runs(flow, sha, [*runs, *_runs("test", "success")])
+    done = flow.promote("main")
+    assert done.returncode == 1, _out(done)
+    assert "not green at its head: lint" in done.stderr
