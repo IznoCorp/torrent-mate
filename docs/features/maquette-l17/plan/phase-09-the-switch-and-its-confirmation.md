@@ -16,7 +16,7 @@ Round 9 Q5 adds the confirmation and its option; F20 splits the flip into two ha
   → the confirmation precedent (a transient state, no URL, D1), the one L16's removal confirmation follows.
 - **Points ≈ 13.** The switch row ≈ 25 lines 2½; the confirmation and its option ≈ 35 lines 3½; the sentence 1;
   the handler edit for the first half ≈ 8 lines 1½; for the second half ≈ 10 lines 1½; two states 2; R-L17-e with
-  its two mutations 3 → ≈ 15, cut to 13 by folding the confirmation's copy into the SAME component as the switch row.
+  ~~its two mutations 3 → ≈ 15, cut to 13 by folding the confirmation's copy into the SAME component as the switch row.~~
 
 ## What it builds
 
@@ -43,16 +43,16 @@ unchecked, no pair moves. Red against `main`: none of it exists.
 2. The two states.
 3. R-L17-e written first, seen red, both halves.
 
-## Mutation
+## ~~Mutation~~
 
 Commit first. First half: the control messages without calling → the network hold falls; move the Réglages row and
 not the projections → the agreement falls. Second half: check the option and leave a pair `active` → falls; leave
 it unchecked and move a pair to `stopped` anyway → the « untouched unless asked » hold falls. **Register**: —.
 
-## Oracle and gate — done when
+## ~~Oracle and gate — done when~~
 
-Oracle: L16's `tracker-entry-open` (the disclosure gains a fourth row), accepted with « L17 § 3.2: the switch »;
-any other divergence is STOP A. Gate: per INDEX « Gates »; `--a11y` on both states.
+~~Oracle: L16's `tracker-entry-open` (the disclosure gains a fourth row), accepted with « L17 § 3.2: the switch »;~~
+~~any other divergence is STOP A. Gate: per INDEX « Gates »; `--a11y` on both states.~~
 
 ## Commit
 

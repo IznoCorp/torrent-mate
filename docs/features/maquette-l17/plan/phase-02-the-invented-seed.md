@@ -24,7 +24,7 @@ settings seed are untouched EXAMPLES, never his choice; « le moteur est coupé 
 
 ## Red today
 
-None — a seed has no rule; `python3 scripts/check-mock-seeds.py` is the guard, read by OUTPUT.
+~~None — a seed has no rule; `python3 scripts/check-mock-seeds.py` is the guard, read by OUTPUT.~~
 
 ## Move
 
@@ -40,7 +40,7 @@ None — a seed has no rule; `python3 scripts/check-mock-seeds.py` is the guard,
 3. The scenario dial, per the steward's STOP D word; **the DEFAULT scenario is the live states**; « le moteur est
    coupé » and each tracker's own switch-off are named scenarios reached through `window.__go`, never the default.
 
-## Mutation · Oracle
+## ~~Mutation · Oracle~~
 
 None — no surface reads the seed yet.
 
@@ -50,7 +50,7 @@ The fixture register carries the seed's rows as `x-unseeded`; nothing in `BUGS.m
 
 ## Gate — done when
 
-Per INDEX « Gates »; `python3 scripts/check-mock-seeds.py` (its `schema` arm holds the seed against phase 1's
+~~Per INDEX « Gates »; `python3 scripts/check-mock-seeds.py` (its `schema` arm holds the seed against phase 1's~~
 contract; its `provenance` arm the four-way correspondence).
 
 ## Commit

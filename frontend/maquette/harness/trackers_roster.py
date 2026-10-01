@@ -90,7 +90,10 @@ from playwright.async_api import async_playwright
 SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
 TRACKERS = json.loads((SOURCE / "mocks/seeds/trackers.json").read_text(encoding="utf-8"))
 DOWNLOADS = json.loads((SOURCE / "mocks/seeds/downloads.json").read_text(encoding="utf-8"))
-OBLIGATIONS = json.loads((SOURCE / "mocks/seeds/obligations.json").read_text(encoding="utf-8"))
+# RE-AIMED OUT LOUD (L17): the obligations the layer answers are the real ones AND
+# the invented ones a cross-seed created (`mocks/seeds/cross-seed.json`).
+OBLIGATIONS = (json.loads((SOURCE / "mocks/seeds/obligations.json").read_text(encoding="utf-8"))
+               + json.loads((SOURCE / "mocks/seeds/cross-seed.json").read_text(encoding="utf-8"))["obligations"])
 SCREENS = json.loads((SOURCE / "i18n/fr.json").read_text(encoding="utf-8"))["screens"]
 WORDS = SCREENS["trackers"]
 TORRENT_WORDS = SCREENS.get("torrents", {})

@@ -19,9 +19,9 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 75 |
+| operations the interface requires | 79 |
 | operations the backend has | 65 |
-| required and missing | 24 |
+| required and missing | 28 |
 | declared by both, different response shape | 51 |
 | declared by both, path parameter spelled differently | 15 |
 | declared by both, answered with a different status | 11 |
@@ -38,6 +38,7 @@ than a blank page.
 | `DELETE /api/library/items` | `deleteLibraryItems` | Delete titles from the library |
 | `DELETE /api/staging/media/{mediaId}` | `deleteStagedMedia` | Delete a staged folder from the disk |
 | `DELETE /api/staging/media/{mediaId}/reclassify` | `restoreReclassifiedMedia` | Put a reclassified folder back in the staging area |
+| `DELETE /api/torrents/{infoHash}/cross-seed/exclusions` | `undoCrossSeedExclusion` | Lift an exclusion, of one pair or of a whole title |
 | `GET /api/acquisition/journeys/{infoHash}` | `readJourney` | One medium's ladder, rung by rung |
 | `GET /api/acquisition/releases` | `readReleases` | The release candidates for one wanted item |
 | `GET /api/acquisition/suggestions` | `readSuggestions` | Titles worth following, and why |
@@ -57,7 +58,10 @@ than a blank page.
 | `POST /api/acquisition/journeys/{infoHash}/plex-match` | `resolvePlexMatch` | Confirm or correct the match Plex made for a medium — the Plex match's CORRECTION VERB, OPEN 9's fifth demand; the disagreement is POSED in the maquette (RULINGS 24), the backend compares Plex's real match with the identity held |
 | `POST /api/media/{provider}/{providerId}/rescrape` | `rescrapeMedia` | Ask the providers for one medium's metadata again |
 | `POST /api/staging/media/{mediaId}/reclassify` | `reclassifyStagedMedia` | File a folder that is not a medium where the sort files its kind |
+| `POST /api/torrents/{infoHash}/cross-seed/search` | `searchCrossSeed` | Search a cross-seed for one torrent, on one tracker or on every eligible one |
+| `POST /api/torrents/{infoHash}/cross-seed/{tracker}/cut` | `cutCrossSeed` | Cut one torrent's cross-seed on one tracker |
 | `POST /api/trackers/{tracker}/broken-obligations/{infoHash}/seen` | `markBrokenObligationSeen` | Mark one broken obligation of a tracker seen |
+| `PUT /api/torrents/{infoHash}/cross-seed/exclusions` | `writeCrossSeedExclusion` | Exclude one pair, or a whole title, from the engine's future cross-seed passes |
 
 ## 2. Operations both declare, whose response carries different property names
 
@@ -67,9 +71,9 @@ reports a difference for every optional field and drowns the real findings.
 | operation | the interface adds | the backend has and the interface does not use |
 | --- | --- | --- |
 | `DELETE /api/acquisition/followed/{followedId}` (`deleteFollow`) | `ok` | — |
-| `GET /api/acquisition/downloads` (`readDownloads`) | `addedAt`, `clientAvailable`, `deadline`, `downloadRate`, `downloadedBytes`, `errorReason`, `etaSeconds`, `folder`, `ids`, `infoHash`, `origin`, `poster`, `ratio`, `sizeBytes`, `swarmLeechers`, `swarmSeeds`, `tracker`, `uploadRate`, `uploadedBytes` | `client_available`, `error_reason`, `eta_seconds`, `imdb_id`, `info_hash`, `media_ref`, `size_bytes`, `tmdb_id`, `tvdb_id` |
+| `GET /api/acquisition/downloads` (`readDownloads`) | `addedAt`, `at`, `candidate`, `clientAvailable`, `crossSeed`, `crossSeedQuota`, `deadline`, `delaySeconds`, `downloadRate`, `downloadedBytes`, `entryHash`, `errorReason`, `etaSeconds`, `excluded`, `folder`, `ids`, `infoHash`, `origin`, `pairs`, `perDay`, `poster`, `ratio`, `reason`, `searching`, `sizeBytes`, `stopCause`, `stoppedAt`, `swarmLeechers`, `swarmSeeds`, `titleExcluded`, `tracker`, `uploadRate`, `uploadedBytes`, `used`, `waitReason` | `client_available`, `error_reason`, `eta_seconds`, `imdb_id`, `info_hash`, `media_ref`, `size_bytes`, `tmdb_id`, `tvdb_id` |
 | `GET /api/acquisition/followed` (`readFollows`) | `aired`, `fresh`, `ids`, `poster`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `id`, `imdb_id`, `items`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
-| `GET /api/acquisition/obligations` (`readObligations`) | `accumulatedSeedTimeSeconds`, `addedAt`, `breachedAt`, `dispatchedPath`, `hitAndRunCount`, `infoHash`, `minimumRatio`, `minimumSeedTimeSeconds`, `observedRatio`, `releasedAt`, `satisfiedAt`, `sourceTracker` | `accumulated_seed_time_s`, `added_at`, `breached_at`, `dispatched_path`, `hnr_count`, `info_hash`, `min_ratio`, `min_seed_time_s`, `observed_ratio`, `released_at`, `satisfied_at`, `source_tracker` |
+| `GET /api/acquisition/obligations` (`readObligations`) | `accumulatedSeedTimeSeconds`, `addedAt`, `breachedAt`, `crossSeedOf`, `dispatchedPath`, `hitAndRunCount`, `infoHash`, `media`, `minimumRatio`, `minimumSeedTimeSeconds`, `observedRatio`, `releasedAt`, `satisfiedAt`, `sourceTracker` | `accumulated_seed_time_s`, `added_at`, `breached_at`, `dispatched_path`, `hnr_count`, `info_hash`, `min_ratio`, `min_seed_time_s`, `observed_ratio`, `released_at`, `satisfied_at`, `source_tracker` |
 | `GET /api/acquisition/search` (`searchProviders`) | `followed`, `ids`, `owned`, `poster`, `shown` | `already_owned`, `limit`, `offset`, `poster_url`, `provider`, `provider_id`, `score` |
 | `GET /api/acquisition/status` (`readAcquisitionStatus`) | `cadence`, `nextSearch` | `command`, `deferred`, `ended_at`, `last_successful_run_at`, `name`, `outcome`, `reason`, `recent_runs`, `result`, `run_uid`, `started_at`, `trigger`, `watcher_enabled` |
 | `GET /api/acquisition/to-handle` (`readAcquisitionQueue`) | `absorbedBy`, `arrivals`, `blocked`, `chip`, `droppedByHand`, `failedStep`, `ids`, `inFlight`, `ladder`, `minimumRatio`, `name`, `plexMatch`, `poster`, `release`, `requester`, `rung`, `secondaryLine`, `state`, `steps`, `strip`, `takeable`, `text`, `tone`, `tracker`, `trigger`, `via`, `when`, `withoutPoster` | `candidates_count`, `created_at`, `decision_id`, `degraded`, `followed_id`, `info_hash`, `items`, `kind`, `orphan_count`, `stage`, `year` |

@@ -5,6 +5,7 @@ import { mockState } from "../state";
 import { refused, type MockRoute } from "../router";
 import { configurationFiles, writeFileContent } from "../configuration-files";
 import { activationRefusal } from "./trackers";
+import { stopRunningCrossSeeds } from "./cross-seed";
 
 // Why a file's read is refused: the layer holds no content under that name.
 const UNKNOWN_FILE = "no configuration file carries that name";
@@ -127,6 +128,11 @@ export function configurationRoutes(): MockRoute[] {
             }
           }
         }
+      }
+      // « COUPER AUSSI LES CROSS-SEEDS EN COURS » (round 9 Q5): the running pairs
+      // stop in the SAME call the switch is written by, never a second one.
+      if (request.query.get("stopRunningCrossSeeds") === "true" && typeof asked === "object" && asked !== null) {
+        stopRunningCrossSeeds(asked as Record<string, unknown>);
       }
       held.restartRequired = true;
       return { restartRequired: held.restartRequired, conflict: false };

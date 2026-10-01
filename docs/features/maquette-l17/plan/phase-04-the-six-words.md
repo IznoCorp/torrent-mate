@@ -42,10 +42,10 @@ sentence in `fr.json`; the map has one word per state, the operator's, six of th
    vocabulary lines the arm asks for, the unit test.
 3. The rule, written first and seen red, then green.
 
-## Mutation
+## ~~Mutation~~
 
 Commit first: the helper returns the bare code → the rule falls; delete one sentence → it falls; add a seventh word
-to the map → it falls (the set of six is the rule's data). **Register**: —. **Oracle**: none — no surface draws a
+~~to the map → it falls (the set of six is the rule's data). **Register**: —. **Oracle**: none — no surface draws a~~
 word yet.
 
 ## Gate — done when

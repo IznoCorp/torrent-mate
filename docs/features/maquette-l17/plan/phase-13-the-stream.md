@@ -35,7 +35,7 @@ and the badge WITHOUT a refetch; a `queued` pair resolves within the SAME visit;
    that remains.
 3. R91's fan-out reads the new rules; R-L17-h written first, seen red.
 
-## Mutation
+## ~~Mutation~~
 
 Commit first: leave a rule out of `features/trackers/live.ts` → the state stops moving and R-L17-h falls; put a
 name back in the exemption → falls; make a rule refresh every key → the « nothing else » hold falls; leave a
@@ -45,9 +45,9 @@ name back in the exemption → falls; make a rule refresh every key → the « n
 
 **B-145's reading half** is what this phase serves; the row is annotated at the close (phase 18), never edited here.
 
-## Oracle and gate — done when
+## ~~Oracle and gate — done when~~
 
-Oracle: none — a live rule moves no rectangle. Gate: per INDEX « Gates »; the R91 fan-out under `--contracts`.
+~~Oracle: none — a live rule moves no rectangle. Gate: per INDEX « Gates »; the R91 fan-out under `--contracts`.~~
 
 ## Commit
 

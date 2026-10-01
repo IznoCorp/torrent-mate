@@ -35,21 +35,21 @@ that is not carries neither. Red against `main`: no field, no mark.
 3. The mark in the Torrents tab's obligation mark; `data-part="torrents/obligation-origin"`; the state in
    `harness/states/trackers.ts`.
 
-## Mutation
+## ~~Mutation~~
 
 Commit first: drop the mark → R-L17-d falls; mark every obligation → its absence hold falls; point the path at the
 obligation's own title → the path hold falls.
 
 **Register**: demand D filed by the regenerated register; nothing in `BUGS.md`.
 
-## Oracle: states that diverge, declared by name
+## ~~Oracle: states that diverge, declared by name~~
 
 L16's `torrents-list` where an obligation is a cross-seed's — accepted with « L17 § 3.4: the obligation's origin ».
-Any other divergence is STOP A.
+~~Any other divergence is STOP A.~~
 
 ## Gate — done when
 
-Per INDEX « Gates »; `python3 scripts/compare-contracts.py --check`; `python3 scripts/check-mock-seeds.py`.
+~~Per INDEX « Gates »; `python3 scripts/compare-contracts.py --check`; `python3 scripts/check-mock-seeds.py`.~~
 
 ## Commit
 

@@ -108,6 +108,13 @@ export type Alert = {
   breached: Set<string>;
   /** Per tracker, its broken obligations whose torrent is gone and that nobody has seen yet. */
   unseen: Map<string, number>;
+  /**
+   * Per tracker, its cross-seed FAILURES — the server's own count, narrowed to the
+   * two failure families (OPEN 8 = A): never a mismatch, never « sans
+   * correspondance ». A STATE, not an event: it leaves the count the moment its
+   * pair stops reading failed, with no « seen » gesture (M5).
+   */
+  crossSeedFailed: Map<string, number>;
 };
 
 /**
@@ -119,7 +126,8 @@ export type Alert = {
  * and one the operator switched off counts nothing: his choice is no fault; an obligation is in breach when it
  * is broken, neither met nor released, on an entry still in the client; a
  * broken obligation whose torrent is gone counts until it is marked seen, one
- * unit each.
+ * unit each; a cross-seed failure counts while its pair reads failed, one unit
+ * each, as the server counts it.
  *
  * @param trackers The trackers' summary.
  * @param downloads The client's entries.
@@ -141,6 +149,7 @@ export function alertOf(trackers: Tracker[], downloads: Download[], obligations:
     unseen: new Map(trackers.map((tracker) => [
       tracker.name, tracker.brokenObligations.filter((row) => !row.seen).length,
     ])),
+    crossSeedFailed: new Map(trackers.map((tracker) => [tracker.name, tracker.crossSeed.failed])),
   };
 }
 
@@ -155,8 +164,9 @@ export function trackersBadge(): number {
   const downloads = sharedQueryClient?.getQueryData<Schemas["Downloads"]>(downloadsKey)?.downloads ?? [];
   const obligations = sharedQueryClient?.getQueryData<Schemas["Obligations"]>(obligationsKey)?.items ?? [];
   const alert = alertOf(trackers, downloads, obligations);
-  const unseen = [...alert.unseen.values()].reduce((total, count) => total + count, 0);
-  return alert.under.size + alert.failed.size + alert.breached.size + unseen;
+  const sum = (counts: Map<string, number>) => [...counts.values()].reduce((total, count) => total + count, 0);
+  // THE CROSS-SEED'S FAILURES JOIN THE BADGE (ruling 12, OPEN 8 = A): failures only.
+  return alert.under.size + alert.failed.size + alert.breached.size + sum(alert.unseen) + sum(alert.crossSeedFailed);
 }
 
 /**
