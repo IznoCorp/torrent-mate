@@ -87,8 +87,11 @@ answer
 answered
 any
 anywhere
+app
 appearance
 appearances
+apple
+application
 applied
 apply
 arbitration
@@ -155,6 +158,7 @@ brand
 breached
 broken
 bridge
+browser
 btn
 bugs
 build
@@ -332,6 +336,7 @@ delivering
 delivery
 delsel
 delta
+deps
 design
 dense
 depart
@@ -381,6 +386,7 @@ done
 door
 doors
 dot
+doubled
 down
 download
 downloading
@@ -425,6 +431,7 @@ enrichment
 entries
 entry
 envelope
+environment
 ep
 episode
 episodes
@@ -464,6 +471,7 @@ families
 family
 fast
 faults
+fcm
 feature
 feed
 feedback
@@ -487,6 +495,8 @@ find
 finger
 finish
 finished
+fire
+firebase
 first
 fkind
 flatten
@@ -535,6 +545,7 @@ gate
 gauche
 gauge
 generation
+generic
 geometry
 gesture
 get
@@ -642,6 +653,7 @@ into
 invalid
 inverted
 ios
+iphone
 is
 issued
 item
@@ -728,6 +740,7 @@ loop
 loose
 lossy
 lost
+mac
 main
 maintact
 maintenance
@@ -757,6 +770,7 @@ membership
 memory
 menu
 message
+messaging
 met
 meta
 method
@@ -825,6 +839,7 @@ notfound
 nothing
 notice
 noticed
+notification
 now
 nowhere
 number
@@ -924,6 +939,7 @@ pipeline
 pitch
 pixels
 place
+placeholder
 places
 plain
 platform
@@ -1115,6 +1131,7 @@ returns
 reused
 reversed
 revisited
+revoke
 rich
 right
 rightless
@@ -1170,6 +1187,7 @@ scroll
 scrolled
 scroller
 scrollport
+sdk
 seam
 seams
 search
@@ -1199,6 +1217,7 @@ selected
 selecting
 selection
 selector
+self
 selmode
 semibold
 send
@@ -1333,6 +1352,7 @@ sugmode
 sugmore
 suite
 sum
+support
 surf
 surface
 surfaces
@@ -1365,8 +1385,10 @@ teardown
 temp
 template
 term
+test
 testid
 text
+texts
 that
 thawed
 the
@@ -1451,6 +1473,7 @@ unnamed
 unreachable
 unread
 unreadable
+unregister
 unsearched
 unseen
 unset
@@ -1482,6 +1505,8 @@ via
 view
 viewport
 virtual
+web
+windows
 # TWO SPELLINGS ON PURPOSE, and neither is a slip: `virtualised` is ours and
 # `virtualizer` is `@tanstack/react-virtual`'s own export (`useVirtualizer`),
 # which cannot be renamed. A reader tidying one of them away breaks a build.
