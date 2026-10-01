@@ -14,13 +14,20 @@ posed 60 minutes ago):
 1. the list draws no section title — « Mis de côté » apart;
 2. its order is urgency: the judgement's cards first, then the external blocks
    newest first, then the closure;
-3. the filter pill reads « Tout » and the number of cards drawn, not pressed;
-4. a finger on it opens the panel of causes, in order, each with its count;
+3. the filter pill reads « Tout » and the number of cards drawn, not pressed,
+   and the Acquisition badge says that same number;
+4. a finger on it opens the panel of causes, in order, each with ITS count —
+   the posed state's composition, cause by cause, never merely a figure (r3 of
+   the lot's reading: a `todoCounts` answering 0 everywhere stayed green);
 5. a choice filters — « Disque plein » keeps its one card; the pill says it,
-   pressed, with its count; the Acquisition badge does not move;
+   pressed, with its count; the Acquisition badge does not move: « Tout »'s
+   count, before the filter and after it;
 6. the sort pill's « Plus ancien » orders every card by its time, oldest first —
    the closure among the external blocks, the cards with no time last;
-7. after a reload, the filter and the sort chosen are still in force.
+7. after a reload, the filter and the sort chosen are still in force — and the
+   LIST says so: « Service injoignable » sorted « Plus ancien » draws its two
+   cards, oldest first, once the state is posed again (the mock's world resets
+   with the document; the remembered dials do not) (r5).
 
 Red before the lot: the tab draws three titled sections and no pill.
 """
@@ -40,6 +47,20 @@ ORDER = ["all", "resolve", "plex", "step", "disks", "ratio", "unreachable", "clo
 EXTERNAL_NEWEST = ["President Curtis", "Conclave", "This City Is Ours", "Silo|S03"]
 # The closure it poses, not yet seen — the third group.
 CLOSED = "The Alabama Solution"
+# What the state poses, cause by cause — what each choice of the filter counts.
+COMPOSITION = {"all": 9, "resolve": 3, "plex": 0, "step": 1, "disks": 1, "ratio": 1, "unreachable": 2, "closed": 1}
+# « Service injoignable », oldest first: c411 down 90 minutes, TMDB 20.
+UNREACHABLE_OLDEST = ["Silo|S03", "Conclave"]
+# The two « Service injoignable » blocks posed again after the reload, in the
+# dense world, without a named state's reset of the remembered dials.
+REPOSE = """() => {
+  window.__mocks.reset();
+  window.__mocks.poseBlock('Silo|S03', 'tracker_unreachable', {tracker: 'c411', minutesAgo: 90});
+  window.__mocks.poseBlock('Conclave', 'provider_unreachable', {provider: 'TMDB', minutesAgo: 20});
+  window.__queries.removeQueries({queryKey: ['/api/acquisition/to-handle']});
+  window.__queries.removeQueries({queryKey: ['/api/staging/media']});
+  window.__store.write({scen: 'loaded', page: 'acq', acqTab: 'todo'});
+}"""
 # Every card with a time, oldest first: the blocks and the closure mixed.
 TIMED_OLDEST = ["Silo|S03", CLOSED, "This City Is Ours", "Conclave", "President Curtis"]
 
@@ -110,20 +131,24 @@ async def main():
                       filter_pill is not None and filter_pill["text"] == FILTERS.get("all")
                       and filter_pill["count"] == str(len(keys)) and not filter_pill["pressed"], repr(filter_pill))
         badge = await page.evaluate(BADGE)
+        journal.check("the Acquisition badge says « Tout »'s count",
+                      filter_pill is not None and badge == filter_pill["count"] == str(COMPOSITION["all"]),
+                      f"badge {badge} · pill {filter_pill and filter_pill['count']}")
 
         await tap(page, '#view [data-part="pill/select"][data-todo-filter-pill]')
         choices = await page.evaluate(CHOICES)
-        journal.check("a finger on it opens every cause, in order, each with its count, « Tout » checked",
+        journal.check("a finger on it opens every cause, in order, each with the count the state poses, « Tout » checked",
                       choices is not None and [choice["text"] for choice in choices] == [FILTERS.get(key) for key in ORDER]
-                      and all(choice["hint"][:1].isdigit() for choice in choices) and choices[0]["checked"],
-                      repr(choices))
+                      and [choice["hint"].split(" ")[0] for choice in choices] == [str(COMPOSITION[key]) for key in ORDER]
+                      and choices[0]["checked"], repr(choices))
         await tap(page, f'#sheet[data-open] [data-part="option"]:has-text("{FILTERS.get("disks")}")')
         read = await page.evaluate(LIST)
         journal.check(f"« {FILTERS.get('disks')} » keeps its one card; the pill says it, pressed, with its count",
                       read is not None and read["keys"] == ["This City Is Ours"] and read["filter"]["text"] == FILTERS.get("disks")
                       and read["filter"]["pressed"] and read["filter"]["count"] == "1", repr(read))
-        journal.check("the badge counts the whole list, whatever the filter shows",
-                      badge is not None and await page.evaluate(BADGE) == badge, f"{badge} -> {await page.evaluate(BADGE)}")
+        after = await page.evaluate(BADGE)
+        journal.check("the badge counts the whole list, whatever the filter shows: « Tout »'s count, before and after",
+                      badge == after == str(COMPOSITION["all"]), f"{badge} -> {after}")
 
         await choose(page, "data-todo-filter-pill", FILTERS.get("all"))
         await choose(page, "data-todo-sort-pill", SORTS.get("oldest"))
@@ -132,15 +157,24 @@ async def main():
                       read is not None and read["keys"][:len(TIMED_OLDEST)] == TIMED_OLDEST
                       and read["sort"]["text"] == SORTS.get("oldest") and read["sort"]["pressed"], repr(read))
 
-        await choose(page, "data-todo-filter-pill", FILTERS.get("disks"))
+        await choose(page, "data-todo-filter-pill", FILTERS.get("unreachable"))
         await page.reload(wait_until="load")
         await page.evaluate("()=>window.__loadingDone?.()")
         await page.wait_for_timeout(SETTLED)
         await tap(page, '[data-acqtab="todo"]')
         read = await page.evaluate(LIST)
         journal.check("after a reload, the filter and the sort chosen are still in force",
-                      read is not None and read["filter"] is not None and read["filter"]["text"] == FILTERS.get("disks")
+                      read is not None and read["filter"] is not None and read["filter"]["text"] == FILTERS.get("unreachable")
                       and read["sort"]["text"] == SORTS.get("oldest"), repr(read))
+        # THE TWO UNREACHABLE BLOCKS POSED AGAIN, the dials untouched (a named
+        # state pins its own): the list itself is filtered and sorted.
+        await page.evaluate(REPOSE)
+        await page.wait_for_timeout(SETTLED)
+        read = await page.evaluate(LIST)
+        journal.check(f"and the list drawn is « {FILTERS.get('unreachable')} » sorted « {SORTS.get('oldest')} »: "
+                      f"{UNREACHABLE_OLDEST}",
+                      read is not None and read["keys"] == UNREACHABLE_OLDEST
+                      and read["filter"]["count"] == str(len(UNREACHABLE_OLDEST)), repr(read))
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()
