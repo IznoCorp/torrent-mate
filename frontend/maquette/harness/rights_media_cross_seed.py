@@ -48,12 +48,16 @@ ANSWERS = """async (address) => {
   return { answer, downloads: downloads.downloads };
 }"""
 
-# One identity signed in, its reads dropped, the same sheet opened again.
-AS = """async ([identity, title]) => {
+# One identity signed in AWAY from the sheet, its reads dropped: what was asked so far is counted.
+AS = """async (identity) => {
+  window.__go('profile');
   window.__mocks.setIdentity(identity);
   await window.__queries.resetQueries();
-  window.__screens.mediaSheet(title, window.__carriedFor(title) ?? undefined);
+  return window.__mocks.answered().filter((call) => call.operationId === 'readMediaCrossSeed').length;
 }"""
+
+# The same sheet, opened again under that identity.
+OPEN = "(title) => window.__screens.mediaSheet(title, window.__carriedFor(title) ?? undefined)"
 
 
 async def main():
@@ -95,8 +99,9 @@ async def main():
         for identity in IDENTITIES:
             await page.evaluate("()=>window.__go('media-cross-seed')")
             await page.wait_for_timeout(SETTLED)
-            before = (await page.evaluate(READ))["asked"]
-            await page.evaluate(AS, [identity, TITLE])
+            before = await page.evaluate(AS, identity)
+            await page.wait_for_timeout(SETTLED)
+            await page.evaluate(OPEN, TITLE)
             await page.wait_for_timeout(SETTLED)
             read = await page.evaluate(READ)
             journal.check(f"R-L18-w: {identity} sees no block on the same sheet", not read["block"] and not read["rows"],

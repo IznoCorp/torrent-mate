@@ -18,6 +18,7 @@
 // panel does. The trailer is a plain `<a>` WITHOUT `data-navgo` — that same
 // delegation must not preventDefault an external link.
 import { useEngineDrawing } from "../../lib/engine-drawing";
+import type { ReactNode } from "react";
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { sheetHeadingPlace, synopsisText } from "./variants";
@@ -36,10 +37,16 @@ import type { Follow, MediaSheetFields } from "./sheet-fields";
 import { bridge } from "../../lib/shell-doors";
 import { baseTitle } from "../../lib/titles";
 
-/** What the route hands the screen: the follows, owned by another feature, so they compose in the route. */
-export type MediaScreenProperties = { readFollows: () => unknown[] };
+/**
+ * What the route hands the screen, owned by other features, so they compose in
+ * the route: the follows, and the cross-seed block drawn for the address.
+ */
+export type MediaScreenProperties = {
+  readFollows: () => unknown[];
+  crossSeed: (provider: string, id: string) => ReactNode;
+};
 
-export function MediaScreen({ readFollows }: MediaScreenProperties) {
+export function MediaScreen({ readFollows, crossSeed }: MediaScreenProperties) {
   // The address names a PROVIDER ID (DOIT-11), and it is all the screen needs
   // to ask. The title is the sheet's own once the read lands, and what the tap
   // knew while it is out; an id nobody carries answers nothing and the screen
@@ -316,6 +323,10 @@ export function MediaScreen({ readFollows }: MediaScreenProperties) {
           />
 
           <MediaDetails title={title} isFilm={isFilm} owns={owns} followed={followed} follows={follows} prov={prov} inFlight={inFlight} identified={identified} metadataRefreshedAt={sheet?.metadataRefreshedAt ?? null} />
+
+          {/* BELOW THE SHEET'S OWN CONTENT, the medium's cross-seed (§ 19) —
+              the trackers feature's block, for whoever may see the trackers. */}
+          {crossSeed(provider, id)}
 
           <div className="note" data-part="note">
             <b>{t("screens.media.noteTitle")}</b> {t("screens.media.noteBody")}

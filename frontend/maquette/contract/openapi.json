@@ -764,6 +764,67 @@
         ]
       }
     },
+    "/api/media/{provider}/{providerId}/cross-seed": {
+      "get": {
+        "operationId": "readMediaCrossSeed",
+        "summary": "The medium's cross-seed, tracker by tracker",
+        "description": "Demand C (L17's first drawing, taken over by L18, F25): for each origin torrent of the medium still in the client, its state on every other eligible tracker. Gated by `trackers.view`, the same right as the Trackers page it summarises (L18 DESIGN § 1.2), refused 403 to an account without it. Read once per visit of the sheet, never polled (R-L17-k); the stream's cross-seed events refresh it.",
+        "tags": [
+          "media",
+          "trackers"
+        ],
+        "responses": {
+          "200": {
+            "description": "the medium's origin torrents and their pairs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaCrossSeed"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "tmdb or tvdb"
+          },
+          {
+            "name": "providerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the identifier at that provider"
+          }
+        ]
+      }
+    },
     "/api/media/{provider}/{providerId}/rescrape": {
       "post": {
         "operationId": "rescrapeMedia",
@@ -9149,6 +9210,58 @@
           "infoHash",
           "title",
           "media"
+        ]
+      },
+      "MediaCrossSeedOrigin": {
+        "type": "object",
+        "description": "one ORIGIN torrent of the medium in the download client, with its cross-seed pairs — the same pairs the downloads read carries on that origin's row (R-L17-b). invented: no fixture exists for the cross-seed (L17 DESIGN § 2.3)",
+        "properties": {
+          "infoHash": {
+            "type": "string",
+            "description": "the origin entry's hash"
+          },
+          "name": {
+            "type": "string",
+            "description": "the torrent's name in the client"
+          },
+          "tracker": {
+            "type": "string",
+            "description": "the tracker the origin was grabbed on"
+          },
+          "pairs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CrossSeedPair"
+            },
+            "description": "one per other eligible tracker, in the operator's six words"
+          },
+          "titleExcluded": {
+            "type": "boolean",
+            "description": "whether « Ne plus partager ce titre » excluded the whole title"
+          }
+        },
+        "required": [
+          "infoHash",
+          "name",
+          "tracker",
+          "pairs",
+          "titleExcluded"
+        ]
+      },
+      "MediaCrossSeed": {
+        "type": "object",
+        "description": "the media sheet's cross-seed block (demand C, § 19: « un bloc par tracker, réservé au profil administrateur »), taken over by L18 from L17 (F25). invented: no fixture exists for the cross-seed (L17 DESIGN § 2.3)",
+        "properties": {
+          "torrents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MediaCrossSeedOrigin"
+            },
+            "description": "every origin torrent of the medium still in the client; empty when none is"
+          }
+        },
+        "required": [
+          "torrents"
         ]
       }
     },

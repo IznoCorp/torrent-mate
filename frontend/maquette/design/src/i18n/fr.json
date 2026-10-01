@@ -1256,6 +1256,10 @@
         "offStoppedDetail": "Plus aucun nouveau cross-seed ici, et ceux qui tournaient ont été coupés.",
         "label": "Cross-seed sur {{tracker}}",
         "nextPass": "Pris en compte à la prochaine passe du moteur."
+      },
+      "media": {
+        "heading": "Cross-seed, tracker par tracker",
+        "origin": "{{name}} — l'original, sur {{tracker}}"
       }
     }
   },

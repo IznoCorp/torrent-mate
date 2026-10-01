@@ -200,6 +200,23 @@ export function rightsStates(): NamedState[] {
       },
     ],
     [
+      "media-cross-seed",
+      "Droits — la fiche d'un média en cross-seed : son bloc tracker par tracker, pour qui voit les trackers",
+      () => {
+        applyState({ page: "lib", phase: "ready" });
+        window.__screens.mediaSheet(OWNED, window.__carriedFor(OWNED) ?? undefined);
+      },
+    ],
+    [
+      "media-cross-seed-hidden",
+      "Droits — la même fiche pour un membre du foyer : sans le droit de voir les trackers, aucun bloc cross-seed",
+      () => {
+        as("household-member");
+        applyState({ page: "lib", phase: "ready" });
+        window.__screens.mediaSheet(OWNED, window.__carriedFor(OWNED) ?? undefined);
+      },
+    ],
+    [
       "profile-household",
       "Droits — Profil d'un membre du foyer : son rôle, ce qu'il peut faire, et qui détient le reste",
       () => {

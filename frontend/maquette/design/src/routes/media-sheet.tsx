@@ -13,12 +13,20 @@ import { createRoute } from "@tanstack/react-router";
 import { rootRoute } from "../app/root-route";
 import { followActions } from "../features/acquisition/queries";
 import { MediaScreen } from "../features/media/media-screen";
+import { MediaCrossSeed } from "../features/trackers/media-cross-seed";
 
-// THE FOLLOWS COMPOSE HERE. The media screen says whether its medium is
-// followed, and the follows are the acquisition feature's: two features never
-// import each other (invariant 7), so the route hands one to the other.
+// THE FOLLOWS AND THE CROSS-SEED COMPOSE HERE. The media screen says whether its
+// medium is followed, and the follows are the acquisition feature's; it shows
+// the medium's cross-seed, and that block is the trackers feature's: two
+// features never import each other (invariant 7), so the route hands one to
+// the other.
 function MediaRouteScreen() {
-  return <MediaScreen readFollows={() => followActions?.all() ?? []} />;
+  return (
+    <MediaScreen
+      readFollows={() => followActions?.all() ?? []}
+      crossSeed={(provider, id) => <MediaCrossSeed provider={provider} identifier={id} />}
+    />
+  );
 }
 
 // The media sheet: ONE screen for every medium, reached from a poster, a tile,

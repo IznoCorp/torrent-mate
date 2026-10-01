@@ -107,6 +107,8 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   readTrackers: "trackers.view",
   readDownloads: "trackers.view",
   readObligations: "trackers.view",
+  // THE MEDIA SHEET'S BLOCK summarises the Trackers page: the same right (L18 § 1.2).
+  readMediaCrossSeed: "trackers.view",
   removeDownload: "trackers.control",
   markBrokenObligationSeen: "trackers.control",
   cutCrossSeed: "trackers.control",

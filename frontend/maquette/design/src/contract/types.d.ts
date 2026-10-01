@@ -181,6 +181,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/media/{provider}/{providerId}/cross-seed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The medium's cross-seed, tracker by tracker
+         * @description Demand C (L17's first drawing, taken over by L18, F25): for each origin torrent of the medium still in the client, its state on every other eligible tracker. Gated by `trackers.view`, the same right as the Trackers page it summarises (L18 DESIGN § 1.2), refused 403 to an account without it. Read once per visit of the sheet, never polled (R-L17-k); the stream's cross-seed events refresh it.
+         */
+        get: operations["readMediaCrossSeed"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/media/{provider}/{providerId}/rescrape": {
         parameters: {
             query?: never;
@@ -2498,6 +2518,24 @@ export interface components {
             /** @description the origin's provider IDs, the path to its sheet (NE-DOIT-PAS-9), or null when unidentified */
             media: components["schemas"]["ProviderIds"] | null;
         };
+        /** @description one ORIGIN torrent of the medium in the download client, with its cross-seed pairs — the same pairs the downloads read carries on that origin's row (R-L17-b). invented: no fixture exists for the cross-seed (L17 DESIGN § 2.3) */
+        MediaCrossSeedOrigin: {
+            /** @description the origin entry's hash */
+            infoHash: string;
+            /** @description the torrent's name in the client */
+            name: string;
+            /** @description the tracker the origin was grabbed on */
+            tracker: string;
+            /** @description one per other eligible tracker, in the operator's six words */
+            pairs: components["schemas"]["CrossSeedPair"][];
+            /** @description whether « Ne plus partager ce titre » excluded the whole title */
+            titleExcluded: boolean;
+        };
+        /** @description the media sheet's cross-seed block (demand C, § 19: « un bloc par tracker, réservé au profil administrateur »), taken over by L18 from L17 (F25). invented: no fixture exists for the cross-seed (L17 DESIGN § 2.3) */
+        MediaCrossSeed: {
+            /** @description every origin torrent of the medium still in the client; empty when none is */
+            torrents: components["schemas"]["MediaCrossSeedOrigin"][];
+        };
     };
     responses: {
         /** @description the request failed, and the reason is the real one (NE-DOIT-PAS-4, NE-DOIT-PAS-5) */
@@ -2854,6 +2892,37 @@ export interface operations {
                             [key: string]: number | null;
                         };
                     };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    readMediaCrossSeed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description tmdb or tvdb */
+                provider: string;
+                /** @description the identifier at that provider */
+                providerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the medium's origin torrents and their pairs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaCrossSeed"];
                 };
             };
             400: components["responses"]["Problem"];

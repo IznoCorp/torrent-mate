@@ -554,6 +554,7 @@ heir
 held
 hello
 hero
+hidden
 hide
 hint
 hints
