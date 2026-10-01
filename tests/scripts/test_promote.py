@@ -36,6 +36,8 @@ if args[:1] == ["api"]:
         print("[]")
 elif args[:2] == ["pr", "create"]:
     print("https://github.test/pull/900")
+elif args[:2] == ["pr", "merge"] and answers.get("refuse_merge"):
+    sys.exit(1)
 """
 
 
@@ -119,13 +121,14 @@ class Flow:
         }
         self._next_pr = 100
 
-    def commit(self, branch: str, version: str, message: str) -> str:
+    def commit(self, branch: str, version: str, message: str, files: dict[str, str] | None = None) -> str:
         """Commits a version on `branch` in the seed clone and pushes it.
 
         Args:
             branch: The branch to commit on (checked out from origin if needed).
             version: The `__version__` the commit carries.
             message: The commit subject.
+            files: Other files the commit writes, path to content.
 
         Returns:
             The new commit's SHA.
@@ -139,6 +142,8 @@ class Flow:
         init.parent.mkdir(exist_ok=True)
         init.write_text(f'__version__ = "{version}"\n', encoding="utf-8")
         (self.seed / f"{message.split(':')[0]}-{version}.txt").write_text(message, encoding="utf-8")
+        for path, content in (files or {}).items():
+            (self.seed / path).write_text(content, encoding="utf-8")
         _git(self.seed, "add", "-A")
         _git(self.seed, "commit", "-q", "-m", message)
         _git(self.seed, "push", "-q", "origin", f"HEAD:refs/heads/{branch}")
@@ -406,18 +411,58 @@ def test_dry_run_still_refuses(flow: Flow) -> None:
 
 
 def test_backport_pushes_prod_and_opens_a_merge_pr_into_develop(flow: Flow) -> None:
-    """The tip of prod lands on backport/<name>; its PR targets develop, auto-merge by MERGE commit."""
-    flow.merged_pr("0.1.1")
+    """Prod's tip, merged with develop, lands on backport/<name>; its PR targets develop, auto-merge by MERGE commit."""
+    develop = flow.merged_pr("0.1.1")
     hotfix = flow.commit("prod", "0.1.0.1", "fix: urgent (#7)")
     done = flow.promote("backport", "urgent")
     assert done.returncode == 0, _out(done)
-    assert flow.tip("backport/urgent") == hotfix
+    assert "auto-merge armed" in done.stdout
+    backport = flow.tip("backport/urgent")
+    assert _git(flow.origin, "rev-parse", f"{backport}^1", f"{backport}^2").split() == [hotfix, develop]
     calls = flow.gh_calls()
     create = next(c for c in calls if c[:2] == ["pr", "create"])
     assert create[create.index("--base") + 1] == "develop"
     assert create[create.index("--head") + 1] == "backport/urgent"
     merge = next(c for c in calls if c[:2] == ["pr", "merge"])
     assert "--auto" in merge and "--merge" in merge and "--squash" not in merge
+
+
+def test_backport_resolves_the_version_conflict_to_develops_next_patch(flow: Flow) -> None:
+    """Prod's X.Y.Z.1 against develop's X.Y.(Z+n): the branch carries develop's version bumped, and the hotfix."""
+    flow.merged_pr("0.1.4")
+    flow.commit("prod", "0.1.0.1", "fix: urgent (#7)")
+    done = flow.promote("backport", "urgent")
+    assert done.returncode == 0, _out(done)
+    backport = flow.tip("backport/urgent")
+    init = _git(flow.origin, "show", f"{backport}:personalscraper/__init__.py")
+    assert init == '__version__ = "0.1.5"'
+    assert _git(flow.origin, "show", f"{backport}:fix-0.1.0.1.txt") == "fix: urgent (#7)"
+    assert _git(flow.origin, "show", f"{backport}:feat-0.1.4.txt") == "feat: change 0.1.4 (#101)"
+    assert len(_git(flow.work, "worktree", "list").splitlines()) == 1
+
+
+def test_backport_refuses_any_other_conflict_and_pushes_nothing(flow: Flow) -> None:
+    """A conflict beyond `__version__` is the hand's: no branch, no PR, the file named."""
+    flow.commit("develop", "0.1.1", "feat: a (#101)", files={"shared.txt": "develop's\n"})
+    flow.commit("prod", "0.1.0.1", "fix: b (#7)", files={"shared.txt": "prod's\n"})
+    done = flow.promote("backport", "urgent")
+    assert done.returncode == 1, _out(done)
+    assert "shared.txt" in done.stderr
+    assert flow.tip("backport/urgent") == ""
+    assert len(_git(flow.work, "worktree", "list").splitlines()) == 1
+    assert not any(c[:1] == ["pr"] for c in flow.gh_calls())
+
+
+def test_backport_says_when_arming_auto_merge_failed(flow: Flow) -> None:
+    """The PR is open but not armed: said with its number and a non-zero exit, never « armed »."""
+    flow.merged_pr("0.1.1")
+    flow.commit("prod", "0.1.0.1", "fix: urgent (#7)")
+    flow.answers["refuse_merge"] = True
+    done = flow.promote("backport", "urgent")
+    assert done.returncode == 1, _out(done)
+    assert "armed" not in done.stdout
+    assert "pull/900" in done.stderr and "backport/urgent" in done.stderr
+    assert flow.tip("backport/urgent") != ""
 
 
 def test_backport_refuses_when_prod_is_already_on_develop(flow: Flow) -> None:

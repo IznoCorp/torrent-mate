@@ -148,7 +148,7 @@ Rules the table implies:
 - **The version**: every PR into `develop` bumps the patch (`0.98.131 → 0.98.132`); promotions bump nothing. The
   release tag on `prod` is `v` + the `__version__` of the promoted commit (DECIDED 2). A hotfix bumps a fourth component
   from prod's version (`0.98.131 → 0.98.131.1`): it can never collide with a patch number `develop` has already used,
-  and the merge-back keeps `develop`'s (higher) version.
+  and the merge-back takes `develop`'s (higher) version plus one patch (§ 3.7).
 - **The API versions**: § 3.8.
 
 ## 3. What changes, file by file
@@ -159,8 +159,9 @@ A plain script any session runs — the orchestrator or any agent (DECIDED 1); i
 `scripts/promote.sh <main|staging|prod> [<sha>]`; `<sha>` defaults to the source branch's tip. Source of each target:
 `main ← develop`, `staging ← main`, `prod ← staging`. `scripts/promote.sh tag` tags `prod`'s tip alone (rule 4), for
 a hotfix that reached `prod` through its PR (§ 3.7). `scripts/promote.sh backport <c>` is a hotfix's merge-back
-(§ 3.7 step 3): it pushes `prod`'s tip to `backport/<c>` and opens its PR into `develop` with auto-merge armed by the
-MERGE method; it refuses when `prod` is already an ancestor of `develop` (nothing to bring back). A promotion refuses,
+(§ 3.7 step 3): it merges `develop` into `prod`'s tip, pushes that merge to `backport/<c>` and opens its PR into
+`develop` with auto-merge armed by the MERGE method; it refuses when `prod` is already an ancestor of `develop`
+(nothing to bring back). A promotion refuses,
 with one line saying why, unless ALL hold:
 
 1. `<sha>` is on the source branch (`git merge-base --is-ancestor <sha> origin/<source>`).
@@ -257,10 +258,14 @@ poller.
 1. `git switch -c hotfix/<c> origin/prod`; fix with its regression test; bump `__version__` to prod's plus `.1`.
 2. PR `hotfix/<c>` → `prod`, squash, auto-merge armed; CI runs (trigger § 3.4). At its merge `prod` moves; the poller
    deploys it; the orchestrator tags it (`scripts/promote.sh tag` — the tag arm alone, rule 4).
-3. Merge-back: `scripts/promote.sh backport <c>` — it pushes `prod`'s tip to `backport/<c>` and opens the PR
-   `backport/<c>` → `develop`, auto-merge armed with the MERGE method (a merge commit makes `prod`'s tip an ancestor of
-   `develop`, which is what restores § 0's chain; a squash would not). A conflict on `__version__` is resolved on
-   `backport/<c>` by keeping `develop`'s. `delete_branch_on_merge` deletes `backport/<c>`.
+3. Merge-back: `scripts/promote.sh backport <c>` — it merges `develop` into `prod`'s tip in a throwaway worktree,
+   pushes the merge to `backport/<c>` and opens the PR `backport/<c>` → `develop`, auto-merge armed with the MERGE
+   method (a merge commit makes `prod`'s tip an ancestor of `develop`, which is what restores § 0's chain; a squash
+   would not). `__version__` always conflicts (prod's `X.Y.Z.1` against develop's `X.Y.(Z+n)`): the script resolves
+   it to `develop`'s version bumped one patch, so the PR carries a real bump and `version-bump` passes with no label.
+   Any other conflict stops it before a push, naming the file to resolve by hand. It says « auto-merge armed » only
+   when `gh pr merge --auto` succeeded; otherwise it names the pushed branch and the PR and exits non-zero.
+   `delete_branch_on_merge` deletes `backport/<c>`.
 4. Until the backport merges, a promotion to `prod` is refused by rule 2 — by design. `main` and `staging` then
    receive the hotfix with the next promotions, and the chain is whole again.
 
@@ -305,8 +310,10 @@ Preconditions: #672 merged or retargeted; no PR armed into `main` but the cut-ov
 4. Rulesets: create `develop`, `prod`, `staging` from `docs/features/git-flow/rulesets/*.json`; amend `main`
    (`gh api -X PUT …/rulesets/15201125 --input …`). Default branch → `develop`
    (`gh api -X PATCH repos/IznoCorp/torrent-mate -f default_branch=develop`).
-5. Clones: in `~/deploy/torrentmate`, `git switch -c prod --track origin/prod` (same SHA `S`, no file changes); in
-   `~/staging/torrentmate`, `git switch -C staging origin/staging` (tree clean, the deploy script requires it).
+5. Clones: in each, `git fetch origin` first — the stopped poller fetched only `main` and `staging`, so neither clone
+   knows `origin/prod` nor `staging`'s new tip. Then in `~/deploy/torrentmate`, `git switch -c prod --track
+   origin/prod` (same SHA `S`, no file changes); in `~/staging/torrentmate`, `git switch -C staging origin/staging`
+   (tree clean, the deploy script requires it).
 6. Deploy once by hand, which proves the new scripts: `bash scripts/deploy.sh` in the prod clone (guard on `prod`,
    `/api/version` serves `S`), `bash scripts/deploy-staging.sh` in the staging clone (`staging @ S`).
 7. `pm2 restart torrentmate-autodeploy` (loads the new poller); `pm2 logs torrentmate-autodeploy --lines 5 --nostream`
@@ -318,8 +325,9 @@ Preconditions: #672 merged or retargeted; no PR armed into `main` but the cut-ov
 
 **Rollback**, at any step, in reverse: `pm2 stop torrentmate-autodeploy`; restore the `main` ruleset from the saved JSON
 and delete the three new ones; default branch → `main`; the prod clone `git switch main` (still `S`), the staging clone
-`git switch -C staging origin/staging` after `git push --force origin refs/tags/archive/staging-2026-08-14:refs/heads/staging`
-if the old playground is wanted back; revert the cut-over commit by a PR into `main`; `pm2 restart
+`git fetch origin && git switch -C staging origin/staging` after
+`git push --force origin refs/tags/archive/staging-2026-08-14:refs/heads/staging` if the old playground is wanted back
+(without the fetch the clone switches to the `staging` it last saw); revert the cut-over commit by a PR into `main`; `pm2 restart
 torrentmate-autodeploy`. `develop` and `prod` may stay on origin unused or be deleted (with his word). No data is
 touched by the lot: nothing to restore under `.data/` or the stores.
 

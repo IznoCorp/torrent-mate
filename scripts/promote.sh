@@ -15,7 +15,7 @@
 #   scripts/promote.sh staging [<sha>] [--dry-run]   # main → staging
 #   scripts/promote.sh prod    [<sha>] [--dry-run]   # staging → prod, then the tag v<__version__>
 #   scripts/promote.sh tag             [--dry-run]   # tags prod's tip alone (after a hotfix PR)
-#   scripts/promote.sh backport <name> [--dry-run]   # prod's tip → backport/<name>, its merge PR into develop
+#   scripts/promote.sh backport <name> [--dry-run]   # prod's tip + develop → backport/<name>, its merge PR into develop
 #
 # <sha> defaults to the source branch's tip. A promotion is a fast-forward of
 # an EXISTING commit, pushed without --force: the branches downstream carry
@@ -208,10 +208,38 @@ promote() {
   return 0
 }
 
-# The hotfix's merge-back (DESIGN § 3.7 step 3): prod's tip on backport/<name>,
-# merged into develop by a MERGE commit so prod becomes an ancestor of develop.
+# next_patch <version> — the patch after it: 0.98.140 → 0.98.141.
+next_patch() {
+  printf '%s' "$1" | awk -F. '{ printf "%s.%s.%s", $1, $2, $3 + 1 }'
+}
+
+# merge_version_only <file> — resolves a conflicted file whose only conflict is
+# its `__version__` line: the three sides merge with that line masked, and the
+# mask is left in place for the caller to fill. Fails when anything else conflicts.
+merge_version_only() {
+  local file="$1" dir side
+  dir="$(mktemp -d)"
+  for side in 1 2 3; do
+    git show ":$side:$file" 2>/dev/null \
+      | sed 's/^__version__[[:space:]]*=.*/__version__ = "@VERSION@"/' >"$dir/$side" \
+      || { rm -rf "$dir"; return 1; }
+  done
+  if git merge-file -p "$dir/2" "$dir/1" "$dir/3" >"$file"; then
+    rm -rf "$dir"
+    return 0
+  fi
+  rm -rf "$dir"
+  return 1
+}
+
+# The hotfix's merge-back (DESIGN § 3.7 step 3): prod's tip merged with develop
+# on backport/<name>, then merged into develop by a MERGE commit so prod becomes
+# an ancestor of develop. Prod's X.Y.Z.1 always conflicts with develop's
+# X.Y.(Z+n) on `__version__`: the merge keeps develop's and bumps its patch, so
+# the PR carries a real bump (CI `version-bump`). Any other conflict is the
+# hand's: nothing is pushed.
 backport() {
-  local name="$1" prod develop url
+  local name="$1" prod develop version bumped url
   [ -n "$name" ] || usage
   printf '%s' "$name" | grep -Eq '^[A-Za-z0-9._-]+$' || refuse "backport name '$name' — letters, digits, . _ - only"
   prod="$(remote_tip prod)"
@@ -221,20 +249,50 @@ backport() {
   git merge-base --is-ancestor "$prod" "$develop" \
     && refuse "origin/prod ($(short "$prod")) is already on develop — nothing to bring back"
   [ -z "$(remote_tip "backport/$name")" ] || refuse "origin/backport/$name already exists"
+  version="$(version_at "$develop")"
+  [ -n "$version" ] || refuse "no __version__ readable in $INIT_PATH at develop $(short "$develop")"
+  bumped="$(next_patch "$version")"
+
+  # The merge is built in a throwaway worktree: the caller's checkout is never touched.
+  # `tree` is global: the EXIT trap runs after this function has returned.
+  tree="$(mktemp -d)"
+  trap 'git worktree remove --force "$tree" >/dev/null 2>&1 || true; rm -rf "$tree"' EXIT
+  git worktree add --quiet --detach "$tree" "$prod" >/dev/null 2>&1 \
+    || refuse "cannot check out prod $(short "$prod") in a temporary worktree"
+  (
+    cd "$tree"
+    local conflicts file
+    git merge --quiet --no-ff --no-commit "$develop" >/dev/null 2>&1 || true
+    conflicts="$(git diff --name-only --diff-filter=U)"
+    while IFS= read -r file; do
+      [ -n "$file" ] || continue
+      if [ "$file" != "$INIT_PATH" ] || ! merge_version_only "$file"; then
+        refuse "backport/$name: $file conflicts beyond __version__ — nothing pushed; merge origin/develop into prod's tip by hand and resolve it"
+      fi
+    done <<<"$conflicts"
+    sed "s/^__version__[[:space:]]*=.*/__version__ = \"$bumped\"/" "$INIT_PATH" >"$INIT_PATH.new"
+    mv "$INIT_PATH.new" "$INIT_PATH"
+    git add -A
+    git commit --quiet -m "chore($name): merge prod's hotfix back into develop, version $bumped" \
+      || refuse "backport/$name: committing the merge failed — nothing pushed"
+  ) || exit 1
+  [ "$(version_at "$(git -C "$tree" rev-parse HEAD)")" = "$bumped" ] \
+    || refuse "backport/$name: the merge does not carry $bumped — nothing pushed"
 
   if $dry_run; then
-    say "dry run — would push prod $(short "$prod") to backport/$name and open its merge PR into develop"
+    say "dry run — would push prod $(short "$prod") merged with develop $(short "$develop") (version $version → $bumped) to backport/$name and open its merge PR into develop"
     return 0
   fi
-  timeout "$GIT_NET_TIMEOUT" git push --quiet origin "$prod:refs/heads/backport/$name" \
-    || refuse "git push origin $(short "$prod"):backport/$name failed"
+  timeout "$GIT_NET_TIMEOUT" git push --quiet origin "$(git -C "$tree" rev-parse HEAD):refs/heads/backport/$name" \
+    || refuse "git push origin backport/$name failed — nothing pushed"
+  say "backport/$name pushed: prod $(short "$prod") merged with develop $(short "$develop"), version $version → $bumped"
   url="$("$GH" pr create --base develop --head "backport/$name" \
     --title "chore($name): merge prod's hotfix back into develop" \
-    --body "Merge-back of prod $(short "$prod") into develop (docs/features/git-flow/DESIGN.md § 3.7). MERGE method, never squash: prod's tip must become an ancestor of develop. A conflict on __version__ keeps develop's.")" \
+    --body "Merge-back of prod $(short "$prod") into develop (docs/features/git-flow/DESIGN.md § 3.7). MERGE method, never squash: prod's tip must become an ancestor of develop. The __version__ conflict is resolved to develop's $version bumped to $bumped.")" \
     || refuse "backport/$name pushed, but opening its PR failed — open it by hand: --base develop, merge method"
   "$GH" pr merge "$url" --auto --merge >/dev/null \
-    || refuse "PR $url opened, but arming auto-merge failed — arm it: $GH pr merge $url --auto --merge"
-  say "backport/$name ($(short "$prod")) → develop: $url, auto-merge armed (merge commit)"
+    || refuse "backport/$name pushed and PR $url opened, but arming auto-merge FAILED — arm it: gh pr merge $url --auto --merge"
+  say "backport/$name → develop: $url, auto-merge armed (merge commit)"
 }
 
 case "$action" in

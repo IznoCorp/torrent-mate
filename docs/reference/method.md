@@ -45,7 +45,7 @@ forces.
 | Deploy the preprod | `scripts/promote.sh staging [<sha>]` — `main` → `staging`; the poller deploys it within 60 s (`tm-staging`'s `/api/version` → `staging @ <sha>`) | any session, on his word only (« passe en staging ») |
 | Deploy production | `scripts/promote.sh prod [<sha>]` — `staging` → `prod`, then the tag `v<__version__>`; refused if that tag exists | any session, on his word only (« mets en prod ») |
 | Tag a hotfix | `scripts/promote.sh tag` — tags `prod`'s tip after a hotfix PR merged into `prod` | whoever merged the hotfix |
-| Merge a hotfix back | `scripts/promote.sh backport <c>` — `prod`'s tip on `backport/<c>`, its PR into `develop` armed with the MERGE method | whoever merged the hotfix |
+| Merge a hotfix back | `scripts/promote.sh backport <c>` — `prod`'s tip merged with `develop` on `backport/<c>`, the `__version__` conflict resolved to `develop`'s plus one patch (any other conflict: it stops, pushes nothing, names the file), its PR into `develop` armed with the MERGE method | whoever merged the hotfix |
 
 `<sha>` defaults to the source branch's tip; `--dry-run` goes anywhere on the line. A hotfix:
 `git switch -c hotfix/<c> origin/prod`, the fix with its regression test, `__version__` = prod's plus
