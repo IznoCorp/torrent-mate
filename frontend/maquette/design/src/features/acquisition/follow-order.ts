@@ -48,6 +48,26 @@ export function followCounts(follows: readonly Follow[]): Record<FollowFilter, n
 }
 
 /**
+ * The follows the list looks among: the active ones (a paused follow waits,
+ * folded at the end, outside the list and its counts) whose title holds the
+ * search typed in the filter zone, accents ignored.
+ *
+ * ONE BASIS FOR THE PILL AND ITS PANEL (the orchestrator's ruling on the lot's
+ * open point 4): the pill says what the list shows, the search applied
+ * (§ 1.1 bis: « the number of cards it shows »), so each choice of its panel
+ * counts what the list would show once chosen — with the same search.
+ *
+ * @param follows Every follow, as read.
+ * @param search The search typed, or empty.
+ * @returns The follows looked among.
+ */
+export function followsInView(follows: readonly Follow[], search: string): Follow[] {
+  const plain = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase();
+  const term = plain(search.trim());
+  return follows.filter((follow) => follow.status !== "disabled" && (term === "" || plain(follow.title).includes(term)));
+}
+
+/**
  * Compares two titles by French collation.
  *
  * @param left One follow.

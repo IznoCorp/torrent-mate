@@ -5,7 +5,7 @@ import { type Follow } from "./types";
 import { useFollows, useGrabCadence } from "./queries";
 import { useUiState } from "../../lib/store-access";
 import { FollowsFilters, followFilterInForce, followSortInForce } from "./follows-filters";
-import { orderFollows } from "./follow-order";
+import { followsInView, orderFollows } from "./follow-order";
 import { body, emptyNote, posterGrid, section as sectionClass, swipeAction } from "../../ui/variants";
 import { Markup, emptyNoteMarkup, sectionInnerMarkup } from "../../ui/markup";
 import { Disclosure } from "../../ui/disclosure";
@@ -57,18 +57,12 @@ export function FollowsTab(): ReactElement {
   // A PAUSED FOLLOW WAITS FOR HIM, folded at the end of the list and outside
   // its counts — the list and its pills are the follows being looked for.
   const paused = follows.filter((follow) => follow.status === "disabled");
-  const active = follows.filter((follow) => follow.status !== "disabled");
+  // The search typed in the filter zone, which the empty note names.
+  const term = String(state.filter ?? "").trim();
   // THE ONE PILL (§ 1.9): the filter and the sort in force, ONE derivation for
-  // the list and the pill's count (`follow-order.ts`).
-  const term = (state.filter as string).trim().toLocaleLowerCase();
-  const normalise = (text: string) =>
-    text
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLocaleLowerCase();
-  const matchesName = (follow: Follow) =>
-    term === "" || normalise(follow.title).includes(normalise(term));
-  const visible = orderFollows(active.filter(matchesName), followFilterInForce(state), followSortInForce(state));
+  // the list, the pill's count and its panel's (`follow-order.ts`).
+  const visible = orderFollows(followsInView(follows, String(state.filter ?? "")), followFilterInForce(state),
+    followSortInForce(state));
 
   // Read ONCE for the whole list: every card names the same next slot.
   const next = cadenceExpression ? nextSearchTime(cadenceExpression, new Date()) : null;

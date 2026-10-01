@@ -11,7 +11,7 @@ import { store } from "../../lib/store-access";
 import { registerVerb } from "../../lib/verbs";
 import { registerProducer } from "../../ui/panel/contract";
 import { choicesDescriptor, closeThenApply } from "../../ui/pill-select";
-import { FOLLOW_FILTERS, FOLLOW_SORTS, followCounts, type FollowFilter, type FollowSort } from "./follow-order";
+import { FOLLOW_FILTERS, FOLLOW_SORTS, followCounts, followsInView, type FollowFilter, type FollowSort } from "./follow-order";
 import {
   FOLLOW_FILTER_MEMORY, FOLLOW_SORT_MEMORY, followFilterInForce, followFilterWord, followSortInForce,
 } from "./follows-filters";
@@ -22,9 +22,9 @@ registerProducer("follows-filter", {
   produce: (_subject, cache) => {
     const follows = cache.held<Follow[]>(followsQuery().queryKey);
     if (follows === undefined) return null;
-    // A PAUSED FOLLOW IS OUTSIDE THE LIST and outside its counts, folded at its
-    // end — the counts are the follows being looked for.
-    const counts = followCounts(follows.filter((follow) => follow.status !== "disabled"));
+    // THE PILL'S BASIS: what the list looks among — the paused follows out, the
+    // search applied — so a choice counts what the list shows once chosen.
+    const counts = followCounts(followsInView(follows, String(store.read().state.filter ?? "")));
     const current = followFilterInForce(store.read().state);
     return choicesDescriptor(
       i18next.t("screens.acquisition.followFilterTitle"),

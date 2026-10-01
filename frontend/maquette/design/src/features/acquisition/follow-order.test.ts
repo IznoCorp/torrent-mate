@@ -4,7 +4,7 @@
 // of the expected ones, and the title, the urgency, the creation and the next
 // release disagree on purpose, so a sort reading the wrong field fails.
 import { describe, expect, it } from "vitest";
-import { FOLLOW_SORTS, followCounts, orderFollows } from "./follow-order";
+import { FOLLOW_SORTS, followCounts, followsInView, orderFollows } from "./follow-order";
 import type { Follow } from "./types";
 
 /**
@@ -73,5 +73,16 @@ describe("the follows' filter", () => {
 
   it("counts what each filter keeps", () => {
     expect(followCounts(FOLLOWS)).toEqual({ tout: 5, series: 3, movies: 2 });
+  });
+});
+
+describe("the pill and its panel count on one basis — the search applied", () => {
+  it("a choice counts what the list shows once chosen, the paused follows out", () => {
+    const every = [...FOLLOWS, follow("Delta paused", { kind: "movie", status: "disabled" })];
+    // « el » is in « Delta » alone, accents and case ignored, and in the paused one.
+    const looked = followsInView(every, "EL");
+    const counts = followCounts(looked);
+    expect(counts).toEqual({ tout: 1, series: 0, movies: 1 });
+    expect(orderFollows(looked, "movies", "urgency").map((one) => one.title)).toEqual(["Delta"]);
   });
 });
