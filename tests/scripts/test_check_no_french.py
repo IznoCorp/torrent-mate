@@ -180,6 +180,24 @@ class TestTheGuardItself:
         assert "interface text / app (exempt)" in guard.examined
 
 
+class TestTheShellMarkupIsNamed:
+    """The shell's markup text is read by no arm, and the guard says so (B-390).
+
+    `design/index.html` holds the splash, the sign-in gate and the install
+    proposal as static markup — a decision `app/entry.ts` records — and no arm
+    reads TEXT there: the Strings arm is rooted on `design/src`, the `data-*`
+    arm reads attributes. « The guard does not refuse these labels » was cited
+    as the tree confirming a ruling while no arm had them in front of it.
+    """
+
+    def test_the_ledger_names_the_markup_text_no_arm_reads(self) -> None:
+        """Every run prints how many strings of the shell's markup go unread."""
+        done = subprocess.run(["python3", str(SCRIPT)], capture_output=True, text=True)
+        line = next((one for one in done.stdout.splitlines() if "design/index.html" in one), "")
+        assert "read by no arm" in line, done.stdout[-2000:]
+        assert int(line.split(":", 1)[1].split()[0]) >= 20
+
+
 class TestTheSelfDescription:
     """The arm that counts the arms — D12 of the 2026-08-19 handoff audit.
 

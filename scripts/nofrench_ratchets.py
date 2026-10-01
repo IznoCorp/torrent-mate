@@ -113,12 +113,48 @@ def check_app_interface_text(violations: list[str]) -> None:
             f"{relative(baseline_path)} is missing or unreadable — the exemption "
             "has no baseline, so nothing would notice it growing")
         return
+    count_shell_markup_text()
     if production > baseline:
         violations.append(
             f"the accepted French in `frontend/src` GREW: {production} production "
             f"strings against a baseline of {baseline}. The exemption covers what "
             "is already there, never more — move the new copy out, or lower the "
             f"baseline in {relative(baseline_path)} deliberately.")
+
+
+# The shell's markup: text nodes and the labels a reader hears, once the
+# comments, scripts and styles are taken out.
+SHELL_MARKUP = ROOT / "frontend" / "maquette" / "design" / "index.html"
+MARKUP_NOISE = re.compile(r"<!--.*?-->|<(script|style)\b.*?</\1>", re.S | re.I)
+MARKUP_TEXT = re.compile(r">([^<>]*[^\s<>][^<>]*)<")
+MARKUP_LABEL = re.compile(r'\s(?:aria-label|alt|title|placeholder)="([^"]+)"')
+
+
+def shell_markup_strings(source: str) -> list[str]:
+    """Returns what the shell's markup shows or says to a reader.
+
+    Args:
+        source: The text of `design/index.html`.
+
+    Returns:
+        Each text node and each spoken label, whitespace-trimmed.
+    """
+    body = MARKUP_NOISE.sub("", source)
+    return [text.strip() for text in MARKUP_TEXT.findall(body) + MARKUP_LABEL.findall(body)]
+
+
+def count_shell_markup_text() -> None:
+    """Names, every run, the shell markup's text that no arm reads (B-390).
+
+    THE MARKUP STAYS IN `index.html` BY DECISION (`app/entry.ts`): the splash
+    must paint before the bundle runs, and `serve.py` extracts the sign-in gate
+    as the design host's own page. Its copy is therefore outside `fr.json` and
+    outside every arm — the Strings arm is rooted on `design/src`, the `data-*`
+    arm reads attributes. A green run once stood as evidence that the file's
+    French was allowed when no arm had read it; the count says which it is.
+    """
+    exempted["strings read by no arm / design/index.html (markup, app/entry.ts)"] = len(
+        shell_markup_strings(read(SHELL_MARKUP)))
 
 
 def check_test_prose(violations: list[str]) -> None:

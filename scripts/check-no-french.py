@@ -57,7 +57,10 @@ it, so an arm added without a heading here fails the gate:
    arm whose oracle comes from outside this repository.
 10. **App interface text** — `frontend/src` is exempt by the operator's ruling,
    and the exemption is a RATCHET: the French there is counted and refused to
-   grow. Body in `nofrench_ratchets.py`.
+   grow. Beside it, the strings of `design/index.html`'s markup — the splash,
+   the sign-in gate, the install proposal, kept there by decision
+   (`app/entry.ts`) — are counted as read by no arm, so a green run is never
+   cited as having read them (B-390). Body in `nofrench_ratchets.py`.
 11. **Test prose** — the French in `tests/`, counted and held to a baseline.
    The French a harness ASSERTS is the app's rendered output and stays; a
    docstring or a tool message is English. Body in `nofrench_ratchets.py`.
