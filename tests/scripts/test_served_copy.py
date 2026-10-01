@@ -173,7 +173,9 @@ class TestTheStamp:
 class TestThePublisher:
     """`publish()` stamps the copy only once the copy has landed (R104, moved here by B-268)."""
 
-    def test_the_stamp_is_written_after_the_document_the_worker_and_the_identity_land(self, copy_at, tmp_path, monkeypatch):
+    def test_the_stamp_is_written_after_the_document_the_worker_and_the_identity_land(
+        self, copy_at, tmp_path, monkeypatch
+    ):
         """The original B-256 defect is a stamp written first: read by what exists when it is written.
 
         This hold lived inside `served_copy.py`, the file it measures, and was
