@@ -897,7 +897,7 @@
     },
     "acquisition": {
       "nowNoteLead": "Vue « En cours » — ce qui bouge, seul.",
-      "nowNoteRest": " Une section, « En vol ». Ce qui attend d'être pris se prend sur la fiche du suivi ; ce qui est arrivé se lit dans les « Récents » de la Médiathèque ; ce qui n'a rien trouvé se lit sur le suivi ; ce qui attend votre main est « À traiter ».",
+      "nowNoteRest": " Une section, « En vol ». Ce qui attend d'être pris se prend sur la fiche du suivi ; ce qui est arrivé se lit dans les « Récents » de la Médiathèque ; ce qui n'a rien trouvé se lit sur le suivi ; ce qui est bloqué est « À traiter ».",
       "followsNoteLead": "Vue livrée, reprise à la lettre.",
       "followsNoteRest": " Trois modes (liste · groupé · grille), pastille à point sur fond teinté à 20 %, ligne méta = fraction puis statut puis légende chiffrée, aucun sous-titre : l'année vit dans la fiche. Les 12 suivis affichés sont les vôtres, avec leur état réel.",
       "cadenceNoteLead": "Un défaut que cette reprise fait apparaître.",
@@ -1002,8 +1002,8 @@
         "atMany": "à {{hours}} et {{last}}",
         "hour": "{{hour}} h {{minute}}"
       },
-      "todoEmptyTitle": "Rien n'attend votre main.",
-      "todoEmptyBody": "Ce qui avance sans vous est dans « En cours ».",
+      "todoEmptyTitle": "Rien n'est bloqué.",
+      "todoEmptyBody": "Ce qui avance est dans « En cours ».",
       "todoResolve": "À résoudre",
       "todoTunnelError": "Une étape ne passe pas",
       "todoSetAside": "Mis de côté",

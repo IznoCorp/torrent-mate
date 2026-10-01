@@ -1,8 +1,9 @@
 // Where an arrival sits in Acquisition — by the state of its ladder, never by
 // where it came from (ruling 7: the section is a function of the state).
 //
-// An arrival is an acquisition card (ruling 2). One stopped for his hand is
-// « À traiter »'s; one still on its way is « En vol »'s; one in the library, its
+// An arrival is an acquisition card (ruling 2). One stopped — for his hand, or
+// for an external cause the engine lifts on its own (Q7), or closed and not yet
+// seen (Q8, Q9) — is « À traiter »'s; one still on its way is « En vol »'s; one in the library, its
 // last rung still to come, has left both — what arrived reads in the
 // Médiathèque's « Récents ». One he set aside is « Mis de côté »'s, folded at
 // the end of « À traiter » and outside everything it counts (ruling 16).
@@ -16,6 +17,21 @@ export type ArrivalSection = { blocked: QueueCard[]; inFlight: QueueCard[]; setA
 const SHELVED = "shelved";
 
 /**
+ * Whether a card stands in « À traiter » (Q7): a rung stopped for his hand
+ * (`blocked`), a rung the ENGINE classifies as stopped — `resumes` set, an
+ * external cause it lifts on its own — or a closure not yet seen. A rung merely
+ * queued (a maintenance run, the supervisor's bound) carries no `resumes`: it
+ * waits in « En cours ». The engine decides; no token list is read here.
+ *
+ * @param card A card of any list of the queue's answer.
+ * @returns True when the card is a block or an unseen closure.
+ */
+export function isBlock(card: QueueCard): boolean {
+  if (card.closure != null) return true;
+  return (card.ladder ?? []).some((rung) => rung.state === "blocked" || rung.resumes != null);
+}
+
+/**
  * Sorts the arrivals into the lists that draw them.
  *
  * @param arrivals The arrival cards, each on its ladder.
@@ -26,22 +42,30 @@ export function slotArrivals(arrivals: QueueCard[]): ArrivalSection {
   for (const card of arrivals) {
     const ladder = card.ladder ?? [];
     if (isSetAside(card)) section.setAside.push(card);
-    else if (ladder.some((rung) => rung.state === "blocked")) section.blocked.push(card);
+    else if (isBlock(card)) section.blocked.push(card);
     else if (!ladder.some((rung) => rung.rung === SHELVED && rung.state === "done")) section.inFlight.push(card);
   }
   return section;
 }
 
 /**
- * Every card « À traiter » counts: what the queue has stopped, and the arrivals
- * stopped on their ladder — never one he set aside. ONE derivation, read by the
- * tab, its count and the bar's badge (§13).
+ * Every card « À traiter » counts: EVERY block wherever the queue's answer holds
+ * it (Q7) — what the queue has stopped, the arrivals stopped on their ladder,
+ * and the cards in flight stopped by an external cause — never one he set
+ * aside. ONE derivation, read by the tab, its count, the bar's badge and the
+ * season pointer's landing (§13); « En cours » reads its complement.
+ *
+ * ONE CARD PER MEDIUM: an in-flight row whose arrival is drawn already is the
+ * arrival's.
  *
  * @param queue The queue's answer.
- * @returns The cards, in the order the tab draws them.
+ * @returns The cards, in the order the queue answers them.
  */
-export function todoCards(queue: { blocked: QueueCard[]; arrivals: QueueCard[] }): QueueCard[] {
-  return [...queue.blocked.filter((card) => !isSetAside(card)), ...slotArrivals(queue.arrivals).blocked];
+export function todoCards(queue: { blocked: QueueCard[]; arrivals: QueueCard[]; inFlight: QueueCard[] }): QueueCard[] {
+  const arrivals = slotArrivals(queue.arrivals).blocked;
+  const inFlight = queue.inFlight.filter((row) => !isSetAside(row) && isBlock(row)
+    && !queue.arrivals.some((arrival) => sameMedium(row, arrival)));
+  return [...queue.blocked.filter((card) => !isSetAside(card)), ...arrivals, ...inFlight];
 }
 
 /**
@@ -51,7 +75,7 @@ export function todoCards(queue: { blocked: QueueCard[]; arrivals: QueueCard[] }
  * @param queue The queue's answer.
  * @returns The cards, in the order the section draws them.
  */
-export function setAsideCards(queue: { blocked: QueueCard[]; arrivals: QueueCard[] }): QueueCard[] {
+export function setAsideCards(queue: { blocked: QueueCard[]; arrivals: QueueCard[]; inFlight: QueueCard[] }): QueueCard[] {
   return [...queue.blocked.filter(isSetAside), ...slotArrivals(queue.arrivals).setAside];
 }
 
@@ -129,7 +153,7 @@ function onTheirWay(queue: { inFlight: QueueCard[]; arrivals: QueueCard[] }): Qu
 
 /**
  * Every card « En cours » holds — « En vol » alone: the cards on their way,
- * less every one a whole season's recovery COVERS. ONE derivation, read by the
+ * less every one a whole season's recovery COVERS and every block (Q7). ONE derivation, read by the
  * tab, its count and every surface that asks what is on its way (§13).
  *
  * THE ABSORPTION READS THE SERVED POINTER (DECIDED 5): a card whose
@@ -142,12 +166,13 @@ function onTheirWay(queue: { inFlight: QueueCard[]; arrivals: QueueCard[] }): Qu
  * @returns The cards, in the order the tab draws them.
  */
 export function inFlightCards(queue: { inFlight: QueueCard[]; arrivals: QueueCard[] }): QueueCard[] {
-  return onTheirWay(queue).filter((card) => card.absorbedBy == null);
+  // A BLOCK IS NOT ON ITS WAY (Q7): « À traiter » draws it, whichever list holds it.
+  return onTheirWay(queue).filter((card) => card.absorbedBy == null && !isBlock(card));
 }
 
 /**
  * The tab of Acquisition that holds a live acquisition's card NOW — « En
- * cours » while on its way, « À traiter » while stopped for his hand — or
+ * cours » while on its way, « À traiter » while stopped (Q7) — or
  * nothing once it has left both.
  *
  * @param queue The queue's answer.

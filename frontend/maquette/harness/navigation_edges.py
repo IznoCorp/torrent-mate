@@ -48,9 +48,11 @@ SILO_PANEL = "tap:#view [data-panel='media:Silo']"
 ADD_ACTION = 'tap:[data-part="shell/add-action"]'
 
 # A ratio deferral no seed carries at rest, posed the way `acq-card-deferred-ratio`
-# poses it, over the loaded world: the card then offers « Voir le tracker ».
-RATIO_DEFERRAL = ("js:(()=>{window.__mocks.poseDeferral('This City Is Ours',"
-                  "'ratio_below_threshold','c411');"
+# poses it, over the loaded world: the card then offers « Voir le tracker » — in
+# « À traiter » since Q7 (re-aimed out loud, maquette-blocked: the deferred card
+# left « En cours »).
+RATIO_DEFERRAL = ("js:(()=>{window.__mocks.poseBlock('This City Is Ours',"
+                  "'ratio_below_threshold',{tracker:'c411'});"
                   "window.__queries.removeQueries({queryKey:['/api/acquisition/to-handle']});"
                   "window.__queries.removeQueries({queryKey:['/api/staging/media']});"
                   "window.__store.write({scen:'loaded'});return true})()")
@@ -118,7 +120,7 @@ EDGES = [
     # « Voir le tracker » lands on Trackers WITH THE TRACKER'S PANEL UP (#657): a
     # layer, so the first Retour closes it, as every panel's does, and the next
     # returns to Acquisition — re-aimed 2026-09-30.
-    {"edge": "L1", "walk": [RATIO_DEFERRAL, "tap:[data-acqtab=now]", 'tap:#view [data-go="trackers"]'],
+    {"edge": "L1", "walk": [RATIO_DEFERRAL, "tap:[data-acqtab=todo]", 'tap:#view [data-go="trackers"]'],
      "landing": (TRACKERS, "trackers", False, True),
      "stops": [(TRACKERS, "trackers", False, False), HOME_STOP],
      "emits": ["features/acquisition/card-markup.ts:go=TRACKERS_PAGE"]},

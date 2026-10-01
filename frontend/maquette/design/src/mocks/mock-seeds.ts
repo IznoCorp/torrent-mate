@@ -26,7 +26,7 @@ import { mockState } from "./state";
 import { poseDisagreement, setAside } from "./handlers/staging";
 import { poseTunnelError } from "./handlers/follow-errors";
 import { poseUnknownIdentity } from "./handlers/posed-identity";
-import { poseDeferral } from "./handlers/posed-deferral";
+import { poseBlock } from "./handlers/posed-block";
 import { sameItem } from "./handlers/same-item";
 import {
   SEARCHING, poseAutomatic, poseBeforeAsk, poseSeasonArrived, poseSeasonAt, poseSeasonBlocked, poseSeasonEnded,
@@ -67,8 +67,8 @@ export type MockSeeds = {
   poseTunnelError: typeof poseTunnelError;
   /** Poses an arrival in flight whose identity is not known yet — a DERIVATION, never read: the backend reads the « identifié » rung in progress. */
   poseUnknownIdentity: typeof poseUnknownIdentity;
-  /** Poses a deferral of a finished torrent on an acquisition in flight — a DERIVATION, never read: the backend reads `classify_deferrals`. */
-  poseDeferral: typeof poseDeferral;
+  /** Poses an external block on an acquisition — a deferral or one of Q7's causes — a DERIVATION, never read: the backend serves the cause (BK1). */
+  poseBlock: typeof poseBlock;
   /**
    * A whole season's recovery, POSED on the one the dense world holds — each a
    * DERIVATION until the layer is next reset: the moment before the ask, a rung
@@ -156,7 +156,7 @@ export const mockSeeds: MockSeeds = {
   poseDisagreement,
   poseTunnelError,
   poseUnknownIdentity,
-  poseDeferral,
+  poseBlock,
   seasonRecovery: {
     beforeAsk: poseBeforeAsk,
     searching: (title, season) => poseSeasonAt(title, season, SEARCHING),
