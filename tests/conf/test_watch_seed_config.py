@@ -29,7 +29,6 @@ class TestTrackerProviderCrossSeed:
     def test_tracker_provider_cross_seed_defaults_false(self):
         """TrackerProviderConfig().cross_seed must default to False (ACC-4).
 
-        Design: docs/features/watch-seed/DESIGN.md §D9
         Contract: ACC-4 — cross_seed opt-in gate.
         """
         cfg = TrackerProviderConfig()
@@ -47,7 +46,6 @@ class TestCrossSeedConfig:
     def test_cross_seed_config_defaults(self):
         """CrossSeedConfig() must have correct default values.
 
-        Design: docs/features/watch-seed/DESIGN.md §Config
         Contract: cross_seed block in config.example/watch_seed.json5.
         """
         cfg = CrossSeedConfig()
@@ -77,7 +75,6 @@ class TestWatchConfig:
     def test_watch_config_defaults(self):
         """WatchConfig() must have correct default values.
 
-        Design: docs/features/watch-seed/DESIGN.md §Config
         Contract: watch block in config.example/watch_seed.json5.
         """
         cfg = WatchConfig()
@@ -123,7 +120,6 @@ class TestConfigJson5CrossSeedBlocks:
         config.example/watch_seed.json5 must exist with cross_seed + watch keys,
         and config.example/config.json5 overlays must reference watch_seed.json5.
 
-        Design: docs/features/watch-seed/DESIGN.md §Config
         Contract: anti-drift rule — both config/ and config.example/ must be wired.
         """
         # 1. Watch-seed overlay file must exist
@@ -164,7 +160,6 @@ class TestConfigJson5CrossSeedBlocks:
         This test is CI-safe: it is skipped when config/ does not exist
         (which is the case in CI, where no local config/ is provisioned).
 
-        Design: docs/features/watch-seed/DESIGN.md §Config
         Contract: anti-drift — local config must mirror config.example/.
         """
         # Local watch_seed overlay

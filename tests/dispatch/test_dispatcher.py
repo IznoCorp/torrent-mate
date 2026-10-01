@@ -40,6 +40,7 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -878,7 +879,17 @@ class TestRestoreMergeBackup:
         assert not backup.exists()  # Cleaned after successful restore
 
     def test_continues_on_per_file_error(self, tmp_path: Path) -> None:
-        """Per-file error does not abort remaining restores."""
+        """Per-file error does not abort remaining restores.
+
+        THE ERROR IS RAISED, never left to a permission bit (B-035): a target
+        chmod'ed 0o000 is written all the same by root — the Linux container
+        that ran this — so nothing failed, the backup was removed, and the hold
+        read « no backup » over a restore that had worked. The copy of that one
+        file raises instead, through a ``shutil`` private to the transfer module
+        (patching the shared one would refuse every other caller's copy too).
+        """
+        from personalscraper.dispatch import _transfer
+
         dest = tmp_path / "Show (2024)"
         dest.mkdir()
 
@@ -888,23 +899,26 @@ class TestRestoreMergeBackup:
         # Create a subdirectory backup
         (backup / "Saison 01").mkdir()
         (backup / "Saison 01" / "ep.mkv").write_bytes(b"ep-data")
+        refused = dest / "Saison 01" / "ep.mkv"
+        real_shutil = _transfer.shutil
 
-        # Make one target read-only to force an error
-        read_only_dir = dest / "Saison 01"
-        read_only_dir.mkdir()
-        read_only_target = read_only_dir / "ep.mkv"
-        read_only_target.write_bytes(b"locked")
-        read_only_target.chmod(0o000)
+        class _RefusingShutil:
+            def __getattr__(self, name: str) -> Any:
+                return getattr(real_shutil, name)
 
-        try:
-            Dispatcher._restore_merge_backup(dest, backup)
-            # At least the good file should be restored
-            assert (dest / "good.mkv").read_bytes() == b"good-data"
-            # Backup NOT removed because some files failed
-            assert backup.exists()
-        finally:
-            # Restore permissions for cleanup
-            read_only_target.chmod(0o644)
+            def copy2(self, source: Path, target: Path) -> Any:
+                if Path(target) == refused:
+                    raise PermissionError(13, "Permission denied", str(target))
+                return real_shutil.copy2(source, target)
+
+        with patch.object(_transfer, "shutil", _RefusingShutil()):
+            restored = Dispatcher._restore_merge_backup(dest, backup)
+
+        # At least the good file should be restored
+        assert (dest / "good.mkv").read_bytes() == b"good-data"
+        assert restored == 1
+        # Backup NOT removed because some files failed
+        assert backup.exists()
 
     def test_empty_backup_dir(self, tmp_path: Path) -> None:
         """Empty backup dir returns 0 and is cleaned up."""

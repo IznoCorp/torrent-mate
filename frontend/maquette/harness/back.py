@@ -38,6 +38,14 @@ read on `history.length` and not on the address alone.
 
 R-conformity-j — ONE BACK CONTROL (`hold_one_back_control`, in its own context):
 every drawn « Retour » is an icon and a word.
+
+B-053 — THE BAR'S OWN TAB, TAPPED OVER A SCREEN OF ITS PAGE
+(`hold_own_tab_over_a_screen`): it gives the page's root back and leaves no
+second entry of that root behind, so ONE Retour from there lands on the entry
+page (§ 16 rules 2 and 4 — the tab is where « Remonter » would land). It
+replaced the screen's entry with the root, over the root's own entry: the first
+Retour changed nothing on screen. (A panel is modal — the bar is inert under
+it — so no tab is tapped over one.)
 """
 import asyncio
 
@@ -313,6 +321,7 @@ async def main():
 
         check("no JS error", not errors, str(errors))
         await hold_one_back_control(b, _journal)
+        await hold_own_tab_over_a_screen(b, _journal)
         await b.close()
 
     _journal.summary()
@@ -345,6 +354,65 @@ async def hold_one_back_control(browser, journal):
         journal.check(f"{state}: each is an icon and a word, no arrow in the copy",
                       all(one["icon"] and not any(arrow in one["text"] for arrow in ARROWS) for one in controls),
                       f"{controls}")
+    await context.close()
+
+
+# THE BAR'S MÉDIATHÈQUE TAB, aimed at by its own centre.
+LIBRARY_TAB = '[data-part="shell/tab-bar"] [data-page="lib"]'
+# WHAT OPENS OVER THE PAGE: a medium's screen, from a card a finger taps.
+SCREEN_OPEN = "()=>!!document.querySelector('[data-part=\"screen\"][data-open]')"
+
+
+async def finger_on(page, selector):
+    """Taps the first element a selector finds, by a finger at its own centre.
+
+    Args:
+        page: The Playwright page.
+        selector: The element's selector.
+
+    Returns:
+        Whether there was an element to tap.
+    """
+    box = await page.evaluate(
+        """(selector)=>{const node=document.querySelector(selector); if(!node) return null;
+             node.scrollIntoView({block:'center'}); const r=node.getBoundingClientRect();
+             return [r.x + r.width / 2, r.y + r.height / 2];}""", selector)
+    if box is None:
+        return False
+    await page.touchscreen.tap(box[0], box[1])
+    return True
+
+
+async def hold_own_tab_over_a_screen(browser, journal):
+    """B-053 — the bar's own tab over a screen of its page gives the root, once.
+
+    Walked by a finger from a cold page: the Médiathèque by its tab, a medium's
+    screen opened from a card, the same tab tapped again, then ONE Retour. Read
+    on where the interface lands, because the defect left the address right —
+    the root of the Médiathèque — and spent the Retour on a second copy of it.
+
+    Args:
+        browser: The launched browser; the walk reads a context of its own.
+        journal: The rule's journal.
+    """
+    context, page = await open_page(browser)
+    await finger_on(page, LIBRARY_TAB)
+    await page.wait_for_timeout(600)
+    await finger_on(page, '#view [data-panel^="media:"]')
+    await page.wait_for_timeout(900)
+    journal.check("B-053: a medium's screen opens over the Médiathèque, so the hold has a subject",
+                  await page.evaluate(SCREEN_OPEN))
+    await finger_on(page, LIBRARY_TAB)
+    await page.wait_for_timeout(700)
+    root = await where(page)
+    journal.check("B-053: the Médiathèque's tab gives its root back",
+                  root is not None and root["page"] == "lib" and not root["screen"], str(root))
+    await page.go_back()
+    await page.wait_for_timeout(700)
+    landed = await where(page)
+    journal.check("B-053: and ONE Retour from there lands on the entry page",
+                  landed is not None and landed["page"] == "acq",
+                  str(landed and {key: landed[key] for key in ("page", "screen", "entries")}))
     await context.close()
 
 

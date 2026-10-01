@@ -44,6 +44,9 @@ REPO_ROOT = _SCRIPTS_DIR.parent
 
 DESIGN_RE = re.compile(r"^\s*Design:\s*(\S+?)#(\S+?)\s*$", re.MULTILINE)
 CONTRACT_RE = re.compile(r"^\s*Contract:\s*\S", re.MULTILINE)
+# Any ``Design:`` line that names a ``docs/`` path, anchored or not — the
+# pointer whether or not the map can read its section (B-293).
+POINTER_RE = re.compile(r"^\s*Design:\s*(docs/[^#\s]+)", re.MULTILINE)
 
 
 @dataclass(frozen=True)
@@ -280,6 +283,32 @@ def diff_maps(maps: dict[str, dict[str, object]], map_dir: Path) -> list[Path]:
     return drifts
 
 
+def dangling_designs(tests_dir: Path, repo_root: Path) -> list[tuple[str, str]]:
+    """Return every ``Design:`` pointer naming a ``docs/`` path the tree does not hold.
+
+    B-293: 38 markers named feature designs archived long ago, and both
+    design-gaps tools were green over them — an unanchored one is no marker to
+    the map, and an anchored one resolved to a map file whatever its path. A
+    pointer is read here whether or not the map can read it.
+
+    Args:
+        tests_dir: Root directory to recurse into.
+        repo_root: Repo root the pointed paths are relative to.
+
+    Returns:
+        ``(test_id, path)`` pairs, sorted.
+    """
+    dangling: list[tuple[str, str]] = []
+    for path in sorted(tests_dir.rglob("*.py")):
+        if "feature_map" in path.relative_to(tests_dir).parts:
+            continue
+        for test_id, doc in iter_test_functions(path, repo_root):
+            for match in POINTER_RE.finditer(doc or ""):
+                if not (repo_root / match.group(1)).is_file():
+                    dangling.append((test_id, match.group(1)))
+    return sorted(dangling)
+
+
 def write_maps(maps: dict[str, dict[str, object]], map_dir: Path) -> list[Path]:
     """Write/update map files in-place. Returns the list of paths actually changed."""
     map_dir.mkdir(parents=True, exist_ok=True)
@@ -340,6 +369,13 @@ def main(argv: list[str] | None = None) -> int:
             f"error: {len(parse_errors)} test file(s) failed to parse — markers may be missing from the map.",
             file=sys.stderr,
         )
+        return 1
+
+    dangling = dangling_designs(tests_dir, repo_root)
+    if dangling:
+        print("error: Design: markers name paths the tree does not hold:", file=sys.stderr)
+        for test_id, design in dangling:
+            print(f"  {test_id}: {design}", file=sys.stderr)
         return 1
 
     try:

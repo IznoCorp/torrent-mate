@@ -236,7 +236,8 @@ export function MediaScreen({ readFollows, crossSeed }: MediaScreenProperties) {
       data-part="screen"
       data-open=""
       data-key={`mediaSheet:${title}`}
-      aria-label={title}
+      // NEVER AN EMPTY NAME: a typed address whose read failed names its title unread (B-508).
+      aria-label={title || (failed ? t("screens.media.titleUnread") : undefined)}
     >
       <div className={screenBar()} data-part="screen/bar">
         <button className={backAction()} data-part="screen/back" onClick={() => bridge.back()}>

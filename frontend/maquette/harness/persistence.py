@@ -232,7 +232,7 @@ async def main():
         browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
         errors: list[str] = []
-        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.on("pageerror", lambda error: errors.append(f"{error} {(error.stack or '')[:600]}"))
 
         # (a) ONE DOCUMENT, across every state the interface declares.
         #
@@ -310,7 +310,8 @@ async def main():
           await new Promise((settle) => setTimeout(settle, 100));
           return window.__queries.isFetching();
         }""", [["torrent-remove", "held:held"], ["cross-seed-cut", "held:held"],
-               ["cross-seed-exclude-title", "held"], ["del", "Les Animaniacs"]])
+               ["cross-seed-exclude-title", "held"], ["cross-seed-upload", "held:held"],
+               ["del", "Les Animaniacs"]])
         await page.evaluate("()=>window.__go('lib-list')")
         await page.wait_for_timeout(2000)
         cancelled = [error for error in errors[held_since:] if "CancelledError" in error]
