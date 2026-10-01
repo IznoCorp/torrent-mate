@@ -15,3 +15,27 @@ export function rowsIn<Row extends { category: string }>(rows: readonly Row[], c
   const engineCategories = category?.includes;
   return engineCategories ? rows.filter((row) => engineCategories.includes(row.category)) : [...rows];
 }
+
+/**
+ * What a category counts on a lens — ONE derivation, read by the filter pill
+ * and by its panel (§13). EVERY LENS IS FILTERED BY THE SAME PILL, and the
+ * category is the same remembered one: « Médias » prints the library's counts;
+ * « Récents » and « Incomplets » count the rows they draw — a « Films » on
+ * « Incomplets » reads 0, and the lens says why.
+ *
+ * @param category The category.
+ * @param lens The lens in force: `cat`, `rec` or `inc`.
+ * @param incomplete « Incomplets »' rows, as the lens reads them.
+ * @param recent « Récents »' rows, as the lens reads them.
+ * @returns The count.
+ */
+export function categoryCount(
+  category: LibraryCategory,
+  lens: string,
+  incomplete: readonly { category: string }[],
+  recent: readonly { category: string }[],
+): number {
+  if (lens === "inc") return rowsIn(incomplete, category).length;
+  if (lens === "rec") return rowsIn(recent, category).length;
+  return category.count;
+}

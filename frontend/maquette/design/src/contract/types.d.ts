@@ -1690,6 +1690,10 @@ export interface components {
             showStatus: string | null;
             /** @description when the follow was added. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             since: string;
+            /** @description when the follow was made, Unix-epoch seconds — what Suivis' « Suivi récemment » sort orders by, the newest first (maquette-blocked § 1.9, the operator's round 3 q1 = C). A DEMAND (BK8): the backend holds the follow's creation and does not serve it */
+            addedAt: number;
+            /** @description the date of the medium's next release, ISO `YYYY-MM-DD` — a series' next episode, a film's release — or null when none is known; what Suivis' « Prochaine sortie » sort orders by, a follow with none last (maquette-blocked § 1.9, the operator's round 3 q1 = C). A DEMAND (BK8) */
+            nextAirDate: string | null;
             /** @description how many searches have run for it */
             searches: number;
             /** @description episodes held. Shows only */

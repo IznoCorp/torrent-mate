@@ -1,5 +1,6 @@
-// The named states of « À traiter » holding every block (Q7, Q8, Q9) — the
-// maquette-blocked lot's own file (its DESIGN § 0.1 item 11: `tunnel.ts` is
+// The named states of « À traiter » holding every block (Q7, Q8, Q9), and of
+// the one pill on the Médiathèque and Suivis (§ 1.9) — the maquette-blocked
+// lot's own file (its DESIGN § 0.1 item 11: `tunnel.ts` is
 // near its ceiling).
 //
 // Each entry is `[id, label, run]`, as every state file's. A block is a
@@ -291,5 +292,34 @@ export function blockedStates(): NamedState[] {
     posed("acq-todo-sort-oldest",
       "À traiter — trié « Plus ancien »",
       EVERY_CAUSE, { before: everyCause, dials: { todoSort: "oldest" } }),
+    // THE PILLS ELSEWHERE (§ 1.9): the Médiathèque and Suivis filter and sort
+    // with « À traiter »'s one pill.
+    ["library-filter-panel", "Médiathèque — le panneau du filtre ouvert : chaque catégorie avec son nombre de titres",
+      () => pillsOf(LIBRARY, "data-library-filter-pill")],
+    ["library-sort-panel", "Médiathèque — le panneau du tri ouvert : ses six façons, celle en vigueur cochée",
+      () => pillsOf(LIBRARY, "data-sort")],
+    ["library-filter-movies", "Médiathèque — filtrée sur « Films » : la pastille le dit, enfoncée, avec son nombre",
+      () => pillsOf({ ...LIBRARY, libCat: "movies" })],
+    ["follows-filter-panel", "Suivis — le panneau du filtre ouvert : Tout, Séries, Films avec leur nombre",
+      () => pillsOf(FOLLOWS, "data-follows-filter-pill")],
+    ["follows-sort-panel", "Suivis — le panneau du tri ouvert : ses cinq façons, « Urgence » cochée",
+      () => pillsOf(FOLLOWS, "data-follows-sort-pill")],
+    ["follows-sort-next-release", "Suivis — triés « Prochaine sortie » : la plus proche d'abord, sans date en dernier",
+      () => pillsOf({ ...FOLLOWS, followSort: "nextRelease" })],
   ];
+}
+
+// The Médiathèque and Suivis as their pills' states draw them.
+const LIBRARY = { page: "lib", libLens: "cat", libMode: "list", libCat: "all", q: "", phase: "ready", selMode: false };
+const FOLLOWS = { page: "acq", acqTab: "follows", followMode: "list", pill: "tout", filter: "", phase: "ready" }; // french-ok: « tout » is the filter pill's id, a data value
+
+/**
+ * One page drawn with its pills, one of them tapped if asked.
+ *
+ * @param dials The page's dials.
+ * @param pill The pill a finger taps once the page is drawn, if any.
+ */
+function pillsOf(dials: Record<string, unknown>, pill?: string): void {
+  applyState(dials);
+  if (pill !== undefined) window.setTimeout(() => tapPill(pill), TAP_AFTER);
 }

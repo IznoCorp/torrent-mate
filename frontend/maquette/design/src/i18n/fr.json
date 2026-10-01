@@ -897,7 +897,11 @@
         "countPlural": "{{count}} sélectionnés",
         "cancel": "Annuler",
         "delete": "Supprimer"
-      }
+      },
+      "filterTitle": "Afficher dans la médiathèque",
+      "filterMeta": "Chaque catégorie avec le nombre de ses titres.",
+      "filterCount_one": "{{count}} titre",
+      "filterCount_other": "{{count}} titres"
     },
     "acquisition": {
       "nowNoteLead": "Vue « En cours » — ce qui bouge, seul.",
@@ -938,6 +942,19 @@
       "pillAll": "Tout",
       "pillSeries": "Séries",
       "pillMovies": "Films",
+      "followFilterTitle": "Afficher dans « Suivis »",
+      "followFilterMeta": "Les séries et les films suivis, avec leur nombre. Ceux en pause restent à part.",
+      "followFilterCount_one": "{{count}} suivi",
+      "followFilterCount_other": "{{count}} suivis",
+      "followSort": {
+        "urgency": "Urgence",
+        "az": "A → Z",
+        "za": "Z → A",
+        "added": "Suivi récemment",
+        "nextRelease": "Prochaine sortie"
+      },
+      "followSortTitle": "Trier « Suivis »",
+      "followSortMeta": "L'urgence d'abord : les nouveaux suivis, puis ce qui demande une prise ou avance, puis ce qui attend, puis ce qui est à jour. Sans date de sortie connue, un suivi passe en dernier.",
       "followsPaused": "En pause",
       "filterPlaceholder": "Filtrer par nom",
       "filterLabel": "Filtrer les suivis",

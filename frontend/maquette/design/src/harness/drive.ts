@@ -144,6 +144,8 @@ function reset(): boolean {
     // otherwise carry one state's choice into the next.
     todoFilter: "all",
     todoSort: "urgency",
+    // « Suivis »' sort, pinned for the same reason (its filter is `pill`, above).
+    followSort: "urgency",
     sugCount: 30,
     selMode: false,
     selected: new Set(),

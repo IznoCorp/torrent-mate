@@ -26,6 +26,7 @@ import "../features/account/panels";
 import "../features/account/verbs";
 import "../features/maintenance/panel-action";
 import "../features/library/panel-sort";
+import "../features/library/panel-filter";
 import "../features/acquisition/panels";
 // Acquisition contributes the verb `data-take` reads (B-309) and the candidates
 // screen's verbs.
@@ -51,6 +52,7 @@ import "../features/acquisition/follow-verbs";
 import "../features/acquisition/deck-verbs";
 import "../features/acquisition/verbs";
 import "../features/acquisition/todo-pill-verbs";
+import "../features/acquisition/follows-pill-verbs";
 import "../features/acquisition/add-verbs";
 // And the library's verbs: the lens, the category, the layout, the sort, the
 // search's clear cross, the selection and the removals.

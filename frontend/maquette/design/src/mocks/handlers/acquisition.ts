@@ -72,6 +72,8 @@ const BEING_ACQUIRED = "acquiring";
 // these is a token or a blank, never a value copied off another record.
 const NEWLY_ADDED_STATUS = "pending";
 const NEWLY_ADDED_SINCE = "";
+// Milliseconds in a second: the clock reads one, the contract says the other.
+const MILLISECONDS = 1000;
 const NEWLY_ADDED_YEAR = 0;
 
 /**
@@ -189,6 +191,9 @@ export function acquisitionRoutes(): MockRoute[] {
         status: NEWLY_ADDED_STATUS,
         showStatus: null,
         since: NEWLY_ADDED_SINCE,
+        // MADE NOW, and no release date known until the catalogue says one (BK8).
+        addedAt: Math.floor(Date.now() / MILLISECONDS),
+        nextAirDate: null,
         searches: 0,
         fresh: true,
         ids: identity,

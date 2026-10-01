@@ -17,6 +17,12 @@ On the list of follows:
 5. started again from the fold, a follow leaves it for the list.
 
 Red before the move: paused follows sit in the list, and the filter exists.
+
+RE-AIMED OUT LOUD by maquette-blocked phase 6 (DESIGN § 1.9, DECIDED 1): the row
+of « Tout », « Séries », « Films » pills became ONE filter pill whose panel
+offers them. Hold 4 reads the kinds offered in that panel, and « Tout »'s count
+on the pill itself (it says « Tout » and what it shows), where it read a row of
+pills. What it holds is unchanged.
 """
 import asyncio
 
@@ -36,8 +42,8 @@ READING = f"""() => {{
   const listed = [...document.querySelectorAll('#view [data-part="card/title"]')]
     .filter(one => !one.closest('{SECTION}')).map(one => one.textContent);
   const sections = [...document.querySelectorAll('#view [data-part^="section"]')].filter(one => one.matches('section'));
-  const pills = [...document.querySelectorAll('#view [data-part="pill"]')];
-  const all = pills.find(one => one.dataset.pill === "tout");
+  const pill = document.querySelector('#view [data-part="pill/select"][data-follows-filter-pill]');
+  const whole = window.__store?.read().state.pill === "tout";
   const count = fold ? fold.querySelector('summary [data-part="section/count"]') : null;
   return {{
     total: follows.length,
@@ -47,8 +53,8 @@ READING = f"""() => {{
     last: fold !== null && sections[sections.length - 1] === fold,
     count: count ? Number(count.textContent) : null,
     inFold: fold ? titles(fold) : null,
-    pills: pills.map(one => one.dataset.pill),
-    all: all ? Number(all.querySelector('span')?.textContent) : null,
+    pills: [...document.querySelectorAll('#sheet[data-open] [data-part="option"][data-pill]')].map(one => one.dataset.pill),
+    all: pill && whole ? Number(pill.querySelector('[data-part="pill/select-count"]')?.textContent) : null,
   }};
 }}"""
 OPEN = f"""() => {{ const summary = document.querySelector('#view {SECTION} summary');
@@ -79,7 +85,12 @@ async def main():
         journal.check("the fold is the list's last section, closed, counting the paused follows",
                       before["last"] and before["folded"] is True and before["count"] == len(paused),
                       f"last {before['last']}, folded {before['folded']}, count {before['count']} of {len(paused)}")
-        journal.check("there is no « En pause » filter any more", "pause" not in before["pills"], str(before["pills"]))
+        await page.locator('#view [data-part="pill/select"][data-follows-filter-pill]').tap()
+        await page.wait_for_timeout(ACTED)
+        offered = (await page.evaluate(READING))["pills"]
+        await page.evaluate("()=>window.__panel.close()")
+        await page.wait_for_timeout(ACTED)
+        journal.check("there is no « En pause » filter any more", bool(offered) and "pause" not in offered, str(offered))
         journal.check("« Tout » counts the follows being looked for, the paused ones outside it",
                       before["all"] == before["total"] - len(paused),
                       f"« Tout » {before['all']}, {before['total']} follows, {len(paused)} paused")

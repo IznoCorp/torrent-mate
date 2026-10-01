@@ -17,7 +17,7 @@ What this holds to:
   · choosing a direction really reverses the LIST — measured on the rendered
     rows, not on the data, because a sort that reorders an array nobody draws
     is a sort nobody has;
-  · the control on the count line reads the direction in force;
+  · the sort pill reads the direction in force;
   · and the sort stays OUT of the address. It is a preference, not a place
     (A7): two people opening the same link see their own sort, and the panel
     says so in its own note.
@@ -25,6 +25,13 @@ What this holds to:
 RE-AIMED when the follows took the contract's names: an incomplete show's title
 is read as `title`, where they were the engine's `t`, `k` and `st`. The holds
 and what they compare are unchanged.
+
+RE-AIMED OUT LOUD by maquette-blocked phase 6 (DESIGN § 1.9, DECIDED 1): the
+count line's sort control became the SORT PILL in the filter zone (still
+`data-sort`), and its sheet of six actions became the pill's list of choices.
+The panel is read as `[data-part="option"]` choices, the way in force as the one
+`aria-checked` (it was the action's `primary` tone); the pill's label is the
+way's name. Every hold is unchanged.
 """
 import asyncio
 import pathlib
@@ -44,21 +51,20 @@ from playwright.async_api import async_playwright
 TITLES = """()=>[...document.querySelectorAll('#libitems [data-part="card/title"], #libitems [data-part="tile"] [data-part="tile/title"]')]
   .map((element) => element.textContent.trim())"""
 
-PANEL = """()=>[...document.querySelectorAll('[data-part="sheet/actions"] [data-part="sheet/action"]')].map((button) => ({
+PANEL = """()=>[...document.querySelectorAll('#sheet[data-open] [data-part="option/list"] [data-part="option"]')].map((button) => ({
   text: button.textContent.trim(),
   sort: button.dataset.setsort || null,
   reversed: button.dataset.reversed === '1',
-  // « which sort is in force » is read from the tone the action emits, not
-  // from the class that paints it: `data-tone` is written from the same
-  // expression as the class, three holds below depend on this field, and a
-  // class read is not a shape any reader of this repository could see.
-  current: button.dataset.tone === 'primary',
+  // « which sort is in force » is read from the choice's own `aria-checked`,
+  // not from the class that paints it: three holds below depend on this field,
+  // and a class read is not a shape any reader of this repository could see.
+  current: button.getAttribute('aria-checked') === 'true',
 }))"""
 
 
 async def open_sort_panel(page):
-    """Opens the sort panel from the count line, the way a finger does."""
-    await page.click("#view [data-sort]")
+    """Opens the sort panel from the sort pill, the way a finger does."""
+    await page.click('#view [data-part="pill/select"][data-sort]')
     await page.wait_for_timeout(420)
     return await page.evaluate(PANEL)
 
@@ -149,7 +155,7 @@ async def main():
                 if not await page.evaluate(
                         "()=>!!document.querySelector('#sheet[data-open]')"):
                     await open_sort_panel(page)
-                selector = (f"""#sheet [data-part="sheet/action"][data-setsort='{key}']"""
+                selector = (f"""#sheet[data-open] [data-part="option"][data-setsort='{key}']"""
                             + ("[data-reversed='1']" if reversed_
                                else ":not([data-reversed])"))
                 control = page.locator(selector).first
@@ -161,7 +167,7 @@ async def main():
                 await page.wait_for_timeout(700)
                 drawn[sense] = await page.evaluate(TITLES)
                 label = await page.evaluate(
-                    "()=>document.querySelector('#view [data-sort]').textContent.trim()")
+                    "()=>document.querySelector('#view [data-part=\"pill/select\"][data-sort]').textContent.trim()")
                 journal.check(
                     f"choosing « {ways[sense]} » says so on the control",
                     label.endswith(ways[sense]), label)

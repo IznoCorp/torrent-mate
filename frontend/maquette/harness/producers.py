@@ -69,8 +69,10 @@ MOVED = ("account", "action", "journey", "more", "secret", "setting", "sort",
          "discover-header", "torrent", "tracker", "trackers-selector",
          # L18's panels: « Réaffecter… »'s chooser, and « Comptes »' role and roster.
          "reassign", "role", "roster",
-         # maquette-blocked's: « À traiter »'s filter pill and sort pill.
-         "todo-filter", "todo-sort")
+         # maquette-blocked's: « À traiter »'s filter pill and sort pill, then the
+         # Médiathèque's filter pill and Suivis' two (§ 1.9; the library's sort
+         # pill raises « sort », above).
+         "todo-filter", "todo-sort", "library-filter", "follows-filter", "follows-sort")
 
 # What each kind is driven with, and what the panel must then say about it. The
 # expected title is read from the PROTOTYPE's own data at run time — the third

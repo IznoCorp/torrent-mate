@@ -26,7 +26,7 @@ import { useUiState } from "../../lib/store-access";
 import { useLibraryIncomplete } from "./queries";
 import { useRights } from "../../lib/account";
 import { IncompleteLens } from "./incomplete-lens";
-import { CountLine, SortLabel } from "./library-count";
+import { CountLine } from "./library-count";
 import { INCOMPLETE_COUNT, LibraryHead } from "./library-head";
 import { LibraryList } from "./library-list";
 import { body, countLine, countLineAction, sectionCount, statusDot } from "../../ui/variants";
@@ -89,9 +89,6 @@ export function LibraryPage(): ReactElement | null {
             {t("screens.library.select")}
           </button>
         ) : null}
-        <button className={countLineAction()} data-sort="1">
-          <SortLabel />
-        </button>
       </div>
       <div className={body()} data-part="surface/body" data-region="library/body">
         <div className="note" data-part="note">
