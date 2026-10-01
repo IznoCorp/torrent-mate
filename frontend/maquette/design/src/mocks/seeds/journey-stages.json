@@ -42,7 +42,24 @@
       {
         "rung": "enriched",
         "when": "à venir",
-        "state": "pending"
+        "state": "pending",
+        "steps": [
+          {
+            "rung": "metadata",
+            "when": "à venir",
+            "state": "pending"
+          },
+          {
+            "rung": "posters",
+            "when": "à venir",
+            "state": "pending"
+          },
+          {
+            "rung": "trailer",
+            "when": "à venir",
+            "state": "pending"
+          }
+        ]
       },
       {
         "rung": "shelved",

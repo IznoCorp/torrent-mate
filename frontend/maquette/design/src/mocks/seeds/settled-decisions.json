@@ -1,14 +1,49 @@
 [
   {
+    "id": "The Odyssey (2026)",
     "folder": "The Odyssey (2026)",
     "kind": "movie",
     "title": "The Odyssey",
     "reason": "ambiguous",
     "state": "superseded",
     "when": "6 août, 09 h 24",
-    "year": 2026
+    "year": 2026,
+    "candidates": [
+      {
+        "title": "The Odyssey",
+        "year": 2026,
+        "provider": "tmdb",
+        "id": 1368337,
+        "score": 1,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      },
+      {
+        "title": "The Odyssey",
+        "year": 1997,
+        "provider": "tmdb",
+        "id": 49011,
+        "score": 0.9,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      },
+      {
+        "title": "L'Odyssée",
+        "year": 2016,
+        "provider": "tmdb",
+        "id": 396461,
+        "score": 0.7,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      }
+    ],
+    "settledBy": "operator"
   },
   {
+    "id": "The Bombing of Pan Am 103",
     "folder": "The Bombing of Pan Am 103",
     "kind": "show",
     "title": "The Bombing of Pan Am S01E03",
@@ -21,17 +56,85 @@
       "id": 456595,
       "via": "search_override",
       "poster": null
-    }
+    },
+    "candidates": [
+      {
+        "title": "Lockerbie",
+        "year": 2024,
+        "provider": "tvdb",
+        "id": 447180,
+        "score": 0.72,
+        "withoutPoster": true,
+        "overview": "Le père d'une victime de l'attentat du vol Pan Am 103 consacre des décennies à chercher qui a vraiment détruit l'avion au-dessus de Lockerbie, quitte à défier les conclusions officielles.",
+        "poster": null
+      },
+      {
+        "title": "Pan Am",
+        "year": 2011,
+        "provider": "tvdb",
+        "id": 247806,
+        "score": 0.61,
+        "withoutPoster": true,
+        "overview": "En 1963, à l'âge d'or du transport aérien, les pilotes et les hôtesses de la Pan American World Airways sillonnent le monde, entre glamour, rivalités et missions plus troubles qu'il n'y paraît.",
+        "poster": null
+      }
+    ],
+    "settledBy": "operator"
   },
   {
+    "id": "Star Trek",
     "folder": "Star Trek",
     "kind": "show",
     "title": "Star Trek",
     "reason": "mid_band",
     "state": "superseded",
-    "when": "30 juillet, 15 h 42"
+    "when": "30 juillet, 15 h 42",
+    "candidates": [
+      {
+        "title": "Star Trek",
+        "year": 1966,
+        "provider": "tvdb",
+        "id": 77526,
+        "score": 1,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      },
+      {
+        "title": "Star Trek: The Next Generation",
+        "year": 1987,
+        "provider": "tvdb",
+        "id": 71470,
+        "score": 0.8,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      },
+      {
+        "title": "Star Trek: Discovery",
+        "year": 2017,
+        "provider": "tvdb",
+        "id": 328711,
+        "score": 0.78,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      },
+      {
+        "title": "Star Trek: Strange New Worlds",
+        "year": 2022,
+        "provider": "tvdb",
+        "id": 382389,
+        "score": 0.74,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      }
+    ],
+    "settledBy": "operator"
   },
   {
+    "id": "The Hawk",
     "folder": "The Hawk",
     "kind": "show",
     "title": "The Hawk",
@@ -44,9 +147,43 @@
       "id": 450088,
       "via": "pick",
       "poster": "assets/posters/71d10ce4.webp"
-    }
+    },
+    "candidates": [
+      {
+        "title": "The Hawk",
+        "year": 2026,
+        "provider": "tvdb",
+        "id": 450088,
+        "score": 1,
+        "withoutPoster": false,
+        "overview": "Lonnie Hawkins alias \"The Hawk\", légende du golf en fin de carrière, se lance à la conquête d'un ultime titre majeur, entraînant tous ses proches sur un parcours très chaotique.",
+        "poster": "assets/posters/71d10ce4.webp"
+      },
+      {
+        "title": "Hawk",
+        "year": 1966,
+        "provider": "tvdb",
+        "id": 71893,
+        "score": 0.86,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      },
+      {
+        "title": "The Hawks",
+        "year": 2022,
+        "provider": "tvdb",
+        "id": 420611,
+        "score": 0.83,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      }
+    ],
+    "settledBy": "operator"
   },
   {
+    "id": "Lucky",
     "folder": "Lucky",
     "kind": "show",
     "title": "Lucky",
@@ -59,9 +196,63 @@
       "id": 457437,
       "via": "pick",
       "poster": "assets/posters/03ece553.webp"
-    }
+    },
+    "candidates": [
+      {
+        "title": "Lucky!",
+        "year": 2022,
+        "provider": "tvdb",
+        "id": 427619,
+        "score": 1,
+        "withoutPoster": false,
+        "overview": "The extraordinary story of Bernie Ecclestone's meteoric rise from post-war car dealer to the creation and 50-year reign over the cutthroat world of Formula One.",
+        "poster": "assets/posters/38d6c8e1.webp"
+      },
+      {
+        "title": "Lucky (2026)",
+        "year": 2026,
+        "provider": "tvdb",
+        "id": 457437,
+        "score": 1,
+        "withoutPoster": false,
+        "overview": "A reformed criminal is forced to confront her past and return to illicit activities for one final job, hoping to secure her freedom and leave her former life behind for good.",
+        "poster": "assets/posters/03ece553.webp"
+      },
+      {
+        "title": "Lucky (2006)",
+        "year": 2006,
+        "provider": "tvdb",
+        "id": 317944,
+        "score": 1,
+        "withoutPoster": true,
+        "overview": "About a young man Lucky, who runs a fake antique shop in Chor Bazaar and has the simplest ways of living, i.e. conning people by selling them fake antiques and actually making them believe that the artifacts are genuine. Lucky is a street smart, confident and intelligent character, who loves life the way it comes until he gets to know about the Rakshaks who were born for protecting sacred and priceless treasures and that now he is going to be the chosen one...the fifth Rakshak.",
+        "poster": null
+      },
+      {
+        "title": "Lucky (2003)",
+        "year": 2003,
+        "provider": "tvdb",
+        "id": 70876,
+        "score": 1,
+        "withoutPoster": false,
+        "overview": "After winning $1 million in the World Series of Poker at a Las Vegas casino, Michael 'Lucky' Linkletter lived like a king... briefly. Now, one year later, he's penniless. Although Lucky's been clean from his gambling addiction for six months, his debts continue to mount - including money owed to his deceased wife's parents and a mobster.",
+        "poster": "assets/posters/515ab882.webp"
+      },
+      {
+        "title": "Lucky Chances",
+        "year": 1990,
+        "provider": "tvdb",
+        "id": 298989,
+        "score": 0.9,
+        "withoutPoster": false,
+        "overview": "Based on the novels \"Chances\" and \"Lucky\" by Jackie Collins, this miniseries features the rise of Gino Santangelo in the Las Vegas casino industry, and his daughter Lucky's subsequent struggle to maintain the family empire.",
+        "poster": "assets/posters/77cbd82e.webp"
+      }
+    ],
+    "settledBy": "operator"
   },
   {
+    "id": "Top Chef Le Concours Parallèle (2026)",
     "folder": "Top Chef Le Concours Parallèle (2026)",
     "kind": "show",
     "title": "Top Chef Le Concours Parallele",
@@ -75,9 +266,33 @@
       "id": 475278,
       "via": "pick",
       "poster": null
-    }
+    },
+    "candidates": [
+      {
+        "title": "Top Chef Le Concours Parallele",
+        "year": 2026,
+        "provider": "tvdb",
+        "id": 475278,
+        "score": 1,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      },
+      {
+        "title": "Top Chef",
+        "year": 2010,
+        "provider": "tvdb",
+        "id": 255968,
+        "score": 0.81,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      }
+    ],
+    "settledBy": "operator"
   },
   {
+    "id": "Ferrari Tsamere Lecaplain La tournee du Trio (2025)",
     "folder": "Ferrari Tsamere Lecaplain La tournee du Trio (2025)",
     "kind": "movie",
     "title": "Ferrari Tsamere Lecaplain La tournee du Trio",
@@ -91,9 +306,23 @@
       "id": 1433379,
       "via": "pick",
       "poster": null
-    }
+    },
+    "candidates": [
+      {
+        "title": "Ferrari, Tsamere, Lecaplain : La Tournée du Trio",
+        "year": 2025,
+        "provider": "tmdb",
+        "id": 1433379,
+        "score": 1,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      }
+    ],
+    "settledBy": "operator"
   },
   {
+    "id": "Aymeric Lompret et Pierre Emmanuel Barre Woke me up (2026)",
     "folder": "Aymeric Lompret et Pierre Emmanuel Barre Woke me up (2026)",
     "kind": "movie",
     "title": "Aymeric Lompret et Pierre Emmanuel Barre Woke me up",
@@ -107,9 +336,23 @@
       "id": 1629753,
       "via": "pick",
       "poster": null
-    }
+    },
+    "candidates": [
+      {
+        "title": "Aymeric Lompret et Pierre Emmanuel Barre Woke me up",
+        "year": 2026,
+        "provider": "tmdb",
+        "id": 1629753,
+        "score": 1,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      }
+    ],
+    "settledBy": "operator"
   },
   {
+    "id": "Obsession (2026)",
     "folder": "Obsession (2026)",
     "kind": "movie",
     "title": "Obsession",
@@ -123,9 +366,33 @@
       "id": 1339713,
       "via": "pick",
       "poster": "assets/posters/98173527.webp"
-    }
+    },
+    "candidates": [
+      {
+        "title": "Obsession",
+        "year": 2026,
+        "provider": "tmdb",
+        "id": 1339713,
+        "score": 1,
+        "withoutPoster": false,
+        "overview": "Et si vous pouviez réaliser votre rêve le plus fou ? Un jeune introverti met la main sur un objet magique capable d’exaucer n’importe quel souhait. Son crush de toujours tombe alors raide dingue de lui… jusqu’à l’obsession la plus totale. Faites attention à ce que vous souhaitez !",
+        "poster": "assets/posters/98173527.webp"
+      },
+      {
+        "title": "Obsession",
+        "year": 1976,
+        "provider": "tmdb",
+        "id": 20870,
+        "score": 1,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      }
+    ],
+    "settledBy": "operator"
   },
   {
+    "id": "Remarkably Bright Creatures (2026)",
     "folder": "Remarkably Bright Creatures (2026)",
     "kind": "movie",
     "title": "Remarkably Bright Creatures",
@@ -139,6 +406,172 @@
       "id": 1330021,
       "via": "search_override",
       "poster": null
-    }
+    },
+    "candidates": [
+      {
+        "title": "Bright",
+        "year": 2017,
+        "provider": "tmdb",
+        "id": 400106,
+        "score": 0.64,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      },
+      {
+        "title": "Bright Creatures",
+        "year": 2019,
+        "provider": "tmdb",
+        "id": 612004,
+        "score": 0.62,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      },
+      {
+        "title": "Remarkable Creatures",
+        "year": 2021,
+        "provider": "tmdb",
+        "id": 790413,
+        "score": 0.6,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      }
+    ],
+    "settledBy": "operator"
+  },
+  {
+    "id": "President.Curtis.S01E02.1080p.WEB",
+    "folder": "President.Curtis.S01E02.1080p.WEB",
+    "kind": "show",
+    "title": "President Curtis",
+    "reason": "ambiguous",
+    "state": "resolved",
+    "when": "12 juillet, 21 h 10",
+    "year": 2026,
+    "choice": {
+      "title": "President Curtis",
+      "provider": "tvdb",
+      "id": 466198,
+      "via": "pick",
+      "poster": null
+    },
+    "candidates": [
+      {
+        "title": "President Curtis",
+        "year": 2026,
+        "provider": "tvdb",
+        "id": 466198,
+        "score": 1,
+        "withoutPoster": true,
+        "overview": "Suivez le commandant en chef et son équipe excentrique alors qu'ils s'attaquent à des crises dont Rick Sanchez ne se soucierait jamais : de la diplomatie interdimensionnelle aux enquêtes sur le paranormal en passant par les phénomènes inexpliqués.",
+        "poster": null
+      },
+      {
+        "title": "Mr. President",
+        "year": 1987,
+        "provider": "tvdb",
+        "id": 76121,
+        "score": 0.7,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      },
+      {
+        "title": "Curtis",
+        "year": 2018,
+        "provider": "tvdb",
+        "id": 351200,
+        "score": 0.66,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      }
+    ],
+    "settledBy": "operator"
+  },
+  {
+    "id": "Furious.S01E01.MULTi.1080p.WEB-DL",
+    "folder": "Furious.S01E01.MULTi.1080p.WEB-DL",
+    "kind": "show",
+    "title": "Furious",
+    "reason": "confident",
+    "state": "resolved",
+    "when": "12 juillet, 09 h 32",
+    "year": 2026,
+    "choice": {
+      "title": "Furious",
+      "provider": "tvdb",
+      "id": 468000,
+      "via": "pick",
+      "poster": null
+    },
+    "candidates": [
+      {
+        "title": "Furious",
+        "year": 2026,
+        "provider": "tvdb",
+        "id": 468000,
+        "score": 1,
+        "withoutPoster": true,
+        "overview": "Alice Black, agent du FBI, est à la poursuite d'une mystérieuse tueuse en série, d'un esprit calculateur. Chacune suit son propre chemin vers la justice, et à mesure que leurs vies commencent à s'entremêler, la frontière entre le bien et le mal s'estompe peu à peu.",
+        "poster": null
+      }
+    ],
+    "settledBy": "engine"
+  },
+  {
+    "id": "The.Alabama.Solution.2025.1080p",
+    "folder": "The.Alabama.Solution.2025.1080p",
+    "kind": "movie",
+    "title": "The Alabama Solution",
+    "reason": "below_threshold",
+    "state": "dismissed",
+    "when": "11 juillet, 18 h 05",
+    "candidates": [
+      {
+        "title": "The Alabama Solution",
+        "year": 2025,
+        "provider": "tmdb",
+        "id": 1413805,
+        "score": 1,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      },
+      {
+        "title": "Alabama Moon",
+        "year": 2009,
+        "provider": "tmdb",
+        "id": 27549,
+        "score": 0.63,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      },
+      {
+        "title": "Sweet Home Alabama",
+        "year": 2002,
+        "provider": "tmdb",
+        "id": 11637,
+        "score": 0.6,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      },
+      {
+        "title": "The Solution",
+        "year": 2019,
+        "provider": "tmdb",
+        "id": 623301,
+        "score": 0.58,
+        "withoutPoster": true,
+        "overview": "",
+        "poster": null
+      }
+    ],
+    "settledBy": "operator",
+    "year": 2025
   }
 ]

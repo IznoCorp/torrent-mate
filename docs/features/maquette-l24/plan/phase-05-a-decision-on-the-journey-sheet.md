@@ -25,21 +25,13 @@ R-L24-a over `sheet-journey-decision-operator`: no block is drawn — `0 block(s
    among how many candidates, by whom, when; a dismissed or superseded decision reads its `decisionStateDetail`
    sentence in the choice's place.
 2. While the decision is pending, nothing is drawn — the medium is an « À traiter » card (L22), unchanged.
-3. The block is exported for `features/media/` (phase 6): its fan-in is read against
-   `python3 scripts/check-frontend-boundaries.py` (ceiling 4) — over it is STOP D.
+3. The block is exported for `features/media/` (phase 6).
 
-## Mutation
-
-Draw the candidates' count as a fixed figure → the count hold falls by name.
 
 ## Register
 
 None.
 
-## Oracle: states that diverge, declared by name
-
-`sheet-journey` if the seed's medium already carries a settled decision (declared by script at the opening), and the
-three new states.
 
 ## Commit
 

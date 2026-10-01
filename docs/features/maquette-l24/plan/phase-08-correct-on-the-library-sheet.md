@@ -23,17 +23,11 @@ Reading A: the hold over `media-sheet-decision-corrected` — no act on the Méd
 
 A: the act, its operation and its mock; the arbitration opens on the decision by its id.
 
-## Mutation
-
-Answer the act without calling the operation → the new hold falls by name.
 
 ## Register
 
 Under A, the new demand in the regenerated `docs/reference/frontend-backend-demands.md`.
 
-## Oracle: states that diverge, declared by name
-
-A: `media-sheet-decision` (the act drawn) and the new state.
 
 ## Commit
 

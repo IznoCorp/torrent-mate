@@ -14,14 +14,14 @@ import { useQuery } from "@tanstack/react-query";
 import { read } from "../../lib/query-client";
 import { currentEntryState } from "../../lib/navigate";
 import { carriedBy } from "../../lib/navigation-entry";
-import { seasonsHeld, seasonsQuery, type SeasonsAnswer } from "../../lib/season-rows";
+import { completenessHeld, completenessQuery, seasonsHeld, seasonsQuery, type SeasonsAnswer } from "../../lib/season-rows";
 
 /** One sheet, as the layer composes it. */
 export type MediaSheetPayload = Record<string, unknown>;
 
 /** What the seasons read answers — written once, in `lib/season-rows.ts`. */
 export type MediaSeasons = SeasonsAnswer;
-export { seasonsHeld };
+export { completenessHeld, seasonsHeld };
 
 /**
  * What the current entry carries about the sheet at one address.
@@ -132,3 +132,13 @@ export function announcedAfter(
     .sort();
 }
 
+
+/**
+ * A follow's completeness, the season figures of a FOLLOWED series (NE-DOIT-PAS-1).
+ *
+ * @param followedId The follow, or null for a medium nobody follows — then nothing is asked.
+ * @returns The query.
+ */
+export function useFollowCompleteness(followedId: string | null) {
+  return useQuery({ ...completenessQuery(followedId ?? ""), enabled: followedId !== null });
+}

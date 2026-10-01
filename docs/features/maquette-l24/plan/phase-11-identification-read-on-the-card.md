@@ -14,23 +14,17 @@ phase is its PROOF.
 
 ## Red today
 
-Written against the journey sheet; if green on the mocks, the mutation shows its red first.
+Written against the journey sheet.
 
 ## Move
 
 The rule only.
 
-## Mutation
-
-Draw the rung « identifié » as done while the seed says `now` → falls by name.
 
 ## Register
 
 `decisions/activity` recorded served differently, by the cards, in the close's report.
 
-## Oracle: states that diverge, declared by name
-
-None.
 
 ## Commit
 

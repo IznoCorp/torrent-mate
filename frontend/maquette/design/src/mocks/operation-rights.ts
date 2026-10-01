@@ -51,6 +51,7 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   rescrapeMedia: "library.rescrape",
 
   readFollows: null,
+  readFollowCompleteness: null,
   readAcquisitionQueue: null,
   readAcquisitionStatus: null,
   readJourney: null,
@@ -82,6 +83,8 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   restoreReclassifiedMedia: "pipeline.control",
   resolvePlexMatch: "pipeline.control",
   resolveDecision: "pipeline.control",
+  reopenDecision: "pipeline.control",
+  enqueueForResolution: "pipeline.control",
   dismissDecision: "pipeline.control",
   searchForDecision: "pipeline.control",
   runPipeline: "pipeline.control",

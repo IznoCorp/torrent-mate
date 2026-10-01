@@ -202,8 +202,13 @@ export const candidateCard = cva("text-left p-0 [font:inherit] text-inherit");
  *  interface's primary action button, at its 44 px, the ONLY control that picks,
  *  and never a check mark — a mark on every card read as « already selected »
  *  (B-500). An action button fills its row by default; here it takes its
- *  label's width. */
-export const pickPlace = cva("flex-none self-center mr-5 [&>button]:w-auto");
+ *  label's width.
+ *
+ *  AT THE CARD'S FOOT, NOT ITS MIDDLE (R409). Centred, it met the title's line on
+ *  a candidate whose provider gave no synopsis: the body, two short lines and a
+ *  chip, sat centred on the poster and the button's 44 px reached up to the
+ *  title. At the foot it stands after the meta whatever the body holds. */
+export const pickPlace = cva("flex-none self-end mr-5 mb-5 [&>button]:w-auto");
 
 /**
  * Two feet on one line. A card of « À traiter » that offers two answers —
@@ -225,3 +230,6 @@ export const originRow = cva(
   "flex items-center gap-4 mt-4 [&>button]:mt-0 [&>button]:flex-none [&>button]:w-auto " +
   "[&>button]:min-h-[44px] [&>span]:min-w-0 [&>span]:flex-1",
 );
+
+/** The decision block's heading, a step above its facts (L24 S1). */
+export const decisionHeadingPlace = cva("mb-3");

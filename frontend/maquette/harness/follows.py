@@ -25,9 +25,8 @@ async def main():
     print("chips             :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="pill"]')].map(b=>b.textContent.trim())"""))
     print("list order        :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card/title"]')].map(e=>e.textContent).slice(0,6)"""))
     print("dot across a chip :", await pg.evaluate("""()=>{const c=document.querySelector('[data-part="chip"]');const s=getComputedStyle(c,'::before');return {w:s.width,h:s.height,radius:s.borderRadius};}"""))
-    print("title alone       :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card"]')].slice(0,4).every(c=>{
-        const t=c.querySelector('[data-part="card/title"]').getBoundingClientRect(), m=c.querySelector('[data-part="card/meta"]').getBoundingClientRect();
-        return t.bottom<=m.top+0.5;})"""))
+    # « title alone » is held by R409 (`card_title_alone.py`) over every card of
+    # every named state; the print that stood here read four and asserted nothing.
     await shot(pg, "follows-list")
 
     await pg.click('[data-fmode="group"]'); await pg.wait_for_timeout(350)

@@ -178,6 +178,8 @@ function seasonCard(
   return {
     title,
     secondaryLine: SEASON_MARK + String(season).padStart(SEASON_DIGITS, DIGITS_FILL),
+    // A SEASON IS ASKED OF A SERIES, always.
+    kind: "show",
     season,
     episode: null,
     trigger: ASKED_BY_HAND,

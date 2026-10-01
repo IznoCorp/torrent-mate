@@ -28,17 +28,11 @@ R-L24-e over `acq-resolution-enqueued`: no act calls `enqueueForResolution` — 
    pre-filled manual search when none (§ 3's invariant, DOIT-7).
 2. A refused call draws its reason; the screen does not open on nothing.
 
-## Mutation
-
-Open the screen without the call → the network hold falls by name.
 
 ## Register
 
 The map's DOIT-7 « unproved » half is proved; the row is the operator's to move (phase 20 proposes it).
 
-## Oracle: states that diverge, declared by name
-
-The block's three states (the act drawn) and the two new states.
 
 ## Commit
 

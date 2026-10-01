@@ -25,7 +25,7 @@ import { sharedQueryClient } from "../../lib/query-client";
 import { store } from "../../lib/store-access";
 import { serviceDownWords, withOneRowDown } from "./fault";
 import { useLocks } from "./locks-queries";
-import { useDependencies, useServices } from "./queries";
+import { useDependencies, useDisks, useIndexHealth, useServices } from "./queries";
 import { factTone } from "./state-words";
 
 type Fact = Schemas["Fact"];
@@ -35,10 +35,13 @@ type Locks = components["schemas"]["Locks"];
 const LOCKS_KEY = ["/api/maintenance/locks"];
 const SERVICES_KEY = ["/api/system/services"];
 const DEPENDENCIES_KEY = ["/api/system/dependencies"];
+const DISKS_KEY = ["/api/maintenance/disks"];
+const INDEX_KEY = ["/api/maintenance/index-health"];
 
 // The contract's tone for a fact that is wrong, and its sweep status for « not
 // counted yet ».
 const ALERT = "alert";
+const WARNING = "warning";
 const SWEEP_PENDING = "pending";
 
 /**
@@ -63,6 +66,13 @@ export function systemBadge(): number {
     const answer = sharedQueryClient?.getQueryData<unknown>(key);
     return Array.isArray(answer) ? (answer as Fact[]) : [];
   };
+  // A SECTION THAT CANNOT BE READ IS ONE FAULT, as the page draws it — one row,
+  // « indisponible », in the alert tone — and never « nothing to report »: the
+  // badge dropped when the disks or the index could not be read. What its last
+  // answer held is not counted over it, since the page does not draw it.
+  const unreadable = (key: string[]) => sharedQueryClient?.getQueryState(key)?.status === "error";
+  const counted = (key: string[], tone: string) =>
+    unreadable(key) ? 1 : listAt(key).filter((fact) => factTone(fact) === tone).length;
   const services = listAt(SERVICES_KEY);
   const dependencies = listAt(DEPENDENCIES_KEY);
   const drawn = store.read().state.fault === true
@@ -75,8 +85,12 @@ export function systemBadge(): number {
         locks.sweep.status !== SWEEP_PENDING && locks.sweep.orphans.length > 0,
       ].filter(Boolean).length
     : 0;
-  const faults = [...drawn, ...dependencies].filter((fact) => factTone(fact) === ALERT).length;
-  return maintenance + faults;
+  const faults = (unreadable(SERVICES_KEY) ? 1 : drawn.filter((fact) => factTone(fact) === ALERT).length)
+    + counted(DEPENDENCIES_KEY, ALERT);
+  // A DISK NEARLY FULL AND AN INDEX ANOMALY COUNT TOO (L24, OPEN 2 = A), each
+  // read on the fact's own tone, never on its words.
+  const care = counted(DISKS_KEY, WARNING) + counted(INDEX_KEY, WARNING);
+  return maintenance + faults + care;
 }
 
 /**
@@ -87,4 +101,6 @@ export function useSystemBadgeReads(): void {
   useLocks();
   useServices();
   useDependencies();
+  useDisks();
+  useIndexHealth();
 }

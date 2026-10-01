@@ -23,17 +23,11 @@ fetched, trailer, each with its state; the card ladder keeps its eight rungs (ro
 
 The unfold on the sheet only; the card's « n sur 8 » unchanged (the card reads rungs, never steps).
 
-## Mutation
-
-Retype a step word in the sheet instead of reading the vocabulary → the one-source hold falls by name.
 
 ## Register
 
 The map's DOIT-1 « to draw » half; proposed at phase 20.
 
-## Oracle: states that diverge, declared by name
-
-`sheet-journey` (the steps under « rangé »), and the new state.
 
 ## Commit
 

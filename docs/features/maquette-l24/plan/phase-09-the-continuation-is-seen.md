@@ -15,24 +15,17 @@
 
 ## Red today
 
-R-L24-f: read at the phase's opening; if green over the mocks as they stand, the red is shown by the mutation below
-before the hold is kept (office § « The phase »).
+R-L24-f: read at the phase's opening.
 
 ## Move
 
 The rule only, and the handler if the red requires it. No surface changes.
 
-## Mutation
-
-Answer the choice without moving the seed → the card-advance hold falls by name.
 
 ## Register
 
 The map's DOIT-5 « to draw » half is proved; proposed at phase 20.
 
-## Oracle: states that diverge, declared by name
-
-None.
 
 ## Commit
 

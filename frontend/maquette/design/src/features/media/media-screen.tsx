@@ -25,7 +25,7 @@ import { sheetHeadingPlace, synopsisText } from "./variants";
 import { type MediaSheet, type Trailer } from "../../features/media/types";
 import { useStoreContent } from "../../lib/store-access";
 import { isRequestFailure } from "../../lib/query-client";
-import { carriedSheet, seasonsHeld, useMediaSeasons, useMediaSheet } from "./queries";
+import { carriedSheet, completenessHeld, seasonsHeld, useFollowCompleteness, useMediaSeasons, useMediaSheet } from "./queries";
 import { backAction, body as bodyClass, screen, screenBar, scrollport, sectionHeading, screenBarNote } from "../../ui/variants";
 import { Icon } from "../../ui/icon";
 import { SkeletonLine, SurfaceError } from "../../ui/state-surfaces";
@@ -36,6 +36,7 @@ import { MediaLibraryFacts } from "./media-library-facts";
 import type { Follow, MediaSheetFields } from "./sheet-fields";
 import { bridge } from "../../lib/shell-doors";
 import { baseTitle } from "../../lib/titles";
+import { DecisionBlock } from "../acquisition/decision-block";
 
 /**
  * What the route hands the screen, owned by other features, so they compose in
@@ -118,7 +119,14 @@ export function MediaScreen({ readFollows, crossSeed }: MediaScreenProperties) {
   // holds, derived from a read that never arrived — with no surface and no way
   // to ask again.
   const seasonsFailed = seasonsRead.isError;
-  const sorted = seasonsHeld(catalogue)
+  // A FOLLOWED SERIES READS THE ENGINE'S OWN COMPLETENESS, the one its follow
+  // sheet reads (NE-DOIT-PAS-1, § 13); a medium nobody follows keeps the figures
+  // its seasons read crosses.
+  const followedAs = follows.find((one) => baseTitle(one.title) === baseTitle(title))?.title ?? null;
+  const completenessRead = useFollowCompleteness(followedAs);
+  const sorted = (followedAs !== null && completenessRead.data !== undefined
+    ? completenessHeld(completenessRead.data)
+    : seasonsHeld(catalogue))
     .slice()
     .sort((slice, index) => index[0] - slice[0]);
   const own = sorted.reduce(
@@ -321,6 +329,10 @@ export function MediaScreen({ readFollows, crossSeed }: MediaScreenProperties) {
             seasonsInFlight={seasonsInFlight}
             sheetInFlight={inFlight}
           />
+
+          {/* THE DECISION THAT IDENTIFIED IT, the journey sheet's own block (L24
+              S1, § 13): found here by the medium's provider ids. */}
+          <DecisionBlock subject={{ title, ids: prov }} />
 
           <MediaDetails title={title} isFilm={isFilm} owns={owns} followed={followed} follows={follows} prov={prov} inFlight={inFlight} identified={identified} metadataRefreshedAt={sheet?.metadataRefreshedAt ?? null} />
 

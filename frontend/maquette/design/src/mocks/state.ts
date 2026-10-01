@@ -188,6 +188,13 @@ export type MockState = {
   /** The temporary entries a crash left behind, as the sweep found them. */
   tmpOrphans: Schemas["TmpOrphan"][];
   /**
+   * A HEALTHY MACHINE, POSED: every disk with room and an index with no
+   * anomaly. The seed at rest is the operator's real machine — a disk nearly
+   * full, anomalies to clean — and a state about a machine with nothing to say
+   * has to pose that, openly, rather than the seed being moved to look calm.
+   */
+  machineHealthy: boolean;
+  /**
    * The stages of each journey the operator has opened, PER MEDIUM.
    *
    * WHY PER MEDIUM AND WHY MUTABLE. The layer answered ONE seeded list to every
@@ -202,6 +209,8 @@ export type MockState = {
    * nothing knows in advance which media will be asked for.
    */
   journeyStages: Record<string, Schemas["JourneyStage"][]>;
+  /** When a medium's identification was settled by a choice, by the title it goes on under: its rung « identifié » carries it. */
+  identifiedAt: Record<string, string>;
   /** A staged folder's case, POSED by the harness (RULINGS 22) — no fixture records one. */
   stagedCopies: Record<string, string>;
   /** The releases already tried per title, which the release read no longer offers. */
@@ -301,7 +310,9 @@ const seeded = (): MockState => ({
   sweepFinished: true,
   historyDegraded: false,
   tmpOrphans: copyOf<Schemas["TmpOrphan"][]>(TMP_ORPHANS),
+  machineHealthy: false,
   journeyStages: {},
+  identifiedAt: {},
   stagedCopies: {},
   triedReleases: {},
   metadataRefreshedAt: {},
@@ -353,6 +364,7 @@ export type MockDials = {
   setHistoryDegraded: (degraded: boolean) => void;
   setSweepFinished: (finished: boolean) => void;
   setTmpOrphans: (present: boolean) => void;
+  setMachineHealthy: (healthy: boolean) => void;
   setRunInProgress: (going: boolean) => void;
 };
 
@@ -396,6 +408,9 @@ export const mockDials: MockDials = {
   },
   setTmpOrphans: (present: boolean) => {
     mockState().tmpOrphans = present ? copyOf<Schemas["TmpOrphan"][]>(TMP_ORPHANS) : [];
+  },
+  setMachineHealthy: (healthy: boolean) => {
+    mockState().machineHealthy = healthy;
   },
   setRunInProgress: (going: boolean) => {
     // THE SNAPSHOT HOLDS NO RUN STILL GOING: this is its first real pipeline
