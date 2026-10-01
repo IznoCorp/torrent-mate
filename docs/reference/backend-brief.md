@@ -1,11 +1,11 @@
-# The backend brief — DRAFT
+# The backend brief
 
-**Status: DRAFT, 2026-10-01, for the operator's rulings.** `backend-demands-architecture.md` says the backend's work
+**Status: the operator's ten rulings of 2026-10-01 are written in (§ 5, DECIDED); the lots of § 6 follow them.**
+`backend-demands-architecture.md` says the backend's work
 « will carry another letter, in a backend brief written once the maquette is finished » (operator, 2026-08-30). Every
 drawn lot is merged (`main` `27b304157`, 0.98.125) and the freeze is reached at L24's close (`IMPLEMENTATION.md`).
-This is that brief's draft. It schedules the backend mission's lots — letter **K** (the maquette's lots carry L) —
-and asks the questions only the operator answers (§ 5). Nothing here is decided until § 5 is ruled; what is already
-ruled is cited as ruled.
+This is that brief. It schedules the backend mission's lots — letter **K** (the maquette's lots carry L) — and
+records the questions only the operator answers, with his rulings (§ 5).
 
 **Its inputs**, never repeated here in full: the constitution (`product-intent.md`, §§ cited per row); the
 operator's principles (`operator-method.md` § 1) and his « Environnements et back-end » decisions (§ 3); the
@@ -23,8 +23,9 @@ their lettered demands (L16-bis T1–T3, L17 A–K, L18 C–P, L23 Q–S, L24 A�
 - « On n'est pas obligé de reprendre toutes les données telles quelles. On n'est pas encore en production » ;
   « on pourrait […] réimaginer des bases de données » ; « ce serait bien d'avoir une vraie staging » (09-27) — § 3,
   § 4.
-- « A, pas de gestion de rétro-compatibilité ! » (09-29) — no alias, no migration script kept for a shape that dies,
-  no `v1` kept after the switchover.
+- « A, pas de gestion de rétro-compatibilité ! » (09-29) — no alias, no migration script kept for a shape that dies;
+  the v0 routes are deprecated one by one and deleted at the switchover (§ 5 Q1 — `/api/v1` is the new backend's
+  permanent prefix, not a temporary one).
 - The backend follows the interface (§ 15): a divergence is settled on the contract's side unless the contract is
   shown wrong, and a backend limitation is recorded, never a reason for the interface to draw less.
 - The acquired backend decisions are realigned, never razed: `web/staging/stages.py` as the single stage taxonomy,
@@ -49,7 +50,7 @@ engine. The cross-cutting divergences come first because every domain carries th
 | Demand | What | Source |
 | --- | --- | --- |
 | **X1 — the failure shape** | every refusal answers `Problem {status, title, detail}`; today FastAPI's `{detail}` makes the maquette's `isRequestFailure` take the outage branch and QUEUE an action the server refused (401, 403, 409, 422). The binding's first gesture | arch § 6, B-267, NE-DOIT-PAS-1/5 |
-| **X2 — names** | the contract's property names (camelCase) on 53 reshaped answers; one spelling of the 17 path parameters (reg § 2b, « the operator's call » — § 5 Q2) | reg § 2, § 2b |
+| **X2 — names** | the contract's property names (camelCase) on 53 reshaped answers; one spelling of the 17 path parameters (reg § 2b, « the operator's call » — § 5 intro) | reg § 2, § 2b |
 | **X3 — statuses** | the 11 status divergences (202/201/204 where the contract says 200); `requeueJourney`'s 409 becomes a visible queue — the only refusal left is idempotence | reg § 2c, § 6, DOIT-4, NE-DOIT-PAS-3 |
 | **X4 — facts, not sentences** | the 25 pre-formatted fields (`when`, `secondaryLine`, `duration`, `reason`, `kind`…) become the underlying fact (epoch, counts, codes); the interface owns every word through `fr.json`. Système's facts are STATE CODES (conformity Q2 = A); a run's narrative is codes + parameters, never French on the wire | reg § 3, arch § 15, stream § 7, DOIT-1, NE-DOIT-PAS-4 |
 | **X5 — year and kind on every card** | `QueueCard`, `LibraryItem`, `LibraryRow`, `IncompleteShow` carry `year` and `kind` as first-class fields (ruling 55, reading B); `PendingDecision.kind` is the enum `movie \| show` | arch § 10, § 13 |
@@ -69,7 +70,7 @@ engine. The cross-cutting divergences come first because every domain carries th
 | `requeueJourney`, `rescrapeJourney` | reshape | `{queued, runUid}`; an ask at the bound is queued, visibly | §6 | reg § 2c |
 | `resolvePlexMatch` | new | confirm or correct the match Plex made (« Confirmer » / « Corriger » on the card, Rd 5 Q9); the engine compares Plex's real match with the identity held | §4 | reg § 1 (OPEN 9 fifth demand) |
 | `grabSeasonForFollow` | reshape | addressed by the MEDIUM, followed or not (a medium nobody follows has no follow rowid today). For an unfollowed owned show it creates a ONE-OFF acquisition (`via: request`) carrying « Suivre » — never a follow: Rd 10 Q2 (09-27) supersedes arch § 7's implied follow (09-11) and its `newlyFollowed`, which the contract no longer declares. Answers `queued`, `reused` (a live recovery of that season already ran), `absorbedCount` (counted on AIRED, not owned episodes — B-380, ruled 09-11: « Manquant : les épisodes diffusés et non possédés ! ») | DOIT-3, §17 | arch § 7 (as amended by Rd 10 Q2) |
-| season recovery | engine | while a season wanted is open, the per-episode enqueue and grab paths skip that season's episodes (SR3); an episode's own card is ABSORBED (conformity Q6 = A); the fate of an episode already `grabbed` at the ask (SR2 — § 5 Q8); the season-pack guards (#489 `filter_to_season`, #542 fallback) compose with the exclusion | §20 | SR1–SR3, SR6 |
+| season recovery | engine | while a season wanted is open, the per-episode enqueue and grab paths skip that season's episodes (SR3); an episode's own card is ABSORBED (conformity Q6 = A); an episode already `grabbed` at the ask is neither cancelled nor filtered: at filing the LAST CHOSEN release wins (§ 5 Q9); the season-pack guards (#489 `filter_to_season`, #542 fallback) compose with the exclusion | §20 | SR1–SR3, SR6 |
 | `readReleases` | new | the release candidates of one wanted item, each row with its parsed `season` / `episode` (the picker never parses a name) | §9 | SR6 |
 | `previewRanking` | reshape | `trackerRatioState`: a release from a low-ratio tracker loses points | §18 | arch § 4 |
 | `readSuggestions` | new | titles worth following, and why (Découvrir); « passer » is local (Rd 09-30 Q4 = A), « rejeter » is written | §5 | reg § 1 |
@@ -79,7 +80,7 @@ engine. The cross-cutting divergences come first because every domain carries th
 | a resolve's inverse | engine | « remettre en attente »: a settled folder goes back in the queue, so the undo window need not hold the send | DOIT-7 | arch § 9 |
 | `readDecisions`, `resolveDecision`, `dismissDecision`, `searchForDecision` | reshape | a settled decision carries `id`, `candidatesCount`, `settledBy: operator \| engine` — an identification the engine made ALONE is written as a decision row | §3, ruling L24 OPEN 1 = C | L24 D |
 | `reopenDecision` | new | « Corriger »: a settled decision back to arbitration with the candidates a provider search finds, a shelved medium's included | DOIT-7 | L24 |
-| the tunnel | engine | one execution per ARRIVAL, followed to its Plex match; N in parallel under `pipeline.tunnels.max_parallel`, the rest queued visibly; a block ENDS the execution and persists its state, step, reason and what resumes it; a resume verb; one trigger authority | §20, §4, §6, NE-DOIT-PAS-7 | arch § 1, § 12 — § 5 Q5–Q7 |
+| the tunnel | engine | one execution per ARRIVAL, followed to its Plex match; N in parallel under `pipeline.tunnels.max_parallel`, the rest queued visibly; a block ENDS the execution and persists its state, step, reason and what resumes it; a resume verb; one trigger authority; a block of an EXTERNAL cause resumes on its own when the engine sees it lifted; every blocked tunnel is an « À traiter » card with its cause, what lifts it and where | §20, §4, §6, NE-DOIT-PAS-7 | arch § 1, § 12 — § 5 Q5–Q9 |
 
 ### 1.2 Library — the listing and the sheet
 
@@ -106,11 +107,11 @@ engine. The cross-cutting divergences come first because every domain carries th
 | `cutCrossSeed` | new | removes the pair's entry WITHOUT its files, closes its obligation « libérée », marks the pair « stoppé », and remembers the cut | §19 | arch § 5; Rd 9 Q5, Q8 |
 | `writeCrossSeedExclusion`, `undoCrossSeedExclusion` | new | a pair or a whole title excluded from every future pass; undo without confirmation | §19 | L17 K; Rd 9 Q11 = C |
 | `uploadCrossSeed` | new | creates a `.torrent` from an ACTIVE, complete, seeding torrent's files and publishes it on one tracker that accepts uploads; the backend applies the tracker's rules and answers a refusal with its reason; failures `creation_failed` / `publish_failed` count at the badge | §19 point 5 | L23 Q, R, S; Rd 11 Q1–Q5 |
-| the per-tracker switches | config | `tracker.providers.<name>.cross_seed`, `.accepts_uploads` and `.economy.alert_threshold` through the EXISTING `updateConfigurationFile` — one write, two doors; `stopRunningCrossSeeds` on the switch's cut | §18, §19 | L17 G; arch § 4 |
+| the per-tracker switches | config | `tracker.providers.<name>.cross_seed`, `.accepts_uploads` and `.economy.alert_threshold` (default 1.2) through the EXISTING `updateConfigurationFile` — one write, two doors; `stopRunningCrossSeeds` on the switch's cut | §18, §19 | L17 G; arch § 4 |
 | the cross-seed engine | engine | attempts EVERY eligible switched-on tracker (not the first verified injection); keeps a state for the pairs no event fires for; active by default AT THE SWITCHOVER, never before | §19 | L17 B (fact 16), H |
 | three more trackers | engine | `v3x.club`, `draupnirr.xyz`, `digitalcore.club` as providers (search, grab, ratio, cross-seed), each with the `c411` block | §18 | L16-bis T1 |
 | a failing tracker switches itself off | engine | persistent 401/403 or open circuit ⇒ `enabled: false` with its reason; a re-activation refused (422) while it persists; an event | §8 | L16-bis T2 |
-| the ratio alert by push | platform | FCM, iOS and Android | §18 | arch § 4 — § 5 Q9 |
+| the ratio alert by push | platform | FCM (Firebase project, web push on the installed PWA, Android and iOS); the threshold defaults to 1.2, per tracker; Telegram is not the channel | §18 | arch § 4 — § 5 Q10 |
 
 ### 1.4 Accounts and rights
 
@@ -258,13 +259,16 @@ Paths are under `personalscraper/`. The verdict is his four words: **adapt** (sa
 - **New data.** Accounts, roles and their rights, sessions; a follow's requesters with each one's quality and pause;
   the tunnel's state per acquisition (step, block reason code, what resumes it, rung times, the release it
   followed); `wanted.trigger`; a decision's `settled_by`; the per-(torrent, tracker) cross-seed state and the
-  exclusion list; a tracker's failure-driven `disabled` state; later, push subscriptions.
+  exclusion list; a tracker's failure-driven `disabled` state; a release's choice date (the added/grab date that
+  decides the filing, § 5 Q9); push subscriptions (FCM, § 5 Q10).
+- **One file per environment.** `acquire` and `app` carry the environment's suffix (`-dev`, `-staging`, none for
+  prod); `library.db` does not (§ 5 Q2).
 - **Codes, not words.** Every stored reason — `last_grab_reason`, `last_search_outcome`, `blocked_reason`, a
   cross-seed refusal, a tunnel's block, a Système fact — is a member of a closed code set the contract declares; no
   French and no English sentence is stored or sent (X4, conformity Q2 = A, stream § 7).
 - **The index becomes disposable.** The filesystem is the truth for files and the NFOs for identities
   (`architecture.md` « BDD vs FS truth rule »): `library.db` can be rebuilt by a full scan, which is what makes a
-  reprise « pas à l'identique » cheap for the library. It stops holding what is not the index (§ 5 Q2).
+  reprise « pas à l'identique » cheap for the library. It stops holding what is not the index (§ 5 Q2); it is ONE file, written by prod alone and read-only for dev and staging.
 - **Per-acquisition journeys** replace the per-title, per-info-hash provenance (SR4, Rd Q14 = A).
 - **The reprise** (§ 5 Q3) is « automatisée par l'API » (operator, 09-27 orientation): a tool reads the old
   backend and writes through the NEW backend's own operations, so the reprise exercises the API it feeds; nothing
@@ -276,7 +280,7 @@ Paths are under `personalscraper/`. The verdict is his four words: **adapt** (sa
 
 ## 4. Environments
 
-**Today** (`docs/production/web-ui.md` § ENV-SEP): dev `~/dev/PersonalScraper` (no daemons); prod
+**Today** (`docs/production/web-ui.md` § ENV-SEP; retired by the rulings below): dev `~/dev/PersonalScraper` (no daemons); prod
 `~/deploy/torrentmate` (`main`, :8710, the watcher and every cron); staging `~/staging/torrentmate` (`staging`,
 :8711, web only, read-only by `require_not_staging`). All three SHARE `library.db`, `.data/`, the config and the
 disks — which is why staging may write nothing. tm-design (:8712) serves the maquette alone, on mocks.
@@ -285,144 +289,128 @@ disks — which is why staging may write nothing. tm-design (:8712) serves the m
 
 - Ruling 23 (Rd 9 Q17): the future **preprod** has ITS OWN data sets and files into the PROD library; its forbidden
   writes are the library DELETION alone (« Sur la preprod, tout fonctionne sauf la suppression dans la
-  médiathèque », § 17). « staging » stays the name of the pipeline's space (`staging_dir`), not of an environment.
+  médiathèque », § 17). The environment is named `staging` (ruled 2026-10-01, below); `staging_dir` stays the name of the
+  pipeline's space.
 - 09-27 orientation: « une vraie staging séparée du back-end de prod ».
 - The forbidden writes are a per-instance list served by `readAccount` (L18 N): production empty, preprod
   `library.delete`, a read-only instance every write right.
 
-**What the brief proposes** (the choices are § 5 Q4):
+**Decided** (§ 5 Q1, Q2, Q4):
 
-- A clone `~/preprod/torrentmate` with its own venv and `data_dir` (its own `acquire.db`, accounts, tunnels and
-  journeys, its own staging space), its own index of the shared disks, the same config overlay with a preprod
-  overlay on top (`config-overlay-layout.md`), its own PM2 apps (web + supervisor), deployed from a `preprod` branch
-  by the autodeploy poller like staging today.
+- **`staging` IS the preprod** (« l'env staging est bien la préprod ! »): it runs the whole engine on its OWN data and
+  files into prod's library; its forbidden writes are the library deletion alone, and cross-seed and upload are off by
+  its overlay. The read-only :8711 instance is retired — its port and host are taken by the preprod.
+- **The git flow**: `feature → develop → main`; `develop` auto-deployed on tm-design, `main` = everything validated,
+  `staging` deployed voluntarily by him when a complete user story is ready for test users, `prod` (a branch carrying
+  release tags, auto-deployed) deployed voluntarily after functional validation on staging; promotions are
+  fast-forwards, a `hotfix/` branch from `prod` is merged back into `develop`. The autodeploy poller, which tracks
+  `main` for prod today, is changed accordingly.
+- **Own data, one file per environment** (Q2): `acquire-dev.db`, `acquire-staging.db`, `acquire.db`, `app-dev.db`,
+  `app-staging.db`, `app.db`; the suffix comes from one environment setting. The index is the exception — ONE
+  `library.db`, written by prod alone, read-only for dev and staging — so the disks are scanned once.
+- A clone `~/staging/torrentmate` (the path already in use) with its own venv and `data_dir`, the same config overlay
+  with a staging overlay on top (`config-overlay-layout.md`), its own PM2 apps (web + supervisor).
 - One qBittorrent, one CATEGORY per environment: each instance ingests and grabs in its own category only, so an
   arrival is never processed twice (NE-DOIT-PAS-7) and the trackers see one client (NE-DOIT-PAS-8).
-- It is where the maquette is bound to the real backend during the mission (§ 6), on real media, before
-  production sees a lot.
+- It is where the maquette is bound to the real backend during the mission (§ 6), on real media, before production
+  sees a lot.
 
 ---
 
-## 5. OPEN questions
+## 5. DECIDED
 
-Ten, in `/orchestrator:decide`'s shape: the thing, its choices with cost and gain, ONE recommendation. The spelling
-of the contract (reg § 2b, « the operator's call ») is NOT asked: § 15 already answers it — the backend serves the
-contract's camelCase — and it is not functional; he overrules it by saying so.
+Ten questions, ruled by the operator on 2026-10-01 in `/orchestrator:decide`'s round (`operator-method.md` § 3,
+« Environnements et back-end »). They are rulings: not reopened here, and no option survives that he did not choose.
+The spelling of the contract (reg § 2b, « the operator's call ») was NOT asked: § 15 already answers it — the backend
+serves the contract's camelCase — and it is not functional; he overrules it by saying so.
 
-**Q1 — How the new backend reaches production.**
-- **A** — the K lots merge on `main` as they land, serving the contract under a temporary prefix (`/api/next/…`)
-  beside today's routes; the maquette is bound to it on preprod, surface by surface; on switchover day
-  `frontend/src`, the old routes and the prefix die together. *Cost*: two routers per domain for the mission's
-  length, one prefix to remove. *Gain*: `main` stays deployable, production never breaks, each lot is proved on
-  real data the day it lands.
-- **B** — a long-lived `backend` branch deployed on preprod only, one merge at the switchover. *Cost*: a branch that
-  diverges from every fix on `main` for weeks, one enormous merge. *Gain*: `main` untouched until the day.
-- **C** — the maquette replaces `frontend/src` first, bound to today's backend through an adapter, unserved
-  operations on their mocks. *Cost*: an app showing mocked states as real (§ 13), adapter code written to die.
-  *Gain*: the earliest switch.
-- **Recommended: A.**
+**Q1 — How the new backend reaches production. HIS WORD.** Today's `/api` is **v0**; the new backend is served under
+**`/api/v1`**, and future versions follow without breaking. A v0 route is DEPRECATED as soon as its v1 works: it
+answers a `Deprecation` header and is entered in a register, which is the cleanup list once v1 is fully deployed and
+validated. The git flow is adapted to it:
 
-**Q2 — The stores, re-imagined.**
-- **A** — three stores by owner: `library.db` the index ONLY (rebuildable from the disks); `acquire.db` acquisition
-  and trackers (follows, requesters, wanted, obligations, ratio, cross-seed pairs and exclusions); a new `app.db`
-  for accounts and roles, tunnels and journeys, run history, decisions, the destructive journal. *Cost*: three
-  tables move out of `library.db`; one more file in the lock order (a leaf). *Gain*: the index can be thrown away
-  and rebuilt; each store has one owner (P27); preprod's own data is two files, not a filtered copy.
-- **B** — today's two files: accounts and tunnels into `acquire.db`, the rest left where it is. *Cost*: the index
-  stays mixed with history that a rebuild would lose; accounts inside the acquisition lobe break its boundary.
-  *Gain*: no file moves.
-- **C** — one database for everything. *Cost*: the indexer's scan writer and the acquisition writer contend on one
-  file (the reason they were split); the index is no longer disposable. *Gain*: one backup, one migration chain.
-- **Recommended: A.**
+- `feature → develop → main`. `develop` is deployed automatically on tm-design (tm-design = `develop` plus the lot in
+  flight, merged on the fly); `main` holds everything validated — the orchestrator promotes validated features to it.
+- `staging` is deployed VOLUNTARILY by him, only when a complete user story is ready for test users (« on déploie en
+  staging que quand la user story est prête au complet »).
+- `prod` is deployed VOLUNTARILY after functional validation on staging; it is a branch carrying release tags,
+  auto-deployed.
+- Defaults kept, as he did not object: promotions are fast-forwards; a `hotfix/` branch cut from `prod` is merged back
+  into `develop`.
+- `staging` IS the preprod of ruling 23 (« l'env staging est bien la préprod ! »), with its own data (§ 4).
 
-**Q3 — What the reprise carries** (« pas une migration à l'identique »).
-- **A** — the operator's intent and debts: follows (attributed to Izno) with their quality profiles, the open and
-  `abandoned` wanted rows with their tried releases (so a bad release is never grabbed again), the seed obligations
-  and ratio states, the cross-seed history (seeding the pair states), the destructive journal. The index is REBUILT
-  by a full scan; run history, settled decisions and past journeys start empty. *Cost*: past runs and the journeys
-  of media already in the library are gone. *Gain*: every carried row is one the new backend cannot re-derive;
-  nothing stale is carried.
-- **B** — everything, transformed into the new shapes. *Cost*: a transformer per table, including tables whose
-  meaning changed (journeys per info-hash → per acquisition). *Gain*: no history lost.
-- **C** — the follows alone. *Cost*: obligations lost — a tracker's hit-and-run debt is forgotten — and abandoned
-  releases retried. *Gain*: the smallest tool.
-- **Recommended: A.**
+*Consequence*: today's CD — the autodeploy poller tracks `main` and deploys prod — changes to this flow: a tooling
+change to schedule in K0.
 
-**Q4 — What the preprod runs.**
-- **A** — the whole engine on its own data (§ 4): its own follows grabbing for real in its own qBittorrent category,
-  its own pipeline, filing into the prod library, deletion refused; cross-seed and upload OFF by its overlay; the
-  read-only :8711 instance retired and its port and host taken by preprod. *Cost*: real grabs on the operator's
-  tracker accounts from a second instance (bounded by its own few follows); a qBittorrent category per
-  environment. *Gain*: a true end-to-end rehearsal of every lot, on real media.
-- **B** — as A, acquisition dry: it searches and never grabs; arrivals are only what the operator adds by hand to
-  its category. *Cost*: the grab path is never rehearsed before production. *Gain*: zero added tracker traffic.
-- **C** — keep today's read-only staging beside a new preprod. *Cost*: two non-production instances to deploy and
-  keep; the read-only one proves nothing the preprod does not. *Gain*: nothing is retired.
-- **Recommended: A.**
+**Q2 — The stores, re-imagined. A, with his word.** Three stores by owner: `library.db` the index ONLY (rebuildable
+from the disks); `acquire.db` acquisition and trackers (follows, requesters, wanted, obligations, ratio, cross-seed
+pairs and exclusions); a new `app.db` for accounts and roles, tunnels and journeys, run history, decisions, the
+destructive journal. Three tables move out of `library.db`; `app.db` is one more file in the lock order (a leaf).
 
-**Q5 — One trigger authority for N tunnels** (arch § 1: « a design question for the brief, not a licence for a
-second mechanism »).
-- **A** — one SUPERVISOR process (the watcher daemon becomes it) holds the authority: it runs up to
-  `max_parallel` tunnels as workers, queues the rest visibly, and serialises only what must be serial (a dispatch
-  onto one disk, the index write) by inner locks; the web and the CLI ENQUEUE, never spawn; `pipeline.lock` is
-  replaced by the supervisor's lease. *Cost*: the largest change of the mission; a CLI run goes through the
-  supervisor. *Gain*: one authority by construction (NE-DOIT-PAS-7), pause / resume / bound are one process's
-  state, a block that persists and resumes is natural.
-- **B** — a subprocess per tunnel as today, a counting semaphore of N file locks plus a per-medium lock. *Cost*: N
-  processes coordinating through files — the class of orphan and stale-lock defects the machine already pays for.
-  *Gain*: the CLI keeps running alone.
-- **C** — keep the batch run and track each medium inside it (tunnels in the display only). *Cost*: § 20 not
-  served — one blocked medium still holds the run; « a blocked tunnel is not a waiting process » is broken.
-  *Gain*: least work.
-- **Recommended: A.**
+- **One file per environment**, by suffix: `acquire-dev.db`, `acquire-staging.db`, `acquire.db`, `app-dev.db`,
+  `app-staging.db`, `app.db` — prod keeps today's names, and the suffix comes from one environment setting (« Des
+  fichiers bien séparé plus facile à gérer et à maintenir »).
+- **The index is the exception, B′**: ONE `library.db`, written by prod alone and read-only for dev and staging (« B'
+  tu as raison, la staging range en prod »), so the disks are scanned once.
 
-**Q6 — A series' tunnel granularity** (§ 20 « reste à dicter »).
-- **A** — one tunnel per RELEASE (one torrent: an episode's, or a season pack). *Cost*: a season pack's episodes
-  advance together, one blocked episode blocks the pack's filing. *Gain*: it matches the acquisition cards (ruling
-  1: film, episode, season), the season's exclusivity (SR1–SR3) and the torrent that triggers § 14.2.
-- **B** — one tunnel per EPISODE, a pack fanning out. *Cost*: N tunnels for one torrent, a pack's seeding shared by
-  N owners. *Gain*: an episode never waits for its siblings.
-- **C** — one tunnel per SEASON. *Cost*: a weekly episode waits for its season. *Gain*: fewest tunnels.
-- **Recommended: A.**
+**Q3 — What the reprise carries. A.** The operator's intent and debts: the follows (attributed to Izno) with their
+quality profiles, the open and `abandoned` wanted rows with their tried releases (so a bad release is never grabbed
+again), the seed obligations and ratio states, the cross-seed history (seeding the pair states), the destructive
+journal. The index is REBUILT by a full scan; run history, settled decisions and past journeys start empty. *Cost*:
+past runs and the journeys of media already in the library are gone.
 
-**Q7 — Which blocks resume on their own** (§ 20 « reste à dicter »).
-- **A** — a block whose cause is EXTERNAL resumes when the cause lifts (disk space freed, a ratio deferral
-  satisfied, a provider, Plex or qBittorrent answering again, a Plex scan landed); a block that needs a JUDGEMENT
-  waits for a hand (an identity to resolve, a Plex match to confirm, a tunnel error to retry or abandon). *Cost*:
-  each external cause needs a watch on its own lift. *Gain*: « À traiter » holds only what only his hand unblocks
-  (ruling 7).
-- **B** — every block waits for a hand. *Cost*: « À traiter » fills with what a free disk would have cleared.
-  *Gain*: nothing moves without him.
-- **C** — every block retries on a timer, capped, then waits. *Cost*: retries on judgement blocks that cannot
-  succeed alone; traffic to providers (NE-DOIT-PAS-8). *Gain*: one rule.
-- **Recommended: A.**
+**Q4 — What the preprod runs. A.** The whole engine on its own data (§ 4): its own follows grabbing for real in its
+own qBittorrent category, its own pipeline filing into prod's library, deletion refused, cross-seed and upload OFF by
+its overlay; the read-only :8711 instance is retired and its port and host taken by preprod. *Cost*: real grabs on the
+operator's tracker accounts from a second instance (bounded by its own few follows); a qBittorrent category per
+environment.
 
-**Q8 — A tunnel whose medium disappears** (torrent removed, files absent — § 20 « reste à dicter »).
-- **A** — the tunnel closes with its reason; the card says it once in « À traiter », dismissed by « × » (A6: « × »
-  = seen); filed by hand elsewhere, it simply leaves (ruling 6). *Cost*: a medium that comes back later starts a
-  new tunnel. *Gain*: nothing waits for an event that may never come; § 8 holds.
-- **B** — the tunnel stays blocked until the medium returns or he abandons it. *Cost*: blocks that never clear
-  pile up in « À traiter ». *Gain*: a returning medium resumes where it stopped.
-- **Recommended: A.**
+**Q5 — One trigger authority for N tunnels. A.** One SUPERVISOR process (the watcher daemon becomes it) holds the
+authority: it runs up to `max_parallel` tunnels as workers, queues the rest visibly, and serialises only what must be
+serial (a dispatch onto one disk, the index write) by inner locks; the web and the CLI ENQUEUE, never spawn;
+`pipeline.lock` is replaced by the supervisor's lease. *Cost*: the largest change of the mission; a CLI run goes
+through the supervisor.
 
-**Q9 — A season ask meets an episode already downloading** (SR2: « aucun téléchargement … en parallèle », R5 covers
-only open wanteds).
-- **A** — the episode is ABSORBED with its torrent left running: it is filed as part of the season, its card points
-  to the season's (conformity Q6 = A), the pack is filtered so that episode is not grabbed twice. *Cost*: the pack
-  and the episode's torrent may hold the same episode for a while. *Gain*: no download thrown away, no seed
-  obligation broken.
-- **B** — the episode's torrent is CANCELLED (removed from qBittorrent, files deleted), the pack covers it. *Cost*:
-  a torrent removed early is a hit-and-run risk on its tracker (§ 18). *Gain*: one source per season.
-- **Recommended: A.**
+**Q6 — A series' tunnel granularity. A.** One tunnel per RELEASE (one torrent: an episode's, or a season pack). *Cost*:
+a season pack's episodes advance together, one blocked episode blocks the pack's filing.
 
-**Q10 — The ratio alert's channel** (§ 18: an alert, and « à terme » a push by FCM, iOS and Android).
-- **A** — the interface only during the mission (the Trackers badge, already drawn); FCM as its own lot after the
-  switchover. *Cost*: no alert outside the app until then. *Gain*: no platform work in the mission.
-- **B** — the engine's existing Telegram notifier (`notify`) carries the alert now; FCM after the switchover. *Cost*:
-  one more notification kind in a channel he already reads. *Gain*: an alert outside the app at almost no cost.
-- **C** — FCM inside the mission (a Firebase project, web push on the installed PWA). *Cost*: a platform lot in the
-  middle of the backend's; iOS web push only for an installed PWA. *Gain*: the dictated channel at once.
-- **Recommended: B.**
+**Q7 — What blocks, and what resumes. HIS WORD after discussion** (« oui c'est ça »). ONE list, « À traiter », holds
+EVERYTHING blocked that needs an intervention, in the app or elsewhere: a disk full, a ratio too low, a tracker
+unreachable (« qui fait de la place sur le disque ? ») as well as an identity, a Plex match or an error.
+
+- Each card says its cause, what lifts it, and links to where it is settled (Système › Disques, « Voir le tracker »,
+  its settings).
+- The pipeline RESUMES ON ITS OWN as soon as the engine sees the cause lifted, and the card leaves. A block that needs
+  a judgement (an identity, a Plex match, a tunnel error) waits for his hand.
+- The Acquisition badge counts the whole list.
+- This AMENDS ruling 7 of 09-15 (« À traiter = ce que seule sa main débloque ») and moves the deferred card from
+  « En cours » to « À traiter » — a maquette change to draw.
+- *Cost*: each external cause needs a watch on its own lift.
+
+**Q8 — A tunnel whose medium disappears. A.** The tunnel closes with its reason; the card says it once in
+« À traiter », dismissed by « × » (A6: « × » = seen); filed by hand elsewhere, it simply leaves (ruling 6). A medium
+that comes back later starts a new tunnel.
+
+**Q9 — A season ask meets an episode already downloading. HIS RULE after discussion** (« oui, enregistre »). Nothing is
+cancelled and nothing is filtered: every tunnel runs to its end. An episode grabbed BEFORE the season ask is not
+covered by 17:36's « aucun téléchargement … se lance en parallèle », which forbids only launches AFTER the ask; that
+rule stands.
+
+- **At filing, the LAST CHOSEN wins**, for ALL media (films too): the release's added/grab date decides, not its
+  arrival time.
+- A file with no known choice date (filed before the switchover) counts as older than anything.
+- An older-chosen release that arrives after is NOT filed; its torrent keeps seeding; its tunnel closes with the
+  reason « remplacé par un choix plus récent », said once in « À traiter » and dismissed by « × ».
+- *His why*: the pack usually brings a better or corrected version (codec, corruption, missing subtitle or audio) and
+  a coherent quality across the season.
+- **Backend demand**: at filing, the engine must know the choice date of the release that filed the file in place. It
+  is not yet verified in the code — K4 checks it first.
+
+**Q10 — The ratio alert's channel. HIS WORD.** FCM is the channel (« Telegram est pollué et je veux m'en débarrasser »).
+Telegram is refused as the alert channel; his wish to be rid of it is noted, its removal is NOT ordered and is not
+planned here. No hurry, but the FCM project can be prepared now: notifications and web push on the installed PWA,
+Android and iOS. The alert threshold defaults to ratio **1.2**, configurable tracker by tracker
+(`tracker.providers.<name>.economy.alert_threshold`).
 
 ---
 
@@ -435,13 +423,13 @@ most screen for the least risk, then the architecture, then the engines.
 
 | Lot | What | Unblocks on the screen |
 | --- | --- | --- |
-| **K0 — the foundation** | `Problem` (X1, B-267), camelCase and statuses (X2, X3), the `/api/next` mount (Q1), the code sets (X4), the stores' new baselines (Q2), the preprod environment (Q4) | every refusal read as a refusal, not queued; the binding possible on preprod |
+| **K0 — the foundation** | `Problem` (X1, B-267), camelCase and statuses (X2, X3), the `/api/v1` mount, the v0 `Deprecation` header and its register, the git flow's tooling — `develop`, the poller (Q1), the code sets (X4), the stores' new baselines and the per-environment file suffix (Q2), the staging-as-preprod environment (Q4) | every refusal read as a refusal, not queued; the binding possible on preprod |
 | **K1 — accounts and rights** | `app.db` accounts and roles, `authorise(right)` on every route (X6), `readAccount`, Plex SSO, the forbidden-writes list, Comptes' operations, escalation refused, E8 | the sign-in gate (Plex first), Profil, Comptes, the bar composed by rights, every « réservé » state, every 403 |
 | **K2 — the library** | listing, categories, recent, incomplete, membership by identity, the sheet's facts and its film variant, seasons, rescrape, deletion with the journal and Plex, E1, E2 | Médiathèque's three tabs and filters, the media sheet, « Récupérer la saison » reading true holes |
-| **K3 — the acquisition model** | requesters and their settings, reassign, restore, suggestions, search, the follows' shapes, the season grab by medium (a one-off `request` for an unfollowed show), releases with season / episode, the season's exclusivity (SR2, SR3, SR5, SR6), the ranking by ratio | « Suivis », the follow sheet, Découvrir, quality and pause, « Réaffecter… », the season recovery's line and card |
-| **K4 — the tunnel** | the supervisor (Q5) with its bound and levers, the persisted tunnel state per acquisition (Q6–Q8), journeys per acquisition (SR4, SR1), the one card read-model, the decisions' reshape, `reopenDecision`, the resolve's inverse, the staged medium's verbs, the Plex match confirmed or corrected, E4, E9 | « En cours », « À traiter », the journey sheet, « Corriger », « Mis de côté », Système's « Pipeline » levers |
-| **K5 — trackers and ratio** | `readTrackers`, the downloads' and obligations' shapes, the deferral's kind, `removeDownload`, a broken obligation seen, health, T1, T2, the alert threshold and its channel (Q10), E6, E7, E10 | the Trackers page, its two tabs and its badge, a torrent's panel, « Retirer de qBittorrent » |
+| **K3 — the acquisition model** | requesters and their settings, reassign, restore, suggestions, search, the follows' shapes, the season grab by medium (a one-off `request` for an unfollowed show), releases with season / episode, the season's exclusivity (SR3, SR5, SR6; SR2 is ruled by Q9, last chosen wins), the ranking by ratio | « Suivis », the follow sheet, Découvrir, quality and pause, « Réaffecter… », the season recovery's line and card |
+| **K4 — the tunnel** | the supervisor (Q5) with its bound and levers, the persisted tunnel state per acquisition, one tunnel per release (Q6), « À traiter » holding every block with its cause and auto-resume (Q7), a vanished medium closed and said once (Q8), the « last chosen wins » filing rule (Q9) — first checking that the engine knows, at filing, the choice date of the release that filed the file in place — , journeys per acquisition (SR4, SR1), the one card read-model, the decisions' reshape, `reopenDecision`, the resolve's inverse, the staged medium's verbs, the Plex match confirmed or corrected, E4, E9 | « En cours », « À traiter », the journey sheet, « Corriger », « Mis de côté » (the deferred card moves from « En cours » to « À traiter » — a maquette change to draw, amending ruling 7 of 09-15), Système's « Pipeline » levers |
+| **K5 — trackers and ratio** | `readTrackers`, the downloads' and obligations' shapes, the deferral's kind, `removeDownload`, a broken obligation seen, health, T1, T2, the alert threshold (default 1.2, per tracker) and its channel FCM (Q10; the FCM project — a Firebase project, web push on the installed PWA, Android and iOS — may be prepared from K0 on, no hurry, his words), E6, E7, E10 | the Trackers page, its two tabs and its badge, the ratio alert outside the app, a torrent's panel, « Retirer de qBittorrent » |
 | **K6 — cross-seed** | the per-pair state and the attempt on every tracker, the switch with `stopRunningCrossSeeds`, cut, exclusions, hand search, `readMediaCrossSeed`, E5 | the six states on every row, the per-tracker switch, « Couper », « Ne plus partager ce titre », « Chercher un cross-seed », the sheet's admin block |
 | **K7 — upload** | torrent creation and per-tracker publish, `accepts_uploads`, `creation_failed` / `publish_failed`, `via` | « Créer et publier un torrent », « Publié par vous », the upload failures at the badge |
 | **K8 — Système and Maintenance** | services, dependencies, errors as codes, history with its failing step and blocked counts, the maintenance lock, schedulers, the settings' shape, E3 | Système's index and sections, Maintenance, Réglages and its save bar on real writes |
-| **K9 — the reprise and the switchover** | the reprise tool through the API (Q3), a rehearsal on preprod, then the day: `frontend/src` archived, the maquette served on :8710, the old routes and the prefix deleted, the retirable operations removed (§ 1.7), cross-seed active by default (L17 H) | the app, whole, in production |
+| **K9 — the reprise and the switchover** | the reprise tool through the API, carrying what Q3 = A lists (the index rebuilt by a full scan), a rehearsal on the preprod, then the day: `frontend/src` archived, the maquette served on :8710, the deprecated v0 routes deleted (`/api/v1` stays), the retirable operations removed (§ 1.7), cross-seed active by default (L17 H) | the app, whole, in production |
