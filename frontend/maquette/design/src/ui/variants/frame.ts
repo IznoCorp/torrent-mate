@@ -296,7 +296,12 @@ export const drawerPinned = cva(
 export const drawerHead = cva(
   "dh flex items-center gap-4 "
     + "pt-[calc(env(safe-area-inset-top)+var(--spacing-7))] px-7 pb-7 "
-    + "border-b border-border text-5 font-semibold tracking-[-0.01em]",
+    + "border-b border-border text-5 font-semibold tracking-[-0.01em] "
+    // PINNED, THE MENU IS A WINDOW'S HEIGHT AND NO MORE: at 1024 × 768 its entries, the appearance and
+    // the served identity are all seen unscrolled (the desktop reader, 2026-10-01: « Comptes » sat
+    // under the appearance at 1280 × 800). A pointer needs no 44 px row, so the pinned menu takes a
+    // denser rhythm — here, on the group titles and on the entries; the phone's drawer is untouched.
+    + "desk:pt-5 desk:pb-5",
   // FOLDED, the head holds the one control that unfolds it, centred in the bar.
   { variants: { collapsed: { true: "desk:justify-center desk:px-0", false: "" } },
     defaultVariants: { collapsed: false } },
@@ -335,7 +340,7 @@ export const drawerAppearanceSwitch = cva("mx-6");
 
 export const drawerGroupTitle = cva(
   "sect pt-5 px-6 pb-2 text-1 font-medium uppercase tracking-[0.08em] "
-    + "text-muted-foreground",
+    + "text-muted-foreground desk:pt-3",
   { variants: { collapsed: { true: "desk:hidden", false: "" } }, defaultVariants: { collapsed: false } },
 );
 
@@ -352,7 +357,8 @@ export const drawerEntryLabel = cva("", {
 });
 
 export const drawerEntry = cva(
-  "flex items-center gap-6 min-h-[44px] py-4 px-6 rounded-3 text-4 text-foreground",
+  "flex items-center gap-6 min-h-[44px] py-4 px-6 rounded-3 text-4 text-foreground "
+    + "desk:min-h-[36px] desk:py-3",
   {
     variants: {
       current: {
