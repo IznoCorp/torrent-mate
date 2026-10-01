@@ -61,8 +61,10 @@ const KNOWN_VALUE: Record<string, string> = {
   // A follow the layer holds: the layer names a follow by its title.
   followedId: "Silo",
   folder: "Backrooms.2026.MULTi.2160p.WEB-DL",
+  // A medium the layer holds — Silo — so a read about one answers a whole
+  // record rather than the empty answer of an identity nobody carries.
   provider: "tmdb",
-  providerId: "1",
+  providerId: "125988",
   infoHash: "0".repeat(40),
   actionId: "library-status",
   settingId: "paths.torrent_complete_dir",
@@ -124,6 +126,24 @@ describe("every answer carries what the contract requires of it", () => {
       const missing = required.filter(
         (field) => !(field in (subject as Record<string, unknown>)));
       expect(missing, `${route.operationId} is missing ${missing.join(", ")}`)
+        .toEqual([]);
+
+      // AND ONE LEVEL DOWN (B-471): a property declared as a list of a schema
+      // is held on its first element too. `readMediaSeasons` declared
+      // `Season[]` and answered the sheet's catalogue, a different shape at
+      // one operation, and a reading of the first level alone could not see it.
+      const lackingInElement: string[] = [];
+      for (const [name, property] of Object.entries(wanted?.properties ?? {})) {
+        const list = property as Shape;
+        if (list.type !== "array") continue;
+        const element = resolved(list.items);
+        const first = ((subject as Record<string, unknown>)[name] as unknown[] | undefined)?.[0];
+        if (!element?.required || first === undefined || first === null) continue;
+        for (const field of element.required) {
+          if (!(field in (first as Record<string, unknown>))) lackingInElement.push(`${name}[0].${field}`);
+        }
+      }
+      expect(lackingInElement, `${route.operationId} answers elements missing ${lackingInElement.join(", ")}`)
         .toEqual([]);
     });
   }

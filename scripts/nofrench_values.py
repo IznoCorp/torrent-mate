@@ -42,6 +42,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from markup_text import NAMING_ATTRIBUTES  # noqa: E402
 from nofrench_lexicon import (  # noqa: E402
+    walk,
     MAQUETTE, ROOT, SHELL, VOCABULARY, examined, read, relative,
     split_identifier, vocabulary,
 )
@@ -171,7 +172,7 @@ def check_data_attributes(violations: list[str]) -> None:
         violations: The accumulator every arm appends to.
     """
     words = vocabulary()
-    sources = [p for p in SHELL.rglob("*")
+    sources = [p for p in walk(SHELL, "*")
                if p.is_file() and p.suffix in {".ts", ".tsx", ".js"}]
     # `design/index.html` is the application shell's markup since SP4-fin wave
     # 2, and it was read by no arm: `id="coquille"` — the React mount point —
@@ -181,7 +182,7 @@ def check_data_attributes(violations: list[str]) -> None:
     # — the one actually served — was left unread by the same arm.
     sources += [MAQUETTE / "design" / "index.html",
                 ROOT / "frontend" / "index.html"]
-    sources += [p for p in (ROOT / "frontend" / "src").rglob("*")
+    sources += [p for p in walk((ROOT / "frontend" / "src"), "*")
                 if p.is_file() and p.suffix in {".ts", ".tsx", ".css"}]
     for path in sorted(sources):
         source = read(path)

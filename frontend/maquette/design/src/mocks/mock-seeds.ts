@@ -20,7 +20,7 @@ import SEASON_FAMILY from "./seeds/seasons.json";
 import { candidateSheet, seasonsAnswerFor } from "./handlers/media";
 import FOLLOWS from "./seeds/follows.json";
 import INCOMPLETE_SHOWS from "./seeds/incomplete-shows.json";
-import { seasonsHeld } from "../lib/season-rows";
+import { seasonsHeld, type SeasonsAnswer } from "../lib/season-rows";
 import { renameAccount } from "./account";
 import { mockState } from "./state";
 import { poseDisagreement, setAside } from "./handlers/staging";
@@ -125,10 +125,8 @@ export const mockSeeds: MockSeeds = {
     return Object.fromEntries(
       [...identityByTitle].map(([title, ids]) => {
         const answer = seasonsAnswerFor(title, ids);
-        const catalogue = answer.seasons.map((season) => {
-          const entry = season as { number?: number; season?: number };
-          return { number: Number(entry.number ?? entry.season) };
-        });
+        // One shape since B-471: the read answers the catalogue in its own names.
+        const catalogue = answer.seasons as SeasonsAnswer["seasons"];
         return [title, seasonsHeld({ seasons: catalogue, owned: answer.owned, aired: answer.aired })];
       }),
     );

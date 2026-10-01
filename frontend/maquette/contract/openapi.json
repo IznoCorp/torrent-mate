@@ -7565,26 +7565,29 @@
       },
       "Season": {
         "type": "object",
+        "description": "one season of the provider catalogue, as the media sheet carries it; what the library holds of it is the answer's own `owned`, and what has aired its `aired`",
         "properties": {
-          "season": {
+          "number": {
             "type": "integer"
           },
-          "owned": {
-            "type": "integer",
-            "description": "how many of them the library holds"
-          },
-          "aired": {
+          "episodes": {
             "type": [
               "integer",
               "null"
             ],
-            "description": "how many episodes the provider catalogue lists, or null when it does not say. The interface then shows a question mark rather than an invented total"
+            "description": "how many episodes the provider catalogue lists, announced ones included, or null when it does not say"
+          },
+          "airDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the season's first air date, when the catalogue gives one"
           }
         },
         "required": [
-          "aired",
-          "owned",
-          "season"
+          "episodes",
+          "number"
         ]
       },
       "JourneyStage": {

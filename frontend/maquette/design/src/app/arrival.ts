@@ -15,6 +15,7 @@ import { entry, loadingDone } from "./entry";
 import { onEngineBack } from "./layers";
 import { walk } from "./page-switch";
 import { NAVIGATION } from "./navigation";
+import { OPENING_DIALS } from "./opening-dials";
 
 /** Whether tm-design's own build opens on the dense world. Replaced at build
  * time (`vite.config.mjs`, `--mode design-host`) — false everywhere else, so
@@ -23,14 +24,7 @@ declare const __DESIGN_HOST_START_DENSE__: boolean;
 
 /* The interface's opening state, before the address has said anything. */
 const INITIAL_STATE = {
-  page: "acq",
-  acqTab: "now",
-  libLens: "cat",
-  libCat: "all",
-  libMode: "grid",
-  /* « Trackers »: its open tab, and the tracker « Torrents » is filtered to. */
-  trackersTab: "torrents",
-  trackersFilter: "",
+  ...OPENING_DIALS,
   /* B-572: tm-design's own build opens dense — every other build (the
      harness's `run.sh`, the unit suite) keeps the real world, exactly as
      before. A named state still pins its own scenario on drive (`drive.ts`'s

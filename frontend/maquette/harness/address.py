@@ -174,8 +174,10 @@ async def main():
         # « invented » is measured against.
         real_one = await pg.evaluate(
             "()=>window.__queries.getQueryData(['/api/auth/me'])?.email ?? null")
+        # NOT OVER THE EMPTY SET (B-542): a surface drawing no address at all
+        # held « no other account » trivially.
         journal.check("no other account is invented to fill the screen",
-                      addresses <= {real_one},
+                      bool(addresses) and addresses <= {real_one},
                       f"{len(addresses)} address(es): {', '.join(sorted(addresses)) or 'none'}")
 
         journal.check("no JS error", not errors, str(errors))

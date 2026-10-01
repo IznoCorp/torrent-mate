@@ -29,7 +29,7 @@ import json
 import pathlib
 
 from common import browser_channel, chrome_launch_args
-from playwright.async_api import async_playwright
+from playwright.async_api import TimeoutError as PlaywrightTimeout, async_playwright
 
 BAR = "─" * 62
 
@@ -306,13 +306,25 @@ async def main():
                 for x in (v if isinstance(v, list) else [v]):
                     note(key, f"{e} : {x}")
 
-    # R9 — film/series vocabulary, across ALL surfaces
+    # R9 — film/series vocabulary, across ALL surfaces. READ OVER THE FOLLOWS
+    # THEMSELVES (B-542): after the last state, the cache could hold none, and
+    # the check judged an empty list. The follows' page is driven and the list
+    # waited for, and a list still empty is a finding.
+    await pg.evaluate("()=>window.__go('acq-follows-list')")
+    try:
+        await pg.wait_for_function("()=>(window.__followActions?.all()||[]).length > 0", timeout=5000)
+    except PlaywrightTimeout:
+        pass  # the empty list is the finding the check below writes
     voc = await pg.evaluate("""()=>{
       const out=[];
+      if (!(window.__followActions?.all()||[]).length) out.push('no follow was held — nothing was judged');
       const expected={movie:{add:'Ajouter',pause:'Ne plus chercher',retrait:'Retirer de la liste'},
                       show:{add:'Suivre',pause:'Mettre en pause',retrait:'Retirer le suivi'}};
       for (const f of (window.__followActions?.all()||[])) {
         const lab = stLabel(f);
+        // A follow with no kind of the two was read by nothing (B-542): the
+        // vocabulary check below is a question about a film.
+        if (!(f.kind in expected)) out.push(`« ${f.title} » carries no film/series kind (${f.kind})`);
         if (f.kind==='movie' && /jour|Terminé/.test(lab)) out.push(`movie « ${f.title} » wears « ${lab} » (series vocabulary)`);
       }
       return out;}""")

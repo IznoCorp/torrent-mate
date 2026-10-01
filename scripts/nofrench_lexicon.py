@@ -16,6 +16,7 @@ looking for « what does the guard refuse? » still finds every arm in one file.
 
 from __future__ import annotations
 
+import fnmatch
 import re
 import subprocess
 import unicodedata
@@ -28,8 +29,8 @@ MAQUETTE = ROOT / "frontend" / "maquette"
 def maquette_servers():
     """Returns the maquette root's own Python — the hosts and the instruments.
 
-    A GLOB, AND IT USED TO BE A HAND LIST. Five corpora in two files named
-    `serve.py` and `resync.py` one by one, so `host_identity.py` — split OUT of
+    A GLOB, AND IT USED TO BE A HAND LIST. Five corpora named the maquette's
+    servers one by one, so `host_identity.py` — split OUT of
     `serve.py` — inherited none of `serve.py`'s coverage and sat outside every
     arm on the day it was written. That is the shape this guard's own comments
     record about `frontend/scripts/` not being `scripts/`, met again from the
@@ -41,7 +42,7 @@ def maquette_servers():
     Returns:
         Every `*.py` directly under the maquette root, in a stable order.
     """
-    return sorted(MAQUETTE.glob("*.py"))
+    return sorted(walk(MAQUETTE, "*.py", recursive=False))
 VOCABULARY = ROOT / "scripts" / "code-vocabulary.txt"
 SHELL = MAQUETTE / "design" / "src"
 HARNESS = MAQUETTE / "harness"
@@ -571,3 +572,32 @@ def tracked_paths() -> list[str]:
         cwd=ROOT, capture_output=True, text=True, check=True)
     return sorted({p for p in listed.stdout.split("\0")
                    if p and not p.startswith(UNWATCHED_ROOTS)})
+
+
+def walk(root: Path, pattern: str = "*", recursive: bool = True) -> list[Path]:
+    """The files git tracks under a root, matching a name pattern.
+
+    THE COMMIT, NOT THE WORKING TREE (B-545). A `glob` read every file lying in
+    the directory, so an untracked scratch was refused or counted and the
+    guard's verdict and figures were a property of the machine it ran on — a PR
+    body said 372 files where its head tracked 370. Outside a repository there
+    is no commit to read, and the directory is walked as it is.
+
+    Args:
+        root: The directory to list.
+        pattern: A shell pattern the file's NAME must match.
+        recursive: Whether files in subdirectories count, as `rglob` against
+            `glob`.
+
+    Returns:
+        The matching files, sorted.
+    """
+    listed = subprocess.run(["git", "-C", str(root), "ls-files", "-z"],
+                            capture_output=True, text=True, check=False) if root.is_dir() else None
+    if listed is None or listed.returncode != 0:
+        found = root.rglob(pattern) if recursive else root.glob(pattern)
+        return sorted(path for path in found if path.is_file())
+    paths = (root / name for name in listed.stdout.split("\0") if name)
+    return sorted(path for path in paths
+                  if path.is_file() and fnmatch.fnmatchcase(path.name, pattern)
+                  and (recursive or path.parent == root))

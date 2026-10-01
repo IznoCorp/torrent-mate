@@ -185,10 +185,8 @@ for s in "${scripts[@]}"; do
   else
     echo "  FAILED: $s"
   fi
-  out="$(cat "${LOGS}/${s}.out")"
-  hits="$(echo "$out" | grep -E "FAIL|Error|Traceback|error:|violation|TIMED OUT|■" | head -12 || true)"
-  [ -z "$hits" ] && hits="$(echo "$out" | tail -12)"
-  echo "$hits" | sed 's/^/      /'
+  # A traceback is printed whole: its frames name the call that failed (B-571).
+  python3 "$HERE/../../../scripts/harness_excerpt.py" < "${LOGS}/${s}.out" | sed 's/^/      /'
   failed=$((failed + 1))
 done
 

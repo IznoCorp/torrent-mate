@@ -254,7 +254,13 @@ export function seasonsAnswer(titles: string[]) {
     | Record<string, unknown>
     | undefined;
   const counted = underAnyTitle(SEASONS as ByTitle, titles);
-  const catalogue = (found?.seasons ?? counted ?? []) as unknown[];
+  // ONE SHAPE AT ONE OPERATION (B-471). The sheet's catalogue is
+  // `{number, episodes, airDate}`; the counted family is keyed `{season, aired,
+  // owned}` and answered as it was, so a series with no sheet catalogue drew
+  // rows whose number was `undefined`. It is answered in the catalogue's names.
+  const catalogue = (found?.seasons as unknown[] | undefined)
+    ?? ((counted ?? []) as { season: number; aired: number | null }[])
+      .map((one) => ({ number: one.season, episodes: one.aired }));
   return {
     seasons: catalogue,
     // A SEASON SHELVED BY ITS RECOVERY is held whole from then on.
