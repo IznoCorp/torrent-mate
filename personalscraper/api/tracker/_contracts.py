@@ -20,7 +20,8 @@ implements either one right now** (the only one that did was removed with
 its tracker); they remain declared so a tracker that grows the capability
 can advertise it explicitly without forcing the others to follow, and so
 the "accurate composition" tests can keep asserting that today's clients
-do NOT claim them.
+do NOT claim them. :class:`AccountStatsReadable` follows the same rule: a
+client claims it only on a documented statistics endpoint.
 
 The detail-provider returns the existing :class:`TrackerResult`
 dataclass rather than introducing a sibling ``TorrentDetails`` type :
@@ -41,7 +42,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from personalscraper.api._contracts import MediaType
-from personalscraper.api.tracker._base import TrackerResult
+from personalscraper.api.tracker._base import TrackerAccountStats, TrackerResult
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -105,6 +106,19 @@ class TorrentDetailsProvider(Protocol):
 
 
 @runtime_checkable
+class AccountStatsReadable(Protocol):
+    """Capability — read the account's standing from the tracker itself.
+
+    Composed by a client ONLY where the tracker documents a statistics
+    endpoint; no client implements it today. Raises the family's existing
+    errors (``TrackerAuthError`` on 401/403, ``ApiError`` otherwise,
+    ``CircuitOpenError``) — never a locally computed fallback.
+    """
+
+    def account_stats(self) -> TrackerAccountStats: ...
+
+
+@runtime_checkable
 class TrackerConstructible(Protocol):
     """Capability — construct a tracker client from resolved env credentials.
 
@@ -132,5 +146,7 @@ __all__ = [
     "CategoryListable",
     "FreeleechAware",
     "TorrentDetailsProvider",
+    "AccountStatsReadable",
+    "TrackerAccountStats",
     "TrackerConstructible",
 ]
