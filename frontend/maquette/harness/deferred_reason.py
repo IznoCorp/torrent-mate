@@ -28,7 +28,7 @@ anywhere in the reason — « 1 » is already in « c411 », so a wrong threshol
 stayed green; it now reads the whole sentence, the tracker and ITS threshold in
 their places. Hold 7 is new, red while a tracker with no `min_ratio` read « 0 ».
 
-The deferrals are DERIVATIONS, POSED and shown as such (`poseDeferral`): no card
+The deferrals are DERIVATIONS, POSED and shown as such (`poseBlock`): no card
 of the real data is deferred.
 
 RE-AIMED OUT LOUD (L16-bis, the operator's Q3): hold 6 read the tracker's entry
@@ -37,7 +37,7 @@ entry, then the panel's layer above it (Back closes the panel first).
 
 RE-AIMED OUT LOUD (maquette-blocked, Q7): the deferred card is in « À traiter »
 now — the states land there, and the cards read are that tab's; the deferral is
-posed by `poseBlock`, which generalises `poseDeferral`. R500 holds the move.
+posed by `poseBlock`. R500 holds the move.
 
 Red before the move: no card names any of the three causes.
 """

@@ -70,6 +70,7 @@ advance
 after
 again
 agent
+ago
 ahead
 air
 aired
@@ -139,6 +140,7 @@ beneath
 best
 block
 blocked
+blocks
 bodiless
 body
 bold
@@ -198,6 +200,7 @@ categories
 category
 cats
 cause
+causes
 ceil
 ceiling
 cell
@@ -231,6 +234,8 @@ close
 closed
 closest
 closing
+closure
+closures
 cls
 code
 codes
@@ -334,6 +339,7 @@ delivering
 delivery
 delsel
 delta
+dependency
 design
 dense
 depart
@@ -614,6 +620,7 @@ illusion
 image
 images
 imgs
+import
 in
 inc
 include
@@ -656,6 +663,7 @@ journal
 journey
 json
 jsx
+judgement
 keep
 keeps
 kept
@@ -699,7 +707,9 @@ libload
 libq
 library
 libretry
+lift
 lifted
+lifts
 light
 like
 limit
@@ -780,13 +790,16 @@ mocks
 modal
 mode
 modes
+moment
 mono
 more
+morning
 motif
 motion
 mount
 move
 moved
+moves
 movie
 movies
 moving
@@ -804,6 +817,7 @@ navgo
 navigated
 navigation
 nb
+nearly
 need
 needed
 needs
@@ -812,6 +826,7 @@ neutral
 new
 newcomer
 newer
+newest
 newly
 next
 no
@@ -844,6 +859,7 @@ observer
 of
 offer
 offered
+offline
 offset
 old
 on
@@ -979,6 +995,7 @@ projection
 projections
 properties
 proposer
+props
 protocol
 prov
 provider
@@ -1134,6 +1151,7 @@ roles
 room
 root
 roster
+round
 route
 router
 routes
@@ -1277,6 +1295,7 @@ solid
 soon
 sort
 sorted
+sorts
 source
 sources
 space
@@ -1341,6 +1360,7 @@ sugmode
 sugmore
 suite
 sum
+superseded
 surf
 surface
 surfaces
@@ -1381,6 +1401,7 @@ the
 their
 theirs
 theme
+then
 there
 this
 thousand
@@ -1557,6 +1578,7 @@ watching
 way
 ways
 weekday
+weeks
 weight
 what
 when
@@ -1593,20 +1615,7 @@ zone
 # The words the maquette's `@keyframes` names are built from, read since
 # B-056 put those names under the vocabulary arm.
 banner
-closure
-dependency
-judgement
-lift
-lifts
-moves
-newest
-offline
-props
 pulse
 rise
-round
 shimmer
-sorts
 spin
-superseded
-then
