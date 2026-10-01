@@ -1356,7 +1356,14 @@
         "unknown": "origine inconnue"
       },
       "plexMatch": "Plex l'a reconnu comme « {{title}} », pas comme ce titre.",
-      "failedStep": "L'étape « {{step}} » a échoué."
+      "failedStep": "L'étape « {{step}} » a échoué.",
+      "closure": {
+        "torrent_removed": "Le torrent a été retiré de qBittorrent : ce parcours est clos.",
+        "files_absent": "Ses fichiers ont disparu du disque de qBittorrent : ce parcours est clos.",
+        "superseded": "Remplacé par un choix plus récent : {{winner}} est en place.",
+        "reopens": "S'il revient, un nouveau parcours s'ouvrira.",
+        "seeding": "Son torrent continue de semer."
+      }
     },
     "error": {
       "lead": "Impossible de charger {{subject}}.",
@@ -1389,6 +1396,7 @@
       "doneUntimed": "fait",
       "nowUntimed": "en cours",
       "toConfirm": "{{rung}} — à confirmer",
+      "closed": "clos",
       "ratioWithoutThreshold": "Différé : le ratio sur {{tracker}} est trop bas, et ce tracker n'a aucun seuil réglé.",
       "reasons": {
         "queued": "En file — ce passage attend que la maintenance en cours se termine.",
@@ -1610,7 +1618,9 @@
       "absorbedEnded": "La saison {{season}} est arrivée en médiathèque.",
       "seeSeasonCard": "Voir la carte de la saison",
       "absorbedRunning": "{{episode}} — téléchargement déjà en cours",
-      "absorbedCovered": "{{episode}} — couvert par la saison"
+      "absorbedCovered": "{{episode}} — couvert par la saison",
+      "markSeen": "Marquer comme vu",
+      "keptNewer": "{{episode}} — gardé : choisi plus récemment"
     },
     "notMedia": {
       "title": "Ce n'est pas un média",
@@ -1766,7 +1776,8 @@
         "done": "« {{title}} » supprimé du disque."
       },
       "left": "« {{title}} » mis de côté — il vous attend, replié en fin d'« À traiter ».",
-      "resolved": "Identifié comme « {{choice}} » — le pipeline reprend jusqu'à la médiathèque."
+      "resolved": "Identifié comme « {{choice}} » — le pipeline reprend jusqu'à la médiathèque.",
+      "closureSeenRefused": "« {{title}} » n'a pas pu être marqué comme vu : sa carte reste dans « À traiter »."
     },
     "media": {
       "seasonAsked": "Saison {{season}} de « {{title}} » demandée — {{count}} épisodes à récupérer.",

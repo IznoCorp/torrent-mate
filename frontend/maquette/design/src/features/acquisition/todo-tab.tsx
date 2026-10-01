@@ -17,6 +17,7 @@ import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { offeredFeet } from "./act-rights";
 import { useRights } from "../../lib/account";
 import { blockDoor, mediumCardMarkup } from "./card-markup";
+import { closureFoot } from "./closure-markup";
 import { setAsideCards, todoCards } from "../../lib/arrival-slots";
 import { causeOf, orderTodo } from "../../lib/todo-order";
 import { TodoPills, todoFilterInForce, todoSortInForce } from "./todo-pills";
@@ -85,6 +86,9 @@ export function TodoTab(): ReactElement {
         { label: t("screens.acquisition.plexConfirmFoot"), solid: true, attributes: { "data-plex-confirm": card.title } },
         { label: t("screens.acquisition.plexCorrectFoot"), attributes: { "data-plex-correct": card.title } },
       ], card, rights);
+    // A CLOSED TUNNEL leads to its sheet; « Marquer comme vu » is in its panel
+    // (DECIDED 2), never a « × » on the card.
+    if (cause === "closed") return closureFoot(card);
     if (cause === "resolve")
       return offeredFeet({ label: t("screens.acquisition.blockedFoot"), attributes: { "data-resolution": card.title } },
         card, rights);

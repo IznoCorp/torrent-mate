@@ -8,16 +8,18 @@ filters it by cause, and a sort pill of the same component orders it. Both are
 remembered (« retenue comme le filtre »).
 
 What this holds, on `acq-todo-every-cause` (four cards for his judgement, four
-external blocks posed 5, 20, 40 and 90 minutes ago):
+external blocks posed 5, 20, 40 and 90 minutes ago, one closure not yet seen
+posed 60 minutes ago):
 
 1. the list draws no section title — « Mis de côté » apart;
 2. its order is urgency: the judgement's cards first, then the external blocks
-   newest first;
+   newest first, then the closure;
 3. the filter pill reads « Tout » and the number of cards drawn, not pressed;
 4. a finger on it opens the panel of causes, in order, each with its count;
 5. a choice filters — « Disque plein » keeps its one card; the pill says it,
    pressed, with its count; the Acquisition badge does not move;
-6. the sort pill's « Plus ancien » orders the external blocks oldest first;
+6. the sort pill's « Plus ancien » orders every card by its time, oldest first —
+   the closure among the external blocks, the cards with no time last;
 7. after a reload, the filter and the sort chosen are still in force.
 
 Red before the lot: the tab draws three titled sections and no pill.
@@ -36,6 +38,10 @@ SORTS = ACQ.get("todoSort", {})
 ORDER = ["all", "resolve", "plex", "step", "disks", "ratio", "unreachable", "closed"]
 # The external blocks the state poses, newest first, by the key they are drawn under.
 EXTERNAL_NEWEST = ["President Curtis", "Conclave", "This City Is Ours", "Silo|S03"]
+# The closure it poses, not yet seen — the third group.
+CLOSED = "The Alabama Solution"
+# Every card with a time, oldest first: the blocks and the closure mixed.
+TIMED_OLDEST = ["Silo|S03", CLOSED, "This City Is Ours", "Conclave", "President Curtis"]
 
 LIST = """() => {
   const body = document.querySelector('#view [data-region="acquisition/body"]');
@@ -95,10 +101,10 @@ async def main():
                       str(read and read["titles"]))
         keys = (read or {}).get("keys") or []
         external = [key for key in keys if key in EXTERNAL_NEWEST]
-        judgement = keys[:len(keys) - len(external)]
-        journal.check("urgency: his judgement's cards first, then the external blocks newest first",
-                      len(keys) == 8 and external == EXTERNAL_NEWEST and keys[len(judgement):] == EXTERNAL_NEWEST,
-                      str(keys))
+        judgement = keys[:len(keys) - len(external) - 1]
+        journal.check("urgency: his judgement's cards first, then the external blocks newest first, then the closure",
+                      len(keys) == 9 and external == EXTERNAL_NEWEST
+                      and keys[len(judgement):] == [*EXTERNAL_NEWEST, CLOSED], str(keys))
         filter_pill = (read or {}).get("filter")
         journal.check(f"the filter pill reads « {FILTERS.get('all')} » and the cards drawn, not pressed",
                       filter_pill is not None and filter_pill["text"] == FILTERS.get("all")
@@ -122,11 +128,9 @@ async def main():
         await choose(page, "data-todo-filter-pill", FILTERS.get("all"))
         await choose(page, "data-todo-sort-pill", SORTS.get("oldest"))
         read = await page.evaluate(LIST)
-        oldest = [key for key in (read or {}).get("keys", []) if key in EXTERNAL_NEWEST]
-        journal.check(f"« {SORTS.get('oldest')} » orders the external blocks oldest first, the pill pressed",
-                      read is not None and oldest == list(reversed(EXTERNAL_NEWEST))
-                      and read["keys"][:4] == oldest and read["sort"]["text"] == SORTS.get("oldest")
-                      and read["sort"]["pressed"], repr(read))
+        journal.check(f"« {SORTS.get('oldest')} » orders every card with a time oldest first, the pill pressed",
+                      read is not None and read["keys"][:len(TIMED_OLDEST)] == TIMED_OLDEST
+                      and read["sort"]["text"] == SORTS.get("oldest") and read["sort"]["pressed"], repr(read))
 
         await choose(page, "data-todo-filter-pill", FILTERS.get("disks"))
         await page.reload(wait_until="load")

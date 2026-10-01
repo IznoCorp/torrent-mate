@@ -55,7 +55,8 @@ export type FollowFacts = {
   inLibrary: boolean;
   /**
    * The rung a medium nobody follows stands on while its acquisition is in
-   * flight — what its chip says — or null.
+   * flight — what its chip says — « clos » for a closed tunnel not yet seen,
+   * or null.
    */
   stage: string | null;
   /** Waiting to be taken. */
@@ -66,6 +67,8 @@ export type FollowFacts = {
   plexMatch: boolean;
   /** In « À traiter », a step that cannot finish: relaunched or abandoned, never resolved. */
   tunnelError: boolean;
+  /** In « À traiter », a tunnel closed and not yet seen (Q8, Q9): its acquisition's key, else null. */
+  closure: string | null;
   /** In the folded « Mis de côté »: kept on the disk until he deletes it or handles it. */
   setAside: boolean;
   /** It has a media sheet — an unidentified release has none. */
@@ -117,6 +120,9 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
   const answer = cache.held<AcquisitionQueue>(queueKey(scenario));
   const todo = answer ? todoCards(answer).find((one) => one.title === title) : undefined;
   const arrival = answer?.arrivals.find((one) => one.title === title);
+  // A CLOSED TUNNEL OF THIS MEDIUM, not yet seen — beside a new one, when the
+  // medium came back (Q8).
+  const closed = answer ? todoCards(answer).find((one) => one.title === title && one.closure != null) : undefined;
   const acquisition = todo ?? (answer ? inFlightCards(answer).find((one) => one.title === title) : undefined);
   // A MEDIUM IN FLIGHT IS NOT « À JOUR » NOR « ACQUIS »: until its ladder's last
   // rung is passed it is being acquired, at the rung its card stands on.
@@ -177,7 +183,11 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
     incomplete,
     isFollowed,
     inLibrary,
-    stage: !isFollowed && inFlight && ladder
+    // A CLOSED TUNNEL SAYS « CLOS », as its card does — never the rung it
+    // stopped on, which reads as one still running.
+    stage: closed !== undefined
+      ? i18next.t("surfaces.ladder.closed")
+      : !isFollowed && inFlight && ladder
       ? i18next.t(`surfaces.ladder.rungs.${ladder[currentRung(ladder)].rung}`)
       : null,
     toTake,
@@ -186,6 +196,7 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
     // foot, its panel offers too (R43, one card, one behaviour).
     plexMatch: todo?.plexMatch !== undefined,
     tunnelError: todo?.failedStep !== undefined,
+    closure: closed === undefined ? null : acquisitionKey(closed),
     setAside: answer ? setAsideCards(answer).some((one) => one.title === title) : false,
     hasSheet: (follow.ids ?? heldIdentity(title)?.ids) != null,
     // THE SAME OFFER THE CARD'S FOOT MAKES, from the same derivation (R43).

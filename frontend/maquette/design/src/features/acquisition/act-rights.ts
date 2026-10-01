@@ -35,6 +35,8 @@ const ACTS: Readonly<Record<string, Asked>> = {
   "journey-abandon": PIPELINE,
   "staging-delete": PIPELINE,
   "journey-requeue": PILOT,
+  // THE ACCOUNT'S OWN SEEN MARK on a closed tunnel (BK5).
+  "closure-seen": { rights: ["acquisition.request"] },
   "journey-rescrape": PILOT,
   take: PILOT,
   sheetprim: PILOT,

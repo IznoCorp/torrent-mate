@@ -32,6 +32,8 @@ import "../features/acquisition/panels";
 import "../features/acquisition/resolution-verbs";
 // And « Abandonner », which opens its confirmation before anything is sent.
 import "../features/acquisition/abandon-verb";
+// And « Marquer comme vu », a closed tunnel read once (Q8, Q9).
+import "../features/acquisition/closure-verb";
 // And « Supprimer », a folder set aside deleted after its confirmation.
 import "../features/acquisition/delete-set-aside-verb";
 // And « Ce n'est pas un média », its choice of destinations and its verb.

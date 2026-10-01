@@ -292,6 +292,11 @@ function journeyPanel(subject: string, cache: PanelCache): PanelDescriptor | nul
               v: timeOfDay(block.since), pip: STAGE_PIP.waiting, terne: false },
             { c: translate("surfaces.ladder.resumedLine"), v: timeOfDay(block.resumedAt), pip: STAGE_PIP.now, terne: false },
           ]),
+          // EACH EPISODE A PACK'S FILING LEFT IN PLACE, a later choice holding
+          // its file (Q9, maquette-blocked § 1.6): named here, no card drawn.
+          ...(stage.keptNewer ?? []).map((episode) => ({
+            c: translate("panels.journey.keptNewer", { episode }), v: NO_TIME, pip: STAGE_PIP.done, terne: false,
+          })),
           ...(stage.steps ?? []).flatMap((step) => [
             stageLine(step, translate("surfaces.ladder.step", {
               name: translate(`surfaces.ladder.steps.${step.rung}`),

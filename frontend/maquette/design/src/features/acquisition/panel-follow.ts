@@ -34,6 +34,7 @@ import { accountQuery, heldRights } from "../../lib/account";
 import { isOwn } from "../../lib/rights";
 import { acquisitionStatusQuery, followsQuery, incompleteShowsQuery, type AcquisitionStatus } from "./queries";
 import { STATUS_TONE, followStatusLabel, nextSearchTime } from "./follow-vocabulary";
+import { CLOSED_TONE } from "./closure-markup";
 
 /* The one wait for an identity in progress, stopped by the next one. */
 let cancelWaiting: (() => void) | null = null;
@@ -165,7 +166,9 @@ function followPanel(title: string, cache: PanelCache): PanelDescriptor | null {
       `${follow.year ? String(follow.year) + " · " : ""}${kind}` +
       `${fraction ? " · " + fraction + translate("panels.follow.episodesSuffix") : ""}`,
     // A MEDIUM IN FLIGHT that nobody follows says the rung it stands on.
-    puce: [STATUS_TONE[follow.status as string], facts.stage ?? followStatusLabel(follow)],
+    // A CLOSED TUNNEL'S « CLOS » in the neutral tone its card's chip wears.
+    puce: [facts.closure !== null ? CLOSED_TONE : STATUS_TONE[follow.status as string],
+      facts.stage ?? followStatusLabel(follow)],
     blocs: [
       primary.length ? { type: "actions", actions: primary } : null,
       readOnly ? { type: "note", text: translate("panels.follow.readOnly") } : null,

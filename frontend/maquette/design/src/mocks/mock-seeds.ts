@@ -27,6 +27,7 @@ import { poseDisagreement, setAside } from "./handlers/staging";
 import { poseTunnelError } from "./handlers/follow-errors";
 import { poseUnknownIdentity } from "./handlers/posed-identity";
 import { liftBlock, liftCause, poseBlock, poseServiceDown } from "./handlers/posed-block";
+import { poseClosure, poseFiled, poseFiledByHand, poseKeptNewer, poseMediumBack } from "./handlers/posed-closure";
 import { sameItem } from "./handlers/same-item";
 import {
   SEARCHING, poseAutomatic, poseBeforeAsk, poseSeasonArrived, poseSeasonAt, poseSeasonBlocked, poseSeasonEnded,
@@ -75,6 +76,16 @@ export type MockSeeds = {
   liftBlock: typeof liftBlock;
   /** The engine sees one cause lifted and resumes every acquisition it held, in one live event (BK2). */
   liftCause: typeof liftCause;
+  /** Closes an acquisition's tunnel with its reason — a DERIVATION, never read: the engine closes it (BK3, BK4). */
+  poseClosure: typeof poseClosure;
+  /** The vanished medium back: a new tunnel under the same key, the closed one still unseen (BK3). */
+  poseMediumBack: typeof poseMediumBack;
+  /** The medium filed by hand elsewhere: its tunnel ends with no card (BK3). */
+  poseFiledByHand: typeof poseFiledByHand;
+  /** A pack filed save the episodes a later choice holds, each named in its journey (BK4). */
+  poseKeptNewer: typeof poseKeptNewer;
+  /** A pack filed and verifying — the release in place of a superseded one (BK4). */
+  poseFiled: typeof poseFiled;
   /**
    * A whole season's recovery, POSED on the one the dense world holds — each a
    * DERIVATION until the layer is next reset: the moment before the ask, a rung
@@ -166,6 +177,11 @@ export const mockSeeds: MockSeeds = {
   poseServiceDown,
   liftBlock,
   liftCause,
+  poseClosure,
+  poseMediumBack,
+  poseFiledByHand,
+  poseKeptNewer,
+  poseFiled,
   seasonRecovery: {
     beforeAsk: poseBeforeAsk,
     searching: (title, season) => poseSeasonAt(title, season, SEARCHING),

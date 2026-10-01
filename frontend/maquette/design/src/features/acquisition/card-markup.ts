@@ -24,6 +24,7 @@ import { originRow, footRow } from "./variants";
 import { currentRung } from "../../lib/current-rung";
 import { sizeOf } from "../trackers/format";
 import type { Right, Rights } from "../../lib/rights";
+import { CLOSED_TONE, closureMarkup } from "./closure-markup";
 
 
 /** One rung of a card's ladder, as the card reads it. */
@@ -79,6 +80,8 @@ export type MediumCard = {
   trigger?: "manual" | "automatic" | null;
   /** The pipeline step a tunnel error stopped on. */
   failedStep?: string;
+  /** The tunnel's closure, until the account has seen it (Q8, Q9). */
+  closure?: { reason: string; at: number; winner: string | null } | null;
 };
 
 /** The foot a section offers for its own action. */
@@ -335,7 +338,11 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot | Med
     subtitle: medium.trigger === AUTOMATIC
       ? i18next.t("surfaces.card.automatic", { line: medium.secondaryLine })
       : medium.secondaryLine,
-    reason: medium.plexMatch
+    // A CLOSED TUNNEL SAYS WHY, once (Q8, Q9): it outranks what its ladder
+    // said when it was still running.
+    reason: medium.closure
+      ? closureMarkup(medium.closure)
+      : medium.plexMatch
       ? escapeMarkup(i18next.t("surfaces.card.plexMatch", { title: medium.plexMatch.title }))
       : onLadder?.setAside
       ? escapeMarkup(onLadder.setAside)
@@ -349,7 +356,9 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot | Med
       : undefined,
     overview: medium.overview,
     fraction: onLadder ? onLadder.fraction : medium.f,
-    chip: onLadder ? onLadder.chip : medium.chip ? { tone: medium.chip.tone, label: medium.chip.text } : null,
+    // « CLOS », in the neutral tone: nothing runs, nothing waits on him.
+    chip: medium.closure ? { tone: CLOSED_TONE, label: i18next.t("surfaces.ladder.closed") }
+      : onLadder ? onLadder.chip : medium.chip ? { tone: medium.chip.tone, label: medium.chip.text } : null,
     rating: medium.note != null ? String(medium.note) : undefined,
     caption: medium.caption,
     fresh: medium.fresh ? i18next.t("surfaces.card.freshTag") : undefined,

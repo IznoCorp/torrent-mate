@@ -1577,9 +1577,11 @@ zone
 # The words the maquette's `@keyframes` names are built from, read since
 # B-056 put those names under the vocabulary arm.
 banner
+closure
 dependency
 judgement
 lift
+lifts
 moves
 newest
 offline
@@ -1590,4 +1592,5 @@ round
 shimmer
 sorts
 spin
+superseded
 then

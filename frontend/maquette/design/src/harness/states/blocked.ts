@@ -77,6 +77,30 @@ function tapDoor(key: string): void {
   document.querySelector<HTMLElement>(`#view [data-part="card"][data-acquisition="${CSS.escape(key)}"] [data-go]`)?.click();
 }
 
+/**
+ * A finger on one card's body: its bottom panel rises.
+ *
+ * @param key The acquisition the card stands for.
+ */
+function tapCard(key: string): void {
+  document.querySelector<HTMLElement>(`#view [data-part="card"][data-acquisition="${CSS.escape(key)}"] [data-part="card/body"]`)?.click();
+}
+
+// How long after the finger on a card its panel has the reads it needs to
+// offer its acts.
+const PANEL_READY = 900;
+
+/**
+ * « Marquer comme vu », the way a finger does it: on the card, then on the act
+ * of its panel (DECIDED 2).
+ *
+ * @param key The closed acquisition.
+ */
+function markSeen(key: string): void {
+  tapCard(key);
+  window.setTimeout(() => document.querySelector<HTMLElement>("#sheet[data-open] [data-closure-seen]")?.click(), PANEL_READY);
+}
+
 // An account that reads every card of « À traiter » and may not open Système.
 const WITHOUT_SYSTEM = "household-member-sees-all";
 // How long ago Plex stopped answering, on Système's own state.
@@ -101,6 +125,25 @@ const EVERY_CAUSE: Pose[] = [
 const HELD_BY_CLIENT = [SEASON_IN_FLIGHT, SECOND_SERIES, TUNNEL_ERROR];
 /** A tunnel error on a follow's card, the judgement's third kind. */
 const tunnelError = () => window.__mocks?.poseTunnelError(TUNNEL_ERROR, "scrape");
+/** The list whole: the tunnel error, and a closure not yet seen — the third group (DECIDED 1). */
+const everyCause = () => {
+  tunnelError();
+  window.__mocks?.poseClosure(SECOND_FILM, "torrent_removed", null, { minutesAgo: 60 });
+};
+// THE CLOSURES (Q8, Q9): the season's pack and the episode chosen before it,
+// the film's 1080p chosen after its 2160p — each release line as its torrent
+// carries it.
+const SUPERSEDED_EPISODE = "Silo|S03E07";
+const PACK_RELEASE = "Silo.S03.MULTi.1080p.WEB-DL.DDP5.1.H264-FRATERNITY";
+const FILM_IN_PLACE = "Conclave.2024.MULTi.1080p.WEB-DL.H264-FW";
+const FILM_SUPERSEDED = "Conclave.2024.MULTi.2160p.WEB-DL.DV.HDR.H265-FW";
+/** This City Is Ours' torrent removed from qBittorrent half an hour ago. */
+const torrentRemoved = () => window.__mocks?.poseClosure(SUBJECT, "torrent_removed", null, { minutesAgo: 30 });
+/** Silo · S03E07 arrived after the season's pack, filed and verifying. */
+const supersededEpisode = () => {
+  window.__mocks?.poseFiled(SEASON_IN_FLIGHT);
+  window.__mocks?.poseClosure(SUPERSEDED_EPISODE, "superseded", PACK_RELEASE, { minutesAgo: 15 });
+};
 // What a film needs, in bytes, for a library with no disk to receive it.
 const FILM_SIZE = 58_000_000_000;
 
@@ -183,27 +226,70 @@ export function blockedStates(): NamedState[] {
         window.__mocks?.liftBlock(SUBJECT);
         window.__panel.produce("journey", SUBJECT);
       } }),
+    // THE CLOSURES (Q8) — a vanished medium, said once, « Marquer comme vu » in its panel.
+    posed("acq-closure-torrent-removed",
+      "À traiter — le torrent de This City Is Ours retiré de qBittorrent : le parcours est clos, dit une fois (le back-end le fermera — BK3)",
+      [], { before: torrentRemoved }),
+    posed("acq-closure-files-absent",
+      "À traiter — les fichiers de President Curtis disparus d'un disque présent : le parcours est clos (DECIDED 4)",
+      [], { before: () => window.__mocks?.poseClosure(SECOND_SERIES, "files_absent") }),
+    posed("acq-closure-panel",
+      "Le panneau de la carte close : « Marquer comme vu » parmi ses actions — après le doigt sur la carte",
+      [], { before: torrentRemoved, after: () => tapCard(SUBJECT) }),
+    posed("acq-closure-seen",
+      "À traiter — après le doigt sur « Marquer comme vu » : la carte est partie, le badge −1 (le vu est au back-end — BK5)",
+      [], { before: torrentRemoved, after: () => markSeen(SUBJECT) }),
+    posed("acq-closure-dismiss-failed",
+      "À traiter — « Marquer comme vu » refusé par le serveur : la carte revient, l'erreur est dite",
+      [], { before: () => {
+        torrentRemoved();
+        window.__mocks?.setOperationOutcome("dismissClosure", { status: 500 });
+      }, after: () => markSeen(SUBJECT) }),
+    posed("acq-closure-filed-by-hand",
+      "À traiter — This City Is Ours rangé à la main ailleurs : son parcours finit sans carte",
+      [], { before: () => window.__mocks?.poseFiledByHand(SUBJECT) }),
+    posed("acq-closure-medium-back",
+      "En cours et À traiter — le média revenu ouvre un nouveau parcours, l'ancien clos pas encore vu reste dit",
+      [], { before: () => {
+        torrentRemoved();
+        window.__mocks?.poseMediumBack(SUBJECT);
+      } }),
+    // SUPERSEDED (Q9) — the last chosen wins; the earlier one is said once, its torrent seeding.
+    posed("acq-superseded-episode",
+      "À traiter — Silo · S03E07, choisi avant le pack de la saison et arrivé après : remplacé, son torrent sème (BK4)",
+      [], { before: supersededEpisode }),
+    posed("acq-superseded-film",
+      "À traiter — le 2160p de Conclave, choisi avant le 1080p en place : remplacé, son torrent sème",
+      [], { before: () => window.__mocks?.poseClosure(FIRST_FILM, "superseded", FILM_IN_PLACE,
+        { release: FILM_SUPERSEDED, minutesAgo: 10 }) }),
+    posed("acq-superseded-seen",
+      "À traiter — après « Marquer comme vu » sur Silo · S03E07 : la carte est partie, le badge −1",
+      [], { before: supersededEpisode, after: () => markSeen(SUPERSEDED_EPISODE) }),
+    posed("acq-superseded-pack-keeps-newer",
+      "Le parcours du pack Silo · S03 rangé, S03E07 gardé car choisi plus récemment : aucune carte",
+      [], { before: () => window.__mocks?.poseKeptNewer(SEASON_IN_FLIGHT, ["S03E07"]),
+        after: () => window.__panel.produce("journey", SEASON_IN_FLIGHT) }),
     // THE LIST WHOLE — one card per cause, flat, in the urgency order.
     posed("acq-todo-every-cause",
-      "À traiter — une carte par cause, à plat, par urgence : jugement, puis ce qui repart seul",
-      EVERY_CAUSE, { before: tunnelError }),
+      "À traiter — une carte par cause, à plat, par urgence : jugement, puis ce qui repart seul, puis ce qui est clos",
+      EVERY_CAUSE, { before: everyCause }),
     posed("acq-todo-external-only",
       "À traiter — rien que des blocages extérieurs : la note du vide n'est pas dessinée",
       [[SUBJECT, "insufficient_space"]], { before: () => window.__mocks?.clearBlocked() }),
     posed("acq-todo-filter-panel",
       "À traiter — le panneau du filtre ouvert : chaque cause avec son nombre de cartes",
-      EVERY_CAUSE, { before: tunnelError, after: () => tapPill("data-todo-filter-pill") }),
+      EVERY_CAUSE, { before: everyCause, after: () => tapPill("data-todo-filter-pill") }),
     posed("acq-todo-filter-disks",
       "À traiter — filtré sur « Disque plein »",
-      EVERY_CAUSE, { before: tunnelError, dials: { todoFilter: "disks" } }),
+      EVERY_CAUSE, { before: everyCause, dials: { todoFilter: "disks" } }),
     posed("acq-todo-filter-empty",
       "À traiter — un filtre sans carte : ses propres mots",
-      EVERY_CAUSE, { before: tunnelError, dials: { todoFilter: "plex" } }),
+      EVERY_CAUSE, { before: everyCause, dials: { todoFilter: "plex" } }),
     posed("acq-todo-sort-panel",
       "À traiter — le panneau du tri ouvert",
-      EVERY_CAUSE, { before: tunnelError, after: () => tapPill("data-todo-sort-pill") }),
+      EVERY_CAUSE, { before: everyCause, after: () => tapPill("data-todo-sort-pill") }),
     posed("acq-todo-sort-oldest",
       "À traiter — trié « Plus ancien »",
-      EVERY_CAUSE, { before: tunnelError, dials: { todoSort: "oldest" } }),
+      EVERY_CAUSE, { before: everyCause, dials: { todoSort: "oldest" } }),
   ];
 }

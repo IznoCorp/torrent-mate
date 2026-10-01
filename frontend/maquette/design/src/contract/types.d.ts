@@ -1137,6 +1137,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/journeys/{infoHash}/closure/seen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark one closed tunnel seen, for the caller — the seen mark stored per account (BK5); the engine closes the tunnel itself, its medium vanished (BK3) or a later choice in place (BK4)
+         * @description « Marquer comme vu » in a closure card's panel (Q8, Q9; maquette-blocked § 1.5, § 1.6, DECIDED 2): the account has read why the tunnel closed — its medium vanished, or a later-chosen release is in place. The queue stops answering `closure` on that acquisition for THAT account, everywhere and for good: a reload does not bring it back. Idempotent: a closure already seen answers the same. A DEMAND (BK5): the engine stores the seen mark per account; it closes the tunnel itself (BK3, BK4).
+         */
+        post: operations["dismissClosure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/acquisition/obligations": {
         parameters: {
             query?: never;
@@ -2036,6 +2056,8 @@ export interface components {
             blockedSince?: number | null;
             /** @description the blocks this rung went through and the engine lifted, oldest first — the journey's trace « bloqué — … » / « repris » (maquette-blocked § 1.4). A DEMAND (BK2) */
             blocks?: components["schemas"]["LiftedBlock"][];
+            /** @description on « rangé », the episodes a pack's filing LEFT IN PLACE because a release chosen later holds their file — « S03E07 » (Q9, maquette-blocked § 1.6): the pack's tunnel goes to its end and its journey names each one. A DEMAND (BK4) */
+            keptNewer?: string[];
             /** @description the pipeline steps this rung merges, in order — carried by « rangé » alone */
             steps?: components["schemas"]["JourneyStage"][];
         };
@@ -4960,6 +4982,36 @@ export interface operations {
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    dismissClosure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the closed acquisition. The interface knows it by its key — the title, then the season or the episode it is of */
+                infoHash: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description it is seen */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
         };
