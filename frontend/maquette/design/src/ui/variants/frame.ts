@@ -221,7 +221,12 @@ export const messageHost = cva(
       // « Enregistrer » — the tap did nothing for its five seconds (B-317).
       edge: {
         bottom: "bottom-[calc(var(--tm-bottom-bar-h,0px)+var(--tm-save-bar-h,0px)+16px)]",
-        top: "top-[calc(max(env(safe-area-inset-top),var(--tm-screen-bar-bottom,0px))+16px)]",
+        top: "top-[calc(max(env(safe-area-inset-top),var(--tm-screen-bar-bottom,0px))+16px)] "
+          // ON A DESKTOP NOTHING HOLDS A VERB ALONG THE COLUMN'S FOOT while a layer is open — the
+          // sheet is at the side (DECIDED 3), the confirmation centred and bounded — so the message
+          // stays at the foot, beside the side sheet rather than over its head.
+          + "desk:top-auto desk:bottom-[16px] "
+          + "desk:[:root:has(#sheet[data-open])_&]:right-[calc(440px+16px)]",
       },
       shown: {
         true: "show opacity-100 visible transition-[opacity,transform]",

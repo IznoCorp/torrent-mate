@@ -81,6 +81,7 @@ SITE = re.compile(r"`([^`]+)`\s+\(([^)]+)\)")
 LOCAL_DETAILS = {
     ("stripDot", 1): "the same dot, drawn by its variant, over the stepper's own connector line",
     ("sheetDragBand", 1): "the sheet's drag band over the sheet's own head",
+    ("sheetGrab", 1): "the side sheet's upright grip over its own content's left padding, on a desktop",
     ("::view-transition-group(shell-tab-bar)", 10):
         "the ORDER OF TRANSITION GROUPS, a stacking space of its own that exists "
         "for the length of a crossing",

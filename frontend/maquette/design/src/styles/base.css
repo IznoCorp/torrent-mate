@@ -922,6 +922,21 @@ input[type="search"]::-webkit-search-decoration {
   }
 }
 
+/* ON A DESKTOP THE PANEL IS A SIDE SHEET (DECIDED 3), so it leaves — and comes back — by the right
+   edge it is anchored to, under the `desk:` condition (`styles/theme.css`). */
+@keyframes panel-aside {
+  to {
+    opacity: 0;
+    transform: translate3d(100%, 0, 0);
+  }
+}
+@media (prefers-reduced-motion: no-preference) and (min-width: 64rem) {
+  :root:not(:has(#desktop-switch:not(:checked)))::view-transition-old(leaving-panel),
+  :root:not(:has(#desktop-switch:not(:checked)))::view-transition-new(leaving-panel) {
+    animation-name: panel-aside;
+  }
+}
+
 /* REDUCED MOTION, for all three: the arrivals still HAPPEN and nothing moves.
    Silencing the named parts as well as the root, because a name the stylesheet
    gives is a name the browser animates by default — the same lesson the root
