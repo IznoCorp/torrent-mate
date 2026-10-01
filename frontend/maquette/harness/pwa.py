@@ -44,7 +44,7 @@ from playwright.async_api import async_playwright
 from server import start_server
 
 # The built copy the harness serves, and the one R105 raises its own server on.
-SERVED = pathlib.Path("/tmp/tm-refonte")
+from served_copy import SERVED
 
 HOST = "https://tm-design.iznogoudatall.xyz"
 

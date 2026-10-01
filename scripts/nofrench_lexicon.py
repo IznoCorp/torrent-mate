@@ -468,6 +468,7 @@ DICTIONARY_EXCEPTIONS: dict[str, str] = {
     "sep": "separator, abbreviated",
     "sonner": "the toast library",
     "sortable": "English adjective",
+    "transcode": "English media term (Plex's `TranscodeSession`), in the heavy.sh transcode-speed test",
     "transcoder": "English media term (Plex's own process name, ffmpeg's own vocabulary)",
     "transcodes": "verb form of the above, same reason",
     "typer": "the CLI framework",

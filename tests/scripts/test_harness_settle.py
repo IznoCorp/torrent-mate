@@ -42,7 +42,7 @@ def page():
     playwright_api = pytest.importorskip("playwright.sync_api")
     with playwright_api.sync_playwright() as playwright:
         try:
-            browser = playwright.chromium.launch(channel=common.browser_channel())
+            browser = playwright.chromium.launch(channel=common.browser_channel(), args=common.chrome_launch_args())
         except Exception as error:  # noqa: BLE001 — any launch failure means « no browser here »
             pytest.skip(f"no browser can be launched here: {error}")
         tab = browser.new_page()
