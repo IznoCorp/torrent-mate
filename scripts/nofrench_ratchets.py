@@ -22,6 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from nofrench_lexicon import (  # noqa: E402
+    walk,
     ROOT, examined, exempted, offending_string, read, relative,
 )
 from nofrench_scan import (  # noqa: E402
@@ -80,7 +81,7 @@ def check_app_interface_text(violations: list[str]) -> None:
     """
     app = ROOT / "frontend" / "src"
     production = tests = 0
-    for path in sorted(app.rglob("*")):
+    for path in sorted(walk(app, "*")):
         if not path.is_file() or path.suffix not in {".ts", ".tsx"}:
             continue
         source = read(path)
@@ -180,7 +181,7 @@ def check_test_prose(violations: list[str]) -> None:
         violations: The accumulator every arm appends to.
     """
     french = 0
-    for path in sorted((ROOT / "tests").rglob("*.py")):
+    for path in sorted(walk((ROOT / "tests"), "*.py")):
         source = read(path)
         literals = python_string_literals(source)
         examined["string literals / tests"] += len(literals)

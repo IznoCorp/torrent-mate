@@ -21,6 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from nofrench_lexicon import (  # noqa: E402
+    walk,
     EXTRACTED_CSS, FROZEN_IDENTIFIERS, REGIONS, ROOT, examined,
     french_tokens_in, has_accent, read, relative, split_identifier, vocabulary,
 )
@@ -155,9 +156,9 @@ def check_custom_properties(violations: list[str]) -> None:
     # nobody chose.
     sheets = [p for p in (ROOT / "frontend" / "maquette" / "design" / "index.html",)
               if p.exists()]
-    sheets += sorted((ROOT / "frontend" / "src").rglob("*.css"))
-    sheets += sorted((ROOT / "frontend" / "src").rglob("*.tsx"))
-    sheets += [p for p in (ROOT / "frontend" / "maquette" / "design" / "src").rglob("*.tsx")]
+    sheets += sorted(walk((ROOT / "frontend" / "src"), "*.css"))
+    sheets += sorted(walk((ROOT / "frontend" / "src"), "*.tsx"))
+    sheets += [p for p in walk((ROOT / "frontend" / "maquette" / "design" / "src"), "*.tsx")]
     for path in sheets:
         source = read(path)
         for match in CUSTOM_PROPERTY.finditer(source):

@@ -23,6 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from nofrench_lexicon import (  # noqa: E402
+    walk,
     DICTIONARY_EXCEPTIONS, FROZEN_IDENTIFIERS, HARNESS, MAQUETTE, ROOT,
     SCRIPTS, SHELL, examined, maquette_servers, read, relative,
     split_identifier,
@@ -86,18 +87,18 @@ def declared_names() -> list[tuple[str, str, int]]:
     """
     out: list[tuple[str, str, int]] = []
     python = (maquette_servers()
-              + sorted(HARNESS.glob("*.py"))
-              + [p for p in sorted(SCRIPTS.rglob("*.py"))
+              + sorted(walk(HARNESS, "*.py", recursive=False))
+              + [p for p in sorted(walk(SCRIPTS, "*.py"))
                  if p.name != Path(__file__).name]
-              + sorted((ROOT / "frontend" / "scripts").glob("*.py"))
-              + sorted((ROOT / "personalscraper").rglob("*.py"))
-              + sorted((ROOT / "tests").rglob("*.py")))
+              + sorted(walk((ROOT / "frontend" / "scripts"), "*.py", recursive=False))
+              + sorted(walk((ROOT / "personalscraper"), "*.py"))
+              + sorted(walk((ROOT / "tests"), "*.py")))
     for path in python:
         for name, line_no in python_declarations(read(path)):
             out.append((relative(path), name, line_no))
-    web = [p for p in SHELL.rglob("*") if p.is_file() and p.suffix in {".ts", ".tsx"}]
-    web += sorted(HARNESS.glob("*.mjs"))
-    web += [p for p in (ROOT / "frontend" / "src").rglob("*")
+    web = [p for p in walk(SHELL, "*") if p.is_file() and p.suffix in {".ts", ".tsx"}]
+    web += sorted(walk(HARNESS, "*.mjs", recursive=False))
+    web += [p for p in walk((ROOT / "frontend" / "src"), "*")
             if p.is_file() and p.suffix in {".ts", ".tsx"}]
     for path in sorted(web):
         if "i18n" in path.parts:

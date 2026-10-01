@@ -96,22 +96,25 @@ async def main():
         errors: list[str] = []
         page.on("pageerror", lambda error: errors.append(str(error)))
 
-        compared = 0
+        compared: list[str] = []
         for title in series:
             sheet = await seasons_on_the_sheet(page, title)
             panel = await seasons_on_the_panel(page, title)
             if not sheet and not panel:
                 continue
-            compared += 1
+            compared.append(title)
             label = f"« {title} »: the panel draws the sheet's seasons"
             if title == NAMED:
                 label = f"« {NAMED} » — the named case: the panel draws as many seasons as its sheet, and the same ones"
             journal.check(label, sheet == panel, f"sheet {sheet} · panel {panel}")
 
-        journal.check(f"« {NAMED} » is among the series compared",
-                      NAMED in series, f"series with an identity: {series}")
+        # READ ON THE COMPARISON, NOT THE SEED (B-516): a series drawing no row
+        # on either surface is skipped above, so « Silo is in the seed » held
+        # while Silo answered nothing on both.
+        journal.check(f"« {NAMED} » draws its seasons on both surfaces and is compared",
+                      NAMED in compared, f"compared: {compared}")
         journal.check("several series draw a season block to compare",
-                      compared >= 5, f"{compared} compared")
+                      len(compared) >= 5, f"{len(compared)} compared of {len(series)}")
         journal.check("no error was raised", not errors, " · ".join(errors[:3]))
         await context.close()
         await hold_state_chips(browser)

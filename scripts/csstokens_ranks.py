@@ -3,9 +3,8 @@
 
 WHY IT IS A FILE, AND WHY IT IS THIS FILE'S NEIGHBOUR. `check-css-tokens.py` is
 the arm that reads the maquette's stylesheets against a declared record, so this
-is its subject; it also stands at 742 non-blank lines against a 800-line soft
-warning, and its two other arms — `csstokens_login.py`, `csstokens_motion.py` —
-already live in modules of their own for exactly that reason. Imported by
+is its subject; its two other arms — `csstokens_login.py`, `csstokens_motion.py`
+— live in modules of their own too, one arm per module. Imported by
 `check-css-tokens.py` and by nothing else, so it runs wherever that guard runs:
 `make check`, the repository guards `run.sh` lists, and CI.
 
@@ -46,8 +45,7 @@ WHAT IS NOT A FRAME RANK is named in `LOCAL_DETAILS` below, each with the reason
 it is not: a stacking detail local to one box is still a number someone chose,
 and « it is only local » is the sentence a real rank would hide behind. It lives
 here rather than in the frame's list because that list's claim is about what the
-FRAME paints — and because `ui/variants/frame.ts` is 400 non-blank lines from
-its own ceiling, which is a real constraint and not a preference.
+FRAME paints.
 """
 import pathlib
 import re
@@ -68,8 +66,7 @@ CLASS_ATTRIBUTE = re.compile(r'class="([^"]*)"', re.DOTALL)
 # ONE LINE OF THE RANKED LIST: the rank at its head, then one or more sites, each
 # in backticks with the file that declares it. SEVERAL PER LINE, because four
 # things share rank 60 and the list is written one line per RANK — a reader
-# comparing two layers looks up a number, not a name, and `ui/variants/frame.ts`
-# is 400 non-blank lines from its own ceiling with no room for a line each.
+# comparing two layers looks up a number, not a name.
 LINE = re.compile(r"^\s{5}(\d+)\s+\S")
 SITE = re.compile(r"`([^`]+)`\s+\(([^)]+)\)")
 
@@ -99,9 +96,72 @@ OPENS = re.compile(r"^(?!\s*@)(.*?)\s*\{\s*$")
 # variant-prefixed `md:z-10` are deliberately not read: the first two carry no
 # rank, and the third is a rank at one width, which the list does not model and
 # which nothing in the maquette declares today.
-UTILITY = re.compile(r"(?<![\w-])z-(?:\[(\d+)\]|(\d+))(?![\w-])")
+# A NEGATIVE UTILITY (`-z-10`, `z-[-10]`) is a rank too — under everything —
+# and the arm read neither spelling (B-464).
+UTILITY = re.compile(r"(?<![\w-])(-?)z-(?:\[(-?\d+)\]|(\d+))(?![\w-])")
 
 EXPORTED = re.compile(r"^export const (\w+)")
+
+# THE HEAD OF A TOP-LEVEL STATEMENT: a line written at the margin that does not
+# close one. A rank belongs to the statement that holds it, never to the nearest
+# export above it — a local helper under `tabBar` declared its rank AS `tabBar`'s
+# (B-463), silently at the same number and naming the wrong site at any other.
+STATEMENT_HEAD = re.compile(r"^[^\s})\]]")
+
+# A `<style>` block in the shell's markup, which declares ranks in CSS (B-464).
+STYLE_BLOCK = re.compile(r"(<style[^>]*>)(.*?)</style>", re.DOTALL)
+
+
+def rank_of(hit: re.Match[str]) -> int:
+    """The rank a `z-` utility declares, its sign included.
+
+    Args:
+        hit: A match of `UTILITY`.
+
+    Returns:
+        The rank, negative for `-z-N` and `z-[-N]`.
+    """
+    rank = int(hit.group(2) or hit.group(3))
+    return -rank if hit.group(1) else rank
+
+
+def site_of(lines: list[str], index: int) -> str:
+    """The exported binding a source line belongs to, or an empty string.
+
+    Args:
+        lines: The source, comments already blanked.
+        index: The line the utility was read on.
+
+    Returns:
+        The export's name when the statement holding the line is
+        `export const <name>`; an empty string for any other statement.
+    """
+    for back in range(index, -1, -1):
+        if STATEMENT_HEAD.match(lines[back]):
+            name = EXPORTED.match(lines[back])
+            return name.group(1) if name else ""
+    return ""
+
+
+def css_ranks(text: str, where: str, first_line: int = 1) -> list[tuple[str, int, str]]:
+    """Every `z-index` a stylesheet declares, with the selector of its block.
+
+    Args:
+        text: The stylesheet, comments included.
+        where: The file name findings carry.
+        first_line: The line the text starts on in that file.
+
+    Returns:
+        `(selector, rank, where:line)` triples.
+    """
+    lines = without_comments(text, False).split("\n")
+    found: list[tuple[str, int, str]] = []
+    for number, line in enumerate(lines):
+        hit = DECLARED.search(line)
+        if hit:
+            found.append((selector_of(lines, number), int(hit.group(1)),
+                          f"{where}:{number + first_line}"))
+    return found
 
 
 def without_comments(text: str, line_comments: bool) -> str:
@@ -205,25 +265,15 @@ def declared(design: pathlib.Path | None = None) -> list[tuple[str, int, str]]:
     """
     design = DESIGN if design is None else design
     found: list[tuple[str, int, str]] = []
-    for sheet in sorted((design / "styles").glob("*.css")):
-        lines = without_comments(sheet.read_text(encoding="utf-8"), False).split("\n")
-        for number, line in enumerate(lines):
-            hit = DECLARED.search(line)
-            if hit:
-                site = selector_of(lines, number)
-                found.append((site, int(hit.group(1)),
-                              f"{sheet.relative_to(design)}:{number + 1}"))
+    # `rglob`: `styles/` is a tree, and a sheet one level down paints all the
+    # same (B-464).
+    for sheet in sorted((design / "styles").rglob("*.css")):
+        found += css_ranks(sheet.read_text(encoding="utf-8"), str(sheet.relative_to(design)))
     for source in sorted(design.rglob("*.ts")) + sorted(design.rglob("*.tsx")):
         lines = without_comments(source.read_text(encoding="utf-8"), True).split("\n")
         for number, line in enumerate(lines):
             for hit in UTILITY.finditer(line):
-                site = ""
-                for back in range(number, -1, -1):
-                    name = EXPORTED.match(lines[back])
-                    if name:
-                        site = name.group(1)
-                        break
-                found.append((site, int(hit.group(1) or hit.group(2)),
+                found.append((site_of(lines, number), rank_of(hit),
                               f"{source.relative_to(design)}:{number + 1}"))
     for name in SHELL_MARKUP:
         markup = design.parent / name
@@ -237,6 +287,8 @@ def declared(design: pathlib.Path | None = None) -> list[tuple[str, int, str]]:
         text = re.sub(r"<!--.*?-->",
                       lambda hit: "\n" * hit.group(0).count("\n"),
                       markup.read_text(encoding="utf-8"), flags=re.DOTALL)
+        for block in STYLE_BLOCK.finditer(text):
+            found += css_ranks(block.group(2), name, text.count("\n", 0, block.start(2)) + 1)
         for attribute in CLASS_ATTRIBUTE.finditer(text):
             classes = attribute.group(1).split()
             for hit in UTILITY.finditer(attribute.group(1)):
@@ -245,7 +297,7 @@ def declared(design: pathlib.Path | None = None) -> list[tuple[str, int, str]]:
                 # a class attribute here wraps over three lines and the rank is
                 # rarely on the first.
                 line = text.count("\n", 0, attribute.start(1) + hit.start()) + 1
-                found.append((site, int(hit.group(1) or hit.group(2)), f"{name}:{line}"))
+                found.append((site, rank_of(hit), f"{name}:{line}"))
     return found
 
 

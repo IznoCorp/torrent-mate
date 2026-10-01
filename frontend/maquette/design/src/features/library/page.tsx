@@ -15,13 +15,11 @@
 // THE SELECTION BAR MOVED, and this comment said the opposite for a lot and a
 // half (B-392). React draws it: `features/library/selection-bar.tsx`, with
 // `data-part="selection/bar"`, its own region role and its own translated
-// label. `paintSelBar()` in `engine/legacy.js@c0a5062ac` was an EMPTY function, left as a seam
-// until the engine was deleted. And since the wave that made the candidate card the gesture, the bar
-// decides on its own whether it is drawn at all: `content.state.page === "lib"`,
-// inside that component, which is the very ownership the old sentence denied
-// (B-395 — the bar used to sit over Acquisition). `library-list.tsx` still calls
-// `paintSelBar` after a tile toggles, and calling an empty function is what
-// keeps that call site honest about doing nothing.
+// label, and it decides on its own whether it is drawn at all:
+// `content.state.page === "lib"`, inside that component, which is the very
+// ownership the old sentence denied (B-395 — the bar used to sit over
+// Acquisition). A tile's toggle is a store write the bar reads; nothing paints
+// it by hand.
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { useUiState } from "../../lib/store-access";

@@ -8,8 +8,7 @@
 // React owning that markup would restore the string it last rendered on the
 // next repaint and undo the gesture four rules measure. So the containers are
 // React's and their CONTENT is the fragment's: React manages zero children
-// there, so neither world removes the other's nodes — the arrangement
-// `paintSelBar` already has, one level down.
+// there, so neither world removes the other's nodes.
 import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";

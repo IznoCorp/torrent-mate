@@ -9,12 +9,13 @@ the send until the window closes, and « Annuler » cancels it.
 WHAT IT READS — the queue's lists (`window.__queue()`) and the calls the mock
 layer answered (`window.__mocks.answered()`), never the message's sentence:
 
-  w1. THE SEND WAITS, IS STILL HELD ON THE MESSAGE'S LAST FRAME, THEN LEAVES.
-      A finger picks; no `continueStagedMedia` is answered while the window is
-      open, none at 6 500 ms — the last frame the undo is reachable on — and
-      exactly one once the window has closed. It is also what gives the zeros
-      below a meaning: a count of nothing, where nothing was ever going to
-      leave, would be green over nothing.
+  w1. THE UNDO IS OFFERED EXACTLY WHILE THE SEND IS HELD. A finger picks; no
+      `continueStagedMedia` is answered while the window is open, none at
+      5 800 ms — a frame on which « Annuler » is still under a finger — and
+      exactly one once the window has closed, when « Annuler » is no longer
+      reachable. It is also what gives the zeros below a meaning: a count of
+      nothing, where nothing was ever going to leave, would be green over
+      nothing.
   w2. « ANNULER » RETURNS THE FOLDER TO THE AMBIGUOUS STATE. A finger on the
       message's undo; the folder is back in « À traiter » at the place it held,
       its screen says « Candidats ambigus » again and offers its candidates, and
@@ -45,8 +46,11 @@ past this rule's wait falls w1 and names it.
 A window SHRUNK, though, was invisible to all seventeen holds — measured, with
 the constant at 3 000: every wait here is `WINDOW_CLOSED`, and a shorter window
 satisfies it exactly as a longer one does. The message would then offer a way
-back for three seconds after the act had left. w1's reading at `LAST_FRAME` is
-the floor that says so.
+back for three seconds after the act had left. w1's reading at `LAST_SHOWN` is
+the floor that says so — and its reading at `WINDOW_CLOSED` the ceiling: a
+message OUTLIVING the window offered a way back after the send had left, and
+all eighteen holds passed (B-461), because the floor was read at 6 500 ms, where
+the message has already faded out.
 
 RE-AIMED when the queue's cards took the contract's names: a card's title is
 read as `title` (it was the engine's `t`). The holds and what they compare are
@@ -67,14 +71,15 @@ from playwright.async_api import async_playwright
 UNDO_WINDOW = 7000
 WINDOW_CLOSED = UNDO_WINDOW + ACTED
 
-# THE MESSAGE'S LAST REACHABLE FRAME, measured at 6 500 ms after the tap: from
-# 7 000 ms the host is hidden and the point answers whatever is behind it. A
-# send read as ABSENT here is the only thing that tells this window from a
+# A FRAME THE UNDO IS STILL OFFERED ON: the message with « Annuler » lives
+# 6 000 ms (`MESSAGE_WITH_UNDO_MS`, `app/toast-host.ts`) and then fades out, so
+# at 5 800 ms after the tap a finger still lands on « Annuler ». A send read as
+# ABSENT here, with the undo under the finger, is what tells this window from a
 # shorter one — every other reading below waits `WINDOW_CLOSED`, which any
-# window under 7 s satisfies just as well, so a window silently brought to 3 s
-# would leave the message offering a way back five seconds after the act had
-# gone. Measured: with the constant at 3 000 the whole rule stayed green.
-LAST_FRAME = 6500
+# window under 7 s satisfies just as well. Measured: with the constant at 3 000
+# the whole rule stayed green. It was 6 500, named « the last reachable frame »
+# while the message's opacity was already 0 there (B-461).
+LAST_SHOWN = 5800
 
 # THE STATE WITH A FOLDER NO PROVIDER ANSWERED, where « Associer » is the way out
 # — « À traiter », RE-AIMED OUT LOUD from the Arrivées page, which dies.
@@ -166,22 +171,28 @@ async def tap(page, selector, word=""):
 async def send_waits_then_leaves(page, journal):
     """w1 — no send while the window is open, one once it has closed.
 
-    THE READING AT `LAST_FRAME` IS THE WINDOW'S LENGTH, and it is why this
+    THE READING AT `LAST_SHOWN` IS THE WINDOW'S LENGTH, and it is why this
     scenario waits in two steps rather than one: the send must still be held on
     the last frame a finger can reach the undo on, which no other hold reads.
     """
     screen, _ = await pick_by_finger(page)
     folder = screen["folder"]
     early = await page.evaluate(SENDS)
-    await page.wait_for_timeout(LAST_FRAME - ACTED)
+    await page.wait_for_timeout(LAST_SHOWN - ACTED)
     on_the_last_frame = await page.evaluate(SENDS)
-    await page.wait_for_timeout(WINDOW_CLOSED - LAST_FRAME)
+    offered = await page.evaluate(AIM_AT, ["#toastundo", ""])
+    await page.wait_for_timeout(WINDOW_CLOSED - LAST_SHOWN)
     late = await page.evaluate(SENDS)
+    withdrawn = await page.evaluate(AIM_AT, ["#toastundo", ""])
     journal.check("the pick's send waits while the window is open", early == [], str(early))
-    journal.check("and is still held on the message's last reachable frame",
-                  on_the_last_frame == [], f"at {LAST_FRAME} ms: {on_the_last_frame}")
+    journal.check("and is still held while « Annuler » is under a finger",
+                  on_the_last_frame == [] and offered.get("reachable") is True,
+                  f"at {LAST_SHOWN} ms: sends {on_the_last_frame}, undo reachable {offered.get('reachable')}")
     journal.check("and leaves once, for the folder, when the window closes",
                   len(late) == 1 and late[0].endswith(f"/{folder}/continue"), str(late))
+    journal.check("and « Annuler » is no longer offered once it has left",
+                  withdrawn.get("reachable") is not True,
+                  f"at {WINDOW_CLOSED} ms: covered by {withdrawn.get('covering')}")
 
 
 async def undo_returns_the_folder(page, journal):
