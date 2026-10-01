@@ -84,10 +84,11 @@ pull request touching the maquette), not on this machine. `make harness` runs th
   codename, squash merge.
 - Git flow `feature → develop → main → staging → prod` (`docs/features/git-flow/DESIGN.md`): a PR
   targets `develop` (`--base develop`, the default branch), or `prod` for a hotfix — never `main` nor
-  `staging`. `main`, `staging` and `prod` move only through `scripts/promote.sh`, by fast-forward:
-  `main` when a lot is validated (the orchestrator), `staging` and `prod` on the operator's word only;
-  any session may run it (`docs/reference/method.md` « The flow's scripts »). A hotfix is cut from
-  `prod`, PR into `prod`, then `scripts/promote.sh backport <c>` merges it back into `develop`.
+  `staging`. `main` and `staging` move only through `scripts/promote.sh`, by fast-forward; `prod` too,
+  save a hotfix's PR: `main` when a lot is validated (the orchestrator), `staging` and `prod` on the
+  operator's word only; any session may run it (`docs/reference/method.md` « The flow's scripts »). A
+  hotfix is cut from `prod`, PR into `prod`, then `scripts/promote.sh tag` and
+  `scripts/promote.sh backport <c>`, which merges it back into `develop`.
 - Every PR bumps the patch version above its base (CI `version-bump`; a hotfix adds a fourth component
   to prod's), or carries the label `no-version-bump` when it touches no code under `personalscraper/`,
   `frontend/maquette/design/src/`, `frontend/maquette/harness/`, `scripts/` or `.github/workflows/`.

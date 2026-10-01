@@ -257,7 +257,8 @@ poller.
 
 1. `git switch -c hotfix/<c> origin/prod`; fix with its regression test; bump `__version__` to prod's plus `.1`.
 2. PR `hotfix/<c>` → `prod`, squash, auto-merge armed; CI runs (trigger § 3.4). At its merge `prod` moves; the poller
-   deploys it; the orchestrator tags it (`scripts/promote.sh tag` — the tag arm alone, rule 4).
+   deploys it; whoever merged the hotfix tags it — any session (DECIDED 1) — with `scripts/promote.sh tag` (the
+   tag arm alone, rule 4).
 3. Merge-back: `scripts/promote.sh backport <c>` — it merges `develop` into `prod`'s tip in a throwaway worktree,
    pushes the merge to `backport/<c>` and opens the PR `backport/<c>` → `develop`, auto-merge armed with the MERGE
    method (a merge commit makes `prod`'s tip an ancestor of `develop`, which is what restores § 0's chain; a squash
@@ -331,6 +332,12 @@ and delete the three new ones; default branch → `main`; the prod clone `git sw
 torrentmate-autodeploy`. `develop` and `prod` may stay on origin unused or be deleted (with his word). No data is
 touched by the lot: nothing to restore under `.data/` or the stores.
 
+**If the cut-over PR merges outside the window** (its auto-merge fires before step 1): the running poller pulls it into
+the prod clone, still on `main`, and runs the NEW `deploy.sh`, which refuses (« branch 'main' is not prod »), logged
+once; prod keeps serving the previous build. Nothing is lost: resume at step 1, step 2 being done. The real risk is any
+OTHER PR merged into `main` before the window — its Python would run under the old SPA without a `pip install` — which
+the precondition « no PR armed into `main` but the cut-over PR » excludes.
+
 ## 5. DECIDED — his rulings of 2026-10-01
 
 The five questions this DESIGN left open, answered by him on 2026-10-01 (recorded in `docs/reference/operator-method.md`
@@ -376,7 +383,7 @@ bumps the patch. Each phase's gate: `make lint`; pytest of the touched modules.
 | 3 | The poller and the deploy scripts follow `prod` and `staging` | `scripts/autodeploy-poll.sh`, `scripts/deploy.sh`, `scripts/deploy-staging.sh`, `ecosystem.config.js` (comments), `tests/scripts/test_autodeploy_branches.py`, `tests/indexer/test_ecosystem.py` if a pinned string moves | prod follows `prod` only; staging follows fast-forwards and refuses a diverged history; `deploy.sh` refuses `main`; `deploy-staging.sh` refuses any branch but `staging` | `pytest tests/scripts/test_autodeploy_branches.py tests/scripts/test_autodeploy_design_restart.py tests/indexer/test_ecosystem.py` |
 | 4 | The words: method, CLAUDE.md, runbook, rulesets as files | `CLAUDE.md`, `docs/reference/method.md`, `docs/production/web-ui.md` § Deploy Runbook, `docs/features/git-flow/rulesets/{develop,prod,staging,main}.json` | no text in the repository names `main` as a PR base or as the deployed branch | `rg -n "origin/main\|tracks .main.\|--base main" -g '*.md' -g '*.sh' -g '*.yml' -g 'Makefile' .` returns only history and this DESIGN; `python3 scripts/check-no-french.py`; `make lint` |
 | 5 | The cut-over (live, his sign-off, the orchestrator executes) | none in the repository; `review-archive/tm-design-lot.txt`, the two clones, origin's branches, the rulesets, PM2 | § 4 steps 1–9 done; prod and staging serve `S`; tm-design serves `develop` + the lot | `git ls-remote origin develop main staging prod` (four × `S`); `gh api repos/IznoCorp/torrent-mate/rulesets --jq '.[].name'`; `pm2 logs torrentmate-autodeploy --lines 5 --nostream`; the prod and staging `/api/version` (`S`, `staging @ S`); `tail -2 ~/Library/Logs/tm-design-follow.log` |
-| 6 | The flow proven end to end | `.github/workflows/ci.yml`, `harness-full.yml` (drop `main`) — carried by the first ordinary PR into `develop` | a PR into `develop` runs CI and auto-merges; tm-design serves it; `scripts/promote.sh main` moves `main` to it; the poller logs no deploy (only `staging`/`prod` deploy) | `gh pr checks <n>`; `scripts/promote.sh main --dry-run` then without; `git rev-parse origin/main origin/develop` equal; `pm2 logs torrentmate-autodeploy --lines 5 --nostream` |
+| 6 | The flow proven end to end | `.github/workflows/ci.yml`, `harness-full.yml` (drop `main`), `tests/scripts/test_ci_skips_draft_pull_requests.py` (pins the bases by equality) — carried by the first ordinary PR into `develop` | a PR into `develop` runs CI and auto-merges; tm-design serves it; `scripts/promote.sh main` moves `main` to it; the poller logs no deploy (only `staging`/`prod` deploy) | `gh pr checks <n>`; `scripts/promote.sh main --dry-run` then without; `git rev-parse origin/main origin/develop` equal; `pm2 logs torrentmate-autodeploy --lines 5 --nostream` |
 
 The first `staging` and `prod` promotions after the cut-over are on his word (DECIDED 1, DECIDED 3); they are not a
 phase of this lot.
