@@ -6,12 +6,14 @@ import { NoInfo } from "./no-info";
 import { Disclosure } from "../../ui/disclosure";
 import { today } from "../../lib/clock";
 import { SkeletonLine } from "../../ui/state-surfaces";
-import { actionButton, chip, factsPanel, statusDot } from "../../ui/variants";
-import { seasonGrabSpacing, seasonGrabTaken, upcomingMark, offCatalogueMark, episodeCell, episodeDate, episodeNumber, episodeRow, episodeSet, episodeTitle, missingList, noInfo, noInfoPlace, seasonFraction, seasonListPlace } from "./variants";
-import { EPISODE_DOT, EpisodeLegend } from "./episode-legend";
+import { actionButton, chip, factsPanel } from "../../ui/variants";
+import { seasonGrabSpacing, seasonGrabTaken, upcomingMark, episodeCell, episodeSet, missingList, noInfo, noInfoPlace, seasonFraction, seasonListPlace } from "./variants";
+import { EpisodeLegend } from "./episode-legend";
 import { useQueuedSeasons } from "./queued-seasons";
 import { useAskedSeasons } from "./asked-seasons";
 import { SeasonRequested } from "./season-requested";
+import { SeasonOffCatalogue } from "./season-off-catalogue";
+import { EpisodeRow } from "./episode-row";
 import { askForSeason, useAskedInFlight } from "./season-grab";
 import { announcedAfter, ownedSeason, type MediaSeasons } from "./queries";
 import { useQueryClient } from "@tanstack/react-query";
@@ -176,10 +178,6 @@ export function SeasonList({
         const body = list ? (
           <div className={`${factsPanel()} ${noInfoPlace()}`} data-part="panel">
             {list.map((episode) => {
-              /* SUBTLE state colour: a 6px dot and the number in the
-                 tone. The title stays neutral — it is what one reads
-                 first, so it keeps maximum contrast. One colour signal
-                 per row, not a Christmas tree. */
               const upcoming = episode.airDate && episode.airDate > TODAY;
               /* State comes from the LIST of owned numbers. A « number <=
                  owned count » threshold assumes the hole is always at the
@@ -192,33 +190,7 @@ export function SeasonList({
                     ? "in_library"
                     : "to_grab";
               present.add(episodeState);
-              return (
-                // Same blanks as the season summary, same reason: the row is
-                // a flex container (they draw nothing) and its `textContent`
-                // is read as one sentence.
-                <div
-                  className={episodeRow({ state: episodeState })}
-                  data-part="episode/row"
-                  data-state={episodeState}
-                  data-announced={episodeState === "announced" || undefined}
-                  data-in-library={episodeState === "in_library" || undefined}
-                  key={episode.number}
-                >
-                  <span className={statusDot({ tone: EPISODE_DOT[episodeState] })} data-part="status-dot"></span>{" "}
-                  <span className={episodeNumber({ state: episodeState })} data-part="episode/number">
-                    E{String(episode.number).padStart(2, "0")}
-                  </span>{" "}
-                  <span className={episodeTitle()}>{episode.title}</span>{" "}
-                  <span className={episodeDate()}>
-                    {episode.airDate
-                      ? dateLabel(episode.airDate)
-                      : t("screens.media.dateUnknown")}
-                    {episodeState === "in_library"
-                      ? ""
-                      : ` · ${episodeStateLabel(episodeState).toLowerCase()}`}
-                  </span>
-                </div>
-              );
+              return <EpisodeRow episode={episode} state={episodeState} key={episode.number} />;
             })}
           </div>
         ) : bound && held ? (
@@ -347,16 +319,9 @@ export function SeasonList({
               ) : (
                 ""
               )}{" "}
-              {/* WHAT IS HELD BEYOND THE CATALOGUE (§ 1.10, B-475 = B), under
-                  the row and outside its fraction — the panel's row says it too.
-                  Ownership first: a count of what one holds waits for it. */}
-              {ownershipKnown && owns && offCatalogue[String(row.n)] ? (
-                <span className={offCatalogueMark()} data-part="season/off-catalogue">
-                  {t("surfaces.season.offCatalogue", { count: offCatalogue[String(row.n)] })}
-                </span>
-              ) : (
-                ""
-              )}
+              {/* WHAT IS HELD BEYOND THE CATALOGUE (§ 1.10), the panel's own line;
+                  ownership first: a count of what one holds waits for it. */}
+              <SeasonOffCatalogue count={ownershipKnown && owns ? offCatalogue[String(row.n)] : 0} />
             </>}>
             {missingNums.length ? (
               <p className={missingList()} data-part="season/missing-list">

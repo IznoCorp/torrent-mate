@@ -19,7 +19,7 @@ import { heldIdentity, providerAddress } from "../../lib/held-identity";
 import { useServerStateVersion } from "../../lib/query-client";
 import { offCatalogueBySeason, ownedSeason, useMediaSeasons, useMediaSheet, type MediaSeasons } from "./queries";
 import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
-import { seasonGrabSpacing, seasonGrabTaken, episodeCell, episodeSet, offCatalogueMark, seasonFraction, type EpisodeState } from "./variants";
+import { seasonGrabSpacing, seasonGrabTaken, episodeCell, episodeSet, seasonFraction, type EpisodeState } from "./variants";
 import { actionButton, chip } from "../../ui/variants";
 import { EpisodeLegend } from "./episode-legend";
 import { askForSeason, useAskedInFlight } from "./season-grab";
@@ -27,6 +27,7 @@ import { episodeStateLabel } from "./format";
 import { useQueuedSeasons } from "./queued-seasons";
 import { useAskedSeasons } from "./asked-seasons";
 import { SeasonRequested } from "./season-requested";
+import { SeasonOffCatalogue } from "./season-off-catalogue";
 
 // The slice of a "follow" record the season blocks read: `ids` for the medium's
 // two served reads — the owned numbers and the episode catalogue — `title` for
@@ -197,11 +198,7 @@ function SeasonDetails({
         )}{" "}
         {/* WHAT IS HELD BEYOND THE CATALOGUE (§ 1.10, B-475 = B), under the
             row and outside its fraction — the sheet's row says it the same way. */}
-        {owns && served.offCatalogue[String(num)] ? (
-          <span className={offCatalogueMark()} data-part="season/off-catalogue">
-            {t("surfaces.season.offCatalogue", { count: served.offCatalogue[String(num)] })}
-          </span>
-        ) : null}
+        <SeasonOffCatalogue count={owns ? served.offCatalogue[String(num)] : 0} />
       </>}>
       <div className={episodeSet()} data-part="episode/set">
         {cells}

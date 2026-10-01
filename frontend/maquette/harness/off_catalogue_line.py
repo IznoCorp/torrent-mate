@@ -15,7 +15,11 @@ What this holds:
 3. Les Animaniacs' sheet: its season 2 holds `[1, 4, 7, 9, 76–82]` against a
    catalogue of 12 — 4/12 and « hors catalogue (7) »;
 4. the follow panel of American Dad! draws the same, by the same row: 20/20 and
-   « hors catalogue (4) » under season 16, and no other such line;
+   « hors catalogue (4) » under season 16, and no other such line — the line
+   drawn by ONE markup (DESIGN § 1.10 « by the one season-row markup »): one
+   source file writes `season/off-catalogue`, and the line on the panel is
+   the sheet's to its last attribute (r3 of the lot's reading: two markups
+   drift apart the day one is changed alone);
 5. on every surface read, no season's fraction exceeds what aired.
 
 Red before the lot's phase 7: no line exists (B-475) — the state is not named
@@ -26,7 +30,7 @@ import json
 import pathlib
 import re
 
-from common import PANEL_IN, SETTLED, Journal, browser_channel, chrome_launch_args, open_page
+from common import DESIGN_SOURCES, PANEL_IN, SETTLED, Journal, browser_channel, chrome_launch_args, open_page, without_comments
 from playwright.async_api import async_playwright
 
 SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
@@ -78,6 +82,21 @@ ROWS = """(scope) => {
 
 FRACTION = re.compile(r"^(\d+)/(\d+)$")
 
+# The line's part name, as a source writes it.
+LINE_PART = '"season/off-catalogue"'
+# The line as drawn, its attributes and its words: the markup two surfaces share.
+LINE_MARKUP = """(scope) => {
+  const root = scope === 'panel' ? document.querySelector('#sheet[data-open]')
+    : [...document.querySelectorAll('[data-part="screen"][data-open][data-key^="mediaSheet:"]')].pop();
+  return root?.querySelector('[data-part="season/off-catalogue"]')?.outerHTML ?? null;
+}"""
+
+
+def writers_of_the_line():
+    """The source files that write the line's markup — one, when one markup draws it."""
+    return [path.name for path in DESIGN_SOURCES
+            if LINE_PART in without_comments(path.read_text(encoding="utf-8"))]
+
 
 def said(count):
     """The line's words for one count."""
@@ -126,6 +145,7 @@ async def main():
         await page.wait_for_timeout(PANEL_IN + SETTLED + SETTLED)
         journal.check(f"the named state {STATE} exists", answer is None, answer or "")
         rows = await page.evaluate(ROWS, "screen")
+        sheet_line = await page.evaluate(LINE_MARKUP, "screen")
         row = season(rows, SEASON)
         journal.check(f"{STATE}: {SHOW} S{SEASON} reads {AIRED}/{AIRED} and, under its row, « {said(OFF_COUNT)} » "
                       "— muted, no tone, nothing to press, drawn folded",
@@ -149,6 +169,9 @@ async def main():
                       str(within_aired(other)))
 
         # ── 4. the follow panel, by the same row ───────────────────────────
+        writers = writers_of_the_line()
+        journal.check("one source file writes the off-catalogue line's markup — one markup for both surfaces",
+                      len(writers) == 1, str(writers))
         await page.evaluate("(title) => window.__panel.produce('follow', title)", SHOW)
         await page.wait_for_timeout(PANEL_IN + SETTLED + SETTLED)
         panel = await page.evaluate(ROWS, "panel")
@@ -158,6 +181,9 @@ async def main():
         journal.check("the follow panel: no other season draws the line, no fraction exceeds what aired",
                       len(panel) > 1 and not others_with_line(panel, SEASON) and not within_aired(panel),
                       f"{others_with_line(panel, SEASON)} · {within_aired(panel)}")
+        panel_line = await page.evaluate(LINE_MARKUP, "panel")
+        journal.check("the panel's line is the sheet's, to its last attribute",
+                      sheet_line is not None and panel_line == sheet_line, f"sheet {sheet_line} · panel {panel_line}")
 
         await context.close()
         await browser.close()
