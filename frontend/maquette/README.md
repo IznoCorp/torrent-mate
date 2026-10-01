@@ -687,7 +687,7 @@ script is a sentence in a file.
 
 |                  | Port     | What                                                                                                                              | Started by                 |
 | ---------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| **Harness host** | **8899** | `harness/server.py --serve`, rooted in `/private/tmp/tm-refonte`, serving a COPY of the build at `/` and folding every router-owned address onto it | `run.sh`, or by hand       |
+| **Harness host** | **8899** | `harness/server.py --serve`, rooted in the served copy (`harness/served_copy.py --root`), serving a COPY of the build at `/` and folding every router-owned address onto it | `run.sh`, or by hand       |
 | **Design host**  | **8712** | `serve.py`, scrypt password-protected (`tm-design.iznogoudatall.xyz`)                                                             | PM2 (`torrentmate-design`) |
 
 `harness/common.py` pins the first one: `PROTOTYPE = "http://127.0.0.1:8899/"`. Never
@@ -708,21 +708,20 @@ What `run.sh` does, for a by-hand reading of one rule:
 
 ```bash
 # 1. Rebuild, and refresh the copy the harness reads — BEFORE EVERY RUN.
-cd frontend/maquette/design
-npm run build
-cp dist/index.html /tmp/tm-refonte/wrapped.html
-rm -rf /tmp/tm-refonte/vite && { [ -d dist/vite ] && cp -R dist/vite /tmp/tm-refonte/vite || true; }
-ln -sfn "$(git rev-parse --show-toplevel)/frontend/maquette/design/assets" /tmp/tm-refonte/assets
+(cd frontend/maquette/design && npm run build)
+python3 frontend/maquette/harness/served_copy.py --publish
+# On /Volumes/TMScratch when it is mounted, else /tmp.
+SERVED="$(python3 frontend/maquette/harness/served_copy.py --root)"
 
-# 2. The harness host — check before starting, it is usually already running.
-lsof -nP -iTCP:8899 -sTCP:LISTEN || (python3 frontend/maquette/harness/server.py --serve 8899 /tmp/tm-refonte &)
+# 2. The harness host — check before starting, and that it serves "$SERVED".
+lsof -nP -iTCP:8899 -sTCP:LISTEN || (python3 frontend/maquette/harness/server.py --serve 8899 "$SERVED" &)
 ```
 
 **The copy is the document AND the bundle, and half a copy is worse than none.** Refreshing
 `wrapped.html` while leaving the previous `vite/` behind serves today's markup against yesterday's
 shell; `vite/` is removed before it is re-copied, never merged into. Without the `assets` symlink
 every image reference resolves to a 404. A stale copy of the rule scripts can also end up in
-`/tmp/tm-refonte`: running those measures the previous version. The envelope carries the viewport
+the served copy: running those measures the previous version. The envelope carries the viewport
 meta; without it Chrome falls back to the 980 px layout viewport and every measurement is wrong.
 
 **Two rules measure the LIVE host instead** — `pwa.py` (R52) and `entry.py`, because

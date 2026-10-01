@@ -96,7 +96,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from common import PAGE_PATHS, PHONE, SCREEN_PARENTS, Journal, browser_channel, chrome_launch_args
 from server import start_server
 
-SERVED_ROOT = pathlib.Path("/tmp/tm-refonte")
+from served_copy import SERVED as SERVED_ROOT
 
 # Where a Retour from a screen opened COLD lands: on the page the screen
 # BELONGS TO, at that page's own address — not the bare root, which names no

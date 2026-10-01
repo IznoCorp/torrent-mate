@@ -17,6 +17,7 @@ and a run that moves one and leaves the other is refused.
 from __future__ import annotations
 
 import ast
+import os
 import re
 import subprocess
 import sys
@@ -234,7 +235,13 @@ def test_moving_the_url_alone_is_refused_rather_than_certified() -> None:
 
 
 def test_the_default_is_unchanged_for_every_run_that_sets_nothing() -> None:
-    """THE CONTROL: `run.sh`, the oracle and every brief keep working untouched."""
+    """THE CONTROL: `run.sh`, the oracle and every brief keep working untouched.
+
+    The served copy's default is the scratch volume's when it is mounted, else
+    `/tmp`'s (`tests/scripts/test_harness_scratch.py`).
+    """
+    volume = Path("/Volumes/TMScratch")
+    served = (volume if os.path.ismount(volume) else Path("/tmp")) / "tm-refonte"
     reading = subprocess.run(
         [
             sys.executable,
@@ -249,7 +256,7 @@ def test_the_default_is_unchanged_for_every_run_that_sets_nothing() -> None:
     )
     assert reading.stdout.splitlines() == [
         "http://127.0.0.1:8899/",
-        "/tmp/tm-refonte",
+        str(served),
     ], reading.stdout
 
 

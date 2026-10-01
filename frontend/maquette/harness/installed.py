@@ -39,7 +39,7 @@ from server import start_server
 
 import pathlib
 
-SERVED = pathlib.Path("/tmp/tm-refonte")
+from served_copy import SERVED
 PHONE = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 2,
          "is_mobile": True, "has_touch": True}
 
