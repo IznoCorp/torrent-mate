@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections.abc import Iterator
+from pathlib import Path
+from typing import Any
 
 import pytest
 
-from personalscraper.api.notify.fcm import PushMessage, PushOutcome, PushResult
+from personalscraper.api.notify.fcm import PushMessage, PushOutcome, PushResult, classify
 from personalscraper.push.dispatch import PushDispatcher
 from personalscraper.push.store import SqlitePushSubscriptionStore
 
+SAMPLES = Path(__file__).resolve().parents[2] / "docs" / "reference" / "_samples" / "fcm"
 MESSAGE = PushMessage(code="tracker.ratio_low", params={"tracker": "c411"}, link="/trackers/c411")
 
 
@@ -102,10 +106,47 @@ def test_misconfigured_stops_the_fan_out(store: SqlitePushSubscriptionStore) -> 
 
 def test_a_quota_stops_and_defers_the_rest(store: SqlitePushSubscriptionStore) -> None:
     """QUOTA_EXCEEDED is the project's: the untried devices are deferred behind the same back-off."""
-    quota = PushResult(PushOutcome.RETRY_LATER, retry_after_seconds=120.0, fcm_error="QUOTA_EXCEEDED")
+    quota = PushResult(PushOutcome.QUOTA_EXCEEDED, retry_after_seconds=120.0, fcm_error="QUOTA_EXCEEDED")
     report, sender = _run(store, {"t1": quota})
     assert sender.sent == ["t1"]
     assert report.deferred == 4 and report.retry_after_seconds == 120.0
+
+
+class _Answer:
+    """An FCM answer, enough for ``classify``."""
+
+    def __init__(self, status: int, body: Any) -> None:
+        """Builds the answer.
+
+        Args:
+            status: HTTP status.
+            body: JSON body.
+        """
+        self.status_code = status
+        self.headers: dict[str, str] = {}
+        self._body = body
+
+    def json(self) -> Any:
+        """Returns the JSON body."""
+        return self._body
+
+
+def test_a_429_without_an_fcm_detail_stops_the_fan_out(store: SqlitePushSubscriptionStore) -> None:
+    """Google's bare ``RESOURCE_EXHAUSTED`` is the project's quota too: classified once, the rest deferred."""
+    answer = _Answer(429, {"error": {"code": 429, "message": "Quota exceeded.", "status": "RESOURCE_EXHAUSTED"}})
+    report, sender = _run(store, {t: classify(answer) for t in ("t1", "t2", "t3", "t4")})  # type: ignore[arg-type]
+    assert sender.sent == ["t1"]
+    assert report.deferred == 4 and report.retry_after_seconds == 60.0
+
+
+def test_a_sender_id_mismatch_revokes_nothing_and_stops(store: SqlitePushSubscriptionStore) -> None:
+    """ONE Firebase project (F-2): a mismatch is our misconfiguration, never four dead tokens."""
+    raw = json.loads((SAMPLES / "sender-id-mismatch-403.json").read_text())
+    result = classify(_Answer(raw["status"], raw["body"]))  # type: ignore[arg-type]
+    report, sender = _run(store, {t: result for t in ("t1", "t2", "t3", "t4")})
+    assert sender.sent == ["t1"]
+    assert report.misconfigured is True and report.revoked == 0
+    assert len(store.live_for("alice")) == 4
 
 
 def test_a_device_deferral_does_not_stop_the_others(store: SqlitePushSubscriptionStore) -> None:

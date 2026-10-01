@@ -13,7 +13,7 @@ Reading the answer:
   the key and the API are right, and refused only the placeholder token (a credential
   fault answers 401 / 403 before the token is read);
 - ``misconfigured`` — the credentials or the project are wrong; the code says which;
-- ``unreachable`` / ``retry_later`` — Google did not answer usefully; run it again later.
+- ``unreachable`` / ``retry_later`` / ``quota_exceeded`` — Google did not answer usefully; run it again later.
 
 The delivery check on a real device (``--account``) arrives with the subscription
 store's file, after the opt-in surfaces are drawn and bound.

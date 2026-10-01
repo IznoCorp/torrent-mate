@@ -14,12 +14,17 @@ French and no English.
 **Fail-soft, like the notify family**: :meth:`FcmSender.send` never raises on a
 delivery failure; every failure is a :class:`PushOutcome`:
 
-- ``UNREGISTERED`` (404) / ``SENDER_ID_MISMATCH`` (403) → ``TOKEN_DEAD``, revoke it;
+- ``UNREGISTERED`` (404) → ``TOKEN_DEAD``, revoke it;
 - ``INVALID_ARGUMENT`` (400) → ``REJECTED`` — the payload or the token's format;
-- ``QUOTA_EXCEEDED`` (429), ``UNAVAILABLE`` (503), ``INTERNAL`` (500) → ``RETRY_LATER``,
-  with ``Retry-After`` when given (at least a minute on a quota);
-- ``THIRD_PARTY_AUTH_ERROR``, a 401 / 403 on OUR credentials, an unreadable
-  service-account file, a refused access-token grant → ``MISCONFIGURED``;
+- any 429 (``QUOTA_EXCEEDED``, Google's ``RESOURCE_EXHAUSTED``, no code at all) →
+  ``QUOTA_EXCEEDED``, the PROJECT's quota, at least a minute of back-off;
+- ``UNAVAILABLE`` (503), ``INTERNAL`` (500) → ``RETRY_LATER``, with ``Retry-After``
+  when given;
+- ``SENDER_ID_MISMATCH`` (403), ``THIRD_PARTY_AUTH_ERROR``, a 401 / 403 on OUR
+  credentials, an unreadable service-account file, a refused access-token grant →
+  ``MISCONFIGURED``. ONE Firebase project serves every environment (F-2), so a token
+  of another sender means our service account is the wrong project — revoking the
+  token would wipe every device for a configuration fault;
 - no answer → ``UNREACHABLE``.
 
 **Secrets never appear anywhere**, the discipline of ``api/plex.py``: the device
@@ -35,7 +40,9 @@ object; :meth:`FcmSender.__repr__` names the project alone.
 
 from __future__ import annotations
 
+import functools
 import json
+import math
 import time
 from dataclasses import dataclass, field
 from email.utils import parsedate_to_datetime
@@ -65,6 +72,11 @@ _TIMEOUT: tuple[float, float] = (5.0, 15.0)
 #: Firebase asks at least a minute of back-off on QUOTA_EXCEEDED.
 _QUOTA_BACKOFF_SECONDS = 60.0
 
+#: The longest ``Retry-After`` honoured: a day, the default TTL of a :class:`PushMessage` —
+#: FCM would drop the message by then, so a longer wait is never useful, and a broken or
+#: hostile header must not park the channel for years.
+RETRY_AFTER_CEILING_SECONDS = 86_400.0
+
 #: The type URL of the FCM-specific error detail, which carries ``errorCode``.
 _FCM_ERROR_TYPE = "type.googleapis.com/google.firebase.fcm.v1.FcmError"
 
@@ -76,6 +88,8 @@ class PushOutcome(StrEnum):
     TOKEN_DEAD = "token_dead"
     REJECTED = "rejected"
     RETRY_LATER = "retry_later"
+    #: The PROJECT's quota (any 429): every other send would meet it too — the fan-out stops.
+    QUOTA_EXCEEDED = "quota_exceeded"
     MISCONFIGURED = "misconfigured"
     UNREACHABLE = "unreachable"
 
@@ -148,19 +162,22 @@ def _retry_after(response: requests.Response) -> float | None:
         response: The FCM answer.
 
     Returns:
-        Seconds to wait, or None when absent or unreadable.
+        Seconds to wait, at most ``RETRY_AFTER_CEILING_SECONDS``; None when absent, unreadable
+        or not finite (``inf``, ``1e400``, ``nan``).
     """
     value = response.headers.get("Retry-After")
     if not value:
         return None
     try:
-        return max(0.0, float(value))
+        seconds = float(value)
     except ValueError:
-        pass
-    try:
-        return max(0.0, parsedate_to_datetime(value).timestamp() - time.time())
-    except (TypeError, ValueError):
+        try:
+            seconds = parsedate_to_datetime(value).timestamp() - time.time()
+        except (TypeError, ValueError, OverflowError):
+            return None
+    if not math.isfinite(seconds):
         return None
+    return min(max(0.0, seconds), RETRY_AFTER_CEILING_SECONDS)
 
 
 def _error_code(response: requests.Response) -> str | None:
@@ -188,9 +205,11 @@ def _error_code(response: requests.Response) -> str | None:
 #: FCM errorCode → outcome. The HTTP status decides only when no code is given.
 _BY_CODE: Mapping[str, PushOutcome] = {
     "UNREGISTERED": PushOutcome.TOKEN_DEAD,
-    "SENDER_ID_MISMATCH": PushOutcome.TOKEN_DEAD,
+    # One project (F-2): a token of another sender is OUR service account's fault, never the token's.
+    "SENDER_ID_MISMATCH": PushOutcome.MISCONFIGURED,
     "INVALID_ARGUMENT": PushOutcome.REJECTED,
-    "QUOTA_EXCEEDED": PushOutcome.RETRY_LATER,
+    "QUOTA_EXCEEDED": PushOutcome.QUOTA_EXCEEDED,
+    "RESOURCE_EXHAUSTED": PushOutcome.QUOTA_EXCEEDED,
     "UNAVAILABLE": PushOutcome.RETRY_LATER,
     "INTERNAL": PushOutcome.RETRY_LATER,
     "THIRD_PARTY_AUTH_ERROR": PushOutcome.MISCONFIGURED,
@@ -207,25 +226,26 @@ def classify(response: requests.Response) -> PushResult:
         response: The FCM answer.
 
     Returns:
-        The result. A 404 / 403 is a dead TOKEN only when FCM's own ``errorCode`` says
-        so; without it (a wrong project, a disabled API) it is our configuration.
+        The result. A 404 is a dead TOKEN only when FCM's own ``errorCode`` says so; without
+        it (a wrong project, a disabled API) it is our configuration. The quota is decided
+        HERE, once: any 429, whatever its body says, is ``QUOTA_EXCEEDED``.
     """
     if response.status_code == 200:
         return PushResult(PushOutcome.DELIVERED)
     code = _error_code(response)
-    outcome = _BY_CODE.get(code or "")
+    outcome = PushOutcome.QUOTA_EXCEEDED if response.status_code == 429 else _BY_CODE.get(code or "")
     if outcome is None:
         if response.status_code in (401, 403, 404):
             outcome = PushOutcome.MISCONFIGURED
-        elif response.status_code == 429 or response.status_code >= 500:
+        elif response.status_code >= 500:
             outcome = PushOutcome.RETRY_LATER
         else:
             outcome = PushOutcome.REJECTED
     retry_after = None
     if outcome is PushOutcome.RETRY_LATER:
         retry_after = _retry_after(response)
-        if code == "QUOTA_EXCEEDED" or response.status_code == 429:
-            retry_after = max(retry_after or 0.0, _QUOTA_BACKOFF_SECONDS)
+    elif outcome is PushOutcome.QUOTA_EXCEEDED:
+        retry_after = max(_retry_after(response) or 0.0, _QUOTA_BACKOFF_SECONDS)
     return PushResult(outcome, retry_after_seconds=retry_after, fcm_error=code or f"HTTP_{response.status_code}")
 
 
@@ -262,8 +282,10 @@ class FcmSender:
         self._session = session or requests.Session()
         # ONE grant request for the sender's life: google-auth's ``Request`` closes its
         # session when it is collected, so a request built per refresh would close the
-        # session the sends use.
-        self._grant_request = Request(session=self._session)
+        # session the sends use. Bound by the sender's timeout: google-auth's own default
+        # is 120 s per attempt, and it retries a transient grant failure itself (3 attempts,
+        # exponential back-off) — the one retry this sender does not control.
+        self._grant_request = functools.partial(Request(session=self._session), timeout=_TIMEOUT)
 
     @classmethod
     def from_service_account_file(cls, path: Path, *, session: requests.Session | None = None) -> Self:

@@ -15,6 +15,8 @@ cited per section; the operator's probe confirms the credential path once the pr
 - [Tokens and their lifetime](#tokens-and-their-lifetime)
 - [The web client](#the-web-client)
 - [iOS](#ios)
+- [The worker](#the-worker)
+- [The dispatcher](#the-dispatcher)
 - [Setup — the operator's steps](#setup--the-operators-steps)
 - [The probe](#the-probe)
 - [Test samples](#test-samples)
@@ -93,17 +95,23 @@ failure carries a detail of `@type` `type.googleapis.com/google.firebase.fcm.v1.
 | --- | --- | --- | --- |
 | — | 200 | `delivered` | — |
 | `UNREGISTERED` | 404 | `token_dead` | revoke the subscription |
-| `SENDER_ID_MISMATCH` | 403 | `token_dead` | revoke (a token of another project) |
+| `SENDER_ID_MISMATCH` | 403 | `misconfigured` | stop the fan-out, revoke NOTHING — one project serves every environment (F-2), so another sender means our service account is the wrong project, not a dead token |
 | `INVALID_ARGUMENT` | 400 | `rejected` | keep it, count it — the payload or the token's format |
-| `QUOTA_EXCEEDED` | 429 | `retry_later` | back off ≥ 60 s (`Retry-After` when longer) |
+| any 429: `QUOTA_EXCEEDED`, `RESOURCE_EXHAUSTED`, no code | 429 | `quota_exceeded` | the PROJECT's quota: stop the fan-out, back off ≥ 60 s (`Retry-After` when longer) |
 | `UNAVAILABLE` / `INTERNAL` | 503 / 500 | `retry_later` | re-send after `Retry-After` |
 | `THIRD_PARTY_AUTH_ERROR` | 401 | `misconfigured` | the project's web-push credentials (VAPID / APNs) |
 | `UNAUTHENTICATED` / `PERMISSION_DENIED` / `NOT_FOUND` (no `errorCode`) | 401 / 403 / 404 | `misconfigured` | OUR credentials or project id — never the device's token |
 | a refused token grant (`invalid_grant`), an unreadable file | — | `misconfigured` | Système says the channel is broken |
 | no answer, a timeout | — | `unreachable` | the caller decides |
 
-A 404 or a 403 is a dead TOKEN only when FCM's own `errorCode` says so. `Retry-After` is read as
-seconds or as an HTTP date. Nothing is retried inside the sender (NE-DOIT-PAS-8).
+A 404 is a dead TOKEN only when FCM's own `errorCode` says so. The quota is decided once, in
+`classify`, on the 429 itself; the dispatcher reads the outcome, never an error string.
+`Retry-After` is read as seconds or as an HTTP date; a non-finite value (`inf`, `1e400`, `nan`) is
+no answer, and a finite one is clamped to a day (`RETRY_AFTER_CEILING_SECONDS`: the default TTL of
+a message — FCM drops it by then, so a longer wait is never useful). The sender retries nothing
+(NE-DOIT-PAS-8); the one retry left is google-auth's, on a transient token-grant failure (5xx, 408,
+429, `server_error`: 3 attempts with exponential back-off), each attempt bounded by the sender's
+`_TIMEOUT` instead of google-auth's 120 s default.
 
 ## Tokens and their lifetime
 
@@ -171,8 +179,8 @@ to the message's link, or opens one there; any link that is not a same-origin pa
 
 `personalscraper/push/dispatch.py` — `PushDispatcher.notify_account(account_id, message)`; its
 `DispatchReport` adds `retry_after_seconds` (the longest back-off a deferral asked for) to the
-DESIGN's fields, since the re-send is the caller's. A `misconfigured` answer and a quota (429 /
-`QUOTA_EXCEEDED`) stop the fan-out; the store is `personalscraper/push/store.py`, its DDL adopted
+DESIGN's fields, since the re-send is the caller's. A `misconfigured` answer and a
+`quota_exceeded` one stop the fan-out; the store is `personalscraper/push/store.py`, its DDL adopted
 by K0's `app` baseline.
 
 ## Setup — the operator's steps

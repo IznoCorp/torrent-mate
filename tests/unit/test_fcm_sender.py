@@ -204,9 +204,9 @@ def _sender(sa: Path, fake: _FakeGoogle) -> FcmSender:
     [
         ("send-200", PushOutcome.DELIVERED, None, None),
         ("unregistered-404", PushOutcome.TOKEN_DEAD, None, "UNREGISTERED"),
-        ("sender-id-mismatch-403", PushOutcome.TOKEN_DEAD, None, "SENDER_ID_MISMATCH"),
+        ("sender-id-mismatch-403", PushOutcome.MISCONFIGURED, None, "SENDER_ID_MISMATCH"),
         ("invalid-argument-400", PushOutcome.REJECTED, None, "INVALID_ARGUMENT"),
-        ("quota-exceeded-429", PushOutcome.RETRY_LATER, 120.0, "QUOTA_EXCEEDED"),
+        ("quota-exceeded-429", PushOutcome.QUOTA_EXCEEDED, 120.0, "QUOTA_EXCEEDED"),
         ("unavailable-503", PushOutcome.RETRY_LATER, 30.0, "UNAVAILABLE"),
         ("internal-500", PushOutcome.RETRY_LATER, None, "INTERNAL"),
         ("third-party-auth-error-401", PushOutcome.MISCONFIGURED, None, "THIRD_PARTY_AUTH_ERROR"),
@@ -227,12 +227,48 @@ def test_quota_without_retry_after_still_backs_off_a_minute() -> None:
     """QUOTA_EXCEEDED: at least 60 s even when the header is absent."""
     raw = json.loads((SAMPLES / "quota-exceeded-429.json").read_text())
     result = fcm.classify(_Response(429, raw["body"], {}))  # type: ignore[arg-type]
-    assert result.outcome is PushOutcome.RETRY_LATER and result.retry_after_seconds == 60.0
+    assert result.outcome is PushOutcome.QUOTA_EXCEEDED and result.retry_after_seconds == 60.0
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"error": {"code": 429, "message": "Quota exceeded.", "status": "RESOURCE_EXHAUSTED"}},
+        "<html>Too Many Requests</html>",
+    ],
+)
+def test_a_429_without_an_fcm_detail_is_the_quota(body: Any) -> None:
+    """Google's own ``RESOURCE_EXHAUSTED``, or a bare 429: the quota outcome, decided here once."""
+    result = fcm.classify(_Response(429, body))  # type: ignore[arg-type]
+    assert result.outcome is PushOutcome.QUOTA_EXCEEDED and result.retry_after_seconds == 60.0
+
+
+@pytest.mark.parametrize(
+    ("header", "expected"),
+    [
+        ("inf", None),
+        ("1e400", None),
+        ("nan", None),
+        ("-inf", None),
+        ("1e300", fcm.RETRY_AFTER_CEILING_SECONDS),
+        ("Fri, 31 Dec 9999 23:59:59 GMT", fcm.RETRY_AFTER_CEILING_SECONDS),
+        ("30", 30.0),
+    ],
+)
+def test_retry_after_is_finite_and_bounded(header: str, expected: float | None) -> None:
+    """A non-finite ``Retry-After`` is no answer; a finite one is clamped to the ceiling."""
+    result = fcm.classify(_Response(503, {"error": {"status": "UNAVAILABLE"}}, {"Retry-After": header}))  # type: ignore[arg-type]
+    assert result.outcome is PushOutcome.RETRY_LATER and result.retry_after_seconds == expected
 
 
 @pytest.mark.parametrize(
     ("status", "outcome"),
-    [(404, PushOutcome.MISCONFIGURED), (502, PushOutcome.RETRY_LATER), (418, PushOutcome.REJECTED)],
+    [
+        (404, PushOutcome.MISCONFIGURED),
+        (502, PushOutcome.RETRY_LATER),
+        (418, PushOutcome.REJECTED),
+        (429, PushOutcome.QUOTA_EXCEEDED),
+    ],
 )
 def test_an_answer_without_a_code_is_read_by_its_status(status: int, outcome: PushOutcome) -> None:
     """A 404 that does not say UNREGISTERED is a wrong project, never a dead token."""
@@ -286,6 +322,19 @@ def test_a_grant_never_closes_the_session_the_sends_use(service_account_file: Pa
         gc.collect()
     assert fake.grants >= 2 and len(fake.sends) == 3
     assert fake.closes == 0
+
+
+def test_the_access_token_grant_is_bounded_by_the_timeout(service_account_file: Path) -> None:
+    """The grant reaches the transport with the sender's timeout, not google-auth's 120 s default."""
+    timeouts: list[Any] = []
+
+    class _Recording(_FakeGoogle):
+        def request(self, method: str, url: str, **kwargs: Any) -> _Response:
+            timeouts.append(kwargs.get("timeout"))
+            return super().request(method, url, **kwargs)
+
+    _sender(service_account_file, _Recording(_fixture("send-200"))).send(DEVICE_TOKEN, _message())
+    assert timeouts == [fcm._TIMEOUT]
 
 
 def test_a_refused_grant_is_misconfigured_and_sends_nothing(service_account_file: Path) -> None:
@@ -398,14 +447,27 @@ def test_no_secret_reaches_a_log_the_console_or_a_result(
             assert record.exc_info is None
 
 
-def test_an_unreadable_file_logs_no_part_of_it(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """A malformed service-account file holding a key fragment: the log names the error type only."""
+def test_an_unreadable_file_logs_no_part_of_it(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A file whose parse error QUOTES a key fragment: the log names the error type only.
+
+    The loader's exception carries the fragment in its text, as a parser quoting the offending
+    line would — so logging ``str(exc)`` or ``exc_info`` instead of the type fails here.
+    """
+    from google.oauth2 import service_account
+
     path = tmp_path / "sa.json"
     path.write_text('{"type": "service_account", "private_key": "PLANTED-KEY-FRAGMENT", ')
+
+    def _quoting_loader(filename: str, **kwargs: Any) -> Any:
+        raise ValueError(f"No key could be detected in {Path(filename).read_text()!r}")
+
+    monkeypatch.setattr(service_account.Credentials, "from_service_account_file", _quoting_loader)
     with caplog.at_level(logging.DEBUG), _rendered_console(fcm.log.name) as buf:
         FcmSender.from_service_account_file(path)
     assert "PLANTED-KEY-FRAGMENT" not in buf.getvalue() + caplog.text
-    assert "service_account_unreadable" in buf.getvalue()
+    assert "service_account_unreadable" in buf.getvalue() and "ValueError" in buf.getvalue()
 
 
 # --- the operator's probe (scripts/fcm-probe.py) ------------------------------------

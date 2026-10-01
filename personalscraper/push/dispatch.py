@@ -10,8 +10,9 @@ Two answers stop the fan-out, because they concern the whole channel, not one de
 
 - ``misconfigured`` — our credentials or project are wrong; every other device would
   answer the same, and Système must say the CHANNEL is broken (``misconfigured=True``);
-- ``retry_later`` on a QUOTA (HTTP 429 / ``QUOTA_EXCEEDED``) — the project's quota;
-  the devices not yet tried are counted as deferred, behind the same back-off.
+- ``quota_exceeded`` — the project's quota (any 429, decided once by ``classify``; the
+  dispatcher reads the outcome, never an error string); the devices not yet tried are
+  counted as deferred, behind the same back-off.
 """
 
 from __future__ import annotations
@@ -43,7 +44,7 @@ class DispatchReport:
     Attributes:
         delivered: Devices FCM accepted the message for.
         revoked: Dead tokens revoked.
-        deferred: ``retry_later`` answers, plus the devices a quota stop left untried.
+        deferred: ``retry_later`` and ``quota_exceeded`` answers, plus the devices a quota stop left untried.
         failed: ``rejected``, ``unreachable`` and ``misconfigured`` answers.
         misconfigured: True ⇒ the channel is broken (credentials / project), not a device.
         retry_after_seconds: The longest back-off a deferral asked for, if any.
@@ -55,18 +56,6 @@ class DispatchReport:
     failed: int = 0
     misconfigured: bool = False
     retry_after_seconds: float | None = None
-
-
-def _is_quota(result: PushResult) -> bool:
-    """Tells a project-wide quota answer from a one-device deferral.
-
-    Args:
-        result: A send's result.
-
-    Returns:
-        True for ``QUOTA_EXCEEDED`` / HTTP 429.
-    """
-    return result.outcome is PushOutcome.RETRY_LATER and result.fcm_error in ("QUOTA_EXCEEDED", "HTTP_429")
 
 
 class PushDispatcher:
@@ -110,11 +99,12 @@ class PushDispatcher:
             elif outcome is PushOutcome.TOKEN_DEAD:
                 self._store.revoke(subscription.token, reason="token_dead", now=now)
                 revoked += 1
-            elif outcome is PushOutcome.RETRY_LATER:
+            elif outcome in (PushOutcome.RETRY_LATER, PushOutcome.QUOTA_EXCEEDED):
                 deferred += 1
                 if result.retry_after_seconds is not None:
                     retry_after = max(retry_after or 0.0, result.retry_after_seconds)
-                if _is_quota(result):
+                # The project's quota: every other send would meet it — they are deferred untried.
+                if outcome is PushOutcome.QUOTA_EXCEEDED:
                     deferred += len(subscriptions) - index - 1
                     break
             else:

@@ -54,6 +54,10 @@ and no Google endpoint was called — the facts below are Firebase's and WebKit'
   only once the payload is known good; `QUOTA_EXCEEDED` (429) ⇒ back off, ≥ 1 min; `UNAVAILABLE` (503) /
   `INTERNAL` (500) ⇒ retry, honouring `Retry-After`; `THIRD_PARTY_AUTH_ERROR` (401) ⇒ the project's web-push
   credentials are wrong (configuration, not the token).
+  **Read here otherwise for `SENDER_ID_MISMATCH`**: Firebase calls the token dead, but ONE Firebase project serves
+  every environment (F-2 = A), so a token of another sender means OUR service account belongs to the wrong project —
+  `MISCONFIGURED`: the fan-out stops and nothing is revoked (revoking would wipe every device for a configuration
+  fault). Any 429 is the project's quota (`QUOTA_EXCEEDED`), whatever its body names (`RESOURCE_EXHAUSTED`, nothing).
 - **Client** (CONFIRMED, `https://firebase.google.com/docs/cloud-messaging/js/client`): HTTPS only; a « Web Push
   certificate » (VAPID key pair) generated in the console, its public key given to the SDK; by default a
   `firebase-messaging-sw.js` at the root. An EXISTING worker can be used instead by passing its registration
@@ -112,6 +116,9 @@ and no Google endpoint was called — the facts below are Firebase's and WebKit'
 | the subscription table's place in `app.db`'s baseline and its foreign key to the accounts table | K0 / K1 | the store and the accounts do not exist yet |
 | Telegram | nobody | Q10: its removal is NOT ordered; this brick neither touches nor replaces it |
 
+K5 note: when K5 imports `push-registration`, the lazily loaded firebase chunk must be kept OUT of the worker's
+`__SHELL__` precache — it belongs to the device that turns notifications on, never to every install.
+
 ---
 
 ## 3. Modules and signatures
@@ -147,9 +154,10 @@ not the browser — composes what is shown; the wire carries no French and no En
 ```python
 class PushOutcome(StrEnum):
     DELIVERED = "delivered"        # 200
-    TOKEN_DEAD = "token_dead"      # UNREGISTERED 404, SENDER_ID_MISMATCH 403 — revoke the subscription
+    TOKEN_DEAD = "token_dead"      # UNREGISTERED 404 — revoke the subscription
     REJECTED = "rejected"          # INVALID_ARGUMENT 400 — our payload or the token's format; kept, counted
-    RETRY_LATER = "retry_later"    # 429, 500, 503 — with retry_after
+    RETRY_LATER = "retry_later"    # 500, 503 — with retry_after (finite, at most a day)
+    QUOTA_EXCEEDED = "quota_exceeded"  # any 429 (QUOTA_EXCEEDED, RESOURCE_EXHAUSTED, no code) — the project's
     MISCONFIGURED = "misconfigured"  # THIRD_PARTY_AUTH_ERROR, 401/403 on OUR credentials, no service-account file
     UNREACHABLE = "unreachable"    # no answer, a timeout
 
@@ -226,7 +234,7 @@ prod are three origins, so a device subscribed on two of them holds two tokens, 
 class DispatchReport:
     delivered: int
     revoked: int
-    deferred: int             # RETRY_LATER — the caller decides whether to re-send after retry_after
+    deferred: int             # RETRY_LATER / QUOTA_EXCEEDED — the caller decides whether to re-send after retry_after
     failed: int               # REJECTED, UNREACHABLE, MISCONFIGURED
     misconfigured: bool       # True ⇒ Système should say the channel is broken, not the device
 
@@ -297,7 +305,9 @@ them all (F-2 = A: one Firebase project serves the three).
 - `SqlitePushSubscriptionStore` on `:memory:`: upsert creates, re-upsert refreshes and moves a token to the presenting
   account, revoke excludes from `live_for`, `revoke_stale` at 270 days, `record` counts consecutive failures.
 - `PushDispatcher` with a fake sender: fan-out to every live subscription; `TOKEN_DEAD` revokes; `MISCONFIGURED`
-  stops the fan-out and sets `misconfigured`; nothing retried inside.
+  stops the fan-out and sets `misconfigured`; `QUOTA_EXCEEDED` stops it and defers the rest; nothing retried inside
+  (google-auth's own retry of a transient token-grant failure aside — 3 attempts, each bounded by the sender's
+  timeout).
 - The maquette (vitest): the worker's text composition from a catalogue (`{{param}}` filled, unknown code → generic
   line), the link guard (same-origin path or `/`); `pushSupport()` under each environment (no API; iOS not
   standalone; available with each permission); `registerPush` passes the application's registration and never
