@@ -21,6 +21,9 @@ import pytest
 HARNESS = Path(__file__).resolve().parents[2] / "frontend" / "maquette" / "harness"
 sys.path.insert(0, str(HARNESS))
 
+# The harness modules import Playwright at load; CI's `test` job does not install it.
+pytest.importorskip("playwright")
+
 import busy  # noqa: E402
 import queued_ask_mark  # noqa: E402
 from common import browser_channel  # noqa: E402
