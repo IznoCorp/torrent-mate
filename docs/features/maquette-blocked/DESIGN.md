@@ -25,8 +25,10 @@ This document is written for a session that has none of the context it was produ
 `frontend/maquette/` was touched to write it** — no code, no rule, no mock, no seed, no harness run: prose and
 numbers. Every figure carries what produced it, read from the worktree root.
 
-**Written 2026-10-01, on `main` at `ca09123ee`**, branch `docs/maquette-blocked`. The code is built by the lot the
-orchestrator names, after ONE operator round on § 5's OPEN questions. Rule numbers are reserved from **R500**.
+**Written 2026-10-01, on `main` at `ca09123ee`**, branch `docs/maquette-blocked`; **decided the same day** — his
+round 2 of 2026-10-01 settled § 5's six questions (§ 5, DECIDED 1–6, his words) and added two surfaces to the lot: the
+one-pill filter and sort selector on Médiathèque and Suivis (§ 1.9) and B-475's « hors catalogue » line (§ 1.10).
+Built on `feat/maquette-blocked`. Rule numbers are reserved from **R500** to **R519**.
 
 ---
 
@@ -37,12 +39,15 @@ orchestrator names, after ONE operator round on § 5's OPEN questions. Rule numb
 | 1 | every block that needs an intervention, in the app or ELSEWHERE, is a card of « À traiter » — none stays in « En cours » | Q7 | § 1.1, § 1.2 |
 | 2 | each such card says its cause, what lifts it, and links where it is settled | Q7 | § 1.2, § 1.3 |
 | 3 | an external cause lifted, the card leaves on its own and the tunnel resumes — no gesture | Q7; § 20 point 2 | § 1.4 |
-| 4 | a tunnel whose medium vanished closes with its reason, said ONCE in « À traiter », dismissed by « × » | Q8 | § 1.5 |
-| 5 | a release chosen earlier and arrived later is not filed; « remplacé par un choix plus récent », once, « × » | Q9 | § 1.6 |
+| 4 | a tunnel whose medium vanished closes with its reason, said ONCE in « À traiter », dismissed by « Marquer comme vu » in its panel | Q8; DECIDED 2 | § 1.5 |
+| 5 | a release chosen earlier and arrived later is not filed; « remplacé par un choix plus récent », once, « Marquer comme vu » | Q9; DECIDED 2 | § 1.6 |
 | 6 | the deferred card moves from « En cours » to « À traiter » | Q7 | § 1.1 |
 | 7 | the Acquisition badge counts the whole list | Q7 | § 1.7 |
 | 8 | every element drawn by the one component that already draws it — no parallel component | the brief; principles 09-29 | § 1.8 |
 | 9 | every case a named state; each change with the rule that bites and the backend demand it implies | orders 76, 77; brief K4 | § 3, § 4, § 6 |
+| 10 | « À traiter » is ONE flat list ordered by urgency, filtered and sorted by the Torrents tab's one-pill selector | DECIDED 1 | § 1.1 bis |
+| 11 | the same selector replaces the Médiathèque and Suivis filters, each with its sort pill | DECIDED 1 | § 1.9 |
+| 12 | a season holding episode numbers the catalogue does not list says « hors catalogue (n) » | B-475 = B | § 1.10 |
 
 ### 0.1 As it is — « À traiter » and « En cours » on tm-design at 390 px
 
@@ -115,11 +120,12 @@ Measurements that correct or fix the premises (paths under `frontend/maquette/de
 | Landed | Read as |
 | --- | --- |
 | L22 — the acquisition card (`ui/card-markup.ts`, `features/acquisition/card-markup.ts`), its eight-rung ladder | every new card, unchanged in anatomy: the cause and the lift are its reason line, the door is its foot |
-| Ruling 10 / R209 — « À traiter » a tab of its own, sections by what unblocks, a pip and a count per section, an empty section not drawn | the tab's shape, kept; Q7 adds sections, amends ruling 7's « ce que seule sa main débloque » |
+| Ruling 10 / R209 — « À traiter » a tab of its own, sections by what unblocks, a pip and a count per section, an empty section not drawn | the tab of its own and its count, kept; its sections AMENDED by DECIDED 1 (one flat list, the filter pill); Q7 amends ruling 7's « ce que seule sa main débloque » |
 | Ruling 16 / R226 — « Mis de côté » folded last, outside every count | kept, last |
 | R265 — the three deferral causes said on the card, the ratio cause naming its tracker and THAT tracker's threshold | kept, MOVED to « À traiter » |
 | The named landing — `trackers:<name>`, `now:<acquisition>` | the doors' shape; Système gains one, ADAPTED (§ 1.3) |
-| A6 (09-12) — « × » = « vu » | the dismissal of a closure card (§ 1.5, OPEN 2) |
+| A6 (09-12) — « × » = « vu » | not drawn on a card: DECIDED 2 puts « Marquer comme vu » in the closure card's panel (§ 1.5) |
+| The tracker selector (`features/trackers/tracker-selector.tsx`, `panel-selector.ts`) — one pill saying the filter and its count, a tap raising the bottom panel of choices | GENERALISED into the one filter / sort pill of « À traiter », Médiathèque and Suivis (DECIDED 1, § 1.9) |
 | R236 — the badge observed from any page; live events invalidate the queue | the auto-resume is read through it (§ 1.4) |
 
 ### 0.3 Conformity to the operator's principles (`operator-method.md` § 1, 09-29)
@@ -127,7 +133,7 @@ Measurements that correct or fix the premises (paths under `frontend/maquette/de
 | Principle, his words | Where this design holds it |
 | --- | --- |
 | « Il faut uniformiser les comportements. Sauf exception volontaire de ma part. » | every block is ONE card in ONE list with ONE anatomy — cause, lift, door; every external cause behaves the same: posed, said, linked, lifted, gone. No exception declared |
-| « on crée pas de nouveau composant on adapte » | § 1.8: nothing new; two adaptations written — Système's landing door, the card foot's « × » option |
+| « on crée pas de nouveau composant on adapte » | § 1.8: nothing new; two adaptations written — Système's landing door, the tracker selector generalised to every list's filter and sort |
 | « seule une maquette montrant tout les cas possibles est utile. » | § 3: one named state per cause, per lift, per closure, per door, plus the dense and the empty |
 | « tout doit être responsive » | the cause and the lift share the reason line (wraps, never truncated, DOIT-9); two feet at most per card; checked at 320 px by R-conformity-a in CI |
 | « une différence entre film et série » | every cause holds for a film and an episode alike; Q9 says « pour TOUS les médias, films compris »: § 3 poses one superseded FILM |
@@ -160,10 +166,41 @@ traiter » »: it becomes « … ce qui est bloqué est « À traiter » ». The
 `todoEmptyBody`) becomes « Rien n'est bloqué. » / « Ce qui avance est dans « En cours ». » — the old sentence says
 « votre main », which Q7 amended.
 
+### 1.1 bis The list — flat, by urgency, one filter pill and one sort pill (DECIDED 1)
+
+**The list.** « À traiter » draws ONE flat list of cards, no section title and no section count. Its order by
+default is **urgency**, three groups, the newest block first inside each (by `blockedSince`, the closure's `at`):
+
+1. what needs his judgement — « À résoudre », « Match Plex à confirmer », « Une étape ne passe pas »;
+2. the external blocks the engine lifts on its own (`resumes: "auto"`, § 1.2);
+3. the closures not yet seen (§ 1.5, § 1.6).
+
+No group draws a title: each card's cause line says why it is there (§ 1.2). « Mis de côté » stays apart, folded,
+last, outside every count (ruling 16) — the filter and the sort do not reach it.
+
+**The filter pill.** Above the list, in the filter zone every list draws above itself, the Torrents tab's selector
+(`features/trackers/tracker-selector.tsx`), GENERALISED (§ 1.9): one pill saying the filter in force and the number
+of cards it shows, `aria-pressed` when the list is not whole; a tap opens the bottom panel of choices, each with its
+count. The choices, by cause, in this order: « Tout », « À résoudre », « Match Plex à confirmer », « Une étape ne
+passe pas », « Disque plein » (`insufficient_space`, `library_full`, `content_missing`), « Ratio trop bas »
+(`ratio_below_threshold`), « Service injoignable » (`tracker_unreachable`, `provider_unreachable`,
+`plex_unreachable`, `client_unreachable`), « Clos — à lire » (closures). A choice with no card is still offered,
+its count 0 (the panel says what exists). A filter that empties the list draws the list's empty note in the filter's
+words (« Aucune carte pour ce filtre. »), never the tab's empty sentence.
+
+**The sort pill.** Beside it, the same component: « Urgence » (default, the order above), « Plus récent », « Plus
+ancien » (by the block's or closure's time, all groups mixed). Both choices are REMEMBERED on the device, as the
+library's sort is (`localStorage`, the store's remembered dials) — a filter left on « Disque plein » is found again.
+Neither enters the address (the selector's own precedent: a choice among the page's dials).
+
+**What is counted.** The tab's count and the badge count the WHOLE list (§ 1.7), whatever the filter shows; the
+pill's own count is what the filter shows.
+
 ### 1.2 The external causes — each one a card, its cause, its lift
 
 **Its component: the acquisition card, unchanged** — `mediumCardMarkup` over `cardMarkup`. Its strip stops on the
-rung the tunnel stopped on; its chip names that rung (in the tone OPEN 3 settles); its **reason line carries two
+rung the tunnel stopped on; its chip names that rung in the **« waiting » tone** (DECIDED 3 — the danger red stays
+what needs his judgement); its **reason line carries two
 sentences**: the cause, then what lifts it. Its foot carries the door (§ 1.3). Its body opens the medium's panel, its
 poster the sheet — as every card.
 
@@ -172,7 +209,7 @@ poster the sheet — as every card.
 | `ratio_below_threshold` (exists) | arrivé | « Différé : le ratio sur {{tracker}} est sous son seuil de {{minimum}}. » (kept) | « Il repart seul dès que ce ratio dépasse {{minimum}}. » | « Voir le tracker » → `trackers:<name>` (exists) |
 | `ratio_below_threshold`, no threshold (exists) | arrivé | « Différé : le ratio sur {{tracker}} est trop bas, et ce tracker n'a aucun seuil réglé. » (kept) | « Il repart seul dès que ce ratio remonte. » | « Voir le tracker » |
 | `insufficient_space` (exists) | arrivé | « Différé : pas assez d'espace sur le disque de staging pour le recevoir. » (reworded: it names WHICH disk) | « Il repart seul dès que la place est faite. » | « Voir les disques » → Système › Disques |
-| `content_missing` (exists — OPEN 4 = A) | arrivé | « Différé : le disque où qBittorrent l'a téléchargé n'est pas lisible. » | « Il repart seul dès que ce disque est de retour. » | « Voir les disques » |
+| `content_missing`, the volume absent (exists — DECIDED 4 = A) | arrivé | « Différé : le disque où qBittorrent l'a téléchargé n'est pas lisible. » | « Il repart seul dès que ce disque est de retour. » | « Voir les disques » |
 | `library_full` (new) | rangé | « Aucun disque de la médiathèque n'a la place de le recevoir ({{size}}). » | « Il est rangé seul dès qu'un disque a la place. » | « Voir les disques » |
 | `tracker_unreachable` (new) | attrapé | « {{tracker}} ne répond pas : le torrent ne peut pas être récupéré. » | « Il repart seul dès que {{tracker}} répond. » | « Voir le tracker » |
 | `provider_unreachable` (new) | identifié | « {{provider}} ne répond pas : l'identification attend. » | « Elle reprend seule dès que {{provider}} répond. » | « Voir les dépendances » → Système › Dépendances |
@@ -182,10 +219,15 @@ poster the sheet — as every card.
 **A block that needs his JUDGEMENT keeps its card and its acts** — « Résoudre → », « Confirmer » / « Corriger »,
 « Relancer » / « Abandonner »; Q7 adds one obligation to them: a cause line, always. The tunnel error with no
 sentence (§ 0.1 item 6) reads the failed step's own words: « L'étape « {{step}} » a échoué. » (`surfaces.card.failedStep`,
-proposed) when the engine serves no sentence — never nothing.
+proposed) when the engine serves no sentence — never nothing (B-671).
 
 **One shared cause, many cards.** qBittorrent down blocks every tunnel at once: each tunnel is its own card (Q6: a
-tunnel per release), each saying the cause. How they are grouped is OPEN 1.
+tunnel per release), each saying the cause. They stand together in the urgency order's second group, and the filter
+« Service injoignable » shows them alone (DECIDED 1).
+
+**« content missing » is split by the volume (DECIDED 4).** The volume itself absent (unmounted) is the block above
+(« Différé : le disque où qBittorrent l'a téléchargé n'est pas lisible. », « Voir les disques », auto-resume); the
+volume present and the files gone is Q8's closure `files_absent` (§ 1.5). The engine tells the two apart (BK3).
 
 **What is NOT an external block**: a maintenance run in progress, the supervisor's queue at its bound — both in
 « En cours », « En file — … » (§ 0.1 item 7); a stalled download the re-switch handles (it moves on its own and says
@@ -193,7 +235,8 @@ so on its card in « En cours »).
 
 ### 1.3 The doors — where each cause is settled
 
-**Its component: the card foot** (`actionButton({ kind: "cardFoot" })`), a `data-go` + `data-dial` pair the
+**Its component: the card foot** (`actionButton({ kind: "cardFoot" })`) — **the door ALONE** (DECIDED 6):
+« Abandonner » stays in the card's panel, never at the foot of an external block, a `data-go` + `data-dial` pair the
 document delegation already reads — « Voir le tracker »'s mechanism, GENERALISED from the ratio cause to every
 external cause by one table in `features/acquisition/card-markup.ts` (cause token → page, dial, label), replacing the
 single `ratioDeferralTracker` branch (`:145`, `:238–242`).
@@ -224,8 +267,13 @@ lift lines still are (DOIT-12: the cause is visible, the door absent is not a li
 
 **What he sees.** On « À traiter », This City Is Ours stands under its cause. The engine sees the cause lifted (the
 disk has room, the ratio passed, the service answers): a live event invalidates the queue; the card leaves « À
-traiter » with no gesture, the section goes with its last card, the tab's count and the badge drop by one, and the
-card stands again in « En cours » at the rung it stopped on, the rung now `now`. Nothing else is drawn (OPEN 5).
+traiter » with no gesture, the tab's count and the badge drop by one, and the card stands again in « En cours » at
+the rung it stopped on, the rung now `now`.
+
+**It is said, on « À traiter » only (DECIDED 5)**: the existing message (`ui/toast.tsx`), one per lift — « This City
+Is Ours est reparti » (`screens.acquisition.resumedOne`), « 6 acquisitions sont reparties »
+(`screens.acquisition.resumedMany`) when one lift frees several cards. On any other page nothing is said; the badge
+drops.
 
 **Where it reads.** The queue's answer and its live invalidation (R236's observer); the interface computes nothing
 — the engine decides the lift (BK2). Its journey (the panel) keeps the trace: the rung's history reads « bloqué —
@@ -234,7 +282,7 @@ card stands again in « En cours » at the rung it stopped on, the rung now `now
 **One cause lifted for many cards** (qBittorrent back): every card it held leaves together; a card held by another
 cause stays.
 
-### 1.5 The vanished medium (Q8) — closed, said once, « × »
+### 1.5 The vanished medium (Q8) — closed, said once, « Marquer comme vu »
 
 **Its component: the acquisition card.** The strip stops where the tunnel was; the chip reads « clos »
 (`surfaces.ladder.closed`, proposed) in the neutral tone; the reason line says why:
@@ -245,21 +293,22 @@ cause stays.
   (`surfaces.card.closure.files_absent`).
 
 The lift line reads « S'il revient, un nouveau parcours s'ouvrira. » (`surfaces.card.closure.reopens`). Its foot: «
-Voir la fiche » where a sheet stands behind it (`panels.journey.seeSheet`, exists), then « × » — dismissal = « vu »
-(A6), where OPEN 2 places it. A tap on « × » removes the card everywhere for that account, at once (optimistic, the
-error said and the card restored if the write fails — NE-DOIT-PAS-5), and it does not come back on a reload (the
-seen mark is the engine's, BK5).
+Voir la fiche » where a sheet stands behind it (`panels.journey.seeSheet`, exists). **No « × » on the card
+(DECIDED 2)**: a tap on the card opens its bottom panel, as every card's, and « Marquer comme vu »
+(`panels.journey.markSeen`, proposed) is one of its actions. That action removes the card everywhere for that
+account, at once (optimistic, the error said and the card restored if the write fails — NE-DOIT-PAS-5), and it does
+not come back on a reload (the seen mark is the engine's, BK5).
 
 **Filed by hand elsewhere** — the medium appears in the library by its provider identifiers: the tunnel ends with no
 card at all (« il part simplement »). **A medium that comes back** opens a new tunnel: a fresh card in « En cours »;
 the closed one, if not yet seen, still says its own once.
 
-### 1.6 The superseded release (Q9) — not filed, still seeding, said once, « × »
+### 1.6 The superseded release (Q9) — not filed, still seeding, said once, « Marquer comme vu »
 
 **Its component: the acquisition card.** Strip stopped on « rangé », not done; chip « clos »; reason line:
 « Remplacé par un choix plus récent : {{winner}} est en place. » (`surfaces.card.closure.superseded`, `winner` the
 release line of the file in place); lift line: « Son torrent continue de semer. » (`surfaces.card.closure.seeding`).
-Foot: « Voir la fiche » (the library holds the winner), then « × ». The torrent stays a row of Trackers › « Torrents »,
+Foot: « Voir la fiche » (the library holds the winner); « Marquer comme vu » in its panel (DECIDED 2). The torrent stays a row of Trackers › « Torrents »,
 seeding — no change there, and none is drawn (the row is honest already).
 
 **For every medium, films included**: the same card for a season pack that came after a later-chosen episode, and
@@ -272,8 +321,8 @@ closed — the pack's tunnel went to its end. The superseded card exists only wh
 
 ### 1.7 The badge
 
-The Acquisition badge is `todoCards`' count for the account (§ 1.1) — every section of « À traiter », the external
-blocks and the unseen closures included, « Mis de côté » excluded (ruling 16 stands). No new derivation: the move
+The Acquisition badge is `todoCards`' count for the account (§ 1.1) — the whole flat list of « À traiter », whatever
+its filter shows, the external blocks and the unseen closures included, « Mis de côté » excluded (ruling 16 stands). No new derivation: the move
 of § 1.1 moves it. On a page that draws nothing of Acquisition it follows the live events (R236).
 
 ### 1.8 The design system, element by element
@@ -285,12 +334,45 @@ of § 1.1 moves it. On a page that draws nothing of Acquisition it follows the l
 | The stopped rung | `ladderMarkup`'s strip and chip (`features/acquisition/card-markup.ts:150`) | no |
 | A door | `actionButton({ kind: "cardFoot" })` + `data-go` / `data-dial`, the ratio door generalised | no |
 | Système's landing | `fillLandingDoor` (`lib/shell-doors.ts:176`), as Trackers fills it | **adapted**: a door for a page without tabs |
-| « × » on a closure card | a `CardFoot` option drawing `icons.x` with an `aria-label`, the message close's icon and its word | **adapted**: the foot option takes an icon |
-| A section of « À traiter » | `sectionInnerMarkup(pip, title, count, inner)` (`todo-tab.tsx`) | no |
+| « Marquer comme vu » on a closure | an action of the card's panel (`ui/panel`), as « Abandonner » is | no |
+| The filter pill and the sort pill (« À traiter », Médiathèque, Suivis) | `TrackerSelector` and its panel (`features/trackers/tracker-selector.tsx`, `panel-selector.ts`), moved to `ui/` and fed a list of choices | **adapted**: one selector for every list (§ 1.9) |
+| « Mis de côté » | `sectionInnerMarkup` in a `Disclosure` (`todo-tab.tsx`), kept | no |
 | The reachability fact on a tracker's panel, the Plex row | the panel's `faits` block; Système's fact list | no |
 | The auto-resume | nothing drawn — the card's own leaving | no |
 
 **Nothing new is drawn.** Two adaptations, written here as the office asks.
+
+### 1.9 The one filter and sort pill — Médiathèque and Suivis (DECIDED 1, his ask)
+
+His words: « J'aime beaucoup le composant filtre des trackers mis sur la liste des torrents, j'aimerai qu'on utilise
+celui là et qu'on aille plus loin qu'on remplace les autres filtres (médiathèque et suivis: Tout, films, séries) par
+ce nouveau composant ! »
+
+**One component, adapted, never a copy.** The tracker selector becomes `ui/pill-selector.tsx` (the pill: label,
+count, `aria-pressed`, `aria-haspopup="dialog"`, a `data-select` naming its panel) and one panel producer
+(`ui/panel/choices` shape, the selector's `choices` bloc, checked choice, hint = count). Trackers › « Torrents »,
+« À traiter », Médiathèque and Suivis each feed it their choices; none draws its own.
+
+- **Médiathèque**: the row of category pills (`library-head.tsx`, `data-cat`) is replaced by ONE filter pill whose
+  panel lists the categories with their counts (the same counts per lens as today); the count line's sort control
+  (`data-sort`, the « sort » panel) becomes the SORT pill beside it, its six ways unchanged (`sorting.ts`: Ajout
+  récent / ancien, A → Z / Z → A, Les plus incomplets / complets). Category and sort stay remembered as today.
+- **Suivis**: the three pills (`follows-filters.tsx`, `data-pill`: Tout, Séries, Films) are replaced by ONE filter
+  pill; its sort pill offers, by his ruling (round 3 q1 = C, 2026-10-01): « Urgence » (default — today's one fixed
+  order, `follows-tab.tsx`: fresh, then the status's urgency, then the title), « A → Z », « Z → A », « Suivi
+  récemment » (the follow's creation date), « Prochaine sortie » (the date of the next release, a follow with none
+  last). Neither date is served by the contract today: the maquette carries them in its follows seed (`addedAt`,
+  `nextAirDate`) and the demand is BK8.
+- The search field and the view switch keep their places in the same filter zone.
+
+### 1.10 Episodes the catalogue does not list — « hors catalogue (n) » (B-475 = B)
+
+A season whose held episode numbers include numbers the catalogue does not list draws, under the season's row, one
+line « hors catalogue ({{count}}) » (`surfaces.season.offCatalogue`, proposed), in the muted tone, without judgement
+(no colour, no act). The season's fraction is unchanged: it counts only what aired, at or below the catalogue
+(B-380). Drawn wherever the season's row is drawn (the media sheet, the follow panel) by the one season-row markup.
+A correction gesture (a Maintenance « à vérifier » queue) may come later; it is not drawn. Backend: the engine serves
+the held numbers above the catalogue per season (BK7).
 
 ---
 
@@ -326,7 +408,7 @@ item 11). Loading and error of the tab are `acq-todo-loading` and `acq-todo-erro
 
 **External causes**: `acq-block-ratio-no-threshold` (tr4ker) · `acq-block-library-full` · `acq-block-tracker-unreachable`
 · `acq-block-provider-unreachable` · `acq-block-plex-unreachable` · `acq-block-client-unreachable` (EVERY card in
-flight held at once — OPEN 1's subject) · `acq-block-film` (a film held by `library_full`, the film variant).
+flight held at once — the « Service injoignable » filter's subject) · `acq-block-film` (a film held by `library_full`, the film variant).
 
 **Doors**: `acq-block-door-disks` (after the finger on « Voir les disques ») · `acq-block-door-dependencies` ·
 `acq-block-door-tracker` (the tracker's panel saying « ne répond pas ») · `acq-block-door-reserved` (an account
@@ -336,7 +418,8 @@ without `system.view`: cause and lift drawn, no door) · `system-dependency-plex
 `acq-block-lifted-many` (qBittorrent back: every card it held leaves, the one under another cause stays) ·
 `acq-block-lifted-journey` (the panel's « bloqué … » / « repris » lines).
 
-**Closures (Q8)**: `acq-closure-torrent-removed` · `acq-closure-files-absent` · `acq-closure-seen` (after « × »:
+**Closures (Q8)**: `acq-closure-torrent-removed` · `acq-closure-files-absent` · `acq-closure-panel` (a tap on the
+closure card: its panel, « Marquer comme vu » among its actions) · `acq-closure-seen` (after « Marquer comme vu »:
 gone, badge −1, gone after a reload) · `acq-closure-dismiss-failed` (the write refused: card restored, error said)
 · `acq-closure-filed-by-hand` (no card) · `acq-closure-medium-back` (a new card in « En cours », the old one still
 unseen).
@@ -345,13 +428,20 @@ unseen).
 `acq-superseded-film` · `acq-superseded-seen` · `acq-superseded-pack-keeps-newer` (the pack filed, one episode kept,
 no card).
 
-**The list whole**: `acq-todo-every-cause` (one card per section, the order OPEN 1 settles, the badge reading them
+**The list whole**: `acq-todo-every-cause` (one card per cause, flat, in the urgency order, the badge reading them
 all) · `acq-todo-external-only` (only external blocks — the empty note NOT drawn) · `acq-todo-empty` (kept, its new
-words).
+words) · `acq-todo-filter-panel` (the filter pill's panel open, every cause with its count) · `acq-todo-filter-disks`
+(filtered on « Disque plein ») · `acq-todo-filter-empty` (a filter with no card: the filter's own empty words) ·
+`acq-todo-sort-panel` (the sort pill's panel open) · `acq-todo-sort-oldest` (sorted « Plus ancien ») ·
+`acq-resumed-message` (one lift on « À traiter »: the message said) · `acq-block-content-volume` (the volume absent:
+a block) beside `acq-closure-files-absent` (the volume present: a closure).
 
-**Counted** (`` sed -n '/^## 3/,/^## 4/p' docs/features/maquette-blocked/DESIGN.md | grep -o -E '`(acq|system)-[a-z0-9-]+`' | sort -u | wc -l ``):
-**33** ids printed — 27 new, 3 moved, 3 kept (`acq-todo-empty` with its new words; `acq-todo-loading`,
-`acq-todo-error` unchanged).
+**The pills elsewhere (§ 1.9)**: `library-filter-panel` · `library-sort-panel` · `library-filter-movies` ·
+`follows-filter-panel` · `follows-sort-panel` · `follows-sort-next-release`.
+
+**B-475 (§ 1.10)**: `media-season-off-catalogue` (American Dad! S16: 20/20 and « hors catalogue (4) »).
+
+Counted after the rulings by `` sed -n '/^## 3/,/^## 4/p' docs/features/maquette-blocked/DESIGN.md | grep -o -E '`(acq|system|library|follows|media)-[a-z0-9-]+`' | sort -u | wc -l ``.
 
 ---
 
@@ -361,34 +451,39 @@ Every rule is red on today's maquette (`ca09123ee`), for the reason in the last 
 
 | Rule | What it READS | Red today because |
 | --- | --- | --- |
-| **R500** — « À traiter » holds every block; « En cours » none | on each moved and external state: the subject card is in « À traiter », under its cause's section, and no « En vol » card carries a block rung; « En cours »' count is the « En vol » cards drawn; `acq-card-waiting`'s « En file » cards stay in « En cours » | the deferred card is drawn in « En vol » (§ 0.1: « En cours » 6 on `acq-card-deferred-*`) |
+| **R500** — « À traiter » holds every block; « En cours » none | on each moved and external state: the subject card is in « À traiter », its cause line saying the cause, and no « En vol » card carries a block rung; « En cours »' count is the « En vol » cards drawn; `acq-card-waiting`'s « En file » cards stay in « En cours » | the deferred card is drawn in « En vol » (§ 0.1: « En cours » 6 on `acq-card-deferred-*`) |
 | **R501** — each card says its cause and its lift | on every state of « À traiter »: every card has a reason line holding the cause sentence its served rung (or failed step, or closure) names AND, for a block the engine lifts, the lift sentence; none empty | no lift sentence exists; Furious' error card has no reason line (§ 0.1 item 6) |
 | **R502** — each door lands where the cause is settled, and says it | a finger on each door: lands on the named page / tab / section, the target in the viewport, and the landed surface says the same cause (Plex row, « ne répond pas », the disk's state); the history grows by one; Retour gives « À traiter » back | space and missing causes draw no door; Système has no landing door |
 | **R503** — the card leaves on its own | from `acq-card-deferred-space`, `liftBlock`: with no gesture, within the live event's settling, the card is gone from « À traiter », present in « En cours » with the rung `now`; the tab's count and the badge −1; on `acq-block-lifted-many` the card under another cause stays | the card is not in « À traiter » to leave; no lift exists in the mock |
-| **R504** — a vanished medium is said once, « × » = seen | `acq-closure-*`: the closure card with its reason and « × »; a finger on « × » removes it, the badge −1, a reload does not bring it back; filed by hand → no card; the medium back → a new card in « En cours » | no closure exists; the mock re-opens a vanished row |
-| **R505** — a superseded release is said once, its torrent still seeding | `acq-superseded-*`: the card says « remplacé par un choix plus récent » with the winner's line, offers « Voir la fiche » and « × »; its torrent is a seeding row of « Torrents »; the film case alike; the pack-keeps-newer case draws no card | no superseded card exists |
+| **R504** — a vanished medium is said once, « × » = seen | `acq-closure-*`: the closure card with its reason and no « × »; a finger on the card opens its panel, a finger on « Marquer comme vu » removes it, the badge −1, a reload does not bring it back; filed by hand → no card; the medium back → a new card in « En cours » | no closure exists; the mock re-opens a vanished row |
+| **R505** — a superseded release is said once, its torrent still seeding | `acq-superseded-*`: the card says « remplacé par un choix plus récent » with the winner's line, offers « Voir la fiche », and « Marquer comme vu » in its panel; its torrent is a seeding row of « Torrents »; the film case alike; the pack-keeps-newer case draws no card | no superseded card exists |
 | **R506** — the badge counts the whole list | on every state of § 3: the Acquisition badge equals the cards of « À traiter » the account owns, « Mis de côté » excluded, read from a page that draws nothing of Acquisition (R236's walk) | the badge reads 3 on `acq-card-deferred-*` while 4 blocks exist |
-| **R507** — the design system is reused | every card of « À traiter » is a `card` part of the one markup; every door is a `card/foot` with `data-go`; the « × » is a `card/foot` drawing the message close's icon; no `features/*` variant is named for blocks | (bites on a regression; red on today's maquette only for the « × », which is not drawn) |
+| **R507** — the design system is reused | every card of « À traiter » is a `card` part of the one markup; every door is a `card/foot` with `data-go`; no card draws a « × »; no `features/*` variant is named for blocks | (bites on a regression; red on today's maquette because no closure card exists to read) |
+| **R508** — « À traiter » is one flat list in the urgency order, filtered and sorted by the one pill | on `acq-todo-every-cause`: no section title but « Mis de côté »; the cards' order = judgement, then external, then closures, newest first in each; the filter pill says « Tout » and the list's count; a finger on it opens the panel of causes with their counts; a choice filters, the pill says it, `aria-pressed`; the sort pill orders « Plus ancien »; both found again after a reload; the badge unchanged by the filter | the tab draws three sections and no pill |
+| **R509** — the one pill everywhere | Trackers › « Torrents », « À traiter », Médiathèque and Suivis draw the filter pill from ONE markup (`data-part="pill/select"`), no row of `data-cat` / `data-pill` pills remains; Médiathèque's sort pill offers its six ways, Suivis' its five | the Médiathèque and Suivis draw rows of pills |
+| **R510** — a season says what it holds off the catalogue | on `media-season-off-catalogue`: American Dad! S16 reads 20/20 and « hors catalogue (4) » under its row; a season with nothing off the catalogue draws no such line | no line exists (B-475) |
 
 **Re-aimed out loud** in the same lot (a rule broken by an intended change is updated): **R209** (`todo_holds.py`,
 « only what his hand unblocks » → « every block »; hold 4 kept on the maintenance queue); **R265**
 (`deferred_reason.py`, hold 4 « no other card of « En vol » names a deferral » → the card is in « À traiter »); **R224**
 (`now_holds_in_flight.py`, the note's new words); **R-navigation-a** (`navigation_edges.py`, its ratio landing read
-from « À traiter »); **R236** (`badges_observed.py`, the seeded count). Navigation (R502) and dismissal (R504) are
-proved by a finger walk, never by a posed state alone.
+from « À traiter »); **R236** (`badges_observed.py`, the seeded count); the Médiathèque and Suivis pill rules (`filters.py`,
+`library_sort.py`) re-aimed at the one pill. Navigation (R502) and dismissal (R504) are proved by a finger walk,
+never by a posed state alone.
 
 ---
 
-## 5. What the lot does NOT draw, and the OPEN questions
+## 5. What the lot does NOT draw, and the questions DECIDED
 
 **Not drawn**: a push notification of a block (Q10's FCM project is its own); a « forcer » act that bypasses a cause
 (none was asked); a change to « Mis de côté »; the supervisor's levers (Système › « Pipeline », K4's own surface); a
 global banner « qBittorrent ne répond pas » (one list, ruled).
 
-Each OPEN question in `/orchestrator:decide`'s shape: what is on the screen, the choices with their cost and gain,
-ONE recommendation. None reopens Q7–Q9.
+Each question was put in `/orchestrator:decide`'s shape (what is on the screen, the choices with their cost and gain,
+one recommendation) and DECIDED by the operator in his round 2 of 2026-10-01 — not reopenable. None reopened Q7–Q9.
+The choices are kept below as they were put; his ruling closes each.
 
-### OPEN 1 — How « À traiter » groups its cards, and in what order
+### DECIDED 1 — How « À traiter » groups its cards, and in what order
 
 *On the screen*: today three sections (« À résoudre », « Match Plex à confirmer », « Une étape ne passe pas ») and
 « Mis de côté » folded. Q7 adds up to six external causes and the closures. On `acq-block-client-unreachable`,
@@ -405,11 +500,17 @@ qBittorrent down puts every card in flight (6 in the dense world) in the list at
 - **C — one flat list, newest block first**, no sections. *Gain*: simplest; *cost*: breaks ruling 10's « a section
   says what unblocks it », R209's frame; ≈ 3 points and a ruling amended.
 
-**Recommendation: B** — the section a card sits in already says what unblocks it (ruling 10); with external causes
-the cause IS what unblocks it, and an outage reads once by its title. Order: what needs his judgement first (the
-three of today), then the external causes, then the closures, then « Mis de côté ».
+*Recommended*: B. **DECIDED: HIS WORD, C with the Torrents tab's filter** — « Liste à plat avec filtre. J'aime
+beaucoup le composant filtre des trackers mis sur la liste des torrents, j'aimerai qu'on utilise celui là et qu'on
+aille plus loin qu'on remplace les autres filtres (médiathèque et suivis: Tout, films, séries) par ce nouveau
+composant ! » One flat list, no sections (AMENDS ruling 10's « a section says what unblocks it »), filtered by the
+one-pill selector by cause. Its order, asked as a follow-up = **B**: by urgency, newest first inside each group —
+his judgement (identity, Plex match, step error), then external blocks, then closures; no section titles, each
+card's cause line says it; « Mis de côté » apart, folded, last. His ask, « oui, enregistre »: beside the filter
+pill, a SORT pill of the same component — Urgence (default), Plus récent, Plus ancien; remembered like the filter.
+Médiathèque and Suivis get the filter pill and the sort pill too (§ 1.9). Drawn in § 1.1 bis.
 
-### OPEN 2 — Where the « × » of a closure card sits
+### DECIDED 2 — Where the « × » of a closure card sits
 
 *On the screen*: the Q8 / Q9 card, dismissed by « × ». The card is a button (its body opens the panel); its foot holds
 labelled buttons.
@@ -421,9 +522,10 @@ labelled buttons.
   message; *cost*: a button nested over the card's body tap (the gesture arbitration's ground, `lib/press-arbitration.ts`)
   and the title's line shortened at 320 px; ≈ 3 points.
 
-**Recommendation: A.**
+*Recommended*: A. **DECIDED: HIS WORD, C** (« je confirme »): no « × » on a closure card — a tap on the card opens
+its bottom panel with its actions, and « Marquer comme vu » is one of those actions (§ 1.5).
 
-### OPEN 3 — The tone of a rung stopped by an external cause
+### DECIDED 3 — The tone of a rung stopped by an external cause
 
 *On the screen*: the strip's cell and the chip of a card in a « Repart seul » / cause section. Today the deferral's
 rung is `waiting` (a neutral chip, the waiting cell — capture `acq-card-deferred-ratio-subject.png`); a block for
@@ -434,9 +536,10 @@ his hand is `blocked` (the danger red: « identifié » in red on Lucky).
 - **B — blocked (danger)**, like every other card of the tab. *Gain*: one tone for one tab; *cost*: an outage paints
   the whole tab red although nothing is his to judge; ≈ 0 points.
 
-**Recommendation: A.**
+**DECIDED: A** — a rung stopped by an external cause takes the « waiting » tone (as the deferral today); the danger
+red stays what needs his judgement (§ 1.2).
 
-### OPEN 4 — « content missing »: a block or a vanished medium?
+### DECIDED 4 — « content missing »: a block or a vanished medium?
 
 *On the screen*: the engine's `content_missing` (`deferral.py:61`: « content_path unknown or absent » — the volume
 unmounted) and Q8's « fichiers absents ». Both read as files the engine cannot see.
@@ -448,9 +551,11 @@ unmounted) and Q8's « fichiers absents ». Both read as files the engine cannot
 - **B — every « files not found » is a closure** (Q8 read wide). *Gain*: one case; *cost*: a disk remounted an hour
   later finds every tunnel closed and reopened as new ones; ≈ 1 point.
 
-**Recommendation: A.**
+**DECIDED: A** — split by the volume: the volume absent (unmounted) is a BLOCK (« Différé : le disque où
+qBittorrent l'a téléchargé n'est pas lisible. », « Voir les disques », auto-resume on remount); the volume present and
+the files gone is Q8's closure. Backend demand BK3: the engine tells the two apart (§ 1.2).
 
-### OPEN 5 — Does the auto-resume say anything as it happens?
+### DECIDED 5 — Does the auto-resume say anything as it happens?
 
 *On the screen*: the card leaving « À traiter » on its own (§ 1.4).
 
@@ -460,10 +565,10 @@ unmounted) and Q8's « fichiers absents ». Both read as files the engine cannot
   elsewhere. *Gain*: the disappearance explained; *cost*: one message per card — six at once when qBittorrent comes
   back (one message per lift then, « 6 acquisitions sont reparties »); ≈ 2 points.
 
-**Recommendation: B**, one message per lift, only on « À traiter » — NE-DOIT-PAS-2: nothing vanishes unsaid on the
-screen he is reading.
+**DECIDED: B** — the auto-resume says it with the existing message, only when he is on « À traiter »: « <title> est
+reparti », one message per lift (« 6 acquisitions sont reparties ») (§ 1.4).
 
-### OPEN 6 — Does an external block offer an act beside its door?
+### DECIDED 6 — Does an external block offer an act beside its door?
 
 *On the screen*: the foot of a « Disque plein » or « Ratio trop bas » card: today one door, room for two feet.
 
@@ -472,7 +577,8 @@ screen he is reading.
 - **B — the door and « Abandonner »**, as the tunnel error offers it. *Gain*: one tap; *cost*: a destructive act at
   the thumb on a card that will resolve by itself; ≈ 1 point.
 
-**Recommendation: A.**
+**DECIDED: A** — an external block's card foot holds its door alone (« Voir les disques », « Voir le tracker »);
+« Abandonner » stays in the card's panel (§ 1.3).
 
 ---
 
@@ -486,6 +592,9 @@ screen he is reading.
 | A tunnel error card in « À traiter » says no cause (Furious, `acq-card-follow-error`) | `poseTunnelError` / RULINGS 26 | the posed error carries a step and no sentence; no rule reads the reason line of every card | R501 |
 | The space and missing deferrals offer no door | R265 hold 5 (« neither other cause does ») | only the ratio cause had a page to go to | R502, Système's door |
 
+Filed by the lot: **B-671** — the error card (`acq-card-follow-error`) shows no cause — fixed in phase 2, held by R501.
+**B-475** (`BUGS.md`, his ruling B) is the lot's last phase, held by R510.
+
 **Backend demands — K4 of the brief** (`docs/reference/backend-brief.md` § 6), in its shape; said to the
 orchestrator, who owns the brief:
 
@@ -493,10 +602,12 @@ orchestrator, who owns the brief:
 | --- | --- | --- |
 | **BK1 — every block classified** | a tunnel stopped for an external cause records its token (the three of `deferral.py` and the five new), its rung, `resumes: auto`, its time and its details (tracker, threshold, provider, size); a block for his judgement `resumes: hand`; served on the rung | Q7 « chaque carte dit sa cause »; § 0.1 item 3 |
 | **BK2 — a watch per cause's lift** | free space ≥ the need (staging, then the library's disks), the torrent's ratio ≥ the tracker's own threshold, the tracker / provider / Plex / client answering — each lift resumes the persisted step under the supervisor (Q5) and emits the live event that invalidates the queue; the journey records block and resume | Q7 « REPREND DE LUI-MÊME »; the brief's « Cost: each external cause needs a watch on its own lift » |
-| **BK3 — a vanished medium closes** | `requeue_missing` (`_wanted_store.py:585`) no longer re-opens silently: the tunnel closes with `torrent_removed` or `files_absent` (the volume present — OPEN 4 = A; the volume absent stays the `content_missing` block); a medium found filed by hand (by provider id) ends with no closure; a medium back opens a new tunnel | Q8 |
+| **BK3 — a vanished medium closes** | `requeue_missing` (`_wanted_store.py:585`) no longer re-opens silently: the tunnel closes with `torrent_removed` or `files_absent` (the volume present — DECIDED 4 = A; the volume absent stays the `content_missing` block); a medium found filed by hand (by provider id) ends with no closure; a medium back opens a new tunnel | Q8 |
 | **BK4 — the last chosen wins at filing** | first verify that the engine knows, at filing, the choice date of the release whose file is in place (`staging_provenance.grabbed_at` per hash exists, `_provenance_store.py:173`; the file → hash link is not measured); a file with no known date is older than anything; an older-chosen release is not filed, its torrent seeds, its tunnel closes `superseded` with the winner's release line; a pack files every episode but the ones held by a later choice, named in its journey | Q9 |
 | **BK5 — seen is stored** | `dismissClosure` records that the account saw the closure; the queue answers `closure` until then, per account (the badge counts the account's own cards, R-L18-g) | Q8, Q9 « une fois », A6 |
 | **BK6 — reachability served** | Plex as a dependency of `readDependencies`; `reachable` and `since` per tracker on `readTrackers`; « ne répond pas depuis » on every dependency | § 1.3: the door lands on a page that says the same cause |
+| **BK7 — held episodes off the catalogue** | per season, the held episode numbers the catalogue does not list (`offCatalogue: number[]`), the fraction staying on what aired | B-475 = B, § 1.10 |
+| **BK8 — two dates per follow** | `addedAt` (the follow's creation) and `nextAirDate` (the next release, null when none) on `readFollows` | his round 3 q1 = C, Suivis' sort pill, § 1.9 |
 
 **`docs/reference/product-intent-map.md`**, read, not edited: the lot adds proofs under DOIT-2 (each « rien » says
 why — R501), DOIT-5 (the resume seen — R503), § 20 point 2 (a block ends the execution and resumes — R503) and
@@ -504,7 +615,7 @@ NE-DOIT-PAS-2 (no waiting invisible — R500); proposed to the operator at the c
 
 ---
 
-## 7. A first cut of the phases — after his round
+## 7. The phases — after his round
 
 One phase is one surface (`docs/reference/method.md`). Each phase's gate is the CLAUDE.md phase gate; the harness
 rules run in CI on the pull request.
@@ -512,9 +623,11 @@ rules run in CI on the pull request.
 | Phase | Surface | What | Rules |
 | --- | --- | --- | --- |
 | **1 — the slot** | the derivation | the contract fields of § 2 in the maquette's contract (`frontend/maquette/contract/`); `todoCards` / `inFlightCards` read `resumes` and `closure` over every list; `poseBlock` / `liftBlock` / `poseClosure`; the deferred card moves; the badge follows; « En cours »' note and the empty words | R500, R506; re-aim R209, R224, R236, R265 |
-| **2 — « À traiter » whole** | the tab | the sections and their order (OPEN 1), the tone (OPEN 3), the cause + lift lines for every token, the failed step's words, the five new causes posed, `harness/states/blocked.ts` | R501 |
+| **2 — « À traiter » whole** | the tab | the flat list in the urgency order, the filter and sort pills (the tracker selector generalised to `ui/`, DECIDED 1), the « waiting » tone (DECIDED 3), the cause + lift lines for every token, the failed step's words (B-671), the five new causes posed, the content-missing split (DECIDED 4), `harness/states/blocked.ts` | R501, R508 |
 | **3 — the doors** | Système, Trackers | the generalised door table, Système's landing door, the Plex dependency row, the tracker's reachability fact, the reserved door | R502; re-aim R-navigation-a |
-| **4 — the auto-resume** | the live path | `liftBlock`'s live event, the many-cards lift, the message (OPEN 5), the journey's block / resume lines | R503 |
-| **5 — the closures** | the closure card | Q8 and Q9 cards, the « × » foot option (OPEN 2), `dismissClosure` and its failure, filed-by-hand, medium back, the film and the pack cases | R504, R505, R507 |
+| **4 — the auto-resume** | the live path | `liftBlock`'s live event, the many-cards lift, the message on « À traiter » (DECIDED 5), the journey's block / resume lines | R503 |
+| **5 — the closures** | the closure card | Q8 and Q9 cards, « Marquer comme vu » in the card's panel (DECIDED 2), `dismissClosure` and its failure, filed-by-hand, medium back, the film and the pack cases | R504, R505, R507 |
+| **6 — the pills elsewhere** | Médiathèque, Suivis | the one filter pill replaces the category and follow pills; the sort pill (six library ways; Suivis' five, the two dates in the seed) | R509; re-aim `filters.py`, `library_sort.py` |
+| **7 — B-475** | the season row | « hors catalogue (n) » under a season holding numbers the catalogue does not list | R510 |
 
 The lot's reading at 390 px on tm-design closes it (method: ONE independent reader, one round).
