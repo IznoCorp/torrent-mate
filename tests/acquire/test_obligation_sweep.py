@@ -165,6 +165,15 @@ def test_is_met_is_pure_and_reads_the_snapshot_floors() -> None:
     assert not is_met(ob, _item("aaaa", seeding_time_s=_FLOOR_S - 1), SeedRule(False, 0, 0.1))  # type: ignore[arg-type]
 
 
+def test_default_rule_ratio_margin_is_pinned(store: ConcreteAcquireStore) -> None:
+    """With ``DEFAULT_SEED_RULE`` itself, ratio 1.05 is not met and 1.1 is (floor 1.0 + 0.1 margin)."""
+    under, over = _add(store, "aaaa"), _add(store, "bbbb")
+    client = FakeClient([_item("aaaa", seeding_time_s=10, ratio=1.05), _item("bbbb", seeding_time_s=10, ratio=1.1)])
+    _sweep(store, client, rule=DEFAULT_SEED_RULE)
+    assert _row(store, under)["satisfied_at"] is None
+    assert _row(store, over)["satisfied_at"] == _NOW
+
+
 # -- 4: absence is confirmed before a release ------------------------------------------------
 
 
@@ -201,6 +210,83 @@ def test_hash_case_does_not_make_a_torrent_absent(store: ConcreteAcquireStore) -
     _sweep(store, client)
     assert client.calls == [{"aaaa"}]
     assert _row(store, oid)["satisfied_at"] == _NOW
+
+
+def test_a_satisfied_obligation_whose_torrent_leaves_is_released(store: ConcreteAcquireStore) -> None:
+    """Released means gone, met or not: a satisfied row is released after the confirmed absence, once."""
+    oid = _add(store)
+    assert store.seed.mark_satisfied(oid, 10) == 1
+    bus, seen = _recording_bus()
+    empty = FakeClient([])
+    _sweep(store, empty, now=_NOW, bus=bus)
+    assert (_row(store, oid)["absent_since"], _row(store, oid)["released_at"]) == (_NOW, None)
+    _sweep(store, empty, now=_NOW + _CONFIRM_S, bus=bus)
+    row = _row(store, oid)
+    assert (row["satisfied_at"], row["released_at"]) == (10, _NOW + _CONFIRM_S)
+    assert [(type(e), e.info_hash) for e in seen] == [(SeedObligationReleased, "aaaa")]  # type: ignore[attr-defined]
+
+
+def test_a_satisfied_obligation_seen_again_is_neither_restamped_nor_announced(store: ConcreteAcquireStore) -> None:
+    """A present satisfied row keeps its stamp, clears a pending absence and emits no second Satisfied."""
+    oid = _add(store)
+    assert store.seed.mark_satisfied(oid, 10) == 1
+    bus, seen = _recording_bus()
+    _sweep(store, FakeClient([]), now=_NOW, bus=bus)
+    _sweep(store, FakeClient([_item("aaaa", seeding_time_s=_FLOOR_S)]), now=_NOW + 60, bus=bus)
+    row = _row(store, oid)
+    assert (row["satisfied_at"], row["absent_since"], row["released_at"]) == (10, None, None)
+    assert seen == []
+
+
+class _ZeroWriteSeed:
+    """The real seed store for reads, every write reporting that no row changed."""
+
+    def __init__(self, real: object) -> None:
+        """Wrap *real*.
+
+        Args:
+            real: The real seed sub-store the reads go to.
+        """
+        self._real = real
+
+    def __getattr__(self, name: str) -> object:
+        """Delegate reads to the real store."""
+        return getattr(self._real, name)
+
+    def mark_satisfied(self, obligation_id: int, satisfied_at: int) -> int:
+        """Pretend the row was already closed."""
+        return 0
+
+    def mark_released(self, obligation_id: int, released_at: int) -> int:
+        """Pretend the row was already closed."""
+        return 0
+
+
+def test_a_write_that_changed_nothing_emits_and_counts_nothing(store: ConcreteAcquireStore) -> None:
+    """When ``mark_satisfied`` / ``mark_released`` report 0 rows, no event and no count."""
+    _add(store, "aaaa")
+    _add(store, "bbbb")
+    fake_store = SimpleNamespace(seed=_ZeroWriteSeed(store.seed))
+    bus, seen = _recording_bus()
+    client = FakeClient([_item("aaaa", seeding_time_s=_FLOOR_S)])
+    first = sweep_obligations(
+        fake_store,
+        client,
+        now=_NOW,
+        rule=_RULE,
+        event_bus=bus,
+        confirm_absent_after_s=_CONFIRM_S,  # type: ignore[arg-type]
+    )
+    last = sweep_obligations(
+        fake_store,
+        client,
+        now=_NOW + _CONFIRM_S,
+        rule=_RULE,
+        event_bus=bus,
+        confirm_absent_after_s=_CONFIRM_S,  # type: ignore[arg-type]
+    )
+    assert (first.satisfied, last.released) == (0, 0)
+    assert seen == []
 
 
 # -- events: one per write, none without a write ---------------------------------------------
