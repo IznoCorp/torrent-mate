@@ -51,7 +51,7 @@ rest (the folded section, its reason, the count, the panel).
 """
 import asyncio
 
-from common import Journal, open_page, browser_channel, chrome_launch_args
+from common import Journal, open_page, screen_arrives, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 # The engine's own words. None of them may reach a screen.
@@ -224,7 +224,7 @@ async def main():
         await go(pg, "acq-resolution-tie")
         await pg.wait_for_timeout(420)
         await pg.evaluate("()=>window.__screens.resolution()")
-        await pg.wait_for_timeout(420)
+        await screen_arrives(pg, "resolution:")
         standing = """()=>{const screen = document.querySelector('[data-part="screen"][data-open][data-key^="resolution:"]');
           return {key: screen ? screen.dataset.key : null,
                   next: !!document.querySelector('[data-next]')};}"""

@@ -31,7 +31,7 @@ import json
 import pathlib
 from urllib.parse import quote
 
-from common import ACTED, PAGE_PATHS, PHONE, PROTOTYPE, SETTLED, Journal, browser_channel, chrome_launch_args
+from common import ACTED, PAGE_PATHS, PHONE, PROTOTYPE, SETTLED, Journal, browser_channel, chrome_launch_args, ready
 from playwright.async_api import async_playwright
 
 ROOT = PROTOTYPE.rstrip("/")
@@ -130,7 +130,7 @@ async def main():
         context, page, errors = await fresh(browser)
         await settle(page, ROOT)
         await page.evaluate("()=>window.__go('acq-resolution-tie')")
-        await page.wait_for_timeout(SETTLED)
+        await ready(page)
         read = await page.evaluate("""(s) => {
           const screen = document.querySelector(s);
           return { screen: !!screen, next: !!document.querySelector('[data-next]'),

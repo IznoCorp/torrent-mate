@@ -54,7 +54,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, Journal, PANEL_IN, PANEL_OUT, SETTLED, open_page, browser_channel, chrome_launch_args
+from common import ACTED, Journal, PANEL_IN, PANEL_OUT, SETTLED, open_page, browser_channel, chrome_launch_args, ready
 
 from playwright.async_api import async_playwright
 
@@ -195,7 +195,7 @@ async def main():
             # have happened before its panel means anything.
             if kind == "add":
                 await page.evaluate("()=>window.__go('acq-add-results')")
-                await page.wait_for_timeout(SETTLED)
+                await ready(page)
                 await page.evaluate("()=>window.__panel.close()")
                 await page.wait_for_timeout(PANEL_OUT)
             expected = await page.evaluate(f"()=>{expected_from}")

@@ -26,7 +26,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import Journal, open_page, browser_channel, chrome_launch_args
+from common import Journal, open_page, browser_channel, chrome_launch_args, ready
 
 _journal = None
 
@@ -46,7 +46,7 @@ async def main():
         pg.on("pageerror", lambda e: errors.append(str(e)))
 
         await pg.evaluate("()=>window.__go('acq-add-results')")
-        await pg.wait_for_timeout(400)
+        await ready(pg)
         # The add screen left `#screen` for a real route (`/add`, rendered
         # inside `#coquille`): its results list is `[data-part="screen"][data-open]`, not
         # literally `#screen` — and so is the FICHE this journey opens further
@@ -134,7 +134,7 @@ async def main():
 
         # ── Exit 2: the « Retour » button on the sheet ──────────────────────
         await pg.evaluate("()=>window.__go('acq-add-results')")
-        await pg.wait_for_timeout(400)
+        await ready(pg)
         await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card/poster"]').click()""")
         await pg.wait_for_timeout(450)
         # Same mediaSheet as exit 1, and its own « Retour » is clicked on the screen

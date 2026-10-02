@@ -29,7 +29,7 @@ import asyncio
 import json
 import pathlib
 
-from common import SETTLED, Journal, browser_channel, chrome_launch_args, open_page
+from common import SETTLED, Journal, browser_channel, chrome_launch_args, open_page, ready
 from playwright.async_api import async_playwright
 
 SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
@@ -97,7 +97,7 @@ async def main():
         calls = await page.evaluate("()=>window.__mocks.answered().length")
         answer = await page.evaluate(
             "()=>{try{window.__go('ranking-editor');return null}catch(error){return String(error)}}")
-        await page.wait_for_timeout(SETTLED)
+        await ready(page)
         drawn = await page.evaluate(ROWS)
         # THE SCREEN'S OWN CALLS, read before the rule asks the operation itself.
         asked = await page.evaluate(CALLS, calls)
@@ -132,7 +132,7 @@ async def main():
         await page.evaluate("()=>{window.__go('settings')}")
         await page.wait_for_timeout(SETTLED)
         await page.evaluate("()=>{window.__go('ranking-editor')}")
-        await page.wait_for_timeout(SETTLED)
+        await ready(page)
         raised = await page.evaluate(RAISE_MINIMUM, POSED_MINIMUM)
         await page.evaluate(REREAD)
         await page.wait_for_timeout(SETTLED)
@@ -152,7 +152,7 @@ async def main():
 
         # ── no minimum in the file: the engine's own default ──────────────
         await page.evaluate("()=>{window.__go('ranking-editor')}")
-        await page.wait_for_timeout(SETTLED)
+        await ready(page)
         dropped = await page.evaluate(DROP_MINIMUM)
         await page.evaluate(REREAD)
         await page.wait_for_timeout(SETTLED)

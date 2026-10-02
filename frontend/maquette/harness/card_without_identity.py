@@ -25,7 +25,7 @@ import asyncio
 import json
 import pathlib
 
-from common import ACTED, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
+from common import SETTLED, Journal, open_page, screen_arrives, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 SEEDS = pathlib.Path(__file__).resolve().parents[1] / "design/src/mocks/seeds"
@@ -105,7 +105,7 @@ async def main():
         if card.get("resolution"):
             await page.evaluate("""(title)=>[...document.querySelectorAll('#view [data-part="card/foot"]')]
                 .find(foot => foot.getAttribute('data-resolution') === title).click()""", FOLDER["title"])
-            await page.wait_for_timeout(ACTED)
+            await screen_arrives(page, f"resolution:{FOLDER['title']}")
             opened = await page.evaluate(
                 """()=>document.querySelector('[data-part="screen"][data-open]')?.dataset.key ?? null""")
             journal.check("a tap on it opens the candidates screen on that folder",

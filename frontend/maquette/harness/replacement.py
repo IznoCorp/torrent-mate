@@ -36,7 +36,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, Journal, PANEL_IN, PANEL_OUT, SETTLED, open_page, browser_channel, chrome_launch_args
+from common import ACTED, Journal, PANEL_IN, PANEL_OUT, SETTLED, open_page, browser_channel, chrome_launch_args, ready
 
 from playwright.async_api import async_playwright
 
@@ -68,7 +68,7 @@ async def main():
         page.on("pageerror", lambda error: errors.append(str(error)))
 
         await page.evaluate("()=>window.__go('acq-add-results')")
-        await page.wait_for_timeout(SETTLED)
+        await ready(page)
         where = await page.evaluate(OWNED_AT)
         journal.check(
             "the search really answers a result the library OWNS and one it "

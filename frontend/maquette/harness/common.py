@@ -24,6 +24,7 @@ import sys
 from urllib.parse import urlparse
 
 import served_copy
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -582,6 +583,34 @@ async def ready(page):
     return await page.evaluate(READY, READY_CEILING_MS)
 
 
+async def screen_arrives(page, key, ceiling=READY_CEILING_MS):
+    """Waits until the open screen is the one a tap or a state asked for.
+
+    A screen replaces the one before it frames after the ask, and for those
+    frames the PREVIOUS screen is still the open one — so a reading of which
+    screen is open, taken after a fixed wait, can name the last case's.
+    `ready` cannot say it: nothing is fetching or animating in between.
+
+    Args:
+        page: The Playwright page.
+        key: The screen's `data-key`; ends with `:` to accept any key of that
+            kind (`resolution:`).
+        ceiling: The most it waits, in milliseconds.
+
+    Returns:
+        True when the screen arrived, False when the ceiling came first — the
+        reading taken then names what is open, and the rule says so.
+    """
+    try:
+        await page.wait_for_function(
+            """(key) => [...document.querySelectorAll('[data-part="screen"][data-open]')]
+                 .some((one) => key.endsWith(':') ? one.dataset.key?.startsWith(key) : one.dataset.key === key)""",
+            arg=key, timeout=ceiling)
+        return True
+    except PlaywrightTimeoutError:
+        return False
+
+
 class Journal:
     """Collects the verdicts of one script and decides its exit code.
 
@@ -662,18 +691,26 @@ async def open_page(browser, **kwargs):
 async def read_at(page, state, script, argument=None, wait=SETTLED):
     """Asks for a named state, lets it settle, and reads it.
 
+    THE WAIT IS A FLOOR, AND THE PAGE SAYS WHEN IT IS OVER. A state that pushes
+    a screen mounts it frames after `__go` returns and only then asks for what
+    it draws, so a fixed wait alone is a bet on the runner (`take.py` counted 0
+    releases at `SETTLED` on PR #680's CI run). The number is kept as the
+    floor, for a state that acts on a timer the page cannot report; `ready`
+    then waits for the rest.
+
     Args:
         page: The Playwright page.
         state: The named state's id, as `window.__go` takes it.
         script: The reading, evaluated once the state has settled.
         argument: What the reading takes, if anything.
-        wait: How long the state is let settle — `PANEL_IN` for one opening a panel.
+        wait: The least the state is let settle — `PANEL_IN` for one opening a panel.
 
     Returns:
         The reading's answer.
     """
     await page.evaluate("(id)=>window.__go(id)", state)
     await page.wait_for_timeout(wait)
+    await ready(page)
     return await page.evaluate(script, argument)
 
 
