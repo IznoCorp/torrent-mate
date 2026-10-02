@@ -6,6 +6,18 @@
 import { cva } from "../cva";
 
 /**
+ * « YOU ARE HERE », the one way the interface says it on an entry that chooses a
+ * place: the brand colour on the label, on a tint of it. The side menu's current
+ * entry (`drawerEntry`) and a sheet's menu entry for the page one is on
+ * (`actionButton`'s `current` tone, B-675) both wear THIS string, so the two
+ * menus cannot say it two ways. The surface is a TINT of the mark, never the mark
+ * itself: painting the mark as the background left the label exactly the colour
+ * of what it sat on — contrast 1.00, a label in invisible ink.
+ */
+export const CURRENT_PLACE =
+  "[background:color-mix(in_oklab,var(--color-primary)_14%,transparent)] text-primary-text font-semibold";
+
+/**
  * ONE ACTION-BUTTON SYSTEM.
  *
  * Every full-width action has its content CENTRED. The shipped component
@@ -97,6 +109,9 @@ export const actionButton = cva(
         solid: "solid",
         owned: "owned",
         done: "done",
+        // A MENU'S ENTRY FOR THE PAGE ONE IS ALREADY ON (B-675): still offered —
+        // its tap closes the menu, as the side menu's does — and marked.
+        current: "current",
       },
     },
     compoundVariants: [
@@ -115,6 +130,7 @@ export const actionButton = cva(
         tone: "primary",
         class: "border-primary bg-primary text-primary-foreground [&_svg]:text-primary-foreground",
       },
+      { kind: "panelAction", tone: "current", class: `border-border ${CURRENT_PLACE} [&_svg]:text-primary-text` },
       { kind: "cardFoot", tone: "plain", class: "border-primary bg-transparent text-primary-text" },
       { kind: "cardFoot", tone: "solid", class: "border-primary bg-primary text-primary-foreground" },
       // The action is still offered, but it will REPLACE something already
