@@ -1,0 +1,19 @@
+{
+  "status": 503,
+  "headers": {
+    "Retry-After": "30"
+  },
+  "body": {
+    "error": {
+      "code": 503,
+      "message": "The service is currently unavailable.",
+      "status": "UNAVAILABLE",
+      "details": [
+        {
+          "@type": "type.googleapis.com/google.firebase.fcm.v1.FcmError",
+          "errorCode": "UNAVAILABLE"
+        }
+      ]
+    }
+  }
+}

@@ -119,7 +119,7 @@ PLANT_LANDING = """() => { const control = document.createElement('button');
   document.querySelector('#view')?.prepend(control); control.scrollIntoView(); }"""
 LANDED = """() => ({page: window.state?.page ?? null, filter: window.state?.trackersFilter ?? null,
   search: location.search,
-  line: document.querySelector('#view [data-part="torrents/selector"]')?.getAttribute('aria-pressed') === 'true'})"""
+  line: document.querySelector('#view [data-part="pill/select"][data-trackers-selector]')?.getAttribute('aria-pressed') === 'true'})"""
 # The word the obligations went by in the sheet's promise.
 OBLIGATIONS_WORD = "obligations"
 

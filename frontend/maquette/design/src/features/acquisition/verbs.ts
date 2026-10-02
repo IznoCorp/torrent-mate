@@ -1,7 +1,7 @@
 // THE ACQUISITION'S VERBS, declared to the tap registry.
 //
-// The page's tabs, the follows list's pill and layout, the discover surface's
-// mode and its TMDB connection, and the acts the acquisition panels offer — a
+// The page's tabs, the follows list's layout (its pills are
+// `follows-pill-verbs.ts`'s), the discover surface's mode and its TMDB connection, and the acts the acquisition panels offer — a
 // followed medium's primary act, an incomplete series' completion, the watch's
 // run, the journey and the « more » panel. Each was a branch of the document's
 // delegation; each is answered here, where what it acts on is known.
@@ -25,8 +25,8 @@ import { baseTitle } from "../../lib/titles";
 import { settleSwipeRow } from "./follow-verbs";
 
 /* THE PAGE'S SELECTORS. A TAB IS A SETTING OF THE PAGE, so its address
-   REPLACES the entry it is on and the list starts again from the top; a pill or
-   a layout changes what the list shows and writes no address at all. */
+   REPLACES the entry it is on and the list starts again from the top; a
+   layout changes what the list shows and writes no address at all. */
 registerVerb("acqtab", (tab) => {
   rememberTab(tab);
   store.write({ acqTab: tab });
@@ -34,10 +34,6 @@ registerVerb("acqtab", (tab) => {
   if (port !== null) port.scrollTop = 0;
   redraw();
   replaceAddress?.();
-});
-registerVerb("pill", (pill) => {
-  store.write({ pill });
-  redraw();
 });
 registerVerb("fmode", (mode) => {
   store.write({ followMode: mode });

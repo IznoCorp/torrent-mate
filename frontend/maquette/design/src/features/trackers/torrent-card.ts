@@ -22,7 +22,8 @@ import { escapeMarkup } from "../../ui/markup";
 import { svgIcon } from "../../lib/markup-text";
 import type { LegendEntry } from "../../ui/legend";
 import { swipeAction, type ChipTone, type LegendTone } from "../../ui/variants";
-import { dayOf, rateOf, sizeOf, written } from "./format";
+import { rateOf, sizeOf, written } from "../../lib/byte-size";
+import { dayOf } from "./format";
 import type { Download, Obligation, Tracker } from "./queries";
 import { isComplete, isSearchable, trackerOffBy } from "./cross-seed-state";
 

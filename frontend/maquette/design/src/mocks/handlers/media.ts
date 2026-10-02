@@ -293,15 +293,36 @@ export function seasonsAnswer(titles: string[]) {
   // `{number, episodes, airDate}`; the counted family is keyed `{season, aired,
   // owned}` and answered as it was, so a series with no sheet catalogue drew
   // rows whose number was `undefined`. It is answered in the catalogue's names.
-  const catalogue = (found?.seasons as unknown[] | undefined)
+  const catalogue = (found?.seasons as { number: number; episodes: number | null }[] | undefined)
     ?? ((counted ?? []) as { season: number; aired: number | null }[])
       .map((one) => ({ number: one.season, episodes: one.aired }));
+  // A SEASON SHELVED BY ITS RECOVERY is held whole from then on.
+  const owned = { ...(underAnyTitle(OWNED_EPISODES as ByTitle, titles) ?? {}), ...shelvedEpisodes(titles) } as Record<string, number[]>;
   return {
-    seasons: catalogue,
-    // A SEASON SHELVED BY ITS RECOVERY is held whole from then on.
-    owned: { ...(underAnyTitle(OWNED_EPISODES as ByTitle, titles) ?? {}), ...shelvedEpisodes(titles) } as Record<string, number[]>,
+    // Each season says the held numbers its catalogue does not list (BK7).
+    seasons: catalogue.map((season) => ({ ...season, offCatalogue: offCatalogue(season, owned) })),
+    owned,
     aired: airedBySeason(found, counted),
   };
+}
+
+/**
+ * The held numbers of one season above what its catalogue lists (BK7).
+ *
+ * ABOVE THE CATALOGUE'S OWN COUNT, never above what aired: a held episode the
+ * catalogue announces and has not aired is listed, so it is not off the
+ * catalogue. A season whose catalogue gives no count lists nothing to be above.
+ *
+ * @param season The catalogue's season: its number and how many episodes it lists.
+ * @param owned The held numbers, by season.
+ * @returns The held numbers above the catalogue, ascending, each once.
+ */
+function offCatalogue(season: { number: number; episodes: number | null }, owned: Record<string, number[]>): number[] {
+  const total = season.episodes;
+  if (total == null) return [];
+  return [...new Set(owned[String(season.number)] ?? [])]
+    .filter((number) => number > total)
+    .sort((left, right) => left - right);
 }
 
 /* The two providers an identity is addressed by, in the order the served

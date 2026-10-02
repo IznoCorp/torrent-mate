@@ -234,45 +234,6 @@ export function tunnelStates(): NamedState[] {
       },
     ],
     [
-      "acq-card-deferred-ratio",
-      "En cours — un torrent terminé différé pour ratio sous le seuil de c411, POSÉ sur This City Is Ours (le back-end lira classify_deferrals)",
-      () => {
-        // A DERIVATION, SHOWN AS ONE: no real card is deferred, so the cause is
-        // posed on the one acquisition in flight that has not arrived.
-        window.__mocks?.reset();
-        window.__mocks?.poseDeferral("This City Is Ours", "ratio_below_threshold", "c411");
-        window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
-        window.__queries?.removeQueries({ queryKey: ["/api/staging/media"] });
-        applyState({ page: "acq", acqTab: "now", scen: "loaded", phase: "ready" });
-      },
-    ],
-    [
-      "acq-card-deferred-space",
-      "En cours — un torrent terminé différé faute d'espace, POSÉ sur This City Is Ours (le back-end lira classify_deferrals)",
-      () => {
-        // A DERIVATION, SHOWN AS ONE: no real card is deferred, so the cause is
-        // posed on the one acquisition in flight that has not arrived.
-        window.__mocks?.reset();
-        window.__mocks?.poseDeferral("This City Is Ours", "insufficient_space");
-        window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
-        window.__queries?.removeQueries({ queryKey: ["/api/staging/media"] });
-        applyState({ page: "acq", acqTab: "now", scen: "loaded", phase: "ready" });
-      },
-    ],
-    [
-      "acq-card-deferred-missing",
-      "En cours — un torrent terminé différé, contenu manquant, POSÉ sur This City Is Ours (le back-end lira classify_deferrals)",
-      () => {
-        // A DERIVATION, SHOWN AS ONE: no real card is deferred, so the cause is
-        // posed on the one acquisition in flight that has not arrived.
-        window.__mocks?.reset();
-        window.__mocks?.poseDeferral("This City Is Ours", "content_missing");
-        window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
-        window.__queries?.removeQueries({ queryKey: ["/api/staging/media"] });
-        applyState({ page: "acq", acqTab: "now", scen: "loaded", phase: "ready" });
-      },
-    ],
-    [
       "acq-card-follow-error",
       "À traiter — une erreur de tunnel sur la carte d'un SUIVI, POSÉE sur Furious (le back-end lira l'étape en échec du suivi — RULINGS 26)",
       () => {

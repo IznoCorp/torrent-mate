@@ -6,8 +6,13 @@ This guard extracts ``__version__`` from ``personalscraper/__init__.py`` on
 HEAD and on the PR base ref and fails when HEAD's version is not strictly
 greater. It is the CI teeth behind the « bump à chaque PR » discipline.
 
+Every PR lands on `develop` (or on `prod` for a hotfix), so `origin/develop` is
+the default base; CI passes the PR's own base. Versions compare as tuples of
+ints, which is what orders a hotfix's fourth component between two patches:
+0.98.131 < 0.98.131.1 < 0.98.132 (docs/features/git-flow/DESIGN.md § 2).
+
 Usage:
-  scripts/check_version_bump.py --base origin/main
+  scripts/check_version_bump.py --base origin/develop
 
 A genuinely version-neutral PR (docs-only, CI-only) can override via a PR
 label handled in the workflow — this script always enforces the bump.
@@ -52,7 +57,7 @@ def _base_version(base_ref: str) -> tuple[int, ...] | None:
     """Read the version from ``__init__.py`` at *base_ref* via ``git show``.
 
     Args:
-        base_ref: The base ref (e.g. ``origin/main``).
+        base_ref: The base ref (e.g. ``origin/develop``).
 
     Returns:
         The parsed base version, or ``None`` when the file/ref is unavailable.
@@ -72,7 +77,7 @@ def _base_version(base_ref: str) -> tuple[int, ...] | None:
 def main() -> int:
     """Compare HEAD vs base ``__version__`` and enforce a strict bump."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("--base", default="origin/main", help="Base ref to compare against.")
+    parser.add_argument("--base", default="origin/develop", help="Base ref to compare against.")
     args = parser.parse_args()
 
     with open(_INIT_PATH, encoding="utf-8") as fh:

@@ -8,6 +8,7 @@ import { accountRoutes } from "./accounts";
 import { acquisitionRoutes } from "./acquisition";
 import { acquisitionVerbRoutes } from "./acquisition-verbs";
 import { authenticationRoutes } from "./authentication";
+import { closureRoutes } from "./posed-closure";
 import { completenessRoutes } from "./completeness";
 import { configurationRoutes } from "./configuration";
 import { crossSeedRoutes } from "./cross-seed";
@@ -33,6 +34,7 @@ export function routes(): MockRoute[] {
     ...mediaRoutes(),
     ...acquisitionRoutes(),
     ...acquisitionVerbRoutes(),
+    ...closureRoutes(),
     ...requesterRoutes(),
     ...completenessRoutes(),
     ...stagingRoutes(),

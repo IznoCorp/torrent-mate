@@ -22,6 +22,7 @@ import { systemStates } from "./states/system";
 import { trackersStates } from "./states/trackers";
 import { crossSeedStates } from "./states/cross-seed";
 import { tunnelStates } from "./states/tunnel";
+import { blockedStates } from "./states/blocked";
 
 /**
  * Every named state, in the order `__states()` has always listed them.
@@ -40,6 +41,7 @@ function namedStates(): NamedState[] {
     ...seasonRecoveryStates(),
     ...libraryStates(),
     ...tunnelStates(),
+    ...blockedStates(),
     ...mediaStates(),
     ...drawerStates(),
     ...menuStates(),

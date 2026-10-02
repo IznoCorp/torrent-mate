@@ -48,9 +48,18 @@ SILO_PANEL = "tap:#view [data-panel='media:Silo']"
 ADD_ACTION = 'tap:[data-part="shell/add-action"]'
 
 # A ratio deferral no seed carries at rest, posed the way `acq-card-deferred-ratio`
-# poses it, over the loaded world: the card then offers « Voir le tracker ».
-RATIO_DEFERRAL = ("js:(()=>{window.__mocks.poseDeferral('This City Is Ours',"
-                  "'ratio_below_threshold','c411');"
+# poses it, over the loaded world: the card then offers « Voir le tracker » — in
+# « À traiter » since Q7 (re-aimed out loud, maquette-blocked: the deferred card
+# left « En cours »).
+RATIO_DEFERRAL = ("js:(()=>{window.__mocks.poseBlock('This City Is Ours',"
+                  "'ratio_below_threshold',{tracker:'c411'});"
+                  "window.__queries.removeQueries({queryKey:['/api/acquisition/to-handle']});"
+                  "window.__queries.removeQueries({queryKey:['/api/staging/media']});"
+                  "window.__store.write({scen:'loaded'});return true})()")
+
+# A space deferral, posed the same way: the card then offers « Voir les disques »
+# (maquette-blocked § 1.3, the ratio's door generalised to every external cause).
+SPACE_DEFERRAL = ("js:(()=>{window.__mocks.poseBlock('This City Is Ours','insufficient_space');"
                   "window.__queries.removeQueries({queryKey:['/api/acquisition/to-handle']});"
                   "window.__queries.removeQueries({queryKey:['/api/staging/media']});"
                   "window.__store.write({scen:'loaded'});return true})()")
@@ -118,10 +127,14 @@ EDGES = [
     # « Voir le tracker » lands on Trackers WITH THE TRACKER'S PANEL UP (#657): a
     # layer, so the first Retour closes it, as every panel's does, and the next
     # returns to Acquisition — re-aimed 2026-09-30.
-    {"edge": "L1", "walk": [RATIO_DEFERRAL, "tap:[data-acqtab=now]", 'tap:#view [data-go="trackers"]'],
+    {"edge": "L1", "walk": [RATIO_DEFERRAL, "tap:[data-acqtab=todo]", 'tap:#view [data-go="trackers"]'],
      "landing": (TRACKERS, "trackers", False, True),
      "stops": [(TRACKERS, "trackers", False, False), HOME_STOP],
      "emits": ["features/acquisition/card-markup.ts:go=TRACKERS_PAGE"]},
+    # « Voir les disques » (maquette-blocked, R502): a link inside a page, it STACKS —
+    # Retour from Système gives « À traiter » back.
+    {"edge": "L7", "walk": [SPACE_DEFERRAL, "tap:[data-acqtab=todo]", 'tap:#view [data-go="sys"]'],
+     "stops": [HOME_STOP], "emits": ["features/acquisition/card-markup.ts:go=SYSTEM_PAGE"]},
     {"edge": "L2", "start": "nimportequoi", "walk": ['tap:[data-go="acq"]'],
      "stops": [("/nimportequoi", "404", False)], "emits": ["app/not-found.tsx:go=acq"]},
     {"edge": "L3", "walk": ["bar:lib", "tap:[data-lens=inc]", "press:#view [data-panel]",

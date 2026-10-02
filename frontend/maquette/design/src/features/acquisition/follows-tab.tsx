@@ -4,7 +4,8 @@ import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { type Follow } from "./types";
 import { useFollows, useGrabCadence } from "./queries";
 import { useUiState } from "../../lib/store-access";
-import { FollowsFilters } from "./follows-filters";
+import { FollowsFilters, followFilterInForce, followSortInForce } from "./follows-filters";
+import { followsInView, orderFollows } from "./follow-order";
 import { body, emptyNote, posterGrid, section as sectionClass, swipeAction } from "../../ui/variants";
 import { Markup, emptyNoteMarkup, sectionInnerMarkup } from "../../ui/markup";
 import { Disclosure } from "../../ui/disclosure";
@@ -19,7 +20,6 @@ import { useRights } from "../../lib/account";
 import { actOffered } from "./act-rights";
 import {
   STATUS_TONE,
-  URGENCY,
   cadenceSentence,
   followFraction,
   followGroups,
@@ -34,10 +34,10 @@ import {
 const SEARCH_AGAIN = "chercher"; // french-ok: a data-attribute value, a contract
 
 // « Suivis » — what one has asked the machine to watch. Three display modes
-// (list, grouped, grid), a filter that ignores case and accents, and four
-// pills. The page says out loud, in its own note, that the cadence is printed
-// as the scheduler returns it — a raw cron expression on a phone card, which
-// it names as the defect it is rather than hiding.
+// (list, grouped, grid), a filter that ignores case and accents, and the one
+// filter pill and sort pill. The page says out loud, in its own note, that the
+// cadence is printed as the scheduler returns it — a raw cron expression on a
+// phone card, which it names as the defect it is rather than hiding.
 export function FollowsTab(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
@@ -57,41 +57,12 @@ export function FollowsTab(): ReactElement {
   // A PAUSED FOLLOW WAITS FOR HIM, folded at the end of the list and outside
   // its counts — the list and its pills are the follows being looked for.
   const paused = follows.filter((follow) => follow.status === "disabled");
-  const active = follows.filter((follow) => follow.status !== "disabled");
-  const pills = [
-    { id: "tout", label: t("screens.acquisition.pillAll"), count: active.length },
-    {
-      id: "series",
-      label: t("screens.acquisition.pillSeries"),
-      count: active.filter((follow) => follow.kind !== "movie").length,
-    },
-    {
-      id: "movies",
-      label: t("screens.acquisition.pillMovies"),
-      count: active.filter((follow) => follow.kind === "movie").length,
-    },
-  ];
-
-  const matches = (follow: Follow) =>
-    state.pill === "tout" ||
-    (state.pill === "series" && follow.kind !== "movie") ||
-    (state.pill === "movies" && follow.kind === "movie");
-  const term = (state.filter as string).trim().toLocaleLowerCase();
-  const normalise = (text: string) =>
-    text
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLocaleLowerCase();
-  const matchesName = (follow: Follow) =>
-    term === "" || normalise(follow.title).includes(normalise(term));
-  const visible = active
-    .filter((follow) => matches(follow) && matchesName(follow))
-    .sort(
-      (left, right) =>
-        (left.fresh ? 0 : 1) - (right.fresh ? 0 : 1) ||
-        URGENCY[left.status] - URGENCY[right.status] ||
-        left.title.localeCompare(right.title, "fr"),
-    );
+  // The search typed in the filter zone, which the empty note names.
+  const term = String(state.filter ?? "").trim();
+  // THE ONE PILL (§ 1.9): the filter and the sort in force, ONE derivation for
+  // the list, the pill's count and its panel's (`follow-order.ts`).
+  const visible = orderFollows(followsInView(follows, String(state.filter ?? "")), followFilterInForce(state),
+    followSortInForce(state));
 
   // Read ONCE for the whole list: every card names the same next slot.
   const next = cadenceExpression ? nextSearchTime(cadenceExpression, new Date()) : null;
@@ -277,7 +248,7 @@ export function FollowsTab(): ReactElement {
 
   return (
     <>
-      <FollowsFilters pills={pills} />
+      <FollowsFilters shown={visible.length} />
       <p className={cadence()} data-part="cadence">{cadenceExpression ? cadenceSentence(cadenceExpression) : null}</p>
       <div className={body()} data-part="surface/body" data-region="acquisition/body">
         <div className="note" data-part="note">

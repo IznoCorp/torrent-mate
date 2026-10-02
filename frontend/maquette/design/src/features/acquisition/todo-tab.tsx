@@ -1,10 +1,11 @@
-// « À traiter » — what only the operator's hand unblocks (ruling 7).
+// « À traiter » — every block, in the app or elsewhere (Q7 of 2026-10-01).
 //
-// A TAB OF ITS OWN (ruling 10), drawn in the language « En cours » speaks: a pip
-// per section, a counter that is its own link, a section with no card not drawn
-// at all. Where a card sits is a function of its state: every card here is
-// blocked, and its section says what unblocks it. Never an empty screen
-// (DOIT-7): with nothing waiting, it says so and says where the rest is.
+// A TAB OF ITS OWN (ruling 10), ONE FLAT LIST (DECIDED 1 of maquette-blocked,
+// amending ruling 10's sections): no section says what unblocks a card — its
+// cause line does — and the one-pill filter and sort stand above it, the
+// order by urgency by default (`todo-order.ts`). Never an empty screen
+// (DOIT-7): with nothing blocked, it says so and says where the rest is; a
+// filter that keeps nothing says so in its own words.
 //
 // WHAT HE SET ASIDE IS LAST, AND FOLDED (ruling 16): « Mis de côté » is not
 // forgotten — its files are still on the machine — but it waits for nobody's
@@ -15,8 +16,12 @@ import type { ReactElement } from "react";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { offeredFeet } from "./act-rights";
 import { useRights } from "../../lib/account";
-import { mediumCardMarkup } from "./card-markup";
+import { blockDoor, mediumCardMarkup } from "./card-markup";
+import { closureFoot } from "./closure-markup";
 import { setAsideCards, todoCards } from "../../lib/arrival-slots";
+import { causeOf, orderTodo } from "./todo-order";
+import { TodoPills, todoFilterInForce, todoSortInForce } from "./todo-pills";
+import { useResumedMessage } from "./resumed";
 import { Disclosure } from "../../ui/disclosure";
 import { useAcquisitionQueue, useStaging } from "../../lib/queue";
 import { type QueueCard } from "../../lib/engine-queue";
@@ -42,6 +47,8 @@ export function TodoTab(): ReactElement {
   useStaging(scenario);
   // THE ACTS ARE THE ACCOUNT'S (§ 17): a card it may only read draws no foot.
   const rights = useRights();
+  // A BLOCK THE ENGINE LIFTS while he looks at this tab is said (DECIDED 5).
+  useResumedMessage(queue);
   if (state.phase !== "ready") {
     return (
       <div
@@ -61,28 +68,34 @@ export function TodoTab(): ReactElement {
   }
   const blocked = queue ? todoCards(queue) : [];
   const setAside = queue ? setAsideCards(queue) : [];
-  // A STEP THAT CANNOT FINISH is unblocked by a relaunch, never by an identity
-  // pick: such a card offers « Relancer » and no « Résoudre ».
-  const tunnelErrors = blocked.filter((card) => card.failedStep !== undefined);
-  // A MATCH TO CONFIRM is answered on the match itself, never by an identity pick.
-  const plexMatches = blocked.filter((card) => card.plexMatch !== undefined);
-  const toResolve = blocked.filter(
-    (card) => card.failedStep === undefined && card.plexMatch === undefined,
-  );
-  const section = (
-    pip: string,
-    title: string,
-    cards: QueueCard[],
-    inner: string,
-  ) =>
-    cards.length === 0 ? null : (
-      <Markup
-        tag="section"
-        className={sectionClass()}
-        data-part="section"
-        html={sectionInnerMarkup(pip, title, String(cards.length), inner)}
-      />
-    );
+  const filter = todoFilterInForce(state);
+  const drawn = orderTodo(blocked, filter, todoSortInForce(state));
+  // EACH CARD OFFERS WHAT UNBLOCKS IT, by its cause — never by a section.
+  const feet = (card: QueueCard) => {
+    const cause = causeOf(card);
+    // A STEP THAT CANNOT FINISH is unblocked by a relaunch, never by an identity
+    // pick: such a card offers « Relancer » and no « Résoudre ».
+    if (cause === "step")
+      return offeredFeet([
+        { label: t("screens.acquisition.todoRequeueFoot"), attributes: { "data-journey-requeue": card.title } },
+        { label: t("screens.acquisition.abandonFoot"), attributes: { "data-journey-abandon": card.title } },
+      ], card, rights);
+    // A MATCH TO CONFIRM is answered on the match itself, never by an identity pick.
+    if (cause === "plex")
+      return offeredFeet([
+        { label: t("screens.acquisition.plexConfirmFoot"), solid: true, attributes: { "data-plex-confirm": card.title } },
+        { label: t("screens.acquisition.plexCorrectFoot"), attributes: { "data-plex-correct": card.title } },
+      ], card, rights);
+    // A CLOSED TUNNEL leads to its sheet; « Marquer comme vu » is in its panel
+    // (DECIDED 2), never a « × » on the card.
+    if (cause === "closed") return closureFoot(card);
+    if (cause === "resolve")
+      return offeredFeet({ label: t("screens.acquisition.blockedFoot"), attributes: { "data-resolution": card.title } },
+        card, rights);
+    // AN EXTERNAL BLOCK'S FOOT HOLDS ITS DOOR ALONE (DECIDED 6), where its
+    // cause is settled; « Abandonner » stays in its panel.
+    return blockDoor(card, rights);
+  };
   return (
     <div
       className={body()}
@@ -98,79 +111,24 @@ export function TodoTab(): ReactElement {
             t("screens.acquisition.todoEmptyBody"),
           )}
         />
-      ) : null}
-      {section(
-        "danger",
-        t("screens.acquisition.todoResolve"),
-        toResolve,
-        toResolve
-          .map((card) =>
-            mediumCardMarkup(
-              card,
-              offeredFeet(
-                {
-                  label: t("screens.acquisition.blockedFoot"),
-                  attributes: { "data-resolution": card.title },
-                },
-                card,
-                rights,
-              ),
-            ),
-          )
-          .join(""),
-      )}
-      {section(
-        "warning",
-        t("screens.acquisition.todoPlexMatch"),
-        plexMatches,
-        plexMatches
-          .map((card) =>
-            mediumCardMarkup(
-              card,
-              offeredFeet(
-                [
-                  {
-                    label: t("screens.acquisition.plexConfirmFoot"),
-                    solid: true,
-                    attributes: { "data-plex-confirm": card.title },
-                  },
-                  {
-                    label: t("screens.acquisition.plexCorrectFoot"),
-                    attributes: { "data-plex-correct": card.title },
-                  },
-                ],
-                card,
-                rights,
-              ),
-            ),
-          )
-          .join(""),
-      )}
-      {section(
-        "danger",
-        t("screens.acquisition.todoTunnelError"),
-        tunnelErrors,
-        tunnelErrors
-          .map((card) =>
-            mediumCardMarkup(
-              card,
-              offeredFeet(
-                [
-                  {
-                    label: t("screens.acquisition.todoRequeueFoot"),
-                    attributes: { "data-journey-requeue": card.title },
-                  },
-                  {
-                    label: t("screens.acquisition.abandonFoot"),
-                    attributes: { "data-journey-abandon": card.title },
-                  },
-                ],
-                card,
-                rights,
-              ),
-            ),
-          )
-          .join(""),
+      ) : (
+        <>
+          <TodoPills shown={drawn.length} />
+          {drawn.length === 0 ? (
+            <Markup
+              className={emptyNote()}
+              data-part="empty-state"
+              html={emptyNoteMarkup(t("screens.acquisition.todoFilterEmpty"), "")}
+            />
+          ) : (
+            <Markup
+              tag="section"
+              className={sectionClass()}
+              data-part="section"
+              html={drawn.map((card) => mediumCardMarkup(card, feet(card))).join("")}
+            />
+          )}
+        </>
       )}
       {setAside.length === 0 ? null : (
         <section className={sectionClass()} data-part="section/set-aside">

@@ -320,24 +320,28 @@ export const filterZone = cva("filters pt-0 px-7 pb-4 border-b border-border bg-
 export const pillBar = cva("pillbar flex items-center gap-0 mt-4");
 
 /**
- * The pills' horizontal scroller.
+ * The pills' strip.
  *
  * `touch-pan-x touch-pan-y` is COMPOSITOR-FACING and held by
  * `scripts/check-compositor-css.py`: it reserves both axes for scrolling so
- * the train cannot be mistaken for a swipe gesture. Its bar is hidden (D11's one
+ * the strip cannot be mistaken for a swipe gesture. Its bar is hidden (D11's one
  * exception: the chips are the affordance), with `!` because the unlayered
  * `* { scrollbar-width: thin }` beats any layered utility (B-336).
  */
 export const pillScroll = cva("flex-auto min-w-0 flex gap-3 pr-4", {
   variants: {
-    // A TRAIN OF PILLS scrolls sideways, and the pull-to-refresh leaves it
-    // alone (`.pillscroll`). HELD, the place carries one thing that is not a
-    // pill — Découvrir's header, which wraps rather than scrolls — so it neither
-    // scrolls nor refuses the pull: a page whose top row is its header must
-    // still pull (CI's harness on #657, `touch.py` on `discover-full`).
+    // THE ONE PILL'S STRIP WRAPS, IT NO LONGER SCROLLS (maquette-blocked § 1.9):
+    // every train of pills became the one-pill selector, whose reason is that
+    // pills scrolling sideways hide what is off-screen — so at 320 px the sort
+    // pill goes under the filter pill, whole, rather than off the edge. The
+    // pull-to-refresh still leaves the strip alone (`.pillscroll`). HELD, the
+    // place carries one thing that is not a pill — Découvrir's header, which
+    // wraps of its own — so it refuses no pull: a page whose top row is its
+    // header must still pull (CI's harness on #657, `touch.py` on
+    // `discover-full`).
     train: {
       true:
-        "pillscroll flex-nowrap overflow-x-auto [scrollbar-width:none]! [&::-webkit-scrollbar]:hidden " +
+        "pillscroll flex-wrap overflow-x-auto [scrollbar-width:none]! [&::-webkit-scrollbar]:hidden " +
         "touch-pan-x touch-pan-y",
       false: "",
     },

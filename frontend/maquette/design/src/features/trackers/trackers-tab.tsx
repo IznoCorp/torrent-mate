@@ -25,7 +25,8 @@ import { pendingEdits } from "../../lib/pending-edits-door";
 import {
   chip, emptyNote, factDetail, factList, factName, factRow, factRowBody, factValue, surfaceError, type ChipTone,
 } from "../../ui/variants";
-import { dayOf, written } from "./format";
+import { written } from "../../lib/byte-size";
+import { dayOf } from "./format";
 import { legendOf, type Code } from "./torrent-card";
 import { rosterLine } from "./cross-seed-state";
 import { alertOf, useDownloads, useObligations, useSettingsCatalogue, useTrackers, type Alert, type Tracker } from "./queries";

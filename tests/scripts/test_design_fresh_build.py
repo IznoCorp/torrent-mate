@@ -29,7 +29,15 @@ DESIGN = MAQUETTE / "design"
 VITE = DESIGN / "node_modules" / "vite" / "bin" / "vite.js"
 
 # What the build reads beside `src/`; `dist/` and `node_modules/` are never copied.
-BUILD_FILES = ("index.html", "sw.js", "package.json", "vite.config.mjs", "build-identity.mjs", "tsconfig.json")
+BUILD_FILES = (
+    "index.html",
+    "sw.js",
+    "package.json",
+    "vite.config.mjs",
+    "build-identity.mjs",
+    "worker-source.mjs",
+    "tsconfig.json",
+)
 
 
 def fresh_design_copy(tmp_path: Path) -> Path:

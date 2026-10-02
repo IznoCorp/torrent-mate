@@ -2,17 +2,17 @@
 #
 # deploy.sh — the ONLY sanctioned way to build + serve TorrentMate (PROD).
 #
-# Mirrors KanbanMate's deploy model (operator rule):
+# The git flow's rule (docs/features/git-flow/DESIGN.md):
 #
-#     ONLY `main` IS DEPLOYED. If it is deployed, it is on `main`.
-#     To deploy something, it goes onto `main` first.
+#     ONLY `prod` IS DEPLOYED. If it is deployed, it is on `prod`.
+#     `prod` moves only through scripts/promote.sh, on the operator's word.
 #
-# Run this INSIDE the prod clone (~/deploy/torrentmate, tracks `main`) with the
+# Run this INSIDE the prod clone (~/deploy/torrentmate, tracks `prod`) with the
 # prod venv (TM_VENV). Why the guards: the Vite SPA build (frontend/,
 # emptyOutDir) is gitignored and mirrored into personalscraper/web/static/. A
-# build from a dirty or non-main tree would serve non-committed code AND wipe the
+# build from a dirty or non-prod tree would serve non-committed code AND wipe the
 # previous build. This script makes that impossible — it refuses unless the tree
-# is a clean `main` in sync with origin/main — then stamps the exact commit it
+# is a clean `prod` in sync with origin/prod — then stamps the exact commit it
 # served (BUILD_COMMIT + baked into the SPA bundle) so "what is live" is always
 # verifiable via GET /api/version.
 #
@@ -43,9 +43,9 @@ if grep -q '.torrentmate/config' ecosystem.config.js 2>/dev/null; then
     || fail "config-home migration not done — refusing to deploy (run scripts/migrate-config-home.sh)"
 fi
 
-# ── Guard 1: must be on `main` ────────────────────────────────────────────────
+# ── Guard 1: must be on `prod` ────────────────────────────────────────────────
 branch="$(git rev-parse --abbrev-ref HEAD)"
-[ "$branch" = "main" ] || fail "branch '$branch' is not main. ONLY main is deployed."
+[ "$branch" = "prod" ] || fail "branch '$branch' is not prod. ONLY prod is deployed."
 
 # ── Guard 2: working tree must be clean (no uncommitted code can be served) ────
 if [ -n "$(git status --porcelain)" ]; then
@@ -53,18 +53,18 @@ if [ -n "$(git status --porcelain)" ]; then
   fail "working tree not clean — commit or stash first. Uncommitted code is NEVER deployed."
 fi
 
-# ── Guard 3: local main must equal origin/main (no un-pushed / diverged code) ──
-timeout 30 git fetch --quiet origin main || fail "git fetch origin main failed (network?)."
+# ── Guard 3: local prod must equal origin/prod (no un-pushed / diverged code) ──
+timeout 30 git fetch --quiet origin prod || fail "git fetch origin prod failed (network?)."
 local_sha="$(git rev-parse HEAD)"
-remote_sha="$(git rev-parse origin/main)"
+remote_sha="$(git rev-parse origin/prod)"
 [ "$local_sha" = "$remote_sha" ] \
-  || fail "main local ($local_sha) ≠ origin/main ($remote_sha). Fais 'git pull --ff-only origin main' d'abord."
+  || fail "local prod ($local_sha) ≠ origin/prod ($remote_sha). Run 'git pull --ff-only origin prod' first."
 
 # ── Guard 4: the prod venv must exist (per-clone isolation) ───────────────────
 [ -x "$VENV/bin/pip" ] \
   || fail "prod venv not found: $VENV (expected $VENV/bin/pip). Create it first (python -m venv \"$VENV\") or export TM_VENV."
 
-printf '✓ main clean and in sync @ %s — building the SPA…\n' "$local_sha"
+printf '✓ prod clean and in sync @ %s — building the SPA…\n' "$local_sha"
 
 # ── Build: reproducible from source only; bake the served SHA into the bundle ─
 # TM_BUILD_COMMIT is read by vite.config.ts (define __BUILD_COMMIT__), so the

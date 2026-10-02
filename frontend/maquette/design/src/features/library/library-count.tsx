@@ -1,9 +1,7 @@
-// The count line's own sentence, and the sort control's own label.
-import { useEngineDrawing } from "../../lib/engine-drawing";
+// The count line's own sentence. The sort control it carried is the sort pill
+// now, in the filter zone (maquette-blocked § 1.9).
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
-import { Icon } from "../../ui/icon";
-import { sortWays } from "./sorting";
 import { useLibraryCategories, useLibraryListing } from "./queries";
 import { useUiState } from "../../lib/store-access";
 
@@ -60,22 +58,5 @@ export function CountLine(): ReactElement {
         </>
       )}
     </span>
-  );
-}
-
-// The sort control's own label: the icon, then the NAME of the direction in
-// force — E-001's own promise, read from the table the prototype declares
-// rather than restated here.
-export function SortLabel(): ReactElement {
-  const state = useUiState();
-  const { icons } = useEngineDrawing();
-  // THE NAMES ARE THE FEATURE'S, one derivation read by the count line
-  // and by the sort panel alike (§13).
-  const ways = sortWays()[state.sortKey as string];
-  return (
-    <>
-      <Icon paths={icons.sort} />
-      {ways[state.sortReversed ? "inverse" : "normal"]}
-    </>
   );
 }

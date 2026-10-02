@@ -677,6 +677,36 @@ async def read_at(page, state, script, argument=None, wait=SETTLED):
     return await page.evaluate(script, argument)
 
 
+# THE SERVED ROW BEHIND EACH CARD DRAWN, read from the queue's answer in the
+# cache: whether the engine stopped it (`blocked`), classified it as a block it
+# lifts (`resumes` set on a rung) or closed it (`closure`). A rule that judged
+# a block by the strip's colour or by a reason line would pass a block the
+# interface drew as moving (maquette-blocked's reading, r4: R209 read
+# « waiting + any reason »). The world is the dial's; the key is the card's
+# `data-acquisition`, composed as `acquisitionKey` composes it.
+SERVED_CARDS = """() => {
+  const world = String(window.__store?.read?.().state.scen ?? '') === 'loaded' ? 'loaded' : '';
+  const queue = window.__queries?.getQueryData(['/api/acquisition/to-handle', world]) || {};
+  const pad = (value) => String(value).padStart(2, '0');
+  const keyOf = (row) => row.season == null ? row.title
+    : `${row.title}|S${pad(row.season)}${row.episode == null ? '' : 'E' + pad(row.episode)}`;
+  const rows = [...(queue.blocked || []), ...(queue.arrivals || []), ...(queue.inFlight || [])];
+  return [...document.querySelectorAll('#view [data-region="acquisition/body"] [data-part="card"]')]
+    .filter(card => !card.closest('[data-part="section/set-aside"]'))
+    .map(card => {
+      const served = rows.filter(row => keyOf(row) === card.dataset.acquisition);
+      const rungs = served.flatMap(row => row.ladder || []);
+      return {
+        key: card.dataset.acquisition,
+        served: served.length > 0,
+        blocked: rungs.some(rung => rung.state === 'blocked'),
+        resumes: rungs.some(rung => rung.resumes != null),
+        closure: served.some(row => row.closure != null),
+      };
+    });
+}"""
+
+
 async def shot(pg, name):
     """Captures the page into the harness's one screenshot directory.
 

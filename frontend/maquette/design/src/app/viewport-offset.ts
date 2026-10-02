@@ -13,7 +13,7 @@
 // field above the keyboard, never a document that scrolls.
 
 /** What the decision reads of the window, the visual viewport and the focused field. */
-export type ViewportReading = {
+export type ViewportState = {
   /** `visualViewport.offsetTop`, in CSS pixels. */
   offsetTop: number;
   /** `visualViewport.scale`: 1 unless the reader has zoomed. */
@@ -29,20 +29,20 @@ export type ViewportReading = {
 };
 
 // Below a pixel an offset is rounding, not a defect.
-const SLACK = 1;
+const TOLERANCE = 1;
 
 /**
  * Whether the visual viewport carries an offset nothing asked for.
  *
- * @param reading What the window says now.
+ * @param state What the window says now.
  * @returns True when scrolling back to zero is the repair and hides nothing.
  */
-export function strayOffset(reading: ViewportReading): boolean {
-  if (Math.abs(reading.offsetTop) < SLACK) return false;
-  if (Math.abs(reading.scale - 1) > 0.01) return false;
-  if (reading.documentHeight > reading.windowHeight + SLACK) return false;
+export function offsetLeft(state: ViewportState): boolean {
+  if (Math.abs(state.offsetTop) < TOLERANCE) return false;
+  if (Math.abs(state.scale - 1) > 0.01) return false;
+  if (state.documentHeight > state.windowHeight + TOLERANCE) return false;
   // A field the keyboard would cover once the offset is gone keeps the pan.
-  return reading.fieldBottom === null || reading.fieldBottom <= reading.height;
+  return state.fieldBottom === null || state.fieldBottom <= state.height;
 }
 
 /** The focused element when it takes text, else null. */
@@ -59,7 +59,7 @@ function settle(): void {
   const viewport = window.visualViewport;
   if (!viewport) return;
   const field = focusedField();
-  const reading: ViewportReading = {
+  const state: ViewportState = {
     offsetTop: viewport.offsetTop,
     scale: viewport.scale,
     height: viewport.height,
@@ -67,7 +67,7 @@ function settle(): void {
     documentHeight: document.documentElement.scrollHeight,
     fieldBottom: field ? field.getBoundingClientRect().bottom : null,
   };
-  if (strayOffset(reading)) window.scrollTo(0, 0);
+  if (offsetLeft(state)) window.scrollTo(0, 0);
 }
 
 /**

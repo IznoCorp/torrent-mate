@@ -86,6 +86,27 @@ export function seasonsHeld(held: SeasonsAnswer | undefined): [number, number | 
 }
 
 /**
+ * How many held numbers of each season the catalogue does not list, once.
+ *
+ * THE ENGINE'S ANSWER (BK7), never a second count: the seasons read serves each
+ * season's held numbers above its catalogue, and both season rows — the media
+ * sheet's and the follow panel's — draw « hors catalogue (n) » from this. They
+ * are not in the fraction, which stays on what aired (B-380), so a season of
+ * which twenty aired and twenty-four are held reads 20/20 and says the four.
+ *
+ * @param held What the layer answered.
+ * @returns The count, keyed by season number; a season with none is absent.
+ */
+export function offCatalogueBySeason(held: SeasonsAnswer | undefined): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const season of held?.seasons ?? []) {
+    const count = season.offCatalogue?.length ?? 0;
+    if (count > 0) counts[String(season.number)] = count;
+  }
+  return counts;
+}
+
+/**
  * A follow's completeness, as a query the cache and a producer share.
  *
  * ONE COMPLETENESS (NE-DOIT-PAS-1, § 13): for a FOLLOWED series, the season

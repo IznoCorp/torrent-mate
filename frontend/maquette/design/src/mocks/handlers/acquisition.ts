@@ -15,6 +15,7 @@ import { stagesOf } from "./acquisition-verbs";
 import { withAcquisitionFacts, withRequesters } from "./requesters";
 import { recoveringSeason } from "./season-recovery";
 import { mockState } from "../state";
+import { newFollow } from "./new-follow";
 import { claimRequest, releaseRequest, requestersOf, signedInId, signedInRights } from "../identity";
 import { refused, type MockRequest, type MockRoute } from "../router";
 
@@ -68,14 +69,6 @@ const FILM_KIND = "movie"; // A follow of this kind ends alone once confirmed in
 // The statuses of a follow still waiting on a grab, and the one a running grab moves it to.
 const WAITING_ON_A_GRAB = new Set(["pending", "to_grab"]);
 const BEING_ACQUIRED = "acquiring";
-
-// What a follow the request does not fully describe starts as. Every one of
-// these is a token or a blank, never a value copied off another record.
-const NEWLY_ADDED_STATUS = "pending";
-const NEWLY_ADDED_SINCE = "";
-// The year no family knows is a BLANK, which the card leaves out: a 0 was drawn
-// as a year, « 0 · série » (B-673).
-const NEWLY_ADDED_YEAR = "";
 
 /**
  * Finds one follow by the identifier the address carries.
@@ -189,18 +182,9 @@ export function acquisitionRoutes(): MockRoute[] {
         ? together
         : null) as (typeof state.follows)[number]["ids"] | null;
       if (identity === null) return refused(400, NO_IDENTITY);
-      const added = {
-        title,
-        kind: text(request.body, "kind"),
-        year: Number.isFinite(year) ? year : source?.year ?? known?.year ?? NEWLY_ADDED_YEAR,
-        status: NEWLY_ADDED_STATUS,
-        showStatus: null,
-        since: NEWLY_ADDED_SINCE,
-        searches: 0,
-        fresh: true,
-        ids: identity,
-        poster: source?.poster ?? known?.poster ?? null,
-      };
+      const added = newFollow(title, text(request.body, "kind"),
+                              Number.isFinite(year) ? year : source?.year ?? known?.year ?? year,
+                              identity, source?.poster ?? known?.poster ?? null);
       state.follows = [added, ...state.follows];
       claimRequest(title, false);
       return withAcquisitionFacts([added])[0];

@@ -123,6 +123,31 @@ class TrackerResult:
     tmdb_id: int | None = None
 
 
+@dataclass(frozen=True)
+class TrackerAccountStats:
+    """The account's standing AS THE TRACKER RECOGNISES IT (NE-DOIT-PAS-1) — never computed locally.
+
+    Read from a tracker's own documented statistics endpoint only; a tracker that
+    publishes none shows its ratio as UNKNOWN rather than a figure derived here.
+
+    Attributes:
+        provider: The tracker's wire name.
+        uploaded: Total uploaded, as the tracker counts it.
+        downloaded: Total downloaded, as the tracker counts it.
+        ratio: The tracker's own ratio figure; ``None`` when it publishes volumes but
+            no ratio — an absent figure stays absent, nothing divides the volumes.
+        bonus: The tracker's bonus points / credits, when published.
+        observed_at: When the tracker answered (epoch seconds, ``time.time()``).
+    """
+
+    provider: str
+    uploaded: ByteSize
+    downloaded: ByteSize
+    ratio: float | None
+    bonus: float | None
+    observed_at: float
+
+
 # NOTE — provider-ids feature, sub-phase 11.1 :
 # The historical monolithic ``TrackerClient(Protocol)`` defined here
 # was dropped in favour of the atomic capability protocols hosted in
