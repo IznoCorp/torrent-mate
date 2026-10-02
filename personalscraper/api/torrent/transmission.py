@@ -115,6 +115,7 @@ class TransmissionClient(
                 "labels",
                 "error",
                 "errorString",
+                "secondsSeeding",
             ]
         )
         return [_torrent_item(t) for t in torrents if t.status in _COMPLETED_STATES]
@@ -159,6 +160,7 @@ class TransmissionClient(
                 "error",
                 "errorString",
                 "eta",
+                "secondsSeeding",
             ],
         )
         return [_torrent_item(t) for t in torrents]
@@ -566,6 +568,16 @@ def _torrent_item(t: transmission_rpc.Torrent) -> TorrentItem:
         eta_raw = int(eta_raw.total_seconds())
     eta_seconds: int | None = int(eta_raw) if isinstance(eta_raw, (int, float)) and eta_raw >= 0 else None
 
+    # secondsSeeding: seconds really seeded; absent or negative is an honest None.
+    seeding_raw = getattr(t, "seconds_seeding", None)
+    if isinstance(seeding_raw, timedelta):
+        seeding_raw = int(seeding_raw.total_seconds())
+    seeding_time_s: int | None = (
+        int(seeding_raw)
+        if isinstance(seeding_raw, (int, float)) and not isinstance(seeding_raw, bool) and seeding_raw >= 0
+        else None
+    )
+
     error_code = getattr(t, "error", 0) or 0
     error_string = str(getattr(t, "error_string", "") or "").strip()
     error_reason: str | None = None
@@ -587,4 +599,5 @@ def _torrent_item(t: transmission_rpc.Torrent) -> TorrentItem:
         completion_on=completion_on,
         error_reason=error_reason,
         eta_seconds=eta_seconds,
+        seeding_time_s=seeding_time_s,
     )
