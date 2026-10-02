@@ -78,6 +78,8 @@ READ_MENU = """() => {
     sameGroup: !!group && group === world.closest('[data-part="harness/menu"]'),
     afterProduct: entries.length > 0 && after(notes) && after(world),
     visible: visible(notes) && visible(world),
+    surfaces: [notes, world].map((el) =>
+      el.getAttribute('aria-pressed') === 'true' ? 'pressed' : getComputedStyle(el).backgroundColor),
     notesPressed: notes.getAttribute('aria-pressed'),
     notesClass: document.documentElement.classList.contains('notes'),
     worldPressed: world.getAttribute('aria-pressed'),
@@ -128,6 +130,14 @@ async def main():
                 journal.check(f"{at} the group comes after every product entry",
                               menu["afterProduct"], str(menu))
                 journal.check(f"{at} both are laid out", menu["visible"], str(menu))
+                # AN ENTRY NOT PRESSED PAINTS NO SURFACE OF ITS OWN: the menu's
+                # surface shows through, as it does behind every other entry.
+                # A bare <button> paints the browser's white, and the label —
+                # the menu's light ink — disappears on it (seen on the first
+                # captures: a white bar with nothing readable in it).
+                journal.check(f"{at} an entry that is not pressed paints no surface of its own",
+                              all(one in ("pressed", "rgba(0, 0, 0, 0)") for one in menu["surfaces"]),
+                              str(menu["surfaces"]))
 
                 # 3. THEY WORK. A state wait on the entry's own attribute,
                 #    never a fixed number.

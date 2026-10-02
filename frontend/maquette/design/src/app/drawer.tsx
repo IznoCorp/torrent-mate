@@ -239,7 +239,9 @@ export function NavigationDrawer(): ReactElement {
       {/* WHAT A BUILD CONTRIBUTES, AFTER EVERYTHING THE PRODUCT OWNS (`drawer-extras.ts`).
           Empty in the product's own build: the maquette's controls arrive from the
           harness module, which this file never imports. The label and the pressed
-          state are read on every draw — the entry's tap moves the store's version,
+          state are read on every draw — a pressed entry wears the menu's own « current » tone,
+          and a bare button's surface and border are cleared so it sits on the menu like
+          the anchors above it. The entry's tap moves the store's version,
           which this component already subscribes to. */}
       {drawerExtraGroups().map((group) => (
         <div
@@ -255,7 +257,10 @@ export function NavigationDrawer(): ReactElement {
               type="button"
               aria-pressed={entry.pressed ? entry.pressed() : undefined}
               title={collapsed ? entry.label() : undefined}
-              className={`${drawerEntry({ collapsed })} w-full text-left`}
+              className={`${drawerEntry({
+                current: entry.pressed ? entry.pressed() : false,
+                collapsed,
+              })} w-full text-left bg-transparent border-0`}
               onClick={() => {
                 entry.onPress();
                 store.touch();
