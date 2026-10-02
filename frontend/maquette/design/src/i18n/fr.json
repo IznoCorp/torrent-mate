@@ -2081,6 +2081,130 @@
     "generic": {
       "title": "TorrentMate",
       "body": "Du nouveau vous attend dans l'application."
+    },
+    "obligation": {
+      "met": {
+        "seed_time": {
+          "title": "Obligation terminée",
+          "body": "{{title}} sur {{tracker}} : le temps de seed demandé est atteint."
+        },
+        "ratio": {
+          "title": "Obligation terminée",
+          "body": "{{title}} sur {{tracker}} : le ratio demandé est atteint."
+        }
+      },
+      "released": {
+        "removed_here": {
+          "title": "Obligation libérée",
+          "body": "{{title}} sur {{tracker}} : retiré de qBittorrent depuis TorrentMate."
+        },
+        "gone_from_client": {
+          "title": "Obligation libérée",
+          "body": "{{title}} sur {{tracker}} : a quitté qBittorrent hors de TorrentMate."
+        }
+      },
+      "breached": {
+        "title": "Obligation rompue",
+        "body": "{{title}} sur {{tracker}} : l'échéance est passée sans que l'obligation soit tenue."
+      }
+    },
+    "tracker": {
+      "ratio_low": {
+        "title": "Ratio bas sur {{tracker}}",
+        "body": "Le ratio de {{tracker}} est passé sous son seuil d'alerte."
+      },
+      "disabled": {
+        "title": "{{tracker}} désactivé",
+        "body": "TorrentMate a coupé {{tracker}} après une erreur. Ouvrez Trackers pour la voir."
+      }
+    },
+    "crossseed": {
+      "failed": {
+        "title": "Cross-seed en échec",
+        "body": "{{title}} sur {{tracker}} : le cross-seed a échoué."
+      }
+    },
+    "acquisition": {
+      "arrived": {
+        "title": "Arrivé dans la médiathèque",
+        "body": "{{title}} est disponible."
+      },
+      "to_handle": {
+        "title": "À traiter",
+        "body": "{{title}} attend votre décision."
+      }
+    },
+    "system": {
+      "run_failed": {
+        "title": "Étape du pipeline en échec",
+        "body": "L'étape {{step}} a échoué. Voir Système."
+      },
+      "disk_full": {
+        "title": "Disque presque plein",
+        "body": "{{disk}} est sous son seuil d'espace libre."
+      },
+      "service_down": {
+        "title": "Service injoignable",
+        "body": "{{service}} ne répond plus."
+      }
+    }
+  },
+  "notifications": {
+    "types": {
+      "obligation": {
+        "met": {
+          "label": "Obligation terminée",
+          "description": "Un torrent a semé le temps ou le ratio demandé par son tracker."
+        },
+        "released": {
+          "label": "Obligation libérée",
+          "description": "Un torrent a quitté qBittorrent, depuis TorrentMate ou hors de lui."
+        },
+        "breached": {
+          "label": "Obligation rompue",
+          "description": "L'échéance d'un torrent est passée sans que son obligation soit tenue."
+        }
+      },
+      "tracker": {
+        "ratio_low": {
+          "label": "Ratio bas",
+          "description": "Le ratio d'un tracker passe sous son seuil d'alerte."
+        },
+        "disabled": {
+          "label": "Tracker coupé",
+          "description": "TorrentMate coupe un tracker après une erreur (identifiant refusé, hôte injoignable)."
+        }
+      },
+      "crossseed": {
+        "failed": {
+          "label": "Cross-seed en échec",
+          "description": "Un cross-seed échoue, jamais une simple absence de correspondance."
+        }
+      },
+      "acquisition": {
+        "arrived": {
+          "label": "Arrivées",
+          "description": "Un film ou un épisode suivi arrive dans la médiathèque."
+        },
+        "to_handle": {
+          "label": "À traiter",
+          "description": "Une acquisition attend votre décision."
+        }
+      },
+      "system": {
+        "run_failed": {
+          "label": "Pipeline en échec",
+          "description": "Une étape du pipeline échoue."
+        },
+        "disk_full": {
+          "label": "Disque presque plein",
+          "description": "Un disque passe sous son seuil d'espace libre."
+        },
+        "service_down": {
+          "label": "Service injoignable",
+          "description": "Un fournisseur ou un service ne répond plus."
+        }
+      }
     }
   }
 }
