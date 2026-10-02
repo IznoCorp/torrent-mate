@@ -47,7 +47,7 @@ function wordsOf(descriptor: DialogDescriptor): string[] {
   return words;
 }
 
-const PRETENCE = /simulation|0 fichier|aurait|serait/i;
+const FORBIDDEN_WORDS = /simulation|0 fichier|aurait|serait/i;
 
 describe("the library's delete flow", () => {
   beforeEach(() => {
@@ -74,7 +74,7 @@ describe("the library's delete flow", () => {
         action.run?.();
         expect(removed).toEqual([many ? [...many] : [title]]);
         expect(said.length).toBeGreaterThan(0);
-        for (const message of said) expect(message).not.toMatch(PRETENCE);
+        for (const message of said) expect(message).not.toMatch(FORBIDDEN_WORDS);
       }
     });
   }
