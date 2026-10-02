@@ -323,6 +323,16 @@ export function acquisitionRoutes(): MockRoute[] {
       // describe the library rather than the answer »).
       return { ...SEARCH_RESULTS, total: results.length, shown: results.length, results };
     }),
+    // ONE MEDIUM BY ITS IDENTIFIER (B-691): the result a source knows under the
+    // identifier asked, and nothing else — no title matching, no neighbour.
+    route("searchProviderById", GET, "/api/acquisition/search/by-id", (request: MockRequest) => {
+      const source = request.query.get("provider") ?? "";
+      const id = (request.query.get("id") ?? "").trim();
+      const results = SEARCH_RESULTS.results.filter(
+        (result) => id !== "" && String((result.ids as Record<string, unknown> | undefined)?.[source] ?? "") === id,
+      );
+      return { ...SEARCH_RESULTS, total: results.length, shown: results.length, results };
+    }),
     // The deck PAGES. Answering the first batch to every request made the
     // contract's own `after` parameter unusable and turned a deck that pages
     // into an endless loop of the same thirty cards.

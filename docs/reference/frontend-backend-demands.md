@@ -19,9 +19,9 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 97 |
+| operations the interface requires | 98 |
 | operations the backend has | 65 |
-| required and missing | 44 |
+| required and missing | 45 |
 | declared by both, different response shape | 53 |
 | declared by both, path parameter spelled differently | 17 |
 | declared by both, answered with a different status | 11 |
@@ -42,6 +42,7 @@ than a blank page.
 | `GET /api/accounts` | `readAccounts` | Every account and every role |
 | `GET /api/acquisition/journeys/{infoHash}` | `readJourney` | One medium's ladder, rung by rung |
 | `GET /api/acquisition/releases` | `readReleases` | The release candidates for one wanted item |
+| `GET /api/acquisition/search/by-id` | `searchProviderById` | Find the one medium a source knows under an identifier |
 | `GET /api/acquisition/suggestions` | `readSuggestions` | Titles worth following, and why |
 | `GET /api/library/categories` | `readLibraryCategories` | The categories and their counts |
 | `GET /api/library/incomplete` | `readLibraryIncomplete` | The series with holes, and how big each hole is |

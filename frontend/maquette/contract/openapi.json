@@ -1737,6 +1737,73 @@
         ]
       }
     },
+    "/api/acquisition/search/by-id": {
+      "get": {
+        "operationId": "searchProviderById",
+        "summary": "Find the one medium a source knows under an identifier",
+        "tags": [
+          "acquisition"
+        ],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "tmdb",
+                "tvdb",
+                "imdb"
+              ]
+            },
+            "description": "the source the identifier belongs to"
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the identifier, in that source's format: digits for TMDB and TVDB, « tt » and digits for IMDB"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the medium the source knows under that identifier, or no result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "SEARCH"
+        ]
+      }
+    },
     "/api/acquisition/suggestions": {
       "get": {
         "operationId": "readSuggestions",
