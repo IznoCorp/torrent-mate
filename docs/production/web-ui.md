@@ -459,12 +459,12 @@ In `ecosystem.config.js`. **Every daemon/cron runs from the prod clone**
 | `torrentmate-web-staging`       | `web --port 8711`      | cwd: `~/staging/torrentmate`, staging venv                  |
 | `torrentmate-autodeploy`        | `autodeploy-poll.sh`   | interpreter: `/bin/bash`, cwd: prod clone, restart_delay 60 |
 | `personalscraper-watch`         | `watch`                | prod clone/venv; the watcher daemon (`autorestart: true`)   |
-| `personalscraper-index-enrich`  | `library-index …`      | prod clone/venv; `cron_restart` Sun 04:30                   |
-| `personalscraper-backfill-ids`  | `library-backfill-ids` | prod clone/venv; `cron_restart` Sun 05:00                   |
-| `personalscraper-follow-detect` | `follow detect`        | prod clone/venv; `cron_restart` daily 03:00                 |
-| `personalscraper-search`        | `search`               | prod clone/venv; `cron_restart` daily 03:10 + 15:10         |
-| `personalscraper-grab`          | `grab`                 | prod clone/venv; `cron_restart` daily 03:20 + 15:20         |
-| `personalscraper-health-check`  | `health-check`         | prod clone/venv; `cron_restart` hourly :15                  |
+| `personalscraper-index-enrich`  | `library-index …`      | prod clone/venv; cron Sun 04:30                   |
+| `personalscraper-backfill-ids`  | `library-backfill-ids` | prod clone/venv; cron Sun 05:00                   |
+| `personalscraper-follow-detect` | `follow detect`        | prod clone/venv; cron daily 03:00                 |
+| `personalscraper-search`        | `search`               | prod clone/venv; cron daily 03:10 + 15:10         |
+| `personalscraper-grab`          | `grab`                 | prod clone/venv; cron daily 03:20 + 15:20         |
+| `personalscraper-health-check`  | `health-check`         | prod clone/venv; cron hourly :15                  |
 
 ### Environment separation (ENV-SEP)
 

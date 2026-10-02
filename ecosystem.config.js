@@ -117,9 +117,20 @@ module.exports = {
       restart_delay: 60000,
     },
 
-    // ---- Scheduled jobs (autorestart: false, cron_restart) ----
+    // ---- Scheduled jobs (one `schedule` loop per job, autorestart: true) ----
     // All run from the PROD clone binary + cwd, with the canonical config dir passed
     // explicitly. Decoupled from the dev checkout branch.
+    //
+    // NO `cron_restart`: PM2 6.0.8's cron ticks TWICE around a boundary (15:14:59 then
+    // 15:15:00) and its second tick SIGINT-kills the run the first just started
+    // (measured 2026-10-02: 25 health-check, 4 search, 4 grab, 1 follow-detect runs cut).
+    // `schedule --cron EXPR -- JOB` (personalscraper/scheduler.py) is one long-lived loop
+    // that runs JOB at each boundary, to its end, never twice at once; PM2 only keeps it
+    // alive. `kill_timeout` lets a stop reach a running job before SIGKILL.
+    // Cadences: index-full Mon 01:00 (~22 min), index-enrich Sun 04:30 (off-peak),
+    // backfill-ids Sun 05:00 (after enrich), follow-detect daily 03:00, search 03:10 and
+    // 15:10, grab 03:20 and 15:20 (after search; the 15:20 retries backed-off items),
+    // health-check hourly at :15.
 
     // The ONLY mode that retires a file the filesystem no longer has: miss strikes
     // are raised in `full` alone (quick/incremental do not walk every file, so
@@ -148,11 +159,12 @@ module.exports = {
     {
       name: "personalscraper-index-full",
       script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
-      args: "library-index --mode full --no-budget --wait-for-lock 600",
+      args: "schedule --cron '0 1 * * 1' -- library-index --mode full --no-budget --wait-for-lock 600",
       interpreter: "none",
       cwd: "/Users/izno/deploy/torrentmate",
-      autorestart: false,
-      cron_restart: "0 1 * * 1", // Mondays 01:00 local — ~22 min, ends well before 03:00
+      autorestart: true,
+      restart_delay: 60000,
+      kill_timeout: 30000,
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
@@ -162,11 +174,12 @@ module.exports = {
     {
       name: "personalscraper-index-enrich",
       script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
-      args: "library-index --mode enrich --budget 1800 --wait-for-lock 0",
+      args: "schedule --cron '30 4 * * 0' -- library-index --mode enrich --budget 1800 --wait-for-lock 0",
       interpreter: "none",
       cwd: "/Users/izno/deploy/torrentmate",
-      autorestart: false,
-      cron_restart: "30 4 * * 0", // Sundays 04:30 local — off-peak
+      autorestart: true,
+      restart_delay: 60000,
+      kill_timeout: 30000,
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
@@ -176,11 +189,12 @@ module.exports = {
     {
       name: "personalscraper-backfill-ids",
       script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
-      args: "library-backfill-ids",
+      args: "schedule --cron '0 5 * * 0' -- library-backfill-ids",
       interpreter: "none",
       cwd: "/Users/izno/deploy/torrentmate",
-      autorestart: false,
-      cron_restart: "0 5 * * 0", // Sundays 05:00 local (after enrich)
+      autorestart: true,
+      restart_delay: 60000,
+      kill_timeout: 30000,
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
@@ -194,11 +208,12 @@ module.exports = {
     {
       name: "personalscraper-follow-detect",
       script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
-      args: "follow detect",
+      args: "schedule --cron '0 3 * * *' -- follow detect",
       interpreter: "none",
       cwd: "/Users/izno/deploy/torrentmate",
-      autorestart: false,
-      cron_restart: "0 3 * * *", // 03:00 daily — enqueue newly-aired episodes
+      autorestart: true,
+      restart_delay: 60000,
+      kill_timeout: 30000,
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
@@ -210,11 +225,12 @@ module.exports = {
     {
       name: "personalscraper-search",
       script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
-      args: "search",
+      args: "schedule --cron '10 3,15 * * *' -- search",
       interpreter: "none",
       cwd: "/Users/izno/deploy/torrentmate",
-      autorestart: false,
-      cron_restart: "10 3,15 * * *",
+      autorestart: true,
+      restart_delay: 60000,
+      kill_timeout: 30000,
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
@@ -224,12 +240,13 @@ module.exports = {
     {
       name: "personalscraper-grab",
       script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
-      args: "grab",
+      args: "schedule --cron '20 3,15 * * *' -- grab",
       interpreter: "none",
       cwd: "/Users/izno/deploy/torrentmate",
-      autorestart: false,
+      autorestart: true,
+      restart_delay: 60000,
+      kill_timeout: 30000,
       // 03:20 daily (after detect) + 15:20 to retry backed-off items sooner.
-      cron_restart: "20 3,15 * * *",
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
@@ -242,11 +259,12 @@ module.exports = {
     {
       name: "personalscraper-health-check",
       script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
-      args: "health-check",
+      args: "schedule --cron '15 * * * *' -- health-check",
       interpreter: "none",
       cwd: "/Users/izno/deploy/torrentmate",
-      autorestart: false,
-      cron_restart: "15 * * * *", // hourly at :15
+      autorestart: true,
+      restart_delay: 60000,
+      kill_timeout: 30000,
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",

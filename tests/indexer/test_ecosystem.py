@@ -1,9 +1,10 @@
 """Static drift guards for PM2 ecosystem.config.js (Phase 8 cutover).
 
 Validates that the PM2 ecosystem file at the repo root stays in sync with the
-design: the ten apps (watch daemon + six cron jobs + prod/staging web + autodeploy),
-correct ``interpreter`` / ``script`` / ``cwd``, proper ``autorestart`` vs
-``cron_restart`` segregation, valid cron expressions, and the ENV-SEP invariant that
+design: the eleven apps (watch daemon + seven scheduled jobs + prod/staging web + autodeploy),
+correct ``interpreter`` / ``script`` / ``cwd``, scheduled jobs on the self-managed
+``schedule`` loop (never PM2's ``cron_restart``, which fires twice at a boundary and kills
+the run it just started), valid cron expressions, and the ENV-SEP invariant that
 every daemon/cron runs from the PROD clone — never the dev checkout.
 
 Test strategy:
@@ -18,6 +19,7 @@ Test strategy:
 from __future__ import annotations
 
 import re
+import shlex
 from pathlib import Path
 
 import pytest
@@ -57,6 +59,18 @@ _CANONICAL_CONFIG = "/Users/izno/.torrentmate/config"
 #: Python daemon/cron apps — all run the prod-clone venv binary from the prod-clone
 #: cwd with the canonical config dir passed explicitly (ENV-SEP). The web apps run
 #: from their OWN clones (tested in :func:`test_web_apps_run_from_their_deploy_clones`).
+_SCHEDULED_JOB_NAMES = frozenset(
+    {
+        "personalscraper-index-full",
+        "personalscraper-index-enrich",
+        "personalscraper-backfill-ids",
+        "personalscraper-follow-detect",
+        "personalscraper-search",
+        "personalscraper-grab",
+        "personalscraper-health-check",
+    }
+)
+
 _PROD_PYTHON_APP_NAMES = frozenset(
     {
         "personalscraper-watch",
@@ -197,6 +211,28 @@ def _get_app_by_name(apps: list[dict[str, object]], name: str) -> dict[str, obje
         StopIteration: If no app with *name* is found.
     """
     return next(a for a in apps if a["name"] == name)
+
+
+def _job_schedule(app: dict[str, object]) -> tuple[str, list[str]]:
+    """Split a scheduled job's ``args`` into its cron expression and the CLI job it runs.
+
+    A scheduled job is ``schedule --cron '<expr>' -- <job args>``: the self-managed loop
+    (``personalscraper/scheduler.py``) that replaced PM2's ``cron_restart``.
+
+    Args:
+        app: A parsed app dict.
+
+    Returns:
+        ``(cron expression, job argv)``.
+
+    Raises:
+        AssertionError: If the args are not in the ``schedule`` shape.
+    """
+    argv = shlex.split(str(app.get("args", "")))
+    name = app["name"]
+    assert argv[:2] == ["schedule", "--cron"], f"{name}: args must start with 'schedule --cron', got {app['args']!r}"
+    assert argv[3] == "--", f"{name}: the job must follow '--', got {app.get('args')!r}"
+    return argv[2], argv[4:]
 
 
 # ---------------------------------------------------------------------------
@@ -361,13 +397,28 @@ def test_watch_app_has_kill_timeout_30000() -> None:
 # pinned because losing it silently un-does the schedule.
 
 
-def test_index_full_app_autorestart_false() -> None:
-    """A cron job must not be restarted on exit — it has finished, not crashed."""
+@pytest.mark.parametrize("app_name", sorted(_SCHEDULED_JOB_NAMES))
+def test_scheduled_job_runs_on_the_self_managed_loop(app_name: str) -> None:
+    """A scheduled job never uses PM2's ``cron_restart``: it is one long-lived ``schedule`` loop.
+
+    PM2 6.0.8's ``cron_restart`` ticks twice around a boundary (10:59:59 then 11:00:00)
+    and the second tick SIGINT-kills the run the first started — 25 health-check, 4
+    search, 4 grab and 1 follow-detect runs were cut on 2026-10-02. The loop
+    (``personalscraper schedule``) fires once per boundary and never while a run is going,
+    so PM2 only keeps it alive (``autorestart: true``) and must not also schedule it.
+
+    Args:
+        app_name: Name of the scheduled app under test.
+    """
     apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
-    full = _get_app_by_name(apps, "personalscraper-index-full")
-    assert full.get("autorestart") is False, (
-        f"index-full app: expected autorestart=false, got {full.get('autorestart')!r}"
-    )
+    app = _get_app_by_name(apps, app_name)
+    assert "cron_restart" not in app, f"{app_name}: cron_restart double-ticks and kills the run it started"
+    assert app.get("autorestart") is True, f"{app_name}: the loop must be kept alive (autorestart=true)"
+    assert app.get("restart_delay") == 60000, f"{app_name}: a loop that dies at start must not spin"
+    assert app.get("kill_timeout") == 30000, f"{app_name}: stop must let the running job finish its shutdown"
+    cron, job = _job_schedule(app)
+    assert _is_valid_cron_5field(cron), f"{app_name}: '{cron}' is not a valid 5-field cron expression"
+    assert job, f"{app_name}: no job after '--'"
 
 
 def test_index_full_app_cron_is_valid_5field_on_monday() -> None:
@@ -379,9 +430,8 @@ def test_index_full_app_cron_is_valid_5field_on_monday() -> None:
     """
     apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
     full = _get_app_by_name(apps, "personalscraper-index-full")
-    cron = full["cron_restart"]
-    assert isinstance(cron, str), f"index-full cron_restart must be str, got {type(cron)}"
-    assert _is_valid_cron_5field(cron), f"index-full app: cron_restart '{cron}' is not a valid 5-field expression"
+    cron, _ = _job_schedule(full)
+    assert _is_valid_cron_5field(cron), f"index-full app: cron '{cron}' is not a valid 5-field expression"
     fields = cron.strip().split()
     assert fields[4] == "1", f"index-full app: day-of-week must be Monday (1), got '{fields[4]}'"
     assert fields[1] == "1", f"index-full app: hour must be 01, got '{fields[1]}'"
@@ -398,7 +448,7 @@ def test_index_full_app_runs_without_a_time_budget() -> None:
     """
     apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
     full = _get_app_by_name(apps, "personalscraper-index-full")
-    args = full.get("args", "")
+    args = " ".join(_job_schedule(full)[1])
     assert isinstance(args, str), f"index-full args must be str, got {type(args)}"
     assert "library-index" in args, f"index-full app: args must contain 'library-index', got {args!r}"
     assert "--mode full" in args, f"index-full app: args must contain '--mode full', got {args!r}"
@@ -416,7 +466,7 @@ def test_index_full_app_waits_for_the_writer_lock() -> None:
     """
     apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
     full = _get_app_by_name(apps, "personalscraper-index-full")
-    args = full.get("args", "")
+    args = " ".join(_job_schedule(full)[1])
     assert "--wait-for-lock" in args, f"index-full app: args must contain '--wait-for-lock', got {args!r}"
     waited = int(args.split("--wait-for-lock", 1)[1].split()[0])
     assert waited > 0, f"index-full app: --wait-for-lock must be > 0 (0 abandons on a busy lock), got {waited}"
@@ -427,38 +477,21 @@ def test_index_full_app_waits_for_the_writer_lock() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_enrich_app_autorestart_false() -> None:
-    """``personalscraper-index-enrich`` must have ``autorestart: false``."""
-    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
-    enrich = _get_app_by_name(apps, "personalscraper-index-enrich")
-    assert enrich.get("autorestart") is False, (
-        f"enrich app: expected autorestart=false, got {enrich.get('autorestart')!r}"
-    )
-
-
-def test_enrich_app_has_cron_restart() -> None:
-    """``personalscraper-index-enrich`` must have a ``cron_restart`` field."""
-    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
-    enrich = _get_app_by_name(apps, "personalscraper-index-enrich")
-    assert "cron_restart" in enrich, "enrich app must have cron_restart"
-
-
 def test_enrich_app_cron_is_valid_5field_with_sunday() -> None:
     """``personalscraper-index-enrich`` cron must be valid 5-field with Sunday (0/7)."""
     apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
     enrich = _get_app_by_name(apps, "personalscraper-index-enrich")
-    cron = enrich["cron_restart"]
-    assert isinstance(cron, str), f"enrich cron_restart must be str, got {type(cron)}"
-    assert _is_valid_cron_5field(cron), f"enrich app: cron_restart '{cron}' is not a valid 5-field cron expression"
+    cron, _ = _job_schedule(enrich)
+    assert _is_valid_cron_5field(cron), f"enrich app: cron '{cron}' is not a valid 5-field cron expression"
     dow = cron.strip().split()[4]
-    assert dow in ("0", "7"), f"enrich app: cron_restart day-of-week must be Sunday (0 or 7), got '{dow}'"
+    assert dow in ("0", "7"), f"enrich app: cron day-of-week must be Sunday (0 or 7), got '{dow}'"
 
 
 def test_enrich_app_args_contains_mode_enrich() -> None:
     """``personalscraper-index-enrich`` args must contain ``library-index --mode enrich``."""
     apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
     enrich = _get_app_by_name(apps, "personalscraper-index-enrich")
-    args = enrich.get("args", "")
+    args = " ".join(_job_schedule(enrich)[1])
     assert isinstance(args, str), f"enrich args must be str, got {type(args)}"
     assert "library-index" in args, f"enrich app: args must contain 'library-index', got {args!r}"
     assert "--mode enrich" in args, f"enrich app: args must contain '--mode enrich', got {args!r}"
@@ -469,38 +502,21 @@ def test_enrich_app_args_contains_mode_enrich() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_backfill_app_autorestart_false() -> None:
-    """``personalscraper-backfill-ids`` must have ``autorestart: false``."""
-    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
-    backfill = _get_app_by_name(apps, "personalscraper-backfill-ids")
-    assert backfill.get("autorestart") is False, (
-        f"backfill app: expected autorestart=false, got {backfill.get('autorestart')!r}"
-    )
-
-
-def test_backfill_app_has_cron_restart() -> None:
-    """``personalscraper-backfill-ids`` must have a ``cron_restart`` field."""
-    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
-    backfill = _get_app_by_name(apps, "personalscraper-backfill-ids")
-    assert "cron_restart" in backfill, "backfill app must have cron_restart"
-
-
 def test_backfill_app_cron_is_valid_5field_with_sunday() -> None:
     """``personalscraper-backfill-ids`` cron must be valid 5-field with Sunday (0/7)."""
     apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
     backfill = _get_app_by_name(apps, "personalscraper-backfill-ids")
-    cron = backfill["cron_restart"]
-    assert isinstance(cron, str), f"backfill cron_restart must be str, got {type(cron)}"
-    assert _is_valid_cron_5field(cron), f"backfill app: cron_restart '{cron}' is not a valid 5-field cron expression"
+    cron, _ = _job_schedule(backfill)
+    assert _is_valid_cron_5field(cron), f"backfill app: cron '{cron}' is not a valid 5-field cron expression"
     dow = cron.strip().split()[4]
-    assert dow in ("0", "7"), f"backfill app: cron_restart day-of-week must be Sunday (0 or 7), got '{dow}'"
+    assert dow in ("0", "7"), f"backfill app: cron day-of-week must be Sunday (0 or 7), got '{dow}'"
 
 
 def test_backfill_app_args_contains_backfill() -> None:
     """``personalscraper-backfill-ids`` args must contain ``library-backfill-ids``."""
     apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
     backfill = _get_app_by_name(apps, "personalscraper-backfill-ids")
-    args = backfill.get("args", "")
+    args = " ".join(_job_schedule(backfill)[1])
     assert isinstance(args, str), f"backfill args must be str, got {type(args)}"
     assert "library-backfill-ids" in args, f"backfill app: args must contain 'library-backfill-ids', got {args!r}"
 
@@ -511,33 +527,30 @@ def test_backfill_app_args_contains_backfill() -> None:
 
 
 def test_follow_detect_app_is_valid_cron_job() -> None:
-    """``personalscraper-follow-detect`` runs ``follow detect`` on a valid cron, no autorestart."""
+    """``personalscraper-follow-detect`` runs ``follow detect`` on a valid cron."""
     apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
     app = _get_app_by_name(apps, "personalscraper-follow-detect")
-    assert app.get("args") == "follow detect", f"expected args 'follow detect', got {app.get('args')!r}"
-    assert app.get("autorestart") is False, f"expected autorestart=false, got {app.get('autorestart')!r}"
-    cron = app.get("cron_restart")
-    assert isinstance(cron, str) and _is_valid_cron_5field(cron), f"invalid cron_restart {cron!r}"
+    assert _job_schedule(app)[1] == ["follow", "detect"], f"expected job 'follow detect', got {app.get('args')!r}"
+    cron, _ = _job_schedule(app)
+    assert _is_valid_cron_5field(cron), f"invalid cron {cron!r}"
 
 
 def test_grab_app_is_valid_cron_job() -> None:
-    """``personalscraper-grab`` runs ``grab`` on a valid cron (twice daily), no autorestart."""
+    """``personalscraper-grab`` runs ``grab`` on a valid cron (twice daily)."""
     apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
     app = _get_app_by_name(apps, "personalscraper-grab")
-    assert app.get("args") == "grab", f"expected args 'grab', got {app.get('args')!r}"
-    assert app.get("autorestart") is False, f"expected autorestart=false, got {app.get('autorestart')!r}"
-    cron = app.get("cron_restart")
-    assert isinstance(cron, str) and _is_valid_cron_5field(cron), f"invalid cron_restart {cron!r}"
+    assert _job_schedule(app)[1] == ["grab"], f"expected job 'grab', got {app.get('args')!r}"
+    cron, _ = _job_schedule(app)
+    assert _is_valid_cron_5field(cron), f"invalid cron {cron!r}"
 
 
 def test_search_app_is_valid_cron_job() -> None:
-    """``personalscraper-search`` runs ``search`` on a valid cron (twice daily, 10 past), no autorestart."""
+    """``personalscraper-search`` runs ``search`` on a valid cron (twice daily, 10 past)."""
     apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
     app = _get_app_by_name(apps, "personalscraper-search")
-    assert app.get("args") == "search", f"expected args 'search', got {app.get('args')!r}"
-    assert app.get("autorestart") is False, f"expected autorestart=false, got {app.get('autorestart')!r}"
-    cron = app.get("cron_restart")
-    assert isinstance(cron, str) and _is_valid_cron_5field(cron), f"invalid cron_restart {cron!r}"
+    assert _job_schedule(app)[1] == ["search"], f"expected job 'search', got {app.get('args')!r}"
+    cron, _ = _job_schedule(app)
+    assert _is_valid_cron_5field(cron), f"invalid cron {cron!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -629,13 +642,18 @@ def test_web_apps_run_from_their_deploy_clones() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_cron_apps_do_not_have_autorestart_true() -> None:
-    """Any app with ``cron_restart`` must NOT have ``autorestart: true``."""
+def test_no_app_uses_pm2_cron_restart() -> None:
+    """No app of the file may carry ``cron_restart`` — PM2's cron fires twice and kills the run."""
     apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
-    for app in apps:
-        if "cron_restart" in app:
-            name = app["name"]
-            assert app.get("autorestart") is not True, f"{name}: cron job must not have autorestart=true"
+    offenders = [str(a["name"]) for a in apps if "cron_restart" in a]
+    assert offenders == [], f"apps on PM2's double-ticking cron_restart: {offenders}"
+
+
+def test_scheduled_jobs_are_exactly_the_schedule_apps() -> None:
+    """Every app running ``schedule`` is a known job and every known job runs ``schedule``."""
+    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
+    scheduled = {str(a["name"]) for a in apps if str(a.get("args", "")).startswith("schedule ")}
+    assert scheduled == _SCHEDULED_JOB_NAMES, f"scheduled apps drifted: {sorted(scheduled ^ _SCHEDULED_JOB_NAMES)}"
 
 
 def test_daemon_apps_do_not_have_cron_restart() -> None:

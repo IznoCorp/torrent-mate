@@ -330,11 +330,11 @@ Defined in `ecosystem.config.js` as `personalscraper-index-enrich`:
 {
   name: "personalscraper-index-enrich",
   script: "personalscraper",
-  args: "library-index --mode enrich --budget 1800 --wait-for-lock 0",
+  args: "schedule --cron '30 4 * * 0' -- library-index --mode enrich --budget 1800 --wait-for-lock 0",
   interpreter: "none",
   cwd: __dirname,
-  autorestart: false,
-  cron_restart: "30 4 * * 0", // Sundays 04:30 local — off-peak
+  autorestart: true, // the `schedule` loop is kept alive; PM2's cron_restart double-ticks
+  // Sundays 04:30 local — off-peak
 }
 ```
 
@@ -349,11 +349,11 @@ after the enrich pass:
 {
   name: "personalscraper-backfill-ids",
   script: "personalscraper",
-  args: "library-backfill-ids",
+  args: "schedule --cron '0 5 * * 0' -- library-backfill-ids",
   interpreter: "none",
   cwd: __dirname,
-  autorestart: false,
-  cron_restart: "0 5 * * 0", // Sundays 05:00 local (after enrich)
+  autorestart: true, // the `schedule` loop is kept alive; PM2's cron_restart double-ticks
+  // Sundays 05:00 local (after enrich)
 }
 ```
 
