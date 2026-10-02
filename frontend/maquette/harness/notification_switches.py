@@ -9,11 +9,11 @@ the device's line, for every account that receives pushes, its types filtered by
 R521-a — the device's line, one per support of this device:
 1. `profile-notifications` — push granted here: the section's FIRST row is the device's line,
    `data-support` « granted », its words those of `fr.json`;
-2. `profile-notifications-default`, `-denied`, `-needs-install`, `-unsupported` — each its own
+2. `profile-notifications-unasked`, `-denied`, `-needs-install`, `-unsupported` — each its own
    `data-support` and its own words, and the switches still drawn: a choice is the account's and
    holds on its other devices;
 3. the action « activer » is offered where, and only where, this device can still be asked
-   (`default`); pressed, the permission granted, the token is registered (`registerPushDevice`)
+   (`unasked`); pressed, the permission granted, the token is registered (`registerPushDevice`)
    and the line says « granted ».
 
 R521-b — the switches, the account's:
@@ -91,7 +91,7 @@ ACCOUNT = """async () => {
 
 SUPPORTS = (
     ("profile-notifications", "granted"),
-    ("profile-notifications-default", "default"),
+    ("profile-notifications-unasked", "unasked"),
     ("profile-notifications-denied", "denied"),
     ("profile-notifications-needs-install", "needs-install"),
     ("profile-notifications-unsupported", "unsupported"),
@@ -145,7 +145,7 @@ async def main():
                 continue
             words = DEVICE.get(support, {})
             # WHERE THE DEVICE CAN STILL BE ASKED, its value IS the action: « Activer sur cet appareil ».
-            value = DEVICE.get("enable", ABSENT) if support == "default" else words.get("value", ABSENT)
+            value = DEVICE.get("enable", ABSENT) if support == "unasked" else words.get("value", ABSENT)
             line = words.get("line", ABSENT)
             journal.check(f"{state}: the device's line LEADS the section, « {support} »",
                           seen["deviceFirst"] and seen["support"] == support,
@@ -156,10 +156,10 @@ async def main():
             journal.check(f"{state}: the switches are drawn whatever the device", len(seen["switches"]) > 0,
                           f"{len(seen['switches'])} switches")
             journal.check(f"{state}: « activer » is offered only where the device can still be asked",
-                          seen["enable"] == (support == "default"), f"enable {seen['enable']}")
+                          seen["enable"] == (support == "unasked"), f"enable {seen['enable']}")
 
-        if await exists(page, "profile-notifications-default"):
-            await read_at(page, "profile-notifications-default", SECTION)
+        if await exists(page, "profile-notifications-unasked"):
+            await read_at(page, "profile-notifications-unasked", SECTION)
             enable = page.locator('[data-part="profile/push-enable"]')
             if await enable.count():
                 await enable.click()

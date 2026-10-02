@@ -1,7 +1,9 @@
 // This device and the push channel, as Profil's « Notifications » section says it (F-3).
 //
 // THE DEVICE'S LINE NAMES ONE OF FIVE SUPPORTS, read off `pushSupport`: granted here, not yet
-// asked (`default`, the one support « Activer » is offered on — a browser never asks twice),
+// asked (`unasked` — the browser's `default` permission, renamed so no source reads like a
+// comparison with the Default role; the one support « Activer » is offered on, since a browser
+// never asks twice),
 // refused, an iPhone that must install the application first, a browser with no push at all.
 //
 // « ACTIVER » IS THE PERMISSION FLOW OF `lib/push-registration.ts`, unchanged: the permission is
@@ -23,12 +25,19 @@ import {
 import type { components } from "../../contract/types";
 
 /** What the device's line says. */
-export type DeviceSupport = "granted" | "default" | "denied" | "needs-install" | "unsupported";
+export type DeviceSupport = "granted" | "unasked" | "denied" | "needs-install" | "unsupported";
 
 type Platform = components["schemas"]["PushDevice"]["platform"];
 
 /** A device a named state poses: its environment, and what its permission prompt answers. */
 export type PosedDevice = { environment: PushEnvironment; answer: NotificationPermission };
+
+/** The line's word for each permission the browser reports. */
+const SUPPORT_OF_PERMISSION: Readonly<Record<NotificationPermission, DeviceSupport>> = {
+  default: "unasked",
+  granted: "granted",
+  denied: "denied",
+};
 
 let posed: PosedDevice | null = null;
 let generation = 0;
@@ -71,7 +80,7 @@ function environment(): PushEnvironment {
 export function deviceSupport(env: PushEnvironment = environment()): DeviceSupport {
   const support = pushSupport(env);
   if (support.kind !== "available") return support.kind;
-  return support.permission;
+  return SUPPORT_OF_PERMISSION[support.permission];
 }
 
 /**

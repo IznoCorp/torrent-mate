@@ -80,14 +80,14 @@ function DeviceLine(): ReactElement {
         <div className="font-semibold">{t(`${words}.label`)}</div>
         {/* THE SUPPORT UNDER THE LABEL, never beside it: its words are longer than a chip's
             room beside a phone's row, and the row's right side is the action's. */}
-        {support === "default" ? null : (
+        {support === "unasked" ? null : (
           <div className="my-1 flex">
             <Chip tone={chipTone(support === "granted" ? "success" : "neutral")} label={t(`${words}.${support}.value`)} />
           </div>
         )}
         <div className={qualityHint()}>{t(failed ? `${words}.failed` : `${words}.${support}.line`)}</div>
       </div>
-      {support === "default" ? (
+      {support === "unasked" ? (
         <button className={actionButton({ kind: "panelAction" })} data-part="profile/push-enable" disabled={pending}
           onClick={enable}>
           {t(pending ? `${words}.enabling` : `${words}.enable`)}

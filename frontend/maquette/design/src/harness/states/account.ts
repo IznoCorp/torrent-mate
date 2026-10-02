@@ -67,7 +67,7 @@ export function accountStates(): NamedState[] {
       () => profileOn({ environment: ANDROID, answer: "granted" }),
     ],
     [
-      "profile-notifications-default",
+      "profile-notifications-unasked",
       "Profil — « Notifications » : cet appareil n'a pas encore été autorisé, « Activer sur cet appareil »",
       () => profileOn({ environment: { ...ANDROID, permission: "default" }, answer: "granted" }),
     ],

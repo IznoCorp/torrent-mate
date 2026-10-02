@@ -23,7 +23,7 @@ const IPHONE_TAB: PushEnvironment = {
 describe("deviceSupport", () => {
   it("says the permission where push is available", () => {
     expect(deviceSupport({ ...ANDROID, permission: "granted" })).toBe("granted");
-    expect(deviceSupport(ANDROID)).toBe("default");
+    expect(deviceSupport(ANDROID)).toBe("unasked");
     expect(deviceSupport({ ...ANDROID, permission: "denied" })).toBe("denied");
   });
 

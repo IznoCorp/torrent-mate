@@ -1129,7 +1129,7 @@
             "value": "Notifications activées",
             "line": "Les types cochés ci-dessous arrivent sur cet appareil."
           },
-          "default": {
+          "unasked": {
             "value": "Pas encore activées",
             "line": "Ce navigateur n'a pas encore donné sa permission : les types cochés arrivent sur vos autres appareils, pas sur celui-ci."
           },
