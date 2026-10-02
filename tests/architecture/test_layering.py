@@ -624,3 +624,36 @@ def test_type_checking_api_import_is_not_flagged_by_cycle_guard() -> None:
     """NEGATIVE control: an api import under TYPE_CHECKING is not a runtime edge."""
     source = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from personalscraper.api import x\n"
     assert _runtime_api_imports(source) == []
+
+
+# ---------------------------------------------------------------------------
+# app/ (the application layer) is freed of HTTP: it imports neither fastapi nor
+# starlette (backend-brief § 5 Q11).  ``test_engine_does_not_import_web`` already
+# covers ``personalscraper.web``; this one covers the HTTP frameworks.  A
+# TYPE_CHECKING import is exempt, as everywhere in this file.
+# ---------------------------------------------------------------------------
+
+_APP_HTTP_FORBIDDEN_PREFIXES = ("fastapi", "starlette")
+_APP_PACKAGE_DIR = _PACKAGE_ROOT / "app"
+_APP_SYNTHETIC_REL = "personalscraper/app/_synthetic_probe.py"
+
+
+def test_app_does_not_import_http() -> None:
+    """No module under ``personalscraper/app/`` imports ``fastapi`` or ``starlette`` at runtime."""
+    assert _APP_PACKAGE_DIR.is_dir(), "personalscraper/app/ is missing (the guard would scan nothing)"
+    violations: list[str] = []
+    for py_file in sorted(_APP_PACKAGE_DIR.rglob("*.py")):
+        rel = py_file.relative_to(_REPO_ROOT).as_posix()
+        source = py_file.read_text(encoding="utf-8")
+        violations.extend(_collect_violations_from_source(source, rel, _APP_HTTP_FORBIDDEN_PREFIXES))
+    assert not violations, "app/ must not import an HTTP framework (the application layer is HTTP-free):\n" + "\n".join(
+        violations
+    )
+
+
+def test_app_http_import_is_flagged() -> None:
+    """POSITIVE control: a synthetic app/ file importing fastapi IS flagged (non-vacuous anchor)."""
+    source = "from fastapi import HTTPException\n"
+    violations = _collect_violations_from_source(source, _APP_SYNTHETIC_REL, _APP_HTTP_FORBIDDEN_PREFIXES)
+    assert violations, "app HTTP guard failed to flag a fastapi import (vacuous guard!)"
+    assert "fastapi" in violations[0]

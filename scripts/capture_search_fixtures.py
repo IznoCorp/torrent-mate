@@ -90,12 +90,12 @@ def main() -> int:
     parser.add_argument("--out", default="tests/fixtures/search", type=Path)
     args = parser.parse_args()
 
-    from personalscraper.cli_helpers import _build_app_context
+    from personalscraper.app.composition import build_app_context
     from personalscraper.conf.loader import load_config
     from personalscraper.config import Settings
 
     args.out.mkdir(parents=True, exist_ok=True)
-    context = _build_app_context(load_config(), Settings())
+    context = build_app_context(load_config(), Settings())
     try:
         for query, provider, endpoint, label in CAPTURES:
             payload = _fetch(context.provider_registry, query, provider, endpoint)

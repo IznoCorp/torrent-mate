@@ -1,7 +1,7 @@
 """Verify AppContext.acquire replaces tracker_registry — acquire-lobe RP5c.
 
 Locks the field swap (``acquire`` present, ``tracker_registry`` gone), the
-composition-root wiring (``_build_app_context`` sets ``ctx.acquire`` to a real
+composition-root wiring (``build_app_context`` sets ``ctx.acquire`` to a real
 :class:`AcquireContext` carrying the tracker registry), and the close
 propagation (``per_step_boundary`` calls ``app_context.acquire.close()`` on
 exit).
@@ -32,7 +32,7 @@ def test_appcontext_no_tracker_registry_field() -> None:
 
 
 def _config() -> MagicMock:
-    """Minimal config MagicMock for ``_build_app_context`` (no torrent client)."""
+    """Minimal config MagicMock for ``build_app_context`` (no torrent client)."""
     cfg = MagicMock()
     cfg.thresholds.circuit_breaker_threshold = 5
     cfg.thresholds.circuit_breaker_cooldown = 300.0
@@ -40,14 +40,14 @@ def _config() -> MagicMock:
     return cfg
 
 
-def test_build_app_context_sets_acquire_with_tracker_registry() -> None:
-    """_build_app_context must store a real AcquireContext carrying the registry.
+def test_app_context_build_sets_acquire_with_tracker_registry() -> None:
+    """build_app_context must store a real AcquireContext carrying the registry.
 
     The composition root always sets ``ctx.acquire`` (never ``None`` in
     production); its ``tracker_registry`` is the live factory's return value.
     """
     from personalscraper.acquire.context import AcquireContext
-    from personalscraper.cli_helpers import _build_app_context
+    from personalscraper.app.composition import build_app_context
 
     stub_registry = MagicMock()
 
@@ -58,7 +58,7 @@ def test_build_app_context_sets_acquire_with_tracker_registry() -> None:
         ),
         patch("personalscraper.api.metadata.registry.ProviderRegistry"),
     ):
-        ctx = _build_app_context(_config(), MagicMock())
+        ctx = build_app_context(_config(), MagicMock())
 
     assert ctx.acquire is not None
     assert isinstance(ctx.acquire, AcquireContext)
@@ -76,7 +76,7 @@ def test_per_step_boundary_calls_acquire_close() -> None:
     fake_ctx.acquire = fake_acquire
     fake_ctx.provider_registry = MagicMock()
 
-    with patch("personalscraper.cli_helpers._build_app_context", return_value=fake_ctx):
+    with patch("personalscraper.app.composition.build_app_context", return_value=fake_ctx):
         with per_step_boundary(MagicMock(), MagicMock()):
             pass
 

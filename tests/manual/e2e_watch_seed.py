@@ -60,7 +60,7 @@ from personalscraper.acquire.watcher import (
     WatcherState,
 )
 from personalscraper.api.torrent._errors import ApiError
-from personalscraper.cli_helpers import _build_app_context
+from personalscraper.app.composition import build_app_context
 from personalscraper.conf.loader import load_config, resolve_config_path
 from personalscraper.config import Settings
 from personalscraper.core.tags import SEED_PURE
@@ -153,7 +153,7 @@ class ReadOnlyTorrentClient:
 
 def _build_app(config: Config) -> AppContext:
     """Build the real AppContext (connects qBittorrent once, wires the registry)."""
-    return _build_app_context(config, Settings(), build_torrent_client=True)
+    return build_app_context(config, Settings(), build_torrent_client=True)
 
 
 def _close(app: AppContext) -> None:

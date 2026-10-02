@@ -1,7 +1,7 @@
 """Sub-phase 2.4 invariants for the ``personalscraper run`` CLI entry — migrated for 3.7a.
 
 Verifies that the CLI bootstrap in ``personalscraper.commands.pipeline`` builds an
-:class:`AppContext` via ``_build_app_context`` and passes it verbatim to
+:class:`AppContext` via ``build_app_context`` and passes it verbatim to
 :class:`Pipeline.__init__`. The Phase-2 visual-regression baseline (legacy
 ``RichConsoleObserver`` replay) has moved to
 ``tests/subscribers/test_rich_console_subscriber.py::test_rich_console_subscriber_snapshot_matches_baseline``
@@ -34,7 +34,7 @@ def _make_pipeline_report() -> PipelineReport:
 
 
 class TestPipelineCommandBuildsAppContext:
-    """``_build_app_context`` is invoked at the ``run`` boundary."""
+    """``build_app_context`` is invoked at the ``run`` boundary."""
 
     @patch("personalscraper.pipeline.Pipeline.run")
     def test_pipeline_command_builds_app_context_and_passes_to_pipeline(self, mock_run) -> None:
