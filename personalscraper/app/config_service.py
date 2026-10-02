@@ -1,10 +1,10 @@
 """Pure config-introspection helpers for the config-editor routes.
 
-Split out of :mod:`personalscraper.web.routes.config` (solidify — module-size
+Split out of the web ``routes/config`` module (solidify — module-size
 relief). These are side-effect-free helpers over a config directory: content
 hashing, top-level-key → owning-file ownership, and local.json5 shadow
 computation. They perform no FastAPI/request work, so the route module
-(:mod:`personalscraper.web.routes.config`) re-imports and consumes them.
+(the web ``routes/config`` module) re-imports and consumes them.
 """
 
 from __future__ import annotations

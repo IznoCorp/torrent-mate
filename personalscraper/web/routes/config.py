@@ -50,6 +50,12 @@ import json5
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from pydantic import ValidationError as PydanticValidationError
 
+from personalscraper.app.config_service import (  # noqa: F401 — re-export for callers/tests
+    _compute_ownership,
+    _compute_shadowed_keys,
+    _local_keys,
+    _sha256,
+)
 from personalscraper.conf.envfile import read_env_catalog, write_env_keys
 from personalscraper.conf.loader import (
     _LOCAL_FILENAME,
@@ -64,12 +70,6 @@ from personalscraper.conf.models.config import Config
 from personalscraper.conf.overlay import ConfigConflictError
 from personalscraper.io_utils import atomic_write_text
 from personalscraper.logger import get_logger
-from personalscraper.web.config_service import (  # noqa: F401 — re-export for callers/tests
-    _compute_ownership,
-    _compute_shadowed_keys,
-    _local_keys,
-    _sha256,
-)
 from personalscraper.web.deps import is_staging_role, require_x_requested_with
 from personalscraper.web.models.config import (
     ConfigSchemaResponse,

@@ -40,6 +40,7 @@ from personalscraper.app.maintenance.service import (
     _spawn_runner,
     _validate_options,
 )
+from personalscraper.app.schedulers.registry import CRON_JOBS, CronJob
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import staging_path as _compute_staging_path
 from personalscraper.core.sqlite._fs_probe import is_mounted
@@ -75,7 +76,6 @@ from personalscraper.web.maintenance.models import (
     TmpOrphan,
     TmpOrphanSweep,
 )
-from personalscraper.web.schedulers.registry import CRON_JOBS, CronJob
 
 router = APIRouter(prefix="/api/maintenance", tags=["maintenance"])
 logger = get_logger(__name__)
