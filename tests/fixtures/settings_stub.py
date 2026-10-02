@@ -3,7 +3,7 @@
 Replaces the historical ``mock_settings.return_value = MagicMock()`` hack
 (see feat/registry sub-phase 3.1 / phase-09 §9.1) with a real, typed
 :class:`Settings` instance carrying dummy credential values. This lets
-``ProviderRegistry`` boot through ``_build_app_context`` without the
+``ProviderRegistry`` boot through ``build_app_context`` without the
 autouse patch (``_patch_provider_registry_for_cli_tests``) that used to
 short-circuit registry construction in CLI tests.
 

@@ -49,7 +49,7 @@ _VERIFY_POLL_INTERVAL_S = 2
 class CrossSeedService:
     """Orchestrates cross-seed matching + injection for completed torrents.
 
-    One instance per process lifetime, built in :func:`_build_app_context`.
+    One instance per process lifetime, built in :func:`build_app_context`.
     Depends on *ports* (protocols), not concrete tracker/transport
     implementations — inject fakes for testing.
 

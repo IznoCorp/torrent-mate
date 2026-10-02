@@ -23,7 +23,8 @@ from typing import TYPE_CHECKING
 import typer
 import uvicorn
 
-from personalscraper.cli_helpers import _build_app_context, handle_cli_errors
+from personalscraper.app.composition import build_app_context
+from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_telemetry import cli_telemetry
 from personalscraper.conf.envfile import write_env_keys
 from personalscraper.config import get_settings
@@ -130,7 +131,7 @@ def web(
 
     # Build the AppContext once for process lifetime — no torrent client
     # (the web process never contacts a torrent daemon).
-    app_context = _build_app_context(config, settings, build_torrent_client=False)
+    app_context = build_app_context(config, settings, build_torrent_client=False)
 
     try:
         log.info("web_starting", host=bind_host, port=bind_port)

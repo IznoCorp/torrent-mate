@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING
 import typer
 
 from personalscraper import cli_helpers
+from personalscraper.app.composition import build_app_context
 from personalscraper.cli_app import command_with_telemetry
 from personalscraper.cli_helpers import (
     CommandContext,
-    _build_app_context,
     boundary,
     handle_cli_errors,
 )
@@ -695,7 +695,7 @@ def run(
         settings = cli_helpers.get_settings()
 
         # The :class:`AppContext` is built once per invocation at the CLI
-        # boundary via :func:`_build_app_context` (Sub-phase 2.4 — boundary-only
+        # boundary via :func:`build_app_context` (Sub-phase 2.4 — boundary-only
         # rule from DESIGN §Architecture, enforced by the AST allowlist landed
         # in Sub-phase 2.6). Constructed early so the healthcheck and Telegram
         # transports built below can plumb ``app_context.event_bus`` into their
@@ -703,7 +703,7 @@ def run(
         # build_torrent_client=True: the full pipeline includes the ingest step,
         # which consumes ctx.torrent_client, so the client is resolved + validated
         # at boot here (DESIGN D3 fail-fast for the run path).
-        app_context = _build_app_context(config, settings, build_torrent_client=True)
+        app_context = build_app_context(config, settings, build_torrent_client=True)
 
         # Healthcheck client (None if not configured — pings short-circuit at the call site).
         healthcheck: HealthcheckClient | None = None

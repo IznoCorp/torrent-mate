@@ -75,7 +75,7 @@ def build_acquire_context(
         ownership: Pre-built :class:`OwnershipChecker` port implementation
             (RP6), or ``None``. Typed on the CORE port — the concrete
             ``IndexerOwnershipChecker`` (which reads ``library.db``) is built at
-            the TRUE composition root (``cli_helpers._build_app_context``) and
+            the TRUE composition root (``app.composition.build_app_context``) and
             injected here, so ``acquire/`` never imports ``indexer/`` (the
             layering boundary holds). ``None`` falls back to
             :class:`NullOwnershipChecker` (always ``False``), the safe default

@@ -174,12 +174,12 @@ class _WatchPatches:
     Attributes:
         mock_time: Patched ``personalscraper.commands.watch.time`` mock.
         mock_subprocess: Patched ``personalscraper.commands.watch.subprocess`` mock.
-        mock_build: Patched ``_build_app_context`` mock.
+        mock_build: Patched ``build_app_context`` mock.
         mock_tracker_cls: Patched ``IngestTracker`` mock.
         mock_is_lock_held: Patched ``is_lock_held`` mock.
         mock_get_settings: Patched ``cli_helpers.get_settings`` mock.
         mock_signal: Patched ``signal.signal`` mock.
-        fake_app: The fake AppContext returned by ``_build_app_context``.
+        fake_app: The fake AppContext returned by ``build_app_context``.
     """
 
     def __init__(
@@ -192,7 +192,7 @@ class _WatchPatches:
         """Create the patch bundle (does NOT activate patches).
 
         Args:
-            fake_app: Returned by ``_build_app_context``.
+            fake_app: Returned by ``build_app_context``.
             is_lock_held: Return value for the patched ``is_lock_held``.
             ingested: Dict returned by ``IngestTracker.load()``.
         """
@@ -222,7 +222,7 @@ class _WatchPatches:
         self._patches = [
             patch("personalscraper.commands.watch.time", self.mock_time),
             patch("personalscraper.commands.watch.subprocess", self.mock_subprocess),
-            patch("personalscraper.commands.watch._build_app_context", self.mock_build),
+            patch("personalscraper.commands.watch.build_app_context", self.mock_build),
             patch("personalscraper.commands.watch.IngestTracker", self.mock_tracker_cls),
             patch("personalscraper.commands.watch.is_lock_held", self.mock_is_lock_held),
             patch("personalscraper.commands.watch.cli_helpers.get_settings", self.mock_get_settings),
