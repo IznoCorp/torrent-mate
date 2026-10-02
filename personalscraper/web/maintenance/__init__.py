@@ -14,6 +14,7 @@ See ``docs/features/maint-dash/DESIGN.md`` §4 for the risk taxonomy and
 registry ground truth.
 """
 
+from personalscraper.app.maintenance.registry import REGISTRY, ActionOption, MaintenanceAction, canonical_options_json
 from personalscraper.web.maintenance.models import (  # noqa: F401
     ActionsResponse,
     DiskInfo,
@@ -25,7 +26,6 @@ from personalscraper.web.maintenance.models import (  # noqa: F401
     Sentinels,
     TmpOrphan,
 )
-from personalscraper.web.maintenance.registry import REGISTRY, ActionOption, MaintenanceAction, canonical_options_json
 
 __all__ = [
     "ActionOption",

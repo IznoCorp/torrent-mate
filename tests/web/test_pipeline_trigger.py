@@ -9,14 +9,14 @@ scrape-resolve so the media finishes its pipeline through to dispatch).
 from pathlib import Path
 from unittest.mock import patch
 
-from personalscraper.web.pipeline_trigger import spawn_pipeline_run
+from personalscraper.app.pipeline_trigger import spawn_pipeline_run
 
 
 def test_spawn_when_lock_free_returns_run_uid(tmp_path: Path) -> None:
     """A free lock spawns ``personalscraper run`` and returns its run_uid."""
     with (
-        patch("personalscraper.web.pipeline_trigger.is_lock_held", return_value=False),
-        patch("personalscraper.web.pipeline_trigger.subprocess.Popen") as popen,
+        patch("personalscraper.app.pipeline_trigger.is_lock_held", return_value=False),
+        patch("personalscraper.app.pipeline_trigger.subprocess.Popen") as popen,
     ):
         run_uid = spawn_pipeline_run(tmp_path, trigger_reason="scrape-resolve")
 
@@ -37,8 +37,8 @@ def test_spawn_when_lock_free_returns_run_uid(tmp_path: Path) -> None:
 def test_no_spawn_when_lock_held_returns_none(tmp_path: Path) -> None:
     """A held lock defers: no run spawned, ``None`` returned (single authority)."""
     with (
-        patch("personalscraper.web.pipeline_trigger.is_lock_held", return_value=True),
-        patch("personalscraper.web.pipeline_trigger.subprocess.Popen") as popen,
+        patch("personalscraper.app.pipeline_trigger.is_lock_held", return_value=True),
+        patch("personalscraper.app.pipeline_trigger.subprocess.Popen") as popen,
     ):
         run_uid = spawn_pipeline_run(tmp_path, trigger_reason="scrape-resolve")
 
@@ -49,8 +49,8 @@ def test_no_spawn_when_lock_held_returns_none(tmp_path: Path) -> None:
 def test_dry_run_appends_flag(tmp_path: Path) -> None:
     """``dry_run=True`` appends ``--dry-run`` to the spawned argv."""
     with (
-        patch("personalscraper.web.pipeline_trigger.is_lock_held", return_value=False),
-        patch("personalscraper.web.pipeline_trigger.subprocess.Popen") as popen,
+        patch("personalscraper.app.pipeline_trigger.is_lock_held", return_value=False),
+        patch("personalscraper.app.pipeline_trigger.subprocess.Popen") as popen,
     ):
         spawn_pipeline_run(tmp_path, trigger_reason="web", dry_run=True)
 
@@ -68,7 +68,7 @@ def test_continuation_trigger_reason_is_a_valid_run_trigger() -> None:
     §4 dénaturation, caught only by a real prod resolve). This wires both ends of
     the contract so they cannot drift again.
     """
+    from personalscraper.app.pipeline_trigger import RESOLVE_CONTINUATION_TRIGGER
     from personalscraper.commands.pipeline import _validate_trigger_reason
-    from personalscraper.web.pipeline_trigger import RESOLVE_CONTINUATION_TRIGGER
 
     assert _validate_trigger_reason(RESOLVE_CONTINUATION_TRIGGER) == RESOLVE_CONTINUATION_TRIGGER

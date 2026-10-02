@@ -1,4 +1,4 @@
-"""Unit tests for the shared runner engine (``web/_runner_engine.py``).
+"""Unit tests for the shared runner engine (``app/_runner_engine.py``).
 
 Covers the two consolidated primitives:
 
@@ -23,10 +23,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.app import _runner_engine as engine
 from personalscraper.app.errors import AppConflict
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.pipeline_history import PipelineRunWriter
-from personalscraper.web import _runner_engine as engine
 
 PIPELINE_RUN_DDL = """
 CREATE TABLE pipeline_run (
@@ -196,7 +196,7 @@ class TestLifecycleTerminalStatus:
         proc = _fake_popen(["hello\n", "world\n"], returncode=0)
         spec = _spec(db_path, "run-ok", ["x"])
         with (
-            patch("personalscraper.web._runner_engine.subprocess.Popen", return_value=proc),
+            patch("personalscraper.app._runner_engine.subprocess.Popen", return_value=proc),
             pytest.raises(SystemExit) as exc,
         ):
             engine.run_spawn_stream(spec)
@@ -213,7 +213,7 @@ class TestLifecycleTerminalStatus:
         proc = _fake_popen(["boom\n"], returncode=3)
         spec = _spec(db_path, "run-crash", ["x"])
         with (
-            patch("personalscraper.web._runner_engine.subprocess.Popen", return_value=proc),
+            patch("personalscraper.app._runner_engine.subprocess.Popen", return_value=proc),
             pytest.raises(SystemExit) as exc,
         ):
             engine.run_spawn_stream(spec)
@@ -228,7 +228,7 @@ class TestLifecycleTerminalStatus:
         _create_db(db_path)
         spec = _spec(db_path, "run-spawnfail", ["x"])
         with (
-            patch("personalscraper.web._runner_engine.subprocess.Popen", side_effect=OSError("nope")),
+            patch("personalscraper.app._runner_engine.subprocess.Popen", side_effect=OSError("nope")),
             pytest.raises(SystemExit) as exc,
         ):
             engine.run_spawn_stream(spec)
@@ -248,9 +248,9 @@ class TestLifecycleTerminalStatus:
             raise RuntimeError("mid-stream boom")
 
         with (
-            patch("personalscraper.web._runner_engine.subprocess.Popen", return_value=proc),
+            patch("personalscraper.app._runner_engine.subprocess.Popen", return_value=proc),
             patch.object(spec.ring, "append", boom),
-            patch("personalscraper.web._runner_engine.kill_child_group") as mock_kill,
+            patch("personalscraper.app._runner_engine.kill_child_group") as mock_kill,
             pytest.raises(SystemExit) as exc,
         ):
             engine.run_spawn_stream(spec)
@@ -267,7 +267,7 @@ class TestLifecycleTerminalStatus:
         called = {"n": 0}
         spec = _spec(db_path, "run-hook", ["x"], on_success=lambda: called.__setitem__("n", called["n"] + 1))
         with (
-            patch("personalscraper.web._runner_engine.subprocess.Popen", return_value=proc),
+            patch("personalscraper.app._runner_engine.subprocess.Popen", return_value=proc),
             pytest.raises(SystemExit),
         ):
             engine.run_spawn_stream(spec)
@@ -283,7 +283,7 @@ class TestLifecycleTerminalStatus:
         redis = MagicMock()
         spec = _spec(db_path, "run-redis", ["x"], redis=redis)
         with (
-            patch("personalscraper.web._runner_engine.subprocess.Popen", return_value=proc),
+            patch("personalscraper.app._runner_engine.subprocess.Popen", return_value=proc),
             pytest.raises(SystemExit),
         ):
             engine.run_spawn_stream(spec)
@@ -321,7 +321,7 @@ class TestLockTenure:
             scrape_locks_dir=scrape_dir,
         )
         with (
-            patch("personalscraper.web._runner_engine.subprocess.Popen", return_value=proc),
+            patch("personalscraper.app._runner_engine.subprocess.Popen", return_value=proc),
             pytest.raises(SystemExit) as exc,
         ):
             engine.run_spawn_stream(spec)
@@ -355,8 +355,8 @@ class TestLockTenure:
             scrape_locks_dir=tmp_path / "locks" / "scrape",
         )
         with (
-            patch("personalscraper.web._runner_engine.subprocess.Popen", return_value=proc),
-            patch("personalscraper.web.run_queue.time.sleep"),
+            patch("personalscraper.app._runner_engine.subprocess.Popen", return_value=proc),
+            patch("personalscraper.app.run_queue.time.sleep"),
             pytest.raises(SystemExit) as exc,
         ):
             engine.run_spawn_stream(spec)
@@ -383,8 +383,8 @@ class TestLockTenure:
             queue_timeout_s=0.01,
         )
         with (
-            patch("personalscraper.web._runner_engine.subprocess.Popen") as mock_popen,
-            patch("personalscraper.web.run_queue.time.sleep"),
+            patch("personalscraper.app._runner_engine.subprocess.Popen") as mock_popen,
+            patch("personalscraper.app.run_queue.time.sleep"),
             pytest.raises(SystemExit) as exc,
         ):
             engine.run_spawn_stream(spec)
@@ -415,8 +415,8 @@ class TestSerialRequeue:
             lock_file=tmp_path / "pipeline.lock",
         )
         with (
-            patch("personalscraper.web._runner_engine.subprocess.Popen", side_effect=procs),
-            patch("personalscraper.web._runner_engine.time.sleep"),
+            patch("personalscraper.app._runner_engine.subprocess.Popen", side_effect=procs),
+            patch("personalscraper.app._runner_engine.time.sleep"),
             pytest.raises(SystemExit) as exc,
         ):
             engine.run_spawn_stream(spec)
@@ -440,8 +440,8 @@ class TestSerialRequeue:
             queue_timeout_s=-1.0,  # deadline already in the past
         )
         with (
-            patch("personalscraper.web._runner_engine.subprocess.Popen", return_value=proc),
-            patch("personalscraper.web._runner_engine.time.sleep"),
+            patch("personalscraper.app._runner_engine.subprocess.Popen", return_value=proc),
+            patch("personalscraper.app._runner_engine.time.sleep"),
             pytest.raises(SystemExit) as exc,
         ):
             engine.run_spawn_stream(spec)
@@ -512,7 +512,7 @@ class TestStepTimeout:
         proc = _HangingProc()
         spec = _spec(db_path, "run-hang", ["x"], step_timeout_s=0.2)
         with (
-            patch("personalscraper.web._runner_engine.subprocess.Popen", return_value=proc),
+            patch("personalscraper.app._runner_engine.subprocess.Popen", return_value=proc),
             pytest.raises(SystemExit) as exc,
         ):
             engine.run_spawn_stream(spec)
@@ -535,8 +535,8 @@ class TestStepTimeout:
         spec = _spec(db_path, "run-nolimit", ["x"])
         assert spec.step_timeout_s is None
         with (
-            patch("personalscraper.web._runner_engine.subprocess.Popen", return_value=proc),
-            patch("personalscraper.web._runner_engine.threading.Timer") as timer,
+            patch("personalscraper.app._runner_engine.subprocess.Popen", return_value=proc),
+            patch("personalscraper.app._runner_engine.threading.Timer") as timer,
             pytest.raises(SystemExit) as exc,
         ):
             engine.run_spawn_stream(spec)
@@ -550,7 +550,7 @@ class TestStepTimeout:
         proc = _fake_popen(["fast\n"], returncode=0)
         spec = _spec(db_path, "run-fast", ["x"], step_timeout_s=30.0)
         with (
-            patch("personalscraper.web._runner_engine.subprocess.Popen", return_value=proc),
+            patch("personalscraper.app._runner_engine.subprocess.Popen", return_value=proc),
             pytest.raises(SystemExit) as exc,
         ):
             engine.run_spawn_stream(spec)
@@ -578,7 +578,7 @@ class TestPerStepBookkeeping:
             ],
         )
         with (
-            patch("personalscraper.web._runner_engine.subprocess.Popen", side_effect=procs),
+            patch("personalscraper.app._runner_engine.subprocess.Popen", side_effect=procs),
             pytest.raises(SystemExit) as exc,
         ):
             engine.run_spawn_stream(spec)
@@ -614,7 +614,7 @@ class TestPerStepBookkeeping:
             extra_steps=[[sys.executable, "-m", "personalscraper", "search", "--followed-id", "9"]],
         )
         with (
-            patch("personalscraper.web._runner_engine.subprocess.Popen", side_effect=procs),
+            patch("personalscraper.app._runner_engine.subprocess.Popen", side_effect=procs),
             pytest.raises(SystemExit) as exc,
         ):
             engine.run_spawn_stream(spec)
@@ -639,7 +639,7 @@ class TestPerStepBookkeeping:
         proc = _fake_popen(["nope\n"], returncode=2)
         spec = _spec(db_path, "run-one", [sys.executable, "-m", "personalscraper", "grab", "--followed-id", "3"])
         with (
-            patch("personalscraper.web._runner_engine.subprocess.Popen", return_value=proc),
+            patch("personalscraper.app._runner_engine.subprocess.Popen", return_value=proc),
             pytest.raises(SystemExit),
         ):
             engine.run_spawn_stream(spec)
@@ -653,7 +653,7 @@ class TestPerStepBookkeeping:
         proc = _fake_popen(["ok\n"], returncode=0)
         spec = _spec(db_path, "run-bookfail", ["x"])
         with (
-            patch("personalscraper.web._runner_engine.subprocess.Popen", return_value=proc),
+            patch("personalscraper.app._runner_engine.subprocess.Popen", return_value=proc),
             patch.object(type(spec.writer), "update_step", side_effect=RuntimeError("steps_json boom")),
             pytest.raises(SystemExit) as exc,
         ):

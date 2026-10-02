@@ -1,4 +1,4 @@
-"""Unit tests for :func:`personalscraper.web.maintenance.runner.main`.
+"""Unit tests for :func:`personalscraper.app.maintenance.runner.main`.
 
 Sub-phase 3.3 — covers the runner lifecycle: env reading, pipeline_run row
 insert/finalize, CLI argv building, output streaming (ring buffer + Redis),
@@ -129,7 +129,7 @@ class TestEnvValidation:
         """When no env vars are set, the runner exits with code 2."""
         _clear_runner_env()
         with pytest.raises(SystemExit) as exc_info:
-            from personalscraper.web.maintenance.runner import _read_mandatory_env
+            from personalscraper.app.maintenance.runner import _read_mandatory_env
 
             _read_mandatory_env()
         assert exc_info.value.code == 2
@@ -139,7 +139,7 @@ class TestEnvValidation:
         _clear_runner_env()
         os.environ["PERSONALSCRAPER_RUN_UID"] = "test-uid"
         with pytest.raises(SystemExit) as exc_info:
-            from personalscraper.web.maintenance.runner import _read_mandatory_env
+            from personalscraper.app.maintenance.runner import _read_mandatory_env
 
             _read_mandatory_env()
         assert exc_info.value.code == 2
@@ -156,7 +156,7 @@ class TestActionResolution:
 
     def test_unknown_action_exits_2(self) -> None:
         """An action not in REGISTRY causes exit code 2."""
-        from personalscraper.web.maintenance.runner import _resolve_action
+        from personalscraper.app.maintenance.runner import _resolve_action
 
         with pytest.raises(SystemExit) as exc_info:
             _resolve_action("library-nonexistent")
@@ -164,7 +164,7 @@ class TestActionResolution:
 
     def test_known_action_returns_entry(self) -> None:
         """A known action returns the matching MaintenanceAction."""
-        from personalscraper.web.maintenance.runner import _resolve_action
+        from personalscraper.app.maintenance.runner import _resolve_action
 
         action = _resolve_action("library-clean")
         assert action.id == "library-clean"
@@ -181,7 +181,7 @@ class TestBuildArgv:
 
     def test_base_argv_starts_with_executable_and_module(self) -> None:
         """The argv always starts with [sys.executable, -m, personalscraper, <id>]."""
-        from personalscraper.web.maintenance.runner import _build_argv, _resolve_action
+        from personalscraper.app.maintenance.runner import _build_argv, _resolve_action
 
         action = _resolve_action("library-gc")
         argv = _build_argv(action, "{}", dry_run=False)
@@ -192,7 +192,7 @@ class TestBuildArgv:
 
     def test_positional_required_option(self) -> None:
         """Required options become positional arguments (no --flag prefix)."""
-        from personalscraper.web.maintenance.runner import _build_argv, _resolve_action
+        from personalscraper.app.maintenance.runner import _build_argv, _resolve_action
 
         action = _resolve_action("library-search")  # query is required
         argv = _build_argv(action, json.dumps({"query": "hello world"}), dry_run=False)
@@ -201,7 +201,7 @@ class TestBuildArgv:
 
     def test_optional_str_flag(self) -> None:
         """Optional str options become --name value."""
-        from personalscraper.web.maintenance.runner import _build_argv, _resolve_action
+        from personalscraper.app.maintenance.runner import _build_argv, _resolve_action
 
         action = _resolve_action("library-clean")  # disk is optional str
         argv = _build_argv(action, json.dumps({"disk": "Disk1"}), dry_run=False)
@@ -210,7 +210,7 @@ class TestBuildArgv:
 
     def test_optional_bool_true_appends_flag(self) -> None:
         """Bool True → --flag; bool False → omitted."""
-        from personalscraper.web.maintenance.runner import _build_argv, _resolve_action
+        from personalscraper.app.maintenance.runner import _build_argv, _resolve_action
 
         action = _resolve_action("library-backfill-ids")  # ids-only is optional bool
         argv = _build_argv(action, json.dumps({"ids-only": True}), dry_run=False)
@@ -218,7 +218,7 @@ class TestBuildArgv:
 
     def test_optional_bool_false_omitted(self) -> None:
         """Bool False → not present in argv."""
-        from personalscraper.web.maintenance.runner import _build_argv, _resolve_action
+        from personalscraper.app.maintenance.runner import _build_argv, _resolve_action
 
         action = _resolve_action("library-backfill-ids")
         argv = _build_argv(action, json.dumps({"ids-only": False}), dry_run=False)
@@ -226,7 +226,7 @@ class TestBuildArgv:
 
     def test_dry_run_flag_style_adds_flag(self) -> None:
         """Flag-style commands add --dry-run when DRY_RUN=1."""
-        from personalscraper.web.maintenance.runner import _build_argv, _resolve_action
+        from personalscraper.app.maintenance.runner import _build_argv, _resolve_action
 
         action = _resolve_action("library-index")  # flag style
         argv = _build_argv(action, "{}", dry_run=True)
@@ -234,7 +234,7 @@ class TestBuildArgv:
 
     def test_dry_run_flag_style_omits_when_false(self) -> None:
         """Flag-style commands omit --dry-run when DRY_RUN=0 (already default)."""
-        from personalscraper.web.maintenance.runner import _build_argv, _resolve_action
+        from personalscraper.app.maintenance.runner import _build_argv, _resolve_action
 
         action = _resolve_action("library-index")
         argv = _build_argv(action, "{}", dry_run=False)
@@ -242,7 +242,7 @@ class TestBuildArgv:
 
     def test_dry_run_apply_style_omits_when_dry(self) -> None:
         """Apply-style commands add nothing when DRY_RUN=1 (default is dry-run)."""
-        from personalscraper.web.maintenance.runner import _build_argv, _resolve_action
+        from personalscraper.app.maintenance.runner import _build_argv, _resolve_action
 
         action = _resolve_action("library-clean")  # apply style
         argv = _build_argv(action, "{}", dry_run=True)
@@ -250,7 +250,7 @@ class TestBuildArgv:
 
     def test_dry_run_apply_style_adds_apply_when_not_dry(self) -> None:
         """Apply-style commands add --apply when DRY_RUN=0."""
-        from personalscraper.web.maintenance.runner import _build_argv, _resolve_action
+        from personalscraper.app.maintenance.runner import _build_argv, _resolve_action
 
         action = _resolve_action("library-clean")
         argv = _build_argv(action, "{}", dry_run=False)
@@ -258,7 +258,7 @@ class TestBuildArgv:
 
     def test_unsupported_dry_run_omits_all_flags(self) -> None:
         """When dry_run='unsupported', no dry-run/apply flag is added."""
-        from personalscraper.web.maintenance.runner import _build_argv, _resolve_action
+        from personalscraper.app.maintenance.runner import _build_argv, _resolve_action
 
         action = _resolve_action("library-status")  # dry_run='unsupported'
         argv_true = _build_argv(action, "{}", dry_run=True)
@@ -276,7 +276,7 @@ class TestBuildArgv:
         The CLI enforces ``--apply requires --fix``; without --fix the apply
         run exits 1, so a dashboard apply of library-validate always failed.
         """
-        from personalscraper.web.maintenance.runner import _build_argv, _resolve_action
+        from personalscraper.app.maintenance.runner import _build_argv, _resolve_action
 
         action = _resolve_action("library-validate")
         apply_argv = _build_argv(action, "{}", dry_run=False)
@@ -285,7 +285,7 @@ class TestBuildArgv:
 
     def test_library_validate_dry_run_emits_neither_flag(self) -> None:
         """library-validate dry-run (the bare validation report) emits neither flag."""
-        from personalscraper.web.maintenance.runner import _build_argv, _resolve_action
+        from personalscraper.app.maintenance.runner import _build_argv, _resolve_action
 
         action = _resolve_action("library-validate")
         dry_argv = _build_argv(action, "{}", dry_run=True)
@@ -294,7 +294,7 @@ class TestBuildArgv:
 
     def test_other_apply_command_does_not_get_fix(self) -> None:
         """A non-validate apply-style command (library-clean) gets --apply but NOT --fix."""
-        from personalscraper.web.maintenance.runner import _build_argv, _resolve_action
+        from personalscraper.app.maintenance.runner import _build_argv, _resolve_action
 
         action = _resolve_action("library-clean")
         apply_argv = _build_argv(action, "{}", dry_run=False)
@@ -309,7 +309,7 @@ class TestBuildArgv:
         The ``--`` sentinel prevents click from reparsing a positional value
         like ``--config=/x`` as an option.
         """
-        from personalscraper.web.maintenance.runner import _build_argv, _resolve_action
+        from personalscraper.app.maintenance.runner import _build_argv, _resolve_action
 
         action = _resolve_action("library-search")  # query is a required positional
         argv = _build_argv(action, json.dumps({"query": "--config=/x"}), dry_run=False)
@@ -319,7 +319,7 @@ class TestBuildArgv:
 
     def test_no_double_dash_when_no_positionals(self) -> None:
         """Commands without required positionals get no bare ``--`` sentinel."""
-        from personalscraper.web.maintenance.runner import _build_argv, _resolve_action
+        from personalscraper.app.maintenance.runner import _build_argv, _resolve_action
 
         action = _resolve_action("library-clean")  # no required positionals
         argv = _build_argv(action, "{}", dry_run=True)
@@ -336,7 +336,7 @@ class TestRingBuffer:
 
     def test_append_then_to_str(self) -> None:
         """Appended lines are concatenated in FIFO order."""
-        from personalscraper.web.maintenance.runner import _RingBuffer
+        from personalscraper.app.maintenance.runner import _RingBuffer
 
         rb = _RingBuffer(max_bytes=1024)
         rb.append("line1\n")
@@ -345,7 +345,7 @@ class TestRingBuffer:
 
     def test_eviction_when_over_cap(self) -> None:
         """Oldest lines are evicted when total size exceeds max_bytes."""
-        from personalscraper.web.maintenance.runner import _RingBuffer
+        from personalscraper.app.maintenance.runner import _RingBuffer
 
         rb = _RingBuffer(max_bytes=20)
         rb.append("a" * 10 + "\n")  # 11 bytes
@@ -387,12 +387,12 @@ class TestRunnerLifecycle:
         mock_proc = _fake_popen(["output line\n"], returncode=0)
 
         with (
-            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.maintenance.runner.subprocess.Popen", return_value=mock_proc),
-            patch("personalscraper.web.maintenance.runner._get_redis", return_value=None),
+            patch("personalscraper.app.maintenance.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.maintenance.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.maintenance.runner._get_redis", return_value=None),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.maintenance.runner import main
+            from personalscraper.app.maintenance.runner import main
 
             main()
 
@@ -412,12 +412,12 @@ class TestRunnerLifecycle:
         mock_proc = _fake_popen(["ok\n"], returncode=0)
 
         with (
-            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.maintenance.runner.subprocess.Popen", return_value=mock_proc),
-            patch("personalscraper.web.maintenance.runner._get_redis", return_value=None),
+            patch("personalscraper.app.maintenance.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.maintenance.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.maintenance.runner._get_redis", return_value=None),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.maintenance.runner import main
+            from personalscraper.app.maintenance.runner import main
 
             main()
 
@@ -435,12 +435,12 @@ class TestRunnerLifecycle:
         mock_proc = _fake_popen(stderr_output, returncode=1)
 
         with (
-            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.maintenance.runner.subprocess.Popen", return_value=mock_proc),
-            patch("personalscraper.web.maintenance.runner._get_redis", return_value=None),
+            patch("personalscraper.app.maintenance.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.maintenance.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.maintenance.runner._get_redis", return_value=None),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.maintenance.runner import main
+            from personalscraper.app.maintenance.runner import main
 
             main()
 
@@ -463,12 +463,12 @@ class TestRunnerLifecycle:
         mock_proc = _fake_popen(lines, returncode=0)
 
         with (
-            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.maintenance.runner.subprocess.Popen", return_value=mock_proc),
-            patch("personalscraper.web.maintenance.runner._get_redis", return_value=None),
+            patch("personalscraper.app.maintenance.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.maintenance.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.maintenance.runner._get_redis", return_value=None),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.maintenance.runner import main
+            from personalscraper.app.maintenance.runner import main
 
             main()
 
@@ -488,12 +488,12 @@ class TestRunnerLifecycle:
         mock_proc = _fake_popen(lines, returncode=0)
 
         with (
-            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.maintenance.runner.subprocess.Popen", return_value=mock_proc),
-            patch("personalscraper.web.maintenance.runner._get_redis", return_value=None),
+            patch("personalscraper.app.maintenance.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.maintenance.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.maintenance.runner._get_redis", return_value=None),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.maintenance.runner import main
+            from personalscraper.app.maintenance.runner import main
 
             main()
 
@@ -519,12 +519,12 @@ class TestRunnerLifecycle:
         mock_redis = MagicMock()
 
         with (
-            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.maintenance.runner.subprocess.Popen", return_value=mock_proc),
-            patch("personalscraper.web.maintenance.runner._get_redis", return_value=mock_redis),
+            patch("personalscraper.app.maintenance.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.maintenance.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.maintenance.runner._get_redis", return_value=mock_redis),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.maintenance.runner import main
+            from personalscraper.app.maintenance.runner import main
 
             main()
 
@@ -553,12 +553,12 @@ class TestRunnerLifecycle:
         mock_redis.xadd.side_effect = ConnectionError("redis down")
 
         with (
-            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.maintenance.runner.subprocess.Popen", return_value=mock_proc),
-            patch("personalscraper.web.maintenance.runner._get_redis", return_value=mock_redis),
+            patch("personalscraper.app.maintenance.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.maintenance.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.maintenance.runner._get_redis", return_value=mock_redis),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.maintenance.runner import main
+            from personalscraper.app.maintenance.runner import main
 
             main()
 
@@ -574,11 +574,11 @@ class TestRunnerLifecycle:
         mock_proc = _fake_popen(["output\n"], returncode=0)
 
         with (
-            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.maintenance.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.maintenance.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.maintenance.runner.subprocess.Popen", return_value=mock_proc),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.maintenance.runner import main
+            from personalscraper.app.maintenance.runner import main
 
             main()
         assert exc_info.value.code == 0
@@ -592,10 +592,10 @@ class TestRunnerLifecycle:
     def test_config_load_failure_exits_2(self, tmp_path: Path) -> None:
         """When load_config raises, the runner exits with code 2."""
         with (
-            patch("personalscraper.web.maintenance.runner.load_config", side_effect=RuntimeError("no config")),
+            patch("personalscraper.app.maintenance.runner.load_config", side_effect=RuntimeError("no config")),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.maintenance.runner import main
+            from personalscraper.app.maintenance.runner import main
 
             main()
         assert exc_info.value.code == 2
@@ -610,12 +610,12 @@ class TestRunnerLifecycle:
         db_path = mock_config.indexer.db_path
 
         with (
-            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.maintenance.runner.subprocess.Popen", side_effect=OSError("spawn failed")),
-            patch("personalscraper.web.maintenance.runner._get_redis", return_value=None),
+            patch("personalscraper.app.maintenance.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.maintenance.runner.subprocess.Popen", side_effect=OSError("spawn failed")),
+            patch("personalscraper.app.maintenance.runner._get_redis", return_value=None),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.maintenance.runner import main
+            from personalscraper.app.maintenance.runner import main
 
             main()
 
@@ -646,7 +646,7 @@ class TestRunnerFinalizeGuards:
 
     def test_stream_exception_finalizes_error_not_running(self, tmp_path: Path) -> None:
         """An exception raised mid-stream finalizes the row 'error', never 'running'."""
-        from personalscraper.web.maintenance import runner as runner_mod
+        from personalscraper.app.maintenance import runner as runner_mod
 
         mock_config = _make_mock_config(tmp_path)
         db_path = mock_config.indexer.db_path
@@ -662,9 +662,9 @@ class TestRunnerFinalizeGuards:
             original_append(self, line)
 
         with (
-            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.maintenance.runner.subprocess.Popen", return_value=mock_proc),
-            patch("personalscraper.web.maintenance.runner._get_redis", return_value=None),
+            patch("personalscraper.app.maintenance.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.maintenance.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.maintenance.runner._get_redis", return_value=None),
             patch.object(runner_mod._RingBuffer, "append", boom),
             pytest.raises(SystemExit) as exc_info,
         ):
@@ -681,7 +681,7 @@ class TestRunnerFinalizeGuards:
         """The runner installs a SIGTERM handler that kills the child + finalizes 'killed'."""
         import signal as _signal
 
-        from personalscraper.web.maintenance import runner as runner_mod
+        from personalscraper.app.maintenance import runner as runner_mod
 
         mock_config = _make_mock_config(tmp_path)
         db_path = mock_config.indexer.db_path
@@ -693,10 +693,10 @@ class TestRunnerFinalizeGuards:
             captured[sig] = handler
 
         with (
-            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.maintenance.runner.subprocess.Popen", return_value=mock_proc),
-            patch("personalscraper.web.maintenance.runner._get_redis", return_value=None),
-            patch("personalscraper.web.maintenance.runner.signal.signal", fake_signal),
+            patch("personalscraper.app.maintenance.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.maintenance.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.maintenance.runner._get_redis", return_value=None),
+            patch("personalscraper.app.maintenance.runner.signal.signal", fake_signal),
             pytest.raises(SystemExit) as exc_info,
         ):
             runner_mod.main()
@@ -709,8 +709,8 @@ class TestRunnerFinalizeGuards:
 
         # Invoke the captured handler to simulate a SIGTERM delivery.
         with (
-            patch("personalscraper.web.maintenance.runner.os._exit") as mock_exit,
-            patch("personalscraper.web.maintenance.runner._kill_child_group") as mock_kill,
+            patch("personalscraper.app.maintenance.runner.os._exit") as mock_exit,
+            patch("personalscraper.app.maintenance.runner._kill_child_group") as mock_kill,
         ):
             handler(_signal.SIGTERM, None)
 
@@ -732,16 +732,16 @@ class TestRunnerFinalizeGuards:
         """
         import signal as _signal
 
-        from personalscraper.web.maintenance import runner as runner_mod
+        from personalscraper.app.maintenance import runner as runner_mod
 
         mock_config = _make_mock_config(tmp_path)
         mock_proc = _fake_popen(["ok\n"], returncode=0)
 
         before = _signal.getsignal(_signal.SIGTERM)
         with (
-            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.maintenance.runner.subprocess.Popen", return_value=mock_proc),
-            patch("personalscraper.web.maintenance.runner._get_redis", return_value=None),
+            patch("personalscraper.app.maintenance.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.maintenance.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.maintenance.runner._get_redis", return_value=None),
             pytest.raises(SystemExit),
         ):
             runner_mod.main()
@@ -764,13 +764,13 @@ class TestKillChildGroup:
 
     def test_mock_pid_never_reaches_killpg(self) -> None:
         """A non-int pid (MagicMock) must fall back to terminate(), not killpg."""
-        from personalscraper.web.maintenance import runner as runner_mod
+        from personalscraper.app.maintenance import runner as runner_mod
 
         proc = MagicMock()
         # Reproduce the incident precondition: MagicMock pid coerces to int 1.
         assert proc.pid.__index__() == 1
 
-        with patch("personalscraper.web.maintenance.runner.os.killpg") as mock_killpg:
+        with patch("personalscraper.app.maintenance.runner.os.killpg") as mock_killpg:
             runner_mod._kill_child_group(proc)
 
         mock_killpg.assert_not_called()
@@ -778,14 +778,14 @@ class TestKillChildGroup:
 
     def test_pgid_one_never_signalled(self) -> None:
         """A resolved pgid of 1 must never be signalled (Linux broadcast)."""
-        from personalscraper.web.maintenance import runner as runner_mod
+        from personalscraper.app.maintenance import runner as runner_mod
 
         proc = MagicMock()
         proc.pid = 4242
 
         with (
-            patch("personalscraper.web.maintenance.runner.os.getpgid", return_value=1),
-            patch("personalscraper.web.maintenance.runner.os.killpg") as mock_killpg,
+            patch("personalscraper.app.maintenance.runner.os.getpgid", return_value=1),
+            patch("personalscraper.app.maintenance.runner.os.killpg") as mock_killpg,
         ):
             runner_mod._kill_child_group(proc)
 
@@ -794,14 +794,14 @@ class TestKillChildGroup:
 
     def test_pid_one_never_resolved(self) -> None:
         """A pid <= 1 is rejected before getpgid ever runs."""
-        from personalscraper.web.maintenance import runner as runner_mod
+        from personalscraper.app.maintenance import runner as runner_mod
 
         proc = MagicMock()
         proc.pid = 1
 
         with (
-            patch("personalscraper.web.maintenance.runner.os.getpgid") as mock_getpgid,
-            patch("personalscraper.web.maintenance.runner.os.killpg") as mock_killpg,
+            patch("personalscraper.app.maintenance.runner.os.getpgid") as mock_getpgid,
+            patch("personalscraper.app.maintenance.runner.os.killpg") as mock_killpg,
         ):
             runner_mod._kill_child_group(proc)
 
@@ -813,14 +813,14 @@ class TestKillChildGroup:
         """A legitimate pid > 1 with a sane pgid still gets the group SIGTERM."""
         import signal as _signal
 
-        from personalscraper.web.maintenance import runner as runner_mod
+        from personalscraper.app.maintenance import runner as runner_mod
 
         proc = MagicMock()
         proc.pid = 4242
 
         with (
-            patch("personalscraper.web.maintenance.runner.os.getpgid", return_value=4242),
-            patch("personalscraper.web.maintenance.runner.os.killpg") as mock_killpg,
+            patch("personalscraper.app.maintenance.runner.os.getpgid", return_value=4242),
+            patch("personalscraper.app.maintenance.runner.os.killpg") as mock_killpg,
         ):
             runner_mod._kill_child_group(proc)
 
@@ -833,8 +833,8 @@ class TestKillChildGroup:
         ``_terminate_quietly`` now lives in the shared engine (re-exported here),
         so it logs via the engine's logger with the generic ``runner_*`` event.
         """
-        from personalscraper.web import _runner_engine as engine_mod
-        from personalscraper.web.maintenance import runner as runner_mod
+        from personalscraper.app import _runner_engine as engine_mod
+        from personalscraper.app.maintenance import runner as runner_mod
 
         proc = MagicMock()
         proc.terminate.side_effect = OSError("no such process")
@@ -876,15 +876,15 @@ class TestRunnerPipelineLock:
 
     def _run_main(self, mock_config: MagicMock, mock_proc: MagicMock) -> SystemExit:
         """Invoke ``main()`` with config/Popen/Redis patched; return the exit."""
-        from personalscraper.web.maintenance import runner as runner_mod
+        from personalscraper.app.maintenance import runner as runner_mod
 
         with (
-            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.maintenance.runner.load_config", return_value=mock_config),
             patch(
-                "personalscraper.web.maintenance.runner.subprocess.Popen",
+                "personalscraper.app.maintenance.runner.subprocess.Popen",
                 return_value=mock_proc,
             ),
-            patch("personalscraper.web.maintenance.runner._get_redis", return_value=None),
+            patch("personalscraper.app.maintenance.runner._get_redis", return_value=None),
             pytest.raises(SystemExit) as exc_info,
         ):
             runner_mod.main()
@@ -898,10 +898,10 @@ class TestRunnerPipelineLock:
 
         with (
             patch(
-                "personalscraper.web.maintenance.runner.acquire_pipeline_lock",
+                "personalscraper.app.maintenance.runner.acquire_pipeline_lock",
                 return_value=True,
             ) as mock_acquire,
-            patch("personalscraper.web.maintenance.runner.release_lock") as mock_release,
+            patch("personalscraper.app.maintenance.runner.release_lock") as mock_release,
         ):
             exit_exc = self._run_main(mock_config, mock_proc)
 
@@ -926,13 +926,13 @@ class TestRunnerPipelineLock:
         mock_config = _make_mock_config(tmp_path)
         (tmp_path / "pipeline.lock").write_text(str(os.getpid()))
 
-        from personalscraper.web.maintenance import runner as runner_mod
+        from personalscraper.app.maintenance import runner as runner_mod
 
         with (
-            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.maintenance.runner.subprocess.Popen") as mock_popen,
-            patch("personalscraper.web.maintenance.runner._get_redis", return_value=None),
-            patch("personalscraper.web.run_queue.time.sleep"),
+            patch("personalscraper.app.maintenance.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.maintenance.runner.subprocess.Popen") as mock_popen,
+            patch("personalscraper.app.maintenance.runner._get_redis", return_value=None),
+            patch("personalscraper.app.run_queue.time.sleep"),
             pytest.raises(SystemExit) as exc_info,
         ):
             runner_mod.main()
@@ -965,11 +965,11 @@ class TestRunnerPipelineLock:
 
         with (
             patch(
-                "personalscraper.web.maintenance.runner.acquire_pipeline_lock",
+                "personalscraper.app.maintenance.runner.acquire_pipeline_lock",
                 side_effect=[False, True],
             ) as mock_acquire,
-            patch("personalscraper.web.maintenance.runner.release_lock") as mock_release,
-            patch("personalscraper.web.run_queue.time.sleep"),
+            patch("personalscraper.app.maintenance.runner.release_lock") as mock_release,
+            patch("personalscraper.app.run_queue.time.sleep"),
         ):
             exit_exc = self._run_main(mock_config, mock_proc)
 
@@ -994,7 +994,7 @@ class TestRunnerPipelineLock:
         mock_config = _make_mock_config(tmp_path)
         mock_proc = _fake_popen(["ok\n"], returncode=0)
 
-        with patch("personalscraper.web.maintenance.runner.acquire_pipeline_lock") as mock_acquire:
+        with patch("personalscraper.app.maintenance.runner.acquire_pipeline_lock") as mock_acquire:
             exit_exc = self._run_main(mock_config, mock_proc)
 
         assert exit_exc.code == 0
@@ -1006,7 +1006,7 @@ class TestRunnerPipelineLock:
         mock_config = _make_mock_config(tmp_path)
         mock_proc = _fake_popen(["ok\n"], returncode=0)
 
-        with patch("personalscraper.web.maintenance.runner.acquire_pipeline_lock") as mock_acquire:
+        with patch("personalscraper.app.maintenance.runner.acquire_pipeline_lock") as mock_acquire:
             exit_exc = self._run_main(mock_config, mock_proc)
 
         assert exit_exc.code == 0
@@ -1018,7 +1018,7 @@ class TestRunnerPipelineLock:
         mock_config = _make_mock_config(tmp_path)
         mock_proc = _fake_popen(["ok\n"], returncode=0)
 
-        with patch("personalscraper.web.maintenance.runner.acquire_pipeline_lock") as mock_acquire:
+        with patch("personalscraper.app.maintenance.runner.acquire_pipeline_lock") as mock_acquire:
             exit_exc = self._run_main(mock_config, mock_proc)
 
         assert exit_exc.code == 0
@@ -1028,7 +1028,7 @@ class TestRunnerPipelineLock:
         """The SIGTERM handler releases the lock (os._exit bypasses the finally)."""
         import signal as _signal
 
-        from personalscraper.web.maintenance import runner as runner_mod
+        from personalscraper.app.maintenance import runner as runner_mod
 
         _set_runner_env(self.RUN_UID, self.WRITE_COMMAND, self.OPTIONS_JSON, dry_run=False)
         mock_config = _make_mock_config(tmp_path)
@@ -1040,18 +1040,18 @@ class TestRunnerPipelineLock:
             captured[sig] = handler
 
         with (
-            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.maintenance.runner.load_config", return_value=mock_config),
             patch(
-                "personalscraper.web.maintenance.runner.subprocess.Popen",
+                "personalscraper.app.maintenance.runner.subprocess.Popen",
                 return_value=mock_proc,
             ),
-            patch("personalscraper.web.maintenance.runner._get_redis", return_value=None),
-            patch("personalscraper.web.maintenance.runner.signal.signal", fake_signal),
+            patch("personalscraper.app.maintenance.runner._get_redis", return_value=None),
+            patch("personalscraper.app.maintenance.runner.signal.signal", fake_signal),
             patch(
-                "personalscraper.web.maintenance.runner.acquire_pipeline_lock",
+                "personalscraper.app.maintenance.runner.acquire_pipeline_lock",
                 return_value=True,
             ),
-            patch("personalscraper.web.maintenance.runner.release_lock") as mock_release,
+            patch("personalscraper.app.maintenance.runner.release_lock") as mock_release,
             pytest.raises(SystemExit),
         ):
             runner_mod.main()
@@ -1064,9 +1064,9 @@ class TestRunnerPipelineLock:
         # handler resolves the name from the module namespace at call time.)
         handler = captured[_signal.SIGTERM]
         with (
-            patch("personalscraper.web.maintenance.runner.os._exit"),
-            patch("personalscraper.web.maintenance.runner._kill_child_group"),
-            patch("personalscraper.web.maintenance.runner.release_lock") as mock_release_sigterm,
+            patch("personalscraper.app.maintenance.runner.os._exit"),
+            patch("personalscraper.app.maintenance.runner._kill_child_group"),
+            patch("personalscraper.app.maintenance.runner.release_lock") as mock_release_sigterm,
         ):
             handler(_signal.SIGTERM, None)
 

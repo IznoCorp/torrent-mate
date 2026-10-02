@@ -1,4 +1,4 @@
-"""Unit tests for the shared §6 visible-queue wait loop (``web/run_queue.py``).
+"""Unit tests for the shared §6 visible-queue wait loop (``app/run_queue.py``).
 
 The loop is the generalized #287 pattern: a held ``pipeline.lock`` is never a
 refusal — the runner waits with a VISIBLE ``queue`` step on its run row, and a
@@ -10,7 +10,7 @@ from __future__ import annotations
 import time
 from unittest.mock import MagicMock, patch
 
-from personalscraper.web.run_queue import (
+from personalscraper.app.run_queue import (
     QUEUE_STEP_NAME,
     QUEUE_WAITING_STATUS,
     wait_in_visible_queue,
@@ -60,7 +60,7 @@ class TestVisibleWait:
         """False → True: one 'waiting' entry then one 'done' entry, result True."""
         writer = MagicMock()
         answers = iter([False, True])
-        with patch("personalscraper.web.run_queue.time.sleep"):
+        with patch("personalscraper.app.run_queue.time.sleep"):
             result = _call(writer, try_proceed=lambda: next(answers), deadline=time.monotonic() + 60)
         assert result is True
         assert writer.update_step.call_count == 2
