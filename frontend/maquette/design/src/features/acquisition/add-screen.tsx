@@ -69,6 +69,8 @@ import { baseTitle } from "../../lib/titles";
 import { mediumCardMarkup } from "./card-markup";
 import { addVerb } from "./add-label";
 import { addedCount, beginVisit, isAdded, setVisitMode } from "./add-visit";
+import { addById, type IdOutcome } from "./add-verbs";
+import { ID_EXAMPLES, validId, type IdProvider } from "./id-examples";
 
 type Mode = "follow" | "identify";
 
@@ -104,11 +106,28 @@ export function AddScreen() {
   useStoreContent((c) => c.version);
   const state = useUiState();
   const addKind = (state.addKind as string) ?? "Tout";
-  const idProv = (state.idProv as string) ?? "TMDB";
+  const idProv = (state.idProv as IdProvider | undefined) ?? "TMDB";
   // What the identifier field holds, and whether its provider refuses it: an
   // IMDB identifier is « tt » and digits, a TMDB or TVDB one digits only.
   const [typedId, setTypedId] = useState("");
-  const idRefused = typedId.trim() !== "" && !(idProv === "IMDB" ? /^tt\d+$/ : /^\d+$/).test(typedId.trim());
+  const idRefused = typedId.trim() !== "" && !validId(idProv, typedId);
+  const idReady = typedId.trim() !== "" && !idRefused;
+  // What the last identifier asked came to, said under the field until the
+  // field or the source changes; and whether an answer is still awaited.
+  const [idOutcome, setIdOutcome] = useState<IdOutcome | null>(null);
+  const [idAsking, setIdAsking] = useState(false);
+
+  /** Asks the source for the identifier typed, and says what came of it (B-691). */
+  async function submitId(): Promise<void> {
+    setIdAsking(true);
+    try {
+      const outcome = await addById(idProv, typedId);
+      setIdOutcome(outcome);
+      if (outcome.kind === "added") setTypedId("");
+    } finally {
+      setIdAsking(false);
+    }
+  }
   // `recent`, the store's own key (`app/arrival.ts`): read as `recents` after
   // the English rename, it was always absent, and the empty screen lost the
   // searches its note says sit above it (B-314).
@@ -350,7 +369,10 @@ export function AddScreen() {
                   key={element}
                   className={viewSwitchButton({ size: "text" })}
                   aria-pressed={idProv === element}
-                  onClick={() => writeUiState({ idProv: element })}
+                  onClick={() => {
+                    setIdOutcome(null);
+                    writeUiState({ idProv: element });
+                  }}
                 >
                   {element}
                 </button>
@@ -363,10 +385,15 @@ export function AddScreen() {
                 // An identifier is typed as written (B-690).
                 autoCapitalize="off"
                 autoCorrect="off"
-                placeholder={idProv === "IMDB" ? "tt1234567" : "1234"}
+                // AN EXAMPLE THAT WORKS, in the source's own format (B-691): « 1234 »
+                // served for TMDB and TVDB alike and named no medium at all.
+                placeholder={t("screens.add.idExample", { id: ID_EXAMPLES[idProv] })}
                 aria-label={t("screens.add.idAria", { prov: idProv })}
                 value={typedId}
-                onChange={(event) => setTypedId(event.target.value)}
+                onChange={(event) => {
+                  setIdOutcome(null);
+                  setTypedId(event.target.value);
+                }}
               />
             </div>
             {/* NO REFUSAL BEFORE A CHARACTER IS TYPED, and none in a
@@ -379,10 +406,28 @@ export function AddScreen() {
                   prov: idProv,
                 })}
               </p>
+            ) : idOutcome?.kind === "missing" ? (
+              <p className={refusalReason()} data-part="add/id-missing">
+                {t("screens.add.idMissing", { typed: typedId.trim(), prov: idProv })}
+              </p>
+            ) : idOutcome?.kind === "owned" ? (
+              <p className={refusalReason()} data-part="add/id-owned">
+                {t("screens.add.idOwned", { title: idOutcome.title })}
+              </p>
+            ) : !idReady ? (
+              // WHY « AJOUTER » WAITS, said rather than left to a greyed button.
+              <p className={identifierHint()} data-part="add/id-waiting">
+                {t("screens.add.idWaiting", { prov: idProv })}
+              </p>
             ) : idProv === "TVDB" ? (
               <p className={identifierHint()}>{t("screens.add.tvdbHint")}</p>
             ) : null}
-            <button className={actionButton({ kind: "submit" })} disabled>
+            <button
+              className={actionButton({ kind: "submit" })}
+              data-part="add/id-submit"
+              disabled={!idReady || idAsking}
+              onClick={() => void submitId()}
+            >
               {t("screens.add.add")}
             </button>
           </div>

@@ -16,7 +16,9 @@ import { followVerbs } from "./follow-verbs";
 import { searchResults } from "./search-queries";
 import { identifying, markAdded, forgetAdded } from "./add-visit";
 import { answerMatch, heldMatch } from "./plex-verbs";
-import type { SearchResult } from "./types";
+import { idQuery, type IdProvider } from "./id-examples";
+import { read } from "../../lib/query-client";
+import type { SearchResult, SearchResults } from "./types";
 
 
 /**
@@ -87,6 +89,64 @@ function askBeforeReplace(index: number, title: string, isMovie: boolean): void 
   });
 }
 
+/**
+ * Follows a result, marking it added before the layer answers and taking the
+ * mark back if the layer refuses.
+ *
+ * Args:
+ *     result: The result to follow.
+ */
+function followResult(result: SearchResult): void {
+  // The screen stays open and redraws itself from this same store bump,
+  // with the result marked added and, once it is the first, the footer.
+  //
+  // AND THE MARK IS TAKEN BACK IF THE LAYER REFUSES. It is written here, before
+  // anything is known, which is what the optimistic list beside it does; what
+  // was missing is the other half — a row left wearing « ✓ Suivi » over a
+  // create the layer rejected, which is a claim the interface has no right to
+  // make. The act answers whether it stood, and the visit learns from it.
+  markAdded(result);
+  store.touch();
+  void followVerbs.follow(result.title, result.kind, result.ids)
+    .then((stood) => {
+      if (stood) return;
+      forgetAdded(result);
+      store.touch();
+    });
+}
+
+/** What an identifier typed came to: added, known to no source, or already owned. */
+export type IdOutcome = { kind: "added" } | { kind: "missing" } | { kind: "owned"; title: string };
+
+/**
+ * Adds the medium a source knows under an identifier (B-691).
+ *
+ * The provider search is asked « source:id »; the medium it answers is followed
+ * as a tapped result is — or identifies the folder, when the screen was opened
+ * for one. A medium already owned is not replaced from here: a replacement is
+ * confirmed on its own row, which a search by its title draws.
+ *
+ * Args:
+ *     provider: The source chosen.
+ *     id: The identifier typed, in that source's format.
+ *
+ * Returns:
+ *     What the identifier came to.
+ */
+export async function addById(provider: IdProvider, id: string): Promise<IdOutcome> {
+  const answer = await read<SearchResults>(
+    "/api/acquisition/search", new URLSearchParams({ query: idQuery(provider, id) }));
+  const result = answer.results[0];
+  if (result === undefined) return { kind: "missing" };
+  if (identifying()) {
+    identify(result);
+    return { kind: "added" };
+  }
+  if (result.owned) return { kind: "owned", title: result.title };
+  followResult(result);
+  return { kind: "added" };
+}
+
 // THE DECLARATION RUNS AT MODULE EVALUATION, named once in
 // `app/panel-contributions.ts`.
 registerVerb("add", (value) => {
@@ -104,22 +164,7 @@ registerVerb("add", (value) => {
     askBeforeReplace(index, result.title, result.kind === "Film"); // french-ok: a data VALUE — the kind the search serves
     return;
   }
-  // The screen stays open and redraws itself from this same store bump,
-  // with the result marked added and, once it is the first, the footer.
-  //
-  // AND THE MARK IS TAKEN BACK IF THE LAYER REFUSES. It is written here, before
-  // anything is known, which is what the optimistic list beside it does; what
-  // was missing is the other half — a row left wearing « ✓ Suivi » over a
-  // create the layer rejected, which is a claim the interface has no right to
-  // make. The act answers whether it stood, and the visit learns from it.
-  markAdded(result);
-  store.touch();
-  void followVerbs.follow(result.title, result.kind, result.ids)
-    .then((stood) => {
-      if (stood) return;
-      forgetAdded(result);
-      store.touch();
-    });
+  followResult(result);
 });
 registerVerb("confirmadd", (value) => {
   const result = searchResults?.().results[Number(value)];
