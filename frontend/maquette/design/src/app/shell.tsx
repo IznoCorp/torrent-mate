@@ -48,7 +48,7 @@ import "./frame-verbs";
 import { createStore } from "./store";
 import { installFocusManager } from "./focus";
 import { installKeys } from "./keys";
-import { installViewportOffset } from "./viewport-offset";
+import { installFocusSpacer } from "./focus-spacer";
 import { installMockNetwork } from "../mocks";
 import { scenario } from "../mocks/scenario";
 import { freezeClock } from "../lib/clock";
@@ -209,8 +209,9 @@ if (device) device.appendChild(mountNode);
 installFocusManager();
 // The declared keys (DECIDED 6): `/` to the page's search, ↑/↓ through its rows.
 installKeys();
-// The caret in its field on the installed iPhone app (B-674).
-installViewportOffset();
+// The caret in its field on the installed iPhone app: a focused field's scroller
+// always has a pixel to scroll (B-674).
+installFocusSpacer();
 
 // E-002 IS NOT INSTALLED HERE ANY MORE. It attached to the `#drawer` the
 // engine owned, which was static markup and existed at boot; the drawer is a
