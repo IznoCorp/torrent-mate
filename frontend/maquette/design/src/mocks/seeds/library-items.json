@@ -3380,5 +3380,113 @@
     "category": "tv_shows_documentary",
     "ids": null,
     "poster": null
+  },
+  {
+    "title": "Silo (2023)",
+    "secondaryLine": "2023 · Série",
+    "category": "tv_shows",
+    "ids": {
+      "tvdb": "403245",
+      "imdb": "tt14688458",
+      "tmdb": "125988"
+    },
+    "poster": "assets/posters/fc5f4d8b.webp"
+  },
+  {
+    "title": "American Dad!",
+    "secondaryLine": "2005 · Série",
+    "category": "tv_shows_animation",
+    "ids": {
+      "tvdb": "73141",
+      "tmdb": "1433",
+      "imdb": "tt0397306"
+    },
+    "poster": "assets/posters/c5f2f023.webp"
+  },
+  {
+    "title": "La Guerre des étoiles",
+    "secondaryLine": "1977 · Film",
+    "category": "movies",
+    "ids": {
+      "tmdb": "11",
+      "imdb": "tt0076759"
+    },
+    "poster": "assets/posters/f1263349.webp"
+  },
+  {
+    "title": "Jim Gaffigan: Mr. Universe",
+    "secondaryLine": "2012 · Film",
+    "category": "standup",
+    "ids": {
+      "tmdb": 101449,
+      "imdb": "tt2273321"
+    },
+    "poster": "assets/posters/2ebba739.webp"
+  },
+  {
+    "title": "Lanterns",
+    "secondaryLine": "2026 · Série",
+    "category": "tv_shows",
+    "ids": {
+      "tvdb": 376098,
+      "tmdb": "95350",
+      "imdb": "tt26545992"
+    },
+    "poster": null
+  },
+  {
+    "title": "SAV des émissions",
+    "secondaryLine": "2005 · Série",
+    "category": "tv_programs",
+    "ids": {
+      "tmdb": "39945",
+      "imdb": "tt0499407",
+      "tvdb": 85561
+    },
+    "poster": "assets/posters/89ca7fd3.webp"
+  },
+  {
+    "title": "Friends",
+    "secondaryLine": "1994 · Série",
+    "category": "tv_shows",
+    "ids": {
+      "tmdb": "1668",
+      "imdb": "tt0108778",
+      "tvdb": 79168
+    },
+    "poster": "assets/posters/83d037db.webp"
+  },
+  {
+    "title": "Regular Show",
+    "secondaryLine": "2010 · Série",
+    "category": "tv_shows_animation",
+    "ids": {
+      "tmdb": "31132",
+      "imdb": "tt1710308",
+      "tvdb": 188401
+    },
+    "poster": "assets/posters/3aa5f7c6.webp"
+  },
+  {
+    "title": "Les Animaniacs",
+    "secondaryLine": "1993 · Série",
+    "category": "tv_shows_animation",
+    "ids": {
+      "tmdb": "82",
+      "imdb": "tt0105941",
+      "tvdb": 72879
+    },
+    "poster": "assets/posters/71d7d9ed.webp"
+  },
+  {
+    "title": "Parks and Recreation",
+    "secondaryLine": "2009 · Série",
+    "category": "tv_shows",
+    "ids": {
+      "tmdb": "8592",
+      "imdb": "tt1266020",
+      "tvdb": 84912
+    },
+    "poster": "assets/posters/05fd8d7f.webp"
   }
 ]

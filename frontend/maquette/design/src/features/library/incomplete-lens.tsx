@@ -6,7 +6,7 @@ import { type IncompleteShow } from "./types";
 import { useUiState } from "../../lib/store-access";
 import { body, emptyNote, posterGrid, section } from "../../ui/variants";
 import { useLibraryCategories } from "./queries";
-import { rowsIn } from "./category-filter";
+import { incompleteShown } from "./category-filter";
 import { posterArtwork, useEngineDrawing } from "../../lib/engine-drawing";
 import { libraryCardMarkup } from "./card-markup";
 import { tileMarkup } from "../../ui/tile";
@@ -28,9 +28,10 @@ export function IncompleteLens({ rows }: {
   const reference = useEngineDrawing();
   const { data: CATS = [] } = useLibraryCategories();
   const category = CATS.find((entry) => entry.id === state.libCat);
-  // THE SAME REMEMBERED PILL AS THE LISTING'S, and what it keeps is counted by
-  // the head from the same function, so the pill's figure is the rows drawn.
-  const INCOMPLETE = rowsIn(rows, category);
+  // THE SAME REMEMBERED PILL AS THE LISTING'S, AND THE SAME SEARCH (B-688): what
+  // they keep is counted by the head from the same function, so the pill's
+  // figure is the rows drawn.
+  const INCOMPLETE = incompleteShown(rows, category, String(state.q ?? ""));
   return (
     <div className={body()} data-part="surface/body" data-region="library/body">
       <div className="note" data-part="note">
