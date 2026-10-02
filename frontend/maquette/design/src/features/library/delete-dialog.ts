@@ -15,7 +15,7 @@
 import i18next from "i18next";
 import { membershipQuery, type Membership } from "../../lib/membership";
 import { quietWhenCancelled, sharedQueryClient } from "../../lib/query-client";
-import { dialog, followedTitles, toast, redraw } from "../../lib/shell-doors";
+import { dialog, followedTitles, stopFollow, toast, redraw } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
 import { deleteLibraryItems, libraryIncompleteQuery } from "./queries";
 import type { DialogDescriptor } from "../../ui/dialog/contract";
@@ -181,8 +181,16 @@ export async function openDeleteDialog(title: string | null, many?: string[]): P
      there, so a button carrying one never reached its own `onClick` and the
      removal it confirms never ran. */
   const removed = titles.length > 1 ? say("doneMany", { count: titles.length }) : say("done", { title: titles[0] });
-  const removeSaying = (follow?: string) => () => {
+  const removeSaying = (follow?: string, stop = false) => () => {
     removeTitles(titles);
+    // THE FOLLOW IS STOPPED, NOT ONLY SAID STOPPED (B-689): both confirmations
+    // removed the same titles and differed only in their sentence, so the
+    // follow lived on everywhere. It is stopped under ITS title (« Silo »), the
+    // one `followedAs` reads, never the row's (« Silo (2023) »).
+    if (stop) for (const one of followed) {
+      const followTitle = followedAs(followingNow, one);
+      if (followTitle !== undefined) stopFollow?.(followTitle);
+    }
     toast?.show({ message: follow ? `${removed} ${follow}` : removed });
   };
   const actions: DialogDescriptor["actions"] = [];
@@ -190,7 +198,7 @@ export async function openDeleteDialog(title: string | null, many?: string[]): P
     actions.push({
       text: say("deleteAndStop"),
       tone: "danger",
-      run: removeSaying(say("followStopped")),
+      run: removeSaying(say("followStopped"), true),
     });
     actions.push({ text: say("deleteAndKeep"), run: removeSaying(say("followKept")) });
   } else {
