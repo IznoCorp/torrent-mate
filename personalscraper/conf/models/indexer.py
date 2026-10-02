@@ -147,8 +147,8 @@ class IndexerConfig(_StrictModel):
     db_path: Path | None = Field(
         default=None,
         description=(
-            "Path to the SQLite library database. Defaults to paths.data_dir / 'library.db' "
-            "when not set. Must not be on an external/macFUSE mount."
+            "Path to the SQLite library database. Defaults to paths.data_dir / "
+            "<store>[-<env>].db (see conf/environment.py) when not set. Must not be on an external/macFUSE mount."
         ),
         validate_default=True,
     )

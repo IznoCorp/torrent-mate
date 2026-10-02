@@ -140,10 +140,10 @@ class Config(_StrictModel):
 
         - ``indexer.db_path`` → the library store in ``paths.data_dir``
         - ``acquire.db_path`` → the acquire store in ``paths.data_dir``
+        - ``trailers.state_file`` → ``paths.data_dir / 'trailers_state.json'``
 
         The store file names follow ``PERSONALSCRAPER_ENV`` (absent = prod, the
         historical ``library.db`` / ``acquire.db``).
-        - ``trailers.state_file`` → ``paths.data_dir / 'trailers_state.json'``
 
         Returns:
             self with derived paths resolved.
