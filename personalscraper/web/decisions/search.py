@@ -90,13 +90,13 @@ def build_provider_clients(request: Request) -> tuple[object, object]:
         ProviderSearchError: When the provider registry cannot be built (missing
             API keys or a misconfigured/disabled provider).
     """
-    from personalscraper.cli_helpers import _build_app_context
+    from personalscraper.app.composition import build_app_context
 
     config = request.app.state.config
     settings = request.app.state.settings
 
     try:
-        app_context = _build_app_context(config, settings)
+        app_context = build_app_context(config, settings)
         # provider_registry.get raises UnknownProviderError when a provider is not
         # registered (disabled in the registry overlay) — keep it inside the try so
         # it maps to ProviderSearchError, not an untyped 500.

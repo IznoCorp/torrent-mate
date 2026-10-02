@@ -23,7 +23,7 @@ from personalscraper.web.auth.passwords import verify_password
 # Patch targets for the eager config load in the CLI callback.
 _PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"
 _PATCH_RESOLVE_PATH = "personalscraper.conf.loader.resolve_config_path"
-_PATCH_BUILD_CTX = "personalscraper.commands.web._build_app_context"
+_PATCH_BUILD_CTX = "personalscraper.commands.web.build_app_context"
 _PATCH_UVICORN_RUN = "personalscraper.commands.web.uvicorn.run"
 
 

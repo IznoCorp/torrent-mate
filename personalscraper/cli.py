@@ -8,7 +8,7 @@ This module is the system boundary that resolves and loads the typed
 JSON5 :class:`Config`. Commands that need the process-scoped service
 bundle wrap the loaded ``Config`` + env-var ``Settings`` into an
 :class:`AppContext` at their own boundary — see
-``personalscraper.commands.pipeline._build_app_context`` for the pipeline
+``personalscraper.commands.pipeline.build_app_context`` for the pipeline
 command, and ``personalscraper.commands.library.scan`` /
 ``personalscraper.trailers.cli`` for the launchd + trailers entrypoints.
 Internal components MUST NOT receive an ``AppContext`` "for convenience" —

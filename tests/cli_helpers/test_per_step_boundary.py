@@ -11,7 +11,7 @@ from personalscraper.cli_helpers import per_step_boundary
 
 def test_per_step_boundary_closes_registry_on_exit(test_config, mock_settings):
     """per_step_boundary calls provider_registry.close() on normal exit."""
-    with patch("personalscraper.cli_helpers._build_app_context") as mock_build:
+    with patch("personalscraper.app.composition.build_app_context") as mock_build:
         mock_app_ctx = MagicMock()
         mock_build.return_value = mock_app_ctx
 
@@ -23,7 +23,7 @@ def test_per_step_boundary_closes_registry_on_exit(test_config, mock_settings):
 
 def test_per_step_boundary_closes_registry_on_exception(test_config, mock_settings):
     """per_step_boundary calls close() even when body raises."""
-    with patch("personalscraper.cli_helpers._build_app_context") as mock_build:
+    with patch("personalscraper.app.composition.build_app_context") as mock_build:
         mock_app_ctx = MagicMock()
         mock_build.return_value = mock_app_ctx
 

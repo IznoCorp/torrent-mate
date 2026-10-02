@@ -249,12 +249,12 @@ def scoped_provider_clients(request: Request) -> "Iterator[tuple[object, object]
     Raises:
         HTTPException: 502 when the provider registry cannot be built.
     """
-    from personalscraper.cli_helpers import _build_app_context
+    from personalscraper.app.composition import build_app_context
 
     config = request.app.state.config
     settings = request.app.state.settings
     try:
-        app_context = _build_app_context(config, settings, provider_retry=_REQUEST_RETRY)
+        app_context = build_app_context(config, settings, provider_retry=_REQUEST_RETRY)
         tmdb_client = app_context.provider_registry.get("tmdb")
         tvdb_client = app_context.provider_registry.get("tvdb")
     except Exception as exc:

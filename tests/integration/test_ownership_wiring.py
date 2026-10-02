@@ -1,8 +1,8 @@
 """Integration test: ownership wiring through the composition root (RP6).
 
-Exercises the full RP6 wiring end-to-end, the way ``_build_app_context`` does:
+Exercises the full RP6 wiring end-to-end, the way ``build_app_context`` does:
 
-    _build_ownership_checker(config)  ->  build_acquire_context(..., ownership=…)
+    build_ownership_checker(config)  ->  build_acquire_context(..., ownership=…)
                                       ->  ctx.ownership.owns(...)
 
 Three load-bearing cases:
@@ -30,7 +30,7 @@ import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from personalscraper.cli_helpers import _build_ownership_checker
+from personalscraper.app.composition import build_ownership_checker
 from personalscraper.core.identity import MediaRef
 from personalscraper.core.ownership import NullOwnershipChecker, OwnershipChecker
 from personalscraper.indexer.db import apply_migrations
@@ -73,7 +73,7 @@ def _config_with_db_path(db_path: Path | None) -> MagicMock:
 def _build_ctx_with_ownership(ownership: OwnershipChecker):
     """Build an AcquireContext via build_acquire_context, injecting ``ownership``.
 
-    Mirrors how ``_build_app_context`` injects the composition-root-built checker
+    Mirrors how ``build_app_context`` injects the composition-root-built checker
     into ``build_acquire_context``; the tracker registry is patched out so the
     test stays focused on the ownership wiring.
     """
@@ -97,7 +97,7 @@ def test_ownership_wired_with_library_db(tmp_path: Path) -> None:
     _seed_library_db(db_path, tvdb_id=1001)
 
     # Composition-root build: an IndexerOwnershipChecker over the real db.
-    checker = _build_ownership_checker(_config_with_db_path(db_path))
+    checker = build_ownership_checker(_config_with_db_path(db_path))
     assert isinstance(checker, IndexerOwnershipChecker)
     # LOCK-FREE: building the checker opens NO connection at the composition root.
     assert checker._conn is None
@@ -118,7 +118,7 @@ def test_ownership_null_when_no_library_db(tmp_path: Path) -> None:
     """With no library.db on disk, the checker is a NullOwnershipChecker (always False)."""
     db_path = tmp_path / "nonexistent_library.db"  # not created
 
-    checker = _build_ownership_checker(_config_with_db_path(db_path))
+    checker = build_ownership_checker(_config_with_db_path(db_path))
     assert isinstance(checker, NullOwnershipChecker)
 
     ctx = _build_ctx_with_ownership(checker)
@@ -130,7 +130,7 @@ def test_ownership_null_when_no_library_db(tmp_path: Path) -> None:
 
 def test_ownership_null_when_db_path_unconfigured() -> None:
     """When indexer.db_path is None, the checker is a NullOwnershipChecker."""
-    checker = _build_ownership_checker(_config_with_db_path(None))
+    checker = build_ownership_checker(_config_with_db_path(None))
     assert isinstance(checker, NullOwnershipChecker)
 
 
@@ -145,7 +145,7 @@ def test_ownership_fail_soft_on_broken_db(tmp_path: Path) -> None:
     db_path.write_bytes(b"this is not a sqlite database, it is garbage bytes")
 
     # The file exists, so the composition root builds a real IndexerOwnershipChecker.
-    checker = _build_ownership_checker(_config_with_db_path(db_path))
+    checker = build_ownership_checker(_config_with_db_path(db_path))
     assert isinstance(checker, IndexerOwnershipChecker)
 
     ctx = _build_ctx_with_ownership(checker)

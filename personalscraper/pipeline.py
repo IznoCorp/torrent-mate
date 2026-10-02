@@ -93,7 +93,7 @@ class Pipeline:
         self._log = get_logger("pipeline")
 
         # Provider registry: instantiated once per process at boot
-        # (DESIGN §6.1) by ``_build_app_context``. The pipeline reads it
+        # (DESIGN §6.1) by ``build_app_context``. The pipeline reads it
         # from the bundle rather than constructing its own — feat/registry
         # §5.2 / sub-phase 3.1.
         self._registry = app.provider_registry

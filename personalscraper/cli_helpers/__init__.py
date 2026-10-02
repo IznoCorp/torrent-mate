@@ -15,7 +15,7 @@ from personalscraper.cli_state import AppCtx, state
 from personalscraper.conf.staging import ensure_staging_tree as _ensure_staging_tree
 from personalscraper.config import get_settings
 from personalscraper.core.app_context import AppContext
-from personalscraper.core.event_bus import EventBus, current_correlation_id
+from personalscraper.core.event_bus import current_correlation_id
 from personalscraper.ingest.ingest import run_ingest
 from personalscraper.lock import (
     acquire_lock,
@@ -29,220 +29,8 @@ from personalscraper.subscribers.redis_stream import build_redis_publisher
 log = get_logger("cli_helpers")
 
 if TYPE_CHECKING:
-    from personalscraper.api.transport._policy import RetryPolicy
     from personalscraper.conf.models.config import Config
     from personalscraper.config import Settings
-    from personalscraper.core.ownership import OwnershipChecker
-
-
-def _build_app_context(
-    config: "Config",
-    settings: "Settings",
-    *,
-    build_torrent_client: bool = False,
-    provider_retry: "RetryPolicy | None" = None,
-) -> AppContext:
-    """Build the process-scoped :class:`AppContext` for a CLI invocation.
-
-    Constructed once per CLI command invocation at the boundary
-    (``personalscraper run``, the launchd ``library-index`` command, the
-    four ``trailers`` subcommands). The :class:`EventBus` is a fresh
-    in-process instance; subscriber wiring (``RichConsoleSubscriber``,
-    ``TelegramSubscriber``, …) is the caller's responsibility.
-
-    The :class:`ProviderRegistry` is instantiated here from ``settings`` +
-    ``config.providers`` so the whole process shares ONE registry (DESIGN
-    §6.1 boot sequence). A misconfigured providers section raises
-    :class:`RegistryConfigError` at this boundary — fail loud at boot
-    rather than discover the problem mid-pipeline.
-
-    The torrent client (DESIGN D3/D9) is built and validated **only** when
-    ``build_torrent_client`` is True — i.e. for the commands that actually
-    consume ``ctx.torrent_client`` (``run``, ``ingest``, ``torrents_list``).
-    ``build_active_torrent_client`` performs a live network connect + login,
-    so building it unconditionally would couple every read-only command
-    (``library *``, ``trailers``, ``maintenance``) to a reachable torrent
-    daemon and could even write a 1-hour auth lockout that blocks the next
-    ingest. Read-only commands leave ``build_torrent_client`` at its default
-    and get ``torrent_client=None`` with no daemon contact (review #1/#2/#5).
-
-    The :class:`~personalscraper.acquire.context.AcquireContext` (RP5c) is
-    built unconditionally for every command that goes through the single
-    composition root. It owns the :class:`TrackerRegistry` (migrated from
-    RP5a) and the optional ``AcquireStore`` slot (RP3). A misconfigured
-    tracker raises
-    :class:`~personalscraper.api.tracker._errors.TrackerConfigError` at this
-    boundary — fail-loud, parity with ``RegistryConfigError``.
-
-    Args:
-        config: The typed JSON5 configuration loaded by ``cli.main``.
-        settings: The Pydantic env-var settings (API keys, paths).
-        build_torrent_client: When True and a torrent client is configured,
-            resolve + validate it at boot (D3 fail-fast). When False
-            (default), ``torrent_client`` stays None and no torrent daemon is
-            contacted — used by commands that never touch the torrent client.
-        provider_retry: Optional ``RetryPolicy`` override forwarded to the
-            metadata providers (TMDB / TVDB). ``None`` — every CLI/pipeline
-            path — keeps each provider's own policy. A caller building this
-            context INSIDE a web request passes ``max_attempts=1`` so a dead
-            provider cannot hold the request through the full backed-off retry
-            loop (D1).
-
-    Returns:
-        A frozen :class:`AppContext` ready to drive ``Pipeline.__init__``
-        or the orchestrator entrypoints for the launchd / trailers
-        commands.
-    """
-    # Lazy imports: ProviderRegistry pulls the full provider tree, so we
-    # defer it to keep CLI import time minimal for commands that never
-    # build an AppContext (``--help``, ``init-config``).
-    from personalscraper.api.metadata.registry import ProviderRegistry
-    from personalscraper.api.transport._policy import CircuitPolicy
-
-    event_bus = EventBus()
-    cb_policy = CircuitPolicy(
-        failure_threshold=config.thresholds.circuit_breaker_threshold,
-        cooldown_seconds=config.thresholds.circuit_breaker_cooldown,
-    )
-    provider_registry = ProviderRegistry(
-        settings=settings,
-        event_bus=event_bus,
-        cb_policy=cb_policy,
-        providers_config=config.providers,
-        retry=provider_retry,
-    )
-
-    # D3/D9: Boot-wire the torrent client when configured; fail-fast if
-    # incapable. Gated on ``build_torrent_client`` so only commands that
-    # consume the client (run/ingest/torrents_list) pay the connect+login —
-    # read-only commands stay decoupled from the daemon (review #1/#2/#5).
-    # No client configured (torrent.active="") → None, no error.
-    torrent_client = None
-    if build_torrent_client and config.torrent.active:
-        from personalscraper.api.metadata.registry import (  # noqa: PLC0415
-            ConfigIssue,
-            RegistryProviderName,
-        )
-        from personalscraper.api.metadata.registry._errors import (  # noqa: PLC0415
-            RegistryConfigError,
-        )
-        from personalscraper.api.torrent._contracts import (  # noqa: PLC0415
-            TorrentAdder,
-        )
-        from personalscraper.api.torrent._factory import (  # noqa: PLC0415
-            build_active_torrent_client,
-        )
-
-        raw_client = build_active_torrent_client(config.torrent)
-        if not isinstance(raw_client, TorrentAdder):
-            raise RegistryConfigError(
-                [
-                    ConfigIssue(
-                        code="protocol_mismatch",
-                        section="torrent",
-                        provider=RegistryProviderName(config.torrent.active),
-                        message=(
-                            f"Active torrent client {config.torrent.active!r} "
-                            "does not compose TorrentAdder. Verify the client "
-                            "implementation or configuration."
-                        ),
-                    )
-                ]
-            )
-        torrent_client = raw_client
-
-    # RP5c: build the acquisition lobe handle at boot (lazy import mirrors the
-    # provider_registry pattern — keeps --help / init-config network-light).
-    # Delegates tracker registry construction to build_tracker_registry (RP5a
-    # unchanged). TrackerConfigError surfaces here on any misconfig: fail-loud
-    # at the same boundary as RegistryConfigError (metadata/torrent). The
-    # torrent client is borrowed (shared with ingest); acquire.close() does
-    # NOT own its lifecycle.
-    from personalscraper.acquire._factory import build_acquire_context  # noqa: PLC0415
-
-    # RP6: build the ownership checker at the TRUE composition root. This is the
-    # only frame that may import indexer/ AND see config.indexer.db_path, so it
-    # bridges the acquire⇏indexer boundary: it constructs the concrete
-    # IndexerOwnershipChecker and injects it as the core OwnershipChecker port,
-    # keeping acquire/ free of any indexer import (the layering guard stays
-    # green). The checker is INERT here — it opens NO connection and takes NO
-    # lock at boot; its lazy, read-only, lock-free library.db connection opens on
-    # the first owns() call, so the shared composition root never serializes
-    # unrelated commands. When library.db is unconfigured or absent, the acquire
-    # factory falls back to NullOwnershipChecker (always-False, fail-open).
-    ownership = _build_ownership_checker(config)
-
-    acquire = build_acquire_context(
-        config,
-        settings,
-        event_bus=event_bus,
-        cb_policy=cb_policy,
-        torrent_client=torrent_client,
-        ownership=ownership,
-    )
-
-    # DESIGN §3.4: warn if the resolved config dir is inside an ancestor git
-    # working tree (the pre-relocation crash-at-boot vector).  ONE call site
-    # at the TRUE composition root covers every CLI command AND the web daemon
-    # (commands/web.py boot path → _build_app_context → here).  Fail-soft:
-    # warnings are logged but never block boot.
-    from personalscraper.conf.loader import resolve_config_path
-    from personalscraper.verify.config_home import check_config_home
-
-    config_dir = resolve_config_path()
-    for warning in check_config_home(config_dir, report_missing=False):
-        log.warning(warning)
-
-    return AppContext(
-        config=config,
-        settings=settings,
-        event_bus=event_bus,
-        provider_registry=provider_registry,
-        torrent_client=torrent_client,
-        acquire=acquire,
-    )
-
-
-def _build_ownership_checker(config: "Config") -> "OwnershipChecker":
-    """Build the RP6 ownership checker from the configured ``library.db`` path.
-
-    Returns an :class:`~personalscraper.indexer.ownership.IndexerOwnershipChecker`
-    when ``config.indexer.db_path`` is configured AND the file exists on disk;
-    otherwise a :class:`~personalscraper.core.ownership.NullOwnershipChecker`
-    (always-``False``, fail-open). Returning ``NullOwnershipChecker`` for a
-    missing/unconfigured DB keeps first-run / dry-run / no-library commands safe
-    (a wanted item is never silently skipped because ownership can't be
-    verified).
-
-    This helper lives at the TRUE composition root (``cli_helpers``), the only
-    layer permitted to import ``indexer/`` while also seeing the config; it
-    bridges the acquire⇏indexer boundary by handing back the neutral
-    ``OwnershipChecker`` core port. The returned ``IndexerOwnershipChecker`` is
-    INERT: it opens NO connection and takes NO lock here. Its lazy, read-only,
-    lock-free connection opens on the first ``owns()`` call, so building the
-    shared :class:`AppContext` never takes a lifetime lock on ``library.db`` and
-    never serializes unrelated commands (the acquire.db lifetime-lock regression
-    lesson).
-
-    Args:
-        config: The typed JSON5 configuration; ``config.indexer.db_path`` holds
-            the resolved ``library.db`` path (or ``None`` if unconfigured).
-
-    Returns:
-        An ``OwnershipChecker`` port implementation — concrete indexer-backed
-        when the library exists, ``NullOwnershipChecker`` otherwise.
-    """
-    from personalscraper.core.ownership import NullOwnershipChecker  # noqa: PLC0415
-
-    db_path = config.indexer.db_path
-    if db_path is None or not db_path.exists():
-        return NullOwnershipChecker()
-    # Lazy import: indexer/ pulls the SQLite machinery; defer it so commands that
-    # never build an AppContext stay import-light. cli_helpers/ is NOT subject to
-    # the acquire/ layering guard, so this indexer import is legal here.
-    from personalscraper.indexer.ownership import IndexerOwnershipChecker  # noqa: PLC0415
-
-    return IndexerOwnershipChecker(db_path)
 
 
 @contextmanager
@@ -266,7 +54,7 @@ def per_step_boundary(
     Args:
         config: Loaded JSON5 configuration.
         settings: Loaded env-var settings.
-        build_torrent_client: Forwarded to :func:`_build_app_context`. Only
+        build_torrent_client: Forwarded to :func:`~personalscraper.app.composition.build_app_context`. Only
             the torrent-consuming subcommands (``ingest``, ``torrents_list``)
             pass True; the rest leave it False so they never contact the
             torrent daemon at boot (review #1/#2/#5).
@@ -278,7 +66,11 @@ def per_step_boundary(
     Yields:
         The fresh :class:`AppContext` bound for this invocation.
     """
-    app_context = _build_app_context(config, settings, build_torrent_client=build_torrent_client)
+    # Imported at call time so a patch of ``personalscraper.app.composition.build_app_context``
+    # intercepts it (and so the CLI seam keeps no eager edge into the application layer).
+    from personalscraper.app.composition import build_app_context  # noqa: PLC0415
+
+    app_context = build_app_context(config, settings, build_torrent_client=build_torrent_client)
     token = current_correlation_id.set(str(uuid4()))
     # Stream step events to the web UI live feed exactly like a full
     # ``personalscraper run`` (universal run journal, 2026-07-08). Opt-in:
@@ -355,7 +147,7 @@ def _resolve_category(ctx: typer.Context, category: str | None) -> str | None:
 
 
 # Re-export the generalised boundary() decorator + its bundle. Imported LAST so
-# the helpers it depends on (``_build_app_context``, ``per_step_boundary``,
+# the helpers it depends on (``per_step_boundary``,
 # ``_bootstrap_staging``) are already bound in this module's namespace when
 # ``boundary`` imports them back from the package (no circular-import gap).
 from personalscraper.cli_helpers.boundary import CommandContext, boundary  # noqa: E402
@@ -372,8 +164,6 @@ from personalscraper.cli_helpers.boundary import CommandContext, boundary  # noq
 __all__ = [
     "CommandContext",
     "_bootstrap_staging",
-    "_build_app_context",
-    "_build_ownership_checker",
     "_format_validation",
     "_resolve_category",
     "acquire_lock",
