@@ -90,8 +90,9 @@ def main(
     configure_logging(verbose=verbose, quiet=quiet)
 
     # init-config and config sub-app bypass eager load: config/ may not exist
-    # yet, and config maintenance commands load their own paths.
-    if ctx.invoked_subcommand in {"init-config", "config"}:
+    # yet, and config maintenance commands load their own paths. ``schedule`` loads
+    # nothing itself: each job it runs is a fresh process that loads its own config.
+    if ctx.invoked_subcommand in {"init-config", "config", "schedule"}:
         ctx.obj = AppCtx(config=None, config_override=config)
         return
 
@@ -113,6 +114,7 @@ import personalscraper.commands.health_check  # noqa: E402,F401
 import personalscraper.commands.library  # noqa: E402,F401 — re-exports from library/{scan,query,maintenance,audit,analyze}
 import personalscraper.commands.pipeline  # noqa: E402,F401
 import personalscraper.commands.plex_guard  # noqa: E402,F401
+import personalscraper.commands.schedule  # noqa: E402,F401
 import personalscraper.commands.scrape_resolve  # noqa: E402,F401
 import personalscraper.commands.search  # noqa: E402,F401
 import personalscraper.commands.seed  # noqa: E402,F401
