@@ -13,6 +13,7 @@ import { queueKey, useAcquisitionQueue, type AcquisitionQueue } from "../../lib/
 import { store, useUiState } from "../../lib/store-access";
 import { todoCards } from "../../lib/arrival-slots";
 import { fillFollowedTitlesDoor } from "../../lib/shell-doors";
+import { sentIdentity } from "./sent-identity";
 
 /**
  * The suggestions the discover deck draws, as a query definition.
@@ -314,11 +315,8 @@ export function installFollowActions(queryClient: QueryClient): void {
       // title against what it serves otherwise, and refuses a create it can
       // identify from neither (B-366). A provider identifier the contract can
       // carry is a NUMBER, so a title-shaped one (imdb) is not the one sent.
-      const identity = Object.entries(follow.ids ?? {})
-        .find(([, value]) => typeof value === "number");
       return send("POST", "/api/acquisition/followed", {
-        title: follow.title, kind: follow.kind,
-        ...(identity ? { provider: identity[0], providerId: identity[1] } : {}),
+        title: follow.title, kind: follow.kind, ...sentIdentity(follow.ids),
       })
         .then((outcome) => {
           if (outcome !== HELD) refresh();

@@ -132,6 +132,41 @@ export function candidateSheet(provider: string, identifier: string): unknown {
 }
 
 /**
+ * What the layer knows of the medium one identity names: its title, year,
+ * poster and whole identity.
+ *
+ * THE FOLLOW'S CREATE READS THIS (B-673), as a backend fetches a followed
+ * medium from its provider by identity. The create joined only the search
+ * results and the suggestions, by TITLE, so a series followed from « Incomplets »
+ * or from a library sheet was recorded with no poster and no year. The sheets
+ * answer first — every library medium has one — then a resolution candidate.
+ *
+ * @param ids The identity the create carries.
+ * @returns What is known, or null when no family holds that identity.
+ */
+export function knownMedium(
+  ids: Record<string, unknown>,
+): { title: string; year: string; poster: string | null; ids: Record<string, unknown> } | null {
+  for (const [provider, value] of Object.entries(ids)) {
+    if (value == null) continue;
+    const identifier = String(value);
+    const titles = titlesFor(provider, identifier);
+    const found = underAnyTitle(MEDIA_SHEETS as ByTitle, titles) as Record<string, unknown> | undefined;
+    const known = found === undefined
+      ? candidateSheet(provider, identifier) as Record<string, unknown> | null
+      : { ...found, title: titles[0], poster: underAnyTitle(POSTERS as ByTitle, titles) ?? null };
+    if (known === null) continue;
+    return {
+      title: String(known.title),
+      year: String(known.year ?? ""),
+      poster: (known.poster as string | null | undefined) ?? null,
+      ids: (known.ids as Record<string, unknown> | undefined) ?? {},
+    };
+  }
+  return null;
+}
+
+/**
  * Answers one media sheet, composed from the families that hold it.
  *
  * @param request The request.

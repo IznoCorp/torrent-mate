@@ -1,6 +1,7 @@
 // What is wanted, and what is being fetched.
 import GRAB_CADENCE from "../seeds/grab-cadence.json";
 import { releasesFor } from "./releases-of";
+import { knownMedium } from "./media";
 import { sameItem } from "./same-item";
 import { acquisitionKey } from "../../lib/arrival-slots";
 import SEARCH_RESULTS from "../seeds/search-results.json";
@@ -172,12 +173,18 @@ export function acquisitionRoutes(): MockRoute[] {
         : {};
       // The cast reaches the seed's own optional fields, never a null: the line
       // below is what refuses that.
-      const together = { ...(source?.ids ?? {}), ...asked };
+      // AND WHAT THE IDENTITY NAMES, wherever the act was taken (B-673): the
+      // title join reaches the search results and the deck alone, so a medium
+      // followed from « Incomplets » or a library sheet is found by identity.
+      const known = knownMedium({ ...(source?.ids ?? {}), ...asked });
+      const together = { ...(known?.ids ?? {}), ...(source?.ids ?? {}), ...asked };
       const identity = (Object.keys(together).length > 0
         ? together
         : null) as (typeof state.follows)[number]["ids"] | null;
       if (identity === null) return refused(400, NO_IDENTITY);
-      const added = newFollow(title, text(request.body, "kind"), year, identity, source?.poster ?? null);
+      const added = newFollow(title, text(request.body, "kind"),
+                              Number.isFinite(year) ? year : source?.year ?? known?.year ?? year,
+                              identity, source?.poster ?? known?.poster ?? null);
       state.follows = [added, ...state.follows];
       claimRequest(title, false);
       return withAcquisitionFacts([added])[0];

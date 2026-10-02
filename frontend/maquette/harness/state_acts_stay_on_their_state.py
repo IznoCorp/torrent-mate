@@ -1,4 +1,4 @@
-"""A named state's own « Corriger » tap reaches that state alone (B-673).
+"""A named state's own « Corriger » tap reaches that state alone (B-677).
 
 Found by the harness on PR #681: `correct_arrives_with_candidates.py` fell one
 run in two with the screen of the PREVIOUS state's folder. Two ways a state's

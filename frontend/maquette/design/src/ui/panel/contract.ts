@@ -40,6 +40,22 @@ export type Action = {
   infobulle?: string;
 };
 
+/**
+ * Whether an action is a menu's entry for the page one is already on (B-675).
+ *
+ * A menu's entry CHOOSES a destination and says so (`destination` in its
+ * target, read by `app/frame-verbs.ts` as a chooser); its `go` names the page.
+ * On that page it is « you are here », as the side menu says it, and not an
+ * entry that seems to lead elsewhere and « ne mène à rien ».
+ *
+ * @param target The action's data attributes.
+ * @param page The page shown now.
+ * @returns True when the entry names the page one is on.
+ */
+export function isCurrentPlace(target: Action["target"], page: unknown): boolean {
+  return target?.destination !== undefined && target.go !== undefined && String(target.go) === String(page);
+}
+
 // A LIGNE of « faits » is `{ c, v, pip, pipValeur, terne }`: caption, value,
 // a status dot on either side — one qualifies the step and the other the
 // figure — and whether the value is still to come.
