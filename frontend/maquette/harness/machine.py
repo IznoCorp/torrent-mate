@@ -381,13 +381,24 @@ def real_processes():
     """The PM2 processes the ecosystem files declare, or None when unreadable.
 
     Returns:
-        A dict name → {"cron_restart": …}, the shape `pm2 jlist` gives under
-        `pm2_env`, or None when node cannot read the files.
+        A dict name → {"cron": …}: the cron expression of a process whose args
+        are `schedule --cron EXPR -- JOB`, None for a service. Or None when
+        node cannot read the files.
     """
+    # A SCHEDULER IS THE `schedule` LOOP, NOT PM2's `cron_restart`. B-680 moved
+    # every scheduled job off `cron_restart` (PM2 6.0.8 ticks twice at a
+    # boundary and kills the run it started) onto one long-lived
+    # `schedule --cron EXPR -- JOB` loop that PM2 only keeps alive, and B-686 is
+    # this rule still reading the retired key: no process carries it any more,
+    # so the seven jobs were counted as services. No ecosystem file uses
+    # `cron_restart` now, so it is no longer read.
     script = ("const files = process.argv.slice(1);"
               "const apps = files.flatMap(f => require(f).apps || []);"
-              "console.log(JSON.stringify(apps.map(a => ({name: a.name,"
-              " pm2_env: {cron_restart: a.cron_restart || null}}))));")
+              "const loop = /^schedule --cron (?:'([^']+)'|\"([^\"]+)\"|(\\S+)) -- /;"
+              "console.log(JSON.stringify(apps.map(a => {"
+              " const m = loop.exec(String(a.args || ''));"
+              " return {name: a.name, pm2_env: {cron: m ? (m[1] || m[2] || m[3]) : null}};"
+              "})));")
     try:
         out = subprocess.run(["node", "-e", script, *map(str, ECOSYSTEMS)],
                              capture_output=True, text=True, timeout=25)
@@ -527,10 +538,10 @@ async def main():
             schedulers_drawn = len(sys_view["schedulers"] or [])
             real_services = [n for n, e in pm2.items()
                               if n.startswith(("torrentmate", "personalscraper"))
-                              and not e.get("cron_restart")]
+                              and not e.get("cron")]
             real_schedulers = [n for n, e in pm2.items()
                              if n.startswith(("torrentmate", "personalscraper"))
-                             and e.get("cron_restart")]
+                             and e.get("cron")]
             journal.check("as many services drawn as PM2 really runs",
                              services == len(real_services),
                              f"{services} drawn vs {len(real_services)} real: "
