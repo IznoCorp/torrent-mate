@@ -1,0 +1,11 @@
+{
+  "status": 403,
+  "headers": {},
+  "body": {
+    "error": {
+      "code": 403,
+      "message": "Permission 'cloudmessaging.messages.create' denied on resource",
+      "status": "PERMISSION_DENIED"
+    }
+  }
+}

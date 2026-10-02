@@ -2054,5 +2054,11 @@
     },
     "ceilingEvery": "Cette instance est en lecture seule : aucune écriture n'y est permise, pour aucun compte.",
     "ceilingSome": "Cette instance interdit, pour tous les comptes : {{rights}}."
+  },
+  "push": {
+    "generic": {
+      "title": "TorrentMate",
+      "body": "Du nouveau vous attend dans l'application."
+    }
   }
 }

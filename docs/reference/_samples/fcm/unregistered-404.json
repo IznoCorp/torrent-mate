@@ -1,0 +1,17 @@
+{
+  "status": 404,
+  "headers": {},
+  "body": {
+    "error": {
+      "code": 404,
+      "message": "Requested entity was not found.",
+      "status": "NOT_FOUND",
+      "details": [
+        {
+          "@type": "type.googleapis.com/google.firebase.fcm.v1.FcmError",
+          "errorCode": "UNREGISTERED"
+        }
+      ]
+    }
+  }
+}

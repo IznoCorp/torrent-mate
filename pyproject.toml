@@ -46,6 +46,8 @@ dependencies = [
     "uvicorn[standard]>=0.30",
     "redis>=5.0",
     "PyJWT>=2.8",
+    # FCM HTTP v1: mints the service account's access token (not firebase-admin, which pulls gRPC).
+    "google-auth>=2.40",
 ]
 
 [project.optional-dependencies]

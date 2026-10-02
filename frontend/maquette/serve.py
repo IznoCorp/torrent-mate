@@ -124,6 +124,7 @@ BUILD_INPUTS = (
     SHELL_DOCUMENT,
     DESIGN_ROOT / "vite.config.mjs",
     DESIGN_ROOT / "build-identity.mjs",
+    DESIGN_ROOT / "worker-source.mjs",
 )
 
 # The shell's own translation resource. Everything this host SERVES in French —
