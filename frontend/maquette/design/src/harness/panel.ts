@@ -1,10 +1,16 @@
-// THE HARNESS BAR'S NOTES AND WORLD TOGGLES — the harness's own controls,
-// and no part of the interface.
+// THE MAQUETTE'S TWO CONTROLS — the design notes and the real/dense world — and the
+// welcome hint that points at them. The harness's own, and no part of the interface.
 //
-// The design-notes button is wired here, and so is the welcome hint that points
-// at the notes. They speak the operator's language because the operator reads
-// them by hand; no rule taps them.
+// THEY LIVE IN THE SIDE MENU, in a group of their own at its end. They used to float
+// in a bar over the page and covered the maquette's own information. They are
+// CONTRIBUTED to the drawer through `app/drawer-extras.ts` — this module is loaded by
+// the maquette alone, so the product's drawer never carries them and never imports
+// this file.
+//
+// They speak the operator's language because the operator reads them by hand; no
+// rule taps the words, the rules address the two entries by id.
 import i18next from "../i18n";
+import { contributeDrawerGroup } from "../app/drawer-extras";
 import { redraw } from "../lib/shell-doors";
 
 const currentState = () => window.__store.read().state;
@@ -12,47 +18,55 @@ const currentState = () => window.__store.read().state;
 /** Says a message through the frame's message door. */
 const toast = (message: string) => window.__toast?.show({ message });
 
+// The icons are drawn from the bar's own: an information mark and a stack of discs.
+const NOTES_ICON = '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>';
+const WORLD_ICON =
+  '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/>'
+  + '<path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/>';
+
 /**
- * Wires the harness bar's notes toggle and the welcome hint.
+ * Contributes the two controls to the side menu and wires the welcome hint.
  *
  * Called once by the boot, right after the engine has started — the moment the
  * hint used to be scheduled from.
  */
 export function installHarnessPanel(): void {
-  const notesButton = document.querySelector<HTMLElement>("#notesBtn");
-  if (notesButton)
-    notesButton.onclick = () => {
-      window.__store.write({ notes: !currentState().notes });
-      document.documentElement.classList.toggle("notes", currentState().notes === true);
-      notesButton.setAttribute("aria-pressed", String(currentState().notes));
-      toast(currentState().notes ? "Notes de conception affichées." : "Notes masquées.");
-    };
-
-  /* B-572: the real/dense world switch. Runtime, not build-time — it moves
-     `scen` the way a named state's own patch does, over whichever world the
-     build opened on, real or dense. */
-  const scenarioButton = document.querySelector<HTMLElement>("#scenarioBtn");
-  const paintScenario = (dense: boolean) => {
-    if (!scenarioButton) return;
-    scenarioButton.setAttribute("aria-pressed", String(dense));
-    const label = i18next.t(dense
-      ? "harness.scenarioToggle.toReal"
-      : "harness.scenarioToggle.toDense");
-    scenarioButton.setAttribute("aria-label", label);
-    scenarioButton.setAttribute("title", label);
-  };
-  if (scenarioButton) {
-    paintScenario(currentState().scen === "loaded");
-    scenarioButton.onclick = () => {
-      const dense = currentState().scen !== "loaded";
-      window.__store.write({ scen: dense ? "loaded" : "real" });
-      paintScenario(dense);
-      redraw();
-      toast(i18next.t(dense
-        ? "harness.scenarioToggle.toastDense"
-        : "harness.scenarioToggle.toastReal"));
-    };
-  }
+  contributeDrawerGroup({
+    part: "harness/menu",
+    title: () => i18next.t("harness.menu.group"),
+    entries: [
+      {
+        id: "notesBtn",
+        icon: NOTES_ICON,
+        label: () => i18next.t("harness.menu.notes"),
+        pressed: () => currentState().notes === true,
+        onPress: () => {
+          window.__store.write({ notes: !currentState().notes });
+          document.documentElement.classList.toggle("notes", currentState().notes === true);
+          toast(i18next.t(currentState().notes ? "harness.menu.notesShown" : "harness.menu.notesHidden"));
+        },
+      },
+      /* B-572: the real/dense world switch. Runtime, not build-time — it moves
+         `scen` the way a named state's own patch does, over whichever world the
+         build opened on, real or dense. Its label follows the current world. */
+      {
+        id: "scenarioBtn",
+        icon: WORLD_ICON,
+        label: () => i18next.t(currentState().scen === "loaded"
+          ? "harness.scenarioToggle.toReal"
+          : "harness.scenarioToggle.toDense"),
+        pressed: () => currentState().scen === "loaded",
+        onPress: () => {
+          const dense = currentState().scen !== "loaded";
+          window.__store.write({ scen: dense ? "loaded" : "real" });
+          redraw();
+          toast(i18next.t(dense
+            ? "harness.scenarioToggle.toastDense"
+            : "harness.scenarioToggle.toastReal"));
+        },
+      },
+    ],
+  });
 
   /* The welcome hint disappears on first interaction: a bubble that
      returns over an open sheet is a nuisance, not help. */
@@ -63,7 +77,7 @@ export function installHarnessPanel(): void {
     if (hintShown || document.documentElement.classList.contains("measuring"))
       return;
     hintShown = true;
-    toast("Touchez le ⓘ en haut pour afficher les notes de conception.");
+    toast(i18next.t("harness.menu.hint"));
   }, 900);
   document.addEventListener(
     "pointerdown",
@@ -82,7 +96,7 @@ export function installHarnessPanel(): void {
       const onScreen = window.__toast?.read();
       if (
         onScreen?.shown &&
-        onScreen.message?.message?.includes("notes de conception")
+        onScreen.message?.message === i18next.t("harness.menu.hint")
       )
         window.__toast?.hide();
     },

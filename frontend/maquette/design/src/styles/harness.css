@@ -49,51 +49,11 @@
   position: absolute;
 }
 
-/* Harness buttons — outside the shell, since the shell is a MEASURED
-   region and must carry nothing that does not exist in the app.
-   `window.__measure(true)` clears them before any capture. */
-/* Anchored to the FRAME, not to the window, and parked in the one corner the
-   app's own chrome never claims: the header spans the full width at the top,
-   the tab bar spans it at the bottom, and the floating action button sits
-   bottom-RIGHT. Measured, not guessed — sitting top-right put these over the
-   avatar at every width, and the desktop offset that was supposed to avoid
-   that missed the frame it was computed against. */
-.hbtn {
-  /* Harness chrome lives in the top bar's empty middle, to the LEFT of the
-     app's own status dot and avatar — never over them: R51 measures that
-     overlap in every named state. Anchored to the same safe-area offset
-     the bar itself uses, so the buttons ride the bar on a notched phone. */
-  position: absolute;
-  right: 100px;
-  top: calc(env(safe-area-inset-top) + 12px);
-  /* BELOW THE MESSAGE, AND THAT IS A PRODUCT RULE RATHER THAN A HARNESS ONE.
-     A message said while a layer is open is drawn along the top of the frame,
-     which is where the bar sits; at the splash's rank, 70, it was painted
-     over the sentence answering a verb — chrome that ships nowhere hiding
-     the product's own answer. 53 keeps it above the surfaces one drives
-     from (a screen, the tab bar, the bottom sheet) and under the drawer,
-     the confirmation and the message. The ranked list that records every
-     rank is in `ui/variants/frame.ts`. */
-  z-index: 53;
-  display: flex;
-  gap: 4px;
-}
-.hbtn button {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  border: 1px solid var(--color-border);
-  background: color-mix(in oklab, var(--color-background) 80%, transparent);
-  color: var(--color-muted-foreground);
-  display: grid;
-  place-items: center;
-  backdrop-filter: blur(4px);
-}
-.hbtn svg {
-  width: 13px;
-  height: 13px;
-}
-html.measuring .hbtn,
+/* The maquette's two controls are entries of the side menu now (`app/drawer-extras.ts`),
+   so nothing of the harness floats over the page. They are not the product's: the
+   capture clears their group, as it clears the desktop switch, the message and the
+   notes. */
+html.measuring [data-part="harness/menu"],
 html.measuring .desktop-switch,
 html.measuring .toast,
 html.measuring .note {

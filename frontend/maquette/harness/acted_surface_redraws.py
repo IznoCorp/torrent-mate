@@ -50,9 +50,15 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, Journal, PANEL_IN, SETTLED, open_page, browser_channel, chrome_launch_args
+from common import ACTED, Journal, PANEL_IN, SETTLED, open_page, ready, browser_channel, chrome_launch_args
 
-from playwright.async_api import async_playwright
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError, async_playwright
+
+# THE MOST A PANEL IS GIVEN TO DRAW ITS SEASONS, once the page says nothing is in
+# flight. The panel opens on the follow's own row and its seasons arrive with the
+# answer of a query: a fixed `PANEL_IN` read the panel before that answer on a
+# slow runner (shard 2/4 of #686: « none of 1 follows offers a grab »).
+HOLE_CEILING_MS = 5000
 
 # WHERE THE QUEUE IS DRAWN, so a journey has stages to move.
 JOURNEY_STATE = "acq-now-loaded"
@@ -662,6 +668,7 @@ async def main():
         # ── THE SEASON, AND ITS COUNT AND ITS MARK ─────────────────────────
         await page.evaluate("(id)=>window.__go(id)", FOLLOWS_STATE)
         await page.wait_for_timeout(SETTLED)
+        await ready(page)
         # The panel is produced for each followed title until one offers a grab
         # — among the follows whose season family the layer counts from holds
         # a hole, for the reason written above the first walk (RE-AIMED).
@@ -673,11 +680,20 @@ async def main():
         for title in followed:
             await page.evaluate("(t)=>window.__panel.produce('follow', t)", title)
             await page.wait_for_timeout(PANEL_IN)
+            await ready(page)
+            # A STATE WAIT: the grab is drawn when the panel's seasons arrive.
+            try:
+                await page.wait_for_function(
+                    "()=>!!document.querySelector('[data-grab-season]')",
+                    timeout=HOLE_CEILING_MS)
+            except PlaywrightTimeoutError:
+                pass
             if await page.evaluate(A_HOLE):
                 holed = title
                 break
             await page.evaluate("()=>window.__panel.close()")
             await page.wait_for_timeout(PANEL_IN)
+            await ready(page)
         journal.check(
             "a followed medium has a season with a hole, drawn in an open panel",
             bool(holed), holed or f"none of {len(followed)} follows offers a grab")
@@ -709,6 +725,7 @@ async def main():
                 "« récupérer cette saison » takes a press at its own centre",
                 press.get("pressed"), str(press))
             await page.wait_for_timeout(ACTED)
+            await ready(page)
 
             burst = await page.evaluate(ANSWERED, "grabSeasonForFollow")
             journal.check(
