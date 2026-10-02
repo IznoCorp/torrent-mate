@@ -5,7 +5,7 @@
 // what the oracle's reference names, the label says the state in words, and
 // `run` builds the state. The driver resets the interface before every state,
 // so an entry pins only what its state means to show.
-import { applyState, type NamedState } from "../drive";
+import { applyState, onLeave, type NamedState } from "../drive";
 import { openAbandonConfirm } from "../../features/acquisition/abandon-verb";
 import { openNotMediaChoice } from "../../features/acquisition/not-media-verb";
 import { openDeleteConfirm } from "../../features/acquisition/delete-set-aside-verb";
@@ -24,9 +24,12 @@ function correctFromJourney(subject: string): void {
   window.__mocks?.placeAtPlexCheck(subject);
   applyState({ page: "acq", phase: "ready" });
   window.__panel.produce("journey", subject);
-  window.setTimeout(() => {
+  // STOPPED WHEN THE NEXT STATE IS DRIVEN: a tap that fires after it lands on
+  // the next state's own « Corriger », which is an act on a decision it never asked for.
+  const tap = window.setTimeout(() => {
     document.querySelector<HTMLElement>('#sheet [data-part="decision/correct"]')?.click();
   }, CORRECT_AFTER);
+  onLeave(() => window.clearTimeout(tap));
 }
 
 // How long after its sheet is asked for « Corriger » is tapped: the sheet has to

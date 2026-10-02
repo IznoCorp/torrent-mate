@@ -29,7 +29,12 @@ const CORRECT_WAIT = 3000;
 function correctWhenDrawn(): void {
   const started = performance.now();
   const look = () => {
-    const act = document.querySelector<HTMLElement>('[data-part="decision/correct"]');
+    // THE ACT OF THE SHEET ASKED FOR, never the first one in the document: the
+    // previous state's sheet is still mounted for a frame or more after the
+    // reset, and its « Corriger » is an act on ITS decision.
+    const act = document.querySelector<HTMLElement>(
+      '[data-part="screen"][data-open][data-key^="mediaSheet:"] [data-part="decision/correct"]',
+    );
     if (act !== null) act.click();
     else if (performance.now() - started < CORRECT_WAIT) window.requestAnimationFrame(look);
   };
