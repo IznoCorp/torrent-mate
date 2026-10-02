@@ -11,6 +11,7 @@
 import { applyState, type NamedState } from "../drive";
 import { as } from "./rights";
 import type { BlockDetails } from "../../mocks/handlers/posed-block";
+import { owed } from "../owed";
 
 // The one acquisition in flight of the dense world that has not arrived: the
 // subject of every deferral since R265.
@@ -57,7 +58,7 @@ function posed(id: string, label: string, poses: Pose[], extra: Options = {}): N
     for (const [title, cause, details] of poses) window.__mocks?.poseBlock(title, cause, details);
     dropQueue();
     applyState({ page: "acq", acqTab: "todo", scen: "loaded", phase: "ready", ...extra.dials });
-    if (extra.after !== undefined) window.setTimeout(extra.after, TAP_AFTER);
+    if (extra.after !== undefined) owed(extra.after, TAP_AFTER);
   }];
 }
 
@@ -100,7 +101,7 @@ const PANEL_READY = 900;
  */
 function markSeen(key: string): void {
   tapCard(key);
-  window.setTimeout(() => document.querySelector<HTMLElement>("#sheet[data-open] [data-closure-seen]")?.click(), PANEL_READY);
+  owed(() => document.querySelector<HTMLElement>("#sheet[data-open] [data-closure-seen]")?.click(), PANEL_READY);
 }
 
 // An account that reads every card of « À traiter » and may not open Système.
@@ -349,5 +350,5 @@ const FOLLOWS = { page: "acq", acqTab: "follows", followMode: "list", pill: "tou
  */
 function pillsOf(dials: Record<string, unknown>, pill?: string): void {
   applyState(dials);
-  if (pill !== undefined) window.setTimeout(() => tapPill(pill), TAP_AFTER);
+  if (pill !== undefined) owed(() => tapPill(pill), TAP_AFTER);
 }

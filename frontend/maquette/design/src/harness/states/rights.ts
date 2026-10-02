@@ -9,6 +9,7 @@
 import { applyState, onLeave, type NamedState } from "../drive";
 import { openDrawer } from "../../app/frame-verbs";
 import { WRITE_RIGHTS, type Right } from "../../lib/rights";
+import { owed } from "../owed";
 
 /**
  * Signs one invented account in, until the next state resets the layer.
@@ -350,7 +351,7 @@ export function rightsStates(): NamedState[] {
       "Comptes — un nouveau compte sans adresse e-mail, refusé",
       () => {
         applyState({ page: "accounts", phase: "ready" });
-        window.setTimeout(() => {
+        owed(() => {
           const form = document.querySelector<HTMLFormElement>('[data-part="accounts/create"]');
           (form?.elements.namedItem("name") as HTMLInputElement | null)?.setAttribute("value", "Maya");
           form?.requestSubmit();

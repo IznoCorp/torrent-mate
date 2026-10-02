@@ -9,6 +9,7 @@ import { applyState, type NamedState } from "../drive";
 import { resetSettings } from "../settings-reset";
 import { SETTINGS_STATE } from "../../features/settings/state";
 import { askToLeave } from "../../app/leave-confirm";
+import { owed } from "../owed";
 
 // Long enough that a read held back is still in flight when the state is measured.
 const HELD_BACK = 60000;
@@ -22,7 +23,7 @@ const SAVE_AFTER = 50;
  * finger would once the file is read.
  */
 function saveTypedWeight(): void {
-  window.setTimeout(() => {
+  owed(() => {
     const field = document.querySelector<HTMLInputElement>(
       '[data-part="ranking/criterion"] [data-part="ranking/weight"]');
     if (field === null) return;
@@ -30,7 +31,7 @@ function saveTypedWeight(): void {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set
       ?.call(field, String(Number(field.value) + 2));
     field.dispatchEvent(new Event("input", { bubbles: true }));
-    window.setTimeout(() => {
+    owed(() => {
       document.querySelector<HTMLElement>('[data-part="ranking/save"]')?.click();
     }, SAVE_AFTER);
   }, TYPE_AFTER);

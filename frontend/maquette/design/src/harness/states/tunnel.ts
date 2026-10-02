@@ -9,6 +9,7 @@ import { applyState, onLeave, type NamedState } from "../drive";
 import { openAbandonConfirm } from "../../features/acquisition/abandon-verb";
 import { openNotMediaChoice } from "../../features/acquisition/not-media-verb";
 import { openDeleteConfirm } from "../../features/acquisition/delete-set-aside-verb";
+import { forgetOwed, owed } from "../owed";
 
 // How long after « À traiter » is asked for its fold is opened: the read has to
 // answer and the tab draw before there is a fold to open.
@@ -26,10 +27,10 @@ function correctFromJourney(subject: string): void {
   window.__panel.produce("journey", subject);
   // STOPPED WHEN THE NEXT STATE IS DRIVEN: a tap that fires after it lands on
   // the next state's own « Corriger », which is an act on a decision it never asked for.
-  const tap = window.setTimeout(() => {
+  const tap = owed(() => {
     document.querySelector<HTMLElement>('#sheet [data-part="decision/correct"]')?.click();
   }, CORRECT_AFTER);
-  onLeave(() => window.clearTimeout(tap));
+  onLeave(() => forgetOwed(tap));
 }
 
 // How long after its sheet is asked for « Corriger » is tapped: the sheet has to
@@ -153,7 +154,7 @@ export function tunnelStates(): NamedState[] {
         window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
         applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" });
         // THE FOLD OPENED THE WAY A FINGER OPENS IT, once the tab is drawn.
-        window.setTimeout(() => {
+        owed(() => {
           document.querySelector<HTMLElement>('[data-part="section/set-aside"] summary')?.click();
         }, OPEN_AFTER);
       },

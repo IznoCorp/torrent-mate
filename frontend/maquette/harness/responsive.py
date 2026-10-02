@@ -316,6 +316,12 @@ async def read_pass(browser, label, width, wanted, engine, scheme):
             readings[state] = [{"arm": "unreachable", "part": str(error)[:80], "rect": None}]
             continue
         await page.wait_for_timeout(SETTLED)
+        # A STATE'S OWN TIMERS ARE OVER BEFORE IT IS READ. A state that taps a card, then the
+        # act of its panel, arms those timers through `harness/owed.ts` and the page counts them:
+        # `acq-closure-panel` and `acq-closure-seen` were read at `SETTLED` with the panel still
+        # rising and its scrim over the menu button (`unseen · menu`, webkit at 390 px — develop's
+        # own, seen on #687's two heads). The wait is the page's word, not a longer number.
+        await page.wait_for_function("()=>(window.__owedActs ?? 0) === 0")
         # A STATE STILL ARRIVING IS NOT READ. Pushing a screen is a view
         # transition (`--duration-4`, base.css), and while it runs the
         # `::view-transition` overlay on the root takes every hit test: WebKit

@@ -8,6 +8,7 @@
 // THE DENSE WORLD HOLDS THE RECOVERY RUNNING (Silo S03, its episode S03E07
 // covered). Every other moment is POSED on it, never seeded (RULINGS 7).
 import { applyState, type NamedState } from "../drive";
+import { owed } from "../owed";
 
 // The subject the dense world holds, and the one-off R158 draws.
 const SERIES = "Silo";
@@ -87,7 +88,7 @@ function tapAct(title: string, season: number): void {
   const look = () => {
     const act = document.querySelector<HTMLElement>(`[data-grab-season="${CSS.escape(`${title}|${season}`)}"]`);
     if (act !== null) act.click();
-    else if (Date.now() - started < ACT_WAIT) window.setTimeout(look, ACT_POLL);
+    else if (Date.now() - started < ACT_WAIT) owed(look, ACT_POLL);
   };
   look();
 }
@@ -184,7 +185,7 @@ export function seasonRecoveryStates(): NamedState[] {
         window.__mocks?.seasonRecovery.beforeAsk(SERIES, SEASON);
         forgetQueue();
         followPanel(SERIES);
-        window.setTimeout(() => {
+        owed(() => {
           window.__mocks?.setOffline(true);
           tapAct(SERIES, SEASON);
         }, ACT_WAIT / 3);

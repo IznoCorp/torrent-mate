@@ -546,9 +546,9 @@ async def settle(page):
 # view transition active, no query fetching, no mutation pending, no finite
 # animation running. Held for TWO frames in a row, because a query that answers
 # notifies its readers on the next task and React draws on the frame after.
-# Not for a state that acts on a timer of its own (a tap posed `setTimeout`
-# after the draw): the page cannot say a timer is still owed, and those states
-# keep the wait they name. Chromium's reading: WebKit's page dies when
+# A state that acts on a timer of its own (a tap posed after the draw) arms it through
+# `harness/owed.ts`, which counts it in `window.__owedActs`: the page SAYS a timer is
+# still owed, and this waits for it. Chromium's reading: WebKit's page dies when
 # `getAnimations()` is asked under chained view transitions (`responsive.py`).
 READY_CEILING_MS = 5000
 READY = """(ceiling)=>new Promise((done)=>{
@@ -557,6 +557,7 @@ READY = """(ceiling)=>new Promise((done)=>{
   const busy = () => (() => { try { return document.documentElement.matches(':active-view-transition'); } catch (error) { return false; } })()
     || (window.__queries?.isFetching() ?? 0) > 0
     || (window.__queries?.isMutating() ?? 0) > 0
+    || (window.__owedActs ?? 0) > 0
     || document.getAnimations().some((one) => one.playState === 'running' && one.effect
          && one.effect.getComputedTiming().endTime !== Infinity);
   const look = () => {

@@ -6,6 +6,7 @@
 // so an entry pins only what its state means to show.
 import { applyState, poseTrail, type NamedState } from "../drive";
 import type { components } from "../../contract/types";
+import { owed } from "../owed";
 
 // How long a read is held back to show a section that is still waiting. Long
 // enough that the state can be looked at, and it is a latency rather than a
@@ -311,7 +312,7 @@ export function systemStates(): NamedState[] {
         openRun();
         // THE FOLD OPENED THE WAY A FINGER OPENS IT, once the screen is drawn:
         // a state that set `open` in the markup would be a different screen.
-        window.setTimeout(() => {
+        owed(() => {
           document.querySelector<HTMLElement>('[data-part="run/log-toggle"]')?.click();
         }, OPEN_AFTER);
       },
