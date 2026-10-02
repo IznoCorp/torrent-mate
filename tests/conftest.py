@@ -139,6 +139,17 @@ def _tmp_dirs_count_as_mounted(request: pytest.FixtureRequest) -> Iterator[None]
 
 
 @pytest.fixture(autouse=True)
+def _no_environment_setting(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Start every test with ``PERSONALSCRAPER_ENV`` unset, i.e. the production store names.
+
+    The real ``.env`` is loaded into ``os.environ`` by this module, and a developer shell
+    may export the variable; either would rename every derived store file under the tests.
+    A test about the setting sets it itself.
+    """
+    monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+
+
+@pytest.fixture(autouse=True)
 def _neutralize_external_notify_creds(monkeypatch: pytest.MonkeyPatch) -> None:
     """Force external-notification credentials empty for every test.
 
