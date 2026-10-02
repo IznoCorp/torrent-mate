@@ -168,6 +168,7 @@ def _row_to_seed(row: sqlite3.Row) -> SeedObligation:
         satisfied_at=row["satisfied_at"],
         breached_at=row["breached_at"],
         released_at=row["released_at"],
+        id=row["id"] if "id" in row.keys() else None,
     )
 
 

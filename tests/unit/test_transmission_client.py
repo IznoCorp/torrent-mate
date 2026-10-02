@@ -45,6 +45,7 @@ def _mock_torrent(
     added_date: datetime | int | None = 1712345678,
     files: list[MagicMock] | None = None,
     labels: list[str] | None = None,
+    seconds_seeding: int | None = None,
 ) -> MagicMock:
     """Build a MagicMock that mimics a transmission_rpc.Torrent object."""
     t = MagicMock(spec=transmission_rpc.Torrent)
@@ -57,6 +58,7 @@ def _mock_torrent(
     t.download_dir = download_dir
     t.added_date = added_date
     t.labels = labels
+    t.seconds_seeding = seconds_seeding
     if files is None:
         f = MagicMock()
         f.name = name
@@ -127,6 +129,20 @@ class TestTorrentItemMapping:
         assert hasattr(item, "ratio")
         assert isinstance(item.ratio, float)
         assert item.ratio == 2.5
+
+    def test_seconds_seeding_maps_to_seeding_time_s(self) -> None:
+        """Transmission ``secondsSeeding`` → ``seeding_time_s``; absent → None."""
+        assert _torrent_item(_mock_torrent(seconds_seeding=259200)).seeding_time_s == 259200
+        assert _torrent_item(_mock_torrent(seconds_seeding=None)).seeding_time_s is None
+        assert _torrent_item(_mock_torrent(seconds_seeding=-1)).seeding_time_s is None
+
+    def test_get_by_hashes_requests_seconds_seeding(self) -> None:
+        """The RPC field list asks for ``secondsSeeding`` so the mapper has it."""
+        client = TransmissionClient.__new__(TransmissionClient)
+        client._client = MagicMock()
+        client._client.get_torrents.return_value = []
+        client.get_by_hashes({"abc123"})
+        assert "secondsSeeding" in client._client.get_torrents.call_args.kwargs["arguments"]
 
     def test_no_download_dir_yields_none_content_path(self) -> None:
         """Empty download_dir → content_path is None."""
