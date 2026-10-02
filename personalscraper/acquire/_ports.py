@@ -377,8 +377,24 @@ class SeedSubStore(Protocol):
         """
         ...
 
-    def mark_satisfied(self, obligation_id: int, satisfied_at: int) -> None:
-        """Set ``satisfied_at`` on an obligation row."""
+    def list_open(self) -> list[SeedObligation]:
+        """Return every obligation neither satisfied nor released."""
+        ...
+
+    def mark_satisfied(self, obligation_id: int, satisfied_at: int) -> int:
+        """Set ``satisfied_at`` on an open obligation row; return the row count."""
+        ...
+
+    def mark_absent(self, obligation_id: int, seen_at: int) -> int:
+        """Record the first sweep that did not find the torrent; return the row count."""
+        ...
+
+    def clear_absent(self, obligation_id: int) -> int:
+        """Forget an absence (the torrent was seen again); return the row count."""
+        ...
+
+    def mark_released(self, obligation_id: int, released_at: int) -> int:
+        """Set ``released_at`` (the torrent is gone); return the row count."""
         ...
 
     def mark_breached(self, obligation_id: int, breached_at: int) -> None:
