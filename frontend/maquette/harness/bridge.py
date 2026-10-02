@@ -62,7 +62,7 @@ from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from common import (DESIGN_SOURCES, PHONE, ROOT, Journal, design_source,
-                    without_comments, browser_channel, chrome_launch_args)
+                    without_comments, browser_channel, chrome_launch_args, ready)
 
 # The engine may hold no history primitive of its own — the bridge is the
 # only way to the single writer.
@@ -233,7 +233,7 @@ async def main():
 
         # ─── Hold (b): R71 journey through the bridge ──────────────────
         await pg.evaluate("()=>window.__go('acq-add-results')")
-        await pg.wait_for_timeout(400)
+        await ready(pg)
 
         # The add screen left `#screen` for a real route (`/add`, rendered
         # inside `#coquille`): its results live under `[data-part="screen"][data-open]` now —

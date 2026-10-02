@@ -54,7 +54,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ROOT, Journal, open_page, browser_channel, chrome_launch_args
+from common import ROOT, Journal, open_page, browser_channel, chrome_launch_args, ready
 
 DESIGN_SRC = ROOT / "design" / "src"
 
@@ -321,7 +321,7 @@ async def main():
         await pg.evaluate("()=>window.__go('lib-recent')")
         await pg.wait_for_timeout(300)
         await pg.evaluate("()=>window.__go('mediasheet-movie')")
-        await pg.wait_for_timeout(300)
+        await ready(pg)
         after_lens = await pg.evaluate(DIALS)
         journal.check(
             "a named state that does not name the library's lens draws the opening one, "

@@ -19,7 +19,7 @@ import asyncio
 import json
 import pathlib
 
-from common import SETTLED, Journal, open_page, browser_channel, chrome_launch_args
+from common import SETTLED, Journal, open_page, browser_channel, chrome_launch_args, ready
 from playwright.async_api import async_playwright
 
 SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
@@ -71,7 +71,7 @@ async def main():
                  for state in STATES}
 
         await page.evaluate("()=>window.__go('media-cross-seed')")
-        await page.wait_for_timeout(SETTLED)
+        await ready(page)
         owner = await page.evaluate(READ)
         journal.check("R-L18-w: the owner's sheet draws the cross-seed block", owner["block"], owner["address"])
         journal.check("R-L18-w: one row per pair", len(owner["rows"]) > 0, str(len(owner["rows"])))
@@ -98,7 +98,7 @@ async def main():
 
         for identity in IDENTITIES:
             await page.evaluate("()=>window.__go('media-cross-seed')")
-            await page.wait_for_timeout(SETTLED)
+            await ready(page)
             before = await page.evaluate(AS, identity)
             await page.wait_for_timeout(SETTLED)
             await page.evaluate(OPEN, TITLE)
@@ -112,7 +112,7 @@ async def main():
             journal.check(f"R-L18-w: {identity} forcing the read is refused 403", status == 403, str(status))
 
         await page.evaluate("()=>window.__go('media-cross-seed-hidden')")
-        await page.wait_for_timeout(SETTLED)
+        await ready(page)
         hidden = await page.evaluate(READ)
         journal.check("media-cross-seed-hidden: the same sheet, no block", not hidden["block"], hidden["address"])
 

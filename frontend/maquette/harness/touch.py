@@ -25,7 +25,7 @@ is unchanged.
 """
 import asyncio
 
-from common import SETTLED, Journal, browser_channel, chrome_launch_args, settle
+from common import SETTLED, Journal, browser_channel, chrome_launch_args, settle, ready
 from playwright.async_api import async_playwright
 
 # HOW LONG A PRESS TAKES IS READ FROM THE PAGE, never typed here. A probe
@@ -330,7 +330,7 @@ async def main():
         # that a card drawn ABOVE the scrollport refuses the browser's menu, and
         # `acq-add-results` is a state that has one.
         await pg.evaluate("()=>window.__go('acq-add-results')")
-        await pg.wait_for_timeout(450)
+        await ready(pg)
         # `acq-identifier` opens the add screen — a real route now
         # (`/add`, rendered inside `#coquille`), not `#screen`: the card
         # this hold reaches is drawn there, above the scrollport just the

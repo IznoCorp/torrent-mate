@@ -6,7 +6,7 @@ by owner, and acquisition's `plus` became a valueless `data-more`.
 """
 import asyncio
 
-from common import shot, browser_channel, chrome_launch_args
+from common import shot, browser_channel, chrome_launch_args, ready
 from playwright.async_api import async_playwright
 
 
@@ -66,7 +66,7 @@ async def main():
     chk("2b. the same from Découvrir", r["screen"] and not r["sheet"], str(r))
 
     # 3 — changing page closes the media sheet
-    await pg.evaluate("()=>window.__go('mediasheet-series')"); await pg.wait_for_timeout(400)
+    await pg.evaluate("()=>window.__go('mediasheet-series')"); await ready(pg)
     await pg.evaluate("()=>document.querySelector('[data-page=lib]').click()"); await pg.wait_for_timeout(400)
     r = await pg.evaluate("""()=>({screen:!!document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]'),
       page:state.page})""")
@@ -95,7 +95,7 @@ async def main():
     await shot(pg, "bugs-sheet-bottom")
 
     # 7 — a search result leads to its media sheet
-    await pg.evaluate("()=>window.__go('acq-add-results')"); await pg.wait_for_timeout(450)
+    await pg.evaluate("()=>window.__go('acq-add-results')"); await ready(pg)
     has = await pg.evaluate("""()=>!!document.querySelector('[data-part="result/list"] [data-part="card"] [data-part="card/poster"][data-mediasheet]')""")
     await pg.evaluate("""()=>document.querySelector('[data-part="result/list"] [data-part="card"] [data-part="card/poster"][data-mediasheet]').click()"""); await pg.wait_for_timeout(600)
     title = await pg.evaluate(
@@ -103,7 +103,7 @@ async def main():
     chk("7. result → media sheet", has and bool(title), f"→ « {title} »")
 
     # 8 — the resolution screen's way out exists
-    await pg.evaluate("()=>window.__go('acq-resolution-none')"); await pg.wait_for_timeout(450)
+    await pg.evaluate("()=>window.__go('acq-resolution-none')"); await ready(pg)
     has = await pg.evaluate("()=>!!document.querySelector('[data-manual]')")
     await pg.evaluate("()=>document.querySelector('[data-manual]').click()"); await pg.wait_for_timeout(700)
     q = await pg.evaluate("()=>document.querySelector('#addq')?.value")

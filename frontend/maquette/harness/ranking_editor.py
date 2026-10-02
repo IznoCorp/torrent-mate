@@ -54,7 +54,7 @@ import asyncio
 import json
 import pathlib
 
-from common import SETTLED, Journal, browser_channel, chrome_launch_args, open_page
+from common import SETTLED, Journal, browser_channel, chrome_launch_args, open_page, ready
 from playwright.async_api import async_playwright
 
 SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
@@ -107,7 +107,7 @@ async def main():
 
         answer = await page.evaluate(
             "()=>{try{window.__go('ranking-editor');return null}catch(error){return String(error)}}")
-        await page.wait_for_timeout(SETTLED)
+        await ready(page)
         journal.check("the named state ranking-editor exists", answer is None, answer or "")
         where = await page.evaluate("()=>location.pathname")
         journal.check("it stands at /settings/ranking", where.endswith("/settings/ranking"), where)

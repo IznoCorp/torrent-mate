@@ -662,18 +662,26 @@ async def open_page(browser, **kwargs):
 async def read_at(page, state, script, argument=None, wait=SETTLED):
     """Asks for a named state, lets it settle, and reads it.
 
+    THE WAIT IS A FLOOR, AND THE PAGE SAYS WHEN IT IS OVER. A state that pushes
+    a screen mounts it frames after `__go` returns and only then asks for what
+    it draws, so a fixed wait alone is a bet on the runner (`take.py` counted 0
+    releases at `SETTLED` on PR #680's CI run). The number is kept as the
+    floor, for a state that acts on a timer the page cannot report; `ready`
+    then waits for the rest.
+
     Args:
         page: The Playwright page.
         state: The named state's id, as `window.__go` takes it.
         script: The reading, evaluated once the state has settled.
         argument: What the reading takes, if anything.
-        wait: How long the state is let settle — `PANEL_IN` for one opening a panel.
+        wait: The least the state is let settle — `PANEL_IN` for one opening a panel.
 
     Returns:
         The reading's answer.
     """
     await page.evaluate("(id)=>window.__go(id)", state)
     await page.wait_for_timeout(wait)
+    await ready(page)
     return await page.evaluate(script, argument)
 
 

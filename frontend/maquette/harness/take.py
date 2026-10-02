@@ -40,7 +40,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, Journal, PANEL_IN, PANEL_OUT, SETTLED, open_page, browser_channel, chrome_launch_args
+from common import ACTED, Journal, PANEL_IN, PANEL_OUT, SETTLED, open_page, browser_channel, chrome_launch_args, ready
 
 from playwright.async_api import async_playwright
 
@@ -120,8 +120,12 @@ async def main():
         # picker's — and it still belongs in THIS rule, because « the panel's
         # take still works » and « the picker still works » is one question as
         # long as anyone remembers they were once the same button.
+        # READ ONCE THE PAGE SAYS THE SCREEN HAS ARRIVED (`ready`), never after a
+        # number: the screen is pushed through a view transition, mounts frames
+        # after `__go` returns and only then asks for its releases — a CI runner
+        # counted 0 rows at SETTLED and clicked one an instant later (PR #680's run).
         await page.evaluate("()=>window.__go('screen-releases')")
-        await page.wait_for_timeout(SETTLED)
+        await ready(page)
         rows = await page.evaluate(
             """()=>[...document.querySelectorAll('[data-part="card/foot"]')]
                     .filter((one) => 'pickRelease' in one.dataset).length""")
