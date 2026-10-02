@@ -412,7 +412,7 @@ def real_commands():
     """The `library-*` commands the engine really registers, or None."""
     try:
         sys.path.insert(0, str(ROOT))
-        from personalscraper.web.maintenance.registry import REGISTRY
+        from personalscraper.app.maintenance.registry import REGISTRY
     except Exception:  # noqa: BLE001 — the engine not importable is a skip
         return None
     return {a.id: a for a in REGISTRY}

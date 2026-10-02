@@ -7,7 +7,7 @@ schemas, fake Redis.
 Each test monkeypatches ``_build_argv`` to return a trivial command
 (``sys.executable -c "..."``) so the child is deterministic and fast.
 
-Mirrors ``tests/unit/web/maintenance/test_runner_lifecycle.py``, adapted for
+Mirrors ``tests/unit/app/maintenance/test_runner_lifecycle.py``, adapted for
 the decisions-runner contract: four env vars, ``scrape_decision`` row lookup,
 no pipeline-lock acquisition (``scrape-resolve`` self-acquires — R11).
 """

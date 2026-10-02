@@ -88,7 +88,7 @@ def _db_path(request: Request) -> Path:
 def _pid_alive(pid: object) -> bool:
     """Return whether *pid* names a live process (a NULL / dead pid → ``False``).
 
-    Mirrors the liveness check in ``web.decisions.reserve`` so the activity panel
+    Mirrors the liveness check in ``app.decisions.reserve`` so the activity panel
     and the reservation guard agree on what counts as an in-flight scrape: a row
     whose runner died (SIGKILL / crash) or never claimed a pid is stale, not live.
 
@@ -456,7 +456,7 @@ def _spawn_decision_runner(
 ) -> int:
     """Spawn the decision runner as a detached subprocess.
 
-    The runner module (``personalscraper.app.decisions.runner``) reads its
+    The runner module (``personalscraper.web.decisions.runner``) reads its
     configuration from the environment variables set here.  It is
     responsible for executing ``scrape-resolve``, streaming output, and
     finalizing the ``pipeline_run`` row (reserved by the caller).

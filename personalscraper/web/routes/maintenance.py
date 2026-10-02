@@ -823,7 +823,7 @@ def action_run(
     permitted by §6) and dry-run-first for destructive actions, then spawns a
     runner subprocess and returns ``202`` with the ``run_uid``. A held
     ``pipeline.lock`` never refuses the action: the runner waits in the
-    VISIBLE queue (``queue`` step on the run row, ``app/run_queue.py``) and
+    VISIBLE queue (``queue`` step on the run row, ``web/run_queue.py``) and
     executes when the lock frees — ``queued`` hints that state to the UI.
 
     Args:
@@ -907,7 +907,7 @@ def get_actions() -> ActionsResponse:
     """Return the full maintenance action registry with category counts.
 
     The registry is defined at module level in
-    :mod:`personalscraper.app.maintenance.registry` and is read-only at
+    :mod:`personalscraper.web.maintenance.registry` and is read-only at
     runtime — no database or filesystem access is needed.
 
     Returns:

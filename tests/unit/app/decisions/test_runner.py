@@ -4,7 +4,7 @@ Sub-phase 2.2 — covers the runner lifecycle: env reading, decision-row validat
 pipeline_run row insert/finalize, CLI argv building, output streaming (ring buffer
 + Redis), and fail-soft behaviour.
 
-Mirrors ``tests/unit/web/maintenance/test_runner.py``, adapted for the
+Mirrors ``tests/unit/app/maintenance/test_runner.py``, adapted for the
 decisions-runner contract: four env vars, scrape_decision row lookup,
 no pipeline-lock acquisition, simpler argv (no registry).
 
