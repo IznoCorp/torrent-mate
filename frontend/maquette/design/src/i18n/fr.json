@@ -69,6 +69,7 @@
       "personalscraper-index-enrich": "Enrichissement de l'index",
       "personalscraper-index-full": "Analyse complète de l'index",
       "personalscraper-backfill-ids": "Complétion des identifiants croisés",
+      "personalscraper-seed-sweep": "Suivi des obligations de seed",
       "torrent_complete_dir": "Dossier où qBittorrent dépose les torrents terminés",
       "staging_dir": "Dossier de transit avant rangement",
       "data_dir": "Dossier des données du pipeline",

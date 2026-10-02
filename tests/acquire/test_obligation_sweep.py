@@ -18,10 +18,12 @@ import pytest
 
 from personalscraper.acquire.delete_authority import DeleteAuthority
 from personalscraper.acquire.domain import SeedObligation
-from personalscraper.acquire.obligations import SeedRule, is_met, sweep_obligations
+from personalscraper.acquire.events import SeedObligationReleased, SeedObligationSatisfied
+from personalscraper.acquire.obligations import DEFAULT_SEED_RULE, SeedRule, is_met, sweep_obligations
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.core.delete_permit import ALLOW
+from personalscraper.core.event_bus import Event, EventBus
 from personalscraper.core.sqlite import apply_migrations
 
 _MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "acquire" / "migrations"
@@ -29,7 +31,7 @@ _MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "acq
 _FLOOR_S = 259_200  # 72 h, C411's seed-time floor
 _NOW = 1_800_000_000
 _CONFIRM_S = 1800
-_RULE = SeedRule(count_ratio=True, grace_s=0, ratio_margin=0.1)
+_RULE = DEFAULT_SEED_RULE
 
 
 @pytest.fixture
@@ -93,9 +95,31 @@ def _row(store: ConcreteAcquireStore, obligation_id: int) -> sqlite3.Row:
         conn.close()
 
 
-def _sweep(store: ConcreteAcquireStore, client: FakeClient, now: int = _NOW, rule: SeedRule = _RULE):  # noqa: ANN202
+def _sweep(  # noqa: ANN202
+    store: ConcreteAcquireStore,
+    client: FakeClient,
+    now: int = _NOW,
+    rule: SeedRule = _RULE,
+    bus: EventBus | None = None,
+):
     """Run one sweep with the default confirmation delay."""
-    return sweep_obligations(store, client, now=now, rule=rule, confirm_absent_after_s=_CONFIRM_S)  # type: ignore[arg-type]
+    return sweep_obligations(
+        store,  # type: ignore[arg-type]
+        client,  # type: ignore[arg-type]
+        now=now,
+        rule=rule,
+        event_bus=bus or EventBus(),
+        confirm_absent_after_s=_CONFIRM_S,
+    )
+
+
+def _recording_bus() -> tuple[EventBus, list[Event]]:
+    """Return a bus and the list every event emitted on it lands in."""
+    bus = EventBus()
+    seen: list[Event] = []
+    bus.subscribe(SeedObligationSatisfied, seen.append)
+    bus.subscribe(SeedObligationReleased, seen.append)
+    return bus, seen
 
 
 # -- 1, 2, 3: when an obligation is met --------------------------------------------------------
@@ -177,6 +201,40 @@ def test_hash_case_does_not_make_a_torrent_absent(store: ConcreteAcquireStore) -
     _sweep(store, client)
     assert client.calls == [{"aaaa"}]
     assert _row(store, oid)["satisfied_at"] == _NOW
+
+
+# -- events: one per write, none without a write ---------------------------------------------
+
+
+def test_each_satisfied_write_emits_one_event(store: ConcreteAcquireStore) -> None:
+    """A satisfied write emits ``SeedObligationSatisfied``; a second sweep (no write) emits nothing."""
+    _add(store)
+    bus, seen = _recording_bus()
+    client = FakeClient([_item("aaaa", seeding_time_s=_FLOOR_S)])
+    _sweep(store, client, bus=bus)
+    _sweep(store, client, now=_NOW + 60, bus=bus)
+    assert [(type(e), e.info_hash, e.source_tracker) for e in seen] == [  # type: ignore[attr-defined]
+        (SeedObligationSatisfied, "aaaa", "c411")
+    ]
+
+
+def test_each_released_write_emits_one_event_and_only_then(store: ConcreteAcquireStore) -> None:
+    """A release emits ``SeedObligationReleased``; the first absence and the delay emit nothing."""
+    _add(store)
+    bus, seen = _recording_bus()
+    _sweep(store, FakeClient([]), now=_NOW, bus=bus)
+    _sweep(store, FakeClient([]), now=_NOW + 60, bus=bus)
+    assert seen == []
+    _sweep(store, FakeClient([]), now=_NOW + _CONFIRM_S, bus=bus)
+    assert [(type(e), e.info_hash) for e in seen] == [(SeedObligationReleased, "aaaa")]  # type: ignore[attr-defined]
+
+
+def test_client_error_emits_nothing(store: ConcreteAcquireStore) -> None:
+    """A failed pass writes nothing and announces nothing."""
+    _add(store)
+    bus, seen = _recording_bus()
+    _sweep(store, FakeClient(error=RuntimeError("down")), bus=bus)
+    assert seen == []
 
 
 # -- 5, 6: fail-soft and guards --------------------------------------------------------------

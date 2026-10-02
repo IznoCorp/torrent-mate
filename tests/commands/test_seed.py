@@ -174,3 +174,84 @@ def test_seed_module_does_not_import_indexer():
             module = getattr(node, "module", "") or ""
             assert "indexer" not in module, f"Forbidden import of indexer in {module}"
             assert "pipeline" not in module, f"Forbidden import of pipeline in {module}"
+
+
+# ---------------------------------------------------------------------------
+# sweep
+# ---------------------------------------------------------------------------
+
+
+def _invoke_sweep(tmp_path, torrents, *, torrent_client="fake"):
+    """Run ``seed sweep`` over a real tmp acquire.db and a fake torrent client.
+
+    Args:
+        tmp_path: Pytest temp directory holding ``acquire.db``.
+        torrents: The :class:`TorrentItem` list the fake client holds.
+        torrent_client: ``"fake"`` to inject the fake client, ``None`` for « not configured ».
+
+    Returns:
+        ``(result, store, events)`` — the CLI result, the store and the events emitted on the bus.
+    """
+    from types import SimpleNamespace
+
+    from personalscraper.acquire.events import SeedObligationReleased, SeedObligationSatisfied
+    from personalscraper.acquire.store import build_acquire_store
+    from personalscraper.cli_state import AppCtx
+    from personalscraper.conf.models.acquire import AcquireConfig
+    from personalscraper.core.event_bus import EventBus
+
+    store = build_acquire_store(AcquireConfig(db_path=tmp_path / "acquire.db"))
+    bus = EventBus()
+    events: list = []
+    bus.subscribe(SeedObligationSatisfied, events.append)
+    bus.subscribe(SeedObligationReleased, events.append)
+    client = MagicMock()
+    client.get_by_hashes.side_effect = lambda hashes: [t for t in torrents if t.hash in hashes]
+    app_context = SimpleNamespace(
+        torrent_client=client if torrent_client == "fake" else None,
+        acquire=SimpleNamespace(store=store),
+        event_bus=bus,
+    )
+    with (
+        patch("personalscraper.commands.seed.per_step_boundary") as mock_boundary,
+        patch("personalscraper.commands.seed.cli_helpers.get_settings", return_value=MagicMock()),
+    ):
+        mock_boundary.return_value.__enter__ = MagicMock(return_value=app_context)
+        mock_boundary.return_value.__exit__ = MagicMock(return_value=False)
+        result = runner.invoke(_make_app(), ["seed", "sweep"], obj=AppCtx(config=MagicMock(), config_override=None))
+    return result, store, events
+
+
+def test_seed_sweep_writes_satisfied_at_and_prints_one_json_line(tmp_path):
+    """``seed sweep`` stamps ``satisfied_at`` on a seeded-out obligation and reports it as one JSON line."""
+    import json
+
+    from personalscraper.acquire.domain import SeedObligation
+    from personalscraper.acquire.events import SeedObligationSatisfied
+
+    # The store opens lazily and the command needs the row first: seed it through a twin handle.
+    from personalscraper.acquire.store import build_acquire_store
+    from personalscraper.conf.models.acquire import AcquireConfig
+
+    seed_store = build_acquire_store(AcquireConfig(db_path=tmp_path / "acquire.db"))
+    seed_store.seed.add(SeedObligation("aaaa", "c411", 259_200, 1.0, 5))
+    seed_store.close()
+
+    item = _make_torrent_item("Movie", "aaaa", [])
+    object.__setattr__(item, "seeding_time_s", 259_200)
+    result, store, events = _invoke_sweep(tmp_path, [item])
+    try:
+        assert result.exit_code == 0, result.output
+        report = json.loads(result.output.strip().splitlines()[-1])
+        assert report == {"open": 1, "satisfied": 1, "marked_absent": 0, "released": 0, "client_error": False}
+        assert store.seed.list_open() == []
+        assert [type(e) for e in events] == [SeedObligationSatisfied]
+    finally:
+        store.close()
+
+
+def test_seed_sweep_no_client_exits_nonzero(tmp_path):
+    """``seed sweep`` exits 1 when no torrent client is configured."""
+    result, store, _ = _invoke_sweep(tmp_path, [], torrent_client=None)
+    store.close()
+    assert result.exit_code == 1

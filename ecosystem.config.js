@@ -130,7 +130,7 @@ module.exports = {
     // Cadences: index-full Mon 01:00 (~22 min), index-enrich Sun 04:30 (off-peak),
     // backfill-ids Sun 05:00 (after enrich), follow-detect daily 03:00, search 03:10 and
     // 15:10, grab 03:20 and 15:20 (after search; the 15:20 retries backed-off items),
-    // health-check hourly at :15.
+    // health-check hourly at :15, seed-sweep hourly at :45.
 
     // The ONLY mode that retires a file the filesystem no longer has: miss strikes
     // are raised in `full` alone (quick/incremental do not walk every file, so
@@ -260,6 +260,27 @@ module.exports = {
       name: "personalscraper-health-check",
       script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
       args: "schedule --cron '15 * * * *' -- health-check",
+      interpreter: "none",
+      cwd: "/Users/izno/deploy/torrentmate",
+      autorestart: true,
+      restart_delay: 60000,
+      kill_timeout: 30000,
+      env: {
+        PYTHONUNBUFFERED: "1",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+      },
+    },
+
+    // ---- Seed-obligation sweep ----
+    // Stamps `satisfied_at` once a torrent's seed-time floor (or ratio, +0.1 margin) is
+    // reached and `released_at` once it stayed gone from the client for 30 min, then emits
+    // the matching events. Hourly because the floors are days long and a release needs the
+    // torrent absent over two passes; minute :45 keeps clear of the acquisition crons (:00,
+    // :10, :20 of 03h/15h) and the health check (:15). Reads qBittorrent once per pass.
+    {
+      name: "personalscraper-seed-sweep",
+      script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
+      args: "schedule --cron '45 * * * *' -- seed sweep",
       interpreter: "none",
       cwd: "/Users/izno/deploy/torrentmate",
       autorestart: true,

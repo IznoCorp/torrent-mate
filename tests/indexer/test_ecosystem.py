@@ -40,6 +40,7 @@ _EXPECTED_APP_NAMES = frozenset(
         "personalscraper-search",
         "personalscraper-grab",
         "personalscraper-health-check",
+        "personalscraper-seed-sweep",
         "torrentmate-web",
         "torrentmate-web-staging",
         "torrentmate-autodeploy",
@@ -68,6 +69,7 @@ _SCHEDULED_JOB_NAMES = frozenset(
         "personalscraper-search",
         "personalscraper-grab",
         "personalscraper-health-check",
+        "personalscraper-seed-sweep",
     }
 )
 
@@ -81,6 +83,7 @@ _PROD_PYTHON_APP_NAMES = frozenset(
         "personalscraper-search",
         "personalscraper-grab",
         "personalscraper-health-check",
+        "personalscraper-seed-sweep",
     }
 )
 
@@ -551,6 +554,20 @@ def test_search_app_is_valid_cron_job() -> None:
     assert _job_schedule(app)[1] == ["search"], f"expected job 'search', got {app.get('args')!r}"
     cron, _ = _job_schedule(app)
     assert _is_valid_cron_5field(cron), f"invalid cron {cron!r}"
+
+
+def test_seed_sweep_app_is_hourly_and_off_the_acquisition_window() -> None:
+    """``personalscraper-seed-sweep`` runs ``seed sweep`` hourly at :45.
+
+    Hourly because the floors are days long and the release needs the torrent
+    absent over two passes; minute 45 because the acquisition crons fire at
+    :00/:10/:20 of 03h and 15h and the health check at :15.
+    """
+    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
+    app = _get_app_by_name(apps, "personalscraper-seed-sweep")
+    cron, job = _job_schedule(app)
+    assert job == ["seed", "sweep"], f"expected job 'seed sweep', got {app.get('args')!r}"
+    assert cron == "45 * * * *", f"expected hourly at :45, got {cron!r}"
 
 
 # ---------------------------------------------------------------------------
