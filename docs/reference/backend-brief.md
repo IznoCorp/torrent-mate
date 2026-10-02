@@ -1,6 +1,8 @@
 # The backend brief
 
-**Status: the operator's ten rulings of 2026-10-01 are written in (§ 5, DECIDED); the lots of § 6 follow them.**
+**Status: the operator's rulings of 2026-10-01 and 2026-10-02 are written in (§ 5, DECIDED); the lots of § 6 follow
+them.** The plan is a new application layer and a new HTTP v1 on the kept engine (§ 5 Q11); where a ruling of
+2026-10-02 replaces one of 2026-10-01, the earlier one is marked SUPERSEDED with its date, never deleted.
 `backend-demands-architecture.md` says the backend's work
 « will carry another letter, in a backend brief written once the maquette is finished » (operator, 2026-08-30). Every
 drawn lot is merged (`main` `27b304157`, 0.98.125) and the freeze is reached at L24's close (`IMPLEMENTATION.md`).
@@ -24,17 +26,27 @@ their lettered demands (L16-bis T1–T3, L17 A–K, L18 C–P, L23 Q–S, L24 A�
   « on pourrait […] réimaginer des bases de données » ; « ce serait bien d'avoir une vraie staging » (09-27) — § 3,
   § 4.
 - « A, pas de gestion de rétro-compatibilité ! » (09-29) — no alias, no migration script kept for a shape that dies;
-  the v0 routes are deprecated one by one and deleted at the switchover (§ 5 Q1 — `/api/v1` is the new backend's
-  permanent prefix, not a temporary one).
+  the v0 surface is FROZEN and deleted in one block at the switchover (§ 5 Q1 as amended by Q11 — `/api/v1` is the
+  new backend's permanent prefix, not a temporary one).
 - The backend follows the interface (§ 15): a divergence is settled on the contract's side unless the contract is
   shown wrong, and a backend limitation is recorded, never a reason for the interface to draw less.
-- The acquired backend decisions are realigned, never razed: `web/staging/stages.py` as the single stage taxonomy,
-  the canonical resolution write (#260), the resolve queue (#287 — true parallel resolves were REFUSED on proof of
-  construction: every step mutates the item), the completeness read-model and `acquire/reconcile.py`, the deletion
-  authority on seed obligations.
+- The acquired backend decisions were held as « realigned, never razed »; on 2026-10-02 he reopened them
+  (« je veux qu'on pèse tout, et qu'on remette en question les decisions ») and ruled the shape D (§ 5 Q11). Each
+  keeps its PRINCIPLE; two lose their letter:
+  - `web/staging/stages.py` as the single stage taxonomy — one taxonomy still, but it is the contract's LADDER (eight
+    rungs from the wish to Plex); `compute_position` and the « one position » rule move into the tunnel service, the
+    eight staging stages become the sub-steps of « rangé » and « enrichi », their French reasons become codes (X4);
+  - the resolve queue (#287 — true parallel resolves were REFUSED on proof of construction: every step mutates the
+    item) — the proof stands and is the same rule as one tunnel per release (Q6); the mechanism is replaced: a
+    resolve becomes a tunnel's resume in the supervisor's queue (Q5), never a second queue beside it (NE-DOIT-PAS-7);
+  - kept as they are: the canonical resolution write (#260, a scraper kernel the tunnel calls), the completeness
+    read-model and `acquire/reconcile.py`, the deletion authority on seed obligations.
 
-**One anti-decision falls.** `docs/production/architecture.md` § « Anti-decisions » lists « No multi-user / no
-RBAC ». § 17 (dictated 2026-08-26, completed 08-30 and 09-27) overrules it; the brief treats it as void.
+**Two anti-decisions fall.** `docs/production/architecture.md` § « Anti-decisions » lists « No multi-user / no
+RBAC »: § 17 (dictated 2026-08-26, completed 08-30 and 09-27) overrules it. Its « No microservices » entry also
+says « one process per command »: that half falls to the supervisor of § 5 Q5, which runs the tunnels as its workers,
+the CLI becoming one of its clients (no service split follows — the rest of the entry stands). The brief treats both
+as void.
 
 ---
 
@@ -87,7 +99,7 @@ engine. The cross-cutting divergences come first because every domain carries th
 | Operation / behaviour | Kind | What it must do | § | Demand ids |
 | --- | --- | --- | --- | --- |
 | `readLibraryItems`, `readLibraryCategories`, `readLibraryRecent`, `readLibraryIncomplete` | new | the listing (one page), the categories and their counts, the recent, the series with holes and each hole's size — « manquant » = aired and not owned; the category filters on all three tabs | §11, DOIT-11 | reg § 1; X5 |
-| `readLibraryMembership` | new | whether the library holds one medium, asked by IDENTITY (provider + id, else exact title + year), never a fuzzy match; carries the medium's kind | §11, §13 | arch § 11; B-581 |
+| `readLibraryMembership` | new | whether the library holds one medium, asked by its PROVIDER ID (TVDB first for a show — § 5 Q15), never a title nor a fuzzy match; carries the medium's kind. The contract's description says the opposite (« provider ids are not an identity », exact title + year): a contract correction owed in K2 | §11, §13 | arch § 11; B-581; § 5 Q15 |
 | `readMediaSheet` | reshape | the sheet's facts (synopsis — absent from `library.db` today —, cast with portraits, trailer, hero, runtime, rating, `metadataRefreshedAt`), a FILM variant with no seasons block | §11 | reg § 2; IMPLEMENTATION carry |
 | `readMediaSeasons` | new | the seasons of a show and what the library holds of each, aired vs announced said apart | §5, §9 | reg § 1; B-380 |
 | `rescrapeMedia` | new | ask the providers for one medium's metadata again | DOIT-3 | reg § 1 |
@@ -171,13 +183,30 @@ Paths are under `personalscraper/`. The verdict is his four words: **adapt** (sa
 **re-architect** (same responsibility, new structure), **transform** (the module's work moves into a new shape),
 **rebuild** (nothing to take — only where nothing exists).
 
+**Where each row lands under D** (§ 5 Q11). Three layers, and every row below belongs to one:
+
+- **The kept engine** — `api/`, `sorter/`, `process/`, `scraper/`, `verify/`, `dispatch/`, `trailers/`, `indexer/`,
+  `acquire/`: extended (a column, a setter, `released_at`, the ratio), never rewritten. Each step already has its
+  one-medium kernel — `sorter.sort_item`, `scrape_movie` / `scrape_movie_forced` / `scrape_tvshow`, `check_movie` /
+  `check_tvshow`, `dispatch_movie` / `dispatch_tvshow`, the trailers' `_process_item` — and the tunnel calls them
+  directly; only the `run_*` entry points sweep the whole staging.
+- **The application layer** — a new package (`personalscraper/app/`) owning `app.db`: the use-case services
+  (accounts and rights, requesters, the tunnel and its supervisor, journeys, the « À traiter » cards, the cross-seed
+  pairs) and the part of `web/` that is engine filed in the wrong place — the read-models, runners, queues, the
+  maintenance registry, the torrent session — moved out of `web/` and freed of `fastapi`. The CLI and the web are two
+  IN-PROCESS clients of it; no action goes through a CLI subprocess and its text arguments any more
+  (`web/_runner_engine.py` `run_spawn_stream` :618 dies with v0).
+- **The HTTP v1** — a new package whose models are written from the maquette's contract; a route calls one service.
+  `web/routes`, `web/models`, `web/auth`, `web/ws` are v0: FROZEN (a production fix only), deleted in one block at
+  the switchover. A row below naming a v0 route says what its v1 twin must do, never a change to the v0 route.
+
 ### 2.0 Cross-cutting
 
 | Exists | Verdict | What changes |
 | --- | --- | --- |
 | ~101 `raise HTTPException(detail=…)` across `web/`, English and French strings mixed, no exception handler | transform | one handler answering `Problem`; a detail is a CODE with parameters, never a sentence (X1, X4) |
-| `web/models/*` Pydantic models, `make openapi` → `frontend/openapi.json` | adapt | a camelCase alias generator on the base model; the generated contract compared to the maquette's by `scripts/compare-contracts.py` — the register reaching ZERO rows is the mission's measure |
-| `web/app.py:214-268` (`guarded_api`), `web/deps.py` | adapt | `guarded_api` stays the single perimeter; its dependency becomes « an account », and each route names its right (X6) |
+| `web/models/*` Pydantic models, `make openapi` → `frontend/openapi.json` | rebuild (v1), v0 frozen | the v1 models are WRITTEN from the maquette's contract, in its spelling, in the v1 package — no alias generator over the v0 models, which stay as they are and die at the switchover; the v1's generated contract compared to the maquette's by `scripts/compare-contracts.py` — the register reaching ZERO rows against v1 is the mission's measure |
+| `web/app.py:214-268` (`guarded_api`), `web/deps.py` | transform | the v1 has ONE perimeter dependency of the same shape (never a per-route session check); its subject is « an account », and each route names its right (X6); v0's `guarded_api` is frozen with v0 |
 
 ### 2.1 Acquisition and the tunnel
 
@@ -186,14 +215,14 @@ Paths are under `personalscraper/`. The verdict is his four words: **adapt** (sa
 | `acquire/` lobe — `store.py` (`_FollowSubStore` :150), `_wanted_store.py`, `detect.py`, `_grab_pass.py`, `_search_pass.py`, `_season_fallback.py`, `orchestrator.py`, `service.py`, `cadence.py`, `airing.py`, `reconcile.py` | adapt | `followed_series` has NO requester column anywhere: a requesters table with per-requester quality and pause; `wanted` gains `trigger` (SR5, only `staging_provenance.resolution_trigger` and `pipeline_run.trigger` exist today); `_detect_episode` (:526) and the grab pass skip a season under recovery (SR3 — `_detect_seasons` :616-780 already absorbs the open episode wanteds) |
 | `followed_series.quality_profile_json`, `acquire/desired.py:79` (`QualityProfile`), applied at `acquire/_pass_gates.py:235-253` | adapt | the override EXISTS and is honoured on the grab path; it becomes per requester, resolved « highest wins », and writable (`UpdateFollowRequest` accepts only `active` and `cadence` today) |
 | `staging_provenance` (acquire.db, `info_hash` primary key, migrations 010/015/017/018/021), `acquire/_provenance_store.py`, `GET /journeys` | re-architect | the journey is keyed by the ACQUISITION (wanted row) with the release it followed and its own rung times (SR4); it becomes the tunnel's persisted state (step, block reason code, what resumes it) |
-| `web/acquisition/to_handle.py:100` `build_to_handle`, `web/staging/read_model.py`, `web/staging/stages.py` (ACQUIRED — the single stage taxonomy and `compute_position`) | transform | one card read-model for « En cours », « À traiter » and the staged media (§ 13: one derivation per question), built ON `stages.py`, never beside it |
-| `web/routes/decisions.py`, `web/decisions/{runner,reserve}.py`, `scrape_decision` (library.db, migration 013), the resolve queue (#287, ACQUIRED) | adapt | `settledBy`, an engine-made identification written as a row, `reopenDecision`, the resolve's inverse; the queue stays THE mechanism |
+| `web/acquisition/to_handle.py:100` `build_to_handle`, `web/staging/read_model.py`, `web/staging/stages.py` (the single stage taxonomy and `compute_position`) | transform | moved to the application layer; one card read-model for « En cours », « À traiter » and the staged media (§ 13: one derivation per question). The single taxonomy is the contract's eight-rung ladder: `compute_position` and the « one position » rule move into the tunnel service, the eight staging stages become the sub-steps of « rangé » and « enrichi », the French reasons (`REASON_*` :72-75) become codes |
+| `web/routes/decisions.py`, `web/decisions/{runner,reserve}.py`, `scrape_decision` (library.db, migration 013), the resolve queue (#287) | transform | `settledBy`, an engine-made identification written as a row, `reopenDecision`, the resolve's inverse; #287's proof (every step mutates the item) stands, its mechanism goes: a resolve is a tunnel's resume in the supervisor's queue (§ 5 Q5), never a second queue |
 | `api/plex.py`, `subscribers/plex.py` (refresh after `ItemDispatched`), `maintenance/plex_guard.py:194` `run_plex_guard` | transform | the guard's match-coherence check becomes the tunnel's last rung (§ 4, § 20) and `resolvePlexMatch`'s comparison; no web route exists today |
 | `web/acquisition/service.py:319` `run_media_search`, `:571` `run_media_lookup` | adapt | `followed` / `owned` on a result |
 | — suggestions | rebuild | nothing exists; built over the provider clients `api/` already has (TMDB, Trakt) |
-| `web/routes/acquisition_triggers.py` (`_guard_no_running_grab` :148 → 409), `web/acquisition/runner.py` | adapt | a busy grab is queued, never refused (§ 6) |
+| `web/routes/acquisition_triggers.py` (`_guard_no_running_grab` :148 → 409), `web/acquisition/runner.py` | transform | a busy grab is queued in the supervisor, never refused (§ 6); the runner's subprocess becomes an in-process call |
 | `api/tracker/_ranking.py`, `conf/models/_ranking.py`, `web/routes/acquisition_ranking.py:198` | adapt | a tracker's ratio state enters the score (§ 18) |
-| `pipeline.py`, `pipeline_history.py` (`PipelineRunWriter`), `web/_runner_engine.py` (`RunnerSpec` :498, `run_spawn_stream` :618), `web/pipeline_trigger.py`, `web/pipeline_queue.py`, `web/run_queue.py`, `lock.py` (`acquire_pipeline_lock` :197), `acquire/watcher.py`, `commands/watch.py` | re-architect | the batch run becomes N tunnels under one authority (§ 5 Q5); the STEPS — `ingest`, `sort`, `process`, `scraper`, `trailers`, `verify`, `dispatch` — are reused as they are, called on one medium |
+| `pipeline.py`, `pipeline_history.py` (`PipelineRunWriter`), `web/_runner_engine.py` (`RunnerSpec` :498, `run_spawn_stream` :618), `web/pipeline_trigger.py`, `web/pipeline_queue.py`, `web/run_queue.py`, `lock.py` (`acquire_pipeline_lock` :197), `acquire/watcher.py`, `commands/watch.py` | re-architect | the supervisor first runs TODAY's `run` unchanged (K4a, § 5 Q14), then the batch run becomes N tunnels under its authority (§ 5 Q5); the STEPS — `ingest`, `sort`, `process`, `scraper`, `trailers`, `verify`, `dispatch` — are reused as they are, their one-medium kernels called directly; web and CLI enqueue in-process, `run_spawn_stream` dies with v0 |
 | `ingest/` `ingested_torrents.json` tracker | transform | ingestion state becomes the tunnel's first rung, per arrival |
 
 ### 2.2 Library
@@ -201,7 +230,7 @@ Paths are under `personalscraper/`. The verdict is his four words: **adapt** (sa
 | Exists | Verdict | What changes |
 | --- | --- | --- |
 | indexer — `indexer/db.py`, `indexer/migrations/001_init.sql` (`media_item`, `season`, `episode`, `media_release`, `media_file`…), `indexer/repos/*`, `indexer/query.py` (`execute` :590, `find_all_items` :659) | adapt | the listing, categories, recent and incomplete become routes over the query layer (today only maintenance CLI actions — `library-search`, `library-show`, `library-status` — reach them); the synopsis, absent today, joins the read-model |
-| `indexer/ownership.py:280` `IndexerOwnershipChecker` (`owns`, `owned_pairs`), `core/ownership.py` | adapt | `readLibraryMembership` by identity, with the kind |
+| `indexer/ownership.py:280` `IndexerOwnershipChecker` (`owns`, `owned_pairs`), `core/ownership.py`, `indexer/repos/item_repo.py` `get_by_title_kind_year` | adapt | `readLibraryMembership` by provider id, with the kind (§ 5 Q15); the title-keyed lookups stay as a search fallback only |
 | `web/routes/media.py:268` (live provider data + `_build_ownership_block` :165), `web/acquisition/completeness.py`, `truth.py` (ACQUIRED) | adapt | the sheet's missing facts, the film variant, `readMediaSeasons` on the same completeness truth table (aired ≠ catalogue) |
 | `maintenance/rescraper.py:830` `rescrape_library` | adapt | per medium |
 | `maintenance/disk_cleaner.py:481`, `indexer/destructive_journal.py` (`record_destruction` :43), `acquire/delete_authority.py` (ACQUIRED) | adapt | `deleteLibraryItems` composed of the three, plus the Plex deletion; no delete route today |
@@ -211,7 +240,7 @@ Paths are under `personalscraper/`. The verdict is his four words: **adapt** (sa
 | Exists | Verdict | What changes |
 | --- | --- | --- |
 | `api/tracker/*` (c411, tr4ker), `config.example/tracker.json5` (`enabled`, `cross_seed`, `economy` — `TrackerEconomyConfig`) | adapt | three more providers (T1); `accepts_uploads`, `economy.alert_threshold`; a failure-driven `disabled` state (T2) fed by `core/circuit.py` and `TrackerAuthFailed` |
-| `seed_obligation`, `ratio_state` (acquire `001_init.sql`), `acquire/store.py:545` `_SeedSubStore`, `:769` `_RatioSubStore`, `GET /obligations` | adapt | `crossSeedOf`; « libérée » on every gesture that ends one; the displayed ratio checked to be the TRACKER's own figure (NE-DOIT-PAS-1) |
+| `seed_obligation`, `ratio_state` (acquire `001_init.sql`), `acquire/store.py:545` `_SeedSubStore`, `:769` `_RatioSubStore`, `GET /obligations` | adapt | two holes first: `ratio_state` is NEVER written (`_RatioSubStore.upsert` has no caller) and no tracker client reads an account's ratio or volumes — K5 starts there; an obligation is never closed: `satisfied_at` (`mark_satisfied` has no caller) and `released_at` are read, never written. Then `crossSeedOf`; « libérée » on every gesture that ends one; the displayed ratio checked to be the TRACKER's own figure (NE-DOIT-PAS-1) |
 | `web/acquisition/downloads.py:139` `list_active_downloads` | adapt | T3's fields, provenance, the deferral kind; the per-pair cross-seed list |
 | `ingest/deferral.py:44` `classify_deferrals` (read by `commands/watch.py:332`, `web/acquisition/service.py:160`) | adapt | exposed on the downloads read: kind, tracker, that tracker's `min_ratio` |
 | `acquire/cross_seed.py:49` `CrossSeedService` (`check` :109, `sweep` :529), `cross_seed_history`, `cross_seed_quota` (migration 002) | re-architect | it returns at the FIRST verified injection (:455, « first match wins »): it attempts every eligible tracker; a per-(torrent, tracker) state table with `stoppedAt` / `stopCause`; an exclusions table; a hand search under quota |
@@ -260,58 +289,100 @@ Paths are under `personalscraper/`. The verdict is his four words: **adapt** (sa
   the tunnel's state per acquisition (step, block reason code, what resumes it, rung times, the release it
   followed); `wanted.trigger`; a decision's `settled_by`; the per-(torrent, tracker) cross-seed state and the
   exclusion list; a tracker's failure-driven `disabled` state; a release's choice date (the added/grab date that
-  decides the filing, § 5 Q9); push subscriptions (FCM, § 5 Q10).
-- **One file per environment.** `acquire` and `app` carry the environment's suffix (`-dev`, `-staging`, none for
-  prod); `library.db` does not (§ 5 Q2).
+  decides the filing, § 5 Q9); push subscriptions (FCM, § 5 Q10); a kept Plex token, encrypted (§ 5 Q16).
+- **Every store per environment.** The three stores by owner (§ 5 Q2) — `library` the index only, `acquire`, and
+  `app`, owned by the application layer — exist once PER ENVIRONMENT: preprod shares no database with prod (§ 5
+  Q13) and is free of schema. The suffix rule of Q2 (`-dev`, `-staging`, none for prod, from one environment
+  setting) names them, and now covers the index too: preprod indexes its own disks, nothing of prod's.
 - **Codes, not words.** Every stored reason — `last_grab_reason`, `last_search_outcome`, `blocked_reason`, a
   cross-seed refusal, a tunnel's block, a Système fact — is a member of a closed code set the contract declares; no
   French and no English sentence is stored or sent (X4, conformity Q2 = A, stream § 7).
 - **The index becomes disposable.** The filesystem is the truth for files and the NFOs for identities
   (`architecture.md` « BDD vs FS truth rule »): `library.db` can be rebuilt by a full scan, which is what makes a
-  reprise « pas à l'identique » cheap for the library. It stops holding what is not the index (§ 5 Q2); it is ONE file, written by prod alone and read-only for dev and staging.
+  reprise « pas à l'identique » cheap for the library. It stops holding what is not the index (§ 5 Q2); each
+  environment scans and writes its own (§ 5 Q13).
+- **Identity by provider id** (§ 5 Q15). The engine identifies a medium by its provider id everywhere — TVDB first
+  for a show, per the existing separation of ids —; a title is only a search fallback. Two rows sharing one id are
+  DUPLICATES to report, never merged in silence. The keys of `acquire` and of the indexer are reviewed in K2–K3. The
+  most frequent fix family of the last 90 days is identity held by the title (#638, #489, #508, #435, #338, #460);
+  `BUGS.md` B-476, B-477 and B-573 are still open on it — this closes the family at its source.
 - **Per-acquisition journeys** replace the per-title, per-info-hash provenance (SR4, Rd Q14 = A).
-- **The reprise** (§ 5 Q3) is « automatisée par l'API » (operator, 09-27 orientation): a tool reads the old
-  backend and writes through the NEW backend's own operations, so the reprise exercises the API it feeds; nothing
-  is copied table to table. Existing follows are attributed to the Plex server's owner account (Izno, ruling 9).
+- **The reprise** (§ 5 Q3, its route ruled by § 5 Q12): the tool calls the application layer's services IN-PROCESS,
+  with the same validations as the API — no import route outside the contract, nothing copied table to table. It
+  keeps the intent of « automatisée par l'API » (operator, 09-27 orientation); the letter is replaced. Existing
+  follows are attributed to the Plex server's owner account (Izno, ruling 9).
 - **No back-compatibility.** Migrations restart from a new baseline per store; the old migration chains are
-  archived with `frontend/src` at the switchover.
+  archived with `frontend/src` at the switchover. Until then, an engine migration that production runs is ADDITIVE
+  (a column, a table), arrives with its regression test seen red, and runs on preprod before prod.
 
 ---
 
 ## 4. Environments
 
-**Today** (`docs/production/web-ui.md` § ENV-SEP; retired by the rulings below): dev `~/dev/PersonalScraper` (no daemons); prod
-`~/deploy/torrentmate` (`main`, :8710, the watcher and every cron); staging `~/staging/torrentmate` (`staging`,
-:8711, web only, read-only by `require_not_staging`). All three SHARE `library.db`, `.data/`, the config and the
-disks — which is why staging may write nothing. tm-design (:8712) serves the maquette alone, on mocks.
+**Today** (`docs/production/web-ui.md` § ENV-SEP; retired by the rulings below): dev `~/dev/PersonalScraper` (no
+daemons); prod `~/deploy/torrentmate` (`main`, :8710, the watcher and every cron); staging `~/staging/torrentmate`
+(`staging`, :8711, web only, read-only by `require_not_staging`). All three SHARE `library.db`, `.data/`, the config
+(`tracker.json5` says so: « shared with prod/staging via PERSONALSCRAPER_CONFIG ») and the disks — which is why
+staging may write nothing. tm-design (:8712) serves the maquette alone, on mocks.
 
-**Ruled** (`operator-method.md` § 3 « Environnements et back-end »):
+**Ruled before** (`operator-method.md` § 3 « Environnements et back-end »):
 
-- Ruling 23 (Rd 9 Q17): the future **preprod** has ITS OWN data sets and files into the PROD library; its forbidden
-  writes are the library DELETION alone (« Sur la preprod, tout fonctionne sauf la suppression dans la
-  médiathèque », § 17). The environment is named `staging` (ruled 2026-10-01, below); `staging_dir` stays the name of the
-  pipeline's space.
+- Ruling 23 (Rd 9 Q17): the future **preprod** has ITS OWN data sets; its forbidden writes are the library DELETION
+  alone (« Sur la preprod, tout fonctionne sauf la suppression dans la médiathèque », § 17). Its other term — it
+  files into the PROD library — is SUPERSEDED on 2026-10-02 (§ 5 Q13): preprod files into its own. The environment
+  is named `staging` (ruled 2026-10-01); `staging_dir` stays the name of the pipeline's space.
 - 09-27 orientation: « une vraie staging séparée du back-end de prod ».
 - The forbidden writes are a per-instance list served by `readAccount` (L18 N): production empty, preprod
   `library.delete`, a read-only instance every write right.
 
-**Decided** (§ 5 Q1, Q2, Q4):
+**Decided** (§ 5 Q1, Q13):
 
-- **`staging` IS the preprod** (« l'env staging est bien la préprod ! »): it runs the whole engine on its OWN data and
-  files into prod's library; its forbidden writes are the library deletion alone, and cross-seed and upload are off by
-  its overlay. The read-only :8711 instance is retired — its port and host are taken by the preprod.
+- **`staging` IS the preprod** (« l'env staging est bien la préprod ! »). It runs the whole engine and shares NOTHING
+  with prod but, possibly, the torrent client:
+  - its own databases, all three (§ 3.2), with full freedom of schema;
+  - its own configuration — never prod's overlay files — and its own `data_dir` (its own `pipeline.lock`,
+    `ingested_torrents.json`, everything the pipeline keeps there) and its own staging space;
+  - its own « disques de préprod »: dedicated mount points on the NTFS disks, so the same filesystem and its traps
+    (NFC/NFD, macFUSE) are exercised; outside prod's media roots, which prod's indexer walks recursively;
+  - outside Plex's production libraries — a dedicated Plex preprod library is the operator's affair;
+  - FCM on a dedicated preprod channel; one `app.db` per environment, so a preprod Plex sign-in gives prod no token
+    (§ 5 Q16);
+  - its forbidden writes are the library deletion alone; cross-seed and upload are off by its overlay; the read-only
+    :8711 instance is retired and its port and host are taken by preprod, with its own PM2 apps (web, supervisor,
+    its crons, offset from prod's).
+- **The torrent client: B, else A** (« Ok, B sinon A »).
+  - **B — a second qBittorrent, dedicated to preprod.** Prod's client sees nothing of preprod and prod changes
+    nothing. B holds only if EVERY active tracker accepts two clients on one account and one IP: C411 and tr4ker today
+    (`enabled: true` in `~/.torrentmate/config/tracker.json5`), and v3x, draupnirr and digitalcore once T1 lands.
+    **This is an open verification, and K0 closes it FIRST**, before anything of preprod is built: per tracker, its
+    rule on two clients behind one account and one IP, answered with its source.
+  - **A — otherwise: one shared qBittorrent.** Preprod downloads in its OWN category with its own save path, and its
+    torrents are ALSO tagged `seed-pure`, so today's prod ingest skips them (`ingest/ingest.py:449`; the watcher's
+    trigger, the sort guard and the cross-seed sweep skip the same tag). Preprod's own code then owes what the shared
+    client does not separate: an info-hash already in the client is refused (a second add of one hash is answered as
+    a success and its tag is never set, `api/torrent/qbittorrent.py:358-363`); its own authentication-lockout path
+    (one file under the home directory today, read by every checkout, `qbittorrent.py:50`); no global speed caps
+    written. A residue A keeps: prod's watcher counts every downloading torrent before it runs
+    (`commands/watch.py:293-296`), preprod's included.
+- **The 02:00 purge.** A daily cron at 02:00 purges preprod's downloads, ONLY once their seed obligations are met:
+  the tracker accounts are prod's own, and a purge before would be a hit-and-run on them (C411: 72 h or ratio 1.0,
+  no grace — `tracker.json5`). So the purge reads a WRITTEN obligation state — today neither `satisfied_at` nor
+  `released_at` is ever written (§ 2.3) — and refuses a torrent whose obligation it does not know (the deletion
+  authority is fail-open today: « no-obligation […] → ALLOW », `acquire/delete_authority.py:8-9`); it removes
+  through the torrent client's API, never `rm`, and writes the destructive journal.
+- **The mount-point guard.** Every preprod write and purge is confined to preprod's own folders by a guard on the
+  MOUNT POINT (rights may be added on them). The engine's own disk check does not hold it today:
+  `dispatch/disk_scanner.py:58` takes `config.path.exists()` for « mounted », so an empty mount point left on the
+  internal disk after the Monday reboot counts as a disk, and a dispatch lands in silence on the system SSD. K0
+  replaces it by a real mount check.
+- **What stays shared** whatever the client: the tracker accounts and their passkeys (hence the purge's rule), the
+  machine's disks and memory. Noted by the operator for later: an analysis of the disk I/O load, prod and preprod
+  alike.
 - **The git flow**: `feature → develop → main`; `develop` auto-deployed on tm-design, `main` = everything validated,
   `staging` deployed voluntarily by him when a complete user story is ready for test users, `prod` (a branch carrying
   release tags, auto-deployed) deployed voluntarily after functional validation on staging; promotions are
   fast-forwards, a `hotfix/` branch from `prod` is merged back into `develop`. The autodeploy poller, which tracks
   `main` for prod today, is changed accordingly.
-- **Own data, one file per environment** (Q2): `acquire-dev.db`, `acquire-staging.db`, `acquire.db`, `app-dev.db`,
-  `app-staging.db`, `app.db`; the suffix comes from one environment setting. The index is the exception — ONE
-  `library.db`, written by prod alone, read-only for dev and staging — so the disks are scanned once.
-- A clone `~/staging/torrentmate` (the path already in use) with its own venv and `data_dir`, the same config overlay
-  with a staging overlay on top (`config-overlay-layout.md`), its own PM2 apps (web + supervisor).
-- One qBittorrent, one CATEGORY per environment: each instance ingests and grabs in its own category only, so an
-  arrival is never processed twice (NE-DOIT-PAS-7) and the trackers see one client (NE-DOIT-PAS-8).
 - It is where the maquette is bound to the real backend during the mission (§ 6), on real media, before production
   sees a lot.
 
@@ -319,25 +390,30 @@ disks — which is why staging may write nothing. tm-design (:8712) serves the m
 
 ## 5. DECIDED
 
-Ten questions, ruled by the operator on 2026-10-01 in `/orchestrator:decide`'s round (`operator-method.md` § 3,
-« Environnements et back-end »). They are rulings: not reopened here, and no option survives that he did not choose.
+Sixteen questions, ruled by the operator in two decision rounds: Q1–Q10 on 2026-10-01 (`operator-method.md` § 3,
+« Environnements et back-end »), Q11–Q16 on 2026-10-02, after he reopened the backend's shape (« On refait tout ? On
+repart de l'existant ? Un juste milieu ? » — « je veux qu'on pèse tout, et qu'on remette en question les
+decisions »). They are rulings: not reopened here, and no option survives that he did not choose. Where a ruling of
+2026-10-02 replaces part of an earlier one, the earlier text stays, marked SUPERSEDED with the date.
 The spelling of the contract (reg § 2b, « the operator's call ») was NOT asked: § 15 already answers it — the backend
 serves the contract's camelCase — and it is not functional; he overrules it by saying so.
 
 **Q1 — How the new backend reaches production. HIS WORD.** Today's `/api` is **v0**; the new backend is served under
 **`/api/v1`**, and future versions follow without breaking. A v0 route is DEPRECATED as soon as its v1 works: it
 answers a `Deprecation` header and is entered in a register, which is the cleanup list once v1 is fully deployed and
-validated. The git flow is adapted to it:
+validated. *Amended 2026-10-02 by Q11*: v0 is FROZEN, never adapted (a production fix only); the `Deprecation`
+header marks a v0 route once its v1 twin exists, and v0 is deleted in ONE block at the switchover (`web/routes`,
+`web/models`, `frontend/src`) — the register is that block's list. The git flow is adapted to it:
 
 - `feature → develop → main`. `develop` is deployed automatically on tm-design (tm-design = `develop` plus the lot in
-  flight, merged on the fly); `main` holds everything validated — the orchestrator promotes validated features to it.
+  flight, merged on the fly); `main` holds everything validated — validated features are promoted to it.
 - `staging` is deployed VOLUNTARILY by him, only when a complete user story is ready for test users (« on déploie en
   staging que quand la user story est prête au complet »).
 - `prod` is deployed VOLUNTARILY after functional validation on staging; it is a branch carrying release tags,
   auto-deployed.
 - Defaults kept, as he did not object: promotions are fast-forwards; a `hotfix/` branch cut from `prod` is merged back
   into `develop`.
-- `staging` IS the preprod of ruling 23 (« l'env staging est bien la préprod ! »), with its own data (§ 4).
+- `staging` IS the preprod of ruling 23 (« l'env staging est bien la préprod ! »), with its own data (§ 4, § 5 Q13).
 
 *Consequence*: today's CD — the autodeploy poller tracks `main` and deploys prod — changes to this flow: a tooling
 change to schedule in K0.
@@ -351,17 +427,20 @@ destructive journal. Three tables move out of `library.db`; `app.db` is one more
   `app-staging.db`, `app.db` — prod keeps today's names, and the suffix comes from one environment setting (« Des
   fichiers bien séparé plus facile à gérer et à maintenir »).
 - **The index is the exception, B′**: ONE `library.db`, written by prod alone and read-only for dev and staging (« B'
-  tu as raison, la staging range en prod »), so the disks are scanned once.
+  tu as raison, la staging range en prod »), so the disks are scanned once. **SUPERSEDED 2026-10-02 by Q13**:
+  preprod files into its own disks and keeps its own index; every store, the index included, is per environment.
 
 **Q3 — What the reprise carries. A.** The operator's intent and debts: the follows (attributed to Izno) with their
 quality profiles, the open and `abandoned` wanted rows with their tried releases (so a bad release is never grabbed
 again), the seed obligations and ratio states, the cross-seed history (seeding the pair states), the destructive
 journal. The index is REBUILT by a full scan; run history, settled decisions and past journeys start empty. *Cost*:
-past runs and the journeys of media already in the library are gone.
+past runs and the journeys of media already in the library are gone. *Its route*: ruled 2026-10-02 by Q12 — the
+application layer's services, in-process.
 
-**Q4 — What the preprod runs. A.** The whole engine on its own data (§ 4): its own follows grabbing for real in its
-own qBittorrent category, its own pipeline filing into prod's library, deletion refused, cross-seed and upload OFF by
-its overlay; the read-only :8711 instance is retired and its port and host taken by preprod. *Cost*: real grabs on the
+**Q4 — What the preprod runs. A. SUPERSEDED 2026-10-02 by Q13** (its two letters « one qBittorrent, one category per
+environment » and « preprod files into prod's library »; § 4 carries the preprod as now ruled). The whole engine on
+its own data (§ 4): its own follows grabbing for real in its own qBittorrent category, its own pipeline filing into
+prod's library, deletion refused, cross-seed and upload OFF by its overlay; the read-only :8711 instance is retired and its port and host taken by preprod. *Cost*: real grabs on the
 operator's tracker accounts from a second instance (bounded by its own few follows); a qBittorrent category per
 environment.
 
@@ -369,7 +448,8 @@ environment.
 authority: it runs up to `max_parallel` tunnels as workers, queues the rest visibly, and serialises only what must be
 serial (a dispatch onto one disk, the index write) by inner locks; the web and the CLI ENQUEUE, never spawn;
 `pipeline.lock` is replaced by the supervisor's lease. *Cost*: the largest change of the mission; a CLI run goes
-through the supervisor.
+through the supervisor. *Order, ruled 2026-10-02 by Q14*: the supervisor comes ALONE and early (K4a), before the
+acquisition model and the tunnels.
 
 **Q6 — A series' tunnel granularity. A.** One tunnel per RELEASE (one torrent: an episode's, or a season pack). *Cost*:
 a season pack's episodes advance together, one blocked episode blocks the pack's filing.
@@ -404,7 +484,7 @@ rule stands.
 - *His why*: the pack usually brings a better or corrected version (codec, corruption, missing subtitle or audio) and
   a coherent quality across the season.
 - **Backend demand**: at filing, the engine must know the choice date of the release that filed the file in place. It
-  is not yet verified in the code — K4 checks it first.
+  is not yet verified in the code — K4b checks it first.
 
 **Q10 — The ratio alert's channel. HIS WORD.** FCM is the channel (« Telegram est pollué et je veux m'en débarrasser »).
 Telegram is refused as the alert channel; his wish to be rid of it is noted, its removal is NOT ordered and is not
@@ -412,24 +492,93 @@ planned here. No hurry, but the FCM project can be prepared now: notifications a
 Android and iOS. The alert threshold defaults to ratio **1.2**, configurable tracker by tracker
 (`tracker.providers.<name>.economy.alert_threshold`).
 
+**Q11 — The shape of the rebuild. D** (2026-10-02, « Aller go pour D ! »). Neither a rebuild from nothing nor a
+`/api/v1` grafted into today's `web/`: a new application layer and a new HTTP v1, written from the contract, on the
+KEPT engine (§ 2, « Where each row lands under D »).
+
+- **A new application layer**, a separate package (`personalscraper/app/`) owning `app.db`: the use-case services —
+  accounts and rights, requesters, the tunnel and its supervisor, journeys, the « À traiter » cards, the cross-seed
+  pairs — and the engine filed under `web/` today (its read-models, runners and queues), moved out and freed of HTTP.
+- **A new HTTP v1**, a separate package whose models are written against `openapi.json`; a route calls one service;
+  the measure of the end is `compare-contracts.py` at zero rows against v1.
+- **The kept engine** — `api/`, sorter, process, scraper, verify, dispatch, trailers, indexer, acquire — extended,
+  never rewritten; the tunnel's steps call its one-medium kernels.
+- **The CLI and the web are two in-process clients of the same service**; no action goes through a CLI subprocess with
+  text arguments any more.
+- **v0 is FROZEN** — a production fix only, a `Deprecation` header once a v1 twin exists — and deleted in one block at
+  the switchover (`web/routes`, `web/models`, `frontend/src`).
+- Ten lots, K0 one part heavier: the engine moved out of `web/` and the app + v1 scaffold (§ 6).
+- *Why*: the engine is healthy and well tested one medium at a time; two defects are structural — engine filed inside
+  `web/`, and the CLI used as a text API — and D fixes both without paying the engine's lessons a second time.
+
+**Q12 — The reprise's route. B** (2026-10-02). The reprise tool calls the application layer's services IN-PROCESS:
+no import route, no table-to-table copy, the same validations as the API. It keeps the intent of Q3's « la reprise
+passe par l'API »; the letter is replaced (the contract has no operation that writes an obligation, a ratio state, a
+wanted row with its tried releases, or the cross-seed history).
+
+**Q13 — Preprod and prod, separated. HIS DESIGN** (2026-10-02). The question asked who updates prod's index after a
+preprod dispatch; he reframed it into the separation of the two environments, and the question is moot: preprod has
+its own library. § 4 states the design in full:
+
+- preprod shares NOTHING with prod but, possibly, the torrent client: its own databases (full freedom of schema), its
+  own configuration, its own staging, its own « disques de préprod » (dedicated mount points on the NTFS disks, the
+  same filesystem), outside Plex's production libraries (a dedicated Plex preprod library is his affair), FCM on a
+  dedicated preprod channel;
+- a daily cron at 02:00 purges preprod's downloads ONLY once their seed obligations are met — the tracker accounts
+  are shared, and a purge before would be a hit-and-run on them;
+- a guard by mount point confines every preprod write and purge to preprod's own folders (rights may be added);
+- **the torrent client — B, else A** (« Ok, B sinon A »): B, a second qBittorrent dedicated to preprod, if EVERY
+  active tracker (C411 and tr4ker today; v3x, draupnirr and digitalcore once T1 lands) accepts two clients on one
+  account and one IP — to verify before building; otherwise A, one shared qBittorrent, preprod in its own category
+  and save path, its torrents also tagged `seed-pure` so today's prod ingest skips them.
+- It SUPERSEDES Q2's B′ and Q4's « one qBittorrent, one category per environment; preprod files into prod's
+  library ». Noted by him for later: an analysis of the disk I/O load, prod and preprod alike.
+
+**Q14 — The supervisor first. B** (2026-10-02). K4a is the supervisor ALONE — its lease, its visible queue, running
+today's `run` UNCHANGED; the web and the CLI only enqueue — right after K2 and BEFORE K3. It is proved on preprod
+(its own small test arrivals), then on prod; its rollback is the watcher put back in `ecosystem.config.js`. Then K3
+(the acquisition model), then K4b (the tunnels per release). *Why*: the riskiest change of the mission — the trigger
+authority of all of production — made early and alone, so it reads clearly.
+
+**Q15 — Media identity. A** (2026-10-02). The v1 engine identifies a medium by its PROVIDER ID everywhere — TVDB
+first for a show, per the existing separation of ids —; the title is only a search fallback. Two rows sharing an id
+are duplicates to REPORT, never merged in silence. The keys are reviewed in `acquire` and the indexer during K2–K3.
+The contract's `readLibraryMembership` says the opposite (« provider ids are not an identity (two rows can share
+one) », keyed by exact title and year): that line is a contract correction owed in K2. It closes the B-476 / B-477 /
+B-573 family at its source.
+
+**Q16 — Where the kept Plex token lives. A** (2026-10-02). The Plex token kept after a sign-in (round 4 P-3, kept and
+encrypted for a future feature) is stored ENCRYPTED in the application layer's `app.db` by K1 — the key outside the
+base, with rotation and revocation. The plex-sso brick stays STATELESS: it hands the token to its caller, as its
+DESIGN already says. One `app.db` per environment: a preprod Plex sign-in gives prod no token.
+
+
 ---
 
 ## 6. A first cut of the backend lots
 
-Each lot is DONE when its operations leave the computed register (`compare-contracts.py` against the new routes),
+Each lot is DONE when its operations leave the computed register (`compare-contracts.py` against the v1 routes),
 its events reach the stream, the maquette's mocks for them are retired on preprod, and ONE reader has used the
-surfaces it unblocks on preprod at 390 px. Order: the foundation every route needs, then the reads that give the
-most screen for the least risk, then the architecture, then the engines.
+surfaces it unblocks on preprod at 390 px. Order (§ 5 Q11, Q14): the foundation every route needs, then the reads
+that give the most screen for the least risk, then the supervisor ALONE, then the acquisition model, the tunnels,
+and the engines.
+
+**How production stays safe while the lots land** (§ 5 Q11): v0 and its crons do not change during the mission
+(a production fix only); an addition to the engine that production runs (a setter, a column, `released_at`) arrives
+with its regression test seen red before the change, and runs on preprod before it reaches `prod`; the engine's
+migrations stay additive until the switchover; the supervisor (K4a) passes through preprod first with a one-line
+rollback; the switchover (K9) is rehearsed on preprod.
 
 | Lot | What | Unblocks on the screen |
 | --- | --- | --- |
-| **K0 — the foundation** | `Problem` (X1, B-267), camelCase and statuses (X2, X3), the `/api/v1` mount, the v0 `Deprecation` header and its register, the git flow's tooling — `develop`, the poller (Q1), the code sets (X4), the stores' new baselines and the per-environment file suffix (Q2), the staging-as-preprod environment (Q4) | every refusal read as a refusal, not queued; the binding possible on preprod |
-| **K1 — accounts and rights** | `app.db` accounts and roles, `authorise(right)` on every route (X6), `readAccount`, Plex SSO, the forbidden-writes list, Comptes' operations, escalation refused, E8 | the sign-in gate (Plex first), Profil, Comptes, the bar composed by rights, every « réservé » state, every 403 |
-| **K2 — the library** | listing, categories, recent, incomplete, membership by identity, the sheet's facts and its film variant, seasons, rescrape, deletion with the journal and Plex, E1, E2 | Médiathèque's three tabs and filters, the media sheet, « Récupérer la saison » reading true holes |
-| **K3 — the acquisition model** | requesters and their settings, reassign, restore, suggestions, search, the follows' shapes, the season grab by medium (a one-off `request` for an unfollowed show), releases with season / episode, the season's exclusivity (SR3, SR5, SR6; SR2 is ruled by Q9, last chosen wins), the ranking by ratio | « Suivis », the follow sheet, Découvrir, quality and pause, « Réaffecter… », the season recovery's line and card |
-| **K4 — the tunnel** | the supervisor (Q5) with its bound and levers, the persisted tunnel state per acquisition, one tunnel per release (Q6), « À traiter » holding every block with its cause and auto-resume (Q7), a vanished medium closed and said once (Q8), the « last chosen wins » filing rule (Q9) — first checking that the engine knows, at filing, the choice date of the release that filed the file in place — , journeys per acquisition (SR4, SR1), the one card read-model, the decisions' reshape, `reopenDecision`, the resolve's inverse, the staged medium's verbs, the Plex match confirmed or corrected, E4, E9 | « En cours », « À traiter », the journey sheet, « Corriger », « Mis de côté » (the deferred card moves from « En cours » to « À traiter » — a maquette change to draw, amending ruling 7 of 09-15), Système's « Pipeline » levers |
-| **K5 — trackers and ratio** | `readTrackers`, the downloads' and obligations' shapes, the deferral's kind, `removeDownload`, a broken obligation seen, health, T1, T2, the alert threshold (default 1.2, per tracker) and its channel FCM (Q10; the FCM project — a Firebase project, web push on the installed PWA, Android and iOS — may be prepared from K0 on, no hurry, his words), E6, E7, E10 | the Trackers page, its two tabs and its badge, the ratio alert outside the app, a torrent's panel, « Retirer de qBittorrent » |
-| **K6 — cross-seed** | the per-pair state and the attempt on every tracker, the switch with `stopRunningCrossSeeds`, cut, exclusions, hand search, `readMediaCrossSeed`, E5 | the six states on every row, the per-tracker switch, « Couper », « Ne plus partager ce titre », « Chercher un cross-seed », the sheet's admin block |
+| **K0 — the foundation** | One part heavier than the earlier cut (§ 5 Q11). **The engine moved**: the engine filed under `web/` moved to `app/` with NO behaviour change — proved by the existing suite, unchanged and green, and `make openapi` with no v0 drift; the `conf` ↔ `api` import cycle broken (`conf/models/_ranking.py:20` imports `api`, `api/torrent/qbittorrent.py:45` imports `conf`); the composition root out of `cli_helpers` (`_build_app_context`, borrowed today by the web and by `trailers/cli.py:38`). **The v1 skeleton from the contract**: `Problem` (X1, B-267), the contract's names and statuses (X2, X3), the code sets (X4), the `/api/v1` mount, the v0 `Deprecation` header. **The stores**: `app.db`, the new baselines, one file per environment for every store (Q2, Q13) — the `app` baseline adopts `push_subscription` from `SqlitePushSubscriptionStore.DDL` (`personalscraper/push/store.py`, fcm-push phase 2; its foreign key to the accounts lands with K1). **The git flow's tooling**: `develop`, the poller (Q1). **The preprod** (Q13, § 4): FIRST the verification that decides its torrent client — does every active tracker (C411, tr4ker; v3x, draupnirr, digitalcore once T1 lands) accept two clients on one account and one IP? — then the client so decided (B; else A with its category, save path, `seed-pure` tag, refused shared hashes, own lockout path, no global caps); the mount-point guard and a REAL mount check replacing `config.path.exists()` (`dispatch/disk_scanner.py:58`); its own config, `data_dir`, staging space, disks, databases, PM2 apps and FCM channel; the 02:00 purge armed only on a WRITTEN obligation state — the engine writes an obligation met (`satisfied_at`) and its release (`released_at`), neither written today — refusing any torrent whose obligation it does not know | every refusal read as a refusal, not queued; the binding possible on preprod |
+| **K1 — accounts and rights** | `app.db` accounts and roles, `authorise(right)` on every route (X6), `readAccount`, Plex SSO, the kept Plex token stored ENCRYPTED in `app.db` — the key outside the base, rotation, revocation; the plex-sso brick stays stateless (Q16) —, the forbidden-writes list, Comptes' operations, escalation refused, E8 | the sign-in gate (Plex first), Profil, Comptes, the bar composed by rights, every « réservé » state, every 403 |
+| **K2 — the library** | listing, categories, recent, incomplete, the sheet's facts and its film variant, seasons, rescrape, deletion with the journal and Plex, E1, E2; **identity by provider id** (Q15): membership by provider id, the contract's `readLibraryMembership` line corrected (« provider ids are not an identity »), the indexer's keys reviewed, two rows sharing an id reported as duplicates | Médiathèque's three tabs and filters, the media sheet, « Récupérer la saison » reading true holes |
+| **K4a — the supervisor alone** | (§ 5 Q5, Q14) the supervisor, its lease replacing `pipeline.lock`, its VISIBLE queue, running today's `run` UNCHANGED; the web and the CLI only enqueue, in-process; proved on preprod on its own small test arrivals, then on prod; rollback = the watcher put back in `ecosystem.config.js` | a run asked is queued visibly, never refused (`{state, uid}`, `queued` a state) |
+| **K3 — the acquisition model** | requesters and their settings (the quality setter does not exist today), reassign, restore, suggestions, search, the follows' shapes, the season grab by medium (a one-off `request` for an unfollowed show), releases with season / episode, the season's exclusivity (SR3, SR5, SR6; SR2 is ruled by Q9, last chosen wins), the ranking by ratio; the `acquire` keys reviewed for identity by provider id (Q15) | « Suivis », the follow sheet, Découvrir, quality and pause, « Réaffecter… », the season recovery's line and card |
+| **K4b — the tunnels** | one tunnel per release (Q6) on the engine's one-medium kernels, under the supervisor with its bound `max_parallel` and the § 20 levers; the persisted tunnel state per acquisition, « À traiter » holding every block with its cause and auto-resume (Q7), a vanished medium closed and said once (Q8), the « last chosen wins » filing rule (Q9) — first checking that the engine knows, at filing, the choice date of the release that filed the file in place — , journeys per acquisition (SR4, SR1), the one card read-model on the contract's ladder, the decisions' reshape, `reopenDecision`, the resolve's inverse and the resolve as a tunnel's resume, the staged medium's verbs, the Plex match confirmed or corrected, E4, E9 | « En cours », « À traiter », the journey sheet, « Corriger », « Mis de côté » (the deferred card moves from « En cours » to « À traiter » — a maquette change to draw, amending ruling 7 of 09-15), Système's « Pipeline » levers |
+| **K5 — trackers and ratio** | starts with the ratio hole: where each tracker publishes an account's ratio and volumes, or nothing — `ratio_state` is never written today and no tracker client reads them; then `readTrackers`, the downloads' and obligations' shapes, the deferral's kind, `removeDownload` writing `released_at` (« libérée ») on every gesture that ends an obligation, a broken obligation seen, health, T1, T2, the alert threshold (default 1.2, per tracker) and its channel FCM (Q10; the FCM project — a Firebase project, web push on the installed PWA, Android and iOS — may be prepared from K0 on, no hurry, his words), E6, E7, E10 | the Trackers page, its two tabs and its badge, the ratio alert outside the app, a torrent's panel, « Retirer de qBittorrent » |
+| **K6 — cross-seed** | the per-pair state written and the attempt on every tracker, the switch with `stopRunningCrossSeeds`, cut (`released_at` written, the pair « stoppé »), exclusions, hand search, `readMediaCrossSeed`, E5 | the six states on every row, the per-tracker switch, « Couper », « Ne plus partager ce titre », « Chercher un cross-seed », the sheet's admin block |
 | **K7 — upload** | torrent creation and per-tracker publish, `accepts_uploads`, `creation_failed` / `publish_failed`, `via` | « Créer et publier un torrent », « Publié par vous », the upload failures at the badge |
 | **K8 — Système and Maintenance** | services, dependencies, errors as codes, history with its failing step and blocked counts, the maintenance lock, schedulers, the settings' shape, E3 | Système's index and sections, Maintenance, Réglages and its save bar on real writes |
-| **K9 — the reprise and the switchover** | the reprise tool through the API, carrying what Q3 = A lists (the index rebuilt by a full scan), a rehearsal on the preprod, then the day: `frontend/src` archived, the maquette served on :8710, the deprecated v0 routes deleted (`/api/v1` stays), the retirable operations removed (§ 1.7), cross-seed active by default (L17 H) | the app, whole, in production |
+| **K9 — the reprise and the switchover** | the reprise tool calling the application layer's services in-process (Q12), carrying what Q3 = A lists (the index rebuilt by a full scan), a rehearsal on the preprod, then the day: v0 deleted in ONE block — `web/routes`, `web/models`, `frontend/src` — (`/api/v1` stays), the maquette served on :8710, the retirable operations removed (§ 1.7), cross-seed active by default (L17 H) | the app, whole, in production |

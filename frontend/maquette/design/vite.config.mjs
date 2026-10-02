@@ -4,6 +4,7 @@ import { mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
 import { buildIdentity } from "./build-identity.mjs";
+import { pushTexts, substituteWorker } from "./worker-source.mjs";
 // Tailwind v4 as a Vite plugin. WHAT CONFINES ITS SCAN IS `source(none)` on
 // the import in `src/styles/theme.css`, and NOT the `@source` rules beside it:
 // v4 scans the project root automatically, and an `@source` rule ADDS to that
@@ -93,14 +94,13 @@ function buildWorker() {
       // fallback, and that contract is written here because this is where the
       // order is decided.
       const shell = ["/", ...bundles];
-      const worker = readFileSync(resolve(ROOT, "sw.js"), "utf8")
-        .replace("__BUILD__", BUILD_ID)
-        .replace("__SHELL__", JSON.stringify(shell))
-        .replace("__EXTRAS__", JSON.stringify(OPTIONAL_ASSETS));
-      if (worker.includes("__BUILD__") || worker.includes("__SHELL__")
-          || worker.includes("__EXTRAS__")) {
-        throw new Error("build-worker: a placeholder survived substitution");
-      }
+      // Every placeholder written, or the build stops (`worker-source.mjs`).
+      const worker = substituteWorker(readFileSync(resolve(ROOT, "sw.js"), "utf8"), {
+        build: BUILD_ID,
+        shell,
+        extras: OPTIONAL_ASSETS,
+        push: pushTexts(JSON.parse(readFileSync(resolve(ROOT, "src/i18n/fr.json"), "utf8"))),
+      });
       writeFileSync(resolve(output, "sw.js"), worker);
       // The built identity, for the update discipline to compare against what
       // the host serves. It is written beside the worker rather than baked into

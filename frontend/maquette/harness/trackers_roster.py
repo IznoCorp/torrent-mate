@@ -136,7 +136,7 @@ ROWS = """() => [...document.querySelectorAll('#view [data-part="torrents/row"]'
 # THE FILTER, AS THE SELECTOR SAYS IT: its pill pressed, naming the tracker —
 # null when the list is whole.
 FILTER = """() => {
-  const pill = document.querySelector('#view [data-part="torrents/selector"]');
+  const pill = document.querySelector('#view [data-part="pill/select"][data-trackers-selector]');
   return pill === null || pill.getAttribute('aria-pressed') !== 'true' ? null : {
     text: pill.firstChild?.textContent.trim() ?? '',
     clear: true,

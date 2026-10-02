@@ -187,6 +187,21 @@ export const seasonGrabTaken = cva("aria-busy:opacity-50");
  */
 export const upcomingMark = cva("inline-flex items-center py-1 px-3 text-1 text-muted-foreground");
 
+/**
+ * The held episodes a season's catalogue does not list, said under its row (§ 1.10).
+ *
+ * A LINE OF ITS OWN, at the end of the summary: `basis-full` carries it under
+ * the row's head, and in the summary it stays drawn while the season is folded
+ * — a complete season is folded, and it is the one that hides them. The muted
+ * tone and no chip: it is said without judgement, and it offers nothing to
+ * press. Its case and weight are the sentence's, not the summary's capitals.
+ * It starts where « Saison n » starts, past the chevron (20px) and its gap.
+ */
+export const offCatalogueMark = cva(
+  "basis-full ps-[calc(20px+var(--spacing-4))] text-1 font-normal normal-case [letter-spacing:normal] " +
+    "text-muted-foreground",
+);
+
 // ── The season tree ─────────────────────────────────────────────────────────
 
 /** The season's fraction, at the end of its summary. */

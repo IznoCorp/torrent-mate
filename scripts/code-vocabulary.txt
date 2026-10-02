@@ -70,6 +70,7 @@ advance
 after
 again
 agent
+ago
 ahead
 air
 aired
@@ -87,8 +88,11 @@ answer
 answered
 any
 anywhere
+app
 appearance
 appearances
+apple
+application
 applied
 apply
 arbitration
@@ -139,6 +143,7 @@ beneath
 best
 block
 blocked
+blocks
 bodiless
 body
 bold
@@ -153,8 +158,10 @@ box
 boxes
 brand
 breached
+break
 broken
 bridge
+browser
 btn
 bugs
 build
@@ -197,6 +204,7 @@ categories
 category
 cats
 cause
+causes
 ceil
 ceiling
 cell
@@ -206,6 +214,7 @@ change
 changed
 changer
 changing
+character
 chart
 check
 checked
@@ -229,6 +238,8 @@ close
 closed
 closest
 closing
+closure
+closures
 cls
 code
 codes
@@ -332,6 +343,8 @@ delivering
 delivery
 delsel
 delta
+dependency
+deps
 design
 dense
 depart
@@ -381,6 +394,7 @@ done
 door
 doors
 dot
+doubled
 down
 download
 downloading
@@ -425,6 +439,7 @@ enrichment
 entries
 entry
 envelope
+environment
 ep
 episode
 episodes
@@ -464,6 +479,7 @@ families
 family
 fast
 faults
+fcm
 feature
 feed
 feedback
@@ -474,6 +490,7 @@ field
 fields
 figure
 file
+filed
 files
 fill
 filling
@@ -487,6 +504,8 @@ find
 finger
 finish
 finished
+fire
+firebase
 first
 fkind
 flatten
@@ -495,6 +514,7 @@ floor
 floors
 flux
 fmode
+fnv
 focus
 focusable
 focused
@@ -535,6 +555,7 @@ gate
 gauche
 gauge
 generation
+generic
 geometry
 gesture
 get
@@ -572,6 +593,7 @@ held
 hello
 here
 hero
+hex
 hidden
 hide
 hint
@@ -609,6 +631,7 @@ illusion
 image
 images
 imgs
+import
 in
 inc
 include
@@ -642,6 +665,7 @@ into
 invalid
 inverted
 ios
+iphone
 is
 issued
 item
@@ -651,6 +675,7 @@ journal
 journey
 json
 jsx
+judgement
 keep
 keeps
 kept
@@ -682,6 +707,7 @@ leaving
 left
 legacy
 legend
+length
 lens
 lenses
 let
@@ -693,7 +719,9 @@ libload
 libq
 library
 libretry
+lift
 lifted
+lifts
 light
 like
 limit
@@ -728,6 +756,7 @@ loop
 loose
 lossy
 lost
+mac
 main
 maintact
 maintenance
@@ -757,6 +786,7 @@ membership
 memory
 menu
 message
+messaging
 met
 meta
 method
@@ -774,13 +804,16 @@ mocks
 modal
 mode
 modes
+moment
 mono
 more
+morning
 motif
 motion
 mount
 move
 moved
+moves
 movie
 movies
 moving
@@ -798,6 +831,7 @@ navgo
 navigated
 navigation
 nb
+nearly
 need
 needed
 needs
@@ -806,6 +840,7 @@ neutral
 new
 newcomer
 newer
+newest
 newly
 next
 no
@@ -825,6 +860,7 @@ notfound
 nothing
 notice
 noticed
+notification
 now
 nowhere
 number
@@ -838,6 +874,7 @@ observer
 of
 offer
 offered
+offline
 offset
 old
 on
@@ -924,6 +961,7 @@ pipeline
 pitch
 pixels
 place
+placeholder
 places
 plain
 platform
@@ -962,6 +1000,7 @@ pressing
 preview
 previous
 primary
+prime
 problem
 produce
 producer
@@ -972,6 +1011,7 @@ projection
 projections
 properties
 proposer
+props
 protocol
 prov
 provider
@@ -1010,6 +1050,7 @@ ratio
 raw
 reach
 reachable
+reached
 react
 reactivate
 read
@@ -1115,6 +1156,7 @@ returns
 reused
 reversed
 revisited
+revoke
 rich
 right
 rightless
@@ -1126,6 +1168,7 @@ roles
 room
 root
 roster
+round
 route
 router
 routes
@@ -1170,6 +1213,7 @@ scroll
 scrolled
 scroller
 scrollport
+sdk
 seam
 seams
 search
@@ -1199,6 +1243,7 @@ selected
 selecting
 selection
 selector
+self
 selmode
 semibold
 send
@@ -1269,6 +1314,7 @@ solid
 soon
 sort
 sorted
+sorts
 source
 sources
 space
@@ -1333,6 +1379,8 @@ sugmode
 sugmore
 suite
 sum
+superseded
+support
 surf
 surface
 surfaces
@@ -1365,14 +1413,17 @@ teardown
 temp
 template
 term
+test
 testid
 text
+texts
 that
 thawed
 the
 their
 theirs
 theme
+then
 there
 this
 thousand
@@ -1451,6 +1502,7 @@ unnamed
 unreachable
 unread
 unreadable
+unregister
 unsearched
 unseen
 unset
@@ -1482,6 +1534,8 @@ via
 view
 viewport
 virtual
+web
+windows
 # TWO SPELLINGS ON PURPOSE, and neither is a slip: `virtualised` is ours and
 # `virtualizer` is `@tanstack/react-virtual`'s own export (`useVirtualizer`),
 # which cannot be renamed. A reader tidying one of them away breaks a build.
@@ -1549,6 +1603,7 @@ watching
 way
 ways
 weekday
+weeks
 weight
 what
 when
@@ -1559,6 +1614,7 @@ why
 wide
 width
 window
+winner
 wired
 wiring
 with

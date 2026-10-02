@@ -11,6 +11,7 @@ import { pendingEdits } from "../../lib/pending-edits-door";
 import { activationSetting } from "./trackers-tab";
 import { onEditsWritten } from "../../lib/pending-edits-door";
 import { tabMemory } from "../../lib/tab-memory";
+import { closeThenApply } from "../../ui/pill-select";
 // « Retirer de qBittorrent » declares its own verb, and a torrent's panel its producer.
 import "./remove-verb";
 import "./panel-torrent";
@@ -125,15 +126,7 @@ registerVerb("trackers-selector", () => panel.produce("trackers-selector"));
 /* A CHOICE closes the panel, then filters — ONCE THE PANEL'S ENTRY HAS LEFT, so
    the filter's address replaces the page's own entry, never the panel's, and
    nothing is pushed. */
-registerVerb("trackers-choose", (tracker) => {
-  if (history.state?.layer === "sheet") {
-    window.addEventListener("popstate", () => window.setTimeout(() => filterTo(tracker)), { once: true });
-    panel.close();
-    return;
-  }
-  panel.close();
-  filterTo(tracker);
-});
+registerVerb("trackers-choose", (tracker) => closeThenApply(() => filterTo(tracker)));
 
 /* « VU » ON A BROKEN OBLIGATION, in its tracker's panel: the write marks it
    seen, then the summary is asked again — the row stays, saying it was seen, and

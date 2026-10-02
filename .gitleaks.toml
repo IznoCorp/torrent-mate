@@ -12,4 +12,6 @@ paths = [
 ]
 regexes = [
     '''abcdef1234567890abcdef1234567890''',
+    # The tracker-capture redaction tests plant fake keys that all start with PLANTED.
+    '''^PLANTED[a-z0-9]+$''',
 ]

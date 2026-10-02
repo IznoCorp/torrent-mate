@@ -19,6 +19,13 @@ const MEDIA_CROSS_SEED_KEY = ["/api/media/cross-seed"];
 /** Every rule this feature contributes to the relay. */
 export const trackersLiveRules: readonly LiveRule[] = [
   {
+    types: ["BlockLifted"],
+    keys: [TRACKERS_KEY],
+    because:
+      "a block lifted because its tracker answers again (maquette-blocked "
+      + "§ 1.4, demand BK2): the tracker's panel stops saying it does not answer",
+  },
+  {
     types: ["RatioMeasured"],
     keys: [TRACKERS_KEY],
     because:

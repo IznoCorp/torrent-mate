@@ -60,14 +60,15 @@ stops clipping.
 
 SUBSETS. `TM_RESPONSIVE_STATES` (comma-separated ids), `TM_RESPONSIVE_WIDTHS`
 (Chromium's widths) and `TM_RESPONSIVE_ENGINES` (`chromium`, `webkit`) narrow a run to the states a change touches; a narrowed run never judges the owed
-list's staleness, since it did not read what the list covers.
+list's staleness, since it did not read what the list covers. `TM_RESPONSIVE_PARALLEL`
+sets how many passes run side by side (see `PARALLEL`).
 """
 import asyncio
 import json
 import os
 import time
 
-from common import PHONE, PROTOTYPE, SETTLED, Journal, browser_channel, chrome_launch_args, served_copy, STARTED_AGAINST
+from common import PHONE, PROTOTYPE, SETTLED, Journal, browser_channel, chrome_launch_args, served_copy, settle, STARTED_AGAINST
 from playwright.async_api import async_playwright
 
 PHONES = (320, 360, 369, 390, 412)
@@ -76,8 +77,14 @@ HEIGHT = 844
 # The iPhone's format, measured in the iPhone's engine.
 IPHONE = 390
 # Three pages at a time, one per width, the harness's own ceiling
-# (`TM_HARNESS_JOBS=3`, docs/reference/implementer-office.md § the mutex).
-PARALLEL = int(os.environ.get("TM_HARNESS_JOBS", "3"))
+# (`TM_HARNESS_JOBS=3`, docs/reference/implementer-office.md § the mutex) — on
+# this machine. A CI runner is the harness's alone, and there the sweep runs
+# every pass at once (`TM_RESPONSIVE_PARALLEL`, harness-full.yml): its cost is
+# the `SETTLED` wait each state is let settle, idle, one per state per pass,
+# so it grows with the catalogue — 319 states read in 515–554 s against
+# run.sh's 600 s bound, and the 43 that maquette-blocked adds pushed it past
+# (PR #675's run 36897555465). Run side by side, the nine passes wait together.
+PARALLEL = int(os.environ.get("TM_RESPONSIVE_PARALLEL") or os.environ.get("TM_HARNESS_JOBS", "3"))
 
 # arm · data-part → its owner. Every entry is a fall read on this tree and
 # repaired by its owner, named beside it — never silenced.
@@ -249,16 +256,28 @@ def context_for(width, scheme="dark"):
             "is_mobile": False, "has_touch": False, "color_scheme": scheme}
 
 
-# The layers a state may pose, whose entrance must end before the state is read, and how long that
+# The layers a state may pose, whose arrival must end before the state is read, and how long that
 # may take at most — `--duration-4` is 450 ms; a state posing its panel late adds a beat to it.
 LAYER_CEILING_MS = 1500
-LAYERS_AT_REST = """(ceiling)=>new Promise((done)=>{
+# IN WEBKIT, READ BY GEOMETRY, NOT BY `getAnimations()`: WebKit's page dies when it is asked under
+# `media-sheet-decision-corrected`'s two chained view transitions. A layer at rest is a layer
+# whose box no longer changes: the boxes of the drawer, the sheet, the dialog and the screens,
+# read on each frame, the same three frames in a row.
+LAYERS_STILL = """(ceiling)=>new Promise((done)=>{
   const start = performance.now();
-  const sliding = () => document.getAnimations().some((one) => one.playState === 'running'
-    && one.effect?.target?.closest?.('#sheet, #dlg, #drawer, [data-part="screen"]')
-    && one.effect.getComputedTiming().endTime !== Infinity);
-  const look = () => (!sliding() || performance.now() - start > ceiling) ? done() : setTimeout(look, 16);
-  setTimeout(look, 16);
+  let last = null;
+  let same = 0;
+  const boxes = () => [...document.querySelectorAll('#drawer, #sheet, #dlg, [data-part="screen"]')]
+    .map((one) => { const box = one.getBoundingClientRect(); return [box.left, box.top, box.width, box.height].map(Math.round).join(','); })
+    .join(';');
+  const look = () => {
+    const now = boxes();
+    same = now === last ? same + 1 : 0;
+    last = now;
+    if (same >= 3 || performance.now() - start > ceiling) return done();
+    requestAnimationFrame(look);
+  };
+  requestAnimationFrame(look);
 })"""
 
 
@@ -310,12 +329,20 @@ async def read_pass(browser, label, width, wanted, engine, scheme):
         # 17–32 px past the window's right edge and fell `outside` (at rest it sits at [840, 1280]
         # at 1280 px). The phone's sheet makes the same trip on y, which this rule does not read,
         # so it never showed. The wait is the LAYERS' own running transitions, read from the page
-        # (B-276) — not every animation of the page, which cost this whole sweep a minute.
-        # IN A WINDOW ONLY, where a layer slides on x: a phone's layers rise on y, and WebKit's
-        # page dies when `getAnimations()` is asked under `media-sheet-decision-corrected`'s two
-        # chained view transitions (both WebKit passes, CI and here).
-        if width in WINDOWS:
-            await page.evaluate(LAYERS_AT_REST, LAYER_CEILING_MS)
+        # (B-276) — not every animation of the page, which cost this whole sweep a minute at three
+        # passes at a time.
+        # IN CHROMIUM, EVERY FINITE ANIMATION, not only the layers': with the nine passes side by
+        # side (`PARALLEL`), a runner draws slower than `SETTLED` assumes, and a drawer still
+        # sliding in (`drawer-navigation`, `shell/device` at [-5, 283]) or a deck card still
+        # leaving (`discover-deck-passed`) read as `cut` on one pass of nine (PR #677's first
+        # run). The page says when its motion ends (`settle`, common.py). IN WEBKIT, THE LAYERS'
+        # BOXES HELD STILL (`LAYERS_STILL`), at every width: the drawer `drawer-navigation` left
+        # open was still closing under `bar-trackers-alert` (`shell/device` at [-286, 2],
+        # webkit-dark, PR #677's third run) — the same fall, in the engine the first fix left out.
+        if engine == "chromium":
+            await settle(page)
+        else:
+            await page.evaluate(LAYERS_STILL, LAYER_CEILING_MS)
         readings[state] = await page.evaluate(MEASURE, width)
         if engine == "webkit":
             readings[state] += await page.evaluate(VISIBLE, width)

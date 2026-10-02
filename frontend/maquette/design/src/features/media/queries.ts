@@ -14,14 +14,14 @@ import { useQuery } from "@tanstack/react-query";
 import { read } from "../../lib/query-client";
 import { currentEntryState } from "../../lib/navigate";
 import { carriedBy } from "../../lib/navigation-entry";
-import { completenessHeld, completenessQuery, seasonsHeld, seasonsQuery, type SeasonsAnswer } from "../../lib/season-rows";
+import { completenessHeld, completenessQuery, offCatalogueBySeason, seasonsHeld, seasonsQuery, type SeasonsAnswer } from "../../lib/season-rows";
 
 /** One sheet, as the layer composes it. */
 export type MediaSheetPayload = Record<string, unknown>;
 
 /** What the seasons read answers — written once, in `lib/season-rows.ts`. */
 export type MediaSeasons = SeasonsAnswer;
-export { completenessHeld, seasonsHeld };
+export { completenessHeld, offCatalogueBySeason, seasonsHeld };
 
 /**
  * What the current entry carries about the sheet at one address.

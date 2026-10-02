@@ -60,7 +60,8 @@ const INITIAL_STATE = {
   filter: "",
   recent: ["star wars", "silo", "the bear"],
   followMode: "list",
-  pill: "tout",
+  /* « Suivis »' filter (`pill`) and sort (`followSort`) are NOT opened here:
+     unset, the device's memory of them is in force (maquette-blocked § 1.9). */
   notes: false,
   selMode: false,
   selected: new Set(),

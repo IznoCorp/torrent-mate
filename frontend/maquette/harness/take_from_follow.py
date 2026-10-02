@@ -28,7 +28,7 @@ from common import ACTED, PANEL_IN, SETTLED, Journal, open_page, browser_channel
 from playwright.async_api import async_playwright
 
 LOCALE = pathlib.Path(__file__).resolve().parents[1] / "design/src/i18n/fr.json"
-HOUR = json.loads(LOCALE.read_text(encoding="utf-8"))["screens"]["acquisition"]["cadence"]["hour"]
+HOUR = json.loads(LOCALE.read_text(encoding="utf-8"))["surfaces"]["clock"]["timeOfDay"]
 SENTENCE = "récupéré à la prochaine passe, à "  # french-ok: the sheet's own words, asserted present
 
 # The next slot of a daily cron « M H1,H2 * * * » after the page's clock, read

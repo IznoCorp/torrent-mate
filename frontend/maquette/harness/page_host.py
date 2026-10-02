@@ -485,18 +485,24 @@ async def main():
         await page.evaluate("()=>window.__store.write({libLens: 'cat'})")
         await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(400)
+        # RE-AIMED by maquette-blocked phase 6 (DESIGN § 1.9): the category is
+        # chosen in the one filter pill's panel — a real tap on the pill, then
+        # one on the choice — where it was a pill of its own in a row.
+        refused = await tap("""#view [data-part="pill/select"][data-library-filter-pill]""")
+        await page.wait_for_timeout(400)
         wanted = await page.evaluate(
-            """()=>{const b = [...document.querySelectorAll('#view [data-part="pill"][data-cat]')]"""
+            """()=>{const b = [...document.querySelectorAll('#sheet[data-open] [data-part="option"][data-cat]')]"""
             ".find((x) => x.dataset.cat !== 'all'); return b ? b.dataset.cat : null;}")
-        refused = (await tap(f"""#view [data-part="pill"][data-cat='{wanted}']""")
-                   if wanted else "absent")
+        refused = refused or ((await tap(f"""#sheet[data-open] [data-part="option"][data-cat='{wanted}']"""))
+                              if wanted else "absent")
+        await page.wait_for_timeout(400)
         chosen = await page.evaluate(
             "()=>({cat: window.__store.read().state.libCat,"
-            """ pressed: (document.querySelector('#view [data-part="pill"][aria-pressed=true]')||{})"""
-            ".dataset?.cat || null})")
+            """ pressed: document.querySelector('#view [data-part="pill/select"][data-library-filter-pill]')"""
+            "?.getAttribute('aria-pressed') === 'true'})")
         journal.check(
-            "a real tap on a category pill filters by THAT category",
-            not refused and chosen["cat"] == wanted and chosen["pressed"] == wanted,
+            "a real tap on a category of the filter pill filters by THAT category",
+            not refused and chosen["cat"] == wanted and chosen["pressed"],
             f"{wanted} → {chosen}" if not refused else f"data-cat {refused}")
 
         refused = await tap("#view [data-lmode='grid']")
@@ -627,19 +633,24 @@ async def main():
             and opened["rows"] > 0,
             str(opened) if not refused else f"data-acqtab {refused}")
 
+        # RE-AIMED by maquette-blocked phase 6 (DESIGN § 1.9): the kind is chosen
+        # in the one filter pill's panel, where it was a pill of its own in a row.
+        refused = await tap("""#view [data-part="pill/select"][data-follows-filter-pill]""")
+        await page.wait_for_timeout(400)
         wanted = await page.evaluate(
-            """()=>{const b = [...document.querySelectorAll('#view [data-part="pill"][data-pill]')]"""
-            ".find((x) => x.dataset.pill !== 'tout'); return b ? b.dataset.pill : null;}")
-        refused = (await tap(f"""#view [data-part="pill"][data-pill='{wanted}']""")
-                   if wanted else "absent")
+            """()=>{const b = [...document.querySelectorAll('#sheet[data-open] [data-part="option"][data-pill]')]"""
+            ".find((x) => !x.hasAttribute('aria-checked') || x.getAttribute('aria-checked') !== 'true');"
+            " return b ? b.dataset.pill : null;}")
+        refused = refused or ((await tap(f"""#sheet[data-open] [data-part="option"][data-pill='{wanted}']"""))
+                              if wanted else "absent")
+        await page.wait_for_timeout(400)
         filtered = await page.evaluate(
             "()=>({pill: window.__store.read().state.pill,"
-            """ pressed: (document.querySelector('#view [data-part="pill"][aria-pressed=true]')||{})"""
-            ".dataset?.pill || null})")
+            """ pressed: document.querySelector('#view [data-part="pill/select"][data-follows-filter-pill]')"""
+            "?.getAttribute('aria-pressed') === 'true'})")
         journal.check(
-            "a real tap on a pill filters by THAT pill",
-            not refused and filtered["pill"] == wanted
-            and filtered["pressed"] == wanted,
+            "a real tap on a kind of the filter pill filters by THAT kind",
+            not refused and filtered["pill"] == wanted and filtered["pressed"],
             f"{wanted} → {filtered}" if not refused else f"data-pill {refused}")
 
         refused = await tap("#view [data-fmode='grid']")

@@ -1,0 +1,19 @@
+{
+  "status": 429,
+  "headers": {
+    "Retry-After": "120"
+  },
+  "body": {
+    "error": {
+      "code": 429,
+      "message": "Quota exceeded.",
+      "status": "RESOURCE_EXHAUSTED",
+      "details": [
+        {
+          "@type": "type.googleapis.com/google.firebase.fcm.v1.FcmError",
+          "errorCode": "QUOTA_EXCEEDED"
+        }
+      ]
+    }
+  }
+}

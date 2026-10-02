@@ -501,13 +501,18 @@ ACTED = 700         # an action tapped: the mutation, the refetch, the redraw
 # and returns once none is left, whatever the stylesheet draws them at. It
 # starts after one frame, so a transition the call just caused is running by
 # then, and it gives up at `SETTLE_CEILING_MS`, its answer saying how long it
-# waited.
+# waited. A view transition still active counts as moving: before it has
+# committed the new page it runs no animation, and `getAnimations()` alone
+# answers « still » over a page about to be replaced. The pseudo-class is asked
+# inside a `try`: an engine that lacks it throws, and a guard that throws inside
+# a frame callback would end the wait never.
 SETTLE_CEILING_MS = 5000
 SETTLE = """(ceiling)=>new Promise((done)=>{
   const start = performance.now();
-  const moving = () => document.getAnimations().some((one) =>
-    one.playState === 'running' && one.effect
-    && one.effect.getComputedTiming().endTime !== Infinity);
+  const moving = () => (() => { try { return document.documentElement.matches(':active-view-transition'); } catch (error) { return false; } })()
+    || document.getAnimations().some((one) =>
+      one.playState === 'running' && one.effect
+      && one.effect.getComputedTiming().endTime !== Infinity);
   const look = () => {
     const waited = performance.now() - start;
     if ((waited > 20 && !moving()) || waited > ceiling) return done(waited);
@@ -527,6 +532,54 @@ async def settle(page):
         The milliseconds it waited.
     """
     return await page.evaluate(SETTLE, SETTLE_CEILING_MS)
+
+
+# A NAMED STATE READ ONCE IT SAYS IT HAS ARRIVED, NOT AFTER A NUMBER. A state
+# that pushes a screen goes through `startViewTransition` (lib/navigate.ts): the
+# route commits inside its callback, so the screen mounts a frame or more after
+# `__go` returns, and only then does it ask the cache for what it draws — the
+# resolution screen's `/api/decisions/` among them. A fixed wait is a bet on how
+# fast a runner is: `attrs.py`'s 420 ms read `acq-resolution-tie` with the screen
+# mounted, the transition still active and `/api/decisions/` still in flight
+# (measured under a throttled CPU), so it counted 0 candidate posters — the
+# fall CI met on two runs of three. The page says itself when that is over: no
+# view transition active, no query fetching, no mutation pending, no finite
+# animation running. Held for TWO frames in a row, because a query that answers
+# notifies its readers on the next task and React draws on the frame after.
+# Not for a state that acts on a timer of its own (a tap posed `setTimeout`
+# after the draw): the page cannot say a timer is still owed, and those states
+# keep the wait they name. Chromium's reading: WebKit's page dies when
+# `getAnimations()` is asked under chained view transitions (`responsive.py`).
+READY_CEILING_MS = 5000
+READY = """(ceiling)=>new Promise((done)=>{
+  const start = performance.now();
+  let quiet = 0;
+  const busy = () => (() => { try { return document.documentElement.matches(':active-view-transition'); } catch (error) { return false; } })()
+    || (window.__queries?.isFetching() ?? 0) > 0
+    || (window.__queries?.isMutating() ?? 0) > 0
+    || document.getAnimations().some((one) => one.playState === 'running' && one.effect
+         && one.effect.getComputedTiming().endTime !== Infinity);
+  const look = () => {
+    const waited = performance.now() - start;
+    quiet = busy() ? 0 : quiet + 1;
+    if (quiet >= 2 || waited > ceiling) return done(waited);
+    requestAnimationFrame(look);
+  };
+  requestAnimationFrame(look);
+})"""
+
+
+async def ready(page):
+    """Waits until the page says the state just asked for has arrived.
+
+    Args:
+        page: The Playwright page, a named state just asked for through `__go`.
+
+    Returns:
+        The milliseconds it waited — the ceiling's value when it gave up, so a
+        reading taken then is read as the late one it is.
+    """
+    return await page.evaluate(READY, READY_CEILING_MS)
 
 
 class Journal:
@@ -622,6 +675,36 @@ async def read_at(page, state, script, argument=None, wait=SETTLED):
     await page.evaluate("(id)=>window.__go(id)", state)
     await page.wait_for_timeout(wait)
     return await page.evaluate(script, argument)
+
+
+# THE SERVED ROW BEHIND EACH CARD DRAWN, read from the queue's answer in the
+# cache: whether the engine stopped it (`blocked`), classified it as a block it
+# lifts (`resumes` set on a rung) or closed it (`closure`). A rule that judged
+# a block by the strip's colour or by a reason line would pass a block the
+# interface drew as moving (maquette-blocked's reading, r4: R209 read
+# « waiting + any reason »). The world is the dial's; the key is the card's
+# `data-acquisition`, composed as `acquisitionKey` composes it.
+SERVED_CARDS = """() => {
+  const world = String(window.__store?.read?.().state.scen ?? '') === 'loaded' ? 'loaded' : '';
+  const queue = window.__queries?.getQueryData(['/api/acquisition/to-handle', world]) || {};
+  const pad = (value) => String(value).padStart(2, '0');
+  const keyOf = (row) => row.season == null ? row.title
+    : `${row.title}|S${pad(row.season)}${row.episode == null ? '' : 'E' + pad(row.episode)}`;
+  const rows = [...(queue.blocked || []), ...(queue.arrivals || []), ...(queue.inFlight || [])];
+  return [...document.querySelectorAll('#view [data-region="acquisition/body"] [data-part="card"]')]
+    .filter(card => !card.closest('[data-part="section/set-aside"]'))
+    .map(card => {
+      const served = rows.filter(row => keyOf(row) === card.dataset.acquisition);
+      const rungs = served.flatMap(row => row.ladder || []);
+      return {
+        key: card.dataset.acquisition,
+        served: served.length > 0,
+        blocked: rungs.some(rung => rung.state === 'blocked'),
+        resumes: rungs.some(rung => rung.resumes != null),
+        closure: served.some(row => row.closure != null),
+      };
+    });
+}"""
 
 
 async def shot(pg, name):

@@ -14,7 +14,9 @@ import type { Schemas } from "../../lib/contract-schemas";
 import { icons, panel } from "../../lib/shell-doors";
 import { read, sharedQueryClient } from "../../lib/query-client";
 import { registerProducer, type Action, type FactLine, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
-import { dayOf, written } from "./format";
+import { written } from "../../lib/byte-size";
+import { dayOf } from "./format";
+import { momentOf } from "../../lib/clock";
 import { trackersKey, type Setting, type Tracker } from "./queries";
 import { failureSentence } from "./trackers-tab";
 import { switchedThisVisit } from "./cross-seed-verbs";
@@ -130,6 +132,14 @@ function trackerPanel(name: string, cache: PanelCache): PanelDescriptor | null {
   const settings = (catalogue ?? []).flatMap((topic) => topic.settings);
   const facts: FactLine[] = [
     { c: say("panel.state"), v: stateOf(tracker) },
+    // WHETHER IT ANSWERS, and since when it does not (maquette-blocked § 1.3):
+    // « Voir le tracker » on a block waiting on it lands here, saying the cause.
+    {
+      c: say("panel.reachability"),
+      v: tracker.reachable || tracker.unreachableSince === null
+        ? say("panel.reachable")
+        : say("panel.unreachableSince", { time: momentOf(tracker.unreachableSince) }),
+    },
     { c: say("panel.ratio"), v: tracker.ratio === null ? say("ratioUnknown") : written(tracker.ratio, 2) },
     { c: say("panel.trend"), v: say(`trends.${tracker.trend}`) },
     {

@@ -4,10 +4,28 @@ RE-AIMED when the library, the maintenance actions and the account took the
 contract's names: a category's label and count are read as `label` and `count`,
 a library row's title as `title`, where they were the engine's short keys. The
 holds and what they compare are unchanged.
+
+RE-AIMED OUT LOUD by maquette-blocked phase 6 (DESIGN § 1.9, DECIDED 1): the row
+of category pills became ONE filter pill whose panel lists the categories. A
+category is chosen the way a finger now chooses it — the pill, then the choice
+in its panel (`#sheet [data-cat]`) — where it was a tap on its own pill. What
+the rule holds and compares is unchanged.
 """
 import asyncio
 from common import shot, browser_channel, chrome_launch_args
+
 from playwright.async_api import async_playwright
+
+# The category chosen the way a finger chooses it: the filter pill, then the
+# choice its panel offers.
+CHOOSE = """async (id) => {
+  document.querySelector('#view [data-part="pill/select"][data-library-filter-pill]').click();
+  for (let tries = 0; tries < 40 && !document.querySelector(`#sheet[data-open] [data-cat=${JSON.stringify(id)}]`); tries++)
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  document.querySelector(`#sheet[data-open] [data-cat=${JSON.stringify(id)}]`).click();
+}"""
+
+
 async def main():
   async with async_playwright() as p:
     b=await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
@@ -30,8 +48,8 @@ async def main():
     if parts != whole: ko.append("category sum")
 
     for cat in cats:
-        await pg.evaluate("(id)=>document.querySelector(`[data-cat=${JSON.stringify(id)}]`).click()", cat["id"])
-        await pg.wait_for_timeout(300)
+        await pg.evaluate(CHOOSE, cat["id"])
+        await pg.wait_for_timeout(600)
         r = await pg.evaluate("""()=>({shown:document.querySelectorAll('#libitems [data-part="tile"], #libitems [data-part="card"]').length,
           count:document.querySelector('#libcount')?.textContent.replace(/\\s+/g,' ').trim(),
           empty:!!document.querySelector('#libitems [data-part="empty-state"]'),
@@ -42,7 +60,7 @@ async def main():
         print(("  PASS" if ok else "  FAIL"), f"{cat['l']:16} {r['shown']:3} rendered · {r['count']}")
 
     # the filter combines with the search
-    await pg.evaluate("()=>document.querySelector('[data-cat=\"tv\"]').click()"); await pg.wait_for_timeout(280)
+    await pg.evaluate(CHOOSE, "tv"); await pg.wait_for_timeout(600)
     await pg.evaluate("()=>{const i=document.querySelector('#libq');i.value='dex';i.dispatchEvent(new Event('input',{bubbles:true}));}")
     await pg.wait_for_timeout(350)
     print("\ncombined (Séries + « dex »):", await pg.evaluate("()=>({n:(window.__queries.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages??[]).flatMap(p=>p.items).length, titles:(window.__queries.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages??[]).flatMap(p=>p.items).map(x=>x.title), count:document.querySelector('#libcount').textContent.replace(/\\s+/g,' ').trim()})"))
