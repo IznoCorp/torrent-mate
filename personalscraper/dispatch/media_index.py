@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 
 from personalscraper.conf.ids import NON_VIDEO_CATEGORY_IDS
 from personalscraper.core.event_bus import EventBus
+from personalscraper.core.sqlite._fs_probe import is_mounted
 from personalscraper.indexer.db import apply_migrations, open_db
 from personalscraper.indexer.repos import item_repo
 from personalscraper.indexer.repos.item_repo import (
@@ -642,7 +643,7 @@ class MediaIndex:
         now_ts = int(time.time())
         count = 0
         for config in disk_configs:
-            if not config.path.exists():
+            if not is_mounted(config.path):
                 log.info("disk_not_mounted", disk=config.id)
                 continue
 

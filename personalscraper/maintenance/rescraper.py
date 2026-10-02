@@ -26,6 +26,7 @@ from personalscraper.conf.ids import TV_CATEGORY_IDS
 from personalscraper.conf.models.config import Config
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.media_types import VIDEO_EXTENSIONS
+from personalscraper.core.sqlite._fs_probe import is_mounted
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.nfo_utils import extract_nfo_metadata, is_nfo_complete, parse_title_year
@@ -798,7 +799,7 @@ def _collect_rescrape_candidates(
         for disk in config.disks:
             if disk_filter and disk.id != disk_filter:
                 continue
-            if not disk.path.exists():
+            if not is_mounted(disk.path):
                 log.warning("library_rescrape_disk_not_mounted", disk=disk.id, path=str(disk.path))
                 continue
 
