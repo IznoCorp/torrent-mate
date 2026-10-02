@@ -814,6 +814,16 @@ def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
     # restantes » only when the client actually knows).
     eta_raw = getattr(t, "eta", None)
     eta_seconds: int | None = int(eta_raw) if isinstance(eta_raw, (int, float)) and 0 <= eta_raw < 8640000 else None
+    # seeding_time: seconds really seeded; a negative or non-numeric value is an
+    # honest None, never a guess.
+    seeding_time_raw = getattr(t, "seeding_time", None)
+    seeding_time_s: int | None = (
+        int(seeding_time_raw)
+        if isinstance(seeding_time_raw, (int, float))
+        and not isinstance(seeding_time_raw, bool)
+        and seeding_time_raw >= 0
+        else None
+    )
     return TorrentItem(
         hash=t.hash,
         name=t.name,
@@ -830,6 +840,7 @@ def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
         error_reason=error_reason,
         swarm_seeds=swarm_seeds,
         eta_seconds=eta_seconds,
+        seeding_time_s=seeding_time_s,
     )
 
 
