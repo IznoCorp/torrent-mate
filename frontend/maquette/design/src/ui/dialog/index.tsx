@@ -19,14 +19,10 @@ import {
   type DialogBlock,
   type DialogDescriptor,
 } from "./contract";
-import { Icon } from "../icon";
-import { icons } from "../../app/icons";
 import {
   dialog,
   dialogActions,
   dialogButton,
-  dialogDryRun,
-  dialogDryRunDrawing,
   dialogHeading,
   dialogManifest,
   dialogManifestEntry,
@@ -78,13 +74,6 @@ function Block({ block }: { block: DialogBlock }): ReactElement {
             run.strong ? <b key={at}>{run.text}</b> : <span key={at}>{run.text}</span>,
           )}
         </p>
-      );
-    case "dryRun":
-      return (
-        <div className={dialogDryRun()} data-part="dialog/dry-run">
-          <Icon paths={icons.eye} className={dialogDryRunDrawing()} />
-          {block.text}
-        </div>
       );
     case "manifest":
       return (

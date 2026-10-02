@@ -57,7 +57,7 @@ async def main():
     await pg.wait_for_timeout(400)
     d = await pg.evaluate("""()=>{const g=document.querySelector('#dlg');
       return {open:g.hasAttribute('data-open'), title:(g.querySelector('h1,h2,h3')||{}).textContent,
-              dryrun:!!g.querySelector('[data-part="dialog/dry-run"]'), rows:g.querySelectorAll('[data-part="dialog/manifest"] li').length,
+              rows:g.querySelectorAll('[data-part="dialog/manifest"] li').length,
               choices:[...g.querySelectorAll('[data-part="dialog/button"]')].map(x=>x.textContent.trim())};}""")
     print(" ", d)
     await shot(pg, "inter-delete")

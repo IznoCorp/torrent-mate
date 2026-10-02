@@ -41,7 +41,6 @@ function wordsOf(descriptor: DialogDescriptor): string[] {
     if (block.type === "paragraph") words.push(...block.runs.map((run) => run.text));
     else if (block.type === "manifest") words.push(...block.entries.flatMap((e) => [e.text, e.value]));
     else if (block.type === "warning") words.push(block.strong, block.text);
-    else if (block.type === "dryRun") words.push(block.text);
     else words.push(block.label);
   }
   return words;
@@ -66,7 +65,6 @@ describe("the library's delete flow", () => {
       followed = [...followedNow];
       await openDeleteDialog(title, many ? [...many] : undefined);
       const descriptor = opened[0];
-      expect(descriptor.body.some((block) => block.type === "dryRun")).toBe(false);
       expect(wordsOf(descriptor).filter((w) => /simulation/i.test(w))).toEqual([]);
       for (const action of descriptor.actions.filter((a) => a.run)) {
         said.length = 0;
