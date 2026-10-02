@@ -19,7 +19,6 @@ from pathlib import Path
 
 import json5
 
-from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._ranking import (
     RankingConfig,
@@ -27,6 +26,7 @@ from personalscraper.api.tracker._ranking import (
     ThresholdEntry,
     rank,
 )
+from personalscraper.core.units import ByteSize
 
 # The tuned seeder criterion (mirrors the config.example edit in this phase).
 _SEEDERS = RankingCriterion(

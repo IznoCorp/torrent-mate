@@ -3,8 +3,8 @@
 import pytest
 from pydantic import ValidationError
 
-from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._ranking import ThresholdEntry
+from personalscraper.core.units import ByteSize
 
 
 class TestThresholdEntryAtParsing:

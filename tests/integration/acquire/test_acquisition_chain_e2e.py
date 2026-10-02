@@ -37,7 +37,6 @@ from personalscraper.acquire.events import GrabSucceeded, WantedEnqueued
 from personalscraper.acquire.orchestrator import GrabOrchestrator
 from personalscraper.acquire.service import AcquisitionService
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
-from personalscraper.api._units import ByteSize
 from personalscraper.api.torrent._base import TorrentSource
 from personalscraper.api.torrent._contracts import TorrentAdder
 from personalscraper.api.tracker._base import TrackerResult
@@ -45,6 +44,7 @@ from personalscraper.api.tracker._ranking import RankingConfig
 from personalscraper.conf.models.acquire import AcquireConfig, BandwidthConfig, CadenceConfig
 from personalscraper.core.event_bus import Event, EventBus
 from personalscraper.core.identity import MediaRef
+from personalscraper.core.units import ByteSize
 
 # Pinned clock: 1h after the follow's detect time so the fresh wanted row is DUE
 # in the Hot cadence tier and inside the cutoff (mirrors test_service.py's pin).

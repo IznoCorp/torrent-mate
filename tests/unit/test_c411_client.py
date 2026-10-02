@@ -15,11 +15,11 @@ from unittest.mock import MagicMock
 import pytest
 import xmltodict  # type: ignore[import-untyped]
 
-from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._errors import TrackerAuthError
 from personalscraper.api.tracker.c411 import C411Client
 from personalscraper.api.transport._auth import ApiKeyAuth
+from personalscraper.core.units import ByteSize
 
 _SAMPLES = Path(__file__).resolve().parents[2] / "docs" / "reference" / "_samples" / "c411"
 

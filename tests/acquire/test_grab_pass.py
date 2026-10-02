@@ -251,8 +251,8 @@ def test_success_seeds_the_provenance_with_the_chosen_release_name(
     them in production was not — reverting it left every journey reading
     « Nom de release non enregistré » with a full green suite.
     """
-    from personalscraper.api._units import ByteSize
     from personalscraper.api.tracker._base import TrackerResult
+    from personalscraper.core.units import ByteSize
 
     rowid = _available_item(store, tvdb_id=99, found=5)
     chosen = TrackerResult(
