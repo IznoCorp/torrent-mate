@@ -744,7 +744,7 @@ class TestSearchDecision:
         # a real provider (a stale patch point silently turned these into live API
         # calls — green on a machine with keys, 502 in CI).
         with patch(
-            "personalscraper.web.decisions.search.build_provider_clients",
+            "personalscraper.app.decisions.search.build_provider_clients",
             return_value=_fake_clients(movies=[_sr("tmdb", "550", "Fight Club", 1999, "movie")]),
         ):
             resp = client.post(
@@ -773,7 +773,7 @@ class TestSearchDecision:
         )
 
         with patch(
-            "personalscraper.web.decisions.search.build_provider_clients",
+            "personalscraper.app.decisions.search.build_provider_clients",
             return_value=_fake_clients(shows=[_sr("tvdb", "81189", "Breaking Bad", 2008, "tv")]),
         ):
             resp = client.post(
@@ -1445,7 +1445,7 @@ class TestStagingWritesAllowed:
 
         monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
         with patch(
-            "personalscraper.web.decisions.search.build_provider_clients",
+            "personalscraper.app.decisions.search.build_provider_clients",
             return_value=_fake_clients(movies=[_sr("tmdb", "550", "Test", 2020, "movie")]),
         ):
             resp = client.post(

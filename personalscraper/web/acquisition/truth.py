@@ -4,7 +4,7 @@ One derivation feeds the series card status: the aired catalog (detect-written
 ``aired_episode`` cache) × library ownership (bulk provider-ID query, live
 files only) × the wanted queue × the last search verdict. Every aired episode
 goes through the SAME
-:func:`~personalscraper.web.acquisition.states.derive_episode_state` the cards
+:func:`~personalscraper.app.acquisition.states.derive_episode_state` the cards
 and the completeness panel use — there is no local re-derivation here, only
 counting.
 
@@ -27,8 +27,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import TYPE_CHECKING
 
-from personalscraper.logger import get_logger
-from personalscraper.web.acquisition.states import (
+from personalscraper.app.acquisition.states import (
     NO_WANTED_FACTS,
     EpisodeState,
     derive_episode_state,
@@ -37,6 +36,7 @@ from personalscraper.web.acquisition.states import (
     # the plain selector — no season row can carry a movie's acquisition.
     select_wanted_facts,
 )
+from personalscraper.logger import get_logger
 from personalscraper.web.models.acquisition import MovieFacts
 
 if TYPE_CHECKING:
@@ -89,7 +89,7 @@ def compute_follow_truth(
     """Count each five-state bucket for one followed show.
 
     Every AIRED episode is passed through
-    :func:`~personalscraper.web.acquisition.states.derive_episode_state` with
+    :func:`~personalscraper.app.acquisition.states.derive_episode_state` with
     its own facts — ownership, its open ``wanted`` row (if any) and that row's
     last search verdict — and the result is tallied. No state is inferred here.
 
@@ -104,7 +104,7 @@ def compute_follow_truth(
 
     Which row supplies those facts is NOT decided here: every row of the follow
     is handed to
-    :func:`~personalscraper.web.acquisition.states.select_wanted_facts`, the
+    :func:`~personalscraper.app.acquisition.states.select_wanted_facts`, the
     same selector the completeness panel calls (open rows only, latest wins).
     A ``done`` or ``abandoned`` row is not an ongoing acquisition, so its
     episode derives from « no row » facts (``unverified`` when the library does
@@ -235,12 +235,12 @@ def compute_movie_truth(
     instead of per-state counts it yields the raw facts that unit is made of:
     library ownership (real disk presence by provider ID) plus its ``wanted``
     row's status and last search verdict. The card then runs the SAME
-    :func:`~personalscraper.web.acquisition.states.derive_episode_state` a
+    :func:`~personalscraper.app.acquisition.states.derive_episode_state` a
     series episode runs, so ownership still beats a phantom ``grabbed`` row and
     a film nobody ever searched reads ``unverified`` instead of « À jour ».
 
     Row selection is delegated to
-    :func:`~personalscraper.web.acquisition.states.select_wanted_facts` — the
+    :func:`~personalscraper.app.acquisition.states.select_wanted_facts` — the
     SAME selector the episode matrix uses (D3). Only OPEN rows speak (the
     statuses of :data:`~personalscraper.acquire.domain.OPEN_WANTED_STATUSES`),
     highest id first; no open row yields the never-searched facts.

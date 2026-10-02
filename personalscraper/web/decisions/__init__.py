@@ -1,1 +1,1 @@
-"""Web decision helpers — the provider candidate search behind the resolve routes."""
+"""Web decision package (the provider candidate search lives in the application layer)."""

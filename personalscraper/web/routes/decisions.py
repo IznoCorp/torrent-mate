@@ -31,12 +31,12 @@ from typing import Literal, cast
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from personalscraper.app.decisions.reserve import _reserve_decision_run
+from personalscraper.app.decisions.search import ProviderSearchError, search_candidates
 from personalscraper.core.sqlite._pragmas import apply_pragmas as _apply_pragmas
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
 from personalscraper.scraper.decision_candidate import DecisionCandidate
 from personalscraper.scraper.decision_writer import DecisionWriteError, DecisionWriter
-from personalscraper.web.decisions.search import ProviderSearchError, search_candidates
 from personalscraper.web.deps import (
     is_staging_role,
     require_x_requested_with,

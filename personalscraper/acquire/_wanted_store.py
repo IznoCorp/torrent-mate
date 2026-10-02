@@ -906,7 +906,7 @@ class _WantedSubStore:
         Read-model support: a per-episode reader needs all the rows of a follow
         in ONE query (rather than one lookup per episode) AND it needs the
         closed rows too, because the « which row governs » rule is applied by
-        the caller — :func:`~personalscraper.web.acquisition.states.select_wanted_facts`
+        the caller — :func:`~personalscraper.app.acquisition.states.select_wanted_facts`
         — not by a WHERE clause that each caller would have to re-invent.
 
         Args:

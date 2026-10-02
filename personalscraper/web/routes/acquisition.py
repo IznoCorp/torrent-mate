@@ -45,6 +45,7 @@ from personalscraper.acquire.domain import FollowedSeries
 from personalscraper.acquire.metadata_enrich import FollowMetadata, enrich_follow_metadata
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.app.acquisition.runner import parse_prime_options
+from personalscraper.app.acquisition.states import WantedFacts, substitute_absorbed_facts
 from personalscraper.core.identity import MediaRef
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
@@ -68,7 +69,6 @@ from personalscraper.web.acquisition.service import (
     run_media_search,
     scoped_provider_clients,
 )
-from personalscraper.web.acquisition.states import WantedFacts, substitute_absorbed_facts
 from personalscraper.web.deps import require_x_requested_with
 from personalscraper.web.models.acquisition import (
     AcquisitionDownloadsResponse,

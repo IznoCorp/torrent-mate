@@ -423,7 +423,7 @@ def test_movie_selection_matches_the_episode_selector(acquire_conn: sqlite3.Conn
     Same rows in, same governing facts out — the property D3 buys: one rule
     everywhere, so the two surfaces can no longer disagree.
     """
-    from personalscraper.web.acquisition.states import select_wanted_facts
+    from personalscraper.app.acquisition.states import select_wanted_facts
 
     _seed_movie_follow(acquire_conn)
     _seed_movie_wanted(acquire_conn, "abandoned", outcome="no_candidates", found=0)

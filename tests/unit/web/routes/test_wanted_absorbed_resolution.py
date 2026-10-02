@@ -8,7 +8,7 @@ literal prohibition of §13 (« un état qui *pointe* vers autre chose doit suiv
 pointeur, jamais le rapporter tel quel »).
 
 The rule itself lives in
-:func:`personalscraper.web.acquisition.states.substitute_absorbed_facts`; these tests
+:func:`personalscraper.app.acquisition.states.substitute_absorbed_facts`; these tests
 pin that the ROUTE applies it, and that a pointer it cannot follow keeps ``absorbed``
 rather than being downgraded into a different lie.
 """

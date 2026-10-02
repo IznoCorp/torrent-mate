@@ -171,13 +171,13 @@ def _list_deferred_torrents(config: Any) -> list[DeferredTorrent]:
     Returns:
         One :class:`DeferredTorrent` per deferred hash (possibly empty).
     """
+    from personalscraper.app.torrent_session import shared_torrent_client  # noqa: PLC0415
     from personalscraper.core.tags import SEED_PURE  # noqa: PLC0415
     from personalscraper.ingest.deferral import (  # noqa: PLC0415
         classify_deferrals,
         deferral_probe_dirs,
     )
     from personalscraper.ingest.tracker import IngestTracker  # noqa: PLC0415
-    from personalscraper.web.torrent_session import shared_torrent_client  # noqa: PLC0415
 
     try:
         # Shared cached session — one login per web process (see torrent_session).
@@ -354,11 +354,11 @@ def run_media_search(
         HTTPException: 502 on provider API failure.
     """
     from personalscraper.api.metadata._base import SearchResult
+    from personalscraper.app.acquisition.search_cache import SEARCH_CACHE
     from personalscraper.scraper.search_ranking import (
         gather_tv_candidates,
         rank_search_results,
     )
-    from personalscraper.web.acquisition.search_cache import SEARCH_CACHE
 
     # Paging must not replay the provider sweep. The ranked lot for this exact
     # (query, kind) is cached, so page 2 and beyond cost nothing at the providers

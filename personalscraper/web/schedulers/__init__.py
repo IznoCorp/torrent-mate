@@ -1,1 +1,1 @@
-"""Static scheduler registry for the Dashboard scheduler overview (webui-ux P5)."""
+"""Web scheduler overview package (the static registry lives in the application layer)."""

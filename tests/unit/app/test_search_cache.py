@@ -15,8 +15,8 @@ from __future__ import annotations
 import pytest
 
 from personalscraper.api.metadata._base import SearchResult
+from personalscraper.app.acquisition.search_cache import SearchResultCache
 from personalscraper.scraper.search_ranking import RankedResult
-from personalscraper.web.acquisition.search_cache import SearchResultCache
 
 
 def _row(provider_id: str, title: str = "X") -> RankedResult:

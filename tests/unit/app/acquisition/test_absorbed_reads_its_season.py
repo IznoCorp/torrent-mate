@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import pytest
 
-from personalscraper.web.acquisition.states import (
+from personalscraper.app.acquisition.states import (
     derive_episode_state,
     select_wanted_facts,
     substitute_absorbed_facts,
@@ -120,7 +120,7 @@ class TestGoverningFactsByEpisodeIsTheSingleSeam:
 
     def test_groups_selects_and_resolves_in_one_call(self) -> None:
         """Episode rows + season rows in, authoritative facts per episode out."""
-        from personalscraper.web.acquisition.states import governing_facts_by_episode
+        from personalscraper.app.acquisition.states import governing_facts_by_episode
 
         episode_rows = [
             # (id, season, episode, status, outcome, found, absorbed_by)
@@ -138,7 +138,7 @@ class TestGoverningFactsByEpisodeIsTheSingleSeam:
 
     def test_latest_open_row_still_wins_per_episode(self) -> None:
         """The « highest id among admitted rows » rule survives the refactor."""
-        from personalscraper.web.acquisition.states import governing_facts_by_episode
+        from personalscraper.app.acquisition.states import governing_facts_by_episode
 
         episode_rows = [
             (1, 15, 21, "absorbed", None, None, 88),
@@ -152,6 +152,6 @@ class TestGoverningFactsByEpisodeIsTheSingleSeam:
 
     def test_episode_with_no_row_is_absent(self) -> None:
         """No row ⇒ no entry; the caller degrades to « jamais cherché » itself."""
-        from personalscraper.web.acquisition.states import governing_facts_by_episode
+        from personalscraper.app.acquisition.states import governing_facts_by_episode
 
         assert governing_facts_by_episode([], []) == {}

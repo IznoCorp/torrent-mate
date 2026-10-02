@@ -189,8 +189,8 @@ def governing_facts_by_episode(
 
     The single answer to « which ``wanted`` row speaks for this episode ». Every
     acquisition surface calls THIS: the card counts
-    (:mod:`~personalscraper.web.acquisition.truth`) and the per-season matrix
-    (:mod:`~personalscraper.web.acquisition.completeness`). They legitimately
+    (the web ``acquisition/truth`` module) and the per-season matrix
+    (the web ``acquisition/completeness`` module). They legitimately
     differ in how they READ their rows (one holds the store, the other a raw
     connection), but the RULE lives here once — two implementations of it is how
     the card and the matrix come to disagree about the same episode.
