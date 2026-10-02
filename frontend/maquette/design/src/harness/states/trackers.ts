@@ -27,7 +27,9 @@ const PAGE_READS: [string, string][] = [
  *
  * @param outcome Held back, or answered with a failure.
  */
-function poseReads(outcome: { latencyMilliseconds: number } | { status: number }): void {
+function poseReads(
+  outcome: { latencyMilliseconds: number } | { status: number },
+): void {
   window.__mocks?.reset();
   dropReads();
   for (const [operation, address] of PAGE_READS) {
@@ -42,6 +44,8 @@ const SEASON_ENTRY = "e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb";
 const NO_ARTWORK_ENTRY = "0ff265e478d97d9eae4d1cabd13748e23b9e6cba";
 const DOWNLOADING_ENTRY = "c44e8cd75bec37a8337175c6580e85d4e2079da3";
 const CROSS_SEED = "7c1e0b2f95c438b7db4f7c855bd451d8bb1f0046";
+// Ted Lasso's entry, the one a removal by hand is posed on.
+const EXTERNAL_ENTRY = "e1af6819d9e3159e0aa191b534b6a66af4344788";
 // The longest release name `acquire.db` holds (132 characters), a real name.
 const LONG_NAME =
   "Stuart.Fails.to.Save.the.Universe.S01E07.Spoiler.Dexys.Midnight.Runners.Get.a.Royalty.Payment.MULTi.1080p.WEB.SDR.EAC3.5.1.x265-BYOR";
@@ -106,7 +110,10 @@ const SWIPE_TRAVEL = 160;
  * @param infoHash The entry.
  * @param fields What the entry is given, beyond its seed.
  */
-function oneCard(infoHash: string, fields: Parameters<NonNullable<typeof window.__mocks>["poseEntry"]>[1]): void {
+function oneCard(
+  infoHash: string,
+  fields: Parameters<NonNullable<typeof window.__mocks>["poseEntry"]>[1],
+): void {
   window.__mocks?.reset();
   dropReads();
   window.__mocks?.poseEntry(infoHash, fields);
@@ -126,7 +133,8 @@ function openTorrentPanel(infoHash: string, tracker: string): void {
 
 /** The page's reads, forgotten: the next render asks again and reads what is posed. */
 function dropReads(): void {
-  for (const [, address] of PAGE_READS) window.__queries?.removeQueries({ queryKey: [address] });
+  for (const [, address] of PAGE_READS)
+    window.__queries?.removeQueries({ queryKey: [address] });
   // AND THE SETTINGS the switch writes, which a state before may have moved.
   window.__queries?.removeQueries({ queryKey: [SETTINGS_ADDRESS] });
 }
@@ -134,12 +142,22 @@ function dropReads(): void {
 /** Drags the first card left by a finger's travel, once drawn, so its right drawer rests open. */
 function swipeFirstCardOpen(): void {
   owed(() => {
-    const card = document.querySelector<HTMLElement>('#view [data-part="torrents/row"] [data-part="card"]');
+    const card = document.querySelector<HTMLElement>(
+      '#view [data-part="torrents/row"] [data-part="card"]',
+    );
     if (card === null) return;
     const box = card.getBoundingClientRect();
     const y = box.top + box.height / 2;
     const at = (type: string, x: number) =>
-      card.dispatchEvent(new PointerEvent(type, { bubbles: true, isPrimary: true, clientX: x, clientY: y, pointerId: 1 }));
+      card.dispatchEvent(
+        new PointerEvent(type, {
+          bubbles: true,
+          isPrimary: true,
+          clientX: x,
+          clientY: y,
+          pointerId: 1,
+        }),
+      );
     at("pointerdown", box.right - 20);
     at("pointermove", box.right - 40);
     at("pointermove", box.right - 20 - SWIPE_TRAVEL);
@@ -168,8 +186,14 @@ function oneTracker(tracker: string): void {
  */
 function turnSwitch(tracker: string, save: boolean): void {
   owed(() => {
-    document.querySelector<HTMLElement>(`#view [data-tracker-switch="${tracker}"]`)?.click();
-    if (save) owed(() => document.querySelector<HTMLElement>("[data-save]")?.click(), OPEN_AFTER);
+    document
+      .querySelector<HTMLElement>(`#view [data-tracker-switch="${tracker}"]`)
+      ?.click();
+    if (save)
+      owed(
+        () => document.querySelector<HTMLElement>("[data-save]")?.click(),
+        OPEN_AFTER,
+      );
   }, OPEN_AFTER);
 }
 
@@ -177,8 +201,12 @@ function turnSwitch(tracker: string, save: boolean): void {
 function poseTwoBrokenObligations(): void {
   window.__mocks?.reset();
   dropReads();
-  window.__mocks?.poseBrokenObligation("0ff265e478d97d9eae4d1cabd13748e23b9e6cba");
-  window.__mocks?.poseBrokenObligation("e1af6819d9e3159e0aa191b534b6a66af4344788");
+  window.__mocks?.poseBrokenObligation(
+    "0ff265e478d97d9eae4d1cabd13748e23b9e6cba",
+  );
+  window.__mocks?.poseBrokenObligation(
+    "e1af6819d9e3159e0aa191b534b6a66af4344788",
+  );
 }
 
 export function trackersStates(): NamedState[] {
@@ -199,7 +227,11 @@ export function trackersStates(): NamedState[] {
         } catch {
           // Storage refused: the state still lands on the tab it names.
         }
-        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "trackers",
+          phase: "ready",
+        });
       },
     ],
     [
@@ -208,7 +240,12 @@ export function trackersStates(): NamedState[] {
       () => {
         window.__mocks?.reset();
         dropReads();
-        applyState({ page: "trackers", trackersTab: "trackers", trackersFilter: "c411", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "trackers",
+          trackersFilter: "c411",
+          phase: "ready",
+        });
       },
     ],
     [
@@ -217,7 +254,12 @@ export function trackersStates(): NamedState[] {
       () => {
         window.__mocks?.reset();
         dropReads();
-        applyState({ page: "trackers", trackersTab: "torrents", trackersFilter: "", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "torrents",
+          trackersFilter: "",
+          phase: "ready",
+        });
       },
     ],
     [
@@ -226,7 +268,12 @@ export function trackersStates(): NamedState[] {
       () => {
         window.__mocks?.reset();
         dropReads();
-        applyState({ page: "trackers", trackersTab: "torrents", trackersFilter: "", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "torrents",
+          trackersFilter: "",
+          phase: "ready",
+        });
         owed(() => window.__panel.produce("trackers-selector"), OPEN_AFTER);
       },
     ],
@@ -237,10 +284,18 @@ export function trackersStates(): NamedState[] {
         window.__mocks?.reset();
         dropReads();
         window.__mocks?.setObligationSatisfied(SEASON_ENTRY);
-        window.__mocks?.setObligationBreached("8d51568b1a4f46e1fb7e7b535b52a5203312fc28");
-        window.__mocks?.poseEntry("e1af6819d9e3159e0aa191b534b6a66af4344788", { state: "paused" });
+        window.__mocks?.setObligationBreached(
+          "8d51568b1a4f46e1fb7e7b535b52a5203312fc28",
+        );
+        window.__mocks?.poseEntry("e1af6819d9e3159e0aa191b534b6a66af4344788", {
+          state: "paused",
+        });
         window.__mocks?.poseEntry(NO_ARTWORK_ENTRY, { state: "stalled" });
-        applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "torrents",
+          phase: "ready",
+        });
       },
     ],
     [
@@ -249,7 +304,12 @@ export function trackersStates(): NamedState[] {
       () => {
         window.__mocks?.reset();
         dropReads();
-        applyState({ page: "trackers", trackersTab: "torrents", trackersFilter: "tr4ker", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "torrents",
+          trackersFilter: "tr4ker",
+          phase: "ready",
+        });
       },
     ],
     [
@@ -257,7 +317,11 @@ export function trackersStates(): NamedState[] {
       "Trackers — la page, ses lectures en cours",
       () => {
         poseReads({ latencyMilliseconds: HELD_BACK });
-        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "trackers",
+          phase: "ready",
+        });
       },
     ],
     [
@@ -265,7 +329,11 @@ export function trackersStates(): NamedState[] {
       "Trackers — la page, ses lectures en échec",
       () => {
         poseReads({ status: 500 });
-        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "trackers",
+          phase: "ready",
+        });
       },
     ],
     [
@@ -274,7 +342,11 @@ export function trackersStates(): NamedState[] {
       () => {
         window.__mocks?.reset();
         dropReads();
-        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "trackers",
+          phase: "ready",
+        });
       },
     ],
     [
@@ -284,7 +356,11 @@ export function trackersStates(): NamedState[] {
         window.__mocks?.reset();
         dropReads();
         window.__mocks?.setTrackersEmpty(true);
-        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "trackers",
+          phase: "ready",
+        });
       },
     ],
     [
@@ -293,7 +369,11 @@ export function trackersStates(): NamedState[] {
       () => {
         window.__mocks?.reset();
         dropReads();
-        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "trackers",
+          phase: "ready",
+        });
         owed(() => window.__panel.produce("tracker", "c411"), OPEN_AFTER);
       },
     ],
@@ -303,7 +383,11 @@ export function trackersStates(): NamedState[] {
       () => {
         window.__mocks?.reset();
         dropReads();
-        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "trackers",
+          phase: "ready",
+        });
         owed(() => window.__panel.produce("tracker", "tr4ker"), OPEN_AFTER);
       },
     ],
@@ -348,7 +432,9 @@ export function trackersStates(): NamedState[] {
       "Trackers — l'enregistrement de l'interrupteur échoue : dit sous la ligne, la modification toujours en attente",
       () => {
         oneTracker("draupnirr.xyz");
-        window.__mocks?.setOperationOutcome("updateConfigurationFile", { status: 500 });
+        window.__mocks?.setOperationOutcome("updateConfigurationFile", {
+          status: 500,
+        });
         turnSwitch("draupnirr.xyz", true);
       },
     ],
@@ -364,7 +450,11 @@ export function trackersStates(): NamedState[] {
         poseTwoBrokenObligations();
         window.__mocks?.poseAlertThreshold("c411", 1.5);
         dropReads();
-        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "trackers",
+          phase: "ready",
+        });
       },
     ],
     [
@@ -373,7 +463,11 @@ export function trackersStates(): NamedState[] {
       () => {
         window.__mocks?.reset();
         dropReads();
-        applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "torrents",
+          phase: "ready",
+        });
       },
     ],
     [
@@ -382,7 +476,12 @@ export function trackersStates(): NamedState[] {
       () => {
         window.__mocks?.reset();
         dropReads();
-        applyState({ page: "trackers", trackersTab: "torrents", trackersFilter: "c411", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "torrents",
+          trackersFilter: "c411",
+          phase: "ready",
+        });
       },
     ],
     [
@@ -392,7 +491,11 @@ export function trackersStates(): NamedState[] {
         window.__mocks?.reset();
         dropReads();
         window.__mocks?.setDownloadsEmpty(true);
-        applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "torrents",
+          phase: "ready",
+        });
       },
     ],
     [
@@ -402,7 +505,12 @@ export function trackersStates(): NamedState[] {
         window.__mocks?.reset();
         dropReads();
         window.__mocks?.setTrackerIdle("tr4ker");
-        applyState({ page: "trackers", trackersTab: "torrents", trackersFilter: "tr4ker", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "torrents",
+          trackersFilter: "tr4ker",
+          phase: "ready",
+        });
       },
     ],
     [
@@ -415,7 +523,11 @@ export function trackersStates(): NamedState[] {
       "Torrents — les lectures en cours",
       () => {
         poseReads({ latencyMilliseconds: HELD_BACK });
-        applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "torrents",
+          phase: "ready",
+        });
       },
     ],
     [
@@ -423,7 +535,11 @@ export function trackersStates(): NamedState[] {
       "Torrents — les lectures en échec",
       () => {
         poseReads({ status: 500 });
-        applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "torrents",
+          phase: "ready",
+        });
       },
     ],
     [
@@ -444,7 +560,12 @@ export function trackersStates(): NamedState[] {
     [
       "torrent-card-no-popularity",
       "Torrents — le client ne dit pas les sources (chiffres COMPOSÉS, sources nulles) : « Sources inconnues », jamais 0",
-      () => oneCard(SEEDING_ENTRY, { ...FIGURES, swarmSeeds: null, swarmLeechers: null }),
+      () =>
+        oneCard(SEEDING_ENTRY, {
+          ...FIGURES,
+          swarmSeeds: null,
+          swarmLeechers: null,
+        }),
     ],
     [
       "torrent-card-downloading",
@@ -469,7 +590,11 @@ export function trackersStates(): NamedState[] {
     [
       "torrent-card-errored",
       "Torrents — une entrée en erreur et sa raison, POSÉES sur President Curtis",
-      () => oneCard(SEEDING_ENTRY, { state: "errored", errorReason: "No space left on device" }),
+      () =>
+        oneCard(SEEDING_ENTRY, {
+          state: "errored",
+          errorReason: "No space left on device",
+        }),
     ],
     [
       "torrent-card-missing",
@@ -505,7 +630,11 @@ export function trackersStates(): NamedState[] {
       "torrent-panel",
       "Torrents — le panneau d'une entrée liée, la saison 22 d'American Dad! (chiffres COMPOSÉS)",
       () => {
-        oneCard(SEASON_ENTRY, { ...FIGURES, downloadedBytes: 9040170236, uploadedBytes: 11842622909 });
+        oneCard(SEASON_ENTRY, {
+          ...FIGURES,
+          downloadedBytes: 9040170236,
+          uploadedBytes: 11842622909,
+        });
         openTorrentPanel(SEASON_ENTRY, "c411");
       },
     ],
@@ -547,7 +676,11 @@ export function trackersStates(): NamedState[] {
       () => {
         window.__mocks?.reset();
         dropReads();
-        applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "torrents",
+          phase: "ready",
+        });
         swipeFirstCardOpen();
       },
     ],
@@ -557,8 +690,14 @@ export function trackersStates(): NamedState[] {
       () => {
         window.__mocks?.reset();
         dropReads();
-        window.__mocks?.setObligationSatisfied("e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb");
-        applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+        window.__mocks?.setObligationSatisfied(
+          "e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb",
+        );
+        applyState({
+          page: "trackers",
+          trackersTab: "torrents",
+          phase: "ready",
+        });
       },
     ],
     [
@@ -567,8 +706,14 @@ export function trackersStates(): NamedState[] {
       () => {
         window.__mocks?.reset();
         dropReads();
-        window.__mocks?.setObligationSatisfied("e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb");
-        applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+        window.__mocks?.setObligationSatisfied(
+          "e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb",
+        );
+        applyState({
+          page: "trackers",
+          trackersTab: "torrents",
+          phase: "ready",
+        });
         openRemoveConfirm("e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb", "c411");
       },
     ],
@@ -578,7 +723,11 @@ export function trackersStates(): NamedState[] {
       () => {
         window.__mocks?.reset();
         dropReads();
-        applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "torrents",
+          phase: "ready",
+        });
         openRemoveConfirm("66e23ab395c438b7db4f7c855bd451d8bb1f0046", "c411");
       },
     ],
@@ -588,7 +737,11 @@ export function trackersStates(): NamedState[] {
       () => {
         window.__mocks?.reset();
         dropReads();
-        applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "torrents",
+          phase: "ready",
+        });
         openRemoveConfirm("7c1e0b2f95c438b7db4f7c855bd451d8bb1f0046", "tr4ker");
       },
     ],
@@ -600,8 +753,77 @@ export function trackersStates(): NamedState[] {
         // a removal by hand is posed on a real entry.
         window.__mocks?.reset();
         dropReads();
-        window.__mocks?.poseExternalRemoval("e1af6819d9e3159e0aa191b534b6a66af4344788");
-        applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+        window.__mocks?.poseExternalRemoval(
+          "e1af6819d9e3159e0aa191b534b6a66af4344788",
+        );
+        applyState({
+          page: "trackers",
+          trackersTab: "torrents",
+          phase: "ready",
+        });
+      },
+    ],
+    [
+      "torrent-panel-obligation-met-time",
+      "Torrents — le panneau d'une obligation terminée par son temps de seed, POSÉE sur American Dad! : le message in-app « Obligation terminée » et ses 72 h",
+      () => {
+        oneCard(SEASON_ENTRY, {});
+        window.__mocks?.setObligationSatisfied(SEASON_ENTRY);
+        openTorrentPanel(SEASON_ENTRY, "c411");
+      },
+    ],
+    [
+      "torrent-panel-obligation-met-ratio",
+      "Torrents — le panneau d'une obligation terminée par son ratio (1,10 = minimum + marge), POSÉE sur American Dad!",
+      () => {
+        oneCard(SEASON_ENTRY, {});
+        window.__mocks?.poseObligationMetByRatio(SEASON_ENTRY);
+        openTorrentPanel(SEASON_ENTRY, "c411");
+      },
+    ],
+    [
+      "torrent-panel-obligation-released-here",
+      "Torrents — le panneau d'un torrent retiré depuis TorrentMate avant la fin de son obligation, POSÉ sur President Curtis : parti, « Obligation libérée »",
+      () => {
+        window.__mocks?.reset();
+        dropReads();
+        window.__mocks?.poseRemovedHere(SEEDING_ENTRY, false);
+        applyState({
+          page: "trackers",
+          trackersTab: "torrents",
+          phase: "ready",
+        });
+        openTorrentPanel(SEEDING_ENTRY, "c411");
+      },
+    ],
+    [
+      "torrent-panel-obligation-released-after-met",
+      "Torrents — le panneau d'un torrent retiré depuis TorrentMate, son obligation déjà terminée, POSÉ sur President Curtis",
+      () => {
+        window.__mocks?.reset();
+        dropReads();
+        window.__mocks?.poseRemovedHere(SEEDING_ENTRY, true);
+        applyState({
+          page: "trackers",
+          trackersTab: "torrents",
+          phase: "ready",
+        });
+        openTorrentPanel(SEEDING_ENTRY, "c411");
+      },
+    ],
+    [
+      "torrent-panel-obligation-released-by-hand",
+      "Torrents — le panneau d'un torrent retiré À LA MAIN dans qBittorrent, POSÉ sur Ted Lasso : parti, « Obligation libérée » hors de TorrentMate",
+      () => {
+        window.__mocks?.reset();
+        dropReads();
+        window.__mocks?.poseExternalRemoval(EXTERNAL_ENTRY);
+        applyState({
+          page: "trackers",
+          trackersTab: "torrents",
+          phase: "ready",
+        });
+        openTorrentPanel(EXTERNAL_ENTRY, "c411");
       },
     ],
     [
@@ -611,7 +833,11 @@ export function trackersStates(): NamedState[] {
         window.__mocks?.reset();
         dropReads();
         window.__mocks?.poseAlertThreshold("c411", 1.5);
-        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "trackers",
+          phase: "ready",
+        });
       },
     ],
     [
@@ -622,7 +848,11 @@ export function trackersStates(): NamedState[] {
         window.__mocks?.reset();
         dropReads();
         window.__mocks?.poseIdentifierRefused("tr4ker");
-        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "trackers",
+          phase: "ready",
+        });
       },
     ],
     [
@@ -632,8 +862,14 @@ export function trackersStates(): NamedState[] {
         // A DERIVATION, SHOWN AS ONE: no real obligation has been broken.
         window.__mocks?.reset();
         dropReads();
-        window.__mocks?.setObligationBreached("8d51568b1a4f46e1fb7e7b535b52a5203312fc28");
-        applyState({ page: "trackers", trackersTab: "torrents", phase: "ready" });
+        window.__mocks?.setObligationBreached(
+          "8d51568b1a4f46e1fb7e7b535b52a5203312fc28",
+        );
+        applyState({
+          page: "trackers",
+          trackersTab: "torrents",
+          phase: "ready",
+        });
       },
     ],
     [
@@ -642,7 +878,11 @@ export function trackersStates(): NamedState[] {
       () => {
         // A DERIVATION, SHOWN AS ONE: no real obligation has been broken.
         poseTwoBrokenObligations();
-        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "trackers",
+          phase: "ready",
+        });
       },
     ],
     [
@@ -650,10 +890,16 @@ export function trackersStates(): NamedState[] {
       "Trackers — le panneau de c411 et ses obligations rompues, chacune avec « Vu »",
       () => {
         poseTwoBrokenObligations();
-        applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
+        applyState({
+          page: "trackers",
+          trackersTab: "trackers",
+          phase: "ready",
+        });
         // THE ROW OPENED THE WAY A FINGER OPENS IT, once drawn: its panel lists them.
         owed(() => {
-          document.querySelector<HTMLElement>('#view [data-tracker-open="c411"]')?.click();
+          document
+            .querySelector<HTMLElement>('#view [data-tracker-open="c411"]')
+            ?.click();
         }, OPEN_AFTER);
       },
     ],

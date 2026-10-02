@@ -127,7 +127,10 @@ export function trackerRoutes(): MockRoute[] {
       held.downloads = held.downloads.filter((entry) => !leaving.has(entry.infoHash));
       const now = Math.floor(Date.now() / MILLISECONDS_PER_SECOND);
       for (const obligation of held.obligations) {
-        if (leaving.has(obligation.infoHash) && obligation.releasedAt === null) obligation.releasedAt = now;
+        // RELEASED HERE: the in-app message says the torrent left by this gesture.
+        if (leaving.has(obligation.infoHash) && obligation.releasedAt === null) {
+          Object.assign(obligation, { releasedAt: now, releasedBy: "removedHere" });
+        }
       }
       return { removed };
     }),

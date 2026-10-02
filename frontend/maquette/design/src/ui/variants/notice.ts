@@ -24,6 +24,10 @@ export const surfaceError = cva(
           "[background:color-mix(in_oklab,var(--color-warning)_8%,transparent)] [&_b]:text-warning-text",
         info: "[border:1px_solid_color-mix(in_oklab,var(--color-info)_45%,transparent)] " +
           "[background:color-mix(in_oklab,var(--color-info)_8%,transparent)] [&_b]:text-info-text",
+        // AN OUTCOME THAT IS GOOD NEWS — an obligation met: neither a fault nor a mere
+        // information, and drawn in the palette's own success tone, text token included.
+        success: "[border:1px_solid_color-mix(in_oklab,var(--color-success)_45%,transparent)] " +
+          "[background:color-mix(in_oklab,var(--color-success)_8%,transparent)] [&_b]:text-success-text",
       },
     },
     defaultVariants: { tone: "danger" },

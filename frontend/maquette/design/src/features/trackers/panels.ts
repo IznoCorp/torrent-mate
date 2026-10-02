@@ -8,4 +8,7 @@
 // imported by `verbs.ts` — one level further than the boot's reach follows, so
 // R56 read it as never imported. A feature's own panel index is where a block
 // module belongs, the same mechanism the other features' index files use.
+// The obligation's outcome block (`obligationOutcome`) is reached the same
+// way, so it is gathered here too.
 import "./panel-cross-seed";
+import "./panel-obligation-outcome";

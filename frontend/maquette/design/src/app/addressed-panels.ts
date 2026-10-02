@@ -68,7 +68,9 @@ const REOPEN: Readonly<Record<string, Opener | undefined>> = {
        key, « Silo|S03E07 », whose title is before the separator. */
     resolves: (subject) =>
       heldMedium(subject.split("|")[0]) ||
-      (queueLists?.().inFlight ?? []).some((entry) => acquisitionKey(entry) === subject),
+      (queueLists?.().inFlight ?? []).some(
+        (entry) => acquisitionKey(entry) === subject,
+      ),
   },
   setting: {
     /* The feature produces the panel and answers whether it holds the subject. */
@@ -80,6 +82,12 @@ const REOPEN: Readonly<Record<string, Opener | undefined>> = {
        whether it HOLDS the subject. */
     open: (subject) => panel.produce("action", subject),
     resolves: (subject) => panel.holds("action", subject),
+  },
+  torrent: {
+    /* A torrent on its tracker, `<hash>:<tracker>` — where the push of an
+       obligation met or released lands. Both halves are the feature's. */
+    open: (subject) => panel.produce("torrent", subject),
+    resolves: (subject) => panel.holds("torrent", subject),
   },
 };
 
@@ -123,7 +131,13 @@ export function reopenAddressedPanel(
      subject nobody holds. A caller that can wait asks for `waiting`, and gets
      « not yet » instead of a refusal that warns and cleans the address it was
      about to retry from. */
-  if (waiting && !asked.notFound && subject && entry && !entry.resolves(subject)) {
+  if (
+    waiting &&
+    !asked.notFound &&
+    subject &&
+    entry &&
+    !entry.resolves(subject)
+  ) {
     return "not yet";
   }
   if (asked.notFound || !subject || !entry || !entry.resolves(subject)) {
