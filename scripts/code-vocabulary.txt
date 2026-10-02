@@ -518,7 +518,9 @@ fnv
 focus
 focusable
 focused
+folded
 folder
+folders
 follow
 followed
 following
@@ -767,6 +769,7 @@ manager
 manifest
 manque
 manual
+many
 map
 maquette
 margin
