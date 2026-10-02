@@ -81,7 +81,6 @@ CREATE TABLE IF NOT EXISTS seed_obligation (
     satisfied_at     INTEGER,
     breached_at      INTEGER,
     released_at      INTEGER,
-    absent_since     INTEGER,
     CHECK (min_seed_time_s >= 0 AND min_ratio >= 0)
 );
 
