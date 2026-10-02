@@ -84,6 +84,9 @@ export function FollowsFilters({ shown }: { shown: number }): ReactElement {
           // the field in the document. Typing did nothing until some other
           // control forced a second render.
           type="search"
+          // A SEARCH IS NOT A SENTENCE (B-690): no capital, no correction of a title.
+          autoCapitalize="off"
+          autoCorrect="off"
           id="follq"
           defaultValue={state.filter as string}
           placeholder={t("screens.acquisition.filterPlaceholder")}

@@ -78,6 +78,22 @@ export function AddScreen() {
   const identify = mode === "identify";
   const query = q ?? "";
   const hasQuery = query !== "";
+  // WHAT THE FIELD HOLDS IS THIS COMPONENT'S, written in the keystroke's own
+  // event (B-690). The address is written too, but the router answers a task
+  // later, and a controlled `<input>` whose state did not move in its event is
+  // put BACK by React to the value it rendered: every keystroke rewrote the
+  // field to the text before it, then to the new one. On an iPhone the first
+  // letter came back to an empty field and iOS re-armed its capital — « star »
+  // came out « STar ». Held here, the field never differs from what was typed,
+  // so React writes nothing into it. An address that changes from ELSEWHERE (a
+  // suggestion, a driven state) still reaches it: the text follows the query
+  // whenever the query moves to a value this field did not type.
+  const [typed, setTyped] = useState(query);
+  const [heard, setHeard] = useState(query);
+  if (query !== heard) {
+    setHeard(query);
+    if (query !== typed) setTyped(query);
+  }
 
   // A FRESH VISIT PER OPENING, begun before the first row is drawn (B-340). What
   // it adds is recorded by the add verbs, which announce it with `store.touch()`
@@ -222,11 +238,15 @@ export function AddScreen() {
             <input
               className={searchInput()}
               type="search"
+              // A SEARCH IS NOT A SENTENCE (B-690): no capital, no correction of a title.
+              autoCapitalize="off"
+              autoCorrect="off"
               id="addq"
-              value={query}
+              value={typed}
               placeholder={t("screens.add.searchPlaceholder")}
               aria-label={t("screens.add.searchAria")}
-              onChange={(event) =>
+              onChange={(event) => {
+                setTyped(event.target.value);
                 go({
                   to: "/add",
                   search: {
@@ -234,8 +254,8 @@ export function AddScreen() {
                     mode: identify ? "identify" : undefined,
                   },
                   replace: true,
-                })
-              }
+                });
+              }}
             />
           </div>
           <div className={addRow()}>
@@ -340,6 +360,9 @@ export function AddScreen() {
               <input
                 className={searchInput()}
                 id="byidv"
+                // An identifier is typed as written (B-690).
+                autoCapitalize="off"
+                autoCorrect="off"
                 placeholder={idProv === "IMDB" ? "tt1234567" : "1234"}
                 aria-label={t("screens.add.idAria", { prov: idProv })}
                 value={typedId}
