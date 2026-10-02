@@ -26,7 +26,7 @@ import { Disclosure } from "../../ui/disclosure";
 import { useAcquisitionQueue, useStaging } from "../../lib/queue";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useUiState } from "../../lib/store-access";
-import { body, emptyNote, section as sectionClass } from "../../ui/variants";
+import { body, emptyNote, foldedCards, section as sectionClass } from "../../ui/variants";
 import { Markup, emptyNoteMarkup, sectionInnerMarkup } from "../../ui/markup";
 
 /**
@@ -145,6 +145,7 @@ export function TodoTab(): ReactElement {
             }
           >
             <Markup
+              className={foldedCards()}
               html={setAside
                 .map((card) =>
                   mediumCardMarkup(

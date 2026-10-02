@@ -382,6 +382,16 @@ input[type="search"]::-webkit-search-decoration {
   padding-bottom: calc(var(--tm-bottom-bar-h, 0px) + var(--spacing-8));
 }
 
+/* THE FLOATING « + » FLOATS OVER THE PAGE, so the page scrolls clear of it: while the
+   button is shown, the scroller's bottom padding (`#port`, `index.html`) gains the
+   button's own box, its offset above the bar and the catalogue's gap — so at full
+   scroll the last card, and its « Résoudre », sit entirely above it (B-683). Derived
+   from the button's tokens, never a distance; absent while the button is hidden
+   (a page without an action, a message on screen), so those pages gain nothing. */
+:root:has(#fab:not([hidden])) {
+  --tm-fab-clearance: calc(var(--mq-fab-size) + var(--mq-fab-offset) + var(--spacing-4));
+}
+
 /* THE SCROLLBAR IS STYLED, NEVER REPLACED — D11 (operator, 2026-08-26), and
    nothing had implemented it until L10-bis (B-146). It is declarative and it is
    here, so it is under the oracle, which is the whole reason the decision reads

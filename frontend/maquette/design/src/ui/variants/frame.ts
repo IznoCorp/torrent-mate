@@ -141,12 +141,12 @@ export const tabBarLabel = cva("lb overflow-hidden text-ellipsis whitespace-nowr
    already taken in `ui/variants/controls.ts` by the panel's own full-width
    button — two different things, and the barrel re-exports both. */
 export const addAction = cva(
-  "fab absolute right-[16px] bottom-[calc(var(--tm-bottom-bar-h,0px)+16px)] "
-    + "w-[52px] h-[52px] rounded-full [border:0] bg-primary text-primary-foreground "
+  "fab absolute right-[var(--mq-fab-offset)] bottom-[calc(var(--tm-bottom-bar-h,0px)+var(--mq-fab-offset))] "
+    + "w-[var(--mq-fab-size)] h-[var(--mq-fab-size)] rounded-full [border:0] bg-primary text-primary-foreground "
     + "grid place-items-center [box-shadow:var(--mq-shadow-fab)] z-30 "
     // AT THE COLUMN'S BOTTOM-RIGHT on a desktop (DECIDED 7 = B): the same button at the same corner
     // of the content, never at the far corner of a wide window.
-    + "desk:right-[max(16px,calc((100%-var(--tm-rail-w)-var(--tm-column-w))/2+16px))]",
+    + "desk:right-[max(var(--mq-fab-offset),calc((100%-var(--tm-rail-w)-var(--tm-column-w))/2+var(--mq-fab-offset)))]",
 );
 
 export const addActionDrawing = cva("w-[23px] h-[23px]");
