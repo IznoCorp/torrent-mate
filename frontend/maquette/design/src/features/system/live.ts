@@ -46,6 +46,14 @@ export const systemLiveRules: readonly LiveRule[] = [
       + "only because that page carried it for them",
   },
   {
+    types: ["BlockLifted"],
+    keys: [DEPENDENCIES_KEY],
+    because:
+      "a block lifted because a dependency answers again (maquette-blocked "
+      + "§ 1.4, demand BK2): the row « Voir les dépendances » lands on stops "
+      + "saying « ne répond pas »",
+  },
+  {
     types: ["DiskFullWarning", "ItemDispatched"],
     keys: [DISKS_KEY],
     because:

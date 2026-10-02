@@ -1,5 +1,12 @@
 // The head of the library page: the three lenses, the search field with its
-// own native handler, the category pills and the list/grid switch.
+// own native handler, the filter pill and the sort pill, and the list/grid
+// switch.
+//
+// THE ONE PILL OF EVERY LIST (`ui/pill-select.tsx`, maquette-blocked DECIDED 1,
+// § 1.9): the row of category pills became ONE filter pill whose panel lists
+// the categories with their counts, and the count line's sort control became
+// the sort pill beside it, its six ways unchanged. Both stay remembered as they
+// were — the category in the store and the address, the sort in the store.
 import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
@@ -8,9 +15,11 @@ import { redraw } from "../../lib/shell-doors";
 import { useLibraryCategories, useLibraryIncomplete, useLibraryListing } from "./queries";
 import type { LibraryCategory } from "./types";
 import { useUiState, writeUiState } from "../../lib/store-access";
-import { filterPill, filterPillCount, filterZone, pillBar, pillScroll, searchClear, searchField, searchInput, viewSwitch, viewSwitchButton, viewSwitchWrap } from "../../ui/variants";
+import { filterZone, pillBar, pillScroll, searchClear, searchField, searchInput, viewSwitch, viewSwitchButton, viewSwitchWrap } from "../../ui/variants";
 import { Tabs } from "../../ui/tabs";
-import { rowsIn } from "./category-filter";
+import { PillSelect } from "../../ui/pill-select";
+import { categoryCount } from "./category-filter";
+import { SORT_KEYS, sortWays } from "./sorting";
 
 // The three lenses, in the order the tab bar draws them.
 //
@@ -29,15 +38,33 @@ import { rowsIn } from "./category-filter";
 export const INCOMPLETE_COUNT = 47;
 
 /**
- * What a pill counts on « Récents »: the rows the lens holds in its category,
- * never the library. It reads the lens' own listing (the same key, so the same
- * cached answer the list draws), and it is a component of its own so the read
- * exists only while « Récents » is drawn.
+ * The filter pill: the category in force, and what it counts on the lens.
  *
- * @param props.category The pill's category.
- * @returns The count.
+ * @param props.category The category in force, once the categories are read.
+ * @param props.count What it counts on the lens.
+ * @returns The pill.
  */
-function RecentCount({ category }: { category: LibraryCategory }): ReactElement {
+function FilterPill({ category, count }: { category: LibraryCategory | undefined; count: number | undefined }): ReactElement {
+  return (
+    <PillSelect
+      label={category?.label ?? ""}
+      count={count}
+      pressed={category !== undefined && category.includes !== null}
+      attributes={{ "data-library-filter-pill": "" }}
+    />
+  );
+}
+
+/**
+ * The filter pill on « Récents »: it counts the rows the lens holds in its
+ * category, never the library. It reads the lens' own listing (the same key,
+ * so the same cached answer the list draws), and it is a component of its own
+ * so the read exists only while « Récents » is drawn.
+ *
+ * @param props.category The category in force.
+ * @returns The pill.
+ */
+function RecentFilterPill({ category }: { category: LibraryCategory | undefined }): ReactElement {
   const state = useUiState();
   const recent = useLibraryListing(
     String(state.q ?? ""),
@@ -45,7 +72,8 @@ function RecentCount({ category }: { category: LibraryCategory }): ReactElement 
     String(state.sortKey ?? ""),
     Boolean(state.sortReversed),
   );
-  return <>{rowsIn((recent.data?.pages ?? []).flatMap((page) => page.items), category).length}</>;
+  const rows = (recent.data?.pages ?? []).flatMap((page) => page.items);
+  return <FilterPill category={category} count={category && categoryCount(category, "rec", [], rows)} />;
 }
 
 export function LibraryHead(): ReactElement {
@@ -61,6 +89,7 @@ export function LibraryHead(): ReactElement {
     { id: "rec", label: t("screens.library.lensRecent") },
     { id: "inc", label: t("screens.library.lensIncomplete"), count: INCOMPLETE_COUNT },
   ];
+  const category = CATS.find((entry) => entry.id === state.libCat);
   return (
     <>
       <Tabs tabs={lenses} selected={String(state.libLens)} attribute="data-lens" data-region="library/tabs" />
@@ -132,28 +161,20 @@ export function LibraryHead(): ReactElement {
         </div>
         <div className={pillBar()}>
           <div className={pillScroll()} data-part="pill/list">
-            {/* EVERY LENS IS FILTERED BY THE SAME PILLS, and the category is the
-                same remembered one: « Médias » prints the library's counts;
-                « Récents » and « Incomplets » count the rows they draw — a
-                « Films » on « Incomplets » reads 0, and the lens says why. */}
-            {CATS.map((category) => (
-              <button
-                key={category.id}
-                className={filterPill()}
-                data-part="pill"
-                aria-pressed={state.libCat === category.id}
-                data-cat={category.id}
-              >
-                {category.label}
-                <span className={filterPillCount()}>
-                  {state.libLens === "inc"
-                    ? rowsIn(INCOMPLETE, category).length
-                    : state.libLens === "rec"
-                      ? <RecentCount category={category} />
-                      : category.count}
-                </span>
-              </button>
-            ))}
+            {state.libLens === "rec" ? (
+              <RecentFilterPill category={category} />
+            ) : (
+              <FilterPill category={category} count={category && categoryCount(category, String(state.libLens), INCOMPLETE, [])} />
+            )}
+            {/* THE SORT WHERE IT SORTED: « Médias », as the count line's control
+                did — the six ways of `sorting.ts`, the one in force said. */}
+            {state.libLens === "cat" ? (
+              <PillSelect
+                label={sortWays()[String(state.sortKey)]?.[state.sortReversed ? "inverse" : "normal"] ?? ""}
+                pressed={state.sortKey !== SORT_KEYS[0] || Boolean(state.sortReversed)}
+                attributes={{ "data-sort": "" }}
+              />
+            ) : null}
           </div>
           <div className={viewSwitchWrap()}>
             <div className={viewSwitch()} data-part="view/switch">

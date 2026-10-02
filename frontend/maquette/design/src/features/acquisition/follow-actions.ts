@@ -42,6 +42,13 @@ export function primaryAction(facts: FollowFacts): Action {
       text: say("plexConfirm"), icone: icons.check, ton: "primary",
       target: { "plex-confirm": follow.title },
     };
+  // A CLOSED TUNNEL ASKS TO BE READ, once (Q8, Q9): « Marquer comme vu » is the
+  // card's own act, in its panel and never as a « × » on it (DECIDED 2).
+  if (facts.closure !== null)
+    return {
+      text: i18next.t("panels.journey.markSeen"), icone: icons.check, ton: "primary",
+      target: { "closure-seen": facts.closure },
+    };
   if (facts.tunnelError)
     return {
       text: say("requeue"), icone: icons.refresh, ton: "primary",
@@ -127,7 +134,7 @@ export function secondaryActions(facts: FollowFacts): (Action | null)[] {
     // « Voir la fiche » is reachable whenever a sheet exists. It is omitted only
     // when it is ALREADY the primary action, which happens for a medium that is
     // owned and whole.
-    facts.hasSheet && (facts.plexMatch || facts.tunnelError || facts.toResolve || facts.toTake || facts.incomplete || facts.isFollowed)
+    facts.hasSheet && (facts.closure !== null || facts.plexMatch || facts.tunnelError || facts.toResolve || facts.toTake || facts.incomplete || facts.isFollowed)
       ? { text: say("seeSheet"), icone: icons.eye, target: { mediasheet: follow.title } }
       : null,
     // « Voir le parcours » is guarded exactly as « Voir la fiche » is, and for

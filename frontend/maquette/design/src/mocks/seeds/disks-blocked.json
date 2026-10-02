@@ -1,0 +1,12 @@
+{
+  "insufficient_space": {
+    "label": "Staging",
+    "state": "nearly_full",
+    "secondaryLine": "3 Go libres · 1 To · rempli à 99 %"
+  },
+  "content_missing": {
+    "label": "Téléchargements de qBittorrent",
+    "state": "offline",
+    "secondaryLine": "le volume n'est pas monté"
+  }
+}

@@ -26,16 +26,25 @@ card, « S03 », and the episode card it covers, S03E07, which « En vol » does
 (R-season-recovery-a). The season card is one medium of « En vol » like any other,
 its line naming no episode; the count still reads what « En vol » draws.
 
+  the note       RE-AIMED OUT LOUD (maquette-blocked, Q7): the tab's note says
+                   « ce qui est bloqué est « À traiter » » — Q7 amended « ce qui
+                   attend votre main », read from `fr.json`.
+
 WHAT IT DOES NOT READ: which card sits on which rung (R207's), or the take on the
 follow's sheet (R123's).
 """
 import asyncio
+import json
+import pathlib
 
 from common import SETTLED, Journal, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 GONE = ("À récupérer", "Rangé aujourd'hui", "Cherché, rien trouvé")  # french-ok: the three section titles, asserted absent
 IN_FLIGHT = "En vol"  # french-ok: the one section title, asserted present
+NOTE = json.loads((pathlib.Path(__file__).resolve().parents[1] / "design/src/i18n/fr.json")
+                  .read_text(encoding="utf-8"))["screens"]["acquisition"]["nowNoteRest"]
+BLOCKED_WORDS = "ce qui est bloqué est « À traiter »"  # french-ok: the note's new words (Q7), asserted present
 EMPTY = "rien en cours"  # french-ok: the empty tab's own words, asserted present
 
 BODY = """() => {
@@ -79,6 +88,10 @@ async def main():
         journal.check("acq-now-loaded: the tab counts what « En vol » draws",
                       bool(read["cards"]) and read["count"] == read["cards"][0],
                       f"count {read['count']}, cards {read['cards']}")
+        note = await page.evaluate(
+            "()=>document.querySelector('#view [data-region=\"acquisition/body\"] [data-part=\"note\"]')?.textContent ?? ''")
+        journal.check("acq-now-loaded: the note says what is blocked is « À traiter » (Q7)",
+                      BLOCKED_WORDS in NOTE and NOTE.strip() in " ".join(note.split()), repr(NOTE))
         twice = sorted({medium for medium in read["media"] if read["media"].count(medium) > 1})
         journal.check("acq-now-loaded: no medium is drawn twice in « En vol »",
                       len(read["media"]) > 1 and not twice,

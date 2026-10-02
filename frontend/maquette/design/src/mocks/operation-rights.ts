@@ -70,6 +70,9 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   grabForFollow: PILOT,
   grabSeasonForFollow: PILOT,
   requeueJourney: PILOT,
+  // THE ACCOUNT'S OWN SEEN MARK on a closed tunnel (BK5): whoever reads
+  // « À traiter » reads its closures, and marks them seen for itself.
+  dismissClosure: "acquisition.todo.view",
   rescrapeJourney: PILOT,
   setAcquisitionQuality: "acquisition.quality.own",
   setAcquisitionPause: "acquisition.pause.own",

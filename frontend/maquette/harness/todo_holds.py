@@ -1,16 +1,21 @@
-"""R209 — « À traiter » holds only what the operator's hand unblocks.
+"""R209 — « À traiter » holds every block, and the queue behind a maintenance run stays out.
 
-Ruling 7: the tab holds what only his hand unblocks — a medium to resolve, a
-tunnel error awaiting relaunch or abandon, a Plex match to confirm —
-and nothing else. What waits behind a maintenance run reads on its own card in
+Ruling 7 held what only his hand unblocks — a medium to resolve, a tunnel error
+awaiting relaunch or abandon, a Plex match to confirm. RE-AIMED OUT LOUD
+(maquette-blocked): Q7 of 2026-10-01 amends it — the tab holds EVERY block, in
+the app or elsewhere (R500 holds the external ones); a block for his hand keeps
+its acts, read here. What waits behind a maintenance run reads on its own card in
 « En cours », with its reason; what he set aside is folded at the end of the
 tab, outside its count (R226). The section a card sits
 in is a function of its state, never of its origin.
 
 What this holds:
 
-1. every card in « À traiter » is BLOCKED on its ladder, and none in « En cours »
-   is — the blocked section left « En cours » for the tab;
+1. every card in « À traiter » is STOPPED on its ladder as the engine SERVES it —
+   blocked for his hand, or classified a block it lifts on its own (`resumes`
+   set), or closed — and none in « En cours » is: the served row is read, never
+   the strip's `blocked` cell nor « waiting with any reason » (r4 of
+   maquette-blocked's reading);
 2. a card to resolve offers « Résoudre → », the candidates screen;
 3. the tunnel error — derived from Top Chef's real stuck row, whose reason is a
    step that cannot finish — offers « Relancer », its reason in full, and NEVER
@@ -22,7 +27,7 @@ import asyncio
 import json
 import pathlib
 
-from common import ACTED, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
+from common import ACTED, SERVED_CARDS, SETTLED, Journal, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 SEEDS = pathlib.Path(__file__).resolve().parents[1] / "design/src/mocks/seeds"
@@ -62,7 +67,7 @@ async def tab(page, value):
 
 
 async def main():
-    journal = Journal("R209 — « À traiter » holds only what his hand unblocks")
+    journal = Journal("R209 — « À traiter » holds every block; the maintenance queue stays out")
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
         context, page = await open_page(browser)
@@ -71,9 +76,10 @@ async def main():
 
         await go(page, journal, "acq-todo-loaded")
         todo = await page.evaluate(CARDS)
-        journal.check("« À traiter » draws cards, every one blocked on its ladder",
-                      bool(todo) and all("blocked" in card["states"] for card in todo),
-                      str([(card["title"], card["states"]) for card in todo]))
+        served = await page.evaluate(SERVED_CARDS)
+        journal.check("« À traiter » draws cards, every one served stopped — blocked, `resumes` set, or closed",
+                      bool(served) and all(card["blocked"] or card["resumes"] or card["closure"] for card in served),
+                      str(served))
         # RE-READ WITH THE THIRD KIND: a Plex match to confirm is blocked in the tab
         # too, answered on the match and never by « Résoudre ».
         to_resolve = [card for card in todo if card["title"] != TUNNEL_ERROR["title"] and not card["plex"]]
@@ -103,9 +109,10 @@ async def main():
         # ones a maintenance holds; that section left « En cours ».
         await go(page, journal, "acq-card-waiting")
         now = await page.evaluate(CARDS)
-        journal.check("« En cours » holds no blocked card",
-                      bool(now) and not any("blocked" in card["states"] for card in now),
-                      str([(card["title"], card["states"]) for card in now if "blocked" in card["states"]]))
+        served = await page.evaluate(SERVED_CARDS)
+        journal.check("« En cours » holds no card served stopped — no blocked rung, no `resumes`, no closure",
+                      bool(served) and not any(card["blocked"] or card["resumes"] or card["closure"] for card in served),
+                      str([card for card in served if card["blocked"] or card["resumes"] or card["closure"]]))
         waiting = [card for card in now if "waiting" in card["states"]
                    and card["reason"]]
         journal.check("a card waiting behind a maintenance run is in « En cours », with its reason",

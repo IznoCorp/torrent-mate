@@ -134,6 +134,14 @@ d'audit en cours.
 - 09-15 · Rd Q4 : après le choix d'un candidat, l'écran de résolution se ferme ; « Identifié comme … · Annuler ».
 - 09-15 · Rd Q2 : le dialogue de suppression multiple garde le repli « et N autres ».
 - 09-12 · Rd 4/4 Q3 : les étapes du pipeline se lisent par média, sur la carte.
+- 10-01 · Rd 2 Q2 (DESIGN maquette-blocked OPEN 1 = SON MOT, « Liste à plat avec filtre. J'aime beaucoup le composant filtre des trackers mis sur la liste des torrents, j'aimerai qu'on utilise celui là et qu'on aille plus loin qu'on remplace les autres filtres (médiathèque et suivis: Tout, films, séries) par ce nouveau composant ! ») : « À traiter » est UNE liste à plat, sans sections (AMENDE le ruling 10, « une section dit ce qui la débloque »), filtrée par le sélecteur à une pilule de l'onglet Torrents (la pilule dit le filtre et son compte, un toucher ouvre le panneau du bas des choix) — un filtre par cause.
+- 10-01 · Rd 2 Q2, l'ordre = B : la liste à plat se range par urgence, le plus récent d'abord dans chaque groupe — ce qui demande son jugement (identité, match Plex, erreur d'étape), puis les blocages extérieurs (reprise automatique), puis les clôtures ; aucun titre de section, la ligne de cause de chaque carte le dit ; « Mis de côté » à part, replié, en dernier.
+- 10-01 · Rd 2 Q2, le tri (sa demande, « oui, enregistre ») : à côté de la pilule de filtre, une pilule de TRI, le même composant (elle dit le tri en vigueur, un toucher ouvre le panneau du bas) ; « À traiter » : Urgence (par défaut, l'ordre ci-dessus), Plus récent, Plus ancien ; retenue comme le filtre.
+- 10-01 · Rd 2 Q3 (OPEN 2 = SON MOT, C, « je confirme ») : pas de « × » sur une carte de clôture — un toucher sur la carte ouvre son panneau du bas avec ses actions, et « Marquer comme vu » est l'une d'elles.
+- 10-01 · Rd 2 Q4 (OPEN 4) = A : « contenu manquant » se partage selon le volume — le volume absent (démonté) est un BLOCAGE (« Différé : le disque où qBittorrent l'a téléchargé n'est pas lisible. », « Voir les disques », reprise au remontage) ; le volume présent et les fichiers partis est la clôture du Q8. Demande back-end BK3 : le moteur distingue les deux.
+- 10-01 · Rd 2 Q5 (OPEN 3) = A : un cran arrêté par une cause extérieure prend le ton « en attente » (comme le différé aujourd'hui) ; le rouge de danger reste ce qui demande son jugement.
+- 10-01 · Rd 2 Q6 (OPEN 5) = B : la reprise automatique se dit par le message existant, seulement quand il est sur « À traiter » : « <titre> est reparti », un message par levée (« 6 acquisitions sont reparties »).
+- 10-01 · Rd 2 Q7 (OPEN 6) = A : le pied de carte d'un blocage extérieur porte sa porte seule (« Voir les disques », « Voir le tracker ») ; « Abandonner » reste dans le panneau de la carte.
 
 ### Médiathèque et fiche
 
@@ -142,6 +150,9 @@ d'audit en cours.
 - 09-29 · Rd Q9 (L24 OPEN 5) = B : sur la feuille de parcours, « enrichi » se déplie en sous-étapes (métadonnées, affiches, bande-annonce).
 - 09-27 · Rd 8 Q1 : le bloc « cross-seed » de la fiche, réservé à l'administrateur, attend L18 ; 09-29 : chaque panneau et chaque fiche a sa variante FILM (« Il doit y avoir une personnalisation une différence entre film et série ») — aucun bloc saisons/épisodes pour un film (défaut : le panneau de « On l'appelait Robin des Bois », un film, disait « Série » et « Aucune donnée de saison »).
 - 09-29 · les filtres par catégorie (Tout, Films, Séries…) s'affichent aussi sur « Récents » (« Mediathèque sur l'onglet recents, on peut aussi mettre les filtres Tout/Films/séries. ») et, Q20 = A, sur « Incomplets » — même barre, même composant, même mémoire du choix que « Médias ».
+- 10-01 · Rd 2 Q2 (son mot, suite) : le composant de filtre des trackers REMPLACE les filtres de la Médiathèque et de Suivis (Tout, Films, Séries) ; chacun reçoit aussi la pilule de tri, le même composant. Médiathèque : ses six tris existants.
+- 10-01 · Rd 3 Q1 = C : la pilule de tri de Suivis offre « Urgence » (l'ordre d'aujourd'hui, par défaut), « A → Z », « Z → A », « Suivi récemment » (date d'ajout du suivi), « Prochaine sortie » (date de la prochaine sortie) ; si le contrat ne sert pas ces deux dates, la maquette les porte et la demande va au back-end.
+- 10-01 · Rd 2 Q1 (B-475) = B : une saison qui tient des numéros d'épisode que le catalogue ne liste pas montre une ligne « hors catalogue (n) » sous la saison, sans jugement ; la fraction reste au plus ce qui est diffusé (B-380). Un geste de correction (une file « à vérifier » de Maintenance) pourra venir plus tard.
 
 ### Découvrir
 

@@ -3,7 +3,7 @@
 DOIT-2: a medium that waits says WHY it waits. A completed torrent the engine
 does not take in is deferred for one of three causes, each a token of its own
 — its ratio under the threshold, too little space, content still missing — and
-the card in « En vol » says the cause its ladder carries, never a sentence
+the card in « À traiter » (Q7: the deferred card left « En vol ») says the cause its ladder carries, never a sentence
 composed from another rollup. For the ratio cause it names the tracker and THAT
 tracker's own threshold — never the global legacy one, which the next version
 of the engine no longer reads.
@@ -13,7 +13,7 @@ of the engine no longer reads.
 2. `acq-card-deferred-space` — the card says there is too little space;
 3. `acq-card-deferred-missing` — the card says content is still missing;
 4. on each, the cause drawn is the one the served ladder carries, and no other
-   card of « En vol » names a deferral;
+   card of « À traiter » names a deferral;
 5. the ratio cause offers « Voir le tracker » on its card, and neither other
    cause does;
 6. a finger on it lands on the Trackers tab with that tracker's panel open —
@@ -28,12 +28,16 @@ anywhere in the reason — « 1 » is already in « c411 », so a wrong threshol
 stayed green; it now reads the whole sentence, the tracker and ITS threshold in
 their places. Hold 7 is new, red while a tracker with no `min_ratio` read « 0 ».
 
-The deferrals are DERIVATIONS, POSED and shown as such (`poseDeferral`): no card
+The deferrals are DERIVATIONS, POSED and shown as such (`poseBlock`): no card
 of the real data is deferred.
 
 RE-AIMED OUT LOUD (L16-bis, the operator's Q3): hold 6 read the tracker's entry
 unfolded; a row opens its PANEL now, so the landing opens it — the arrival's
 entry, then the panel's layer above it (Back closes the panel first).
+
+RE-AIMED OUT LOUD (maquette-blocked, Q7): the deferred card is in « À traiter »
+now — the states land there, and the cards read are that tab's; the deferral is
+posed by `poseBlock`. R500 holds the move.
 
 Red before the move: no card names any of the three causes.
 """
@@ -56,7 +60,8 @@ SETTINGS = json.loads((SOURCE / "mocks/seeds/settings.json").read_text(encoding=
 
 # Each posed state, the card it poses on, and the cause's token. A deferral
 # happens BEFORE « arrivé » — a finished torrent the engine did not take in — so
-# the subject is the one card of « En vol » that has not arrived yet.
+# the subject is the one card in flight that has not arrived yet — drawn in
+# « À traiter » since Q7.
 SUBJECT = "This City Is Ours"
 CASES = [
     ("acq-card-deferred-ratio", SUBJECT, "ratio_below_threshold"),
@@ -151,7 +156,7 @@ async def main():
         # ── a tracker with no threshold of its own ─────────────────────────
         await page.evaluate("()=>window.__go('acq-card-deferred-ratio')")
         await page.wait_for_timeout(SETTLED)
-        await page.evaluate(f"""async ()=>{{window.__mocks?.poseDeferral('{SUBJECT}', 'ratio_below_threshold', '{UNSET}');
+        await page.evaluate(f"""async ()=>{{window.__mocks?.poseBlock('{SUBJECT}', 'ratio_below_threshold', {{tracker: '{UNSET}'}});
             await window.__queries?.invalidateQueries({{queryKey: {QUEUE}}});
             await window.__queries?.invalidateQueries({{queryKey: {STAGED}}});}}""")
         await page.wait_for_timeout(SETTLED)

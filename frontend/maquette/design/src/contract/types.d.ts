@@ -1137,6 +1137,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/journeys/{infoHash}/closure/seen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark one closed tunnel seen, for the caller — the seen mark stored per account (BK5); the engine closes the tunnel itself, its medium vanished (BK3) or a later choice in place (BK4)
+         * @description « Marquer comme vu » in a closure card's panel (Q8, Q9; maquette-blocked § 1.5, § 1.6, DECIDED 2): the account has read why the tunnel closed — its medium vanished, or a later-chosen release is in place. The queue stops answering `closure` on that acquisition for THAT account, everywhere and for good: a reload does not bring it back. Idempotent: a closure already seen answers the same. A DEMAND (BK5): the engine stores the seen mark per account; it closes the tunnel itself (BK3, BK4).
+         */
+        post: operations["dismissClosure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/acquisition/obligations": {
         parameters: {
             query?: never;
@@ -1582,6 +1602,8 @@ export interface components {
             trigger?: "manual" | "automatic" | null;
             /** @description the release this acquisition follows — the name its torrent carries, a season's pack for a whole season's recovery, an episode's own for an episode; null until one is taken, and then no release is named. The engine holds it on the wanted row's grab and does not serve it on the card yet: demand SR4 (a journey per acquisition, with the release it followed). */
             release?: string | null;
+            /** @description the tunnel's closure, until the account has seen it — the card then sits in « À traiter » (Q8, Q9) */
+            closure?: components["schemas"]["Closure"] | null;
         };
         Fact: {
             /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
@@ -1597,6 +1619,8 @@ export interface components {
              * @enum {string}
              */
             state?: "reachable" | "on_time" | "room" | "nearly_full" | "succeeded" | "none" | "to_clean" | "offline" | "late";
+            /** @description for a dependency that does not answer, since when, epoch seconds — the row then says « ne répond pas depuis … » (maquette-blocked § 1.3). A DEMAND (BK6) */
+            since?: number | null;
         };
         /** @description A library row as a LISTING shows it. The recents carry no category — that is what the fixture holds — so the category lives on LibraryItem below rather than here. */
         LibraryRow: {
@@ -1666,6 +1690,10 @@ export interface components {
             showStatus: string | null;
             /** @description when the follow was added. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             since: string;
+            /** @description when the follow was made, Unix-epoch seconds — what Suivis' « Suivi récemment » sort orders by, the newest first (maquette-blocked § 1.9, the operator's round 3 q1 = C). A DEMAND (BK8): the backend holds the follow's creation and does not serve it */
+            addedAt: number;
+            /** @description the date of the medium's next release, ISO `YYYY-MM-DD` — a series' next episode, a film's release — or null when none is known; what Suivis' « Prochaine sortie » sort orders by, a follow with none last (maquette-blocked § 1.9, the operator's round 3 q1 = C). A DEMAND (BK8) */
+            nextAirDate: string | null;
             /** @description how many searches have run for it */
             searches: number;
             /** @description episodes held. Shows only */
@@ -1998,6 +2026,8 @@ export interface components {
             episodes: number | null;
             /** @description the season's first air date, when the catalogue gives one */
             airDate?: string | null;
+            /** @description the held episode numbers of this season ABOVE what the catalogue lists (`episodes`), ascending; empty when the library holds nothing beyond it — what the row's line « hors catalogue (n) » counts, without judgement, the fraction staying on what aired (maquette-blocked § 1.10, B-475 = B). A DEMAND (BK7): the backend reads the held numbers and does not serve those off the catalogue */
+            offCatalogue: number[];
         };
         /** @description ONE RUNG OF A MEDIUM'S LADDER, from the wish to Plex (ruling 4; eight rungs, OPEN 4 ruled B). The card's strip and the journey sheet read the same list; « rangé » carries the three pipeline steps it merges as `steps`. « enrichi » carries, in turn, the three things the enrichment fetched as its own `steps`: the metadata, the posters, the trailer (L24 OPEN 5 = B). */
         JourneyStage: {
@@ -2013,12 +2043,27 @@ export interface components {
             state: "done" | "now" | "waiting" | "blocked" | "aside" | "skipped" | "pending";
             /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             when: string;
-            /** @description why the rung is blocked or waiting, as a token, when it is — among them the engine's three deferral causes of a finished torrent not taken in (DOIT-2): `ratio_below_threshold`, `insufficient_space`, `content_missing` */
+            /** @description why the rung is blocked or waiting, as a token, when it is — the engine's three deferral causes of a finished torrent not taken in (DOIT-2): `ratio_below_threshold`, `insufficient_space`, `content_missing` (the volume where the client downloaded it absent — DECIDED 4); and the external blocks Q7 adds (maquette-blocked § 1.2): `library_full`, `tracker_unreachable`, `provider_unreachable`, `plex_unreachable`, `client_unreachable` */
             reason?: string;
             /** @description for a ratio deferral, the tracker whose ratio is under its own threshold. A DEMAND: `classify_deferrals` (personalscraper/ingest/deferral.py) answers the cause alone */
             tracker?: string | null;
             /** @description for a ratio deferral, THAT tracker's own threshold (its economy block's `min_ratio`). A DEMAND: the engine defers on the global `ingest.min_ratio` (deferral.py:73); the next version reads the tracker's own, which is what the interface names */
             minimumRatio?: number | null;
+            /** @description for `provider_unreachable`, the provider that does not answer (TMDB, TVDB). A DEMAND (BK1) */
+            provider?: string | null;
+            /** @description for `library_full`, the bytes the medium needs. A DEMAND (BK1) */
+            size?: number | null;
+            /**
+             * @description WHO LIFTS a stopped rung, the ENGINE's classification (Q7, maquette-blocked § 2): `auto` an external cause the engine watches and resumes on its own, `hand` a block for the operator's judgement; null on a rung that is not stopped, or merely queued (a maintenance run, the supervisor's bound). A DEMAND (BK1)
+             * @enum {string|null}
+             */
+            resumes?: "auto" | "hand" | null;
+            /** @description when the rung stopped, epoch seconds — what the urgency order sorts by inside a group (DECIDED 1). A DEMAND (BK1) */
+            blockedSince?: number | null;
+            /** @description the blocks this rung went through and the engine lifted, oldest first — the journey's trace « bloqué — … » / « repris » (maquette-blocked § 1.4). A DEMAND (BK2) */
+            blocks?: components["schemas"]["LiftedBlock"][];
+            /** @description on « rangé », the episodes a pack's filing LEFT IN PLACE because a release chosen later holds their file — « S03E07 » (Q9, maquette-blocked § 1.6): the pack's tunnel goes to its end and its journey names each one. A DEMAND (BK4) */
+            keptNewer?: string[];
             /** @description the pipeline steps this rung merges, in order — carried by « rangé » alone */
             steps?: components["schemas"]["JourneyStage"][];
         };
@@ -2372,6 +2417,10 @@ export interface components {
             /** @description null while the tracker is on; otherwise who switched it off and why. A refused identifier is `reason: identifierRefused` here — one field per fact (a demand, T2: the engine switches nothing off by itself today) */
             disabled: components["schemas"]["TrackerDisabled"] | null;
             crossSeed: components["schemas"]["TrackerCrossSeed"];
+            /** @description whether the tracker answers — what « Voir le tracker » lands on for `tracker_unreachable` (maquette-blocked § 1.3). A DEMAND (BK6) */
+            reachable: boolean;
+            /** @description since when the tracker does not answer, epoch seconds; null while it answers. A DEMAND (BK6) */
+            unreachableSince: number | null;
         };
         /** @description a size-or-count threshold and the score it awards */
         RankingThreshold: {
@@ -2673,6 +2722,27 @@ export interface components {
         MediaCrossSeed: {
             /** @description every origin torrent of the medium still in the client; empty when none is */
             torrents: components["schemas"]["MediaCrossSeedOrigin"][];
+        };
+        /** @description A TUNNEL CLOSED, said once (Q8, Q9; maquette-blocked § 1.5, § 1.6): present on the card until the account has seen it (`dismissClosure`). A DEMAND (BK3, BK4, BK5) */
+        Closure: {
+            /**
+             * @description why it closed: the torrent removed from the client, its files gone from a volume still present, or a later-chosen release in place
+             * @enum {string}
+             */
+            reason: "torrent_removed" | "files_absent" | "superseded";
+            /** @description when it closed, epoch seconds */
+            at: number;
+            /** @description for `superseded`, the release line of the file in place */
+            winner: string | null;
+        };
+        /** @description A BLOCK THE ENGINE LIFTED on one rung (Q7, maquette-blocked § 1.4): its cause, when it stopped, when it resumed. A DEMAND (BK2) */
+        LiftedBlock: {
+            /** @description the cause's token, as the rung carried it while stopped */
+            reason: string;
+            /** @description when the rung stopped, epoch seconds */
+            since: number;
+            /** @description when the engine saw the cause lifted and the rung resumed, epoch seconds */
+            resumedAt: number;
         };
     };
     responses: {
@@ -4918,6 +4988,36 @@ export interface operations {
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    dismissClosure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the closed acquisition. The interface knows it by its key — the title, then the season or the episode it is of */
+                infoHash: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description it is seen */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
         };

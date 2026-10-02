@@ -16,6 +16,7 @@
 //
 // A PER-SUBJECT READ, so its need is a FUNCTION of the subject: a journey is
 // read per medium and a boot cannot know which one will be asked for.
+import { momentOf } from "../../lib/clock";
 import { heldAcquisition, offeredActs } from "./act-rights";
 import { reassignAction } from "./reassign";
 import { accountQuery, heldRights } from "../../lib/account";
@@ -284,6 +285,18 @@ function journeyPanel(subject: string, cache: PanelCache): PanelDescriptor | nul
         // progress is the season's to say.
         lignes: stages.flatMap((stage) => [
           stageLine(stage, translate(`surfaces.ladder.rungs.${stage.rung}`)),
+          // EACH BLOCK THE ENGINE LIFTED ON THIS RUNG, its trace (Q7,
+          // maquette-blocked § 1.4): « bloqué — <cause> » and « repris », timed.
+          ...(stage.blocks ?? []).flatMap((block) => [
+            { c: translate("surfaces.ladder.blockedLine", { cause: translate(`surfaces.ladder.causeShort.${block.reason}`) }),
+              v: momentOf(block.since), pip: STAGE_PIP.waiting, terne: false },
+            { c: translate("surfaces.ladder.resumedLine"), v: momentOf(block.resumedAt), pip: STAGE_PIP.now, terne: false },
+          ]),
+          // EACH EPISODE A PACK'S FILING LEFT IN PLACE, a later choice holding
+          // its file (Q9, maquette-blocked § 1.6): named here, no card drawn.
+          ...(stage.keptNewer ?? []).map((episode) => ({
+            c: translate("panels.journey.keptNewer", { episode }), v: NO_TIME, pip: STAGE_PIP.done, terne: false,
+          })),
           ...(stage.steps ?? []).flatMap((step) => [
             stageLine(step, translate("surfaces.ladder.step", {
               name: translate(`surfaces.ladder.steps.${step.rung}`),

@@ -1,8 +1,8 @@
 // THE LIBRARY'S VERBS, declared to the tap registry.
 //
-// The lens, the category, the layout, the sort and its two directions, the
-// search's clear cross, selection mode, a selection tap, and the removal of a
-// selection and of one row. Each was a branch of the document's delegation.
+// The lens, the filter pill and its category, the layout, the sort pill and its
+// six ways, the search's clear cross, selection mode, a selection tap, and the
+// removal of a selection and of one row. Each was a branch of the document's delegation.
 //
 // A SELECTION TAP ANSWERS ON `data-selected-title`, NOT ON `data-tile`. The
 // registry answers the first REGISTERED key in attribute order and stops the
@@ -19,6 +19,7 @@ import { panel, replaceAddress, toast, redraw } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
 import { mediaNamedBy, openDeleteDialog } from "./delete-dialog";
 import { sortWays } from "./sorting";
+import { closeThenApply } from "../../ui/pill-select";
 
 /** Starts the listing again from its top. */
 function backToTheTop(): void {
@@ -42,11 +43,15 @@ registerVerb("lens", (lens) => {
   redraw();
   replaceAddress?.();
 });
-registerVerb("cat", (category) => {
+// THE ONE PILL (maquette-blocked § 1.9): the filter pill raises the categories;
+// a choice closes the panel first, so the address the category writes replaces
+// the page's own entry, never the panel's.
+registerVerb("library-filter-pill", () => panel.produce("library-filter"));
+registerVerb("cat", (category) => closeThenApply(() => {
   store.write({ libCat: category });
   backToTheTop();
   redraw();
-});
+}));
 registerVerb("lmode", (mode) => {
   store.write({ libMode: mode });
   redraw();
@@ -55,11 +60,12 @@ registerVerb("lmode", (mode) => {
 registerVerb("sort", () => panel.produce("sort"));
 registerVerb("setsort", (key, element) => {
   const reversed = element.dataset.reversed === "1";
-  store.write({ sortKey: key, sortReversed: reversed });
-  panel.close();
-  redraw();
-  const way = sortWays()[key][reversed ? "inverse" : "normal"];
-  toast?.show({ message: i18next.t("verbs.library.sorted", { way: way.toLowerCase() }) });
+  closeThenApply(() => {
+    store.write({ sortKey: key, sortReversed: reversed });
+    redraw();
+    const way = sortWays()[key][reversed ? "inverse" : "normal"];
+    toast?.show({ message: i18next.t("verbs.library.sorted", { way: way.toLowerCase() }) });
+  });
 });
 
 // THE SELECTION OUTLIVES THE QUESTION. Clearing the search widens what is on

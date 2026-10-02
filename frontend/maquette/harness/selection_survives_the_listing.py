@@ -127,13 +127,21 @@ async def by_lens(page, titles):
 
 
 async def by_category(page, titles):
-    """Changes the category."""
-    return await tap(page, f'[data-cat="{NARROWING_CATEGORY}"]')
+    """Changes the category: the filter pill, then the choice in its panel.
+
+    RE-AIMED by maquette-blocked phase 6 (DESIGN § 1.9): the category is chosen in
+    the one filter pill's panel, where it was a pill of its own in a row.
+    """
+    opened = await tap(page, '#view [data-part="pill/select"][data-library-filter-pill]')
+    await page.wait_for_timeout(PANEL_IN)
+    if not opened["tapped"]:
+        return opened
+    return await tap(page, f'#sheet[data-open] [data-cat="{NARROWING_CATEGORY}"]')
 
 
 async def by_sort(page, titles):
-    """Chooses a sort other than the one in force, from the sort panel."""
-    opened = await tap(page, '#view [data-sort]')
+    """Chooses a sort other than the one in force, from the sort pill's panel."""
+    opened = await tap(page, '#view [data-part="pill/select"][data-sort]')
     await page.wait_for_timeout(PANEL_IN)
     key = await page.evaluate("""()=>{
       const current = window.__store.read().state.sortKey;
@@ -143,7 +151,7 @@ async def by_sort(page, titles):
     }""")
     if not opened["tapped"] or key is None:
         return {"tapped": False, "covering": f"panel {opened.get('covering')}, key {key}"}
-    return await tap(page, f"#sheet [data-setsort='{key}']:not([data-reversed])")
+    return await tap(page, f"#sheet[data-open] [data-setsort='{key}']:not([data-reversed])")
 
 
 async def by_typing(page, titles):

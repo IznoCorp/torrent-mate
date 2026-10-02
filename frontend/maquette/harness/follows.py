@@ -6,11 +6,23 @@ list is whole again — a FAIL line printed at once and exit 1 when it does not.
 AND ONE DRAWING (B-498): a grid tile's status badge wears its tone's DECLARED
 fill — the tone the follow's chip says — never the bare ring over the poster
 it was drawn as while its fills named custom properties no stylesheet declared.
+
+RE-AIMED by maquette-blocked phase 6 (DESIGN § 1.9): the « Tout », « Séries »,
+« Films » pills became ONE filter pill whose panel offers them; the kind is
+chosen there (the pill, then the choice), and the print reads the two pills.
 """
 
 import asyncio
 from common import shot, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
+
+
+async def choose(pg, kind):
+  """Chooses a kind the way a finger does: the filter pill, then its panel's choice."""
+  await pg.click('#view [data-part="pill/select"][data-follows-filter-pill]'); await pg.wait_for_timeout(500)
+  await pg.click(f'#sheet[data-open] [data-part="option"][data-pill="{kind}"]'); await pg.wait_for_timeout(500)
+
+
 async def main():
   async with async_playwright() as p:
     b=await p.chromium.launch(channel=browser_channel(), args=chrome_launch_args())
@@ -26,7 +38,7 @@ async def main():
     await pg.click('[data-acqtab="follows"]'); await pg.wait_for_timeout(350)
 
     print("modes offered     :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="view/switch"] button')].map(b=>b.getAttribute('aria-label'))"""))
-    print("chips             :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="pill"]')].map(b=>b.textContent.trim())"""))
+    print("pills             :", await pg.evaluate("""()=>[...document.querySelectorAll('#view [data-part="pill/select"]')].map(b=>b.textContent.trim())"""))
     print("list order        :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card/title"]')].map(e=>e.textContent).slice(0,6)"""))
     print("dot across a chip :", await pg.evaluate("""()=>{const c=document.querySelector('[data-part="chip"]');const s=getComputedStyle(c,'::before');return {w:s.width,h:s.height,radius:s.borderRadius};}"""))
     # « title alone » is held by R409 (`card_title_alone.py`) over every card of
@@ -65,7 +77,7 @@ async def main():
         failures.append("every status badge wears its tone's declared fill (B-498)")
         print(f"  FAIL every status badge wears its tone's declared fill (B-498) — {unpainted[:3] or 'no badge'}")
 
-    await pg.click('[data-fmode="list"]'); await pg.click('[data-pill="movies"]'); await pg.wait_for_timeout(300)
+    await pg.click('[data-fmode="list"]'); await choose(pg, "movies")
     print("Films filter      :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card/title"]')].map(e=>e.textContent)"""))
     print("film label        :", await pg.evaluate("""()=>document.querySelector('[data-part="chip"]').textContent"""))
     print("film actions      :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="swipe"] [data-part="swipe/action"]')].slice(0,2).map(e=>e.textContent.trim())"""))
@@ -73,7 +85,7 @@ async def main():
     # THE SEARCH CROSS EMPTIES THE FILTER, and the list is whole again. Read on
     # the store and on the rows, never on the field alone: a cross that only
     # blanked the input would leave the list filtered under an empty box.
-    await pg.click('[data-pill="tout"]'); await pg.wait_for_timeout(250)  # french-ok: the « everything » pill's id, a data value the markup emits
+    await choose(pg, "tout")  # french-ok: the « everything » kind's id, a data value the markup emits
     whole = await pg.evaluate("""()=>document.querySelectorAll('#view [data-part="card/title"]').length""")
     await pg.fill('#follq', 'zzz-no-such-follow'); await pg.wait_for_timeout(300)
     narrowed = await pg.evaluate("""()=>document.querySelectorAll('#view [data-part="card/title"]').length""")

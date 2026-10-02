@@ -26,12 +26,15 @@ import "../features/account/panels";
 import "../features/account/verbs";
 import "../features/maintenance/panel-action";
 import "../features/library/panel-sort";
+import "../features/library/panel-filter";
 import "../features/acquisition/panels";
 // Acquisition contributes the verb `data-take` reads (B-309) and the candidates
 // screen's verbs.
 import "../features/acquisition/resolution-verbs";
 // And « Abandonner », which opens its confirmation before anything is sent.
 import "../features/acquisition/abandon-verb";
+// And « Marquer comme vu », a closed tunnel read once (Q8, Q9).
+import "../features/acquisition/closure-verb";
 // And « Supprimer », a folder set aside deleted after its confirmation.
 import "../features/acquisition/delete-set-aside-verb";
 // And « Ce n'est pas un média », its choice of destinations and its verb.
@@ -48,6 +51,8 @@ import "../features/releases/verbs";
 import "../features/acquisition/follow-verbs";
 import "../features/acquisition/deck-verbs";
 import "../features/acquisition/verbs";
+import "../features/acquisition/todo-pill-verbs";
+import "../features/acquisition/follows-pill-verbs";
 import "../features/acquisition/add-verbs";
 // And the library's verbs: the lens, the category, the layout, the sort, the
 // search's clear cross, the selection and the removals.
@@ -57,6 +62,8 @@ import "../features/library/verbs";
 import "../features/trackers/panels";
 // And the « Trackers » page's: its tab, a setting of the page.
 import "../features/trackers/verbs";
+// And Système's landing door: a block's door names the section it lands on.
+import "../features/system/landing";
 // And Configuration contributes verbs beside its panels: the rubric one,
 // moved off the engine's own delegation with the branch that answered it
 // (B-332), and the secrets' three — replacing a key, asking before cutting

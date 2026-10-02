@@ -86,6 +86,16 @@ export const acquisitionLiveRules: readonly LiveRule[] = [
       + "tab",
   },
   {
+    types: ["BlockLifted"],
+    keys: [QUEUE_KEY, STAGING_KEY, JOURNEY_KEY],
+    because:
+      "the engine saw an external cause lifted and resumed the step it stopped "
+      + "(Q7, maquette-blocked § 1.4; demand BK2): the card leaves « À traiter » "
+      + "for « En cours » with no gesture, wherever the queue or the staging read "
+      + "holds it, and its journey gains the « repris » line"
+      + " — an event the engine does not emit yet",
+  },
+  {
     types: ["FilmAcquired"],
     keys: [FOLLOWED_KEY, QUEUE_KEY],
     because:

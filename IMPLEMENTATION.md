@@ -8,15 +8,15 @@ file: `git log -- IMPLEMENTATION.md` (the last long one is `IMPLEMENTATION.md@63
 
 | | |
 | --- | --- |
-| **Last landed** | **L23** — § 19 point 5, the upload to a tracker, PR #665, 2026-10-01; then the register's corrections #668, #669, #670 |
-| **In flight** | **The desktop milestone** — `docs/features/maquette-desktop/DESIGN.md`, `feat/maquette-desktop`, the operator's seven rulings of 2026-10-01 (DECIDED 1–7), phases 1–10 drawn: the shell (the menu pinned beside a 760 px reading column, foldable to its icons, remembered per device; the confirmation 480 px), the panel a 440 px side sheet on the right, Acquisition, Médiathèque, Découvrir, Trackers, Système / a run / Maintenance, Réglages / Classement / Comptes / Profil / the gates, the declared keys (`/`, ↑/↓, Enter, Escape) and the hover ground; R413 re-aimed at the three widths and the pinned menu. Rules R480–R488. Version 0.98.129; the lot's reader at 1280 on tm-design before the PR |
+| **Last landed** | **The desktop milestone** — the menu pinned beside a reading column, panels as a right side sheet, galleries by tile width, keys and hover, PR #672, version 0.98.132, rules R480–R488, 2026-10-01 (after L23 #665 and the register's corrections #668, #669, #670, #673) |
+| **In flight** | **maquette-blocked** — « À traiter » holds every block: `docs/features/maquette-blocked/DESIGN.md`, `feat/maquette-blocked`, the operator's Q7–Q9 and his round 2 of 2026-10-01 (DECIDED 1–6), phases 1–7 drawn: every block a card of « À traiter » and counted by the badge; one flat list by urgency with the one filter and sort pill; every cause and its lift said (B-671); each external block's door, Système landing on the section that says the cause; the auto-resume (the card leaves, the message on « À traiter », the journey's trace); the closures and the superseded release, « Marquer comme vu » in the card's panel; the same pill on Médiathèque and Suivis (Suivis' five sorts, BK8's two dates); « hors catalogue (n) » under a season (B-475). Rules R500–R510; demands BK1–BK8. PR **#675** open, under correction: the reader's round (M1–M4, R1–R4, m1–m7) applied, the proof on screen in the PR's description; version 0.98.133 |
 | **Then** | the backend mission, after the freeze (`docs/reference/frontend-backend-demands.md`) |
 | **Landed, in order** | L01 · L02 · L03 · L04 · L05 · L06 · L07 · L08 · L09 · L10 · L15 · L11 · L12 · L14 · L19 · L21 · L13a · L13b · L20 · L13r · L13c · L22a · L22b · L16 · L16-bis · L17 · L24 · L18 · L23 (plus the correction waves L07-bis, L08-bis, L10-bis and the design phase L10-ter) |
 | **Freeze** | reached at L24's close, with every case of every surface drawn as a named state |
 
 ## Designs ready, code not started
 
-- none — the desktop milestone is in flight
+- none — maquette-blocked is in flight
 
 ## Pages still due — no surface is out of scope
 

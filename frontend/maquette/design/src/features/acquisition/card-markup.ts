@@ -22,6 +22,9 @@ import { posterArtwork } from "../../lib/engine-drawing";
 import { richTextMarkup } from "./rich-text";
 import { originRow, footRow } from "./variants";
 import { currentRung } from "../../lib/current-rung";
+import { sizeOf } from "../../lib/byte-size";
+import type { Right, Rights } from "../../lib/rights";
+import { CLOSED_TONE, closureMarkup } from "./closure-markup";
 
 
 /** One rung of a card's ladder, as the card reads it. */
@@ -33,6 +36,11 @@ type Rung = {
   /** For a ratio deferral, the tracker it is under, and that tracker's own threshold. */
   tracker?: string | null;
   minimumRatio?: number | null;
+  /** For an unreachable provider, its name; for a full library, the bytes needed. */
+  provider?: string | null;
+  size?: number | null;
+  /** Who lifts a stopped rung: the engine (`auto`) or his hand — the engine's word (BK1). */
+  resumes?: "auto" | "hand" | null;
 };
 /** A medium as an acquisition list holds one, in the engine's field names. */
 // The contract's token for an acquisition the engine launched on its own.
@@ -70,6 +78,10 @@ export type MediumCard = {
   episode?: number | null;
   /** Who launched it: a person's ask, or the engine's own rule — null when not known. */
   trigger?: "manual" | "automatic" | null;
+  /** The pipeline step a tunnel error stopped on. */
+  failedStep?: string;
+  /** The tunnel's closure, until the account has seen it (Q8, Q9). */
+  closure?: { reason: string; at: number; winner: string | null } | null;
 };
 
 /** The foot a section offers for its own action. */
@@ -105,12 +117,50 @@ const RUNG_TONE: Record<StripState, string> = {
 
 // The reason a rung waits for the operator's answer rather than for his hand.
 const TO_CONFIRM = "confirmation";
-// The engine's token for a ratio deferral, and where its path lands: the
-// Trackers page, its « Trackers » tab, the tracker named after the separator.
+// The engine's token for a ratio deferral.
 const RATIO_DEFERRAL = "ratio_below_threshold";
+// Where a door lands: the Trackers page, its « Trackers » tab, the tracker named
+// after the separator; Système, the section named by the dial.
 const TRACKERS_PAGE = "trackers";
 const TRACKERS_TAB = "trackers";
 const DIAL_SEPARATOR = ":";
+const SYSTEM_PAGE = "sys";
+
+/** A door: its words, the right that opens the page it lands on, where it lands. */
+type Door = { label: string; right: Right; attributes: (rung: Rung) => Record<string, string> | undefined };
+
+// To the tracker the block names, its panel up — none where the rung names none.
+const TRACKER_DOOR: Door = {
+  label: "screens.acquisition.ratioReasonTracker",
+  right: "trackers.view",
+  attributes: (rung) => rung.tracker
+    ? { "data-go": TRACKERS_PAGE, "data-dial": `${TRACKERS_TAB}${DIAL_SEPARATOR}${rung.tracker}` }
+    : undefined,
+};
+// To Système, one of its sections in view.
+const systemDoor = (label: string, section: string): Door => ({
+  label,
+  right: "system.view",
+  attributes: () => ({ "data-go": SYSTEM_PAGE, "data-dial": section }),
+});
+const DISKS_DOOR = systemDoor("screens.acquisition.blockDisks", "disks");
+const DEPENDENCIES_DOOR = systemDoor("screens.acquisition.blockDependencies", "dependencies");
+
+/**
+ * WHERE EACH EXTERNAL CAUSE IS SETTLED (Q7, « où elle se règle »;
+ * maquette-blocked § 1.3): one table, cause token → door. The ratio's door,
+ * generalised to every cause the engine lifts on its own.
+ */
+const DOORS: Readonly<Record<string, Door>> = {
+  ratio_below_threshold: TRACKER_DOOR,
+  tracker_unreachable: TRACKER_DOOR,
+  insufficient_space: DISKS_DOOR,
+  content_missing: DISKS_DOOR,
+  library_full: DISKS_DOOR,
+  provider_unreachable: DEPENDENCIES_DOOR,
+  plex_unreachable: DEPENDENCIES_DOOR,
+  client_unreachable: DEPENDENCIES_DOOR,
+};
 
 /**
  * A date, as a sentence says it: the day and the month.
@@ -137,14 +187,48 @@ function dayOf(date: string): string {
  * @returns The strip, the figure and the current rung's chip.
  */
 /**
- * The tracker a ratio deferral is under, when the rung the card stands on is one.
+ * The door of a card stopped by an external cause: the card's foot ALONE
+ * (DECIDED 6), a link to where the cause is settled. A link, not an act: it is
+ * drawn when the account may open the page it lands on, and only then (§ 17) —
+ * the cause and the lift are drawn either way.
  *
- * @param ladder The medium's rungs.
- * @returns The tracker's name, or undefined for any other rung.
+ * @param medium The card's row.
+ * @param rights What the account may do.
+ * @returns The door, or undefined for a card no external cause stops.
  */
-function ratioDeferralTracker(ladder: Rung[]): string | undefined {
-  const rung = ladder[currentRung(ladder)];
-  return rung.reason === RATIO_DEFERRAL && rung.tracker ? rung.tracker : undefined;
+export function blockDoor(medium: Pick<MediumCard, "ladder">, rights: Rights): MediumCardFoot | undefined {
+  if (!medium.ladder || medium.ladder.length === 0) return undefined;
+  const rung = medium.ladder[currentRung(medium.ladder)];
+  const door = rung.resumes === "auto" ? DOORS[rung.reason ?? ""] : undefined;
+  const attributes = door?.attributes(rung);
+  if (door === undefined || attributes === undefined || !rights.holds(door.right)) return undefined;
+  return { label: i18next.t(door.label), attributes };
+}
+
+/**
+ * What a stopped rung says (Q7, « chaque carte dit sa cause, ce qui la lève »):
+ * its cause, then — for a block the ENGINE lifts on its own — what lifts it.
+ *
+ * @param rung The rung the card stands on, its reason set.
+ * @returns The sentence, or the two.
+ */
+function causeSentence(rung: Rung): string {
+  const reason = rung.reason ?? "";
+  const unset = reason === RATIO_DEFERRAL && rung.minimumRatio == null;
+  const values = {
+    tracker: rung.tracker ?? "",
+    provider: rung.provider ?? "",
+    size: rung.size == null ? "" : sizeOf(rung.size),
+    minimum: new Intl.NumberFormat(i18next.language).format(rung.minimumRatio ?? 0),
+  };
+  // A TRACKER WITH NO THRESHOLD OF ITS OWN is said to have none — never an
+  // invented « 0 ».
+  const cause = unset
+    ? i18next.t("surfaces.ladder.ratioWithoutThreshold", values)
+    : i18next.t(`surfaces.ladder.reasons.${reason}`, values);
+  if (rung.resumes !== "auto") return cause;
+  const resume = unset ? "surfaces.ladder.liftWithoutThreshold" : `surfaces.ladder.lifts.${reason}`;
+  return i18next.exists(resume) ? `${cause} ${i18next.t(resume, values)}` : cause;
 }
 
 function ladderMarkup(ladder: Rung[]) {
@@ -163,12 +247,7 @@ function ladderMarkup(ladder: Rung[]) {
     // — a ratio deferral naming its tracker and THAT tracker's own threshold.
     // A TRACKER WITH NO THRESHOLD OF ITS OWN is said to have none — never an
     // invented « 0 ».
-    reason: reason === undefined ? undefined : reason === RATIO_DEFERRAL && ladder[current].minimumRatio == null
-      ? i18next.t("surfaces.ladder.ratioWithoutThreshold", { tracker: ladder[current].tracker ?? "" })
-      : i18next.t(`surfaces.ladder.reasons.${reason}`, {
-        tracker: ladder[current].tracker ?? "",
-        minimum: new Intl.NumberFormat(i18next.language).format(ladder[current].minimumRatio ?? 0),
-      }),
+    reason: reason === undefined ? undefined : causeSentence(ladder[current]),
     fraction: i18next.t("surfaces.ladder.figure", { position: current + 1, count: ladder.length }),
     chip: {
       tone: reason === TO_CONFIRM ? RUNG_TONE.waiting : RUNG_TONE[ladder[current].state],
@@ -232,14 +311,7 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot | Med
     : posterArtworkMarkup(posterArtwork(icons, medium.poster, title, medium.k));
   const stages = i18next.t("surfaces.card.stages", { returnObjects: true }) as string[];
   const onLadder = medium.ladder ? ladderMarkup(medium.ladder) : null;
-  // A RATIO DEFERRAL IS A PATH to the tracker it is under: « Voir le tracker »
-  // lands on the Trackers tab, that tracker's entry open. An ADDRESS the page
-  // reads through its own landing door — never an import of that page's feature.
-  const deferredOn = medium.ladder ? ratioDeferralTracker(medium.ladder) : undefined;
-  const footOptions = [...(foot === undefined ? [] : Array.isArray(foot) ? foot : [foot]), ...(deferredOn === undefined ? [] : [{
-    label: i18next.t("screens.acquisition.ratioReasonTracker"),
-    attributes: { "data-go": TRACKERS_PAGE, "data-dial": `${TRACKERS_TAB}${DIAL_SEPARATOR}${deferredOn}` },
-  }])];
+  const footOptions = foot === undefined ? [] : Array.isArray(foot) ? foot : [foot];
   return cardMarkup({
     title,
     // french-ok: the non-medium marker R46 reads, a contract value
@@ -259,23 +331,38 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot | Med
             "data-panel": medium.panel || folderAddress,
           },
         },
-    body: { "data-panel": medium.panel || (hasSheet ? `media:${title}` : folderAddress) },
+    // A CLOSED TUNNEL'S PANEL is addressed by its ACQUISITION'S KEY, never its
+    // title: two closures of one title (a pack and an episode of it) each mark
+    // their own seen (M1 of the lot's reading).
+    body: { "data-panel": medium.panel || (hasSheet ? `media:${medium.closure != null ? acquisitionKey(medium) : title}`
+      : folderAddress) },
     // AN AUTOMATIC RECOVERY SAYS SO in its subtitle, « S03 · auto » (Q19,
     // DECIDED 8 = A): a word, never a second chip beside the rung's. A manual
     // one reads nothing more; an unknown trigger draws nothing, never a guess.
     subtitle: medium.trigger === AUTOMATIC
       ? i18next.t("surfaces.card.automatic", { line: medium.secondaryLine })
       : medium.secondaryLine,
-    reason: medium.plexMatch
+    // A CLOSED TUNNEL SAYS WHY, once (Q8, Q9): it outranks what its ladder
+    // said when it was still running.
+    reason: medium.closure
+      ? closureMarkup(medium.closure)
+      : medium.plexMatch
       ? escapeMarkup(i18next.t("surfaces.card.plexMatch", { title: medium.plexMatch.title }))
       : onLadder?.setAside
       ? escapeMarkup(onLadder.setAside)
       : medium.reason
       ? richTextMarkup(medium.reason)
-      : onLadder?.reason ? escapeMarkup(onLadder.reason) : undefined,
+      : onLadder?.reason ? escapeMarkup(onLadder.reason)
+      // A STEP THAT FAILED WITH NO SENTENCE says which step (B-671): a card of
+      // « À traiter » always says its cause, never nothing.
+      : medium.failedStep ? escapeMarkup(i18next.t("surfaces.card.failedStep", {
+        step: i18next.t(`screens.run.step.${medium.failedStep}`) }))
+      : undefined,
     overview: medium.overview,
     fraction: onLadder ? onLadder.fraction : medium.f,
-    chip: onLadder ? onLadder.chip : medium.chip ? { tone: medium.chip.tone, label: medium.chip.text } : null,
+    // « CLOS », in the neutral tone: nothing runs, nothing waits on him.
+    chip: medium.closure ? { tone: CLOSED_TONE, label: i18next.t("surfaces.ladder.closed") }
+      : onLadder ? onLadder.chip : medium.chip ? { tone: medium.chip.tone, label: medium.chip.text } : null,
     rating: medium.note != null ? String(medium.note) : undefined,
     caption: medium.caption,
     fresh: medium.fresh ? i18next.t("surfaces.card.freshTag") : undefined,
