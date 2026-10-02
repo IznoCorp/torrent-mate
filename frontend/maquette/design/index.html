@@ -507,43 +507,9 @@
     </div>
     <!-- login:markup:end -->
 
-    <div class="hbtn" data-part="harness/bar">
-      <button
-        id="notesBtn"
-        aria-pressed="false"
-        aria-label="Notes de conception"
-        title="Notes de conception"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-        >
-          <circle cx="12" cy="12" r="10" />
-          <path d="M12 16v-4M12 8h.01" />
-        </svg>
-      </button>
-      <!-- B-572: the real/dense world switch, wired in harness/panel.ts. Its
-           label is set at boot from the initial `scen` and updated on every
-           toggle — never hardcoded here, since either world can be the one
-           a build opens on. -->
-      <button id="scenarioBtn" aria-pressed="false">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <ellipse cx="12" cy="5" rx="8" ry="3" />
-          <path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5" />
-          <path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6" />
-        </svg>
-      </button>
-    </div>
+    <!-- The maquette's own controls — the design notes and the real/dense world — are
+         not here: they are entries of the side menu, contributed by the harness
+         module (`src/harness/panel.ts`) through `src/app/drawer-extras.ts`. -->
 
     <!-- The action button is rendered by the shell
          (`src/app/action-button.tsx`), at this same id and these same classes,

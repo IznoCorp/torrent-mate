@@ -181,10 +181,6 @@ installRedraw();
 
 installArrival(store);
 if (__MOCKS_BUILT_IN__) installHarness();
-// WITHOUT THE LAYER THE HARNESS'S BAR IS MARKUP NOBODY WIRES (B-506): its
-// notes and world buttons are installed by `installHarness` alone, so a build
-// that drops the layer would draw two buttons that answer nothing.
-else document.querySelector('[data-part="harness/bar"]')?.remove();
 
 // `#shell` starts, in the markup, as a static sibling of `.stage` —
 // index.html knows nothing about the phone frame the fragment draws. A
