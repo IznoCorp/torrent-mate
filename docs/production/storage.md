@@ -275,7 +275,7 @@ disk, so `path.exists()` does not say « mounted ». `is_mounted(path)`
 mount point, read live with `os.path.ismount`, is not `/`. Every place that means « the disk is
 there » goes through it: `get_disk_status`, the dispatcher's existing-copy scan, the media index
 rebuild, the indexer item stage, library validate / audit, the disk cleaner, the rescraper,
-`reclean`, the orphan-sweep panel and the config-load warning. It is read live, unlike
+`reclean`, the orphan-sweep panel, `info`, trailer healing and the config-load warning. It is read live, unlike
 `probe_mount`, whose `mount` output is cached for the process lifetime. Not routed through it:
 the crash-recovery sweep, whose media-tree roots include the staging folder, which legitimately
 lives on the system disk (BUGS.md B-687).
