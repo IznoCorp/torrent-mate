@@ -2053,6 +2053,9 @@
       },
       "auth": {
         "password": "se connecter par mot de passe"
+      },
+      "notifications": {
+        "manage": "choisir ses notifications"
       }
     },
     "holders": {
@@ -2102,6 +2105,9 @@
       },
       "auth": {
         "password": "Par défaut, seul le rôle Admin le détient."
+      },
+      "notifications": {
+        "manage": "Par défaut : Admin, Membre du foyer et Invité Plex."
       }
     },
     "ceilingEvery": "Cette instance est en lecture seule : aucune écriture n'y est permise, pour aucun compte.",

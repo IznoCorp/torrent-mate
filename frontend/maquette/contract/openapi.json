@@ -321,7 +321,7 @@
             "$ref": "#/components/responses/Problem"
           }
         },
-        "x-unseeded": "invented (the operator, 2026-10-03: « couper les notifications FCM de certains types tout en gardant les autres »). The account's own choice, held by the server for all its devices (ruling Q1 A). Refused 403 for a type whose right the account does not hold."
+        "x-unseeded": "invented (the operator, 2026-10-03: « couper les notifications FCM de certains types tout en gardant les autres »). The account's own choice, held by the server for all its devices (ruling Q1 A). Refused 403 for a type whose right the account does not hold. Asks `notifications.manage`: the account's own write, held by default by every role that receives a type, so the read-only instance's ceiling subtracts it."
       }
     },
     "/api/notifications/devices": {
@@ -379,7 +379,7 @@
             "$ref": "#/components/responses/Problem"
           }
         },
-        "x-unseeded": "invented, K5: the FCM registration token `lib/push-registration.ts` obtains through the application's own worker once the permission is granted (fcm-api.md, fcm-push DESIGN § 3.6). Posted from Profil's « Activer sur cet appareil », and again at each start while the device is subscribed (Firebase's monthly refresh). One account, several devices: the same token posted twice is one device."
+        "x-unseeded": "invented, K5: the FCM registration token `lib/push-registration.ts` obtains through the application's own worker once the permission is granted (fcm-api.md, fcm-push DESIGN § 3.6). Posted from Profil's « Activer sur cet appareil », and again at each start while the device is subscribed (Firebase's monthly refresh). One account, several devices: the same token posted twice is one device. Asks `notifications.manage`: the account's own write, held by default by every role that receives a type, so the read-only instance's ceiling subtracts it."
       }
     },
     "/api/library/items": {
@@ -9729,6 +9729,7 @@
           "system.view",
           "configuration.view",
           "configuration.write",
+          "notifications.manage",
           "accounts.manage",
           "auth.password"
         ],

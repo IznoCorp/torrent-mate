@@ -34,11 +34,12 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   signInWithPlex: null,
   readVersion: null,
   // The account's own notification choices and its devices' tokens: each
-  // account reads and writes its own, and the read answers only the types its
-  // rights receive (ruling Q1 A).
+  // account reads its own, and the read answers only the types its rights
+  // receive (ruling Q1 A). Writing them is a right, so the read-only
+  // instance's ceiling subtracts it like any other write.
   readNotificationPreferences: null,
-  updateNotificationPreference: null,
-  registerPushDevice: null,
+  updateNotificationPreference: "notifications.manage",
+  registerPushDevice: "notifications.manage",
   // The roster: « Comptes » manages it; the reassign chooser reads it narrowly (F46).
   readAccounts: ["accounts.manage", "acquisition.reassign"],
   createAccount: "accounts.manage",
