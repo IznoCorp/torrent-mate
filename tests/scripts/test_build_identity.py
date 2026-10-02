@@ -165,21 +165,31 @@ def test_the_root_files_are_part_of_the_identity(tmp_path: Path) -> None:
 # third end: adding one means every place that assembles a build tree learns
 # about it in the same move. » These holds are that sentence, armed.
 
-SWITCHOVER = ROOT / "frontend" / "maquette" / "harness" / "switchover.py"
-SERVE = ROOT / "frontend" / "maquette" / "serve.py"
+# `worker-source.mjs` (the push texts the worker build writes) went the same
+# way: switchover.py and serve.py were named here, and `dense_boot.py` and the
+# fresh-build test, which assemble a tree too, were not — the harness went red
+# on the dense build. Every assembler is named, not two.
+HARNESS = ROOT / "frontend" / "maquette" / "harness"
+ASSEMBLERS = {
+    "switchover.py's scratch tree": HARNESS / "switchover.py",
+    "dense_boot.py's scratch tree": HARNESS / "dense_boot.py",
+    "test_design_fresh_build.py's BUILD_FILES": ROOT / "tests" / "scripts" / "test_design_fresh_build.py",
+    "serve.py's BUILD_INPUTS": ROOT / "frontend" / "maquette" / "serve.py",
+}
 DESIGN = ROOT / "frontend" / "maquette" / "design"
 
 
-def test_every_build_input_at_the_design_root_is_known_to_both_assemblers() -> None:
-    """The scratch tree and the freshness reader must both learn a new input."""
+def test_every_build_input_at_the_design_root_is_known_to_every_assembler() -> None:
+    """Every scratch tree and the freshness reader must learn a new input."""
     inputs = sorted(path.name for path in DESIGN.glob("*.mjs"))
     assert inputs, "no build input found at the design root — the corpus has emptied"
 
-    scratch = SWITCHOVER.read_text(encoding="utf-8")
-    freshness = SERVE.read_text(encoding="utf-8")
     missing = [
-        f"{name} is not copied into switchover.py's scratch tree" for name in inputs if f'"{name}"' not in scratch
-    ] + [f"{name} is not in serve.py's BUILD_INPUTS" for name in inputs if f'"{name}"' not in freshness]
+        f"{name} is not in {where}"
+        for where, source in ASSEMBLERS.items()
+        for name in inputs
+        if f'"{name}"' not in source.read_text(encoding="utf-8")
+    ]
 
     assert missing == [], "; ".join(missing)
 

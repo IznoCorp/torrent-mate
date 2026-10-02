@@ -1,0 +1,17 @@
+{
+  "status": 400,
+  "headers": {},
+  "body": {
+    "error": {
+      "code": 400,
+      "message": "The registration token is not a valid FCM registration token",
+      "status": "INVALID_ARGUMENT",
+      "details": [
+        {
+          "@type": "type.googleapis.com/google.firebase.fcm.v1.FcmError",
+          "errorCode": "INVALID_ARGUMENT"
+        }
+      ]
+    }
+  }
+}

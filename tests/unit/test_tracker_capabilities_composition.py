@@ -6,14 +6,23 @@ capabilities it actually implements (DESIGN §4). These tests pin the
 ``isinstance`` contract for ``C411Client`` and
 ``Tr4kerClient``. Since the login-style tracker was removed, NO client
 implements ``FreeleechAware`` or ``TorrentDetailsProvider`` — the negative
-assertions below are what keeps that honest.
+assertions below are what keeps that honest. Likewise for
+``AccountStatsReadable`` (the ratio AS THE TRACKER RECOGNISES IT,
+NE-DOIT-PAS-1): a client claims it only on a documented endpoint, and none
+has one today — a stub would be a locally invented figure.
 """
 
 from __future__ import annotations
 
+import dataclasses
 from unittest.mock import MagicMock
 
+import pytest
+
+from personalscraper.api._units import ByteSize
+from personalscraper.api.tracker._base import TrackerAccountStats
 from personalscraper.api.tracker._contracts import (
+    AccountStatsReadable,
     CategoryListable,
     FreeleechAware,
     TorrentDetailsProvider,
@@ -90,3 +99,31 @@ def test_monolithic_tracker_client_protocol_dropped() -> None:
     assert not hasattr(base_mod, "TrackerClient"), (
         "TrackerClient(Protocol) was supposed to be dropped in sub-phase 11.1"
     )
+
+
+@pytest.mark.parametrize("make", [_c411, _tr4ker], ids=["c411", "tr4ker"])
+def test_no_existing_client_claims_account_stats(make) -> None:
+    """Neither c411 nor tr4ker publishes the account's ratio: neither claims the capability."""
+    assert not isinstance(make(), AccountStatsReadable)
+
+
+def test_a_client_with_account_stats_satisfies_the_capability() -> None:
+    """The protocol is structural: a client exposing ``account_stats()`` claims it."""
+
+    class _Reading:
+        def account_stats(self) -> TrackerAccountStats:
+            return TrackerAccountStats(
+                provider="x", uploaded=ByteSize(2), downloaded=ByteSize(1), ratio=2.0, bonus=None, observed_at=0.0
+            )
+
+    assert isinstance(_Reading(), AccountStatsReadable)
+
+
+def test_account_stats_carry_the_trackers_figure_unchanged() -> None:
+    """The ratio is the tracker's own figure — absent stays absent, nothing derives it from the volumes."""
+    stats = TrackerAccountStats(
+        provider="x", uploaded=ByteSize(300), downloaded=ByteSize(100), ratio=None, bonus=None, observed_at=1.0
+    )
+    assert stats.ratio is None
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        stats.ratio = 3.0  # type: ignore[misc]
