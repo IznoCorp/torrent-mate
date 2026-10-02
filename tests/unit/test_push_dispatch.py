@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -11,6 +10,8 @@ from typing import Any
 import pytest
 
 from personalscraper.api.notify.fcm import PushMessage, PushOutcome, PushResult, classify
+from personalscraper.app.store.store import build_app_store
+from personalscraper.conf.models.config import Config
 from personalscraper.push.dispatch import PushDispatcher
 from personalscraper.push.store import SqlitePushSubscriptionStore
 
@@ -46,21 +47,26 @@ class _Sender:
 
 
 @pytest.fixture
-def store() -> Iterator[SqlitePushSubscriptionStore]:
-    """A store holding four devices of alice and one of bob.
+def store(test_config: Config, tmp_path: Path) -> Iterator[SqlitePushSubscriptionStore]:
+    """A store holding four devices of alice and one of bob, from an ``AppStore`` on ``tmp_path``.
+
+    Args:
+        test_config: The synthetic Config fixture.
+        tmp_path: The test's temporary directory.
 
     Yields:
         The store.
     """
-    conn = sqlite3.connect(":memory:")
-    store = SqlitePushSubscriptionStore.install(conn)
+    cfg = test_config.model_copy(update={"paths": test_config.paths.model_copy(update={"data_dir": tmp_path})})
+    app_store = build_app_store(cfg)
+    store = app_store.push
     for token in ("t1", "t2", "t3", "t4"):
         store.upsert(account_id="alice", token=token, platform="ios", user_agent=None, now=1.0)
     store.upsert(account_id="bob", token="b1", platform="android", user_agent=None, now=1.0)
     try:
         yield store
     finally:
-        conn.close()
+        app_store.close()
 
 
 def _run(store: SqlitePushSubscriptionStore, answers: dict[str, PushResult]):
