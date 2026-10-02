@@ -250,6 +250,21 @@ export function setAside(title: string): boolean {
   return false;
 }
 
+/**
+ * Queues more stuck folders, each a copy of the dense world's first one under its own title, until
+ * the layer is next reset: « À traiter » then holds enough cards asking for « Résoudre » to scroll
+ * at a phone's width (B-683 — the last « Résoudre » must be reachable above the « + »).
+ *
+ * @param titles One title per folder to add.
+ */
+export function poseStuckFolders(titles: string[]): void {
+  const state = mockState();
+  const [model] = state.stuckLoaded;
+  if (model === undefined) return;
+  for (const list of ["stuck", "stuckLoaded"] as const)
+    for (const title of titles) state[list].push({ ...model, title });
+}
+
 /** Every route this subject answers. */
 export function stagingRoutes(): MockRoute[] {
   return [

@@ -13,8 +13,8 @@ What this holds, at 390 px:
    at the end of « À traiter » (the fold's sibling, same mechanism);
 2. on every tab of the acquisition page, scrolled to the bottom, the last card's
    box does not intersect the « + »'s;
-3. on « À traiter » filtered on « Résoudre » (the list then ends on a card that
-   carries it), the last « Résoudre » is entirely visible, does not intersect the
+3. on « À traiter » filtered on « Résoudre » and seeded to scroll (the list then
+   ends on a card that carries it), the last « Résoudre » is entirely visible, does not intersect the
    « + », and a tap at its centre lands on « Résoudre » (`elementFromPoint`).
 
 Red on 08a2d8516: the folds' cards touch (gap 0 against 8 px), and the last card
@@ -27,16 +27,18 @@ from playwright.async_api import async_playwright
 
 FOLLOWS = "acq-follows-list"
 TODO = "acq-todo-every-cause"
+# « À traiter » filtered on « Résoudre », seeded with enough cards to scroll at 390 px (B-683).
+MANY_RESOLVE = "acq-todo-many-resolve"
 SET_ASIDE = "acq-card-set-aside"
 # A SECOND card to set aside, so the fold holds two to measure (the state sets Lucky aside itself).
 ALSO_ASIDE = "Top Chef Le Concours Parallèle (2026)"
-# (label, named state, what is done to it first): « open-paused » unfolds « En pause »; « resolve »
-# filters « À traiter » on « Résoudre », which ends the list on a card that carries it — the operator's case.
+# (label, named state, what is done to it first): « open-paused » unfolds « En pause ». The
+# « Résoudre » state ends the list on a card that carries it — the operator's own case.
 PAGES = [
     ("Suivis", FOLLOWS, None),
     ("Suivis, « En pause » ouvert", FOLLOWS, "open-paused"),
     ("À traiter", TODO, None),
-    ("À traiter, rien que « Résoudre »", TODO, "resolve"),
+    ("À traiter, rien que « Résoudre »", MANY_RESOLVE, None),
     ("En cours", "acq-now-loaded", None),
 ]
 
@@ -83,7 +85,8 @@ BOTTOM = """() => {
     tapped = hit && (hit === resolve || resolve.contains(hit)) ? "resolve" : (hit && hit.closest('#fab') ? "fab" : String(hit && hit.tagName));
   }
   return { fab: fab && !fab.hidden ? box(fab) : null, last: last ? box(last) : null,
-           resolve: resolve ? box(resolve) : null, tapped, lastResolve, count: cards.length, view: window.innerHeight };
+           resolve: resolve ? box(resolve) : null, tapped, lastResolve,
+           scrolls: document.querySelector('#port').scrollHeight > document.querySelector('#port').clientHeight, count: cards.length, view: window.innerHeight };
 }"""
 
 
@@ -177,15 +180,16 @@ async def main():
                           not meets(reading["last"], reading["fab"]) and reading["last"]["bottom"] <= reading["fab"]["top"] + 0.5
                           or reading["last"]["right"] <= reading["fab"]["left"],
                           f"card bottom {reading['last']['bottom']}, « + » top {reading['fab']['top']}")
-            if state == TODO and reading["lastResolve"]:
-                ended_on_resolve = True
+            if state == MANY_RESOLVE:
+                ended_on_resolve = reading["lastResolve"]
+                journal.check("the « Résoudre » list is long enough to scroll", reading["scrolls"], str(reading["last"]))
                 journal.check("« À traiter »: the last « Résoudre » is whole in the window, off the « + », and a tap lands on it",
                               reading["resolve"] is not None
                               and reading["resolve"]["top"] >= 0 and reading["resolve"]["bottom"] <= reading["view"]
                               and not meets(reading["resolve"], reading["fab"]) and reading["tapped"] == "resolve",
                               f"{reading['resolve']}, tap → {reading['tapped']}")
 
-        journal.check("« À traiter » filtered on « Résoudre » ends the list on a card that carries « Résoudre »", ended_on_resolve)
+        journal.check("the seeded « À traiter » filtered on « Résoudre » ends the list on a card that carries « Résoudre »", ended_on_resolve)
         journal.check("no JS error", not errors, str(errors))
         for context in contexts:
             await context.close()

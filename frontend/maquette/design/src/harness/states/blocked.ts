@@ -128,6 +128,8 @@ const HELD_BY_CLIENT = [SEASON_IN_FLIGHT, SECOND_SERIES, TUNNEL_ERROR];
 /** A tunnel error on a follow's card, the judgement's third kind. */
 const tunnelError = () => window.__mocks?.poseTunnelError(TUNNEL_ERROR, "scrape");
 /** The list whole: the tunnel error, and a closure not yet seen — the third group (DECIDED 1). */
+const MANY_STUCK = ["Dune.Part.Three.2026.MULTi.1080p", "Heat.2.2027.MULTi.1080p", "Alien.Earth.S02.MULTi.1080p",
+  "Severance.S03.MULTi.1080p", "Andor.S03.MULTi.1080p", "Silo.S04.MULTi.1080p"];
 const everyCause = () => {
   tunnelError();
   window.__mocks?.poseClosure(SECOND_FILM, "torrent_removed", null, { minutesAgo: 60 });
@@ -283,6 +285,11 @@ export function blockedStates(): NamedState[] {
     posed("acq-todo-every-cause",
       "À traiter — une carte par cause, à plat, par urgence : jugement, puis ce qui repart seul, puis ce qui est clos",
       EVERY_CAUSE, { before: everyCause }),
+    // ENOUGH CARDS ASKING FOR « RÉSOUDRE » TO SCROLL at 390 px: the list ends on one, and the
+    // « + » must leave its button whole above it (B-683).
+    posed("acq-todo-many-resolve",
+      "À traiter — filtré sur « Résoudre », assez de cartes pour défiler : la dernière porte son bouton",
+      [], { before: () => window.__mocks?.poseStuckFolders(MANY_STUCK), dials: { todoFilter: "resolve" } }),
     posed("acq-todo-external-only",
       "À traiter — rien que des blocages extérieurs : la note du vide n'est pas dessinée",
       [[SUBJECT, "insufficient_space"]], { before: () => window.__mocks?.clearBlocked() }),

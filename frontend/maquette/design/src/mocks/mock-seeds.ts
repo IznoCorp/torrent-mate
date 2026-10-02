@@ -23,7 +23,7 @@ import INCOMPLETE_SHOWS from "./seeds/incomplete-shows.json";
 import { seasonsHeld, type SeasonsAnswer } from "../lib/season-rows";
 import { renameAccount } from "./account";
 import { mockState } from "./state";
-import { poseDisagreement, setAside } from "./handlers/staging";
+import { poseDisagreement, poseStuckFolders, setAside } from "./handlers/staging";
 import { poseTunnelError } from "./handlers/follow-errors";
 import { poseUnknownIdentity } from "./handlers/posed-identity";
 import { liftBlock, liftCause, poseBlock, poseServiceDown } from "./handlers/posed-block";
@@ -60,6 +60,8 @@ export type MockSeeds = {
   clearBlocked: () => void;
   /** Sets one queued folder aside, as « Laisser tel quel » does, until the layer is next reset. */
   setAside: (title: string) => boolean;
+  /** Queues more stuck folders, so « À traiter » holds enough « Résoudre » cards to scroll, until the layer is next reset. */
+  poseStuckFolders: (titles: string[]) => void;
   /** Poses « the torrent keeps its files » on a staged folder — a DERIVATION, never read (RULINGS 22). */
   poseKeepsItsFiles: (title: string) => void;
   /** Poses a Plex match that DISAGREES with the identity held — a DERIVATION, never read (RULINGS 24). */
@@ -169,6 +171,7 @@ export const mockSeeds: MockSeeds = {
     });
   },
   setAside,
+  poseStuckFolders,
   poseKeepsItsFiles,
   poseDisagreement,
   poseTunnelError,
