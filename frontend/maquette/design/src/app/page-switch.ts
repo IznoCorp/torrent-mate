@@ -85,6 +85,11 @@ export const walk = {
      Armed AFTER the traversal is issued, never before, so a traversal that
      threw leaves no continuation waiting to fire on somebody else's unwind. */
   afterUnwind: null as null | (() => boolean),
+  /* WHETHER A NAMED STATE IS BEING BUILT — the harness's drive, and only it.
+     `driven` says no history is written, and Retour and the arrival raise it
+     too; this one says the closes and pages written are no reader's moves
+     (`panel-moves.ts`). */
+  naming: false,
 };
 
 /**
@@ -97,10 +102,12 @@ export const walk = {
  */
 export function drivenWithoutHistory(run: () => void): void {
   walk.driven = true;
+  walk.naming = true;
   try {
     run();
   } finally {
     walk.driven = false;
+    walk.naming = false;
   }
 }
 

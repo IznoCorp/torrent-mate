@@ -23,6 +23,7 @@ import { fillPanelDoor, bridge } from "../lib/shell-doors";
 import { layerRecordOf, panelRecord } from "../lib/navigation-entry";
 import { store } from "../lib/store-access";
 import { registerLayer, unwindLayer } from "./layers";
+import { askPanel, interfaceMoved, stillAsked, watchLandings } from "./panel-moves";
 
 declare global {
   interface Window {
@@ -155,6 +156,7 @@ export function installPanelHost(store: Store, queryClient: QueryClient): void {
   // stands at 398 of a 400-line hard ceiling and an import plus a call would put
   // it AT it. This is the nearest installer that boots once and owns no surface.
   installArtworkArrival();
+  watchLandings(store);
 function openPanel(
   descriptor: PanelDescriptor,
   produced?: { kind: string; subject: string },
@@ -207,6 +209,9 @@ function openPanel(
 }
 
 function closePanel(pop?: boolean): void {
+  // A CLOSE IS A MOVE, asked for or not: every landing verb closes the sheet,
+  // and a panel still waiting for its read must not rise after it (R513).
+  interfaceMoved();
   // Guarded per LAYER, exactly as `closeSheet` was: closing an already-closed
   // sheet would consume a history entry that belongs to someone else.
   if (!isPanelOpen()) return;
@@ -238,6 +243,7 @@ function isPanelOpen(): boolean {
 function producePanel(kind: string, subject = ""): void {
   const produce = producerFor(kind);
   if (produce === null) refuseProducer(kind);
+  const asked = askPanel();
   const descriptor = produce(subject, { held });
   if (descriptor !== null) {
     openKind = kind;
@@ -277,6 +283,9 @@ function producePanel(kind: string, subject = ""): void {
   void Promise.all(
     needsFor(kind, subject).map((required) => queryClient.prefetchQuery(required)),
   ).then(() => {
+    /* THE INTERFACE MOVED WHILE THE READ WAS OUT — a landing, a close, a newer
+       ask — so what was asked for is no longer what is shown (`panel-moves.ts`). */
+    if (!stillAsked(asked)) return;
     const landed = produce(subject, { held });
     if (landed === null) {
       /* THE ANSWER CAME AND THE SUBJECT IS NOT IN IT. Before `panelHolds`
