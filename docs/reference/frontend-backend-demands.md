@@ -19,9 +19,9 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 94 |
+| operations the interface requires | 97 |
 | operations the backend has | 65 |
-| required and missing | 41 |
+| required and missing | 44 |
 | declared by both, different response shape | 53 |
 | declared by both, path parameter spelled differently | 17 |
 | declared by both, answered with a different status | 11 |
@@ -50,6 +50,7 @@ than a blank page.
 | `GET /api/library/recent` | `readLibraryRecent` | The most recently added titles |
 | `GET /api/media/{provider}/{providerId}/cross-seed` | `readMediaCrossSeed` | The medium's cross-seed, tracker by tracker |
 | `GET /api/media/{provider}/{providerId}/seasons` | `readMediaSeasons` | The seasons of a show, and what the library holds of each |
+| `GET /api/notifications/preferences` | `readNotificationPreferences` | The signed-in account's notification switches, one per type it may receive |
 | `GET /api/staging/destinations` | `readStagingDestinations` | Where the sort files what is not a medium |
 | `GET /api/staging/media/{mediaId}/copies` | `readStagedMediaCopies` | Whether a staged folder is the only copy of its files — POSED in the maquette (RULINGS 22); the backend reads the torrent's presence in qBittorrent at the gesture |
 | `GET /api/system/dependencies` | `readDependencies` | The external dependencies, and whether each answers |
@@ -66,6 +67,7 @@ than a blank page.
 | `POST /api/auth/plex` | `signInWithPlex` | Open a session through Plex |
 | `POST /api/decisions/{decisionId}/reopen` | `reopenDecision` | Re-open a settled decision for arbitration, with the candidates a provider search finds |
 | `POST /api/media/{provider}/{providerId}/rescrape` | `rescrapeMedia` | Ask the providers for one medium's metadata again |
+| `POST /api/notifications/devices` | `registerPushDevice` | Register this device's push token for the signed-in account (K5) |
 | `POST /api/roles` | `createRole` | Create an ordinary role |
 | `POST /api/staging/media/{mediaId}/reclassify` | `reclassifyStagedMedia` | File a folder that is not a medium where the sort files its kind |
 | `POST /api/torrents/{infoHash}/cross-seed/search` | `searchCrossSeed` | Search a cross-seed for one torrent, on one tracker or on every eligible one |
@@ -74,6 +76,7 @@ than a blank page.
 | `POST /api/trackers/{tracker}/broken-obligations/{infoHash}/seen` | `markBrokenObligationSeen` | Mark one broken obligation of a tracker seen |
 | `PUT /api/acquisition/followed/{followedId}/pause` | `setAcquisitionPause` | Set the caller's pause on one acquisition |
 | `PUT /api/acquisition/followed/{followedId}/quality` | `setAcquisitionQuality` | Set the caller's quality profile on one acquisition |
+| `PUT /api/notifications/preferences/{type}` | `updateNotificationPreference` | Switch one notification type on or off for the signed-in account |
 | `PUT /api/torrents/{infoHash}/cross-seed/exclusions` | `writeCrossSeedExclusion` | Exclude one pair, or a whole title, from the engine's future cross-seed passes |
 
 ## 2. Operations both declare, whose response carries different property names

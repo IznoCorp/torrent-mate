@@ -12,6 +12,7 @@ import { RIGHTS, bypassesRights } from "../../lib/rights";
 import type { ReactElement } from "react";
 import { FactRows, type FactRow } from "../../ui/fact-rows";
 import { actionButton, factList, guidance, sectionHeading } from "../../ui/variants";
+import { NotificationsSection } from "./notifications-section";
 
 export function AccountPage(): ReactElement | null {
   const { t } = useTranslation();
@@ -89,6 +90,8 @@ export function AccountPage(): ReactElement | null {
           })))}
         </>
       ) : null}
+
+      <NotificationsSection />
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.accountPage.session")}</h2>
       {facts([

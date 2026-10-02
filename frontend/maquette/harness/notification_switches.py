@@ -144,7 +144,9 @@ async def main():
                 journal.check(f"{state}: Profil carries the « Notifications » section", False, "no section")
                 continue
             words = DEVICE.get(support, {})
-            value, line = words.get("value", ABSENT), words.get("line", ABSENT)
+            # WHERE THE DEVICE CAN STILL BE ASKED, its value IS the action: « Activer sur cet appareil ».
+            value = DEVICE.get("enable", ABSENT) if support == "default" else words.get("value", ABSENT)
+            line = words.get("line", ABSENT)
             journal.check(f"{state}: the device's line LEADS the section, « {support} »",
                           seen["deviceFirst"] and seen["support"] == support,
                           f"first {seen['deviceFirst']} · {seen['support']}")
@@ -163,7 +165,9 @@ async def main():
                 await enable.click()
                 await page.wait_for_timeout(SETTLED)
                 after = await page.evaluate(SECTION)
-                registered = await page.evaluate("()=>window.__mocks?.pushDevices?.() ?? []")
+                registered = await page.evaluate(
+                    "()=>(window.__mocks?.answered() ?? []).filter((one)=>one.operationId==='registerPushDevice'"
+                    " && one.status===200)")
                 journal.check("« activer » pressed, granted: the token is registered and the line says « granted »",
                               after is not None and after["support"] == "granted" and not after["enable"]
                               and len(registered) == 1, f"{after and after['support']} · devices {registered}")

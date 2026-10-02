@@ -55,6 +55,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/notifications/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The signed-in account's notification switches, one per type it may receive */
+        get: operations["readNotificationPreferences"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications/preferences/{type}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Switch one notification type on or off for the signed-in account */
+        put: operations["updateNotificationPreference"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register this device's push token for the signed-in account (K5) */
+        post: operations["registerPushDevice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/library/items": {
         parameters: {
             query?: never;
@@ -2773,6 +2824,26 @@ export interface components {
          * @enum {string}
          */
         NotificationType: "obligation.met" | "obligation.released" | "obligation.breached" | "tracker.ratio_low" | "tracker.disabled" | "crossseed.failed" | "acquisition.arrived" | "acquisition.to_handle" | "system.run_failed" | "system.disk_full" | "system.service_down";
+        /** @description ONE TYPE'S SWITCH, the account's own (ruling Q1 A): whether pushes of that type reach any of its devices. */
+        NotificationPreference: {
+            type: components["schemas"]["NotificationType"];
+            /** @description whether the type reaches the account's devices; on until the account turns it off */
+            enabled: boolean;
+        };
+        /** @description THE ACCOUNT'S SWITCHES, one per type it may receive, in `NotificationType`'s order. */
+        NotificationPreferences: {
+            preferences: components["schemas"]["NotificationPreference"][];
+        };
+        /** @description ONE DEVICE'S PUSH REGISTRATION (K5). */
+        PushDevice: {
+            /** @description the FCM registration token, as the SDK's `getToken` returns it */
+            token: string;
+            /**
+             * @description the device's family, read off the browser — what a list of the account's devices would name it by
+             * @enum {string}
+             */
+            platform: "android" | "ios" | "desktop";
+        };
         /**
          * @description THE CODE A PUSH CARRIES (`webpush.data.code`, fcm-api.md « Message shape ») — never a sentence: the device's worker words it from `fr.json`'s `push` namespace. A code is its NotificationType, or the type and one variant segment (`obligation.met.seed_time`): the variant carries the why the message says, the type is what the reader switches. Parameters, all strings or numbers, never words: `title` (the medium's title as the engine composes it) and `tracker` for every `obligation.*`, `tracker.*` and `crossseed.failed` code; `title` for `acquisition.*`; `disk` for `system.disk_full`; `service` for `system.service_down`; `step` for `system.run_failed`.
          * @enum {string}
@@ -2866,6 +2937,100 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description the session is closed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    readNotificationPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the account's switches */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPreferences"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    updateNotificationPreference: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the type switched */
+                type: components["schemas"]["NotificationType"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description whether the type reaches the account's devices */
+                    enabled: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description the type's switch, as now held */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPreference"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    registerPushDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushDevice"];
+            };
+        };
+        responses: {
+            /** @description the token is held */
             200: {
                 headers: {
                     [name: string]: unknown;
