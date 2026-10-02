@@ -491,7 +491,7 @@ def enqueue_staging_decision(
 
     candidates_seeded = False
     try:
-        candidates = search_candidates(request, media_kind, title, year)
+        candidates = search_candidates(request.app.state.config, request.app.state.settings, media_kind, title, year)
         candidates_seeded = True
     except ProviderSearchError as exc:
         logger.warning(
