@@ -288,6 +288,8 @@ class SeedObligation:
         released_at: Unix epoch seconds when tracker released the obligation (nullable).
         id: ``seed_obligation`` row id, set on rows read back from the store and
             ``None`` on a not-yet-stored obligation.
+        absent_since: Unix epoch seconds of the first sweep that did not find the
+            torrent in the client (nullable); cleared when the torrent is seen again.
     """
 
     info_hash: str
@@ -300,6 +302,7 @@ class SeedObligation:
     breached_at: int | None = None
     released_at: int | None = None
     id: int | None = None
+    absent_since: int | None = None
 
     def __post_init__(self) -> None:
         """Enforce the non-negativity invariant on the seed-obligation floors.

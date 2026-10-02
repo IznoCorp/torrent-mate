@@ -136,6 +136,37 @@ class TestTorrentItemMapping:
         assert _torrent_item(_mock_torrent(seconds_seeding=None)).seeding_time_s is None
         assert _torrent_item(_mock_torrent(seconds_seeding=-1)).seeding_time_s is None
 
+    def test_absent_seconds_seeding_field_maps_to_none(self) -> None:
+        """A real Torrent whose RPC reply lacks ``secondsSeeding`` maps to None, not KeyError."""
+        t = transmission_rpc.Torrent(
+            fields={
+                "id": 1,
+                "hashString": "abc123",
+                "name": "movie.mkv",
+                "totalSize": 1_000_000,
+                "percentDone": 1.0,
+                "status": 6,
+                "downloadDir": "",
+                "addedDate": 1712345678,
+                "rateUpload": 0,
+                "uploadRatio": 1.0,
+                "labels": [],
+                "error": 0,
+                "errorString": "",
+                "eta": -1,
+                "doneDate": 0,
+            }
+        )
+        assert _torrent_item(t).seeding_time_s is None
+
+    def test_get_completed_requests_seconds_seeding(self) -> None:
+        """``get_completed`` also asks for ``secondsSeeding``."""
+        client = TransmissionClient.__new__(TransmissionClient)
+        client._client = MagicMock()
+        client._client.get_torrents.return_value = []
+        client.get_completed()
+        assert "secondsSeeding" in client._client.get_torrents.call_args.kwargs["arguments"]
+
     def test_get_by_hashes_requests_seconds_seeding(self) -> None:
         """The RPC field list asks for ``secondsSeeding`` so the mapper has it."""
         client = TransmissionClient.__new__(TransmissionClient)
