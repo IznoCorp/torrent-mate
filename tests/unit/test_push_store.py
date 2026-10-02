@@ -1,13 +1,16 @@
-"""Unit tests for ``personalscraper.push.store`` — the push subscriptions, on ``:memory:``."""
+"""Unit tests for ``personalscraper.push.store`` — the push subscriptions, over an ``AppStore`` on ``tmp_path``."""
 
 from __future__ import annotations
 
 import sqlite3
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 
 from personalscraper.api.notify.fcm import PushOutcome, PushResult
+from personalscraper.app.store.store import build_app_store
+from personalscraper.conf.models.config import Config
 from personalscraper.push.store import STALE_AFTER_SECONDS, SqlitePushSubscriptionStore
 
 TOKEN = "device-token-A-0123456789"
@@ -15,17 +18,22 @@ OTHER = "device-token-B-9876543210"
 
 
 @pytest.fixture
-def store() -> Iterator[SqlitePushSubscriptionStore]:
-    """A fresh store on an in-memory database.
+def store(test_config: Config, tmp_path: Path) -> Iterator[SqlitePushSubscriptionStore]:
+    """A fresh push store, from an ``AppStore`` on ``tmp_path``.
+
+    Args:
+        test_config: The synthetic Config fixture.
+        tmp_path: The test's temporary directory.
 
     Yields:
         The store.
     """
-    conn = sqlite3.connect(":memory:")
+    cfg = test_config.model_copy(update={"paths": test_config.paths.model_copy(update={"data_dir": tmp_path})})
+    app_store = build_app_store(cfg)
     try:
-        yield SqlitePushSubscriptionStore.install(conn)
+        yield app_store.push
     finally:
-        conn.close()
+        app_store.close()
 
 
 def _add(store: SqlitePushSubscriptionStore, token: str = TOKEN, account: str = "alice", now: float = 100.0):
@@ -128,11 +136,3 @@ def test_an_unknown_platform_is_refused(store: SqlitePushSubscriptionStore) -> N
 def test_the_token_stays_out_of_the_repr(store: SqlitePushSubscriptionStore) -> None:
     """A subscription's ``repr`` (what a log or a traceback shows) carries no token."""
     assert TOKEN not in repr(_add(store))
-
-
-def test_install_is_idempotent() -> None:
-    """K0's baseline may run the DDL on a file that already holds the table."""
-    conn = sqlite3.connect(":memory:")
-    SqlitePushSubscriptionStore.install(conn)
-    SqlitePushSubscriptionStore.install(conn)
-    conn.close()
