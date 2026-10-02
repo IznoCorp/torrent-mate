@@ -581,7 +581,7 @@ def process(
 
 
 #: Valid ``--trigger-reason`` values. MUST include every reason any web-side caller
-#: passes to :func:`~personalscraper.web.pipeline_trigger.spawn_pipeline_run` — in
+#: passes to :func:`~personalscraper.app.pipeline_trigger.spawn_pipeline_run` — in
 #: particular ``"scrape-resolve"`` (the §4 continuation after a manual resolve).
 #: A missing value here makes the spawned continuation ``run`` crash on argv
 #: validation, so the resolved media never dispatches (product-intent.md §4

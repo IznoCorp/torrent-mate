@@ -1,10 +1,10 @@
 """Decision runner — thin config over the shared runner engine.
 
-Executable as ``python -m personalscraper.web.decisions.runner``. Reads its
+Executable as ``python -m personalscraper.app.decisions.runner``. Reads its
 configuration from environment variables (set by the POST handler in
-``personalscraper.web.routes.decisions``), validates the ``scrape_decision`` row,
+the web ``routes/decisions`` module), validates the ``scrape_decision`` row,
 then delegates the run-row / spawn / stream / requeue / finalize lifecycle to
-:func:`personalscraper.web._runner_engine.run_spawn_stream`.
+:func:`personalscraper.app._runner_engine.run_spawn_stream`.
 
 Lock ownership (R11 / webui-ux phase 4): the ``scrape-resolve`` CLI acquires the
 SCOPED per-staging-item scrape lock
@@ -44,30 +44,30 @@ import sys
 from types import FrameType
 from typing import cast
 
-from personalscraper.conf.loader import load_config
-from personalscraper.core.sqlite._pragmas import apply_pragmas
-from personalscraper.lock import is_lock_held
-from personalscraper.logger import get_logger
-from personalscraper.pipeline_history import PipelineRunWriter
-from personalscraper.web._runner_engine import (
+from personalscraper.app._runner_engine import (
     OUTCOME_ERROR,
     OUTCOME_KILLED,
     SIGTERM_EXIT_CODE,
     RunnerSpec,
     run_spawn_stream,
 )
-from personalscraper.web._runner_engine import (
+from personalscraper.app._runner_engine import (
     RingBuffer as _RingBuffer,
 )
-from personalscraper.web._runner_engine import (
+from personalscraper.app._runner_engine import (
     get_redis as _get_redis,
 )
-from personalscraper.web._runner_engine import (
+from personalscraper.app._runner_engine import (
     kill_child_group as _kill_child_group,
 )
-from personalscraper.web._runner_engine import (
+from personalscraper.app._runner_engine import (
     redis_publish_line as _redis_publish_line,  # noqa: F401 — re-export for test/seam parity
 )
+from personalscraper.conf.loader import load_config
+from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.lock import is_lock_held
+from personalscraper.logger import get_logger
+from personalscraper.pipeline_history import PipelineRunWriter
 
 log = get_logger(__name__)
 
@@ -281,7 +281,7 @@ def main() -> None:
         mechanism. The lazy import lets tests patch ``spawn_pipeline_run`` at its
         source module.
         """
-        from personalscraper.web.pipeline_trigger import RESOLVE_CONTINUATION_TRIGGER, spawn_pipeline_run
+        from personalscraper.app.pipeline_trigger import RESOLVE_CONTINUATION_TRIGGER, spawn_pipeline_run
 
         continuation_uid = spawn_pipeline_run(config.paths.data_dir, trigger_reason=RESOLVE_CONTINUATION_TRIGGER)
         log.info(

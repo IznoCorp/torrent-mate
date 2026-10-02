@@ -30,6 +30,16 @@ from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from personalscraper.app.maintenance.registry import (
+    REGISTRY,
+    MaintenanceAction,
+    canonical_options_json,
+)
+from personalscraper.app.maintenance.service import (
+    _reserve_run_row,
+    _spawn_runner,
+    _validate_options,
+)
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import staging_path as _compute_staging_path
 from personalscraper.core.sqlite._fs_probe import is_mounted
@@ -64,16 +74,6 @@ from personalscraper.web.maintenance.models import (
     Sentinels,
     TmpOrphan,
     TmpOrphanSweep,
-)
-from personalscraper.web.maintenance.registry import (
-    REGISTRY,
-    MaintenanceAction,
-    canonical_options_json,
-)
-from personalscraper.web.maintenance.service import (
-    _reserve_run_row,
-    _spawn_runner,
-    _validate_options,
 )
 from personalscraper.web.schedulers.registry import CRON_JOBS, CronJob
 
@@ -823,7 +823,7 @@ def action_run(
     permitted by §6) and dry-run-first for destructive actions, then spawns a
     runner subprocess and returns ``202`` with the ``run_uid``. A held
     ``pipeline.lock`` never refuses the action: the runner waits in the
-    VISIBLE queue (``queue`` step on the run row, ``web/run_queue.py``) and
+    VISIBLE queue (``queue`` step on the run row, ``app/run_queue.py``) and
     executes when the lock frees — ``queued`` hints that state to the UI.
 
     Args:
@@ -907,7 +907,7 @@ def get_actions() -> ActionsResponse:
     """Return the full maintenance action registry with category counts.
 
     The registry is defined at module level in
-    :mod:`personalscraper.web.maintenance.registry` and is read-only at
+    :mod:`personalscraper.app.maintenance.registry` and is read-only at
     runtime — no database or filesystem access is needed.
 
     Returns:

@@ -1,4 +1,4 @@
-"""Integration tests for :func:`personalscraper.web.decisions.runner.main`.
+"""Integration tests for :func:`personalscraper.app.decisions.runner.main`.
 
 Sub-phase 5.1 — end-to-end lifecycle: real ``main()`` in-process, real child
 subprocess, real on-disk SQLite DB with the ``pipeline_run`` and ``scrape_decision``
@@ -240,20 +240,20 @@ class TestRunnerLifecycleIntegration:
 
         with (
             patch(
-                "personalscraper.web.decisions.runner._build_argv",
+                "personalscraper.app.decisions.runner._build_argv",
                 return_value=argv,
             ),
             patch(
-                "personalscraper.web.decisions.runner.load_config",
+                "personalscraper.app.decisions.runner.load_config",
                 return_value=mock_config,
             ),
             patch(
-                "personalscraper.web.decisions.runner._get_redis",
+                "personalscraper.app.decisions.runner._get_redis",
                 return_value=None,
             ),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.decisions.runner import main
+            from personalscraper.app.decisions.runner import main
 
             main()
 
@@ -305,16 +305,16 @@ class TestRunnerLifecycleIntegration:
         argv = self._trivial_argv("print('ok')")
 
         with (
-            patch("personalscraper.web.decisions.runner._build_argv", return_value=argv),
-            patch("personalscraper.web.decisions.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.decisions.runner._get_redis", return_value=None),
+            patch("personalscraper.app.decisions.runner._build_argv", return_value=argv),
+            patch("personalscraper.app.decisions.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.decisions.runner._get_redis", return_value=None),
             patch(
-                "personalscraper.web.pipeline_trigger.spawn_pipeline_run",
+                "personalscraper.app.pipeline_trigger.spawn_pipeline_run",
                 return_value="cont-uid",
             ) as mock_spawn,
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.decisions.runner import main
+            from personalscraper.app.decisions.runner import main
 
             main()
 
@@ -347,20 +347,20 @@ class TestRunnerLifecycleIntegration:
 
         with (
             patch(
-                "personalscraper.web.decisions.runner._build_argv",
+                "personalscraper.app.decisions.runner._build_argv",
                 return_value=argv,
             ),
             patch(
-                "personalscraper.web.decisions.runner.load_config",
+                "personalscraper.app.decisions.runner.load_config",
                 return_value=mock_config,
             ),
             patch(
-                "personalscraper.web.decisions.runner._get_redis",
+                "personalscraper.app.decisions.runner._get_redis",
                 return_value=None,
             ),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.decisions.runner import main
+            from personalscraper.app.decisions.runner import main
 
             main()
 
@@ -415,22 +415,22 @@ class TestRunnerLifecycleIntegration:
 
         # Nest our own signal.signal patch inside the conftest's neutralization.
         with (
-            patch("personalscraper.web.decisions.runner.signal.signal", _fake_signal),
+            patch("personalscraper.app.decisions.runner.signal.signal", _fake_signal),
             patch(
-                "personalscraper.web.decisions.runner._build_argv",
+                "personalscraper.app.decisions.runner._build_argv",
                 return_value=argv,
             ),
             patch(
-                "personalscraper.web.decisions.runner.load_config",
+                "personalscraper.app.decisions.runner.load_config",
                 return_value=mock_config,
             ),
             patch(
-                "personalscraper.web.decisions.runner._get_redis",
+                "personalscraper.app.decisions.runner._get_redis",
                 return_value=None,
             ),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.decisions.runner import main
+            from personalscraper.app.decisions.runner import main
 
             main()
 
@@ -443,8 +443,8 @@ class TestRunnerLifecycleIntegration:
 
         # Simulate SIGTERM delivery by invoking the captured handler.
         with (
-            patch("personalscraper.web.decisions.runner.os._exit") as mock_exit,
-            patch("personalscraper.web.decisions.runner._kill_child_group") as mock_kill,
+            patch("personalscraper.app.decisions.runner.os._exit") as mock_exit,
+            patch("personalscraper.app.decisions.runner._kill_child_group") as mock_kill,
         ):
             handler(_signal.SIGTERM, None)
 
@@ -499,20 +499,20 @@ class TestRunnerLifecycleIntegration:
 
         with (
             patch(
-                "personalscraper.web.decisions.runner._build_argv",
+                "personalscraper.app.decisions.runner._build_argv",
                 return_value=argv,
             ),
             patch(
-                "personalscraper.web.decisions.runner.load_config",
+                "personalscraper.app.decisions.runner.load_config",
                 return_value=mock_config,
             ),
             patch(
-                "personalscraper.web.decisions.runner._get_redis",
+                "personalscraper.app.decisions.runner._get_redis",
                 return_value=None,
             ),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.decisions.runner import main
+            from personalscraper.app.decisions.runner import main
 
             main()
 
@@ -550,10 +550,10 @@ class TestRunnerQueue:
     def _base_patches(self, mock_config, argv):
         """The common patch stack (argv, config, redis, no continuation spawn)."""
         return (
-            patch("personalscraper.web.decisions.runner._build_argv", return_value=argv),
-            patch("personalscraper.web.decisions.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.decisions.runner._get_redis", return_value=None),
-            patch("personalscraper.web.pipeline_trigger.spawn_pipeline_run", return_value=None),
+            patch("personalscraper.app.decisions.runner._build_argv", return_value=argv),
+            patch("personalscraper.app.decisions.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.decisions.runner._get_redis", return_value=None),
+            patch("personalscraper.app.pipeline_trigger.spawn_pipeline_run", return_value=None),
         )
 
     def test_queue_timeout_finalizes_error_without_spawning(self, tmp_path: Path) -> None:
@@ -575,10 +575,10 @@ class TestRunnerQueue:
             p2,
             p3,
             p4,
-            patch("personalscraper.web.decisions.runner.subprocess.Popen") as mock_popen,
+            patch("personalscraper.app.decisions.runner.subprocess.Popen") as mock_popen,
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.decisions.runner import main
+            from personalscraper.app.decisions.runner import main
 
             main()
 
@@ -611,7 +611,7 @@ class TestRunnerQueue:
 
         p1, p2, p3, p4 = self._base_patches(mock_config, argv)
         with p1, p2, p3, p4, pytest.raises(SystemExit) as exc_info:
-            from personalscraper.web.decisions.runner import main
+            from personalscraper.app.decisions.runner import main
 
             main()
 
@@ -646,10 +646,10 @@ class TestRunnerQueue:
             p2,
             p3,
             p4,
-            patch("personalscraper.web.decisions.runner.signal.signal", _fake_signal),
+            patch("personalscraper.app.decisions.runner.signal.signal", _fake_signal),
             pytest.raises(SystemExit),
         ):
-            from personalscraper.web.decisions.runner import main
+            from personalscraper.app.decisions.runner import main
 
             main()
 
@@ -658,8 +658,8 @@ class TestRunnerQueue:
         # finalize 'killed'.
         handler = captured[_signal.SIGTERM]
         with (
-            patch("personalscraper.web.decisions.runner.os._exit") as mock_exit,
-            patch("personalscraper.web.decisions.runner._kill_child_group") as mock_kill,
+            patch("personalscraper.app.decisions.runner.os._exit") as mock_exit,
+            patch("personalscraper.app.decisions.runner._kill_child_group") as mock_kill,
         ):
             handler(_signal.SIGTERM, None)
 
@@ -687,7 +687,7 @@ class TestRunnerQueue:
         argv = [sys.executable, "-c", "import sys; sys.exit(3)"]
         p1, p2, p3, p4 = self._base_patches(mock_config, argv)
         with p1, p2, p3, p4, pytest.raises(SystemExit) as exc_info:
-            from personalscraper.web.decisions.runner import main
+            from personalscraper.app.decisions.runner import main
 
             main()
 

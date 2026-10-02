@@ -27,6 +27,7 @@ from typing import Literal, cast
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
+from personalscraper.app.pipeline_trigger import RESOLVE_CONTINUATION_TRIGGER, spawn_pipeline_run
 from personalscraper.conf.models.config import Config
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.indexer.destructive_journal import OP_DELETE, list_recent, record_destruction
@@ -45,7 +46,6 @@ from personalscraper.web.models.staging import (
     StagingMediaKind,
     StagingMediaResponse,
 )
-from personalscraper.web.pipeline_trigger import RESOLVE_CONTINUATION_TRIGGER, spawn_pipeline_run
 from personalscraper.web.staging.dispatch_preview import (
     build_free_space_by_id,
     preview_dispatch,

@@ -33,7 +33,7 @@ def _neutralize_runner_sigterm_handler() -> Iterator[None]:
     Yields:
         ``None`` — control returns to the test with ``signal.signal`` patched.
     """
-    with patch("personalscraper.web.decisions.runner.signal.signal"):
+    with patch("personalscraper.app.decisions.runner.signal.signal"):
         yield
 
 
@@ -54,7 +54,7 @@ def _neutralize_pipeline_continuation() -> Iterator[None]:
         ``None`` — control returns to the test with ``spawn_pipeline_run`` stubbed.
     """
     with patch(
-        "personalscraper.web.pipeline_trigger.spawn_pipeline_run",
+        "personalscraper.app.pipeline_trigger.spawn_pipeline_run",
         return_value="stub-continuation-uid",
     ):
         yield

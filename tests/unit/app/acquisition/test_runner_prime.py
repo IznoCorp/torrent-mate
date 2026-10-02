@@ -24,8 +24,8 @@ from typing import Any
 
 import pytest
 
-from personalscraper.web.acquisition import runner as runner_mod
-from personalscraper.web.acquisition.runner import _build_argv, _read_mandatory_env
+from personalscraper.app.acquisition import runner as runner_mod
+from personalscraper.app.acquisition.runner import _build_argv, _read_mandatory_env
 
 
 def _clear_runner_env() -> None:
@@ -340,7 +340,7 @@ class TestOptionsJsonSingleAuthority:
     The 409 guard, the card reader and the runner all compare the scope string
     by EXACT EQUALITY, so a second site typing the same literal is a latent
     « the guard silently never matches » bug. Both formats now live in
-    ``web/acquisition/runner.py`` and every other module imports them.
+    ``app/acquisition/runner.py`` and every other module imports them.
     """
 
     def test_runner_options_json_delegates_to_the_shared_builders(self) -> None:

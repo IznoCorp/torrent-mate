@@ -25,6 +25,8 @@ if TYPE_CHECKING:
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from personalscraper.app.pipeline_queue import reserve_queued_pipeline_run
+from personalscraper.app.pipeline_trigger import spawn_pipeline_run
 from personalscraper.core.sqlite._pragmas import apply_pragmas as _apply_pragmas
 from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
@@ -50,8 +52,6 @@ from personalscraper.web.models.pipeline import (
     WatcherResponse,
     parse_steps_json,
 )
-from personalscraper.web.pipeline_queue import reserve_queued_pipeline_run
-from personalscraper.web.pipeline_trigger import spawn_pipeline_run
 
 router = APIRouter(prefix="/api/pipeline", tags=["pipeline"])
 logger = get_logger(__name__)

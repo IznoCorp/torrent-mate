@@ -33,5 +33,5 @@ def _neutralize_runner_sigterm_handler() -> Iterator[None]:
     Yields:
         ``None`` — control returns to the test with ``signal.signal`` patched.
     """
-    with patch("personalscraper.web.maintenance.runner.signal.signal"):
+    with patch("personalscraper.app.maintenance.runner.signal.signal"):
         yield

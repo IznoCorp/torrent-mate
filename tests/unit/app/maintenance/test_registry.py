@@ -20,8 +20,8 @@ import pytest
 
 # Import the library commands package to register all @app.command callbacks.
 import personalscraper.commands.library  # noqa: F401 — triggers @app.command registration
+from personalscraper.app.maintenance.registry import REGISTRY
 from personalscraper.cli_app import app
-from personalscraper.web.maintenance.registry import REGISTRY
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -193,7 +193,7 @@ def test_option_names_match_cli_flags(action: object) -> None:
     checking the function's parameter names. Optional flags are verified
     by grepping for ``--<name>`` in the source file.
     """
-    from personalscraper.web.maintenance.registry import MaintenanceAction  # noqa: PLC0415
+    from personalscraper.app.maintenance.registry import MaintenanceAction  # noqa: PLC0415
 
     action = cast(MaintenanceAction, action)
     src_file = _source_file_for_command(action.id)
