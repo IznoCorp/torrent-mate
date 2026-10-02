@@ -82,9 +82,9 @@ operator ruled on 2026-09-27; the roles it names are seed VALUES, not a fixed se
   only — not a distinct mechanism, the model's own default falling out of the Default role's rights.
 - **The staging read-only role becomes a PER-INSTANCE LIST of forbidden writes, not a single boolean ceiling**
   (ruling 23, superseding the earlier reading): the current `:8711` instance's own list names every write; the
-  future PREPROD environment's list names deletion in the library ALONE — preprod reads and files into the PROD
-  library (replace a film, merge a series, rewrite NFOs) exactly as production does, and only an explicit
-  DELETION in the library is refused there. `require_not_staging` is absorbed by the model reading this served
+  future PREPROD environment's list names deletion in the library ALONE — preprod files into ITS OWN library (its own
+  disks since 2026-10-02, `backend-brief.md` § 4: replace a film, merge a series, rewrite NFOs) exactly as production
+  does into its own, and only an explicit DELETION in the library is refused there. `require_not_staging` is absorbed by the model reading this served
   list — one authorisation path, with a per-instance list, never two mechanisms (NE-DOIT-PAS-7).
 - **A right is proved on both sides, separately** (§17): the action absent from the surface for the account
   without it, AND the call refused for one that forces it — on VIEWS too, not writes alone. The backend owes the
