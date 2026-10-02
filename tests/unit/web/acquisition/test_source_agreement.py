@@ -28,13 +28,13 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 from personalscraper.acquire.domain import AiredEpisode, FollowedSeries
-from personalscraper.core.identity import MediaRef
-from personalscraper.web.acquisition import completeness as completeness_module
-from personalscraper.web.acquisition.completeness import compute_completeness
-from personalscraper.web.acquisition.states import (
+from personalscraper.app.acquisition.states import (
     derive_episode_state,
     derive_follow_status,
 )
+from personalscraper.core.identity import MediaRef
+from personalscraper.web.acquisition import completeness as completeness_module
+from personalscraper.web.acquisition.completeness import compute_completeness
 
 #: Patch target: the airing poller's DEFINITION site. The web read path no
 #: longer imports it, so patching the completeness module would raise.

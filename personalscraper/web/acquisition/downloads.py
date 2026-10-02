@@ -15,6 +15,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 from personalscraper.acquire.store import build_acquire_store
+from personalscraper.app.torrent_session import shared_torrent_client
 from personalscraper.logger import get_logger
 from personalscraper.web.models.acquisition import (
     AcquisitionDownload,
@@ -22,7 +23,6 @@ from personalscraper.web.models.acquisition import (
     DownloadState,
     MediaRefResponse,
 )
-from personalscraper.web.torrent_session import shared_torrent_client
 
 if TYPE_CHECKING:
     from personalscraper.acquire.domain import FollowedSeries, WantedItem

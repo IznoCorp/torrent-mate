@@ -165,7 +165,7 @@ class TestDegradedEpisodeReadsAsNotVerified:
         'unverified'. Adding ``trackers_degraded`` to that frozenset is what stops a
         rate-limited tracker from being displayed as « searched, nothing exists ».
         """
-        from personalscraper.web.acquisition.states import derive_episode_state
+        from personalscraper.app.acquisition.states import derive_episode_state
 
         state = derive_episode_state(
             owned=False,

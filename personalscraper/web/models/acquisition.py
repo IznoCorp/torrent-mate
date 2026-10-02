@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel, computed_field, model_validator
 
-from personalscraper.web.acquisition.states import (
+from personalscraper.app.acquisition.states import (
     EpisodeState,
     FollowStatus,
     derive_follow_status,

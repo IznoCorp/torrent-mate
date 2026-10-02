@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import pytest
 
-from personalscraper.web.acquisition.states import (
+from personalscraper.app.acquisition.states import (
     SERIES_ENDED_STATUSES,
     derive_follow_status,
     series_has_ended,
@@ -34,7 +34,7 @@ def caught_up(**overrides: object) -> str:
         **overrides: Fields to override on the caught-up baseline.
 
     Returns:
-        The derived :data:`~personalscraper.web.acquisition.states.FollowStatus`.
+        The derived :data:`~personalscraper.app.acquisition.states.FollowStatus`.
     """
     facts: dict[str, object] = {
         "active": True,

@@ -570,11 +570,11 @@ def _no_real_acquisition_spawns(monkeypatch: pytest.MonkeyPatch) -> None:
 def _fresh_web_torrent_session() -> None:
     """Drop the web layer's process-wide cached torrent client between tests.
 
-    The shared session cache (``personalscraper.web.torrent_session``) is a
+    The shared session cache (``personalscraper.app.torrent_session``) is a
     module global; without this reset a MagicMock client cached by one test
     would be served to every later test in the same process.
     """
-    from personalscraper.web.torrent_session import invalidate_torrent_session
+    from personalscraper.app.torrent_session import invalidate_torrent_session
 
     invalidate_torrent_session()
 
@@ -591,7 +591,7 @@ def _reset_search_cache() -> "Iterator[None]":
     Clearing on both sides keeps each test honest whether or not it knows the
     cache exists.
     """
-    from personalscraper.web.acquisition.search_cache import SEARCH_CACHE
+    from personalscraper.app.acquisition.search_cache import SEARCH_CACHE
 
     SEARCH_CACHE.clear()
     yield
