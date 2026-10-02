@@ -15,6 +15,7 @@
 // them and `app/bar-height.ts` finds the bar by one; a name removed here would
 // break a reader while the styling moved cleanly.
 import { cva } from "../cva";
+import { CURRENT_PLACE } from "./controls";
 
 /* ── THE RANKED LIST, AND IT IS ONE LIST ─────────────────────────────
    `MODEL.md` § 2 Part 6 says the chrome owns the z-order, and that today it is
@@ -369,8 +370,7 @@ export const drawerEntry = cva(
         // of the mark, never the mark itself. Painting the mark as the
         // background left the label exactly the colour of what it sat on:
         // contrast 1.00, a label written in invisible ink.
-        true: "[background:color-mix(in_oklab,var(--color-primary)_14%,transparent)] "
-          + "text-primary-text font-semibold",
+        true: CURRENT_PLACE,
         false: "",
       },
       // A PLACE THIS ACCOUNT DOES NOT HOLD is drawn, MARKED, never hidden
