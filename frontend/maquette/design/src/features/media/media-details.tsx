@@ -7,7 +7,6 @@ import { sheetHeadingPlace } from "./variants";
 import { NoInfo } from "./no-info";
 import { Icon } from "../../ui/icon";
 import { SkeletonLine } from "../../ui/state-surfaces";
-import type { Follow } from "./sheet-fields";
 import { actionButton, factKey, factsPanel, keyValueRow, sectionHeading, sheetActions } from "../../ui/variants";
 import { dateLabel } from "./format";
 import { useRights } from "../../lib/account";
@@ -17,7 +16,6 @@ export function MediaDetails({
   isFilm,
   owns,
   followed,
-  follows,
   prov,
   inFlight,
   identified,
@@ -28,7 +26,6 @@ export function MediaDetails({
   isFilm: boolean | null;
   owns: boolean;
   followed: boolean;
-  follows: Follow[];
   prov: Record<string, string | number>;
   /** Whether the sheet's read is still out — identifiers not yet known are a skeleton row, never an absence. */
   inFlight: boolean;
@@ -59,18 +56,13 @@ export function MediaDetails({
         <div className={factsPanel()} data-part="panel">
           <div className={keyValueRow()} data-part="key-value">
             <span>{t("screens.media.follow")}</span>
-            {/* The SECOND follow test, and the strict one: an exact title
-                match, or an exact match on the title without its year
-                suffix. The hero block above answers the same question
-                through `baseTitle` on BOTH sides — a follow recorded
-                under a different year suffix reads « actif » there and
-                « non suivi » here. Transplanted as found. */}
-            {/* THE APP'S ONE ON/OFF PAIR, « actif / inactif », in its chip. */}
+            {/* THE SCREEN'S OWN READING, passed down (`followedAs`, B-676): this row
+                had a stricter test of its own (the exact title, or the title cut at
+                « ( »), so a follow recorded under its year read « actif » in the
+                header and « inactif » here. The APP'S ONE ON/OFF PAIR, « actif /
+                inactif », in its chip. */}
             <span>
-              {follows.some(
-                (follow) =>
-                  follow.title === title || follow.title === title.split(" (")[0],
-              )
+              {followed
                 ? <Chip tone="success" label={t("states.active")} />
                 : <Chip tone="neutral" label={t("states.inactive")} />}
             </span>

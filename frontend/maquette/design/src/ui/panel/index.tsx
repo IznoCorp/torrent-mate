@@ -26,8 +26,10 @@ import { posterArtwork, useEngineDrawing } from "../../lib/engine-drawing";
 import { Chip } from "../chip";
 import { PosterArtwork } from "../poster";
 import { Icon } from "../../ui/icon";
+import { useUiState } from "../../lib/store-access";
 import { actionButton, avatarImage, comingSoon, factsPanel, keyValueRow, option, optionLabel, optionList, optionMark, ruleNote, sheetActions, sheetAvatar, sheetFacts, sheetHead, sheetIdentity, sheetMeta, sheetPoster, sheetTitle, statusDot, type ChipTone, type StatusTone } from "../variants";
 import {
+  isCurrentPlace,
   refuseBlock,
   registerBlock,
   rendererFor,
@@ -77,12 +79,15 @@ function targetAttributes(target: Record<string, string | number> | undefined): 
 }
 
 function PanelActionButton({ action }: { action: Action | null | undefined }) {
+  const page = useUiState().page;
   if (!action) return null;
   const attributes = targetAttributes(action.target);
+  const current = isCurrentPlace(action.target, page);
   return (
     <button
-      className={`${actionButton({ kind: "panelAction", tone: panelActionTone(action.ton) })}${action.ton && panelActionTone(action.ton) === "plain" ? ` ${action.ton}` : ""}`}
+      className={`${actionButton({ kind: "panelAction", tone: current ? "current" : panelActionTone(action.ton) })}${action.ton && panelActionTone(action.ton) === "plain" ? ` ${action.ton}` : ""}`}
       data-part="sheet/action"
+      aria-current={current ? "page" : undefined}
       data-tone={action.ton || undefined}
       disabled={action.desactive || undefined}
       title={action.infobulle || undefined}
