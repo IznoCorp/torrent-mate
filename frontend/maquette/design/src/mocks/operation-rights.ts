@@ -61,6 +61,7 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   readStagingDestinations: ACQUISITION,
   readSuggestions: "acquisition.request",
   searchProviders: "acquisition.request",
+  searchProviderById: "acquisition.request",
   readReleases: PILOT,
   createFollow: "acquisition.request",
   updateFollow: "acquisition.follow",

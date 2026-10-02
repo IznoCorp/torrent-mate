@@ -1650,7 +1650,19 @@ zone
 # The words the maquette's `@keyframes` names are built from, read since
 # B-056 put those names under the vocabulary arm.
 banner
+example
+examples
+flush
+mutations
+placed
+providers
 pulse
+resizes
 rise
+rounded
+scrollers
 shimmer
 spin
+stretch
+tall
+watchers
