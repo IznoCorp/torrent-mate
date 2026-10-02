@@ -14,17 +14,43 @@ chercher l'efficacité. »
   § 3 (decisions), the lots' `DESIGN.md`: his, amended by him alone. A web PR cites the §§ it serves.
 - The maquette (`frontend/maquette/design/`) is the next version of the app and is changed FIRST;
   what is in it is validated, the existing is the reference, new work conforms to it.
-- He decides the functional; everything else goes on without him: decide, merge, deploy. His
+- He decides the functional; everything else goes on without him: decide, merge, promote to `main`.
+  Deploying `staging` and `prod` is his (operator-method § 3, 10-01): they move on his word only. His
   feedback corrects what was expected; it enters the lot in flight, whichever lot caused it.
 
 ## Lots here
 
 - Order and done-when: `docs/reference/frontend-architecture.md` § 4; where it stands:
   `IMPLEMENTATION.md`. A phase is one surface. `CLAUDE.md` names the two gates the skills run.
-- Push at every commit: tm-design shows him the work in flight, and he accepts its false bugs.
-- A lot is done when its gates are green and ONE independent reader has looked at the lot's
-  screens at 390 px on tm-design, in one round, every major fixed before the merge. His own trial
+- Push at every commit: tm-design shows him the work in flight (`develop` plus the lot), and he
+  accepts its false bugs.
+- A lot's PRs target `develop` and merge as soon as their CI is green — that is what puts them on
+  tm-design. A lot is done when its gates are green and ONE independent reader has looked at the
+  lot's screens at 390 px on tm-design, in one round, every major fixed; the orchestrator then
+  promotes its last merged commit to `main`. One lot at a time stands on `develop` beyond `main` (a
+  promotion is a fast-forward: an unvalidated commit holds back all that follows it). His own trial
   may come long after; what it finds is noted and fixed in whichever lot is in flight.
+
+## The flow's scripts
+
+`feature → develop → main → staging → prod` (`docs/features/git-flow/DESIGN.md`). Every step run by
+hand is a plain script any session runs — the orchestrator or any agent — from any clone, with `gh`
+signed in (his 10-01: « des scripts à lancer au besoin que l'orchestrateur ou tout autre agent peut
+également appelé »). Each refuses with one line saying why, pushes nothing with `--dry-run`, and never
+forces.
+
+| Step | Invocation | Who, when |
+| --- | --- | --- |
+| Promote a validated lot | `scripts/promote.sh main [<sha>]` — `develop` → `main`; refused unless every commit is a merged PR into `develop` whose required checks were green | the orchestrator, when the lot's reading passed |
+| Deploy the preprod | `scripts/promote.sh staging [<sha>]` — `main` → `staging`; the poller deploys it within 60 s (`tm-staging`'s `/api/version` → `staging @ <sha>`) | any session, on his word only (« passe en staging ») |
+| Deploy production | `scripts/promote.sh prod [<sha>]` — `staging` → `prod`, then the tag `v<__version__>`; refused if that tag exists | any session, on his word only (« mets en prod ») |
+| Tag a hotfix | `scripts/promote.sh tag` — tags `prod`'s tip after a hotfix PR merged into `prod` | whoever merged the hotfix |
+| Merge a hotfix back | `scripts/promote.sh backport <c>` — `prod`'s tip merged with `develop` on `backport/<c>`, the `__version__` conflict resolved to `develop`'s plus one patch (any other conflict: it stops, pushes nothing, names the file), its PR into `develop` armed with the MERGE method | whoever merged the hotfix |
+
+`<sha>` defaults to the source branch's tip; `--dry-run` goes anywhere on the line. A hotfix:
+`git switch -c hotfix/<c> origin/prod`, the fix with its regression test, `__version__` = prod's plus
+`.1`, a PR into `prod` (squash, auto-merge), then `tag` and `backport <c>`. Until the backport merges,
+`promote.sh prod` refuses (not a fast-forward) — by design.
 
 ## Gates
 

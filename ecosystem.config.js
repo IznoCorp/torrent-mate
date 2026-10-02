@@ -9,7 +9,7 @@
 //
 // ENVIRONMENT SEPARATION (ENV-SEP):
 //   dev     = ~/dev/PersonalScraper  — this checkout, feature branches, NO PM2 daemons.
-//   prod    = ~/deploy/torrentmate   — tracks `main` (autodeploy). Runs the web UI AND
+//   prod    = ~/deploy/torrentmate   — tracks `prod` (autodeploy). Runs the web UI AND
 //             every daemon/cron below, via the prod clone's own venv binary. Decoupled
 //             from the dev checkout so the crons NEVER execute an in-flight feature branch.
 //   staging = ~/staging/torrentmate  — tracks `staging` (autodeploy). Web UI ONLY
@@ -32,7 +32,7 @@ module.exports = {
   apps: [
     // ---- Daemons (autorestart: true) ----
 
-    // The watcher daemon — PROD. Runs from the prod clone (main), NOT the dev checkout.
+    // The watcher daemon — PROD. Runs from the prod clone (prod), NOT the dev checkout.
     {
       name: "personalscraper-watch",
       script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
@@ -101,9 +101,10 @@ module.exports = {
 
     // ---- Continuous deployment (autodeploy poller) ----
     // Watches origin and redeploys a clone when its tracked branch advances:
-    //   main    advances → scripts/deploy.sh          (prod clone ~/deploy/torrentmate)
+    //   prod    advances → scripts/deploy.sh          (prod clone ~/deploy/torrentmate)
     //   staging advances → scripts/deploy-staging.sh  (staging clone ~/staging/torrentmate)
-    // Runs from the PROD clone (main) so the poller itself is not driven by the dev
+    // Both move only through scripts/promote.sh, by fast-forward (docs/features/git-flow).
+    // Runs from the PROD clone (prod) so the poller itself is not driven by the dev
     // checkout's branch. This is a shell script (not the Python CLI), so interpreter
     // is /bin/bash. 60 s loop (AUTODEPLOY_INTERVAL); restart_delay backs a crashed
     // poller off by 60 s so a persistent failure does not hot-loop PM2.
