@@ -1,6 +1,7 @@
 // What is wanted, and what is being fetched.
 import GRAB_CADENCE from "../seeds/grab-cadence.json";
 import { releasesFor } from "./releases-of";
+import { knownMedium } from "./media";
 import { sameItem } from "./same-item";
 import { acquisitionKey } from "../../lib/arrival-slots";
 import SEARCH_RESULTS from "../seeds/search-results.json";
@@ -72,7 +73,9 @@ const BEING_ACQUIRED = "acquiring";
 // these is a token or a blank, never a value copied off another record.
 const NEWLY_ADDED_STATUS = "pending";
 const NEWLY_ADDED_SINCE = "";
-const NEWLY_ADDED_YEAR = 0;
+// The year no family knows is a BLANK, which the card leaves out: a 0 was drawn
+// as a year, « 0 · série » (B-673).
+const NEWLY_ADDED_YEAR = "";
 
 /**
  * Finds one follow by the identifier the address carries.
@@ -177,7 +180,11 @@ export function acquisitionRoutes(): MockRoute[] {
         : {};
       // The cast reaches the seed's own optional fields, never a null: the line
       // below is what refuses that.
-      const together = { ...(source?.ids ?? {}), ...asked };
+      // AND WHAT THE IDENTITY NAMES, wherever the act was taken (B-673): the
+      // title join reaches the search results and the deck alone, so a medium
+      // followed from « Incomplets » or a library sheet is found by identity.
+      const known = knownMedium({ ...(source?.ids ?? {}), ...asked });
+      const together = { ...(known?.ids ?? {}), ...(source?.ids ?? {}), ...asked };
       const identity = (Object.keys(together).length > 0
         ? together
         : null) as (typeof state.follows)[number]["ids"] | null;
@@ -185,14 +192,14 @@ export function acquisitionRoutes(): MockRoute[] {
       const added = {
         title,
         kind: text(request.body, "kind"),
-        year: Number.isFinite(year) ? year : NEWLY_ADDED_YEAR,
+        year: Number.isFinite(year) ? year : source?.year ?? known?.year ?? NEWLY_ADDED_YEAR,
         status: NEWLY_ADDED_STATUS,
         showStatus: null,
         since: NEWLY_ADDED_SINCE,
         searches: 0,
         fresh: true,
         ids: identity,
-        poster: source?.poster ?? null,
+        poster: source?.poster ?? known?.poster ?? null,
       };
       state.follows = [added, ...state.follows];
       claimRequest(title, false);
