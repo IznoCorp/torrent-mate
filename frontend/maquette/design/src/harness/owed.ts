@@ -26,29 +26,29 @@ function publish(): void {
  *
  * @param act What the state does.
  * @param ms How long after it is asked for.
- * @returns The timer's handle, to hand to `forgetOwed`.
+ * @returns The timer's id, to hand to `forgetOwed`.
  */
 export function owed(act: () => void, ms: number): number {
-  const handle = window.setTimeout(() => {
+  const timer = window.setTimeout(() => {
     try {
       act();
     } finally {
-      pending.delete(handle);
+      pending.delete(timer);
       publish();
     }
   }, ms);
-  pending.add(handle);
+  pending.add(timer);
   publish();
-  return handle;
+  return timer;
 }
 
 /**
  * Drops an act that is no longer owed — the next state was driven first.
  *
- * @param handle What `owed` returned.
+ * @param timer What `owed` returned.
  */
-export function forgetOwed(handle: number): void {
-  window.clearTimeout(handle);
-  pending.delete(handle);
+export function forgetOwed(timer: number): void {
+  window.clearTimeout(timer);
+  pending.delete(timer);
   publish();
 }
