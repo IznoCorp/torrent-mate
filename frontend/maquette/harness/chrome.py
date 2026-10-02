@@ -4,11 +4,14 @@ R51 — no piece of the harness's chrome overlaps the app's FIXED controls, in
       any named state, at any width.
 
 THE SUBJECT IS THE CLASS, read by its prefix (B-388): every element whose
-`data-part` begins `harness/` and that no other such element contains — the bar
-and the desktop switch today. It read the bar alone by its literal, so a second
-piece of chrome was outside a rule whose first line promises it, and a third
-would have been held by nothing. A floor keeps the reading from going vacuous
-the day one is renamed.
+`data-part` begins `harness/` and that no other such element contains — the
+desktop switch today (and, until B-681, the bar). It read the bar alone by its
+literal, so a second piece of chrome was outside a rule whose first line
+promises it, and a third would have been held by nothing. A floor keeps the
+reading from going vacuous the day one is renamed. The maquette's two controls
+are no piece of it any more: they are entries of the side menu, in a
+`harness/menu` group inside `#drawer`, which this reading leaves out and
+`menu_controls.py` holds.
 
 The bar is not part of the product: it switches the design notes, the data
 scenario and the theme, and `window.__measure(true)` clears it before any
@@ -43,9 +46,11 @@ WIDTHS = [390, 1280]
 # nobody could satisfy rather than a rule that catches anything.
 CONTROLS = '[data-part="avatar"], [data-part="shell/header"] button, [data-part="shell/tab-bar"] button, #fab, [data-part="shell/add-action"]'
 
-# How many pieces of harness chrome the document holds today: the bar and the
-# desktop switch. Fewer means a piece was renamed out of the prefix.
-CHROME_FLOOR = 2
+# How many pieces of FLOATING harness chrome the document holds today: the
+# desktop switch. (The maquette's two controls are the side menu's entries, so
+# they are no floating piece — `menu_controls.py` holds them.) Fewer means a
+# piece was renamed out of the prefix.
+CHROME_FLOOR = 1
 
 
 async def main():
@@ -75,7 +80,8 @@ async def main():
                 hits = await pg.evaluate(
                     """(sel)=>{
                       const pieces=[...document.querySelectorAll('[data-part^="harness/"]')]
-                        .filter(el=>!el.parentElement.closest('[data-part^="harness/"]'));
+                        .filter(el=>!el.parentElement.closest('[data-part^="harness/"]')
+                           && !el.closest('#drawer'));
                       const controls=[...document.querySelectorAll(sel)]
                         .filter(el=>el.getClientRects().length>0);
                       const hits=[];

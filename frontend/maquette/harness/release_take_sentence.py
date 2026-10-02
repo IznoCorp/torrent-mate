@@ -68,7 +68,7 @@ RELEASES_STATE = "screen-releases"
 
 # THE PROTOTYPE'S WELCOME HINT IS SPENT FIRST, and this rule fell over it.
 #
-# The engine offers « touch the ⓘ » through the SAME message element, on a
+# The engine offers « open the menu for the design notes » through the SAME message element, on a
 # timer after boot, and that timer outlived this rule's opening: the hint
 # landed AFTER the take's own sentence and was counted as a second write, so a
 # perfectly correct message read as B-322 itself. An instrument that cannot

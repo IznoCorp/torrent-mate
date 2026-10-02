@@ -402,7 +402,11 @@ CHOICES = """(root)=>{
     const style = getComputedStyle(button);
     return [style.fontSize, style.fontWeight, style.paddingTop, style.paddingLeft, style.borderRadius].join(' ');
   };
-  const pressed = [...layer.querySelectorAll('button[aria-pressed]')];
+  // THE MAQUETTE'S OWN TOGGLES ARE NOT THE PRODUCT'S CHOICES: the drawer's
+  // `harness/menu` group (B-681) holds two entries that are pressed buttons by
+  // design, and they are no view switch.
+  const pressed = [...layer.querySelectorAll('button[aria-pressed]')]
+    .filter((button) => !button.closest('[data-part^="harness/"]'));
   return {
     groups: pressed.length,
     outside: pressed.filter((button) => !button.closest('[data-part="view/switch"]')).length,

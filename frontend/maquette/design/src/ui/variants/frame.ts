@@ -31,7 +31,6 @@ import { CURRENT_PLACE } from "./controls";
      50  the tab bar             `tabBar` (ui/variants/frame.ts)
      51  the bottom slot's bar   `selectionBar` (ui/variants/frame.ts)
      52  the bottom sheet        `bottomSheet` (ui/variants/layout.ts)
-     53  the harness's buttons   `.hbtn` (styles/harness.css)
      54  the drawer `drawer` (ui/variants/frame.ts) · the install proposal `.installbar` (index.html)
      55  the scrim under a confirmation `dialogScrim` (ui/variants/layout.ts)
      56  the confirmation        `dialog` (ui/variants/frame.ts)

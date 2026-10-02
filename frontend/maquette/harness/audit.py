@@ -106,7 +106,6 @@ async def main():
           // flinching.
           R.deadButtons = [...root.querySelectorAll('button, a')]
             .filter(el=>el.getBoundingClientRect().height>0 && !el.disabled
-                    && !el.closest('[data-part="harness/bar"]')
                     && !el.closest('details:not([open])'))
             // An href IS a destination — the trailer is a genuine outbound
             // link to YouTube.
@@ -123,7 +122,7 @@ async def main():
 
           // R3 — touch targets: every control is at least 40px on one axis
           R.targetsTooSmall = [...root.querySelectorAll('button,a')].filter(el=>{
-            if (!vis(el) || el.closest('[data-part="harness/bar"]')) return false;
+            if (!vis(el)) return false;
             const b=el.getBoundingClientRect();
             // DECLARED EXCEPTION: the episode cell is 31 × 27 in the SHIPPED
             // component. At 13 cells per row, 44px would demand 572px of
