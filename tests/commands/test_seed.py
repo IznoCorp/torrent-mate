@@ -294,7 +294,7 @@ def test_seed_sweep_client_error_prints_the_report_and_exits_one(tmp_path, test_
 
 
 def test_seed_sweep_records_its_run_like_the_other_scheduled_jobs(tmp_path, test_config):
-    """The sweep writes one ``pipeline_run`` row (command ``seed-sweep``) so Système shows its last run."""
+    """The sweep writes one ``pipeline_run`` row (command ``seed-sweep``) so the System page shows its last run."""
     import sqlite3
 
     _seed_one_obligation(tmp_path)
