@@ -1728,7 +1728,6 @@
         "headingMany": "Supprimer {{media}} médias ?",
         "headingOneTitleMany": "Supprimer « {{title}} » — {{media}} médias ?",
         "headingOne": "Supprimer « {{title}} » ?",
-        "dryRun": "Simulation — rien ne sera supprimé tant que vous n'aurez pas validé que cette liste dit vrai.",
         "fileOne": "{{count}} fichier",
         "fileMany": "{{count}} fichiers",
         "otherOne": "et {{count}} autre",
@@ -1748,15 +1747,16 @@
         "followedMany": "{{count}} de ces médias sont suivis.",
         "followedText": "Sans action de votre part, ces épisodes seront re-téléchargés à la prochaine recherche.",
         "deleteAndStop": "Supprimer et arrêter le suivi",
-        "doneStopped": "Simulation terminée — 0 fichier touché. Le suivi aurait été arrêté.",
+        "followStopped": "Le suivi est arrêté.",
         "deleteAndKeep": "Supprimer, garder le suivi",
-        "doneKept": "Simulation terminée — 0 fichier touché. Le suivi aurait été conservé.",
+        "followKept": "Le suivi est conservé.",
         "delete": "Supprimer",
-        "done": "Simulation terminée — 0 fichier touché.",
+        "done": "« {{title}} » supprimé.",
+        "doneMany": "{{count}} médias supprimés.",
         "cancel": "Annuler"
       },
-      "deletedOne": "{{count}} média supprimé — simulation, aucun fichier touché.",
-      "deletedMany": "{{count}} médias supprimés — simulation, aucun fichier touché."
+      "deletedOne": "{{count}} média supprimé.",
+      "deletedMany": "{{count}} médias supprimés."
     },
     "acquisition": {
       "taken": "« {{title}} » récupéré — suivez-le dans « En vol ».",
