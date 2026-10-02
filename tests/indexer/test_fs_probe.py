@@ -366,7 +366,11 @@ class TestIsMounted:
         monkeypatch.setattr(_fs_probe, "_is_mount_root", lambda p: p in {"/", *mount_points})
 
     def test_folder_under_a_mounted_volume_is_mounted(self, tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """``/Volumes/Disk1/medias`` resolves to the volume ``/Volumes/Disk1``."""
+        """``/Volumes/Disk1/medias`` resolves to the volume ``/Volumes/Disk1``.
+
+        Design: docs/production/storage.md#mounted-means-a-mounted-volume
+        Contract: A folder under a mounted volume is mounted.
+        """
         from personalscraper.core.sqlite._fs_probe import is_mounted
 
         folder = tmp_path / "Disk1" / "medias"
@@ -375,14 +379,23 @@ class TestIsMounted:
         assert is_mounted(folder) is True
 
     def test_the_volume_root_itself_is_mounted(self, tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """A path that is itself a mount point is mounted."""
+        """A path that is itself a mount point is mounted.
+
+        Design: docs/production/storage.md#mounted-means-a-mounted-volume
+        Contract: A volume root that is itself a mount point is mounted.
+        """
         from personalscraper.core.sqlite._fs_probe import is_mounted
 
         self._mount_points(monkeypatch, str(tmp_path))
         assert is_mounted(tmp_path) is True
 
     def test_existing_folder_on_the_root_filesystem_is_not_mounted(self, tmp_path, monkeypatch) -> None:
-        """The folder exists, but only ``/`` is a mount point above it."""
+        """The folder exists, but only ``/`` is a mount point above it.
+
+        Design: docs/production/storage.md#mounted-means-a-mounted-volume
+        Contract: An existing folder whose only mount point above is ``/`` is
+        not mounted.
+        """
         from personalscraper.core.sqlite._fs_probe import is_mounted
 
         folder = tmp_path / "Disk1" / "medias"
@@ -391,14 +404,22 @@ class TestIsMounted:
         assert is_mounted(folder) is False
 
     def test_missing_path_is_not_mounted(self, tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """A path that does not exist is not mounted, whatever is above it."""
+        """A path that does not exist is not mounted, whatever is above it.
+
+        Design: docs/production/storage.md#mounted-means-a-mounted-volume
+        Contract: A path that does not exist is not mounted.
+        """
         from personalscraper.core.sqlite._fs_probe import is_mounted
 
         self._mount_points(monkeypatch, str(tmp_path))
         assert is_mounted(tmp_path / "gone") is False
 
     def test_reads_the_mount_table_live(self, tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """A disk that comes and goes is seen as it is, never from a cached reading."""
+        """A disk that comes and goes is seen as it is, never from a cached reading.
+
+        Design: docs/production/storage.md#mounted-means-a-mounted-volume
+        Contract: The mount table is read live on each call, never cached.
+        """
         from personalscraper.core.sqlite._fs_probe import is_mounted
 
         self._mount_points(monkeypatch, str(tmp_path))

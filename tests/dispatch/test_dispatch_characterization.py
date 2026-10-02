@@ -348,6 +348,10 @@ def test_dispatch_movie_never_picks_a_disk_whose_volume_is_not_mounted(
     its volume is not mounted: no mount point sits at or above its folder but
     ``/``. Disk3, really mounted, must win and nothing may land in disk2's folder.
 
+    Design: docs/production/storage.md#mounted-means-a-mounted-volume
+    Contract: Dispatch never picks a disk whose volume is not mounted, even
+    when it reports the most free space; the mounted disk wins.
+
     Args:
         char_config: Dispatch-wired Config fixture.
         char_db_path: Resolved indexer DB path shared with the dispatcher.

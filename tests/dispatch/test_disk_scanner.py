@@ -62,6 +62,10 @@ class TestGetDiskStatus:
 
         The only mount point is ``/``: the disk's volume was never mounted, yet its
         folder exists on the system disk.
+
+        Design: docs/production/storage.md#mounted-means-a-mounted-volume
+        Contract: A disk whose folder exists but whose volume is not mounted
+        (only ``/`` is a mount point above it) reports ``is_mounted`` False.
         """
         folder = tmp_path / "Volumes" / "Disk9" / "medias"
         folder.mkdir(parents=True)
@@ -73,7 +77,12 @@ class TestGetDiskStatus:
 
     @pytest.mark.real_mount_check
     def test_tmp_folder_is_not_mounted_on_real_mount_table(self, tmp_path: Path) -> None:
-        """With the real mount reading, a folder on the root device is not mounted."""
+        """With the real mount reading, a folder on the root device is not mounted.
+
+        Design: docs/production/storage.md#mounted-means-a-mounted-volume
+        Contract: Reading the real mount table, a folder on the root device
+        is not a mounted disk.
+        """
         if os.stat(tmp_path).st_dev != os.stat("/").st_dev:
             pytest.skip("tmp_path is not on the root device here (tmpfs or a separate volume)")
         dc = DiskConfig(id="disk_a", path=tmp_path, categories=["movies"])
