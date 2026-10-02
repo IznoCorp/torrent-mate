@@ -24,7 +24,6 @@ import sys
 from urllib.parse import urlparse
 
 import served_copy
-from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -601,6 +600,10 @@ async def screen_arrives(page, key, ceiling=READY_CEILING_MS):
         True when the screen arrived, False when the ceiling came first — the
         reading taken then names what is open, and the rule says so.
     """
+    # Imported here, not at module level: the pytest suite loads this module in
+    # CI's `test` job, which has no Playwright (B-684).
+    from playwright.async_api import TimeoutError as PlaywrightTimeoutError
+
     try:
         await page.wait_for_function(
             """(key) => [...document.querySelectorAll('[data-part="screen"][data-open]')]
