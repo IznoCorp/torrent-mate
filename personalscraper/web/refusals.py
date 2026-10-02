@@ -23,4 +23,13 @@ def install_refusal_handler(app: FastAPI) -> None:
 
     @app.exception_handler(AppRefusal)
     async def _app_refusal(_: Request, exc: AppRefusal) -> JSONResponse:
+        """Answer a refusal as v0 always answered it.
+
+        Args:
+            _: The request (unused).
+            exc: The application-layer refusal.
+
+        Returns:
+            A JSON response ``{"detail": exc.detail}`` with the refusal's status.
+        """
         return JSONResponse({"detail": exc.detail}, status_code=exc.status)

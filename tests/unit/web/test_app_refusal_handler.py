@@ -39,7 +39,7 @@ def test_refusal_is_answered_as_v0_detail(test_config: Any, exc_type: type[AppRe
 
     @app.get("/_probe")
     def _probe() -> None:
-        raise exc_type("Détail verbatim: 'x'")
+        raise exc_type("Verbatim detail: 'x'")
 
     # create_app ends with the SPA catch-all, which would shadow a later route.
     app.router.routes.insert(0, app.router.routes.pop())
@@ -47,4 +47,4 @@ def test_refusal_is_answered_as_v0_detail(test_config: Any, exc_type: type[AppRe
     response = TestClient(app, raise_server_exceptions=False).get("/_probe")
     assert exc_type.status == status
     assert response.status_code == status
-    assert response.json() == {"detail": "Détail verbatim: 'x'"}
+    assert response.json() == {"detail": "Verbatim detail: 'x'"}

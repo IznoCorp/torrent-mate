@@ -190,8 +190,8 @@ def _reserve_run_row(
         dry_run: ``True`` for a dry run.
 
     Raises:
-        AppConflict or AppPreconditionRequired: 409 (already running / cannot verify) or 428 (no fresh
-            dry run). The transaction is rolled back before raising.
+        AppConflict: 409 (already running / cannot verify). The transaction is rolled back before raising.
+        AppPreconditionRequired: 428 (no fresh dry run). The transaction is rolled back before raising.
     """
     destructive = action.risk == "destructive"
     check_concurrency = action.risk in ("write", "destructive")
