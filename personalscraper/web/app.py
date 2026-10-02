@@ -23,6 +23,7 @@ from personalscraper.indexer.db import apply_migrations
 from personalscraper.logger import get_logger
 from personalscraper.web.auth.routes import router as auth_router
 from personalscraper.web.deps import is_staging_role, require_session
+from personalscraper.web.refusals import install_refusal_handler
 from personalscraper.web.registry_projection import RegistryHealthProjection
 from personalscraper.web.routes.health import router as health_router
 from personalscraper.web.routes.version import router as version_router
@@ -196,6 +197,9 @@ def create_app(config: Config, settings: Settings) -> FastAPI:
     # rather than the reverse proxy: the compression must survive a proxy
     # reconfiguration, and it is the app that knows what it serves.
     app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+    # v0 answers the application layer's refusals as ``{"detail": ...}``.
+    install_refusal_handler(app)
 
     # Store config + settings on app.state for dependency access.
     app.state.config = config

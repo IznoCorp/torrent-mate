@@ -435,7 +435,9 @@ def search_decision(
     media_kind: str = row["media_kind"]
 
     try:
-        candidates = search_candidates(request, media_kind, body.title, body.year)
+        candidates = search_candidates(
+            request.app.state.config, request.app.state.settings, media_kind, body.title, body.year
+        )
     except ProviderSearchError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
