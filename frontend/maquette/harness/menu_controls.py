@@ -1,6 +1,6 @@
 """R-menu — the maquette's two controls live in the side menu, nothing floats over the page.
 
-THE DEFECT (B-680). The prototype's own controls — the design notes and the
+THE DEFECT (B-681). The prototype's own controls — the design notes and the
 real/dense world switch — sat in a floating bar over the page, and the operator
 read it covering the maquette's own information, « souvent ». They are now
 entries of the side menu, in a group of their own at its end, contributed by

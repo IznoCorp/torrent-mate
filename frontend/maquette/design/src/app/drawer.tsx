@@ -25,6 +25,7 @@ import {
   currentAppearance,
 } from "./appearance";
 import { installDrawerDismissGesture } from "./drawer-gesture";
+import { drawerExtraGroups } from "./drawer-extras";
 import { chooseRail, currentRail } from "./rail";
 import { registerLayer, unwindLayer } from "./layers";
 import { NAVIGATION, absentFor, opensFor, type NavigationGroup, type NavigationRow } from "./navigation";
@@ -235,6 +236,37 @@ export function NavigationDrawer(): ReactElement {
           ))}
         </div>
       </div>
+      {/* WHAT A BUILD CONTRIBUTES, AFTER EVERYTHING THE PRODUCT OWNS (`drawer-extras.ts`).
+          Empty in the product's own build: the maquette's controls arrive from the
+          harness module, which this file never imports. The label and the pressed
+          state are read on every draw — the entry's tap moves the store's version,
+          which this component already subscribes to. */}
+      {drawerExtraGroups().map((group) => (
+        <div
+          key={group.part}
+          className={`${drawerGroup()} ${drawerAppearance()}`}
+          data-part={group.part}
+        >
+          <p className={drawerGroupTitle({ collapsed })}>{group.title()}</p>
+          {group.entries.map((entry) => (
+            <button
+              key={entry.id}
+              id={entry.id}
+              type="button"
+              aria-pressed={entry.pressed ? entry.pressed() : undefined}
+              title={collapsed ? entry.label() : undefined}
+              className={`${drawerEntry({ collapsed })} w-full text-left`}
+              onClick={() => {
+                entry.onPress();
+                store.touch();
+              }}
+            >
+              <Icon paths={entry.icon} className={drawerEntryDrawing()} />
+              <span className={drawerEntryLabel({ collapsed })}>{entry.label()}</span>
+            </button>
+          ))}
+        </div>
+      ))}
       {/* WHAT THIS HOST IS SERVING, and it used to be a lie: three literals — a
           version, a build sha and « à jour » — none computed and none checked,
           while the repository stood twenty patch versions further on. The

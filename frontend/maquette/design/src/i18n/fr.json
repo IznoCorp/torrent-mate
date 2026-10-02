@@ -1,5 +1,12 @@
 {
   "harness": {
+    "menu": {
+      "group": "Maquette",
+      "notes": "Notes de conception",
+      "notesShown": "Notes de conception affichées.",
+      "notesHidden": "Notes masquées.",
+      "hint": "Ouvrez le menu pour afficher les notes de conception."
+    },
     "scenarioToggle": {
       "toDense": "Passer au monde dense",
       "toReal": "Revenir au monde réel",
