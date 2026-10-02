@@ -1,4 +1,4 @@
-"""Unit tests for :func:`personalscraper.web.decisions.reserve._reserve_decision_run`.
+"""Unit tests for :func:`personalscraper.app.decisions.reserve._reserve_decision_run`.
 
 Sub-phase 2.3 — covers the reservation contract:
 
@@ -116,7 +116,7 @@ class TestReserveDecisionRun:
         _create_db(db_path)
         run_uid = "reserve-001"
 
-        from personalscraper.web.decisions.reserve import _reserve_decision_run
+        from personalscraper.app.decisions.reserve import _reserve_decision_run
 
         _reserve_decision_run(
             db_path,
@@ -144,7 +144,7 @@ class TestReserveDecisionRun:
         """When the DB file does not exist, the function is a no-op (no exception)."""
         db_path = tmp_path / "nonexistent.db"
 
-        from personalscraper.web.decisions.reserve import _reserve_decision_run
+        from personalscraper.app.decisions.reserve import _reserve_decision_run
 
         # Must not raise.
         _reserve_decision_run(
@@ -167,7 +167,7 @@ class TestReserveDecisionRun:
         # Insert a running row for decision 1 with OUR pid (guaranteed alive).
         _insert_running_row(db_path, "existing-run", pid=os.getpid(), decision_id=1)
 
-        from personalscraper.web.decisions.reserve import _reserve_decision_run
+        from personalscraper.app.decisions.reserve import _reserve_decision_run
 
         with pytest.raises(AppConflict) as exc_info:
             _reserve_decision_run(
@@ -192,7 +192,7 @@ class TestReserveDecisionRun:
         # A live resolve of decision 2 must NOT block a reservation for decision 1.
         _insert_running_row(db_path, "other-run", pid=os.getpid(), decision_id=2)
 
-        from personalscraper.web.decisions.reserve import _reserve_decision_run
+        from personalscraper.app.decisions.reserve import _reserve_decision_run
 
         _reserve_decision_run(
             db_path,
@@ -214,7 +214,7 @@ class TestReserveDecisionRun:
         stale_pid = 99999
         _insert_running_row(db_path, "stale-run", pid=stale_pid, decision_id=1)
 
-        from personalscraper.web.decisions.reserve import _reserve_decision_run
+        from personalscraper.app.decisions.reserve import _reserve_decision_run
 
         # Patch os.kill so stale_pid raises ProcessLookupError (dead process).
         original_kill = os.kill
@@ -224,7 +224,7 @@ class TestReserveDecisionRun:
                 raise ProcessLookupError()
             return original_kill(pid, sig)  # type: ignore[func-returns-value]
 
-        with patch("personalscraper.web.decisions.reserve.os.kill", patched_kill):
+        with patch("personalscraper.app.decisions.reserve.os.kill", patched_kill):
             _reserve_decision_run(
                 db_path,
                 run_uid="new-run",
@@ -244,7 +244,7 @@ class TestReserveDecisionRun:
 
         _insert_running_row(db_path, "null-pid-run", pid=None, decision_id=1)
 
-        from personalscraper.web.decisions.reserve import _reserve_decision_run
+        from personalscraper.app.decisions.reserve import _reserve_decision_run
 
         _reserve_decision_run(
             db_path,
@@ -266,7 +266,7 @@ class TestReserveDecisionRun:
         # A library-index is running (live pid), but command != 'scrape-resolve'.
         _insert_running_row(db_path, "index-run", pid=os.getpid(), command="library-index")
 
-        from personalscraper.web.decisions.reserve import _reserve_decision_run
+        from personalscraper.app.decisions.reserve import _reserve_decision_run
 
         _reserve_decision_run(
             db_path,
@@ -289,7 +289,7 @@ class TestReserveDecisionRun:
         db_path = tmp_path / "library.db"
         _create_db(db_path)
 
-        from personalscraper.web.decisions.reserve import _reserve_decision_run
+        from personalscraper.app.decisions.reserve import _reserve_decision_run
 
         # Simulate a connection that works for PRAGMAs but fails on BEGIN IMMEDIATE.
         # Pass the real db_path so the exists() guard passes; the mock intercepts
@@ -303,7 +303,7 @@ class TestReserveDecisionRun:
 
         mock_conn.execute = mock_execute
 
-        with patch("personalscraper.web._runner_engine.sqlite3.connect", return_value=mock_conn):
+        with patch("personalscraper.app._runner_engine.sqlite3.connect", return_value=mock_conn):
             with pytest.raises(AppConflict) as exc_info:
                 _reserve_decision_run(
                     db_path,
@@ -326,7 +326,7 @@ class TestReserveDecisionRun:
         _create_db(db_path)
         run_uid = "finalize-test"
 
-        from personalscraper.web.decisions.reserve import _reserve_decision_run
+        from personalscraper.app.decisions.reserve import _reserve_decision_run
 
         _reserve_decision_run(
             db_path,
@@ -352,7 +352,7 @@ class TestReserveDecisionRun:
         _create_db(db_path)
         run_uid = "finalize-error-test"
 
-        from personalscraper.web.decisions.reserve import _reserve_decision_run
+        from personalscraper.app.decisions.reserve import _reserve_decision_run
 
         _reserve_decision_run(
             db_path,

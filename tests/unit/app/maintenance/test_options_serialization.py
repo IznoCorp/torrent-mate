@@ -9,7 +9,7 @@ comparisons, so these tests are a guardrail against accidental drift.
 
 from __future__ import annotations
 
-from personalscraper.web.maintenance.registry import canonical_options_json
+from personalscraper.app.maintenance.registry import canonical_options_json
 
 
 class TestCanonicalOptionsJson:

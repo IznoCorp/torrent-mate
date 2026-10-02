@@ -193,7 +193,7 @@ def library_clean(
         raise typer.Exit(1)
 
     # Acquire lock only when applying changes. Exit 3 = lock busy — the
-    # maintenance runner re-queues on this code (web/run_queue.py, §6), so it
+    # maintenance runner re-queues on this code (app/run_queue.py, §6), so it
     # must stay distinguishable from a real error (exit 1).
     if apply:
         if not cli_helpers.acquire_pipeline_lock(

@@ -1,6 +1,6 @@
 """Decision run reservation — the per-decision concurrency guard.
 
-Thin shim over :func:`personalscraper.web._runner_engine.reserve_run_row` (the
+Thin shim over :func:`personalscraper.app._runner_engine.reserve_run_row` (the
 single ``BEGIN IMMEDIATE`` + INSERT owner). This module supplies only the
 per-decision concurrency *guard*: a second concurrent resolve POST **for the same
 decision** blocks on the write lock, then observes the freshly-inserted running
@@ -19,9 +19,9 @@ import os
 import sqlite3
 from pathlib import Path
 
+from personalscraper.app._runner_engine import reserve_run_row
 from personalscraper.app.errors import AppConflict
 from personalscraper.logger import get_logger
-from personalscraper.web._runner_engine import reserve_run_row
 
 log = get_logger(__name__)
 

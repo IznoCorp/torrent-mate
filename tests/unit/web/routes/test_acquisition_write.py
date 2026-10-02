@@ -22,9 +22,9 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from personalscraper.app.acquisition.runner import prime_options_json
 from personalscraper.config import Settings
 from personalscraper.core.sqlite._pragmas import apply_pragmas
-from personalscraper.web.acquisition.runner import prime_options_json
 from personalscraper.web.auth.tokens import create_session_token
 from tests.web._web_harness import web_client
 
@@ -136,7 +136,7 @@ def _no_real_prime_spawn(monkeypatch: pytest.MonkeyPatch) -> None:
     """Neutralize the create-follow priming spawn (acq-states phase 6).
 
     ``POST /followed`` now enqueues an amorce run. Its spawn hook detaches
-    ``python -m personalscraper.web.acquisition.runner``, which loads the
+    ``python -m personalscraper.app.acquisition.runner``, which loads the
     OPERATOR's config — not the synthetic test one — and chains detect →
     search → grab against the production DBs and the trackers. No test may
     trigger that.
@@ -923,6 +923,8 @@ class TestRunnerSpawnEnvContract:
             pid = acquisition_triggers._spawn_prime_runner("uid-1", 7)
 
         assert pid == 4242
+        # The spawn is by module path: it must name the runner where it lives.
+        assert popen.call_args.args[0][1:] == ["-m", "personalscraper.app.acquisition.runner"]
         env = popen.call_args.kwargs["env"]
         assert env["PERSONALSCRAPER_ACQ_COMMAND"] == "prime"
         assert env["PERSONALSCRAPER_RUN_UID"] == "uid-1"
@@ -944,6 +946,7 @@ class TestRunnerSpawnEnvContract:
             pid = acquisition_triggers._spawn_grab_runner("uid-2", 9)
 
         assert pid == 4343
+        assert popen.call_args.args[0][1:] == ["-m", "personalscraper.app.acquisition.runner"]
         env = popen.call_args.kwargs["env"]
         assert env.get("PERSONALSCRAPER_ACQ_COMMAND") in (None, "grab")
         assert env["PERSONALSCRAPER_RUN_UID"] == "uid-2"

@@ -129,9 +129,9 @@ def scrape_resolve(
     human invocation and a web-runner subprocess.
 
     Note: the ``"scrape-resolve"`` entry in
-    ``personalscraper.web.maintenance.runner._CLI_SELF_LOCKING`` is VESTIGIAL for
+    ``personalscraper.app.maintenance.runner._CLI_SELF_LOCKING`` is VESTIGIAL for
     this command — the decisions runner
-    (:mod:`personalscraper.web.decisions.runner`) that spawns this CLI consults no
+    (:mod:`personalscraper.app.decisions.runner`) that spawns this CLI consults no
     such set and never acquires the global lock on its behalf; the entry only
     matters to the maintenance runner, which does not spawn scrape-resolve.
 

@@ -216,7 +216,7 @@ def _no_real_prime_spawn(monkeypatch: pytest.MonkeyPatch) -> None:
     """Neutralize the create-follow priming spawn (acq-states phase 6).
 
     ``POST /followed`` now enqueues an amorce run. Its spawn hook detaches
-    ``python -m personalscraper.web.acquisition.runner``, which loads the
+    ``python -m personalscraper.app.acquisition.runner``, which loads the
     OPERATOR's config — not the synthetic test one — and chains detect →
     search → grab against the production DBs and the trackers. No test may
     trigger that.
