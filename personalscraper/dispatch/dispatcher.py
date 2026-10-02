@@ -26,6 +26,7 @@ from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.config import Settings
 from personalscraper.core.delete_permit import AllowAllPermit, DeletePermit, SeedObligationRecorder
+from personalscraper.core.sqlite._fs_probe import is_mounted
 from personalscraper.dispatch import _movie, _transfer, _tv
 from personalscraper.dispatch._types import DispatchError, DispatchResult
 from personalscraper.dispatch.crash_recovery import DISPATCH_TMP_PREFIX
@@ -227,7 +228,7 @@ class Dispatcher:
                 candidate_names.append(entry_name)
 
         for disk_cfg in self._disk_configs:
-            if not disk_cfg.path.exists():
+            if not is_mounted(disk_cfg.path):
                 continue
             try:
                 category_dirs = [p for p in disk_cfg.path.iterdir() if p.is_dir()]

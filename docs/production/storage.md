@@ -74,7 +74,7 @@ Unified formula:
 free_space_gb >= max(min_free_gb, item_size_gb * 1.5)
 ```
 
-The `Dispatcher` class selects the target disk for new items via `conf.resolver.pick_disk_for()`. A disk is eligible only when it is mounted, accepts the target category, and satisfies the free-space formula above. `get_disk_status()` returns a `DiskStatus` dataclass with the `free_space_gb` property.
+The `Dispatcher` class selects the target disk for new items via `conf.resolver.pick_disk_for()`. A disk is eligible only when it is mounted (its volume really is — see [Mounted means a mounted volume](#mounted-means-a-mounted-volume)), accepts the target category, and satisfies the free-space formula above. `get_disk_status()` returns a `DiskStatus` dataclass with the `free_space_gb` property.
 
 Movie vs TV dispatch routing is inline in `process()` (no named `MOVIES_REPLACE`/`TVSHOWS_MERGE` constants): `dispatch_movie()` replaces the existing folder, `dispatch_tvshow()` merges new episodes into it.
 
@@ -265,6 +265,20 @@ Resolution order: an explicit `DiskConfig.fs_type` override wins and skips the
 probe entirely; otherwise the type is auto-detected via `probe_mount`; an
 unmounted path or non-Darwin host falls back to the NTFS-safe `unknown`
 capability.
+
+### Mounted means a mounted volume
+
+A disk's `path` is a folder under `/Volumes/<Disk>/…`. When the volume is not mounted (after the
+Monday reboot, a failed NTFS/macFUSE mount) a folder of that path can still exist on the system
+disk, so `path.exists()` does not say « mounted ». `is_mounted(path)`
+(`personalscraper/core/sqlite/_fs_probe.py`) is true only when the path exists and its nearest
+mount point, read live with `os.path.ismount`, is not `/`. Every place that means « the disk is
+there » goes through it: `get_disk_status`, the dispatcher's existing-copy scan, the media index
+rebuild, the indexer item stage, library validate / audit, the disk cleaner, the rescraper,
+`reclean`, the orphan-sweep panel, `info`, trailer healing and the config-load warning. It is read live, unlike
+`probe_mount`, whose `mount` output is cached for the process lifetime. Not routed through it:
+the crash-recovery sweep, whose media-tree roots include the staging folder, which legitimately
+lives on the system disk (BUGS.md B-687).
 
 ### FsProbe consolidation
 

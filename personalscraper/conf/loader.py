@@ -34,6 +34,7 @@ import pydantic
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.overlay import ConfigConflictError, ConfigLoadError, merge_overlays
+from personalscraper.core.sqlite._fs_probe import is_mounted
 from personalscraper.logger import get_logger
 
 __all__ = [
@@ -394,7 +395,7 @@ def collect_warnings(config: Config) -> list[str]:
 
     # Warning 3: disk path does not exist on filesystem
     for disk in config.disks:
-        if not disk.path.exists():
+        if not is_mounted(disk.path):
             warnings.append(f"disk '{disk.id}' path '{disk.path}' not mounted/present")
 
     # Warning 4: legacy torrent host/port env vars still present in os.environ
