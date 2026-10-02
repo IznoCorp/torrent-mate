@@ -1,4 +1,4 @@
-// The FCM notification TYPES and the PUSH CODES, held against the words that say them.
+// The FCM notification TYPE_SET and the PUSH CODES, held against the words that say them.
 //
 // The operator, 2026-10-03: « il faut créer des types de notifications FCM ». The two closed
 // sets live in the contract (`NotificationType`, `PushCode`) — what the backend follows — and
@@ -13,7 +13,7 @@ import { pushTexts, substituteWorker } from "../../worker-source.mjs";
 
 type Schema = { enum?: string[] };
 const schemas = (contract as unknown as { components: { schemas: Record<string, Schema> } }).components.schemas;
-const TYPES = schemas.NotificationType?.enum ?? [];
+const TYPE_SET = schemas.NotificationType?.enum ?? [];
 const CODES = schemas.PushCode?.enum ?? [];
 const generic = (catalogue as unknown as { push: { generic: { title: string; body: string } } }).push.generic;
 
@@ -65,21 +65,21 @@ async function shown(code: string): Promise<{ title: string; body: string }> {
 
 describe("the FCM notification types and their push codes", () => {
   it("are declared in the contract, closed sets", () => {
-    expect(TYPES.length).toBeGreaterThan(0);
-    expect(CODES.length).toBeGreaterThanOrEqual(TYPES.length);
+    expect(TYPE_SET.length).toBeGreaterThan(0);
+    expect(CODES.length).toBeGreaterThanOrEqual(TYPE_SET.length);
   });
 
   it("splits the two obligation outcomes into two types a reader switches apart", () => {
-    expect(TYPES).toEqual(expect.arrayContaining(["obligation.met", "obligation.released"]));
+    expect(TYPE_SET).toEqual(expect.arrayContaining(["obligation.met", "obligation.released"]));
   });
 
   it("has every code belong to a type: the type itself, or the type and one variant", () => {
     for (const code of CODES) {
-      const type = TYPES.find((one) => code === one || code.startsWith(one + "."));
+      const type = TYPE_SET.find((one) => code === one || code.startsWith(one + "."));
       expect(type, code).toBeDefined();
       expect(code.split(".").length - type!.split(".").length, code).toBeLessThanOrEqual(1);
     }
-    for (const type of TYPES) expect(CODES.some((code) => code === type || code.startsWith(type + ".")), type).toBe(true);
+    for (const type of TYPE_SET) expect(CODES.some((code) => code === type || code.startsWith(type + ".")), type).toBe(true);
   });
 
   it("has every code worded by the worker — never the generic line, never a placeholder left", async () => {
@@ -91,7 +91,7 @@ describe("the FCM notification types and their push codes", () => {
   });
 
   it("has every type a label and a line for the settings surface", () => {
-    for (const type of TYPES) {
+    for (const type of TYPE_SET) {
       const words = at(`notifications.types.${type}`) as { label?: string; description?: string } | undefined;
       expect(words?.label, type).toBeTruthy();
       expect(words?.description, type).toBeTruthy();
