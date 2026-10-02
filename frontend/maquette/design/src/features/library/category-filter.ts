@@ -17,6 +17,26 @@ export function rowsIn<Row extends { category: string }>(rows: readonly Row[], c
 }
 
 /**
+ * The rows « Incomplets » shows: the category pill's, narrowed by the search.
+ *
+ * THE FIELD THE PAGE DRAWS ACTS ON EVERY LENS (B-688). The lens drew the search
+ * field and never read it, so a title typed there left every incomplete series
+ * on screen. It matches the way the listing's read does — the query anywhere in
+ * the title, whatever the case — and the pill and its panel count the same rows.
+ *
+ * @param rows The incomplete series, as the lens reads them.
+ * @param category The category pill, or undefined when none is known.
+ * @param query What the search field holds.
+ * @returns The rows the lens draws.
+ */
+export function incompleteShown<Row extends { title: string; category: string }>(
+  rows: readonly Row[], category: LibraryCategory | undefined, query: string,
+): Row[] {
+  const wanted = query.toLowerCase();
+  return rowsIn(rows, category).filter((row) => row.title.toLowerCase().includes(wanted));
+}
+
+/**
  * What a category counts on a lens — ONE derivation, read by the filter pill
  * and by its panel (§13). EVERY LENS IS FILTERED BY THE SAME PILL, and the
  * category is the same remembered one: « Médias » prints the library's counts;
@@ -26,16 +46,19 @@ export function rowsIn<Row extends { category: string }>(rows: readonly Row[], c
  * @param category The category.
  * @param lens The lens in force: `cat`, `rec` or `inc`.
  * @param incomplete « Incomplets »' rows, as the lens reads them.
- * @param recent « Récents »' rows, as the lens reads them.
+ * @param recent « Récents »' rows, as the lens reads them — already searched,
+ *     since the listing's read carries the query.
+ * @param query What the search field holds, which « Incomplets » applies itself.
  * @returns The count.
  */
 export function categoryCount(
   category: LibraryCategory,
   lens: string,
-  incomplete: readonly { category: string }[],
+  incomplete: readonly { title: string; category: string }[],
   recent: readonly { category: string }[],
+  query: string,
 ): number {
-  if (lens === "inc") return rowsIn(incomplete, category).length;
+  if (lens === "inc") return incompleteShown(incomplete, category, query).length;
   if (lens === "rec") return rowsIn(recent, category).length;
   return category.count;
 }

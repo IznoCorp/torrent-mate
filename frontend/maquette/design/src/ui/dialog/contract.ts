@@ -9,11 +9,6 @@ export type DialogRun = { text: string; strong?: boolean };
 
 export type DialogBlock =
   | { type: "paragraph"; runs: DialogRun[] }
-  /* THE SIMULATION NOTICE. « rien ne sera supprimé tant que vous n'aurez pas
-     validé que cette liste dit vrai » — it is what makes a destructive
-     confirmation honest, so it is a block of its own and not a paragraph
-     someone styled. */
-  | { type: "dryRun"; text: string }
   /* EXACTLY WHAT WOULD BE TOUCHED, line by line, with its figure. */
   | { type: "manifest"; entries: { text: string; value: string }[] }
   | { type: "warning"; strong: string; text: string }

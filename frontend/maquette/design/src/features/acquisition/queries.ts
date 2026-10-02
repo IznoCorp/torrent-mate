@@ -12,7 +12,7 @@ import type { ActOutcome, Follow, FollowOutcome } from "./types";
 import { queueKey, useAcquisitionQueue, type AcquisitionQueue } from "../../lib/queue";
 import { store, useUiState } from "../../lib/store-access";
 import { todoCards } from "../../lib/arrival-slots";
-import { fillFollowedTitlesDoor } from "../../lib/shell-doors";
+import { fillFollowedTitlesDoor, fillStopFollowDoor } from "../../lib/shell-doors";
 import { sentIdentity } from "./sent-identity";
 
 /**
@@ -237,6 +237,10 @@ export function installFollowActions(queryClient: QueryClient): void {
   const write = (follows: Follow[]) => queryClient.setQueryData(followsQuery().queryKey, follows);
   const refresh = () => void queryClient.invalidateQueries({ queryKey: FOLLOWS_KEY });
   fillFollowedTitlesDoor(() => held().map((follow) => follow.title));
+  // THE LIBRARY'S « SUPPRIMER ET ARRÊTER LE SUIVI » STOPS IT HERE (B-689), through
+  // the same removal the follows offer — the cache first, then the layer — so the
+  // sheet, the follow panel and Suivis all read it gone.
+  fillStopFollowDoor((title) => void followActions?.remove(title));
   // AND THE FOLLOWS ARE ASKED FOR HERE, because two readers of that door have
   // no component to ask: an addressed follow panel resolving on a cold load,
   // and the Médiathèque's delete dialog. Published, as `refillSuggestions` is,
