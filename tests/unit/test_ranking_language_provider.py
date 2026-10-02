@@ -18,13 +18,13 @@ from pathlib import Path
 
 import json5
 
-from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._ranking import (
     RankingConfig,
     RankingCriterion,
     rank,
 )
+from personalscraper.core.units import ByteSize
 
 
 def _result(

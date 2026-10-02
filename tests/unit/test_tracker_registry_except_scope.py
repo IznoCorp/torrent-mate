@@ -35,10 +35,10 @@ import pytest
 import requests
 
 from personalscraper.api._contracts import ApiError, CircuitOpenError
-from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._ranking import RankingConfig
 from personalscraper.api.tracker._registry import TrackerRegistry
+from personalscraper.core.units import ByteSize
 
 
 def _result(provider: str, title: str, *, seeders: int = 10) -> TrackerResult:

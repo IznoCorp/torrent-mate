@@ -47,7 +47,6 @@ from personalscraper.acquire.orchestrator import (
     rank_candidates,
 )
 from personalscraper.api._contracts import ApiError, MediaType
-from personalscraper.api._units import ByteSize
 from personalscraper.api.torrent._base import TorrentSource
 from personalscraper.api.torrent._contracts import TorrentAdder
 from personalscraper.api.tracker._base import TrackerResult
@@ -57,6 +56,7 @@ from personalscraper.conf.models.acquire import BandwidthConfig
 from personalscraper.core._contracts import CircuitOpenError
 from personalscraper.core.event_bus import Event, EventBus
 from personalscraper.core.identity import MediaRef
+from personalscraper.core.units import ByteSize
 
 _RESOLVE = "personalscraper.acquire._resolve_walk.resolve_source"
 

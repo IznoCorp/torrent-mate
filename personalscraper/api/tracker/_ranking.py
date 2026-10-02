@@ -10,7 +10,6 @@ threshold parsing lets config authors write ``at: "1GB"`` and get the integer
 byte value at validation time.
 """
 
-from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
 
 # Re-export Ranking* config models from their canonical config-layer home
@@ -28,6 +27,7 @@ from personalscraper.conf.models._ranking import (
 from personalscraper.conf.models._ranking import (
     ThresholdEntry as ThresholdEntry,
 )
+from personalscraper.core.units import ByteSize
 
 
 def rank(

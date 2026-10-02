@@ -1,6 +1,6 @@
 """Comparable, parseable disk-size custom type.
 
-Implements DESIGN S3.2: ByteSize with parse() for human-readable size strings
+Implements ByteSize with parse() for human-readable size strings
 like "1GB", "500MiB", and direct integer construction.
 """
 
@@ -49,4 +49,9 @@ class ByteSize:
         return cls(int(num * table[unit]))
 
     def __int__(self) -> int:
+        """Return the size in bytes as a plain ``int``.
+
+        Returns:
+            The wrapped byte count.
+        """
         return self.bytes

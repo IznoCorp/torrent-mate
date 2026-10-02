@@ -24,10 +24,10 @@ from personalscraper.acquire.events import SeasonEscalatedAfterEpisodeFailures
 from personalscraper.acquire.orchestrator import GrabOrchestrator, SearchVerdict
 from personalscraper.acquire.service import AcquisitionService
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
-from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.core.identity import MediaRef
+from personalscraper.core.units import ByteSize
 
 _PINNED_NOW = 1_700_003_600
 _TVDB = 99

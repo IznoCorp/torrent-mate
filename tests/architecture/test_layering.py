@@ -10,7 +10,7 @@ Allow-listed exceptions (documented boundaries):
   under TYPE_CHECKING — the AppContext boundary, already tested separately
 - Per-line ``# layering: allow`` markers — a single import line may opt out of
   the guard when the upward dependency is a documented, intentional boundary
-  (see the two markers in conf/models/_ranking.py and conf/loader.py). This is
+  (see the marker in conf/loader.py). This is
   finer-grained than whole-module allow-listing so the rest of the file stays
   guarded. Each marked line MUST carry a justification comment.
 """
@@ -609,14 +609,14 @@ def test_conf_never_imports_api_even_with_marker() -> None:
     for py_file in sorted((_PACKAGE_ROOT / "conf").rglob("*.py")):
         rel = py_file.relative_to(_REPO_ROOT).as_posix()
         violations.extend(f"{rel}:{n}" for n in _runtime_api_imports(py_file.read_text(encoding="utf-8")))
-    assert not violations, (
-        "conf/ imports api/ (the conf <-> api cycle; move the shared piece to core/):\n" + "\n".join(violations)
+    assert not violations, "conf/ imports api/ (the conf <-> api cycle; move the shared piece to core/):\n" + "\n".join(
+        violations
     )
 
 
 def test_marked_api_import_is_still_flagged_by_cycle_guard() -> None:
     """POSITIVE control: a marker-exempted api import IS flagged by the cycle guard."""
-    source = "from personalscraper.api._units import X  # layering: allow because\n"
+    source = "from personalscraper.api.torrent import X  # layering: allow because\n"
     assert _runtime_api_imports(source) == [1]
 
 

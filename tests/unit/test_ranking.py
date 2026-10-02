@@ -1,6 +1,5 @@
 """Tests for the tracker ranking engine — rank()."""
 
-from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._ranking import (
     RankingBonuses,
@@ -9,6 +8,7 @@ from personalscraper.api.tracker._ranking import (
     ThresholdEntry,
     rank,
 )
+from personalscraper.core.units import ByteSize
 
 
 def _result(
