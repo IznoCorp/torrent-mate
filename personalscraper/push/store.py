@@ -104,11 +104,7 @@ _COLUMNS = (
 
 
 class SqlitePushSubscriptionStore:
-    """:class:`PushSubscriptionStore` over a ``sqlite3.Connection`` it is given.
-
-    Attributes:
-        DDL: The table and its index, for K0's ``app`` baseline.
-    """
+    """:class:`PushSubscriptionStore` over a ``sqlite3.Connection`` it is given."""
 
     def __init__(self, conn: sqlite3.Connection) -> None:
         """Wraps a connection; creates nothing.

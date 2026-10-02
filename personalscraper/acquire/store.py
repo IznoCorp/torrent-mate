@@ -17,9 +17,9 @@ Concurrency model (CORRECTED — see DESIGN §6.3):
     open + migrate (idempotent ``apply_migrations`` — a no-op once the schema is
     current), then released immediately.  It is a **strict leaf**: never held
     across an FS operation or a qBit/Transmission HTTP call, never acquired with
-    ``timeout=0``, never held for the store's lifetime.  Total lock order
-    (``pipeline.lock > indexer_lock > acquire.db.lock > app.db.lock``; ``app.db.lock`` is a
-    leaf, see ``app/store/store.py``) is unchanged; the ``acquire.db.lock`` is now only the
+    ``timeout=0``, never held for the store's lifetime.  The total lock order is
+    ``pipeline.lock > indexer_lock > acquire.db.lock > app.db.lock`` (``app.db.lock`` is a
+    leaf, see ``app/store/store.py``); the ``acquire.db.lock`` is now only the
     brief migration lock.
 
     **Reads are lock-free** (WAL).  No lock anywhere on the read path — this is
