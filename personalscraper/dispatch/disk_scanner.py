@@ -14,6 +14,7 @@ from dataclasses import dataclass
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig  # noqa: F401
+from personalscraper.core.sqlite._fs_probe import is_mounted as _volume_is_mounted
 from personalscraper.logger import get_logger
 
 log = get_logger("disk_scanner")
@@ -26,7 +27,8 @@ class DiskStatus:
     Attributes:
         config: Disk configuration (Pydantic DiskConfig from conf.models).
         free_space_gb: Available free space in GB (0.0 if unmounted or unreadable).
-        is_mounted: Whether the disk mount point currently exists and is accessible.
+        is_mounted: Whether the disk's volume is really mounted (its folder is not
+            merely present on the system disk).
     """
 
     config: DiskConfig
@@ -55,7 +57,7 @@ def get_disk_status(config: DiskConfig) -> DiskStatus:
     Returns:
         DiskStatus with free space in GB and mount status.
     """
-    is_mounted = config.path.exists()
+    is_mounted = _volume_is_mounted(config.path)
     free_space_gb = 0.0
 
     if is_mounted:

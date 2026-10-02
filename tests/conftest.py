@@ -116,6 +116,29 @@ _PATCH_RESOLVE_PATH = "personalscraper.conf.loader.resolve_config_path"
 
 
 @pytest.fixture(autouse=True)
+def _tmp_dirs_count_as_mounted(request: pytest.FixtureRequest) -> Iterator[None]:
+    """Let a ``tmp_path`` folder stand for a mounted disk, unless the test says otherwise.
+
+    The disk-presence predicate refuses a folder whose volume is the root filesystem,
+    and a ``tmp_path`` folder is exactly that. Most tests only need a disk that is
+    there, so the mount-root seam answers « yes » for any path. A test about the
+    predicate itself carries ``@pytest.mark.real_mount_check`` and keeps the real
+    reading.
+
+    Args:
+        request: The pytest request, read for the ``real_mount_check`` marker.
+
+    Yields:
+        None, with the seam patched for the duration of the test.
+    """
+    if request.node.get_closest_marker("real_mount_check"):
+        yield
+        return
+    with patch("personalscraper.core.sqlite._fs_probe._is_mount_root", return_value=True):
+        yield
+
+
+@pytest.fixture(autouse=True)
 def _neutralize_external_notify_creds(monkeypatch: pytest.MonkeyPatch) -> None:
     """Force external-notification credentials empty for every test.
 

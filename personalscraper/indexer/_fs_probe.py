@@ -13,7 +13,8 @@ from personalscraper.core.sqlite._fs_probe import (  # noqa: F401
     _build_mount_table,
     _run_mount,
     canonical_fs_type,
+    is_mounted,
     probe_mount,
 )
 
-__all__ = ["MountInfo", "_build_mount_table", "_run_mount", "canonical_fs_type", "probe_mount"]
+__all__ = ["MountInfo", "_build_mount_table", "_run_mount", "canonical_fs_type", "is_mounted", "probe_mount"]

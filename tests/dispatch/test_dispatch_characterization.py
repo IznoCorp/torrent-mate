@@ -334,6 +334,58 @@ def test_dispatch_movie_new_media_pins_most_free_disk(
     assert _residue(char_disks[1]) == []
 
 
+def test_dispatch_movie_never_picks_a_disk_whose_volume_is_not_mounted(
+    char_config: Config,
+    char_db_path: Path,
+    char_disks: list[Path],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    _rsync_available: None,
+) -> None:
+    """The most-free disk is skipped when only its folder exists on the system disk (B-687).
+
+    Disk2 reports the most free space (the system SSD's, in the real defect) but
+    its volume is not mounted: no mount point sits at or above its folder but
+    ``/``. Disk3, really mounted, must win and nothing may land in disk2's folder.
+
+    Args:
+        char_config: Dispatch-wired Config fixture.
+        char_db_path: Resolved indexer DB path shared with the dispatcher.
+        char_disks: Four fake disk roots.
+        tmp_path: Pytest temporary directory.
+        monkeypatch: Pytest monkeypatch fixture.
+        _rsync_available: Skips when rsync is missing.
+    """
+    _patch_disk_usage(
+        monkeypatch,
+        {
+            str(char_disks[0]): 100 * _GB,
+            str(char_disks[1]): 500 * _GB,
+            str(char_disks[2]): 200 * _GB,
+            str(char_disks[3]): 50 * _GB,
+        },
+    )
+    unmounted = str(char_disks[1])
+    monkeypatch.setattr(
+        "personalscraper.core.sqlite._fs_probe._is_mount_root",
+        lambda path: not (path == unmounted or unmounted.startswith(path.rstrip("/") + "/")) or path == "/",
+    )
+
+    name = "Oppenheimer (2023)"
+    source = _make_media_dir(tmp_path / "staging_src", name, {"Oppenheimer.mkv": b"\x00" * 4096})
+
+    index = MediaIndex(char_db_path, event_bus=EventBus())
+    dispatcher = Dispatcher(char_config, Settings(), index, event_bus=EventBus())
+    try:
+        result = dispatch_movie(dispatcher, source, CID.MOVIES)
+    finally:
+        index.close()
+
+    assert result.disk == "disk3"
+    movies_folder = char_config.category(CID.MOVIES).folder_name
+    assert not (char_disks[1] / movies_folder / name).exists()
+
+
 # ---------------------------------------------------------------------------
 # dispatch_movie — replace existing (same disk) + destructive journal
 # ---------------------------------------------------------------------------
