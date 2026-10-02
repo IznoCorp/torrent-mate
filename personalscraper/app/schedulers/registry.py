@@ -14,10 +14,10 @@ Ground truth (verified 2026-07-15 against the live ``library.db`` + the
 - The **watcher** (``personalscraper-watch``) is a long-running daemon, not a
   cron — it is surfaced separately by the route (enabled = ¬``watcher.paused``
   sentinel; last run = ``acquire.db`` ``watch_state.last_successful_run_at``).
-- The three crons here (``follow detect``, ``grab``, ``library-index --mode
-  enrich``) each write a ``pipeline_run`` row via ``cli_run_row`` with
+- The crons here (``follow detect``, ``grab``, ``library-index --mode
+  enrich``, ``seed sweep``) each write a ``pipeline_run`` row via ``cli_run_row`` with
   ``kind='maintenance'`` and ``command`` set to ``'follow-detect'`` /
-  ``'grab'`` / ``'library-index'``. A cron that has never fired simply has no
+  ``'grab'`` / ``'library-index'`` / ``'seed-sweep'``. A cron that has never fired simply has no
   row ⇒ the route surfaces ``last_run_at=None`` (fail-soft, the designed
   behaviour).
 
@@ -79,5 +79,11 @@ CRON_JOBS: tuple[CronJob, ...] = (
         display_name="Enrichissement de l'index",
         schedule="Le dimanche à 04:30",
         command_prefix="library-index",
+    ),
+    CronJob(
+        name="personalscraper-seed-sweep",
+        display_name="Suivi des obligations de seed",
+        schedule="Toutes les heures à la 45ᵉ minute",
+        command_prefix="seed-sweep",
     ),
 )

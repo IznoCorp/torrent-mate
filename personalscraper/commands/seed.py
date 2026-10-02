@@ -10,9 +10,9 @@ Registered as a Typer sub-group (``seed_app = typer.Typer(...)`` mounted via
 ``_root_app.add_typer``). Sub-commands use ``@seed_app.command("name")``
 (NOT ``@command_with_telemetry`` which is root-app-only).
 Uses ``@handle_cli_errors``, ``per_step_boundary``,
-``build_torrent_client=True`` (all three sub-commands touch the torrent client;
-the guard ``torrent_client is not None`` is checked at command entry and exits 1
-with a clear message otherwise).
+``build_torrent_client=True`` (all four sub-commands touch the torrent client, and
+``sweep`` also guards the acquire store; the guard ``torrent_client is not None``
+is checked at command entry and exits 1 with a clear message otherwise).
 
 Import direction: commands/ imports core/, api/torrent/, cli_app, cli_helpers only.
 """
@@ -31,6 +31,7 @@ from personalscraper import cli_helpers
 from personalscraper.acquire.obligations import DEFAULT_SEED_RULE, sweep_obligations
 from personalscraper.cli_app import app as _root_app
 from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
+from personalscraper.commands._cli_run_row import cli_run_row
 from personalscraper.core.tags import SEED_PURE
 from personalscraper.logger import get_logger
 
@@ -164,7 +165,10 @@ def seed_sweep(ctx: typer.Context) -> None:
     """
     config = ctx.obj.config
     settings = cli_helpers.get_settings()
-    with per_step_boundary(config, settings, build_torrent_client=True) as app_context:
+    with (
+        cli_run_row(config, "seed-sweep") as run_rec,
+        per_step_boundary(config, settings, build_torrent_client=True) as app_context,
+    ):
         store = app_context.acquire.store if app_context.acquire is not None else None
         if app_context.torrent_client is None or store is None:
             log.error(
@@ -181,9 +185,19 @@ def seed_sweep(ctx: typer.Context) -> None:
             rule=DEFAULT_SEED_RULE,
             event_bus=app_context.event_bus,
         )
-    typer.echo(json.dumps(dataclasses.asdict(report)))
-    if report.client_error:
-        raise typer.Exit(code=1)
+        typer.echo(json.dumps(dataclasses.asdict(report)))
+        if report.client_error:
+            raise typer.Exit(code=1)
+        # §5 « résultat chiffré »: the pass's numbers on its pipeline_run row, so
+        # Système shows the sweep's last run like the other scheduled jobs.
+        run_rec.record_counts(
+            {
+                "open": report.open,
+                "satisfied": report.satisfied,
+                "marked_absent": report.marked_absent,
+                "released": report.released,
+            }
+        )
 
 
 # Register the seed sub-group on the root Typer app (import side-effect, called by cli.py).

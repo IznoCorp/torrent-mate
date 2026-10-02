@@ -181,16 +181,20 @@ def test_seed_module_does_not_import_indexer():
 # ---------------------------------------------------------------------------
 
 
-def _invoke_sweep(tmp_path, torrents, *, torrent_client="fake"):
+def _invoke_sweep(tmp_path, test_config, torrents, *, torrent_client="fake", client_error=None):
     """Run ``seed sweep`` over a real tmp acquire.db and a fake torrent client.
 
     Args:
-        tmp_path: Pytest temp directory holding ``acquire.db``.
+        tmp_path: Pytest temp directory holding ``acquire.db`` and the run-journal ``library.db``.
+        test_config: The ``test_config`` fixture, re-pointed at a synthetic ``library.db`` so the
+            run row the command records has a real database to land in.
         torrents: The :class:`TorrentItem` list the fake client holds.
         torrent_client: ``"fake"`` to inject the fake client, ``None`` for « not configured ».
+        client_error: When set, the fake client's ``get_by_hashes`` raises it.
 
     Returns:
-        ``(result, store, events)`` — the CLI result, the store and the events emitted on the bus.
+        ``(result, store, events, db_path)`` — the CLI result, the store, the events emitted on the
+        bus and the path of the ``library.db`` holding the run journal.
     """
     from types import SimpleNamespace
 
@@ -199,30 +203,36 @@ def _invoke_sweep(tmp_path, torrents, *, torrent_client="fake"):
     from personalscraper.cli_state import AppCtx
     from personalscraper.conf.models.acquire import AcquireConfig
     from personalscraper.core.event_bus import EventBus
+    from tests.commands._e2e_helpers import make_synthetic_db, make_test_config_with_db
 
+    db_path = make_synthetic_db(tmp_path)
+    config = make_test_config_with_db(test_config, db_path)
     store = build_acquire_store(AcquireConfig(db_path=tmp_path / "acquire.db"))
     bus = EventBus()
     events: list = []
     bus.subscribe(SeedObligationSatisfied, events.append)
     bus.subscribe(SeedObligationReleased, events.append)
     client = MagicMock()
-    client.get_by_hashes.side_effect = lambda hashes: [t for t in torrents if t.hash in hashes]
+    client.get_by_hashes.side_effect = (
+        client_error if client_error is not None else lambda hashes: [t for t in torrents if t.hash in hashes]
+    )
     app_context = SimpleNamespace(
         torrent_client=client if torrent_client == "fake" else None,
         acquire=SimpleNamespace(store=store),
         event_bus=bus,
     )
     with (
+        patch("personalscraper.conf.loader.load_config", return_value=config),
         patch("personalscraper.commands.seed.per_step_boundary") as mock_boundary,
         patch("personalscraper.commands.seed.cli_helpers.get_settings", return_value=MagicMock()),
     ):
         mock_boundary.return_value.__enter__ = MagicMock(return_value=app_context)
         mock_boundary.return_value.__exit__ = MagicMock(return_value=False)
-        result = runner.invoke(_make_app(), ["seed", "sweep"], obj=AppCtx(config=MagicMock(), config_override=None))
-    return result, store, events
+        result = runner.invoke(_make_app(), ["seed", "sweep"], obj=AppCtx(config=config, config_override=None))
+    return result, store, events, db_path
 
 
-def test_seed_sweep_writes_satisfied_at_and_prints_one_json_line(tmp_path):
+def test_seed_sweep_writes_satisfied_at_and_prints_one_json_line(tmp_path, test_config):
     """``seed sweep`` stamps ``satisfied_at`` on a seeded-out obligation and reports it as one JSON line."""
     import json
 
@@ -239,7 +249,7 @@ def test_seed_sweep_writes_satisfied_at_and_prints_one_json_line(tmp_path):
 
     item = _make_torrent_item("Movie", "aaaa", [])
     object.__setattr__(item, "seeding_time_s", 259_200)
-    result, store, events = _invoke_sweep(tmp_path, [item])
+    result, store, events, _ = _invoke_sweep(tmp_path, test_config, [item])
     try:
         assert result.exit_code == 0, result.output
         report = json.loads(result.output.strip().splitlines()[-1])
@@ -250,8 +260,50 @@ def test_seed_sweep_writes_satisfied_at_and_prints_one_json_line(tmp_path):
         store.close()
 
 
-def test_seed_sweep_no_client_exits_nonzero(tmp_path):
+def test_seed_sweep_no_client_exits_nonzero(tmp_path, test_config):
     """``seed sweep`` exits 1 when no torrent client is configured."""
-    result, store, _ = _invoke_sweep(tmp_path, [], torrent_client=None)
+    result, store, _, _ = _invoke_sweep(tmp_path, test_config, [], torrent_client=None)
     store.close()
     assert result.exit_code == 1
+
+
+def _seed_one_obligation(tmp_path):
+    """Insert one open C411 obligation into the tmp ``acquire.db`` the sweep will open."""
+    from personalscraper.acquire.domain import SeedObligation
+    from personalscraper.acquire.store import build_acquire_store
+    from personalscraper.conf.models.acquire import AcquireConfig
+
+    seed_store = build_acquire_store(AcquireConfig(db_path=tmp_path / "acquire.db"))
+    seed_store.seed.add(SeedObligation("aaaa", "c411", 259_200, 1.0, 5))
+    seed_store.close()
+
+
+def test_seed_sweep_client_error_prints_the_report_and_exits_one(tmp_path, test_config):
+    """A client that raises: one JSON line with ``client_error`` set, exit code 1, nothing written."""
+    import json
+
+    _seed_one_obligation(tmp_path)
+    result, store, events, _ = _invoke_sweep(tmp_path, test_config, [], client_error=RuntimeError("client down"))
+    try:
+        assert result.exit_code == 1, result.output
+        report = json.loads(result.output.strip().splitlines()[-1])
+        assert report == {"open": 1, "satisfied": 0, "marked_absent": 0, "released": 0, "client_error": True}
+        assert events == []
+    finally:
+        store.close()
+
+
+def test_seed_sweep_records_its_run_like_the_other_scheduled_jobs(tmp_path, test_config):
+    """The sweep writes one ``pipeline_run`` row (command ``seed-sweep``) so Système shows its last run."""
+    import sqlite3
+
+    _seed_one_obligation(tmp_path)
+    result, store, _, db_path = _invoke_sweep(tmp_path, test_config, [])
+    store.close()
+    assert result.exit_code == 0, result.output
+    conn = sqlite3.connect(str(db_path))
+    try:
+        rows = conn.execute("SELECT command, kind, outcome FROM pipeline_run").fetchall()
+    finally:
+        conn.close()
+    assert rows == [("seed-sweep", "maintenance", "success")]
