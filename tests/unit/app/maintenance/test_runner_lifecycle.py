@@ -1,4 +1,4 @@
-"""Integration tests for :func:`personalscraper.web.maintenance.runner.main`.
+"""Integration tests for :func:`personalscraper.app.maintenance.runner.main`.
 
 Sub-phase 3.4 — end-to-end lifecycle: real ``main()`` in-process, real child
 subprocess, real on-disk SQLite DB with the ``pipeline_run`` schema, fake Redis.
@@ -155,20 +155,20 @@ class TestRunnerLifecycleIntegration:
 
         with (
             patch(
-                "personalscraper.web.maintenance.runner._build_argv",
+                "personalscraper.app.maintenance.runner._build_argv",
                 return_value=argv,
             ),
             patch(
-                "personalscraper.web.maintenance.runner.load_config",
+                "personalscraper.app.maintenance.runner.load_config",
                 return_value=mock_config,
             ),
             patch(
-                "personalscraper.web.maintenance.runner._get_redis",
+                "personalscraper.app.maintenance.runner._get_redis",
                 return_value=None,
             ),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.maintenance.runner import main
+            from personalscraper.app.maintenance.runner import main
 
             main()
 
@@ -208,20 +208,20 @@ class TestRunnerLifecycleIntegration:
 
         with (
             patch(
-                "personalscraper.web.maintenance.runner._build_argv",
+                "personalscraper.app.maintenance.runner._build_argv",
                 return_value=argv,
             ),
             patch(
-                "personalscraper.web.maintenance.runner.load_config",
+                "personalscraper.app.maintenance.runner.load_config",
                 return_value=mock_config,
             ),
             patch(
-                "personalscraper.web.maintenance.runner._get_redis",
+                "personalscraper.app.maintenance.runner._get_redis",
                 return_value=None,
             ),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.maintenance.runner import main
+            from personalscraper.app.maintenance.runner import main
 
             main()
 
@@ -255,12 +255,12 @@ class TestRunnerLifecycleIntegration:
         argv = self._trivial_argv(child_code)
 
         with (
-            patch("personalscraper.web.maintenance.runner._build_argv", return_value=argv),
-            patch("personalscraper.web.maintenance.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.maintenance.runner._get_redis", return_value=None),
+            patch("personalscraper.app.maintenance.runner._build_argv", return_value=argv),
+            patch("personalscraper.app.maintenance.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.maintenance.runner._get_redis", return_value=None),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.maintenance.runner import main
+            from personalscraper.app.maintenance.runner import main
 
             main()
 
@@ -289,20 +289,20 @@ class TestRunnerLifecycleIntegration:
 
         with (
             patch(
-                "personalscraper.web.maintenance.runner._build_argv",
+                "personalscraper.app.maintenance.runner._build_argv",
                 return_value=argv,
             ),
             patch(
-                "personalscraper.web.maintenance.runner.load_config",
+                "personalscraper.app.maintenance.runner.load_config",
                 return_value=mock_config,
             ),
             patch(
-                "personalscraper.web.maintenance.runner._get_redis",
+                "personalscraper.app.maintenance.runner._get_redis",
                 return_value=mock_redis,
             ),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.maintenance.runner import main
+            from personalscraper.app.maintenance.runner import main
 
             main()
 
@@ -325,7 +325,7 @@ class TestRunnerLifecycleIntegration:
         Uses :func:`canonical_options_json` from the registry module to produce the
         stored form, then verifies the full round-trip through the runner lifecycle.
         """
-        from personalscraper.web.maintenance.registry import canonical_options_json
+        from personalscraper.app.maintenance.registry import canonical_options_json
 
         input_options = {"budget": 60, "disk": "Disk1"}
         canonical = canonical_options_json(input_options)
@@ -345,20 +345,20 @@ class TestRunnerLifecycleIntegration:
 
         with (
             patch(
-                "personalscraper.web.maintenance.runner._build_argv",
+                "personalscraper.app.maintenance.runner._build_argv",
                 return_value=argv,
             ),
             patch(
-                "personalscraper.web.maintenance.runner.load_config",
+                "personalscraper.app.maintenance.runner.load_config",
                 return_value=mock_config,
             ),
             patch(
-                "personalscraper.web.maintenance.runner._get_redis",
+                "personalscraper.app.maintenance.runner._get_redis",
                 return_value=None,
             ),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.maintenance.runner import main
+            from personalscraper.app.maintenance.runner import main
 
             main()
 
@@ -392,20 +392,20 @@ class TestRunnerLifecycleIntegration:
 
         with (
             patch(
-                "personalscraper.web.maintenance.runner._build_argv",
+                "personalscraper.app.maintenance.runner._build_argv",
                 return_value=argv,
             ),
             patch(
-                "personalscraper.web.maintenance.runner.load_config",
+                "personalscraper.app.maintenance.runner.load_config",
                 return_value=mock_config,
             ),
             patch(
-                "personalscraper.web.maintenance.runner._get_redis",
+                "personalscraper.app.maintenance.runner._get_redis",
                 return_value=None,
             ),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.maintenance.runner import main
+            from personalscraper.app.maintenance.runner import main
 
             main()
 

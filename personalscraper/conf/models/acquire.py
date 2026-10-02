@@ -175,7 +175,7 @@ class AcquireConfig(_StrictModel):
     """Configuration for the acquire lobe SQLite store.
 
     The ``db_path`` defaults to ``None``; ``Config._resolve_derived_paths``
-    fills it as ``paths.data_dir / 'acquire.db'`` when unset.
+    fills it as ``paths.data_dir / <store>[-<env>].db`` (see ``conf/environment.py``) when unset.
 
     Attributes:
         db_path: Path to the acquire SQLite database. ``None`` = auto-derive.
@@ -192,7 +192,9 @@ class AcquireConfig(_StrictModel):
     db_path: Path | None = Field(
         default=None,
         validate_default=True,
-        description="Path to acquire.db. None = auto-derive from paths.data_dir.",
+        description=(
+            "Path to acquire.db. None = auto-derive: paths.data_dir / <store>[-<env>].db (see conf/environment.py)."
+        ),
     )
     cadence: CadenceConfig = Field(default_factory=CadenceConfig)
     bandwidth: BandwidthConfig = Field(default_factory=BandwidthConfig)

@@ -4,9 +4,9 @@
 maintenance / resolve run: it reserves a ``pipeline-queue`` row (kind
 ``maintenance``) via :func:`reserve_queued_pipeline_run`, spawns this module as
 a detached waiter, and returns ``202 {queued: true}``. The waiter waits in the
-shared visible queue (``web/run_queue.py`` — ``queue`` step on its row), then
+shared visible queue (``app/run_queue.py`` — ``queue`` step on its row), then
 hands over to the single trigger authority
-(:func:`personalscraper.web.pipeline_trigger.spawn_pipeline_run`) once the
+(:func:`personalscraper.app.pipeline_trigger.spawn_pipeline_run`) once the
 lock frees. The waiter never acquires the lock itself — the spawned
 ``personalscraper run`` claims it, keeping the single-trigger-authority
 invariant intact; a lost race re-queues PACED under the same deadline.
@@ -30,13 +30,13 @@ import uuid
 from pathlib import Path
 from types import FrameType
 
+from personalscraper.app._runner_engine import reserve_run_row
 from personalscraper.app.errors import AppConflict, AppInternalError
+from personalscraper.app.run_queue import wait_in_visible_queue
 from personalscraper.conf.loader import load_config
 from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
-from personalscraper.web._runner_engine import reserve_run_row
-from personalscraper.web.run_queue import wait_in_visible_queue
 
 log = get_logger(__name__)
 
@@ -68,7 +68,7 @@ def _canonical_options(trigger_reason: str, dry_run: bool) -> str:
 def reserve_queued_pipeline_run(db_path: Path, *, trigger_reason: str, dry_run: bool) -> str:
     """Atomically reserve a ``pipeline-queue`` row and spawn the waiter.
 
-    Mirrors ``web/decisions/reserve.py``: one connection, ``BEGIN IMMEDIATE``,
+    Mirrors ``app/decisions/reserve.py``: one connection, ``BEGIN IMMEDIATE``,
     duplicate guard (same options, live pid) then INSERT — a second concurrent
     POST blocks on the write lock and observes the fresh row (409 duplicate).
 
@@ -130,7 +130,7 @@ def reserve_queued_pipeline_run(db_path: Path, *, trigger_reason: str, dry_run: 
     }
     try:
         proc = subprocess.Popen(  # noqa: S603 — fixed argv, no shell, first-party module.
-            [sys.executable, "-m", "personalscraper.web.pipeline_queue"],
+            [sys.executable, "-m", "personalscraper.app.pipeline_queue"],
             start_new_session=True,
             env=env,
         )
@@ -146,7 +146,7 @@ def reserve_queued_pipeline_run(db_path: Path, *, trigger_reason: str, dry_run: 
 def main() -> None:
     """Wait for ``pipeline.lock`` to free, then launch the pipeline run.
 
-    Entry point of ``python -m personalscraper.web.pipeline_queue``. Reads its
+    Entry point of ``python -m personalscraper.app.pipeline_queue``. Reads its
     env (run_uid of the reserved queue row, trigger reason, dry-run flag),
     waits in the shared visible queue, then hands over to
     ``spawn_pipeline_run``. Every exit path finalizes the queue row so it is
@@ -186,7 +186,7 @@ def main() -> None:
 
     signal.signal(signal.SIGTERM, _on_sigterm)
 
-    from personalscraper.web.pipeline_trigger import spawn_pipeline_run
+    from personalscraper.app.pipeline_trigger import spawn_pipeline_run
 
     while True:
         if not wait_in_visible_queue(

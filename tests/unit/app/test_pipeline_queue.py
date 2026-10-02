@@ -1,4 +1,4 @@
-"""Unit tests for the queued pipeline launch (``web/pipeline_queue.py``, §6).
+"""Unit tests for the queued pipeline launch (``app/pipeline_queue.py``, §6).
 
 ``POST /api/pipeline/run`` queues visibly when a maintenance run holds the
 lock: an atomically reserved ``pipeline-queue`` row plus a detached waiter
@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from personalscraper.app.errors import AppConflict
-from personalscraper.web.pipeline_queue import (
+from personalscraper.app.pipeline_queue import (
     PIPELINE_QUEUE_COMMAND,
     _canonical_options,
     main,
@@ -78,7 +78,7 @@ class TestReserve:
         db_path = tmp_path / "library.db"
         _create_db(db_path)
 
-        with patch("personalscraper.web.pipeline_queue.subprocess.Popen") as mock_popen:
+        with patch("personalscraper.app.pipeline_queue.subprocess.Popen") as mock_popen:
             mock_popen.return_value.pid = 4242
             run_uid = reserve_queued_pipeline_run(db_path, trigger_reason="web", dry_run=False)
 
@@ -92,7 +92,7 @@ class TestReserve:
         assert row["options_json"] == _canonical_options("web", False)
         assert row["pid"] == 4242
         argv = mock_popen.call_args[0][0]
-        assert argv[-2:] == ["-m", "personalscraper.web.pipeline_queue"]
+        assert argv[-2:] == ["-m", "personalscraper.app.pipeline_queue"]
         env = mock_popen.call_args.kwargs["env"]
         assert env["PERSONALSCRAPER_RUN_UID"] == run_uid
         assert env["PERSONALSCRAPER_PQ_DRY_RUN"] == "0"
@@ -112,7 +112,7 @@ class TestReserve:
         conn.close()
 
         with (
-            patch("personalscraper.web.pipeline_queue.subprocess.Popen") as mock_popen,
+            patch("personalscraper.app.pipeline_queue.subprocess.Popen") as mock_popen,
             pytest.raises(AppConflict) as exc_info,
         ):
             reserve_queued_pipeline_run(db_path, trigger_reason="web", dry_run=False)
@@ -135,7 +135,7 @@ class TestReserve:
         conn.commit()
         conn.close()
 
-        with patch("personalscraper.web.pipeline_queue.subprocess.Popen") as mock_popen:
+        with patch("personalscraper.app.pipeline_queue.subprocess.Popen") as mock_popen:
             mock_popen.return_value.pid = 4242
             run_uid = reserve_queued_pipeline_run(db_path, trigger_reason="web", dry_run=False)
         assert run_uid
@@ -200,10 +200,10 @@ class TestWaiterMain:
         self._env(monkeypatch, "qrow1")
 
         with (
-            patch("personalscraper.web.pipeline_queue.load_config", return_value=self._config(tmp_path, db_path)),
-            patch("personalscraper.web.pipeline_queue.is_lock_held", return_value=False),
+            patch("personalscraper.app.pipeline_queue.load_config", return_value=self._config(tmp_path, db_path)),
+            patch("personalscraper.app.pipeline_queue.is_lock_held", return_value=False),
             patch(
-                "personalscraper.web.pipeline_trigger.spawn_pipeline_run",
+                "personalscraper.app.pipeline_trigger.spawn_pipeline_run",
                 return_value="realrun1",
             ) as mock_spawn,
             pytest.raises(SystemExit) as exc_info,
@@ -231,11 +231,11 @@ class TestWaiterMain:
         self._env(monkeypatch, "qrow2")
 
         with (
-            patch("personalscraper.web.pipeline_queue.load_config", return_value=self._config(tmp_path, db_path)),
-            patch("personalscraper.web.pipeline_queue.is_lock_held", return_value=False),
-            patch("personalscraper.web.pipeline_queue.time.sleep"),
+            patch("personalscraper.app.pipeline_queue.load_config", return_value=self._config(tmp_path, db_path)),
+            patch("personalscraper.app.pipeline_queue.is_lock_held", return_value=False),
+            patch("personalscraper.app.pipeline_queue.time.sleep"),
             patch(
-                "personalscraper.web.pipeline_trigger.spawn_pipeline_run",
+                "personalscraper.app.pipeline_trigger.spawn_pipeline_run",
                 side_effect=[None, "realrun2"],
             ) as mock_spawn,
             pytest.raises(SystemExit) as exc_info,

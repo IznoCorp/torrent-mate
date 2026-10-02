@@ -1,11 +1,11 @@
 """Maintenance action runner — thin config over the shared runner engine.
 
-Executable as ``python -m personalscraper.web.maintenance.runner``. Reads its
+Executable as ``python -m personalscraper.app.maintenance.runner``. Reads its
 configuration from environment variables (set by :func:`_spawn_runner` in
-``personalscraper.web.routes.maintenance``), resolves the action from
+the web ``routes/maintenance`` module), resolves the action from
 :data:`REGISTRY`, builds the CLI argv, decides the ``pipeline.lock`` policy, then
 delegates the run-row / spawn / stream / requeue / finalize lifecycle to
-:func:`personalscraper.web._runner_engine.run_spawn_stream`.
+:func:`personalscraper.app._runner_engine.run_spawn_stream`.
 
 Pipeline-lock ownership (R11): write/destructive actions hold ``pipeline.lock``
 for their whole subprocess lifetime — acquired by the engine (``hold_lock``) for
@@ -40,33 +40,33 @@ import sys
 from types import FrameType
 from typing import Any
 
-from personalscraper.conf.loader import load_config
-from personalscraper.lock import acquire_pipeline_lock, is_lock_held, release_lock, scrape_locks_dir_for
-from personalscraper.logger import get_logger
-from personalscraper.pipeline_history import PipelineRunWriter
-from personalscraper.web._runner_engine import (
+from personalscraper.app._runner_engine import (
     OUTCOME_KILLED,
     RING_BUFFER_BYTES,
     SIGTERM_EXIT_CODE,
     RunnerSpec,
     run_spawn_stream,
 )
-from personalscraper.web._runner_engine import (
+from personalscraper.app._runner_engine import (
     RingBuffer as _RingBuffer,
 )
-from personalscraper.web._runner_engine import (
+from personalscraper.app._runner_engine import (
     get_redis as _get_redis,
 )
-from personalscraper.web._runner_engine import (
+from personalscraper.app._runner_engine import (
     kill_child_group as _kill_child_group,
 )
-from personalscraper.web._runner_engine import (
+from personalscraper.app._runner_engine import (
     redis_publish_line as _redis_publish_line,  # noqa: F401 — re-export for test/seam parity
 )
-from personalscraper.web._runner_engine import (
+from personalscraper.app._runner_engine import (
     terminate_quietly as _terminate_quietly,  # noqa: F401 — re-export for test/seam parity
 )
-from personalscraper.web.maintenance.registry import REGISTRY, MaintenanceAction
+from personalscraper.app.maintenance.registry import REGISTRY, MaintenanceAction
+from personalscraper.conf.loader import load_config
+from personalscraper.lock import acquire_pipeline_lock, is_lock_held, release_lock, scrape_locks_dir_for
+from personalscraper.logger import get_logger
+from personalscraper.pipeline_history import PipelineRunWriter
 
 log = get_logger(__name__)
 

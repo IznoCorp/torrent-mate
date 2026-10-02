@@ -44,6 +44,7 @@ from personalscraper.acquire.desired import cadence_from_config, cadence_from_js
 from personalscraper.acquire.domain import FollowedSeries
 from personalscraper.acquire.metadata_enrich import FollowMetadata, enrich_follow_metadata
 from personalscraper.acquire.store import build_acquire_store
+from personalscraper.app.acquisition.runner import parse_prime_options
 from personalscraper.core.identity import MediaRef
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
@@ -56,7 +57,6 @@ from personalscraper.web.acquisition._helpers import (
     _row_col,
 )
 from personalscraper.web.acquisition.obligation_titles import resolve_obligation_titles
-from personalscraper.web.acquisition.runner import parse_prime_options
 from personalscraper.web.acquisition.service import (
     _build_followed_item,
     _count_wanted_pending,

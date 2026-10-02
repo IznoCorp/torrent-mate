@@ -7,7 +7,7 @@ wait, exit-3 re-queue, and terminal finalize — with subtle per-runner drift
 (WEB-BACKEND-01/02, ACQUIRE-04). This module owns that lifecycle exactly once:
 
 * :func:`reserve_run_row` — the single ``BEGIN IMMEDIATE`` + pid-alive guard +
-  ``INSERT`` reservation (lifted from ``web/decisions/reserve.py``); the three
+  ``INSERT`` reservation (lifted from ``app/decisions/reserve.py``); the three
   route-side reservations now pass their own concurrency *guard* into it rather
   than copying the transaction skeleton.
 * :func:`run_spawn_stream` — the single spawn → stream-capture → exit-3 re-queue
@@ -15,7 +15,7 @@ wait, exit-3 re-queue, and terminal finalize — with subtle per-runner drift
   SERIAL semantics (#287) are expressed by the spec, not a second code path.
 * The shared subprocess helpers (:class:`RingBuffer`, :func:`get_redis`,
   :func:`redis_publish_line`, :func:`kill_child_group`, :func:`terminate_quietly`)
-  that previously lived in ``web/maintenance/runner.py`` and were imported by the
+  that previously lived in ``app/maintenance/runner.py`` and were imported by the
   other runners.
 
 Each runner module stays the home of the pieces that MUST resolve in its own
@@ -31,7 +31,7 @@ Pipeline-lock tenure (R11): a live write/destructive maintenance run holds
 the spawn (``hold_lock``) and released on every exit path, or probed each
 iteration when the CLI self-locks (``probe_lock_each_iter``). A held lock is
 never a refusal (§6): the engine waits in the shared VISIBLE queue
-(:func:`personalscraper.web.run_queue.wait_in_visible_queue`) until its claim
+(:func:`personalscraper.app.run_queue.wait_in_visible_queue`) until its claim
 succeeds or the deadline passes.
 """
 
@@ -53,10 +53,10 @@ from pathlib import Path
 from typing import Any, NoReturn
 
 from personalscraper.app.errors import AppConflict, AppRefusal
+from personalscraper.app.run_queue import wait_in_visible_queue
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
-from personalscraper.web.run_queue import wait_in_visible_queue
 
 log = get_logger(__name__)
 
@@ -147,7 +147,7 @@ def redis_publish_line(
     """Publish a single output line to Redis as a ``maintenance.run_log`` event.
 
     The envelope shape matches ``event_to_envelope`` (``{"_type", "data"}``) so
-    the WebSocket relay in ``personalscraper.web.ws.relay`` forwards it verbatim
+    the WebSocket relay in ``web/ws/relay`` forwards it verbatim
     without requiring an :class:`Event` subclass in the catalog. The ``_type`` is
     ``"maintenance.run_log"`` and the ``data`` payload carries
     ``{run_uid, line, seq}`` (byte-identical across all detached runners).

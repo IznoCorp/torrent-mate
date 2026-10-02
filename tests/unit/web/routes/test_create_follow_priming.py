@@ -176,7 +176,7 @@ def spawned_primes(monkeypatch: pytest.MonkeyPatch) -> list[int]:
 
     ``_spawn_prime_runner`` is the spawn hook the contract names. Patching it
     is mandatory, not cosmetic: the real hook detaches
-    ``python -m personalscraper.web.acquisition.runner``, which loads the
+    ``python -m personalscraper.app.acquisition.runner``, which loads the
     OPERATOR's config (not the synthetic test one) and chains detect → search →
     grab against the production DBs and the trackers.
 

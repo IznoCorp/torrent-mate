@@ -30,12 +30,12 @@ from typing import Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
+from personalscraper.app.decisions.reserve import _reserve_decision_run
 from personalscraper.core.sqlite._pragmas import apply_pragmas as _apply_pragmas
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
 from personalscraper.scraper.decision_candidate import DecisionCandidate
 from personalscraper.scraper.decision_writer import DecisionWriteError, DecisionWriter
-from personalscraper.web.decisions.reserve import _reserve_decision_run
 from personalscraper.web.decisions.search import ProviderSearchError, search_candidates
 from personalscraper.web.deps import (
     is_staging_role,
@@ -88,7 +88,7 @@ def _db_path(request: Request) -> Path:
 def _pid_alive(pid: object) -> bool:
     """Return whether *pid* names a live process (a NULL / dead pid → ``False``).
 
-    Mirrors the liveness check in ``web.decisions.reserve`` so the activity panel
+    Mirrors the liveness check in ``app.decisions.reserve`` so the activity panel
     and the reservation guard agree on what counts as an in-flight scrape: a row
     whose runner died (SIGKILL / crash) or never claimed a pid is stale, not live.
 
@@ -488,7 +488,7 @@ def _spawn_decision_runner(
         provider_id=provider_id,
     )
     proc = subprocess.Popen(
-        [sys.executable, "-m", "personalscraper.web.decisions.runner"],
+        [sys.executable, "-m", "personalscraper.app.decisions.runner"],
         start_new_session=True,
         env=env,
     )

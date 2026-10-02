@@ -1,10 +1,10 @@
-"""Unit tests for :func:`personalscraper.web.decisions.runner.main`.
+"""Unit tests for :func:`personalscraper.app.decisions.runner.main`.
 
 Sub-phase 2.2 — covers the runner lifecycle: env reading, decision-row validation,
 pipeline_run row insert/finalize, CLI argv building, output streaming (ring buffer
 + Redis), and fail-soft behaviour.
 
-Mirrors ``tests/unit/web/maintenance/test_runner.py``, adapted for the
+Mirrors ``tests/unit/app/maintenance/test_runner.py``, adapted for the
 decisions-runner contract: four env vars, scrape_decision row lookup,
 no pipeline-lock acquisition, simpler argv (no registry).
 
@@ -200,7 +200,7 @@ class TestEnvValidation:
         """When no env vars are set, the runner exits with code 2."""
         _clear_runner_env()
         with pytest.raises(SystemExit) as exc_info:
-            from personalscraper.web.decisions.runner import _read_mandatory_env
+            from personalscraper.app.decisions.runner import _read_mandatory_env
 
             _read_mandatory_env()
         assert exc_info.value.code == 2
@@ -210,7 +210,7 @@ class TestEnvValidation:
         _clear_runner_env()
         os.environ["PERSONALSCRAPER_RUN_UID"] = "test-uid"
         with pytest.raises(SystemExit) as exc_info:
-            from personalscraper.web.decisions.runner import _read_mandatory_env
+            from personalscraper.app.decisions.runner import _read_mandatory_env
 
             _read_mandatory_env()
         assert exc_info.value.code == 2
@@ -227,7 +227,7 @@ class TestBuildArgv:
 
     def test_base_argv_starts_with_executable_and_module(self) -> None:
         """The argv always starts with [sys.executable, -m, personalscraper, scrape-resolve]."""
-        from personalscraper.web.decisions.runner import _build_argv
+        from personalscraper.app.decisions.runner import _build_argv
 
         argv = _build_argv("/tmp/staging/test", "tmdb", 12345, "pick")
         assert argv[0] == sys.executable
@@ -237,14 +237,14 @@ class TestBuildArgv:
 
     def test_staging_path_is_positional(self) -> None:
         """The staging_path is the first positional argument after the command."""
-        from personalscraper.web.decisions.runner import _build_argv
+        from personalscraper.app.decisions.runner import _build_argv
 
         argv = _build_argv("/tmp/staging/test-item", "tmdb", 42, "pick")
         assert argv[4] == "/tmp/staging/test-item"
 
     def test_provider_and_id_are_flags(self) -> None:
         """Provider and provider_id are passed as --provider and --id flags."""
-        from personalscraper.web.decisions.runner import _build_argv
+        from personalscraper.app.decisions.runner import _build_argv
 
         argv = _build_argv("/tmp/staging/test", "tvdb", 999, "pick")
         idx_provider = argv.index("--provider")
@@ -254,7 +254,7 @@ class TestBuildArgv:
 
     def test_via_is_a_flag(self) -> None:
         """The resolution provenance is passed as --via (F09)."""
-        from personalscraper.web.decisions.runner import _build_argv
+        from personalscraper.app.decisions.runner import _build_argv
 
         argv = _build_argv("/tmp/staging/test", "tmdb", 5, "search_override")
         idx_via = argv.index("--via")
@@ -277,12 +277,12 @@ class TestDecisionRowValidation:
         mock_proc = _fake_popen(["ok\n"], returncode=0)
 
         with (
-            patch("personalscraper.web.decisions.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.decisions.runner.subprocess.Popen", return_value=mock_proc),
-            patch("personalscraper.web.decisions.runner._get_redis", return_value=None),
+            patch("personalscraper.app.decisions.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.decisions.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.decisions.runner._get_redis", return_value=None),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.decisions.runner import main
+            from personalscraper.app.decisions.runner import main
 
             main()
 
@@ -302,12 +302,12 @@ class TestDecisionRowValidation:
         mock_proc = _fake_popen(["ok\n"], returncode=0)
 
         with (
-            patch("personalscraper.web.decisions.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.decisions.runner.subprocess.Popen", return_value=mock_proc),
-            patch("personalscraper.web.decisions.runner._get_redis", return_value=None),
+            patch("personalscraper.app.decisions.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.decisions.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.decisions.runner._get_redis", return_value=None),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.decisions.runner import main
+            from personalscraper.app.decisions.runner import main
 
             main()
 
@@ -332,15 +332,15 @@ class TestDecisionRowValidation:
         _set_runner_env("run-uid-06", 1, "tmdb", 12345)
 
         with (
-            patch("personalscraper.web.decisions.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.decisions.runner.load_config", return_value=mock_config),
             patch(
-                "personalscraper.web.decisions.runner._read_decision_row",
+                "personalscraper.app.decisions.runner._read_decision_row",
                 side_effect=sqlite3.OperationalError("database is locked"),
             ),
-            patch("personalscraper.web.decisions.runner._get_redis", return_value=None),
+            patch("personalscraper.app.decisions.runner._get_redis", return_value=None),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.decisions.runner import main
+            from personalscraper.app.decisions.runner import main
 
             main()
 
@@ -384,12 +384,12 @@ class TestRunnerLifecycle:
         mock_proc = _fake_popen(["output line\n"], returncode=0)
 
         with (
-            patch("personalscraper.web.decisions.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.decisions.runner.subprocess.Popen", return_value=mock_proc),
-            patch("personalscraper.web.decisions.runner._get_redis", return_value=None),
+            patch("personalscraper.app.decisions.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.decisions.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.decisions.runner._get_redis", return_value=None),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.decisions.runner import main
+            from personalscraper.app.decisions.runner import main
 
             main()
 
@@ -413,12 +413,12 @@ class TestRunnerLifecycle:
         mock_proc = _fake_popen(["ok\n"], returncode=0)
 
         with (
-            patch("personalscraper.web.decisions.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.decisions.runner.subprocess.Popen", return_value=mock_proc),
-            patch("personalscraper.web.decisions.runner._get_redis", return_value=None),
+            patch("personalscraper.app.decisions.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.decisions.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.decisions.runner._get_redis", return_value=None),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.decisions.runner import main
+            from personalscraper.app.decisions.runner import main
 
             main()
 
@@ -437,12 +437,12 @@ class TestRunnerLifecycle:
         mock_proc = _fake_popen(stderr_output, returncode=1)
 
         with (
-            patch("personalscraper.web.decisions.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.decisions.runner.subprocess.Popen", return_value=mock_proc),
-            patch("personalscraper.web.decisions.runner._get_redis", return_value=None),
+            patch("personalscraper.app.decisions.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.decisions.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.decisions.runner._get_redis", return_value=None),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.decisions.runner import main
+            from personalscraper.app.decisions.runner import main
 
             main()
 
@@ -466,12 +466,12 @@ class TestRunnerLifecycle:
         mock_proc = _fake_popen(lines, returncode=0)
 
         with (
-            patch("personalscraper.web.decisions.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.decisions.runner.subprocess.Popen", return_value=mock_proc),
-            patch("personalscraper.web.decisions.runner._get_redis", return_value=None),
+            patch("personalscraper.app.decisions.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.decisions.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.decisions.runner._get_redis", return_value=None),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.decisions.runner import main
+            from personalscraper.app.decisions.runner import main
 
             main()
 
@@ -492,12 +492,12 @@ class TestRunnerLifecycle:
         mock_proc = _fake_popen(lines, returncode=0)
 
         with (
-            patch("personalscraper.web.decisions.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.decisions.runner.subprocess.Popen", return_value=mock_proc),
-            patch("personalscraper.web.decisions.runner._get_redis", return_value=None),
+            patch("personalscraper.app.decisions.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.decisions.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.decisions.runner._get_redis", return_value=None),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.decisions.runner import main
+            from personalscraper.app.decisions.runner import main
 
             main()
 
@@ -524,12 +524,12 @@ class TestRunnerLifecycle:
         mock_redis = MagicMock()
 
         with (
-            patch("personalscraper.web.decisions.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.decisions.runner.subprocess.Popen", return_value=mock_proc),
-            patch("personalscraper.web.decisions.runner._get_redis", return_value=mock_redis),
+            patch("personalscraper.app.decisions.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.decisions.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.decisions.runner._get_redis", return_value=mock_redis),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.decisions.runner import main
+            from personalscraper.app.decisions.runner import main
 
             main()
 
@@ -558,12 +558,12 @@ class TestRunnerLifecycle:
         mock_redis.xadd.side_effect = ConnectionError("redis down")
 
         with (
-            patch("personalscraper.web.decisions.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.decisions.runner.subprocess.Popen", return_value=mock_proc),
-            patch("personalscraper.web.decisions.runner._get_redis", return_value=mock_redis),
+            patch("personalscraper.app.decisions.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.decisions.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.decisions.runner._get_redis", return_value=mock_redis),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.decisions.runner import main
+            from personalscraper.app.decisions.runner import main
 
             main()
 
@@ -580,11 +580,11 @@ class TestRunnerLifecycle:
         mock_proc = _fake_popen(["output\n"], returncode=0)
 
         with (
-            patch("personalscraper.web.decisions.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.decisions.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.decisions.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.decisions.runner.subprocess.Popen", return_value=mock_proc),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.decisions.runner import main
+            from personalscraper.app.decisions.runner import main
 
             main()
         assert exc_info.value.code == 0
@@ -602,12 +602,12 @@ class TestRunnerLifecycle:
         )
         with (
             patch(
-                "personalscraper.web.decisions.runner.load_config",
+                "personalscraper.app.decisions.runner.load_config",
                 side_effect=RuntimeError("no config"),
             ),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.decisions.runner import main
+            from personalscraper.app.decisions.runner import main
 
             main()
         assert exc_info.value.code == 2
@@ -623,15 +623,15 @@ class TestRunnerLifecycle:
         _insert_decision_row(db_path, decision_id=self.DECISION_ID, status="pending")
 
         with (
-            patch("personalscraper.web.decisions.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.decisions.runner.load_config", return_value=mock_config),
             patch(
-                "personalscraper.web.decisions.runner.subprocess.Popen",
+                "personalscraper.app.decisions.runner.subprocess.Popen",
                 side_effect=OSError("spawn failed"),
             ),
-            patch("personalscraper.web.decisions.runner._get_redis", return_value=None),
+            patch("personalscraper.app.decisions.runner._get_redis", return_value=None),
             pytest.raises(SystemExit) as exc_info,
         ):
-            from personalscraper.web.decisions.runner import main
+            from personalscraper.app.decisions.runner import main
 
             main()
 
@@ -663,7 +663,7 @@ class TestRunnerFinalizeGuards:
 
     def test_stream_exception_finalizes_error_not_running(self, tmp_path: Path) -> None:
         """An exception raised mid-stream finalizes the row 'error', never 'running'."""
-        from personalscraper.web.decisions import runner as runner_mod
+        from personalscraper.app.decisions import runner as runner_mod
 
         mock_config = _make_mock_config(tmp_path)
         db_path = mock_config.indexer.db_path
@@ -680,9 +680,9 @@ class TestRunnerFinalizeGuards:
             original_append(self, line)
 
         with (
-            patch("personalscraper.web.decisions.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.decisions.runner.subprocess.Popen", return_value=mock_proc),
-            patch("personalscraper.web.decisions.runner._get_redis", return_value=None),
+            patch("personalscraper.app.decisions.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.decisions.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.decisions.runner._get_redis", return_value=None),
             patch.object(runner_mod._RingBuffer, "append", boom),
             pytest.raises(SystemExit) as exc_info,
         ):
@@ -699,7 +699,7 @@ class TestRunnerFinalizeGuards:
         """The runner installs a SIGTERM handler that kills the child + finalizes 'killed'."""
         import signal as _signal
 
-        from personalscraper.web.decisions import runner as runner_mod
+        from personalscraper.app.decisions import runner as runner_mod
 
         mock_config = _make_mock_config(tmp_path)
         db_path = mock_config.indexer.db_path
@@ -712,10 +712,10 @@ class TestRunnerFinalizeGuards:
             captured[sig] = handler
 
         with (
-            patch("personalscraper.web.decisions.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.decisions.runner.subprocess.Popen", return_value=mock_proc),
-            patch("personalscraper.web.decisions.runner._get_redis", return_value=None),
-            patch("personalscraper.web.decisions.runner.signal.signal", fake_signal),
+            patch("personalscraper.app.decisions.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.decisions.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.decisions.runner._get_redis", return_value=None),
+            patch("personalscraper.app.decisions.runner.signal.signal", fake_signal),
             pytest.raises(SystemExit) as exc_info,
         ):
             runner_mod.main()
@@ -728,8 +728,8 @@ class TestRunnerFinalizeGuards:
 
         # Invoke the captured handler to simulate a SIGTERM delivery.
         with (
-            patch("personalscraper.web.decisions.runner.os._exit") as mock_exit,
-            patch("personalscraper.web.decisions.runner._kill_child_group") as mock_kill,
+            patch("personalscraper.app.decisions.runner.os._exit") as mock_exit,
+            patch("personalscraper.app.decisions.runner._kill_child_group") as mock_kill,
         ):
             handler(_signal.SIGTERM, None)
 
@@ -751,7 +751,7 @@ class TestRunnerFinalizeGuards:
         """
         import signal as _signal
 
-        from personalscraper.web.decisions import runner as runner_mod
+        from personalscraper.app.decisions import runner as runner_mod
 
         mock_config = _make_mock_config(tmp_path)
         _insert_decision_row(
@@ -763,9 +763,9 @@ class TestRunnerFinalizeGuards:
 
         before = _signal.getsignal(_signal.SIGTERM)
         with (
-            patch("personalscraper.web.decisions.runner.load_config", return_value=mock_config),
-            patch("personalscraper.web.decisions.runner.subprocess.Popen", return_value=mock_proc),
-            patch("personalscraper.web.decisions.runner._get_redis", return_value=None),
+            patch("personalscraper.app.decisions.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.decisions.runner.subprocess.Popen", return_value=mock_proc),
+            patch("personalscraper.app.decisions.runner._get_redis", return_value=None),
             pytest.raises(SystemExit),
         ):
             runner_mod.main()
@@ -803,15 +803,15 @@ class TestRunnerPipelineLock:
 
     def _run_main(self, mock_config: MagicMock, mock_proc: MagicMock) -> SystemExit:
         """Invoke ``main()`` with config/Popen/Redis patched; return the exit."""
-        from personalscraper.web.decisions import runner as runner_mod
+        from personalscraper.app.decisions import runner as runner_mod
 
         with (
-            patch("personalscraper.web.decisions.runner.load_config", return_value=mock_config),
+            patch("personalscraper.app.decisions.runner.load_config", return_value=mock_config),
             patch(
-                "personalscraper.web.decisions.runner.subprocess.Popen",
+                "personalscraper.app.decisions.runner.subprocess.Popen",
                 return_value=mock_proc,
             ),
-            patch("personalscraper.web.decisions.runner._get_redis", return_value=None),
+            patch("personalscraper.app.decisions.runner._get_redis", return_value=None),
             pytest.raises(SystemExit) as exc_info,
         ):
             runner_mod.main()
@@ -828,7 +828,7 @@ class TestRunnerPipelineLock:
         )
         mock_proc = _fake_popen(["ok\n"], returncode=0)
 
-        with patch("personalscraper.web.decisions.runner.AcquireLockError", create=True):
+        with patch("personalscraper.app.decisions.runner.AcquireLockError", create=True):
             pass  # no-op — just ensure the module doesn't import lock utilities
 
         with patch("personalscraper.lock.acquire_lock") as mock_acquire:
@@ -846,7 +846,7 @@ class TestRunnerPipelineLock:
         """
         import inspect
 
-        from personalscraper.web.decisions import runner as runner_mod
+        from personalscraper.app.decisions import runner as runner_mod
 
         source = inspect.getsource(runner_mod)
         # Among code lines, only look for import/call patterns.

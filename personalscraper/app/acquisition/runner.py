@@ -1,10 +1,10 @@
 """Grab runner — thin config over the shared runner engine (OBJ3 / §5).
 
-Executable as ``python -m personalscraper.web.acquisition.runner``. Reads its
+Executable as ``python -m personalscraper.app.acquisition.runner``. Reads its
 configuration from environment variables (set by the POST handler in
-``personalscraper.web.routes.acquisition_triggers``) and delegates the whole
+the web ``routes/acquisition_triggers`` module) and delegates the whole
 run-row / spawn / stream / finalize lifecycle to
-:func:`personalscraper.web._runner_engine.run_spawn_stream` — one step for
+:func:`personalscraper.app._runner_engine.run_spawn_stream` — one step for
 ``grab`` / ``detect``, three chained steps for ``prime`` (the engine's
 ``extra_steps``). The grab CLI does not touch ``pipeline.lock`` (each wanted
 item is claimed atomically via ``claim_for_search``), so this runner uses no
@@ -51,27 +51,27 @@ import subprocess
 import sys
 from types import FrameType
 
-from personalscraper.conf.loader import load_config
-from personalscraper.logger import get_logger
-from personalscraper.pipeline_history import PipelineRunWriter
-from personalscraper.web._runner_engine import (
+from personalscraper.app._runner_engine import (
     OUTCOME_KILLED,
     SIGTERM_EXIT_CODE,
     RunnerSpec,
     run_spawn_stream,
 )
-from personalscraper.web._runner_engine import (
+from personalscraper.app._runner_engine import (
     RingBuffer as _RingBuffer,
 )
-from personalscraper.web._runner_engine import (
+from personalscraper.app._runner_engine import (
     get_redis as _get_redis,
 )
-from personalscraper.web._runner_engine import (
+from personalscraper.app._runner_engine import (
     kill_child_group as _kill_child_group,
 )
-from personalscraper.web._runner_engine import (
+from personalscraper.app._runner_engine import (
     redis_publish_line as _redis_publish_line,  # noqa: F401 — re-export for test/seam parity
 )
+from personalscraper.conf.loader import load_config
+from personalscraper.logger import get_logger
+from personalscraper.pipeline_history import PipelineRunWriter
 
 log = get_logger(__name__)
 

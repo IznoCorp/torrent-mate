@@ -6,7 +6,7 @@ the atomic duplicate/dry-run-first guards, the run-row reservation, and the
 detached-runner spawn live here (route/service split, DESIGN T10).
 
 The reservation reuses the single ``reserve_run_row`` engine skeleton
-(``web/_runner_engine.py``) — this module supplies only the maintenance-specific
+(``app/_runner_engine.py``) — this module supplies only the maintenance-specific
 guards and the missing-DB rule; it never re-implements ``BEGIN IMMEDIATE``.
 """
 
@@ -19,10 +19,10 @@ import sys
 import time
 from pathlib import Path
 
+from personalscraper.app._runner_engine import reserve_run_row
 from personalscraper.app.errors import AppConflict, AppPreconditionRequired, AppValidationError
+from personalscraper.app.maintenance.registry import MaintenanceAction
 from personalscraper.logger import get_logger
-from personalscraper.web._runner_engine import reserve_run_row
-from personalscraper.web.maintenance.registry import MaintenanceAction
 
 logger = get_logger(__name__)
 
@@ -90,7 +90,7 @@ def _guard_no_duplicate_action(conn: sqlite3.Connection, command: str, options_j
 
     §6 (constitution v2): a busy system is never a reason to refuse — a
     DIFFERENT action reserves its row and waits in the runner's visible queue
-    (``web/run_queue.py``). The only refusal left is the strict duplicate:
+    (``app/run_queue.py``). The only refusal left is the strict duplicate:
     same ``command`` AND byte-identical ``options_json`` AND same ``dry_run``
     mode with a live pid (a dry-run preview during a live apply is NOT the
     same action). Rows with a dead or NULL pid are stale (crashed runner /
@@ -174,7 +174,7 @@ def _reserve_run_row(
 
     Guard order: 409 duplicate (same command + same options only, §6) → 428
     dry-run-first → INSERT. A held ``pipeline.lock`` is NOT a refusal anymore:
-    the spawned runner waits in the visible queue (``web/run_queue.py``) and
+    the spawned runner waits in the visible queue (``app/run_queue.py``) and
     the run row carries the ``queue`` step while it does.
 
     On a DB read error while verifying duplicates, a ``destructive`` action is
@@ -232,7 +232,7 @@ def _reserve_run_row(
 def _spawn_runner(run_uid: str, action_id: str, options_json: str, dry_run: bool) -> int:
     """Spawn the maintenance runner as a detached subprocess.
 
-    The runner module (``personalscraper.web.maintenance.runner``) reads its
+    The runner module (``personalscraper.app.maintenance.runner``) reads its
     configuration from the environment variables set here. It is responsible for
     executing the CLI command, streaming output, and finalizing the
     ``pipeline_run`` row (reserved by the caller before this spawn).
@@ -261,7 +261,7 @@ def _spawn_runner(run_uid: str, action_id: str, options_json: str, dry_run: bool
         dry_run=dry_run,
     )
     proc = subprocess.Popen(
-        [sys.executable, "-m", "personalscraper.web.maintenance.runner"],
+        [sys.executable, "-m", "personalscraper.app.maintenance.runner"],
         start_new_session=True,
         env=env,
     )

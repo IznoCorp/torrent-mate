@@ -992,7 +992,7 @@ def test_continue_matched_spawns_run(test_config, tmp_path: Path) -> None:
     client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
 
     media_id = media_id_for("001-MOVIES/Fight Club (1999)")
-    with patch("personalscraper.web.pipeline_trigger.subprocess.Popen") as mock_popen:
+    with patch("personalscraper.app.pipeline_trigger.subprocess.Popen") as mock_popen:
         resp = client.post(
             f"/api/staging/media/{media_id}/continue",
             headers={"X-Requested-With": "TorrentMate"},
@@ -1096,8 +1096,8 @@ def test_continue_deferred_when_lock_held(test_config, tmp_path: Path) -> None:
     client = _make_client(test_config, staging_dir=staging, db_path=_fresh_db(tmp_path), data_dir=data_dir)
 
     media_id = media_id_for("001-MOVIES/Fight Club (1999)")
-    with patch("personalscraper.web.pipeline_trigger.is_lock_held", return_value=True):
-        with patch("personalscraper.web.pipeline_trigger.subprocess.Popen") as mock_popen:
+    with patch("personalscraper.app.pipeline_trigger.is_lock_held", return_value=True):
+        with patch("personalscraper.app.pipeline_trigger.subprocess.Popen") as mock_popen:
             resp = client.post(
                 f"/api/staging/media/{media_id}/continue",
                 headers={"X-Requested-With": "TorrentMate"},
@@ -1669,8 +1669,8 @@ def test_continue_deferred_writes_marker_and_read_model_exposes_it(
     fight_dir = staging / "001-MOVIES" / "Fight Club (1999)"
 
     # 1. Deferred continue writes the marker.
-    with patch("personalscraper.web.pipeline_trigger.is_lock_held", return_value=True):
-        with patch("personalscraper.web.pipeline_trigger.subprocess.Popen"):
+    with patch("personalscraper.app.pipeline_trigger.is_lock_held", return_value=True):
+        with patch("personalscraper.app.pipeline_trigger.subprocess.Popen"):
             resp = client.post(
                 f"/api/staging/media/{media_id}/continue",
                 headers={"X-Requested-With": "TorrentMate"},
@@ -1688,7 +1688,7 @@ def test_continue_deferred_writes_marker_and_read_model_exposes_it(
     assert fight["continuation_requested_at"] == marker_ts
 
     # 3. A SECOND continue (successful this time) unsets the marker.
-    with patch("personalscraper.web.pipeline_trigger.subprocess.Popen"):
+    with patch("personalscraper.app.pipeline_trigger.subprocess.Popen"):
         resp2 = client.post(
             f"/api/staging/media/{media_id}/continue",
             headers={"X-Requested-With": "TorrentMate"},
