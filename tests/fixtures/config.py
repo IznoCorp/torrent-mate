@@ -203,7 +203,7 @@ def test_config(tmp_path: Path) -> Config:
         ),
         staging_dirs=CANONICAL_STAGING_DIRS,
         # Minimal valid ProvidersConfig so ``ProviderRegistry`` (built at the
-        # CLI boundary by ``_build_app_context`` since feat/registry sub-phase
+        # CLI boundary by ``build_app_context`` since feat/registry sub-phase
         # 3.1) does not raise ``RegistryConfigError`` for empty chain
         # capabilities. Tests that need finer control over provider chains
         # can build their own Config and override ``providers=`` explicitly.

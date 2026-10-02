@@ -41,8 +41,9 @@ from personalscraper.acquire.watcher import (
     WatcherState,
 )
 from personalscraper.api.torrent._errors import TORRENT_LISTING_ERRORS
+from personalscraper.app.composition import build_app_context
 from personalscraper.cli_app import command_with_telemetry
-from personalscraper.cli_helpers import _build_app_context, handle_cli_errors
+from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.core.tags import SEED_PURE
 from personalscraper.ingest.deferral import classify_deferrals, deferral_probe_dirs
 from personalscraper.ingest.tracker import IngestTracker
@@ -671,7 +672,7 @@ def watch(ctx: typer.Context) -> None:
 
     # Build the AppContext once for daemon lifetime — torrent client, provider
     # registry, and acquire store are shared across every poll cycle.
-    app_context = _build_app_context(config, settings, build_torrent_client=True)
+    app_context = build_app_context(config, settings, build_torrent_client=True)
 
     # Redis event publisher for the watcher's own bus events (fail-soft —
     # Redis down must never block the daemon boot).  Pipeline runs spawned

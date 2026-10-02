@@ -214,13 +214,14 @@ class TestPerStepBoundaryPublisher:
     def test_boundary_builds_and_closes_publisher_when_opted_in(self) -> None:
         """stream_events=True wires build_redis_publisher on the step bus and closes it."""
         from personalscraper import cli_helpers
+        from personalscraper.app import composition
 
         publisher = MagicMock()
         config = MagicMock()
         settings = MagicMock()
         app_context = MagicMock()
         with (
-            patch.object(cli_helpers, "_build_app_context", return_value=app_context),
+            patch.object(composition, "build_app_context", return_value=app_context),
             patch.object(cli_helpers, "build_redis_publisher", return_value=publisher) as build_mock,
         ):
             with cli_helpers.per_step_boundary(config, settings, stream_events=True):
@@ -236,12 +237,13 @@ class TestPerStepBoundaryPublisher:
         absent (CI), breaking their output parsing.
         """
         from personalscraper import cli_helpers
+        from personalscraper.app import composition
 
         config = MagicMock()
         settings = MagicMock()
         app_context = MagicMock()
         with (
-            patch.object(cli_helpers, "_build_app_context", return_value=app_context),
+            patch.object(composition, "build_app_context", return_value=app_context),
             patch.object(cli_helpers, "build_redis_publisher") as build_mock,
         ):
             with cli_helpers.per_step_boundary(config, settings):

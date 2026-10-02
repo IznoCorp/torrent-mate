@@ -197,12 +197,12 @@ class TestRegistryIsClosed:
 
     @staticmethod
     def _patched_context(mp: pytest.MonkeyPatch) -> MagicMock:
-        """Patch ``_build_app_context`` to return a spy-able AppContext."""
+        """Patch ``build_app_context`` to return a spy-able AppContext."""
         app_context = MagicMock()
         app_context.provider_registry.get.side_effect = lambda name: f"{name}-client"
-        import personalscraper.cli_helpers as cli_helpers
+        import personalscraper.app.composition as composition
 
-        mp.setattr(cli_helpers, "_build_app_context", lambda *a, **kw: app_context)
+        mp.setattr(composition, "build_app_context", lambda *a, **kw: app_context)
         return app_context
 
     def test_close_is_called_on_the_success_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -239,12 +239,12 @@ class TestRegistryIsClosed:
         """An unbuildable registry is still a 502 — behaviour preserved."""
         from fastapi import HTTPException
 
-        import personalscraper.cli_helpers as cli_helpers
+        import personalscraper.app.composition as composition
 
         def _boom(*_a: object, **_kw: object) -> object:
             raise RuntimeError("no config")
 
-        monkeypatch.setattr(cli_helpers, "_build_app_context", _boom)
+        monkeypatch.setattr(composition, "build_app_context", _boom)
 
         with pytest.raises(HTTPException) as exc_info:  # noqa: PT012 — the with-block IS the call
             with scoped_provider_clients(MagicMock()):
@@ -262,9 +262,9 @@ class TestRegistryIsClosed:
             captured.update(kwargs)
             return app_context
 
-        import personalscraper.cli_helpers as cli_helpers
+        import personalscraper.app.composition as composition
 
-        monkeypatch.setattr(cli_helpers, "_build_app_context", _capture)
+        monkeypatch.setattr(composition, "build_app_context", _capture)
 
         with scoped_provider_clients(MagicMock()):
             pass

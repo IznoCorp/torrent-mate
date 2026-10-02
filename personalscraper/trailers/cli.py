@@ -36,7 +36,7 @@ from rich.console import Console
 from rich.table import Table
 
 from personalscraper import cli_helpers
-from personalscraper.cli_helpers import _build_app_context
+from personalscraper.app.composition import build_app_context
 from personalscraper.conf.ids import NON_VIDEO_CATEGORY_IDS, TV_CATEGORY_IDS
 from personalscraper.core.event_bus import current_correlation_id
 from personalscraper.core.media_types import trailer_folders_in
@@ -75,7 +75,7 @@ def _trailers_boundary(config: Any):  # type: ignore[no-untyped-def]
         ``settings``, and a fresh :class:`EventBus`.
     """
     settings = cli_helpers.get_settings()
-    app_context = _build_app_context(config, settings)
+    app_context = build_app_context(config, settings)
     token = current_correlation_id.set(str(uuid4()))
     try:
         yield app_context

@@ -31,7 +31,7 @@ class AcquireContext:
     """Frozen injection handle for the acquisition lobe.
 
     Constructed once per process at the composition root (inside
-    ``_build_app_context``) and stored as ``AppContext.acquire``.
+    ``build_app_context``) and stored as ``AppContext.acquire``.
 
     Ownership semantics:
     - ``tracker_registry``: OWNED — RP5a port, migrated from ``AppContext``.

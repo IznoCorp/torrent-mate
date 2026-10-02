@@ -30,8 +30,7 @@ import uuid
 from pathlib import Path
 from types import FrameType
 
-from fastapi import HTTPException
-
+from personalscraper.app.errors import AppConflict, AppInternalError
 from personalscraper.conf.loader import load_config
 from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
@@ -82,7 +81,7 @@ def reserve_queued_pipeline_run(db_path: Path, *, trigger_reason: str, dry_run: 
         The queue row's ``run_uid``.
 
     Raises:
-        HTTPException: 409 when an identical queued launch is already waiting,
+        AppConflict: 409 when an identical queued launch is already waiting,
             or when the duplicate check cannot be verified.
     """
     run_uid = uuid.uuid4().hex
@@ -104,8 +103,8 @@ def reserve_queued_pipeline_run(db_path: Path, *, trigger_reason: str, dry_run: 
             except ProcessLookupError:
                 continue
             except PermissionError:
-                raise HTTPException(status_code=409, detail=_DUPLICATE_QUEUE_DETAIL)
-            raise HTTPException(status_code=409, detail=_DUPLICATE_QUEUE_DETAIL)
+                raise AppConflict(_DUPLICATE_QUEUE_DETAIL)
+            raise AppConflict(_DUPLICATE_QUEUE_DETAIL)
 
     # The atomic BEGIN IMMEDIATE + INSERT skeleton is owned by the engine; this
     # module supplies only the duplicate-queue guard.
@@ -138,7 +137,7 @@ def reserve_queued_pipeline_run(db_path: Path, *, trigger_reason: str, dry_run: 
     except (OSError, ValueError) as exc:
         PipelineRunWriter(db_path).finalize(run_uid, "error", error=str(exc))
         log.error("pipeline_queue_spawn_failed", run_uid=run_uid, error=str(exc))
-        raise HTTPException(status_code=500, detail="Failed to spawn pipeline queue waiter") from exc
+        raise AppInternalError("Failed to spawn pipeline queue waiter") from exc
     PipelineRunWriter(db_path).update_pid(run_uid, proc.pid)
     log.info("pipeline_queue_reserved", run_uid=run_uid, trigger_reason=trigger_reason, dry_run=dry_run)
     return run_uid

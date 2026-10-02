@@ -19,8 +19,7 @@ import os
 import sqlite3
 from pathlib import Path
 
-from fastapi import HTTPException
-
+from personalscraper.app.errors import AppConflict
 from personalscraper.logger import get_logger
 from personalscraper.web._runner_engine import reserve_run_row
 
@@ -51,7 +50,7 @@ def _guard_no_running_resolve(conn: sqlite3.Connection, decision_id: int) -> Non
             scoped to running resolves of THIS decision only.
 
     Raises:
-        HTTPException: 409 when a live scrape-resolve runner for *decision_id* is
+        AppConflict: 409 when a live scrape-resolve runner for *decision_id* is
             found.
     """
     rows = conn.execute(
@@ -76,9 +75,9 @@ def _guard_no_running_resolve(conn: sqlite3.Connection, decision_id: int) -> Non
             continue
         except PermissionError:
             # Process exists but owned by another user → treat as alive.
-            raise HTTPException(status_code=409, detail="This decision is already resolving")
+            raise AppConflict("This decision is already resolving")
         else:
-            raise HTTPException(status_code=409, detail="This decision is already resolving")
+            raise AppConflict("This decision is already resolving")
 
 
 def _reserve_decision_run(
@@ -110,7 +109,7 @@ def _reserve_decision_run(
         provider_id: Numeric identifier assigned by the provider.
 
     Raises:
-        HTTPException: 409 when a scrape-resolve for THIS ``decision_id`` is
+        AppConflict: 409 when a scrape-resolve for THIS ``decision_id`` is
             already running with a live pid, or when the DB cannot be read to
             verify concurrency.
     """

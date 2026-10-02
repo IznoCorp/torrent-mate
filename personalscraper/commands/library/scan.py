@@ -76,7 +76,7 @@ def library_index(
     from uuid import uuid4  # noqa: PLC0415
 
     from personalscraper import cli_helpers  # noqa: PLC0415
-    from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
+    from personalscraper.app.composition import build_app_context  # noqa: PLC0415
     from personalscraper.core.event_bus import current_correlation_id  # noqa: PLC0415
     from personalscraper.indexer.cli import library_index_command  # noqa: PLC0415
 
@@ -89,7 +89,7 @@ def library_index(
     loaded_config = ctx.obj.config if ctx.obj is not None else None
     if loaded_config is not None:
         settings = cli_helpers.get_settings()
-        app_context = _build_app_context(loaded_config, settings)
+        app_context = build_app_context(loaded_config, settings)
         event_bus = app_context.event_bus
     else:
         # init-config path: ``ctx.obj.config`` was never populated. Fresh
@@ -307,7 +307,7 @@ def library_scan(
     from uuid import uuid4  # noqa: PLC0415
 
     from personalscraper import cli_helpers  # noqa: PLC0415
-    from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
+    from personalscraper.app.composition import build_app_context  # noqa: PLC0415
     from personalscraper.core.event_bus import current_correlation_id  # noqa: PLC0415
     from personalscraper.indexer.cli import library_index_command  # noqa: PLC0415
 
@@ -320,7 +320,7 @@ def library_scan(
     loaded_config = ctx.obj.config if ctx.obj is not None else None
     if loaded_config is not None:
         settings = cli_helpers.get_settings()
-        app_context = _build_app_context(loaded_config, settings)
+        app_context = build_app_context(loaded_config, settings)
         event_bus = app_context.event_bus
     else:
         # init-config path: ``ctx.obj.config`` was never populated. Fresh
@@ -389,7 +389,7 @@ def library_backfill_ids(
     import os as _os  # noqa: PLC0415
 
     from personalscraper import cli_helpers  # noqa: PLC0415
-    from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
+    from personalscraper.app.composition import build_app_context  # noqa: PLC0415
     from personalscraper.conf.loader import load_config  # noqa: PLC0415
     from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
     from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
@@ -411,7 +411,7 @@ def library_backfill_ids(
     # lived here are gone, and the registry handles chain/fan_out semantics
     # internally per DESIGN §6.
     settings = cli_helpers.get_settings()
-    app_context = _build_app_context(cfg, settings)
+    app_context = build_app_context(cfg, settings)
     registry = app_context.provider_registry if not dry_run else None
 
     # Open DB in writer mode, apply migrations, then run the backfill pass.

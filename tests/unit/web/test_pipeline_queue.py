@@ -13,8 +13,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 
+from personalscraper.app.errors import AppConflict
 from personalscraper.web.pipeline_queue import (
     PIPELINE_QUEUE_COMMAND,
     _canonical_options,
@@ -113,10 +113,10 @@ class TestReserve:
 
         with (
             patch("personalscraper.web.pipeline_queue.subprocess.Popen") as mock_popen,
-            pytest.raises(HTTPException) as exc_info,
+            pytest.raises(AppConflict) as exc_info,
         ):
             reserve_queued_pipeline_run(db_path, trigger_reason="web", dry_run=False)
-        assert exc_info.value.status_code == 409
+        assert exc_info.value.status == 409
         assert exc_info.value.detail == "Un lancement du pipeline est déjà en file d'attente (doublon)."
         mock_popen.assert_not_called()
         assert len(_rows(db_path)) == 1
@@ -149,9 +149,9 @@ class TestReserve:
         conn.commit()
         conn.close()
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(AppConflict) as exc_info:
             reserve_queued_pipeline_run(db_path, trigger_reason="web", dry_run=False)
-        assert exc_info.value.status_code == 409
+        assert exc_info.value.status == 409
         assert "vérifier" in exc_info.value.detail
 
 

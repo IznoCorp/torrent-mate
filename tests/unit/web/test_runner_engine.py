@@ -22,8 +22,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 
+from personalscraper.app.errors import AppConflict
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.pipeline_history import PipelineRunWriter
 from personalscraper.web import _runner_engine as engine
@@ -124,18 +124,18 @@ class TestReserveRunRow:
         assert row["options_json"] == '{"followed_id":7}'
 
     def test_guard_rejection_rolls_back_and_propagates(self, tmp_path: Path) -> None:
-        """A guard that raises HTTPException leaves NO row and re-raises."""
+        """A guard that raises AppConflict leaves NO row and re-raises."""
         db_path = tmp_path / "library.db"
         _create_db(db_path)
 
         def guard(_conn: sqlite3.Connection) -> None:
-            raise HTTPException(status_code=409, detail="dup")
+            raise AppConflict("dup")
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(AppConflict) as exc:
             engine.reserve_run_row(
                 db_path, run_uid="r2", kind="maintenance", command="grab", options_json="{}", dry_run=False, guard=guard
             )
-        assert exc.value.status_code == 409
+        assert exc.value.status == 409
         assert _row(db_path, "r2") is None
 
     def test_db_error_fail_closed_returns_409(self, tmp_path: Path) -> None:
@@ -147,7 +147,7 @@ class TestReserveRunRow:
         conn.commit()
         conn.close()
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(AppConflict) as exc:
             engine.reserve_run_row(
                 db_path,
                 run_uid="r3",
@@ -158,7 +158,7 @@ class TestReserveRunRow:
                 fail_closed=True,
                 fail_closed_detail="Impossible de vérifier.",
             )
-        assert exc.value.status_code == 409
+        assert exc.value.status == 409
         assert exc.value.detail == "Impossible de vérifier."
 
     def test_missing_db_invokes_hook(self, tmp_path: Path) -> None:

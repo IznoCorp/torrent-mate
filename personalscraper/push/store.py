@@ -1,10 +1,10 @@
 """Push subscriptions — one FCM registration token per browser per device, owned by one account.
 
 The subscriptions live in the environment's ``app`` store (Q2, 2026-10-01: one file per
-environment — ``app-dev.db``, ``app-staging.db``, ``app.db``); that store does not exist
-yet, so this module ships the table's DDL for K0's baseline and an implementation over a
-connection it is GIVEN. Nothing here opens a file. The foreign key to the accounts table
-lands with K1; until then ``account_id`` is K1's account key as text.
+environment — ``app-dev.db``, ``app-staging.db``, ``app.db``); the table is created by the
+``app`` store's baseline migration (``app/store/migrations/001_baseline.sql``), and this
+module is an implementation over a connection it is GIVEN. Nothing here opens a file. The
+foreign key to the accounts table lands with K1; until then ``account_id`` is K1's account key as text.
 
 Rules the store keeps:
 
@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass, field
-from typing import ClassVar, Literal, Protocol, get_args
+from typing import Literal, Protocol, get_args
 
 from personalscraper.api.notify.fcm import PushOutcome, PushResult
 
@@ -104,29 +104,7 @@ _COLUMNS = (
 
 
 class SqlitePushSubscriptionStore:
-    """:class:`PushSubscriptionStore` over a ``sqlite3.Connection`` it is given.
-
-    Attributes:
-        DDL: The table and its index, for K0's ``app`` baseline.
-    """
-
-    DDL: ClassVar[str] = """
-CREATE TABLE IF NOT EXISTS push_subscription (
-    id              INTEGER PRIMARY KEY,
-    account_id      TEXT    NOT NULL,
-    token           TEXT    NOT NULL UNIQUE,
-    platform        TEXT    NOT NULL CHECK (platform IN ('android', 'ios', 'desktop', 'unknown')),
-    user_agent      TEXT,
-    created_at      REAL    NOT NULL,
-    refreshed_at    REAL    NOT NULL,
-    last_sent_at    REAL,
-    last_outcome    TEXT,
-    failure_count   INTEGER NOT NULL DEFAULT 0,
-    revoked_at      REAL,
-    revoked_reason  TEXT CHECK (revoked_reason IN ('token_dead', 'unregistered', 'signed_out', 'stale'))
-);
-CREATE INDEX IF NOT EXISTS push_subscription_account ON push_subscription(account_id) WHERE revoked_at IS NULL;
-"""
+    """:class:`PushSubscriptionStore` over a ``sqlite3.Connection`` it is given."""
 
     def __init__(self, conn: sqlite3.Connection) -> None:
         """Wraps a connection; creates nothing.
@@ -135,19 +113,6 @@ CREATE INDEX IF NOT EXISTS push_subscription_account ON push_subscription(accoun
             conn: An open connection to the environment's ``app`` store (``:memory:`` in tests).
         """
         self._conn = conn
-
-    @classmethod
-    def install(cls, conn: sqlite3.Connection) -> SqlitePushSubscriptionStore:
-        """Creates the table when absent and returns the store — tests and K0's baseline.
-
-        Args:
-            conn: The connection.
-
-        Returns:
-            The store over it.
-        """
-        conn.executescript(cls.DDL)
-        return cls(conn)
 
     def _one(self, token: str) -> PushSubscription:
         """Reads one subscription by token.

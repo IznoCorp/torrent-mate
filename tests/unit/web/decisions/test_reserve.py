@@ -19,8 +19,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 
+from personalscraper.app.errors import AppConflict
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 
 # ---------------------------------------------------------------------------
@@ -169,7 +169,7 @@ class TestReserveDecisionRun:
 
         from personalscraper.web.decisions.reserve import _reserve_decision_run
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(AppConflict) as exc_info:
             _reserve_decision_run(
                 db_path,
                 run_uid="new-run",
@@ -177,7 +177,7 @@ class TestReserveDecisionRun:
                 provider="tmdb",
                 provider_id=1,
             )
-        assert exc_info.value.status_code == 409
+        assert exc_info.value.status == 409
 
     def test_concurrent_resolve_of_different_decision_allowed(self, tmp_path: Path) -> None:
         """A live-pid resolve of a DIFFERENT decision does NOT block this reservation.
@@ -304,7 +304,7 @@ class TestReserveDecisionRun:
         mock_conn.execute = mock_execute
 
         with patch("personalscraper.web._runner_engine.sqlite3.connect", return_value=mock_conn):
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(AppConflict) as exc_info:
                 _reserve_decision_run(
                     db_path,
                     run_uid="fail-closed-run",
@@ -313,7 +313,7 @@ class TestReserveDecisionRun:
                     provider_id=1,
                 )
 
-        assert exc_info.value.status_code == 409
+        assert exc_info.value.status == 409
         assert "Cannot verify" in exc_info.value.detail
 
     # ------------------------------------------------------------------
