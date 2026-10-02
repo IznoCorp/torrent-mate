@@ -157,13 +157,13 @@ long-lived breakers / orchestrators that pre-existed the run.
 
 ## Event catalog (v1)
 
-The v1 catalog defines exactly 48 production event classes, almost all
+The v1 catalog defines exactly 49 production event classes, almost all
 imported eagerly by `personalscraper.events` (plus the registry events
 re-exported via `personalscraper.api.metadata.registry`) so they
 self-register before any envelope round-trip. The count is pinned by
 `tests/event_bus/test_pipeline_events.py` (`len(_EVENT_CLASS_REGISTRY) == 48`).
 
-> **Exception — `VerifyItemDone`.** Unlike the other 47 classes,
+> **Exception — `VerifyItemDone`.** Unlike the other 48 classes,
 > `VerifyItemDone` is **not** in the eager-import list of
 > `personalscraper.events.__init__`. It self-registers only when the verify
 > step is loaded — `personalscraper.verify.run` does
@@ -213,7 +213,7 @@ self-register before any envelope round-trip. The count is pinned by
 | `SeedObligationRecorded`     | `personalscraper.acquire.events`                | `info_hash: str`, `source_tracker: str`, `min_seed_time_s: int`, `dispatched_path: str \| None`                                 | acquire/ — muted until waves 4-5 (RP3 dispatch / O2)                                                                                                               |
 | `SeedObligationBreached`     | `personalscraper.acquire.events`                | `info_hash: str`, `source_tracker: str`, `dispatched_path: str \| None`                                                         | acquire/ — muted until waves 4-5 (O2)                                                                                                                              |
 | `SeedObligationSatisfied`    | `personalscraper.acquire.events`                | `info_hash: str`, `source_tracker: str`                                                                                         | acquire/ — emitted by `acquire.obligations.sweep_obligations` after it writes `satisfied_at`; NOT relayed to Telegram (O6)                                                                                                                              |
-| `SeedObligationReleased   `    | `personalscraper.acquire.events`                | `info_hash: str`, `source_tracker: str`                                                                                         | acquire/ — emitted by `acquire.obligations.sweep_obligations` after it writes `released_at` (torrent gone); NOT relayed to Telegram (O6)                                                                                                                              |
+| `SeedObligationReleased`     | `personalscraper.acquire.events`                | `info_hash: str`, `source_tracker: str`                                                                                         | acquire/ — emitted by `acquire.obligations.sweep_obligations` after it writes `released_at` (torrent gone); NOT relayed to Telegram (O6)                                                                                                                              |
 | `RatioMeasured`              | `personalscraper.acquire.events`                | `tracker: str`, `observed_ratio: float`, `target_ratio: float`                                                                  | acquire/ — muted until waves 4-5 (Ratio C1)                                                                                                                        |
 | `SeasonAbsorbedEpisodes`     | `personalscraper.acquire.events`                | `season_wanted_id: int`, `media_ref: MediaRef`, `season: int`, `absorbed_ids: tuple[int, ...]`                                  | acquire/ — detection or the conversion path when a season wanted absorbs its season's live episode wanteds (episode rows → `absorbed`, R5)                         |
 | `SeasonEscalatedAfterEpisodeFailures` | `personalscraper.acquire.events`       | `season_wanted_id: int`, `media_ref: MediaRef`, `season: int`, `trigger_outcome: str`, `starved_episode_ids: tuple[int, ...]`  | acquire/ — starvation path only (D1): a season pack was enqueued after per-episode searches provably failed (≥2 `not_found`) on a fully-aired season               |

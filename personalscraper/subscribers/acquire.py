@@ -44,7 +44,7 @@ log = get_logger(__name__)
 class AcquisitionTelegramSubscriber:
     """Formats and (optionally) sends Telegram alerts for acquisition events.
 
-    Subscribes to 13 acquisition event types defined in
+    Subscribes to 12 acquisition event types defined in
     :mod:`personalscraper.acquire.events`. Per D8 (anti-spam), only
     ``DownloadCompleted`` among the download lifecycle events is subscribed —
     ``DownloadStarted`` and ``DownloadProgressed`` deliberately are not.
