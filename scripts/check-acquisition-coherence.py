@@ -64,7 +64,7 @@ landed. One rule per failure mode; they never report the same row:
 
 The five states (acq-states phase 9) — every rule below audits the columns the
 state derivation reads, on OPEN wanted rows only (a closed row is history, and
-:func:`~personalscraper.web.acquisition.states.select_wanted_facts` ignores it):
+:func:`~personalscraper.app.acquisition.states.select_wanted_facts` ignores it):
 
 - INCONCLUSIVE_WITH_FOUND — OPEN row whose last_search_outcome did not conclude
   (it is in ``INCONCLUSIVE_OUTCOMES``) yet stored a last_search_found instead of
@@ -107,7 +107,7 @@ from dataclasses import asdict, dataclass, field
 from personalscraper.acquire.domain import OPEN_WANTED_STATUSES
 from personalscraper.acquire.orchestrator import INCONCLUSIVE_OUTCOMES
 from personalscraper.indexer.ownership import is_owned, owned_episode_pairs
-from personalscraper.web.acquisition.states import (
+from personalscraper.app.acquisition.states import (
     derive_episode_state,
     governing_facts_by_episode,
 )
@@ -680,10 +680,10 @@ def collect_anomalies(
     # ------------------------------------------------------------------
     # Rules 6-7 + 12-13 — per followed row
     # ------------------------------------------------------------------
-    # Imported here, not at module scope: ``personalscraper.web`` eagerly builds
-    # the FastAPI app in its ``__init__``, and this guard must stay runnable as
-    # a plain CLI script — same reason ``load_config`` is imported locally below.
-    from personalscraper.web.acquisition.states import derive_follow_status  # noqa: PLC0415
+    # Imported here, not at module scope, like ``load_config`` below: the
+    # derivation lives in the application layer, whose package imports nothing
+    # at import time, so the guard stays runnable as a plain CLI script.
+    from personalscraper.app.acquisition.states import derive_follow_status  # noqa: PLC0415
 
     # Would the SHARED card derivation say « À jour » about a follow whose
     # aired catalog is empty? The question is ASKED, never assumed: today the

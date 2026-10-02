@@ -21,7 +21,7 @@ _MOD = "personalscraper.web.acquisition.downloads"
 # The client is borrowed through the shared cached session — the factory now
 # lives (and is patched) in the torrent_session module, not in downloads.
 # Cache reset between tests: global autouse fixture in tests/conftest.py.
-_SESSION = "personalscraper.web.torrent_session"
+_SESSION = "personalscraper.app.torrent_session"
 
 
 def _wanted(

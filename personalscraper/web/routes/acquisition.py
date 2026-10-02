@@ -45,6 +45,7 @@ from personalscraper.acquire.domain import FollowedSeries
 from personalscraper.acquire.metadata_enrich import FollowMetadata, enrich_follow_metadata
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.app.acquisition.runner import parse_prime_options
+from personalscraper.app.acquisition.states import WantedFacts, substitute_absorbed_facts
 from personalscraper.core.identity import MediaRef
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
@@ -68,7 +69,6 @@ from personalscraper.web.acquisition.service import (
     run_media_search,
     scoped_provider_clients,
 )
-from personalscraper.web.acquisition.states import WantedFacts, substitute_absorbed_facts
 from personalscraper.web.deps import require_x_requested_with
 from personalscraper.web.models.acquisition import (
     AcquisitionDownloadsResponse,
@@ -504,7 +504,7 @@ def _resolve_absorbed_statuses(conn: sqlite3.Connection, rows: Sequence[sqlite3.
     ``absorbed`` points at the season ``wanted`` row that carries the episode's
     acquisition; the governing status is that season's. The rule itself is NOT
     written here — this function only feeds
-    :func:`~personalscraper.web.acquisition.states.substitute_absorbed_facts`, which the
+    :func:`~personalscraper.app.acquisition.states.substitute_absorbed_facts`, which the
     card and the completeness matrix already call. One rule, one implementation (§13).
 
     The carrying season row is fetched by id rather than looked up in ``rows``: it may
@@ -557,7 +557,7 @@ def get_wanted(
     The served ``status`` is the status that GOVERNS the row: ``absorbed`` is not
     a state of the episode but a pointer to the season ``wanted`` row carrying its
     acquisition (season-grab R5), so an absorbed row is served with its SEASON's
-    status — via :func:`~personalscraper.web.acquisition.states.substitute_absorbed_facts`,
+    status — via :func:`~personalscraper.app.acquisition.states.substitute_absorbed_facts`,
     the one place that rule lives. Reporting the pointer instead of following it made
     four American Dad episodes read « En cours d'acquisition » on 2026-08-05 with both
     packs already grabbed and the files in the library (§13: « un état qui *pointe* vers

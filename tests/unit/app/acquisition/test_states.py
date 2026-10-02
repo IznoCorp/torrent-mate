@@ -1,6 +1,6 @@
 """Failing-first truth table for the five acquisition states (phase 4.1).
 
-These tests import the FUTURE API (``personalscraper.web.acquisition.states``)
+These tests import the FUTURE API (``personalscraper.app.acquisition.states``)
 and assert the FROZEN CONTRACT in ``docs/features/acq-states/plan/phase-04-state-derivation.md``.
 They MUST fail today — ``states.py`` does not exist and the current
 ``FollowedSeriesItem.status`` returns ``up_to_date`` for the founding-incident
@@ -18,7 +18,7 @@ import ast
 import pytest
 
 from personalscraper.acquire.domain import OPEN_WANTED_STATUSES
-from personalscraper.web.acquisition.states import NO_WANTED_FACTS, select_wanted_facts
+from personalscraper.app.acquisition.states import NO_WANTED_FACTS, select_wanted_facts
 from personalscraper.web.models.acquisition import FollowedSeriesItem, MediaRefResponse
 
 # ── 1. The founding incident ──────────────────────────────────────────────
@@ -69,7 +69,7 @@ def _import_future_api():
     from personalscraper.acquire.orchestrator import (  # noqa: F811
         INCONCLUSIVE_OUTCOMES,
     )
-    from personalscraper.web.acquisition.states import (  # noqa: F811
+    from personalscraper.app.acquisition.states import (  # noqa: F811
         EpisodeState,
         derive_episode_state,
     )
@@ -382,7 +382,7 @@ def test_states_module_is_pure() -> None:
     will fail with ``FileNotFoundError`` until 4.2 creates ``states.py``, then
     it must pass permanently.
     """
-    states_path = "personalscraper/web/acquisition/states.py"
+    states_path = "personalscraper/app/acquisition/states.py"
     try:
         with open(states_path) as f:
             source = f.read()

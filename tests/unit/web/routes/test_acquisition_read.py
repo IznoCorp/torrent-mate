@@ -1225,7 +1225,7 @@ class TestSearchEndpoint:
         window of a result set that had not changed.
         """
         from personalscraper.api.metadata._base import SearchResult
-        from personalscraper.web.acquisition.search_cache import SEARCH_CACHE
+        from personalscraper.app.acquisition.search_cache import SEARCH_CACHE
 
         SEARCH_CACHE.clear()
         calls = {"movie": 0}
@@ -1274,7 +1274,7 @@ class TestSearchEndpoint:
     def test_cache_key_separates_kinds(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
         """« Films » must not be served the « Tout » lot from the cache."""
         from personalscraper.api.metadata._base import SearchResult
-        from personalscraper.web.acquisition.search_cache import SEARCH_CACHE
+        from personalscraper.app.acquisition.search_cache import SEARCH_CACHE
 
         SEARCH_CACHE.clear()
         film = SearchResult(
@@ -1336,7 +1336,7 @@ class TestDownloadsEndpoint:
             TorrentItem(hash="abcdef0123456789", name="Robot.mkv", size_bytes=999, progress=0.33, state="downloading"),
         ]
         with patch(
-            "personalscraper.web.torrent_session.build_active_torrent_client",
+            "personalscraper.app.torrent_session.build_active_torrent_client",
             return_value=fake_client,
         ):
             resp = client.get("/api/acquisition/downloads", cookies=_make_auth_cookie())
@@ -1361,7 +1361,7 @@ class TestDownloadsEndpoint:
         conn.close()
 
         with patch(
-            "personalscraper.web.torrent_session.build_active_torrent_client",
+            "personalscraper.app.torrent_session.build_active_torrent_client",
             side_effect=OSError("connection refused"),
         ):
             resp = client.get("/api/acquisition/downloads", cookies=_make_auth_cookie())
@@ -1445,7 +1445,7 @@ class TestStatusDeferred:
 
         with (
             patch(
-                "personalscraper.web.torrent_session.build_active_torrent_client",
+                "personalscraper.app.torrent_session.build_active_torrent_client",
                 return_value=fake_client,
             ),
             patch(
@@ -1465,7 +1465,7 @@ class TestStatusDeferred:
     def test_client_outage_fails_soft_empty(self, client: TestClient) -> None:
         """A torrent-client error yields deferred=[] — never a 500."""
         with patch(
-            "personalscraper.web.torrent_session.build_active_torrent_client",
+            "personalscraper.app.torrent_session.build_active_torrent_client",
             side_effect=RuntimeError("client down"),
         ):
             resp = client.get("/api/acquisition/status", cookies=_make_auth_cookie())

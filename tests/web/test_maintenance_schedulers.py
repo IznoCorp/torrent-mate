@@ -20,9 +20,9 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from personalscraper.app.schedulers.registry import CRON_JOBS
 from personalscraper.config import Settings
 from personalscraper.web.auth.passwords import hash_password
-from personalscraper.web.schedulers.registry import CRON_JOBS
 from tests.web._web_harness import build_guarded_app
 
 TEST_USERNAME = "testuser"

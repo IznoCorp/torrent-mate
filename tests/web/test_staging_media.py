@@ -708,7 +708,7 @@ def test_enqueue_seeds_candidates_from_provider(test_config, tmp_path: Path) -> 
     dummy = [DecisionCandidate(provider="tmdb", provider_id=1234, title="Mystery Film", year=2021, score=0.88)]
     # Patch the shared search helper (bypasses the provider stack) — proves enqueue
     # reuses it and persists its result, deterministically.
-    with patch("personalscraper.web.decisions.search.search_candidates", return_value=dummy):
+    with patch("personalscraper.app.decisions.search.search_candidates", return_value=dummy):
         resp = client.post(
             f"/api/staging/media/{media_id}/enqueue",
             headers={"X-Requested-With": "TorrentMate"},
@@ -739,7 +739,7 @@ def test_enqueue_fail_soft_when_provider_unavailable(test_config, tmp_path: Path
     """
     from unittest.mock import patch
 
-    from personalscraper.web.decisions.search import ProviderSearchError
+    from personalscraper.app.decisions.search import ProviderSearchError
     from personalscraper.web.staging.read_model import media_id_for
 
     staging = tmp_path / "staging"
@@ -754,7 +754,7 @@ def test_enqueue_fail_soft_when_provider_unavailable(test_config, tmp_path: Path
 
     media_id = media_id_for("001-MOVIES/Offline Film (2019)")
     with patch(
-        "personalscraper.web.decisions.search.search_candidates",
+        "personalscraper.app.decisions.search.search_candidates",
         side_effect=ProviderSearchError("TMDB down"),
     ):
         resp = client.post(
@@ -830,7 +830,7 @@ def test_enqueue_other_with_kind_reclasses_to_movies_and_seeds(test_config, tmp_
 
     media_id = media_id_for("098-AUTRES/Some.Unsorted.Movie.2021.1080p-GRP")
     dummy = [DecisionCandidate(provider="tmdb", provider_id=42, title="Some Unsorted Movie", year=2021, score=0.9)]
-    with patch("personalscraper.web.decisions.search.search_candidates", return_value=dummy):
+    with patch("personalscraper.app.decisions.search.search_candidates", return_value=dummy):
         resp = client.post(
             f"/api/staging/media/{media_id}/enqueue",
             json={"media_kind": "movie"},
@@ -886,7 +886,7 @@ def test_enqueue_other_seeds_search_with_cleaned_title(test_config, tmp_path: Pa
     client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
 
     dummy = [DecisionCandidate(provider="tmdb", provider_id=42, title="The Wild Robot", year=2024, score=0.9)]
-    with patch("personalscraper.web.decisions.search.search_candidates", return_value=dummy) as search_mock:
+    with patch("personalscraper.app.decisions.search.search_candidates", return_value=dummy) as search_mock:
         resp = client.post(
             f"/api/staging/media/{media_id_for(f'098-AUTRES/{raw}')}/enqueue",
             json={"media_kind": "movie"},
@@ -951,7 +951,7 @@ def test_enqueue_reopens_a_previously_resolved_item(test_config, tmp_path: Path)
     client = _make_client(test_config, staging_dir=staging, db_path=db_path, data_dir=data_dir)
     media_id = media_id_for("001-MOVIES/Legacy Film (2020)")
     dummy = [DecisionCandidate(provider="tmdb", provider_id=7, title="Legacy Film", year=2020, score=0.9)]
-    with patch("personalscraper.web.decisions.search.search_candidates", return_value=dummy):
+    with patch("personalscraper.app.decisions.search.search_candidates", return_value=dummy):
         resp = client.post(
             f"/api/staging/media/{media_id}/enqueue",
             headers={"X-Requested-With": "TorrentMate"},

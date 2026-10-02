@@ -22,9 +22,9 @@ from fastapi import APIRouter, Request
 from personalscraper.acquire._provenance_store import STUCK_IDLE_SECONDS, journey_release_name
 from personalscraper.acquire.stalled_grabs import StalledGrab, list_stalled_grabs
 from personalscraper.acquire.store import AcquireStore, build_acquire_store
+from personalscraper.app.acquisition.to_handle import build_to_handle
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
-from personalscraper.web.acquisition.to_handle import build_to_handle
 from personalscraper.web.models.acquisition import (
     AcquisitionOverviewResponse,
     PendingRunResponse,

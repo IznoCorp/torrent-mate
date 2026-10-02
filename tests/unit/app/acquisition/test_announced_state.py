@@ -15,7 +15,7 @@ from datetime import date
 
 import pytest
 
-from personalscraper.web.acquisition.states import derive_episode_state, derive_follow_status
+from personalscraper.app.acquisition.states import derive_episode_state, derive_follow_status
 
 TODAY = date(2024, 6, 15)
 FUTURE = date(2025, 1, 1)

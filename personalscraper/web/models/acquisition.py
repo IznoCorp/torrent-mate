@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel, computed_field, model_validator
 
-from personalscraper.web.acquisition.states import (
+from personalscraper.app.acquisition.states import (
     EpisodeState,
     FollowStatus,
     derive_follow_status,
@@ -18,7 +18,7 @@ from personalscraper.web.acquisition.states import (
 )
 
 # ``EpisodeState`` is imported (not redefined) from
-# :mod:`personalscraper.web.acquisition.states`: the OpenAPI schema and the
+# :mod:`personalscraper.app.acquisition.states`: the OpenAPI schema and the
 # runtime derivation therefore read the SAME five-state vocabulary and can never
 # drift. The old three-value alias (``en_file`` / ``en_cours`` / ``manquant``)
 # died with the local re-derivation that produced it (acq-states phase 5).
@@ -38,7 +38,7 @@ class MovieFacts(BaseModel):
     A film has no aired catalog (``aired_count`` stays ``None`` on its card), so
     instead of episode counts it carries the raw facts of its one ``wanted`` row
     plus library ownership — the exact arguments
-    :func:`~personalscraper.web.acquisition.states.derive_episode_state` takes.
+    :func:`~personalscraper.app.acquisition.states.derive_episode_state` takes.
     Exposing the facts rather than a pre-chewed label keeps the derivation in the
     single states module and lets the UI explain WHY a film reads as it does.
 
@@ -154,12 +154,12 @@ class FollowedSeriesItem(BaseModel):
         """Lifecycle status — pure delegation to the single state derivation.
 
         The whole business rule lives in
-        :mod:`personalscraper.web.acquisition.states` so the card, the
+        :mod:`personalscraper.app.acquisition.states` so the card, the
         completeness matrix and the episode chips can never disagree; this
         property only routes shows to
-        :func:`~personalscraper.web.acquisition.states.derive_follow_status`
+        :func:`~personalscraper.app.acquisition.states.derive_follow_status`
         (per-state episode counts) and films to
-        :func:`~personalscraper.web.acquisition.states.derive_movie_status`
+        :func:`~personalscraper.app.acquisition.states.derive_movie_status`
         (their single unit's facts).
 
         The legacy fallback onto the raw ``wanted_pending`` / ``wanted_grabbed``
@@ -486,7 +486,7 @@ class EpisodeCompleteness(BaseModel):
         title: Episode title, or ``None`` when the provider omitted it.
         air_date: ISO ``YYYY-MM-DD`` air date.
         state: The five-state reading produced by
-            :func:`~personalscraper.web.acquisition.states.derive_episode_state`
+            :func:`~personalscraper.app.acquisition.states.derive_episode_state`
             — the SAME derivation the followed card aggregates, so the card and
             this matrix can never disagree about one episode:
             ``in_library`` (a live file exists in the library),

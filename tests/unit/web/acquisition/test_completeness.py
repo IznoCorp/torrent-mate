@@ -2,7 +2,7 @@
 
 Pure-computation tests over mocked sources: the detect-written aired-catalog
 cache, library ownership, and the wanted queue. Guards the §5 contract in the
-five-state vocabulary of ``web/acquisition/states.py`` — ``in_library`` /
+five-state vocabulary of ``app/acquisition/states.py`` — ``in_library`` /
 ``acquiring`` / ``to_grab`` / ``pending`` / ``unverified`` — and
 the honest "unknown catalog" reading (empty seasons, ``source="unknown"``)
 instead of a misleading all-missing matrix.

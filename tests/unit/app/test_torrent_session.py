@@ -12,13 +12,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from personalscraper.web import torrent_session
-from personalscraper.web.torrent_session import (
+from personalscraper.app import torrent_session
+from personalscraper.app.torrent_session import (
     invalidate_torrent_session,
     shared_torrent_client,
 )
 
-_FACTORY = "personalscraper.web.torrent_session.build_active_torrent_client"
+_FACTORY = "personalscraper.app.torrent_session.build_active_torrent_client"
 
 
 def test_second_borrow_reuses_cached_client() -> None:
