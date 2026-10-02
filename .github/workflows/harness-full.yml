@@ -75,6 +75,9 @@ jobs:
       - run: frontend/maquette/harness/run.sh --ci --shard ${{ matrix.shard }}/4
         env:
           TM_HARNESS_LOG_DIR: harness-logs
+          # responsive.py's nine passes side by side: its cost is an idle wait per
+          # state per pass, and three at a time no longer fit run.sh's 600 s bound.
+          TM_RESPONSIVE_PARALLEL: "9"
       - if: always()
         uses: actions/upload-artifact@v4
         with:

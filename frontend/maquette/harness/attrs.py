@@ -36,7 +36,7 @@ over nothing is the defect this rule is the demonstration of.
 """
 import asyncio
 
-from common import Journal, open_page, browser_channel, chrome_launch_args
+from common import Journal, open_page, browser_channel, chrome_launch_args, ready
 from playwright.async_api import async_playwright
 
 _journal = None
@@ -151,14 +151,15 @@ async def main():
         await pg.evaluate("()=>window.__measure(true)")
 
         # The two false-boolean subjects, driven by name. Each state renders
-        # its screen inside the shell, and the wait is the suite's own idiom
-        # for letting that mount settle before reading it.
+        # its screen inside the shell, and each is read once the page says it
+        # has arrived (`ready`) — never after a number: 420 ms read the tie's
+        # screen with its decisions still in flight on a slow runner.
         await pg.evaluate("()=>window.__go('acq-add-empty')")
-        await pg.wait_for_timeout(420)
+        await ready(pg)
         add = await pg.evaluate(ADD_SCREEN)
 
         await pg.evaluate("()=>window.__go('screen-profile')")
-        await pg.wait_for_timeout(420)
+        await ready(pg)
         prof = await pg.evaluate(PROFILE_SCREEN)
 
         add_false = add["unselected"]
@@ -197,7 +198,7 @@ async def main():
         #    its true branch still renders — so the absence measured on the
         #    others is the undefined branch, not a title nobody draws.
         await pg.evaluate("()=>window.__go('acq-resolution-tie')")
-        await pg.wait_for_timeout(420)
+        await ready(pg)
         res = await pg.evaluate(RESOLUTION_SCREEN)
         untitled = res["untitled"]
         check("an attribute rendered from undefined is omitted — [title] does not match it",
@@ -215,11 +216,11 @@ async def main():
         # than inferred from the `aria-*` ones above. Two named states drive
         # it: one where no layer is up, one that opens the sheet.
         await pg.evaluate("()=>window.__go('acq-now-idle')")
-        await pg.wait_for_timeout(420)
+        await ready(pg)
         closed = await pg.evaluate(SHEET_LAYER)
 
         await pg.evaluate("()=>window.__go('sheet-more')")
-        await pg.wait_for_timeout(420)
+        await ready(pg)
         shown = await pg.evaluate(SHEET_LAYER)
 
         closed_sheet = closed["sheet"]
