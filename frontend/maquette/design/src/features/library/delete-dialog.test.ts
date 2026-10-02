@@ -11,6 +11,7 @@ import type { DialogDescriptor } from "../../ui/dialog/contract";
 const opened: DialogDescriptor[] = [];
 const said: string[] = [];
 const removed: string[][] = [];
+const stopped: string[] = [];
 let followed: string[] = [];
 
 vi.mock("../../lib/query-client", () => ({
@@ -30,6 +31,7 @@ vi.mock("../../lib/shell-doors", () => ({
   get followedTitles() {
     return () => followed;
   },
+  stopFollow: (title: string) => stopped.push(title),
 }));
 
 const { openDeleteDialog } = await import("./delete-dialog");
@@ -41,7 +43,6 @@ function wordsOf(descriptor: DialogDescriptor): string[] {
     if (block.type === "paragraph") words.push(...block.runs.map((run) => run.text));
     else if (block.type === "manifest") words.push(...block.entries.flatMap((e) => [e.text, e.value]));
     else if (block.type === "warning") words.push(block.strong, block.text);
-    else if (block.type === "dryRun") words.push(block.text);
     else words.push(block.label);
   }
   return words;
@@ -54,6 +55,7 @@ describe("the library's delete flow", () => {
     opened.length = 0;
     said.length = 0;
     removed.length = 0;
+    stopped.length = 0;
     followed = [];
   });
 
@@ -66,7 +68,6 @@ describe("the library's delete flow", () => {
       followed = [...followedNow];
       await openDeleteDialog(title, many ? [...many] : undefined);
       const descriptor = opened[0];
-      expect(descriptor.body.some((block) => block.type === "dryRun")).toBe(false);
       expect(wordsOf(descriptor).filter((w) => /simulation/i.test(w))).toEqual([]);
       for (const action of descriptor.actions.filter((a) => a.run)) {
         said.length = 0;
@@ -78,6 +79,31 @@ describe("the library's delete flow", () => {
       }
     });
   }
+
+  // B-689: « Supprimer et arrêter le suivi » said the follow stopped and stopped
+  // nothing — both confirmations removed the same titles and differed only in
+  // the sentence, so the sheet went on reading « Suivi : actif ». The follow is
+  // stopped under ITS title (« Silo »), which is not the row's (« Silo (2023) »).
+  it("stops the follow it says it stops, and keeps the one it says it keeps", async () => {
+    followed = ["Silo"];
+    await openDeleteDialog("Silo (2023)");
+    const [stop, keep] = opened[0].actions.filter((action) => action.run);
+    expect(stop.text).toBe(i18next.t("verbs.library.delete.deleteAndStop"));
+    stop.run?.();
+    expect(stopped).toEqual(["Silo"]);
+    expect(removed).toEqual([["Silo (2023)"]]);
+
+    stopped.length = 0;
+    keep.run?.();
+    expect(stopped).toEqual([]);
+  });
+
+  it("stops every follow of a selection, and nothing that is not followed", async () => {
+    followed = ["Silo", "Furious"];
+    await openDeleteDialog(null, ["Silo (2023)", "Les Animaniacs", "Furious (2026)"]);
+    opened[0].actions.find((action) => action.run)?.run?.();
+    expect(stopped).toEqual(["Silo", "Furious"]);
+  });
 
   it("names the title it removed", async () => {
     await openDeleteDialog("Les Animaniacs");

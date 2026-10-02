@@ -101,6 +101,9 @@ function SearchField(): ReactElement {
         // cross ever ran the search (B-608, C1's reader, 2026-09-30).
         id="qsettings"
         type="search"
+        // A SEARCH IS NOT A SENTENCE (B-690): no capital, no correction of a title.
+        autoCapitalize="off"
+        autoCorrect="off"
         placeholder={t("screens.settings.searchPlaceholder")}
         defaultValue={SETTINGS_STATE.q}
         autoComplete="off"

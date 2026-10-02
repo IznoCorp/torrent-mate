@@ -40,7 +40,7 @@ function filterPanel(_subject: string, cache: PanelCache): PanelDescriptor | nul
     categories.map((category) => ({
       text: category.label,
       hint: i18next.t("screens.library.filterCount", {
-        count: categoryCount(category, String(libLens), incomplete, recent),
+        count: categoryCount(category, String(libLens), incomplete, recent, String(q ?? "")),
       }),
       checked: libCat === category.id,
       target: { cat: category.id },

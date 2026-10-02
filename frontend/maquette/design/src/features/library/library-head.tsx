@@ -73,7 +73,7 @@ function RecentFilterPill({ category }: { category: LibraryCategory | undefined 
     Boolean(state.sortReversed),
   );
   const rows = (recent.data?.pages ?? []).flatMap((page) => page.items);
-  return <FilterPill category={category} count={category && categoryCount(category, "rec", [], rows)} />;
+  return <FilterPill category={category} count={category && categoryCount(category, "rec", [], rows, String(state.q ?? ""))} />;
 }
 
 export function LibraryHead(): ReactElement {
@@ -105,6 +105,9 @@ export function LibraryHead(): ReactElement {
             // is the same defect wearing the other hat. The field is the one
             // place the operator's own text lives between two renders.
             type="search"
+            // A SEARCH IS NOT A SENTENCE (B-690): no capital, no correction of a title.
+            autoCapitalize="off"
+            autoCorrect="off"
             id="libq"
             defaultValue={state.q as string}
             placeholder={t("screens.library.searchPlaceholder")}
@@ -164,7 +167,7 @@ export function LibraryHead(): ReactElement {
             {state.libLens === "rec" ? (
               <RecentFilterPill category={category} />
             ) : (
-              <FilterPill category={category} count={category && categoryCount(category, String(state.libLens), INCOMPLETE, [])} />
+              <FilterPill category={category} count={category && categoryCount(category, String(state.libLens), INCOMPLETE, [], String(state.q ?? ""))} />
             )}
             {/* THE SORT WHERE IT SORTED: « Médias », as the count line's control
                 did — the six ways of `sorting.ts`, the one in force said. */}

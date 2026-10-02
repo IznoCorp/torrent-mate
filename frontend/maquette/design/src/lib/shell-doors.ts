@@ -49,6 +49,8 @@ export let panel: Window["__panel"];
 export let dialog: Window["__dialog"];
 /** The titles followed right now — asked by a feature that may not import acquisition. */
 export let followedTitles: (() => string[]) | undefined;
+/** Stops one follow, by the follow's own title — asked by a feature that may not import acquisition. */
+export let stopFollow: ((title: string) => void) | undefined;
 /** Rewrites the current history entry's address for a page setting — a tab, a lens. */
 export let replaceAddress: (() => boolean) | undefined;
 /** Records an arrival inside a page as a new history entry — a panel's link to another tab of it. */
@@ -122,6 +124,15 @@ export function fillDialogDoor(verbs: Window["__dialog"]): void {
  */
 export function fillFollowedTitlesDoor(read: () => string[]): void {
   followedTitles = read;
+}
+
+/**
+ * Fills the follow-stopping door, from the follows' install.
+ *
+ * @param stop What stops the follow a title names, as the follows' own removal does.
+ */
+export function fillStopFollowDoor(stop: (title: string) => void): void {
+  stopFollow = stop;
 }
 
 /**

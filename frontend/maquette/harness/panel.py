@@ -488,8 +488,14 @@ async def main():
             ("American", "a subject resolved only by a sheet's prefix opens nothing"),
             ("constructor",
              "a subject resolved only through Object.prototype opens nothing"),
-            ("Silo (2023)",
-             "a sheet key whose medium is followed under another title opens nothing"),
+            # A SHEET NOBODY HOLDS. « Silo (2023) » stood here — a sheet key whose
+            # medium was followed as « Silo » and held nowhere under that key —
+            # until B-688 made every owned sheet a library row: « Silo (2023) » is
+            # now HELD, and its panel opens by right. No sheet key of the seed is
+            # followed under another title without being held, so the subject is
+            # a sheet the sheet lookup answers and no source holds.
+            ("Grimsburg",
+             "a sheet key no source holds opens nothing"),
             ("silo", "a subject that differs from a followed title by case opens nothing"),
         ):
             url, is_open, title, raised, failed, notes = await cold(

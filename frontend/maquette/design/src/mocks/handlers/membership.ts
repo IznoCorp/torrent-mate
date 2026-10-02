@@ -6,9 +6,13 @@
 // the incomplete series a deletion has already told — so a removal is heard by
 // every surface that asks afterwards.
 //
-// KEYED BY EXACT TITLE, with the year where the title alone names more than one
-// row. Provider ids are not an identity here: two rows can share one.
+// KEYED BY TITLE, with the year where the title alone names more than one row.
+// Provider ids are not an identity here: two rows can share one. The title is
+// compared WITHOUT the year a library folder appends (« Furious (2026) » is the
+// row « Furious » is followed as): compared exactly, a followed show whose row
+// carries its year was answered « not in the library » (B-688).
 import INCOMPLETE_SHOWS from "../seeds/incomplete-shows.json";
+import { baseTitle } from "../../lib/titles";
 import { GET, route } from "./shared";
 import { mockState } from "../state";
 import type { MockRequest, MockRoute } from "../router";
@@ -42,16 +46,16 @@ function sameYear(line: string | undefined, year: number | null): boolean {
  */
 function membership(request: MockRequest) {
   const state = mockState();
-  const title = request.query.get("title") ?? "";
+  const title = baseTitle(request.query.get("title") ?? "");
   const asked = request.query.get("year");
   const year = asked !== null && /^\d+$/.test(asked) ? Number(asked) : null;
   const rows = state.library.filter(
-    (one) => one.title === title && sameYear(one.secondaryLine, year),
+    (one) => baseTitle(one.title) === title && sameYear(one.secondaryLine, year),
   );
   const row = rows[0];
   const show = INCOMPLETE_SHOWS.find(
     (one) =>
-      one.title === title &&
+      baseTitle(one.title) === title &&
       (year === null || one.year === year) &&
       !state.deletedTitles.includes(one.title),
   );

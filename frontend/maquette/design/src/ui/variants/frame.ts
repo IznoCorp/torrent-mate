@@ -452,14 +452,6 @@ export const dialogParagraph = cva(
   "mt-0 mx-0 mb-5 text-3 leading-[1.45] text-muted-foreground [overflow-wrap:anywhere]",
 );
 
-export const dialogDryRun = cva(
-  "dryrun flex items-center gap-3 text-2 font-semibold text-info "
-    + "[border:1px_solid_color-mix(in_oklab,var(--color-info)_40%,transparent)] "
-    + "rounded-2 py-4 px-5 mb-5",
-);
-
-export const dialogDryRunDrawing = cva("w-[14px] h-[14px] flex-none");
-
 export const dialogManifest = cva(
   "manifest list-none mt-0 mx-0 mb-5 p-0 text-3",
 );
