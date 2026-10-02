@@ -5,8 +5,12 @@
 // would read as nothing to say. Its subject is the entry: its hash and the
 // tracker it runs on, `<hash>:<tracker>`.
 //
-// NO ADDRESS: the entry is a row of the client's list, which moves under the
-// operator as torrents come and go; Back closes the panel all the same.
+// ADDRESSED, `torrent:<hash>:<tracker>` — the push of an obligation met or
+// released lands here (the operator, 2026-10-03). The address names the PAIR,
+// never a position in the client's list, so it stays true as torrents come and
+// go; and a torrent that has LEFT the client is still a subject while the engine
+// holds its obligation: its panel then says it is gone and why, from the
+// obligation alone — the message on the torrent, never a second « released » list.
 import { accountQuery, heldRights } from "../../lib/account";
 import i18next from "i18next";
 import { icons } from "../../lib/shell-doors";
@@ -18,8 +22,11 @@ import { dayOf } from "./format";
 import { downloadsKey, obligationsKey, type Download, type Obligation } from "./queries";
 import { ORIGIN_MARK, episodeCode, owedBy, sourcesOf, transferOf } from "./torrent-card";
 import { isSeeding } from "./cross-seed-state";
+import { messageOf } from "./obligation-outcome";
 // The cross-seed block an origin's panel draws, declared to the panel as it evaluates.
 import "./panel-cross-seed";
+// The obligation's outcome, the message that leads the panel.
+import "./panel-obligation-outcome";
 
 /**
  * A sentence of the panel, in the interface's language.
@@ -87,19 +94,62 @@ export function factsOf(entry: Download, obligation: Obligation | undefined): Fa
 }
 
 /**
+ * The panel of a torrent that has left the client: its obligation alone says it.
+ *
+ * @param obligation The obligation the pair owed.
+ * @param subject The pair, `<hash>:<tracker>`.
+ * @returns The descriptor: the outcome, the fact that it is gone, the obligation's own facts.
+ */
+function gonePanel(obligation: Obligation, subject: string): PanelDescriptor {
+  const message = messageOf(obligation);
+  return {
+    address: `torrent:${subject}`,
+    title: obligation.title ?? obligation.infoHash,
+    meta: obligation.sourceTracker,
+    blocs: [
+      message === null ? null : { type: "obligationOutcome", message },
+      { type: "note", text: say("gone") },
+      {
+        type: "faits",
+        lignes: [
+          { c: say("tracker"), v: obligation.sourceTracker },
+          { c: say("added"), v: dayOf(obligation.addedAt) },
+          { c: say("obligation"), v: obligationOf(obligation) },
+        ],
+      },
+    ],
+  };
+}
+
+/**
+ * The client's entry and the obligation of one pair, as the cache holds them.
+ *
+ * @param subject The pair, `<hash>:<tracker>`.
+ * @param cache What the query cache holds.
+ * @returns The entry when the client still holds it, and the obligation the pair owes.
+ */
+function pairOf(subject: string, cache: PanelCache): { entry: Download | undefined; owed: Obligation | undefined } {
+  const [infoHash, tracker] = subject.split(":");
+  const downloads = cache.held<Schemas["Downloads"]>(downloadsKey)?.downloads;
+  const entry = downloads?.find((one) => one.infoHash === infoHash && one.tracker === tracker);
+  const obligations = cache.held<Schemas["Obligations"]>(obligationsKey)?.items ?? [];
+  const owed = entry !== undefined
+    ? owedBy(entry, obligations)
+    : obligations.find((one) => one.infoHash === infoHash && one.sourceTracker === tracker);
+  return { entry, owed };
+}
+
+/**
  * Builds a torrent's descriptor.
  *
  * @param subject The entry, `<hash>:<tracker>`.
  * @param cache What the query cache holds.
- * @returns The descriptor, or null while the client's list has not landed or
- *     no longer holds the entry.
+ * @returns The descriptor — the gone torrent's when the client no longer holds
+ *     it but its obligation is known — or null while neither has landed.
  */
 function torrentPanel(subject: string, cache: PanelCache): PanelDescriptor | null {
-  const [infoHash, tracker] = subject.split(":");
-  const downloads = cache.held<Schemas["Downloads"]>(downloadsKey)?.downloads;
-  const entry = downloads?.find((one) => one.infoHash === infoHash && one.tracker === tracker);
-  if (entry === undefined) return null;
-  const obligations = cache.held<Schemas["Obligations"]>(obligationsKey)?.items ?? [];
+  const { entry, owed } = pairOf(subject, cache);
+  if (entry === undefined) return owed === undefined ? null : gonePanel(owed, subject);
   // A LINKED ENTRY LEADS TO ITS MEDIUM'S SHEET; an unlinked one to its folder's
   // resolution, when the engine holds a folder for it — and says so when not.
   const path: Action | null = entry.ids !== null
@@ -107,16 +157,19 @@ function torrentPanel(subject: string, cache: PanelCache): PanelDescriptor | nul
     : entry.folder !== null
       ? { text: say("identify"), icone: icons.play, ton: "primary", target: { resolution: entry.folder } }
       : null;
-  const owed = owedBy(entry, obligations);
   // A CROSS-SEED'S OBLIGATION SAYS WHOSE COPY IT IS, and leads to the original's sheet (S4).
   const origin = owed?.crossSeedOf ?? null;
   const toOrigin: Action | null = origin === null || origin.media === null
     ? null
     : { text: say("seeOrigin"), icone: icons.eye, target: { mediasheet: origin.title } };
+  const message = messageOf(owed);
   return {
+    address: `torrent:${subject}`,
     title: entry.title,
     meta: entry.tracker,
     blocs: [
+      // THE OUTCOME LEADS: it is what the push sent the reader here to read.
+      message === null ? null : { type: "obligationOutcome", message },
       { type: "faits", lignes: factsOf(entry, owed) },
       path === null ? { type: "note", text: say("noFolder") } : null,
       // AN ORIGIN'S CROSS-SEED, tracker by tracker — never repeated on a cross-seed's own entry.
@@ -156,4 +209,9 @@ registerProducer("torrent", {
     { queryKey: downloadsKey, queryFn: async () => read<Schemas["Downloads"]>(downloadsKey[0]) },
     { queryKey: obligationsKey, queryFn: async () => read<Schemas["Obligations"]>(obligationsKey[0]) },
   ],
+  // HELD while the client holds the entry OR the engine holds the pair's obligation.
+  holds: (subject, cache) => {
+    const { entry, owed } = pairOf(subject, cache);
+    return entry !== undefined || owed !== undefined;
+  },
 });

@@ -50,7 +50,7 @@
     }
   },
   "obligations": [
-    { "infoHash": "7c1e0b2f95c438b7db4f7c855bd451d8bb1f0046", "sourceTracker": "tr4ker", "title": "President Curtis S01E10", "dispatchedPath": null, "minimumRatio": 1.0, "minimumSeedTimeSeconds": 259200, "observedRatio": null, "accumulatedSeedTimeSeconds": null, "hitAndRunCount": null, "addedAt": 1790323200, "satisfiedAt": null, "breachedAt": null, "releasedAt": null },
-    { "infoHash": "b2c70e1a95c438b7db4f7c855bd451d8bb1f0046", "sourceTracker": "v3x.club", "title": "President Curtis S01E10", "dispatchedPath": null, "minimumRatio": 1.0, "minimumSeedTimeSeconds": 432000, "observedRatio": null, "accumulatedSeedTimeSeconds": null, "hitAndRunCount": null, "addedAt": 1790496000, "satisfiedAt": null, "breachedAt": null, "releasedAt": null }
+    { "infoHash": "7c1e0b2f95c438b7db4f7c855bd451d8bb1f0046", "sourceTracker": "tr4ker", "title": "President Curtis S01E10", "dispatchedPath": null, "minimumRatio": 1.0, "requiredRatio": 1.1, "minimumSeedTimeSeconds": 259200, "observedRatio": null, "accumulatedSeedTimeSeconds": null, "hitAndRunCount": null, "addedAt": 1790323200, "satisfiedAt": null, "satisfiedBy": null, "breachedAt": null, "releasedAt": null, "releasedBy": null },
+    { "infoHash": "b2c70e1a95c438b7db4f7c855bd451d8bb1f0046", "sourceTracker": "v3x.club", "title": "President Curtis S01E10", "dispatchedPath": null, "minimumRatio": 1.0, "requiredRatio": 1.1, "minimumSeedTimeSeconds": 432000, "observedRatio": null, "accumulatedSeedTimeSeconds": null, "hitAndRunCount": null, "addedAt": 1790496000, "satisfiedAt": null, "satisfiedBy": null, "breachedAt": null, "releasedAt": null, "releasedBy": null }
   ]
 }

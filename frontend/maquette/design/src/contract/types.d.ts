@@ -2286,6 +2286,8 @@ export interface components {
             dispatchedPath: string | null;
             /** @description the ratio floor owed, read from the tracker's economy when the grab happened */
             minimumRatio: number;
+            /** @description the ratio that MEETS the obligation: `minimumRatio` plus the 0.1 margin the operator set on 2026-10-03 (« On peut monter le ratio nécessaire à 1.1 pour prendre une marge »), applied by the rule, never written into the tracker's configuration */
+            requiredRatio: number;
             /** @description the seed time owed, in seconds */
             minimumSeedTimeSeconds: number;
             /** @description the tracker's ratio as last observed, or null when never observed */
@@ -2298,10 +2300,20 @@ export interface components {
             addedAt: number;
             /** @description when it was met, Unix-epoch seconds, or null */
             satisfiedAt: number | null;
+            /**
+             * @description which arm of the rule met it (operator, 2026-10-03, O4): `seedTime`, the seconds really seeded reached `minimumSeedTimeSeconds`; `ratio`, the torrent's ratio reached `requiredRatio`. Null exactly when `satisfiedAt` is null. What the torrent's in-app message says as its why
+             * @enum {string|null}
+             */
+            satisfiedBy: "seedTime" | "ratio" | null;
             /** @description when it was broken, Unix-epoch seconds, or null */
             breachedAt: number | null;
             /** @description when it ended early — a removal confirmed in the app always sets this — Unix-epoch seconds, or null */
             releasedAt: number | null;
+            /**
+             * @description how it ended early: `removedHere`, « Retirer de qBittorrent » confirmed in the application; `goneFromClient`, the torrent left the download client by any other way (removed by hand in qBittorrent, a reswitch, an ingest's delete — the sweep's confirmed absence). Null exactly when `releasedAt` is null. What the torrent's in-app message says as its why
+             * @enum {string|null}
+             */
+            releasedBy: "removedHere" | "goneFromClient" | null;
             /** @description when a cross-seed CREATED the obligation, the torrent it is the copy of; null otherwise */
             crossSeedOf: components["schemas"]["CrossSeedOrigin"] | null;
         };

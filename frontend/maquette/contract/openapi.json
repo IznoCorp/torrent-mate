@@ -8538,6 +8538,10 @@
             "type": "number",
             "description": "the ratio floor owed, read from the tracker's economy when the grab happened"
           },
+          "requiredRatio": {
+            "type": "number",
+            "description": "the ratio that MEETS the obligation: `minimumRatio` plus the 0.1 margin the operator set on 2026-10-03 (« On peut monter le ratio nécessaire à 1.1 pour prendre une marge »), applied by the rule, never written into the tracker's configuration"
+          },
           "minimumSeedTimeSeconds": {
             "type": "integer",
             "description": "the seed time owed, in seconds"
@@ -8574,6 +8578,18 @@
             ],
             "description": "when it was met, Unix-epoch seconds, or null"
           },
+          "satisfiedBy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "seedTime",
+              "ratio",
+              null
+            ],
+            "description": "which arm of the rule met it (operator, 2026-10-03, O4): `seedTime`, the seconds really seeded reached `minimumSeedTimeSeconds`; `ratio`, the torrent's ratio reached `requiredRatio`. Null exactly when `satisfiedAt` is null. What the torrent's in-app message says as its why"
+          },
           "breachedAt": {
             "type": [
               "number",
@@ -8587,6 +8603,18 @@
               "null"
             ],
             "description": "when it ended early — a removal confirmed in the app always sets this — Unix-epoch seconds, or null"
+          },
+          "releasedBy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "removedHere",
+              "goneFromClient",
+              null
+            ],
+            "description": "how it ended early: `removedHere`, « Retirer de qBittorrent » confirmed in the application; `goneFromClient`, the torrent left the download client by any other way (removed by hand in qBittorrent, a reswitch, an ingest's delete — the sweep's confirmed absence). Null exactly when `releasedAt` is null. What the torrent's in-app message says as its why"
           },
           "crossSeedOf": {
             "oneOf": [
@@ -8612,7 +8640,10 @@
           "minimumSeedTimeSeconds",
           "observedRatio",
           "releasedAt",
+          "releasedBy",
+          "requiredRatio",
           "satisfiedAt",
+          "satisfiedBy",
           "sourceTracker",
           "title"
         ]

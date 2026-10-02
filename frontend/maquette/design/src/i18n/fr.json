@@ -389,7 +389,22 @@
         "identify": "Identifier",
         "noFolder": "Aucun dossier à identifier.",
         "crossSeedOf": "Cross-seed de",
-        "seeOrigin": "Voir la fiche de l'original"
+        "seeOrigin": "Voir la fiche de l'original",
+        "gone": "Ce torrent n'est plus dans qBittorrent."
+      },
+      "outcome": {
+        "metLead": "Obligation terminée le {{date}}",
+        "releasedLead": "Obligation libérée le {{date}}",
+        "seedTime": "Les {{hours}} h de seed demandées par le tracker sont atteintes.",
+        "ratio": "Le ratio de {{ratio}} est atteint sur ce tracker (son minimum plus une marge de 0,1).",
+        "unknown": "La raison n'est pas connue.",
+        "released": {
+          "removedHere": "Le torrent a été retiré de qBittorrent depuis TorrentMate",
+          "goneFromClient": "Le torrent a quitté qBittorrent hors de TorrentMate (retiré à la main, ou par le client)",
+          "unknown": "Le torrent a quitté qBittorrent"
+        },
+        "releasedEarly": "{{departure}}, avant la fin de l'obligation.",
+        "releasedAfterMet": "{{departure}} ; l'obligation était déjà terminée le {{date}}."
       },
       "selectorAll": "Tous les trackers",
       "selectorTitle": "Afficher les torrents de",

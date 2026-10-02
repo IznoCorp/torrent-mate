@@ -204,11 +204,11 @@ describe("tones the states carry", () => {
     expect(chip({ tone: "upcoming" })).toContain("var(--color-upcoming-text)");
   });
 
-  // ONE NOTICE, THREE TONES: the tone changes the colours and nothing else.
-  it("draws a notice in three tones from one base", () => {
-    const tones = (["danger", "warning", "info"] as const).map((tone) => surfaceError({ tone }));
+  // ONE NOTICE, FOUR TONES: the tone changes the colours and nothing else.
+  it("draws a notice in four tones from one base", () => {
+    const tones = (["danger", "warning", "info", "success"] as const).map((tone) => surfaceError({ tone }));
     for (const drawn of tones) expect(drawn).toContain("rounded-3 p-7");
-    expect(new Set(tones).size).toBe(3);
+    expect(new Set(tones).size).toBe(4);
     expect(surfaceError()).toBe(surfaceError({ tone: "danger" }));
   });
 });
