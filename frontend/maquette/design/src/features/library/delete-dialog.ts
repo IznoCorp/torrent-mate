@@ -147,7 +147,6 @@ export async function openDeleteDialog(title: string | null, many?: string[]): P
         : say("headingOne", { title: titles[0] });
 
   const body: DialogDescriptor["body"] = [];
-  body.push({ type: "dryRun", text: say("dryRun") });
   if (titles.length > 1) {
     const entries = titles.slice(0, 4).map((one) => ({
       text: one,
@@ -181,20 +180,21 @@ export async function openDeleteDialog(title: string | null, many?: string[]): P
      the tap registry answers a verb in the CAPTURE phase and stops the click
      there, so a button carrying one never reached its own `onClick` and the
      removal it confirms never ran. */
-  const removeSaying = (message: string) => () => {
+  const removed = titles.length > 1 ? say("doneMany", { count: titles.length }) : say("done", { title: titles[0] });
+  const removeSaying = (follow?: string) => () => {
     removeTitles(titles);
-    toast?.show({ message });
+    toast?.show({ message: follow ? `${removed} ${follow}` : removed });
   };
   const actions: DialogDescriptor["actions"] = [];
   if (followed.length > 0) {
     actions.push({
       text: say("deleteAndStop"),
       tone: "danger",
-      run: removeSaying(say("doneStopped")),
+      run: removeSaying(say("followStopped")),
     });
-    actions.push({ text: say("deleteAndKeep"), run: removeSaying(say("doneKept")) });
+    actions.push({ text: say("deleteAndKeep"), run: removeSaying(say("followKept")) });
   } else {
-    actions.push({ text: say("delete"), tone: "danger", run: removeSaying(say("done")) });
+    actions.push({ text: say("delete"), tone: "danger", run: removeSaying() });
   }
   actions.push({ text: say("cancel"), tone: "ghost", dismiss: true });
   dialog?.open({ heading, body, actions });
