@@ -453,8 +453,16 @@ its warnings, and a separate « validate » has no surface of its own.
 **What it makes void.** Any future inventory listing these two as missing. The absences already on
 the record stand beside them and are not repeated here: the desktop rail (Q1 — drawer alone, not
 frozen), the Pipeline tab and badge (Q6 — none), per-file configuration editing (settings navigate
-by topic), the trigger legend (the trigger is written in words), push notifications (B-257 —
-declined, consumer L16).
+by topic), the trigger legend (the trigger is written in words).
+
+Push notifications are no longer among the absences: the earlier record (B-257 — declined, consumer
+L16) is superseded by the operator's words of 2026-10-03 — « On peut remplacer le canal Telegram par
+des notifications FCM, parce qu'elles devront être implémentées, et des messages in-app sur le
+torrent en question. » and « il faudra une gestion des canaux, des canaux de notification, de façon
+à pouvoir couper les notifications FCM de certains types tout en gardant les autres. Donc il faut
+créer des types de notifications FCM. » The maquette draws the FCM notification types, their push
+wording and landing, and the in-app obligation message on the torrent's panel; the per-type
+switches follow in Réglages.
 ## 3. Invariants — true at the end of every wave
 
 1. **The URL and the interface never contradict each other.** D1's rule holds in both

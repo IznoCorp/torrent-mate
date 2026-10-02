@@ -2286,6 +2286,8 @@ export interface components {
             dispatchedPath: string | null;
             /** @description the ratio floor owed, read from the tracker's economy when the grab happened */
             minimumRatio: number;
+            /** @description the ratio that MEETS the obligation: `minimumRatio` plus the 0.1 margin the operator set on 2026-10-03 (« On peut monter le ratio nécessaire à 1.1 pour prendre une marge »), applied by the rule, never written into the tracker's configuration */
+            requiredRatio: number;
             /** @description the seed time owed, in seconds */
             minimumSeedTimeSeconds: number;
             /** @description the tracker's ratio as last observed, or null when never observed */
@@ -2298,10 +2300,20 @@ export interface components {
             addedAt: number;
             /** @description when it was met, Unix-epoch seconds, or null */
             satisfiedAt: number | null;
+            /**
+             * @description which arm of the rule met it (operator, 2026-10-03, O4): `seedTime`, the seconds really seeded reached `minimumSeedTimeSeconds`; `ratio`, the torrent's ratio reached `requiredRatio`. Null exactly when `satisfiedAt` is null. What the torrent's in-app message says as its why
+             * @enum {string|null}
+             */
+            satisfiedBy: "seedTime" | "ratio" | null;
             /** @description when it was broken, Unix-epoch seconds, or null */
             breachedAt: number | null;
             /** @description when it ended early — a removal confirmed in the app always sets this — Unix-epoch seconds, or null */
             releasedAt: number | null;
+            /**
+             * @description how it ended early: `removedHere`, « Retirer de qBittorrent » confirmed in the application; `goneFromClient`, the torrent left the download client by any other way (removed by hand in qBittorrent, a reswitch, an ingest's delete — the sweep's confirmed absence). Null exactly when `releasedAt` is null. What the torrent's in-app message says as its why
+             * @enum {string|null}
+             */
+            releasedBy: "removedHere" | "goneFromClient" | null;
             /** @description when a cross-seed CREATED the obligation, the torrent it is the copy of; null otherwise */
             crossSeedOf: components["schemas"]["CrossSeedOrigin"] | null;
         };
@@ -2744,6 +2756,28 @@ export interface components {
             /** @description when the engine saw the cause lifted and the rung resumed, epoch seconds */
             resumedAt: number;
         };
+        /**
+         * @description ONE FCM NOTIFICATION TYPE — the unit a reader switches on or off (the operator, 2026-10-03: « des canaux de notification, de façon à pouvoir couper les notifications FCM de certains types tout en gardant les autres »). Each type: the right an account must hold to receive it, the event that raises it, where its tap lands.
+         *
+         *     - `obligation.met` — right `trackers.view`; raised by `SeedObligationSatisfied` (K0 P8, written by the obligation sweep), carrying `satisfied_by`; lands on `/trackers?panel=torrent:<infoHash>:<tracker>`
+         *     - `obligation.released` — right `trackers.view`; raised by `SeedObligationReleased` — a new event: the sweep's confirmed absence (`goneFromClient`) or `removeDownload` (`removedHere`), carrying `released_by`; lands on `/trackers?panel=torrent:<infoHash>:<tracker>`
+         *     - `obligation.breached` — right `trackers.view`; raised by `SeedObligationBreached`; lands on `/trackers?panel=torrent:<infoHash>:<tracker>`
+         *     - `tracker.ratio_low` — right `trackers.view`; raised by `RatioMeasured` under the tracker's `economy.alert_threshold` (§ 18, Q10; the trigger and its hysteresis are K5's); lands on `/trackers?list=trackers`
+         *     - `tracker.disabled` — right `trackers.view`; raised by `TrackerAuthFailed` — the engine switched a tracker off for a failure (a refused identifier, an unreachable host), never the operator's own switch; lands on `/trackers?list=trackers`
+         *     - `crossseed.failed` — right `trackers.view`; raised by `CrossSeedRejected` of the two FAILURE families only (OPEN 8 = A) — never a mismatch, never « sans correspondance »; lands on `/trackers?panel=torrent:<infoHash>:<tracker> (the origin entry)`
+         *     - `acquisition.arrived` — right `acquisition.follow`; raised by `FilmAcquired`, and `ItemDispatched` of an episode or a season of a followed series — the medium reached the library; lands on `/media/<provider>/<providerId>`
+         *     - `acquisition.to_handle` — right `acquisition.todo.view`; raised by an acquisition entering « À traiter » — it waits on an operator's decision (an identification, a release to choose); lands on `/acquisition?tab=todo`
+         *     - `system.run_failed` — right `system.view`; raised by `StepErrored` — a pipeline step failed; lands on `/system`
+         *     - `system.disk_full` — right `system.view`; raised by `DiskFullWarning` — a disk under its free-space threshold; lands on `/system`
+         *     - `system.service_down` — right `system.view`; raised by `CircuitBreakerOpened` — a provider or a service stopped answering; lands on `/system`
+         * @enum {string}
+         */
+        NotificationType: "obligation.met" | "obligation.released" | "obligation.breached" | "tracker.ratio_low" | "tracker.disabled" | "crossseed.failed" | "acquisition.arrived" | "acquisition.to_handle" | "system.run_failed" | "system.disk_full" | "system.service_down";
+        /**
+         * @description THE CODE A PUSH CARRIES (`webpush.data.code`, fcm-api.md « Message shape ») — never a sentence: the device's worker words it from `fr.json`'s `push` namespace. A code is its NotificationType, or the type and one variant segment (`obligation.met.seed_time`): the variant carries the why the message says, the type is what the reader switches. Parameters, all strings or numbers, never words: `title` (the medium's title as the engine composes it) and `tracker` for every `obligation.*`, `tracker.*` and `crossseed.failed` code; `title` for `acquisition.*`; `disk` for `system.disk_full`; `service` for `system.service_down`; `step` for `system.run_failed`.
+         * @enum {string}
+         */
+        PushCode: "obligation.met.seed_time" | "obligation.met.ratio" | "obligation.released.removed_here" | "obligation.released.gone_from_client" | "obligation.breached" | "tracker.ratio_low" | "tracker.disabled" | "crossseed.failed" | "acquisition.arrived" | "acquisition.to_handle" | "system.run_failed" | "system.disk_full" | "system.service_down";
     };
     responses: {
         /** @description the request failed, and the reason is the real one (NE-DOIT-PAS-4, NE-DOIT-PAS-5) */

@@ -5,14 +5,17 @@
     "title": "President Curtis S01E10",
     "dispatchedPath": null,
     "minimumRatio": 1.0,
+    "requiredRatio": 1.1,
     "minimumSeedTimeSeconds": 259200,
     "observedRatio": null,
     "accumulatedSeedTimeSeconds": null,
     "hitAndRunCount": null,
     "addedAt": 1790601605,
     "satisfiedAt": null,
+    "satisfiedBy": null,
     "breachedAt": null,
-    "releasedAt": null
+    "releasedAt": null,
+    "releasedBy": null
   },
   {
     "infoHash": "e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb",
@@ -20,14 +23,17 @@
     "title": "American Dad! S22",
     "dispatchedPath": null,
     "minimumRatio": 1.0,
+    "requiredRatio": 1.1,
     "minimumSeedTimeSeconds": 259200,
     "observedRatio": null,
     "accumulatedSeedTimeSeconds": null,
     "hitAndRunCount": null,
     "addedAt": 1790299203,
     "satisfiedAt": null,
+    "satisfiedBy": null,
     "breachedAt": null,
-    "releasedAt": null
+    "releasedAt": null,
+    "releasedBy": null
   },
   {
     "infoHash": "8d51568b1a4f46e1fb7e7b535b52a5203312fc28",
@@ -35,14 +41,17 @@
     "title": "Star Trek: Strange New Worlds S04E10",
     "dispatchedPath": null,
     "minimumRatio": 1.0,
+    "requiredRatio": 1.1,
     "minimumSeedTimeSeconds": 259200,
     "observedRatio": null,
     "accumulatedSeedTimeSeconds": null,
     "hitAndRunCount": null,
     "addedAt": 1790256001,
     "satisfiedAt": null,
+    "satisfiedBy": null,
     "breachedAt": null,
-    "releasedAt": null
+    "releasedAt": null,
+    "releasedBy": null
   },
   {
     "infoHash": "e1af6819d9e3159e0aa191b534b6a66af4344788",
@@ -50,14 +59,17 @@
     "title": "Ted Lasso S04E08",
     "dispatchedPath": null,
     "minimumRatio": 1.0,
+    "requiredRatio": 1.1,
     "minimumSeedTimeSeconds": 259200,
     "observedRatio": null,
     "accumulatedSeedTimeSeconds": null,
     "hitAndRunCount": null,
     "addedAt": 1790169601,
     "satisfiedAt": null,
+    "satisfiedBy": null,
     "breachedAt": null,
-    "releasedAt": null
+    "releasedAt": null,
+    "releasedBy": null
   },
   {
     "infoHash": "0ff265e478d97d9eae4d1cabd13748e23b9e6cba",
@@ -65,13 +77,16 @@
     "title": "Lanterns S01E06",
     "dispatchedPath": null,
     "minimumRatio": 1.0,
+    "requiredRatio": 1.1,
     "minimumSeedTimeSeconds": 259200,
     "observedRatio": null,
     "accumulatedSeedTimeSeconds": null,
     "hitAndRunCount": null,
     "addedAt": 1789953601,
     "satisfiedAt": null,
+    "satisfiedBy": null,
     "breachedAt": null,
-    "releasedAt": null
+    "releasedAt": null,
+    "releasedBy": null
   }
 ]

@@ -59,6 +59,8 @@ export type TrackerDials = {
   setDownloadsEmpty: (empty: boolean) => void;
   setTrackerIdle: (tracker: string) => void;
   setObligationSatisfied: (infoHash: string) => void;
+  poseObligationMetByRatio: (infoHash: string) => void;
+  poseRemovedHere: (infoHash: string, metBefore: boolean) => void;
   poseArrived: (title: string) => void;
   poseExternalRemoval: (infoHash: string) => void;
   poseAlertThreshold: (tracker: string, threshold: number) => void;
@@ -121,6 +123,8 @@ function setEnabled(tracker: string, enabled: boolean): void {
 
 // The milliseconds in a second: the layer dates in Unix-epoch seconds.
 const MILLISECONDS_PER_SECOND = 1000;
+// A day in seconds: a ratio met a day after the grab.
+const DAY_SECONDS = 86400;
 
 // A download complete: its files are all there, and the client seeds it.
 const DOWNLOAD_DONE = "seeding";
@@ -168,7 +172,24 @@ export const trackerDials: TrackerDials = {
     const subject = trackersState();
     subject.downloads = subject.downloads.filter((entry) => entry.infoHash !== infoHash);
     for (const obligation of subject.obligations) {
-      if (obligation.infoHash === infoHash) obligation.releasedAt = obligation.addedAt;
+      if (obligation.infoHash === infoHash) Object.assign(obligation, { releasedAt: releasedAt(obligation), releasedBy: "goneFromClient" });
+    }
+  },
+  poseRemovedHere: (infoHash: string, metBefore: boolean) => {
+    // A DERIVATION, SHOWN AS ONE: « Retirer de qBittorrent » confirmed in the
+    // application, the entry gone and its obligation released by that gesture —
+    // after it was met at its seed time, or owing still. No real obligation has
+    // been released.
+    const subject = trackersState();
+    subject.downloads = subject.downloads.filter((entry) => entry.infoHash !== infoHash);
+    for (const obligation of subject.obligations) {
+      if (obligation.infoHash !== infoHash) continue;
+      if (metBefore) {
+        Object.assign(obligation, {
+          satisfiedAt: obligation.addedAt + obligation.minimumSeedTimeSeconds, satisfiedBy: "seedTime",
+        });
+      }
+      Object.assign(obligation, { releasedAt: releasedAt(obligation), releasedBy: "removedHere" });
     }
   },
   poseAlertThreshold: (tracker: string, threshold: number) => {
@@ -254,8 +275,32 @@ export const trackerDials: TrackerDials = {
     // `seed_obligation` holds no satisfied row; the backend reads `satisfied_at`.
     for (const obligation of trackersState().obligations) {
       if (obligation.infoHash === infoHash) {
-        obligation.satisfiedAt = obligation.addedAt + obligation.minimumSeedTimeSeconds;
+        Object.assign(obligation, {
+          satisfiedAt: obligation.addedAt + obligation.minimumSeedTimeSeconds, satisfiedBy: "seedTime",
+        });
+      }
+    }
+  },
+  poseObligationMetByRatio: (infoHash: string) => {
+    // A DERIVATION, SHOWN AS ONE: an obligation MET by its ratio arm (O4) — the
+    // torrent's ratio reached the floor plus the margin — before its seed time,
+    // the torrent still seeding. No real obligation is met.
+    for (const obligation of trackersState().obligations) {
+      if (obligation.infoHash === infoHash) {
+        Object.assign(obligation, { satisfiedAt: obligation.addedAt + DAY_SECONDS, satisfiedBy: "ratio" });
       }
     }
   },
 };
+
+/**
+ * When a posed release happened: a day after the obligation was met, or a day
+ * after its grab when it left owing — dated off the obligation itself, so a
+ * release never reads earlier than what it ends.
+ *
+ * @param obligation The obligation released.
+ * @returns The moment, Unix-epoch seconds.
+ */
+function releasedAt(obligation: HeldObligation): number {
+  return (obligation.satisfiedAt ?? obligation.addedAt) + DAY_SECONDS;
+}

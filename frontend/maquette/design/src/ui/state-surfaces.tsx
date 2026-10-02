@@ -82,12 +82,12 @@ type FailedRead = {
   onRetry?: () => void;
 };
 
-/** A notice: the caller's words, in a tone — warning and info are never alerts. */
+/** A notice: the caller's words, in a tone — warning, info and success are never alerts. */
 type Notice = {
   /** What the notice says. */
   children: ReactNode;
-  /** What it means: a failure, something to heed, something to know. */
-  tone: "danger" | "warning" | "info";
+  /** What it means: a failure, something to heed, something to know, good news. */
+  tone: "danger" | "warning" | "info" | "success";
   /** The name a rule reads the notice by. */
   part: string;
 };
