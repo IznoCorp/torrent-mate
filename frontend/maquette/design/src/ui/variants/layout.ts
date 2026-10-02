@@ -12,6 +12,14 @@ export const body = cva("body flex flex-col gap-7 pt-5 px-7 pb-8");
 /** One section of a page. */
 export const section = cva("sec flex flex-col gap-4");
 
+/**
+ * The cards a fold holds. A fold's cards are not children of a `section`, so they
+ * lacked the column the section gives its own: they touched each other (B-682).
+ * It spends the SAME gap as `section` — header to first card, and card to card —
+ * so a folded list reads like every other.
+ */
+export const foldedCards = cva("flex flex-col gap-4 pt-4");
+
 /** A section's header row: a title, an optional status dot, a count pushed right. */
 export const sectionHead = cva(
   "sechead flex items-center gap-4 w-full [border:0] bg-transparent py-1 px-0 text-left",

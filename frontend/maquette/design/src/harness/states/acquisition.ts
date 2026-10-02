@@ -7,6 +7,7 @@
 import { applyState, type NamedState } from "../drive";
 import { redraw } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
+import { owed } from "../owed";
 
 // How long after the list is drawn the paused fold is opened, as a finger would.
 const OPEN_AFTER = 300;
@@ -39,7 +40,7 @@ function discoverIn(mode: string): void {
  * @param then What follows the gesture, once it has settled.
  */
 function throwFirst(selector: string, travel: number, release: boolean, then?: () => void): void {
-  window.setTimeout(() => {
+  owed(() => {
     const held = document.querySelector<HTMLElement>(selector);
     if (held === null) return;
     const box = held.getBoundingClientRect();
@@ -50,7 +51,7 @@ function throwFirst(selector: string, travel: number, release: boolean, then?: (
     at("pointerdown", 0);
     for (let step = 1; step <= 6; step += 1) at("pointermove", (travel * step) / 6);
     if (release) window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, isPrimary: true, pointerId: 1, clientX: x + travel, clientY: y }));
-    if (then) window.setTimeout(then, SETTLE);
+    if (then) owed(then, SETTLE);
   }, OPEN_AFTER);
 }
 
@@ -186,7 +187,7 @@ export function acquisitionStates(): NamedState[] {
           phase: "ready",
         });
         // THE FOLD OPENED THE WAY A FINGER OPENS IT, once the list is drawn.
-        window.setTimeout(() => {
+        owed(() => {
           document.querySelector<HTMLElement>('[data-part="section/paused"] summary')?.click();
         }, OPEN_AFTER);
       },

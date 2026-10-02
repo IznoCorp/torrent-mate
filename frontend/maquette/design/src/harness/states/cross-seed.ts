@@ -5,6 +5,7 @@
 // switch on. A state that needs another scenario turns a dial and says so.
 import { applyState, type NamedState } from "../drive";
 import { openCutConfirm, openSwitchConfirm, openUploadConfirm } from "../../features/trackers/cross-seed-verbs";
+import { owed } from "../owed";
 
 // The page's reads, and the settings the switches are kept in: dropped before a
 // state so the page asks the layer again rather than drawing a state before's.
@@ -64,7 +65,7 @@ function torrentPanel(entry: string, pose: () => void = () => undefined, then: (
   fresh();
   pose();
   applyState({ page: "trackers", trackersTab: "torrents", trackersFilter: "", phase: "ready" });
-  window.setTimeout(() => {
+  owed(() => {
     window.__panel.produce("torrent", entry);
     then();
   }, OPEN_AFTER);
@@ -79,7 +80,7 @@ function torrentPanel(entry: string, pose: () => void = () => undefined, then: (
  */
 function trackerPanel(tracker: string, pose: () => void = () => undefined, then: () => void = () => undefined): void {
   roster(pose);
-  window.setTimeout(() => {
+  owed(() => {
     window.__panel.produce("tracker", tracker);
     then();
   }, OPEN_AFTER);

@@ -6,7 +6,7 @@ import { useFollows, useGrabCadence } from "./queries";
 import { useUiState } from "../../lib/store-access";
 import { FollowsFilters, followFilterInForce, followSortInForce } from "./follows-filters";
 import { followsInView, orderFollows } from "./follow-order";
-import { body, emptyNote, posterGrid, section as sectionClass, swipeAction } from "../../ui/variants";
+import { body, emptyNote, foldedCards, posterGrid, section as sectionClass, swipeAction } from "../../ui/variants";
 import { Markup, emptyNoteMarkup, sectionInnerMarkup } from "../../ui/markup";
 import { Disclosure } from "../../ui/disclosure";
 import { posterArtwork, useEngineDrawing } from "../../lib/engine-drawing";
@@ -268,7 +268,7 @@ export function FollowsTab(): ReactElement {
               {state.followMode === "grid" ? (
                 <Markup className={posterGrid()} data-part="grid" html={paused.map(tileOf).join("")} />
               ) : (
-                <Markup html={paused.map((follow) => rowOf(follow, true)).join("")} />
+                <Markup className={foldedCards()} data-part="folded-cards" html={paused.map((follow) => rowOf(follow, true)).join("")} />
               )}
             </Disclosure>
           </section>

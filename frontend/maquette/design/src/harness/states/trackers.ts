@@ -6,6 +6,7 @@
 // so an entry pins only what its state means to show.
 import { applyState, type NamedState } from "../drive";
 import { openRemoveConfirm } from "../../features/trackers/remove-verb";
+import { owed } from "../owed";
 
 // How long a fold waits for the entry it sits in to be drawn before a finger opens it.
 const OPEN_AFTER = 300;
@@ -132,7 +133,7 @@ function dropReads(): void {
 
 /** Drags the first card left by a finger's travel, once drawn, so its right drawer rests open. */
 function swipeFirstCardOpen(): void {
-  window.setTimeout(() => {
+  owed(() => {
     const card = document.querySelector<HTMLElement>('#view [data-part="torrents/row"] [data-part="card"]');
     if (card === null) return;
     const box = card.getBoundingClientRect();
@@ -166,9 +167,9 @@ function oneTracker(tracker: string): void {
  * @param save Whether the save bar's « Enregistrer » is then pressed.
  */
 function turnSwitch(tracker: string, save: boolean): void {
-  window.setTimeout(() => {
+  owed(() => {
     document.querySelector<HTMLElement>(`#view [data-tracker-switch="${tracker}"]`)?.click();
-    if (save) window.setTimeout(() => document.querySelector<HTMLElement>("[data-save]")?.click(), OPEN_AFTER);
+    if (save) owed(() => document.querySelector<HTMLElement>("[data-save]")?.click(), OPEN_AFTER);
   }, OPEN_AFTER);
 }
 
@@ -226,7 +227,7 @@ export function trackersStates(): NamedState[] {
         window.__mocks?.reset();
         dropReads();
         applyState({ page: "trackers", trackersTab: "torrents", trackersFilter: "", phase: "ready" });
-        window.setTimeout(() => window.__panel.produce("trackers-selector"), OPEN_AFTER);
+        owed(() => window.__panel.produce("trackers-selector"), OPEN_AFTER);
       },
     ],
     [
@@ -293,7 +294,7 @@ export function trackersStates(): NamedState[] {
         window.__mocks?.reset();
         dropReads();
         applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
-        window.setTimeout(() => window.__panel.produce("tracker", "c411"), OPEN_AFTER);
+        owed(() => window.__panel.produce("tracker", "c411"), OPEN_AFTER);
       },
     ],
     [
@@ -303,7 +304,7 @@ export function trackersStates(): NamedState[] {
         window.__mocks?.reset();
         dropReads();
         applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
-        window.setTimeout(() => window.__panel.produce("tracker", "tr4ker"), OPEN_AFTER);
+        owed(() => window.__panel.produce("tracker", "tr4ker"), OPEN_AFTER);
       },
     ],
     [
@@ -651,7 +652,7 @@ export function trackersStates(): NamedState[] {
         poseTwoBrokenObligations();
         applyState({ page: "trackers", trackersTab: "trackers", phase: "ready" });
         // THE ROW OPENED THE WAY A FINGER OPENS IT, once drawn: its panel lists them.
-        window.setTimeout(() => {
+        owed(() => {
           document.querySelector<HTMLElement>('#view [data-tracker-open="c411"]')?.click();
         }, OPEN_AFTER);
       },

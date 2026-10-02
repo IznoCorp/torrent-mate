@@ -306,6 +306,10 @@
     --mq-shadow-seg: 0 1px 3px rgb(0 0 0/0.45);
     --mq-shadow-vsw: 0 1px 3px rgb(0 0 0/0.5);
     --mq-shadow-fab: 0 6px 20px rgb(0 0 0/0.55);
+    /* THE FLOATING « + »: its box and its distance to the corner above the bar. The button is drawn
+       from them and the page's bottom clearance is derived from them (B-683) — one source, never two numbers. */
+    --mq-fab-size: 52px;
+    --mq-fab-offset: 16px;
     --mq-shadow-dlg: 0 20px 60px rgb(0 0 0/0.7);
     --mq-shadow-toast: 0 8px 26px rgb(0 0 0/0.5);
     --mq-shadow-pop: 0 12px 32px rgb(0 0 0/0.32);
