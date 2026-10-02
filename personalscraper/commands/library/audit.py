@@ -10,6 +10,7 @@ import typer
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import CommandContext, boundary, handle_cli_errors
 from personalscraper.cli_state import state
+from personalscraper.core.sqlite._fs_probe import is_mounted
 from personalscraper.logger import get_logger
 
 log = get_logger("cli")
@@ -287,7 +288,7 @@ def library_ghost_audit(
     for d in cfg.disks:
         if disk and d.id != disk:
             continue
-        if not d.path.exists():
+        if not is_mounted(d.path):
             console.print(f"[yellow]{d.id}: not mounted, skipped[/yellow]")
             continue
         ghosts: list[str] = []

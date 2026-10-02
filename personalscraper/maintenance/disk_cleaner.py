@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 
 from personalscraper._fs_utils import is_apple_double
 from personalscraper.core.delete_permit import ALLOW, AllowAllPermit, DeletePermit, PermitDecision
+from personalscraper.core.sqlite._fs_probe import is_mounted
 from personalscraper.indexer.destructive_journal import OP_DELETE, record_destruction
 from personalscraper.logger import get_logger
 
@@ -528,7 +529,7 @@ def clean_library(
     for disk in config.disks:
         if disk_filter and disk.id != disk_filter:
             continue
-        if not disk.path.exists():
+        if not is_mounted(disk.path):
             log.warning("library_disk_not_mounted", disk=disk.id, path=str(disk.path))
             continue
 

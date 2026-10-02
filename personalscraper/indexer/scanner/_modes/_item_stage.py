@@ -31,6 +31,7 @@ from xml.etree import ElementTree as ET
 from personalscraper._fs_utils import is_apple_double
 from personalscraper.conf.ids import AUDIOBOOKS, NON_VIDEO_CATEGORY_IDS, TV_CATEGORY_IDS
 from personalscraper.core.media_types import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS
+from personalscraper.core.sqlite._fs_probe import is_mounted
 from personalscraper.indexer.release_linker import parse_episode_span
 from personalscraper.indexer.repos import disk_repo, item_repo, tv_repo
 from personalscraper.indexer.scanner._modes._canonical import derive_canonical_provider
@@ -850,7 +851,7 @@ def stage_library_items(conn: sqlite3.Connection, config: Config, now_s: int | N
         log.info("item_stage_non_video_purged", removed=purged)
     staged = 0
     for disk_cfg in config.disks:
-        if not disk_cfg.path.exists():
+        if not is_mounted(disk_cfg.path):
             log.warning("item_stage_disk_not_mounted", disk=disk_cfg.id, path=str(disk_cfg.path))
             continue
         _ensure_disk_row(conn, disk_cfg, now_s)

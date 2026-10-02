@@ -40,6 +40,7 @@ from personalscraper.cli_helpers import _build_app_context
 from personalscraper.conf.ids import NON_VIDEO_CATEGORY_IDS, TV_CATEGORY_IDS
 from personalscraper.core.event_bus import current_correlation_id
 from personalscraper.core.media_types import trailer_folders_in
+from personalscraper.core.sqlite._fs_probe import is_mounted
 from personalscraper.logger import get_logger
 from personalscraper.trailers.orchestrator import TrailersOrchestrator
 from personalscraper.trailers.purge_fs import (
@@ -968,7 +969,7 @@ def _discover_fs_orphan_trailers(
         if disk is not None and getattr(disk_cfg, "id", None) != disk:
             continue
         disk_path = Path(str(disk_cfg.path))
-        if not disk_path.exists():
+        if not is_mounted(disk_path):
             continue
         for category_id in getattr(disk_cfg, "categories", []):
             if category_id in NON_VIDEO_CATEGORY_IDS:

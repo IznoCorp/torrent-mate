@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 
 import personalscraper.verify.checks  # noqa: F401 — trigger plugin registration
 from personalscraper.conf.ids import TV_CATEGORY_IDS
+from personalscraper.core.sqlite._fs_probe import is_mounted
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.nfo_utils import parse_title_year
@@ -289,7 +290,7 @@ def validate_library(
     for disk in config.disks:
         if disk_filter and disk.id != disk_filter:
             continue
-        if not disk.path.exists():
+        if not is_mounted(disk.path):
             log.warning("library_validate_disk_not_mounted", disk=disk.id, path=str(disk.path))
             continue
 

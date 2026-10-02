@@ -32,6 +32,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import staging_path as _compute_staging_path
+from personalscraper.core.sqlite._fs_probe import is_mounted
 from personalscraper.core.sqlite._pragmas import apply_pragmas as _apply_pragmas
 from personalscraper.dispatch.crash_recovery import (
     DISPATCH_TMP_PREFIX,
@@ -298,7 +299,7 @@ def _sweep_tmp_orphans(config: Config) -> list[TmpOrphan]:
     for entry in config.staging_dirs:
         roots.append(_compute_staging_path(config, entry))
     for disk_cfg in config.disks:
-        if disk_cfg.path.exists():
+        if is_mounted(disk_cfg.path):
             roots.append(disk_cfg.path)
 
     for root in roots:
