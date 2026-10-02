@@ -10,7 +10,7 @@ Allow-listed exceptions (documented boundaries):
   under TYPE_CHECKING — the AppContext boundary, already tested separately
 - Per-line ``# layering: allow`` markers — a single import line may opt out of
   the guard when the upward dependency is a documented, intentional boundary
-  (see the two markers in conf/models/_ranking.py and conf/loader.py). This is
+  (see the marker in conf/loader.py). This is
   finer-grained than whole-module allow-listing so the rest of the file stays
   guarded. Each marked line MUST carry a justification comment.
 """
@@ -565,3 +565,62 @@ def test_engine_core_import_is_not_flagged_by_web_guard() -> None:
     source = "from personalscraper.core.event_bus import Event\n"
     violations = _collect_violations_from_source(source, _SYNTHETIC_REL, _WEB_FORBIDDEN_PREFIXES)
     assert violations == [], f"downward core/ import should not be flagged by web guard, got: {violations}"
+
+
+# ---------------------------------------------------------------------------
+# conf/ ↛ api/ (the cycle's guard)
+#
+# api/ imports conf/ (provider clients read their config models), so conf/ is
+# the lower layer. The generic guard above lets a ``# layering: allow`` marker
+# hide an upward import; that escape hatch is how the conf ↔ api cycle lived on.
+# This guard has no marker exemption: conf/ never imports api/ at runtime.
+# ---------------------------------------------------------------------------
+
+
+def _runtime_api_imports(source: str) -> list[int]:
+    """Return the line numbers of runtime ``personalscraper.api`` imports in ``source``.
+
+    Args:
+        source: Python source code to analyse.
+
+    Returns:
+        Line numbers of imports of ``personalscraper.api`` (or a submodule) not
+        nested in an ``if TYPE_CHECKING:`` block. A ``# layering: allow`` marker
+        does NOT exempt them.
+    """
+    tree = ast.parse(source)
+    lines: list[int] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module:
+            modules = [node.module]
+        elif isinstance(node, ast.Import):
+            modules = [alias.name for alias in node.names]
+        else:
+            continue
+        if any(m == "personalscraper.api" or m.startswith("personalscraper.api.") for m in modules):
+            if not _is_type_checking_block(node, tree):
+                lines.append(node.lineno)
+    return lines
+
+
+def test_conf_never_imports_api_even_with_marker() -> None:
+    """conf/ must not import api/ at runtime, ``# layering: allow`` or not."""
+    violations: list[str] = []
+    for py_file in sorted((_PACKAGE_ROOT / "conf").rglob("*.py")):
+        rel = py_file.relative_to(_REPO_ROOT).as_posix()
+        violations.extend(f"{rel}:{n}" for n in _runtime_api_imports(py_file.read_text(encoding="utf-8")))
+    assert not violations, "conf/ imports api/ (the conf <-> api cycle; move the shared piece to core/):\n" + "\n".join(
+        violations
+    )
+
+
+def test_marked_api_import_is_still_flagged_by_cycle_guard() -> None:
+    """POSITIVE control: a marker-exempted api import IS flagged by the cycle guard."""
+    source = "from personalscraper.api.torrent import X  # layering: allow because\n"
+    assert _runtime_api_imports(source) == [1]
+
+
+def test_type_checking_api_import_is_not_flagged_by_cycle_guard() -> None:
+    """NEGATIVE control: an api import under TYPE_CHECKING is not a runtime edge."""
+    source = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from personalscraper.api import x\n"
+    assert _runtime_api_imports(source) == []

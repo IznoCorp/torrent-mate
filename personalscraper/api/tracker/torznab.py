@@ -39,7 +39,6 @@ from email.utils import parsedate_to_datetime
 from typing import TYPE_CHECKING, Any, ClassVar, Self, cast
 
 from personalscraper.api._contracts import ApiError, MediaType, ProviderName
-from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult, wrap_parser_drift
 from personalscraper.api.tracker._contracts import (
     CategoryListable,
@@ -55,6 +54,7 @@ from personalscraper.api.transport._policy import (
     RetryPolicy,
     TransportPolicy,
 )
+from personalscraper.core.units import ByteSize
 
 if TYPE_CHECKING:
     from collections.abc import Mapping

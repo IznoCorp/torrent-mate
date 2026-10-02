@@ -21,7 +21,6 @@ from personalscraper.acquire.cross_seed import CrossSeedResult, CrossSeedService
 from personalscraper.acquire.events import CrossSeedInjected, CrossSeedRejected
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.api._contracts import ApiError, MediaType, ProviderName
-from personalscraper.api._units import ByteSize
 from personalscraper.api.torrent._base import TorrentItem, TorrentSource
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.conf.models.acquire import AcquireConfig
@@ -33,6 +32,7 @@ from personalscraper.conf.models.paths import PathConfig
 from personalscraper.conf.models.watch_seed import CrossSeedConfig
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.tags import SEED_PURE
+from personalscraper.core.units import ByteSize
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 # ---------------------------------------------------------------------------

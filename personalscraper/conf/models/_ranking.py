@@ -14,10 +14,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-# Intentional, documented upward dependency: this config model parses byte-size
-# strings (e.g. "1GB") at validation time and reuses the canonical ByteSize
-# parser from api/_units (arch-cleanup-2 Phase 2 plan, Option A).
-from personalscraper.api._units import ByteSize  # layering: allow
+from personalscraper.core.units import ByteSize
 
 #: Valid keys for ``size_thresholds_by_type`` — "season" is forward-provisioned
 #: for season-kind wanted items that will land with the whole-season feature.

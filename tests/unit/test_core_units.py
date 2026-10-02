@@ -2,7 +2,7 @@
 
 import pytest
 
-from personalscraper.api._units import ByteSize
+from personalscraper.core.units import ByteSize
 
 
 class TestByteSizeParse:

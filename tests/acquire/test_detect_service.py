@@ -1036,8 +1036,8 @@ def test_detect_heals_tvdb_only_show_named_in_original_language(store: ConcreteA
     so the query and the guard carry both spellings.
     """
     from personalscraper.acquire._filters import filter_to_season
-    from personalscraper.api._units import ByteSize
     from personalscraper.api.tracker._base import TrackerResult
+    from personalscraper.core.units import ByteSize
 
     fid = _tvdb_only_show(store)
     tvdb = _FakeTvdb(_LOCALIZED_TITLE)

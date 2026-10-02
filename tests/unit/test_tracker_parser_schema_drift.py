@@ -25,12 +25,12 @@ from unittest.mock import MagicMock
 import pytest
 
 from personalscraper.api._contracts import ApiError
-from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._ranking import RankingConfig
 from personalscraper.api.tracker._registry import TrackerRegistry
 from personalscraper.api.tracker.c411 import C411Client
 from personalscraper.api.tracker.tr4ker import Tr4kerClient
+from personalscraper.core.units import ByteSize
 
 # -- C411 -----------------------------------------------------------------
 

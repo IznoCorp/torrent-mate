@@ -22,7 +22,6 @@ from personalscraper.acquire._dedup import SearchOutcome
 from personalscraper.acquire.desired import QualityProfile
 from personalscraper.acquire.domain import WantedItem
 from personalscraper.acquire.orchestrator import GrabOrchestrator, _build_limits
-from personalscraper.api._units import ByteSize
 from personalscraper.api.torrent._base import TorrentLimits, TorrentSource
 from personalscraper.api.torrent._contracts import TorrentLimiter
 from personalscraper.api.tracker._base import TrackerResult
@@ -30,6 +29,7 @@ from personalscraper.api.tracker._ranking import RankingConfig
 from personalscraper.conf.models.acquire import BandwidthConfig
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.identity import MediaRef
+from personalscraper.core.units import ByteSize
 
 _RESOLVE = "personalscraper.acquire._resolve_walk.resolve_source"
 

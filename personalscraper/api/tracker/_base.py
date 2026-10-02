@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import TypeVar
 
 from personalscraper.api._contracts import ApiError
-from personalscraper.api._units import ByteSize
+from personalscraper.core.units import ByteSize
 
 T = TypeVar("T")
 
