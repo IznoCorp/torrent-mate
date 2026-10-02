@@ -13,17 +13,16 @@ import { ID_EXAMPLES, idQuery, type IdProvider } from "../features/acquisition/i
 import type { SearchResults } from "../features/acquisition/types";
 
 /**
- * Asks the provider search one question, the way the screen asks it.
+ * Asks the provider search for one identifier, the way the screen asks it.
  *
- * @param query The search's text.
+ * @param query The identifier's query parameters.
  * @returns What the layer answers.
  */
-function search(query: string): SearchResults {
-  const path = "/api/acquisition/search";
+function search(query: URLSearchParams): SearchResults {
+  const path = "/api/acquisition/search/by-id";
   const found = resolve(routes(), "GET", path);
   if (found === null) throw new Error(`no route for ${path}`);
-  return found.route.handle({ path, parameters: found.parameters ?? {},
-                              query: new URLSearchParams({ query }), body: null }) as SearchResults;
+  return found.route.handle({ path, parameters: found.parameters ?? {}, query, body: null }) as SearchResults;
 }
 
 const PROVIDERS: IdProvider[] = ["TMDB", "TVDB", "IMDB"];

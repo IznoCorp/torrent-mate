@@ -342,6 +342,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/search/by-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Find the one medium a source knows under an identifier */
+        get: operations["searchProviderById"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/acquisition/suggestions": {
         parameters: {
             query?: never;
@@ -3498,6 +3515,37 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description one page of results */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResults"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    searchProviderById: {
+        parameters: {
+            query: {
+                /** @description the source the identifier belongs to */
+                provider: "tmdb" | "tvdb" | "imdb";
+                /** @description the identifier, in that source's format: digits for TMDB and TVDB, « tt » and digits for IMDB */
+                id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the medium the source knows under that identifier, or no result */
             200: {
                 headers: {
                     [name: string]: unknown;

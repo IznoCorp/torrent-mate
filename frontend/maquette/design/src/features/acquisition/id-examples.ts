@@ -33,16 +33,16 @@ export function validId(provider: IdProvider, typed: string): boolean {
 }
 
 /**
- * The provider search's question for one identifier: the source, lower case,
- * then the identifier — « tmdb:202998 ».
+ * The provider search's question for one identifier, as `searchProviderById`
+ * takes it: the source, lower case, and the identifier.
  *
  * Args:
  *     provider: The source chosen.
  *     id: The identifier typed.
  *
  * Returns:
- *     The search's text.
+ *     The query parameters.
  */
-export function idQuery(provider: IdProvider, id: string): string {
-  return `${provider.toLowerCase()}:${id.trim()}`;
+export function idQuery(provider: IdProvider, id: string): URLSearchParams {
+  return new URLSearchParams({ provider: provider.toLowerCase(), id: id.trim() });
 }

@@ -303,16 +303,6 @@ export function acquisitionRoutes(): MockRoute[] {
     route("searchProviders", GET, "/api/acquisition/search", (request: MockRequest) => {
       const wanted = (request.query.get("query") ?? "").toLowerCase();
       if (wanted === "") return SEARCH_RESULTS;
-      // AN IDENTIFIER IS ASKED AS « source:id » (B-691): « tmdb:202998 » answers
-      // the medium that source knows under it, and nothing else.
-      const byId = /^(tmdb|tvdb|imdb):(\S+)$/.exec(wanted);
-      if (byId !== null) {
-        const [, source, id] = byId;
-        const results = SEARCH_RESULTS.results.filter(
-          (result) => String((result.ids as Record<string, unknown> | undefined)?.[source] ?? "") === id,
-        );
-        return { ...SEARCH_RESULTS, total: results.length, shown: results.length, results };
-      }
       // MATCHED ON WORDS, NOT ON THE WHOLE STRING, and a provider is what this
       // stands in for. The interface pre-fills this field with a staging
       // FOLDER's name — « Backrooms 2026 » — and a provider asked that returns
@@ -331,6 +321,16 @@ export function acquisitionRoutes(): MockRoute[] {
       // 257, which is the very defect the library listing was repaired for two
       // files away (« answering 1 861 over a search for two rows made the count
       // describe the library rather than the answer »).
+      return { ...SEARCH_RESULTS, total: results.length, shown: results.length, results };
+    }),
+    // ONE MEDIUM BY ITS IDENTIFIER (B-691): the result a source knows under the
+    // identifier asked, and nothing else — no title matching, no neighbour.
+    route("searchProviderById", GET, "/api/acquisition/search/by-id", (request: MockRequest) => {
+      const source = request.query.get("provider") ?? "";
+      const id = (request.query.get("id") ?? "").trim();
+      const results = SEARCH_RESULTS.results.filter(
+        (result) => id !== "" && String((result.ids as Record<string, unknown> | undefined)?.[source] ?? "") === id,
+      );
       return { ...SEARCH_RESULTS, total: results.length, shown: results.length, results };
     }),
     // The deck PAGES. Answering the first batch to every request made the

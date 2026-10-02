@@ -121,7 +121,7 @@ export type IdOutcome = { kind: "added" } | { kind: "missing" } | { kind: "owned
 /**
  * Adds the medium a source knows under an identifier (B-691).
  *
- * The provider search is asked « source:id »; the medium it answers is followed
+ * The provider search is asked for the identifier; the medium it answers is followed
  * as a tapped result is — or identifies the folder, when the screen was opened
  * for one. A medium already owned is not replaced from here: a replacement is
  * confirmed on its own row, which a search by its title draws.
@@ -134,8 +134,7 @@ export type IdOutcome = { kind: "added" } | { kind: "missing" } | { kind: "owned
  *     What the identifier came to.
  */
 export async function addById(provider: IdProvider, id: string): Promise<IdOutcome> {
-  const answer = await read<SearchResults>(
-    "/api/acquisition/search", new URLSearchParams({ query: idQuery(provider, id) }));
+  const answer = await read<SearchResults>("/api/acquisition/search/by-id", idQuery(provider, id));
   const result = answer.results[0];
   if (result === undefined) return { kind: "missing" };
   if (identifying()) {
