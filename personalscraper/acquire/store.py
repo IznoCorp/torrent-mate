@@ -604,7 +604,7 @@ class _SeedSubStore:
         self._conn.row_factory = sqlite3.Row
         row = self._conn.execute(
             """
-            SELECT info_hash, source_tracker, dispatched_path,
+            SELECT id, info_hash, source_tracker, dispatched_path,
                    min_seed_time_s, min_ratio, added_at,
                    satisfied_at, breached_at, released_at
             FROM seed_obligation
@@ -650,7 +650,7 @@ class _SeedSubStore:
         self._conn.row_factory = sqlite3.Row
         row = self._conn.execute(
             """
-            SELECT info_hash, source_tracker, dispatched_path,
+            SELECT id, info_hash, source_tracker, dispatched_path,
                    min_seed_time_s, min_ratio, added_at,
                    satisfied_at, breached_at, released_at
             FROM seed_obligation
@@ -687,7 +687,7 @@ class _SeedSubStore:
         self._conn.row_factory = sqlite3.Row
         rows = self._conn.execute(
             """
-            SELECT info_hash, source_tracker, dispatched_path,
+            SELECT id, info_hash, source_tracker, dispatched_path,
                    min_seed_time_s, min_ratio, added_at,
                    satisfied_at, breached_at, released_at
             FROM seed_obligation

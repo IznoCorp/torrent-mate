@@ -59,6 +59,10 @@ class TorrentItem:
             the auto-reswitch (reswitch #342) needs to decide whether to switch to
             another release. Optional + defaulted so every existing caller and
             mapper stays source-compatible.
+        seeding_time_s: Seconds the client reports the torrent as really seeded
+            (qBittorrent ``seeding_time``, Transmission ``secondsSeeding``), or
+            ``None`` when absent or negative. The seed-obligation sweep reads it
+            instead of guessing from the completion date.
     """
 
     hash: str
@@ -78,6 +82,7 @@ class TorrentItem:
     # Estimated seconds until completion, as the client reports it. None when
     # unknown (qBit sentinel 8640000, Transmission -1/-2, or absent).
     eta_seconds: int | None = None
+    seeding_time_s: int | None = None
 
 
 @dataclass(frozen=True)

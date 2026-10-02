@@ -1061,11 +1061,31 @@ def test_seed_round_trip_and_marks(store: ConcreteAcquireStore) -> None:
     )
     oid = store.seed.add(obligation)
     found = store.seed.find_by_dispatched_path(Path("/Volumes/Disk1/Movies/Example (2024)"))
-    assert found == obligation
+    assert found == replace(obligation, id=oid)
 
     # mark_satisfied makes it inactive → no longer found.
     store.seed.mark_satisfied(oid, satisfied_at=1_700_000_999)
     assert store.seed.find_by_dispatched_path(Path("/Volumes/Disk1/Movies/Example (2024)")) is None
+
+
+def test_seed_reads_carry_the_row_id(store: ConcreteAcquireStore) -> None:
+    """Every seed read returns the obligation with its row id (K0 P6)."""
+    obligation = SeedObligation(
+        info_hash="feedface00112233",
+        source_tracker="tr4ker",
+        min_seed_time_s=259200,
+        min_ratio=1.5,
+        added_at=1_700_000_200,
+        dispatched_path="/Volumes/Disk1/Movies/Id (2024)",
+    )
+    oid = store.seed.add(obligation)
+    by_hash = store.seed.find_active_by_hash("feedface00112233")
+    by_path = store.seed.find_by_dispatched_path(Path("/Volumes/Disk1/Movies/Id (2024)"))
+    under = store.seed.find_active_under(Path("/Volumes/Disk1/Movies"))
+    assert by_hash is not None and by_hash.id == oid
+    assert by_path is not None and by_path.id == oid
+    assert [o.id for o in under] == [oid]
+    assert obligation.id is None, "constructions without an id stay valid"
 
 
 def test_seed_mark_breached(store: ConcreteAcquireStore) -> None:

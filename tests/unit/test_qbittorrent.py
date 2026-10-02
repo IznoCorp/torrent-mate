@@ -102,6 +102,19 @@ class TestTorrentItemMapping:
         assert _torrent_item(mock).eta_seconds is None
         assert _torrent_item(MagicMock()).eta_seconds is None
 
+    def test_seeding_time_maps_to_seeding_time_s(self) -> None:
+        """Map qBit `seeding_time` (seconds really seeded) onto seeding_time_s."""
+        mock = MagicMock()
+        mock.seeding_time = 259200
+        assert _torrent_item(mock).seeding_time_s == 259200
+
+    def test_seeding_time_absent_negative_or_non_numeric_is_none(self) -> None:
+        """Absent, negative or duck-typed junk is an honest None, never a guess."""
+        mock = MagicMock()
+        mock.seeding_time = -1
+        assert _torrent_item(mock).seeding_time_s is None
+        assert _torrent_item(MagicMock()).seeding_time_s is None
+
     def test_num_complete_maps_to_swarm_seeds(self) -> None:
         """QBit ``num_complete`` → ``swarm_seeds`` (reswitch #342)."""
         mock = MagicMock()

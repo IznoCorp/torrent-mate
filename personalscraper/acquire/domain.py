@@ -286,6 +286,8 @@ class SeedObligation:
         satisfied_at: Unix epoch seconds when obligation was satisfied (nullable).
         breached_at: Unix epoch seconds when obligation was breached (nullable).
         released_at: Unix epoch seconds when tracker released the obligation (nullable).
+        id: ``seed_obligation`` row id, set on rows read back from the store and
+            ``None`` on a not-yet-stored obligation.
     """
 
     info_hash: str
@@ -297,6 +299,7 @@ class SeedObligation:
     satisfied_at: int | None = None
     breached_at: int | None = None
     released_at: int | None = None
+    id: int | None = None
 
     def __post_init__(self) -> None:
         """Enforce the non-negativity invariant on the seed-obligation floors.
