@@ -24,6 +24,7 @@ import sys
 from urllib.parse import urlparse
 
 import served_copy
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -580,6 +581,34 @@ async def ready(page):
         reading taken then is read as the late one it is.
     """
     return await page.evaluate(READY, READY_CEILING_MS)
+
+
+async def screen_arrives(page, key, ceiling=READY_CEILING_MS):
+    """Waits until the open screen is the one a tap or a state asked for.
+
+    A screen replaces the one before it frames after the ask, and for those
+    frames the PREVIOUS screen is still the open one — so a reading of which
+    screen is open, taken after a fixed wait, can name the last case's.
+    `ready` cannot say it: nothing is fetching or animating in between.
+
+    Args:
+        page: The Playwright page.
+        key: The screen's `data-key`; ends with `:` to accept any key of that
+            kind (`resolution:`).
+        ceiling: The most it waits, in milliseconds.
+
+    Returns:
+        True when the screen arrived, False when the ceiling came first — the
+        reading taken then names what is open, and the rule says so.
+    """
+    try:
+        await page.wait_for_function(
+            """(key) => [...document.querySelectorAll('[data-part="screen"][data-open]')]
+                 .some((one) => key.endsWith(':') ? one.dataset.key?.startsWith(key) : one.dataset.key === key)""",
+            arg=key, timeout=ceiling)
+        return True
+    except PlaywrightTimeoutError:
+        return False
 
 
 class Journal:

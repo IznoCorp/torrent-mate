@@ -28,7 +28,7 @@ import json
 import pathlib
 import re
 
-from common import ACTED, PANEL_IN, SETTLED, Journal, open_page, read_at, browser_channel, chrome_launch_args
+from common import ACTED, PANEL_IN, SETTLED, Journal, open_page, read_at, screen_arrives, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
@@ -123,6 +123,7 @@ async def main():
         await page.wait_for_timeout(ACTED)
 
         await read_at(page, "acq-resolution-enqueued", "() => true", wait=PANEL_IN + ACTED + SETTLED + SETTLED)
+        await screen_arrives(page, "resolution:")
         folder = await page.evaluate("() => document.querySelector('[data-part=\"screen\"][data-open][data-key^=\"resolution:\"]')?.dataset.key.slice(11) ?? null")
         choice = await page.evaluate(PICK)
         journal.check("« Corriger »: the screen offers a candidate to choose", bool(choice), str(choice))

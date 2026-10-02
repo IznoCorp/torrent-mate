@@ -36,7 +36,7 @@ import asyncio
 import json
 import pathlib
 
-from common import ACTED, PANEL_IN, SETTLED, Journal, open_page, read_at, browser_channel, chrome_launch_args
+from common import ACTED, PANEL_IN, SETTLED, Journal, open_page, read_at, screen_arrives, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
@@ -98,7 +98,9 @@ async def main():
         for what, state, scope, operation in CASES:
             tapped = await read_at(page, state, TAP, scope, wait=PANEL_IN + SETTLED)
             journal.check(f"{what}: the block offers « Corriger »", tapped["tapped"], str(tapped))
-            await page.wait_for_timeout(ACTED + PANEL_IN)
+            # The screen of THIS folder, not a fixed wait: the one before it stays open
+            # until it arrives, and a reading then names the last case's.
+            await screen_arrives(page, f"resolution:{tapped['folder']}")
             landed = await page.evaluate(LANDED, tapped["before"])
             journal.check(f"{what}: « Corriger » calls {operation}, answered 200",
                           f"{operation} 200" in landed["calls"], str(landed["calls"]))
@@ -132,7 +134,9 @@ async def main():
 
         for state, folder in (("acq-resolution-enqueued", "Furious.S01E01.MULTi.1080p.WEB-DL"),
                               ("media-sheet-decision-corrected", "The Bombing of Pan Am 103")):
-            seen = await read_at(page, state, LANDED, 0, wait=PANEL_IN + ACTED + SETTLED + SETTLED)
+            await page.evaluate("(id)=>window.__go(id)", state)
+            await screen_arrives(page, f"resolution:{folder}")
+            seen = await page.evaluate(LANDED, 0)
             journal.check(f"{state}: lands on the screen of « {folder} », with candidates",
                           seen["screen"] == f"resolution:{folder}" and seen["candidates"] > 0,
                           str({k: seen[k] for k in ("screen", "candidates")}))
