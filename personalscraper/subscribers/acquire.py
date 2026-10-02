@@ -1,7 +1,9 @@
 """Muted Telegram subscriber for acquisition events (RP4).
 
-Subscribes to 13 acquisition events from :mod:`personalscraper.acquire.events`.
+Subscribes to 12 acquisition events from :mod:`personalscraper.acquire.events`.
 Each handler formats a human-readable message and emits a structlog line.
+``SeedObligationSatisfied`` and ``SeedObligationReleased`` are deliberately NOT
+subscribed: the operator replaced Telegram with FCM and in-app messages for them.
 Network send is dispatched on a fire-and-forget daemon thread only when
 ``enabled=True`` (default ``False`` — muted until wave-4/5 producers are active).
 
@@ -24,7 +26,6 @@ from personalscraper.acquire.events import (
     SeasonFellBackToEpisodes,
     SeedObligationBreached,
     SeedObligationRecorded,
-    SeedObligationSatisfied,
     SeriesFollowed,
     SeriesUnfollowed,
     TrackerAuthFailed,
@@ -92,7 +93,6 @@ class AcquisitionTelegramSubscriber:
             bus.subscribe(GrabFailed, self._on_grab_failed),
             bus.subscribe(SeedObligationRecorded, self._on_seed_obligation_recorded),
             bus.subscribe(SeedObligationBreached, self._on_seed_obligation_breached),
-            bus.subscribe(SeedObligationSatisfied, self._on_seed_obligation_satisfied),
             bus.subscribe(RatioMeasured, self._on_ratio_measured),
             bus.subscribe(TrackerAuthFailed, self._on_tracker_auth_failed),
             bus.subscribe(DownloadCompleted, self._on_download_completed),
@@ -214,11 +214,6 @@ class AcquisitionTelegramSubscriber:
         """Handle SeedObligationBreached — format + dispatch."""
         msg = f"🚨 Seed obligation BREACHED: {event.info_hash[:8]}… tracker={event.source_tracker}"
         self._dispatch(msg, "seed_obligation_breached")
-
-    def _on_seed_obligation_satisfied(self, event: SeedObligationSatisfied) -> None:
-        """Handle SeedObligationSatisfied — format + dispatch."""
-        msg = f"✔️ Seed obligation satisfied: {event.info_hash[:8]}… tracker={event.source_tracker}"
-        self._dispatch(msg, "seed_obligation_satisfied")
 
     def _on_ratio_measured(self, event: RatioMeasured) -> None:
         """Handle RatioMeasured — format + dispatch."""

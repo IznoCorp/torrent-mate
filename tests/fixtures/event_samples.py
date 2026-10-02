@@ -367,6 +367,7 @@ from personalscraper.acquire.events import (  # noqa: E402, PLC0415
     SeasonFellBackToEpisodes,
     SeedObligationBreached,
     SeedObligationRecorded,
+    SeedObligationReleased,
     SeedObligationSatisfied,
     SeriesFollowed,
     SeriesUnfollowed,
@@ -477,6 +478,15 @@ def make_seed_obligation_satisfied() -> SeedObligationSatisfied:
     """Realistic SeedObligationSatisfied factory."""
     return SeedObligationSatisfied(
         info_hash="b" * 40,
+        source_tracker="c411",
+    )
+
+
+@register_factory(SeedObligationReleased)
+def make_seed_obligation_released() -> SeedObligationReleased:
+    """Realistic SeedObligationReleased factory."""
+    return SeedObligationReleased(
+        info_hash="c" * 40,
         source_tracker="c411",
     )
 

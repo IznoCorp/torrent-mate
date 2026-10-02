@@ -284,7 +284,28 @@ class SeedObligationBreached(Event):
 class SeedObligationSatisfied(Event):
     """A seed obligation was satisfied (seeding completed successfully).
 
-    Emitted by O2 when the obligation's min_seed_time_s has elapsed.
+    Emitted by the obligation sweep (``acquire.obligations``) after it writes
+    ``satisfied_at`` — the client reports the seed-time floor or the ratio
+    reached. Not relayed to Telegram (operator ruling O6: FCM and in-app
+    messages on the torrent instead).
+
+    Attributes:
+        info_hash: Torrent info-hash (hex string).
+        source_tracker: Tracker name (e.g. ``"c411"``).
+    """
+
+    info_hash: str
+    source_tracker: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class SeedObligationReleased(Event):
+    """A seed obligation was released: its torrent is gone from the client.
+
+    Emitted by the obligation sweep (``acquire.obligations``) after it writes
+    ``released_at`` — the torrent stayed absent for the confirmation delay, so
+    nothing seeds any more (« released », never « breached »). Not relayed to
+    Telegram (operator ruling O6).
 
     Attributes:
         info_hash: Torrent info-hash (hex string).
