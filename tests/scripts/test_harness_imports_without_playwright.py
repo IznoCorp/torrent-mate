@@ -45,18 +45,37 @@ def test_the_module_imports_where_playwright_cannot(module: str) -> None:
     assert result.returncode == 0, result.stderr
 
 
+TIMEOUT_CHILD = """
+import asyncio, sys, types
+class TimeoutError(Exception):
+    pass
+api = types.ModuleType("playwright.async_api")
+api.TimeoutError = TimeoutError
+package = types.ModuleType("playwright")
+package.async_api = api
+sys.modules["playwright"] = package
+sys.modules["playwright.async_api"] = api
+sys.path.insert(0, {harness!r})
+import common
+
+class Page:
+    async def wait_for_function(self, *args, **keywords):
+        raise TimeoutError("ceiling")
+
+assert asyncio.run(common.screen_arrives(Page(), "screen", 1)) is False
+"""
+
+
 def test_the_timeout_wait_still_answers_false_when_the_ceiling_comes_first() -> None:
-    """The lazy import keeps `screen_arrives()`'s behaviour: a Playwright timeout reads False."""
-    pytest.importorskip("playwright")
-    import asyncio
+    """The lazy import keeps `screen_arrives()`'s behaviour: a Playwright timeout reads False.
 
-    from playwright.async_api import TimeoutError as PlaywrightTimeoutError
-
-    sys.path.insert(0, str(HARNESS))
-    import common
-
-    class Page:
-        async def wait_for_function(self, *args, **kwargs):
-            raise PlaywrightTimeoutError("ceiling")
-
-    assert asyncio.run(common.screen_arrives(Page(), "screen", 1)) is False
+    Run in a child with a stand-in `playwright`, so what other tests leave in
+    `sys.modules` cannot change the answer.
+    """
+    result = subprocess.run(
+        [sys.executable, "-c", TIMEOUT_CHILD.format(harness=str(HARNESS))],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 0, result.stderr
