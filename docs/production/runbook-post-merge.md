@@ -331,13 +331,13 @@ Required to keep `external_ids_json` current as new items are indexed.
 > agents were decommissioned in the launchd → PM2 cutover (see the watch-seed
 > 0.39.0 section below). The weekly backfill now ships as the PM2 app
 > `personalscraper-backfill-ids` in `ecosystem.config.js`
-> (`cron_restart: "0 5 * * 0"` — Sundays 05:00 local, `autorestart: false`).
+> (`schedule --cron '0 5 * * 0'` — Sundays 05:00 local, a long-lived loop with `autorestart: true`).
 
 ```bash
 # Verify the PM2 app is registered
 pm2 list | grep "personalscraper-backfill-ids"
-# Expected: one line ("stopped" between cron runs is normal — the app is
-# one-shot; cron_restart relaunches it weekly)
+# Expected: one line, "online" — the app is the `schedule` loop, which sleeps
+# between runs and starts the backfill itself every Sunday 05:00
 
 # If missing, start the ecosystem and persist it
 pm2 start ecosystem.config.js && pm2 save

@@ -102,6 +102,7 @@ relates to. The canonical source for flag names is `personalscraper <cmd>
 50. [`follow detect`](#personalscraper-follow) — detect aired episodes → enqueue as wanted
 51. [`search`](#personalscraper-search) — state tracker availability for pending wanted items
 52. [`grab`](#personalscraper-grab) — add top exact-episode candidate from known-available items
+53. [`schedule`](#personalscraper-schedule) — self-managed cron loop behind the scheduled PM2 jobs
 
 ### Make targets + scheduling (appendix)
 
@@ -1876,7 +1877,7 @@ run.
 **Related**: `follow detect`, `grab`
 
 > **PM2 scheduling** (`ecosystem.config.js`): `personalscraper-search` runs
-> `search` at 03:10 and 15:10 daily, between the detect pass (03:00) and each
+> `search` (through [`schedule`](#personalscraper-schedule)) at 03:10 and 15:10 daily, between the detect pass (03:00) and each
 > grab pass (03:20 / 15:20). The second pass catches items that were still
 > in their cadence cooldown during the morning run.
 
@@ -2068,7 +2069,34 @@ surface it too).
 **Related**: `watch`
 
 > **PM2 scheduling** (`ecosystem.config.js`): `personalscraper-health-check` runs
-> `health-check` hourly (#218).
+> `health-check` hourly at :15 through [`schedule`](#personalscraper-schedule) (#218).
+
+## `personalscraper schedule`
+
+**Purpose**: The self-managed cron loop behind every scheduled PM2 job. Runs
+`personalscraper <JOB…>` at each boundary of a 5-field cron expression (local time),
+to its end, forever — one run at a time, never started early, never twice at the same
+boundary; a boundary that falls inside a long run is skipped. Stops on SIGINT/SIGTERM
+and relays the signal to a running job. It replaces PM2's `cron_restart`, whose cron
+(6.0.8) ticks twice around a boundary and kills the run it just started (BUGS B-680).
+
+**Side effects**: none of its own; those of the job it runs (a fresh process each time,
+which loads its own config).
+
+**Args**:
+
+- `--cron EXPR` — required; `minute hour day-of-month month day-of-week` (`*`, `N`, `N-M`,
+  `*/S`, lists; Sunday is `0` or `7`; day-of-month and day-of-week OR when both are restricted).
+- `-- JOB…` — the command and its arguments, after `--`.
+
+**Examples**:
+
+    personalscraper schedule --cron '15 * * * *' -- health-check
+    personalscraper schedule --cron '0 1 * * 1' -- library-index --mode full --no-budget
+
+**Exit code**: `0` once stopped by a signal; `2` on a malformed expression or no job.
+
+**Related**: `watch`, `health-check`, `grab`, `search`
 
 ## Pipeline control flags & sentinels (S2 — `pipe-control`)
 

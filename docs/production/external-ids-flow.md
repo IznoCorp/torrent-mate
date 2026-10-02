@@ -187,10 +187,10 @@ The `ecosystem.config.js` PM2 config includes a weekly backfill cron (Sunday 05:
 {
   name: "personalscraper-backfill-ids",
   script: "personalscraper",
-  args: "library-backfill-ids",
+  args: "schedule --cron '0 5 * * 0' -- library-backfill-ids",
   interpreter: "none",
-  autorestart: false,
-  cron_restart: "0 5 * * 0", // Sundays 05:00 local (after enrich)
+  autorestart: true, // the `schedule` loop is kept alive; PM2's cron_restart double-ticks
+  // Sundays 05:00 local (after enrich)
 }
 ```
 
