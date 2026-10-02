@@ -36,6 +36,7 @@ from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.web.app import create_app
 from personalscraper.web.deps import require_session
+from personalscraper.web.refusals import install_refusal_handler
 
 #: Base URL that replays the ``Secure`` ``tm_session`` cookie across requests.
 HTTPS_BASE_URL = "https://testserver"
@@ -130,6 +131,7 @@ def build_guarded_app(
         The isolated ``FastAPI`` app (not yet wrapped in a ``TestClient``).
     """
     app = FastAPI()
+    install_refusal_handler(app)
     app.state.config = config
     app.state.settings = settings
     if with_auth:
@@ -185,6 +187,7 @@ def build_router_app(*routers: APIRouter) -> FastAPI:
         A minimal ``FastAPI`` app with *routers* mounted.
     """
     app = FastAPI()
+    install_refusal_handler(app)
     for router in routers:
         app.include_router(router)
     return app

@@ -38,7 +38,7 @@ def _fake_config(tmp_path: Path) -> MagicMock:
     cfg.paths.staging_dir = tmp_path
     cfg.disks = []
     # No torrent client configured (DESIGN D9): a bare MagicMock would make
-    # ``torrent.active`` truthy and trip the boot fail-fast in _build_app_context.
+    # ``torrent.active`` truthy and trip the boot fail-fast in build_app_context.
     cfg.torrent.active = ""
     # DESIGN SS4 + SS8 extensions
     cfg.trailers.seasons.enabled = False

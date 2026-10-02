@@ -896,7 +896,7 @@ def test_enqueue_other_seeds_search_with_cleaned_title(test_config, tmp_path: Pa
     assert resp.status_code == 200, resp.text
     # The search ran on the cleaned title + year, never the raw release name.
     call = search_mock.call_args
-    searched_title, searched_year = call.args[2], call.args[3]
+    searched_title, searched_year = call.args[3], call.args[4]
     assert searched_title == "The Wild Robot", f"search seeded with {searched_title!r}"
     assert searched_year == 2024
 

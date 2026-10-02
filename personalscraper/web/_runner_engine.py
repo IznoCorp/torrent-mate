@@ -52,8 +52,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, NoReturn
 
-from fastapi import HTTPException
-
+from personalscraper.app.errors import AppConflict, AppRefusal
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
@@ -436,7 +435,7 @@ def reserve_run_row(
         options_json: Canonical options JSON (stored + compared by the guard).
         dry_run: ``True`` for a dry run.
         guard: Optional concurrency guard run inside the transaction; it must
-            raise :class:`fastapi.HTTPException` to reject the reservation.
+            raise :class:`~personalscraper.app.errors.AppRefusal` to reject the reservation.
         fail_closed: When ``True`` a DB ``OperationalError`` while verifying
             concurrency raises 409 (*fail_closed_detail*) rather than proceeding
             unreserved — for actions that WRITE and must never run without the
@@ -448,7 +447,7 @@ def reserve_run_row(
         pid: The pid to reserve the row with; defaults to ``os.getpid()``.
 
     Raises:
-        HTTPException: Whatever *guard* raises, or 409 (*fail_closed_detail*) when
+        AppRefusal: Whatever *guard* raises, or 409 (*fail_closed_detail*) when
             *fail_closed* and the DB cannot be read. The transaction is rolled
             back before raising.
     """
@@ -474,7 +473,7 @@ def reserve_run_row(
                 (run_uid, 1 if dry_run else 0, time.time(), reserve_pid, kind, command, options_json),
             )
             conn.execute("COMMIT")
-        except HTTPException:
+        except AppRefusal:
             safe_rollback(conn)
             raise
         except sqlite3.OperationalError as exc:
@@ -483,7 +482,7 @@ def reserve_run_row(
             if fail_closed:
                 # Fail-CLOSED: the action WRITES and must never proceed without
                 # the concurrency check (Finding E) — refuse with the real reason.
-                raise HTTPException(status_code=409, detail=fail_closed_detail) from exc
+                raise AppConflict(fail_closed_detail) from exc
             # Permissive (ro / write): proceed to spawn without a reserved row.
     finally:
         conn.close()

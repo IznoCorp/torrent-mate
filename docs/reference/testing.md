@@ -107,7 +107,7 @@ python -m pytest -m roundtrip -v -s    # 2 tests (movie + tvshow roundtrip match
   Produces a minimal in-memory Config without touching disk.
 - **`tests/fixtures/settings_stub.py`** — a real, typed `Settings` stub carrying
   dummy credential values, used by CLI E2E tests so `ProviderRegistry` boots
-  through `_build_app_context` without a `MagicMock` (which is not
+  through `build_app_context` without a `MagicMock` (which is not
   JSON-serialisable and breaks `TransportPolicy`).
 
 When writing a new test, import fixtures from the nearest `conftest.py` in the hierarchy rather

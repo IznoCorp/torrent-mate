@@ -837,7 +837,7 @@ class TestSearchDecision:
         )
 
         with patch(
-            "personalscraper.cli_helpers._build_app_context",
+            "personalscraper.app.composition.build_app_context",
             side_effect=RuntimeError("No API key"),
         ):
             resp = client.post(

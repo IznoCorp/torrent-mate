@@ -24,8 +24,8 @@ from personalscraper.logger import get_logger
 from personalscraper.scraper.decision_candidate import DecisionCandidate
 
 if TYPE_CHECKING:
-    from fastapi import Request
-
+    from personalscraper.conf.models.config import Config
+    from personalscraper.config import Settings
     from personalscraper.scraper.search_ranking import RankedResult
 
 logger = get_logger(__name__)
@@ -70,7 +70,7 @@ class ProviderSearchError(Exception):
     """
 
 
-def build_provider_clients(request: Request) -> tuple[object, object]:
+def build_provider_clients(config: Config, settings: Settings) -> tuple[object, object]:
     """Create request-scoped TMDB and TVDB clients for a candidate search.
 
     Builds a fresh :class:`AppContext` with a :class:`ProviderRegistry` for this
@@ -79,8 +79,8 @@ def build_provider_clients(request: Request) -> tuple[object, object]:
     provider search is an infrequent operator action, not a hot polling endpoint.
 
     Args:
-        request: The incoming FastAPI request (carries ``app.state.config`` and
-            ``app.state.settings``).
+        config: The typed JSON5 configuration.
+        settings: The Pydantic env-var settings (API keys).
 
     Returns:
         A ``(tmdb_client, tvdb_client)`` tuple of raw provider client objects; the
@@ -90,13 +90,10 @@ def build_provider_clients(request: Request) -> tuple[object, object]:
         ProviderSearchError: When the provider registry cannot be built (missing
             API keys or a misconfigured/disabled provider).
     """
-    from personalscraper.cli_helpers import _build_app_context
-
-    config = request.app.state.config
-    settings = request.app.state.settings
+    from personalscraper.app.composition import build_app_context
 
     try:
-        app_context = _build_app_context(config, settings)
+        app_context = build_app_context(config, settings)
         # provider_registry.get raises UnknownProviderError when a provider is not
         # registered (disabled in the registry overlay) — keep it inside the try so
         # it maps to ProviderSearchError, not an untyped 500.
@@ -110,7 +107,8 @@ def build_provider_clients(request: Request) -> tuple[object, object]:
 
 
 def search_candidates(
-    request: Request,
+    config: Config,
+    settings: Settings,
     media_kind: str,
     title: str,
     year: int | None,
@@ -124,7 +122,8 @@ def search_candidates(
     search route and the enqueue-seeding path.
 
     Args:
-        request: The incoming FastAPI request (used to build provider clients).
+        config: The typed JSON5 configuration (used to build provider clients).
+        settings: The Pydantic env-var settings (used to build provider clients).
         media_kind: ``'movie'`` or ``'tvshow'``.
         title: Search title (the operator-editable guess, not necessarily the
             folder-derived one).
@@ -142,7 +141,7 @@ def search_candidates(
         rank_search_results,
     )
 
-    tmdb_client, tvdb_client = build_provider_clients(request)
+    tmdb_client, tvdb_client = build_provider_clients(config, settings)
     now_year = datetime.now(tz=UTC).year
 
     if media_kind == "movie":
