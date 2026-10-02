@@ -35,7 +35,7 @@ import { MediaDetails } from "./media-details";
 import { MediaLibraryFacts } from "./media-library-facts";
 import type { Follow, MediaSheetFields } from "./sheet-fields";
 import { bridge } from "../../lib/shell-doors";
-import { baseTitle } from "../../lib/titles";
+import { followedAs } from "../../lib/titles";
 import { DecisionBlock } from "../acquisition/decision-block";
 
 /**
@@ -122,9 +122,11 @@ export function MediaScreen({ readFollows, crossSeed }: MediaScreenProperties) {
   // A FOLLOWED SERIES READS THE ENGINE'S OWN COMPLETENESS, the one its follow
   // sheet reads (NE-DOIT-PAS-1, § 13); a medium nobody follows keeps the figures
   // its seasons read crosses.
-  const followedAs = follows.find((one) => baseTitle(one.title) === baseTitle(title))?.title ?? null;
-  const completenessRead = useFollowCompleteness(followedAs);
-  const sorted = (followedAs !== null && completenessRead.data !== undefined
+  // THE ONE READING of « is it followed » (`followedAs`, B-676): the header, the
+  // « Informations » row and the delete dialog all ask it.
+  const followedTitle = followedAs(follows.map((one) => one.title), title) ?? null;
+  const completenessRead = useFollowCompleteness(followedTitle);
+  const sorted = (followedTitle !== null && completenessRead.data !== undefined
     ? completenessHeld(completenessRead.data)
     : seasonsHeld(catalogue))
     .slice()
@@ -179,21 +181,13 @@ export function MediaScreen({ readFollows, crossSeed }: MediaScreenProperties) {
   // « Supprimer » offered for a medium nobody has identified is that same
   // assertion wearing a destructive button, so the actions read the same flag.
   const identified = ownershipKnown;
-  // The FIRST of the two follow tests, and it is deliberately the LOOSE one:
-  // it matches on the base title, so « Silo » follows « Silo (2023) ». The
-  // « Informations » block below asks the SAME question with a STRICTER test
-  // — the asymmetry is the legacy sheet's, transplanted rather than
-  // reconciled here.
-  const follow = follows.find(
-    (one) => baseTitle(one.title) === baseTitle(title),
-  );
-  const followed = follow !== undefined;
+  const followed = followedTitle !== null;
   // AND THE FOLLOW IT FINDS IS THE ONE THE SEASON ACT ADDRESSES (B-382). A sheet
   // opened under « Silo (2023) » is followed by « Silo »: the act addressed to
   // the sheet's own key asked about a follow that does not exist, and the
   // answer began a second one beside it. One show, one identity — the test, the
   // address and the waiting seasons all read the follow this line found.
-  const followTitle = follow?.title ?? title;
+  const followTitle = followedTitle ?? title;
   const catalog = (sheet?.seasons ?? [])
     .slice()
     .sort((slice, index) => index.number - slice.number);
@@ -336,7 +330,7 @@ export function MediaScreen({ readFollows, crossSeed }: MediaScreenProperties) {
               S1, § 13): found here by the medium's provider ids. */}
           <DecisionBlock subject={{ title, ids: prov }} />
 
-          <MediaDetails title={title} isFilm={isFilm} owns={owns} followed={followed} follows={follows} prov={prov} inFlight={inFlight} identified={identified} metadataRefreshedAt={sheet?.metadataRefreshedAt ?? null} />
+          <MediaDetails title={title} isFilm={isFilm} owns={owns} followed={followed} prov={prov} inFlight={inFlight} identified={identified} metadataRefreshedAt={sheet?.metadataRefreshedAt ?? null} />
 
           {/* BELOW THE SHEET'S OWN CONTENT, the medium's cross-seed (§ 19) —
               the trackers feature's block, for whoever may see the trackers. */}

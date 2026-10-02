@@ -20,6 +20,7 @@ import { store } from "../../lib/store-access";
 import { deleteLibraryItems, libraryIncompleteQuery } from "./queries";
 import type { DialogDescriptor } from "../../ui/dialog/contract";
 import type { IncompleteShow } from "./types";
+import { followedAs } from "../../lib/titles";
 
 /**
  * Removes titles from the library: the layer deletes, the selection ends, the
@@ -125,9 +126,10 @@ export async function openDeleteDialog(title: string | null, many?: string[]): P
     return;
   }
   const followingNow = followedTitles?.() ?? [];
-  const followed = titles.filter(
-    (one) => followingNow.includes(one) || incompleteShow(one) !== undefined,
-  );
+  // THE ONE READING of « is it followed » (`followedAs`, B-676), the sheet's own.
+  // An incomplete show is NOT followed: counting it as one made the dialog say
+  // « est suivi » and offer « garder le suivi » of a follow that never existed.
+  const followed = titles.filter((one) => followedAs(followingNow, one) !== undefined);
   const files = totalOf(titles, filesOf);
   const media = totalOf(titles, mediaNamedBy);
   // What the four rows above the fold account for, so « et N autres » names

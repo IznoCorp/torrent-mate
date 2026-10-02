@@ -20,6 +20,27 @@ export function baseTitle(title: string): string {
 }
 
 /**
+ * The follow a medium's title names, among the followed titles — THE ONE
+ * READING of « is it followed » (B-676).
+ *
+ * A follow is recorded under a title without its year (« Silo » follows
+ * « Silo (2023) »), so the two are compared by their base. The media sheet's
+ * header, its « Informations » row and the library's delete dialog each had
+ * their own test — the base title, the exact title, the exact title or an
+ * incomplete show — and they disagreed on one screen: the dialog said « est
+ * suivi » of a show nobody followed, and the sheet said « inactif ». Being
+ * incomplete is not being followed: Incomplets offers its own « suivre ».
+ *
+ * @param followedTitles The titles of the follows.
+ * @param title The medium's title.
+ * @returns The follow's own title, or undefined when nothing follows it.
+ */
+export function followedAs(followedTitles: readonly string[], title: string): string | undefined {
+  const base = baseTitle(title);
+  return followedTitles.find((one) => baseTitle(one) === base);
+}
+
+/**
  * The first letters of the title's first two words, uppercased — what a poster
  * with no picture shows.
  *
