@@ -223,8 +223,11 @@ export function installScreenBridge(): void {
    from the screen comes back to the panel's entry, which reopens it. A verb
    that closed the panel first and navigated a beat later popped that entry,
    and no timer could say how long « a beat » was. */
+/* UNGUARDED, because the close is also what tells a panel still waiting for its
+   read that a screen was opened (`panel-moves.ts`); a closed panel's close
+   touches nothing else. */
 const leavePanel = () => {
-  if (panel.isOpen()) panel.close(true);
+  panel.close(true);
 };
 
 fillScreensDoor({
