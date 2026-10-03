@@ -28,7 +28,8 @@ import { crossSeedDials, type CrossSeedDials } from "./cross-seed-state";
 import { installMockStream, resetStream, type StreamDriver } from "./stream";
 import { routes } from "./handlers";
 import { identityDials, requestersOf, signedInRights, type IdentityDials } from "./identity";
-import { OPERATION_RIGHTS, OWN_SCOPED, allowed, subjectOf } from "./operation-rights";
+import { OWN_SCOPED, allowed, subjectOf } from "./operation-rights";
+import { declaredRights } from "./declared-rights";
 
 /** The signature this module replaces. */
 type NetworkCall = typeof globalThis.fetch;
@@ -156,11 +157,11 @@ async function answer(input: RequestInfo | URL, options?: RequestInit): Promise<
     seenBefore.arrivals += 1;
     return json(seenBefore.status, seenBefore.payload);
   }
-  // THE ONE GUARD OF § 17's REFUSAL SIDE: the operation's right against the
-  // signed-in account's, through the SAME model the surfaces offer by. It
-  // answers before the scenario does, and is recorded, so a forced call reads
-  // as the 403 it was.
-  const asks = OPERATION_RIGHTS[found.route.operationId] ?? null;
+  // THE ONE GUARD OF § 17's REFUSAL SIDE: the operation's right — the
+  // contract's `x-rights` — against the signed-in account's, through the SAME
+  // model the surfaces offer by. It answers before the scenario does, and is
+  // recorded, so a forced call reads as the 403 it was.
+  const asks = declaredRights(found.route.operationId);
   const rights = signedInRights();
   const foreign = OWN_SCOPED.has(found.route.operationId) && !rights.holds("acquisition.pilot.any")
     && !requestersOf(subjectOf(found.parameters, address.searchParams)).some((one) => one.id === rights.id);

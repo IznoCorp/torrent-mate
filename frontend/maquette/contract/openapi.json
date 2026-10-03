@@ -3,7 +3,7 @@
   "info": {
     "title": "TorrentMate — the contract the maquette's interface requires",
     "version": "0.1.0",
-    "description": "WHAT THE NEXT VERSION OF THE FRONTEND NEEDS A SERVER TO ANSWER, declared by the interface rather than read off the backend that exists (D7 of docs/reference/frontend-architecture.md).\n\nIT IS NOT frontend/openapi.json, which is generated FROM the running backend. The two differ on purpose and every difference is a DEMAND, computed by scripts/compare-contracts.py into docs/reference/frontend-backend-demands.md. No backend work happens until the interface is frozen; the register IS the future specification, delivered as a diff rather than a blank page.\n\nSOME FIELDS ARE UGLY ON PURPOSE. Where a maquette fixture holds a pre-formatted string, this contract carries it verbatim rather than decomposing it into facts. That is D-L08-5, and it is what makes the conversion provable: a mock returning exactly what the fixture returns renders the same thing, so the oracle proves the wiring at zero divergence. Every such field says so, and the demand register asks for the underlying fact.\n\nx-seeded-from NAMES THE FIXTURE FAMILIES an operation's mock is seeded from. It is read by scripts/check-mock-seeds.py, so it is a contract and not a note.\n\nx-unseeded IS THE OTHER HALF OF x-seeded-from, and every operation carries exactly one of the two. An operation whose response no fixture covers — an acknowledgement, a count derived from the request, a state token from this contract's own enum — says so in as many words. Without it, « nothing was invented here » and « nobody looked » are the same silence, and scripts/check-mock-seeds.py --arm provenance refuses an operation carrying neither."
+    "description": "WHAT THE NEXT VERSION OF THE FRONTEND NEEDS A SERVER TO ANSWER, declared by the interface rather than read off the backend that exists (D7 of docs/reference/frontend-architecture.md).\n\nIT IS NOT frontend/openapi.json, which is generated FROM the running backend. The two differ on purpose and every difference is a DEMAND, computed by scripts/compare-contracts.py into docs/reference/frontend-backend-demands.md. No backend work happens until the interface is frozen; the register IS the future specification, delivered as a diff rather than a blank page.\n\nSOME FIELDS ARE UGLY ON PURPOSE. Where a maquette fixture holds a pre-formatted string, this contract carries it verbatim rather than decomposing it into facts. That is D-L08-5, and it is what makes the conversion provable: a mock returning exactly what the fixture returns renders the same thing, so the oracle proves the wiring at zero divergence. Every such field says so, and the demand register asks for the underlying fact.\n\nx-seeded-from NAMES THE FIXTURE FAMILIES an operation's mock is seeded from. It is read by scripts/check-mock-seeds.py, so it is a contract and not a note.\n\nx-unseeded IS THE OTHER HALF OF x-seeded-from, and every operation carries exactly one of the two. An operation whose response no fixture covers — an acknowledgement, a count derived from the request, a state token from this contract's own enum — says so in as many words. Without it, « nothing was invented here » and « nobody looked » are the same silence, and scripts/check-mock-seeds.py --arm provenance refuses an operation carrying neither.\n\nx-rights NAMES WHAT AN OPERATION ASKS FOR, and every operation carries it: null is a decision — the session's own acts, and the reads every account makes — a right is that right, and a list is any of them. A server refuses by it with a 403, and the mock layer refuses by the same words (design/src/mocks/declared-rights.ts). It is written from design/src/mocks/operation-rights.ts, where each right is argued, by `npm run stamp-operation-rights`; operation-rights.test.ts refuses an operation without it and one that drifts from that table."
   },
   "servers": [
     {
@@ -65,6 +65,7 @@
     "/api/auth/me": {
       "get": {
         "operationId": "readAccount",
+        "x-rights": null,
         "summary": "The signed-in account",
         "tags": [
           "authentication"
@@ -107,6 +108,7 @@
     "/api/auth/login": {
       "post": {
         "operationId": "signIn",
+        "x-rights": null,
         "summary": "Open a session",
         "tags": [
           "authentication"
@@ -169,6 +171,7 @@
     "/api/auth/logout": {
       "post": {
         "operationId": "signOut",
+        "x-rights": null,
         "summary": "Close the session",
         "tags": [
           "authentication"
@@ -217,6 +220,7 @@
     "/api/notifications/preferences": {
       "get": {
         "operationId": "readNotificationPreferences",
+        "x-rights": null,
         "summary": "The signed-in account's notification switches, one per type it may receive",
         "tags": [
           "notifications"
@@ -257,6 +261,7 @@
     "/api/notifications/preferences/{type}": {
       "put": {
         "operationId": "updateNotificationPreference",
+        "x-rights": null,
         "summary": "Switch one notification type on or off for the signed-in account",
         "tags": [
           "notifications"
@@ -327,6 +332,7 @@
     "/api/notifications/devices": {
       "post": {
         "operationId": "registerPushDevice",
+        "x-rights": null,
         "summary": "Register this device's push token for the signed-in account (K5)",
         "tags": [
           "notifications"
@@ -385,6 +391,7 @@
     "/api/library/items": {
       "get": {
         "operationId": "readLibraryItems",
+        "x-rights": "library.read",
         "summary": "The library listing, one page of it",
         "tags": [
           "library"
@@ -503,6 +510,7 @@
       },
       "delete": {
         "operationId": "deleteLibraryItems",
+        "x-rights": "library.delete",
         "summary": "Delete titles from the library",
         "tags": [
           "library"
@@ -572,6 +580,7 @@
     "/api/library/categories": {
       "get": {
         "operationId": "readLibraryCategories",
+        "x-rights": "library.read",
         "summary": "The categories and their counts",
         "tags": [
           "library"
@@ -617,6 +626,7 @@
     "/api/library/recent": {
       "get": {
         "operationId": "readLibraryRecent",
+        "x-rights": "library.read",
         "summary": "The most recently added titles",
         "tags": [
           "library"
@@ -662,6 +672,7 @@
     "/api/library/incomplete": {
       "get": {
         "operationId": "readLibraryIncomplete",
+        "x-rights": "library.read",
         "summary": "The series with holes, and how big each hole is",
         "tags": [
           "library"
@@ -707,6 +718,7 @@
     "/api/library/membership": {
       "get": {
         "operationId": "readLibraryMembership",
+        "x-rights": "library.read",
         "summary": "Whether the library holds one medium, asked by its exact title",
         "description": "An exact read, answered from the WHOLE library rather than from a page of the listing: a title on page two is held as surely as one on page one. Keyed by exact title, with the year where the title alone is ambiguous — provider ids are not an identity (two rows can share one).",
         "tags": [
@@ -771,6 +783,7 @@
     "/api/media/{provider}/{providerId}": {
       "get": {
         "operationId": "readMediaSheet",
+        "x-rights": "library.read",
         "summary": "One media sheet, by its provider identity",
         "description": "For ANY provider identity, not only a medium the library holds: a resolution candidate's poster opens its sheet (B-578), so the backend answers a sheet from the provider for an identifier it has never stored, owned false.",
         "tags": [
@@ -839,6 +852,7 @@
     "/api/media/{provider}/{providerId}/seasons": {
       "get": {
         "operationId": "readMediaSeasons",
+        "x-rights": "library.read",
         "summary": "The seasons of a show, and what the library holds of each",
         "tags": [
           "media"
@@ -939,6 +953,7 @@
     "/api/media/{provider}/{providerId}/cross-seed": {
       "get": {
         "operationId": "readMediaCrossSeed",
+        "x-rights": "trackers.view",
         "summary": "The medium's cross-seed, tracker by tracker",
         "description": "Demand C (L17's first drawing, taken over by L18, F25): for each origin torrent of the medium still in the client, its state on every other eligible tracker. Gated by `trackers.view`, the same right as the Trackers page it summarises (L18 DESIGN § 1.2), refused 403 to an account without it. Read once per visit of the sheet, never polled (R-L17-k); the stream's cross-seed events refresh it.",
         "tags": [
@@ -1000,6 +1015,7 @@
     "/api/media/{provider}/{providerId}/rescrape": {
       "post": {
         "operationId": "rescrapeMedia",
+        "x-rights": "library.rescrape",
         "summary": "Ask the providers for one medium's metadata again",
         "tags": [
           "media"
@@ -1087,6 +1103,7 @@
     "/api/acquisition/followed": {
       "get": {
         "operationId": "readFollows",
+        "x-rights": null,
         "summary": "Everything being followed",
         "tags": [
           "acquisition"
@@ -1145,6 +1162,7 @@
       },
       "post": {
         "operationId": "createFollow",
+        "x-rights": "acquisition.request",
         "summary": "Follow a title",
         "tags": [
           "acquisition"
@@ -1216,6 +1234,7 @@
     "/api/acquisition/followed/{followedId}": {
       "patch": {
         "operationId": "updateFollow",
+        "x-rights": "acquisition.follow",
         "summary": "Pause or resume a follow",
         "tags": [
           "acquisition"
@@ -1283,6 +1302,7 @@
       },
       "delete": {
         "operationId": "deleteFollow",
+        "x-rights": "acquisition.follow",
         "summary": "Stop following",
         "tags": [
           "acquisition"
@@ -1342,6 +1362,7 @@
     "/api/acquisition/followed/{followedId}/restore": {
       "post": {
         "operationId": "restoreFollow",
+        "x-rights": "acquisition.follow",
         "summary": "Put a removed follow back, as it was",
         "description": "Undoes a removal. It is NOT a create: a follow put back keeps the year it was followed under, the date it was followed since and how many times it has been looked for. A create cannot carry any of those, so an undo built on one restores a new medium wearing the same name.",
         "tags": [
@@ -1404,6 +1425,10 @@
     "/api/acquisition/followed/{followedId}/search": {
       "post": {
         "operationId": "searchForFollow",
+        "x-rights": [
+          "acquisition.pilot.own",
+          "acquisition.pilot.any"
+        ],
         "summary": "Search now for one follow",
         "tags": [
           "acquisition"
@@ -1464,6 +1489,10 @@
     "/api/acquisition/follows/{followedId}/seasons/{season}/grab": {
       "post": {
         "operationId": "grabSeasonForFollow",
+        "x-rights": [
+          "acquisition.pilot.own",
+          "acquisition.pilot.any"
+        ],
         "summary": "Take one season of a medium, following it first if it is not followed yet",
         "tags": [
           "acquisition"
@@ -1598,6 +1627,10 @@
     "/api/acquisition/followed/{followedId}/grab": {
       "post": {
         "operationId": "grabForFollow",
+        "x-rights": [
+          "acquisition.pilot.own",
+          "acquisition.pilot.any"
+        ],
         "summary": "Claim now what the last search found for one follow",
         "tags": [
           "acquisition"
@@ -1678,6 +1711,7 @@
     "/api/acquisition/search": {
       "get": {
         "operationId": "searchProviders",
+        "x-rights": "acquisition.request",
         "summary": "Search the providers for a title to follow",
         "tags": [
           "acquisition"
@@ -1740,6 +1774,7 @@
     "/api/acquisition/search/by-id": {
       "get": {
         "operationId": "searchProviderById",
+        "x-rights": "acquisition.request",
         "summary": "Find the one medium a source knows under an identifier",
         "tags": [
           "acquisition"
@@ -1807,6 +1842,7 @@
     "/api/acquisition/suggestions": {
       "get": {
         "operationId": "readSuggestions",
+        "x-rights": "acquisition.request",
         "summary": "Titles worth following, and why",
         "tags": [
           "acquisition"
@@ -1863,6 +1899,7 @@
     "/api/acquisition/status": {
       "get": {
         "operationId": "readAcquisitionStatus",
+        "x-rights": null,
         "summary": "The grab cadence, and when the next search runs",
         "tags": [
           "acquisition"
@@ -1922,6 +1959,7 @@
     "/api/acquisition/detect": {
       "post": {
         "operationId": "runDetection",
+        "x-rights": "pipeline.control",
         "summary": "Look now for everything that could be taken",
         "tags": [
           "acquisition"
@@ -1970,6 +2008,7 @@
     "/api/acquisition/to-handle": {
       "get": {
         "operationId": "readAcquisitionQueue",
+        "x-rights": null,
         "summary": "What the acquisition side is holding, by bucket",
         "tags": [
           "acquisition"
@@ -2037,6 +2076,7 @@
     "/api/acquisition/journeys/{infoHash}": {
       "get": {
         "operationId": "readJourney",
+        "x-rights": null,
         "summary": "One medium's ladder, rung by rung",
         "tags": [
           "acquisition"
@@ -2093,6 +2133,10 @@
     "/api/acquisition/journeys/{infoHash}/requeue": {
       "post": {
         "operationId": "requeueJourney",
+        "x-rights": [
+          "acquisition.pilot.own",
+          "acquisition.pilot.any"
+        ],
         "summary": "Put one journey back in the queue",
         "tags": [
           "acquisition"
@@ -2161,6 +2205,10 @@
     "/api/acquisition/journeys/{infoHash}/rescrape": {
       "post": {
         "operationId": "rescrapeJourney",
+        "x-rights": [
+          "acquisition.pilot.own",
+          "acquisition.pilot.any"
+        ],
         "summary": "Re-scrape one journey's tracked item",
         "tags": [
           "acquisition"
@@ -2229,6 +2277,10 @@
     "/api/acquisition/releases": {
       "get": {
         "operationId": "readReleases",
+        "x-rights": [
+          "acquisition.pilot.own",
+          "acquisition.pilot.any"
+        ],
         "summary": "The release candidates for one wanted item",
         "tags": [
           "acquisition"
@@ -2303,6 +2355,10 @@
     "/api/staging/media": {
       "get": {
         "operationId": "readStaging",
+        "x-rights": [
+          "acquisition.request",
+          "acquisition.see.others"
+        ],
         "summary": "What is in the staging area, by bucket",
         "tags": [
           "staging"
@@ -2389,6 +2445,7 @@
     "/api/staging/media/{mediaId}": {
       "delete": {
         "operationId": "deleteStagedMedia",
+        "x-rights": "pipeline.control",
         "summary": "Delete a staged folder from the disk",
         "description": "« Supprimer » on a folder set aside (ruling 16; round 8, question 16 = B): a REAL deletion of the staging folder, journaled — not the quarantine « Abandonner » makes — after a confirmation that names the folder and says whether this copy is the only one.",
         "tags": [
@@ -2454,6 +2511,10 @@
     "/api/staging/media/{mediaId}/copies": {
       "get": {
         "operationId": "readStagedMediaCopies",
+        "x-rights": [
+          "acquisition.request",
+          "acquisition.see.others"
+        ],
         "summary": "Whether a staged folder is the only copy of its files — POSED in the maquette (RULINGS 22); the backend reads the torrent's presence in qBittorrent at the gesture",
         "description": "Read when « Supprimer »'s confirmation opens (M2): the torrent still in qBittorrent with its files (`keeps_files`), no torrent or a moved arrival (`only_copy`), or no answer from qBittorrent (`unknown`, treated as the only copy). The ingest row's `copied`/`moved` gives the provenance only; the backend answers from qBittorrent at the gesture. IN THE MAQUETTE THE CASE IS POSED, NOT READ (RULINGS 22): `keeps_files` on one folder by the harness, `only_copy` from a folder dropped by hand, `unknown` for any other.",
         "tags": [
@@ -2516,6 +2577,7 @@
     "/api/staging/media/{mediaId}/continue": {
       "post": {
         "operationId": "continueStagedMedia",
+        "x-rights": "pipeline.control",
         "summary": "Send a staged item back through the pipeline",
         "tags": [
           "staging"
@@ -2599,6 +2661,7 @@
     "/api/staging/media/{mediaId}/discard": {
       "post": {
         "operationId": "discardStagedMedia",
+        "x-rights": "pipeline.control",
         "summary": "Quarantine a staged folder",
         "tags": [
           "staging"
@@ -2669,6 +2732,7 @@
     "/api/pipeline/status": {
       "get": {
         "operationId": "readPipeline",
+        "x-rights": "system.view",
         "summary": "The pipeline, its nine steps, and its last run",
         "tags": [
           "pipeline"
@@ -2711,6 +2775,7 @@
     "/api/pipeline/run": {
       "post": {
         "operationId": "runPipeline",
+        "x-rights": "pipeline.control",
         "summary": "Start a run, or queue one visibly",
         "tags": [
           "pipeline"
@@ -2767,6 +2832,7 @@
     "/api/pipeline/pause": {
       "post": {
         "operationId": "pausePipeline",
+        "x-rights": "pipeline.control",
         "summary": "Pause the run",
         "tags": [
           "pipeline"
@@ -2815,6 +2881,7 @@
     "/api/pipeline/resume": {
       "post": {
         "operationId": "resumePipeline",
+        "x-rights": "pipeline.control",
         "summary": "Resume the run",
         "tags": [
           "pipeline"
@@ -2863,6 +2930,7 @@
     "/api/pipeline/kill": {
       "post": {
         "operationId": "killPipeline",
+        "x-rights": "pipeline.control",
         "summary": "Stop the run",
         "tags": [
           "pipeline"
@@ -2911,6 +2979,7 @@
     "/api/pipeline/history": {
       "get": {
         "operationId": "readPipelineHistory",
+        "x-rights": "system.view",
         "summary": "The recent runs, a page at a time, and whether the list can be trusted",
         "tags": [
           "pipeline"
@@ -3001,6 +3070,10 @@
     "/api/decisions/": {
       "get": {
         "operationId": "readDecisions",
+        "x-rights": [
+          "acquisition.request",
+          "acquisition.see.others"
+        ],
         "summary": "The decisions awaiting arbitration, and those already settled",
         "tags": [
           "decisions"
@@ -3062,6 +3135,7 @@
     "/api/decisions/{decisionId}/resolve": {
       "post": {
         "operationId": "resolveDecision",
+        "x-rights": "pipeline.control",
         "summary": "Choose a candidate and re-scrape",
         "tags": [
           "decisions"
@@ -3143,6 +3217,7 @@
     "/api/decisions/{decisionId}/dismiss": {
       "post": {
         "operationId": "dismissDecision",
+        "x-rights": "pipeline.control",
         "summary": "Leave the folder as it is",
         "tags": [
           "decisions"
@@ -3202,6 +3277,7 @@
     "/api/decisions/{decisionId}/search": {
       "post": {
         "operationId": "searchForDecision",
+        "x-rights": "pipeline.control",
         "summary": "Search the providers by hand for one decision",
         "tags": [
           "decisions"
@@ -3274,6 +3350,7 @@
     "/api/system/services": {
       "get": {
         "operationId": "readServices",
+        "x-rights": "system.view",
         "summary": "The services, and whether each answers",
         "tags": [
           "system"
@@ -3319,6 +3396,7 @@
     "/api/system/dependencies": {
       "get": {
         "operationId": "readDependencies",
+        "x-rights": "system.view",
         "summary": "The external dependencies, and whether each answers",
         "tags": [
           "system"
@@ -3364,6 +3442,7 @@
     "/api/system/errors": {
       "get": {
         "operationId": "readErrors",
+        "x-rights": "system.view",
         "summary": "How many errors, out of how many runs, and the latest",
         "tags": [
           "system"
@@ -3406,6 +3485,7 @@
     "/api/maintenance/schedulers": {
       "get": {
         "operationId": "readSchedulers",
+        "x-rights": "system.view",
         "summary": "The schedulers, their cadence and their last pass",
         "tags": [
           "system"
@@ -3451,6 +3531,7 @@
     "/api/maintenance/disks": {
       "get": {
         "operationId": "readDisks",
+        "x-rights": "system.view",
         "summary": "The disks, and how full each is",
         "tags": [
           "system"
@@ -3496,6 +3577,7 @@
     "/api/maintenance/index-health": {
       "get": {
         "operationId": "readIndexHealth",
+        "x-rights": "system.view",
         "summary": "The indexer's own figures",
         "tags": [
           "system"
@@ -3541,6 +3623,7 @@
     "/api/maintenance/actions": {
       "get": {
         "operationId": "readMaintenanceActions",
+        "x-rights": "system.view",
         "summary": "The maintenance actions, and how risky each is",
         "tags": [
           "maintenance"
@@ -3586,6 +3669,7 @@
     "/api/maintenance/actions/{actionId}/run": {
       "post": {
         "operationId": "runMaintenanceAction",
+        "x-rights": "pipeline.control",
         "summary": "Run one maintenance action",
         "tags": [
           "maintenance"
@@ -3669,6 +3753,7 @@
     "/api/maintenance/destructive-log": {
       "get": {
         "operationId": "readDeletionJournal",
+        "x-rights": "system.view",
         "summary": "What has been deleted, and when",
         "tags": [
           "maintenance"
@@ -3711,6 +3796,11 @@
     "/api/config/schema": {
       "get": {
         "operationId": "readSettings",
+        "x-rights": [
+          "configuration.view",
+          "trackers.view",
+          "system.view"
+        ],
         "summary": "Every setting, by topic",
         "tags": [
           "configuration"
@@ -3756,6 +3846,7 @@
     "/api/config/secrets": {
       "get": {
         "operationId": "readSecrets",
+        "x-rights": "configuration.view",
         "summary": "Which secrets are defined — never their values",
         "tags": [
           "configuration"
@@ -3799,6 +3890,7 @@
       },
       "put": {
         "operationId": "updateSecrets",
+        "x-rights": "configuration.write",
         "summary": "Set secret values",
         "tags": [
           "configuration"
@@ -3862,6 +3954,7 @@
     "/api/config/files": {
       "get": {
         "operationId": "readConfigurationFiles",
+        "x-rights": "configuration.view",
         "summary": "The configuration files, and which have pending edits",
         "tags": [
           "configuration"
@@ -3917,6 +4010,7 @@
     "/api/config/files/{name}": {
       "get": {
         "operationId": "readConfigurationFile",
+        "x-rights": "configuration.view",
         "summary": "Read one configuration file's content",
         "description": "A configuration file, parsed — the read its editors open on (the ranking editor opens `ranking.json5`). The backend answers it already; the maquette's contract declared only the write.",
         "x-seeded-from": [
@@ -3963,6 +4057,7 @@
       },
       "put": {
         "operationId": "updateConfigurationFile",
+        "x-rights": "configuration.write",
         "summary": "Write one configuration file",
         "tags": [
           "configuration"
@@ -4051,6 +4146,7 @@
     "/api/config/restart-web": {
       "post": {
         "operationId": "restartWeb",
+        "x-rights": "configuration.write",
         "summary": "Restart the web process so a change takes",
         "tags": [
           "configuration"
@@ -4099,6 +4195,10 @@
     "/api/config/status": {
       "get": {
         "operationId": "readConfigurationStatus",
+        "x-rights": [
+          "configuration.view",
+          "system.view"
+        ],
         "summary": "Whether a restart is owed",
         "tags": [
           "configuration"
@@ -4147,6 +4247,7 @@
     "/api/version": {
       "get": {
         "operationId": "readVersion",
+        "x-rights": null,
         "summary": "The version the running process serves",
         "tags": [
           "system"
@@ -4199,6 +4300,7 @@
     "/api/pipeline/history/{runUid}": {
       "get": {
         "operationId": "readRun",
+        "x-rights": "system.view",
         "summary": "One passage: what triggered it, how it ended, its steps with their counts and their reasons, and its raw output",
         "tags": [
           "pipeline"
@@ -4255,6 +4357,7 @@
     "/api/pipeline/watcher": {
       "post": {
         "operationId": "setWatcher",
+        "x-rights": "pipeline.control",
         "summary": "Turn the automatic trigger on or off, and say which it now is",
         "tags": [
           "pipeline"
@@ -4321,6 +4424,7 @@
     "/api/maintenance/locks": {
       "get": {
         "operationId": "readLocks",
+        "x-rights": "system.view",
         "summary": "What holds the pipeline, whether it is paused, whether the automatic trigger is paused, and what temporary entries a crash left behind",
         "tags": [
           "maintenance"
@@ -4364,6 +4468,7 @@
     "/api/staging/media/{mediaId}/reclassify": {
       "post": {
         "operationId": "reclassifyStagedMedia",
+        "x-rights": "pipeline.control",
         "summary": "File a folder that is not a medium where the sort files its kind",
         "description": "« Ce n'est pas un média » (ruling 5): the folder leaves the staging area for the non-media directory named, and its card leaves the acquisitions. Undone by the DELETE on the same address.",
         "tags": [
@@ -4446,6 +4551,7 @@
       },
       "delete": {
         "operationId": "restoreReclassifiedMedia",
+        "x-rights": "pipeline.control",
         "summary": "Put a reclassified folder back in the staging area",
         "description": "Undoes a reclassification: the folder returns to where it stood, and its card with it. Every resolve has its inverse (`backend-demands-architecture.md` § 9).",
         "tags": [
@@ -4506,6 +4612,10 @@
     "/api/staging/destinations": {
       "get": {
         "operationId": "readStagingDestinations",
+        "x-rights": [
+          "acquisition.request",
+          "acquisition.see.others"
+        ],
         "summary": "Where the sort files what is not a medium",
         "tags": [
           "staging"
@@ -4551,6 +4661,7 @@
     "/api/acquisition/journeys/{infoHash}/plex-match": {
       "post": {
         "operationId": "resolvePlexMatch",
+        "x-rights": "pipeline.control",
         "summary": "Confirm or correct the match Plex made for a medium — the Plex match's CORRECTION VERB, OPEN 9's fifth demand; the disagreement is POSED in the maquette (RULINGS 24), the backend compares Plex's real match with the identity held",
         "tags": [
           "acquisition"
@@ -4646,6 +4757,7 @@
     "/api/acquisition/journeys/{infoHash}/closure/seen": {
       "post": {
         "operationId": "dismissClosure",
+        "x-rights": "acquisition.todo.view",
         "summary": "Mark one closed tunnel seen, for the caller — the seen mark stored per account (BK5); the engine closes the tunnel itself, its medium vanished (BK3) or a later choice in place (BK4)",
         "description": "« Marquer comme vu » in a closure card's panel (Q8, Q9; maquette-blocked § 1.5, § 1.6, DECIDED 2): the account has read why the tunnel closed — its medium vanished, or a later-chosen release is in place. The queue stops answering `closure` on that acquisition for THAT account, everywhere and for good: a reload does not bring it back. Idempotent: a closure already seen answers the same. A DEMAND (BK5): the engine stores the seen mark per account; it closes the tunnel itself (BK3, BK4).",
         "tags": [
@@ -4703,6 +4815,7 @@
     "/api/acquisition/obligations": {
       "get": {
         "operationId": "readObligations",
+        "x-rights": "trackers.view",
         "summary": "Every seeding obligation, open or ended",
         "tags": [
           "trackers"
@@ -4746,6 +4859,7 @@
     "/api/acquisition/downloads": {
       "get": {
         "operationId": "readDownloads",
+        "x-rights": "trackers.view",
         "summary": "Every entry the download client holds, one per tracker it is active on",
         "tags": [
           "trackers"
@@ -4789,6 +4903,7 @@
     "/api/acquisition/downloads/{infoHash}": {
       "delete": {
         "operationId": "removeDownload",
+        "x-rights": "trackers.control",
         "summary": "Remove one entry from the download client, its files deleted or kept",
         "description": "« Retirer de qBittorrent » (organisation ruling 18; round 10 Q3 = B): the operator's own gesture on a torrent's entry, replacing any release of an obligation. `deleteFiles` is checked by default in the confirmation. A running obligation the entry owed is CLOSED — its `releasedAt` set, never left reading in breach (round 10 M4).",
         "tags": [
@@ -4875,6 +4990,7 @@
     "/api/trackers": {
       "get": {
         "operationId": "readTrackers",
+        "x-rights": "trackers.view",
         "summary": "Every configured tracker, its ratio, volumes, trend, alert threshold and health",
         "tags": [
           "trackers"
@@ -4921,6 +5037,7 @@
     "/api/trackers/{tracker}/broken-obligations/{infoHash}/seen": {
       "post": {
         "operationId": "markBrokenObligationSeen",
+        "x-rights": "trackers.control",
         "x-unseeded": "the broken obligation as it now reads, marked seen. Derived from the layer's own state.",
         "summary": "Mark one broken obligation of a tracker seen",
         "description": "« Vu » on a broken obligation (round 10 Q4): the engine broke it and its torrent has already left the client. Marked seen, it leaves the alert's count and stays listed on its tracker's entry — seen is not gone.",
@@ -4982,6 +5099,7 @@
     "/api/acquisition/ranking/preview": {
       "post": {
         "operationId": "previewRanking",
+        "x-rights": "configuration.write",
         "summary": "Score the preview's fixed sample set under a candidate ranking",
         "description": "The ranking editor's live preview: read-only and pure — the backend's fixed, representative sample set scored under the POSTed ranking, every sample kept visible, the ones under `minSeeders` flagged `excluded` and sunk last.",
         "x-seeded-from": [
@@ -5029,6 +5147,7 @@
     "/api/acquisition/followed/{followedId}/completeness": {
       "get": {
         "operationId": "readFollowCompleteness",
+        "x-rights": null,
         "summary": "What has aired against what the library holds, season by season, for one follow",
         "tags": [
           "acquisition"
@@ -5085,6 +5204,7 @@
     "/api/staging/media/{mediaId}/enqueue": {
       "post": {
         "operationId": "enqueueForResolution",
+        "x-rights": "pipeline.control",
         "summary": "Send a staged medium to arbitration: a pending decision, with the candidates a provider search found",
         "tags": [
           "staging"
@@ -5204,6 +5324,7 @@
     "/api/decisions/{decisionId}/reopen": {
       "post": {
         "operationId": "reopenDecision",
+        "x-rights": "pipeline.control",
         "summary": "Re-open a settled decision for arbitration, with the candidates a provider search finds",
         "tags": [
           "decisions"
@@ -5276,6 +5397,7 @@
     "/api/auth/plex": {
       "post": {
         "operationId": "signInWithPlex",
+        "x-rights": null,
         "summary": "Open a session through Plex",
         "tags": [
           "authentication"
@@ -5316,6 +5438,7 @@
     "/api/acquisition/requesters/reassign": {
       "post": {
         "operationId": "reassignRequester",
+        "x-rights": "acquisition.reassign",
         "summary": "Move one requester of an acquisition to another account",
         "tags": [
           "acquisition"
@@ -5406,6 +5529,7 @@
     "/api/acquisition/followed/{followedId}/quality": {
       "put": {
         "operationId": "setAcquisitionQuality",
+        "x-rights": "acquisition.quality.own",
         "summary": "Set the caller's quality profile on one acquisition",
         "tags": [
           "acquisition"
@@ -5479,6 +5603,7 @@
     "/api/acquisition/followed/{followedId}/pause": {
       "put": {
         "operationId": "setAcquisitionPause",
+        "x-rights": "acquisition.pause.own",
         "summary": "Set the caller's pause on one acquisition",
         "tags": [
           "acquisition"
@@ -5548,6 +5673,10 @@
     "/api/accounts": {
       "get": {
         "operationId": "readAccounts",
+        "x-rights": [
+          "accounts.manage",
+          "acquisition.reassign"
+        ],
         "summary": "Every account and every role",
         "tags": [
           "authentication"
@@ -5586,6 +5715,7 @@
       },
       "post": {
         "operationId": "createAccount",
+        "x-rights": "accounts.manage",
         "summary": "Create an account",
         "tags": [
           "authentication"
@@ -5654,6 +5784,7 @@
     "/api/accounts/{accountId}": {
       "patch": {
         "operationId": "updateAccount",
+        "x-rights": "accounts.manage",
         "summary": "Assign an account its one role",
         "tags": [
           "authentication"
@@ -5723,6 +5854,7 @@
     "/api/roles": {
       "post": {
         "operationId": "createRole",
+        "x-rights": "accounts.manage",
         "summary": "Create an ordinary role",
         "tags": [
           "authentication"
@@ -5788,6 +5920,7 @@
     "/api/roles/{roleId}": {
       "patch": {
         "operationId": "updateRole",
+        "x-rights": "accounts.manage",
         "summary": "Rename a role or set its rights",
         "tags": [
           "authentication"
@@ -5863,6 +5996,7 @@
     "/api/torrents/{infoHash}/cross-seed/{tracker}/cut": {
       "post": {
         "operationId": "cutCrossSeed",
+        "x-rights": "trackers.control",
         "summary": "Cut one torrent's cross-seed on one tracker",
         "description": "« Couper le cross-seed sur ce tracker » (round 9 Q5, Q8; M4): the cross-seed's own client entry on that tracker is REMOVED without its files — the origin keeps its copy and keeps seeding — the pair reads `stopped`, `stopCause: removed`, dated; a running obligation there is closed « libérée » (`releasedAt` set, never left in breach); and the pair is EXCLUDED from future passes in the SAME call (round 9 Q11).",
         "tags": [
@@ -5947,6 +6081,7 @@
     "/api/torrents/{infoHash}/cross-seed/search": {
       "post": {
         "operationId": "searchCrossSeed",
+        "x-rights": "trackers.control",
         "summary": "Search a cross-seed for one torrent, on one tracker or on every eligible one",
         "description": "« Chercher un cross-seed » (OPEN 3 = A, round 9 Q10; demand E): ONE search, asked once, bounded ONLY by the engine's daily quota and its delay between searches — never by the 3-day exclusion window, which governs the automatic sweep alone (F45). The answer is a visible « en file », never « occupé » (DOIT-4, NE-DOIT-PAS-3); a second ask on a pair already searching is the one refusal (409, a duplicate). `tracker` names one pair (the torrent's panel); null asks every eligible pair in the engine's one search (the card's swipe). Its outcome arrives on the stream (`CrossSeedSearched`).",
         "tags": [
@@ -6049,6 +6184,7 @@
     "/api/torrents/{infoHash}/cross-seed/exclusions": {
       "put": {
         "operationId": "writeCrossSeedExclusion",
+        "x-rights": "trackers.control",
         "summary": "Exclude one pair, or a whole title, from the engine's future cross-seed passes",
         "description": "« Ne plus partager ce titre » with `tracker` null (round 9 Q11): every running pair is cut the way `cutCrossSeed` cuts one, and the WHOLE title is excluded from every future pass on every tracker; the origin itself keeps seeding. With a tracker, one pair is excluded (a cut does this in its own call).",
         "tags": [
@@ -6146,6 +6282,7 @@
       },
       "delete": {
         "operationId": "undoCrossSeedExclusion",
+        "x-rights": "trackers.control",
         "summary": "Lift an exclusion, of one pair or of a whole title",
         "description": "The undo (round 9 Q11): never destructive, so never confirmed; the pair (or the title) is searchable again — by the engine's next pass or by « Chercher un cross-seed ». A stopped pair stays `stopped` until a search moves it.",
         "tags": [
@@ -6245,6 +6382,7 @@
     "/api/torrents/{infoHash}/cross-seed/{tracker}/upload": {
       "post": {
         "operationId": "uploadCrossSeed",
+        "x-rights": "trackers.upload",
         "summary": "Create a torrent from one origin's files and publish it on one tracker",
         "description": "« Créer et publier un torrent » (§ 19 point 5; L23 demand Q): ONE torrent, ONE tracker, ONE call — the engine builds a `.torrent` from the origin's own files and publishes it on the named tracker, to open a cross-seed where its own search found none. Asked only on a pair with no match, in error or not yet searched, not excluded, its origin ACTIVE in the client, complete and seeding (round 11 OPEN 1 = A), its tracker's cross-seed switch on and its « accepte les uploads » switch on (OPEN 2 = B); anything else is refused (409). Gated by `trackers.upload` (L23 DESIGN § 0.2), its own right, independent of `trackers.control`: refused 403 to an account without it. The answer is a visible « en file », never « occupé » (DOIT-4, NE-DOIT-PAS-3); a second ask on a pair already uploading is a duplicate (409). The engine applies the tracker's own publication rules and the interface pre-validates nothing (OPEN 3 = A). Its outcome arrives on the stream by the SAME two events a found cross-seed does — `CrossSeedInjected` on success (the pair `active`, `via: upload`), `CrossSeedRejected` on failure (the pair `error`, `creation_failed` or `publish_failed`, the tracker's reason in `trackerReason`) — never a third.",
         "tags": [

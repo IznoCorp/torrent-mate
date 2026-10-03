@@ -11,6 +11,11 @@
 // forbidden-writes list (ruling 23) subtracts rights and a write must be
 // subtractable by name.
 //
+// THE CONTRACT CARRIES THIS TABLE as `x-rights` on every operation, the words
+// a server refuses by: `npm run stamp-operation-rights` writes it there, the
+// layer refuses by the contract's copy (`declared-rights.ts`), and
+// `operation-rights.test.ts` refuses a contract that drifts from this table.
+//
 // THE ACQUISITION READS ARE NOT REFUSED: an account that may not see another's
 // acquisitions reads its own subset on a 200 (`acquisition.see.others` is a
 // filter, never a 403), and an account with no acquisition right reads an empty
