@@ -34,11 +34,13 @@ const SIGN_IN = Object.values((contract as unknown as { paths: Record<string, Re
 
 describe("signIn's refusals", () => {
   it("declares the cross-origin 403, whatever the credentials", () => {
+    expect(SIGN_IN).toBeDefined();
     expect(SIGN_IN.responses["403"]).toEqual({ $ref: "#/components/responses/Problem" });
     expect(SIGN_IN.description).toContain("request.cross_origin");
   });
 
-  it("names no auth code under a 4xx but auth.refused and auth.rate_limited", () => {
+  it("reads, in its description, no auth code but auth.refused and auth.rate_limited", () => {
+    expect(SIGN_IN).toBeDefined();
     const named = new Set(SIGN_IN.description?.match(/auth\.[a-z_]+/g));
     expect(named.has("auth.refused")).toBe(true);
     expect([...named].filter((code) => !["auth.refused", "auth.rate_limited"].includes(code))).toEqual([]);
