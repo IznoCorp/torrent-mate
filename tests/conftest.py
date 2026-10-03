@@ -145,6 +145,24 @@ def _tmp_dirs_count_as_mounted(request: pytest.FixtureRequest) -> Iterator[None]
 
 
 @pytest.fixture(autouse=True)
+def _clean_structlog_contextvars() -> Iterator[None]:
+    """Start and end every test with no structlog context bound.
+
+    structlog contextvars live per worker, not per test: a ``run_id`` (or any key) bound by
+    one test would otherwise ride on every later log record of the same ``-n auto`` worker
+    and break tests that assert a record's exact fields.
+
+    Yields:
+        None, with the context cleared before and after the test.
+    """
+    import structlog
+
+    structlog.contextvars.clear_contextvars()
+    yield
+    structlog.contextvars.clear_contextvars()
+
+
+@pytest.fixture(autouse=True)
 def _no_environment_setting(monkeypatch: pytest.MonkeyPatch) -> None:
     """Start every test with ``PERSONALSCRAPER_ENV`` unset, i.e. the production store names.
 

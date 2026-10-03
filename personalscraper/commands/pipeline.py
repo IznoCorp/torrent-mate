@@ -878,6 +878,10 @@ def run(
                     healthcheck.ping_success()
                 else:
                     healthcheck.ping_fail()
+            # The run context is per invocation: structlog contextvars outlive the command
+            # in a long-lived process (a worker, the watcher), so ``run_id`` is taken off
+            # here rather than left on every later record. A no-op if it was never bound.
+            structlog.contextvars.unbind_contextvars("run_id")
 
     finally:
         cli_helpers.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
