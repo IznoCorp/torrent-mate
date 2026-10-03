@@ -1,4 +1,4 @@
-"""The ``authentication`` tag's bodies, written from the contract's ``Account`` and ``Role``.
+"""The ``authentication`` tag's bodies, written from the contract's ``Account``, ``Role`` and ``signIn`` body.
 
 A property the contract marks ABSENT when empty (``Account.avatar``, ``Role.name``,
 ``Role.defaultFor``) is ``None`` here and left out of the answer: the routes serialise
@@ -6,6 +6,8 @@ with ``response_model_exclude_none``.
 """
 
 from __future__ import annotations
+
+from pydantic import Field
 
 from personalscraper.app.accounts.actor import RoleKind
 from personalscraper.app.accounts.repository import StartKind
@@ -90,6 +92,18 @@ class AccountModel(ContractModel):
             sign_in_kind=view.sign_in_kind,
             forbidden_writes=list(view.forbidden_writes),
         )
+
+
+class SignInBody(ContractModel):
+    """``signIn``'s body: the password door's two fields.
+
+    Attributes:
+        email: The account's e-mail — every account's login, matched whatever its case.
+        password: The password typed.
+    """
+
+    email: str
+    password: str = Field(repr=False)
 
 
 class SignedOut(ContractModel):

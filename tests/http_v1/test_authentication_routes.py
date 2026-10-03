@@ -1,8 +1,9 @@
-"""The ``authentication`` tag's routes served so far: ``readAccount`` and ``signOut``.
+"""The ``authentication`` tag's routes served so far: ``readAccount``, ``signOut`` and ``signIn``.
 
 The session is v1's own (``tm_v1_session``); v0's ``tm_session`` never signs a v1 request
 in. ``readAccount`` answers the contract's ``Account``, its ``forbiddenWrites`` being the
-instance's ceiling; ``signOut`` revokes the session and clears its cookie.
+instance's ceiling; ``signOut`` revokes the session and clears its cookie; ``signIn`` opens
+a new session from an e-mail and a password, refusing every failure as ``auth.refused``.
 """
 
 from __future__ import annotations
@@ -13,10 +14,13 @@ from http.cookies import SimpleCookie
 from pathlib import Path
 
 import pytest
+import structlog
 from fastapi import Response
 from fastapi.testclient import TestClient
 
-from personalscraper.app.accounts.repository import AccountRow
+from personalscraper.app.accounts.passwords import hash_password
+from personalscraper.app.accounts.ratelimit import MAX_FAILED_ATTEMPTS
+from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.rights import WRITE_RIGHTS, Right
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.services import AppServices
@@ -24,6 +28,9 @@ from personalscraper.app.store.store import AppStore
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.web import WebConfig
 from personalscraper.http_v1.session_cookie import SESSION_COOKIE, clear_session_cookie, set_session_cookie
+
+#: The password the seeded local account holds.
+_PASSWORD = "correct horse battery staple"
 
 
 @pytest.fixture(autouse=True)
@@ -221,6 +228,169 @@ class TestSignOut:
         response = client.post("/auth/logout")
         assert response.status_code == 200
         assert response.json() == {"ok": True}
+
+
+def _seed_password_account(client: TestClient, email: str = "local@example.org") -> str:
+    """Add a local account holding :data:`_PASSWORD` to the client's ``app.db``.
+
+    Args:
+        client: The test client.
+        email: The account's e-mail.
+
+    Returns:
+        The account's key.
+    """
+    account_id = f"account-{email.split('@')[0]}"
+    _services(client).app_store.accounts.insert_account(
+        AccountRow(
+            id=account_id,
+            name="Local",
+            email=email,
+            avatar="",
+            role_id="local-guest",
+            password_hash=hash_password(_PASSWORD),
+            created_at=1.0,
+            updated_at=1.0,
+        )
+    )
+    return account_id
+
+
+class TestSignIn:
+    """``POST /auth/login`` — ``signIn``, the password door."""
+
+    def test_opens_a_session_and_answers_the_account(self, v1_client: Callable[..., TestClient]) -> None:
+        """200 ``Account``; ``Set-Cookie`` hands, with v1's attributes, a session that signs the account in."""
+        client = v1_client(role=None)
+        account_id = _seed_password_account(client)
+
+        response = client.post("/auth/login", json={"email": "LOCAL@example.org", "password": _PASSWORD})
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["id"] == account_id
+        assert body["signInKind"] == "local"
+        cookie = _cookie(response.headers["set-cookie"])[SESSION_COOKIE]
+        assert cookie["httponly"] is True
+        assert cookie["samesite"] == "strict"
+        assert cookie["path"] == "/"
+        assert bool(cookie["secure"]) is client.app.state.config.web.cookie_secure  # type: ignore[attr-defined]
+        assert cookie.value not in response.text
+        signed_in = _services(client).sessions.resolve(cookie.value)
+        assert signed_in is not None and signed_in.account_id == account_id
+
+    def test_a_preset_cookie_is_never_adopted(self, v1_client: Callable[..., TestClient]) -> None:
+        """A value planted before the sign-in is replaced, and signs nobody in after it (no fixation)."""
+        client = v1_client(role=None)
+        _seed_password_account(client)
+        client.cookies.set(SESSION_COOKIE, "planted-by-an-attacker")
+
+        response = client.post("/auth/login", json={"email": "local@example.org", "password": _PASSWORD})
+
+        issued = _cookie(response.headers["set-cookie"])[SESSION_COOKIE].value
+        assert issued != "planted-by-an-attacker"
+        assert _services(client).sessions.resolve("planted-by-an-attacker") is None
+
+    def test_two_sign_ins_two_sessions(self, v1_client: Callable[..., TestClient]) -> None:
+        """Each sign-in hands a new value; the first still signs in."""
+        client = v1_client(role=None)
+        _seed_password_account(client)
+        body = {"email": "local@example.org", "password": _PASSWORD}
+
+        first = _cookie(client.post("/auth/login", json=body).headers["set-cookie"])[SESSION_COOKIE].value
+        second = _cookie(client.post("/auth/login", json=body).headers["set-cookie"])[SESSION_COOKIE].value
+
+        assert first != second
+        assert _services(client).sessions.resolve(first) is not None
+
+    @pytest.mark.parametrize(
+        ("email", "password"),
+        [("nobody@example.org", _PASSWORD), ("local@example.org", "wrong password")],
+        ids=["unknown-email", "wrong-password"],
+    )
+    def test_a_failure_is_auth_refused(self, v1_client: Callable[..., TestClient], email: str, password: str) -> None:
+        """401 ``auth.refused``, no cookie, and neither credential anywhere in the answer or the log."""
+        client = v1_client(role=None)
+        _seed_password_account(client)
+
+        with structlog.testing.capture_logs() as logs:
+            response = client.post("/auth/login", json={"email": email, "password": password})
+
+        assert response.status_code == 401
+        assert response.json()["code"] == "auth.refused"
+        assert "set-cookie" not in response.headers
+        for secret in (email, password):
+            assert secret not in response.text
+            assert secret not in str(logs)
+
+    def test_a_plex_linked_account_is_auth_refused(self, v1_client: Callable[..., TestClient]) -> None:
+        """A shared Plex account signs in by Plex only: the same 401 ``auth.refused``, even with its password."""
+        client = v1_client(role=None)
+        account_id = _seed_password_account(client)
+        _services(client).app_store.accounts.upsert_plex_link(
+            PlexLinkRow(
+                account_id=account_id,
+                plex_id=7,
+                plex_uuid="uuid-7",
+                plex_username="plex-7",
+                server_access="shared",
+                token_ciphertext=None,
+                token_stored_at=None,
+                linked_at=1.0,
+                last_sign_in_at=None,
+            )
+        )
+
+        response = client.post("/auth/login", json={"email": "local@example.org", "password": _PASSWORD})
+
+        assert response.status_code == 401
+        assert response.json()["code"] == "auth.refused"
+
+    def test_a_missing_field_is_request_invalid(self, v1_client: Callable[..., TestClient]) -> None:
+        """The contract's body is ``{email, password}``: v0's ``username`` alone is refused 400."""
+        response = v1_client(role=None).post("/auth/login", json={"username": "x", "password": _PASSWORD})
+        assert response.status_code == 400
+        assert response.json()["code"] == "request.invalid"
+
+    def test_the_sixth_failure_is_rate_limited(self, v1_client: Callable[..., TestClient]) -> None:
+        """Past ``MAX_FAILED_ATTEMPTS`` failures in the window: 429 ``auth.rate_limited``, right password included."""
+        client = v1_client(role=None)
+        _seed_password_account(client)
+        for _ in range(MAX_FAILED_ATTEMPTS):
+            assert client.post("/auth/login", json={"email": "local@example.org", "password": "no"}).status_code == 401
+
+        response = client.post("/auth/login", json={"email": "local@example.org", "password": _PASSWORD})
+
+        assert response.status_code == 429
+        assert response.json()["code"] == "auth.rate_limited"
+
+    def test_behind_the_proxy_the_key_is_the_rightmost_forwarded_address(
+        self, v1_client: Callable[..., TestClient]
+    ) -> None:
+        """From loopback, the rightmost ``X-Forwarded-For`` keys the limit; a spoofed leftmost one changes nothing."""
+        app = v1_client(role=None).app
+        client = TestClient(app, client=("127.0.0.1", 50000), raise_server_exceptions=False)
+        _seed_password_account(client)
+        wrong = {"email": "local@example.org", "password": "no"}
+        right = {"email": "local@example.org", "password": _PASSWORD}
+        for number in range(MAX_FAILED_ATTEMPTS):
+            client.post("/auth/login", json=wrong, headers={"x-forwarded-for": f"10.0.0.{number}, 198.51.100.9"})
+
+        spoofed = client.post("/auth/login", json=right, headers={"x-forwarded-for": "10.9.9.9, 198.51.100.9"})
+        other = client.post("/auth/login", json=right, headers={"x-forwarded-for": "198.51.100.10"})
+
+        assert spoofed.status_code == 429
+        assert other.status_code == 200
+
+    def test_signs_in_on_the_read_only_instance(
+        self, v1_client: Callable[..., TestClient], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Opening one's own session is a session act: allowed under ``WEB_ROLE=staging``."""
+        client = v1_client(role=None)
+        _seed_password_account(client)
+        monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
+        response = client.post("/auth/login", json={"email": "local@example.org", "password": _PASSWORD})
+        assert response.status_code == 200
 
 
 class TestCookie:

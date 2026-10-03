@@ -101,9 +101,12 @@
           "route.unknown",
           "internal",
           "auth.required",
+          "auth.refused",
+          "auth.rate_limited",
           "right.missing",
           "instance.read_only",
           "instance.forbidden_write",
+          "account.unknown",
           "media.not_found",
           "provider.unavailable"
         ],
@@ -203,6 +206,26 @@
         "title": "RoleModel",
         "type": "object"
       },
+      "SignInBody": {
+        "additionalProperties": false,
+        "description": "``signIn``'s body: the password door's two fields.\n\nAttributes:\n    email: The account's e-mail \u2014 every account's login, matched whatever its case.\n    password: The password typed.",
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "SignInBody",
+        "type": "object"
+      },
       "SignInKind": {
         "description": "How an account signs in \u2014 a fact of the account, never of its role (the contract's ``SignInKind``).",
         "enum": [
@@ -256,6 +279,105 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/auth/login": {
+      "post": {
+        "description": "Open a session from an e-mail and a password, and hand its cookie.\n\nA public operation: the perimeter resolves no session, so a ``tm_v1_session`` the\nbrowser already carries is ignored and replaced by the new one.\n\nArgs:\n    body: The e-mail and the password.\n    request: The incoming request (the client's key, its user agent, the web configuration).\n    response: The answer the session cookie is set on.\n    app_services: The application services.\n\nReturns:\n    The signed-in account.",
+        "operationId": "signIn",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Sign In"
+      }
+    },
     "/auth/logout": {
       "post": {
         "description": "Close the session and clear its cookie.\n\nArgs:\n    request: The incoming request (the sub-application's web configuration).\n    response: The answer the cleared cookie is set on.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    token: The session's value.\n\nReturns:\n    ``{\"ok\": true}``.",

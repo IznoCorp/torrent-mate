@@ -29,9 +29,12 @@ class RefusalCode(StrEnum):
     ROUTE_UNKNOWN = "route.unknown"
     INTERNAL = "internal"
     AUTH_REQUIRED = "auth.required"
+    AUTH_REFUSED = "auth.refused"
+    AUTH_RATE_LIMITED = "auth.rate_limited"
     RIGHT_MISSING = "right.missing"
     INSTANCE_READ_ONLY = "instance.read_only"
     INSTANCE_FORBIDDEN_WRITE = "instance.forbidden_write"
+    ACCOUNT_UNKNOWN = "account.unknown"
     MEDIA_NOT_FOUND = "media.not_found"
     PROVIDER_UNAVAILABLE = "provider.unavailable"
 
