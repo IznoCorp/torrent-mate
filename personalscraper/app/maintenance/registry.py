@@ -1,4 +1,4 @@
-"""Maintenance action registry — typed models for the 27 ``library-*`` CLI commands.
+"""Maintenance action registry — typed models for the 28 ``library-*`` CLI commands.
 
 Each :class:`MaintenanceAction` entry models a single Typer-registered
 ``library-*`` command with its risk classification, dry-run capability,
@@ -133,7 +133,7 @@ def canonical_options_json(options: dict[str, object]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Registry — 27 library-* commands registered on the Typer app.
+# Registry — 28 library-* commands registered on the Typer app.
 # Ground truth: @app.command decorators in personalscraper/commands/library/*.py
 # (NOT __all__, which is stale at 23 entries).
 # ---------------------------------------------------------------------------

@@ -241,5 +241,14 @@
     "risk": "ro",
     "long": false,
     "dryRun": false
+  },
+  {
+    "id": "library-catalogue-refresh",
+    "label": "Rafraîchir le catalogue diffusé",
+    "description": "Remplit le catalogue des épisodes diffusés des séries dues (TVDB / TMDB), au plus --max.",
+    "group": "fix",
+    "risk": "write",
+    "long": true,
+    "dryRun": false
   }
 ]
