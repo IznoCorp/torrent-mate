@@ -26,7 +26,7 @@ from typing import Final, Literal
 from personalscraper.acquire.catalogue import CatalogueEpisode, CatalogueStore, ProviderClients
 from personalscraper.api.metadata._base import MediaDetails
 from personalscraper.app.accounts.actor import Actor
-from personalscraper.app.errors import AppBadRequest, RefusalCode
+from personalscraper.app.errors import AppBadRequest, AppConflict, RefusalCode
 from personalscraper.app.library.catalogue import (
     Completeness,
     aired_of_season,
@@ -63,7 +63,7 @@ from personalscraper.app.library.listing import (
     read_live_rows,
 )
 from personalscraper.app.maintenance.registry import REGISTRY
-from personalscraper.app.maintenance.service import launch_action
+from personalscraper.app.maintenance.service import LaunchedRun, launch_action
 from personalscraper.core.identity import MediaRef
 from personalscraper.indexer.ownership import IndexerOwnershipChecker
 from personalscraper.logger import get_logger
@@ -752,8 +752,10 @@ class LibraryService:
 
         Raises:
             AppNotFound: ``media.not_found`` when no row holding the id has a live file.
-            AppConflict: When the same row's rescrape is already running.
-            AppInternalError: When a runner cannot be spawned.
+            AppConflict: When every holding row's rescrape is already running (a row
+                already running is skipped while another one launches).
+            AppInternalError: When a runner cannot be spawned; the runs spawned before it
+                stay live.
         """
         provider, provider_id = ref_key(ref)
         with closing(self._connect()) as conn:
@@ -762,10 +764,19 @@ class LibraryService:
         if not live:
             raise refuse_not_found(provider.value)
         action = next(a for a in REGISTRY if a.id == _RESCRAPE_ITEM_ACTION)
-        launched = [
-            launch_action(action, {"item_id": item_id}, db_path=self._index_db, data_dir=self._data_dir)
-            for item_id in sorted(live)
-        ]
+        launched: list[LaunchedRun] = []
+        conflict: AppConflict | None = None
+        for item_id in sorted(live):
+            try:
+                launched.append(
+                    launch_action(action, {"item_id": item_id}, db_path=self._index_db, data_dir=self._data_dir)
+                )
+            except AppConflict as exc:
+                # This row's rescrape is already running: the other holders still launch.
+                log.info("app.library.rescrape_already_running", provider=provider.value, item_id=item_id)
+                conflict = exc
+        if not launched and conflict is not None:
+            raise conflict
         log.info("app.library.rescrape_launched", provider=provider.value, item_ids=sorted(live))
         return RescrapeAccepted(
             provider=provider,

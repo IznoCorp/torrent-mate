@@ -9,7 +9,13 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.app.errors import AppInternalError, AppNotFound, AppPreconditionRequired, RefusalCode
+from personalscraper.app.errors import (
+    AppConflict,
+    AppInternalError,
+    AppNotFound,
+    AppPreconditionRequired,
+    RefusalCode,
+)
 from personalscraper.app.library.identity import Provider
 from personalscraper.app.maintenance import service as maintenance_service
 from personalscraper.app.maintenance.registry import REGISTRY, canonical_options_json
@@ -218,3 +224,97 @@ def test_a_failed_spawn_is_an_internal_refusal_and_finalises_the_row(
 
     with sqlite3.connect(world.index.path) as conn:
         assert conn.execute("SELECT outcome FROM pipeline_run").fetchall() == [("error",)]
+
+
+def _seed_running(index_path: Path, item_id: int) -> None:
+    """Reserve a live ``library-rescrape-item`` run for one row, as a runner already started would hold it.
+
+    Args:
+        index_path: ``library.db``.
+        item_id: The row the running rescrape holds.
+    """
+    (action,) = [a for a in REGISTRY if a.id == "library-rescrape-item"]
+    maintenance_service._reserve_run_row(
+        index_path,
+        run_uid=f"{item_id:032d}",
+        action=action,
+        command=action.id,
+        options_json=canonical_options_json({"item_id": item_id}),
+        dry_run=False,
+    )
+
+
+def test_a_rescrape_already_running_is_a_conflict_and_nothing_spawns(
+    world: World, spawned: list[tuple[str, str, str, bool]]
+) -> None:
+    """The one holder's rescrape is already running: 409, no spawn, no second row."""
+    movie = world.index.item("Heat", tmdb="949")
+    world.index.movie_file(movie, "films/Heat")
+    _seed_running(world.index.path, movie)
+
+    with pytest.raises(AppConflict):
+        world.service.request_rescrape(world.actor, MediaRef(tmdb_id=949))
+
+    assert spawned == []
+    assert len(_runs(world.index.path)) == 1
+
+
+def test_a_running_holder_is_skipped_and_the_other_launched(
+    world: World, spawned: list[tuple[str, str, str, bool]]
+) -> None:
+    """Two live holders, the first already running: the second is launched and its run answered."""
+    first = world.index.item("Friends", kind="show", tvdb="79168", year=1994)
+    world.index.episodes(first, 1, [1], folder="series/Friends/Saison 01")
+    second = world.index.item("Friends [UNCUT]", kind="show", tvdb="79168", year=1994)
+    world.index.episodes(second, 1, [1], folder="series/Friends UNCUT/Saison 01")
+    _seed_running(world.index.path, first)
+
+    accepted = world.service.request_rescrape(world.actor, MediaRef(tvdb_id=79168))
+
+    assert [json.loads(call[2]) for call in spawned] == [{"item_id": second}]
+    assert accepted.run_uid == spawned[0][0]
+
+
+def test_every_holder_already_running_is_a_conflict(world: World, spawned: list[tuple[str, str, str, bool]]) -> None:
+    """Both live holders are already running: 409 and nothing spawns."""
+    first = world.index.item("Friends", kind="show", tvdb="79168", year=1994)
+    world.index.episodes(first, 1, [1], folder="series/Friends/Saison 01")
+    second = world.index.item("Friends [UNCUT]", kind="show", tvdb="79168", year=1994)
+    world.index.episodes(second, 1, [1], folder="series/Friends UNCUT/Saison 01")
+    _seed_running(world.index.path, first)
+    _seed_running(world.index.path, second)
+
+    with pytest.raises(AppConflict):
+        world.service.request_rescrape(world.actor, MediaRef(tvdb_id=79168))
+
+    assert spawned == []
+
+
+def test_a_second_spawn_failing_is_internal_and_the_first_run_stays(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The second holder's runner cannot start: 500, the first holder's run stays recorded and live."""
+    first = world.index.item("Friends", kind="show", tvdb="79168", year=1994)
+    world.index.episodes(first, 1, [1], folder="series/Friends/Saison 01")
+    second = world.index.item("Friends [UNCUT]", kind="show", tvdb="79168", year=1994)
+    world.index.episodes(second, 1, [1], folder="series/Friends UNCUT/Saison 01")
+    spawns: list[str] = []
+
+    def second_fails(run_uid: str, action_id: str, options_json: str, dry_run: bool) -> int:
+        """Start the first runner, fail the second as a missing interpreter would."""
+        spawns.append(options_json)
+        if len(spawns) == 2:
+            raise OSError("no interpreter")
+        return _RUNNER_PID
+
+    monkeypatch.setattr(maintenance_service, "_spawn_runner", second_fails)
+
+    with pytest.raises(AppInternalError):
+        world.service.request_rescrape(world.actor, MediaRef(tvdb_id=79168))
+
+    with sqlite3.connect(world.index.path) as conn:
+        rows = conn.execute("SELECT options_json, outcome, pid FROM pipeline_run ORDER BY id").fetchall()
+    assert rows == [
+        (canonical_options_json({"item_id": first}), "running", _RUNNER_PID),
+        (canonical_options_json({"item_id": second}), "error", rows[1][2]),
+    ]
