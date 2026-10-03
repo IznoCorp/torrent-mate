@@ -44,6 +44,9 @@ class AppRefusal(Exception):
         code: The refusal's code, which v1 answers; ``None`` only on a refusal v0 alone
             raises (v1 answers a code-less refusal as an ``internal`` defect).
         params: The typed facts the interface composes its sentence from (empty when none).
+
+    ``detail`` and ``params`` reach the wire verbatim, so they never carry an
+    exception's text, a path, a token or any value from configuration.
     """
 
     status: ClassVar[int] = 500

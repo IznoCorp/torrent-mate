@@ -130,6 +130,14 @@ def test_enabled_leaves_the_v0_openapi_byte_identical(test_config: Config) -> No
     """On or off, v0's OpenAPI export is the same bytes: a mount is outside ``openapi()``."""
 
     def export(enabled: bool) -> str:
+        """Export v0's OpenAPI document with v1 mounted or not.
+
+        Args:
+            enabled: ``web.v1_enabled``.
+
+        Returns:
+            The document, serialised with sorted keys.
+        """
         app = create_app(_with_v1(test_config, enabled), _settings())
         if enabled:
             include_v1_router(app.state.v1_app, _canary_router())
@@ -203,13 +211,17 @@ def test_lifespan_closes_the_services() -> None:
     closed: list[bool] = []
 
     class _Services(AppServices):
+        """Services recording that they were closed."""
+
         def close(self) -> None:
+            """Record the close."""
             closed.append(True)
 
     v1_app = FastAPI()
     v1_app.state.services = _Services(event_bus=EventBus())
 
     async def enter_both() -> None:
+        """Enter the lifespan with no sub-application, then with one, checking nothing closes early."""
         async with v1_lifespan(None):
             pass
         async with v1_lifespan(v1_app):
@@ -225,7 +237,10 @@ def test_parent_lifespan_enters_the_v1_lifespan(test_config: Config) -> None:
     closed: list[bool] = []
 
     class _Services(AppServices):
+        """Services recording that they were closed."""
+
         def close(self) -> None:
+            """Record the close."""
             closed.append(True)
 
     config = _with_v1(test_config, True)

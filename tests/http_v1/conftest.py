@@ -27,6 +27,14 @@ def make_v1_app(test_config: Config) -> Callable[..., FastAPI]:
     """
 
     def _make(resolver: ActorResolver | None = None) -> FastAPI:
+        """Build the sub-application over the synthetic config and a bare ``AppServices``.
+
+        Args:
+            resolver: The actor resolver; ``None`` keeps the default (nobody signed in).
+
+        Returns:
+            The v1 sub-application.
+        """
         settings = Settings(_env_file=None)  # type: ignore[call-arg]
         return create_v1_app(test_config, settings, AppServices(event_bus=EventBus()), resolver=resolver)
 

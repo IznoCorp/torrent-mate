@@ -93,6 +93,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     Shutdown:
         - Cancels the relay task and awaits graceful termination.
         - Closes the Redis connection pool.
+
+    Around the yield:
+        - Enters :func:`~personalscraper.http_v1.app.v1_lifespan`, since Starlette
+          never runs a mounted sub-application's lifespan; where v1 is mounted, its
+          services are closed on exit.
     """
     config = app.state.config
 

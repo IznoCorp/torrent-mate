@@ -175,6 +175,11 @@ class ProblemOnCrash:
         started = False
 
         async def _send(message: Message) -> None:
+            """Forward one message, noting whether the response has started.
+
+            Args:
+                message: The ASGI message the inner application sends.
+            """
             nonlocal started
             if message["type"] == "http.response.start":
                 started = True
