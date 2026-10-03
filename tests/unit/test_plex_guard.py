@@ -185,7 +185,10 @@ def db_conn(tmp_path: Path) -> sqlite3.Connection:
             date_modified INTEGER NOT NULL,
             date_metadata_refreshed INTEGER,
             is_locked INTEGER NOT NULL DEFAULT 0,
-            preferred_lang TEXT NOT NULL DEFAULT 'fr'
+            preferred_lang TEXT NOT NULL DEFAULT 'fr',
+            overview TEXT,
+            poster_url TEXT,
+            date_provider_read REAL
         );
         CREATE TABLE item_attribute (
             item_id INTEGER NOT NULL REFERENCES media_item(id),
@@ -572,7 +575,10 @@ def show_db_conn(tmp_path: Path) -> sqlite3.Connection:
             date_modified INTEGER NOT NULL,
             date_metadata_refreshed INTEGER,
             is_locked INTEGER NOT NULL DEFAULT 0,
-            preferred_lang TEXT NOT NULL DEFAULT 'fr'
+            preferred_lang TEXT NOT NULL DEFAULT 'fr',
+            overview TEXT,
+            poster_url TEXT,
+            date_provider_read REAL
         );
         CREATE TABLE item_attribute (
             item_id INTEGER NOT NULL REFERENCES media_item(id),
