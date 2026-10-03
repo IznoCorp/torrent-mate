@@ -24,7 +24,22 @@ SESSION_TOUCH_INTERVAL_S: Final = 300.0
 
 #: Bytes of randomness in a cookie value (``secrets.token_urlsafe``: 43 characters).
 _TOKEN_BYTES: Final = 32
-_SECONDS_PER_HOUR: Final = 3600.0
+_SECONDS_PER_HOUR: Final = 3600
+
+
+def session_ttl_s(ttl_hours: int) -> int:
+    """A session's absolute lifetime in seconds: its ``expires_at`` and its cookie's ``Max-Age``.
+
+    The one conversion both read, so the browser drops the cookie when the server
+    stops honouring it.
+
+    Args:
+        ttl_hours: The lifetime in hours (``config.web.session_ttl_hours``).
+
+    Returns:
+        The lifetime in seconds.
+    """
+    return ttl_hours * _SECONDS_PER_HOUR
 
 
 def _token_hash(token: str) -> str:
@@ -59,7 +74,7 @@ class SessionService:
             clock: The epoch clock.
         """
         self._repo_factory = repo_factory
-        self._ttl_s = ttl_hours * _SECONDS_PER_HOUR
+        self._ttl_s = session_ttl_s(ttl_hours)
         self._ceiling = ceiling
         self._clock = clock
 

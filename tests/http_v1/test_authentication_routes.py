@@ -10,13 +10,18 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Callable
 from http.cookies import SimpleCookie
+from pathlib import Path
 
 import pytest
 from fastapi import Response
 from fastapi.testclient import TestClient
 
+from personalscraper.app.accounts.repository import AccountRow
 from personalscraper.app.accounts.rights import WRITE_RIGHTS, Right
+from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.services import AppServices
+from personalscraper.app.store.store import AppStore
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.web import WebConfig
 from personalscraper.http_v1.session_cookie import SESSION_COOKIE, clear_session_cookie, set_session_cookie
 
@@ -235,6 +240,39 @@ class TestCookie:
         assert cookie["path"] == "/"
         assert cookie["max-age"] == str(3 * 3600)
         assert bool(cookie["secure"]) is secure
+
+    def test_max_age_is_the_sessions_lifetime(self, test_config: Config, tmp_path: Path) -> None:
+        """For one configured ``session_ttl_hours``, ``Max-Age`` == the session's ``expires_at - created_at``."""
+        web = test_config.web.model_copy(update={"session_ttl_hours": 5})
+        store = AppStore(tmp_path / "app.db")
+        try:
+            store.accounts.insert_account(
+                AccountRow(
+                    id="account-ttl",
+                    name="TTL",
+                    email="ttl@example.org",
+                    avatar="",
+                    role_id="household",
+                    password_hash=None,
+                    created_at=1.0,
+                    updated_at=1.0,
+                )
+            )
+            sessions = SessionService(lambda: store.accounts, ttl_hours=web.session_ttl_hours, clock=lambda: 1_000.0)
+            sessions.open("account-ttl", user_agent=None)
+            conn = sqlite3.connect(tmp_path / "app.db")
+            try:
+                created_at, expires_at = conn.execute("SELECT created_at, expires_at FROM session").fetchone()
+            finally:
+                conn.close()
+        finally:
+            store.close()
+
+        response = Response()
+        set_session_cookie(response, "value", web)
+        cookie = _cookie(response.headers["set-cookie"])[SESSION_COOKIE]
+
+        assert int(cookie["max-age"]) == expires_at - created_at
 
     @pytest.mark.parametrize("secure", [True, False])
     def test_clear_carries_the_same_attributes(self, secure: bool) -> None:

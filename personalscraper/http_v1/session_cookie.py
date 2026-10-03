@@ -12,13 +12,11 @@ from typing import Final
 from fastapi import Request, Response
 
 from personalscraper.app.accounts.actor import Actor
-from personalscraper.app.accounts.sessions import SessionService
+from personalscraper.app.accounts.sessions import SessionService, session_ttl_s
 from personalscraper.conf.models.web import WebConfig
 
 #: The cookie v1's session travels in.
 SESSION_COOKIE: Final = "tm_v1_session"
-
-_SECONDS_PER_HOUR: Final = 3600
 
 
 def set_session_cookie(response: Response, token: str, web: WebConfig) -> None:
@@ -32,7 +30,7 @@ def set_session_cookie(response: Response, token: str, web: WebConfig) -> None:
     response.set_cookie(
         SESSION_COOKIE,
         token,
-        max_age=web.session_ttl_hours * _SECONDS_PER_HOUR,
+        max_age=session_ttl_s(web.session_ttl_hours),
         path="/",
         secure=web.cookie_secure,
         httponly=True,
