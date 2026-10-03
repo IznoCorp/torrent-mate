@@ -61,7 +61,10 @@ def _v1_mounts(app: FastAPI) -> list[Mount]:
 
 
 def _canary_router() -> APIRouter:
-    """A v1 route at a contract path, mount-relative, as every v1 route module writes it.
+    """Two v1 routes at contract paths, mount-relative, as every v1 route module writes them.
+
+    The POST is the canary of v0's mutating-route walkers: it is no v0 route, so
+    neither policy table classifies it.
 
     Returns:
         The router.
@@ -72,6 +75,11 @@ def _canary_router() -> APIRouter:
     def _version() -> dict[str, str]:
         """A signed-in read."""
         return {"version": "x"}
+
+    @router.post("/library/items/delete", operation_id="deleteLibraryItems")
+    def _delete() -> dict[str, str]:
+        """A right-gated write."""
+        return {"ok": "yes"}
 
     return router
 
@@ -152,7 +160,10 @@ def _policy_tests() -> Iterator[tuple[str, Callable[..., Any]]]:
 
 @pytest.mark.parametrize(("name", "policy_test"), list(_policy_tests()), ids=[n for n, _ in _policy_tests()])
 def test_v0_policy_suites_pass_with_v1_mounted(test_config: Config, name: str, policy_test: Callable[..., Any]) -> None:
-    """v0's policy suites walk into a ``Mount``: with v1 mounted (a route included), they still pass."""
+    """v0's policy suites stop at the v1 ``Mount``: with a v1 POST mounted, they still pass.
+
+    v1's own policy is ``OPERATION_RIGHTS`` and ``test_rights_table``.
+    """
     app = create_app(_with_v1(test_config, True), _settings())
     include_v1_router(app.state.v1_app, _canary_router())
 
@@ -164,8 +175,12 @@ def test_v1_paths_are_mount_relative(test_config: Config) -> None:
     app = create_app(_with_v1(test_config, True), _settings())
     include_v1_router(app.state.v1_app, _canary_router())
 
-    # Walked as v0's policy suites walk the parent, through the Mount.
-    v1_paths = {route.path for route in test_web_perimeter_policy._routes(app) if route.operation_id == "readVersion"}
+    v1_paths = {
+        path
+        for path, operations in app.state.v1_app.openapi()["paths"].items()
+        for operation in operations.values()
+        if operation["operationId"] == "readVersion"
+    }
 
     assert v1_paths == {"/version"}
 
