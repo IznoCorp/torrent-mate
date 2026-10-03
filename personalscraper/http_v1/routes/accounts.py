@@ -1,4 +1,4 @@
-"""« Comptes »' routes: the roster, an account's creation and role, a role's creation and change.
+"""The accounts screen's routes: the roster, an account's creation and role, a role's creation and change.
 
 The contract files them under its ``authentication`` tag; they live apart from the
 session routes because they are another screen's, and every one calls ``AccountService``.

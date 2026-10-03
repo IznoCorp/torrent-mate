@@ -1,4 +1,4 @@
-"""The « Comptes » routes: ``readAccounts``, ``createAccount``, ``updateAccount``, ``createRole``, ``updateRole``.
+"""The accounts screen's routes: ``readAccounts``, ``createAccount``, ``updateAccount``, ``createRole``, ``updateRole``.
 
 Each route calls the account service; these tests hold the wire: the statuses and the
 ``Problem`` codes the contract declares, the rights each operation asks (``readAccounts``
@@ -118,7 +118,7 @@ class TestCreateAccount:
     """``POST /accounts`` — ``createAccount``."""
 
     def test_creates_a_local_account_on_the_local_start_role(self, v1_client: Callable[..., TestClient]) -> None:
-        """201 ``AccountSummary``; no role asked ⇒ Invité."""
+        """201 ``AccountSummary``; no role asked: ``local-guest``."""
         response = v1_client(role="admin").post(
             "/accounts", json={"name": "New", "email": "new@example.org", "password": _PASSWORD}
         )

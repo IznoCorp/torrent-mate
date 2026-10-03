@@ -13,19 +13,34 @@
     "rate_limited": "Trop de connexions échouées ; réessayez dans une minute."
   },
   "right": {
-    "missing": "Le rôle du compte n'a pas le droit nécessaire."
+    "missing": "Le rôle du compte n'a pas le droit nécessaire.",
+    "unknown": "Un droit nommé n'est pas connu du serveur."
   },
   "instance": {
     "read_only": "Cette instance est en lecture seule : rien n'a été modifié.",
     "forbidden_write": "Cette instance interdit ce changement : rien n'a été modifié."
   },
   "account": {
-    "unknown": "Aucun compte n'a l'adresse donnée en EMAIL."
+    "unknown": "Aucun compte n'a l'adresse donnée en EMAIL.",
+    "email_invalid": "Un compte demande un nom et une adresse valide.",
+    "email_taken": "Un compte a déjà cette adresse.",
+    "admin_untouchable": "Seul un Admin modifie un compte Admin ou donne le rôle Admin.",
+    "last_admin": "Plus aucun compte ne serait sur le rôle Admin : rien n'a été modifié."
   },
   "media": {
     "not_found": "Aucun média ne répond à cet identifiant de fournisseur."
   },
   "provider": {
     "unavailable": "Un fournisseur de métadonnées n'a pas répondu ; réessayez plus tard."
+  },
+  "role": {
+    "unknown": "Aucun rôle n'a cet identifiant.",
+    "system_immutable": "Le rôle Admin ne se modifie pas.",
+    "own_role": "Un gestionnaire qui n'est pas Admin ne modifie pas son propre rôle.",
+    "escalation": "Le rôle donnerait des droits que votre propre rôle n'a pas."
+  },
+  "password": {
+    "required": "Un compte local demande un mot de passe.",
+    "too_short": "Le mot de passe doit compter au moins {minimum} caractères."
   }
 }

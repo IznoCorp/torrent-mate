@@ -1,4 +1,4 @@
-"""« Comptes »' bodies, written from the contract's ``Roster``, ``AccountSummary`` and the write bodies.
+"""The accounts screen's bodies, written from the contract's ``Roster``, ``AccountSummary`` and the write bodies.
 
 A property the contract marks ABSENT when empty (``AccountSummary.demotedFrom``) is
 ``None`` here and left out of the answer: the routes serialise with

@@ -1,8 +1,8 @@
-"""Unit tests for « Comptes » in ``AccountService``: the roster, accounts and roles, their guards and E8.
+"""Unit tests for the accounts screen in ``AccountService``: the roster, accounts and roles, their guards and E8.
 
 The guards are the maquette's (``frontend/maquette/design/src/mocks/handlers/accounts.ts``):
 a manager who is not Admin gives only rights its own role holds, never touches its own
-role, never touches an account on the Admin role nor gives that role; « last resort » keeps
+role, never touches an account on the Admin role nor gives that role; the "last resort" guard keeps
 one account on the Admin role, checked and written in one ``BEGIN IMMEDIATE``. E8
 (``AccountRightsChanged``) is published after the commit, naming exactly the accounts
 whose role or rights moved, and never on a refusal.
@@ -263,7 +263,7 @@ class TestCreateAccount:
     def test_without_a_role_it_starts_on_the_local_start_role(
         self, store: AppStore, accounts: AccountService, admin: Actor
     ) -> None:
-        """No role: the role ``defaultFor`` ``local`` (Invité); the password is kept as scrypt only."""
+        """No role: the role ``defaultFor`` ``local`` (``local-guest``); the password is kept as scrypt only."""
         created = accounts.create_account(admin, name="New", email="new@example.org", password=_PASSWORD)
 
         assert created.role.id == "local-guest"
@@ -290,7 +290,7 @@ class TestCreateAccount:
         assert created.role.kind is RoleKind.ADMIN
 
     def test_a_manager_creates_on_a_role_within_its_rights(self, accounts: AccountService, manager: Actor) -> None:
-        """Invité carries ``library.read`` alone, which the manager holds."""
+        """``local-guest`` carries ``library.read`` alone, which the manager holds."""
         created = accounts.create_account(
             manager, name="New", email="new@example.org", role_id="local-guest", password=_PASSWORD
         )
@@ -332,7 +332,7 @@ class TestCreateAccount:
         assert refusal.code is RefusalCode.ROLE_ESCALATION
 
     def test_a_manager_never_gives_rights_it_does_not_hold(self, accounts: AccountService, manager: Actor) -> None:
-        """Membre du foyer carries ``acquisition.follow``, which the manager lacks: 403 ``role.escalation``."""
+        """``household`` carries ``acquisition.follow``, which the manager lacks: 403 ``role.escalation``."""
         refusal = _refusal(
             lambda: accounts.create_account(
                 manager, name="New", email="new@example.org", role_id="household", password=_PASSWORD
@@ -451,7 +451,7 @@ class TestUpdateAccount:
         assert refusal.code is RefusalCode.ROLE_ESCALATION
 
     def test_a_manager_assigns_a_role_within_its_rights(self, accounts: AccountService, manager: Actor) -> None:
-        """Invité Plex carries ``library.read`` alone: allowed."""
+        """``plex-guest`` carries ``library.read`` alone: allowed."""
         assert accounts.update_account(manager, "account-household", role_id="plex-guest").role.id == "plex-guest"
 
     def test_demoting_the_last_admin_conflicts_and_publishes_nothing(
@@ -475,7 +475,7 @@ class TestUpdateAccount:
         assert accounts.update_account(admin, "account-admin-2", role_id="local-guest").role.id == "local-guest"
 
     def test_two_admins_demoting_each_other_at_once_leave_one(self, store: AppStore, tmp_path: Path) -> None:
-        """Two managers, two connections, each demotes « the other » last Admin: exactly one 409.
+        """Two managers, two connections, each demotes "the other" last Admin: exactly one 409.
 
         Each thread waits at a barrier after reading the Admin count. Under one
         ``BEGIN IMMEDIATE`` the second cannot read before the first commits, so the
@@ -714,7 +714,7 @@ class TestUpdateRole:
         assert published == []
 
     def test_a_manager_never_renames_a_role_beyond_its_own(self, accounts: AccountService, manager: Actor) -> None:
-        """Membre du foyer carries rights the manager lacks: 403 ``role.escalation``."""
+        """``household`` carries rights the manager lacks: 403 ``role.escalation``."""
         refusal = _refusal(lambda: accounts.update_role(manager, "household", name="Family"))
         assert isinstance(refusal, AppForbidden)
         assert refusal.code is RefusalCode.ROLE_ESCALATION

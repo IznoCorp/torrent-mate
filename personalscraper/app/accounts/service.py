@@ -247,7 +247,7 @@ class AccountService:
         )
 
     def read_roster(self, actor: Actor) -> RosterView:
-        """Every account and every role, as « Comptes » and the reassign chooser read them.
+        """Every account and every role, as the accounts screen and the reassign chooser read them.
 
         A caller who is not Admin never sees an account on the Admin role (M7); every role
         is listed, Admin included.
@@ -340,7 +340,7 @@ class AccountService:
         A caller who is not Admin never touches its own account, an account on the Admin
         role or the Admin role, nor gives rights its own role does not hold. Whoever the
         caller, one account stays on the Admin role. The checks and the write are one
-        ``BEGIN IMMEDIATE`` transaction, so two managers cannot each demote « the other »
+        ``BEGIN IMMEDIATE`` transaction, so two managers cannot each demote "the other"
         last Admin.
 
         Args:
@@ -487,7 +487,7 @@ class AccountService:
 
 
 def _is_email(email: str) -> bool:
-    """Whether a text is an e-mail as « Comptes » accepts it: something on both sides of one ``@``.
+    """Whether a text is an e-mail as the accounts screen accepts it: something on both sides of one ``@``.
 
     Args:
         email: The text, stripped.
