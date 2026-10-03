@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 import requests
 
 from personalscraper.api._contracts import MediaType
+from personalscraper.conf.preprod_guard import assert_all_within_preprod
 from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_sample_path
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
@@ -456,7 +457,15 @@ class TvServiceWriteMixin:
         Returns:
             A :class:`ScrapeResult`; ``action="error"`` with ``result.error`` set
             when the provider fetch fails (fail-soft, never raises).
+
+        Raises:
+            PreprodGuardError: Under ``staging``, *show_dir* is outside preprod's marked,
+                mounted roots. Nothing is written or renamed.
         """
+        # Preprod guard (``staging`` only): the forced scrape bypasses ``run_scrape``, so the
+        # choke point judges the folder itself before the NFOs, artwork and renames.
+        if self.config is not None:
+            assert_all_within_preprod(self.config, show_dir)
         title, year = _parse_folder_name(show_dir.name)
         result = ScrapeResult(media_path=show_dir, media_type="tvshow")
         lookup = self._forced_series_lookup(show_dir, source, provider_id, result)

@@ -422,3 +422,137 @@ def test_library_fix_nfo_refuses_an_nfo_outside_preprod(
     library_fix_nfo(ctx, apply=True, config=None, db=db_path)
     assert nfo.read_text(encoding="utf-8") != original
     assert (show / "tvshow.nfo.bak").exists()
+
+
+# --- forced scrape (spine rescrape, scrape-resolve) --------------------------------------------------
+
+
+def _tree(root: Path) -> list[str]:
+    """Snapshot every entry under *root* (relative), to prove nothing was written or renamed."""
+    return sorted(str(p.relative_to(root)) for p in root.rglob("*"))
+
+
+def _forced_scraper(preprod: SimpleNamespace) -> Any:
+    """Build a Scraper over the preprod Config whose provider call fails soft when reached."""
+    from personalscraper.naming_patterns import NamingPatterns
+    from personalscraper.scraper.orchestrator import Scraper
+
+    registry = MagicMock()
+    registry.get.return_value.get_movie.side_effect = RuntimeError("provider down")
+    scraper = Scraper(MagicMock(), NamingPatterns(), config=preprod.config, event_bus=EventBus(), registry=registry)
+    registry.get.reset_mock()  # drop the construction-time lookups; keeps the configured side effect
+    return scraper
+
+
+def test_scrape_movie_forced_refuses_a_folder_outside_preprod(
+    preprod: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The forced movie scrape raises on an unmarked folder: no provider call, no NFO, no rename."""
+    (preprod.media / "Film.2024.1080p.mkv").write_bytes(b"x")
+    scraper = _forced_scraper(preprod)
+    before = _tree(preprod.stage)
+    _staging(monkeypatch)
+    with pytest.raises(PreprodGuardError):
+        scraper.scrape_movie_forced(preprod.media, 603)
+    assert _tree(preprod.stage) == before
+    scraper._registry.get.assert_not_called()
+
+
+def test_scrape_movie_forced_is_unchanged_outside_staging(preprod: SimpleNamespace) -> None:
+    """Env unset: the guard is a no-op and the forced scrape reaches the provider (fail-soft error result)."""
+    scraper = _forced_scraper(preprod)
+    result = scraper.scrape_movie_forced(preprod.media, 603)
+    assert result.action == "error"
+    scraper._registry.get.assert_called_once_with("tmdb")
+
+
+def test_scrape_tvshow_forced_refuses_a_folder_outside_preprod(
+    preprod: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The forced TV scrape raises on an unmarked folder: no series lookup, no NFO, no rename."""
+    show = preprod.stage / "002-TVSHOWS" / "Show.2024"
+    (show / "Season 1").mkdir(parents=True)
+    (show / "Season 1" / "Show.S01E01.mkv").write_bytes(b"x")
+    scraper = _forced_scraper(preprod)
+    scraper._forced_series_lookup = MagicMock(return_value=None)
+    before = _tree(preprod.stage)
+    _staging(monkeypatch)
+    with pytest.raises(PreprodGuardError):
+        scraper.scrape_tvshow_forced(show, "tvdb", 1)
+    assert _tree(preprod.stage) == before
+    scraper._forced_series_lookup.assert_not_called()
+
+
+def test_scrape_tvshow_forced_is_unchanged_outside_staging(preprod: SimpleNamespace) -> None:
+    """Env unset: the guard is a no-op and the forced TV scrape proceeds to the series lookup."""
+    show = preprod.stage / "002-TVSHOWS" / "Show.2024"
+    show.mkdir(parents=True)
+    scraper = _forced_scraper(preprod)
+    scraper._forced_series_lookup = MagicMock(return_value=None)
+    scraper.scrape_tvshow_forced(show, "tvdb", 1)
+    scraper._forced_series_lookup.assert_called_once()
+
+
+def test_spine_rescrape_row_fails_the_refused_item_only(
+    preprod: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A refusal inside the spine's per-item try/except is a 'failed' item, never a raised batch abort."""
+    from contextlib import nullcontext
+
+    from personalscraper.commands import spine
+
+    row: Any = SimpleNamespace(
+        current_path=str(preprod.media), kind="movie", media_ref=SimpleNamespace(tmdb_id=603, tvdb_id=None)
+    )
+    monkeypatch.setattr("personalscraper.scraper.run._open_provenance_store", lambda config: None)
+    monkeypatch.setattr(
+        spine,
+        "per_step_boundary",
+        lambda config, settings: nullcontext(SimpleNamespace(event_bus=EventBus(), provider_registry=MagicMock())),
+    )
+    before = _tree(preprod.stage)
+    _staging(monkeypatch)
+    assert spine._rescrape_row(row, preprod.config, MagicMock(), "run-1") == "failed"
+    assert _tree(preprod.stage) == before
+
+
+# --- ingest: the per-torrent transfer -----------------------------------------------------------------
+
+
+def test_ingest_refuses_a_torrent_source_outside_preprod_and_continues(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Under staging a torrent whose payload is outside the roots fails alone: untouched, batch goes on."""
+    from personalscraper.api.torrent._base import TorrentItem
+    from personalscraper.ingest.ingest import run_ingest
+
+    disk = _root(tmp_path, "disk")
+    stage = _root(tmp_path, "stage")
+    config = _config(tmp_path, disk, stage)
+    monkeypatch.setattr(preprod_guard, "is_mounted", lambda path: True)
+    ingest_dir = stage / "097-TEMP"
+    bad = tmp_path / "prod-downloads" / "Bad.Film.2024"
+    bad.mkdir(parents=True)
+    (bad / "Bad.Film.2024.mkv").write_bytes(b"x" * 8)
+    good = disk / "downloads" / "Good.Film.2024"
+    good.mkdir(parents=True)
+    (good / "Good.Film.2024.mkv").write_bytes(b"x" * 8)
+
+    torrents = [
+        TorrentItem(hash=h, name=n, size_bytes=8, progress=1.0, state="uploading", ratio=2.0, tags=[])
+        for h, n in (("a" * 40, "Bad.Film.2024"), ("b" * 40, "Good.Film.2024"))
+    ]
+    client = MagicMock()
+    client.get_completed.return_value = torrents
+    client.get_all_hashes.return_value = {t.hash for t in torrents}
+    client.get_content_path.side_effect = lambda t: {"Bad.Film.2024": bad, "Good.Film.2024": good}[t.name]
+    client.is_seeding.return_value = True  # copy: a refused move would purge the download dir
+
+    _staging(monkeypatch)
+    report = run_ingest(MagicMock(), ingest_dir=ingest_dir, config=config, event_bus=EventBus(), torrent_client=client)
+
+    assert report.error_count == 1
+    assert report.success_count == 1
+    assert (bad / "Bad.Film.2024.mkv").read_bytes() == b"x" * 8
+    assert not (ingest_dir / "Bad.Film.2024").exists()
+    assert (ingest_dir / "Good.Film.2024" / "Good.Film.2024.mkv").exists()
