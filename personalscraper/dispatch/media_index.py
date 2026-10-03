@@ -570,7 +570,16 @@ class MediaIndex:
                 nfo_title, _nfo_year = parse_title_year(media_dir.name)
                 meta, nfo_status = _nfo_metadata_for_dir(media_dir, nfo_title, is_tvshow)
             else:
-                meta = {"tmdb_id": None, "imdb_id": None, "tvdb_id": None, "canonical_provider": None, "ratings": []}
+                meta = {
+                    "tmdb_id": None,
+                    "imdb_id": None,
+                    "tvdb_id": None,
+                    "canonical_provider": None,
+                    "ratings": [],
+                    "overview": None,
+                    "poster_url": None,
+                    "date_provider_read": None,
+                }
                 nfo_status = "missing"
             row = build_item_row(
                 title=entry.name,
@@ -589,6 +598,9 @@ class MediaIndex:
                 nfo_default=meta["canonical_provider"],
                 nfo_status=nfo_status,
                 ratings=meta["ratings"],
+                overview=meta["overview"],
+                poster_url=meta["poster_url"],
+                date_provider_read=meta["date_provider_read"],
             )
             row["date_created"] = now_ts
             row["date_modified"] = now_ts
