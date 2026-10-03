@@ -4,6 +4,9 @@ import json
 import os
 import sqlite3
 from pathlib import Path
+from xml.etree import ElementTree as ET
+
+import pytest
 
 from personalscraper.conf import ids as CID
 from personalscraper.conf.models.categories import CategoryConfig
@@ -17,6 +20,7 @@ from personalscraper.indexer.scanner._modes._item_stage import (
     ISSUE_NFO_MISSING,
     _detect_issues,
     _ensure_disk_row,
+    _nfo_facts,
     build_item_row,
     scan_and_stage_dir,
     stage_library_items,
@@ -1453,3 +1457,15 @@ def test_rescan_without_an_nfo_keeps_the_previous_facts(tmp_path: Path) -> None:
 
     assert rescanned_id == item_id
     assert _facts(conn, item_id) == ("Kept.", "https://img/p.jpg", _NFO_MTIME)
+
+
+def test_unreadable_nfo_yields_no_provider_read_date(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An NFO that fails to parse yields no fact at all, its mtime included."""
+    movie = _movie_with_nfo(tmp_path, "<plot>x</plot>")
+
+    def _raise(*_args: object, **_kwargs: object) -> None:
+        raise ET.ParseError("not well-formed")
+
+    monkeypatch.setattr("personalscraper.indexer.scanner._modes._item_stage.ET.parse", _raise)
+
+    assert _nfo_facts(movie / "Arrival.nfo") == {"overview": None, "poster_url": None, "date_provider_read": None}

@@ -685,11 +685,13 @@ def _nfo_facts(nfo_path: Path) -> dict[str, Any]:
     """
     facts: dict[str, Any] = {"overview": None, "poster_url": None, "date_provider_read": None}
     try:
-        facts["date_provider_read"] = nfo_path.stat().st_mtime
         root = ET.parse(nfo_path).getroot()  # noqa: S314 — trusted NFO we wrote
+        # Read after the parse: an unreadable NFO carries no provider-read date.
+        mtime = nfo_path.stat().st_mtime
     except (ET.ParseError, OSError) as exc:
         log.debug("indexer.item_stage.nfo_facts_unreadable", nfo=str(nfo_path), error=str(exc))
         return facts
+    facts["date_provider_read"] = mtime
     facts["overview"] = (root.findtext("plot") or "").strip() or None
     for thumb in root.findall("thumb"):
         url = (thumb.text or "").strip()
