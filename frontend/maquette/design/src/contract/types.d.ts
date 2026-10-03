@@ -32,7 +32,7 @@ export interface paths {
         put?: never;
         /**
          * Open a session
-         * @description The password door: the Plex owner's fallback, or a local account's only way in. Every other case — an unknown e-mail, a wrong password, a Plex-linked account — is refused `auth.refused`, one indistinguishable answer (O-K1-4 anti-enumeration).
+         * @description The password door: the Plex owner's fallback, or a local account's only way in. Every other case — an unknown e-mail, a wrong password, a Plex-linked account — is refused `auth.refused`, one indistinguishable answer (O-K1-4 anti-enumeration). The one 403 is `request.cross_origin`, a POST from another origin: it depends on the request's origin, never on the credentials typed, so no credential failure is ever a 403.
          */
         post: operations["signIn"];
         delete?: never;
@@ -3073,6 +3073,7 @@ export interface operations {
             };
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
             429: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
