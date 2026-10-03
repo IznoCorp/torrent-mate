@@ -25,16 +25,19 @@ R521-b — the switches, the account's:
    (the server holds the choice, never the device);
 7. an account that may receive no type (`profile-notifications-none`) is shown no section.
 
-R521-c — the writes ask `notifications.manage`, and the interface says so:
-8. under the read-only instance's ceiling (`profile-notifications-ceiling`, on a device that
-   could still be asked), the switches are drawn with their state but none can be pressed, and
-   « activer » is absent — the ceiling's notice, said once on the page, is the reason;
-9. a write the server refuses is SAID refused, in a message naming the type, and the switch
-   returns to what the server holds — never a silent snap back.
+R521-c — the writes carry no right: an account's own notifications are its own business
+(the operator, 2026-10-03: « tout le monde à le droit de changer les notifications de son propre
+compte, ça n'a pas de sens de mettre ça sous un droit »):
+8. every account offered a type has pressable switches, the read-only instance's ceiling
+   included (`profile-notifications-ceiling`), and « activer » is offered wherever the device
+   can still be asked — in `profile-notifications-unasked`, and under the ceiling too;
+9. under the ceiling a press is refused by the server, SAID refused in a message naming the
+   type, and the switch returns to what the server holds — never a silent snap back; the
+   ceiling's notice, said once on the page, stays.
 
-Red before R521-c: the switches were pressable and « activer » offered under the ceiling, and a
-refused write rolled back with no word. Red before the change: none of the named states exists, Profil has no « Notifications » section,
-and the contract declares neither the read nor the write.
+Red before R521-c: the switches were disabled and « activer » absent for an account without the
+right and under the ceiling. Red before the change: none of the named states exists, Profil has
+no « Notifications » section, and the contract declares neither the read nor the write.
 """
 import asyncio
 import json
@@ -48,7 +51,7 @@ SOURCE = HERE.parent / "design/src"
 CONTRACT = json.loads((HERE.parent / "contract/openapi.json").read_text(encoding="utf-8"))
 TYPE_SCHEMA = CONTRACT["components"]["schemas"].get("NotificationType", {})
 TYPES = TYPE_SCHEMA.get("enum", [])
-# THE RIGHT EACH TYPE ASKS — absent on the contract before the change: every type then reads as
+# THE RIGHT EACH TYPE ASKS TO RECEIVE IT — absent on the contract before the change: every type then reads as
 # asking a right nobody holds, so the rule FAILS on behaviour rather than crashing.
 TYPE_RIGHTS = TYPE_SCHEMA.get("x-rights", {})
 ABSENT = "<no words>"
@@ -216,21 +219,40 @@ async def main():
             journal.check("a fresh read keeps it off — the server holds the choice", kept.get(turned) is False,
                           repr(kept))
 
-        # ── R521-c: the right the writes ask ────────────────────────────────
+        # ── R521-c: the writes carry no right ───────────────────────────────
+        for state in ("profile-notifications-unasked", "profile-notifications-household"):
+            if await exists(page, state):
+                seen = await read_at(page, state, SECTION)
+                switches = (seen or {}).get("switches", [])
+                journal.check(f"{state}: every switch can be pressed, whatever the account's rights",
+                              bool(switches) and all(row["pressable"] for row in switches),
+                              repr([row["type"] for row in switches if not row["pressable"]]))
         if await exists(page, "profile-notifications-ceiling"):
             seen = await read_at(page, "profile-notifications-ceiling", SECTION)
             switches = (seen or {}).get("switches", [])
             journal.check("under the ceiling the switches are drawn, their state shown",
                           len(switches) == len(TYPES), f"{len(switches)} switches")
-            journal.check("under the ceiling no switch can be pressed",
-                          bool(switches) and not any(row["pressable"] for row in switches),
-                          repr([row["type"] for row in switches if row["pressable"]]))
-            journal.check("under the ceiling « activer » is absent, on a device that could still be asked",
-                          seen is not None and seen["support"] == "unasked" and not seen["enable"],
+            journal.check("under the ceiling every switch can still be pressed",
+                          bool(switches) and all(row["pressable"] for row in switches),
+                          repr([row["type"] for row in switches if not row["pressable"]]))
+            journal.check("under the ceiling « activer » is offered, on a device that could still be asked",
+                          seen is not None and seen["support"] == "unasked" and seen["enable"],
                           f"{seen and seen['support']} · enable {seen and seen['enable']}")
             notice = await page.evaluate(CEILING)
-            journal.check("the ceiling's notice says why, once on the page",
+            journal.check("the ceiling's notice says the instance is read-only, once on the page",
                           notice is not None and CEILING_EVERY in notice, repr(notice))
+            await page.evaluate("()=>window.__toast?.hide?.()")
+            ceiling_type = "system.run_failed"
+            await page.click(f'[data-notification-type="{ceiling_type}"] [role="switch"]')
+            await page.wait_for_timeout(SETTLED)
+            said = (await page.evaluate(SAID)).replace("\xa0", " ")
+            expected = REFUSED.replace("{{type}}", type_label(ceiling_type))
+            journal.check("under the ceiling a press is refused, said naming its type", said == expected,
+                          f"said {said!r}, expected {expected!r}")
+            after = await page.evaluate(SECTION)
+            states = {row["type"]: row["on"] for row in (after or {}).get("switches", [])}
+            journal.check("under the ceiling the refused switch returns to what the server holds",
+                          states.get(ceiling_type) is True, repr(states.get(ceiling_type)))
         else:
             journal.check("the named state profile-notifications-ceiling exists", False, "absent")
 
