@@ -160,7 +160,9 @@ class AccountService:
         the server knows (the contract's anti-enumeration). Order: the limiter; the account
         by e-mail, whatever its case; scrypt against its hash, or a dummy one; the refusal
         (counted against ``client_key``) or a NEW session — a value the caller already
-        holds is never adopted.
+        holds is never adopted. A success does not give the failure budget back: failures
+        expire with the window alone, or a client holding any valid account could walk the
+        limiter round.
 
         Args:
             email: The e-mail typed.
@@ -189,7 +191,6 @@ class AccountService:
             self._limiter.record_failure(client_key)
             log.info("v1_sign_in_refused", client_key=client_key)
             raise AppUnauthenticated("The sign-in was refused.", code=RefusalCode.AUTH_REFUSED)
-        self._limiter.reset(client_key)
         token = self._sessions.open(account.id, user_agent=user_agent)
         actor = self._sessions.resolve(token)
         if actor is None:

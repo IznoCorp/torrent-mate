@@ -364,6 +364,21 @@ class TestSignIn:
         assert response.status_code == 429
         assert response.json()["code"] == "auth.rate_limited"
 
+    def test_a_success_on_another_account_does_not_reset_the_budget(self, v1_client: Callable[..., TestClient]) -> None:
+        """Four failures on one account, a sign-in to another, one more failure: 429 ``auth.rate_limited``."""
+        client = v1_client(role=None)
+        _seed_password_account(client)
+        _seed_password_account(client, "guest@example.org")
+        for _ in range(MAX_FAILED_ATTEMPTS - 1):
+            assert client.post("/auth/login", json={"email": "local@example.org", "password": "no"}).status_code == 401
+        assert client.post("/auth/login", json={"email": "guest@example.org", "password": _PASSWORD}).status_code == 200
+        assert client.post("/auth/login", json={"email": "local@example.org", "password": "no"}).status_code == 401
+
+        response = client.post("/auth/login", json={"email": "local@example.org", "password": _PASSWORD})
+
+        assert response.status_code == 429
+        assert response.json()["code"] == "auth.rate_limited"
+
     def test_behind_the_proxy_the_key_is_the_rightmost_forwarded_address(
         self, v1_client: Callable[..., TestClient]
     ) -> None:

@@ -290,14 +290,46 @@ class TestRateLimit:
         limiter_clock.now += WINDOW_SECONDS + 1
         assert _sign_in(accounts, "local@example.org", _PASSWORD).account.id == "account-local"
 
-    def test_a_success_clears_the_failures(self, accounts: AccountService) -> None:
-        """A sign-in resets its key: the count starts again."""
+    def test_a_success_does_not_give_the_budget_back(self, accounts: AccountService) -> None:
+        """A client holding another valid account cannot walk the limiter round.
+
+        Four wrong tries on the admin's e-mail, a sign-in to its own account, one more
+        failure: the key has used its five, and the next attempt is refused whatever the
+        password. Failures expire with the window alone.
+        """
         for _ in range(MAX_FAILED_ATTEMPTS - 1):
-            _refused(accounts, "local@example.org", _WRONG)
+            _refused(accounts, "admin@example.org", _WRONG)
         _sign_in(accounts, "local@example.org", _PASSWORD)
-        for _ in range(MAX_FAILED_ATTEMPTS - 1):
+        _refused(accounts, "admin@example.org", _WRONG)
+        with pytest.raises(AppTooManyRequests) as caught:
+            _sign_in(accounts, "admin@example.org", _PASSWORD)
+        assert caught.value.code == RefusalCode.AUTH_RATE_LIMITED
+
+    @pytest.mark.parametrize(
+        "email",
+        ["nobody@example.org", "nopass@example.org", "local@example.org", "shared@example.org"],
+        ids=["unknown-email", "no-password", "wrong-password", "plex-linked"],
+    )
+    def test_every_refusal_kind_counts_against_the_limiter(self, accounts: AccountService, email: str) -> None:
+        """Whatever the refusal, the sixth attempt is ``auth.rate_limited``.
+
+        A kind that did not count would make the 429 an oracle on which e-mails exist.
+        """
+        for _ in range(MAX_FAILED_ATTEMPTS):
+            _refused(accounts, email, _WRONG if email == "local@example.org" else _PASSWORD)
+        with pytest.raises(AppTooManyRequests) as caught:
+            _sign_in(accounts, "local@example.org", _PASSWORD)
+        assert caught.value.code == RefusalCode.AUTH_RATE_LIMITED
+
+    def test_unknown_and_known_emails_share_one_budget(self, accounts: AccountService) -> None:
+        """Failures on an unknown e-mail and on a known one from one key add up."""
+        for _ in range(MAX_FAILED_ATTEMPTS - 2):
+            _refused(accounts, "nobody@example.org", _WRONG)
+        for _ in range(2):
             _refused(accounts, "local@example.org", _WRONG)
-        assert _sign_in(accounts, "local@example.org", _PASSWORD).account.id == "account-local"
+        with pytest.raises(AppTooManyRequests) as caught:
+            _sign_in(accounts, "local@example.org", _PASSWORD)
+        assert caught.value.code == RefusalCode.AUTH_RATE_LIMITED
 
     def test_each_service_has_its_own_limiter(self, store: AppStore) -> None:
         """Without an injected limiter, each service builds its own (v0's is never shared)."""
