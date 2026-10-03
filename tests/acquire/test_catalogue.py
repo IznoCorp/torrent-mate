@@ -10,6 +10,8 @@ from pathlib import Path
 
 import pytest
 
+from personalscraper.acquire import catalogue as catalogue_module
+from personalscraper.acquire import store as acquire_store
 from personalscraper.acquire.catalogue import (
     CatalogueEpisode,
     CatalogueStore,
@@ -17,6 +19,7 @@ from personalscraper.acquire.catalogue import (
     aired_by_season,
     refresh_catalogue,
 )
+from personalscraper.acquire.errors import AcquireCorruptError
 from personalscraper.api._contracts import ApiError
 from personalscraper.api.metadata._base import EpisodeInfo, MediaDetails, SeasonInfo
 from personalscraper.core.sqlite import apply_migrations
@@ -111,9 +114,34 @@ class TestDue:
 
     def test_ended_show_is_never_due_again(self, store: CatalogueStore) -> None:
         """An ended show fetched once is never refreshed, however old."""
-        store.replace_show("tvdb", "1", "Ended", [], NOW - 900 * DAY)
-        store.replace_show("tmdb", "2", "Canceled", [], NOW - 900 * DAY)
+        store.replace_show("tvdb", "1", "Ended", [_ep(1, 1)], NOW - 900 * DAY)
+        store.replace_show("tmdb", "2", "Canceled", [_ep(1, 1)], NOW - 900 * DAY)
         assert store.due(NOW) == []
+
+    def test_ended_show_stored_with_no_episode_stays_due(self, store: CatalogueStore) -> None:
+        """An empty answer for an ended show is doubt, not closure: it is retried after the period."""
+        store.replace_show("tvdb", "1", "Ended", [], NOW - 8 * DAY)
+        store.replace_show("tvdb", "2", "Ended", [], NOW - DAY)
+        assert store.due(NOW) == [("tvdb", "1")]
+
+    def test_a_failed_show_waits_the_period_and_comes_after_the_healthy_ones(self, store: CatalogueStore) -> None:
+        """A failed attempt is recorded: no retry before the period, then last in the queue."""
+        store.record_failure("tvdb", "bad", NOW - 8 * DAY)  # attempted long ago: due again
+        store.record_failure("tvdb", "fresh", NOW - DAY)  # attempted yesterday: backed off
+        store.replace_show("tvdb", "old", "Continuing", [_ep(1, 1)], NOW - 30 * DAY)
+        known = [("tvdb", "bad"), ("tvdb", "fresh"), ("tvdb", "new")]
+        assert store.due(NOW, known=known) == [("tvdb", "new"), ("tvdb", "old"), ("tvdb", "bad")]
+
+    def test_a_failed_show_is_never_read_as_fetched(self, store: CatalogueStore) -> None:
+        """Recording a failure does not make the show « fetched with no episode »."""
+        store.record_failure("tvdb", "bad", NOW)
+        assert store.episodes("tvdb", "bad") is None
+
+    def test_a_failure_keeps_the_previous_rows(self, store: CatalogueStore) -> None:
+        """A failure on a catalogued show leaves its rows readable."""
+        store.replace_show("tvdb", "1", "Continuing", [_ep(1, 1)], NOW - 30 * DAY)
+        store.record_failure("tvdb", "1", NOW)
+        assert store.episodes("tvdb", "1") == [_ep(1, 1)]
 
     def test_oldest_first_and_never_fetched_first(self, store: CatalogueStore) -> None:
         """The order is: never fetched, then the stalest."""
@@ -145,6 +173,7 @@ class FakeClient:
 
     shows: dict[str, tuple[str | None, dict[int, list[tuple[int, str, str]]]]]
     fail: set[str] = field(default_factory=set)
+    fail_season: dict[str, int] = field(default_factory=dict)
     calls: list[str] = field(default_factory=list)
 
     def get_tv(self, provider_id: int | str) -> MediaDetails:
@@ -165,6 +194,8 @@ class FakeClient:
     def get_episodes(self, series_id: str | int, season: int) -> list[EpisodeInfo]:
         """Answer the scripted episodes of one season."""
         _, seasons = self.shows[str(series_id)]
+        if self.fail_season.get(str(series_id)) == season:
+            raise ApiError("TVDB", 500, message="boom")
         return [EpisodeInfo(episode_number=n, title=t, air_date=d, season_number=season) for n, t, d in seasons[season]]
 
 
@@ -260,8 +291,53 @@ class TestRefresh:
     def test_fresh_and_ended_shows_are_not_polled(self, store: CatalogueStore) -> None:
         """The politeness rule is applied: nothing due, nothing polled."""
         store.replace_show("tvdb", "1", "Continuing", [], NOW - DAY)
-        store.replace_show("tvdb", "2", "Ended", [], NOW - 900 * DAY)
+        store.replace_show("tvdb", "2", "Ended", [_ep(1, 1)], NOW - 900 * DAY)
         tvdb = FakeClient({})
         index = _index([("tvdb", {"tvdb": "1"}), ("tvdb", {"tvdb": "2"})])
         report = refresh_catalogue(store, index, ProviderClients(tvdb=tvdb, tmdb=None), now=NOW, max_shows=10)
         assert tvdb.calls == [] and report.refreshed == 0
+
+    def test_a_failure_on_a_later_season_keeps_every_previous_row(self, store: CatalogueStore) -> None:
+        """Season 1 answers, season 2 fails: nothing of the new answer is written, the run goes on."""
+        store.replace_show("tvdb", "1", "Continuing", [_ep(1, 1, "2020-01-01", "kept")], NOW - 30 * DAY)
+        tvdb = FakeClient(
+            {
+                "1": ("Continuing", {1: [(1, "new", "2020-01-01")], 2: [(1, "new2", "2021-01-01")]}),
+                "2": ("Continuing", {1: [(1, "ok", "2020-01-01")]}),
+            },
+            fail_season={"1": 2},
+        )
+        index = _index([("tvdb", {"tvdb": "1"}), ("tvdb", {"tvdb": "2"})])
+        report = refresh_catalogue(store, index, ProviderClients(tvdb=tvdb, tmdb=None), now=NOW, max_shows=10)
+        assert report.failed == 1 and report.refreshed == 1
+        assert store.episodes("tvdb", "1") == [_ep(1, 1, "2020-01-01", "kept")]
+        assert store.episodes("tvdb", "2") == [_ep(1, 1, "2020-01-01", "ok")]
+
+    def test_a_show_failing_every_run_does_not_starve_the_others(self, store: CatalogueStore) -> None:
+        """With --max 1, the permanently failing show is attempted once, then the next show gets the slot."""
+        tvdb = FakeClient(
+            {"bad": ("Continuing", {}), "good": ("Continuing", {1: [(1, "a", "2020-01-01")]})}, fail={"bad"}
+        )
+        clients = ProviderClients(tvdb=tvdb, tmdb=None)
+        index = _index([("tvdb", {"tvdb": "bad"}), ("tvdb", {"tvdb": "good"})])
+        first = refresh_catalogue(store, index, clients, now=NOW, max_shows=1)
+        second = refresh_catalogue(store, index, clients, now=NOW + 60, max_shows=1)
+        assert (first.failed, first.refreshed) == (1, 0)
+        assert (second.failed, second.refreshed) == (0, 1)
+        assert store.episodes("tvdb", "good") is not None
+        assert store.episodes("tvdb", "bad") is None
+
+
+class TestOpen:
+    """The store opens ``acquire.db`` the way the acquire store does."""
+
+    def test_a_corrupt_database_raises_the_acquire_error(self, tmp_path: Path) -> None:
+        """A malformed file surfaces as AcquireCorruptError, as through the acquire store."""
+        path = tmp_path / "acquire.db"
+        path.write_bytes(b"this is not a sqlite database" * 100)
+        with pytest.raises(AcquireCorruptError):
+            CatalogueStore(path).episodes("tvdb", "1")
+
+    def test_the_lock_timeout_is_the_acquire_stores(self) -> None:
+        """One migration-lock timeout for every opener of acquire.db."""
+        assert catalogue_module._MIGRATION_LOCK_TIMEOUT_S == acquire_store._MIGRATION_LOCK_TIMEOUT_S

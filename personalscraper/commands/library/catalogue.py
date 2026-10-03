@@ -53,7 +53,7 @@ def library_catalogue_refresh(
         _DEFAULT_MAX_SHOWS,
         "--max",
         min=1,
-        help="Upper bound of shows polled at the providers in this run.",
+        help="Upper bound of shows attempted in this run.",
     ),
 ) -> None:
     """Refresh the aired catalogue of the shows that are due, at most ``--max``.

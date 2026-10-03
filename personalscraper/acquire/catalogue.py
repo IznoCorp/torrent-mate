@@ -6,8 +6,8 @@ show of the library, not only the followed ones (``aired_episode`` is per follow
 
 ``personalscraper library-catalogue-refresh`` is the only writer: it reads the
 shows of the index, asks the providers for what is due under the politeness rule
-(a continuing show once a week, an ended show once) and replaces a show's rows
-in one transaction. A show never fetched reads ``None`` from
+(a continuing show once a week, an ended show once, a show whose attempt failed
+no sooner than a week later) and replaces a show's rows in one transaction. A show never fetched reads ``None`` from
 :meth:`CatalogueStore.episodes` — « unknown », never « complete ».
 
 Season 0 (specials) is stored and never counted as aired — the rule the follows
@@ -26,6 +26,8 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Protocol
 
+from personalscraper.acquire.errors import AcquireLockError, AcquireMigrationError
+from personalscraper.acquire.store import _MIGRATION_LOCK_TIMEOUT_S, _OPEN_DB_ERROR_FACTORIES
 from personalscraper.api.metadata._base import EpisodeInfo, MediaDetails
 from personalscraper.core.sqlite import apply_migrations, db_lock, open_db
 from personalscraper.logger import get_logger
@@ -33,7 +35,6 @@ from personalscraper.logger import get_logger
 log = get_logger("acquire.catalogue")
 
 _MIGRATIONS_DIR = Path(__file__).parent / "migrations"
-_MIGRATION_LOCK_TIMEOUT_S = 30.0
 
 # A show is « ended » when the provider says so; anything else, and above all
 # no status at all, is a show that may still announce episodes.
@@ -80,12 +81,17 @@ class CatalogueStore:
 
         Returns:
             The open connection.
+
+        Raises:
+            AcquireLockError: If the brief migration lock cannot be acquired.
+            AcquireCorruptError: If ``acquire.db`` is malformed.
+            AcquireMigrationError: If a pending migration fails to apply.
         """
         if self._conn is None:
             self._db_path.parent.mkdir(parents=True, exist_ok=True)
-            with db_lock(self._db_path, timeout=_MIGRATION_LOCK_TIMEOUT_S):
-                conn = open_db(self._db_path)
-                apply_migrations(conn, _MIGRATIONS_DIR)
+            with db_lock(self._db_path, timeout=_MIGRATION_LOCK_TIMEOUT_S, error_factory=AcquireLockError):
+                conn = open_db(self._db_path, errors=_OPEN_DB_ERROR_FACTORIES)
+                apply_migrations(conn, _MIGRATIONS_DIR, error_factory=AcquireMigrationError)
             self._conn = conn
         return self._conn
 
@@ -122,8 +128,9 @@ class CatalogueStore:
         try:
             conn.execute("DELETE FROM catalogue_episode WHERE provider = ? AND provider_id = ?", key)
             conn.execute(
-                "INSERT OR REPLACE INTO catalogue_show (provider, provider_id, status, fetched_at) VALUES (?, ?, ?, ?)",
-                (*key, status, fetched_at),
+                "INSERT OR REPLACE INTO catalogue_show "
+                "(provider, provider_id, status, fetched_at, last_attempt_at, failures) VALUES (?, ?, ?, ?, ?, 0)",
+                (*key, status, fetched_at, fetched_at),
             )
             conn.executemany(
                 "INSERT INTO catalogue_episode (provider, provider_id, season, episode, air_date, title) "
@@ -132,6 +139,32 @@ class CatalogueStore:
                     (*key, e.season, e.episode, e.air_date.isoformat() if e.air_date else None, e.title)
                     for e in episodes
                 ],
+            )
+        except BaseException:
+            conn.execute("ROLLBACK")
+            raise
+        conn.execute("COMMIT")
+
+    def record_failure(self, provider: str, provider_id: str, attempted_at: float) -> None:
+        """Record a failed attempt on a show, keeping any rows it already has.
+
+        A show that has only ever failed gets a row with no ``fetched_at``: it
+        still reads ``None`` from :meth:`episodes`.
+
+        Args:
+            provider: ``"tvdb"`` or ``"tmdb"``.
+            provider_id: The show's id at that provider.
+            attempted_at: Unix time of the failed attempt.
+        """
+        conn = self._ensure_open()
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            conn.execute(
+                "INSERT INTO catalogue_show (provider, provider_id, status, fetched_at, last_attempt_at, failures) "
+                "VALUES (?, ?, NULL, NULL, ?, 1) "
+                "ON CONFLICT (provider, provider_id) DO UPDATE SET "
+                "last_attempt_at = excluded.last_attempt_at, failures = failures + 1",
+                (provider, provider_id, attempted_at),
             )
         except BaseException:
             conn.execute("ROLLBACK")
@@ -151,7 +184,10 @@ class CatalogueStore:
         """
         conn = self._ensure_open()
         key = (provider, provider_id)
-        if conn.execute("SELECT 1 FROM catalogue_show WHERE provider = ? AND provider_id = ?", key).fetchone() is None:
+        fetched = conn.execute(
+            "SELECT fetched_at FROM catalogue_show WHERE provider = ? AND provider_id = ?", key
+        ).fetchone()
+        if fetched is None or fetched[0] is None:
             return None
         rows = conn.execute(
             "SELECT season, episode, air_date, title FROM catalogue_episode "
@@ -169,29 +205,42 @@ class CatalogueStore:
     ) -> list[tuple[str, str]]:
         """List the shows the politeness rule allows to refresh.
 
+        A show is due when it was never fetched, or when it may still announce
+        episodes (not ended, or ended with no episode stored: an empty answer is
+        doubt, not closure) and was fetched more than ``continuing_after_s`` ago. A
+        show whose last attempt failed waits ``continuing_after_s`` from that
+        attempt, whatever it was.
+
         Args:
             now: Current unix time.
-            continuing_after_s: Age after which a continuing show is refreshed.
+            continuing_after_s: Age after which a show is refreshed or retried.
             known: The ``(provider, provider_id)`` shows the library holds; those
-                the store has never fetched are due first.
+                the store has never seen are due first.
 
         Returns:
-            Never-fetched known shows (in the order given), then stored shows that
-            are not ended and older than ``continuing_after_s``, stalest first. An
-            ended show fetched once is never due.
+            Never-fetched known shows (in the order given), then stored shows
+            past their period, stalest first, then the shows that failed, whose
+            period has elapsed, last. An ended show with episodes is never due.
         """
         conn = self._ensure_open()
-        stored = {
-            (r[0], r[1]): (r[2], r[3])
-            for r in conn.execute("SELECT provider, provider_id, status, fetched_at FROM catalogue_show")
-        }
+        rows = conn.execute(
+            "SELECT s.provider, s.provider_id, s.status, s.fetched_at, s.last_attempt_at, s.failures, "
+            "(SELECT COUNT(*) FROM catalogue_episode e "
+            " WHERE e.provider = s.provider AND e.provider_id = s.provider_id) "
+            "FROM catalogue_show s"
+        ).fetchall()
+        stored = {(r[0], r[1]) for r in rows}
         never = [k for k in dict.fromkeys(known) if k not in stored]
-        stale = sorted(
-            (fetched_at, key)
-            for key, (status, fetched_at) in stored.items()
-            if not _is_ended(status) and now - fetched_at > continuing_after_s
-        )
-        return never + [key for _, key in stale]
+        stale: list[tuple[float, tuple[str, str]]] = []
+        failing: list[tuple[float, tuple[str, str]]] = []
+        for provider, provider_id, status, fetched_at, last_attempt_at, failures, n_episodes in rows:
+            key = (provider, provider_id)
+            if failures:
+                if now - last_attempt_at > continuing_after_s:
+                    failing.append((last_attempt_at, key))
+            elif (not _is_ended(status) or n_episodes == 0) and now - fetched_at > continuing_after_s:
+                stale.append((fetched_at, key))
+        return never + [key for _, key in sorted(stale)] + [key for _, key in sorted(failing)]
 
 
 def _is_ended(status: str | None) -> bool:
@@ -261,9 +310,11 @@ class CatalogueRefreshReport:
 
     Attributes:
         refreshed: Shows whose rows were replaced.
-        failed: Shows whose provider call failed (their previous rows are kept).
+        failed: Shows whose provider call failed (their previous rows are kept and
+            the attempt is recorded: they are not due again for a week).
         skipped: Due shows whose provider had no client.
-        remaining: Due shows left for a later run by ``max_shows``.
+        remaining: Due shows not attempted in this run because ``max_shows`` was
+            reached; a show that failed here is in ``failed``, not in ``remaining``.
     """
 
     refreshed: int = 0
@@ -311,14 +362,17 @@ def refresh_catalogue(
 ) -> CatalogueRefreshReport:
     """Refresh the catalogue of the shows that are due, at most ``max_shows``.
 
-    A provider failure on one show keeps its previous rows and the run goes on.
+    A provider failure on one show keeps its previous rows, is recorded so the
+    show waits its period instead of holding a slot on every run, and the run
+    goes on.
 
     Args:
         store: The catalogue store.
         index_conn: An open connection to ``library.db`` (read only).
         provider_clients: The provider clients.
         now: Current unix time (stamped as ``fetched_at``).
-        max_shows: Upper bound of providers polled in this run.
+        max_shows: Upper bound of shows attempted in this run (each costs one
+            ``get_tv`` and one ``get_episodes`` per season).
 
     Returns:
         The run's report.
@@ -336,6 +390,7 @@ def refresh_catalogue(
             store.replace_show(provider, provider_id, status, episodes, now)
         except Exception as exc:  # noqa: BLE001 — fail-soft: one bad show must not stop the run
             failed += 1
+            store.record_failure(provider, provider_id, now)
             log.warning("acquire.catalogue.refresh_failed", provider=provider, provider_id=provider_id, error=str(exc))
             continue
         refreshed += 1
