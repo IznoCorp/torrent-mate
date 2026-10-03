@@ -242,6 +242,7 @@ class World:
     service: LibraryService
     actor: Actor
     clock: list[float]
+    data_dir: Path
 
 
 @pytest.fixture
@@ -267,7 +268,7 @@ def world(tmp_path: Path) -> Iterator[World]:
         clock=lambda: clock[0],
     )
     actor = Actor.system(InstanceCeiling(forbidden=frozenset(), read_only=False), account_id="owner", name="Owner")
-    yield World(index, store, tvdb, tmdb, service, actor, clock)
+    yield World(index, store, tvdb, tmdb, service, actor, clock, tmp_path)
     service.close()
     ownership.close()
     store.close()
