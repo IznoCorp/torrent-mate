@@ -50,8 +50,10 @@ async def main():
             read = await page.evaluate(READ)
             role = ROLE_OF[identity]
             names.append(read["role"])
-            journal.check(f"R-L18-p: {state} shows the role the server answered", read["role"] == role["name"],
-                          f"{read['role']} / {role['name']}")
+            # A seeded role carries no name: the interface says the translation of its id.
+            said = role.get("name") or await page.evaluate("(id)=>window.__i18n.t('roles.seed.' + id)", role["id"])
+            journal.check(f"R-L18-p: {state} shows the role the server answered", read["role"] == said,
+                          f"{read['role']} / {said}")
             wanted = sorted([await label(right) for right in role["rights"]])
             journal.check(f"R-L18-z: {state} lists as held exactly its role's rights", sorted(read["held"]) == wanted,
                           f"{len(read['held'])} held, {len(wanted)} carried")
@@ -63,7 +65,7 @@ async def main():
             await page.evaluate("()=>window.__panel.produce('account')")
             await page.wait_for_timeout(PANEL_IN)
             menu = await page.evaluate("()=>document.querySelector('#sheet')?.textContent || ''")
-            journal.check(f"R-L18-p: {state}'s account menu names its role", role["name"] in menu, menu[:80])
+            journal.check(f"R-L18-p: {state}'s account menu names its role", said in menu, menu[:80])
         journal.check("R-L18-p: two identities, two role names — nothing printed as a constant",
                       len(set(names)) == 2, str(names))
 

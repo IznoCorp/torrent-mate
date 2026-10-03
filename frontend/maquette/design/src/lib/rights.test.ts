@@ -59,8 +59,4 @@ describe("the rights of an account are its role's", () => {
     expect(preprod.holds("library.rescrape")).toBe(true);
     expect(rightsOf(accountOn("household", ["acquisition.request"])).holds("acquisition.request")).toBe(false);
   });
-
-  it("reads the role's name for display and nothing else", () => {
-    expect(rightsOf(accountOn("plex-guest")).roleName).toBe("Invité Plex"); // french-ok: a seeded role's name, asserted as served
-  });
 });

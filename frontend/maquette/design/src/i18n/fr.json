@@ -2201,11 +2201,17 @@
         "manage": "Par défaut, seul le rôle Admin le détient."
       }
     },
-    "roleKinds": {
-      "admin": "Admin"
-    },
     "ceilingEvery": "Cette instance est en lecture seule : aucune écriture n'y est permise, pour aucun compte.",
     "ceilingSome": "Cette instance interdit, pour tous les comptes : {{rights}}."
+  },
+  "roles": {
+    "seed": {
+      "admin": "Admin",
+      "household": "Membre du foyer",
+      "plex-guest": "Invité Plex",
+      "requester": "Demandeur",
+      "local-guest": "Invité"
+    }
   },
   "refusals": {
     "request": {

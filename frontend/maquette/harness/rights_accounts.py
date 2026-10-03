@@ -62,16 +62,18 @@ async def main():
         await go("accounts-roster")
         rows = await page.evaluate(ROWS)
         every = [OWNER] + SEEDS["accounts"]
-        role_name = {role["id"]: role["name"] for role in SEEDS["roles"]}
+        # A seeded role carries no name: the interface says the translation of its id.
+        role_name = {role["id"]: await page.evaluate("(id)=>window.__i18n.t('roles.seed.' + id)", role["id"])
+                     for role in SEEDS["roles"]}
         journal.check("R-L18-t: one row per account, in the answer's order",
                       [one["name"] for one in rows["accounts"]] == [one["name"] for one in every], str(rows["accounts"]))
         owner = next(one for one in rows["accounts"] if one["name"] == OWNER["name"])
-        admin_words = await page.evaluate("()=>window.__i18n.t('access.roleKinds.admin')")
+        admin_words = await page.evaluate("()=>window.__i18n.t('roles.seed.admin')")
         journal.check("G-10: the Admin role is named by its kind, from fr.json", owner["role"] == admin_words, str(owner))
         others = [one for one in rows["accounts"] if one["name"] != OWNER["name"]]
         journal.check("R-L18-t: every other account shows its role's served name",
                       all(one["role"] in role_name.values() for one in others), str(others))
-        journal.check("R-L18-t: one row per role", rows["roles"] == [role["name"] for role in SEEDS["roles"]], str(rows["roles"]))
+        journal.check("R-L18-t: one row per role", rows["roles"] == [role_name[role["id"]] for role in SEEDS["roles"]], str(rows["roles"]))
         await page.evaluate("()=>window.__panel.produce('role', 'admin')")
         await page.wait_for_timeout(PANEL_IN)
         journal.check("R-L18-t: the Admin role offers nothing to change",

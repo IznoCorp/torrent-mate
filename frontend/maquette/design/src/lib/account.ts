@@ -65,13 +65,14 @@ export const accountsQuery = {
 /**
  * A role's name, as the interface says it (gap G-10).
  *
- * THE SYSTEM ROLE IS NAMED BY ITS KIND, from `fr.json`: the server stores
- * `Admin`, and the words are the interface's. Every other role is named as the
- * seed or a manager named it (O-K1-4: there is no Default system role).
+ * A SEEDED ROLE NEVER RENAMED HAS NO NAME: the words are the interface's, the
+ * translation of its id in `fr.json` (`roles.seed.<id>`). A role an Admin named
+ * or renamed shows his text. An unknown id with no name shows the id itself —
+ * defined and visible, so a gap in the translations is seen rather than blank.
  *
  * @param role The role.
  * @returns Its name, for display — never compared.
  */
 export function roleLabel(role: Schemas["Role"]): string {
-  return bypassesRights(role) ? i18next.t("access.roleKinds.admin") : role.name;
+  return role.name ?? i18next.t(`roles.seed.${role.id}`, { defaultValue: role.id });
 }

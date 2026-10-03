@@ -232,5 +232,14 @@
     "risk": "destructive",
     "long": true,
     "dryRun": true
+  },
+  {
+    "id": "library-duplicates-by-id",
+    "label": "Doublons par identifiant fournisseur",
+    "description": "Liste les identifiants TVDB/TMDB portés par plusieurs lignes ou dossiers (lecture seule).",
+    "group": "query",
+    "risk": "ro",
+    "long": false,
+    "dryRun": false
   }
 ]
