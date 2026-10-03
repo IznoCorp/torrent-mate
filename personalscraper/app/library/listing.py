@@ -231,7 +231,12 @@ def read_live_rows(conn: sqlite3.Connection) -> list[IndexRow]:
 
 
 def read_holders(conn: sqlite3.Connection, provider: str, provider_id: str) -> list[IndexRow]:
-    """Read every row, live or not, carrying one provider id.
+    """Read every row, live or not, carrying one provider id, of the one kind the id names.
+
+    TMDB's movie and TV id spaces are distinct, so one number can be held by a film and by
+    a show; they are no duplicate of each other (the ``(kind, provider, id)`` grouping of
+    ``indexer/duplicates.py``). A TVDB id names a show; a TMDB or an IMDb id names the movie
+    holders when any exist, else the show holders.
 
     Args:
         conn: An open connection to ``library.db``, with ``sqlite3.Row`` as its row factory.
@@ -239,7 +244,7 @@ def read_holders(conn: sqlite3.Connection, provider: str, provider_id: str) -> l
         provider_id: The id at that provider, as text.
 
     Returns:
-        The holding rows, by ``id``.
+        The holding rows of that kind, by ``id``.
     """
     rows = conn.execute(
         f"SELECT {_COLUMNS} FROM media_item m"
@@ -247,7 +252,11 @@ def read_holders(conn: sqlite3.Connection, provider: str, provider_id: str) -> l
         " ORDER BY m.id",
         (provider_id,),
     ).fetchall()
-    return [_to_row(row) for row in rows]
+    holders = [_to_row(row) for row in rows]
+    shows = [row for row in holders if row.kind == "show"]
+    if provider == "tvdb":
+        return shows
+    return [row for row in holders if row.kind == "movie"] or shows
 
 
 def live_folders(conn: sqlite3.Connection, item_ids: Sequence[int]) -> dict[int, set[str]]:

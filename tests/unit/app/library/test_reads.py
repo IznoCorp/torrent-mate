@@ -6,6 +6,7 @@ from datetime import date
 
 import pytest
 
+from personalscraper.api.metadata._base import MediaDetails
 from personalscraper.app.errors import AppNotFound, RefusalCode
 from personalscraper.app.library.service import RECENT_LIMIT
 from personalscraper.core.identity import MediaRef
@@ -225,3 +226,52 @@ def test_seasons_of_an_imdb_id_the_library_does_not_hold_is_not_found(world: Wor
         world.service.read_seasons(world.actor, MediaRef(imdb_id="tt0113277"))
 
     assert refusal.value.code is RefusalCode.MEDIA_NOT_FOUND
+
+
+def _film_and_show_sharing_a_tmdb_id(world: World) -> None:
+    """Hold one TMDB id twice: as a film and as a show (TMDB's two id spaces overlap)."""
+    film = world.index.item("Film", tmdb="2290")
+    world.index.movie_file(film, "films/Film")
+    show = world.index.item("Show", kind="show", tvdb="77", tmdb="2290")
+    world.index.episodes(show, 1, [1])
+
+
+def test_membership_reads_one_kind_of_a_tmdb_id_held_by_a_film_and_a_show(world: World) -> None:
+    """A TMDB id resolves to the movie holders first: the show sharing the number is no duplicate."""
+    _film_and_show_sharing_a_tmdb_id(world)
+
+    membership = world.service.read_membership(world.actor, MediaRef(tmdb_id=2290))
+
+    assert (membership.rows, membership.kind, dict(membership.ids or {})) == (1, "movie", {"tmdb": 2290})
+
+
+def test_membership_of_a_tvdb_id_is_a_show_only(world: World) -> None:
+    """A TVDB id names a show, whatever a film's TMDB id may be."""
+    _film_and_show_sharing_a_tmdb_id(world)
+
+    membership = world.service.read_membership(world.actor, MediaRef(tvdb_id=77))
+
+    assert (membership.rows, membership.kind) == (1, "show")
+
+
+def test_seasons_of_a_tmdb_show_no_movie_holds_still_work(world: World) -> None:
+    """A TMDB id held by a show alone resolves to the show holders."""
+    show = world.index.item("Show", kind="show", tvdb="78", tmdb="2291")
+    world.index.episodes(show, 1, [1, 2])
+
+    facts = world.service.read_seasons(world.actor, MediaRef(tmdb_id=2291))
+
+    assert dict(facts.owned) == {1: (1, 2)}
+
+
+def test_the_sheet_of_a_shared_tmdb_id_is_the_films(world: World) -> None:
+    """The sheet's held row is the film, not whichever row comes first."""
+    show = world.index.item("Show", kind="show", tvdb="77", tmdb="2290")
+    world.index.episodes(show, 1, [1])
+    film = world.index.item("Film", tmdb="2290")
+    world.index.movie_file(film, "films/Film")
+    world.tmdb.movies["2290"] = MediaDetails(provider="tmdb", provider_id="2290", title="Film")
+
+    sheet = world.service.read_sheet(world.actor, MediaRef(tmdb_id=2290))
+
+    assert (sheet.kind, sheet.title) == ("movie", "Film")
