@@ -375,6 +375,47 @@ def get_by_canonical_id(conn: sqlite3.Connection, row: MediaItemRow) -> MediaIte
     return _row_to_item(rows[0])
 
 
+def _get_holder_at_dispatch_path(
+    conn: sqlite3.Connection, row: MediaItemRow, dispatch_path: str
+) -> MediaItemRow | None:
+    """Pick, among the holders of *row*'s ambiguous canonical id, the one in *dispatch_path*.
+
+    A re-scan of one holder's folder must update that holder: its stored title
+    may carry « (YYYY) », which the title path misses, and a phantom row would
+    then be inserted in its folder. The folder is the holder's
+    ``item_attribute(dispatch_path)``, compared verbatim.
+
+    Args:
+        conn: Open SQLite connection.
+        row: The incoming :class:`MediaItemRow` (its canonical id has two or more holders).
+        dispatch_path: The incoming media folder, as the caller stores it.
+
+    Returns:
+        The one holder whose ``dispatch_path`` equals *dispatch_path*; ``None``
+        when none or several do.
+    """
+    key = _canonical_series_id(row)
+    if key is None:
+        return None
+    provider, series_id = key
+    json_path = _EXTERNAL_ID_JSON_PATHS[provider]
+    _set_row_factory(conn)
+    rows = conn.execute(
+        "SELECT m.id, m.kind, m.title, m.title_sort, m.original_title, m.year, m.category_id, "
+        "m.external_ids_json, m.ratings_json, m.canonical_provider, m.nfo_status, m.artwork_json, "
+        "m.date_created, m.date_modified, m.date_metadata_refreshed, m.is_locked, m.preferred_lang "
+        "FROM media_item m "
+        "JOIN item_attribute a ON a.item_id = m.id AND a.key = ? "
+        f"WHERE CAST(json_extract(m.external_ids_json, '{json_path}') AS TEXT) = CAST(? AS TEXT) "
+        "AND m.kind = ? AND a.value = ? "
+        "LIMIT 2",
+        (_ATTR_DISPATCH_PATH, series_id, row.kind, dispatch_path),
+    ).fetchall()
+    if len(rows) != 1:
+        return None
+    return _row_to_item(rows[0])
+
+
 def delete(conn: sqlite3.Connection, id: int) -> bool:
     """Hard-delete a media item row (cascades to child tables via ON DELETE CASCADE).
 
@@ -504,7 +545,7 @@ def _merge_external_ids(existing_json: str | None, incoming_json: str | None) ->
     return json.dumps({**existing, **incoming})
 
 
-def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
+def upsert(conn: sqlite3.Connection, row: MediaItemRow, *, dispatch_path: str | None = None) -> int:
     """Insert or update a :class:`MediaItemRow`, found by provider id first, then by title.
 
     The existing row is first looked up by the incoming row's canonical provider
@@ -512,9 +553,17 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
     it and its year is compatible (equal, or either side ``NULL``), that row is
     updated, whatever its stored title — a stored « Title (YYYY) » no longer lets
     a canonical-title phantom be inserted beside it. When the incoming row
-    carries no id, when no row holds it, when the single holder has another
-    explicit year (logged), or when two or more rows hold it (a known duplicate,
-    logged and never merged), the title path below runs unchanged.
+    carries no id, when no row holds it, or when the single holder has another
+    explicit year (logged), the title path below runs unchanged. When two or
+    more rows hold it (a known duplicate, logged and never merged), the one
+    holder whose ``dispatch_path`` attribute equals the caller's *dispatch_path*
+    is updated — a re-scan of its own folder, whose stored title may carry
+    « (YYYY) » that the title path would miss; with no *dispatch_path*, or none
+    or several holders in that folder, the title path runs.
+
+    On a row found by id, the year backfill below is skipped when another row
+    of the same stored title already holds the incoming year (it would break
+    ``UNIQUE(title, kind, year)``): the found row keeps its ``NULL`` year.
 
     The title path performs a SELECT-then-UPDATE-or-INSERT keyed by the canonicalised title
     (:func:`_canonical_title` strips a trailing `` (YYYY)``), the kind, and a
@@ -538,6 +587,9 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
         row: :class:`MediaItemRow` to upsert.  The ``id`` field is ignored;
             ``title`` may carry a trailing `` (YYYY)`` suffix which will be
             stripped before storage.  ``year`` disambiguates same-title remakes.
+        dispatch_path: The media folder being written, as the caller stores it
+            in ``item_attribute(dispatch_path)``; only consulted when the
+            canonical id is ambiguous. ``None`` when the caller has no folder.
 
     Returns:
         The ``rowid`` (= ``id``) of the inserted or updated row.
@@ -558,7 +610,13 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
             incoming_year=row.year,
         )
         by_id = None
+    matched_by = "provider_id"
+    if by_id == "ambiguous":
+        by_id = _get_holder_at_dispatch_path(conn, row, dispatch_path) if dispatch_path else None
+        matched_by = "dispatch_path"
     matched_by_id = isinstance(by_id, MediaItemRow)
+    if not matched_by_id:
+        matched_by = "title"
     existing = by_id if isinstance(by_id, MediaItemRow) else get_by_title_kind_year(conn, canonical, row.kind, row.year)
     if existing is not None:
         # A year-less incoming item is ambiguous only when it matched an
@@ -643,7 +701,7 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
             title=canonical,
             kind=row.kind,
             id=existing.id,
-            matched_by="provider_id" if matched_by_id else "title",
+            matched_by=matched_by,
         )
         return existing.id
     cursor = conn.execute(

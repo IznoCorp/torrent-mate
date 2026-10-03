@@ -4,9 +4,12 @@ The index used to find an existing ``media_item`` by its canonicalised title onl
 A row whose stored title still carried « (YYYY) » (« House of the Dragon (2022) »)
 was then missed by a later write of the canonical title, and a 0-file phantom row
 holding the same TVDB id was inserted beside it (prod, 2026-09-02: 18 such rows).
-The write now looks up the incoming row's canonical provider id first; the title
-path only runs when the incoming row carries no id, when no row holds it, or when
-two or more rows already hold it (then the ambiguity is logged, never merged).
+The write now looks up the incoming row's canonical provider id first. When two
+or more rows already hold it (the ambiguity is logged, never merged), the one
+holder whose dispatch folder is the incoming folder is updated. The title path
+runs when the incoming row carries no id, when no row holds it, when the single
+holder carries another explicit year, or when an ambiguous id has no single
+holder in the incoming folder.
 """
 
 from __future__ import annotations
@@ -15,13 +18,15 @@ import json
 import logging
 import sqlite3
 import time
+from dataclasses import asdict
 from pathlib import Path
 
 import pytest
 
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.repos import item_repo
-from personalscraper.indexer.schema import MediaItemKind, MediaItemRow
+from personalscraper.indexer.scanner._modes._item_stage import upsert_item_with_attrs
+from personalscraper.indexer.schema import ItemAttributeRow, MediaItemKind, MediaItemRow
 
 _MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "indexer" / "migrations"
 
@@ -214,6 +219,80 @@ def test_upsert_id_shared_by_two_rows_takes_title_path_and_logs(
     assert events[0]["provider"] == "tvdb"
     assert events[0]["series_id"] == "79168"
     assert events[0]["item_ids"] == [friends_id, uncut_id]
+
+
+def test_upsert_ambiguous_id_prefers_the_holder_in_the_incoming_folder(
+    conn: sqlite3.Connection, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Two rows hold tvdb 275274; a re-scan of one holder's folder updates that holder, no phantom.
+
+    « Rick and Morty (2013) » is stored with its year in its title, so the title
+    path (« Rick and Morty » 2013) misses it and would insert a phantom row in its
+    folder. The holder whose ``dispatch_path`` is the incoming folder wins.
+    """
+    ids = _ids_json(tvdb="275274")
+    misdated_id = item_repo.insert(
+        conn, _make_item("Rick et Morty", year=2006, external_ids_json=ids, canonical_provider="tvdb")
+    )
+    right_id = item_repo.insert(
+        conn, _make_item("Rick and Morty (2013)", year=2013, external_ids_json=ids, canonical_provider="tvdb")
+    )
+    misdated_dir = "/Volumes/Disk1/series/Rick et Morty (2006)"
+    right_dir = "/Volumes/Disk1/series/Rick and Morty (2013)"
+    for item_id, folder in ((misdated_id, misdated_dir), (right_id, right_dir)):
+        item_repo.upsert_attr(conn, ItemAttributeRow(item_id=item_id, key=item_repo._ATTR_DISPATCH_PATH, value=folder))
+    incoming = _make_item("Rick and Morty (2013)", year=2013, external_ids_json=ids, canonical_provider="tvdb")
+
+    with caplog.at_level(logging.INFO):
+        result_id = upsert_item_with_attrs(conn, asdict(incoming), {item_repo._ATTR_DISPATCH_PATH: right_dir})
+
+    assert result_id == right_id, "the holder in the incoming folder must be updated, not a phantom inserted"
+    assert _count(conn) == 2
+    updates = _events(caplog, "indexer.item.upsert_update")
+    assert [u["matched_by"] for u in updates] == ["dispatch_path"]
+
+
+def test_upsert_ambiguous_id_with_no_holder_in_the_folder_keeps_the_title_path(
+    conn: sqlite3.Connection, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Two holders, neither in the incoming folder: the title path decides and the ambiguity is logged."""
+    ids = _ids_json(tvdb="79168")
+    item_repo.insert(conn, _make_item("Friends", external_ids_json=ids, canonical_provider="tvdb"))
+    uncut_id = item_repo.insert(conn, _make_item("Friends [UNCUT]", external_ids_json=ids, canonical_provider="tvdb"))
+    item_repo.upsert_attr(
+        conn, ItemAttributeRow(item_id=uncut_id, key=item_repo._ATTR_DISPATCH_PATH, value="/Volumes/Disk1/series/X")
+    )
+
+    with caplog.at_level(logging.INFO):
+        result_id = item_repo.upsert(
+            conn,
+            _make_item("Friends [UNCUT]", external_ids_json=ids, canonical_provider="tvdb"),
+            dispatch_path="/Volumes/Disk2/series/Friends [UNCUT]",
+        )
+
+    assert result_id == uncut_id
+    assert _count(conn) == 2
+    assert _events(caplog, "indexer.upsert.external_id_ambiguous")
+    assert [u["matched_by"] for u in _events(caplog, "indexer.item.upsert_update")] == ["title"]
+
+
+def test_upsert_ambiguous_id_with_several_holders_in_the_folder_keeps_the_title_path(
+    conn: sqlite3.Connection,
+) -> None:
+    """Two holders recorded in the same folder: the folder decides nothing, the title path does."""
+    ids = _ids_json(tvdb="79168")
+    folder = "/Volumes/Disk1/series/Friends"
+    item_repo.insert(conn, _make_item("Friends", external_ids_json=ids, canonical_provider="tvdb"))
+    uncut_id = item_repo.insert(conn, _make_item("Friends [UNCUT]", external_ids_json=ids, canonical_provider="tvdb"))
+    for item_id in (uncut_id - 1, uncut_id):
+        item_repo.upsert_attr(conn, ItemAttributeRow(item_id=item_id, key=item_repo._ATTR_DISPATCH_PATH, value=folder))
+
+    result_id = item_repo.upsert(
+        conn, _make_item("Friends [UNCUT]", external_ids_json=ids, canonical_provider="tvdb"), dispatch_path=folder
+    )
+
+    assert result_id == uncut_id
+    assert _count(conn) == 2
 
 
 def test_upsert_without_ids_keeps_the_title_path(conn: sqlite3.Connection) -> None:
