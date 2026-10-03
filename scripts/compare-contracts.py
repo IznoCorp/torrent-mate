@@ -56,6 +56,13 @@ METHODS = ("get", "post", "put", "patch", "delete")
 # agree by construction rather than by a convention someone has to remember.
 CARRIED = "CARRIED VERBATIM FROM THE FIXTURE"
 
+# WHERE THE BACKEND THAT EXISTS SERVES ITS OPERATIONS. Its document declares no
+# `servers` and writes every path absolute, under this root; the interface's
+# contract declares its own root (`/api/v1`) and writes its paths relative to
+# it. The two are matched on the path BELOW each root, so the new root is one
+# demand said once in the register's head, not every operation reported missing.
+V0_ROOT = "/api"
+
 
 
 def shape_of(key: str) -> str:
@@ -78,14 +85,43 @@ def shape_of(key: str) -> str:
     return re.sub(r"\{[^}]*\}", "{}", key)
 
 
+def served_under(document: dict) -> str:
+    """Names the root a document's paths are relative to.
+
+    Args:
+        document: One OpenAPI document.
+
+    Returns:
+        Its first server URL without a trailing slash, or the empty string when
+        it declares none (or only the origin) and writes its paths absolute.
+    """
+    servers = document.get("servers") or [{"url": "/"}]
+    return str(servers[0].get("url", "/")).rstrip("/")
+
+
 def operations(document: dict) -> dict:
-    """Reads a document's operations, keyed by `METHOD path`."""
+    """Reads a document's operations, keyed by `METHOD address` — its root and its path."""
+    root = served_under(document)
     found = {}
     for path, entry in document["paths"].items():
         for method, operation in entry.items():
             if method in METHODS:
-                found[f"{method.upper()} {path}"] = operation
+                found[f"{method.upper()} {root}{path}"] = operation
     return found
+
+
+def below(key: str, root: str) -> str:
+    """Returns one operation key with its document's root taken off its address.
+
+    Args:
+        key: `METHOD address`.
+        root: The root the document serves its operations under.
+
+    Returns:
+        `METHOD path`, the path as it reads below that root.
+    """
+    method, address = key.split(" ", 1)
+    return f"{method} {address[len(root):] if address.startswith(root) else address}"
 
 
 def success_codes(operation: dict) -> list:
@@ -217,19 +253,30 @@ def compute() -> str:
     wanted = json.loads(WANTED.read_text(encoding="utf-8"))
     have = json.loads(HAVE.read_text(encoding="utf-8"))
     ours, theirs = operations(wanted), operations(have)
+    root = served_under(wanted)
 
-    # Matched on the path with its parameter NAMES blanked, so a `{followedId}`
-    # against a `{followed_id}` is not read as a missing operation.
-    theirs_by_shape = {shape_of(key): key for key in theirs}
-    ours_by_shape = {shape_of(key): key for key in ours}
-    missing = sorted(key for key in ours if shape_of(key) not in theirs_by_shape)
-    unused = sorted(key for key in theirs if shape_of(key) not in ours_by_shape)
-    shared = sorted(key for key in ours if shape_of(key) in theirs_by_shape)
+    def ours_below(key: str) -> str:
+        return below(key, root)
+
+    def theirs_below(key: str) -> str:
+        return below(key, V0_ROOT)
+
+    # Matched on the path below each document's root with its parameter NAMES
+    # blanked, so a `{followedId}` against a `{followed_id}` is not read as a
+    # missing operation, nor `/api/v1/…` against `/api/…`.
+    theirs_by_shape = {shape_of(theirs_below(key)): key for key in theirs}
+    ours_by_shape = {shape_of(ours_below(key)): key for key in ours}
+    missing = sorted(key for key in ours if shape_of(ours_below(key)) not in theirs_by_shape)
+    unused = sorted(key for key in theirs if shape_of(theirs_below(key)) not in ours_by_shape)
+    shared = sorted(key for key in ours if shape_of(ours_below(key)) in theirs_by_shape)
+
+    def counterpart_of(key: str) -> str:
+        return theirs_by_shape[shape_of(ours_below(key))]
 
     spelling = sorted(
-        (key, theirs_by_shape[shape_of(key)])
+        (key, counterpart_of(key))
         for key in shared
-        if key != theirs_by_shape[shape_of(key)]
+        if ours_below(key) != theirs_below(counterpart_of(key))
     )
 
     # WHICH STATUS EACH SIDE ANSWERS ON SUCCESS, and it is a demand of its own.
@@ -239,21 +286,20 @@ def compute() -> str:
     # 409 where §20 requires the interface to show it QUEUED. A demand nobody
     # computes is a demand that drifts, so it is computed.
     status = sorted(
-        (key, ours[key]["operationId"], mine, yours)
-        for key, mine, yours in (
-            (key, success_codes(ours[key]),
-             success_codes(theirs[theirs_by_shape[shape_of(key)]]))
+        (key, ours[key]["operationId"], required, answered)
+        for key, required, answered in (
+            (key, success_codes(ours[key]), success_codes(theirs[counterpart_of(key)]))
             for key in shared
         )
-        if mine != yours
+        if required != answered
     )
 
     shape = []
     for key in shared:
-        counterpart = theirs[theirs_by_shape[shape_of(key)]]
-        mine = response_properties(wanted, ours[key])
-        yours = response_properties(have, counterpart)
-        added, dropped = sorted(mine - yours), sorted(yours - mine)
+        counterpart = theirs[counterpart_of(key)]
+        required_names = response_properties(wanted, ours[key])
+        answered_names = response_properties(have, counterpart)
+        added, dropped = sorted(required_names - answered_names), sorted(answered_names - required_names)
         if added or dropped:
             shape.append((key, ours[key]["operationId"], added, dropped))
 
@@ -268,8 +314,13 @@ def compute() -> str:
         "backend. `--check` refuses a committed register that differs from the computed one, so the",
         "two cannot separate. Edit the contract, not this file.",
         "",
+        f"**THE INTERFACE ADDRESSES EVERY OPERATION UNDER `{root}`** — its contract's `servers`",
+        f"URL, its paths relative to it — where the backend serves them under `{V0_ROOT}`. That",
+        "root is one demand, said here once: the operations below are matched on the path BELOW",
+        "each root, and written as each side addresses them.",
+        "",
         "**IT DESCRIBES OPERATIONS, AND A WEBSOCKET IS NOT ONE.** OpenAPI cannot declare",
-        "`/ws/events`, so nothing about the event stream can ever appear below — and nothing",
+        f"`{root}/events`, so nothing about the event stream can ever appear below — and nothing",
         "reads as identical to no demands (B-153). The stream's demands are written BY HAND in",
         "`docs/reference/frontend-backend-demands-stream.md`. This pointer lives in the",
         "GENERATOR, so regenerating this file cannot drop it.",

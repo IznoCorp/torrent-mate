@@ -64,7 +64,7 @@ COUNT_THE_DOORS = """(() => {
 })();"""
 
 # THE PIPELINE'S STATE, as the layer answers it.
-PIPELINE_STATE = """async ()=>(await (await fetch('/api/pipeline/status')).json()).state"""
+PIPELINE_STATE = """async ()=>(await (await fetch('/api/v1/pipeline/status')).json()).state"""
 
 # WHAT THE LAYER ANSWERED to one operation.
 ANSWERED = """(name)=>(window.__mocks?.answered?.() || [])
@@ -133,7 +133,7 @@ COMMAND_TOPIC = "query"
 COMMAND = "library-status"
 
 # WHAT THE LAYER SAYS OF THE PIPELINE'S LOCK.
-LOCK_HELD = """async ()=>(await (await fetch('/api/maintenance/locks')).json()).pipelineLock.held"""
+LOCK_HELD = """async ()=>(await (await fetch('/api/v1/maintenance/locks')).json()).pipelineLock.held"""
 
 
 async def press(journal, page, selector, claim):

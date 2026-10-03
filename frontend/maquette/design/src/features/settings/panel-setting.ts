@@ -357,7 +357,7 @@ async function restart(): Promise<void> {
   // flag used to be dropped on `SETTINGS_STATE` and the service was never told
   // anything — an interface saying a restart had happened over a call nobody
   // made, which is NE-DOIT-PAS-1 from the closest range.
-  await send("POST", "/api/config/restart-web");
+  await send("POST", "/api/v1/config/restart-web");
   await sharedQueryClient?.invalidateQueries({
     queryKey: configurationStatusQuery.queryKey });
   redraw();

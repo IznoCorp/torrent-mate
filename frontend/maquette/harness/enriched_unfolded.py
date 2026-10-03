@@ -57,7 +57,7 @@ SHEET = """(subject) => ({
     name: row.querySelector(':scope > span')?.textContent.trim(),
     tone: row.querySelector('[data-part="status-dot"]')?.dataset.tone ?? null,
     value: row.querySelectorAll(':scope > span')[1]?.textContent.trim()})),
-  stages: window.__queries.getQueryData(['/api/acquisition/journeys', subject]) ?? []})"""
+  stages: window.__queries.getQueryData(['/api/v1/acquisition/journeys', subject]) ?? []})"""
 
 CARDS = """() => [...document.querySelectorAll('#view [data-part="card"]')].map((card) => ({
   text: card.textContent.replace(/\\s+/g, ' '),

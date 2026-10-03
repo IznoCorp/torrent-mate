@@ -119,7 +119,7 @@ REFRESHED_ROW = """() => {
 # formatted date and the layer holds an instant, and a rule that read only the
 # surface could not tell a moved state from a re-rendered constant.
 SHEET_FIELD = """async ([provider, identifier]) => {
-  const answer = await fetch(`/api/media/${provider}/${identifier}`);
+  const answer = await fetch(`/api/v1/media/${provider}/${identifier}`);
   const sheet = await answer.json();
   return sheet === null ? null : sheet.metadataRefreshedAt ?? null;
 }"""
@@ -127,7 +127,7 @@ SHEET_FIELD = """async ([provider, identifier]) => {
 # THE LAYER'S PIPELINE STATE, read through a BLANK run — which changes nothing
 # by contract, and is therefore a probe and not an act.
 PIPELINE_STATE = """async (command) => {
-  const answer = await fetch(`/api/maintenance/actions/${command}/run`, {
+  const answer = await fetch(`/api/v1/maintenance/actions/${command}/run`, {
     method: 'POST',
     headers: {'content-type': 'application/json'},
     body: JSON.stringify({dryRun: true}),

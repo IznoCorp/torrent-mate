@@ -42,11 +42,11 @@ READ = """(before) => ({
 DISMISS = """() => document.querySelector('#dlg[data-open] [data-dialog-dismiss]')?.click()"""
 
 TORRENT = """async () => {
-  const downloads = await (await fetch('/api/acquisition/downloads')).json();
+  const downloads = await (await fetch('/api/v1/acquisition/downloads')).json();
   const one = (downloads.downloads ?? []).find((entry) => entry.infoHash && entry.tracker);
   return one ? `${one.infoHash}:${one.tracker}` : null;
 }"""
-SECRET = """async () => ((await (await fetch('/api/config/secrets')).json())[0] ?? {}).key ?? null"""
+SECRET = """async () => ((await (await fetch('/api/v1/config/secrets')).json())[0] ?? {}).key ?? null"""
 
 
 async def main():

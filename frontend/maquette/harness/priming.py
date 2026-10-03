@@ -307,7 +307,7 @@ READ = """() => {
       const cache = window.__queries && window.__queries.getQueryCache();
       if (!cache) return null;
       const sheet = cache.getAll().find(
-        (query) => query.queryKey[0] === '/api/media' && query.queryKey.length === 3);
+        (query) => query.queryKey[0] === '/api/v1/media' && query.queryKey.length === 3);
       // `data === undefined` was the first reading and it says two things at
       // once: a read still out, and a read that FAILED with nothing to show.
       // The screen is not in flight in the second, so a walk holding « in
@@ -661,7 +661,7 @@ async def main():
         # reading the surface's PRESENCE could tell apart.
         before_retry = await page.evaluate("""() => {
           const sheet = window.__queries.getQueryCache().getAll().find(
-            (query) => query.queryKey[0] === '/api/media' && query.queryKey.length === 3);
+            (query) => query.queryKey[0] === '/api/v1/media' && query.queryKey.length === 3);
           return sheet ? sheet.state.errorUpdateCount : null;
         }""")
         retry_state = await page.evaluate("""async () => {
@@ -670,7 +670,7 @@ async def main():
           button.click();
           await new Promise((done) => setTimeout(done, 250));
           const sheet = window.__queries.getQueryCache().getAll().find(
-            (query) => query.queryKey[0] === '/api/media' && query.queryKey.length === 3);
+            (query) => query.queryKey[0] === '/api/v1/media' && query.queryKey.length === 3);
           return { clicked: true,
                    fetchStatus: sheet ? sheet.state.fetchStatus : null,
                    // `fetchFailureCount` was the first reading and it does
@@ -872,7 +872,7 @@ async def main():
           if (!button) return { clicked: false };
           const count = () => {
             const seasons = window.__queries.getQueryCache().getAll().find(
-              (query) => query.queryKey[0] === '/api/media' && query.queryKey.length === 4);
+              (query) => query.queryKey[0] === '/api/v1/media' && query.queryKey.length === 4);
             return seasons ? seasons.state.errorUpdateCount : null;
           };
           const before = count();

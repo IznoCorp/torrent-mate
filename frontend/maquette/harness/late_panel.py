@@ -45,12 +45,12 @@ WHERE = """() => ({ page: window.__store?.read?.().state.page ?? null, path: loc
 
 HOLD_ACCOUNT = """(latency) => {
   window.__mocks.setOperationOutcome('readAccount', { latencyMilliseconds: latency });
-  window.__queries.removeQueries({ queryKey: ['/api/auth/me'] });
+  window.__queries.removeQueries({ queryKey: ['/api/v1/auth/me'] });
 }"""
 
 HOLD_MEMBERSHIP = """(latency) => {
   window.__mocks.setOperationOutcome('readLibraryMembership', { latencyMilliseconds: latency });
-  window.__queries.removeQueries({ queryKey: ['/api/library/membership'] });
+  window.__queries.removeQueries({ queryKey: ['/api/v1/library/membership'] });
 }"""
 
 

@@ -159,7 +159,7 @@ async def main():
         renamed = await page.evaluate(
             """(name)=>{ if (!window.__mocks?.renameAccount) return false;
                 window.__mocks.renameAccount(name);
-                void window.__queries?.invalidateQueries({queryKey: ['/api/acquisition/to-handle']});
+                void window.__queries?.invalidateQueries({queryKey: ['/api/v1/acquisition/to-handle']});
                 return true; }""", RENAMED)
         await page.wait_for_timeout(ACTED)
         after = [card for card in await page.evaluate(READ)

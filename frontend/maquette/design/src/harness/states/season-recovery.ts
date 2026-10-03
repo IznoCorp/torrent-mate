@@ -22,12 +22,12 @@ const PACK = "MULTi · 1080p";
 
 /** Drops the queue the reset already asked for, so the page asks the posed world again. */
 function forgetQueue(): void {
-  window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
+  window.__queries?.removeQueries({ queryKey: ["/api/v1/acquisition/to-handle"] });
 }
 
 /** Drops the seasons reads already held, so a surface reads what a posed shelving put in the library. */
 function forgetSeasons(): void {
-  window.__queries?.removeQueries({ queryKey: ["/api/media"] });
+  window.__queries?.removeQueries({ queryKey: ["/api/v1/media"] });
 }
 
 /** One acquisition's journey, over « Suivis », in the dense world. */
@@ -55,7 +55,7 @@ function now(): void {
  * @param season The season, 1-based.
  */
 async function ask(title: string, season: number): Promise<void> {
-  const path = `/api/acquisition/follows/${encodeURIComponent(title)}/seasons/${season}/grab`;
+  const path = `/api/v1/acquisition/follows/${encodeURIComponent(title)}/seasons/${season}/grab`;
   await fetch(path, { method: "POST" });
   forgetQueue();
 }
@@ -328,7 +328,7 @@ export function seasonRecoveryStates(): NamedState[] {
       "Choisir une autre release — chaque candidat est un épisode couvert par la saison 3",
       () => {
         window.__mocks?.seasonRecovery.releaseTried(SERIES, SEASON_PACK);
-        window.__queries?.removeQueries({ queryKey: ["/api/acquisition/releases"] });
+        window.__queries?.removeQueries({ queryKey: ["/api/v1/acquisition/releases"] });
         releases(SERIES);
       },
     ],

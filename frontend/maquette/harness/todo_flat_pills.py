@@ -57,8 +57,8 @@ REPOSE = """() => {
   window.__mocks.reset();
   window.__mocks.poseBlock('Silo|S03', 'tracker_unreachable', {tracker: 'c411', minutesAgo: 90});
   window.__mocks.poseBlock('Conclave', 'provider_unreachable', {provider: 'TMDB', minutesAgo: 20});
-  window.__queries.removeQueries({queryKey: ['/api/acquisition/to-handle']});
-  window.__queries.removeQueries({queryKey: ['/api/staging/media']});
+  window.__queries.removeQueries({queryKey: ['/api/v1/acquisition/to-handle']});
+  window.__queries.removeQueries({queryKey: ['/api/v1/staging/media']});
   window.__store.write({scen: 'loaded', page: 'acq', acqTab: 'todo'});
 }"""
 # Every card with a time, oldest first: the blocks and the closure mixed.

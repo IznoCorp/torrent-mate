@@ -54,12 +54,12 @@ SEARCH_ENDS = 6000
 
 OFFERS = """() => {
   const origin = document.querySelector('#sheet[data-open] [data-part="torrents/cross-seed"]')?.dataset.entry;
-  const entry = (window.__queries?.getQueryData(['/api/acquisition/downloads'])?.downloads || [])
+  const entry = (window.__queries?.getQueryData(['/api/v1/acquisition/downloads'])?.downloads || [])
     .find(one => one.infoHash === origin);
   return [...document.querySelectorAll('#sheet[data-open] [data-part="torrents/cross-seed-row"]')].map(row => ({
     tracker: row.dataset.tracker, state: row.dataset.state, excluded: row.dataset.excluded === 'true',
     downloading: !!entry && entry.progress < 1,
-    trackerOn: (() => { const one = (window.__queries?.getQueryData(['/api/trackers']) || [])
+    trackerOn: (() => { const one = (window.__queries?.getQueryData(['/api/v1/trackers']) || [])
       .find(t => t.name === row.dataset.tracker); return !one || (one.enabled && !one.disabled); })(),
     offered: !!row.querySelector('[data-part="torrents/cross-seed-search"]'),
     queued: row.querySelector('[data-part="torrents/cross-seed-queued"]')?.textContent.trim() ?? null,
@@ -79,7 +79,7 @@ SWITCH_OFF_PAIR = """({infoHash, tracker, state}) => {
     state, excluded: false, searching: false, reason: state === 'error' ? 'fetch_failed' : null,
   });
   window.__mocks?.poseCrossSeedSwitchOff(tracker);
-  window.__queries?.removeQueries({ queryKey: ['/api/trackers'] });
+  window.__queries?.removeQueries({ queryKey: ['/api/v1/trackers'] });
 }"""
 
 
@@ -153,7 +153,7 @@ async def main():
             "[data-cross-seed-search-all]`)?.click()", SWITCHED)
         await page.wait_for_timeout(ACTED)
         pairs = {pair["tracker"]: pair for pair in await page.evaluate(
-            "(hash) => (window.__queries?.getQueryData(['/api/acquisition/downloads'])?.downloads || [])"
+            "(hash) => (window.__queries?.getQueryData(['/api/v1/acquisition/downloads'])?.downloads || [])"
             ".find(e => e.infoHash === hash)?.crossSeed?.pairs ?? []", SWITCHED)}
         journal.check("the handler queues only the tracker whose own switch is on, from a no-tracker bulk ask",
                       pairs.get("v3x.club", {}).get("searching") is True

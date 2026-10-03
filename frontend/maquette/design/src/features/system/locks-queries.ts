@@ -11,7 +11,7 @@ import type { components } from "../../contract/types";
 type Locks = components["schemas"]["Locks"];
 
 /** The address, named once: the query key and the read must not drift apart. */
-const LOCKS = "/api/maintenance/locks";
+const LOCKS = "/api/v1/maintenance/locks";
 
 /** What holds the pipeline, and what a crash left behind. */
 export const useLocks = () =>

@@ -40,7 +40,7 @@ FOLLOWED = ("President Curtis", "Furious")
 # world holds Silo's whole-season card AND the episode card it covers — two items of one series,
 # one drawn (R-season-recovery-a); counting by title alone read them as one medium answered twice.
 QUEUE = """async () => {
-  const answer = await (await fetch('/api/acquisition/to-handle?scenario=loaded')).json();
+  const answer = await (await fetch('/api/v1/acquisition/to-handle?scenario=loaded')).json();
   const item = (card) => card.title + ' ' + (card.season != null
     ? 'S' + card.season + (card.episode != null ? 'E' + card.episode : '')
     : ((card.secondaryLine || '').match(/S\\d+E\\d+/) || [''])[0]);
@@ -49,7 +49,7 @@ QUEUE = """async () => {
 }"""
 DRAWN = """() => [...document.querySelectorAll('#view [data-part="card"] [data-part="card/title"]')]
   .map((one) => one.textContent)"""
-STAGED = """async () => (await (await fetch('/api/staging/media?scenario=loaded')).json()).moving
+STAGED = """async () => (await (await fetch('/api/v1/staging/media?scenario=loaded')).json()).moving
   .map((card) => ({ title: card.title, strip: card.strip }))"""
 
 
@@ -78,7 +78,7 @@ async def main():
                       all(title in staged for title in FOLLOWED), str(staged))
 
         matched = await page.evaluate("""async () => {
-          const answer = await (await fetch('/api/acquisition/to-handle?scenario=loaded')).json();
+          const answer = await (await fetch('/api/v1/acquisition/to-handle?scenario=loaded')).json();
           const real = [...answer.arrivals, ...answer.inFlight].find((card) => card.title === 'President Curtis');
           if (!real) return null;
           const next = { ...real, secondaryLine: real.secondaryLine.replace('S01E02', 'S01E03') };

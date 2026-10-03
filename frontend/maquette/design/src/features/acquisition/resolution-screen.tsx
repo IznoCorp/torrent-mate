@@ -64,7 +64,7 @@ export function ResolutionScreen() {
   const { t } = useTranslation();
   // THE DECISIONS COME FROM THE CACHE (invariant 4). `decisionPending` and
   // `DECISIONS_REGLEES` were the engine's, read straight off the fixture; the
-  // same two answers are derived here from `/api/decisions/`.
+  // same two answers are derived here from `/api/v1/decisions/`.
   const { data: decisions } = useDecisions();
   // THE SCREEN HOLDS THE QUEUE IN THE CACHE, and draws nothing from it. Its
   // exits act on the queue — a pick and « Laisser tel quel » take the folder out

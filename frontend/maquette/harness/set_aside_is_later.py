@@ -51,7 +51,7 @@ READING = f"""(title) => {{
     .find(one => one.querySelector('[data-part="card/title"]').textContent === title) : null;
   const sections = [...document.querySelectorAll('#view [data-part^="section"]')]
     .filter(one => one.matches('section'));
-  const answer = window.__queries?.getQueryData(["/api/acquisition/to-handle", ""]) || {{}};
+  const answer = window.__queries?.getQueryData(["/api/v1/acquisition/to-handle", ""]) || {{}};
   const held = [...(answer.blocked || []), ...(answer.arrivals || [])].find(one => one.title === title);
   const rung = (held?.ladder || []).find(one => one.state === 'aside');
   const drawn = [...document.querySelectorAll('#view [data-part="card"]')]
@@ -133,8 +133,8 @@ async def main():
 
         # ── the layer holds it: both reads asked again ─────────────────────
         await page.evaluate("""()=>{
-            window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
-            window.__queries?.removeQueries({ queryKey: ["/api/staging/media"] });
+            window.__queries?.removeQueries({ queryKey: ["/api/v1/acquisition/to-handle"] });
+            window.__queries?.removeQueries({ queryKey: ["/api/v1/staging/media"] });
             window.__store.touch?.(); }""")
         await page.evaluate("()=>document.querySelector('[data-acqtab=\"now\"]')?.click()")
         await page.wait_for_timeout(ACTED)

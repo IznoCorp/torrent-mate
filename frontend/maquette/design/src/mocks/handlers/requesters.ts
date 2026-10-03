@@ -109,15 +109,15 @@ function setOwn(followedId: string, change: Preference): unknown {
 /** Every route this subject answers. */
 export function requesterRoutes(): MockRoute[] {
   return [
-    route("reassignRequester", POST, "/api/acquisition/requesters/reassign", (request) => {
+    route("reassignRequester", POST, "/acquisition/requesters/reassign", (request) => {
       const moved = moveRequester(text(request.body, "title"), text(request.body, "from"), text(request.body, "to"));
       return moved === null ? refused(MISSING, NO_SUCH) : { requesters: moved };
     }),
-    route("setAcquisitionQuality", PUT, "/api/acquisition/followed/{followedId}/quality", (request) => {
+    route("setAcquisitionQuality", PUT, "/acquisition/followed/{followedId}/quality", (request) => {
       const profile = field(request.body, "profile");
       return setOwn(request.parameters.followedId, { quality: typeof profile === "string" ? profile : null });
     }),
-    route("setAcquisitionPause", PUT, "/api/acquisition/followed/{followedId}/pause", (request) =>
+    route("setAcquisitionPause", PUT, "/acquisition/followed/{followedId}/pause", (request) =>
       setOwn(request.parameters.followedId, { paused: field(request.body, "paused") === true })),
   ];
 }

@@ -88,8 +88,8 @@ function lastResort(accounts: HeldAccount[], every: Role[]): string | null {
 /** Every route this subject answers. */
 export function accountRoutes(): MockRoute[] {
   return [
-    route("readAccounts", GET, "/api/accounts", answered),
-    route("createAccount", POST, "/api/accounts", (request) => {
+    route("readAccounts", GET, "/accounts", answered),
+    route("createAccount", POST, "/accounts", (request) => {
       const name = text(request.body, "name").trim();
       const email = text(request.body, "email").trim();
       const role = text(request.body, "role");
@@ -108,7 +108,7 @@ export function accountRoutes(): MockRoute[] {
       roster.addAccount(created);
       return summary(created);
     }),
-    route("updateAccount", PATCH, "/api/accounts/{accountId}", (request) => {
+    route("updateAccount", PATCH, "/accounts/{accountId}", (request) => {
       const account = heldAccounts().find((one) => one.id === request.parameters.accountId);
       const target = roles().find((one) => one.id === text(request.body, "role"));
       if (account === undefined || target === undefined) return refused(MISSING, "no such account or role");
@@ -125,7 +125,7 @@ export function accountRoutes(): MockRoute[] {
       roster.assign(account.id, target.id);
       return summary({ ...account, role: target.id });
     }),
-    route("createRole", POST, "/api/roles", (request) => {
+    route("createRole", POST, "/roles", (request) => {
       const rights = (field(request.body, "rights") as Right[] | undefined) ?? [];
       if (!within(rights)) return refused(FORBIDDEN, "the role would hold rights the caller's does not");
       const created: Role = {
@@ -137,7 +137,7 @@ export function accountRoutes(): MockRoute[] {
       roster.addRole(created);
       return created;
     }),
-    route("updateRole", PATCH, "/api/roles/{roleId}", (request) => {
+    route("updateRole", PATCH, "/roles/{roleId}", (request) => {
       const role = roles().find((one) => one.id === request.parameters.roleId);
       if (role === undefined) return refused(MISSING, "no role carries that id");
       if (role.kind === ADMIN) return refused(CONFLICT, "the Admin role holds no list and is not modified");

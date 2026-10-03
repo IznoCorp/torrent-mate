@@ -34,7 +34,7 @@ import { read } from "../../lib/query-client";
 type PipelineStatus = components["schemas"]["Pipeline"];
 
 /** The pipeline's status — the system page's key and shape, one cached answer. */
-const PIPELINE_STATUS = ["/api/pipeline/status"];
+const PIPELINE_STATUS = ["/api/v1/pipeline/status"];
 
 /** The state the pipeline is in when nothing runs: a queued ask is then taken. */
 const IDLE = "idle";
@@ -52,7 +52,7 @@ const IDLE = "idle";
 export async function refreshPipelineStatus(client: QueryClient): Promise<void> {
   await client.fetchQuery({
     queryKey: PIPELINE_STATUS,
-    queryFn: async () => read<PipelineStatus>("/api/pipeline/status"),
+    queryFn: async () => read<PipelineStatus>("/api/v1/pipeline/status"),
     staleTime: 0,
   });
 }
@@ -113,7 +113,7 @@ export function useQueuedSeasons(title: string): number[] {
   const client = useQueryClient();
   const { data: pipeline } = useQuery({
     queryKey: PIPELINE_STATUS,
-    queryFn: async () => read<PipelineStatus>("/api/pipeline/status"),
+    queryFn: async () => read<PipelineStatus>("/api/v1/pipeline/status"),
   });
   const taken = pipeline?.state === IDLE;
   const { data } = useQuery({

@@ -58,7 +58,7 @@ MESSAGE = """() => {
   return host && host.dataset.shown !== undefined ? document.querySelector('#toastmsg').textContent.trim() : '';
 }"""
 RUNG = """(title) => {
-  const queue = window.__queries?.getQueryData(['/api/acquisition/to-handle', 'loaded']) || {};
+  const queue = window.__queries?.getQueryData(['/api/v1/acquisition/to-handle', 'loaded']) || {};
   const card = [...(queue.inFlight || []), ...(queue.arrivals || [])].find(one => one.title === title);
   const rung = (card?.ladder || []).find(one => one.rung === 'arrived');
   return rung ? {state: rung.state, reason: rung.reason ?? null} : null;
@@ -120,7 +120,7 @@ async def main():
         # ── 3. one cause, many cards ───────────────────────────────────────
         await go(page, journal, "acq-block-client-unreachable")
         await page.evaluate("()=>window.__mocks.poseBlock('This City Is Ours','insufficient_space')")
-        await page.evaluate("()=>window.__queries.invalidateQueries({queryKey:['/api/acquisition/to-handle']})")
+        await page.evaluate("()=>window.__queries.invalidateQueries({queryKey:['/api/v1/acquisition/to-handle']})")
         await on_todo(page)
         held = await page.evaluate(TODO_KEYS)
         await lift(page, "window.__mocks.liftCause('client_unreachable')")

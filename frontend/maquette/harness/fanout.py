@@ -8,8 +8,8 @@ entry holds after it.
 WHY IT DOES NOT READ THE MAP'S SOURCE, and this is the whole reason the rule
 costs a browser. A map that reads correctly can still fan out wider than it
 says: a prefix key one element too short covers siblings nobody listed. It
-compiles. Its types agree. `["/api/staging/media"]` and
-`["/api/staging/media", scenario]` are both valid `QueryKey`s and only one of
+compiles. Its types agree. `["/api/v1/staging/media"]` and
+`["/api/v1/staging/media", scenario]` are both valid `QueryKey`s and only one of
 them is right — and which one is right is a JUDGEMENT about the data, not
 something a type can hold. L09 paid for that shape three times in one wave
 (B-124, B-125, B-136): a name that compiles and reads the wrong thing.
@@ -276,9 +276,9 @@ async def warm(page, keys):
              for (const key of keys) seed([key[0], "__sibling"]);
              // Two extra scenarios under staging's own address, so « every
              // scenario refreshes » has more than one to refresh.
-             seed(["/api/staging/media", "dense"]);
-             seed(["/api/staging/media", "sparse"]);
-             seed(["/api/library/items", "", "", "recent", false]);
+             seed(["/api/v1/staging/media", "dense"]);
+             seed(["/api/v1/staging/media", "sparse"]);
+             seed(["/api/v1/library/items", "", "", "recent", false]);
              await window.__mocks.quiet();
              return window.__queries.getQueryCache().getAll().length;
            }""",
@@ -310,7 +310,7 @@ def covers(moved, keys):
     }
     # THE BOUNDARY IS EXPLICIT. A prefix ending in a string carries its closing
     # quote and is self-terminating; one ending in a NUMBER does not, so
-    # `["/api/media","tvdb",12345` would match `…,123456]` — another title's
+    # `["/api/v1/media","tvdb",12345` would match `…,123456]` — another title's
     # sheet reading as covered, which is the very case the media table names as
     # the one to avoid. The day the narrow key lands, this is where it bites.
     def under(entry, prefix):
@@ -507,7 +507,7 @@ async def hold(journal):
                  window.__mocks.stream.emit("ItemProgressed", { status: "moved" });
                  await window.__mocks.quiet();
                  return window.__fanoutSince().filter(
-                   (key) => key.startsWith('["/api/staging/media"'));
+                   (key) => key.startsWith('["/api/v1/staging/media"'));
                }""")
         journal.check(
             "staging's key is wide ON PURPOSE: every scenario refreshes",

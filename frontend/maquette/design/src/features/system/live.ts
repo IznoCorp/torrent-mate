@@ -7,23 +7,23 @@
 import type { LiveExemptions, LiveRule } from "../../lib/live-rule";
 
 /** The schedulers, and when each next runs. */
-const SCHEDULERS_KEY = ["/api/maintenance/schedulers"];
+const SCHEDULERS_KEY = ["/api/v1/maintenance/schedulers"];
 /** The disks, and what is left on them. */
-const DISKS_KEY = ["/api/maintenance/disks"];
+const DISKS_KEY = ["/api/v1/maintenance/disks"];
 /** The index's health. */
-const INDEX_HEALTH_KEY = ["/api/maintenance/index-health"];
+const INDEX_HEALTH_KEY = ["/api/v1/maintenance/index-health"];
 /** Whether each external provider answers. */
-const DEPENDENCIES_KEY = ["/api/system/dependencies"];
+const DEPENDENCIES_KEY = ["/api/v1/system/dependencies"];
 /** The services, and whether each answers. */
-const SERVICES_KEY = ["/api/system/services"];
+const SERVICES_KEY = ["/api/v1/system/services"];
 /** What the code has been complaining about. */
-const ERRORS_KEY = ["/api/system/errors"];
+const ERRORS_KEY = ["/api/v1/system/errors"];
 /** The runs, and how each ended. */
-const HISTORY_KEY = ["/api/pipeline/history"];
+const HISTORY_KEY = ["/api/v1/pipeline/history"];
 /** What holds the pipeline, and what a crash left behind. */
-const LOCKS_KEY = ["/api/maintenance/locks"];
+const LOCKS_KEY = ["/api/v1/maintenance/locks"];
 /** The pipeline's own state, which the levers draw. */
-const PIPELINE_KEY = ["/api/pipeline/status"];
+const PIPELINE_KEY = ["/api/v1/pipeline/status"];
 
 /** What a server event refreshes on the system page. */
 export const systemLiveRules: readonly LiveRule[] = [
@@ -128,7 +128,7 @@ export const systemLiveExemptions: LiveExemptions = {
   /* WHAT IS LEFT UNREFRESHED IS NOTHING, and the two sentences that used to
      sit here were both wrong. The first claimed no event says a DEPENDENCY
      stopped answering; the breakers do, and `ProviderCallCompleted` samples it
-     between transitions. The second kept `/api/system/services` unrefreshable;
+     between transitions. The second kept `/api/v1/system/services` unrefreshable;
      `RegistryBootValidated` says the services have just been established, and
      it is mapped above. `CircuitBreakerOpened/Closed/
      HalfOpened` exist, fire on transition, and are a rule above. What remains

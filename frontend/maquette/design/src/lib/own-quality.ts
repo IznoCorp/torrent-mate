@@ -10,7 +10,7 @@ import { useUiState } from "./store-access";
 import type { Schemas } from "./contract-schemas";
 
 // The follows' own read — the key the acquisition feature reads them under.
-const FOLLOWS_KEY = ["/api/acquisition/followed"];
+const FOLLOWS_KEY = ["/api/v1/acquisition/followed"];
 
 /**
  * The follow one title names, as the follows' read answers it.
@@ -25,7 +25,7 @@ export function useFollowOf(title: string): Schemas["Follow"] | undefined {
   const { data } = useQuery({
     queryKey: [...FOLLOWS_KEY, world],
     queryFn: async () =>
-      read<Schemas["Follow"][]>("/api/acquisition/followed", new URLSearchParams(world ? { scenario: world } : {})),
+      read<Schemas["Follow"][]>("/api/v1/acquisition/followed", new URLSearchParams(world ? { scenario: world } : {})),
   });
   return data?.find((one) => one.title === title);
 }
@@ -39,7 +39,7 @@ export function useFollowOf(title: string): Schemas["Follow"] | undefined {
  */
 export async function setOwnQuality(client: QueryClient, title: string, floor: string | null): Promise<void> {
   try {
-    await send("PUT", `/api/acquisition/followed/${encodeURIComponent(title)}/quality`, { profile: floor });
+    await send("PUT", `/api/v1/acquisition/followed/${encodeURIComponent(title)}/quality`, { profile: floor });
     await client.refetchQueries({ queryKey: FOLLOWS_KEY });
   } catch {
     toast?.show({ message: i18next.t("verbs.acquisitionSettings.refused") });

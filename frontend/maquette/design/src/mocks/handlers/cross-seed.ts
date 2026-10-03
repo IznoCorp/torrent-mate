@@ -207,9 +207,9 @@ function mediaCrossSeed(provider: string, providerId: string): Schemas["MediaCro
 /** Every route this subject answers. */
 export function crossSeedRoutes(): MockRoute[] {
   return [
-    route("readMediaCrossSeed", GET, "/api/media/{provider}/{providerId}/cross-seed",
+    route("readMediaCrossSeed", GET, "/media/{provider}/{providerId}/cross-seed",
           (request) => mediaCrossSeed(request.parameters.provider, request.parameters.providerId)),
-    route("cutCrossSeed", POST, "/api/torrents/{infoHash}/cross-seed/{tracker}/cut", (request) => {
+    route("cutCrossSeed", POST, "/torrents/{infoHash}/cross-seed/{tracker}/cut", (request) => {
       const torrent = torrentOf(request.parameters.infoHash);
       if (torrent === undefined) return refused(404, NO_TORRENT);
       const pair = torrent.pairs.find((one) => one.tracker === request.parameters.tracker);
@@ -217,7 +217,7 @@ export function crossSeedRoutes(): MockRoute[] {
       if (pair.state !== "active") return refused(409, NOT_RUNNING);
       return cutPair(pair);
     }),
-    route("searchCrossSeed", POST, "/api/torrents/{infoHash}/cross-seed/search", (request) => {
+    route("searchCrossSeed", POST, "/torrents/{infoHash}/cross-seed/search", (request) => {
       const infoHash = request.parameters.infoHash;
       const torrent = torrentOf(infoHash);
       if (torrent === undefined) return refused(404, NO_TORRENT);
@@ -245,7 +245,7 @@ export function crossSeedRoutes(): MockRoute[] {
       }
       return { queued: true, trackers: pairs.map((one) => one.tracker), startsAt: spent ? nowSeconds() + DAY_SECONDS : null };
     }),
-    route("uploadCrossSeed", POST, "/api/torrents/{infoHash}/cross-seed/{tracker}/upload", (request) => {
+    route("uploadCrossSeed", POST, "/torrents/{infoHash}/cross-seed/{tracker}/upload", (request) => {
       const infoHash = request.parameters.infoHash;
       const torrent = torrentOf(infoHash);
       if (torrent === undefined) return refused(404, NO_TORRENT);
@@ -268,7 +268,7 @@ export function crossSeedRoutes(): MockRoute[] {
       setTimeout(() => endUpload(state, pair, infoHash), SEARCH_MILLISECONDS);
       return { queued: true, tracker };
     }),
-    route("writeCrossSeedExclusion", PUT, "/api/torrents/{infoHash}/cross-seed/exclusions", (request) => {
+    route("writeCrossSeedExclusion", PUT, "/torrents/{infoHash}/cross-seed/exclusions", (request) => {
       const infoHash = request.parameters.infoHash;
       const torrent = torrentOf(infoHash);
       if (torrent === undefined) return refused(404, NO_TORRENT);
@@ -287,7 +287,7 @@ export function crossSeedRoutes(): MockRoute[] {
       torrent.titleExcluded = true;
       return { infoHash, tracker: null, excluded: true };
     }),
-    route("undoCrossSeedExclusion", DELETE, "/api/torrents/{infoHash}/cross-seed/exclusions", (request) => {
+    route("undoCrossSeedExclusion", DELETE, "/torrents/{infoHash}/cross-seed/exclusions", (request) => {
       const infoHash = request.parameters.infoHash;
       const torrent = torrentOf(infoHash);
       if (torrent === undefined) return refused(404, NO_TORRENT);

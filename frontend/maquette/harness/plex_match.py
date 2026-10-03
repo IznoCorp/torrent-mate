@@ -43,7 +43,7 @@ DISAGREES = "acq-card-plex-disagrees"
 POSED = "Star Trek: Discovery"
 # The last rung of the medium's ladder, as the layer holds it once answered.
 LAST_RUNG = """(title) => {
-  const queue = window.__queries?.getQueryData(["/api/acquisition/to-handle", ""]) || {};
+  const queue = window.__queries?.getQueryData(["/api/v1/acquisition/to-handle", ""]) || {};
   const card = [...(queue.arrivals || []), ...(queue.blocked || [])].find(one => one.title === title);
   const ladder = card?.ladder || [];
   return ladder.length ? ladder[ladder.length - 1].state : null;

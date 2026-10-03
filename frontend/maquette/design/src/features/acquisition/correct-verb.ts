@@ -40,12 +40,12 @@ function refusalSentence(error: unknown): string {
  */
 async function correct(client: QueryClient, decisionId: string): Promise<void> {
   const decision = client
-    .getQueryData<Decisions>(["/api/decisions/"])
+    .getQueryData<Decisions>(["/api/v1/decisions/"])
     ?.settled.find((settled) => settled.id === decisionId);
   if (decision === undefined) return;
   const address = decision.settledBy === "engine"
-    ? `/api/staging/media/${encodeURIComponent(decision.folder)}/enqueue`
-    : `/api/decisions/${encodeURIComponent(decision.id)}/reopen`;
+    ? `/api/v1/staging/media/${encodeURIComponent(decision.folder)}/enqueue`
+    : `/api/v1/decisions/${encodeURIComponent(decision.id)}/reopen`;
   try {
     const answered = await send("POST", address);
     if (answered === HELD) {
@@ -54,7 +54,7 @@ async function correct(client: QueryClient, decisionId: string): Promise<void> {
     }
     // THE PENDING DECISION IS IN THE CACHE BEFORE THE SCREEN READS IT, so the
     // screen opens on its candidates rather than on « no medium identified ».
-    await client.refetchQueries({ queryKey: ["/api/decisions/"] });
+    await client.refetchQueries({ queryKey: ["/api/v1/decisions/"] });
     screens.resolution(decision.folder);
   } catch (error) {
     toast?.show({ message: refusalSentence(error) });

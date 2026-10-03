@@ -25,7 +25,7 @@ import { registerProducer, type PanelDescriptor } from "../../ui/panel/contract"
 // They are VALUES the interface displays — a duration, a figure, a count —
 // which is what separates them from the labels beside them in `fr.json`.
 const WATCH_FACTS = {
-  // → GET /api/pipeline/history — when the watch last ran and when it runs next
+  // → GET /api/v1/pipeline/history — when the watch last ran and when it runs next
   lastPass: "il y a 22 min", // french-ok: a rendered duration, the layer's value to answer
   nextPass: "dans 38 min", // french-ok: a rendered duration, the layer's value to answer
 } as const;

@@ -167,7 +167,7 @@ async def main():
         journal.check(f"a finger on « {MARK_SEEN} » removes the card; the count and the badge −1",
                       SUBJECT not in after["keys"] and after["count"] == before["count"] - 1
                       and after["badge"] == before["badge"] - 1, f"before {before} · after {after}")
-        await page.evaluate("()=>window.__queries.removeQueries({queryKey:['/api/acquisition/to-handle']})")
+        await page.evaluate("()=>window.__queries.removeQueries({queryKey:['/api/v1/acquisition/to-handle']})")
         await tab(page, "now")
         await tab(page, "todo")
         again = await page.evaluate(KEYS)

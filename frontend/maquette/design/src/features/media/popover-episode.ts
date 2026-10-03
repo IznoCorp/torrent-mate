@@ -35,7 +35,7 @@ function catalogueOf(title: string): Record<string, Episode[]> | undefined {
   if (wanted === null || sharedQueryClient === undefined) return undefined;
   for (const query of sharedQueryClient.getQueryCache().getAll()) {
     const [address, , , part] = query.queryKey as unknown[];
-    if (address !== "/api/media" || part !== undefined) continue;
+    if (address !== "/api/v1/media" || part !== undefined) continue;
     const sheet = query.state.data as { ids?: Record<string, number | string>; episodes?: Record<string, Episode[]> } | null | undefined;
     const held = providerAddress(sheet?.ids);
     if (sheet?.episodes && held?.provider === wanted.provider && held.id === wanted.id) return sheet.episodes;

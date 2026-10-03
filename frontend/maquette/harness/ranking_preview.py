@@ -42,15 +42,15 @@ POSED_MINIMUM = 10
 # The engine's default when the file sets no minimum.
 ENGINE_DEFAULT_MINIMUM = 1
 DROP_MINIMUM = """async () => {
-  const read = await (await fetch('/api/config/files/ranking.json5')).json();
+  const read = await (await fetch('/api/v1/config/files/ranking.json5')).json();
   const {min_seeders: _dropped, ...ranking} = read.values.ranking;
-  return (await (await fetch('/api/config/files/ranking.json5', {method: 'PUT',
+  return (await (await fetch('/api/v1/config/files/ranking.json5', {method: 'PUT',
     headers: {'Content-Type': 'application/json'}, body: JSON.stringify({values: {...read.values, ranking},
     digest: read.digest})})).json());
 }"""
 # The minimum the screen's LAST preview asked the operation for, read off its own query key.
 ASKED_MINIMUM = """() => {
-  const queries = window.__queries?.getQueryCache().findAll({queryKey: ['/api/acquisition/ranking/preview']}) ?? [];
+  const queries = window.__queries?.getQueryCache().findAll({queryKey: ['/api/v1/acquisition/ranking/preview']}) ?? [];
   const last = queries.sort((a, b) => b.state.dataUpdatedAt - a.state.dataUpdatedAt)[0];
   return last ? last.queryKey[1]?.minSeeders ?? null : null;
 }"""
@@ -58,16 +58,16 @@ ASKED_MINIMUM = """() => {
 ROWS = """() => [...document.querySelectorAll('[data-part="ranking/preview"] [data-part="ranking/preview-row"]')]
   .map(row => ({title: row.dataset.title, score: row.querySelector('[data-part="ranking/preview-score"]')
     ?.textContent.trim() ?? '', excluded: row.dataset.excluded === 'true', text: row.textContent}))"""
-PREVIEW = """async (config) => (await (await fetch('/api/acquisition/ranking/preview', {method: 'POST',
+PREVIEW = """async (config) => (await (await fetch('/api/v1/acquisition/ranking/preview', {method: 'POST',
   headers: {'Content-Type': 'application/json'}, body: JSON.stringify(config)})).json()).ranked"""
 CALLS = """(n) => window.__mocks.answered().slice(n).map((one) => one.operationId)"""
 # THE SCREEN READS THE FILE AGAIN where it stands: its read is marked stale, and
 # the mounted screen asks the layer anew.
-REREAD = """()=>window.__queries?.invalidateQueries({queryKey: ['/api/config/files/ranking.json5']})"""
+REREAD = """()=>window.__queries?.invalidateQueries({queryKey: ['/api/v1/config/files/ranking.json5']})"""
 RAISE_MINIMUM = """async (minimum) => {
-  const read = await (await fetch('/api/config/files/ranking.json5')).json();
+  const read = await (await fetch('/api/v1/config/files/ranking.json5')).json();
   const values = {...read.values, ranking: {...read.values.ranking, min_seeders: minimum}};
-  return (await (await fetch('/api/config/files/ranking.json5', {method: 'PUT',
+  return (await (await fetch('/api/v1/config/files/ranking.json5', {method: 'PUT',
     headers: {'Content-Type': 'application/json'}, body: JSON.stringify({values, digest: read.digest})})).json());
 }"""
 

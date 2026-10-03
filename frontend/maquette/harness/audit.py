@@ -339,8 +339,8 @@ async def main():
       // pipeline » really does change the interface, and this rule said it did
       // not — a false accusation is as expensive as a missed defect.
       const out=[]; const snap=()=>JSON.stringify({t:(window.__queue?.().takeable||[]).length,i:(window.__queue?.().inFlight||[]).length,s:(window.__queue?.().stuck||[]).length,
-        m:(window.__queue?.().moving||[]).length,f:(window.__followActions?.all()||[]).length,l:(window.__queries?.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages?.[0]?.loaded ?? 0),p:state.page,tab:state.acqTab,lens:state.libLens,
-        pipe:window.__queries?.getQueryData(['/api/pipeline/status'])?.state,
+        m:(window.__queue?.().moving||[]).length,f:(window.__followActions?.all()||[]).length,l:(window.__queries?.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/v1/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages?.[0]?.loaded ?? 0),p:state.page,tab:state.acqTab,lens:state.libLens,
+        pipe:window.__queries?.getQueryData(['/api/v1/pipeline/status'])?.state,
         // RE-AIMED OUT LOUD: what an action SENDS is an effect too. « Relancer »
         // on a tunnel error asks the engine to resume and says so; the card
         // stays until the engine moves it — no dial here moved, the call did.

@@ -97,7 +97,7 @@ HELD_BACK_MS = 400
 
 # An address the contract declares and the layer answers, chosen because it
 # needs no parameter and mutates nothing.
-PROBE_ADDRESS = "/api/library/categories"
+PROBE_ADDRESS = "/api/v1/library/categories"
 
 
 async def hold(journal):

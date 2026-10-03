@@ -177,7 +177,7 @@ async def signing_out_empties_the_shell(browser):
         queued = await page.evaluate(
             """async()=>{ window.__mocks.setOffline(true);
                  await window.__outbox.issue(
-                   "POST", "/api/acquisition/followed",
+                   "POST", "/api/v1/acquisition/followed",
                    {title: "R111 queued before signing out", kind: "tv"});
                  window.__mocks.setOffline(false);
                  return (await window.__outbox.waiting()).length; }""")
@@ -434,7 +434,7 @@ async def offline_shell(browser):
     # This hold is what separates « the document loaded » from « the application
     # works », and it is the half a document-only reading would miss.
     answered = await page.evaluate(
-        """async()=>{const r=await fetch("/api/library/items");
+        """async()=>{const r=await fetch("/api/v1/library/items");
              return r.status;}""")
     if answered != 200:
         failures.append(f"R105 the contract does not answer offline — {answered}")

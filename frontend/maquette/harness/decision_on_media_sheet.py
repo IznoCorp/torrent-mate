@@ -33,7 +33,7 @@ READ = """(root) => {
     rows[row.dataset.decisionPart] = spans.length ? spans[spans.length - 1].textContent.trim() : row.textContent.trim();
   });
   const id = block?.dataset.decisionId;
-  const settled = window.__queries.getQueryData(['/api/decisions/'])?.settled.find((one) => one.id === id) ?? null;
+  const settled = window.__queries.getQueryData(['/api/v1/decisions/'])?.settled.find((one) => one.id === id) ?? null;
   return {open: !!scope, block: !!block, rows, settled};
 }"""
 

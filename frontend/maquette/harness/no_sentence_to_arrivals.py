@@ -256,7 +256,7 @@ async def main():
         await cold_run(browser, journal)
 
         await reads(page, journal, "acq-now-loaded", PAGE)
-        staged = await page.evaluate("async()=>(await (await fetch('/api/staging/media?scenario=loaded')).json())")
+        staged = await page.evaluate("async()=>(await (await fetch('/api/v1/staging/media?scenario=loaded')).json())")
         journal.check("acq-now-loaded: the world holds folders that entered without a follow",
                       len((staged or {}).get("stuck", [])) > 0, str(staged)[:200])
         count = await page.evaluate(EVERY_CROSS_REFERENCE, PAGE)

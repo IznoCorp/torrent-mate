@@ -13,7 +13,7 @@ export type Tracker = Schemas["Tracker"];
 // the bar's badge key on them, and the relay's guard reads a key only where it
 // is written out.
 /** The key of the trackers' summary. */
-export const trackersKey = ["/api/trackers"];
+export const trackersKey = ["/api/v1/trackers"];
 
 /**
  * Every configured tracker, its ratio, volumes, trend and health.
@@ -34,10 +34,10 @@ export type Download = Schemas["Download"];
 export type Obligation = Schemas["Obligation"];
 
 /** The key of the download client's entries. */
-export const downloadsKey = ["/api/acquisition/downloads"];
+export const downloadsKey = ["/api/v1/acquisition/downloads"];
 
 /** The key of the seeding obligations. */
-export const obligationsKey = ["/api/acquisition/obligations"];
+export const obligationsKey = ["/api/v1/acquisition/obligations"];
 
 /**
  * Every entry the download client holds, one per tracker it runs on.
@@ -67,7 +67,7 @@ export function useObligations() {
 export type Setting = Schemas["Setting"];
 
 /** The address of the settings catalogue — the one the settings page reads. */
-const CATALOGUE_ADDRESS = "/api/config/schema";
+const CATALOGUE_ADDRESS = "/api/v1/config/schema";
 
 /** The settings catalogue's read: its answer once there, and whether it failed. */
 export type Catalogue = {

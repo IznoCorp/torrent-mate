@@ -20,10 +20,10 @@ import type { SearchResults } from "./types";
  */
 export function useProviderSearch(query: string) {
   return useQuery({
-    queryKey: ["/api/acquisition/search", query],
+    queryKey: ["/api/v1/acquisition/search", query],
     queryFn: async () => {
       const parameters = new URLSearchParams(query ? { query } : {});
-      return read<SearchResults>("/api/acquisition/search", parameters);
+      return read<SearchResults>("/api/v1/acquisition/search", parameters);
     },
   });
 }
@@ -44,7 +44,7 @@ export function installSearchLookup(queryClient: QueryClient): void {
     // index into a different result set from the one on screen.
     const asked = new URLSearchParams(window.location.search).get("q") ?? "";
     return (
-      (queryClient.getQueryData(["/api/acquisition/search", asked]) as SearchResults | undefined)
+      (queryClient.getQueryData(["/api/v1/acquisition/search", asked]) as SearchResults | undefined)
       ?? { total: 0, shown: 0, results: [] }
     );
   };

@@ -172,14 +172,14 @@ async function change(client: QueryClient, ask: () => Promise<unknown>): Promise
 export function installRosterVerbs(client: QueryClient): void {
   registerVerb("account-role", (value) => {
     const [id, role] = value.split(PART);
-    void change(client, () => send("PATCH", `/api/accounts/${encodeURIComponent(id)}`, { role }));
+    void change(client, () => send("PATCH", `/api/v1/accounts/${encodeURIComponent(id)}`, { role }));
   });
   registerVerb("role-right", (value) => {
     const [id, right, on] = value.split(PART);
     const roster = client.getQueryData<Roster>(accountsQuery.queryKey);
     const current = roster?.roles.find((one) => one.id === id)?.rights ?? [];
     const rights = on === "true" ? [...current, right as Right] : current.filter((one) => one !== right);
-    void change(client, () => send("PATCH", `/api/roles/${encodeURIComponent(id)}`, { rights }));
+    void change(client, () => send("PATCH", `/api/v1/roles/${encodeURIComponent(id)}`, { rights }));
   });
   registerVerb("role-rename", (id) => {
     const name = typedRoleName(id);
@@ -188,7 +188,7 @@ export function installRosterVerbs(client: QueryClient): void {
       toast?.show({ message: i18next.t("screens.accounts.nameRequired") });
       return;
     }
-    void change(client, () => send("PATCH", `/api/roles/${encodeURIComponent(id)}`, { name }));
+    void change(client, () => send("PATCH", `/api/v1/roles/${encodeURIComponent(id)}`, { name }));
   });
   registerVerb("role-create", () => {
     // A NEW ROLE STARTS WITH THE DEFAULT ROLE'S RIGHTS, as every new account
@@ -196,6 +196,6 @@ export function installRosterVerbs(client: QueryClient): void {
     const roster = client.getQueryData<Roster>(accountsQuery.queryKey);
     const rights = roster?.roles.find(isDefaultRole)?.rights ?? [];
     const name = i18next.t("screens.accounts.newRoleName", { count: (roster?.roles.length ?? 0) + 1 });
-    void change(client, () => send("POST", "/api/roles", { name, rights }));
+    void change(client, () => send("POST", "/api/v1/roles", { name, rights }));
   });
 }

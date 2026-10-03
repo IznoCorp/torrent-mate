@@ -21,10 +21,10 @@ import type { components } from "../../contract/types";
 type RunDetail = components["schemas"]["RunDetail"];
 
 /** The history, and the run the veille last launched inside it. */
-const HISTORY = "/api/pipeline/history";
+const HISTORY = "/api/v1/pipeline/history";
 const LAUNCHED = ["veille/launched"];
 /** What holds the pipeline, which a veille takes while it runs. */
-const LOCKS = ["/api/maintenance/locks"];
+const LOCKS = ["/api/v1/maintenance/locks"];
 
 /** What the interface holds about the run it asked for. */
 type Launched = { runUid?: string; failed?: boolean };
@@ -40,7 +40,7 @@ type Launched = { runUid?: string; failed?: boolean };
  */
 async function launchTheWatch(): Promise<boolean> {
   try {
-    const answer = await send<{ runUid: string }>("POST", "/api/acquisition/detect");
+    const answer = await send<{ runUid: string }>("POST", "/api/v1/acquisition/detect");
     if (answer === undefined || answer === HELD) return false;
     sharedQueryClient?.setQueryData(LAUNCHED, { runUid: answer.runUid } satisfies Launched);
   } catch {

@@ -115,7 +115,7 @@ export function tunnelStates(): NamedState[] {
         window.__mocks?.clearBlocked();
         // THE RESET ALREADY ASKED FOR THE QUEUE, before the layer was emptied:
         // the answer it holds is dropped, so the page asks again.
-        window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
+        window.__queries?.removeQueries({ queryKey: ["/api/v1/acquisition/to-handle"] });
         applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" });
       },
     ],
@@ -151,7 +151,7 @@ export function tunnelStates(): NamedState[] {
         // A REAL BLOCKED ROW, set aside the way « Laisser tel quel » sets it:
         // the tie on « Lucky » is a real pending decision.
         window.__mocks?.setAside("Lucky");
-        window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
+        window.__queries?.removeQueries({ queryKey: ["/api/v1/acquisition/to-handle"] });
         applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" });
         // THE FOLD OPENED THE WAY A FINGER OPENS IT, once the tab is drawn.
         owed(() => {
@@ -207,8 +207,8 @@ export function tunnelStates(): NamedState[] {
           title: "Star Trek: Discovery",
           ids: { tvdb: 328711, tmdb: 67198, imdb: "tt5171438" },
         });
-        window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
-        window.__queries?.removeQueries({ queryKey: ["/api/staging/media"] });
+        window.__queries?.removeQueries({ queryKey: ["/api/v1/acquisition/to-handle"] });
+        window.__queries?.removeQueries({ queryKey: ["/api/v1/staging/media"] });
         applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" });
       },
     ],
@@ -219,8 +219,8 @@ export function tunnelStates(): NamedState[] {
         // A DERIVATION, SHOWN AS ONE: every seeded arrival in flight is
         // identified, so « not known yet » is posed on a real one.
         window.__mocks?.poseUnknownIdentity("Conclave");
-        window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
-        window.__queries?.removeQueries({ queryKey: ["/api/staging/media"] });
+        window.__queries?.removeQueries({ queryKey: ["/api/v1/acquisition/to-handle"] });
+        window.__queries?.removeQueries({ queryKey: ["/api/v1/staging/media"] });
         applyState({ page: "acq", acqTab: "now", scen: "loaded", phase: "ready" });
       },
     ],
@@ -232,8 +232,8 @@ export function tunnelStates(): NamedState[] {
         // read in « Torrents » until it arrives, so its arrival is posed on it.
         window.__mocks?.reset();
         window.__mocks?.poseArrived("Les Zinzins de l'Espace");
-        window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
-        window.__queries?.removeQueries({ queryKey: ["/api/staging/media"] });
+        window.__queries?.removeQueries({ queryKey: ["/api/v1/acquisition/to-handle"] });
+        window.__queries?.removeQueries({ queryKey: ["/api/v1/staging/media"] });
         applyState({ page: "acq", acqTab: "now", scen: "loaded", phase: "ready" });
       },
     ],
@@ -244,8 +244,8 @@ export function tunnelStates(): NamedState[] {
         // A DERIVATION, SHOWN AS ONE (RULINGS 26): no seeded row of a follow
         // stops on an error, so one is posed on a real follow in flight.
         window.__mocks?.poseTunnelError("Furious", "scrape");
-        window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
-        window.__queries?.removeQueries({ queryKey: ["/api/staging/media"] });
+        window.__queries?.removeQueries({ queryKey: ["/api/v1/acquisition/to-handle"] });
+        window.__queries?.removeQueries({ queryKey: ["/api/v1/staging/media"] });
         applyState({ page: "acq", acqTab: "todo", scen: "loaded", phase: "ready" });
       },
     ],
@@ -258,7 +258,7 @@ export function tunnelStates(): NamedState[] {
         // arrived by torrent.
         window.__mocks?.setAside("Lucky");
         window.__mocks?.poseKeepsItsFiles("Lucky");
-        window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
+        window.__queries?.removeQueries({ queryKey: ["/api/v1/acquisition/to-handle"] });
         applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" });
         openDeleteConfirm("Lucky");
       },
@@ -268,7 +268,7 @@ export function tunnelStates(): NamedState[] {
       "Mis de côté — « Supprimer » : le seul exemplaire (un dossier déposé à la main, aucun torrent)",
       () => {
         window.__mocks?.setAside("Top Chef Le Concours Parallèle (2026)");
-        window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
+        window.__queries?.removeQueries({ queryKey: ["/api/v1/acquisition/to-handle"] });
         applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" });
         openDeleteConfirm("Top Chef Le Concours Parallèle (2026)");
       },
@@ -278,7 +278,7 @@ export function tunnelStates(): NamedState[] {
       "Mis de côté — « Supprimer » : qBittorrent muet, traité comme le seul exemplaire",
       () => {
         window.__mocks?.setAside("Lucky");
-        window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
+        window.__queries?.removeQueries({ queryKey: ["/api/v1/acquisition/to-handle"] });
         applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" });
         openDeleteConfirm("Lucky");
       },

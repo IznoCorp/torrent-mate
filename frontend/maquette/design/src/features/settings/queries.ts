@@ -17,9 +17,9 @@ import type { Secret, Setting, SettingsTopic } from "./types";
  * shapes of one answer (§13).
  */
 export const settingsQuery = {
-  queryKey: ["/api/config/schema"],
+  queryKey: ["/api/v1/config/schema"],
   queryFn: async () =>
-    read<SettingsTopic[]>("/api/config/schema"),
+    read<SettingsTopic[]>("/api/v1/config/schema"),
 };
 
 /** The settings, by topic. */
@@ -41,9 +41,9 @@ export function heldSettings(): Setting[] {
 
 /** Which secrets exist, and whether each is defined — as a definition. */
 export const secretsQuery = {
-  queryKey: ["/api/config/secrets"],
+  queryKey: ["/api/v1/config/secrets"],
   queryFn: async () =>
-    read<Secret[]>("/api/config/secrets"),
+    read<Secret[]>("/api/v1/config/secrets"),
 };
 
 /** Which secrets exist, and whether each is defined. */
@@ -53,8 +53,8 @@ export function useSecrets() {
 
 /** What the layer says about the configuration itself, as a DEFINITION. */
 export const configurationStatusQuery = {
-  queryKey: ["/api/config/status"],
-  queryFn: async () => (await read("/api/config/status")) as ConfigurationStatus,
+  queryKey: ["/api/v1/config/status"],
+  queryFn: async () => (await read("/api/v1/config/status")) as ConfigurationStatus,
 };
 
 /** What the layer says about the configuration itself. */
@@ -91,7 +91,7 @@ export function useConfigurationStatus() {
  */
 export async function writeSecret(key: string, value: string) {
   return send<{ restartRequired: boolean }>(
-    "PUT", "/api/config/secrets", { [key]: value });
+    "PUT", "/api/v1/config/secrets", { [key]: value });
 }
 
 /** What the layer answers when a configuration file is written. */
@@ -126,5 +126,5 @@ export async function writeConfigurationFile(
   // flattened — which is what lets it tell « the file moved » from « nobody has
   // answered yet ».
   return send<WriteOutcome>(
-    "PUT", `/api/config/files/${encodeURIComponent(name)}`, values);
+    "PUT", `/api/v1/config/files/${encodeURIComponent(name)}`, values);
 }

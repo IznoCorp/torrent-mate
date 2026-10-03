@@ -103,7 +103,7 @@ SAID = """()=>{const held = window.__toast?.read?.();
 CEILING = """()=>document.querySelector('[data-part="access/ceiling"]')?.textContent ?? null"""
 
 ACCOUNT = """async () => {
-  const answer = await fetch('/api/auth/me');
+  const answer = await fetch('/api/v1/auth/me');
   const account = await answer.json();
   return {admin: account.role.kind === 'admin', rights: account.role.rights};
 }"""

@@ -246,7 +246,7 @@ export function launchDetection(): { runUid: string } {
 /** Every route this subject answers. */
 export function pipelineRoutes(): MockRoute[] {
   return [
-    route("readPipeline", GET, "/api/pipeline/status", () => {
+    route("readPipeline", GET, "/pipeline/status", () => {
       const state = mockState();
       return {
         ...state.pipeline,
@@ -260,14 +260,14 @@ export function pipelineRoutes(): MockRoute[] {
     // strict duplicate the interface may refuse — so it is answered 409. A pass
     // WAITS only behind a maintenance run holding the lock, and says so. Each
     // verb states the transition it makes rather than flipping between values.
-    route("runPipeline", POST, "/api/pipeline/run", () => {
+    route("runPipeline", POST, "/pipeline/run", () => {
       const state = mockState();
       if (state.pipelineState !== IDLE) return refused(409, RUN_ALREADY_GOING);
       state.pipelineState = maintenanceInFlight(state) === undefined ? RUNNING : QUEUED;
       state.pipelineSince = scenario().now;
       return { state: state.pipelineState, uid: null };
     }),
-    route("pausePipeline", POST, "/api/pipeline/pause", () => {
+    route("pausePipeline", POST, "/pipeline/pause", () => {
       const state = mockState();
       if (state.pipelineState === RUNNING) {
         state.pipelineState = PAUSED;
@@ -275,7 +275,7 @@ export function pipelineRoutes(): MockRoute[] {
       }
       return { state: state.pipelineState };
     }),
-    route("resumePipeline", POST, "/api/pipeline/resume", () => {
+    route("resumePipeline", POST, "/pipeline/resume", () => {
       const state = mockState();
       if (state.pipelineState === PAUSED) {
         state.pipelineState = RUNNING;
@@ -283,14 +283,14 @@ export function pipelineRoutes(): MockRoute[] {
       }
       return { state: state.pipelineState };
     }),
-    route("killPipeline", POST, "/api/pipeline/kill", () => {
+    route("killPipeline", POST, "/pipeline/kill", () => {
       const state = mockState();
       state.pipelineState = IDLE;
       state.pipelineSince = null;
       state.pausedSince = null;
       return { state: state.pipelineState };
     }),
-    route("setWatcher", POST, "/api/pipeline/watcher", (request) => {
+    route("setWatcher", POST, "/pipeline/watcher", (request) => {
       const state = mockState();
       const enabled = field(request.body, "enabled") === true;
       if (enabled !== state.watcherEnabled) {
@@ -299,7 +299,7 @@ export function pipelineRoutes(): MockRoute[] {
       state.watcherEnabled = enabled;
       return { watcherEnabled: state.watcherEnabled };
     }),
-    route("readPipelineHistory", GET, "/api/pipeline/history", (request: MockRequest) => {
+    route("readPipelineHistory", GET, "/pipeline/history", (request: MockRequest) => {
       const state = mockState();
       const kind = request.query.get("kind") ?? EVERY_KIND;
       const limit = Number(request.query.get("limit") ?? DEFAULT_PAGE_SIZE);
@@ -321,14 +321,14 @@ export function pipelineRoutes(): MockRoute[] {
     // AN UNKNOWN RUN IS REFUSED, as the backend refuses it: a 404 is the
     // answer « nobody holds that passage » has, and the run's own screen draws
     // it with a way back rather than an empty passage.
-    route("readRun", GET, "/api/pipeline/history/{runUid}", (request) => {
+    route("readRun", GET, "/pipeline/history/{runUid}", (request) => {
       const state = mockState();
       const run = state.pipelineRuns.find((one) => one.runUid === request.parameters.runUid);
       if (run === undefined) return refused(404, UNKNOWN_RUN);
       advanceEveryDetection(state);
       return run;
     }),
-    route("readLocks", GET, "/api/maintenance/locks", () => {
+    route("readLocks", GET, "/maintenance/locks", () => {
       const state = mockState();
       // A STALE LOCK IS STILL A HELD ONE. The file is there; what is gone is
       // the process that wrote it, which is the whole difference between « the

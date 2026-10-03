@@ -25,9 +25,9 @@ import type { Release } from "./types";
 export function useReleases(title = "") {
   const parameters = new URLSearchParams(title === "" ? {} : { title });
   return useQuery({
-    queryKey: ["/api/acquisition/releases", title],
+    queryKey: ["/api/v1/acquisition/releases", title],
     queryFn: async () =>
-      read<Release[]>("/api/acquisition/releases", parameters),
+      read<Release[]>("/api/v1/acquisition/releases", parameters),
   });
 }
 
@@ -47,7 +47,7 @@ export function installReleasesLookup(queryClient: QueryClient): void {
   // at — the same reading the redraw bridge takes, and for the same reason.
   releases = () => {
     const answered = queryClient.getQueryCache().getAll()
-      .filter((entry) => entry.queryKey[0] === "/api/acquisition/releases"
+      .filter((entry) => entry.queryKey[0] === "/api/v1/acquisition/releases"
               && entry.state.data !== undefined)
       .sort((left, right) => right.state.dataUpdatedAt - left.state.dataUpdatedAt);
     return (answered[0]?.state.data as Release[] | undefined) ?? [];

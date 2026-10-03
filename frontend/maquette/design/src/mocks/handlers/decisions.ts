@@ -220,11 +220,11 @@ function reopen(decisionId: string): unknown {
 /** Every route this subject answers. */
 export function decisionRoutes(): MockRoute[] {
   return [
-    route("readDecisions", GET, "/api/decisions/", () => {
+    route("readDecisions", GET, "/decisions/", () => {
       const held = mockState();
       return { pending: held.pendingDecisions, settled: held.settledDecisions };
     }),
-    route("resolveDecision", POST, "/api/decisions/{decisionId}/resolve", (request) => {
+    route("resolveDecision", POST, "/decisions/{decisionId}/resolve", (request) => {
       const provider = text(request.body, "provider");
       const providerId = Number(text(request.body, "providerId"));
       return settle(
@@ -233,16 +233,16 @@ export function decisionRoutes(): MockRoute[] {
         provider === "" ? undefined : { provider, providerId },
       );
     }),
-    route("dismissDecision", POST, "/api/decisions/{decisionId}/dismiss", (request) =>
+    route("dismissDecision", POST, "/decisions/{decisionId}/dismiss", (request) =>
       settle(request.parameters.decisionId, DISMISSED),
     ),
-    route("enqueueForResolution", POST, "/api/staging/media/{mediaId}/enqueue", (request) =>
+    route("enqueueForResolution", POST, "/staging/media/{mediaId}/enqueue", (request) =>
       enqueue(request.parameters.mediaId),
     ),
-    route("reopenDecision", POST, "/api/decisions/{decisionId}/reopen", (request) =>
+    route("reopenDecision", POST, "/decisions/{decisionId}/reopen", (request) =>
       reopen(request.parameters.decisionId),
     ),
-    route("searchForDecision", POST, "/api/decisions/{decisionId}/search", (request) => {
+    route("searchForDecision", POST, "/decisions/{decisionId}/search", (request) => {
       // A manual search over data that already exists: the candidates a
       // decision was offered, filtered by what was typed. Nothing is invented,
       // which is why an empty query answers the whole offered list.

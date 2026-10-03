@@ -6,20 +6,20 @@
 import type { LiveExemptions, LiveRule } from "../../lib/live-rule";
 
 /** What is proposed. */
-const SUGGESTIONS_KEY = ["/api/acquisition/suggestions"];
+const SUGGESTIONS_KEY = ["/api/v1/acquisition/suggestions"];
 /** What is followed. */
-const FOLLOWED_KEY = ["/api/acquisition/followed"];
+const FOLLOWED_KEY = ["/api/v1/acquisition/followed"];
 /** What is waiting to be handled. Its scenario follows in the key. */
-const QUEUE_KEY = ["/api/acquisition/to-handle"];
+const QUEUE_KEY = ["/api/v1/acquisition/to-handle"];
 /** One acquisition's journey. The medium follows in the key. */
-const JOURNEY_KEY = ["/api/acquisition/journeys"];
+const JOURNEY_KEY = ["/api/v1/acquisition/journeys"];
 /** The address of what is sitting in staging. Its scenario is the second
     element, so THE PREFIX IS DELIBERATELY THE ADDRESS ALONE: an item moving
     changes the staging of whichever dataset is being read, and a key naming one
     scenario would leave the other stale until the process ended. */
-const STAGING_KEY = ["/api/staging/media"];
+const STAGING_KEY = ["/api/v1/staging/media"];
 /** The address of the decisions the scrape could not make alone. */
-const DECISIONS_KEY = ["/api/decisions/"];
+const DECISIONS_KEY = ["/api/v1/decisions/"];
 
 /** What a server event refreshes on acquisition. */
 export const acquisitionLiveRules: readonly LiveRule[] = [
@@ -202,7 +202,7 @@ export const acquisitionLiveExemptions: LiveExemptions = {
   types: [
     "TrackerAuthFailed",
   ],
-  keys: ["/api/acquisition/search", "/api/acquisition/status"],
+  keys: ["/api/v1/acquisition/search", "/api/v1/acquisition/status"],
   /* a search is a QUESTION the reader just asked, not a resource that ages: refreshing it behind them would replace the results they are reading with different ones, which is the one thing a search must not do */
   /* the status carries the grab SCHEDULE, which is configuration: it changes when the operator edits it, and no backend event announces a schedule change */
   because:

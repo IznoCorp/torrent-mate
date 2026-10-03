@@ -50,7 +50,7 @@ RANK = {"error": 1, "active": 2, "stopped": 3, "trackerWithout": 4, "noMatch": 5
 BARE = re.compile(r"\b[a-z0-9]+_[a-z0-9_]+\b")
 
 ROWS = """(hash) => {
-  const pairs = (window.__queries?.getQueryData(['/api/acquisition/downloads'])?.downloads || [])
+  const pairs = (window.__queries?.getQueryData(['/api/v1/acquisition/downloads'])?.downloads || [])
     .find(entry => entry.infoHash === hash)?.crossSeed?.pairs ?? null;
   const rows = [...document.querySelectorAll('#sheet[data-open] [data-part="torrents/cross-seed-row"]')].map(row => ({
     tracker: row.dataset.tracker, state: row.dataset.state,

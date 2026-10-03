@@ -67,7 +67,7 @@ async function runAction(
   try {
     const answered = await send<MaintenanceRun>(
       "POST",
-      `/api/maintenance/actions/${encodeURIComponent(identifier)}/run`,
+      `/api/v1/maintenance/actions/${encodeURIComponent(identifier)}/run`,
       { dryRun: dry },
     );
     if (answered === HELD) {
@@ -88,8 +88,8 @@ async function runAction(
     // surface is worth exactly as much as proving the other. AND THE LOCKS: a
     // real run takes the pipeline's lock, and Système's « Verrou du pipeline »
     // read before the command went on saying « Libre » over it.
-    await client.refetchQueries({ queryKey: ["/api/pipeline/status"] });
-    await client.refetchQueries({ queryKey: ["/api/maintenance/locks"] });
+    await client.refetchQueries({ queryKey: ["/api/v1/pipeline/status"] });
+    await client.refetchQueries({ queryKey: ["/api/v1/maintenance/locks"] });
     panel?.redraw();
   } catch {
     toast?.show({ message: say("refused") });

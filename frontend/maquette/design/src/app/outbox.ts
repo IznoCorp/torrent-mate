@@ -44,7 +44,7 @@ type Departure = (envelope: Envelope) => Promise<void>;
  *
  * IT IS THE ADDRESS AND NOT A DOMAIN. The queue still knows nothing about what
  * a mutation MEANS: an envelope carries a path, query keys in this tree ARE
- * addresses (`queryKey: ["/api/acquisition/followed"]`), and matching one
+ * addresses (`queryKey: ["/api/v1/acquisition/followed"]`), and matching one
  * against the other is a string comparison, not a subject.
  */
 type Refresh = (path: string) => void;

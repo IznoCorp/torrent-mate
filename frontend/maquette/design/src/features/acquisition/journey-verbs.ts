@@ -57,7 +57,7 @@ async function resumeJourney(
 ): Promise<void> {
   const say = (key: string) => i18next.t(`verbs.journey.${key}`);
   const address =
-    `/api/acquisition/journeys/${encodeURIComponent(subject)}/` +
+    `/api/v1/acquisition/journeys/${encodeURIComponent(subject)}/` +
     (verb === "requeue" ? "requeue" : "rescrape");
   try {
     const answered = await send<JourneyAnswer>("POST", address);
@@ -79,7 +79,7 @@ async function resumeJourney(
     // the same five stages before and after a call that had demonstrably
     // happened.
     await client.refetchQueries({
-      queryKey: ["/api/acquisition/journeys", subject],
+      queryKey: ["/api/v1/acquisition/journeys", subject],
     });
     // AND THE SHEET IS PUT BACK FROM WHAT THE REFETCH BROUGHT. The refetch
     // above moves the CACHE, and the paragraph above says why nothing

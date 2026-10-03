@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-    "/api/auth/me": {
+    "/auth/me": {
         parameters: {
             query?: never;
             header?: never;
@@ -21,7 +21,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/login": {
+    "/auth/login": {
         parameters: {
             query?: never;
             header?: never;
@@ -38,7 +38,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/logout": {
+    "/auth/logout": {
         parameters: {
             query?: never;
             header?: never;
@@ -55,7 +55,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/notifications/preferences": {
+    "/notifications/preferences": {
         parameters: {
             query?: never;
             header?: never;
@@ -72,7 +72,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/notifications/preferences/{type}": {
+    "/notifications/preferences/{type}": {
         parameters: {
             query?: never;
             header?: never;
@@ -89,7 +89,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/notifications/devices": {
+    "/notifications/devices": {
         parameters: {
             query?: never;
             header?: never;
@@ -106,7 +106,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/library/items": {
+    "/library/items": {
         parameters: {
             query?: never;
             header?: never;
@@ -124,7 +124,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/library/categories": {
+    "/library/categories": {
         parameters: {
             query?: never;
             header?: never;
@@ -141,7 +141,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/library/recent": {
+    "/library/recent": {
         parameters: {
             query?: never;
             header?: never;
@@ -158,7 +158,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/library/incomplete": {
+    "/library/incomplete": {
         parameters: {
             query?: never;
             header?: never;
@@ -175,7 +175,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/library/membership": {
+    "/library/membership": {
         parameters: {
             query?: never;
             header?: never;
@@ -195,7 +195,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/media/{provider}/{providerId}": {
+    "/media/{provider}/{providerId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -215,7 +215,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/media/{provider}/{providerId}/seasons": {
+    "/media/{provider}/{providerId}/seasons": {
         parameters: {
             query?: never;
             header?: never;
@@ -232,7 +232,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/media/{provider}/{providerId}/cross-seed": {
+    "/media/{provider}/{providerId}/cross-seed": {
         parameters: {
             query?: never;
             header?: never;
@@ -252,7 +252,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/media/{provider}/{providerId}/rescrape": {
+    "/media/{provider}/{providerId}/rescrape": {
         parameters: {
             query?: never;
             header?: never;
@@ -269,7 +269,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/followed": {
+    "/acquisition/followed": {
         parameters: {
             query?: never;
             header?: never;
@@ -287,7 +287,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/followed/{followedId}": {
+    "/acquisition/followed/{followedId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -305,7 +305,7 @@ export interface paths {
         patch: operations["updateFollow"];
         trace?: never;
     };
-    "/api/acquisition/followed/{followedId}/restore": {
+    "/acquisition/followed/{followedId}/restore": {
         parameters: {
             query?: never;
             header?: never;
@@ -325,7 +325,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/followed/{followedId}/search": {
+    "/acquisition/followed/{followedId}/search": {
         parameters: {
             query?: never;
             header?: never;
@@ -342,7 +342,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/follows/{followedId}/seasons/{season}/grab": {
+    "/acquisition/follows/{followedId}/seasons/{season}/grab": {
         parameters: {
             query?: never;
             header?: never;
@@ -359,7 +359,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/followed/{followedId}/grab": {
+    "/acquisition/followed/{followedId}/grab": {
         parameters: {
             query?: never;
             header?: never;
@@ -376,7 +376,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/search": {
+    "/acquisition/search": {
         parameters: {
             query?: never;
             header?: never;
@@ -393,7 +393,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/search/by-id": {
+    "/acquisition/search/by-id": {
         parameters: {
             query?: never;
             header?: never;
@@ -410,7 +410,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/suggestions": {
+    "/acquisition/suggestions": {
         parameters: {
             query?: never;
             header?: never;
@@ -427,7 +427,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/status": {
+    "/acquisition/status": {
         parameters: {
             query?: never;
             header?: never;
@@ -444,7 +444,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/detect": {
+    "/acquisition/detect": {
         parameters: {
             query?: never;
             header?: never;
@@ -461,7 +461,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/to-handle": {
+    "/acquisition/to-handle": {
         parameters: {
             query?: never;
             header?: never;
@@ -481,7 +481,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/journeys/{infoHash}": {
+    "/acquisition/journeys/{infoHash}": {
         parameters: {
             query?: never;
             header?: never;
@@ -498,7 +498,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/journeys/{infoHash}/requeue": {
+    "/acquisition/journeys/{infoHash}/requeue": {
         parameters: {
             query?: never;
             header?: never;
@@ -515,7 +515,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/journeys/{infoHash}/rescrape": {
+    "/acquisition/journeys/{infoHash}/rescrape": {
         parameters: {
             query?: never;
             header?: never;
@@ -532,7 +532,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/releases": {
+    "/acquisition/releases": {
         parameters: {
             query?: never;
             header?: never;
@@ -549,7 +549,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/staging/media": {
+    "/staging/media": {
         parameters: {
             query?: never;
             header?: never;
@@ -566,7 +566,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/staging/media/{mediaId}": {
+    "/staging/media/{mediaId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -586,7 +586,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/staging/media/{mediaId}/copies": {
+    "/staging/media/{mediaId}/copies": {
         parameters: {
             query?: never;
             header?: never;
@@ -606,7 +606,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/staging/media/{mediaId}/continue": {
+    "/staging/media/{mediaId}/continue": {
         parameters: {
             query?: never;
             header?: never;
@@ -623,7 +623,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/staging/media/{mediaId}/discard": {
+    "/staging/media/{mediaId}/discard": {
         parameters: {
             query?: never;
             header?: never;
@@ -643,7 +643,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/pipeline/status": {
+    "/pipeline/status": {
         parameters: {
             query?: never;
             header?: never;
@@ -660,7 +660,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/pipeline/run": {
+    "/pipeline/run": {
         parameters: {
             query?: never;
             header?: never;
@@ -677,7 +677,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/pipeline/pause": {
+    "/pipeline/pause": {
         parameters: {
             query?: never;
             header?: never;
@@ -694,7 +694,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/pipeline/resume": {
+    "/pipeline/resume": {
         parameters: {
             query?: never;
             header?: never;
@@ -711,7 +711,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/pipeline/kill": {
+    "/pipeline/kill": {
         parameters: {
             query?: never;
             header?: never;
@@ -728,7 +728,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/pipeline/history": {
+    "/pipeline/history": {
         parameters: {
             query?: never;
             header?: never;
@@ -745,7 +745,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/decisions/": {
+    "/decisions/": {
         parameters: {
             query?: never;
             header?: never;
@@ -762,7 +762,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/decisions/{decisionId}/resolve": {
+    "/decisions/{decisionId}/resolve": {
         parameters: {
             query?: never;
             header?: never;
@@ -779,7 +779,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/decisions/{decisionId}/dismiss": {
+    "/decisions/{decisionId}/dismiss": {
         parameters: {
             query?: never;
             header?: never;
@@ -796,7 +796,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/decisions/{decisionId}/search": {
+    "/decisions/{decisionId}/search": {
         parameters: {
             query?: never;
             header?: never;
@@ -813,7 +813,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/system/services": {
+    "/system/services": {
         parameters: {
             query?: never;
             header?: never;
@@ -830,7 +830,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/system/dependencies": {
+    "/system/dependencies": {
         parameters: {
             query?: never;
             header?: never;
@@ -847,7 +847,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/system/errors": {
+    "/system/errors": {
         parameters: {
             query?: never;
             header?: never;
@@ -864,7 +864,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/maintenance/schedulers": {
+    "/maintenance/schedulers": {
         parameters: {
             query?: never;
             header?: never;
@@ -881,7 +881,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/maintenance/disks": {
+    "/maintenance/disks": {
         parameters: {
             query?: never;
             header?: never;
@@ -898,7 +898,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/maintenance/index-health": {
+    "/maintenance/index-health": {
         parameters: {
             query?: never;
             header?: never;
@@ -915,7 +915,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/maintenance/actions": {
+    "/maintenance/actions": {
         parameters: {
             query?: never;
             header?: never;
@@ -932,7 +932,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/maintenance/actions/{actionId}/run": {
+    "/maintenance/actions/{actionId}/run": {
         parameters: {
             query?: never;
             header?: never;
@@ -949,7 +949,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/maintenance/destructive-log": {
+    "/maintenance/destructive-log": {
         parameters: {
             query?: never;
             header?: never;
@@ -966,7 +966,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/config/schema": {
+    "/config/schema": {
         parameters: {
             query?: never;
             header?: never;
@@ -983,7 +983,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/config/secrets": {
+    "/config/secrets": {
         parameters: {
             query?: never;
             header?: never;
@@ -1001,7 +1001,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/config/files": {
+    "/config/files": {
         parameters: {
             query?: never;
             header?: never;
@@ -1018,7 +1018,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/config/files/{name}": {
+    "/config/files/{name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1039,7 +1039,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/config/restart-web": {
+    "/config/restart-web": {
         parameters: {
             query?: never;
             header?: never;
@@ -1056,7 +1056,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/config/status": {
+    "/config/status": {
         parameters: {
             query?: never;
             header?: never;
@@ -1073,7 +1073,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/version": {
+    "/version": {
         parameters: {
             query?: never;
             header?: never;
@@ -1090,7 +1090,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/pipeline/history/{runUid}": {
+    "/pipeline/history/{runUid}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1107,7 +1107,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/pipeline/watcher": {
+    "/pipeline/watcher": {
         parameters: {
             query?: never;
             header?: never;
@@ -1124,7 +1124,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/maintenance/locks": {
+    "/maintenance/locks": {
         parameters: {
             query?: never;
             header?: never;
@@ -1144,7 +1144,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/staging/media/{mediaId}/reclassify": {
+    "/staging/media/{mediaId}/reclassify": {
         parameters: {
             query?: never;
             header?: never;
@@ -1168,7 +1168,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/staging/destinations": {
+    "/staging/destinations": {
         parameters: {
             query?: never;
             header?: never;
@@ -1185,7 +1185,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/journeys/{infoHash}/plex-match": {
+    "/acquisition/journeys/{infoHash}/plex-match": {
         parameters: {
             query?: never;
             header?: never;
@@ -1205,7 +1205,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/journeys/{infoHash}/closure/seen": {
+    "/acquisition/journeys/{infoHash}/closure/seen": {
         parameters: {
             query?: never;
             header?: never;
@@ -1225,7 +1225,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/obligations": {
+    "/acquisition/obligations": {
         parameters: {
             query?: never;
             header?: never;
@@ -1242,7 +1242,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/downloads": {
+    "/acquisition/downloads": {
         parameters: {
             query?: never;
             header?: never;
@@ -1259,7 +1259,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/downloads/{infoHash}": {
+    "/acquisition/downloads/{infoHash}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1279,7 +1279,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/trackers": {
+    "/trackers": {
         parameters: {
             query?: never;
             header?: never;
@@ -1296,7 +1296,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/trackers/{tracker}/broken-obligations/{infoHash}/seen": {
+    "/trackers/{tracker}/broken-obligations/{infoHash}/seen": {
         parameters: {
             query?: never;
             header?: never;
@@ -1316,7 +1316,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/ranking/preview": {
+    "/acquisition/ranking/preview": {
         parameters: {
             query?: never;
             header?: never;
@@ -1336,7 +1336,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/followed/{followedId}/completeness": {
+    "/acquisition/followed/{followedId}/completeness": {
         parameters: {
             query?: never;
             header?: never;
@@ -1353,7 +1353,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/staging/media/{mediaId}/enqueue": {
+    "/staging/media/{mediaId}/enqueue": {
         parameters: {
             query?: never;
             header?: never;
@@ -1370,7 +1370,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/decisions/{decisionId}/reopen": {
+    "/decisions/{decisionId}/reopen": {
         parameters: {
             query?: never;
             header?: never;
@@ -1390,7 +1390,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/plex": {
+    "/auth/plex": {
         parameters: {
             query?: never;
             header?: never;
@@ -1407,7 +1407,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/requesters/reassign": {
+    "/acquisition/requesters/reassign": {
         parameters: {
             query?: never;
             header?: never;
@@ -1424,7 +1424,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/followed/{followedId}/quality": {
+    "/acquisition/followed/{followedId}/quality": {
         parameters: {
             query?: never;
             header?: never;
@@ -1441,7 +1441,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisition/followed/{followedId}/pause": {
+    "/acquisition/followed/{followedId}/pause": {
         parameters: {
             query?: never;
             header?: never;
@@ -1458,7 +1458,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/accounts": {
+    "/accounts": {
         parameters: {
             query?: never;
             header?: never;
@@ -1476,7 +1476,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/accounts/{accountId}": {
+    "/accounts/{accountId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1493,7 +1493,7 @@ export interface paths {
         patch: operations["updateAccount"];
         trace?: never;
     };
-    "/api/roles": {
+    "/roles": {
         parameters: {
             query?: never;
             header?: never;
@@ -1510,7 +1510,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/roles/{roleId}": {
+    "/roles/{roleId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1527,7 +1527,7 @@ export interface paths {
         patch: operations["updateRole"];
         trace?: never;
     };
-    "/api/torrents/{infoHash}/cross-seed/{tracker}/cut": {
+    "/torrents/{infoHash}/cross-seed/{tracker}/cut": {
         parameters: {
             query?: never;
             header?: never;
@@ -1547,7 +1547,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/torrents/{infoHash}/cross-seed/search": {
+    "/torrents/{infoHash}/cross-seed/search": {
         parameters: {
             query?: never;
             header?: never;
@@ -1567,7 +1567,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/torrents/{infoHash}/cross-seed/exclusions": {
+    "/torrents/{infoHash}/cross-seed/exclusions": {
         parameters: {
             query?: never;
             header?: never;
@@ -1591,7 +1591,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/torrents/{infoHash}/cross-seed/{tracker}/upload": {
+    "/torrents/{infoHash}/cross-seed/{tracker}/upload": {
         parameters: {
             query?: never;
             header?: never;

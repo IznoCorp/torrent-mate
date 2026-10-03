@@ -46,7 +46,7 @@ the torrent panel's « Voir la fiche » does. Hold 5 now walks it with a finger
 and reads the Retour; red on `515c277bd`.
 
 Red before the move: no entry opens. Holds 6–9 came with correction round C16,
-red while the save left `/api/trackers` stale, the policy read `?? []`, the
+red while the save left `/api/v1/trackers` stale, the policy read `?? []`, the
 panel fell back to the key's own words and « Voir les torrents » stood at 39 px.
 """
 import asyncio
@@ -105,7 +105,7 @@ WHERE = """() => ({tab: window.state?.trackersTab, filter: window.state?.tracker
   sheet: document.querySelector('#sheet[data-open] [data-part="sheet/title"]')?.textContent.trim() ?? null,
   length: history.length, address: location.pathname + location.search})"""
 CATALOGUE = """(id) => {
-  const topics = window.__queries?.getQueryData(['/api/config/schema']) || [];
+  const topics = window.__queries?.getQueryData(['/api/v1/config/schema']) || [];
   const one = topics.flatMap((topic) => topic.settings).find((s) => (s.file + ':' + s.key) === id);
   return one ? {raw: one.raw, shown: String(one.displayedValue)} : null;
 }"""
@@ -268,7 +268,7 @@ async def main():
             await enter(page, "trackers-entry-open")
             # NOT AWAITED: the held-back read answers in a minute, and the wait is what is read.
             await page.evaluate(f"""()=>{{window.__mocks.setOperationOutcome('readSettings', {outcome});
-                void window.__queries?.resetQueries({{queryKey: ['/api/config/schema']}}).catch(() => null);}}""")
+                void window.__queries?.resetQueries({{queryKey: ['/api/v1/config/schema']}}).catch(() => null);}}""")
             await page.wait_for_timeout(SETTLED)
             # THE PANEL ASKED FOR AGAIN, as a finger on the row asks it.
             await page.evaluate(f"()=>window.__panel.produce('tracker', {json.dumps(WITH_POLICY)})")

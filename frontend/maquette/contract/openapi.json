@@ -7,8 +7,8 @@
   },
   "servers": [
     {
-      "url": "/",
-      "description": "same origin as the interface"
+      "url": "/api/v1",
+      "description": "same origin as the interface; every path below is relative to it, and the event stream is served beside them at /api/v1/events"
     }
   ],
   "tags": [
@@ -62,7 +62,7 @@
     }
   ],
   "paths": {
-    "/api/auth/me": {
+    "/auth/me": {
       "get": {
         "operationId": "readAccount",
         "x-rights": null,
@@ -105,7 +105,7 @@
         ]
       }
     },
-    "/api/auth/login": {
+    "/auth/login": {
       "post": {
         "operationId": "signIn",
         "x-rights": null,
@@ -171,7 +171,7 @@
         "x-unseeded": "an acknowledgement. The prototype holds no credentials — a password written into a page is readable by everyone the page reaches — so there is nothing to seed and nothing to invent."
       }
     },
-    "/api/auth/logout": {
+    "/auth/logout": {
       "post": {
         "operationId": "signOut",
         "x-rights": null,
@@ -220,7 +220,7 @@
         "x-unseeded": "an acknowledgement. The engine's one real network call is this logout, and it answers a redirect rather than a payload."
       }
     },
-    "/api/notifications/preferences": {
+    "/notifications/preferences": {
       "get": {
         "operationId": "readNotificationPreferences",
         "x-rights": null,
@@ -261,7 +261,7 @@
         "x-unseeded": "invented: the engine has no notification types (the operator, 2026-10-03). PER ACCOUNT, on all its devices (ruling Q1 A): the server reads the switch before it sends a push to any of the account's devices. The answer holds ONLY the types whose right (`x-rights` on `NotificationType`) the account holds — every type for the Admin role — so a type the account may not receive is never offered; a type with no stored choice answers on."
       }
     },
-    "/api/notifications/preferences/{type}": {
+    "/notifications/preferences/{type}": {
       "put": {
         "operationId": "updateNotificationPreference",
         "x-rights": null,
@@ -332,7 +332,7 @@
         "x-unseeded": "invented (the operator, 2026-10-03: « couper les notifications FCM de certains types tout en gardant les autres »). The account's own choice, held by the server for all its devices (ruling Q1 A). Refused 403 for a type whose right the account does not hold. Asks no right: the account's own settings, a session act like signing out (the operator, 2026-10-03). The read-only instance still refuses it, by its own server (`require_not_staging`), not by a right."
       }
     },
-    "/api/notifications/devices": {
+    "/notifications/devices": {
       "post": {
         "operationId": "registerPushDevice",
         "x-rights": null,
@@ -391,7 +391,7 @@
         "x-unseeded": "invented, K5: the FCM registration token `lib/push-registration.ts` obtains through the application's own worker once the permission is granted (fcm-api.md, fcm-push DESIGN § 3.6). Posted from Profil's « Activer sur cet appareil », and again at each start while the device is subscribed (Firebase's monthly refresh). One account, several devices: the same token posted twice is one device. Asks no right: the account's own settings, a session act like signing out (the operator, 2026-10-03). The read-only instance still refuses it, by its own server (`require_not_staging`), not by a right."
       }
     },
-    "/api/library/items": {
+    "/library/items": {
       "get": {
         "operationId": "readLibraryItems",
         "x-rights": "library.read",
@@ -584,7 +584,7 @@
         "x-unseeded": "a count of what went. It is derived from the request and from the seeded library, never from a fixture of its own."
       }
     },
-    "/api/library/categories": {
+    "/library/categories": {
       "get": {
         "operationId": "readLibraryCategories",
         "x-rights": "library.read",
@@ -630,7 +630,7 @@
         ]
       }
     },
-    "/api/library/recent": {
+    "/library/recent": {
       "get": {
         "operationId": "readLibraryRecent",
         "x-rights": "library.read",
@@ -676,7 +676,7 @@
         ]
       }
     },
-    "/api/library/incomplete": {
+    "/library/incomplete": {
       "get": {
         "operationId": "readLibraryIncomplete",
         "x-rights": "library.read",
@@ -722,7 +722,7 @@
         ]
       }
     },
-    "/api/library/membership": {
+    "/library/membership": {
       "get": {
         "operationId": "readLibraryMembership",
         "x-rights": "library.read",
@@ -787,7 +787,7 @@
         ]
       }
     },
-    "/api/media/{provider}/{providerId}": {
+    "/media/{provider}/{providerId}": {
       "get": {
         "operationId": "readMediaSheet",
         "x-rights": "library.read",
@@ -864,7 +864,7 @@
         ]
       }
     },
-    "/api/media/{provider}/{providerId}/seasons": {
+    "/media/{provider}/{providerId}/seasons": {
       "get": {
         "operationId": "readMediaSeasons",
         "x-rights": "library.read",
@@ -973,7 +973,7 @@
         ]
       }
     },
-    "/api/media/{provider}/{providerId}/cross-seed": {
+    "/media/{provider}/{providerId}/cross-seed": {
       "get": {
         "operationId": "readMediaCrossSeed",
         "x-rights": "trackers.view",
@@ -1040,7 +1040,7 @@
         ]
       }
     },
-    "/api/media/{provider}/{providerId}/rescrape": {
+    "/media/{provider}/{providerId}/rescrape": {
       "post": {
         "operationId": "rescrapeMedia",
         "x-rights": "library.rescrape",
@@ -1133,7 +1133,7 @@
         "x-unseeded": "an acknowledgement. The interface offers « Re-scraper les métadonnées » on two surfaces — the follow panel and the media sheet — and the backend has no operation for it: this declaration IS the demand (D7). No fixture covers it, because until this wave nothing ever asked."
       }
     },
-    "/api/acquisition/followed": {
+    "/acquisition/followed": {
       "get": {
         "operationId": "readFollows",
         "x-rights": null,
@@ -1264,7 +1264,7 @@
         "x-unseeded": "the follow as it now stands, built from the request over the seeded follows."
       }
     },
-    "/api/acquisition/followed/{followedId}": {
+    "/acquisition/followed/{followedId}": {
       "patch": {
         "operationId": "updateFollow",
         "x-rights": "acquisition.follow",
@@ -1392,7 +1392,7 @@
         "x-unseeded": "an acknowledgement."
       }
     },
-    "/api/acquisition/followed/{followedId}/restore": {
+    "/acquisition/followed/{followedId}/restore": {
       "post": {
         "operationId": "restoreFollow",
         "x-rights": "acquisition.follow",
@@ -1455,7 +1455,7 @@
         "x-unseeded": "the follow the removal set aside, read back whole. It originates in the seeded follows and is not served from them: what comes back is the record as it stood when it was removed, which is the whole point of the operation."
       }
     },
-    "/api/acquisition/followed/{followedId}/search": {
+    "/acquisition/followed/{followedId}/search": {
       "post": {
         "operationId": "searchForFollow",
         "x-rights": [
@@ -1519,7 +1519,7 @@
         "x-unseeded": "how many conforming releases were found. The engine has no fixture for a search RESULT COUNT; the figure is derived from the seeded releases."
       }
     },
-    "/api/acquisition/follows/{followedId}/seasons/{season}/grab": {
+    "/acquisition/follows/{followedId}/seasons/{season}/grab": {
       "post": {
         "operationId": "grabSeasonForFollow",
         "x-rights": [
@@ -1657,7 +1657,7 @@
         "x-unseeded": "an acknowledgement and a queued flag. No fixture covers either: the maquette's engine printed a season as to_grab and offered nothing at all, so there is no recorded answer to seed from. The season number is the request's own and `absorbedCount` is derived from the episodes the fixture holds for that season. A season of a series nobody follows begins no follow (round 10 Q2): the layer queues a one-off acquisition of that season, built from the incomplete show the library already holds."
       }
     },
-    "/api/acquisition/followed/{followedId}/grab": {
+    "/acquisition/followed/{followedId}/grab": {
       "post": {
         "operationId": "grabForFollow",
         "x-rights": [
@@ -1741,7 +1741,7 @@
         "x-unseeded": "the run that claims the release; the fixture holds no runner, so it answers none"
       }
     },
-    "/api/acquisition/search": {
+    "/acquisition/search": {
       "get": {
         "operationId": "searchProviders",
         "x-rights": "acquisition.request",
@@ -1804,7 +1804,7 @@
         ]
       }
     },
-    "/api/acquisition/search/by-id": {
+    "/acquisition/search/by-id": {
       "get": {
         "operationId": "searchProviderById",
         "x-rights": "acquisition.request",
@@ -1872,7 +1872,7 @@
         ]
       }
     },
-    "/api/acquisition/suggestions": {
+    "/acquisition/suggestions": {
       "get": {
         "operationId": "readSuggestions",
         "x-rights": "acquisition.request",
@@ -1929,7 +1929,7 @@
         ]
       }
     },
-    "/api/acquisition/status": {
+    "/acquisition/status": {
       "get": {
         "operationId": "readAcquisitionStatus",
         "x-rights": null,
@@ -1989,7 +1989,7 @@
         ]
       }
     },
-    "/api/acquisition/detect": {
+    "/acquisition/detect": {
       "post": {
         "operationId": "runDetection",
         "x-rights": "pipeline.control",
@@ -2038,7 +2038,7 @@
         "x-unseeded": "an acknowledgement naming the run it launched. The run is appended to the history `running` and ends, on the layer's own clock, with the three figures DOIT-6 requires — derived from the seeded acquisition queue, never from a fixture of its own."
       }
     },
-    "/api/acquisition/to-handle": {
+    "/acquisition/to-handle": {
       "get": {
         "operationId": "readAcquisitionQueue",
         "x-rights": null,
@@ -2106,7 +2106,7 @@
         "description": "A stuck arrival whose reason is a step that cannot finish carries `failedStep` — seeded on Top Chef Le Concours Parallèle's real row, a DERIVATION of its reason (no episode data: the files cannot be named), and dropped whenever a pending decision names the folder. A settled arrival whose Plex match waits for his confirmation carries `plexMatch` — seeded on Star Trek: Strange New Worlds (2022)'s real settled row, a DERIVATION naming the identity the pipeline holds (a confirmation to give, not an invented wrong match)."
       }
     },
-    "/api/acquisition/journeys/{infoHash}": {
+    "/acquisition/journeys/{infoHash}": {
       "get": {
         "operationId": "readJourney",
         "x-rights": null,
@@ -2163,7 +2163,7 @@
         ]
       }
     },
-    "/api/acquisition/journeys/{infoHash}/requeue": {
+    "/acquisition/journeys/{infoHash}/requeue": {
       "post": {
         "operationId": "requeueJourney",
         "x-rights": [
@@ -2235,7 +2235,7 @@
         "x-unseeded": "an acknowledgement. §20: a blocked tunnel « reprend là où il s'est arrêté, par l'opérateur ». No fixture covers it: the journey's own fixture holds STAGES and no record of a verb ever having been asked for, because until this lot no verb existed to ask."
       }
     },
-    "/api/acquisition/journeys/{infoHash}/rescrape": {
+    "/acquisition/journeys/{infoHash}/rescrape": {
       "post": {
         "operationId": "rescrapeJourney",
         "x-rights": [
@@ -2307,7 +2307,7 @@
         "x-unseeded": "an acknowledgement. The tunnel's scrape, re-run for one tracked staging item — NOT the media sheet's metadata re-scrape, which is another subject. No fixture covers it: the journey's own fixture holds STAGES and no record of a verb ever having been asked for, because until this lot no verb existed to ask."
       }
     },
-    "/api/acquisition/releases": {
+    "/acquisition/releases": {
       "get": {
         "operationId": "readReleases",
         "x-rights": [
@@ -2385,7 +2385,7 @@
         ]
       }
     },
-    "/api/staging/media": {
+    "/staging/media": {
       "get": {
         "operationId": "readStaging",
         "x-rights": [
@@ -2475,7 +2475,7 @@
         ]
       }
     },
-    "/api/staging/media/{mediaId}": {
+    "/staging/media/{mediaId}": {
       "delete": {
         "operationId": "deleteStagedMedia",
         "x-rights": "pipeline.control",
@@ -2541,7 +2541,7 @@
         "x-unseeded": "an acknowledgement that the folder asked for was removed."
       }
     },
-    "/api/staging/media/{mediaId}/copies": {
+    "/staging/media/{mediaId}/copies": {
       "get": {
         "operationId": "readStagedMediaCopies",
         "x-rights": [
@@ -2607,7 +2607,7 @@
         "x-unseeded": "the case is POSED on one folder by the harness (RULINGS 22): no fixture records a staged folder's ingest action or its torrent; the backend reads the torrent's presence in qBittorrent at the gesture."
       }
     },
-    "/api/staging/media/{mediaId}/continue": {
+    "/staging/media/{mediaId}/continue": {
       "post": {
         "operationId": "continueStagedMedia",
         "x-rights": "pipeline.control",
@@ -2691,7 +2691,7 @@
         }
       }
     },
-    "/api/staging/media/{mediaId}/discard": {
+    "/staging/media/{mediaId}/discard": {
       "post": {
         "operationId": "discardStagedMedia",
         "x-rights": "pipeline.control",
@@ -2762,7 +2762,7 @@
         "description": "« Abandonner » on a tunnel error (OPEN 10, ruled B): the folder is moved into the staging area's quarantine and the move journaled — after a confirmation that names the medium (NE-DOIT-PAS-6)."
       }
     },
-    "/api/pipeline/status": {
+    "/pipeline/status": {
       "get": {
         "operationId": "readPipeline",
         "x-rights": "system.view",
@@ -2805,7 +2805,7 @@
         ]
       }
     },
-    "/api/pipeline/run": {
+    "/pipeline/run": {
       "post": {
         "operationId": "runPipeline",
         "x-rights": "pipeline.control",
@@ -2862,7 +2862,7 @@
         "x-unseeded": "the state the request left the pipeline in. The token comes from this contract's own enum — the engine's `pipe` field is STORE state and is not a fixture family at all — so there is nothing to seed from."
       }
     },
-    "/api/pipeline/pause": {
+    "/pipeline/pause": {
       "post": {
         "operationId": "pausePipeline",
         "x-rights": "pipeline.control",
@@ -2911,7 +2911,7 @@
         "x-unseeded": "the state the request left the pipeline in, from this contract's own enum."
       }
     },
-    "/api/pipeline/resume": {
+    "/pipeline/resume": {
       "post": {
         "operationId": "resumePipeline",
         "x-rights": "pipeline.control",
@@ -2960,7 +2960,7 @@
         "x-unseeded": "the state the request left the pipeline in, from this contract's own enum."
       }
     },
-    "/api/pipeline/kill": {
+    "/pipeline/kill": {
       "post": {
         "operationId": "killPipeline",
         "x-rights": "pipeline.control",
@@ -3009,7 +3009,7 @@
         "x-unseeded": "the state the request left the pipeline in, from this contract's own enum."
       }
     },
-    "/api/pipeline/history": {
+    "/pipeline/history": {
       "get": {
         "operationId": "readPipelineHistory",
         "x-rights": "system.view",
@@ -3100,7 +3100,7 @@
         ]
       }
     },
-    "/api/decisions/": {
+    "/decisions/": {
       "get": {
         "operationId": "readDecisions",
         "x-rights": [
@@ -3165,7 +3165,7 @@
         ]
       }
     },
-    "/api/decisions/{decisionId}/resolve": {
+    "/decisions/{decisionId}/resolve": {
       "post": {
         "operationId": "resolveDecision",
         "x-rights": "pipeline.control",
@@ -3247,7 +3247,7 @@
         "x-unseeded": "the decision's new state, from the seeded decision moved between the two lists."
       }
     },
-    "/api/decisions/{decisionId}/dismiss": {
+    "/decisions/{decisionId}/dismiss": {
       "post": {
         "operationId": "dismissDecision",
         "x-rights": "pipeline.control",
@@ -3307,7 +3307,7 @@
         "x-unseeded": "the decision's new state, from the seeded decision moved between the two lists."
       }
     },
-    "/api/decisions/{decisionId}/search": {
+    "/decisions/{decisionId}/search": {
       "post": {
         "operationId": "searchForDecision",
         "x-rights": "pipeline.control",
@@ -3380,7 +3380,7 @@
         "x-unseeded": "candidates, taken from the seeded decisions' own candidate lists — a manual search over data that already exists rather than a fixture of its own."
       }
     },
-    "/api/system/services": {
+    "/system/services": {
       "get": {
         "operationId": "readServices",
         "x-rights": "system.view",
@@ -3426,7 +3426,7 @@
         ]
       }
     },
-    "/api/system/dependencies": {
+    "/system/dependencies": {
       "get": {
         "operationId": "readDependencies",
         "x-rights": "system.view",
@@ -3472,7 +3472,7 @@
         ]
       }
     },
-    "/api/system/errors": {
+    "/system/errors": {
       "get": {
         "operationId": "readErrors",
         "x-rights": "system.view",
@@ -3515,7 +3515,7 @@
         ]
       }
     },
-    "/api/maintenance/schedulers": {
+    "/maintenance/schedulers": {
       "get": {
         "operationId": "readSchedulers",
         "x-rights": "system.view",
@@ -3561,7 +3561,7 @@
         ]
       }
     },
-    "/api/maintenance/disks": {
+    "/maintenance/disks": {
       "get": {
         "operationId": "readDisks",
         "x-rights": "system.view",
@@ -3607,7 +3607,7 @@
         ]
       }
     },
-    "/api/maintenance/index-health": {
+    "/maintenance/index-health": {
       "get": {
         "operationId": "readIndexHealth",
         "x-rights": "system.view",
@@ -3653,7 +3653,7 @@
         ]
       }
     },
-    "/api/maintenance/actions": {
+    "/maintenance/actions": {
       "get": {
         "operationId": "readMaintenanceActions",
         "x-rights": "system.view",
@@ -3699,7 +3699,7 @@
         ]
       }
     },
-    "/api/maintenance/actions/{actionId}/run": {
+    "/maintenance/actions/{actionId}/run": {
       "post": {
         "operationId": "runMaintenanceAction",
         "x-rights": "pipeline.control",
@@ -3783,7 +3783,7 @@
         "x-unseeded": "the state the request left the action in, from this contract's own enum."
       }
     },
-    "/api/maintenance/destructive-log": {
+    "/maintenance/destructive-log": {
       "get": {
         "operationId": "readDeletionJournal",
         "x-rights": "system.view",
@@ -3826,7 +3826,7 @@
         ]
       }
     },
-    "/api/config/schema": {
+    "/config/schema": {
       "get": {
         "operationId": "readSettings",
         "x-rights": [
@@ -3876,7 +3876,7 @@
         ]
       }
     },
-    "/api/config/secrets": {
+    "/config/secrets": {
       "get": {
         "operationId": "readSecrets",
         "x-rights": "configuration.view",
@@ -3984,7 +3984,7 @@
         "x-unseeded": "whether a restart is owed. Derived from the request; a secret's VALUE is never read back, by design."
       }
     },
-    "/api/config/files": {
+    "/config/files": {
       "get": {
         "operationId": "readConfigurationFiles",
         "x-rights": "configuration.view",
@@ -4040,7 +4040,7 @@
         "x-unseeded": "the files and which carry a pending edit. Derived from the seeded settings, whose topics name their own files."
       }
     },
-    "/api/config/files/{name}": {
+    "/config/files/{name}": {
       "get": {
         "operationId": "readConfigurationFile",
         "x-rights": "configuration.view",
@@ -4176,7 +4176,7 @@
         "x-unseeded": "whether a restart is owed and whether the file moved under the edit. Derived from the request."
       }
     },
-    "/api/config/restart-web": {
+    "/config/restart-web": {
       "post": {
         "operationId": "restartWeb",
         "x-rights": "configuration.write",
@@ -4225,7 +4225,7 @@
         "x-unseeded": "an acknowledgement."
       }
     },
-    "/api/config/status": {
+    "/config/status": {
       "get": {
         "operationId": "readConfigurationStatus",
         "x-rights": [
@@ -4277,7 +4277,7 @@
         "x-unseeded": "whether a restart is owed: layer state the engine holds in its STORE, not in a fixture. The instance's read-only ceiling left this answer: it is the account's forbidden writes (ruling 23, F66)."
       }
     },
-    "/api/version": {
+    "/version": {
       "get": {
         "operationId": "readVersion",
         "x-rights": null,
@@ -4330,7 +4330,7 @@
         "x-unseeded": "the running version. It is the server's own identity and no maquette fixture carries one."
       }
     },
-    "/api/pipeline/history/{runUid}": {
+    "/pipeline/history/{runUid}": {
       "get": {
         "operationId": "readRun",
         "x-rights": "system.view",
@@ -4387,7 +4387,7 @@
         ]
       }
     },
-    "/api/pipeline/watcher": {
+    "/pipeline/watcher": {
       "post": {
         "operationId": "setWatcher",
         "x-rights": "pipeline.control",
@@ -4454,7 +4454,7 @@
         "x-unseeded": "the trigger's state is STORE state, not a fixture family: the layer holds one field and answers what the request left it at."
       }
     },
-    "/api/maintenance/locks": {
+    "/maintenance/locks": {
       "get": {
         "operationId": "readLocks",
         "x-rights": "system.view",
@@ -4498,7 +4498,7 @@
         ]
       }
     },
-    "/api/staging/media/{mediaId}/reclassify": {
+    "/staging/media/{mediaId}/reclassify": {
       "post": {
         "operationId": "reclassifyStagedMedia",
         "x-rights": "pipeline.control",
@@ -4642,7 +4642,7 @@
         "x-unseeded": "an acknowledgement."
       }
     },
-    "/api/staging/destinations": {
+    "/staging/destinations": {
       "get": {
         "operationId": "readStagingDestinations",
         "x-rights": [
@@ -4691,7 +4691,7 @@
         ]
       }
     },
-    "/api/acquisition/journeys/{infoHash}/plex-match": {
+    "/acquisition/journeys/{infoHash}/plex-match": {
       "post": {
         "operationId": "resolvePlexMatch",
         "x-rights": "pipeline.control",
@@ -4787,7 +4787,7 @@
         "x-unseeded": "an acknowledgement naming the outcome the request asked for."
       }
     },
-    "/api/acquisition/journeys/{infoHash}/closure/seen": {
+    "/acquisition/journeys/{infoHash}/closure/seen": {
       "post": {
         "operationId": "dismissClosure",
         "x-rights": "acquisition.todo.view",
@@ -4845,7 +4845,7 @@
         "x-unseeded": "an acknowledgement. No fixture records a closed tunnel: the closure is POSED in the maquette (`poseClosure`), and the layer forgets it in every world once seen."
       }
     },
-    "/api/acquisition/obligations": {
+    "/acquisition/obligations": {
       "get": {
         "operationId": "readObligations",
         "x-rights": "trackers.view",
@@ -4889,7 +4889,7 @@
         ]
       }
     },
-    "/api/acquisition/downloads": {
+    "/acquisition/downloads": {
       "get": {
         "operationId": "readDownloads",
         "x-rights": "trackers.view",
@@ -4933,7 +4933,7 @@
         ]
       }
     },
-    "/api/acquisition/downloads/{infoHash}": {
+    "/acquisition/downloads/{infoHash}": {
       "delete": {
         "operationId": "removeDownload",
         "x-rights": "trackers.control",
@@ -5020,7 +5020,7 @@
         "x-unseeded": "an acknowledgement naming the entries that left the client. Derived from the request."
       }
     },
-    "/api/trackers": {
+    "/trackers": {
       "get": {
         "operationId": "readTrackers",
         "x-rights": "trackers.view",
@@ -5067,7 +5067,7 @@
         ]
       }
     },
-    "/api/trackers/{tracker}/broken-obligations/{infoHash}/seen": {
+    "/trackers/{tracker}/broken-obligations/{infoHash}/seen": {
       "post": {
         "operationId": "markBrokenObligationSeen",
         "x-rights": "trackers.control",
@@ -5129,7 +5129,7 @@
         }
       }
     },
-    "/api/acquisition/ranking/preview": {
+    "/acquisition/ranking/preview": {
       "post": {
         "operationId": "previewRanking",
         "x-rights": "configuration.write",
@@ -5177,7 +5177,7 @@
         }
       }
     },
-    "/api/acquisition/followed/{followedId}/completeness": {
+    "/acquisition/followed/{followedId}/completeness": {
       "get": {
         "operationId": "readFollowCompleteness",
         "x-rights": null,
@@ -5234,7 +5234,7 @@
         ]
       }
     },
-    "/api/staging/media/{mediaId}/enqueue": {
+    "/staging/media/{mediaId}/enqueue": {
       "post": {
         "operationId": "enqueueForResolution",
         "x-rights": "pipeline.control",
@@ -5354,7 +5354,7 @@
         "x-unseeded": "the pending decision filed in the seeded decisions, with the candidates the seeds offer for that title."
       }
     },
-    "/api/decisions/{decisionId}/reopen": {
+    "/decisions/{decisionId}/reopen": {
       "post": {
         "operationId": "reopenDecision",
         "x-rights": "pipeline.control",
@@ -5427,7 +5427,7 @@
         "x-unseeded": "the settled decision moved back to the pending list, with the candidates the seeds offer for its title."
       }
     },
-    "/api/auth/plex": {
+    "/auth/plex": {
       "post": {
         "operationId": "signInWithPlex",
         "x-rights": null,
@@ -5468,7 +5468,7 @@
         "x-unseeded": "invented: the Plex SSO does not exist yet (demand E); the layer answers the identity a named state dials"
       }
     },
-    "/api/acquisition/requesters/reassign": {
+    "/acquisition/requesters/reassign": {
       "post": {
         "operationId": "reassignRequester",
         "x-rights": "acquisition.reassign",
@@ -5559,7 +5559,7 @@
         "x-unseeded": "invented: no account but the Plex owner exists yet (demand I)"
       }
     },
-    "/api/acquisition/followed/{followedId}/quality": {
+    "/acquisition/followed/{followedId}/quality": {
       "put": {
         "operationId": "setAcquisitionQuality",
         "x-rights": "acquisition.quality.own",
@@ -5633,7 +5633,7 @@
         "x-unseeded": "invented: the engine has no per-acquisition profile (demand K)"
       }
     },
-    "/api/acquisition/followed/{followedId}/pause": {
+    "/acquisition/followed/{followedId}/pause": {
       "put": {
         "operationId": "setAcquisitionPause",
         "x-rights": "acquisition.pause.own",
@@ -5703,7 +5703,7 @@
         "x-unseeded": "invented: the engine has no per-acquisition pause (demand P)"
       }
     },
-    "/api/accounts": {
+    "/accounts": {
       "get": {
         "operationId": "readAccounts",
         "x-rights": [
@@ -5817,7 +5817,7 @@
         "x-unseeded": "invented: no account store exists yet (demand G). refused 409 when it would leave no account on the Admin role, or none holding `auth.password`; refused 403 to a manager who is not Admin when the role's rights are not included in its own role's, when it touches its own role, or when it touches an account on the Admin role (round 9 Q14 = A, M7)"
       }
     },
-    "/api/accounts/{accountId}": {
+    "/accounts/{accountId}": {
       "patch": {
         "operationId": "updateAccount",
         "x-rights": "accounts.manage",
@@ -5890,7 +5890,7 @@
         ]
       }
     },
-    "/api/roles": {
+    "/roles": {
       "post": {
         "operationId": "createRole",
         "x-rights": "accounts.manage",
@@ -5956,7 +5956,7 @@
         "x-unseeded": "invented (demand H): an ordinary role, never a system one. refused 409 when it would leave no account on the Admin role, or none holding `auth.password`; refused 403 to a manager who is not Admin when the role's rights are not included in its own role's, when it touches its own role, or when it touches an account on the Admin role (round 9 Q14 = A, M7)"
       }
     },
-    "/api/roles/{roleId}": {
+    "/roles/{roleId}": {
       "patch": {
         "operationId": "updateRole",
         "x-rights": "accounts.manage",
@@ -6035,7 +6035,7 @@
         ]
       }
     },
-    "/api/torrents/{infoHash}/cross-seed/{tracker}/cut": {
+    "/torrents/{infoHash}/cross-seed/{tracker}/cut": {
       "post": {
         "operationId": "cutCrossSeed",
         "x-rights": "trackers.control",
@@ -6120,7 +6120,7 @@
         "x-unseeded": "an acknowledgement naming what left and what was released. Derived from the layer's own state."
       }
     },
-    "/api/torrents/{infoHash}/cross-seed/search": {
+    "/torrents/{infoHash}/cross-seed/search": {
       "post": {
         "operationId": "searchCrossSeed",
         "x-rights": "trackers.control",
@@ -6223,7 +6223,7 @@
         "x-unseeded": "the queued ask, derived from the layer's own state and its quota."
       }
     },
-    "/api/torrents/{infoHash}/cross-seed/exclusions": {
+    "/torrents/{infoHash}/cross-seed/exclusions": {
       "put": {
         "operationId": "writeCrossSeedExclusion",
         "x-rights": "trackers.control",
@@ -6421,7 +6421,7 @@
         "x-unseeded": "the exclusion as it now reads. Derived from the layer's own state."
       }
     },
-    "/api/torrents/{infoHash}/cross-seed/{tracker}/upload": {
+    "/torrents/{infoHash}/cross-seed/{tracker}/upload": {
       "post": {
         "operationId": "uploadCrossSeed",
         "x-rights": "trackers.upload",

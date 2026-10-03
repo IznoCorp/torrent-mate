@@ -28,9 +28,9 @@ export function useDecisions() {
 
 /** The decisions read as a query definition, for a panel that needs it before it draws. */
 export const DECISIONS_QUERY = {
-  queryKey: ["/api/decisions/"],
+  queryKey: ["/api/v1/decisions/"],
   queryFn: async () => {
-    const answer = await read<{ pending: PendingDecision[]; settled: SettledDecision[] }>("/api/decisions/");
+    const answer = await read<{ pending: PendingDecision[]; settled: SettledDecision[] }>("/api/v1/decisions/");
     return {
       pending: answer.pending,
       settled: answer.settled,
@@ -55,7 +55,7 @@ export const DECISIONS_QUERY = {
  */
 export function installDecisionLookup(queryClient: QueryClient): void {
   pendingDecisions = () =>
-    (queryClient.getQueryData(["/api/decisions/"]) as Decisions | undefined)?.pending ?? [];
+    (queryClient.getQueryData(["/api/v1/decisions/"]) as Decisions | undefined)?.pending ?? [];
 }
 
 /** The pending decisions, read synchronously by the dying engine — filled at install. */

@@ -89,14 +89,14 @@ BARE = re.compile(r"\b[a-z0-9]+_[a-z0-9_]+\b")
 
 OFFERS = """() => {
   const origin = document.querySelector('#sheet[data-open] [data-part="torrents/cross-seed"]');
-  const entry = (window.__queries?.getQueryData(['/api/acquisition/downloads'])?.downloads || [])
+  const entry = (window.__queries?.getQueryData(['/api/v1/acquisition/downloads'])?.downloads || [])
     .find(one => one.infoHash === origin?.dataset.entry);
   return [...document.querySelectorAll('#sheet[data-open] [data-part="torrents/cross-seed-row"]')].map(row => ({
     tracker: row.dataset.tracker, state: row.dataset.state, excluded: row.dataset.excluded === 'true',
     trackerOff: row.querySelector('[data-part="torrents/cross-seed-tracker-off"]')?.textContent.trim() ?? null,
     titleExcluded: origin?.dataset.titleExcluded === 'true',
     seeding: !!entry && entry.progress >= 1 && entry.state === 'seeding',
-    trackerOn: (() => { const one = (window.__queries?.getQueryData(['/api/trackers']) || [])
+    trackerOn: (() => { const one = (window.__queries?.getQueryData(['/api/v1/trackers']) || [])
       .find(t => t.name === row.dataset.tracker); return !one || (one.enabled && !one.disabled); })(),
     offered: !!row.querySelector('[data-part="torrents/cross-seed-upload"]'),
     searched: !!row.querySelector('[data-part="torrents/cross-seed-search"]'),
@@ -114,9 +114,9 @@ BADGE = """() => document.querySelector('[data-part="shell/tab-bar"] [data-page=
   ?.textContent.trim() ?? ''"""
 SUM = """() => {
   const get = (address) => window.__queries?.getQueryData([address]);
-  const trackers = get("/api/trackers") ?? [];
-  const downloads = get("/api/acquisition/downloads")?.downloads ?? [];
-  const obligations = get("/api/acquisition/obligations")?.items ?? [];
+  const trackers = get("/api/v1/trackers") ?? [];
+  const downloads = get("/api/v1/acquisition/downloads")?.downloads ?? [];
+  const obligations = get("/api/v1/acquisition/obligations")?.items ?? [];
   const active = new Set(downloads.map((entry) => `${entry.infoHash}:${entry.tracker}`));
   const under = trackers.filter((one) => one.alertThreshold !== null && one.ratio !== null
     && one.ratio < one.alertThreshold).length;
@@ -134,22 +134,22 @@ PUBLISHED_CARD = """(tracker) => [...document.querySelectorAll('#view [data-part
   .filter(card => card.tracker === tracker)"""
 # Asks the layer for an upload the way the interface would, bypassing the act.
 FORCE = """async ([hash, tracker]) => (await fetch(
-  `/api/torrents/${hash}/cross-seed/${encodeURIComponent(tracker)}/upload`, { method: 'POST' })).status"""
+  `/api/v1/torrents/${hash}/cross-seed/${encodeURIComponent(tracker)}/upload`, { method: 'POST' })).status"""
 # Asks the layer for a search on one pair the way the interface would, bypassing the act.
-FORCE_SEARCH = """async ([hash, tracker]) => (await fetch(`/api/torrents/${hash}/cross-seed/search`, {
+FORCE_SEARCH = """async ([hash, tracker]) => (await fetch(`/api/v1/torrents/${hash}/cross-seed/search`, {
   method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tracker }) })).status"""
 # Writes tracker settings the way Réglages does — the operator's own gesture — and
 # forgets the page's stale trackers read.
 WRITE = """async (values) => {
-  const status = (await fetch('/api/config/files/tracker', {
+  const status = (await fetch('/api/v1/config/files/tracker', {
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) })).status;
-  window.__queries?.removeQueries({ queryKey: ['/api/trackers'] });
+  window.__queries?.removeQueries({ queryKey: ['/api/v1/trackers'] });
   return status;
 }"""
 # Poses a scenario on the layer and forgets the page's stale trackers read.
 POSE = """([dial, args]) => {
   window.__mocks?.[dial](...args);
-  window.__queries?.removeQueries({ queryKey: ['/api/trackers'] });
+  window.__queries?.removeQueries({ queryKey: ['/api/v1/trackers'] });
 }"""
 
 
@@ -239,7 +239,7 @@ async def main():
                 values[f"tracker:tracker.providers.{tracker}.enabled"] = False
             written = await page.evaluate(WRITE, values)
             state = await page.evaluate(
-                "(name) => fetch('/api/trackers').then(answer => answer.json())"
+                "(name) => fetch('/api/v1/trackers').then(answer => answer.json())"
                 ".then(all => { const one = all.find(t => t.name === name);"
                 " return { enabled: one.enabled, by: one.disabled?.by ?? null, crossSeed: one.crossSeed.enabled,"
                 " uploads: one.crossSeed.acceptsUploads }; })", tracker)
@@ -261,7 +261,7 @@ async def main():
         # ── R453: the confirmation names what is published, before any call ──
         await enter(page, "torrents-cross-seed-upload")
         origin = await page.evaluate(
-            "(hash) => window.__queries?.getQueryData(['/api/acquisition/downloads'])?.downloads"
+            "(hash) => window.__queries?.getQueryData(['/api/v1/acquisition/downloads'])?.downloads"
             ".find(one => one.infoHash === hash)?.name ?? null", UPLOADABLE)
         tapped = await tap(page, ACT)
         dialog = await page.evaluate(f"() => document.querySelector('{DIALOG}')?.textContent ?? null")

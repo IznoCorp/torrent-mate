@@ -21,7 +21,7 @@ import { downloadsKey, obligationsKey, trackersKey } from "./queries";
 
 // The file the trackers' settings are kept in, and the settings catalogue's key.
 const TRACKER_FILE = "tracker";
-const CATALOGUE_KEY = ["/api/config/schema"];
+const CATALOGUE_KEY = ["/api/v1/config/schema"];
 
 /** Every read a cross-seed write moves: the summary, the entries, their obligations, the settings. */
 const MOVED = [trackersKey, downloadsKey, obligationsKey, CATALOGUE_KEY];
@@ -128,7 +128,7 @@ export function obligationParagraphs(obligations: Schemas["Obligation"][]): Dial
  */
 async function writeSwitch(tracker: string, on: boolean, stopRunning: boolean): Promise<void> {
   const query = stopRunning ? "?stopRunningCrossSeeds=true" : "";
-  await send("PUT", `/api/config/files/${TRACKER_FILE}${query}`, { [crossSeedSetting(tracker)]: on });
+  await send("PUT", `/api/v1/config/files/${TRACKER_FILE}${query}`, { [crossSeedSetting(tracker)]: on });
   const write: SwitchWrite = on ? "on" : stopRunning ? "offStopped" : "off";
   switchedThisVisit.set(tracker, write);
   await refresh();
@@ -223,7 +223,7 @@ export function openCutConfirm(infoHash: string, tracker: string): void {
         {
           text: say("cutConfirm"),
           tone: "danger",
-          run: () => void send("POST", `/api/torrents/${encodeURIComponent(infoHash)}/cross-seed/${encodeURIComponent(tracker)}/cut`)
+          run: () => void send("POST", `/api/v1/torrents/${encodeURIComponent(infoHash)}/cross-seed/${encodeURIComponent(tracker)}/cut`)
             .then(refresh).then(() => toast?.show({ message: say("cutDone", { tracker }) })),
         },
         { text: say("cancel"), tone: "ghost", dismiss: true },
@@ -260,7 +260,7 @@ export function openTitleConfirm(infoHash: string): void {
         {
           text: say("titleConfirm"),
           tone: "danger",
-          run: () => void send("PUT", `/api/torrents/${encodeURIComponent(infoHash)}/cross-seed/exclusions`, { tracker: null })
+          run: () => void send("PUT", `/api/v1/torrents/${encodeURIComponent(infoHash)}/cross-seed/exclusions`, { tracker: null })
             .then(refresh).then(() => toast?.show({ message: say("titleDone", { title: origin.title }) })),
         },
         { text: say("cancel"), tone: "ghost", dismiss: true },
@@ -277,7 +277,7 @@ export function openTitleConfirm(infoHash: string): void {
  * @param message What is said once it is lifted.
  */
 function include(infoHash: string, tracker: string | null, message: string): void {
-  void send("DELETE", `/api/torrents/${encodeURIComponent(infoHash)}/cross-seed/exclusions`, { tracker })
+  void send("DELETE", `/api/v1/torrents/${encodeURIComponent(infoHash)}/cross-seed/exclusions`, { tracker })
     .then(refresh).then(() => toast?.show({ message }));
 }
 
@@ -317,7 +317,7 @@ function search(infoHash: string, tracker: string | null): void {
   if (asking.has(subject)) return;
   asking.add(subject);
   void send<{ queued: boolean; trackers: string[]; startsAt: number | null }>(
-    "POST", `/api/torrents/${encodeURIComponent(infoHash)}/cross-seed/search`, { tracker },
+    "POST", `/api/v1/torrents/${encodeURIComponent(infoHash)}/cross-seed/search`, { tracker },
   )
     .then((answer) => {
       const waiting = typeof answer === "object" && answer !== null && answer.startsAt !== null;
@@ -346,7 +346,7 @@ registerVerb("cross-seed-search-all", (infoHash) => search(infoHash, null));
  * @param on Whether the tracker accepts uploads.
  */
 async function writeUploads(tracker: string, on: boolean): Promise<void> {
-  await send("PUT", `/api/config/files/${TRACKER_FILE}`, { [uploadsSetting(tracker)]: on });
+  await send("PUT", `/api/v1/config/files/${TRACKER_FILE}`, { [uploadsSetting(tracker)]: on });
   await refresh();
   toast?.show({ message: say(on ? "uploadsOnDone" : "uploadsOffDone", { tracker }) });
 }
@@ -372,7 +372,7 @@ function upload(infoHash: string, tracker: string): void {
   const subject = `${infoHash}:${tracker}`;
   if (uploading.has(subject)) return;
   uploading.add(subject);
-  void send("POST", `/api/torrents/${encodeURIComponent(infoHash)}/cross-seed/${encodeURIComponent(tracker)}/upload`)
+  void send("POST", `/api/v1/torrents/${encodeURIComponent(infoHash)}/cross-seed/${encodeURIComponent(tracker)}/upload`)
     .then(() => toast?.show({ message: say("uploadQueued", { tracker }) }))
     // THE REFUSAL IS SAID, never swallowed: a duplicate, or a pair the engine no longer acts on.
     .catch(() => toast?.show({ message: say("uploadRefused", { tracker }) }))

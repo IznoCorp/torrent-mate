@@ -32,11 +32,11 @@ type Fact = Schemas["Fact"];
 type Locks = components["schemas"]["Locks"];
 
 // The three answers, by the addresses their reads are keyed on.
-const LOCKS_KEY = ["/api/maintenance/locks"];
-const SERVICES_KEY = ["/api/system/services"];
-const DEPENDENCIES_KEY = ["/api/system/dependencies"];
-const DISKS_KEY = ["/api/maintenance/disks"];
-const INDEX_KEY = ["/api/maintenance/index-health"];
+const LOCKS_KEY = ["/api/v1/maintenance/locks"];
+const SERVICES_KEY = ["/api/v1/system/services"];
+const DEPENDENCIES_KEY = ["/api/v1/system/dependencies"];
+const DISKS_KEY = ["/api/v1/maintenance/disks"];
+const INDEX_KEY = ["/api/v1/maintenance/index-health"];
 
 // The contract's tone for a fact that is wrong, and its sweep status for « not
 // counted yet ».

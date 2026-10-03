@@ -91,10 +91,10 @@ export async function askForSeason(
     await refreshPipelineStatus(client).catch(() => undefined);
     markSeasonQueued(client, title, season);
   }
-  await client.refetchQueries({ queryKey: ["/api/acquisition/followed"] });
+  await client.refetchQueries({ queryKey: ["/api/v1/acquisition/followed"] });
   // AND THE QUEUE: a season of a series nobody follows is queued as a one-off
   // card, and the season's row says « demandée » from that card.
-  await client.invalidateQueries({ queryKey: ["/api/acquisition/to-handle"] });
+  await client.invalidateQueries({ queryKey: ["/api/v1/acquisition/to-handle"] });
   panel?.redraw();
 }
 
@@ -163,7 +163,7 @@ export async function grabSeason(title: string, season: number): Promise<boolean
   try {
     const answered = await send<SeasonGrab>(
       "POST",
-      `/api/acquisition/follows/${encodeURIComponent(title)}/seasons/${season}/grab`,
+      `/api/v1/acquisition/follows/${encodeURIComponent(title)}/seasons/${season}/grab`,
     );
     if (answered === HELD) {
       toast?.show({ message: say("seasonHeld", { season, title }) });

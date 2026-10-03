@@ -45,16 +45,16 @@ KEY = "tracker.providers.tr4ker.cross_seed"
 DONE = json.loads((ROOT / "i18n/fr.json").read_text(encoding="utf-8"))["verbs"]["crossSeed"]
 
 READ = """([origin, copy, key]) => {
-  const downloads = window.__queries?.getQueryData(['/api/acquisition/downloads'])?.downloads || [];
-  const obligation = (window.__queries?.getQueryData(['/api/acquisition/obligations'])?.items || [])
+  const downloads = window.__queries?.getQueryData(['/api/v1/acquisition/downloads'])?.downloads || [];
+  const obligation = (window.__queries?.getQueryData(['/api/v1/acquisition/obligations'])?.items || [])
     .find(one => one.infoHash === copy);
   const toggle = document.querySelector('#sheet[data-open] [data-part="tracker/cross-seed-switch"]');
   return {
     panel: toggle ? toggle.getAttribute('aria-checked') === 'true' : null,
     nextPass: !!document.querySelector('#sheet[data-open] [data-part="tracker/cross-seed-next-pass"]'),
     line: document.querySelector('#view [data-tracker="tr4ker"] [data-part="trackers/cross-seed"]')?.textContent.trim() ?? null,
-    summary: (window.__queries?.getQueryData(['/api/trackers']) || []).find(t => t.name === 'tr4ker')?.crossSeed?.enabled,
-    setting: (window.__queries?.getQueryData(['/api/config/schema']) || []).flatMap(t => t.settings).find(s => s.key === key)?.raw,
+    summary: (window.__queries?.getQueryData(['/api/v1/trackers']) || []).find(t => t.name === 'tr4ker')?.crossSeed?.enabled,
+    setting: (window.__queries?.getQueryData(['/api/v1/config/schema']) || []).flatMap(t => t.settings).find(s => s.key === key)?.raw,
     pair: downloads.find(entry => entry.infoHash === origin)?.crossSeed?.pairs.find(p => p.tracker === 'tr4ker') ?? null,
     copy: downloads.some(entry => entry.infoHash === copy),
     released: obligation ? obligation.releasedAt : 'absent',
@@ -70,8 +70,8 @@ DIALOG = """() => {
   return box ? {text: box.textContent, checked: box.querySelector('[data-part="dialog/check"]')?.getAttribute('aria-checked')} : null;
 }"""
 SUBJECTS = """() => {
-  const names = (window.__queries?.getQueryData(['/api/trackers']) || []).map(one => one.name);
-  return (window.__queries?.getQueryData(['/api/config/schema']) || []).flatMap(topic => topic.settings)
+  const names = (window.__queries?.getQueryData(['/api/v1/trackers']) || []).map(one => one.name);
+  return (window.__queries?.getQueryData(['/api/v1/config/schema']) || []).flatMap(topic => topic.settings)
     .filter(one => one.key.startsWith('tracker.providers.'))
     .map(one => ({key: one.key, label: window.__settingLabels.label(one),
                   tracker: names.find(name => one.key.startsWith(`tracker.providers.${name}.`)) ?? null}));

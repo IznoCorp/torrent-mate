@@ -23,7 +23,7 @@ import { orderedPairs } from "./panel-cross-seed";
  * The key the block is cached under — its own, so the stream's cross-seed
  * events refresh it (`live.ts`) and nothing else does.
  */
-export const mediaCrossSeedKey = ["/api/media/cross-seed"];
+export const mediaCrossSeedKey = ["/api/v1/media/cross-seed"];
 
 /**
  * One medium's cross-seed, read once per visit of its sheet (R-L17-k): no
@@ -38,7 +38,7 @@ function useMediaCrossSeed(provider: string, identifier: string, enabled: boolea
   return useQuery({
     queryKey: [...mediaCrossSeedKey, provider, identifier],
     queryFn: async () => read<Schemas["MediaCrossSeed"]>(
-      `/api/media/${encodeURIComponent(provider)}/${encodeURIComponent(identifier)}/cross-seed`),
+      `/api/v1/media/${encodeURIComponent(provider)}/${encodeURIComponent(identifier)}/cross-seed`),
     enabled,
   });
 }

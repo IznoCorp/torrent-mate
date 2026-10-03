@@ -259,7 +259,7 @@ export function legendOf(codes: readonly Code[]): LegendEntry[] {
  * @param entry The download client's entry.
  * @param obligation The obligation it owes, when it owes one.
  * @param breached Whether the page's alert reads its obligation broken.
- * @param trackerOf A tracker as `/api/trackers` answers it, or undefined while
+ * @param trackerOf A tracker as `/api/v1/trackers` answers it, or undefined while
  *     unread (§ 17 point 1): a pair on a tracker off, down or whose cross-seed
  *     switch is off offers no search here.
  * @returns The item's markup.

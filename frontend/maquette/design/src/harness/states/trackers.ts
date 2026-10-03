@@ -11,14 +11,14 @@ import { owed } from "../owed";
 // How long a fold waits for the entry it sits in to be drawn before a finger opens it.
 const OPEN_AFTER = 300;
 // The settings catalogue's address, the one Réglages and the switch read.
-const SETTINGS_ADDRESS = "/api/config/schema";
+const SETTINGS_ADDRESS = "/api/v1/config/schema";
 // Long enough that a read held back is still in flight when the state is measured.
 const HELD_BACK = 60000;
 // The page's three reads, by operation and by the address its cache keys on.
 const PAGE_READS: [string, string][] = [
-  ["readTrackers", "/api/trackers"],
-  ["readDownloads", "/api/acquisition/downloads"],
-  ["readObligations", "/api/acquisition/obligations"],
+  ["readTrackers", "/api/v1/trackers"],
+  ["readDownloads", "/api/v1/acquisition/downloads"],
+  ["readObligations", "/api/v1/acquisition/obligations"],
 ];
 
 /**

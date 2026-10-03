@@ -67,7 +67,7 @@ async def main():
             await page.wait_for_timeout(420)
             typed = await page.evaluate(
                 """()=>{const topics = window.__queries
-                    ?.getQueryData(['/api/config/schema']) || [];
+                    ?.getQueryData(['/api/v1/config/schema']) || [];
                   const text = topics.flatMap((one) => one.settings)
                     .find((one) => one.type === 'path' || one.type === 'text');
                   return text ? (text.file + ':' + text.key) : null;}""")

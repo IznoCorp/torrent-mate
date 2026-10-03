@@ -29,23 +29,23 @@ WORDS = json.loads((pathlib.Path(__file__).resolve().parents[1]
 SAID = WORDS["verbs"]["acquisition"]
 TOAST = "()=>(document.querySelector('#toast')||{}).textContent || ''"
 RELEASES = """async (title) => (await (await fetch(
-  '/api/acquisition/releases?title=' + encodeURIComponent(title))).json()).length"""
-FOLLOWS = """async () => (await (await fetch('/api/acquisition/followed')).json())
+  '/api/v1/acquisition/releases?title=' + encodeURIComponent(title))).json()).length"""
+FOLLOWS = """async () => (await (await fetch('/api/v1/acquisition/followed')).json())
   .map((follow) => ({ title: follow.title, status: follow.status }))"""
 # A suggestion the seeds hold no release for, followed through the layer.
 UNFOUND = """async () => {
-  const deck = await (await fetch('/api/acquisition/suggestions')).json();
+  const deck = await (await fetch('/api/v1/acquisition/suggestions')).json();
   for (const one of deck) {
-    const releases = await (await fetch('/api/acquisition/releases?title='
+    const releases = await (await fetch('/api/v1/acquisition/releases?title='
       + encodeURIComponent(one.title))).json();
     if (releases.length > 0 || one.ids?.tmdb === undefined) continue;
     const kind = one.kind === 'Film' ? 'movie' : 'show';
-    const answer = await fetch('/api/acquisition/followed', {
+    const answer = await fetch('/api/v1/acquisition/followed', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: one.title, kind, provider: 'tmdb', providerId: Number(one.ids.tmdb) }) });
     if (!answer.ok) continue;
     const created = await answer.json();
-    await window.__queries.invalidateQueries({ queryKey: ['/api/acquisition/followed'] });
+    await window.__queries.invalidateQueries({ queryKey: ['/api/v1/acquisition/followed'] });
     return created.title ?? one.title;
   }
   return null;
@@ -97,7 +97,7 @@ async def main():
         if searched is not None:
             found = await page.evaluate(RELEASES, searched)
             calls, said = await search(page, searched)
-            address = f"/api/acquisition/followed/{searched}/search"
+            address = f"/api/v1/acquisition/followed/{searched}/search"
             sent = [unquote(call.get("path", "")) for call in calls
                     if call.get("operationId") == "searchForFollow" and call.get("method") == "POST"]
             journal.check(f"the tap on « {searched} » sends its own search, once",

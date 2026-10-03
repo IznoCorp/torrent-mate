@@ -13,11 +13,11 @@ const FORBIDDEN = 403;
 /** Every route this subject answers. */
 export function authenticationRoutes(): MockRoute[] {
   return [
-    route("readAccount", GET, "/api/auth/me", () => signedIn()),
+    route("readAccount", GET, "/auth/me", () => signedIn()),
     // The prototype holds NO credentials: a password written into a page is
     // readable by everyone the page reaches. The gate exists to be judged as a
     // surface, and who may see it is decided by the server that serves it.
-    route("signIn", POST, "/api/auth/login", (request) => {
+    route("signIn", POST, "/auth/login", (request) => {
       // A NAME THE ROSTER KNOWS signs that account in — when its role holds
       // `auth.password`; any other name walks through as the account dialled,
       // because the screen, not the check, is what this surface shows.
@@ -28,8 +28,8 @@ export function authenticationRoutes(): MockRoute[] {
       identityDials.setIdentity(account.id);
       return signedIn();
     }),
-    route("signOut", POST, "/api/auth/logout", () => ({ ok: true })),
-    route("signInWithPlex", POST, "/api/auth/plex", () =>
+    route("signOut", POST, "/auth/logout", () => ({ ok: true })),
+    route("signInWithPlex", POST, "/auth/plex", () =>
       plexReachable() ? signedIn() : refused(UNAVAILABLE, PLEX_DOWN)),
   ];
 }

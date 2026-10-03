@@ -5,13 +5,13 @@
 import type { LiveExemptions, LiveRule } from "../../lib/live-rule";
 
 /** The listing. Its query, category, sort and reversal follow in the key. */
-const ITEMS_KEY = ["/api/library/items"];
+const ITEMS_KEY = ["/api/v1/library/items"];
 /** The categories, with their counts. */
-const CATEGORIES_KEY = ["/api/library/categories"];
+const CATEGORIES_KEY = ["/api/v1/library/categories"];
 /** What is owned but incomplete. */
-const INCOMPLETE_KEY = ["/api/library/incomplete"];
+const INCOMPLETE_KEY = ["/api/v1/library/incomplete"];
 /** Whether one title is held — every title asked about, under one prefix. */
-const MEMBERSHIP_KEY = ["/api/library/membership"];
+const MEMBERSHIP_KEY = ["/api/v1/library/membership"];
 
 /** What a server event refreshes on the library. */
 export const libraryLiveRules: readonly LiveRule[] = [

@@ -81,7 +81,7 @@ function reassignPanel(subject: string, cache: PanelCache): PanelDescriptor | nu
 // for them as it waits for the roster: the queue at rest and the follows.
 const queueAtRest = {
   queryKey: queueKey(""),
-  queryFn: async () => read<Schemas["AcquisitionQueue"]>("/api/acquisition/to-handle"),
+  queryFn: async () => read<Schemas["AcquisitionQueue"]>("/api/v1/acquisition/to-handle"),
 };
 
 registerProducer("reassign", { produce: reassignPanel, needs: () => [accountsQuery, queueAtRest, followsQuery()] });
@@ -110,13 +110,13 @@ export function installReassignVerb(client: QueryClient): void {
     const [kind, title, from, to] = value.split(PART);
     void (async () => {
       try {
-        await send("POST", "/api/acquisition/requesters/reassign", { kind, title, from, to });
+        await send("POST", "/api/v1/acquisition/requesters/reassign", { kind, title, from, to });
         const roster = client.getQueryData<Schemas["Roster"]>(accountsQuery.queryKey);
         const name = roster?.accounts.find((one) => one.id === to)?.name ?? to;
         panel?.close();
         toast?.show({ message: i18next.t("verbs.reassign.done", { name }) });
-        await client.refetchQueries({ queryKey: ["/api/acquisition/to-handle"] });
-        await client.refetchQueries({ queryKey: ["/api/acquisition/followed"] });
+        await client.refetchQueries({ queryKey: ["/api/v1/acquisition/to-handle"] });
+        await client.refetchQueries({ queryKey: ["/api/v1/acquisition/followed"] });
       } catch {
         toast?.show({ message: i18next.t("verbs.reassign.refused") });
       }

@@ -144,8 +144,8 @@ NONE_SAID = "Aucune"
 # THE LAYER'S OWN ANSWERS, asked directly so the drawing is compared against
 # what the server says and not against what the walk hoped for.
 LAYER = """async ()=>{
-  const locks = await (await fetch('/api/maintenance/locks')).json();
-  const status = await (await fetch('/api/pipeline/status')).json();
+  const locks = await (await fetch('/api/v1/maintenance/locks')).json();
+  const status = await (await fetch('/api/v1/pipeline/status')).json();
   return {held: locks.pipelineLock.held, pause: locks.sentinels.pause,
           watcherPaused: locks.sentinels.watcherPaused, state: status.state,
           watcherEnabled: status.watcherEnabled};

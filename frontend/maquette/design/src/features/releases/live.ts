@@ -14,7 +14,7 @@ export const releasesLiveRules: readonly LiveRule[] = [];
 /** Why nothing does. */
 export const releasesLiveExemptions: LiveExemptions = {
   types: [],
-  keys: ["/api/acquisition/releases"],
+  keys: ["/api/v1/acquisition/releases"],
   because:
     "the release candidates for one wanted item are a SEARCH RESULT the reader "
     + "asked for and is choosing from. Refreshing the list under a finger about "

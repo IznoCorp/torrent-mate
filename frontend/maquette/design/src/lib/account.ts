@@ -20,9 +20,9 @@ export type Account = Schemas["Account"];
  * is what stops the two from drifting into two shapes of one answer (§13).
  */
 export const accountQuery = {
-  queryKey: ["/api/auth/me"],
+  queryKey: ["/api/v1/auth/me"],
   queryFn: async () =>
-    read<Account>("/api/auth/me"),
+    read<Account>("/api/v1/auth/me"),
 };
 
 /** Who is signed in. */
@@ -57,6 +57,6 @@ export function heldRights(): Rights {
 
 /** Every account and every role (demand F) — « Comptes » reads it, and the reassign chooser narrowly (F46). */
 export const accountsQuery = {
-  queryKey: ["/api/accounts"],
-  queryFn: async () => read<Schemas["Roster"]>("/api/accounts"),
+  queryKey: ["/api/v1/accounts"],
+  queryFn: async () => read<Schemas["Roster"]>("/api/v1/accounts"),
 };

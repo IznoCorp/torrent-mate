@@ -19,9 +19,9 @@ import type { DeletionJournal, MaintenanceAction } from "./types";
  * drifting into two shapes of one answer (§13).
  */
 export const maintenanceActionsQuery = {
-  queryKey: ["/api/maintenance/actions"],
+  queryKey: ["/api/v1/maintenance/actions"],
   queryFn: async () =>
-    read<MaintenanceAction[]>("/api/maintenance/actions"),
+    read<MaintenanceAction[]>("/api/v1/maintenance/actions"),
 };
 
 /** The actions maintenance offers. */
@@ -32,8 +32,8 @@ export function useMaintenanceActions() {
 /** What deleting has already done. */
 export function useDeletionJournal() {
   return useQuery({
-    queryKey: ["/api/maintenance/destructive-log"],
+    queryKey: ["/api/v1/maintenance/destructive-log"],
     queryFn: async () =>
-      read<DeletionJournal>("/api/maintenance/destructive-log"),
+      read<DeletionJournal>("/api/v1/maintenance/destructive-log"),
   });
 }

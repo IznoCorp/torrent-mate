@@ -27,7 +27,7 @@ import { RankingPreview, type RankingFileBlock } from "./ranking-preview";
 type Criterion = Schemas["RankingCriterion"];
 
 /** The key of the ranking file's content. */
-export const rankingFileKey = ["/api/config/files/ranking.json5"];
+export const rankingFileKey = ["/api/v1/config/files/ranking.json5"];
 
 /**
  * The ranking the file holds.

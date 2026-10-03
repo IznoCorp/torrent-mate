@@ -29,8 +29,8 @@
 const HELLO_TYPE = "ws.hello";
 /** What the server pushes after thirty seconds of client silence. */
 const PING_TYPE = "ws.ping";
-/** The path the stream is served at. */
-const RELAY_PATH = "/ws/events";
+/** The path the stream is served at: beside the operations, under their base. */
+const RELAY_PATH = `${SERVER_BASE}/events`;
 /** What the client answers a ping with. Any text frame is a pong. */
 const PONG_FRAME = "pong";
 
@@ -38,6 +38,7 @@ const PONG_FRAME = "pong";
 // and only then reads the cookie, so a refusal is a close on an OPEN socket —
 // which is what makes this branch reachable at all. Closing before accept would
 // give a browser an opaque 1006 and this code would be dead in production.
+import { SERVER_BASE } from "./server-base";
 import {
   backoffFor,
   isLost,

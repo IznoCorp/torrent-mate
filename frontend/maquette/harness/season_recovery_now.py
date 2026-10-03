@@ -74,7 +74,7 @@ TAP_GRAB = """(value) => {
 
 SAID = "()=>window.__toast?.read?.()?.message?.message || ''"
 
-ASK_AGAIN = """async () => (await (await fetch('/api/acquisition/follows/Silo/seasons/3/grab',
+ASK_AGAIN = """async () => (await (await fetch('/api/v1/acquisition/follows/Silo/seasons/3/grab',
   {method: 'POST'})).json())"""
 
 
@@ -151,7 +151,7 @@ async def main():
         again = await page.evaluate(ASK_AGAIN)
         journal.check("R-e: a second ask queues nothing more and answers `reused`",
                       again.get("reused") is True, str(again))
-        await page.evaluate("()=>window.__queries.invalidateQueries({queryKey: ['/api/acquisition/to-handle']})")
+        await page.evaluate("()=>window.__queries.invalidateQueries({queryKey: ['/api/v1/acquisition/to-handle']})")
         twice = await read_now(page)
         journal.check("R-e: after two asks « En cours » holds exactly one « Silo · S03 »",
                       len(season_cards(twice["cards"])) == 1, str(season_cards(twice["cards"])))

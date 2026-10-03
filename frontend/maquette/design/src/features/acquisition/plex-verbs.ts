@@ -15,7 +15,7 @@ import { toast } from "../../lib/shell-doors";
 import type { Schemas } from "../../lib/contract-schemas";
 
 /** The queue the card is drawn from, asked again once the match is answered. */
-const QUEUE = ["/api/acquisition/to-handle"];
+const QUEUE = ["/api/v1/acquisition/to-handle"];
 
 /** An identity a match is answered with. */
 type Identity = Schemas["PlexMatch"];
@@ -44,7 +44,7 @@ export function heldMatch(title: string): Identity | null {
  * @param identity The identity picked, which a correction carries.
  */
 export async function answerMatch(outcome: "confirm" | "correct", title: string, identity?: Identity): Promise<void> {
-  await send("POST", `/api/acquisition/journeys/${encodeURIComponent(title)}/plex-match`,
+  await send("POST", `/api/v1/acquisition/journeys/${encodeURIComponent(title)}/plex-match`,
     identity === undefined ? { outcome } : { outcome, identity });
   await heldClient?.invalidateQueries({ queryKey: QUEUE });
   toast?.show({

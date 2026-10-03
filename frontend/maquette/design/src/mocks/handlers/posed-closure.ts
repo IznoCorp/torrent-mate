@@ -219,7 +219,7 @@ export function closureRoutes(): MockRoute[] {
     // SEEN IS GONE, for this account, in every world: the closed tunnel's card
     // leaves the queue's answer for good. IDEMPOTENT — a closure already seen,
     // or none, answers the same.
-    route("dismissClosure", POST, "/api/acquisition/journeys/{infoHash}/closure/seen", (request) => {
+    route("dismissClosure", POST, "/acquisition/journeys/{infoHash}/closure/seen", (request) => {
       const subject = request.parameters.infoHash;
       const state = mockState();
       for (const list of QUEUE_LISTS)

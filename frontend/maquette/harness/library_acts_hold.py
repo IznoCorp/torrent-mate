@@ -37,7 +37,7 @@ TYPE = """(text) => { const field = document.querySelector('#libq');
 # What the follows the surfaces read hold, and the follow removals the layer answered.
 FOLLOWS = """() => ({
   titles: (window.__queries.getQueryCache().getAll()
-    .find((query) => query.queryKey[0] === '/api/acquisition/followed' && query.queryKey.length <= 2)
+    .find((query) => query.queryKey[0] === '/api/v1/acquisition/followed' && query.queryKey.length <= 2)
     ?.state.data ?? []).map((follow) => follow.title),
   removals: window.__mocks.answered()
     .filter((call) => call.operationId === 'deleteFollow').map((call) => call.path + ' ' + call.status),

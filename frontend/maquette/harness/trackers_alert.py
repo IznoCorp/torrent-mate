@@ -50,7 +50,7 @@ carries a thing takes its badge):
     moves the tracker's summary and the badge with it.
 
 RE-AIMED OUT LOUD (correction round C16): hold 3 posed the threshold and then
-refreshed `/api/trackers` itself — the harness did the refresh the product never
+refreshed `/api/v1/trackers` itself — the harness did the refresh the product never
 did, and a saved threshold left the alert stale. It now saves through the
 product, from Réglages, and refreshes nothing. Hold 4's single-unit reading
 stood on a tracker with ONE entry, where per-tracker and per-torrent agree; it
@@ -98,9 +98,9 @@ BADGE = """() => document.querySelector('[data-part="shell/tab-bar"] [data-page=
 # The sum the badge must draw, computed here from the three answers the layer serves.
 SUM = """() => {
   const get = (address) => window.__queries?.getQueryData([address]);
-  const trackers = get("/api/trackers") ?? [];
-  const downloads = get("/api/acquisition/downloads")?.downloads ?? [];
-  const obligations = get("/api/acquisition/obligations")?.items ?? [];
+  const trackers = get("/api/v1/trackers") ?? [];
+  const downloads = get("/api/v1/acquisition/downloads")?.downloads ?? [];
+  const obligations = get("/api/v1/acquisition/obligations")?.items ?? [];
   const active = new Set(downloads.map((entry) => `${entry.infoHash}:${entry.tracker}`));
   const under = trackers.filter((one) => one.alertThreshold !== null && one.ratio !== null
     && one.ratio < one.alertThreshold).length;
@@ -190,7 +190,7 @@ async def tapped(page, selector):
 
 async def entries_agree(page, journal, label):
     """Every entry's alert mark against the summary served; returns the entries drawn."""
-    served = await page.evaluate(SERVED, "/api/trackers") or []
+    served = await page.evaluate(SERVED, "/api/v1/trackers") or []
     drawn = {entry["name"]: entry for entry in await page.evaluate(ENTRIES)}
     wanted = {tracker["name"]: under(tracker) for tracker in served}
     journal.check(f"{label}: every entry's alert agrees with the summary served",
@@ -252,13 +252,13 @@ async def main():
         answer = await enter(page, "tracker-identifier-refused")
         journal.check("the named state tracker-identifier-refused exists", answer is None, answer or "")
         drawn = {entry["name"]: entry for entry in await page.evaluate(ENTRIES)}
-        refusing = {tracker["name"] for tracker in await page.evaluate(SERVED, "/api/trackers") or []
+        refusing = {tracker["name"] for tracker in await page.evaluate(SERVED, "/api/v1/trackers") or []
                     if (tracker.get("disabled") or {}).get("reason") == "identifierRefused"}
         journal.check(f"{REFUSED}'s entry says its identifier is refused, once, and only the refusing entries do",
                       REFUSED in refusing and drawn.get(REFUSED, {}).get("refused") == 1
                       and all(entry["refused"] == (1 if name in refusing else 0) for name, entry in drawn.items()),
                       f"{drawn} · refusing {sorted(refusing)}")
-        since = next(((tracker.get("disabled") or {}).get("since") for tracker in await page.evaluate(SERVED, "/api/trackers") or []
+        since = next(((tracker.get("disabled") or {}).get("since") for tracker in await page.evaluate(SERVED, "/api/v1/trackers") or []
                       if tracker["name"] == REFUSED), None)
         said = await page.evaluate(
             f"""()=>document.querySelector('#view [data-part="trackers/entry"][data-tracker="{REFUSED}"] [data-part="trackers/failure"]')
@@ -271,7 +271,7 @@ async def main():
         many = max(TRACKERS, key=lambda tracker: sum(1 for entry in DOWNLOADS if entry["tracker"] == tracker["name"]))["name"]
         failed_before = (await page.evaluate(SUM))["failed"]
         await page.evaluate(f"()=>window.__mocks?.poseIdentifierRefused?.('{many}')")
-        await page.evaluate(REFRESH, "/api/trackers")
+        await page.evaluate(REFRESH, "/api/v1/trackers")
         await page.wait_for_timeout(SETTLED)
         wanted = await page.evaluate(SUM)
         badge = await page.evaluate(BADGE)
@@ -296,7 +296,7 @@ async def main():
                       rows.get(key, {}).get("breached") == 1 and rows.get(key, {}).get("open") is False,
                       repr(rows.get(key)))
         broken_at = next((item.get("breachedAt") for item in
-                          (await page.evaluate(SERVED, "/api/acquisition/obligations") or {}).get("items", [])
+                          (await page.evaluate(SERVED, "/api/v1/acquisition/obligations") or {}).get("items", [])
                           if item["infoHash"] == BREACHED["infoHash"]), None)
         chip = await page.evaluate(
             f"""()=>document.querySelector('#view [data-part="torrents/row"][data-entry="{BREACHED['infoHash']}"] [data-part="torrents/obligation-breached"]')
@@ -305,7 +305,7 @@ async def main():
         journal.check(f"its chip says « {opening} {day_of(broken_at) if broken_at else '?'} », never « rompue »",
                       broken_at is not None and chip.startswith(opening) and day_of(broken_at) in chip
                       and "rompue" not in chip.lower(), repr(chip))
-        served = (await page.evaluate(SERVED, "/api/acquisition/obligations") or {}).get("items", [])
+        served = (await page.evaluate(SERVED, "/api/v1/acquisition/obligations") or {}).get("items", [])
         broken = {f"{item['infoHash']}:{item['sourceTracker']}" for item in served
                   if item.get("breachedAt") is not None and item.get("satisfiedAt") is None
                   and item.get("releasedAt") is None}
@@ -316,7 +316,7 @@ async def main():
         # ── the broken obligations, unseen then seen ───────────────────────
         answer = await enter(page, "tracker-broken-obligations")
         journal.check("the named state tracker-broken-obligations exists", answer is None, answer or "")
-        served = await page.evaluate(SERVED, "/api/trackers") or []
+        served = await page.evaluate(SERVED, "/api/v1/trackers") or []
         unseen = {tracker["name"]: sum(1 for row in tracker.get("brokenObligations", []) if not row["seen"])
                   for tracker in served}
         counts = await page.evaluate(COUNTS)

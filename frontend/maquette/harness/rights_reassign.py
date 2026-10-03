@@ -26,7 +26,7 @@ CHOICES = """() => [...document.querySelectorAll('#sheet [data-reassign-to]')]
   .map((one) => ({ value: one.getAttribute('data-reassign-to'), text: one.textContent }))"""
 OFFERED = "() => !!document.querySelector('#sheet [data-panel^=\"reassign:\"]')"
 REQUESTERS = """async (title) => {
-  const queue = await (await fetch('/api/acquisition/to-handle')).json();
+  const queue = await (await fetch('/api/v1/acquisition/to-handle')).json();
   const card = Object.values(queue).flat().find((one) => one.title === title);
   return card ? card.requesters.map((one) => one.id) : null;
 }"""
@@ -76,7 +76,7 @@ async def main():
 
         await page.evaluate("()=>window.__go('acq-household')")
         await page.wait_for_timeout(SETTLED)
-        forced = await page.evaluate("""async (title) => (await fetch('/api/acquisition/requesters/reassign', {
+        forced = await page.evaluate("""async (title) => (await fetch('/api/v1/acquisition/requesters/reassign', {
           method: 'POST', body: JSON.stringify({ kind: 'card', title, from: 'household-member', to: 'guest' }) })).status""",
                                      CARD)
         journal.check("R-L18-j: forced by a household member, the move answers 403", forced == 403, str(forced))

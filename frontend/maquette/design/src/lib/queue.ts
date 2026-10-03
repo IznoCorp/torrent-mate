@@ -94,10 +94,10 @@ export function queueNow() {
 }
 
 /** The key the staging read is cached under, scenario included. */
-export const stagingKey = (scenario: string) => ["/api/staging/media", scenario];
+export const stagingKey = (scenario: string) => ["/api/v1/staging/media", scenario];
 
 /** The key the acquisition queue is cached under, scenario included. */
-export const queueKey = (scenario: string) => ["/api/acquisition/to-handle", scenario];
+export const queueKey = (scenario: string) => ["/api/v1/acquisition/to-handle", scenario];
 
 /**
  * What is sitting in staging: stuck, moving, settled.
@@ -111,7 +111,7 @@ export function useStaging(scenario: string) {
     queryFn: async () => {
       const parameters = new URLSearchParams(scenario ? { scenario } : {});
       const answer = await read<Record<string, QueueCard[]>>(
-        "/api/staging/media", parameters);
+        "/api/v1/staging/media", parameters);
       return {
         stuck: answer.stuck,
         moving: answer.moving,
@@ -132,7 +132,7 @@ export function useAcquisitionQueue(scenario: string) {
     queryKey: queueKey(scenario),
     queryFn: async () => {
       const parameters = new URLSearchParams(scenario ? { scenario } : {});
-      return read<AcquisitionQueue>("/api/acquisition/to-handle", parameters);
+      return read<AcquisitionQueue>("/api/v1/acquisition/to-handle", parameters);
     },
   });
 }
@@ -244,9 +244,9 @@ const UNDO_WINDOW_MILLISECONDS = 7000;
 // A PAIR IS SYMMETRIC. Its reader matches on EITHER end — reading only the
 // first left a replayed take never reaching staging, which is this constant's
 // own defect in the other direction. A take is a FOLLOW's grab, so a replayed
-// `/api/acquisition/followed/…/grab` moves the two lists the take wrote to.
+// `/api/v1/acquisition/followed/…/grab` moves the two lists the take wrote to.
 export const ADDRESSES_THAT_MOVE_TOGETHER: readonly (readonly string[])[] = [
-  ["/api/staging/media", "/api/acquisition/to-handle", "/api/acquisition/followed"],
+  ["/api/v1/staging/media", "/api/v1/acquisition/to-handle", "/api/v1/acquisition/followed"],
 ];
 
 /**
@@ -278,7 +278,7 @@ export function installQueueActions(queryClient: QueryClient): void {
                          restore: () => void, choice?: string) => {
     let answer: unknown;
     try {
-      answer = await send("POST", `/api/staging/media/${encodeURIComponent(title)}/continue`,
+      answer = await send("POST", `/api/v1/staging/media/${encodeURIComponent(title)}/continue`,
                           { outcome, ...(choice === undefined ? {} : { choice }) });
     } catch (refusal) {
       restore();
@@ -364,7 +364,7 @@ export function installQueueActions(queryClient: QueryClient): void {
     take: (title, releaseName) => {
       const scenario = scenarioNow();
       const held = takeOutOfQueue(queryClient, scenario, title);
-      void send("POST", `/api/acquisition/followed/${encodeURIComponent(title)}/grab`,
+      void send("POST", `/api/v1/acquisition/followed/${encodeURIComponent(title)}/grab`,
         releaseName === undefined ? undefined : { releaseName })
         .catch((refusal) => {
           putBack(queryClient, scenario, held);

@@ -117,8 +117,8 @@ async function land(): Promise<void> {
   let account: Schemas["Account"];
   try {
     account = await client.fetchQuery({
-      queryKey: ["/api/auth/me"],
-      queryFn: async () => (await fetch("/api/auth/me")).json() as Promise<Schemas["Account"]>,
+      queryKey: ["/api/v1/auth/me"],
+      queryFn: async () => (await fetch("/api/v1/auth/me")).json() as Promise<Schemas["Account"]>,
     });
   } catch (failure) {
     if (failure instanceof CancelledError) return;
@@ -130,7 +130,7 @@ async function land(): Promise<void> {
 
 /** Asks Plex to sign in; opens the password when Plex does not answer. */
 async function signInWithPlex(): Promise<void> {
-  const answer = await fetch("/api/auth/plex", { method: "POST" }).catch(() => null);
+  const answer = await fetch("/api/v1/auth/plex", { method: "POST" }).catch(() => null);
   if (answer?.ok) return land();
   if (answer === null || answer.status === UNREACHABLE) {
     const unreachable = node('[data-part="login/plex-unreachable"]');
@@ -147,7 +147,7 @@ async function signInWithPlex(): Promise<void> {
  */
 async function signInWithPassword(username: string, password: string): Promise<void> {
   const refusal = node("#loginerr");
-  const answer = await fetch("/api/auth/login", {
+  const answer = await fetch("/api/v1/auth/login", {
     method: "POST",
     body: JSON.stringify({ username, password }),
   }).catch(() => null);

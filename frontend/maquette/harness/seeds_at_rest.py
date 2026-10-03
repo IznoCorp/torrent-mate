@@ -114,7 +114,7 @@ TITLES_ON_SCREEN = """()=>[...document.querySelectorAll(
 # the layer's own answer rather than written down here, so a reseeding that
 # renames a file falls on the seed's own guard and not on this walk.
 MOVED_FILE_SETTING = """()=>{
-  const topics = window.__queries?.getQueryData(['/api/config/schema']) || [];
+  const topics = window.__queries?.getQueryData(['/api/v1/config/schema']) || [];
   for (const topic of topics) {
     for (const setting of topic.settings) {
       if (setting.file !== 'notify') continue;
@@ -126,7 +126,7 @@ MOVED_FILE_SETTING = """()=>{
 # A BOOLEAN SETTING IN A FILE THAT DID NOT MOVE — a switch, because it files
 # its edit on the tap that changes it and the walk needs no keyboard.
 ORDINARY_SETTING = """()=>{
-  const topics = window.__queries?.getQueryData(['/api/config/schema']) || [];
+  const topics = window.__queries?.getQueryData(['/api/v1/config/schema']) || [];
   for (const topic of topics) {
     for (const setting of topic.settings) {
       if (setting.file === 'notify' || setting.type !== 'boolean') continue;
@@ -152,16 +152,16 @@ LIBRARY_AT_REST = """async()=>{
   const items = [];
   let held = null;
   for (let page = 0; page < 200; page += 1) {
-    const answer = await fetch(`/api/library/items?page=${page}`);
+    const answer = await fetch(`/api/v1/library/items?page=${page}`);
     const body = await answer.json();
     const rows = body.items ?? [];
     held = body.loaded ?? null;
     items.push(...rows);
     if (rows.length === 0 || (held !== null && items.length >= held)) break;
   }
-  const categories = await read("/api/library/categories");
-  const incomplete = await read("/api/library/incomplete");
-  const follows = await read("/api/acquisition/followed");
+  const categories = await read("/api/v1/library/categories");
+  const incomplete = await read("/api/v1/library/incomplete");
+  const follows = await read("/api/v1/acquisition/followed");
   const counted = new Map();
   for (const row of items) counted.set(row.title, (counted.get(row.title) ?? 0) + 1);
   const titles = new Set(counted.keys());
@@ -170,7 +170,7 @@ LIBRARY_AT_REST = """async()=>{
   return {
     items: items.length,
     held,
-    recent: (await read("/api/library/recent")).length,
+    recent: (await read("/api/v1/library/recent")).length,
     incomplete: incomplete.length,
     categories: categories.length,
     emptyCategories: categories.filter((one) => one.id !== "all" && rows(one).length === 0)

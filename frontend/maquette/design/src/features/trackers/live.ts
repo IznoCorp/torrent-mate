@@ -8,13 +8,13 @@
 // tracker's counts, and the media sheet's block that reads the same pairs (L18).
 import type { LiveRule } from "../../lib/live-rule";
 
-const TRACKERS_KEY = ["/api/trackers"];
+const TRACKERS_KEY = ["/api/v1/trackers"];
 
-const DOWNLOADS_KEY = ["/api/acquisition/downloads"];
+const DOWNLOADS_KEY = ["/api/v1/acquisition/downloads"];
 
-const OBLIGATIONS_KEY = ["/api/acquisition/obligations"];
+const OBLIGATIONS_KEY = ["/api/v1/acquisition/obligations"];
 
-const MEDIA_CROSS_SEED_KEY = ["/api/media/cross-seed"];
+const MEDIA_CROSS_SEED_KEY = ["/api/v1/media/cross-seed"];
 
 /** Every rule this feature contributes to the relay. */
 export const trackersLiveRules: readonly LiveRule[] = [

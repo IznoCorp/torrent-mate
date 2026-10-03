@@ -55,7 +55,7 @@ async def main():
         await go("accounts-forbidden")
         right = await page.evaluate("()=>document.querySelector('[data-part=\"access/reserved\"]')?.dataset.right")
         journal.check("R-L18-s: opened, it names the right it lacks", right == "accounts.manage", str(right))
-        forced = await page.evaluate(CALL, [None, "GET", "/api/accounts", None])
+        forced = await page.evaluate(CALL, [None, "GET", "/api/v1/accounts", None])
         journal.check("R-L18-s: forcing the roster answers 403", forced == 403, str(forced))
 
         await go("accounts-roster")
@@ -84,13 +84,13 @@ async def main():
         called = await page.evaluate("()=>window.__mocks.answered().filter((one)=>one.operationId==='updateRole').map((one)=>one.status)")
         journal.check("R-L18-u: the tap calls updateRole", called == [200], str(called))
         await page.evaluate("""async () => { window.__mocks.setIdentity('household-member');
-          await window.__queries.resetQueries({ queryKey: ['/api/auth/me'] }); }""")
+          await window.__queries.resetQueries({ queryKey: ['/api/v1/auth/me'] }); }""")
         await page.wait_for_timeout(SETTLED)
         bar = await page.evaluate("()=>[...document.querySelectorAll('#nav button[data-page]')].map((one)=>one.dataset.page)")
         journal.check("R-L18-u: a household member, read again, now has Trackers in its bar", "trackers" in bar, str(bar))
 
         await go("accounts-roster")
-        last = await page.evaluate(CALL, [None, "PATCH", f"/api/accounts/{OWNER['id']}", {"role": "household"}])
+        last = await page.evaluate(CALL, [None, "PATCH", f"/api/v1/accounts/{OWNER['id']}", {"role": "household"}])
         journal.check("R-L18-u (F2): demoting the last Admin answers 409", last == 409, str(last))
 
         await go("accounts-escalation-greyed", PANEL_IN + SETTLED)
@@ -101,9 +101,9 @@ async def main():
         greyed = {one["value"].split("|")[1] for one in acts if one["off"]}
         journal.check("Q14 = A: the roles beyond the manager's own are greyed, Admin's among them",
                       {"admin", "household"} <= greyed and "default" not in greyed, str(sorted(greyed)))
-        up = await page.evaluate(CALL, [None, "PATCH", "/api/accounts/household-member", {"role": "household-sees-all"}])
-        own = await page.evaluate(CALL, [None, "PATCH", "/api/roles/spectator", {"rights": ["library.read"]}])
-        admin = await page.evaluate(CALL, [None, "PATCH", f"/api/accounts/{OWNER['id']}", {"role": "default"}])
+        up = await page.evaluate(CALL, [None, "PATCH", "/api/v1/accounts/household-member", {"role": "household-sees-all"}])
+        own = await page.evaluate(CALL, [None, "PATCH", "/api/v1/roles/spectator", {"rights": ["library.read"]}])
+        admin = await page.evaluate(CALL, [None, "PATCH", f"/api/v1/accounts/{OWNER['id']}", {"role": "default"}])
         journal.check("Q14 = A / M7: forcing a wider role, its own role or an Admin account answers 403",
                       (up, own, admin) == (403, 403, 403), str((up, own, admin)))
 
@@ -112,13 +112,13 @@ async def main():
         created = await page.evaluate("()=>window.__mocks.answered().filter((one)=>one.operationId==='createAccount').length")
         journal.check("R-L18-v: a new account without an e-mail is refused, and nothing is asked",
                       refusal and created == 0, f"{refusal} / {created} calls")
-        forced = await page.evaluate(CALL, [None, "POST", "/api/accounts", {"name": "Maya", "email": "", "role": "default"}])
+        forced = await page.evaluate(CALL, [None, "POST", "/api/v1/accounts", {"name": "Maya", "email": "", "role": "default"}])
         journal.check("R-L18-v: forced without an e-mail, the creation answers 400", forced == 400, str(forced))
         await page.fill('[data-part="accounts/create"] input[name="name"]', "Maya")
         await page.fill('[data-part="accounts/create"] input[name="email"]', SEEDS["plexUsers"][0])
         await page.click('[data-part="accounts/create-submit"]')
         await page.wait_for_timeout(ACTED + SETTLED)
-        roster = await page.evaluate("async()=>(await (await fetch('/api/accounts')).json()).accounts")
+        roster = await page.evaluate("async()=>(await (await fetch('/api/v1/accounts')).json()).accounts")
         newcomer = next((one for one in roster if one["name"] == "Maya"), None)
         journal.check("R-L18-v: with an e-mail, the account is created on its role and linked to Plex",
                       newcomer is not None and newcomer["role"]["kind"] == "default" and newcomer["plexLinked"], str(newcomer))

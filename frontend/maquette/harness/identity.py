@@ -29,7 +29,7 @@ the same way would agree with a wrong implementation.
 It does not read the design host's real password, which is nowhere in this
 repository. It starts its own server with a hash it sets, on its own port.
 
-It does not read production. `GET /api/version` and R27 are the other side of
+It does not read production. `GET /api/v1/version` and R27 are the other side of
 this question and belong to the shipped application; nothing here touches them.
 
 RE-AIMED WHEN THE PRODUCT STOPPED READING `window`. The host writes the identity

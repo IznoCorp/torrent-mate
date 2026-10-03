@@ -41,9 +41,9 @@ BADGE = """() => document.querySelector('[data-part="shell/tab-bar"] [data-page=
   ?.textContent.trim() ?? ''"""
 SUM = """() => {
   const get = (address) => window.__queries?.getQueryData([address]);
-  const trackers = get("/api/trackers") ?? [];
-  const downloads = get("/api/acquisition/downloads")?.downloads ?? [];
-  const obligations = get("/api/acquisition/obligations")?.items ?? [];
+  const trackers = get("/api/v1/trackers") ?? [];
+  const downloads = get("/api/v1/acquisition/downloads")?.downloads ?? [];
+  const obligations = get("/api/v1/acquisition/obligations")?.items ?? [];
   const active = new Set(downloads.map((entry) => `${entry.infoHash}:${entry.tracker}`));
   const under = trackers.filter((one) => one.alertThreshold !== null && one.ratio !== null
     && one.ratio < one.alertThreshold).length;
@@ -55,7 +55,7 @@ SUM = """() => {
   return { under, failed, breached, unseen, crossSeed, total: under + failed + breached + unseen + crossSeed };
 }"""
 CONFIRM = '[data-part="dialog"][data-open] [data-part="dialog/button"][data-tone="danger"]'
-TR4KER = """() => (window.__queries?.getQueryData(['/api/trackers']) || []).find(one => one.name === 'tr4ker')?.crossSeed ?? null"""
+TR4KER = """() => (window.__queries?.getQueryData(['/api/v1/trackers']) || []).find(one => one.name === 'tr4ker')?.crossSeed ?? null"""
 LINE = """() => document.querySelector('#view [data-tracker="tr4ker"] [data-part="trackers/cross-seed"]')?.textContent.trim() ?? null"""
 ROW = """([hash, tracker]) => document.querySelector(
   `#sheet[data-open] [data-entry="${hash}"] [data-part="torrents/cross-seed-row"][data-tracker="${tracker}"]`)?.dataset.state ?? null"""

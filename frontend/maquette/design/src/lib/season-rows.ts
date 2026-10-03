@@ -32,10 +32,10 @@ export type SeasonsAnswer = {
  */
 export function seasonsQuery(provider: string, identifier: string) {
   return {
-    queryKey: ["/api/media", provider, identifier, "seasons"] as const,
+    queryKey: ["/api/v1/media", provider, identifier, "seasons"] as const,
     queryFn: async (): Promise<SeasonsAnswer> => {
       const answered = await read<Record<string, unknown>>(
-        `/api/media/${encodeURIComponent(provider)}/${encodeURIComponent(identifier)}/seasons`);
+        `/api/v1/media/${encodeURIComponent(provider)}/${encodeURIComponent(identifier)}/seasons`);
       // The catalogue is the sheet's own, so it wears the sheet's names — the
       // contract's.
       return {
@@ -119,9 +119,9 @@ export function offCatalogueBySeason(held: SeasonsAnswer | undefined): Record<st
  */
 export function completenessQuery(followedId: string) {
   return {
-    queryKey: ["/api/acquisition/followed", followedId, "completeness"] as const,
+    queryKey: ["/api/v1/acquisition/followed", followedId, "completeness"] as const,
     queryFn: async (): Promise<FollowCompleteness> =>
-      read<FollowCompleteness>(`/api/acquisition/followed/${encodeURIComponent(followedId)}/completeness`),
+      read<FollowCompleteness>(`/api/v1/acquisition/followed/${encodeURIComponent(followedId)}/completeness`),
   };
 }
 

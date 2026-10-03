@@ -38,7 +38,7 @@ import type { CarriedIdentity } from "../lib/navigation-entry";
  */
 function setPipeline(state: string): void {
   window.__mocks?.setPipelineState(state as Parameters<NonNullable<typeof window.__mocks>["setPipelineState"]>[0]);
-  void window.__queries?.refetchQueries({ queryKey: ["/api/pipeline/status"] });
+  void window.__queries?.refetchQueries({ queryKey: ["/api/v1/pipeline/status"] });
 }
 
 /**

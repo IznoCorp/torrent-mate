@@ -538,9 +538,9 @@ async def settle(page):
 # that pushes a screen goes through `startViewTransition` (lib/navigate.ts): the
 # route commits inside its callback, so the screen mounts a frame or more after
 # `__go` returns, and only then does it ask the cache for what it draws — the
-# resolution screen's `/api/decisions/` among them. A fixed wait is a bet on how
+# resolution screen's `/api/v1/decisions/` among them. A fixed wait is a bet on how
 # fast a runner is: `attrs.py`'s 420 ms read `acq-resolution-tie` with the screen
-# mounted, the transition still active and `/api/decisions/` still in flight
+# mounted, the transition still active and `/api/v1/decisions/` still in flight
 # (measured under a throttled CPU), so it counted 0 candidate posters — the
 # fall CI met on two runs of three. The page says itself when that is over: no
 # view transition active, no query fetching, no mutation pending, no finite
@@ -727,7 +727,7 @@ async def read_at(page, state, script, argument=None, wait=SETTLED):
 # `data-acquisition`, composed as `acquisitionKey` composes it.
 SERVED_CARDS = """() => {
   const world = String(window.__store?.read?.().state.scen ?? '') === 'loaded' ? 'loaded' : '';
-  const queue = window.__queries?.getQueryData(['/api/acquisition/to-handle', world]) || {};
+  const queue = window.__queries?.getQueryData(['/api/v1/acquisition/to-handle', world]) || {};
   const pad = (value) => String(value).padStart(2, '0');
   const keyOf = (row) => row.season == null ? row.title
     : `${row.title}|S${pad(row.season)}${row.episode == null ? '' : 'E' + pad(row.episode)}`;

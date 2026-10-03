@@ -15,7 +15,7 @@ import { send, sharedQueryClient } from "../../lib/query-client";
 import type { Schemas } from "../../lib/contract-schemas";
 
 /** The reads a quarantined folder moves: the queue, the staging area and a follow's releases. */
-const LEFT = [["/api/acquisition/to-handle"], ["/api/staging/media"], ["/api/acquisition/releases"]];
+const LEFT = [["/api/v1/acquisition/to-handle"], ["/api/v1/staging/media"], ["/api/v1/acquisition/releases"]];
 
 // The requester token of a card a follow asked for.
 const ASKED_BY_FOLLOW = "follow";
@@ -28,7 +28,7 @@ const ASKED_BY_FOLLOW = "follow";
  */
 function askedByFollow(title: string): boolean {
   const held = sharedQueryClient?.getQueriesData<Partial<Schemas["AcquisitionQueue"]>>({
-    queryKey: ["/api/acquisition/to-handle"],
+    queryKey: ["/api/v1/acquisition/to-handle"],
   }) ?? [];
   return held.some(([, queue]) => [...(queue?.arrivals ?? []), ...(queue?.blocked ?? [])]
     .some((card) => card.title === title && card.requester?.via === ASKED_BY_FOLLOW));
@@ -40,7 +40,7 @@ function askedByFollow(title: string): boolean {
  * @param title The folder.
  */
 async function quarantine(title: string): Promise<void> {
-  const answer = (await send("POST", `/api/staging/media/${encodeURIComponent(title)}/discard`, {})) as
+  const answer = (await send("POST", `/api/v1/staging/media/${encodeURIComponent(title)}/discard`, {})) as
     | { quarantine_path?: string }
     | undefined;
   for (const queryKey of LEFT) await sharedQueryClient?.invalidateQueries({ queryKey });

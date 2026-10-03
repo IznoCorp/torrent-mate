@@ -75,11 +75,11 @@ WATCH_TOASTS = """() => { window.__seenToasts = [];
   const toast = document.getElementById('toast');
   if (toast) new MutationObserver(() => window.__seenToasts.push(toast.textContent.trim()))
     .observe(toast, {childList: true, subtree: true, characterData: true}); }"""
-REREAD = """()=>{window.__queries?.removeQueries({queryKey: ['/api/config/files/ranking.json5']});
+REREAD = """()=>{window.__queries?.removeQueries({queryKey: ['/api/v1/config/files/ranking.json5']});
   window.__screens.ranking()}"""
-STALE_WRITE = """async ({values, digest}) => (await (await fetch('/api/config/files/ranking.json5',
+STALE_WRITE = """async ({values, digest}) => (await (await fetch('/api/v1/config/files/ranking.json5',
   {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({values, digest})})).json())"""
-STORED = """async (field) => (await (await fetch('/api/config/files/ranking.json5')).json())
+STORED = """async (field) => (await (await fetch('/api/v1/config/files/ranking.json5')).json())
   .values.ranking.criteria.find((one) => one.field === field)?.weight ?? null"""
 WEIGHTS = SETTINGS_WORDS["profile"]["rankingWeights"]
 ROWS = """() => [...document.querySelectorAll('[data-part="ranking/criterion"]')].map(row => ({

@@ -127,14 +127,14 @@ export function acquisitionRoutes(): MockRoute[] {
     // says of a follow with a grab running: never « en attente de torrent »
     // beside the season's pack downloading. IN THE WORLD ASKED, as the queue
     // is: a recovery the dense world holds runs nowhere in the real one.
-    route("readFollows", GET, "/api/acquisition/followed", (request) => {
+    route("readFollows", GET, "/acquisition/followed", (request) => {
       const dense = request.query.get("scenario") === LOADED;
       return withAcquisitionFacts(mockState().follows
         .filter((follow) => follow.kind !== FILM_KIND || !isVerifiedInPlex(follow.title))
         .map((follow) => (WAITING_ON_A_GRAB.has(follow.status) && recoveringSeason(follow.title, dense)
           ? { ...follow, status: BEING_ACQUIRED } : follow)));
     }),
-    route("createFollow", POST, "/api/acquisition/followed", (request) => {
+    route("createFollow", POST, "/acquisition/followed", (request) => {
       const state = mockState();
       // BUILT FROM ITS OWN REQUEST, and from nothing else. An earlier version
       // spread the first seeded follow of the same kind and overrode three
@@ -192,7 +192,7 @@ export function acquisitionRoutes(): MockRoute[] {
     route(
       "updateFollow",
       PATCH,
-      "/api/acquisition/followed/{followedId}",
+      "/acquisition/followed/{followedId}",
       (request) => {
         const found = followFor(request.parameters.followedId);
         if (found === undefined) return null;
@@ -212,7 +212,7 @@ export function acquisitionRoutes(): MockRoute[] {
     route(
       "deleteFollow",
       DELETE,
-      "/api/acquisition/followed/{followedId}",
+      "/acquisition/followed/{followedId}",
       (request) => {
         const state = mockState();
         // A FOLLOW OTHERS ASKED FOR TOO STAYS FOR THEM: the caller alone
@@ -240,7 +240,7 @@ export function acquisitionRoutes(): MockRoute[] {
     route(
       "restoreFollow",
       POST,
-      "/api/acquisition/followed/{followedId}/restore",
+      "/acquisition/followed/{followedId}/restore",
       (request) => {
         const state = mockState();
         // A FOLLOW THE CALLER ONLY LEFT is still there: putting it back makes
@@ -265,7 +265,7 @@ export function acquisitionRoutes(): MockRoute[] {
     route(
       "searchForFollow",
       POST,
-      "/api/acquisition/followed/{followedId}/search",
+      "/acquisition/followed/{followedId}/search",
       (request) => {
         const found = followFor(request.parameters.followedId);
         if (found !== undefined) found.searches += 1;
@@ -277,7 +277,7 @@ export function acquisitionRoutes(): MockRoute[] {
     route(
       "grabForFollow",
       POST,
-      "/api/acquisition/followed/{followedId}/grab",
+      "/acquisition/followed/{followedId}/grab",
       (request) => {
         // THE FOLLOW'S CLAIM, launched: what its last search found and marked
         // takeable leaves the queue and is in flight. The backend answers the
@@ -300,7 +300,7 @@ export function acquisitionRoutes(): MockRoute[] {
         return { runUid: null };
       },
     ),
-    route("searchProviders", GET, "/api/acquisition/search", (request: MockRequest) => {
+    route("searchProviders", GET, "/acquisition/search", (request: MockRequest) => {
       const wanted = (request.query.get("query") ?? "").toLowerCase();
       if (wanted === "") return SEARCH_RESULTS;
       // MATCHED ON WORDS, NOT ON THE WHOLE STRING, and a provider is what this
@@ -325,7 +325,7 @@ export function acquisitionRoutes(): MockRoute[] {
     }),
     // ONE MEDIUM BY ITS IDENTIFIER (B-691): the result a source knows under the
     // identifier asked, and nothing else — no title matching, no neighbour.
-    route("searchProviderById", GET, "/api/acquisition/search/by-id", (request: MockRequest) => {
+    route("searchProviderById", GET, "/acquisition/search/by-id", (request: MockRequest) => {
       const source = request.query.get("provider") ?? "";
       const id = (request.query.get("id") ?? "").trim();
       const results = SEARCH_RESULTS.results.filter(
@@ -336,20 +336,20 @@ export function acquisitionRoutes(): MockRoute[] {
     // The deck PAGES. Answering the first batch to every request made the
     // contract's own `after` parameter unusable and turned a deck that pages
     // into an endless loop of the same thirty cards.
-    route("readSuggestions", GET, "/api/acquisition/suggestions", (request) => {
+    route("readSuggestions", GET, "/acquisition/suggestions", (request) => {
       const after = request.query.get("after") ?? "";
       const from = after === "" ? 0 : SUGGESTIONS.findIndex((one) => one.title === after) + 1;
       return SUGGESTIONS.slice(from, from + BATCH_SIZE);
     }),
-    route("readAcquisitionStatus", GET, "/api/acquisition/status", () => ({
+    route("readAcquisitionStatus", GET, "/acquisition/status", () => ({
       cadence: GRAB_CADENCE,
       nextSearch: null,
     })),
     // THE VEILLE IS A RUN, and the 202 names it. Its figures are read from the
     // run once it has ended — an answer carrying them at once would be a lie
     // about a run that takes minutes, with no « en cours » left to draw.
-    route("runDetection", POST, "/api/acquisition/detect", launchDetection),
-    route("readAcquisitionQueue", GET, "/api/acquisition/to-handle", (request) => {
+    route("runDetection", POST, "/acquisition/detect", launchDetection),
+    route("readAcquisitionQueue", GET, "/acquisition/to-handle", (request) => {
       const state = mockState();
       // THE SCENARIO PICKS THE WORLD, exactly as the engine's `derived` does.
       // It used to pick the EMPTIES too — under the real scenario nothing was
@@ -390,7 +390,7 @@ export function acquisitionRoutes(): MockRoute[] {
     // sheet only displayed them; « Remettre en file » and « Re-scraper » are
     // proved by the stages MOVING, and a shared constant moves for nobody — it
     // would also have been mutated in place for every other medium at once.
-    route("readJourney", GET, "/api/acquisition/journeys/{infoHash}",
+    route("readJourney", GET, "/acquisition/journeys/{infoHash}",
           (request) => stagesOf(request.parameters.infoHash)),
     // THE RELEASES OF THE TITLE ASKED FOR. The contract declares `title`,
     // `season` and `episode`; this answered the same eight releases to every
@@ -398,7 +398,7 @@ export function acquisitionRoutes(): MockRoute[] {
     // showed one list — and the second came from the cache without a request,
     // because the query key carried no title either. A release list that does
     // not depend on what it is a list OF is not a list.
-    route("readReleases", GET, "/api/acquisition/releases", (request) => {
+    route("readReleases", GET, "/acquisition/releases", (request) => {
       const title = request.query.get("title") ?? "";
       const season = request.query.get("season") ?? "";
       const episode = request.query.get("episode") ?? "";

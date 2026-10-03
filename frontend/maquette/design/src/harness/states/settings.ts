@@ -168,7 +168,7 @@ export function settingsStates(): NamedState[] {
         // THE CEILING IS A NAMED LIST SERVED WITH THE ACCOUNT (ruling 23), never a
         // page-local flag: today's read-only instance forbids every write.
         window.__mocks?.setForbiddenWrites(EVERY_WRITE);
-        void window.__queries?.resetQueries({ queryKey: ["/api/auth/me"] });
+        void window.__queries?.resetQueries({ queryKey: ["/api/v1/auth/me"] });
         applyState({ page: "cfg", phase: "ready" });
       },
     ],
@@ -195,7 +195,7 @@ export function settingsStates(): NamedState[] {
       () => {
         window.__mocks?.reset();
         window.__mocks?.setOperationOutcome("readConfigurationFile", { latencyMilliseconds: HELD_BACK });
-        window.__queries?.removeQueries({ queryKey: ["/api/config/files/ranking.json5"] });
+        window.__queries?.removeQueries({ queryKey: ["/api/v1/config/files/ranking.json5"] });
         applyState({ page: "cfg", phase: "ready" });
         window.__screens.ranking();
       },
@@ -206,7 +206,7 @@ export function settingsStates(): NamedState[] {
       () => {
         window.__mocks?.reset();
         window.__mocks?.setOperationOutcome("readConfigurationFile", { status: 500 });
-        window.__queries?.removeQueries({ queryKey: ["/api/config/files/ranking.json5"] });
+        window.__queries?.removeQueries({ queryKey: ["/api/v1/config/files/ranking.json5"] });
         applyState({ page: "cfg", phase: "ready" });
         window.__screens.ranking();
       },
@@ -217,7 +217,7 @@ export function settingsStates(): NamedState[] {
       () => {
         window.__mocks?.reset();
         window.__mocks?.setOperationOutcome("updateConfigurationFile", { latencyMilliseconds: HELD_BACK });
-        window.__queries?.removeQueries({ queryKey: ["/api/config/files/ranking.json5"] });
+        window.__queries?.removeQueries({ queryKey: ["/api/v1/config/files/ranking.json5"] });
         applyState({ page: "cfg", phase: "ready" });
         window.__screens.ranking();
         saveTypedWeight();
@@ -229,7 +229,7 @@ export function settingsStates(): NamedState[] {
       () => {
         window.__mocks?.reset();
         window.__mocks?.setConfigurationConflict(true);
-        window.__queries?.removeQueries({ queryKey: ["/api/config/files/ranking.json5"] });
+        window.__queries?.removeQueries({ queryKey: ["/api/v1/config/files/ranking.json5"] });
         applyState({ page: "cfg", phase: "ready" });
         window.__screens.ranking();
         saveTypedWeight();

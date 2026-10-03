@@ -4,7 +4,7 @@ A follow panel about a series the library holds with holes offers to complete
 it — « Compléter » is its primary act — and the removal dialog counts that
 series' files from the same fact. Until this rule both read the dying engine's
 own copy of the incomplete shows, a list the served layer never writes, so what
-the library page drew from `/api/library/incomplete` and what the panel said
+the library page drew from `/api/v1/library/incomplete` and what the panel said
 about the same series were two answers that could part company.
 
 WHAT IS READ, in two halves:
@@ -34,7 +34,7 @@ from playwright.async_api import async_playwright  # noqa: E402
 journal = Journal("R193 — the incomplete shows are the served list")
 
 SEEDS = ROOT / "design" / "src" / "mocks" / "seeds"
-KEY = '["/api/library/incomplete"]'
+KEY = '["/api/v1/library/incomplete"]'
 
 PANEL = """async (title)=>{
   window.__panel.produce('follow', title);

@@ -59,7 +59,7 @@ AS = """async ([identity, role, rights]) => {
   await window.__queries.resetQueries();
 }"""
 FORCE = f"""async () => (await fetch(
-  `/api/torrents/{UPLOADABLE}/cross-seed/${{encodeURIComponent('{TRACKER}')}}/upload`, {{ method: 'POST' }})).status"""
+  `/api/v1/torrents/{UPLOADABLE}/cross-seed/${{encodeURIComponent('{TRACKER}')}}/upload`, {{ method: 'POST' }})).status"""
 
 
 async def as_identity(page, identity, rights=None):

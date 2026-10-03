@@ -32,7 +32,7 @@ const POLICY_FIELDS = [
 ] as const;
 
 // The address of the settings catalogue — the one Réglages reads.
-const CATALOGUE_KEY = ["/api/config/schema"];
+const CATALOGUE_KEY = ["/api/v1/config/schema"];
 
 // A billion bytes: the « Go » the interface writes volumes in.
 const GIGABYTE = 1_000_000_000;

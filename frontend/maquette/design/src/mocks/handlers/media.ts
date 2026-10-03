@@ -362,11 +362,11 @@ export function seasonsAnswerFor(title: string, ids: Record<string, unknown> | u
 /** Every route this subject answers. */
 export function mediaRoutes(): MockRoute[] {
   return [
-    route("readMediaSheet", GET, "/api/media/{provider}/{providerId}", sheet),
+    route("readMediaSheet", GET, "/media/{provider}/{providerId}", sheet),
     route(
       "readMediaSeasons",
       GET,
-      "/api/media/{provider}/{providerId}/seasons",
+      "/media/{provider}/{providerId}/seasons",
       (request) => {
         const titles = titlesFor(
           request.parameters.provider,
@@ -386,7 +386,7 @@ export function mediaRoutes(): MockRoute[] {
     route(
       "rescrapeMedia",
       POST,
-      "/api/media/{provider}/{providerId}/rescrape",
+      "/media/{provider}/{providerId}/rescrape",
       (request) => {
         const titles = titlesFor(
           request.parameters.provider,

@@ -76,7 +76,7 @@ FIRST_TYPE = "GapZero"
 # passed all ten holds. This one is claimed, so its key moving across the
 # reconnect is what says the gap really healed.
 CLAIMED_TYPE = "PipelineStarted"
-CLAIMED_KEY = '["/api/pipeline/status"]'
+CLAIMED_KEY = '["/api/v1/pipeline/status"]'
 
 # Past three failed attempts the relay stops saying « reconnecting ». `lost` is
 # therefore correct from the FOURTH failure, which the first three delays reach:
@@ -110,17 +110,17 @@ async def hold(journal):
                  // would be true of an empty cache and prove nothing.
                  //
                  // PRIMED THROUGH THE CACHE, not through `fetch`. This block
-                 // used to call `fetch("/api/library/categories")` and
-                 // `fetch("/api/system/services")` and its comment claimed they
+                 // used to call `fetch("/api/v1/library/categories")` and
+                 // `fetch("/api/v1/system/services")` and its comment claimed they
                  // established the precondition. They go through the mock seam
                  // and create NO query-cache entry at all — what satisfied
                  // `len(before) > 0` was the landing route's own mounted
                  // queries, which this rule neither names nor controls.
                  const prime = (key) =>
                    window.__queries.setQueryData(key, { primed: true });
-                 prime(["/api/library/categories"]);
-                 prime(["/api/system/services"]);
-                 prime(["/api/pipeline/status"]);
+                 prime(["/api/v1/library/categories"]);
+                 prime(["/api/v1/system/services"]);
+                 prime(["/api/v1/pipeline/status"]);
                  await window.__mocks.quiet();
                  const readCache = () => window.__queries.getQueryCache().getAll()
                    .map((entry) => ({

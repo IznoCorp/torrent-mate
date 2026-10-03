@@ -1,7 +1,7 @@
 // The signed-in picture, placed in the top bar once the account is known.
 //
 // The server serves the account's picture with the rest of the account
-// (`/api/auth/me`), so the bar shows what that read answered — the same answer
+// (`/api/v1/auth/me`), so the bar shows what that read answered — the same answer
 // the account page and its menu read, through the same query definition. The
 // bar is the frame's; the feature hands the picture to its door
 // (`lib/topbar-avatar.ts`).

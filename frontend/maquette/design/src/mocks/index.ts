@@ -27,6 +27,7 @@ import { trackerDials, type TrackerDials } from "./trackers-state";
 import { crossSeedDials, type CrossSeedDials } from "./cross-seed-state";
 import { installMockStream, resetStream, type StreamDriver } from "./stream";
 import { routes } from "./handlers";
+import { SERVER_BASE } from "../lib/server-base";
 import { identityDials, requestersOf, signedInRights, type IdentityDials } from "./identity";
 import { OWN_SCOPED, allowed, subjectOf } from "./operation-rights";
 import { declaredRights } from "./declared-rights";
@@ -139,7 +140,12 @@ async function answer(input: RequestInfo | URL, options?: RequestInit): Promise<
     );
   }
   const method = request.method.toUpperCase();
-  const found = resolve(routes(), method, address.pathname);
+  // THE TABLE IS KEYED BY THE CONTRACT'S PATHS, which are relative to its
+  // server URL: an address outside that base is no operation of the contract.
+  const contractPath = address.pathname.startsWith(`${SERVER_BASE}/`)
+    ? address.pathname.slice(SERVER_BASE.length)
+    : null;
+  const found = contractPath === null ? null : resolve(routes(), method, contractPath);
   if (found === null) {
     return problem(
       404,

@@ -269,7 +269,7 @@ async def main():
           const row = document.querySelector('#view [data-part="flux"] [data-part="flux/row"] [data-part="flux/row-body"][data-maintact]');
           if (!row) return null;
           const id = row.dataset.maintact;
-          const action = window.__queries.getQueryData(['/api/maintenance/actions']).find((x) => x.id === id);
+          const action = window.__queries.getQueryData(['/api/v1/maintenance/actions']).find((x) => x.id === id);
           return {id, title: action ? action.label : null};}""")
         refused = (await tap('#view [data-part="flux"] [data-part="flux/row"] [data-part="flux/row-body"][data-maintact]')
                    if wanted else "absent")
@@ -344,7 +344,7 @@ async def main():
         # the legacy's own verb rather than typed, because what is held here is
         # the tap, not the field.
         staged = await page.evaluate("""()=>{
-          const setting = window.__queries.getQueryData(['/api/config/schema']).flatMap((topic) => topic.settings)
+          const setting = window.__queries.getQueryData(['/api/v1/config/schema']).flatMap((topic) => topic.settings)
             .find((x) => x.type === 'boolean');
           if (!setting) return null;
           const id = window.settingId(setting);
@@ -356,7 +356,7 @@ async def main():
         # RE-AIMED (B-343): the property is unchanged, the fact is the LAYER's.
         saved = await page.evaluate(
             "()=>({pending: SETTINGS_STATE.modifs.size,"
-            " restart: !!(window.__queries.getQueryData(['/api/config/status'])"
+            " restart: !!(window.__queries.getQueryData(['/api/v1/config/status'])"
             "   || {}).restartRequired,"
             " bar: !!document.querySelector('#savebar')})")
         journal.check(
@@ -383,7 +383,7 @@ async def main():
         asked = await page.evaluate(
             """()=>!!document.querySelector('#dlg[data-open]')""")
         restart_left = await page.evaluate(  # re-aimed with the hold above
-            "()=>!!(window.__queries.getQueryData(['/api/config/status'])"
+            "()=>!!(window.__queries.getQueryData(['/api/v1/config/status'])"
             " || {}).restartRequired")
         journal.check(
             "and a real tap on the restart offer ASKS before it takes it "
@@ -583,7 +583,7 @@ async def main():
         await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(300)
         await page.evaluate("""()=>{
-          const setting = window.__queries.getQueryData(['/api/config/schema']).flatMap((topic) => topic.settings)
+          const setting = window.__queries.getQueryData(['/api/v1/config/schema']).flatMap((topic) => topic.settings)
             .find((x) => x.type === 'boolean');
           window.__changeSetting(
             window.settingId(setting), !setting.raw);
@@ -762,14 +762,14 @@ async def main():
 
         # THE LEVERS ADMIT A PAUSE ONLY WHILE SOMETHING RUNS: a maintenance
         # command, asked of the layer, holds the pipeline running.
-        await page.evaluate("""()=>fetch('/api/maintenance/actions/library-status/run',
+        await page.evaluate("""()=>fetch('/api/v1/maintenance/actions/library-status/run',
             {method: 'POST', headers: {'Content-Type': 'application/json'},
              body: JSON.stringify({dryRun: false})})""")
         await page.evaluate("()=>window.__queries.invalidateQueries()")
         await page.evaluate("()=>window.__store.write({page: 'sys'})")
         await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(600)
-        levers = """()=>({pipe: window.__queries.getQueryData(['/api/pipeline/status'])?.state,
+        levers = """()=>({pipe: window.__queries.getQueryData(['/api/v1/pipeline/status'])?.state,
           controls: [...document.querySelectorAll('#view [data-pipeline-pause], #view [data-pipeline-resume]')]
             .map((x) => x.dataset.part)})"""
         refused = await tap("#view [data-pipeline-pause]")

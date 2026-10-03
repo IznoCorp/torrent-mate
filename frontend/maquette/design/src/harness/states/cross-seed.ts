@@ -9,7 +9,7 @@ import { owed } from "../owed";
 
 // The page's reads, and the settings the switches are kept in: dropped before a
 // state so the page asks the layer again rather than drawing a state before's.
-const READS = ["/api/trackers", "/api/acquisition/downloads", "/api/acquisition/obligations", "/api/config/schema"];
+const READS = ["/api/v1/trackers", "/api/v1/acquisition/downloads", "/api/v1/acquisition/obligations", "/api/v1/config/schema"];
 
 /** Resets the layer and forgets the page's reads. */
 function fresh(): void {

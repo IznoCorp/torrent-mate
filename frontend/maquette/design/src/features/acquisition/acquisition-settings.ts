@@ -55,7 +55,7 @@ export function installAcquisitionSettingVerbs(client: QueryClient): void {
     const paused = value.slice(cut + 1) === "true";
     void (async () => {
       try {
-        await send("PUT", `/api/acquisition/followed/${encodeURIComponent(title)}/pause`, { paused });
+        await send("PUT", `/api/v1/acquisition/followed/${encodeURIComponent(title)}/pause`, { paused });
         await client.refetchQueries({ queryKey: followsQuery().queryKey });
         panel?.redraw();
         toast?.show({ message: i18next.t(paused ? "verbs.acquisitionSettings.paused" : "verbs.acquisitionSettings.resumed") });

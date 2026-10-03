@@ -67,11 +67,11 @@ export function useMediaSheet(provider: string, identifier: string) {
   // what lets a rule tell PRIMED content from SERVED content. A rule that cannot
   // is green on a screen that never enriches.
   return useQuery({
-    queryKey: ["/api/media", provider, identifier],
+    queryKey: ["/api/v1/media", provider, identifier],
     placeholderData: () => carriedSheet(provider, identifier),
     queryFn: async () => {
       const answered = await read<MediaSheetPayload | null>(
-        `/api/media/${encodeURIComponent(provider)}/${encodeURIComponent(identifier)}`);
+        `/api/v1/media/${encodeURIComponent(provider)}/${encodeURIComponent(identifier)}`);
       return answered;
     },
     enabled: provider !== "" && identifier !== "",

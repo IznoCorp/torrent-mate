@@ -40,9 +40,9 @@ WORDS = json.loads((SEEDS.parents[1] / "i18n/fr.json").read_text(encoding="utf-8
 SEARCHED = WORDS["surfaces"]["ladder"]["figure"].replace("{{position}}", "2").replace(
     "{{count}}", str(len(WORDS["surfaces"]["ladder"]["rungs"])))
 ANOTHER = WORDS["verbs"]["acquisition"]["abandon"].get("bodyFollow", "(no such sentence)")
-RELEASES = """async (title) => (await (await fetch('/api/acquisition/releases?title='
+RELEASES = """async (title) => (await (await fetch('/api/v1/acquisition/releases?title='
   + encodeURIComponent(title))).json()).map((release) => release.name)"""
-FOLLOWS = """async () => (await (await fetch('/api/acquisition/followed')).json()).map((one) => one.title)"""
+FOLLOWS = """async () => (await (await fetch('/api/v1/acquisition/followed')).json()).map((one) => one.title)"""
 FIGURE = """(title) => { const card = [...document.querySelectorAll('#view [data-part="card"]')]
   .find(one => one.querySelector('[data-part="card/title"]')?.textContent === title);
   return card ? (card.querySelector('[data-part="card/meta"] > span:first-child') || {}).textContent ?? null : null; }"""

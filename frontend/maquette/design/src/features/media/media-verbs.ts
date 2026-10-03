@@ -9,7 +9,7 @@
 //
 // THE OPERATION IS NEW, and D7 is why it may be. The contract declares what the
 // interface REQUIRES; the verb exists on a validated surface, so the interface
-// requires an operation for it, and `POST /api/media/{provider}/{providerId}/rescrape`
+// requires an operation for it, and `POST /api/v1/media/{provider}/{providerId}/rescrape`
 // is that declaration. It is a demand on the backend, recorded as every other
 // divergence is.
 //
@@ -77,7 +77,7 @@ async function rescrapeMedia(client: QueryClient, title: string): Promise<void> 
     return;
   }
   const address =
-    `/api/media/${encodeURIComponent(identity.provider)}/` +
+    `/api/v1/media/${encodeURIComponent(identity.provider)}/` +
     `${encodeURIComponent(identity.id)}/rescrape`;
   if (inFlight.has(address)) return;
   inFlight.add(address);
@@ -95,7 +95,7 @@ async function rescrapeMedia(client: QueryClient, title: string): Promise<void> 
     // different key and the act moves nothing in it; refetching it would be a
     // second request nobody's surface is waiting for.
     await client.refetchQueries({
-      queryKey: ["/api/media", identity.provider, identity.id],
+      queryKey: ["/api/v1/media", identity.provider, identity.id],
       exact: true,
     });
     // AND THE OPEN PANEL IS PUT BACK FROM WHAT CAME. A panel producer is a

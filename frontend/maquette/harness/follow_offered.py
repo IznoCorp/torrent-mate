@@ -90,9 +90,9 @@ ONE_OFF_SUBJECT = """(titles)=>{
   }
   return null;}"""
 ASK_ONCE = """async ({title, season})=>{
-  const answer = await fetch(`/api/acquisition/follows/${encodeURIComponent(title)}/seasons/${season}/grab`,
+  const answer = await fetch(`/api/v1/acquisition/follows/${encodeURIComponent(title)}/seasons/${season}/grab`,
     {method: 'POST'});
-  await window.__queries.invalidateQueries({queryKey: ['/api/acquisition/to-handle']});
+  await window.__queries.invalidateQueries({queryKey: ['/api/v1/acquisition/to-handle']});
   return answer.status;}"""
 PANEL_ACTIONS = """()=>{const sheet=document.querySelector('#sheet');
     if(!sheet||!sheet.hasAttribute('data-open')) return null;

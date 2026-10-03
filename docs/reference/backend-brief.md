@@ -152,7 +152,7 @@ engine. The cross-cutting divergences come first because every domain carries th
 | `readSettings`, `readConfigurationFiles`, `readConfigurationFile`, `updateConfigurationFile`, `readSecrets`, `updateSecrets`, `readConfigurationStatus`, `restartWeb` | reshape | the settings as topics of rows (`id`, `key`, `type`, `displayedValue`…), `digest`, `restartRequired`, `conflict` | DOIT-3 | reg § 2 |
 | `readVersion` | reshape | `commit` | — | reg § 2 |
 
-### 1.6 Live events — `/ws/events`
+### 1.6 Live events — `/api/v1/events` (v0: `/ws/events`)
 
 | Demand | What | Source |
 | --- | --- | --- |

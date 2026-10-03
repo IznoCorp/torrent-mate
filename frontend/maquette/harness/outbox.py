@@ -58,7 +58,7 @@ async def follows(page):
     """
     return await page.evaluate(
         """async(title)=>{let r;
-             try { r = await fetch("/api/acquisition/followed"); }
+             try { r = await fetch("/api/v1/acquisition/followed"); }
              catch(offline){ return -2; }
              if(!r.ok) return -1;
              const body = await r.json();
@@ -91,7 +91,7 @@ async def main():
         held = await page.evaluate(
             """async(title)=>{
                  try { return await window.__outbox.issue(
-                         "POST", "/api/acquisition/followed",
+                         "POST", "/api/v1/acquisition/followed",
                          {title, kind: "tv"}); }
                  catch(refusal){ return "threw: " + (refusal?.title ?? refusal); }}""",
             TITLE)
@@ -183,7 +183,7 @@ async def main():
         # departs ends the wait and falls here by name.
         boot = await page.evaluate(
             """async([title, before])=>{
-                 const count = async()=>{const r = await fetch("/api/acquisition/followed");
+                 const count = async()=>{const r = await fetch("/api/v1/acquisition/followed");
                    const body = await r.json();
                    const rows = Array.isArray(body) ? body : (body.items ?? body.follows ?? []);
                    return rows.filter((row)=>(row.title ?? row.t) === title).length;};
@@ -220,7 +220,7 @@ async def main():
         twice = await page.evaluate(
             """async(title)=>{
                  const key = "r107-repeated-key";
-                 const call = () => fetch("/api/acquisition/followed", {
+                 const call = () => fetch("/api/v1/acquisition/followed", {
                    method: "POST",
                    headers: {"idempotency-key": key,
                              "content-type": "application/json"},
@@ -236,7 +236,7 @@ async def main():
                       f"{twice} arrival(s) — a rule that saw one would prove nothing")
 
         applied_twice = await page.evaluate(
-            """async(title)=>{const r = await fetch("/api/acquisition/followed");
+            """async(title)=>{const r = await fetch("/api/v1/acquisition/followed");
                  const body = await r.json();
                  const rows = Array.isArray(body) ? body : (body.items ?? body.follows ?? []);
                  return rows.filter((row)=>(row.title ?? row.t) === title + " (bis)").length;}""",
@@ -251,7 +251,7 @@ async def main():
         refused = await page.evaluate(
             """async(title)=>{
                  try { await window.__outbox.issue(
-                         "POST", "/api/acquisition/followed",
+                         "POST", "/api/v1/acquisition/followed",
                          {title: title + " (refusé)", kind: "tv"});
                        return "resolved"; }
                  catch(refusal){ return "threw"; }}""",
@@ -274,7 +274,7 @@ async def main():
         await page.evaluate("()=>window.__mocks.setOffline(true)")
         await page.evaluate(
             """async(title)=>{ await window.__outbox.issue(
-                 "POST", "/api/acquisition/followed",
+                 "POST", "/api/v1/acquisition/followed",
                  {title: title + " (jam)", kind: "tv"}); }""", TITLE)
         depth = await page.evaluate("()=>window.__outbox.depth()")
         journal.check("an envelope is waiting before the refusal is armed",
@@ -314,7 +314,7 @@ async def main():
         await page.evaluate("()=>window.__mocks.setOffline(true)")
         await page.evaluate(
             """async(title)=>{ await window.__outbox.issue(
-                 "POST", "/api/acquisition/followed",
+                 "POST", "/api/v1/acquisition/followed",
                  {title: title + " (503)", kind: "tv"}); }""", TITLE)
         await page.evaluate("()=>window.__mocks.setOffline(false)")
         await page.evaluate(
@@ -341,7 +341,7 @@ async def main():
         await page.evaluate("()=>window.__mocks.setOffline(true)")
         await page.evaluate(
             """async(title)=>{ await window.__outbox.issue(
-                 "POST", "/api/acquisition/followed",
+                 "POST", "/api/v1/acquisition/followed",
                  {title: title + " (bouton)", kind: "tv"}); }""", TITLE)
         await page.evaluate("()=>window.__mocks.setOffline(false)")
         await page.evaluate(
@@ -389,7 +389,7 @@ async def main():
         await page.evaluate("()=>window.__mocks.setOffline(true)")
         await page.evaluate(
             """async(title)=>{ await window.__outbox.issue(
-                 "POST", "/api/acquisition/followed",
+                 "POST", "/api/v1/acquisition/followed",
                  {title: title + " (401)", kind: "tv"}); }""", TITLE)
         await page.evaluate("()=>window.__mocks.setOffline(false)")
         await page.evaluate(
