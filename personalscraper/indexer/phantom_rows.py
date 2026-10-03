@@ -23,7 +23,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from personalscraper.indexer.destructive_journal import OP_DELETE, record_destruction
-from personalscraper.indexer.duplicates import DuplicateGroup
+from personalscraper.indexer.duplicates import _PROVIDER_ID_SQL, _PROVIDER_SQL, DuplicateGroup
 from personalscraper.indexer.repos import log_repo
 from personalscraper.indexer.schema import DeletedItemRow
 from personalscraper.logger import get_logger
@@ -46,6 +46,28 @@ SELECT EXISTS (
 )
 """
 
+# The rows of the same duplicate group as :item_id (same kind, provider and provider id, as
+# ``find_provider_id_duplicates`` keys them), other than itself, that hold a live file.
+_SIBLING_HOLDS_LIVE_FILES_SQL = f"""
+WITH keyed AS (
+    SELECT id, kind, {_PROVIDER_SQL} AS provider, {_PROVIDER_ID_SQL} AS provider_id FROM media_item
+)
+SELECT EXISTS (
+    SELECT 1 FROM keyed me JOIN keyed sib
+      ON sib.kind = me.kind AND sib.provider = me.provider
+         AND lower(trim(sib.provider_id)) = lower(trim(me.provider_id)) AND sib.id != me.id
+    WHERE me.id = :item_id
+      AND EXISTS (
+        SELECT 1 FROM media_file f
+        JOIN media_release r ON r.id = f.release_id
+        WHERE f.deleted_at IS NULL
+          AND (r.item_id = sib.id
+               OR r.episode_id IN (SELECT e.id FROM episode e JOIN season s ON s.id = e.season_id
+                                   WHERE s.item_id = sib.id))
+      )
+)
+"""
+
 
 def phantom_rows(groups: Sequence[DuplicateGroup]) -> list[int]:
     """In each group holding ≥ 1 row with live files: the rows with 0 live files (never a row with files).
@@ -64,18 +86,25 @@ def phantom_rows(groups: Sequence[DuplicateGroup]) -> list[int]:
 
 
 def _removable(conn: sqlite3.Connection, item_id: int) -> bool:
-    """Return whether *item_id* still exists and holds no live file.
+    """Return whether *item_id* still exists, holds no live file, and a sibling of its group does.
+
+    The sibling clause keeps the module's promise that an id is never emptied of its
+    rows, even when the plan is stale (a scan tombstoned the sibling's files) or the
+    caller passed the wrong ids.
 
     Args:
         conn: Open connection on the indexer database.
         item_id: ``media_item.id`` to check.
 
     Returns:
-        ``True`` when the row exists and none of its files is live.
+        ``True`` when the row exists, none of its files is live, and at least one other
+        row of the same provider id and kind still holds a live file.
     """
     if conn.execute("SELECT 1 FROM media_item WHERE id = ?", (item_id,)).fetchone() is None:
         return False
-    return not conn.execute(_HOLDS_LIVE_FILES_SQL, {"item_id": item_id}).fetchone()[0]
+    if conn.execute(_HOLDS_LIVE_FILES_SQL, {"item_id": item_id}).fetchone()[0]:
+        return False
+    return bool(conn.execute(_SIBLING_HOLDS_LIVE_FILES_SQL, {"item_id": item_id}).fetchone()[0])
 
 
 def _tombstone(conn: sqlite3.Connection, item_id: int, now: int) -> None:
@@ -108,7 +137,7 @@ def remove_phantom_rows(
     """Delete those media_item rows (tombstone as today) and journal each; files untouched.
 
     Each id is checked again before it is deleted: a row that no longer exists or
-    holds a live file is skipped (logged), never deleted. The deletions run in one
+    holds a live file, or whose group has no other row holding one, is skipped (logged), never deleted. The deletions run in one
     transaction; the journal rows (``record_destruction(op="delete",
     path="index:media_item/<id>", actor="maintenance")``) are written after it
     commits, through the journal's own connection.
@@ -125,8 +154,8 @@ def remove_phantom_rows(
         The number of rows removed (would be removed, in a dry run).
 
     Raises:
-        sqlite3.Error: When a deletion fails; the transaction is rolled back and
-            nothing is removed.
+        Exception: Whatever fails inside the transaction (a ``sqlite3.Error`` or any
+            other); it is rolled back, nothing is removed, and the error propagates.
     """
     candidates = list(dict.fromkeys(item_ids))
     if dry_run:
@@ -146,7 +175,7 @@ def remove_phantom_rows(
             conn.execute("DELETE FROM media_item WHERE id = ?", (item_id,))
             doomed.append(item_id)
         conn.execute("COMMIT")
-    except sqlite3.Error:
+    except Exception:
         conn.execute("ROLLBACK")
         raise
 

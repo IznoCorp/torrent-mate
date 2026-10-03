@@ -305,3 +305,47 @@ def test_remove_keeps_the_movie_row_holding_a_live_file(conn: sqlite3.Connection
     assert (ids, removed) == ([phantom], 1)
     assert [r[0] for r in conn.execute("SELECT id FROM media_item")] == [real]
     assert _journal(conn) == [("delete", f"index:media_item/{phantom}", "maintenance", "r7")]
+
+
+def test_remove_deletes_nothing_when_the_row_with_files_lost_them_after_the_plan(
+    conn: sqlite3.Connection, db_path: Path
+) -> None:
+    """Two phantoms planned beside a row with files; a scan tombstones its files before the apply: nothing goes."""
+    real = _show(conn, "Andor (2022)", "393189")
+    phantom_a = _show(conn, "Andor", "393189")
+    phantom_b = _show(conn, "Andor (2022) [dup]", "393189")
+    _episodes(conn, real, "series/Andor (2022)/Saison 01", 2)
+    ids = phantom_rows(find_provider_id_duplicates(conn))
+    assert ids == [phantom_a, phantom_b]
+    conn.execute("UPDATE media_file SET deleted_at = 5")
+
+    removed = remove_phantom_rows(conn, ids, db_path=db_path, run_uid="r8", dry_run=False)
+
+    assert removed == 0
+    assert conn.execute("SELECT COUNT(*) FROM media_item").fetchone()[0] == 3
+    assert _journal(conn) == []
+
+
+def test_remove_rolls_back_and_closes_the_transaction_on_any_exception(
+    conn: sqlite3.Connection, db_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A non-sqlite error inside the loop leaves nothing deleted and no transaction open."""
+    real = _show(conn, "Severance (2022)", "371980")
+    phantom_a = _show(conn, "Severance", "371980")
+    phantom_b = _show(conn, "Severance [dup]", "371980")
+    _episodes(conn, real, "series/Severance (2022)/Saison 01", 1)
+    calls: list[int] = []
+
+    def boom(_conn: sqlite3.Connection, item_id: int, _now: int) -> None:
+        calls.append(item_id)
+        if len(calls) == 2:
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr("personalscraper.indexer.phantom_rows._tombstone", boom)
+
+    with pytest.raises(RuntimeError, match="boom"):
+        remove_phantom_rows(conn, [phantom_a, phantom_b], db_path=db_path, run_uid="r9", dry_run=False)
+
+    assert not conn.in_transaction
+    assert conn.execute("SELECT COUNT(*) FROM media_item").fetchone()[0] == 3
+    assert _journal(conn) == []
