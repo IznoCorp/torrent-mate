@@ -44,6 +44,8 @@ from personalscraper.api.metadata.registry._events import (
     RegistryBootValidated,
     RegistryFanOutCompleted,
 )
+from personalscraper.app.accounts import events as _accounts_events  # noqa: F401
+from personalscraper.app.accounts.events import AccountRightsChanged
 from personalscraper.core import circuit as _circuit_events  # noqa: F401
 from personalscraper.core.circuit import (
     CircuitBreakerClosed,
@@ -78,6 +80,7 @@ from personalscraper.verify import events as _verify_events  # noqa: F401
 from personalscraper.verify.events import VerifyItemDone
 
 __all__ = [
+    "AccountRightsChanged",
     "BackfillCompleted",
     "BackfillItemCompleted",
     "BackfillSkipped",

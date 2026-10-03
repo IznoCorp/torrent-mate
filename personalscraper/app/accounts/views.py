@@ -75,6 +75,8 @@ class AccountSummaryView:
         email: Its e-mail.
         role: Its one role.
         sign_in_kind: How it signs in.
+        demoted_from: The role it held before its Plex link demoted it; ``None`` when
+            not demoted (nothing demotes an account before the Plex link exists).
     """
 
     id: str
@@ -82,6 +84,7 @@ class AccountSummaryView:
     email: str
     role: RoleView
     sign_in_kind: SignInKind
+    demoted_from: str | None = None
 
 
 @dataclass(frozen=True)

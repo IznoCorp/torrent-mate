@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import secrets
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Final, get_args
 
@@ -13,7 +13,7 @@ from personalscraper.app.accounts.passwords import hash_password, verify_passwor
 from personalscraper.app.accounts.ratelimit import SlidingWindowRateLimiter
 from personalscraper.app.accounts.repository import AccountRepository, AccountRow, PlexLinkRow, RoleRow, StartKind
 from personalscraper.app.accounts.sessions import SessionService
-from personalscraper.app.accounts.views import AccountView, RoleView, SignInKind
+from personalscraper.app.accounts.views import AccountSummaryView, AccountView, RoleView, RosterView, SignInKind
 from personalscraper.app.errors import AppNotFound, AppTooManyRequests, AppUnauthenticated, RefusalCode
 from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
@@ -214,6 +214,30 @@ class AccountService:
             raise AppNotFound("No account has this e-mail.", code=RefusalCode.ACCOUNT_UNKNOWN)
         repo.set_password_hash(account.id, hash_password(password), now=self._clock())
         log.info("account_password_set", account_id=account.id)
+
+    def read_roster(self, actor: Actor) -> RosterView:
+        """Every account and every role, as « Comptes » and the reassign chooser read them."""
+        raise NotImplementedError
+
+    def create_account(
+        self, actor: Actor, *, name: str, email: str, role_id: str | None = None, password: str | None = None
+    ) -> AccountSummaryView:
+        """Create a local account."""
+        raise NotImplementedError
+
+    def update_account(self, actor: Actor, account_id: str, *, role_id: str) -> AccountSummaryView:
+        """Put an account on a role."""
+        raise NotImplementedError
+
+    def create_role(self, actor: Actor, *, name: str, rights: Sequence[str]) -> RoleView:
+        """Create an ordinary role."""
+        raise NotImplementedError
+
+    def update_role(
+        self, actor: Actor, role_id: str, *, name: str | None = None, rights: Sequence[str] | None = None
+    ) -> RoleView:
+        """Rename a role or set its rights."""
+        raise NotImplementedError
 
     def sign_out(self, actor: Actor, token: str) -> None:
         """Close the session the actor signed in with.

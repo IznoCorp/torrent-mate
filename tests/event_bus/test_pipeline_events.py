@@ -144,14 +144,16 @@ def test_event_registry_has_all_v1_events() -> None:
     The ``k0-obligation-sweep`` feature adds ``SeedObligationReleased`` — the
     sweep found a seeding torrent gone from the client (→ 49). The ``k2-library-events``
     feature adds ``LibraryScanSkipped`` — a disk touched by dispatch was not re-indexed (→ 50).
+    The ``k1-comptes`` feature adds ``AccountRightsChanged`` (E8) — an account's role or
+    rights moved (→ 51).
     The literal count guards against silent
     additions that bypass the documented event catalog in
     ``docs/production/event-bus.md``.
     """
     import personalscraper.events  # noqa: F401 — eager-import side effect
 
-    assert len(_EVENT_CLASS_REGISTRY) == 50, (
-        f"Expected 50 events (49 existing + k2 LibraryScanSkipped), "
+    assert len(_EVENT_CLASS_REGISTRY) == 51, (
+        f"Expected 51 events (50 existing + k1 AccountRightsChanged), "
         f"found {len(_EVENT_CLASS_REGISTRY)}: {sorted(_EVENT_CLASS_REGISTRY)}"
     )
 
