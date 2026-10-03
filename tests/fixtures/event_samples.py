@@ -21,6 +21,8 @@ from personalscraper.dispatch.events import ItemDispatched
 from personalscraper.indexer.events import (
     DiskFullWarning,
     LibraryScanCompleted,
+    LibraryScanSkipped,
+    ScanSkipReason,
 )
 from personalscraper.models import FailedItem, PipelineReport, StepReport
 from personalscraper.pipeline_events import (
@@ -187,6 +189,7 @@ def make_item_dispatched() -> ItemDispatched:
         target_disk=Path("/Volumes/Disk1"),
         category_id="movies",
         action="moved",
+        media_ref=MediaRef(tmdb_id=27205, imdb_id="tt1375666"),
     )
 
 
@@ -204,6 +207,12 @@ def make_trailer_downloaded() -> TrailerDownloaded:
 def make_library_scan_completed() -> LibraryScanCompleted:
     """Realistic :class:`LibraryScanCompleted` factory."""
     return LibraryScanCompleted(mode="quick", scanned=12_345, errors=2, elapsed_s=187.42)
+
+
+@register_factory(LibraryScanSkipped)
+def make_library_scan_skipped() -> LibraryScanSkipped:
+    """Realistic :class:`LibraryScanSkipped` factory."""
+    return LibraryScanSkipped(disk="disk_1", reason=ScanSkipReason.FAILED)
 
 
 # ---------------------------------------------------------------------------

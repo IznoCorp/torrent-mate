@@ -46,6 +46,7 @@ from personalscraper.conf import resolver
 from personalscraper.core.delete_permit import ALLOW
 from personalscraper.core.media_types import TV_TRAILER_SUBFOLDER, VIDEO_EXTENSIONS
 from personalscraper.dispatch import _transfer
+from personalscraper.dispatch._identity import media_ref_from_nfo
 from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.disk_scanner import get_disk_status
 from personalscraper.dispatch.events import ItemDispatched
@@ -611,6 +612,9 @@ def _dispatch_item(
                 # it is the same path the index write-through and the outbox
                 # publish just used, so the three records agree by construction.
                 target_path=result.destination,
+                # Which medium, by provider id: the destination's NFO
+                # first (what the index will see), the staging source's second.
+                media_ref=media_ref_from_nfo(spec.media_type, result.destination, src),
             ),
         )
 
