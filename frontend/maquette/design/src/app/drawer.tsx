@@ -260,6 +260,7 @@ export function NavigationDrawer(): ReactElement {
               className={viewSwitchButton({ size: "text" })}
               data-appearance={mode}
               aria-pressed={appearance === mode}
+              data-active={appearance === mode}
               onClick={() => {
                 chooseAppearance(mode);
                 // Reflected in place: the drawer stays open — choosing an

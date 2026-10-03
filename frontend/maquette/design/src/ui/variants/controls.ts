@@ -401,18 +401,25 @@ export const viewSwitchWrap = cva(
 export const viewSwitch = cva("vsw flex gap-1 p-1 bg-muted rounded-3");
 
 /** One button of the view switch. */
-export const viewSwitchButton = cva("[border:0] rounded-2 bg-transparent text-muted-foreground", {
+export const viewSwitchButton = cva(
+  // THE ACTIVE OPTION IS THE SEGMENT THE TABS DRAW (`segmentTab`): the track's
+  // lighter plate, the foreground tone and the plate's shadow — for BOTH sizes.
+  // Only the `text` size carried it, so an icon switch (Suivis, Médiathèque,
+  // Découvrir) showed three alike icons whatever view was in force (B-692).
+  "[border:0] rounded-2 bg-transparent text-muted-foreground aria-pressed:bg-background " +
+    "aria-pressed:text-foreground aria-pressed:[box-shadow:var(--mq-shadow-vsw)]",
+  {
   variants: {
     // An ICON picks a view (a list, a grid); TEXT picks a value in place (a
     // kind, a provider, an appearance) — one segmented control, two sizes.
     size: {
       icon: "w-[32px] h-[28px] grid place-items-center",
-      text: "text-3 font-semibold py-3 px-6 aria-pressed:bg-background aria-pressed:text-foreground "
-        + "aria-pressed:[box-shadow:var(--mq-shadow-vsw)]",
+      text: "text-3 font-semibold py-3 px-6",
     },
   },
   defaultVariants: { size: "icon" },
-});
+  },
+);
 
 /** The « N titles » line under the filters; its actions sit together, at its own gap. */
 export const countLine = cva(

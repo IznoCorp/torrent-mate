@@ -138,6 +138,7 @@ export function FollowsFilters({ shown }: { shown: number }): ReactElement {
             <button
               className={viewSwitchButton()}
               aria-pressed={state.followMode === "list"}
+              data-active={state.followMode === "list"}
               data-fmode="list"
               aria-label={t("screens.acquisition.modeList")}
             >
@@ -146,6 +147,7 @@ export function FollowsFilters({ shown }: { shown: number }): ReactElement {
             <button
               className={viewSwitchButton()}
               aria-pressed={state.followMode === "group"}
+              data-active={state.followMode === "group"}
               data-fmode="group"
               aria-label={t("screens.acquisition.modeGroup")}
             >
@@ -154,6 +156,7 @@ export function FollowsFilters({ shown }: { shown: number }): ReactElement {
             <button
               className={viewSwitchButton()}
               aria-pressed={state.followMode === "grid"}
+              data-active={state.followMode === "grid"}
               data-fmode="grid"
               aria-label={t("screens.acquisition.modeGrid")}
             >

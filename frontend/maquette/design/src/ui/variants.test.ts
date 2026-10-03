@@ -184,7 +184,10 @@ describe("one drawing per need, placed or sized", () => {
   it("sizes the segmented choice for an icon or for a word", () => {
     expect(viewSwitchButton()).toContain("w-[32px] h-[28px]");
     expect(viewSwitchButton({ size: "text" })).toContain("px-6");
-    expect(viewSwitchButton({ size: "text" })).toContain("aria-pressed:bg-background");
+    // The active option is drawn whatever the size (B-692): an icon switch had none.
+    for (const size of ["icon", "text"] as const) {
+      expect(viewSwitchButton({ size })).toContain("aria-pressed:bg-background");
+    }
   });
 
   // ONE CHEVRON, whatever the fold: the kinds change the summary, never it.
