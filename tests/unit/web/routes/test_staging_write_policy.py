@@ -7,6 +7,7 @@ from fastapi.routing import APIRoute
 from starlette.routing import Mount
 
 from personalscraper.config import Settings
+from personalscraper.http_v1.app import V1_PREFIX
 from tests.web._web_harness import make_web_app
 
 # Families whose writes are OPEN on staging: their worst case is a repairable row.
@@ -87,7 +88,10 @@ def _mutating_routes(app):
                     for method in route.methods & _MUTATING:
                         yield route.path, method, route
             elif isinstance(route, Mount):
-                yield from _walk(route.routes)
+                # v1 is a sub-application with its own policy (OPERATION_RIGHTS,
+                # tests/http_v1/test_rights_table.py): v0's tables never classify it.
+                if route.path != V1_PREFIX:
+                    yield from _walk(route.routes)
             elif hasattr(route, "original_router"):
                 # FastAPI's _IncludedRouter — wraps an APIRouter after
                 # include_router().  Descend into its original_router.routes.
