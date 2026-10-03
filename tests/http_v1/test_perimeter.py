@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Annotated
+from collections.abc import Callable, Iterator
+from typing import Annotated, Any
 
+import pytest
 from fastapi import APIRouter, Depends, FastAPI, Request
+from fastapi.dependencies.models import Dependant
+from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 
 from personalscraper.app.accounts.actor import Actor, RoleKind
@@ -13,6 +16,7 @@ from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.rights import Right
 from personalscraper.http_v1.app import include_v1_router
 from personalscraper.http_v1.deps import actor
+from personalscraper.http_v1.perimeter import v1_perimeter
 
 _ADMIN = Actor(
     account_id="a1",
@@ -170,3 +174,65 @@ def test_right_held_passes(make_v1_app: Callable[..., FastAPI]) -> None:
     response = _client(make_v1_app, _ADMIN).post("/library/items/delete")
 
     assert response.status_code == 200
+
+
+def _api_dependants(routes: list[Any]) -> Iterator[tuple[str, Dependant]]:
+    """Yield ``(path, dependant)`` for every API route, through FastAPI's included-router wrappers.
+
+    Args:
+        routes: A router's routes, ``_IncludedRouter`` wrappers or ``APIRoute`` instances.
+
+    Yields:
+        The route's path and its resolved dependency tree (an included router's
+        dependencies are already part of it).
+    """
+    for route in routes:
+        if isinstance(route, APIRoute):
+            yield route.path, route.dependant
+        elif hasattr(route, "effective_candidates"):
+            yield from _api_dependants(route.effective_candidates())
+        elif hasattr(route, "dependant"):
+            yield route.path, route.dependant
+
+
+def _routes_without_perimeter(app: FastAPI) -> list[str]:
+    """The paths of the sub-application's API routes that do not carry ``v1_perimeter``.
+
+    Args:
+        app: The v1 sub-application.
+
+    Returns:
+        The offending paths, sorted.
+    """
+    return sorted(
+        path
+        for path, dependant in _api_dependants(app.router.routes)
+        if v1_perimeter not in {dependency.call for dependency in dependant.dependencies}
+    )
+
+
+def test_every_v1_route_carries_the_perimeter(make_v1_app: Callable[..., FastAPI]) -> None:
+    """Every route of a sub-application built by ``create_v1_app`` and filled through ``include_v1_router`` has it."""
+    app = make_v1_app()
+    include_v1_router(app, _probe_router())
+
+    assert list(_api_dependants(app.router.routes))
+    assert _routes_without_perimeter(app) == []
+
+
+@pytest.mark.parametrize("how", ["decorator", "add_api_route"])
+def test_a_route_added_outside_include_v1_router_is_caught(make_v1_app: Callable[..., FastAPI], how: str) -> None:
+    """Positive control: a route added by a bare ``@app.get`` / ``add_api_route`` is named as perimeter-less."""
+    app = make_v1_app()
+    include_v1_router(app, _probe_router())
+
+    def _bare() -> dict[str, str]:
+        """A route nobody guards."""
+        return {"ok": "yes"}
+
+    if how == "decorator":
+        app.get("/bare", operation_id="bare")(_bare)
+    else:
+        app.add_api_route("/bare", _bare, methods=["GET"], operation_id="bare")
+
+    assert _routes_without_perimeter(app) == ["/bare"]
