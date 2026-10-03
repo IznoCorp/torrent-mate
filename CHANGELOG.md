@@ -18,8 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > - the **squash-merged pull requests** on GitHub, each carrying its dated
 >   proof run (constitution §10).
 >
-> Every PR bumps the version (§10-3, enforced by the CI `version-bump` job),
-> so `git tag` / `personalscraper.__version__` + the PR that bumped it is the
+> The version rises once per release (§10-3, `scripts/promote.sh release`),
+> so `git tag` / `personalscraper.__version__` + the release it names is the
 > per-version record. Systematic changelog keeping **resumes at `1.0.0`** (the
 > first production release), when the SemVer contract and a maintained
 > changelog both begin.

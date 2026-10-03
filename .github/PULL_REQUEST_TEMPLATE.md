@@ -1,9 +1,7 @@
 <!--
 Product constitution (docs/reference/product-intent.md) — §10 delivery method.
-Every web PR cites the §§ it serves. The version is bumped (§10-3, version-bump CI guard).
-A PR touching no code — pure documentation, a directive correction, a bug-register entry —
-adds the label `no-version-bump` INSTEAD of bumping (CLAUDE.md § Commit Convention). Add it any
-time; `labeled`/`unlabeled` re-runs CI against the current label set.
+Every web PR cites the §§ it serves. A PR leaves `__version__` alone: the version rises once
+per release (§10-3, `scripts/promote.sh release`).
 -->
 
 ## What this PR does

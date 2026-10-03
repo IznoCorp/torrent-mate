@@ -44,6 +44,7 @@ forces.
 | Promote a validated lot | `scripts/promote.sh main [<sha>]` — `develop` → `main`; refused unless every commit is a merged PR into `develop` whose required checks were green | the orchestrator, when the lot's reading passed |
 | Deploy the preprod | `scripts/promote.sh staging [<sha>]` — `main` → `staging`; the poller deploys it within 60 s (`tm-staging`'s `/api/version` → `staging @ <sha>`) | any session, on his word only (« passe en staging ») |
 | Deploy production | `scripts/promote.sh prod [<sha>]` — `staging` → `prod`, then the tag `v<__version__>`; refused if that tag exists | any session, on his word only (« mets en prod ») |
+| Raise the version | `scripts/promote.sh release` — when `develop`'s version is already tagged, opens the one PR into `develop` that raises it a patch (armed); otherwise says there is nothing to raise | before `promote.sh prod`, when it refuses a version already released |
 | Tag a hotfix | `scripts/promote.sh tag` — tags `prod`'s tip after a hotfix PR merged into `prod` | whoever merged the hotfix |
 | Merge a hotfix back | `scripts/promote.sh backport <c>` — `prod`'s tip merged with `develop` on `backport/<c>`, the `__version__` conflict resolved to `develop`'s plus one patch (any other conflict: it stops, pushes nothing, names the file), its PR into `develop` armed with the MERGE method | whoever merged the hotfix |
 
@@ -59,7 +60,7 @@ forces.
 | Phase | `make lint` · maquette `npm run typecheck && npm test` · pytest of the touched modules | 1–2 min |
 | Push (hook) | ruff, mypy | < 1 min |
 | Lot close | `make check`: lint, the cheap guards, frontend (typecheck, eslint, vitest, build, OpenAPI and contract-type drift) | ~2 min |
-| CI | lint, mypy, full pytest, guards + no-French, frontend, version bump, pip-audit, licenses, gitleaks; on a pull request touching the maquette, every harness rule in four shards | 1–10 min |
+| CI | lint, mypy, full pytest, guards + no-French, frontend, pip-audit, licenses, gitleaks; on a pull request touching the maquette, every harness rule in four shards; all of it again on `develop` after every merge | 1–20 min |
 
 The full pytest and the harness run on GitHub, not on IznoServer, which also serves production. A
 rule broken by an intended change is updated or deleted in the same lot. A new rule, guard or check
@@ -75,7 +76,8 @@ comes only from a defect that reached him or the product; rigour comes back when
 - Durable text in English; only his two documents are French. UI copy in
   `frontend/maquette/design/src/i18n/fr.json`, never in code; names in English (checked in CI).
 - No backward compatibility (09-29). A route change ⇒ `make openapi`, commit the generated files.
-- Conventional Commits, no version prefix, no AI attribution (`hooks/commit-msg`); patch bump per PR.
+- Conventional Commits, no version prefix, no AI attribution (`hooks/commit-msg`). A PR leaves
+  `__version__` alone; the version rises once per release (`scripts/promote.sh release`).
 
 ## The machine (IznoServer)
 

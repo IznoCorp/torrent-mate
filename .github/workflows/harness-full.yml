@@ -14,6 +14,10 @@ name: Harness full suite
 
 on:
   workflow_dispatch:
+  # develop after every merge, every shard: a PR merges without being up to
+  # date with develop, so develop itself is read (ci.yml says the same).
+  push:
+    branches: [develop]
   pull_request:
     branches: [main, develop, prod]
     types: [opened, synchronize, reopened, ready_for_review, labeled]
@@ -36,7 +40,7 @@ jobs:
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     outputs:
       # On demand the whole suite runs: there is no file list to filter.
-      maquette: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.filter.outputs.maquette }}
+      maquette: ${{ github.event_name != 'pull_request' && 'true' || steps.filter.outputs.maquette }}
     steps:
       # No checkout: on pull_request events the filter reads the PR file list
       # from the API.

@@ -23,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from nofrench_lexicon import (  # noqa: E402
     walk,
     EXTRACTED_CSS, FROZEN_IDENTIFIERS, REGIONS, ROOT, examined,
-    french_tokens_in, has_accent, read, relative, split_identifier, vocabulary,
+    french_only, french_tokens_in, has_accent, read, relative, split_identifier,
 )
 
 
@@ -54,8 +54,6 @@ def css_allowlist() -> dict[str, str]:
                     return got
         return None
 
-    # `record`, not `vocabulary`: a local of that name shadowed the imported
-    # `vocabulary()` for the whole function, which arm 14 below calls.
     record = find(data)
     if not isinstance(record, dict):
         raise ValueError(f"no $vocabulary record in {relative(REGIONS)}")
@@ -127,9 +125,8 @@ CUSTOM_PROPERTY = re.compile(r"""(?:^|[{;,])\s*["']?(--[\w-]+)["']?\s*:""", re.M
 
 # Token names whose French-looking word is a CSS KEYWORD, each with its reason.
 # `sans` is the one real case: `--font-sans` names the `sans-serif` family, and
-# it is also the French preposition. Adding `sans` to the vocabulary instead
-# would licence it in every identifier in the repository, which is the opposite
-# of what the vocabulary is for — so the exception is pinned to the whole NAME.
+# it is also the French preposition. The exception is pinned to the whole NAME,
+# so `sans` stays refused in every other identifier.
 CSS_KEYWORD_TOKENS = {
     "--font-sans": "the CSS `sans-serif` family, not the French preposition",
     # Named by the `sonner` toast library, which READS these three off the
@@ -142,12 +139,11 @@ CSS_KEYWORD_TOKENS = {
 
 
 def check_custom_properties(violations: list[str]) -> None:
-    """Refuses a CSS custom-property name built from a word we do not use.
+    """Refuses a CSS custom-property name built from a French word.
 
     Args:
         violations: The accumulator every arm appends to.
     """
-    known = vocabulary()
     # EVERY place a custom property can be DECLARED, not just the two obvious
     # ones. The first scope read `refonte.html` + `src/styles/**` and stopped
     # there, which left four tracked component stylesheets and the shell's own
@@ -161,6 +157,8 @@ def check_custom_properties(violations: list[str]) -> None:
     sheets += [p for p in walk((ROOT / "frontend" / "maquette" / "design" / "src"), "*.tsx")]
     for path in sheets:
         source = read(path)
+        french = french_only({w.lower() for m in CUSTOM_PROPERTY.finditer(source)
+                              for w in split_identifier(m.group(1).lstrip("-")) if w})
         for match in CUSTOM_PROPERTY.finditer(source):
             name = match.group(1)
             examined["custom-property names / css"] += 1
@@ -169,14 +167,14 @@ def check_custom_properties(violations: list[str]) -> None:
             words = [w for w in split_identifier(name.lstrip("-")) if w]
             hits = french_tokens_in(name.lstrip("-"), relative(path))
             unknown = [w for w in words
-                       if w.lower() not in known and not w.isdigit()]
+                       if w.lower() in french and not w.isdigit()]
             if hits or has_accent(name) or unknown:
                 why = (", ".join(hits) if hits
                        else "accented" if has_accent(name)
-                       else f"built from {unknown!r}, which this codebase does not use")
+                       else f"built from {unknown!r}, which French knows and English does not")
                 line_no = source.count("\n", 0, match.start()) + 1
                 violations.append(
-                    f"{relative(path)}:{line_no}: French or unknown custom-property "
+                    f"{relative(path)}:{line_no}: French custom-property "
                     f"name {name!r} ({why}) — a token name is a name someone chose "
                     "(CLAUDE.md §Language), so it is English like any other")
 
