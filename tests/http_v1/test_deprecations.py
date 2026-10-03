@@ -7,7 +7,7 @@ The header is emitted only where v1 is mounted: a successor link to an unmounted
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable
-from datetime import UTC, date, datetime
+from datetime import date
 
 import pytest
 from fastapi import FastAPI, WebSocket
@@ -48,18 +48,6 @@ def _client(config: Config, *, v1_enabled: bool) -> TestClient:
     return client
 
 
-def _epoch(day: date) -> int:
-    """The epoch of a day's 00:00 UTC.
-
-    Args:
-        day: The day.
-
-    Returns:
-        Whole seconds since the epoch.
-    """
-    return int(datetime(day.year, day.month, day.day, tzinfo=UTC).timestamp())
-
-
 @pytest.fixture
 def twin() -> V0Twin:
     """The ``readVersion`` twin, as registered.
@@ -75,7 +63,8 @@ def test_a_twinned_route_carries_both_headers(test_config: Config, twin: V0Twin)
     response = _client(test_config, v1_enabled=True).get("/api/version")
 
     assert response.status_code == 200
-    assert response.headers["deprecation"] == f"@{_epoch(twin.since)}"
+    assert twin.since == date(2026, 10, 3)
+    assert response.headers["deprecation"] == "@1790985600"  # 2026-10-03 00:00 UTC, the registered line's day
     assert response.headers["link"] == '</api/v1/version>; rel="successor-version"'
 
 
@@ -181,7 +170,7 @@ def test_a_gzip_compressed_response_carries_the_headers() -> None:
     response = TestClient(_app_with_twin(compress=True)).get("/api/probe", headers={"accept-encoding": "gzip"})
 
     assert response.headers["content-encoding"] == "gzip"
-    assert response.headers["deprecation"] == f"@{_epoch(date(2026, 1, 2))}"
+    assert response.headers["deprecation"] == "@1767312000"  # 2026-01-02 00:00 UTC
     assert response.headers["link"] == '</api/v1/probe>; rel="successor-version"'
     assert response.json() == {"filler": "x" * 4096}
 
@@ -192,7 +181,7 @@ def test_a_streamed_response_passes_unchanged() -> None:
     response = TestClient(_app_with_twin(compress=False)).get("/api/stream")
 
     assert response.content == b"abc"
-    assert response.headers["deprecation"] == f"@{_epoch(date(2026, 1, 2))}"
+    assert response.headers["deprecation"] == "@1767312000"  # 2026-01-02 00:00 UTC
 
 
 @pytest.mark.usefixtures("probe_twins")
