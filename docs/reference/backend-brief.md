@@ -129,11 +129,11 @@ engine. The cross-cutting divergences come first because every domain carries th
 
 | Operation / behaviour | Kind | What it must do | § | Demand ids |
 | --- | --- | --- | --- | --- |
-| `readAccount` (`/api/auth/me`), `signIn` | reshape | the role (name for display, kind `admin \| default \| ordinary`), the closed set of rights (21 in the contract's `Right` enum), the Plex link, the entry page, the instance's `forbiddenWrites` | §17, DOIT-12 | L18 D; arch § 2 |
-| `signInWithPlex` | new | Plex SSO; a first sign-in gets the Default role; an e-mail matching a local account LINKS them; a password sign-in held by `auth.password` | §17 | L18 E |
+| `readAccount` (`/api/auth/me`), `signIn` | reshape | the role (name for display, kind `admin \| ordinary`, `defaultFor` — O-K1-4: no Default role), the closed set of rights (the contract's `Right` enum), the account's `signInKind`, the entry page, the instance's `forbiddenWrites` | §17, DOIT-12 | L18 D; arch § 2 |
+| `signInWithPlex`, `startPlexSignIn` | new | Plex SSO by PIN (`202 {pending}` while unclaimed); the server's owner is created on Admin, every other first sign-in on its Plex kind's starting role (`Role.defaultFor`, O-K1-4); an e-mail matching a local account LINKS it and drops its role to that starting role; a Plex identity without access to the server refused `auth.refused`. The `auth.password` right is RETIRED: the password door is the account's `signInKind` (`owner \| plex \| local`) — the operator, 2026-10-03, « A » | §17 | L18 E; G-4 |
 | `signOut` | reshape | `200 {ok}` | — | reg § 2c |
-| `readAccounts`, `createAccount`, `updateAccount` | new | the roster and the roles; a local account's mandatory e-mail; one role per account | §17 | L18 F, G, H |
-| `createRole`, `updateRole` | new | ordinary roles: name, rights; refuses the last-Admin and last-`auth.password` demotions and any escalation (a non-Admin manager grants only a SUBSET of its own role's rights) server-side | §17 | L18 H; Rd 9 Q14 |
+| `readAccounts`, `createAccount`, `updateAccount`, `resetAccountPassword`, `changeOwnPassword` | new | the roster and the roles; a local account's mandatory e-mail and its PROVISIONAL password, set by the Admin at creation and on a reset (local accounts only — never the owner's CLI-held fallback, never a Plex-linked account), changed by the account in Profil; one role per account (the operator, 2026-10-03, « A ») | §17 | L18 F, G, H; G-5 |
+| `createRole`, `updateRole` | new | ordinary roles: name, rights; refuses the last-Admin demotion and any escalation (a non-Admin manager grants only a SUBSET of its own role's rights) server-side | §17 | L18 H; Rd 9 Q14 |
 | the authorisation | engine | ONE path: rights from the role, Admin bypassing; membership in `requesters` for « ses propres acquisitions »; refused with `403 Problem` when forced, on VIEWS too | §17, NE-DOIT-PAS-7 | arch § 2; X6 |
 | a role that opens no page | engine | the entry page is a dedicated route, never a refusal at sign-in | ruling 22 | arch § 2 |
 | existing acquisitions | data | attributed to the Plex server's owner account (Izno); a direct qBittorrent add the same, reassignable | ruling 9 | arch § 2 |
@@ -250,7 +250,7 @@ Paths are under `personalscraper/`. The verdict is his four words: **adapt** (sa
 
 | Exists | Verdict | What changes |
 | --- | --- | --- |
-| `web/auth/routes.py` (login :83, logout :165, me :182), `web/auth/tokens.py`, `passwords.py` (scrypt), `ratelimit.py` | transform | the session's subject becomes an account id; the password path gated by `auth.password`; the single `config.web.username` (`conf/models/web.py:30`) retired |
+| `web/auth/routes.py` (login :83, logout :165, me :182), `web/auth/tokens.py`, `passwords.py` (scrypt), `ratelimit.py` | transform | the session's subject becomes an account id; the password path open to the `owner` and `local` sign-in kinds only (`auth.password` retired, the operator 2026-10-03); the single `config.web.username` (`conf/models/web.py:30`) retired |
 | `web/deps.py` `require_session` :137, `require_not_staging` :106 (about 15 uses), `tests/unit/web/routes/test_staging_write_policy.py` | transform | one `authorise(right)` reading the role and the instance's forbidden writes; `require_not_staging` absorbed (NE-DOIT-PAS-7); the policy table becomes the rights table's test |
 | — accounts, roles, rights, Plex SSO | rebuild | no users table exists; `api/plex.py` speaks to the SERVER, the Plex account sign-in (PIN / OAuth) is new |
 
