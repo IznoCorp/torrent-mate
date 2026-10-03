@@ -16,7 +16,7 @@ from typing import Any, Final
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.exceptions import HTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from personalscraper.app.errors import AppRefusal, RefusalCode
@@ -119,8 +119,8 @@ def install_problem_handlers(app: FastAPI) -> None:
             {"fields": fields},
         )
 
-    @app.exception_handler(StarletteHTTPException)
-    async def _http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+    @app.exception_handler(HTTPException)
+    async def _http_exception(request: Request, exc: HTTPException) -> JSONResponse:
         """Answer the router's own refusals: no route at that path, or not under that method.
 
         Args:
