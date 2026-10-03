@@ -71,7 +71,7 @@ class TestCleanActors:
         because the cleaner switched away from ``shutil.rmtree`` to handle
         NFC/NFD ghost dirents — see fix(library-clean) commit history.
         """
-        from personalscraper.maintenance import disk_cleaner as _dc
+        from personalscraper.indexer import deletion as _dc
 
         disk = tmp_path / "medias"
         movie1 = disk / "films" / "Movie1 (2024)" / ".actors"
@@ -449,7 +449,7 @@ class TestInternalHelpers:
 
     def test_dir_size_oserror_returns_zero(self, tmp_path: Path, monkeypatch) -> None:
         """``_dir_size`` should swallow OSError from rglob and return what was counted."""
-        from personalscraper.maintenance import disk_cleaner as _dc
+        from personalscraper.indexer import deletion as _dc
 
         d = tmp_path / "d"
         d.mkdir()
@@ -463,7 +463,7 @@ class TestInternalHelpers:
 
     def test_dir_size_skips_unstattable_files(self, tmp_path: Path, monkeypatch) -> None:
         """``_dir_size`` should skip files whose ``stat()`` raises OSError."""
-        from personalscraper.maintenance import disk_cleaner as _dc
+        from personalscraper.indexer import deletion as _dc
 
         d = tmp_path / "d"
         d.mkdir()
@@ -481,7 +481,7 @@ class TestInternalHelpers:
 
     def test_scandir_rmtree_unlinks_symlink(self, tmp_path: Path) -> None:
         """``_scandir_rmtree`` should ``unlink`` a symlink rather than recurse."""
-        from personalscraper.maintenance import disk_cleaner as _dc
+        from personalscraper.indexer import deletion as _dc
 
         target = tmp_path / "target"
         target.mkdir()
@@ -494,7 +494,7 @@ class TestInternalHelpers:
 
     def test_scandir_rmtree_unlinks_non_directory(self, tmp_path: Path) -> None:
         """``_scandir_rmtree`` should ``unlink`` a path that is not a directory."""
-        from personalscraper.maintenance import disk_cleaner as _dc
+        from personalscraper.indexer import deletion as _dc
 
         f = tmp_path / "f.txt"
         f.write_bytes(b"hi")
@@ -505,7 +505,7 @@ class TestInternalHelpers:
         """FileNotFoundError on unlink should be recorded as a ghost dirent."""
         import os as _os
 
-        from personalscraper.maintenance import disk_cleaner as _dc
+        from personalscraper.indexer import deletion as _dc
 
         d = tmp_path / "d"
         d.mkdir()
@@ -531,7 +531,7 @@ class TestInternalHelpers:
 
     def test_scandir_rmtree_records_ghost_on_is_dir_oserror(self, tmp_path: Path, monkeypatch) -> None:
         """If ``DirEntry.is_dir`` raises OSError the entry is logged as ghost."""
-        from personalscraper.maintenance import disk_cleaner as _dc
+        from personalscraper.indexer import deletion as _dc
 
         d = tmp_path / "d"
         d.mkdir()
@@ -611,6 +611,7 @@ class TestInternalHelpers:
 
     def test_delete_dir_records_ghost_summary(self, tmp_path: Path, monkeypatch) -> None:
         """When ``_scandir_rmtree`` reports ghosts, ``_delete_dir`` summarises them."""
+        from personalscraper.indexer import deletion as _deletion
         from personalscraper.maintenance import disk_cleaner as _dc
 
         d = tmp_path / "ghosted"
@@ -622,7 +623,7 @@ class TestInternalHelpers:
                 ghosts.extend(["g1.jpg", "g2.jpg", "g3.jpg", "g4.jpg"])
             raise OSError("ENOTEMPTY")
 
-        monkeypatch.setattr(_dc, "_scandir_rmtree", fake_rmtree)
+        monkeypatch.setattr(_deletion, "_scandir_rmtree", fake_rmtree)
 
         result = _dc.CleanResult(dry_run=False)
         _dc._delete_dir(d, result, dry_run=False, label=".actors", db_path=tmp_path / "db.sqlite")
