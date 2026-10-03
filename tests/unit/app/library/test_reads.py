@@ -29,15 +29,20 @@ def test_categories_count_live_entries_per_leaf(world: World) -> None:
 
 
 def test_recent_is_twelve_rows_by_date_added(world: World) -> None:
-    """Recent answers the twelve most recently added live entries, newest first."""
+    """Recent answers the twelve most recently added live entries, newest first, by creation date.
+
+    The creation dates are scrambled against the insertion order, so ordering by row id fails.
+    """
     for n in range(15):
-        item = world.index.item(f"Film {n:02d}", tmdb=str(n + 1), created=1_000 + n)
+        item = world.index.item(f"Film {n:02d}", tmdb=str(n + 1), created=1_000 + (n * 7) % 15)
         world.index.movie_file(item, f"films/{n}")
 
     recent = world.service.read_recent(world.actor)
 
+    newest_first = sorted(range(15), key=lambda n: (n * 7) % 15, reverse=True)
     assert RECENT_LIMIT == 12
-    assert [entry.title for entry in recent] == [f"Film {n:02d}" for n in range(14, 2, -1)]
+    assert [entry.title for entry in recent] == [f"Film {n:02d}" for n in newest_first[:12]]
+    assert [entry.title for entry in recent] != [f"Film {n:02d}" for n in range(14, 2, -1)]
 
 
 def test_incomplete_is_aired_beyond_owned_only(world: World) -> None:
