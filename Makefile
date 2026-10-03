@@ -85,7 +85,6 @@ check: lint
 	@echo "Checking OpenAPI drift..."
 	@if [ -d frontend/node_modules ]; then $(MAKE) openapi && git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts; else echo "openapi-drift: skipped (frontend/node_modules absent)"; fi
 	@if [ -d frontend/node_modules ]; then $(MAKE) check-contract-types; else echo "contract-types: skipped (frontend/node_modules absent)"; fi
-	@if git rev-parse --verify origin/develop >/dev/null 2>&1; then python3 scripts/check_version_bump.py --base origin/develop; else echo "version-bump: skipped (origin/develop unavailable)"; fi
 	@if [ -d frontend/node_modules ]; then $(MAKE) check-frontend; else echo "check-frontend: skipped (frontend/node_modules absent)"; fi
 
 format:

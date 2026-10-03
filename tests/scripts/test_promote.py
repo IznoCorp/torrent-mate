@@ -402,8 +402,8 @@ def test_rule_4_refuses_a_version_already_tagged(flow: Flow) -> None:
     assert flow.tip("prod") == flow.base
 
 
-def test_rule_4_says_an_unbumped_change_ships_with_the_next_bump(flow: Flow) -> None:
-    """A `no-version-bump` PR carries its base's version: it waits for the next bumped PR, nothing to bump by hand."""
+def test_rule_4_names_the_release_bump(flow: Flow) -> None:
+    """A PR leaves the version alone: a released version is raised by `release`, which the refusal names."""
     flow.merged_pr("0.1.1")
     assert flow.promote("main").returncode == 0
     assert flow.promote("staging").returncode == 0
@@ -413,8 +413,7 @@ def test_rule_4_says_an_unbumped_change_ships_with_the_next_bump(flow: Flow) -> 
     assert flow.promote("staging").returncode == 0
     done = flow.promote("prod")
     assert done.returncode == 1, _out(done)
-    assert "ships with the next version bump to develop" in done.stderr
-    assert "bump the version" not in done.stderr
+    assert "run scripts/promote.sh release" in done.stderr
 
 
 # ── dry run ──────────────────────────────────────────────────────────────────
@@ -463,15 +462,15 @@ def test_backport_pushes_prod_and_opens_a_merge_pr_into_develop(flow: Flow) -> N
     assert "--auto" in merge and "--merge" in merge and "--squash" not in merge
 
 
-def test_backport_resolves_the_version_conflict_to_develops_next_patch(flow: Flow) -> None:
-    """Prod's X.Y.Z.1 against develop's X.Y.(Z+n): the branch carries develop's version bumped, and the hotfix."""
+def test_backport_resolves_the_version_conflict_to_develops_version(flow: Flow) -> None:
+    """Prod's X.Y.Z.1 against develop's X.Y.(Z+n): the branch carries develop's version as it is, and the hotfix."""
     flow.merged_pr("0.1.4")
     flow.commit("prod", "0.1.0.1", "fix: urgent (#7)")
     done = flow.promote("backport", "urgent")
     assert done.returncode == 0, _out(done)
     backport = flow.tip("backport/urgent")
     init = _git(flow.origin, "show", f"{backport}:personalscraper/__init__.py")
-    assert init == '__version__ = "0.1.5"'
+    assert init == '__version__ = "0.1.4"'
     assert _git(flow.origin, "show", f"{backport}:fix-0.1.0.1.txt") == "fix: urgent (#7)"
     assert _git(flow.origin, "show", f"{backport}:feat-0.1.4.txt") == "feat: change 0.1.4 (#101)"
     assert len(_git(flow.work, "worktree", "list").splitlines()) == 1
@@ -602,3 +601,46 @@ def test_rule_3_refuses_a_check_still_running_after_a_success(flow: Flow) -> Non
     done = flow.promote("main")
     assert done.returncode == 1, _out(done)
     assert "not green at its head: lint" in done.stderr
+
+
+# ── the release bump ─────────────────────────────────────────────────────────
+
+
+def test_release_opens_the_one_pr_that_raises_a_released_version(flow: Flow) -> None:
+    """Develop's version is tagged: release/<next> carries develop plus one patch, its PR into develop is armed."""
+    develop = flow.merged_pr("0.1.1")
+    _git(flow.seed, "push", "-q", "origin", f"{develop}:refs/tags/v0.1.1")
+    done = flow.promote("release")
+    assert done.returncode == 0, _out(done)
+    assert "auto-merge armed" in done.stdout
+    branch = flow.tip("release/0.1.2")
+    assert _git(flow.origin, "rev-parse", f"{branch}^") == develop
+    assert _git(flow.origin, "show", f"{branch}:personalscraper/__init__.py") == '__version__ = "0.1.2"'
+    calls = flow.gh_calls()
+    create = next(c for c in calls if c[:2] == ["pr", "create"])
+    assert create[create.index("--base") + 1] == "develop"
+    assert create[create.index("--head") + 1] == "release/0.1.2"
+    merge = next(c for c in calls if c[:2] == ["pr", "merge"])
+    assert "--auto" in merge and "--squash" in merge
+    assert len(_git(flow.work, "worktree", "list").splitlines()) == 1
+
+
+def test_release_leaves_an_unreleased_version_as_it_is(flow: Flow) -> None:
+    """Develop's version has no tag yet: nothing to raise, no branch, no PR."""
+    flow.merged_pr("0.1.1")
+    done = flow.promote("release")
+    assert done.returncode == 0, _out(done)
+    assert "not released yet" in done.stdout
+    assert flow.tip("release/0.1.2") == ""
+    assert not any(c[:1] == ["pr"] for c in flow.gh_calls())
+
+
+def test_release_dry_run_pushes_nothing(flow: Flow) -> None:
+    """--dry-run says the bump and leaves origin untouched."""
+    develop = flow.merged_pr("0.1.1")
+    _git(flow.seed, "push", "-q", "origin", f"{develop}:refs/tags/v0.1.1")
+    before = _git(flow.origin, "for-each-ref", "--format=%(refname) %(objectname)")
+    done = flow.promote("release", "--dry-run")
+    assert done.returncode == 0, _out(done)
+    assert "0.1.1 → 0.1.2" in done.stdout
+    assert _git(flow.origin, "for-each-ref", "--format=%(refname) %(objectname)") == before

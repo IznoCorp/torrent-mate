@@ -18,7 +18,7 @@ there is one copy and both guards read it.
 
 A NAMING value is a structural name — `library/body`, `card/overview`,
 `primary`, `danger` — and it obeys the rule a name obeys: split on `/` and `-`,
-checked word by word against the vocabulary. An ADDRESS value is not a name:
+checked word by word against the dictionary (`french_only`). An ADDRESS value is not a name:
 `data-go="profil"` names a page, and a page id, a route, a title, a folder or a
 datum the app stores is an address. An attribute in NEITHER list is unread
 here, and the name half still reads every NAME.
@@ -43,8 +43,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from markup_text import NAMING_ATTRIBUTES  # noqa: E402
 from nofrench_lexicon import (  # noqa: E402
     walk,
-    MAQUETTE, ROOT, SHELL, VOCABULARY, examined, read, relative,
-    split_identifier, vocabulary,
+    MAQUETTE, ROOT, SHELL, examined, french_only, read, relative,
+    split_identifier,
 )
 
 # The ADDRESS attributes, named here so that adding an attribute forces the
@@ -125,31 +125,30 @@ def named_values(source: str) -> list[tuple[int, str, str]]:
 
 
 def check_named_values(path: Path, source: str, violations: list[str]) -> None:
-    """Refuses a naming-attribute value built from a word this codebase lacks.
+    """Refuses a naming-attribute value built from a French word.
 
     Args:
         path: The file being read, for the message.
         source: Its text.
         violations: The accumulator every arm appends to.
     """
-    words = vocabulary()
-    for offset, attribute, value in named_values(source):
+    found = named_values(source)
+    french = french_only({w.lower() for _, _, value in found for w in re.split(r"[/-]", value)})
+    for offset, attribute, value in found:
         examined["data-part values / markup"] += 1
         line_no = source.count("\n", 0, offset) + 1
         unknown = [w for w in re.split(r"[/-]", value)
-                   if len(w) > 1 and w.lower() not in words]
+                   if len(w) > 1 and w.lower() in french]
         if unknown:
             violations.append(
                 f"{relative(path)}:{line_no}: the markup value {value!r} "
                 f"of {attribute!r} is built from "
-                f"{', '.join(repr(w) for w in unknown)}, which "
-                f"{'is' if len(unknown) == 1 else 'are'} not in "
-                f"{relative(VOCABULARY)} — name it in English, or add the "
-                "word there if the codebase really speaks it")
+                f"{', '.join(repr(w) for w in unknown)}, which French knows "
+                "and English does not — name it in English")
 
 
 def check_data_attributes(violations: list[str]) -> None:
-    """Refuses a `data-*` attribute NAME built from a word this codebase lacks.
+    """Refuses a `data-*` attribute NAME built from a French word.
 
     CLAUDE.md brings these names under the rule — a `data-*` name is a name
     someone chose — and until now nothing read them. Nineteen were renamed by
@@ -164,14 +163,14 @@ def check_data_attributes(violations: list[str]) -> None:
     hard ceiling — the arm this sub-phase owed the file was the arm that
     would have broken the gate.
 
-    It asks the vocabulary's question rather than « is this word French? »,
-    because the names here are abbreviations — `rub` for « rubrique » is
-    invisible to any list of French words, and `maintopic` is not.
+    It asks the dictionary whether a word is French. An abbreviation — `rub`
+    for « rubrique » — is invisible to it; the dictionary is still the oracle,
+    because the allow-list that saw such abbreviations refused every new
+    English word and caught no French one.
 
     Args:
         violations: The accumulator every arm appends to.
     """
-    words = vocabulary()
     sources = [p for p in walk(SHELL, "*")
                if p.is_file() and p.suffix in {".ts", ".tsx", ".js"}]
     # `design/index.html` is the application shell's markup since SP4-fin wave
@@ -186,27 +185,29 @@ def check_data_attributes(violations: list[str]) -> None:
                 if p.is_file() and p.suffix in {".ts", ".tsx", ".css"}]
     for path in sorted(sources):
         source = read(path)
-        for match in re.finditer(
+        names = re.compile(
                 r"\bdata-([a-zA-Z][\w-]*)"
                 r"|\bid=\"([A-Za-z][\w-]*)\""
                 # `id='coquille'` and `id={'coquille'}` name the same element as
                 # `id="coquille"`; only the double-quoted spelling was read.
                 r"|\bid='([A-Za-z][\w-]*)'"
-                r"|\bid=\{\s*['\"]([A-Za-z][\w-]*)['\"]\s*\}", source):
+                r"|\bid=\{\s*['\"]([A-Za-z][\w-]*)['\"]\s*\}")
+        matches = list(names.finditer(source))
+        french = french_only({w.lower() for m in matches
+                              for w in split_identifier(next(g for g in m.groups() if g))})
+        for match in matches:
             name = (match.group(1) or match.group(2)
                     or match.group(3) or match.group(4))
             examined["data-* names / markup"] += 1
             line_no = source.count("\n", 0, match.start()) + 1
             unknown = [w for w in split_identifier(name)
-                       if len(w) > 1 and w.lower() not in words]
+                       if len(w) > 1 and w.lower() in french]
             if unknown:
                 violations.append(
                     f"{relative(path)}:{line_no}: the markup name "
                     f"{name!r} is built from "
-                    f"{', '.join(repr(w) for w in unknown)}, which "
-                    f"{'is' if len(unknown) == 1 else 'are'} not in "
-                    f"{relative(VOCABULARY)} — name it in English, or add the "
-                    "word there if the codebase really speaks it")
+                    f"{', '.join(repr(w) for w in unknown)}, which French knows "
+                    "and English does not — name it in English")
         check_named_values(path, source, violations)
 
 

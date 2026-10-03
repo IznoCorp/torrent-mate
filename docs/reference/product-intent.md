@@ -153,7 +153,8 @@ Ces règles s'ajoutent au `§méthode` et s'appliquent à **toute** livraison :
    arbitré explicitement par l'opérateur.
 2. **Auto-vérification live par celui qui livre** — vérifier son propre travail en conditions
    réelles fait partie du travail (« ton travail et ton devoir »).
-3. **Version bump à chaque PR** — patch par défaut, dans le même commit.
+3. **Version montée à chaque mise en prod** — une fois par release, par `scripts/promote.sh release`,
+   jamais dans une PR : des PR menées en parallèle ne se disputent plus la même ligne.
 4. **Un test de régression par bug** — chaque bug détecté a un test qui le reproduit.
 5. **Rapports honnêtes, incluant ses propres erreurs** — un rapport qui omet les erreurs de son
    auteur est un rapport faux.

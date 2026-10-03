@@ -1,6 +1,13 @@
 name: CI
 
 on:
+  # `push` on develop: a PR merges without being up to date with develop (the
+  # branch rule does not ask it), so develop itself is read after every merge —
+  # two green PRs that break each other show here, red, and are fixed at once.
+  # Every job's condition lets the push through by name: its payload carries no
+  # `pull_request`, and the draft clause alone would stand every job down.
+  push:
+    branches: [develop]
   pull_request:
     branches: [main, develop, prod]
     types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
@@ -8,11 +15,10 @@ on:
     # otherwise skip the workflow entirely. Required-status-check rules on a base
     # then leave the PR stuck in "expected" state forever (no run = no result).
     # Running CI on every PR (~3-5 min) is cheaper than diagnosing stuck PRs.
-    # `labeled`/`unlabeled`: `version-bump`'s `no-version-bump` exemption reads
-    # the PR's label set from the EVENT PAYLOAD, frozen at whichever event
-    # dispatched the run — adding the label after `opened` changed nothing until
-    # a new event re-dispatched with it. #488 was refused by its own version-bump
-    # job while correctly carrying the label, because nothing re-triggered.
+    # `labeled`/`unlabeled`: the label exemptions (`coverage-rollback`,
+    # `run-ci-on-draft`) read the PR's label set from the EVENT PAYLOAD, frozen
+    # at whichever event dispatched the run — a label added after `opened`
+    # counts only once a new event re-dispatches with it.
     #
     # `ready_for_review` is NOT optional: it is half of the draft gate below.
     # Every job stands down while the pull request is a draft, so the event
@@ -25,7 +31,7 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 # ── The draft gate ────────────────────────────────────
@@ -56,20 +62,22 @@ jobs:
     name: changes
     runs-on: ubuntu-latest
     if: >-
-      github.event.pull_request.draft == false ||
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
+    # On a push to develop nothing is filtered: every scope is read.
     outputs:
-      python: ${{ steps.raffine.outputs.python }}
-      deps: ${{ steps.filtre.outputs.deps }}
-      frontend_app: ${{ steps.raffine.outputs.frontend_app }}
-      maquette: ${{ steps.filtre.outputs.maquette }}
-      docs: ${{ steps.filtre.outputs.docs }}
-      docs_only: ${{ steps.raffine.outputs.docs_only }}
+      python: ${{ github.event_name == 'push' && 'true' || steps.raffine.outputs.python }}
+      deps: ${{ github.event_name == 'push' && 'true' || steps.filtre.outputs.deps }}
+      frontend_app: ${{ github.event_name == 'push' && 'true' || steps.raffine.outputs.frontend_app }}
+      maquette: ${{ github.event_name == 'push' && 'true' || steps.filtre.outputs.maquette }}
+      docs: ${{ github.event_name == 'push' && 'true' || steps.filtre.outputs.docs }}
+      docs_only: ${{ github.event_name == 'push' && 'false' || steps.raffine.outputs.docs_only }}
     steps:
       # No checkout: on pull_request events the filter reads the PR file list
       # from the API.
       - uses: dorny/paths-filter@v3
         id: filtre
+        if: github.event_name == 'pull_request'
         with:
           list-files: json
           filters: |
@@ -100,15 +108,15 @@ jobs:
       # Refinements the filter's glob language cannot express (negation only
       # works with the global 'every' quantifier, which would break the plain
       # filters above):
-      # - `personalscraper/__init__.py` alone is NOT a python change: every PR
-      #   bumps the version there (operator rule), and counting the bump as
-      #   python code would re-run the full suite on doc/maquette-only PRs —
-      #   the exact cost this filter exists to remove. A substantive edit to
-      #   that file virtually always accompanies other python changes; the
-      #   local phase gates run the full suite regardless.
+      # - `personalscraper/__init__.py` alone is NOT a python change: the
+      #   release bump (scripts/promote.sh release) changes only the version
+      #   there, and counting it as python code would re-run the full suite on
+      #   a one-line PR. A substantive edit to that file virtually always
+      #   accompanies other python changes.
       # - `frontend/maquette/**` is NOT a frontend-app change: the maquette
       #   has its own steps, gated by the `maquette` output.
       - id: raffine
+        if: github.event_name == 'pull_request'
         env:
           PYTHON_FILES: ${{ steps.filtre.outputs.python_files }}
           FRONTEND_FILES: ${{ steps.filtre.outputs.frontend_app_files }}
@@ -134,7 +142,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [changes]
     if: >-
-      github.event.pull_request.draft == false ||
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
       - uses: actions/checkout@v4
@@ -165,7 +173,7 @@ jobs:
     name: guards
     runs-on: ubuntu-latest
     if: >-
-      github.event.pull_request.draft == false ||
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
       - uses: actions/checkout@v4
@@ -191,7 +199,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [changes]
     if: >-
-      github.event.pull_request.draft == false ||
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
       - uses: actions/checkout@v4
@@ -217,7 +225,7 @@ jobs:
     name: secrets
     runs-on: ubuntu-latest
     if: >-
-      github.event.pull_request.draft == false ||
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
       - uses: actions/checkout@v4
@@ -242,14 +250,14 @@ jobs:
       - name: Scan PR commits for secrets
         run: |
           export PATH="$HOME/.local/bin:$PATH"
-          gitleaks detect --source . --log-opts="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}" --verbose
+          gitleaks detect --source . --log-opts="${{ github.event.pull_request.base.sha || github.event.before }}..${{ github.event.pull_request.head.sha || github.sha }}" --verbose
 
   licenses:
     name: licenses
     runs-on: ubuntu-latest
     needs: [changes]
     if: >-
-      github.event.pull_request.draft == false ||
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
       - uses: actions/checkout@v4
@@ -275,7 +283,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [changes, lint, typecheck]
     if: >-
-      github.event.pull_request.draft == false ||
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     # config-home (#326): the live config left the repo; fixtures that resolve a config
     # dir (CWD fallback) get the tracked config.example via the resolver's env-first seam.
@@ -352,7 +360,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [changes, lint, typecheck]
     if: >-
-      github.event.pull_request.draft == false ||
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
       - uses: actions/checkout@v4
@@ -385,7 +393,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [changes, lint, typecheck]
     if: >-
-      github.event.pull_request.draft == false ||
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
       - uses: actions/checkout@v4
@@ -453,7 +461,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [changes, test]
     if: >-
-      (github.event.pull_request.draft == false ||
+      (github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')) &&
       always() && !cancelled()
     # EVERY STEP ASKS « DID THE JOB THAT PRODUCES THE ARTEFACT RUN? », not only
@@ -525,34 +533,12 @@ jobs:
             exit 1
           fi
 
-  version-bump:
-    name: version-bump
-    runs-on: ubuntu-latest
-    # Operator rule (constitution §10-3): every PR bumps the version. A
-    # genuinely version-neutral PR opts out with the 'no-version-bump' label.
-    if: >-
-      (github.event.pull_request.draft == false ||
-      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')) &&
-      github.event_name == 'pull_request' &&
-      !contains(github.event.pull_request.labels.*.name, 'no-version-bump')
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Assert version bumped against base
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: python3 scripts/check_version_bump.py --base "origin/${BASE_REF}"
-
   design-gaps:
     name: design-gaps
     runs-on: ubuntu-latest
     needs: [changes]
     if: >-
-      github.event.pull_request.draft == false ||
+      github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
       - uses: actions/checkout@v4

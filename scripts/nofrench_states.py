@@ -40,9 +40,8 @@ WHAT IT DOES NOT READ:
     engine is exempt from i18n extraction because it dies at L13.
   - THE SCENARIO BODIES. What a state DOES is ordinary code, read by the
     identifier arm like any other.
-  - WHETHER A NAME IS GOOD. It asks the vocabulary's question — is this word one
-    this codebase writes? — which is the only question a list of French words
-    can answer honestly, because a list of French words always has holes.
+  - WHETHER A NAME IS GOOD. It asks the dictionary whether a word is French
+    (`french_only`), an oracle nobody here wrote.
 """
 
 from __future__ import annotations
@@ -54,8 +53,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from nofrench_lexicon import (  # noqa: E402
     walk,
-    MAQUETTE, VOCABULARY, examined, read, relative, split_identifier,
-    vocabulary,
+    MAQUETTE, examined, french_only, read, relative, split_identifier,
 )
 
 # The table is one file per surface; the arm reads them joined.
@@ -148,7 +146,7 @@ def _receiver_array(source: str, closing: int) -> str:
 
 
 def check_state_identifiers(violations: list[str]) -> None:
-    """Refuses a named-state id built from a word this codebase lacks.
+    """Refuses a named-state id built from a French word.
 
     Args:
         violations: The accumulator every arm appends to.
@@ -169,8 +167,8 @@ def check_state_identifiers(violations: list[str]) -> None:
     #
     # The debt was owed to `legacy.js` alone (`check_french_debt`), and the
     # state table was never `legacy.js`. The engine and the debt section are
-    # both gone since L13r r·16 — `vocabulary()` is now the whole of it.
-    words = vocabulary()
+    # both gone since L13r r·16. The words are now asked of the dictionary
+    # (`french_only`), the allow-list of English words being gone.
     source = "\n".join(read(path) for path in sorted(walk(STATES, "*.ts", recursive=False)))
     declared = declared_state_identifiers(source)
 
@@ -183,16 +181,16 @@ def check_state_identifiers(violations: list[str]) -> None:
             "table it can no longer parse reports the same word as one it read "
             "entirely.")
 
+    french = french_only({word.lower() for name in declared for word in split_identifier(name)})
     for name in sorted(declared):
         unknown = [word for word in split_identifier(name)
-                   if len(word) > 1 and word.lower() not in words]
+                   if len(word) > 1 and word.lower() in french]
         if unknown:
             line = source.count("\n", 0, source.find(name)) + 1
             violations.append(
                 f"{relative(STATES)}:{line}: the named state {name!r} is built "
                 f"from {', '.join(repr(one) for one in unknown)}, which "
-                f"{'is' if len(unknown) == 1 else 'are'} not in "
-                f"{relative(VOCABULARY)}. A state id is a NAME someone chose — "
+                "French knows and English does not. A state id is a NAME someone chose — "
                 "`window.__go(\"acq-now-idle\")` designates a scenario — so it "
                 "is English like any other name. Rename it through "
                 "`scripts/rename-identifiers.py`, and remember that its ends "

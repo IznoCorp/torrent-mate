@@ -89,12 +89,15 @@ pull request touching the maquette), not on this machine. `make harness` runs th
   operator's word only; any session may run it (`docs/reference/method.md` « The flow's scripts »). A
   hotfix is cut from `prod`, PR into `prod`, then `scripts/promote.sh tag` and
   `scripts/promote.sh backport <c>`, which merges it back into `develop`.
-- Every PR bumps the patch version above its base (CI `version-bump`; a hotfix adds a fourth component
-  to prod's), or carries the label `no-version-bump` when it touches no code under `personalscraper/`,
-  `frontend/maquette/design/src/`, `frontend/maquette/harness/`, `scripts/` or `.github/workflows/`.
+- A PR leaves `__version__` alone: the version rises once per release (`scripts/promote.sh release`
+  opens that one PR); a hotfix into `prod` adds a fourth component to prod's.
 - A DRAFT PR runs no CI: open it READY (or add `run-ci-on-draft`, never both transitions at once).
   Once its diff is verified, arm `gh pr merge <n> --auto --squash --match-head-commit <sha>` (re-arm if
-  the head moves). After `develop` moves, `gh pr update-branch`.
+  the head moves). A PR need not be up to date with `develop` to merge; CI runs on `develop` after
+  every merge, and a red there is reported and fixed at once. A conflicting PR merges `develop` in.
+- An armed PR is not followed to its merge: no polling loop on `gh pr view`/`gh pr checks`, no
+  foreground `--watch`. One background `gh pr checks <n> --watch --fail-fast` per armed PR, which
+  wakes its session only on a red. An agent's delivery ends at « PR open, READY, armed ».
 - Claim a KanbanMate ticket that ALREADY EXISTS (`/kanban-work <ticket>`) before coding it; never
   create one for work this session is about to do.
 - A worktree is removed once its PR is merged (local branch deleted, then `ExitWorktree` remove).
@@ -124,7 +127,7 @@ document; French inside an English one only quotes UI copy, media titles or the 
   with no reason is a violation.
 - `frontend/src` is exempt (no i18n layer, dies at switchover), under a ratchet
   (`scripts/french-exemption-baseline.json`).
-- Enforced in CI by `scripts/check-no-french.py` (fourteen arms, listed in its docstring).
+- Enforced in CI by `scripts/check-no-french.py` (thirteen arms, listed in its docstring).
 
 ## Domain rules
 
