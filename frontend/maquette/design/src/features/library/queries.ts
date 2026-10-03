@@ -14,6 +14,10 @@
 import { useInfiniteQuery, useQuery, type QueryClient } from "@tanstack/react-query";
 import { HELD, read, send } from "../../lib/query-client";
 import type { IncompleteShow, LibraryCategory, LibraryRow } from "./types";
+import { SORT_KEYS } from "./sorting";
+
+/** The order the listing answers when none is named. */
+const RECENT = SORT_KEYS[0];
 
 /** One page of the listing: the rows, and how many there are in all. */
 export type LibraryPage = {
@@ -52,7 +56,9 @@ export function useLibraryListing(
       const parameters = new URLSearchParams({ page: String(pageParam) });
       if (query) parameters.set("query", query);
       if (category) parameters.set("category", category);
-      if (sort) parameters.set("sort", sort);
+      // THE DEFAULT ORDER IS SAID BY SAYING NOTHING: the contract's `sort` names
+      // the two other orders, and an absent one is the most recent first.
+      if (sort && sort !== RECENT) parameters.set("sort", sort);
       if (reversed) parameters.set("reversed", "1");
       const answer = await read<{
         total: number; matching: number; loaded: number; items: LibraryRow[];

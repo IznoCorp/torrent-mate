@@ -136,6 +136,9 @@
           "409": {
             "$ref": "#/components/responses/Problem"
           },
+          "429": {
+            "$ref": "#/components/responses/Problem"
+          },
           "500": {
             "$ref": "#/components/responses/Problem"
           },
@@ -467,9 +470,13 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "az",
+                "missing"
+              ]
             },
-            "description": "the sort in force"
+            "description": "the order: `az` alphabetical, `missing` the most incomplete first; ABSENT, the most recently added first"
           },
           {
             "name": "reversed",
@@ -809,6 +816,9 @@
           "403": {
             "$ref": "#/components/responses/Problem"
           },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
           "409": {
             "$ref": "#/components/responses/Problem"
           },
@@ -825,9 +835,14 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "tvdb",
+                "tmdb",
+                "imdb"
+              ]
             },
-            "description": "tmdb or tvdb"
+            "description": "the provider the identifier belongs to"
           },
           {
             "name": "providerId",
@@ -914,6 +929,9 @@
           "403": {
             "$ref": "#/components/responses/Problem"
           },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
           "409": {
             "$ref": "#/components/responses/Problem"
           },
@@ -930,9 +948,14 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "tvdb",
+                "tmdb",
+                "imdb"
+              ]
             },
-            "description": "tmdb or tvdb"
+            "description": "the provider the identifier belongs to"
           },
           {
             "name": "providerId",
@@ -996,9 +1019,14 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "tvdb",
+                "tmdb",
+                "imdb"
+              ]
             },
-            "description": "tmdb or tvdb"
+            "description": "the provider the identifier belongs to"
           },
           {
             "name": "providerId",
@@ -1083,9 +1111,14 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "tvdb",
+                "tmdb",
+                "imdb"
+              ]
             },
-            "description": "tmdb or tvdb"
+            "description": "the provider the identifier belongs to"
           },
           {
             "name": "providerId",
@@ -5404,7 +5437,7 @@
         ],
         "responses": {
           "200": {
-            "description": "the account the Plex identity signs in — a first sign-in creates it on the Default role",
+            "description": "the account the Plex identity signs in. A first sign-in creates it: the Plex server's OWNER on the Admin role, every other identity on the Default role (the operator, 2026-10-03)",
             "content": {
               "application/json": {
                 "schema": {
@@ -5740,6 +5773,9 @@
           "403": {
             "$ref": "#/components/responses/Problem"
           },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
           "409": {
             "$ref": "#/components/responses/Problem"
           },
@@ -5807,6 +5843,9 @@
             "$ref": "#/components/responses/Problem"
           },
           "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
             "$ref": "#/components/responses/Problem"
           },
           "409": {
@@ -5943,6 +5982,9 @@
             "$ref": "#/components/responses/Problem"
           },
           "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
             "$ref": "#/components/responses/Problem"
           },
           "409": {
@@ -7605,7 +7647,8 @@
             "type": "string"
           },
           "avatar": {
-            "type": "string"
+            "type": "string",
+            "description": "the address of the account's picture; ABSENT for an account that has none — a local account — and the interface then draws its initial"
           },
           "id": {
             "type": "string",
@@ -7627,7 +7670,6 @@
           }
         },
         "required": [
-          "avatar",
           "email",
           "forbiddenWrites",
           "id",
@@ -7873,8 +7915,11 @@
             "description": "movie or show"
           },
           "year": {
-            "type": "string",
-            "description": "the year, as the provider writes it"
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "the year the provider gives, or null when it gives none"
           },
           "rating": {
             "type": [
@@ -7964,21 +8009,21 @@
               "string",
               "null"
             ],
-            "description": "the poster's address. A BUILD-LOCAL PATH the fixture carries — the maquette's own hashed file, which no server can produce. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
+            "description": "the poster's address: the provider's image URL (TMDB or TVDB artwork), or null when it has none. The maquette's mock layer answers its own build-local copies of the same pictures in their place."
           },
           "posterHighDefinition": {
             "type": [
               "string",
               "null"
             ],
-            "description": "the poster at gallery definition, same caveat"
+            "description": "the poster at gallery definition: the provider's image URL, or null — the same as `poster`"
           },
           "hero": {
             "type": [
               "string",
               "null"
             ],
-            "description": "the wide visual, same caveat"
+            "description": "the wide visual's address: the provider's image URL, or null — the same as `poster`"
           },
           "trailerVideo": {
             "oneOf": [

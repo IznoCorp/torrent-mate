@@ -320,7 +320,7 @@ async def narrow(journal, browser):
     """Hold 9: at 320 px, the two pills are whole beside the view switch."""
     context, page = await open_page(browser, **NARROW)
     for name, state, dials in (
-        ("Médiathèque", "lib-list", "{sortKey: 'manque', sortReversed: false}"),
+        ("Médiathèque", "lib-list", "{sortKey: 'missing', sortReversed: false}"),
         ("Suivis", "follows-sort-next-release", "{}"),
     ):
         await go(page, state)

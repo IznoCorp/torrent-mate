@@ -1965,7 +1965,8 @@ export interface components {
         Account: {
             name: string;
             email: string;
-            avatar: string;
+            /** @description the address of the account's picture; ABSENT for an account that has none — a local account — and the interface then draws its initial */
+            avatar?: string;
             /** @description the account's key */
             id: string;
             role: components["schemas"]["Role"];
@@ -2044,8 +2045,8 @@ export interface components {
         MediaSheet: {
             /** @description movie or show */
             kind: string;
-            /** @description the year, as the provider writes it */
-            year: string;
+            /** @description the year the provider gives, or null when it gives none */
+            year: number | null;
             rating: number | null;
             /** @description the genres, already joined into one line. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             genres: string | null;
@@ -2070,11 +2071,11 @@ export interface components {
             seasons?: components["schemas"]["SeasonSummary"][];
             /** @description the TMDB television identifier, on the eleven sheets that carry one — a string, as the fixture holds it */
             tmdbTelevisionId?: string;
-            /** @description the poster's address. A BUILD-LOCAL PATH the fixture carries — the maquette's own hashed file, which no server can produce. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
+            /** @description the poster's address: the provider's image URL (TMDB or TVDB artwork), or null when it has none. The maquette's mock layer answers its own build-local copies of the same pictures in their place. */
             poster?: string | null;
-            /** @description the poster at gallery definition, same caveat */
+            /** @description the poster at gallery definition: the provider's image URL, or null — the same as `poster` */
             posterHighDefinition?: string | null;
-            /** @description the wide visual, same caveat */
+            /** @description the wide visual's address: the provider's image URL, or null — the same as `poster` */
             hero?: string | null;
             /** @description the trailer's key and name, from the family keyed by the same title. See `trailer` above for why the two disagree 178 times */
             trailerVideo?: components["schemas"]["Trailer"] | null;
@@ -2940,6 +2941,7 @@ export interface operations {
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+            429: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
         };
@@ -3071,8 +3073,8 @@ export interface operations {
             query?: {
                 /** @description the category identifier, when the lens is category */
                 category?: string;
-                /** @description the sort in force */
-                sort?: string;
+                /** @description the order: `az` alphabetical, `missing` the most incomplete first; ABSENT, the most recently added first */
+                sort?: "az" | "missing";
                 /** @description whether the sort runs the other way — present and « 1 », or absent. Declared `boolean` at first, while both ends spoke the string « 1 »: a query parameter is a string on the wire, and a contract that says otherwise describes an encoding nobody implements. */
                 reversed?: "1";
                 /** @description the search text */
@@ -3259,8 +3261,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description tmdb or tvdb */
-                provider: string;
+                /** @description the provider the identifier belongs to */
+                provider: "tvdb" | "tmdb" | "imdb";
                 /** @description the identifier at that provider */
                 providerId: string;
             };
@@ -3280,6 +3282,7 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
@@ -3290,8 +3293,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description tmdb or tvdb */
-                provider: string;
+                /** @description the provider the identifier belongs to */
+                provider: "tvdb" | "tmdb" | "imdb";
                 /** @description the identifier at that provider */
                 providerId: string;
             };
@@ -3321,6 +3324,7 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
@@ -3331,8 +3335,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description tmdb or tvdb */
-                provider: string;
+                /** @description the provider the identifier belongs to */
+                provider: "tvdb" | "tmdb" | "imdb";
                 /** @description the identifier at that provider */
                 providerId: string;
             };
@@ -3362,8 +3366,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description tmdb or tvdb */
-                provider: string;
+                /** @description the provider the identifier belongs to */
+                provider: "tvdb" | "tmdb" | "imdb";
                 /** @description the identifier at that provider */
                 providerId: string;
             };
@@ -5568,7 +5572,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description the account the Plex identity signs in — a first sign-in creates it on the Default role */
+            /** @description the account the Plex identity signs in. A first sign-in creates it: the Plex server's OWNER on the Admin role, every other identity on the Default role (the operator, 2026-10-03) */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5758,6 +5762,7 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
@@ -5793,6 +5798,7 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
@@ -5864,6 +5870,7 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];

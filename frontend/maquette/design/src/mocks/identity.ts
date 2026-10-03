@@ -134,9 +134,10 @@ export function signedIn(): Schemas["Account"] {
     id: held.id,
     name: held.name,
     email: held.email,
-    // THE OWNER'S PICTURE IS HIS: an invented account carries none, and the
-    // header draws its initial (the reader's L18 round, izno's face on Tom).
-    avatar: held.id === ACCOUNT.id ? ACCOUNT.avatar : "",
+    // THE OWNER'S PICTURE IS HIS: an invented account carries none — the field
+    // is absent, as a local account's is — and the header draws its initial
+    // (the reader's L18 round, izno's face on Tom).
+    ...(held.id === ACCOUNT.id ? { avatar: ACCOUNT.avatar } : {}),
     role: roleFor(held.role),
     plexLinked: held.plexLinked,
     forbiddenWrites: [...dials().forbiddenWrites],

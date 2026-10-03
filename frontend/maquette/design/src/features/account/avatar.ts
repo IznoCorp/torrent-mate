@@ -21,7 +21,7 @@ import { accountQuery, type Account } from "./queries";
  */
 export function installSignedInAvatar(queryClient: QueryClient): void {
   const show = (account: Account | undefined) => {
-    if (account) showAvatar(account.avatar, account.name);
+    if (account) showAvatar(account.avatar ?? "", account.name);
   };
   // THE CACHE IS WATCHED, not one observer: the cache is emptied and refilled
   // by a reset, and an observer would keep reading the entry it was given.

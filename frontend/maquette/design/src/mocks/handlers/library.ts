@@ -24,7 +24,7 @@ const PAGE_SIZE = 24;
 // parameter's, so a constant is what stops these being four bare strings that
 // nobody can tie back to the contract.
 const BY_TITLE = "az";
-const BY_WHAT_IS_MISSING = "manque";
+const BY_WHAT_IS_MISSING = "missing";
 const REVERSED = "1";
 
 // The collation the alphabetical order is read in. It is the engine's own, and
