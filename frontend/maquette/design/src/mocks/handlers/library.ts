@@ -11,7 +11,8 @@ import SYNOPSES from "../seeds/synopses.json";
 import RECENT from "../seeds/recent.json";
 import { DELETE, GET, field, route } from "./shared";
 import { mockState } from "../state";
-import type { MockRequest, MockRoute } from "../router";
+import { refused, type MockRequest, type MockRoute } from "../router";
+import { holdersOf, incompleteHolding, type MediaRef } from "./membership";
 
 // How many rows one page carries. A page size belongs to the interface, not to
 // a server — the register classifies it `interface` — so the layer states its
@@ -27,6 +28,9 @@ const BY_TITLE = "az";
 const BY_WHAT_IS_MISSING = "missing";
 const REVERSED = "1";
 
+// The providers an identity is read at, as the contract's `MediaRef` names them.
+const PROVIDERS: readonly string[] = ["tvdb", "tmdb", "imdb"];
+
 // The collation the alphabetical order is read in. It is the engine's own, and
 // it is not cosmetic: « Écran » sorts before « Emma » in French and after it
 // under the default.
@@ -39,21 +43,16 @@ const NOTHING_SAYS = -1;
 /**
  * How many episodes a title is still missing, for the « ce qu'il manque » order.
  *
- * TWO SOURCES, IN THE ENGINE'S OWN ORDER OF PREFERENCE: the incomplete register
- * when it names the title, and otherwise the `n/m` the second line opens with.
- * A title neither knows answers -1, which sorts it last — that is the engine's
- * own answer and not a default chosen here.
+ * READ FROM THE INCOMPLETE REGISTER, the aired catalogue's own answer: a row
+ * carries facts, never a line to read a fraction off. A title it does not name
+ * answers -1, which sorts it last — « unknown », never « complete ».
  *
  * @param row The library row.
  * @returns How many are missing, or -1 when nothing says.
  */
-function missing(row: { title: string; secondaryLine?: string }): number {
+function missing(row: { title: string }): number {
   const known = INCOMPLETE_SHOWS.find((show) => show.title === row.title);
-  if (known !== undefined) return known.aired - known.owned;
-  // « n/m » — owned over announced — read off the head of the second line.
-  const counted = /^(?<owned>\d+)\/(?<aired>\d+)/.exec(row.secondaryLine ?? "");
-  if (counted?.groups === undefined) return NOTHING_SAYS;
-  return Number(counted.groups.aired) - Number(counted.groups.owned);
+  return known === undefined ? NOTHING_SAYS : known.aired - known.owned;
 }
 
 /**
@@ -74,7 +73,7 @@ function missing(row: { title: string; secondaryLine?: string }): number {
  * @param reversed Whether to read it the other way round.
  * @returns The rows, ordered.
  */
-function ordered<Row extends { title: string; secondaryLine?: string }>(
+function ordered<Row extends { title: string }>(
   rows: Row[], key: string, reversed: boolean,
 ): Row[] {
   const held = rows.slice();
@@ -96,20 +95,17 @@ function ordered<Row extends { title: string; secondaryLine?: string }>(
 function listing(request: MockRequest): unknown {
   const state = mockState();
   const wanted = (request.query.get("query") ?? "").toLowerCase();
-  const category = request.query.get("category") ?? "";
+  const leaves = request.query.getAll("category");
   let rows = state.library;
   let filtered = false;
   if (wanted !== "") {
     rows = rows.filter((row) => row.title.toLowerCase().includes(wanted));
     filtered = true;
   }
-  const known = LIBRARY_CATEGORIES.find((entry) => entry.id === category);
-  // A category whose `includes` is null filters NOTHING — it is the one that
-  // aggregates everything. Reading it by identifier rather than by position
-  // stops the answer depending on the order the seed happens to be written in.
-  if (known !== undefined && known.includes !== null) {
-    const included = known.includes;
-    rows = rows.filter((row) => included.includes(row.category));
+  // THE ENGINE'S LEAVES, repeated: the lens is the interface's, and no leaf
+  // asked keeps every category.
+  if (leaves.length > 0) {
+    rows = rows.filter((row) => leaves.includes(row.category));
     filtered = true;
   }
   // ORDERED BEFORE IT IS PAGED. The interface used to hold the whole filtered
@@ -160,10 +156,33 @@ export function libraryRoutes(): MockRoute[] {
     route("readLibraryIncomplete", GET, "/library/incomplete", () => INCOMPLETE_SHOWS),
     route("deleteLibraryItems", DELETE, "/library/items", (request) => {
       const state = mockState();
-      const asked = field(request.body, "titles");
-      const titles = Array.isArray(asked) ? asked.map(String) : [];
+      const asked = field(request.body, "media");
+      const media: MediaRef[] = Array.isArray(asked)
+        ? asked.map((one) => ({ provider: String(field(one, "provider")), providerId: String(field(one, "providerId")) }) as MediaRef)
+        : [];
+      if (media.length === 0 || media.some((one) => !PROVIDERS.includes(one.provider) || one.providerId === ""))
+        return refused(400, "media must name each medium by provider and providerId", "request.invalid");
+      // NOTHING GOES WHILE A RUN HOLDS THE PIPELINE'S LOCK: the dispatch may be
+      // writing the very folder.
+      if (state.pipelineSince !== null) return refused(409, "the pipeline holds its lock", "library.locked");
+      // EVERY MEDIUM IS JUDGED BEFORE ANY GOES: a refusal deletes nothing.
+      for (const one of media) {
+        const rows = holdersOf(state.library, one).length;
+        if (rows === 0 && incompleteHolding(one) === undefined)
+          return refused(404, `no library row holds ${one.provider} ${one.providerId}`, "media.not_found", { ...one });
+        // O-5 B: an identity held twice is not deleted until the duplicate is settled.
+        if (rows > 1)
+          return refused(409, `${rows} library rows hold ${one.provider} ${one.providerId}`, "media.ambiguous", { ...one });
+      }
+      const doomed = new Set(media.flatMap((one) => holdersOf(state.library, one)));
+      const titles = [
+        ...[...doomed].map((row) => row.title),
+        ...media.map((one) => incompleteHolding(one)?.title).filter((title): title is string => title !== undefined),
+      ];
+      // An incomplete series the seed holds no row of still counts as one medium gone.
+      const withoutRow = media.filter((one) => holdersOf(state.library, one).length === 0).length;
       const before = state.library.length;
-      state.library = state.library.filter((row) => !titles.includes(row.title));
+      state.library = state.library.filter((row) => !doomed.has(row));
       // AND THE SHEETS ARE TOLD. Ownership on a media sheet comes from a seed
       // keyed by title, so filtering the listing left every sheet answering as
       // before — and a reader who reopened one after confirming was offered
@@ -171,7 +190,7 @@ export function libraryRoutes(): MockRoute[] {
       for (const title of titles) {
         if (!state.deletedTitles.includes(title)) state.deletedTitles.push(title);
       }
-      return { deleted: before - state.library.length };
+      return { deleted: before - state.library.length + withoutRow };
     }),
   ];
 }

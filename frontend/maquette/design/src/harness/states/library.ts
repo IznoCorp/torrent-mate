@@ -140,6 +140,37 @@ export function libraryStates(): NamedState[] {
         openDeleteDialog(null, ["Les Animaniacs", "La cour de récré", "Earl"]);
       },
     ],
+    /* O-5 B (2026-10-03): an identity two library rows hold is not deleted
+       until the duplicate is settled. « Doctor Who » is the seed's own: two
+       rows, one TVDB id. The dialog names it and offers nothing but to close. */
+    [
+      "lib-delete-ambiguous",
+      "Médiathèque — suppression refusée : un doublon",
+      () => {
+        applyState({ page: "lib", phase: "ready" });
+        openDeleteDialog("Doctor Who");
+      },
+    ],
+    /* THE PIPELINE HOLDS ITS LOCK, and the server refuses the deletion
+       `library.locked`: the confirmed row comes back and the toast says why in
+       the interface's words. The dial is set AFTER the state's reset. */
+    [
+      "lib-delete-locked",
+      "Médiathèque — suppression refusée : le pipeline tourne",
+      () => {
+        applyState({ page: "lib", libLens: "cat", libMode: "list", phase: "ready" });
+        window.__mocks?.setPipelineState("running");
+        void openDeleteDialog("Les Animaniacs").then(() => {
+          let framesLeft = 60;
+          const confirm = () => {
+            const button = document.querySelector<HTMLElement>('[data-part="dialog/button"]');
+            if (button !== null) button.click();
+            else if (--framesLeft > 0) requestAnimationFrame(confirm);
+          };
+          confirm();
+        });
+      },
+    ],
     [
       "lib-loading",
       "Médiathèque — chargement",

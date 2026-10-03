@@ -99,10 +99,10 @@ export function MediaHero({
             ) : (
               t("screens.media.metadataUnknown")
             )}{" "}
-            {sheet?.genres ? (
+            {sheet?.genres?.length ? (
               <>
                 <br />
-                {sheet.genres}
+                {sheet.genres.map((genre) => t(`screens.media.genreNames.${genre}`)).join(" · ")}
               </>
             ) : (
               <>
@@ -119,7 +119,7 @@ export function MediaHero({
                   // french-ok: the INTERPOLATION placeholder, named by
                 // `seriesStatus` in fr.json — renaming this half alone
                 // leaves « Série {{statut}} » on screen.
-                statut: sheet.status.toLowerCase(),
+                statut: t(`screens.media.statusNames.${sheet.status}`),
                 })}
               </>
             ) : (

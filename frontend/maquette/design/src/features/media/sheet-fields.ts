@@ -11,14 +11,16 @@ export type MediaSheetFields = {
   kind?: string;
   year?: string;
   rating?: number | null;
-  genres?: string | null;
+  /** The genres as the provider states them, tokens the interface names (X4). */
+  genres?: Schemas["GenreId"][] | null;
   runtime?: number | null;
   overview?: string | null;
   director?: string | null;
   creator?: string | null;
   cast?: { name: string; role?: string }[];
   ids?: Record<string, string | number>;
-  status?: string;
+  /** Where the medium stands at its provider, a token the interface names. */
+  status?: Schemas["MediaStatus"] | null;
   seasons?: CatalogSeason[];
   episodes?: Record<string, SheetEpisode[]>;
   /**

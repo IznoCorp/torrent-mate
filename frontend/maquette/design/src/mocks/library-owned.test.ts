@@ -15,6 +15,7 @@ import { routes } from "./handlers";
 import { resolve } from "./router";
 import { resetMockState } from "./state";
 import { baseTitle } from "../lib/titles";
+import { mediaRefOf } from "../lib/membership";
 
 type Sheet = { title?: string; year: string; owned?: boolean };
 
@@ -48,12 +49,15 @@ describe("an owned medium", () => {
     expect(missing.map((one) => one.title)).toEqual([]);
   });
 
-  it("is in the library for the membership read a followed title is asked by", () => {
-    // Asked as `lib/membership.ts` asks it: by the follow's title alone.
+  it("is in the library for the membership read a followed medium is asked by", () => {
+    // Asked as `lib/membership.ts` asks it: by the follow's provider identity.
     const owned = new Set(OWNED.map((one) => one.title));
     const refused = FOLLOWS
       .filter((follow) => owned.has(follow.title))
-      .filter((follow) => !get<{ inLibrary: boolean }>("/library/membership", { title: follow.title }).inLibrary);
+      .filter((follow) => {
+        const ref = mediaRefOf(follow.ids as Record<string, string>, follow.kind);
+        return ref === null || !get<{ inLibrary: boolean }>("/library/membership", { ...ref }).inLibrary;
+      });
     expect(refused.map((one) => one.title)).toEqual([]);
   });
 });

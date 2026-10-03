@@ -1,11 +1,11 @@
 // THE LIBRARY'S DELETE DIALOG — what a removal says before anything is removed.
 //
-// THE DELETE ACTS BY TITLE, the only key the contract offers, so one title can
-// name two library rows (« Doctor Who », 2005 and 2023) and every figure the
-// dialog prints counts MEDIA, not titles: a manifest whose whole purpose is to
-// say exactly what would go cannot name half of it. The interface cannot delete
-// one of the two — that needs an identifier the backend does not serve — but it
-// can say the truth about what it is about to do.
+// THE DELETE ACTS BY PROVIDER IDENTITY (operator ruling Q5 A): each title the
+// reader ticked is resolved to the identity it was drawn with, and that is what
+// the layer is asked to delete. An identity two library rows hold — a DUPLICATE,
+// « Doctor Who » twice under one TVDB id — is not deleted until it is settled
+// (O-5 B): the dialog says so before anything is offered, and the server refuses
+// it `media.ambiguous` all the same. Every figure counts MEDIA, not titles.
 //
 // EVERY FIGURE IS A SERVED ANSWER: how many rows a title names is the exact
 // membership read, and an incomplete show's owned episodes are the incomplete
@@ -13,7 +13,7 @@
 // from a page of the listing. The removal itself is still the engine's. Whether a title is FOLLOWED is asked of
 // the `followedTitles` door, because the library never imports acquisition.
 import i18next from "i18next";
-import { membershipQuery, type Membership } from "../../lib/membership";
+import { identityOfTitle, membershipByRefQuery, membershipQuery, type MediaRef, type Membership } from "../../lib/membership";
 import { quietWhenCancelled, sharedQueryClient } from "../../lib/query-client";
 import { dialog, followedTitles, stopFollow, toast, redraw } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
@@ -22,18 +22,22 @@ import type { DialogDescriptor } from "../../ui/dialog/contract";
 import type { IncompleteShow } from "./types";
 import { followedAs } from "../../lib/titles";
 
+/** A title the reader asked to remove, with the identity it was drawn with. */
+export type Doomed = { title: string; ref: MediaRef };
+
 /**
- * Removes titles from the library: the layer deletes, the selection ends, the
+ * Removes media from the library: the layer deletes, the selection ends, the
  * page redraws, and the removal is said.
  *
  * The confirmation that calls it says what was done in its own words right
  * after, and that message replaces this one — so this one is what a caller
  * with nothing more precise to say is left with.
  *
- * @param titles The titles removed.
+ * @param doomed The media removed, each by its identity.
  */
-function removeTitles(titles: string[]): void {
-  deleteLibraryItems?.(titles);
+function removeMedia(doomed: Doomed[]): void {
+  const titles = doomed.map((one) => one.title);
+  deleteLibraryItems?.(doomed);
   store.write({ selMode: false, selected: new Set() });
   redraw();
   toast?.show({
@@ -115,16 +119,29 @@ export async function openDeleteDialog(title: string | null, many?: string[]): P
   const titles = many && many.length > 0 ? many : [title ?? ""];
   // THE ANSWERS FIRST: a dialog whose whole purpose is to say exactly what
   // would go does not open on figures it has not read — nor at all when the
-  // cache's reset cancels a read.
+  // cache's reset cancels a read. The identities too: the layer deletes by them.
+  let refs: (MediaRef | null)[];
   try {
     await Promise.all([
       sharedQueryClient?.ensureQueryData(libraryIncompleteQuery),
       ...titles.map((one) => sharedQueryClient?.ensureQueryData(membershipQuery(one))),
     ]);
+    refs = await Promise.all(titles.map((one) => identityOfTitle(one)));
+    await Promise.all(refs.map((ref) => (ref ? sharedQueryClient?.ensureQueryData(membershipByRefQuery(ref)) : null)));
   } catch (failure) {
     quietWhenCancelled(failure);
     return;
   }
+  // WHAT CANNOT BE DELETED IS SAID BEFORE ANYTHING IS OFFERED: a title nothing
+  // identifies, and an identity two library rows hold (O-5 B).
+  const blocked = titles
+    .map((one, index) => ({ title: one, ref: refs[index], rows: mediaNamedBy(one) }))
+    .filter((one) => one.ref === null || one.rows > 1);
+  if (blocked.length > 0) {
+    openRefusedDialog(blocked);
+    return;
+  }
+  const doomed = titles.map((one, index) => ({ title: one, ref: refs[index] as MediaRef }));
   const followingNow = followedTitles?.() ?? [];
   // THE ONE READING of « is it followed » (`followedAs`, B-676), the sheet's own.
   // An incomplete show is NOT followed: counting it as one made the dialog say
@@ -182,7 +199,7 @@ export async function openDeleteDialog(title: string | null, many?: string[]): P
      removal it confirms never ran. */
   const removed = titles.length > 1 ? say("doneMany", { count: titles.length }) : say("done", { title: titles[0] });
   const removeSaying = (follow?: string, stop = false) => () => {
-    removeTitles(titles);
+    removeMedia(doomed);
     // THE FOLLOW IS STOPPED, NOT ONLY SAID STOPPED (B-689): both confirmations
     // removed the same titles and differed only in their sentence, so the
     // follow lived on everywhere. It is stopped under ITS title (« Silo »), the
@@ -206,4 +223,30 @@ export async function openDeleteDialog(title: string | null, many?: string[]): P
   }
   actions.push({ text: say("cancel"), tone: "ghost", dismiss: true });
   dialog?.open({ heading, body, actions });
+}
+
+/**
+ * The dialog a removal that cannot go draws — the ambiguous identity named, and
+ * nothing offered but to close (operator ruling O-5 B, 2026-10-03).
+ *
+ * Args:
+ *     blocked: The titles that cannot go, each with its identity (null when
+ *         nothing identifies it) and how many library rows hold it.
+ */
+function openRefusedDialog(blocked: { title: string; ref: MediaRef | null; rows: number }[]): void {
+  dialog?.open({
+    heading:
+      blocked.length > 1 ? say("blockedHeadingMany", { count: blocked.length }) : say("blockedHeadingOne", { title: blocked[0].title }),
+    body: [
+      {
+        type: "manifest",
+        entries: blocked.map((one) => ({
+          text: one.title,
+          value: one.ref === null ? say("unidentified") : say("heldByRows", { count: one.rows }),
+        })),
+      },
+      { type: "paragraph", runs: [{ text: say(blocked.some((one) => one.ref !== null) ? "ambiguousText" : "unidentifiedText") }] },
+    ],
+    actions: [{ text: say("close"), tone: "ghost", dismiss: true }],
+  });
 }

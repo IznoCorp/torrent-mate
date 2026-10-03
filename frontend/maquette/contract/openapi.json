@@ -537,10 +537,15 @@
             "name": "category",
             "in": "query",
             "required": false,
+            "style": "form",
+            "explode": true,
             "schema": {
-              "type": "string"
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             },
-            "description": "the category identifier, when the lens is category"
+            "description": "the engine LEAF category ids to keep, repeated (`category=movies_animation&category=tv_shows_animation`) — the interface sends its lens' leaves; absent, every category"
           },
           {
             "name": "sort",
@@ -595,13 +600,13 @@
       "delete": {
         "operationId": "deleteLibraryItems",
         "x-rights": "library.delete",
-        "summary": "Delete titles from the library",
+        "summary": "Delete media from the library, by provider identity",
         "tags": [
           "library"
         ],
         "responses": {
           "200": {
-            "description": "how many went",
+            "description": "how many library rows went",
             "content": {
               "application/json": {
                 "schema": {
@@ -627,6 +632,9 @@
           "403": {
             "$ref": "#/components/responses/Problem"
           },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
           "409": {
             "$ref": "#/components/responses/Problem"
           },
@@ -644,28 +652,30 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "titles": {
+                  "media": {
                     "type": "array",
                     "items": {
-                      "type": "string"
-                    }
+                      "$ref": "#/components/schemas/MediaRef"
+                    },
+                    "minItems": 1
                   }
                 },
                 "required": [
-                  "titles"
+                  "media"
                 ]
               }
             }
           }
         },
-        "x-unseeded": "a count of what went. It is derived from the request and from the seeded library, never from a fixture of its own."
+        "x-unseeded": "a count of what went. It is derived from the request and from the seeded library, never from a fixture of its own.",
+        "description": "Each medium is named by its provider identity. Refused, and nothing is deleted: 404 `media.not_found` when no library row holds an id; 409 `media.ambiguous` when an id is held by two or more rows or folders, until the duplicate is settled (operator ruling O-5 B, 2026-10-03), `params.provider` and `params.providerId` naming it; 409 `library.locked` while the pipeline holds its lock."
       }
     },
     "/library/categories": {
       "get": {
         "operationId": "readLibraryCategories",
         "x-rights": "library.read",
-        "summary": "The categories and their counts",
+        "summary": "The engine's leaf categories and their counts",
         "tags": [
           "library"
         ],
@@ -803,34 +813,39 @@
       "get": {
         "operationId": "readLibraryMembership",
         "x-rights": "library.read",
-        "summary": "Whether the library holds one medium, asked by its exact title",
-        "description": "An exact read, answered from the WHOLE library rather than from a page of the listing: a title on page two is held as surely as one on page one. Keyed by exact title, with the year where the title alone is ambiguous — provider ids are not an identity (two rows can share one).",
+        "summary": "Whether the library holds one medium, asked by its provider identity",
+        "description": "An exact read, answered from the WHOLE library rather than from a page of the listing. Keyed by provider identity (operator ruling Q5 A): `rows` says how many library rows hold the id, two or more being a duplicate.",
         "tags": [
           "library"
         ],
         "parameters": [
           {
-            "name": "title",
+            "name": "provider",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "tvdb",
+                "tmdb",
+                "imdb"
+              ]
+            },
+            "description": "the provider the id is read at — TVDB first for a series, TMDB first for a film"
+          },
+          {
+            "name": "providerId",
             "in": "query",
             "required": true,
             "schema": {
               "type": "string"
             },
-            "description": "the medium's exact title"
-          },
-          {
-            "name": "year",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer"
-            },
-            "description": "the medium's year, when the title alone names more than one"
+            "description": "the medium's id at that provider"
           }
         ],
         "responses": {
           "200": {
-            "description": "what the library holds of that title",
+            "description": "what the library holds of that medium",
             "content": {
               "application/json": {
                 "schema": {
@@ -869,7 +884,7 @@
         "operationId": "readMediaSheet",
         "x-rights": "library.read",
         "summary": "One media sheet, by its provider identity",
-        "description": "For ANY provider identity, not only a medium the library holds: a resolution candidate's poster opens its sheet (B-578), so the backend answers a sheet from the provider for an identifier it has never stored, owned false.",
+        "description": "For ANY provider identity, not only a medium the library holds: a resolution candidate's poster opens its sheet (B-578), so the backend answers a sheet from the provider for an identifier it has never stored, owned false. Refused 404 `media.not_found` when the provider does not know the id, 503 `provider.unavailable` when the provider does not answer.",
         "tags": [
           "media"
         ],
@@ -1047,7 +1062,8 @@
         "x-seeded-from": [
           "SEASONS",
           "OWNED"
-        ]
+        ],
+        "description": "Refused 404 `media.not_found` when the provider does not know the id, 503 `provider.unavailable` when the provider does not answer."
       }
     },
     "/media/{provider}/{providerId}/cross-seed": {
@@ -1207,7 +1223,8 @@
             "description": "the identifier at that provider"
           }
         ],
-        "x-unseeded": "an acknowledgement. The interface offers « Re-scraper les métadonnées » on two surfaces — the follow panel and the media sheet — and the backend has no operation for it: this declaration IS the demand (D7). No fixture covers it, because until this wave nothing ever asked."
+        "x-unseeded": "an acknowledgement. The interface offers « Re-scraper les métadonnées » on two surfaces — the follow panel and the media sheet — and the backend has no operation for it: this declaration IS the demand (D7). No fixture covers it, because until this wave nothing ever asked.",
+        "description": "Refused 404 `media.not_found` when no library row holds the id."
       }
     },
     "/acquisition/followed": {
@@ -6976,14 +6993,10 @@
       },
       "LibraryRow": {
         "type": "object",
-        "description": "A library row as a LISTING shows it. The recents carry no category — that is what the fixture holds — so the category lives on LibraryItem below rather than here.",
+        "description": "A library row as a LISTING shows it: facts, never a pre-formatted line (X4/X5) — the interface composes the line under the title from `year` and `kind` in its own words. The recents carry no category, so the category lives on LibraryItem.",
         "properties": {
           "title": {
             "type": "string"
-          },
-          "secondaryLine": {
-            "type": "string",
-            "description": "year and kind, or an episode fraction. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
           },
           "ids": {
             "oneOf": [
@@ -7002,13 +7015,29 @@
               "null"
             ],
             "description": "the poster's address, or null when none is known"
+          },
+          "year": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "the year the medium is known by, or null when nothing states one"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "movie",
+              "show"
+            ],
+            "description": "whether it is a film or a series"
           }
         },
         "required": [
           "ids",
+          "kind",
           "poster",
-          "secondaryLine",
-          "title"
+          "title",
+          "year"
         ]
       },
       "LibraryItem": {
@@ -7016,10 +7045,6 @@
         "properties": {
           "title": {
             "type": "string"
-          },
-          "secondaryLine": {
-            "type": "string",
-            "description": "year and kind, or an episode fraction. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
           },
           "category": {
             "type": "string",
@@ -7049,45 +7074,48 @@
               "null"
             ],
             "description": "the poster's address, or null when none is known"
+          },
+          "year": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "the year the medium is known by, or null when nothing states one"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "movie",
+              "show"
+            ],
+            "description": "whether it is a film or a series"
           }
         },
         "required": [
           "category",
           "ids",
+          "kind",
           "poster",
-          "secondaryLine",
-          "title"
+          "title",
+          "year"
         ]
       },
       "LibraryCategory": {
         "type": "object",
+        "description": "One ENGINE LEAF category and how many media it holds (K2-G5 = A). The interface groups the leaves into its lenses and names them in its own words; the engine knows neither the grouping nor a label.",
         "properties": {
           "id": {
-            "type": "string"
-          },
-          "label": {
             "type": "string",
-            "description": "INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
+            "description": "the engine's leaf category id (`movies`, `tv_shows_animation`, …)"
           },
           "count": {
-            "type": "integer"
-          },
-          "includes": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "type": "string"
-            },
-            "description": "the category identifiers this one aggregates. Null on the pseudo-category that aggregates EVERYTHING — it filters nothing, which is the opposite of a leaf. Every leaf carries a one-element array naming itself."
+            "type": "integer",
+            "description": "how many live media the leaf holds"
           }
         },
         "required": [
           "count",
-          "id",
-          "includes",
-          "label"
+          "id"
         ]
       },
       "IncompleteShow": {
@@ -7127,13 +7155,21 @@
           },
           "category": {
             "type": "string",
-            "description": "the engine's category id the show is stored under (a LibraryCategory's `includes` names these), so the lens can be filtered by the same pills as the listing"
+            "description": "the engine's LEAF category id the show is stored under, so the interface's lens can filter it by the same leaves as the listing"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "show"
+            ],
+            "description": "always a series — an incomplete medium is one whose aired episodes outnumber the held ones"
           }
         },
         "required": [
           "aired",
           "category",
           "ids",
+          "kind",
           "owned",
           "poster",
           "title",
@@ -7145,11 +7181,11 @@
         "properties": {
           "inLibrary": {
             "type": "boolean",
-            "description": "whether the library holds the title"
+            "description": "whether some live library row holds this provider id"
           },
           "rows": {
             "type": "integer",
-            "description": "how many library rows the title names — two when one title is held twice"
+            "description": "how many library rows hold this provider id — two or more is a DUPLICATE (two rows, or two folders, under one identity), which a deletion refuses `media.ambiguous` until it is settled (O-5 B)"
           },
           "incomplete": {
             "type": "boolean",
@@ -7164,7 +7200,7 @@
                 "type": "null"
               }
             ],
-            "description": "the held medium's provider identity, or null when the library does not hold it or no sheet identifies it"
+            "description": "every provider identifier the held row carries, or null when the library does not hold it"
           },
           "kind": {
             "oneOf": [
@@ -7179,7 +7215,7 @@
                 "type": "null"
               }
             ],
-            "description": "whether the held medium is a film or a series, from the category it is filed under, or null when the library does not hold it — a panel about a medium nobody follows has no other source for its kind"
+            "description": "whether the held medium is a film or a series, or null when the library does not hold it"
           }
         },
         "required": [
@@ -7188,7 +7224,8 @@
           "incomplete",
           "kind",
           "rows"
-        ]
+        ],
+        "description": "What the library holds of ONE medium, named by its provider identity (operator ruling Q5 A: provider ids ARE the identity)."
       },
       "Follow": {
         "type": "object",
@@ -8168,11 +8205,11 @@
             ]
           },
           "genres": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "the genres, already joined into one line. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenreId"
+            },
+            "description": "the medium's genres, in the provider's order; empty when it states none. The interface joins and names them"
           },
           "runtime": {
             "type": [
@@ -8216,8 +8253,15 @@
             "$ref": "#/components/schemas/ProviderIds"
           },
           "status": {
-            "type": "string",
-            "description": "INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MediaStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where the medium stands at its provider, or null when it says nothing"
           },
           "owned": {
             "type": "boolean",
@@ -10868,7 +10912,11 @@
           "password.current_wrong",
           "password.required",
           "password.too_short",
-          "password.held_by_cli"
+          "password.held_by_cli",
+          "media.not_found",
+          "media.ambiguous",
+          "provider.unavailable",
+          "library.locked"
         ],
         "description": "WHY A REQUEST WAS REFUSED, as a closed code (X4: no sentence on the wire). The interface says it in its own words, read from fr.json by this code; `params` carries the values those words name. The set grows per lot: an operation whose lot has not landed its codes yet may refuse without one. ANTI-ENUMERATION (O-K1-4): the two doors refuse with ONE code, `auth.refused`, whatever the cause — an unknown e-mail, a wrong password, a Plex-linked account's password, a Plex identity without access to the server — so no attempt tells which e-mails the server knows."
       },
@@ -10898,6 +10946,69 @@
           "local"
         ],
         "description": "HOW AN ACCOUNT SIGNS IN — a fact of the account, not of its role (the operator, 2026-10-03). Every login is an e-mail. `owner`: the managed Plex server's owner, by Plex, and a fallback password replaced only by a command on the server. `plex`: an account linked to a Plex identity with access to the server, by Plex only. `local`: an account whose e-mail is no user of the server, by its password only, never linked — an Admin gives it a PROVISIONAL password in « Comptes » at its creation and may reset it there; it changes its own in Profil (the operator, 2026-10-03: « A »). When a local account's e-mail becomes a user of the server, it is linked: `plex` from then on, and on its Plex kind's starting role (`Role.defaultFor`; O-K1-4) until an Admin promotes it again; its password is dropped."
+      },
+      "MediaRef": {
+        "type": "object",
+        "description": "A medium named by its provider identity — the library's one identity (operator ruling Q5 A, 2026-10-01: provider ids ARE the identity). A show is named TVDB first, a film TMDB first.",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "tvdb",
+              "tmdb",
+              "imdb"
+            ]
+          },
+          "providerId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "providerId"
+        ]
+      },
+      "GenreId": {
+        "type": "string",
+        "enum": [
+          "action",
+          "action_adventure",
+          "adventure",
+          "animation",
+          "comedy",
+          "crime",
+          "documentary",
+          "drama",
+          "family",
+          "fantasy",
+          "history",
+          "horror",
+          "kids",
+          "music",
+          "mystery",
+          "reality",
+          "romance",
+          "science_fiction",
+          "sci_fi_fantasy",
+          "thriller",
+          "tv_movie",
+          "war",
+          "war_politics",
+          "western"
+        ],
+        "description": "A genre, as a closed token (X4: no word on the wire). The backend maps TMDB's and TVDB's genres onto these; the interface names each in fr.json."
+      },
+      "MediaStatus": {
+        "type": "string",
+        "enum": [
+          "continuing",
+          "ended",
+          "canceled",
+          "released",
+          "in_production",
+          "planned"
+        ],
+        "description": "Where a medium stands at its provider, as a closed token: a series `continuing`, `ended` or `canceled`; a film `released`; either `in_production` or `planned`. The interface says it in fr.json."
       }
     },
     "responses": {

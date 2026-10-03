@@ -140,7 +140,10 @@ export interface paths {
         get: operations["readLibraryItems"];
         put?: never;
         post?: never;
-        /** Delete titles from the library */
+        /**
+         * Delete media from the library, by provider identity
+         * @description Each medium is named by its provider identity. Refused, and nothing is deleted: 404 `media.not_found` when no library row holds an id; 409 `media.ambiguous` when an id is held by two or more rows or folders, until the duplicate is settled (operator ruling O-5 B, 2026-10-03), `params.provider` and `params.providerId` naming it; 409 `library.locked` while the pipeline holds its lock.
+         */
         delete: operations["deleteLibraryItems"];
         options?: never;
         head?: never;
@@ -154,7 +157,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The categories and their counts */
+        /** The engine's leaf categories and their counts */
         get: operations["readLibraryCategories"];
         put?: never;
         post?: never;
@@ -206,8 +209,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Whether the library holds one medium, asked by its exact title
-         * @description An exact read, answered from the WHOLE library rather than from a page of the listing: a title on page two is held as surely as one on page one. Keyed by exact title, with the year where the title alone is ambiguous — provider ids are not an identity (two rows can share one).
+         * Whether the library holds one medium, asked by its provider identity
+         * @description An exact read, answered from the WHOLE library rather than from a page of the listing. Keyed by provider identity (operator ruling Q5 A): `rows` says how many library rows hold the id, two or more being a duplicate.
          */
         get: operations["readLibraryMembership"];
         put?: never;
@@ -227,7 +230,7 @@ export interface paths {
         };
         /**
          * One media sheet, by its provider identity
-         * @description For ANY provider identity, not only a medium the library holds: a resolution candidate's poster opens its sheet (B-578), so the backend answers a sheet from the provider for an identifier it has never stored, owned false.
+         * @description For ANY provider identity, not only a medium the library holds: a resolution candidate's poster opens its sheet (B-578), so the backend answers a sheet from the provider for an identifier it has never stored, owned false. Refused 404 `media.not_found` when the provider does not know the id, 503 `provider.unavailable` when the provider does not answer.
          */
         get: operations["readMediaSheet"];
         put?: never;
@@ -245,7 +248,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The seasons of a show, and what the library holds of each */
+        /**
+         * The seasons of a show, and what the library holds of each
+         * @description Refused 404 `media.not_found` when the provider does not know the id, 503 `provider.unavailable` when the provider does not answer.
+         */
         get: operations["readMediaSeasons"];
         put?: never;
         post?: never;
@@ -284,7 +290,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Ask the providers for one medium's metadata again */
+        /**
+         * Ask the providers for one medium's metadata again
+         * @description Refused 404 `media.not_found` when no library row holds the id.
+         */
         post: operations["rescrapeMedia"];
         delete?: never;
         options?: never;
@@ -1756,20 +1765,23 @@ export interface components {
             /** @description for a dependency that does not answer, since when, epoch seconds — the row then says « ne répond pas depuis … » (maquette-blocked § 1.3). A DEMAND (BK6) */
             since?: number | null;
         };
-        /** @description A library row as a LISTING shows it. The recents carry no category — that is what the fixture holds — so the category lives on LibraryItem below rather than here. */
+        /** @description A library row as a LISTING shows it: facts, never a pre-formatted line (X4/X5) — the interface composes the line under the title from `year` and `kind` in its own words. The recents carry no category, so the category lives on LibraryItem. */
         LibraryRow: {
             title: string;
-            /** @description year and kind, or an episode fraction. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
-            secondaryLine: string;
             /** @description the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it */
             ids: components["schemas"]["ProviderIds"] | null;
             /** @description the poster's address, or null when none is known */
             poster: string | null;
+            /** @description the year the medium is known by, or null when nothing states one */
+            year: number | null;
+            /**
+             * @description whether it is a film or a series
+             * @enum {string}
+             */
+            kind: "movie" | "show";
         };
         LibraryItem: {
             title: string;
-            /** @description year and kind, or an episode fraction. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
-            secondaryLine: string;
             /** @description the category identifier this item is filed under */
             category: string;
             /** @description the synopsis the CARD shows. It comes from a family of its own, keyed by title; the media sheet carries a different text under the same question, and the demand register asks for one answer to it */
@@ -1778,14 +1790,20 @@ export interface components {
             ids: components["schemas"]["ProviderIds"] | null;
             /** @description the poster's address, or null when none is known */
             poster: string | null;
+            /** @description the year the medium is known by, or null when nothing states one */
+            year: number | null;
+            /**
+             * @description whether it is a film or a series
+             * @enum {string}
+             */
+            kind: "movie" | "show";
         };
+        /** @description One ENGINE LEAF category and how many media it holds (K2-G5 = A). The interface groups the leaves into its lenses and names them in its own words; the engine knows neither the grouping nor a label. */
         LibraryCategory: {
+            /** @description the engine's leaf category id (`movies`, `tv_shows_animation`, …) */
             id: string;
-            /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
-            label: string;
+            /** @description how many live media the leaf holds */
             count: number;
-            /** @description the category identifiers this one aggregates. Null on the pseudo-category that aggregates EVERYTHING — it filters nothing, which is the opposite of a leaf. Every leaf carries a one-element array naming itself. */
-            includes: string[] | null;
         };
         IncompleteShow: {
             title: string;
@@ -1798,19 +1816,25 @@ export interface components {
             ids: components["schemas"]["ProviderIds"] | null;
             /** @description the poster's address, or null when none is known */
             poster: string | null;
-            /** @description the engine's category id the show is stored under (a LibraryCategory's `includes` names these), so the lens can be filtered by the same pills as the listing */
+            /** @description the engine's LEAF category id the show is stored under, so the interface's lens can filter it by the same leaves as the listing */
             category: string;
+            /**
+             * @description always a series — an incomplete medium is one whose aired episodes outnumber the held ones
+             * @enum {string}
+             */
+            kind: "show";
         };
+        /** @description What the library holds of ONE medium, named by its provider identity (operator ruling Q5 A: provider ids ARE the identity). */
         LibraryMembership: {
-            /** @description whether the library holds the title */
+            /** @description whether some live library row holds this provider id */
             inLibrary: boolean;
-            /** @description how many library rows the title names — two when one title is held twice */
+            /** @description how many library rows hold this provider id — two or more is a DUPLICATE (two rows, or two folders, under one identity), which a deletion refuses `media.ambiguous` until it is settled (O-5 B) */
             rows: number;
             /** @description whether it is a series the library holds with holes */
             incomplete: boolean;
-            /** @description the held medium's provider identity, or null when the library does not hold it or no sheet identifies it */
+            /** @description every provider identifier the held row carries, or null when the library does not hold it */
             ids: components["schemas"]["ProviderIds"] | null;
-            /** @description whether the held medium is a film or a series, from the category it is filed under, or null when the library does not hold it — a panel about a medium nobody follows has no other source for its kind */
+            /** @description whether the held medium is a film or a series, or null when the library does not hold it */
             kind: ("movie" | "show") | null;
         };
         Follow: {
@@ -2113,8 +2137,8 @@ export interface components {
             /** @description the year the provider gives, or null when it gives none */
             year: number | null;
             rating: number | null;
-            /** @description the genres, already joined into one line. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
-            genres: string | null;
+            /** @description the medium's genres, in the provider's order; empty when it states none. The interface joins and names them */
+            genres: components["schemas"]["GenreId"][];
             /** @description minutes, on the 202 sheets that carry one */
             runtime: number | null;
             overview: string | null;
@@ -2124,8 +2148,8 @@ export interface components {
             /** @description The trailer's TITLE, and nothing else. It is NOT the other half of `trailerIds`, and that was written here before the two were compared: of the 288 titles both carry, 178 name a DIFFERENT trailer — one the dubbed cut, the other the subtitled one — and 110 of the sheets carrying null have a key and a name in `trailerIds` all the same. So null does not mean « no trailer » either. The demand stands and is the same: one trailer object, its key beside its name, decided once. */
             trailer: string | null;
             ids: components["schemas"]["ProviderIds"];
-            /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
-            status: string;
+            /** @description where the medium stands at its provider, or null when it says nothing */
+            status: components["schemas"]["MediaStatus"] | null;
             /** @description whether the library holds it */
             owned: boolean;
             /** @description the episode catalogue, keyed by season number. Shows only */
@@ -2945,7 +2969,7 @@ export interface components {
          * @description WHY A REQUEST WAS REFUSED, as a closed code (X4: no sentence on the wire). The interface says it in its own words, read from fr.json by this code; `params` carries the values those words name. The set grows per lot: an operation whose lot has not landed its codes yet may refuse without one. ANTI-ENUMERATION (O-K1-4): the two doors refuse with ONE code, `auth.refused`, whatever the cause — an unknown e-mail, a wrong password, a Plex-linked account's password, a Plex identity without access to the server — so no attempt tells which e-mails the server knows.
          * @enum {string}
          */
-        RefusalCode: "request.invalid" | "request.cross_origin" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "password.current_wrong" | "password.required" | "password.too_short" | "password.held_by_cli";
+        RefusalCode: "request.invalid" | "request.cross_origin" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "password.current_wrong" | "password.required" | "password.too_short" | "password.held_by_cli" | "media.not_found" | "media.ambiguous" | "provider.unavailable" | "library.locked";
         /** @description A PLEX SIGN-IN STARTED on the server: its PIN, and Plex's page where the person confirms it (round 4 P-2 = B). */
         StartedPlexSignIn: {
             /** @description the PIN's key, the one `signInWithPlex` takes */
@@ -2958,6 +2982,22 @@ export interface components {
          * @enum {string}
          */
         SignInKind: "owner" | "plex" | "local";
+        /** @description A medium named by its provider identity — the library's one identity (operator ruling Q5 A, 2026-10-01: provider ids ARE the identity). A show is named TVDB first, a film TMDB first. */
+        MediaRef: {
+            /** @enum {string} */
+            provider: "tvdb" | "tmdb" | "imdb";
+            providerId: string;
+        };
+        /**
+         * @description A genre, as a closed token (X4: no word on the wire). The backend maps TMDB's and TVDB's genres onto these; the interface names each in fr.json.
+         * @enum {string}
+         */
+        GenreId: "action" | "action_adventure" | "adventure" | "animation" | "comedy" | "crime" | "documentary" | "drama" | "family" | "fantasy" | "history" | "horror" | "kids" | "music" | "mystery" | "reality" | "romance" | "science_fiction" | "sci_fi_fantasy" | "thriller" | "tv_movie" | "war" | "war_politics" | "western";
+        /**
+         * @description Where a medium stands at its provider, as a closed token: a series `continuing`, `ended` or `canceled`; a film `released`; either `in_production` or `planned`. The interface says it in fr.json.
+         * @enum {string}
+         */
+        MediaStatus: "continuing" | "ended" | "canceled" | "released" | "in_production" | "planned";
     };
     responses: {
         /** @description the request failed, and the reason is the real one (NE-DOIT-PAS-4, NE-DOIT-PAS-5) */
@@ -3199,8 +3239,8 @@ export interface operations {
     readLibraryItems: {
         parameters: {
             query?: {
-                /** @description the category identifier, when the lens is category */
-                category?: string;
+                /** @description the engine LEAF category ids to keep, repeated (`category=movies_animation&category=tv_shows_animation`) — the interface sends its lens' leaves; absent, every category */
+                category?: string[];
                 /** @description the order: `az` alphabetical, `missing` the most incomplete first; ABSENT, the most recently added first */
                 sort?: "az" | "missing";
                 /** @description whether the sort runs the other way — present and « 1 », or absent. Declared `boolean` at first, while both ends spoke the string « 1 »: a query parameter is a string on the wire, and a contract that says otherwise describes an encoding nobody implements. */
@@ -3251,12 +3291,12 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    titles: string[];
+                    media: components["schemas"]["MediaRef"][];
                 };
             };
         };
         responses: {
-            /** @description how many went */
+            /** @description how many library rows went */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3270,6 +3310,7 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
@@ -3356,10 +3397,10 @@ export interface operations {
     readLibraryMembership: {
         parameters: {
             query: {
-                /** @description the medium's exact title */
-                title: string;
-                /** @description the medium's year, when the title alone names more than one */
-                year?: number;
+                /** @description the provider the id is read at — TVDB first for a series, TMDB first for a film */
+                provider: "tvdb" | "tmdb" | "imdb";
+                /** @description the medium's id at that provider */
+                providerId: string;
             };
             header?: never;
             path?: never;
@@ -3367,7 +3408,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description what the library holds of that title */
+            /** @description what the library holds of that medium */
             200: {
                 headers: {
                     [name: string]: unknown;

@@ -11,18 +11,33 @@ import type { DialogDescriptor } from "../../ui/dialog/contract";
 const opened: DialogDescriptor[] = [];
 const said: string[] = [];
 const removed: string[][] = [];
+// THE ROWS EACH IDENTITY NAMES, as the membership read would answer: two for
+// the seed's duplicate, none for a title nothing identifies.
+const ROWS: Record<string, number> = { "Doctor Who": 2 };
+const UNIDENTIFIED = new Set(["Famille Pirate"]);
 const stopped: string[] = [];
 let followed: string[] = [];
 
 vi.mock("../../lib/query-client", () => ({
   quietWhenCancelled: () => undefined,
-  sharedQueryClient: { ensureQueryData: async () => undefined, getQueryData: () => undefined },
+  sharedQueryClient: {
+    ensureQueryData: async () => undefined,
+    getQueryData: (key: string[]) => (key[0] in ROWS ? { rows: ROWS[key[0]] } : undefined),
+  },
 }));
-vi.mock("../../lib/membership", () => ({ membershipQuery: (title: string) => ({ queryKey: [title] }) }));
+vi.mock("../../lib/membership", () => ({
+  membershipQuery: (title: string) => ({ queryKey: [title] }),
+  membershipByRefQuery: (ref: { providerId: string }) => ({ queryKey: ["ref", ref.providerId] }),
+  identityOfTitle: async (title: string) => (UNIDENTIFIED.has(title) ? null : { provider: "tvdb", providerId: `id-${title}` }),
+}));
 vi.mock("../../lib/store-access", () => ({ store: { write: () => undefined } }));
 vi.mock("./queries", () => ({
   libraryIncompleteQuery: { queryKey: ["incomplete"] },
-  deleteLibraryItems: (titles: string[]) => removed.push(titles),
+  // The titles the layer was asked to delete, each with the identity it was drawn with.
+  deleteLibraryItems: (doomed: { title: string; ref: { providerId: string } }[]) => {
+    for (const one of doomed) expect(one.ref.providerId).toBe(`id-${one.title}`);
+    removed.push(doomed.map((one) => one.title));
+  },
 }));
 vi.mock("../../lib/shell-doors", () => ({
   redraw: () => undefined,
@@ -110,5 +125,23 @@ describe("the library's delete flow", () => {
     opened[0].actions.find((a) => a.run)?.run?.();
     expect(said.at(-1)).toBe(i18next.t("verbs.library.delete.done", { title: "Les Animaniacs" }));
     expect(said.at(-1)).toContain("Les Animaniacs");
+  });
+
+  // O-5 B: an identity two library rows hold is not deleted until the duplicate
+  // is settled — the dialog names it and offers nothing but to close.
+  it("refuses a duplicated identity before anything is offered", async () => {
+    await openDeleteDialog("Doctor Who");
+    const descriptor = opened[0];
+    expect(descriptor.heading).toBe(i18next.t("verbs.library.delete.blockedHeadingOne", { title: "Doctor Who" }));
+    expect(descriptor.actions.filter((action) => action.run)).toEqual([]);
+    expect(wordsOf(descriptor)).toContain(i18next.t("verbs.library.delete.heldByRows", { count: 2 }));
+    expect(removed).toEqual([]);
+  });
+
+  it("refuses a selection holding a duplicate, naming only what cannot go", async () => {
+    await openDeleteDialog(null, ["Les Animaniacs", "Doctor Who", "Famille Pirate"]);
+    const entries = opened[0].body.flatMap((block) => (block.type === "manifest" ? block.entries.map((e) => e.text) : []));
+    expect(entries).toEqual(["Doctor Who", "Famille Pirate"]);
+    expect(opened[0].actions.filter((action) => action.run)).toEqual([]);
   });
 });
