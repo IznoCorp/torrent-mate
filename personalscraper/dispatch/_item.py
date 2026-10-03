@@ -43,6 +43,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from personalscraper.conf import resolver
+from personalscraper.conf.preprod_guard import PreprodGuardError, assert_within_preprod
 from personalscraper.core.delete_permit import ALLOW
 from personalscraper.core.media_types import TV_TRAILER_SUBFOLDER, VIDEO_EXTENSIONS
 from personalscraper.dispatch import _transfer
@@ -90,6 +91,28 @@ class TransferOutcome:
     success: bool
     destroyed: bool
     metadata_refreshed: bool = False
+
+
+def _refused_by_preprod_guard(dispatcher: Dispatcher, result: DispatchResult, dest: Path) -> bool:
+    """Refuse a destination outside preprod's marked, mounted roots (``staging`` only).
+
+    Args:
+        dispatcher: The owning dispatcher (its config names the roots).
+        result: The result to mark as an error when the destination is refused.
+        dest: The destination folder about to receive the transfer.
+
+    Returns:
+        True when the guard refused (``result`` is then final), False otherwise —
+        always False outside ``staging``.
+    """
+    try:
+        assert_within_preprod(dispatcher.config, dest)
+    except PreprodGuardError as exc:
+        log.error("preprod_destination_refused", destination=str(dest), error=str(exc))
+        result.action = "error"
+        result.reason = f"Preprod guard refused the destination: {exc}"
+        return True
+    return False
 
 
 #: A transfer strategy: supersede ``dest`` with ``source`` on the ``dest`` disk,
@@ -392,6 +415,8 @@ def _dispatch_item(
         dest = Path(existing.path)
         result.disk = existing.disk
         result.destination = dest
+        if _refused_by_preprod_guard(dispatcher, result, dest):
+            return result
 
         # Free-space gate for the in-place supersede.
         threshold = max(
@@ -498,6 +523,8 @@ def _dispatch_item(
         dest = resolver.folder_for(dispatcher.config, target_disk, category_id) / src.name
         result.disk = target_disk.id
         result.destination = dest
+        if _refused_by_preprod_guard(dispatcher, result, dest):
+            return result
 
         cap = dispatcher._disk_capabilities.get(target_disk.id, NTFS_MACFUSE)
         if _is_skipped_for_illegal_names(result, src, cap):
