@@ -234,8 +234,8 @@ Even hitting API endpoints that return `403` when unauthenticated (e.g. `GET /ap
 (`GET /`) which always returns `200` regardless of auth state — a safe reachability check
 that does NOT increment the ban counter.
 
-Our client wrapper maintains a lockout file (`~/.cache/personalscraper/qbit_auth_lockout`,
-1-hour TTL) to short-circuit further attempts after a credential failure, preventing
+Our client wrapper maintains a lockout file (`~/.cache/personalscraper/qbit_auth_lockout` in prod,
+`qbit_auth_lockout-<env>` in every other environment, resolved by `lockout_path()`; 1-hour TTL) to short-circuit further attempts after a credential failure, preventing
 PM2 cron from accumulating attempts across scheduled runs. This is implemented in
 `build_client` (raw `GET /` pre-check via `requests`) and `QBitClient.login`
 (`_check_lockout` / `_set_lockout`) in `personalscraper/api/torrent/qbittorrent.py`.
