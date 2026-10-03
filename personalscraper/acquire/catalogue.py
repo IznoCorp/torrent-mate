@@ -4,7 +4,7 @@ A provider-id-keyed record of the episodes a show has announced, with their air
 dates, kept in ``acquire.db``. It answers « x of y aired episodes » for every
 show of the library, not only the followed ones (``aired_episode`` is per follow).
 
-``personalscraper library catalogue-refresh`` is the only writer: it reads the
+``personalscraper library-catalogue-refresh`` is the only writer: it reads the
 shows of the index, asks the providers for what is due under the politeness rule
 (a continuing show once a week, an ended show once) and replaces a show's rows
 in one transaction. A show never fetched reads ``None`` from

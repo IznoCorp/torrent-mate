@@ -1,12 +1,10 @@
-"""``personalscraper library catalogue-refresh`` — fill the aired catalogue.
+"""``personalscraper library-catalogue-refresh`` — fill the aired catalogue.
 
 Reads the shows of the library index (read only), asks the TVDB / TMDB clients
 for what the politeness rule makes due (a continuing show once a week, an ended
-show once) and writes ``acquire.db``'s catalogue. ``--max`` bounds the provider
-calls of one run; the rest waits for the next one. The PM2 cron is the
-operator's to add.
-
-Import direction: commands/ imports acquire/, api/, core/, conf/ only.
+show once) and writes ``acquire.db``'s catalogue. ``--max`` bounds the shows
+attempted in one run (each costs one ``get_tv`` and one ``get_episodes`` per
+season); the rest waits for the next one. The PM2 cron is the operator's to add.
 """
 
 from __future__ import annotations
@@ -20,16 +18,13 @@ import typer
 
 from personalscraper import cli_helpers
 from personalscraper.acquire.catalogue import CatalogueStore, ProviderClients, refresh_catalogue
-from personalscraper.cli_app import app as _root_app
+from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
-
-# Typer sub-group; the plain ``library-*`` commands predate it and stay flat.
-library_app = typer.Typer(help="Library commands.")
 
 _DEFAULT_MAX_SHOWS = 50
 
 
-@library_app.command("catalogue-refresh")
+@app.command("library-catalogue-refresh")
 @handle_cli_errors
 def library_catalogue_refresh(
     ctx: typer.Context,
@@ -46,7 +41,7 @@ def library_catalogue_refresh(
     failure on one show keeps that show's previous rows and the run goes on.
 
     Examples:
-        personalscraper library catalogue-refresh --max 20
+        personalscraper library-catalogue-refresh --max 20
     """
     config = ctx.obj.config
     assert config is not None  # noqa: S101 — set by the CLI root callback
@@ -77,6 +72,3 @@ def library_catalogue_refresh(
         )
     )
 
-
-# Register the library sub-group on the root Typer app (import side-effect, called by cli.py).
-_root_app.add_typer(library_app, name="library")

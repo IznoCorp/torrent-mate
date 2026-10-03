@@ -3,7 +3,7 @@
 -- A provider-id-keyed store of the episodes a show has announced, with their
 -- air dates, so « x of y aired episodes » can be answered for every show of the
 -- library and not only for the followed ones (``aired_episode`` is per follow).
--- Written only by ``personalscraper library catalogue-refresh``; a show's rows
+-- Written only by ``personalscraper library-catalogue-refresh``; a show's rows
 -- are replaced in one transaction. Additive: no existing table is touched.
 --
 -- ``air_date`` is an ISO ``YYYY-MM-DD`` string or NULL (announced, no date yet).

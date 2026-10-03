@@ -1,4 +1,4 @@
-"""Tests for ``personalscraper library catalogue-refresh``."""
+"""Tests for ``personalscraper library-catalogue-refresh``."""
 
 from __future__ import annotations
 
@@ -15,12 +15,12 @@ from personalscraper.acquire.catalogue import CatalogueRefreshReport
 from personalscraper.cli import app
 
 runner = CliRunner()
-_MODULE = "personalscraper.commands.library_catalogue"
+_MODULE = "personalscraper.commands.library.catalogue"
 
 
 def test_help_lists_max() -> None:
-    """The command is mounted under ``library`` and documents ``--max``."""
-    result = runner.invoke(app, ["library", "catalogue-refresh", "--help"])
+    """The command is a flat ``library-*`` command and documents ``--max``."""
+    result = runner.invoke(app, ["library-catalogue-refresh", "--help"])
     assert result.exit_code == 0, result.output
     assert "--max" in result.output
 
@@ -43,7 +43,7 @@ def test_run_passes_max_and_prints_the_report(tmp_path: Path, test_config) -> No
         patch("personalscraper.cli_helpers.get_settings"),
         patch("personalscraper.cli.load_config", return_value=test_config, create=True),
     ):
-        result = runner.invoke(app, ["library", "catalogue-refresh", "--max", "7"])
+        result = runner.invoke(app, ["library-catalogue-refresh", "--max", "7"])
 
     assert result.exit_code == 0, result.output
     assert refresh.call_args.kwargs["max_shows"] == 7
