@@ -38,10 +38,11 @@ class TestTorrentScope:
         assert tmp_path.is_absolute()
         assert TorrentScope(category="tm-preprod", download_root=tmp_path).download_root == tmp_path
 
-    def test_empty_tag_refused(self, tmp_path: Path) -> None:
-        """An empty instance tag would match every torrent in a tag filter: refused."""
+    @pytest.mark.parametrize("tag", ["", " ", "\t"])
+    def test_blank_tag_refused(self, tmp_path: Path, tag: str) -> None:
+        """An empty or whitespace-only instance tag would match every torrent in a tag filter: refused."""
         with pytest.raises(ValidationError, match="empty"):
-            TorrentScope(category="tm-preprod", download_root=tmp_path, instance_tags=("", SEED_PURE))
+            TorrentScope(category="tm-preprod", download_root=tmp_path, instance_tags=(tag, SEED_PURE))
 
     def test_seed_pure_missing_refused(self, tmp_path: Path) -> None:
         """Without seed-pure, the other instance's triage would pick this instance's torrents up: refused."""
