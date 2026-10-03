@@ -167,6 +167,13 @@ def test_resolve_language_precedence() -> None:
     assert resolve_language({"PERSONALSCRAPER_LANG": "", "LANG": "en"}) is Language.EN
 
 
+def test_english_when_no_language_is_named() -> None:
+    """No locale, a ``C`` locale or an unsupported one resolves to English, the default."""
+    assert resolve_language({}) is Language.EN
+    assert resolve_language({"LANG": "C"}) is Language.EN
+    assert resolve_language({"LANG": "de_DE.UTF-8"}) is Language.EN
+
+
 def test_unsupported_personalscraper_lang_warns() -> None:
     """A PERSONALSCRAPER_LANG naming an unsupported language yields the default and one warning."""
     with structlog.testing.capture_logs() as logs:

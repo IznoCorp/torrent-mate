@@ -36,7 +36,7 @@ class Language(StrEnum):
     EN = "en"
 
 
-DEFAULT_LANGUAGE: Final[Language] = Language.FR
+DEFAULT_LANGUAGE: Final[Language] = Language.EN
 LANGUAGE_VARIABLE: Final[str] = "PERSONALSCRAPER_LANG"
 STRICT_VARIABLE: Final[str] = "PERSONALSCRAPER_I18N_STRICT"
 
