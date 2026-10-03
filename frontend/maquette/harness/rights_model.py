@@ -116,8 +116,11 @@ async def main():
         household = next(one for one, role in by_role.items() if role == "household")
 
         owner = await page.evaluate(FORCE, OWNER)
-        journal.check("R-L18-c: the owner is refused nothing", not [k for k, v in owner.items() if v == 403],
-                      f"{len(owner)} operations forced")
+        # THE OWNER'S FALLBACK PASSWORD IS REFUSED BY HIS KIND (replaced on the server only, the
+        # operator, 2026-10-03), not by a right: its 403 is not this check's question.
+        refused = [k for k, v in owner.items() if v == 403 and k != "PUT /auth/password"]
+        journal.check("R-L18-c: the owner is refused nothing", not refused,
+                      f"{len(owner)} operations forced, refused {refused[:4]}")
 
         bare = await page.evaluate(FORCE, default_account)
         writes = [k for k in bare if not k.startswith("GET ") and k not in SESSION]

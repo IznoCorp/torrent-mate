@@ -166,6 +166,8 @@ async def main():
 
         # 5 — THE REASSIGNED LINE.
         await go("acq-household")
+        # THE TARGET IS A TEST ACCOUNT, out of the tester's default world: its roster is turned on.
+        await page.evaluate("()=>window.__mocks.setTestRoster(true)")
         await sign_in("izno", {"page": "acq", "acqTab": "now", "scen": "loaded"})
         await panel("reassign", f"card|{MOVED}")
         await page.click('#sheet [data-reassign-to$="|household-member-sees-all"]')
