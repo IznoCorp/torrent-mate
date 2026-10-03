@@ -264,9 +264,6 @@ async function signInWithPlex(): Promise<void> {
   showPart("plex-unreachable", false);
   showPart("plex-refusal", false);
   plexPage = window.open("", "_blank");
-  // PLEX'S PAGE NEVER HOLDS THIS ONE: `noopener` would hand back no window to
-  // send it to its address, so the link back is cut by hand.
-  if (plexPage) plexPage.opener = null;
   const started = await fetch("/api/v1/auth/plex/start", {
     method: "POST",
   }).catch(() => null);
