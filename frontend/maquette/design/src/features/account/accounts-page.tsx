@@ -18,10 +18,10 @@ import { useTranslation } from "react-i18next";
 import { accountsQuery, roleLabel, useAccount } from "../../lib/account";
 import { refusalWords } from "../../lib/refusal";
 import { bypassesRights } from "../../lib/rights";
-import { isRequestFailure, send } from "../../lib/query-client";
 import { FactRows } from "../../ui/fact-rows";
 import { actionButton, factList, guidance, sectionHeading, surfaceError } from "../../ui/variants";
 import type { Schemas } from "../../lib/contract-schemas";
+import { sendNow } from "./send-now";
 import { accountField, accountForm } from "./variants";
 import { withinReach } from "./roster-panels";
 
@@ -66,7 +66,10 @@ export function AccountsPage(): ReactElement | null {
 }
 
 /**
- * The creation form: a name, a MANDATORY e-mail, an initial role (demand G).
+ * The creation form: a name, a MANDATORY e-mail, an initial role (demand G),
+ * and a local account's PROVISIONAL password (the operator, 2026-10-03: « A ») —
+ * sent now or not at all (`send-now.ts`), ignored by the server for an e-mail
+ * it links to Plex.
  *
  * @param roles The roles an account may be created on — never Admin here.
  */
@@ -86,19 +89,20 @@ function NewAccount({ roles }: { roles: Schemas["Role"][] }): ReactElement {
       setRefusal(t("screens.accounts.emailRequired"));
       return;
     }
-    try {
-      await send("POST", "/api/v1/accounts", {
-        name: String(fields.get("name") ?? "").trim(),
-        email,
-        role: String(fields.get("role") ?? ""),
-      });
-      setRefusal(null);
-      form.reset();
-      await client.refetchQueries({ queryKey: accountsQuery.queryKey });
-    } catch (failure) {
+    const problem = await sendNow("POST", "/api/v1/accounts", {
+      name: String(fields.get("name") ?? "").trim(),
+      email,
+      role: String(fields.get("role") ?? ""),
+      password: String(fields.get("password") ?? ""),
+    });
+    if (problem !== null) {
       // A REFUSAL SAYS WHY, in `fr.json`'s words for its code (gap G-1).
-      setRefusal(refusalWords(isRequestFailure(failure) ? failure : undefined, "screens.accounts.createRefused"));
+      setRefusal(refusalWords(problem, "screens.accounts.createRefused"));
+      return;
     }
+    setRefusal(null);
+    form.reset();
+    await client.refetchQueries({ queryKey: accountsQuery.queryKey });
   }
 
   return (
@@ -121,6 +125,10 @@ function NewAccount({ roles }: { roles: Schemas["Role"][] }): ReactElement {
             <option key={role.id} value={role.id} disabled={!withinReach(role.rights, manager)}>{roleLabel(role)}</option>
           ))}
         </select>
+      </label>
+      <label>
+        {t("screens.accounts.provisionalPassword")}
+        <input className={accountField()} name="password" type="password" autoComplete="new-password" />
       </label>
       <p className={guidance()}>{t("screens.accounts.plexHint")}</p>
       {refusal ? <p className={surfaceError({ tone: "danger" })} role="status" data-part="accounts/refusal">{refusal}</p> : null}

@@ -111,7 +111,7 @@ export type HeldAccount = {
   email: string;
   role: string;
   signInKind: Schemas["SignInKind"];
-  /** The role it held before its link dropped it to Default, by id. */
+  /** The role it held before its link dropped it to its Plex kind's starting role, by id. */
   demotedFrom?: string;
 };
 

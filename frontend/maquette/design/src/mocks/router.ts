@@ -31,7 +31,7 @@ const REFUSAL = Symbol("refusal");
 type Coded = { code: RefusalCode; params?: Record<string, string | number> };
 
 /** A handler's own refusal: the status it chose, the reason it gives, and its code when it has one. */
-type Refusal = { [REFUSAL]: true; status: number; detail: string; coded?: Coded };
+export type Refusal = { [REFUSAL]: true; status: number; detail: string; coded?: Coded };
 
 /**
  * A handler's refusal to answer, with the status the contract declares for it.

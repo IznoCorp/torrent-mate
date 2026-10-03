@@ -24,9 +24,9 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 100 |
+| operations the interface requires | 101 |
 | operations the backend has | 65 |
-| required and missing | 47 |
+| required and missing | 48 |
 | declared by both, different response shape | 53 |
 | declared by both, path parameter spelled differently | 17 |
 | declared by both, answered with a different status | 11 |
@@ -66,6 +66,7 @@ than a blank page.
 | `PATCH /api/v1/accounts/{accountId}` | `updateAccount` | Assign an account its one role |
 | `PATCH /api/v1/roles/{roleId}` | `updateRole` | Rename a role or set its rights |
 | `POST /api/v1/accounts` | `createAccount` | Create an account |
+| `POST /api/v1/accounts/{accountId}/password` | `resetAccountPassword` | Reset a local account's password to a provisional one |
 | `POST /api/v1/acquisition/followed/{followedId}/restore` | `restoreFollow` | Put a removed follow back, as it was |
 | `POST /api/v1/acquisition/journeys/{infoHash}/closure/seen` | `dismissClosure` | Mark one closed tunnel seen, for the caller — the seen mark stored per account (BK5); the engine closes the tunnel itself, its medium vanished (BK3) or a later choice in place (BK4) |
 | `POST /api/v1/acquisition/journeys/{infoHash}/plex-match` | `resolvePlexMatch` | Confirm or correct the match Plex made for a medium — the Plex match's CORRECTION VERB, OPEN 9's fifth demand; the disagreement is POSED in the maquette (RULINGS 24), the backend compares Plex's real match with the identity held |

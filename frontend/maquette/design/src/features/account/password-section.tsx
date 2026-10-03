@@ -6,9 +6,7 @@
 // a command on the server, never here, and a Plex-linked account holds none —
 // Profil's « Connexion » line says so for both.
 //
-// NOT THROUGH THE OUTBOX: a password change held while offline and replayed
-// later would change a password nobody is watching change. A network that does
-// not answer is said, and nothing is kept.
+// NOT THROUGH THE OUTBOX (`send-now.ts`): a password is sent now or not at all.
 //
 // A REFUSAL IS SAID FROM `fr.json` BY ITS CODE (gap G-1): the current password
 // wrong, the new one too short — its minimum the server's, carried in the
@@ -18,28 +16,11 @@ import { useTranslation } from "react-i18next";
 
 import { refusalWords } from "../../lib/refusal";
 import { actionButton, guidance, sectionHeading, surfaceError } from "../../ui/variants";
+import { sendNow } from "./send-now";
 import { accountField, accountForm } from "./variants";
 
 /** Where the form stands: at rest, asking, changed, or refused with its words. */
 type Outcome = { kind: "rest" } | { kind: "sending" } | { kind: "changed" } | { kind: "refused"; words: string };
-
-/**
- * Asks the server to change the signed-in account's password.
- *
- * @param currentPassword The password it has now.
- * @param newPassword The one it will have.
- * @returns Null once changed, or the problem the server answered (undefined
- *     when it did not answer at all).
- */
-async function changeOwnPassword(currentPassword: string, newPassword: string): Promise<unknown> {
-  const answer = await globalThis.fetch("/api/v1/auth/password", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ currentPassword, newPassword }),
-  }).catch(() => null);
-  if (answer?.ok) return null;
-  return answer ? answer.json().catch(() => undefined) : undefined;
-}
 
 export function PasswordSection(): ReactElement {
   const { t } = useTranslation();
@@ -57,7 +38,7 @@ export function PasswordSection(): ReactElement {
     if (!current || !next || !again) return setOutcome({ kind: "refused", words: t("screens.accountPage.password.missing") });
     if (next !== again) return setOutcome({ kind: "refused", words: t("screens.accountPage.password.mismatch") });
     setOutcome({ kind: "sending" });
-    const problem = await changeOwnPassword(current, next);
+    const problem = await sendNow("PUT", "/api/v1/auth/password", { currentPassword: current, newPassword: next });
     if (problem === null) {
       form.reset();
       return setOutcome({ kind: "changed" });

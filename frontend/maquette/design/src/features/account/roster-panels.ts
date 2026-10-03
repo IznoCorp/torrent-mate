@@ -74,6 +74,11 @@ function accountPanel(id: string, cache: PanelCache): PanelDescriptor | null {
     blocs: [
       { type: "note", text: translate(`screens.accounts.signInKind.${account.signInKind}`) },
       demotedFrom ? { type: "note", text: translate("screens.accounts.demoted", { role: roleLabel(demotedFrom) }) } : null,
+      // ITS PASSWORD, by its kind (the operator, 2026-10-03): a local account's
+      // provisional one is set again here; the owner's fallback one only on the
+      // server — said in the words its refusal already has.
+      account.signInKind === "local" ? { type: "accountPassword", account: account.id, name: account.name } : null,
+      account.signInKind === "owner" ? { type: "note", text: translate("refusals.password.held_by_cli") } : null,
       { type: "note", text: translate("screens.accounts.oneRole") },
       own ? { type: "note", text: translate("screens.accounts.notOwnRole") } : null,
       {

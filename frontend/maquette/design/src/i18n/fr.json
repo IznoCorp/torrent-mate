@@ -1309,7 +1309,7 @@
       "name": "Nom",
       "email": "Adresse e-mail (obligatoire)",
       "initialRole": "Rôle de départ",
-      "plexHint": "Une adresse qui est un utilisateur du serveur Plex est liée : le compte entre par Plex uniquement. Toute autre adresse fait un compte local, qui entre par mot de passe.",
+      "plexHint": "Une adresse qui est un utilisateur du serveur Plex est liée : le compte entre par Plex uniquement, sans mot de passe. Toute autre adresse fait un compte local, qui entre avec le mot de passe provisoire donné ici et le change ensuite dans son Profil.",
       "create": "Créer le compte",
       "emailRequired": "L'adresse e-mail est obligatoire.",
       "createRefused": "La création a été refusée.",
@@ -1328,6 +1328,15 @@
         "plexHome": "Rôle de départ des utilisateurs Plex Home du serveur Plex, à leur première connexion ou à leur liaison.",
         "plexGuest": "Rôle de départ des autres utilisateurs du serveur Plex, à leur première connexion ou à leur liaison.",
         "local": "Rôle de départ d'un compte local créé sans rôle choisi."
+      },
+      "provisionalPassword": "Mot de passe provisoire (compte local)",
+      "reset": {
+        "field": "Nouveau mot de passe provisoire",
+        "hint": "Remplace un mot de passe oublié. Communiquez-le à la personne : elle le changera dans son Profil.",
+        "submit": "Réinitialiser le mot de passe",
+        "sending": "Envoi…",
+        "done": "Mot de passe provisoire enregistré : communiquez-le à {{name}}, qui le changera dans son Profil.",
+        "refused": "La réinitialisation a été refusée."
       }
     },
     "crossSeed": {
@@ -2191,6 +2200,7 @@
     },
     "password": {
       "current_wrong": "Le mot de passe actuel est incorrect : rien n'a été changé.",
+      "required": "Un compte local reçoit un mot de passe provisoire : il est obligatoire.",
       "too_short": "Le nouveau mot de passe doit compter au moins {{minimum}} caractères.",
       "held_by_cli": "Ce mot de passe de secours ne se change que par une commande sur le serveur, jamais ici."
     }

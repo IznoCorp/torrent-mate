@@ -5961,6 +5961,10 @@
                   "role": {
                     "type": "string",
                     "description": "the initial role's id; absent, the role local accounts start on (`Role.defaultFor` `local`: Invité — O-K1-4). An e-mail that is a user of the managed server is linked instead, and starts on its Plex kind's role"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "THE PROVISIONAL PASSWORD a local account starts with, set by the Admin who creates it (the operator, 2026-10-03: « A »): required for a local account (refused `password.required`, or `password.too_short` with its `minimum`); IGNORED and never stored for an e-mail that is a user of the managed server, which is linked and signs in by Plex only. The account changes it in Profil (`changeOwnPassword`)."
                   }
                 },
                 "required": [
@@ -6655,6 +6659,86 @@
           }
         },
         "x-unseeded": "the queued ask, derived from the layer's own state: invented, no fixture exists for the upload (L23 DESIGN § 2.2)."
+      }
+    },
+    "/accounts/{accountId}/password": {
+      "post": {
+        "operationId": "resetAccountPassword",
+        "x-rights": "accounts.manage",
+        "summary": "Reset a local account's password to a provisional one",
+        "description": "An Admin in « Comptes » gives a LOCAL account a new PROVISIONAL password — a forgotten one replaced (the operator, 2026-10-03: « A »); the account then changes it in Profil (`changeOwnPassword`). LOCAL ACCOUNTS ONLY: the Plex server owner's fallback password is replaced by a command on the server, never here (refused `password.held_by_cli`); a Plex-linked account holds no password (refused `auth.plex_only`). A manager who is not Admin never touches an account on the Admin role (`account.admin_untouchable`, M7). The account's open sessions are not ended by this act.",
+        "tags": [
+          "authentication"
+        ],
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the account"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": {
+                    "type": "string",
+                    "description": "the new provisional password; refused `password.required` when empty, `password.too_short` (`minimum`) when shorter than the server's minimum"
+                  }
+                },
+                "required": [
+                  "password"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "the provisional password is set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "an acknowledgement. The prototype holds no credentials, so the layer judges the account's kind and the password's length, never stores it"
       }
     }
   },
@@ -10236,7 +10320,7 @@
           },
           "demotedFrom": {
             "type": "string",
-            "description": "THE ROLE IT HELD BEFORE ITS LINK, by id: present on an account whose e-mail became a user of the managed Plex server, which dropped it to the Default role until an Admin promotes it again (the operator, 2026-10-03); absent once it is given a role"
+            "description": "THE ROLE IT HELD BEFORE ITS LINK, by id: present on an account whose e-mail became a user of the managed Plex server, which dropped it to its Plex kind's starting role (`Role.defaultFor`: Membre du foyer for a Plex Home user, Invité Plex otherwise — O-K1-4) until an Admin promotes it again (the operator, 2026-10-03); absent once it is given a role"
           }
         },
         "required": [
@@ -10782,6 +10866,7 @@
           "plex.pin_unknown",
           "plex.pin_expired",
           "password.current_wrong",
+          "password.required",
           "password.too_short",
           "password.held_by_cli"
         ],
@@ -10812,7 +10897,7 @@
           "plex",
           "local"
         ],
-        "description": "HOW AN ACCOUNT SIGNS IN — a fact of the account, not of its role (the operator, 2026-10-03). Every login is an e-mail. `owner`: the managed Plex server's owner, by Plex, and a fallback password replaced only by a command on the server. `plex`: an account linked to a Plex identity with access to the server, by Plex only. `local`: an account whose e-mail is no user of the server, by its password only, never linked — it changes its password in Profil. When a local account's e-mail becomes a user of the server, it is linked: `plex` from then on, and on the Default role until an Admin promotes it again."
+        "description": "HOW AN ACCOUNT SIGNS IN — a fact of the account, not of its role (the operator, 2026-10-03). Every login is an e-mail. `owner`: the managed Plex server's owner, by Plex, and a fallback password replaced only by a command on the server. `plex`: an account linked to a Plex identity with access to the server, by Plex only. `local`: an account whose e-mail is no user of the server, by its password only, never linked — an Admin gives it a PROVISIONAL password in « Comptes » at its creation and may reset it there; it changes its own in Profil (the operator, 2026-10-03: « A »). When a local account's e-mail becomes a user of the server, it is linked: `plex` from then on, and on its Plex kind's starting role (`Role.defaultFor`; O-K1-4) until an Admin promotes it again; its password is dropped."
       }
     },
     "responses": {

@@ -1657,6 +1657,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/accounts/{accountId}/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset a local account's password to a provisional one
+         * @description An Admin in « Comptes » gives a LOCAL account a new PROVISIONAL password — a forgotten one replaced (the operator, 2026-10-03: « A »); the account then changes it in Profil (`changeOwnPassword`). LOCAL ACCOUNTS ONLY: the Plex server owner's fallback password is replaced by a command on the server, never here (refused `password.held_by_cli`); a Plex-linked account holds no password (refused `auth.plex_only`). A manager who is not Admin never touches an account on the Admin role (`account.admin_untouchable`, M7). The account's open sessions are not ended by this act.
+         */
+        post: operations["resetAccountPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2758,7 +2778,7 @@ export interface components {
             email: string;
             role: components["schemas"]["Role"];
             signInKind: components["schemas"]["SignInKind"];
-            /** @description THE ROLE IT HELD BEFORE ITS LINK, by id: present on an account whose e-mail became a user of the managed Plex server, which dropped it to the Default role until an Admin promotes it again (the operator, 2026-10-03); absent once it is given a role */
+            /** @description THE ROLE IT HELD BEFORE ITS LINK, by id: present on an account whose e-mail became a user of the managed Plex server, which dropped it to its Plex kind's starting role (`Role.defaultFor`: Membre du foyer for a Plex Home user, Invité Plex otherwise — O-K1-4) until an Admin promotes it again (the operator, 2026-10-03); absent once it is given a role */
             demotedFrom?: string;
         };
         /** @description Every account and every role (demand F). */
@@ -2925,7 +2945,7 @@ export interface components {
          * @description WHY A REQUEST WAS REFUSED, as a closed code (X4: no sentence on the wire). The interface says it in its own words, read from fr.json by this code; `params` carries the values those words name. The set grows per lot: an operation whose lot has not landed its codes yet may refuse without one. ANTI-ENUMERATION (O-K1-4): the two doors refuse with ONE code, `auth.refused`, whatever the cause — an unknown e-mail, a wrong password, a Plex-linked account's password, a Plex identity without access to the server — so no attempt tells which e-mails the server knows.
          * @enum {string}
          */
-        RefusalCode: "request.invalid" | "request.cross_origin" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "password.current_wrong" | "password.too_short" | "password.held_by_cli";
+        RefusalCode: "request.invalid" | "request.cross_origin" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "password.current_wrong" | "password.required" | "password.too_short" | "password.held_by_cli";
         /** @description A PLEX SIGN-IN STARTED on the server: its PIN, and Plex's page where the person confirms it (round 4 P-2 = B). */
         StartedPlexSignIn: {
             /** @description the PIN's key, the one `signInWithPlex` takes */
@@ -2934,7 +2954,7 @@ export interface components {
             signInUrl: string;
         };
         /**
-         * @description HOW AN ACCOUNT SIGNS IN — a fact of the account, not of its role (the operator, 2026-10-03). Every login is an e-mail. `owner`: the managed Plex server's owner, by Plex, and a fallback password replaced only by a command on the server. `plex`: an account linked to a Plex identity with access to the server, by Plex only. `local`: an account whose e-mail is no user of the server, by its password only, never linked — it changes its password in Profil. When a local account's e-mail becomes a user of the server, it is linked: `plex` from then on, and on the Default role until an Admin promotes it again.
+         * @description HOW AN ACCOUNT SIGNS IN — a fact of the account, not of its role (the operator, 2026-10-03). Every login is an e-mail. `owner`: the managed Plex server's owner, by Plex, and a fallback password replaced only by a command on the server. `plex`: an account linked to a Plex identity with access to the server, by Plex only. `local`: an account whose e-mail is no user of the server, by its password only, never linked — an Admin gives it a PROVISIONAL password in « Comptes » at its creation and may reset it there; it changes its own in Profil (the operator, 2026-10-03: « A »). When a local account's e-mail becomes a user of the server, it is linked: `plex` from then on, and on its Plex kind's starting role (`Role.defaultFor`; O-K1-4) until an Admin promotes it again; its password is dropped.
          * @enum {string}
          */
         SignInKind: "owner" | "plex" | "local";
@@ -5899,6 +5919,8 @@ export interface operations {
                     email: string;
                     /** @description the initial role's id; absent, the role local accounts start on (`Role.defaultFor` `local`: Invité — O-K1-4). An e-mail that is a user of the managed server is linked instead, and starts on its Plex kind's role */
                     role?: string;
+                    /** @description THE PROVISIONAL PASSWORD a local account starts with, set by the Admin who creates it (the operator, 2026-10-03: « A »): required for a local account (refused `password.required`, or `password.too_short` with its `minimum`); IGNORED and never stored for an e-mail that is a user of the managed server, which is linked and signs in by Plex only. The account changes it in Profil (`changeOwnPassword`). */
+                    password?: string;
                 };
             };
         };
@@ -6231,6 +6253,44 @@ export interface operations {
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    resetAccountPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the account */
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description the new provisional password; refused `password.required` when empty, `password.too_short` (`minimum`) when shorter than the server's minimum */
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description the provisional password is set */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
         };

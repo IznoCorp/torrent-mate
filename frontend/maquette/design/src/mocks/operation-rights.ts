@@ -56,6 +56,10 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   readAccounts: ["accounts.manage", "acquisition.reassign"],
   createAccount: "accounts.manage",
   updateAccount: "accounts.manage",
+  // A local account's provisional password, set again by an Admin (the
+  // operator, 2026-10-03: « A »); the owner's and a Plex-linked account's are
+  // refused by their kind.
+  resetAccountPassword: "accounts.manage",
   createRole: "accounts.manage",
   updateRole: "accounts.manage",
 

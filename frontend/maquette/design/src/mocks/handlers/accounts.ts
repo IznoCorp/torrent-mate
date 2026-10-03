@@ -10,12 +10,15 @@
 //   · 403 — escalation (round 9 Q14 = A, M7): a manager who is not Admin sets
 //     only rights its own role holds, never its own role, never an account on
 //     the Admin role;
-//   · 400 — a new account without an e-mail.
-// No guard keeps a password holder: the owner's fallback password is his
-// account's, replaced on the server only (the operator, 2026-10-03).
+//   · 400 — a new account without an e-mail; a local account without its
+//     provisional password, or with one shorter than the minimum.
+// A PROVISIONAL PASSWORD IS A LOCAL ACCOUNT'S ONLY (the operator, 2026-10-03:
+// « A »): the Admin gives it at creation and may reset it; the owner's fallback
+// password is replaced on the server only, and a Plex-linked account holds none.
+// The layer judges the kind and the length, and stores no password.
 import ACCOUNTS from "../seeds/accounts.json";
 import { GET, PATCH, POST, field, route, text } from "./shared";
-import { refused, type MockRoute } from "../router";
+import { refused, type MockRoute, type Refusal } from "../router";
 import { heldAccounts, roleFor, roles, roster, signedInId, type HeldAccount } from "../identity";
 import type { components } from "../../contract/types";
 import type { Right } from "../../lib/rights";
@@ -86,6 +89,20 @@ function startingRole(kind: "plexHome" | "plexGuest" | "local"): Role | undefine
   return roles().find((one) => one.defaultFor?.includes(kind));
 }
 
+/**
+ * Why a provisional password is refused, if it is (the operator, 2026-10-03: « A »).
+ *
+ * @param password The password the Admin typed.
+ * @returns The refusal, or undefined when it is long enough.
+ */
+function provisionalRefusal(password: string): Refusal | undefined {
+  if (!password) return refused(INVALID, "a local account starts with a provisional password", "password.required");
+  const minimum = ACCOUNTS.passwordMinimum;
+  if (password.length < minimum)
+    return refused(INVALID, "the provisional password is too short", "password.too_short", { minimum });
+  return undefined;
+}
+
 /** Every route this subject answers. */
 export function accountRoutes(): MockRoute[] {
   return [
@@ -108,6 +125,9 @@ export function accountRoutes(): MockRoute[] {
         return refused(FORBIDDEN, "the role holds rights the caller's does not", "role.escalation");
       if (heldAccounts().some((one) => one.email.toLowerCase() === email.toLowerCase()))
         return refused(CONFLICT, "an account already carries that e-mail", "account.email_taken");
+      // A LINKED E-MAIL'S PASSWORD IS IGNORED, never kept: it signs in by Plex only.
+      const refusal = linked ? undefined : provisionalRefusal(text(request.body, "password"));
+      if (refusal) return refusal;
       const created: HeldAccount = {
         id: `account-${heldAccounts().length + 1}`,
         name,
@@ -136,6 +156,17 @@ export function accountRoutes(): MockRoute[] {
         return refused(CONFLICT, "no account would be left on the Admin role", "account.last_admin");
       roster.assign(account.id, target.id);
       return summary(heldAccounts().find((one) => one.id === account.id)!);
+    }),
+    route("resetAccountPassword", POST, "/accounts/{accountId}/password", (request) => {
+      const account = heldAccounts().find((one) => one.id === request.parameters.accountId);
+      if (account === undefined) return refused(MISSING, "no account carries that id", "account.unknown");
+      if (callerRole().kind !== ADMIN && roleFor(account.role).kind === ADMIN)
+        return refused(FORBIDDEN, "a manager who is not Admin never touches Admin", "account.admin_untouchable");
+      if (account.signInKind === "owner")
+        return refused(FORBIDDEN, "the owner's fallback password is replaced on the server only", "password.held_by_cli");
+      if (account.signInKind === "plex")
+        return refused(FORBIDDEN, "this account signs in with Plex", "auth.plex_only");
+      return provisionalRefusal(text(request.body, "password")) ?? { ok: true };
     }),
     route("createRole", POST, "/roles", (request) => {
       const rights = (field(request.body, "rights") as Right[] | undefined) ?? [];
