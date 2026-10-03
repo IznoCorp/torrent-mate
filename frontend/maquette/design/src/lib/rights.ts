@@ -29,12 +29,11 @@ export const RIGHTS: readonly Right[] = [
   "acquisition.see.others", "acquisition.todo.view", "acquisition.quality.own", "acquisition.pause.own",
   "acquisition.reassign", "pipeline.control", "trackers.view", "trackers.control", "trackers.upload",
   "system.view", "configuration.view", "configuration.write", "accounts.manage",
-  "auth.password",
 ];
 
 /**
  * Every WRITE right of the ACL — what a forbidden-writes list may name (ruling
- * 23). The view rights and the password door are never forbidden writes.
+ * 23). The view rights are never forbidden writes.
  */
 export const WRITE_RIGHTS: readonly Right[] = [
   "library.delete", "library.rescrape", "acquisition.request", "acquisition.follow",
@@ -163,17 +162,6 @@ type Role = Schemas["Role"];
  */
 export function bypassesRights(role: Role): boolean {
   return role.kind === "admin";
-}
-
-/**
- * Whether a role is the system's Default — every new account's, its rights
- * configurable, its name not (ruling 22).
- *
- * @param role The role.
- * @returns True for the Default role.
- */
-export function isDefaultRole(role: Role): boolean {
-  return role.kind === "default";
 }
 
 /**

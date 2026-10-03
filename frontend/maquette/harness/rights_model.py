@@ -10,7 +10,7 @@ DESIGN maquette-l18 § 1.2, § 2.2, § 5 (R-L18-a, R-L18-b, R-L18-c).
    rendering, because a comparison that happens to agree with the model today draws
    exactly the same screen.
 3. R-L18-c — THE REFUSAL SIDE, READS AND WRITES: signed in as each invented account,
-   every operation is forced by hand. An account on the Default role gets 403 from every
+   every operation is forced by hand. An account whose role opens the library alone gets 403 from every
    write but the session's own acts; a household member gets 403 from every read of
    Système, Maintenance, the pipeline, Trackers and the configuration's own files (F30);
    the owner gets 403 from nothing. `acquisition.see.others` is a filter, never a 403: the
@@ -34,8 +34,9 @@ OWNER = json.loads((SOURCE / "mocks/seeds/account.json").read_text(encoding="utf
 # settings (the operator, 2026-10-03: « tout le monde à le droit de changer les notifications de
 # son propre compte »).
 SESSION = {
-    "POST /auth/login", "POST /auth/logout", "POST /auth/plex",
+    "POST /auth/login", "POST /auth/logout", "POST /auth/plex", "POST /auth/plex/start", "PUT /auth/password",
     "PUT /notifications/preferences/{type}", "POST /notifications/devices",
+    "POST /acquisition/journeys/{infoHash}/closure/seen",
 }
 # The reads F30 gates: Système, Maintenance, the pipeline's record, Trackers, the
 # configuration's own files and secrets.
@@ -110,19 +111,25 @@ async def main():
                       rest["requesters"] and not strangers, f"{len(rest['requesters'])} cards, others {strangers[:3]}")
 
         by_role = {one["id"]: one["role"] for one in SEEDS["accounts"]}
-        default_account = next(one for one, role in by_role.items() if role == "default")
+        # THE LIBRARY ALONE (O-K1-4: Invité Plex) — what the Default role was.
+        default_account = next(one for one, role in by_role.items() if role == "plex-guest")
         household = next(one for one, role in by_role.items() if role == "household")
 
         owner = await page.evaluate(FORCE, OWNER)
-        journal.check("R-L18-c: the owner is refused nothing", not [k for k, v in owner.items() if v == 403],
-                      f"{len(owner)} operations forced")
+        # THE OWNER'S FALLBACK PASSWORD IS REFUSED BY HIS KIND (replaced on the server only, the
+        # operator, 2026-10-03), not by a right: its 403 is not this check's question.
+        refused = [k for k, v in owner.items() if v == 403 and k != "PUT /auth/password"]
+        journal.check("R-L18-c: the owner is refused nothing", not refused,
+                      f"{len(owner)} operations forced, refused {refused[:4]}")
 
         bare = await page.evaluate(FORCE, default_account)
         writes = [k for k in bare if not k.startswith("GET ") and k not in SESSION]
         through = [k for k in writes if bare[k] != 403]
-        journal.check(f"R-L18-c: the Default role ({default_account}) is refused every write", writes and not through,
+        journal.check(f"R-L18-c: a library-only role ({default_account}) is refused every write", writes and not through,
                       f"{len(writes)} writes, answered {[(k, bare[k]) for k in through][:4]}")
-        session = [k for k in SESSION if bare.get(k) == 403]
+        # A PLEX-LINKED ACCOUNT'S OWN PASSWORD IS REFUSED BY ITS KIND (it holds none), not
+        # by a right: its 403 is not this check's question.
+        session = [k for k in SESSION if bare.get(k) == 403 and k != "PUT /auth/password"]
         journal.check("R-L18-c: signing in and out answer every identity", not session, str(session))
 
         member = await page.evaluate(FORCE, household)

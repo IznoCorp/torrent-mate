@@ -5,10 +5,12 @@ import { routes } from "./handlers";
 import { OPERATION_RIGHTS } from "./operation-rights";
 import CONTRACT from "../../../contract/openapi.json";
 
-// The session's own acts: every identity, under any ceiling (F28). The two notification writes
-// join them (the operator, 2026-10-03): an account's own settings, not a delegable capability.
+// The session's own acts: every identity, under any ceiling (F28). The account's own state
+// joins them (the operator, 2026-10-03) — its notification writes, its « × » seen-marks, a local
+// account's own password: an account's own settings, not a delegable capability.
 const SESSION = new Set([
-  "signIn", "signOut", "signInWithPlex", "updateNotificationPreference", "registerPushDevice",
+  "signIn", "signOut", "startPlexSignIn", "signInWithPlex", "changeOwnPassword",
+  "updateNotificationPreference", "registerPushDevice", "dismissClosure",
 ]);
 
 describe("every operation names the right it asks for", () => {

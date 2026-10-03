@@ -76,6 +76,15 @@ const CREATE_AFTER = 400;
 // A title the library holds, whose sheet offers the library's writes.
 const OWNED = "American Dad!";
 
+// Membre du foyer's rights (O-K1-4), and the quality an Admin may add to them.
+const HOUSEHOLD_WITH_QUALITY: Right[] = [
+  "library.read", "acquisition.request", "acquisition.follow", "acquisition.todo.view",
+  "acquisition.pilot.own", "acquisition.pause.own", "acquisition.quality.own",
+];
+
+// A Plex-linked account's e-mail, typed at the password door.
+const PLEX_LINKED_EMAIL = "lea@example.invalid";
+
 // A follow four accounts asked for, each with its own settings in the seed.
 const SHARED_FOLLOW = "Kyma, l'onde mystérieuse";
 
@@ -91,7 +100,7 @@ export function rightsStates(): NamedState[] {
     ],
     [
       "bar-guest",
-      "Droits — la barre d'un invité Plex : Acquisition, Médiathèque, Découvrir",
+      "Droits — la barre d'un invité qui demande (rôle de test) : Acquisition, Médiathèque, Découvrir",
       () => {
         as("guest");
         applyState({ page: "acq", acqTab: "follows", phase: "ready" });
@@ -148,7 +157,7 @@ export function rightsStates(): NamedState[] {
     ],
     [
       "acq-guest",
-      "Droits — Acquisition d'un invité Plex : ni « À traiter » ni son compte, son rôle ne tient pas le droit de le voir",
+      "Droits — Acquisition d'un invité qui demande (rôle de test) : ni « À traiter » ni son compte, son rôle ne tient pas le droit de le voir",
       () => {
         as("guest");
         // THE DIAL ASKS FOR « À TRAITER », and the page draws the first tab the
@@ -186,8 +195,10 @@ export function rightsStates(): NamedState[] {
     ],
     [
       "quality-own-offered",
-      "Droits — le suivi d'un membre du foyer : sa qualité et sa pause, à lui, offertes",
+      "Droits — le suivi d'un membre du foyer à qui un Admin a donné la qualité : sa qualité et sa pause, à lui, offertes",
       () => {
+        // MEMBRE DU FOYER HOLDS NO QUALITY (O-K1-4): an Admin gave it here, in « Comptes ».
+        window.__mocks?.setRoleRights("household", HOUSEHOLD_WITH_QUALITY);
         as("household-member");
         applyState({ page: "acq", acqTab: "follows", phase: "ready" });
         window.__panel.produce("follow", SHARED_FOLLOW);
@@ -195,7 +206,7 @@ export function rightsStates(): NamedState[] {
     ],
     [
       "quality-own-absent",
-      "Droits — le même suivi pour un invité Plex : ni qualité ni pause, son rôle ne les tient pas",
+      "Droits — le même suivi pour un invité qui demande (rôle de test) : ni qualité ni pause, son rôle ne les tient pas",
       () => {
         as("guest");
         applyState({ page: "acq", acqTab: "follows", phase: "ready" });
@@ -248,7 +259,7 @@ export function rightsStates(): NamedState[] {
     ],
     [
       "profile-guest",
-      "Droits — Profil d'un invité Plex",
+      "Droits — Profil d'un invité qui demande (rôle de test)",
       () => {
         as("guest");
         applyState({ page: "profile", phase: "ready" });
@@ -291,13 +302,13 @@ export function rightsStates(): NamedState[] {
     ],
     [
       "signin-password-refused",
-      "Connexion — le mot de passe d'un invité Plex, refusé avec sa raison",
+      "Connexion — le mot de passe d'un compte lié à Plex, refusé comme tout autre échec",
       () => {
         showGate();
         tap('[data-part="login/password-disclosure"]');
         const form = document.querySelector<HTMLFormElement>("#loginform");
         if (!form) return;
-        (form.elements.namedItem("username") as HTMLInputElement).value = "Noé";
+        (form.elements.namedItem("username") as HTMLInputElement).value = PLEX_LINKED_EMAIL;
         (form.elements.namedItem("password") as HTMLInputElement).value = "secret";
         form.requestSubmit();
       },
@@ -314,7 +325,7 @@ export function rightsStates(): NamedState[] {
     ],
     [
       "accounts-roster",
-      "Comptes — la liste : un compte par ligne, son rôle, son lien Plex ; « sans droits » pour le rôle par défaut",
+      "Comptes — la liste : un compte par ligne, son rôle, comment il se connecte",
       () => {
         reread();
         applyState({ page: "accounts", phase: "ready" });
@@ -370,7 +381,7 @@ export function rightsStates(): NamedState[] {
       "no-access",
       "Droits — un rôle qui n'ouvre aucune page : la page dédiée, la déconnexion seule",
       () => {
-        window.__mocks?.setRoleRights("default", []);
+        window.__mocks?.setRoleRights("plex-guest", []);
         as("plex-without-rights");
         applyState({ page: "no-access", phase: "ready" });
       },

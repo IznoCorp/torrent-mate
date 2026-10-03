@@ -1,19 +1,11 @@
 {
-  "x-unseeded": "INVENTED: no account but the Plex owner exists yet (§ 17, demand D). These roles and accounts are read only while a named state dials one of them; the resting maquette is the owner's alone (DESIGN maquette-l18 § 2.2).",
+  "x-unseeded": "INVENTED: no account but the Plex owner exists yet (§ 17, demand D). The roles are the five the operator seeded (O-K1-4, 2026-10-03): Admin, Membre du foyer, Invité Plex, Demandeur, Invité. The accounts are read only while a named state dials one of them; the resting maquette is the owner's alone (DESIGN maquette-l18 § 2.2). `testRoles` and `testAccounts` are NOT the seeded world: roles a manager might have created, read only while a harness state turns the test roster on.",
   "roles": [
     {
       "id": "admin",
       "name": "Admin",
       "kind": "admin",
       "rights": []
-    },
-    {
-      "id": "default",
-      "name": "Par défaut",
-      "kind": "default",
-      "rights": [
-        "library.read"
-      ]
     },
     {
       "id": "household",
@@ -25,10 +17,87 @@
         "acquisition.follow",
         "acquisition.todo.view",
         "acquisition.pilot.own",
-        "acquisition.quality.own",
+        "acquisition.pause.own"
+      ],
+      "defaultFor": [
+        "plexHome"
+      ]
+    },
+    {
+      "id": "plex-guest",
+      "name": "Invité Plex",
+      "kind": "ordinary",
+      "rights": [
+        "library.read"
+      ],
+      "defaultFor": [
+        "plexGuest"
+      ]
+    },
+    {
+      "id": "requester",
+      "name": "Demandeur",
+      "kind": "ordinary",
+      "rights": [
+        "library.read",
+        "acquisition.request",
+        "acquisition.follow",
+        "acquisition.todo.view",
+        "acquisition.pilot.own",
         "acquisition.pause.own"
       ]
     },
+    {
+      "id": "local-guest",
+      "name": "Invité",
+      "kind": "ordinary",
+      "rights": [
+        "library.read"
+      ],
+      "defaultFor": [
+        "local"
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "id": "household-member",
+      "name": "Léa",
+      "email": "lea@example.invalid",
+      "role": "household",
+      "signInKind": "plex"
+    },
+    {
+      "id": "plex-without-rights",
+      "name": "Tom",
+      "email": "tom@example.invalid",
+      "role": "plex-guest",
+      "signInKind": "plex"
+    },
+    {
+      "id": "local-account",
+      "name": "Jules",
+      "email": "jules@example.invalid",
+      "role": "requester",
+      "signInKind": "local"
+    },
+    {
+      "id": "local-guest",
+      "name": "Paul",
+      "email": "paul@example.invalid",
+      "role": "local-guest",
+      "signInKind": "local"
+    },
+    {
+      "id": "just-linked",
+      "name": "Inès",
+      "email": "ines@example.invalid",
+      "role": "household",
+      "signInKind": "plex",
+      "demotedFrom": "requester"
+    }
+  ],
+  "testRoles": [
     {
       "id": "household-sees-all",
       "name": "Membre du foyer (voit tout)",
@@ -45,8 +114,8 @@
       ]
     },
     {
-      "id": "guest",
-      "name": "Invité Plex",
+      "id": "guest-requests",
+      "name": "Invité Plex (demandes)",
       "kind": "ordinary",
       "rights": [
         "library.read",
@@ -78,48 +147,34 @@
       ]
     }
   ],
-  "accounts": [
-    {
-      "id": "household-member",
-      "name": "Léa",
-      "email": "lea@example.invalid",
-      "role": "household",
-      "plexLinked": true
-    },
+  "testAccounts": [
     {
       "id": "household-member-sees-all",
       "name": "Sam",
       "email": "sam@example.invalid",
       "role": "household-sees-all",
-      "plexLinked": true
+      "signInKind": "plex"
     },
     {
       "id": "guest",
       "name": "Noé",
       "email": "noe@example.invalid",
-      "role": "guest",
-      "plexLinked": true
+      "role": "guest-requests",
+      "signInKind": "plex"
     },
     {
       "id": "guest-with-quality",
       "name": "Alix",
       "email": "alix@example.invalid",
       "role": "guest-quality",
-      "plexLinked": true
+      "signInKind": "plex"
     },
     {
       "id": "see-only",
       "name": "Eden",
       "email": "eden@example.invalid",
       "role": "spectator",
-      "plexLinked": true
-    },
-    {
-      "id": "plex-without-rights",
-      "name": "Tom",
-      "email": "tom@example.invalid",
-      "role": "default",
-      "plexLinked": true
+      "signInKind": "plex"
     }
   ],
   "requests": {
@@ -159,5 +214,7 @@
   },
   "plexUsers": [
     "maya@example.invalid"
-  ]
+  ],
+  "plexSignInUrl": "about:blank",
+  "passwordMinimum": 12
 }

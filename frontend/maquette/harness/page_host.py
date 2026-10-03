@@ -42,9 +42,16 @@ SHELL_OWNED = ["sys", "maint", "cfg", "lib", "acq", "trackers", "discover", "pro
 # a page that lost half of itself. « trackers » RAISED 2 → 40, said out loud: its
 # first floor counted the heading, the body and a container, and a page that lost
 # its roster stayed green; the roster page emits 46 (correction round C16).
+# « accounts » LOWERED 85 → 71, said out loud: it emitted 93, it now emits 79, and
+# the whole drop is the operator's 2026-10-03 roster ruling, not a part that
+# stopped drawing. A row is five elements: the seeded accounts went from seven
+# rows to six (-5), the seeded roles from seven to five (-10: five seeded roles,
+# no Default role, the test roles hidden behind `setTestRoster`), and the demoted
+# account's row carries one more element (+1); the creation form is unchanged at
+# 16. The same margin of 8 under the measure as before.
 FLOORS = {"sys": 180, "maint": 50, "cfg": 40, "lib": 150,
           "acq": 55, "trackers": 40, "discover": 40, "profile": 30, "404": 5,
-          "accounts": 85, "no-access": 4}
+          "accounts": 71, "no-access": 4}
 # EMPTY, and that is the point of this wave: no page is drawn by the fragment
 # any more. The hold below says so out loud rather than passing over an empty
 # list — a scope that silently empties is a rule that stopped measuring.

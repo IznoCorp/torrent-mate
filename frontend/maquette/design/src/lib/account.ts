@@ -2,9 +2,10 @@
 // draws by rights (§ 17). In `lib/` because every feature and the frame read it,
 // and invariant 7 forbids a feature importing another.
 import { useQuery } from "@tanstack/react-query";
+import i18next from "i18next";
 import { read, sharedQueryClient, useServerStateVersion } from "./query-client";
 import type { Schemas } from "./contract-schemas";
-import { rightsOf, type Rights } from "./rights";
+import { bypassesRights, rightsOf, type Rights } from "./rights";
 
 /** Who is signed in, as `readAccount` answers it. */
 export type Account = Schemas["Account"];
@@ -60,3 +61,17 @@ export const accountsQuery = {
   queryKey: ["/api/v1/accounts"],
   queryFn: async () => read<Schemas["Roster"]>("/api/v1/accounts"),
 };
+
+/**
+ * A role's name, as the interface says it (gap G-10).
+ *
+ * THE SYSTEM ROLE IS NAMED BY ITS KIND, from `fr.json`: the server stores
+ * `Admin`, and the words are the interface's. Every other role is named as the
+ * seed or a manager named it (O-K1-4: there is no Default system role).
+ *
+ * @param role The role.
+ * @returns Its name, for display — never compared.
+ */
+export function roleLabel(role: Schemas["Role"]): string {
+  return bypassesRights(role) ? i18next.t("access.roleKinds.admin") : role.name;
+}

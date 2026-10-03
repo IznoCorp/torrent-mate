@@ -2,8 +2,8 @@
 
 DESIGN maquette-l18 § 3.0, § 3.4, § 3.5, § 3.9; round 8 Q11, round 9 Q13, round 9 Q14, round 10 Q6.
 
-1. A ROLE IS RENAMED THROUGH THE INTERFACE — an ordinary role and a created one; never Default's
-   name nor Admin (round 9 Q14: « modifiables par l'interface »).
+1. A ROLE IS RENAMED THROUGH THE INTERFACE — an ordinary role and a created one; never
+   Admin (round 9 Q14: « modifiables par l'interface »).
 2. THE SWIPE OBEYS THE RIGHTS: a follow's swipe acts are offered only where its panel would offer
    them; a 403 the interface still meets says its refusal, never a success first.
 3. « RÉCUPÉRER LA SAISON N » only with the right, on one's own acquisition; a 403 says why.
@@ -86,11 +86,9 @@ async def main():
             await page.wait_for_timeout(ACTED + SETTLED)
         names = await page.evaluate("()=>[...document.querySelectorAll('[data-part=\"accounts/role\"] [data-part=\"flux/name\"]')].map((one)=>one.textContent)")
         journal.check(f"1: a created role (« {created['name']} ») is renamed too", "Amis" in names, str(names))
-        await panel("role", "default")
-        default_field = await page.query_selector('#sheet [data-part="accounts/role-name"]')
         await panel("role", "admin")
         admin_field = await page.query_selector('#sheet [data-part="accounts/role-name"]')
-        journal.check("1: neither Default nor Admin offers its name", default_field is None and admin_field is None)
+        journal.check("1: Admin does not offer its name", admin_field is None)
 
         # 2 — THE SWIPE OBEYS THE RIGHTS.
         await go("acq-see-only")
@@ -168,6 +166,8 @@ async def main():
 
         # 5 — THE REASSIGNED LINE.
         await go("acq-household")
+        # THE TARGET IS A TEST ACCOUNT, out of the tester's default world: its roster is turned on.
+        await page.evaluate("()=>window.__mocks.setTestRoster(true)")
         await sign_in("izno", {"page": "acq", "acqTab": "now", "scen": "loaded"})
         await panel("reassign", f"card|{MOVED}")
         await page.click('#sheet [data-reassign-to$="|household-member-sees-all"]')
@@ -197,7 +197,7 @@ async def main():
           .map((one) => [one.value, one.disabled])""")
         greyed = {value for value, off in options if off}
         journal.check("7: « Rôle de départ » greys the roles beyond the manager's rights",
-                      "household" in greyed and "default" not in greyed, str(options))
+                      "household" in greyed and "local-guest" not in greyed, str(options))
 
         # 8 — ADMIN, IN THE ACCOUNT'S ROLE CHOICE.
         await go("accounts-detail", PANEL_IN + SETTLED)

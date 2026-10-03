@@ -18,6 +18,7 @@ import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";
 import { registerProducer, type PanelDescriptor } from "../../ui/panel/contract";
 import { accountQuery, type Account } from "./queries";
+import { roleLabel } from "../../lib/account";
 
 // THE ICONS COME THROUGH THE ENGINE'S DRAWING SLICE, not by importing
 // `app/icons.ts`, and it is invariant 8 that decides. `app/icons.ts` is outside
@@ -55,7 +56,7 @@ function accountPanel(
   return {
     title: account.name,
     // THE ROLE'S NAME, as the server names it — shown, never compared (§ 1.1).
-    subtitle: `${account.role.name} · ${account.email}`,
+    subtitle: `${roleLabel(account.role)} · ${account.email}`,
     avatar: account.avatar,
     blocs: [
       {

@@ -1099,10 +1099,9 @@
       "noteLead": "Ce compte, son rôle et ce qu'il peut faire.",
       "noteRest": " Les droits appartiennent au rôle, jamais au compte : ce qui manque ici se donne en changeant de rôle, dans « Comptes ».",
       "you": "Vous",
-      "identifier": "Identifiant",
+      "identifier": "Nom",
       "identifierSub": "défini dans la configuration, pas ici",
-      "address": "Adresse",
-      "addressSub": "sert aux notifications, jamais à la connexion",
+      "address": "Adresse e-mail",
       "session": "Votre session",
       "duration": "Durée",
       "durationValue": "30 jours",
@@ -1116,13 +1115,9 @@
       "signOut": "Se déconnecter",
       "role": "Rôle",
       "roleSub": "un seul par compte ; ses droits sont les vôtres",
-      "plex": "Plex",
-      "plexLinked": "compte Plex lié",
-      "plexNotLinked": "aucun compte Plex lié",
       "can": "Ce que ce compte peut faire",
       "cannot": "Ce qu'il ne peut pas faire",
       "forbiddenHere": "interdit sur cette instance, pour tous les comptes",
-      "addressPlexSub": "relie le compte Plex de même adresse",
       "held": "détenu",
       "noRight": "Aucun droit : ce rôle n'ouvre rien ici.",
       "notifications": {
@@ -1155,6 +1150,34 @@
           "failed": "L'activation n'a pas abouti : réessayez dans un instant."
         },
         "refused": "« {{type}} » n'a pas été changé : le serveur a refusé la demande."
+      },
+      "addressSub": "votre identifiant de connexion",
+      "signIn": "Connexion",
+      "signInKind": {
+        "owner": {
+          "value": "Plex, et un mot de passe de secours",
+          "line": "Propriétaire du serveur Plex : le mot de passe de secours sert quand Plex ne répond pas. Il ne se change que par une commande sur le serveur, jamais ici."
+        },
+        "plex": {
+          "value": "Plex uniquement",
+          "line": "Ce compte est lié à Plex : il n'a pas de mot de passe ici."
+        },
+        "local": {
+          "value": "Mot de passe",
+          "line": "Compte local : votre adresse e-mail n'est pas un utilisateur du serveur Plex. Votre mot de passe se change ci-dessous."
+        }
+      },
+      "password": {
+        "heading": "Mot de passe",
+        "current": "Mot de passe actuel",
+        "new": "Nouveau mot de passe",
+        "confirm": "Nouveau mot de passe, encore",
+        "submit": "Changer le mot de passe",
+        "sending": "Changement…",
+        "changed": "Mot de passe changé : il vaut dès votre prochaine connexion.",
+        "mismatch": "Les deux nouveaux mots de passe ne sont pas les mêmes.",
+        "missing": "Les trois champs sont obligatoires.",
+        "refused": "Le changement a été refusé : rien n'a été changé."
       }
     },
     "notFound": {
@@ -1260,22 +1283,22 @@
       "plexUnreachable": "Plex ne répond pas : connectez-vous avec un mot de passe.",
       "usePassword": "Utiliser un mot de passe",
       "invalid": "Identifiants invalides",
-      "passwordRefused": "Ce compte se connecte avec Plex : il n'a pas de mot de passe ici."
+      "email": "Adresse e-mail",
+      "plexPending": "En attente de Plex : confirmez la connexion dans la page Plex qui vient de s'ouvrir.",
+      "plexReopen": "Rouvrir la page Plex",
+      "plexCancel": "Annuler",
+      "doors": "Compte lié à Plex : entrez avec Plex. Compte local : entrez avec votre adresse e-mail et votre mot de passe."
     },
     "accounts": {
       "accounts": "Les comptes",
       "roles": "Les rôles",
-      "rightless": "sans droits",
       "bypass": "contourne tous les droits",
       "roleCount_one": "{{count}} droit",
       "roleCount_other": "{{count}} droits",
-      "plexLinked": "compte Plex lié",
-      "plexNotLinked": "aucun compte Plex lié",
       "oneRole": "Un compte a un seul rôle ; ses droits sont ceux du rôle.",
       "notOwnRole": "Votre propre rôle ne se change pas d'ici : un autre gestionnaire le fait.",
       "current": "rôle actuel",
       "adminRole": "Le rôle Admin ne tient pas de liste : il contourne tous les droits, présents et à venir. Il ne se restreint ni ne se modifie.",
-      "defaultRole": "Le rôle de tout nouveau compte. Ses droits se règlent ici ; il ne se supprime ni ne se renomme.",
       "grant": "Donner : {{right}}",
       "withdraw": "Retirer : {{right}}",
       "saved": "Enregistré.",
@@ -1286,14 +1309,35 @@
       "name": "Nom",
       "email": "Adresse e-mail (obligatoire)",
       "initialRole": "Rôle de départ",
-      "plexHint": "Un compte Plex de même adresse lui est lié : il peut alors entrer par Plex.",
+      "plexHint": "Une adresse qui est un utilisateur du serveur Plex est liée : le compte entre par Plex uniquement, sans mot de passe. Toute autre adresse fait un compte local, qui entre avec le mot de passe provisoire donné ici et le change ensuite dans son Profil.",
       "create": "Créer le compte",
       "emailRequired": "L'adresse e-mail est obligatoire.",
       "createRefused": "La création a été refusée.",
       "roleName": "Nom du rôle",
       "rename": "Renommer",
       "nameRequired": "Un rôle porte un nom : il ne peut pas rester vide.",
-      "createBeyond": "Refusé : ce rôle de départ dépasse vos droits."
+      "createBeyond": "Refusé : ce rôle de départ dépasse vos droits.",
+      "signInKind": {
+        "owner": "propriétaire Plex : Plex et mot de passe de secours",
+        "plex": "lié à Plex : Plex uniquement",
+        "local": "compte local : mot de passe"
+      },
+      "demoted": "Lié à Plex : son rôle est revenu à celui de départ. À promouvoir de nouveau (avant : {{role}}).",
+      "demotedShort": "rôle de départ depuis sa liaison Plex",
+      "defaultFor": {
+        "plexHome": "Rôle de départ des utilisateurs Plex Home du serveur Plex, à leur première connexion ou à leur liaison.",
+        "plexGuest": "Rôle de départ des autres utilisateurs du serveur Plex, à leur première connexion ou à leur liaison.",
+        "local": "Rôle de départ d'un compte local créé sans rôle choisi."
+      },
+      "provisionalPassword": "Mot de passe provisoire (compte local)",
+      "reset": {
+        "field": "Nouveau mot de passe provisoire",
+        "hint": "Remplace un mot de passe oublié. Communiquez-le à la personne : elle le changera dans son Profil.",
+        "submit": "Réinitialiser le mot de passe",
+        "sending": "Envoi…",
+        "done": "Mot de passe provisoire enregistré : communiquez-le à {{name}}, qui le changera dans son Profil.",
+        "refused": "La réinitialisation a été refusée."
+      }
     },
     "crossSeed": {
       "states": {
@@ -2056,9 +2100,6 @@
       },
       "accounts": {
         "manage": "gérer les comptes"
-      },
-      "auth": {
-        "password": "se connecter par mot de passe"
       }
     },
     "holders": {
@@ -2105,13 +2146,64 @@
       },
       "accounts": {
         "manage": "Par défaut, seul le rôle Admin le détient."
-      },
-      "auth": {
-        "password": "Par défaut, seul le rôle Admin le détient."
       }
+    },
+    "roleKinds": {
+      "admin": "Admin"
     },
     "ceilingEvery": "Cette instance est en lecture seule : aucune écriture n'y est permise, pour aucun compte.",
     "ceilingSome": "Cette instance interdit, pour tous les comptes : {{rights}}."
+  },
+  "refusals": {
+    "request": {
+      "invalid": "La demande est mal formée : rien n'a été changé.",
+      "cross_origin": "Demande refusée : elle ne vient pas de cette interface."
+    },
+    "route": {
+      "unknown": "Cette action n'existe pas sur ce serveur."
+    },
+    "internal": "Le serveur a rencontré une erreur : réessayez dans un instant.",
+    "auth": {
+      "required": "Votre session a pris fin : reconnectez-vous.",
+      "refused": "Connexion refusée : vérifiez votre adresse e-mail et votre mot de passe, ou entrez par la porte de votre compte.",
+      "plex_only": "Ce compte se connecte avec Plex : il n'a pas de mot de passe ici.",
+      "rate_limited": "Trop de tentatives : réessayez dans quelques minutes."
+    },
+    "right": {
+      "missing": "Votre rôle ne tient pas le droit de faire cela.",
+      "not_own": "Ce n'est pas à vous : votre rôle n'agit que sur ce que vous avez demandé.",
+      "unknown": "Ce droit n'existe pas."
+    },
+    "instance": {
+      "read_only": "Cette instance est en lecture seule : rien ne s'y écrit.",
+      "forbidden_write": "Cette instance interdit cette écriture, pour tous les comptes."
+    },
+    "account": {
+      "unknown": "Ce compte n'existe plus.",
+      "email_invalid": "L'adresse e-mail est invalide.",
+      "email_taken": "Un compte porte déjà cette adresse e-mail.",
+      "admin_untouchable": "Un compte Admin ne se change que par un Admin.",
+      "last_admin": "Refusé : le serveur resterait sans Admin."
+    },
+    "role": {
+      "unknown": "Ce rôle n'existe plus.",
+      "system_immutable": "Un rôle système ne se renomme pas, et le rôle Admin ne se modifie pas.",
+      "own_role": "Votre propre rôle ne se change pas d'ici : un autre gestionnaire le fait.",
+      "escalation": "Refusé : ce changement dépasse vos droits."
+    },
+    "plex": {
+      "unreachable": "Plex ne répond pas : connectez-vous avec un mot de passe.",
+      "server_unreachable": "Le serveur Plex de TorrentMate ne répond pas : connectez-vous avec un mot de passe.",
+      "token_refused": "Plex a refusé la connexion : recommencez.",
+      "pin_unknown": "Cette demande Plex n'existe plus : recommencez.",
+      "pin_expired": "La demande Plex a expiré avant d'être confirmée : recommencez."
+    },
+    "password": {
+      "current_wrong": "Le mot de passe actuel est incorrect : rien n'a été changé.",
+      "required": "Un compte local reçoit un mot de passe provisoire : il est obligatoire.",
+      "too_short": "Le nouveau mot de passe doit compter au moins {{minimum}} caractères.",
+      "held_by_cli": "Ce mot de passe de secours ne se change que par une commande sur le serveur, jamais ici."
+    }
   },
   "push": {
     "generic": {

@@ -30,7 +30,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Open a session */
+        /**
+         * Open a session
+         * @description The password door: the Plex owner's fallback, or a local account's only way in. Every other case — an unknown e-mail, a wrong password, a Plex-linked account — is refused `auth.refused`, one indistinguishable answer (O-K1-4 anti-enumeration).
+         */
         post: operations["signIn"];
         delete?: never;
         options?: never;
@@ -49,6 +52,26 @@ export interface paths {
         put?: never;
         /** Close the session */
         post: operations["signOut"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Change the signed-in account's password
+         * @description A LOCAL account changes its own password (the operator, 2026-10-03: « Le mot de passe d'un compte local … peut se changer sur le profil de l'utilisateur »). The Plex server owner's fallback password is replaced only by a command on the server, never here: refused `password.held_by_cli`. A Plex-linked account holds no password: refused `auth.plex_only` (the caller is signed in, so this tells nothing about other e-mails). A session act, no right.
+         */
+        put: operations["changeOwnPassword"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1399,8 +1422,31 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Open a session through Plex */
+        /**
+         * Open a session through Plex
+         * @description Asks whether the PIN `startPlexSignIn` created has been claimed. 202 while it is not; 200 once it is, the session open. A Plex identity WITH access to the managed server signs in by Plex only — the server's owner keeps a fallback password besides; one WITHOUT access is refused `auth.refused`, as if it did not exist (round 4 P-1 = A; the operator, 2026-10-03). An identity whose e-mail is a local account's links them: the account then signs in by Plex only and drops to the role its kind starts on (`Role.defaultFor`: `plexHome` or `plexGuest`) until an Admin promotes it again.
+         */
         post: operations["signInWithPlex"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/plex/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a Plex sign-in
+         * @description Creates a Plex PIN on the server and answers where the person confirms it. The interface opens `signInUrl`, then asks `signInWithPlex` with `pinId` until the PIN is claimed, refused or expired (round 4 P-2 = B).
+         */
+        post: operations["startPlexSignIn"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1605,6 +1651,26 @@ export interface paths {
          * @description « Créer et publier un torrent » (§ 19 point 5; L23 demand Q): ONE torrent, ONE tracker, ONE call — the engine builds a `.torrent` from the origin's own files and publishes it on the named tracker, to open a cross-seed where its own search found none. Asked only on a pair with no match, in error or not yet searched, not excluded, its origin ACTIVE in the client, complete and seeding (round 11 OPEN 1 = A), its tracker's cross-seed switch on and its « accepte les uploads » switch on (OPEN 2 = B); anything else is refused (409). Gated by `trackers.upload` (L23 DESIGN § 0.2), its own right, independent of `trackers.control`: refused 403 to an account without it. The answer is a visible « en file », never « occupé » (DOIT-4, NE-DOIT-PAS-3); a second ask on a pair already uploading is a duplicate (409). The engine applies the tracker's own publication rules and the interface pre-validates nothing (OPEN 3 = A). Its outcome arrives on the stream by the SAME two events a found cross-seed does — `CrossSeedInjected` on success (the pair `active`, `via: upload`), `CrossSeedRejected` on failure (the pair `error`, `creation_failed` or `publish_failed`, the tracker's reason in `trackerReason`) — never a third.
          */
         post: operations["uploadCrossSeed"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/accounts/{accountId}/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset a local account's password to a provisional one
+         * @description An Admin in « Comptes » gives a LOCAL account a new PROVISIONAL password — a forgotten one replaced (the operator, 2026-10-03: « A »); the account then changes it in Profil (`changeOwnPassword`). LOCAL ACCOUNTS ONLY: the Plex server owner's fallback password is replaced by a command on the server, never here (refused `password.held_by_cli`); a Plex-linked account holds no password (refused `auth.plex_only`). A manager who is not Admin never touches an account on the Admin role (`account.admin_untouchable`, M7). The account's open sessions are not ended by this act.
+         */
+        post: operations["resetAccountPassword"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1961,7 +2027,7 @@ export interface components {
             /** @description whether a value exists. NEVER the value itself */
             defined: boolean;
         };
-        /** @description WHO IS SIGNED IN, and what the account may do (§ 17, demand D): its role, the rights the role carries, whether a Plex account is linked, and the instance's forbidden writes (ruling 23), subtracted from every role — Admin's included. */
+        /** @description WHO IS SIGNED IN, and what the account may do (§ 17, demand D): its role, the rights the role carries, how it signs in, and the instance's forbidden writes (ruling 23), subtracted from every role — Admin's included. */
         Account: {
             name: string;
             email: string;
@@ -1970,8 +2036,7 @@ export interface components {
             /** @description the account's key */
             id: string;
             role: components["schemas"]["Role"];
-            /** @description whether a Plex account is linked to this one */
-            plexLinked: boolean;
+            signInKind: components["schemas"]["SignInKind"];
             /** @description THE INSTANCE'S forbidden writes (ruling 23): every write right on today's read-only instance, `library.delete` alone on the future preprod, empty on production. Read from the server, never guessed from an address. */
             forbiddenWrites: components["schemas"]["Right"][];
         };
@@ -2138,10 +2203,15 @@ export interface components {
         };
         Problem: {
             status: number;
-            /** @description what went wrong, in one line */
+            /** @description what went wrong, in one English line, for logs — never shown */
             title: string;
-            /** @description the real reason, never a code alone (NE-DOIT-PAS-4, NE-DOIT-PAS-5) */
+            /** @description the real reason, in English, for logs (NE-DOIT-PAS-4, NE-DOIT-PAS-5) — never shown */
             detail?: string;
+            code?: components["schemas"]["RefusalCode"];
+            /** @description the values the code's words name, by name (e.g. `minimum` for `password.too_short`) */
+            params?: {
+                [key: string]: string | number;
+            };
         };
         Episode: {
             number: number;
@@ -2679,33 +2749,37 @@ export interface components {
          * @description ONE RIGHT OF THE ACL (§ 17, ruling 17: every access, a view or an act, is a right). Rights belong to ROLES, never to an account (ruling 20). The interface reads the set an account holds and offers exactly what it opens; it never compares a role's name.
          * @enum {string}
          */
-        Right: "library.read" | "library.delete" | "library.rescrape" | "acquisition.request" | "acquisition.follow" | "acquisition.pilot.own" | "acquisition.pilot.any" | "acquisition.see.others" | "acquisition.todo.view" | "acquisition.quality.own" | "acquisition.pause.own" | "acquisition.reassign" | "pipeline.control" | "trackers.view" | "trackers.control" | "trackers.upload" | "system.view" | "configuration.view" | "configuration.write" | "accounts.manage" | "auth.password";
-        /** @description A ROLE and the rights it carries (ruling 20: one role per account). Two are the system's and indelible (ruling 22): `admin` holds NO rights list — it bypasses the ACL, every right present and future — and `default` is the role every new account receives, its rights configurable. Every other role is `ordinary` configuration. */
+        Right: "library.read" | "library.delete" | "library.rescrape" | "acquisition.request" | "acquisition.follow" | "acquisition.pilot.own" | "acquisition.pilot.any" | "acquisition.see.others" | "acquisition.todo.view" | "acquisition.quality.own" | "acquisition.pause.own" | "acquisition.reassign" | "pipeline.control" | "trackers.view" | "trackers.control" | "trackers.upload" | "system.view" | "configuration.view" | "configuration.write" | "accounts.manage";
+        /** @description A ROLE and the rights it carries (ruling 20: one role per account). One is the system's and indelible (ruling 22): `admin` holds NO rights list — it bypasses the ACL, every right present and future. Every other role is `ordinary` configuration; three of them are where a newcomer starts (`defaultFor`, the operator 2026-10-03, O-K1-4). */
         Role: {
             /** @description the role's key */
             id: string;
             /** @description its name, for display only — never compared */
             name: string;
             /**
-             * @description `admin` and `default` are the two system roles; `ordinary` is everything else
+             * @description `admin` is the system role; `ordinary` is everything else
              * @enum {string}
              */
-            kind: "admin" | "default" | "ordinary";
+            kind: "admin" | "ordinary";
             /** @description the rights it carries — empty for `admin`, which bypasses the list */
             rights: components["schemas"]["Right"][];
+            /** @description WHO STARTS ON THIS ROLE (O-K1-4), applied at creation or link only, never recomputed: `plexHome` — a Plex Home user of the managed server at its first sign-in or link (Membre du foyer); `plexGuest` — any other user of the server (Invité Plex); `local` — a local account created without a role (Invité). Absent for a role nobody starts on. */
+            defaultFor?: ("plexHome" | "plexGuest" | "local")[];
         };
         /** @description An account named by another answer — a requester, a chooser's row. */
         AccountRef: {
             id: string;
             name: string;
         };
-        /** @description ONE ACCOUNT OF THE ROSTER, as « Comptes » and the reassign chooser read it: its name, its mandatory e-mail, its ONE role (ruling 20) and its Plex link. */
+        /** @description ONE ACCOUNT OF THE ROSTER, as « Comptes » and the reassign chooser read it: its name, its mandatory e-mail, its ONE role (ruling 20), how it signs in, and — after its link demoted it — the role it held before. */
         AccountSummary: {
             id: string;
             name: string;
             email: string;
             role: components["schemas"]["Role"];
-            plexLinked: boolean;
+            signInKind: components["schemas"]["SignInKind"];
+            /** @description THE ROLE IT HELD BEFORE ITS LINK, by id: present on an account whose e-mail became a user of the managed Plex server, which dropped it to its Plex kind's starting role (`Role.defaultFor`: Membre du foyer for a Plex Home user, Invité Plex otherwise — O-K1-4) until an Admin promotes it again (the operator, 2026-10-03); absent once it is given a role */
+            demotedFrom?: string;
         };
         /** @description Every account and every role (demand F). */
         Roster: {
@@ -2867,6 +2941,23 @@ export interface components {
          * @enum {string}
          */
         PushCode: "obligation.met.seed_time" | "obligation.met.ratio" | "obligation.released.removed_here" | "obligation.released.gone_from_client" | "obligation.breached" | "tracker.ratio_low" | "tracker.disabled" | "crossseed.failed" | "acquisition.arrived" | "acquisition.to_handle" | "system.run_failed" | "system.disk_full" | "system.service_down";
+        /**
+         * @description WHY A REQUEST WAS REFUSED, as a closed code (X4: no sentence on the wire). The interface says it in its own words, read from fr.json by this code; `params` carries the values those words name. The set grows per lot: an operation whose lot has not landed its codes yet may refuse without one. ANTI-ENUMERATION (O-K1-4): the two doors refuse with ONE code, `auth.refused`, whatever the cause — an unknown e-mail, a wrong password, a Plex-linked account's password, a Plex identity without access to the server — so no attempt tells which e-mails the server knows.
+         * @enum {string}
+         */
+        RefusalCode: "request.invalid" | "request.cross_origin" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "password.current_wrong" | "password.required" | "password.too_short" | "password.held_by_cli";
+        /** @description A PLEX SIGN-IN STARTED on the server: its PIN, and Plex's page where the person confirms it (round 4 P-2 = B). */
+        StartedPlexSignIn: {
+            /** @description the PIN's key, the one `signInWithPlex` takes */
+            pinId: number;
+            /** @description Plex's own page where the person confirms the sign-in */
+            signInUrl: string;
+        };
+        /**
+         * @description HOW AN ACCOUNT SIGNS IN — a fact of the account, not of its role (the operator, 2026-10-03). Every login is an e-mail. `owner`: the managed Plex server's owner, by Plex, and a fallback password replaced only by a command on the server. `plex`: an account linked to a Plex identity with access to the server, by Plex only. `local`: an account whose e-mail is no user of the server, by its password only, never linked — an Admin gives it a PROVISIONAL password in « Comptes » at its creation and may reset it there; it changes its own in Profil (the operator, 2026-10-03: « A »). When a local account's e-mail becomes a user of the server, it is linked: `plex` from then on, and on its Plex kind's starting role (`Role.defaultFor`; O-K1-4) until an Admin promotes it again; its password is dropped.
+         * @enum {string}
+         */
+        SignInKind: "owner" | "plex" | "local";
     };
     responses: {
         /** @description the request failed, and the reason is the real one (NE-DOIT-PAS-4, NE-DOIT-PAS-5) */
@@ -2922,7 +3013,8 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    username: string;
+                    /** @description the account's e-mail — every account's login (the operator, 2026-10-03) */
+                    email: string;
                     password: string;
                 };
             };
@@ -2970,6 +3062,42 @@ export interface operations {
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    changeOwnPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    currentPassword: string;
+                    newPassword: string;
+                };
+            };
+        };
+        responses: {
+            /** @description the password is changed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            429: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
         };
@@ -5570,15 +5698,60 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description the PIN `startPlexSignIn` answered */
+                    pinId: number;
+                };
+            };
+        };
         responses: {
-            /** @description the account the Plex identity signs in. A first sign-in creates it: the Plex server's OWNER on the Admin role, every other identity on the Default role (the operator, 2026-10-03) */
+            /** @description the account the Plex identity signs in. A first sign-in creates it: the Plex server's OWNER on the Admin role, a Plex Home user on the `plexHome` role, any other user of the server on the `plexGuest` role (the operator, 2026-10-03, O-K1-2 A, O-K1-4) */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["Account"];
+                };
+            };
+            /** @description the PIN is not claimed yet: ask again, at most once a second (NE-DOIT-PAS-8) */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        pending: true;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    startPlexSignIn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the PIN, and the address where Plex asks the person to confirm it */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartedPlexSignIn"];
                 };
             };
             400: components["responses"]["Problem"];
@@ -5744,8 +5917,10 @@ export interface operations {
                     name: string;
                     /** @description MANDATORY: a local account carries an e-mail, and a Plex identity with the same e-mail is linked to it */
                     email: string;
-                    /** @description the initial role's id */
-                    role: string;
+                    /** @description the initial role's id; absent, the role local accounts start on (`Role.defaultFor` `local`: Invité — O-K1-4). An e-mail that is a user of the managed server is linked instead, and starts on its Plex kind's role */
+                    role?: string;
+                    /** @description THE PROVISIONAL PASSWORD a local account starts with, set by the Admin who creates it (the operator, 2026-10-03: « A »): required for a local account (refused `password.required`, or `password.too_short` with its `minimum`); IGNORED and never stored for an e-mail that is a user of the managed server, which is linked and signs in by Plex only. The account changes it in Profil (`changeOwnPassword`). */
+                    password?: string;
                 };
             };
         };
@@ -6078,6 +6253,44 @@ export interface operations {
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    resetAccountPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the account */
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description the new provisional password; refused `password.required` when empty, `password.too_short` (`minimum`) when shorter than the server's minimum */
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description the provisional password is set */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
         };

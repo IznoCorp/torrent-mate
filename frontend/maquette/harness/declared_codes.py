@@ -115,7 +115,8 @@ ASKED_FOR = {
     # « Comptes »' two creations answer 201 with what they made (L18). A creation
     # carries its body, or the handler's refusal answers before the outcome.
     "createAccount": ("POST", "/api/v1/accounts",
-                      {"name": "Witness", "email": "witness@example.org", "role": "household"}),
+                      {"name": "Witness", "email": "witness@example.org", "role": "household",
+                       "password": "a provisional one"}),
     "createRole": ("POST", "/api/v1/roles", {"name": "Witness", "rights": []}),
     # The 200 family's witness. A read, because the plain success is what every
     # read answers and a rule holding only mutations would say nothing about

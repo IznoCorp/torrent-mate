@@ -922,7 +922,9 @@ the DEFAULT seed values (Household member, Plex guest), not the mechanism. Two r
 system's, indelible: Default (every new account's; its rights are configurable) and Admin (no
 rights list — it bypasses the ACL entirely, including rights created later). A requester on every
 acquisition MAY BE SEVERAL, each with per-requester settings; SSO added, not substituted, with
-e-mail linking and a password right (`auth.password`) rather than a hardcoded Operator check; a
+e-mail linking — the password right `auth.password` this round drew is RETIRED since 2026-10-03:
+how an account signs in is its sign-in kind (`owner | plex | local`), not a right
+(the operator, 2026-10-03: « A, oui on n'a pas le droit de se connecté par mot de passe si on est un compte Plex, on propose forcément le SSO »); a
 rights-less Plex user is a Default-only account, admitted read-only on the library by
 construction, not a distinct mechanism; the Acquisition section absent for an account holding
 neither `acquisition.request` nor `.see.others`; the staging ceiling generalised to a per-instance

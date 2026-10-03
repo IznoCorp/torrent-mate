@@ -11,7 +11,7 @@ const EVERY = (contract as unknown as { components: { schemas: { Right: { enum: 
 
 function accountOn(roleId: string, forbiddenWrites: Right[] = []): Schemas["Account"] {
   const role = ACCOUNTS.roles.find((one) => one.id === roleId) as Schemas["Role"];
-  return { id: "a", name: "a", email: "a@example.invalid", avatar: "", role, plexLinked: true, forbiddenWrites };
+  return { id: "a", name: "a", email: "a@example.invalid", avatar: "", role, signInKind: "plex", forbiddenWrites };
 }
 
 describe("the rights of an account are its role's", () => {
@@ -36,8 +36,21 @@ describe("the rights of an account are its role's", () => {
     },
   );
 
-  it("seeds the Default role to the library alone", () => {
-    expect(ACCOUNTS.roles.find((role) => role.kind === "default")?.rights).toEqual(["library.read"]);
+  it("seeds the five roles the operator ruled, and where each newcomer starts (O-K1-4)", () => {
+    const seeded = ACCOUNTS.roles.map((role) => [role.id, role.kind, (role as { defaultFor?: string[] }).defaultFor ?? []]);
+    expect(seeded).toEqual([
+      ["admin", "admin", []],
+      ["household", "ordinary", ["plexHome"]],
+      ["plex-guest", "ordinary", ["plexGuest"]],
+      ["requester", "ordinary", []],
+      ["local-guest", "ordinary", ["local"]],
+    ]);
+    const rightsOfRole = (id: string) => ACCOUNTS.roles.find((role) => role.id === id)!.rights;
+    // Demandeur carries Membre du foyer's rights, Invité Invité Plex's: the library alone.
+    expect(rightsOfRole("requester")).toEqual(rightsOfRole("household"));
+    expect(rightsOfRole("plex-guest")).toEqual(["library.read"]);
+    expect(rightsOfRole("local-guest")).toEqual(["library.read"]);
+    expect(rightsOfRole("household")).not.toContain("acquisition.quality.own");
   });
 
   it("subtracts the instance's forbidden writes, Admin's included", () => {
@@ -48,6 +61,6 @@ describe("the rights of an account are its role's", () => {
   });
 
   it("reads the role's name for display and nothing else", () => {
-    expect(rightsOf(accountOn("guest")).roleName).toBe("Invité Plex"); // french-ok: a seeded role's name, asserted as served
+    expect(rightsOf(accountOn("plex-guest")).roleName).toBe("Invité Plex"); // french-ok: a seeded role's name, asserted as served
   });
 });

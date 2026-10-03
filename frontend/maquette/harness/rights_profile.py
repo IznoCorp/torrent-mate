@@ -19,8 +19,10 @@ from playwright.async_api import async_playwright
 
 SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
 SEEDS = json.loads((SOURCE / "mocks/seeds/accounts.json").read_text(encoding="utf-8"))
-ROLE_OF = {one["id"]: next(role for role in SEEDS["roles"] if role["id"] == one["role"])
-           for one in SEEDS["accounts"]}
+# The test roster (roles a manager might have created) joins the seeded one for the states
+# that sign a test account in.
+ROLE_OF = {one["id"]: next(role for role in SEEDS["roles"] + SEEDS["testRoles"] if role["id"] == one["role"])
+           for one in SEEDS["accounts"] + SEEDS["testAccounts"]}
 STATES = {"profile-household": "household-member", "profile-guest": "guest"}
 
 READ = """() => ({

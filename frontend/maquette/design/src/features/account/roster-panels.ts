@@ -13,8 +13,8 @@
 import i18next from "i18next";
 import type { QueryClient } from "@tanstack/react-query";
 
-import { accountQuery, accountsQuery } from "../../lib/account";
-import { RIGHTS, bypassesRights, isDefaultRole, rightsOf, sameRole, type Right } from "../../lib/rights";
+import { accountQuery, accountsQuery, roleLabel } from "../../lib/account";
+import { RIGHTS, bypassesRights, rightsOf, sameRole, type Right } from "../../lib/rights";
 import { send } from "../../lib/query-client";
 import { panel, toast } from "../../lib/shell-doors";
 import { registerVerb } from "../../lib/verbs";
@@ -65,19 +65,26 @@ function accountPanel(id: string, cache: PanelCache): PanelDescriptor | null {
   if (roster === undefined || account === undefined) return null;
   const translate = i18next.t.bind(i18next);
   const own = manager !== undefined && manager.id === account.id && !bypassesRights(manager.role);
+  const demotedFrom = roster.roles.find((one) => one.id === account.demotedFrom);
   return {
     address: "roster:" + id,
     title: account.name,
     meta: [{ m: account.email }],
-    puce: ["info", account.role.name],
+    puce: ["info", roleLabel(account.role)],
     blocs: [
-      { type: "note", text: translate(account.plexLinked ? "screens.accounts.plexLinked" : "screens.accounts.plexNotLinked") },
+      { type: "note", text: translate(`screens.accounts.signInKind.${account.signInKind}`) },
+      demotedFrom ? { type: "note", text: translate("screens.accounts.demoted", { role: roleLabel(demotedFrom) }) } : null,
+      // ITS PASSWORD, by its kind (the operator, 2026-10-03): a local account's
+      // provisional one is set again here; the owner's fallback one only on the
+      // server — said in the words its refusal already has.
+      account.signInKind === "local" ? { type: "accountPassword", account: account.id, name: account.name } : null,
+      account.signInKind === "owner" ? { type: "note", text: translate("refusals.password.held_by_cli") } : null,
       { type: "note", text: translate("screens.accounts.oneRole") },
       own ? { type: "note", text: translate("screens.accounts.notOwnRole") } : null,
       {
         type: "actions",
         actions: roster.roles.map((role) => ({
-          text: role.name,
+          text: roleLabel(role),
           mention: sameRole(role, account.role) ? translate("screens.accounts.current") : said(role),
           // GREYED, NEVER HIDDEN, where the manager may not give it: the
           // escalation is drawn so it is not a surprise (round 9 Q14 = A).
@@ -109,19 +116,20 @@ function rolePanel(id: string, cache: PanelCache): PanelDescriptor | null {
   if (bypassesRights(role))
     return {
       address: "role:" + id,
-      title: role.name,
+      title: roleLabel(role),
       blocs: [{ type: "note", text: translate("screens.accounts.adminRole") }],
     };
   const own = manager !== undefined && sameRole(manager.role, role) && !bypassesRights(manager.role);
-  // ITS NAME IS OFFERED where the manager may change the role: an ordinary one
-  // (Default keeps its name, ruling 22), not its own, within its reach (round 9
-  // Q14 = A: a manager renames only a role whose rights it holds).
-  const nameOffered = !isDefaultRole(role) && !own && withinReach(role.rights, manager);
+  // ITS NAME IS OFFERED where the manager may change the role: not its own,
+  // within its reach (round 9 Q14 = A: a manager renames only a role whose
+  // rights it holds).
+  const nameOffered = !own && withinReach(role.rights, manager);
   return {
     address: "role:" + id,
-    title: role.name,
+    title: roleLabel(role),
     blocs: [
-      isDefaultRole(role) ? { type: "note", text: translate("screens.accounts.defaultRole") } : null,
+      // WHO STARTS ON IT (O-K1-4): its rights are every such newcomer's.
+      ...(role.defaultFor ?? []).map((kind) => ({ type: "note" as const, text: translate(`screens.accounts.defaultFor.${kind}`) })),
       own ? { type: "note", text: translate("screens.accounts.notOwnRole") } : null,
       nameOffered ? { type: "roleName", role: role.id, name: role.name } : null,
       nameOffered
@@ -191,10 +199,10 @@ export function installRosterVerbs(client: QueryClient): void {
     void change(client, () => send("PATCH", `/api/v1/roles/${encodeURIComponent(id)}`, { name }));
   });
   registerVerb("role-create", () => {
-    // A NEW ROLE STARTS WITH THE DEFAULT ROLE'S RIGHTS, as every new account
-    // does — nothing handed out that the manager did not choose.
+    // A NEW ROLE STARTS WITH THE RIGHTS A LOCAL ACCOUNT STARTS ON (O-K1-4) —
+    // nothing handed out that the manager did not choose.
     const roster = client.getQueryData<Roster>(accountsQuery.queryKey);
-    const rights = roster?.roles.find(isDefaultRole)?.rights ?? [];
+    const rights = roster?.roles.find((role) => role.defaultFor?.includes("local"))?.rights ?? [];
     const name = i18next.t("screens.accounts.newRoleName", { count: (roster?.roles.length ?? 0) + 1 });
     void change(client, () => send("POST", "/api/v1/roles", { name, rights }));
   });
