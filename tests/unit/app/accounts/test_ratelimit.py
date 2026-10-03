@@ -9,7 +9,7 @@ See docs/features/tm-shell/DESIGN.md §4.4.
 
 from __future__ import annotations
 
-from personalscraper.web.auth.ratelimit import SlidingWindowRateLimiter
+from personalscraper.app.accounts.ratelimit import SlidingWindowRateLimiter
 
 
 class _FakeClock:

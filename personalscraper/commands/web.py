@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 import typer
 import uvicorn
 
+from personalscraper.app.accounts.passwords import hash_password
 from personalscraper.app.composition import build_app_context
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_telemetry import cli_telemetry
@@ -30,7 +31,6 @@ from personalscraper.conf.envfile import write_env_keys
 from personalscraper.config import get_settings
 from personalscraper.logger import get_logger
 from personalscraper.web.app import create_app
-from personalscraper.web.auth.passwords import hash_password
 
 if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config

@@ -15,13 +15,13 @@ from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
 from starlette.middleware.gzip import GZipMiddleware
 
+from personalscraper.app.accounts.passwords import hash_password
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.http_v1 import deprecations
 from personalscraper.http_v1.app import V1_PREFIX
 from personalscraper.http_v1.deprecations import V0_TWINS, DeprecationHeaders, V0Twin
 from personalscraper.web.app import create_app
-from personalscraper.web.auth.passwords import hash_password
 
 USERNAME = "testuser"
 PASSWORD = "test-password"

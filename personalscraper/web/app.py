@@ -16,6 +16,12 @@ from fastapi import APIRouter, Depends, FastAPI
 from starlette.middleware.gzip import GZipMiddleware
 
 from personalscraper.app.composition import build_app_services
+from personalscraper.app.relay import (
+    ConnectionRegistry,
+    _entry_to_message,
+    init_redis_pool,
+    read_stream_loop,
+)
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.core.sqlite._pragmas import apply_pragmas
@@ -31,12 +37,6 @@ from personalscraper.web.registry_projection import RegistryHealthProjection
 from personalscraper.web.routes.health import router as health_router
 from personalscraper.web.routes.version import router as version_router
 from personalscraper.web.static import mount_spa
-from personalscraper.web.ws.relay import (
-    ConnectionRegistry,
-    _entry_to_message,
-    init_redis_pool,
-    read_stream_loop,
-)
 from personalscraper.web.ws.routes import router as ws_router
 
 logger = get_logger(__name__)

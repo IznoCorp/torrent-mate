@@ -23,6 +23,35 @@ MAX_FAILED_ATTEMPTS = 5
 #: Rolling window length in seconds over which failed attempts are counted.
 WINDOW_SECONDS = 60.0
 
+# Hosts treated as the local reverse proxy (Caddy) so its X-Forwarded-For is
+# trusted for per-real-client keying.
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
+
+
+def rate_limit_key(peer: str | None, forwarded_for: str | None) -> str:
+    """Derive the rate-limit key identifying the client behind a request.
+
+    Uses the peer IP normally.  When the peer is loopback — the Caddy TLS proxy
+    terminating in front of the app — and an ``X-Forwarded-For`` header is
+    present, the LAST forwarded address is used so per-real-client limiting
+    survives the reverse proxy.  The rightmost entry is the one appended by
+    the trusted local proxy (the address it directly accepted the connection
+    from); any earlier entries arrive verbatim from the client and are
+    spoofable — keying on them let an attacker rotate a fake leftmost value
+    to dodge the login rate limit (R13).
+
+    Args:
+        peer: The connection's peer host, or ``None`` when unknown.
+        forwarded_for: The raw ``X-Forwarded-For`` header value, if any.
+
+    Returns:
+        A stable string key identifying the client.
+    """
+    peer = peer if peer is not None else "unknown"
+    if peer in _LOOPBACK_HOSTS and forwarded_for:
+        return forwarded_for.split(",")[-1].strip()
+    return peer
+
 
 class SlidingWindowRateLimiter:
     """Thread-safe sliding-window counter of failed attempts, keyed per client.

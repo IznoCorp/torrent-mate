@@ -1,6 +1,6 @@
 """WebSocket event relay — Redis Streams → WebSocket fan-out (tm-shell feature).
 
-This is the ONLY async module in ``personalscraper.web/`` per DESIGN §4.5.
+This is the ONLY async module in ``personalscraper.app/`` (DESIGN §4.5).
 Redis Streams provide both live transport and the reconnect cursor for replay.
 
 See docs/features/tm-shell/DESIGN.md §4.5 for the full relay protocol.

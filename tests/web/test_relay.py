@@ -34,15 +34,15 @@ import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-from personalscraper.config import Settings
-from personalscraper.core.event_bus import event_to_envelope
-from personalscraper.indexer.events import BackfillCompleted
-from personalscraper.web.auth.passwords import hash_password
-from personalscraper.web.ws.relay import (
+from personalscraper.app.accounts.passwords import hash_password
+from personalscraper.app.relay import (
     ConnectionRegistry,
     read_stream_loop,
     replay_events,
 )
+from personalscraper.config import Settings
+from personalscraper.core.event_bus import event_to_envelope
+from personalscraper.indexer.events import BackfillCompleted
 from tests.web._web_harness import make_web_app
 
 # ── Test constants ────────────────────────────────────────────────────────────
@@ -245,7 +245,7 @@ def test_entry_to_message_resolves_type_from_envelope_only() -> None:
     to ``"unknown"`` on the client — breaking the feed's severity classification
     (no warning amber, no error red). The envelope is the single source of truth.
     """
-    from personalscraper.web.ws.relay import _entry_to_message
+    from personalscraper.app.relay import _entry_to_message
 
     envelope_only = {"envelope": json.dumps(event_to_envelope(_make_event(scope="live")))}
     msg = _entry_to_message("1700000000000-0", envelope_only)
@@ -331,7 +331,7 @@ def test_broadcast_drops_stalled_client(monkeypatch) -> None:
     Regression for the head-of-line stall: one wedged socket must not block
     fan-out for everyone.  ``BROADCAST_SEND_TIMEOUT`` bounds each send.
     """
-    monkeypatch.setattr("personalscraper.web.ws.relay.BROADCAST_SEND_TIMEOUT", 0.2)
+    monkeypatch.setattr("personalscraper.app.relay.BROADCAST_SEND_TIMEOUT", 0.2)
 
     async def _run() -> None:
         registry = ConnectionRegistry()
