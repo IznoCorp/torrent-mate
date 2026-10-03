@@ -135,3 +135,26 @@ class TestExternalIdsRefresh:
             conn.execute("SELECT external_ids_json FROM media_item WHERE id = ?", (item_id,)).fetchone()[0]
         )
         assert stored["tmdb"]["series_id"] == "1420"
+
+
+def test_year_backfill_preserves_stored_facts(tmp_path: Path) -> None:
+    """The year-backfill branch keeps the NFO facts a fact-less caller does not carry."""
+    conn = _conn(tmp_path)
+    item_id = item_repo.upsert(
+        conn,
+        _row(
+            year=None,
+            overview="A detective and his doctor.",
+            poster_url="https://img/p.jpg",
+            date_provider_read=1_700_000_000.0,
+        ),
+    )
+
+    # A later caller brings the first explicit year but no facts: the year is
+    # backfilled and the facts already stored survive.
+    assert item_repo.upsert(conn, _row(year=2009)) == item_id
+
+    stored = conn.execute(
+        "SELECT year, overview, poster_url, date_provider_read FROM media_item WHERE id = ?", (item_id,)
+    ).fetchone()
+    assert tuple(stored) == (2009, "A detective and his doctor.", "https://img/p.jpg", 1_700_000_000.0)
