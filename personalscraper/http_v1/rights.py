@@ -82,8 +82,8 @@ OPERATION_RIGHTS: Final[Mapping[str, Requirement]] = MappingProxyType(
         "grabForFollow": _PILOT,
         "grabSeasonForFollow": _PILOT,
         "requeueJourney": _PILOT,
-        # The account's own seen mark on a closed tunnel.
-        "dismissClosure": holds(Right.ACQUISITION_TODO_VIEW),
+        # The account's own seen mark on a closed tunnel: a session act, as the contract states.
+        "dismissClosure": SignedIn(),
         "rescrapeJourney": _PILOT,
         "setAcquisitionQuality": holds(Right.ACQUISITION_QUALITY_OWN),
         "setAcquisitionPause": holds(Right.ACQUISITION_PAUSE_OWN),
