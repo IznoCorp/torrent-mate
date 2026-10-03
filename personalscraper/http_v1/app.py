@@ -9,21 +9,62 @@ parent's lifespan enters :func:`v1_lifespan`.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
-from typing import Final
+from typing import Any, Final
 
 from fastapi import APIRouter, Depends, FastAPI
 
-from personalscraper import __version__
 from personalscraper.app.services import AppServices
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.http_v1.perimeter import ActorResolver, NoSessionResolver, v1_perimeter
 from personalscraper.http_v1.problem import ProblemOnCrash, install_problem_handlers
+from personalscraper.http_v1.routes import system
 
 #: Where v0's application mounts v1; a v1 route's path is the contract's without its ``/api``.
 V1_PREFIX: Final = "/api/v1"
+
+#: The OpenAPI document's ``info.version``, fixed as v0's is: the package version would
+#: move the committed ``frontend/openapi-v1.json`` with every release. ``readVersion``
+#: serves the running version.
+_DOCUMENT_VERSION: Final = "0.1.0"
+
+#: The schemas FastAPI adds for the 422 it declares on every operation with a body or a parameter.
+_VALIDATION_SCHEMAS: Final = ("HTTPValidationError", "ValidationError")
+
+
+def _without_validation_answers(build: Callable[[], dict[str, Any]]) -> Callable[[], dict[str, Any]]:
+    """Wrap an application's ``openapi`` so its document declares no 422.
+
+    FastAPI declares a 422 ``HTTPValidationError`` on every operation with a body or a
+    parameter; v1 answers an invalid request 400 ``request.invalid`` (``problem.py``), so
+    that 422 would be a status v1 never answers, against the contract (DESIGN C.4).
+
+    Args:
+        build: FastAPI's own ``openapi``, which builds the document once and caches it.
+
+    Returns:
+        The replacement, removing the 422 answers and their then orphan schemas.
+    """
+
+    def openapi() -> dict[str, Any]:
+        """Build (or read back) the document, without FastAPI's 422.
+
+        Returns:
+            The document.
+        """
+        document = build()
+        for item in document.get("paths", {}).values():
+            for operation in item.values():
+                if isinstance(operation, dict):
+                    operation.get("responses", {}).pop("422", None)
+        schemas = document.get("components", {}).get("schemas", {})
+        for name in _VALIDATION_SCHEMAS:
+            schemas.pop(name, None)
+        return document
+
+    return openapi
 
 
 def include_v1_router(app: FastAPI, router: APIRouter) -> None:
@@ -60,7 +101,7 @@ def create_v1_app(
     """
     app = FastAPI(
         title="TorrentMate",
-        version=__version__,
+        version=_DOCUMENT_VERSION,
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
@@ -69,8 +110,10 @@ def create_v1_app(
     app.state.settings = settings
     app.state.services = services
     app.state.actor_resolver = resolver if resolver is not None else NoSessionResolver()
+    app.openapi = _without_validation_answers(app.openapi)  # type: ignore[method-assign]
     install_problem_handlers(app)
     app.add_middleware(ProblemOnCrash)
+    include_v1_router(app, system.router)
     return app
 
 

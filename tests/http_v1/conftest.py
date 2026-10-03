@@ -7,6 +7,7 @@ from collections.abc import Callable
 import pytest
 from fastapi import FastAPI
 
+from personalscraper.app.build_info import BUILD_INFO
 from personalscraper.app.services import AppServices
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
@@ -36,6 +37,8 @@ def make_v1_app(test_config: Config) -> Callable[..., FastAPI]:
             The v1 sub-application.
         """
         settings = Settings(_env_file=None)  # type: ignore[call-arg]
-        return create_v1_app(test_config, settings, AppServices(event_bus=EventBus()), resolver=resolver)
+        return create_v1_app(
+            test_config, settings, AppServices(event_bus=EventBus(), build_info=BUILD_INFO), resolver=resolver
+        )
 
     return _make
