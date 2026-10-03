@@ -121,6 +121,7 @@ _DRY_RUN_STYLE: dict[str, str] = {
     "library-dedup-titles": "apply",
     "library-fix-canonical-provider": "apply",
     "library-relink": "apply",
+    "library-remove-phantom-rows": "apply",
 }
 
 # ---------------------------------------------------------------------------
