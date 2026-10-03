@@ -6680,7 +6680,7 @@
         "operationId": "resetAccountPassword",
         "x-rights": "accounts.manage",
         "summary": "Reset a local account's password to a provisional one",
-        "description": "An Admin in « Comptes » gives a LOCAL account a new PROVISIONAL password — a forgotten one replaced (the operator, 2026-10-03: « A »); the account then changes it in Profil (`changeOwnPassword`). LOCAL ACCOUNTS ONLY: the Plex server owner's fallback password is replaced by a command on the server, never here (refused `password.held_by_cli`); a Plex-linked account holds no password (refused `auth.plex_only`). A manager who is not Admin never touches an account on the Admin role (`account.admin_untouchable`), never resets its OWN password — Profil changes it, with the current one (`password.own_account`) — and never one whose role holds rights beyond its own (`role.escalation`), as `updateAccount` refuses (M7). The account's open sessions are not ended by this act.",
+        "description": "An Admin in « Comptes » gives a LOCAL account a new PROVISIONAL password — a forgotten one replaced (the operator, 2026-10-03: « A »); the account then changes it in Profil (`changeOwnPassword`). LOCAL ACCOUNTS ONLY: the Plex server owner's fallback password is replaced by a command on the server, never here (refused `password.held_by_cli`); a Plex-linked account holds no password (refused `auth.plex_only`). ADMIN ONLY (the operator, 2026-10-03: « Admin pour n'importe quel compte à mot de passe via \"comptes\", l'utilisateur d'un compte à mot de passe peut changer son mot de passe via son profil »): a caller whose role is not Admin is refused `password.reset_admin_only`, whatever the account — its own included, which it changes in Profil. The account's open sessions are not ended by this act.",
         "tags": [
           "authentication"
         ],
@@ -6996,15 +6996,8 @@
             "type": "string"
           },
           "ids": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/ProviderIds"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it"
+            "$ref": "#/components/schemas/LibraryIds",
+            "description": "the medium's provider identity — the key its sheet is addressed by; at least one id, every library entry is identified"
           },
           "poster": {
             "type": [
@@ -7055,15 +7048,8 @@
             "description": "the synopsis the CARD shows. It comes from a family of its own, keyed by title; the media sheet carries a different text under the same question, and the demand register asks for one answer to it"
           },
           "ids": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/ProviderIds"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it"
+            "$ref": "#/components/schemas/LibraryIds",
+            "description": "the medium's provider identity — the key its sheet is addressed by; at least one id, every library entry is identified"
           },
           "poster": {
             "type": [
@@ -7133,15 +7119,8 @@
             "type": "integer"
           },
           "ids": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/ProviderIds"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it"
+            "$ref": "#/components/schemas/LibraryIds",
+            "description": "the medium's provider identity — the key its sheet is addressed by; at least one id, every library entry is identified"
           },
           "poster": {
             "type": [
@@ -7191,13 +7170,13 @@
           "ids": {
             "oneOf": [
               {
-                "$ref": "#/components/schemas/ProviderIds"
+                "$ref": "#/components/schemas/LibraryIds"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "every provider identifier the held row carries, or null when the library does not hold it"
+            "description": "every provider identifier the held row carries — at least one — or null when the library does not hold it"
           },
           "kind": {
             "oneOf": [
@@ -8180,6 +8159,15 @@
             }
           ]
         }
+      },
+      "LibraryIds": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ProviderIds"
+          }
+        ],
+        "minProperties": 1,
+        "description": "THE IDENTITY EVERY LIBRARY ENTRY CARRIES — at least one provider id, never none (the operator, 2026-10-03: « aucun média de la médiathèque ne devrait exister sans au moins 1 identifiant. Si c'est le cas, on répertorie et on répare »). TVDB first for a show, TMDB first for a film. A row the engine holds without one is not served unidentified: it is listed and repaired upstream."
       },
       "MediaSheet": {
         "type": "object",
@@ -10910,7 +10898,7 @@
           "password.required",
           "password.too_short",
           "password.held_by_cli",
-          "password.own_account",
+          "password.reset_admin_only",
           "media.not_found",
           "media.ambiguous",
           "provider.unavailable",

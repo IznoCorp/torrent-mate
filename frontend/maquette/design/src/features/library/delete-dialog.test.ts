@@ -12,9 +12,9 @@ const opened: DialogDescriptor[] = [];
 const said: string[] = [];
 const removed: string[][] = [];
 // THE ROWS EACH IDENTITY NAMES, as the membership read would answer: two for
-// the seed's duplicate, none for a title nothing identifies.
+// the seed's duplicate. A title the library no longer holds has no identity.
 const ROWS: Record<string, number> = { "Doctor Who": 2 };
-const UNIDENTIFIED = new Set(["Famille Pirate"]);
+const GONE = new Set(["Gone Title"]);
 const stopped: string[] = [];
 let followed: string[] = [];
 
@@ -28,7 +28,7 @@ vi.mock("../../lib/query-client", () => ({
 vi.mock("../../lib/membership", () => ({
   membershipQuery: (title: string) => ({ queryKey: [title] }),
   membershipByRefQuery: (ref: { providerId: string }) => ({ queryKey: ["ref", ref.providerId] }),
-  identityOfTitle: async (title: string) => (UNIDENTIFIED.has(title) ? null : { provider: "tvdb", providerId: `id-${title}` }),
+  identityOfTitle: async (title: string) => (GONE.has(title) ? null : { provider: "tvdb", providerId: `id-${title}` }),
 }));
 vi.mock("../../lib/store-access", () => ({ store: { write: () => undefined } }));
 vi.mock("./queries", () => ({
@@ -139,9 +139,18 @@ describe("the library's delete flow", () => {
   });
 
   it("refuses a selection holding a duplicate, naming only what cannot go", async () => {
-    await openDeleteDialog(null, ["Les Animaniacs", "Doctor Who", "Famille Pirate"]);
+    await openDeleteDialog(null, ["Les Animaniacs", "Doctor Who", "Silo"]);
     const entries = opened[0].body.flatMap((block) => (block.type === "manifest" ? block.entries.map((e) => e.text) : []));
-    expect(entries).toEqual(["Doctor Who", "Famille Pirate"]);
+    expect(entries).toEqual(["Doctor Who"]);
     expect(opened[0].actions.filter((action) => action.run)).toEqual([]);
+  });
+
+  // Every library entry is identified (the operator, 2026-10-03): a title whose
+  // identity is not found is no longer held — said as the layer refuses it.
+  it("says a title the library no longer holds is unknown, and offers nothing", async () => {
+    await openDeleteDialog("Gone Title");
+    expect(opened).toEqual([]);
+    expect(said).toEqual([i18next.t("refusals.media.not_found")]);
+    expect(removed).toEqual([]);
   });
 });

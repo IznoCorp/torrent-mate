@@ -1,7 +1,9 @@
 """R523 — the library speaks provider ids and facts (K2-G1, G2, G5, G6; operator rulings Q5 A and O-5 B).
 
 The operator, 2026-10-01 (Q5 A): provider ids ARE the identity. 2026-10-03 (O-5 B): deleting a
-medium whose id names two rows or folders is refused until the duplicate is settled.
+medium whose id names two rows or folders is refused until the duplicate is settled. 2026-10-03:
+« aucun média de la médiathèque ne devrait exister sans au moins 1 identifiant » — every library
+entry carries one, and the interface keeps no branch for an entry without.
 
 1. MEMBERSHIP BY ID: the layer answers by `provider` + `providerId`; the seed's duplicate
    (« Doctor Who », two rows under one TVDB id) answers two rows; a film answers its kind; an
@@ -17,7 +19,10 @@ medium whose id names two rows or folders is refused until the duplicate is sett
    label; the filter panel names each lens in `fr.json`'s words, counts « Animation » as the sum
    of its two leaves, and the listing under that lens asks for the two leaves.
 6. LINES FROM FACTS: no library row on the wire carries a pre-formatted line; a tile's line is
-   composed from its year and kind; a row no provider names offers no removal and no tick.
+   composed from its year and kind.
+7. EVERY ENTRY IDENTIFIED: every seeded library row, recent row and incomplete show carries at
+   least one provider id, and so does every row the listing serves; a row the seed once held
+   without one (« Famille Pirate ») offers its removal and its tick like any other.
 """
 import asyncio
 import json
@@ -35,7 +40,9 @@ DUPLICATE = {"provider": "tvdb", "providerId": "78804"}
 FILM = next(row for row in LIBRARY if row["title"] == "Ninja Turtles")
 FILM_REF = {"provider": "tmdb", "providerId": str(FILM["ids"]["tmdb"])}
 UNKNOWN = {"provider": "tmdb", "providerId": "999999999"}
-UNIDENTIFIED = next(row["title"] for row in LIBRARY if not row["ids"])
+# A row the seed once held with no id, now identified (TVDB 143721): no branch sets it apart.
+ONCE_UNIDENTIFIED = "Famille Pirate"
+LIBRARY_SEEDS = ("library-items.json", "recent.json", "incomplete-shows.json")
 ANIMATION_LEAVES = ("movies_animation", "tv_shows_animation")
 
 ASK = """async ([method, path, body]) => {
@@ -191,10 +198,27 @@ async def main():
           window.__store.write({ selMode: true });
           await new Promise((done) => setTimeout(done, 600));
           const ticks = [...document.querySelectorAll('[data-selected-title]')].map((one) => one.dataset.selectedTitle);
-          return { removals: all, ticks }; }""", UNIDENTIFIED)
-        journal.check(f"« {UNIDENTIFIED} », which no provider names, offers no removal and no tick",
-                      UNIDENTIFIED not in unnamed["removals"] and UNIDENTIFIED not in unnamed["ticks"],
+          return { removals: all, ticks }; }""", ONCE_UNIDENTIFIED)
+        journal.check(f"« {ONCE_UNIDENTIFIED} » offers its removal and its tick like any other row",
+                      ONCE_UNIDENTIFIED in unnamed["removals"] and ONCE_UNIDENTIFIED in unnamed["ticks"],
                       str(unnamed))
+
+        # 7. Every entry identified.
+        unnamed_seeds = [f"{name}: {row['title']}" for name in LIBRARY_SEEDS
+                         for row in json.loads((SEEDS / name).read_text(encoding="utf-8"))
+                         if not any((row.get("ids") or {}).values())]
+        journal.check("every seeded library row, recent row and incomplete show carries a provider id",
+                      not unnamed_seeds, str(unnamed_seeds[:5]))
+        served_rows = []
+        for index in range(len(LIBRARY)):
+            served = await ask("GET", f"/api/v1/library/items?page={index}")
+            items = served["body"]["items"] if served["body"] else []
+            if not items:
+                break
+            served_rows.extend(items)
+        unnamed_rows = [row["title"] for row in served_rows if not any((row.get("ids") or {}).values())]
+        journal.check("every row the listing serves carries a provider id",
+                      len(served_rows) == len(LIBRARY) and not unnamed_rows, f"{len(served_rows)} rows, unnamed {unnamed_rows[:5]}")
 
         journal.check("no error was raised", not errors, " · ".join(errors[:3]))
         await context.close()

@@ -3044,7 +3044,11 @@
     "year": 1999,
     "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "143721",
+      "tmdb": "74540",
+      "imdb": "tt2170216"
+    },
     "poster": "assets/posters/8cee6a43.webp"
   },
   {
@@ -3052,7 +3056,11 @@
     "year": 2014,
     "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "289541",
+      "tmdb": "74280",
+      "imdb": "tt4291050"
+    },
     "poster": "assets/posters/d161d8e4.webp"
   },
   {
@@ -3060,7 +3068,11 @@
     "year": 1997,
     "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "70920",
+      "tmdb": "11335",
+      "imdb": "tt0283703"
+    },
     "poster": "assets/posters/552a015f.webp"
   },
   {
@@ -3068,7 +3080,11 @@
     "year": 1992,
     "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "76168",
+      "tmdb": "2098",
+      "imdb": "tt0103359"
+    },
     "poster": "assets/posters/bfbd9c8c.webp"
   },
   {
@@ -3087,7 +3103,11 @@
     "year": 2014,
     "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "282254",
+      "tmdb": "61222",
+      "imdb": "tt3398228"
+    },
     "poster": "assets/posters/a90da881.webp"
   },
   {
@@ -3095,7 +3115,11 @@
     "year": 1985,
     "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "249053",
+      "tmdb": "39346",
+      "imdb": "tt1982229"
+    },
     "poster": "assets/posters/79ffe390.webp"
   },
   {
@@ -3103,7 +3127,11 @@
     "year": 2006,
     "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "79481",
+      "tmdb": "13916",
+      "imdb": "tt0877057"
+    },
     "poster": "assets/posters/e805f0a7.webp"
   },
   {
@@ -3111,7 +3139,9 @@
     "year": 1921,
     "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "78988"
+    },
     "poster": null
   },
   {
@@ -3131,7 +3161,11 @@
     "year": 1997,
     "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "76386",
+      "tmdb": "3579",
+      "imdb": "tt0131664"
+    },
     "poster": "assets/posters/2eff686e.webp"
   },
   {
@@ -3139,7 +3173,11 @@
     "year": 1969,
     "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "265994",
+      "tmdb": "73488",
+      "imdb": "tt1397118"
+    },
     "poster": "assets/posters/63d53396.webp"
   },
   {
@@ -3147,7 +3185,11 @@
     "year": 1985,
     "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "78514",
+      "tmdb": "13781",
+      "imdb": "tt0285371"
+    },
     "poster": "assets/posters/2a9a2d22.webp"
   },
   {
@@ -3155,7 +3197,11 @@
     "year": 1993,
     "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "83310",
+      "tmdb": "6162",
+      "imdb": "tt0828274"
+    },
     "poster": "assets/posters/835f5bde.webp"
   },
   {
@@ -3163,7 +3209,9 @@
     "year": 2024,
     "kind": "movie",
     "category": "movies_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "1239043"
+    },
     "poster": null
   },
   {
@@ -3171,7 +3219,10 @@
     "year": 2006,
     "kind": "movie",
     "category": "movies_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "53497",
+      "imdb": "tt0474427"
+    },
     "poster": "assets/posters/dfa637af.webp"
   },
   {
@@ -3179,7 +3230,10 @@
     "year": 2008,
     "kind": "movie",
     "category": "movies_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "16971",
+      "imdb": "tt0892391"
+    },
     "poster": "assets/posters/6b0aff8d.webp"
   },
   {
@@ -3187,7 +3241,10 @@
     "year": 2005,
     "kind": "movie",
     "category": "movies_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "1667",
+      "imdb": "tt0428803"
+    },
     "poster": "assets/posters/919e40cb.webp"
   },
   {
@@ -3195,7 +3252,10 @@
     "year": 2010,
     "kind": "movie",
     "category": "movies_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "113258",
+      "imdb": "tt1719498"
+    },
     "poster": "assets/posters/4647f853.webp"
   },
   {
@@ -3203,7 +3263,10 @@
     "year": 2023,
     "kind": "movie",
     "category": "movies_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "1337345",
+      "imdb": "tt30023483"
+    },
     "poster": "assets/posters/091e7403.webp"
   },
   {
@@ -3211,7 +3274,10 @@
     "year": 2022,
     "kind": "movie",
     "category": "movies_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "873097",
+      "imdb": "tt15473248"
+    },
     "poster": "assets/posters/d771ef54.webp"
   },
   {
@@ -3219,7 +3285,10 @@
     "year": 2023,
     "kind": "movie",
     "category": "movies_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "1058699",
+      "imdb": "tt19853258"
+    },
     "poster": "assets/posters/e07b65a1.webp"
   },
   {
@@ -3227,7 +3296,10 @@
     "year": 2017,
     "kind": "movie",
     "category": "movies_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "600657",
+      "imdb": "tt7253332"
+    },
     "poster": "assets/posters/d542c928.webp"
   },
   {
@@ -3235,7 +3307,10 @@
     "year": 2020,
     "kind": "movie",
     "category": "movies_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "723124",
+      "imdb": "tt12313458"
+    },
     "poster": "assets/posters/f8dda597.webp"
   },
   {
@@ -3243,7 +3318,10 @@
     "year": 2026,
     "kind": "movie",
     "category": "movies_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "1662432",
+      "imdb": "tt41368989"
+    },
     "poster": "assets/posters/7d79e17e.webp"
   },
   {
@@ -3251,7 +3329,10 @@
     "year": 2025,
     "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "1433820",
+      "imdb": "tt42898925"
+    },
     "poster": "assets/posters/26181685.webp"
   },
   {
@@ -3259,7 +3340,9 @@
     "year": 2024,
     "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "1251705"
+    },
     "poster": null
   },
   {
@@ -3267,7 +3350,10 @@
     "year": 2013,
     "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "175799",
+      "imdb": "tt38127591"
+    },
     "poster": "assets/posters/b6878d90.webp"
   },
   {
@@ -3275,7 +3361,10 @@
     "year": 2016,
     "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "428903",
+      "imdb": "tt38608111"
+    },
     "poster": "assets/posters/17aa8166.webp"
   },
   {
@@ -3283,7 +3372,9 @@
     "year": 2015,
     "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "372253"
+    },
     "poster": null
   },
   {
@@ -3291,7 +3382,10 @@
     "year": 2023,
     "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "1125138",
+      "imdb": "tt37391335"
+    },
     "poster": "assets/posters/451ea9df.webp"
   },
   {
@@ -3299,7 +3393,9 @@
     "year": 2024,
     "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "1449491"
+    },
     "poster": null
   },
   {
@@ -3307,7 +3403,10 @@
     "year": 2013,
     "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "233151",
+      "imdb": "tt32280572"
+    },
     "poster": "assets/posters/58e593e2.webp"
   },
   {
@@ -3315,7 +3414,10 @@
     "year": 2018,
     "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "441883",
+      "imdb": "tt39281560"
+    },
     "poster": "assets/posters/22285183.webp"
   },
   {
@@ -3323,7 +3425,9 @@
     "year": 2018,
     "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "565050"
+    },
     "poster": null
   },
   {
@@ -3331,7 +3435,9 @@
     "year": 2022,
     "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "968627"
+    },
     "poster": null
   },
   {
@@ -3339,7 +3445,10 @@
     "year": 2019,
     "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "586247",
+      "imdb": "tt9884204"
+    },
     "poster": "assets/posters/3c1549ac.webp"
   },
   {
@@ -3347,7 +3456,10 @@
     "year": 2023,
     "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "1206577",
+      "imdb": "tt30143066"
+    },
     "poster": "assets/posters/5f2f2c3f.webp"
   },
   {
@@ -3355,7 +3467,10 @@
     "year": 2014,
     "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "362476",
+      "imdb": "tt6464748"
+    },
     "poster": "assets/posters/e53c0559.webp"
   },
   {
@@ -3363,7 +3478,9 @@
     "year": 2025,
     "kind": "movie",
     "category": "theater",
-    "ids": null,
+    "ids": {
+      "tmdb": "1561523"
+    },
     "poster": null
   },
   {
@@ -3371,7 +3488,10 @@
     "year": 2012,
     "kind": "movie",
     "category": "theater",
-    "ids": null,
+    "ids": {
+      "tmdb": "172016",
+      "imdb": "tt8413510"
+    },
     "poster": "assets/posters/abbb7dda.webp"
   },
   {
@@ -3379,7 +3499,10 @@
     "year": 2024,
     "kind": "movie",
     "category": "theater",
-    "ids": null,
+    "ids": {
+      "tmdb": "1277397",
+      "imdb": "tt40446231"
+    },
     "poster": null
   },
   {
@@ -3387,7 +3510,9 @@
     "year": 2015,
     "kind": "movie",
     "category": "theater",
-    "ids": null,
+    "ids": {
+      "tmdb": "373785"
+    },
     "poster": null
   },
   {
@@ -3395,7 +3520,10 @@
     "year": 2001,
     "kind": "movie",
     "category": "theater",
-    "ids": null,
+    "ids": {
+      "tmdb": "200828",
+      "imdb": "tt0891344"
+    },
     "poster": "assets/posters/f15ca769.webp"
   },
   {
@@ -3403,7 +3531,10 @@
     "year": 2005,
     "kind": "movie",
     "category": "theater",
-    "ids": null,
+    "ids": {
+      "tmdb": "113533",
+      "imdb": "tt1294717"
+    },
     "poster": "assets/posters/00ab10cf.webp"
   },
   {
@@ -3411,7 +3542,10 @@
     "year": 2009,
     "kind": "movie",
     "category": "theater",
-    "ids": null,
+    "ids": {
+      "tmdb": "220232",
+      "imdb": "tt1517494"
+    },
     "poster": "assets/posters/c754f11a.webp"
   },
   {
@@ -3419,7 +3553,9 @@
     "year": 2024,
     "kind": "movie",
     "category": "theater",
-    "ids": null,
+    "ids": {
+      "tmdb": "1298774"
+    },
     "poster": null
   },
   {
@@ -3427,7 +3563,10 @@
     "year": 2024,
     "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tmdb": "260229",
+      "imdb": "tt27238904"
+    },
     "poster": "assets/posters/ceb90a11.webp"
   },
   {
@@ -3435,7 +3574,11 @@
     "year": 2024,
     "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "454234",
+      "tmdb": "270963",
+      "imdb": "tt34186841"
+    },
     "poster": "assets/posters/2e96320d.webp"
   },
   {
@@ -3443,7 +3586,11 @@
     "year": 2012,
     "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "261541",
+      "tmdb": "62939",
+      "imdb": "tt5994686"
+    },
     "poster": null
   },
   {
@@ -3451,7 +3598,10 @@
     "year": 1993,
     "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "398328",
+      "imdb": "tt0483457"
+    },
     "poster": null
   },
   {
@@ -3459,7 +3609,11 @@
     "year": 2025,
     "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "460650",
+      "tmdb": "289754",
+      "imdb": "tt36222307"
+    },
     "poster": "assets/posters/b2f8c044.webp"
   },
   {
@@ -3467,7 +3621,10 @@
     "year": 2018,
     "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "408883",
+      "tmdb": "91989-au-bout-c-est-la-mer"
+    },
     "poster": null
   },
   {
@@ -3475,7 +3632,11 @@
     "year": 2001,
     "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "255097",
+      "tmdb": "53007",
+      "imdb": "tt0295072"
+    },
     "poster": "assets/posters/892b3171.webp"
   },
   {
@@ -3483,7 +3644,11 @@
     "year": 2012,
     "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "260208",
+      "tmdb": "68686",
+      "imdb": "tt2229330"
+    },
     "poster": "assets/posters/af87037b.webp"
   },
   {
@@ -3491,7 +3656,11 @@
     "year": 2011,
     "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "248208",
+      "tmdb": "69021",
+      "imdb": "tt12581336"
+    },
     "poster": "assets/posters/01ebc550.webp"
   },
   {
@@ -3499,7 +3668,10 @@
     "year": 1987,
     "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "338153",
+      "imdb": "tt0367307"
+    },
     "poster": null
   },
   {
@@ -3507,7 +3679,11 @@
     "year": 2024,
     "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "442583",
+      "tmdb": "250443",
+      "imdb": "tt32241756"
+    },
     "poster": "assets/posters/72f1bf8a.webp"
   },
   {
@@ -3515,7 +3691,11 @@
     "year": 2011,
     "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "252110",
+      "tmdb": "64629",
+      "imdb": "tt2446456"
+    },
     "poster": "assets/posters/2cce2f8d.webp"
   },
   {
@@ -3523,7 +3703,10 @@
     "year": 2023,
     "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "442328",
+      "tmdb": "254251"
+    },
     "poster": null
   },
   {
@@ -3531,7 +3714,11 @@
     "year": 2025,
     "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "400716",
+      "tmdb": "122781",
+      "imdb": "tt14164922"
+    },
     "poster": "assets/posters/ca636249.webp"
   },
   {
@@ -3539,7 +3726,11 @@
     "year": 1968,
     "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "77278",
+      "tmdb": "1232",
+      "imdb": "tt0156200"
+    },
     "poster": "assets/posters/1985a530.webp"
   },
   {
@@ -3547,7 +3738,11 @@
     "year": 2016,
     "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "353546",
+      "tmdb": "82728",
+      "imdb": "tt7678620"
+    },
     "poster": "assets/posters/00301ea6.webp"
   },
   {
@@ -3555,7 +3750,11 @@
     "year": 1998,
     "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "77953",
+      "tmdb": "3218",
+      "imdb": "tt0262153"
+    },
     "poster": "assets/posters/dda9eafb.webp"
   },
   {
@@ -3563,7 +3762,11 @@
     "year": 2023,
     "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "436419",
+      "tmdb": "229153",
+      "imdb": "tt12923792"
+    },
     "poster": "assets/posters/a1c469a2.webp"
   },
   {
@@ -3571,7 +3774,11 @@
     "year": 2023,
     "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "427339",
+      "tmdb": "214603",
+      "imdb": "tt27440006"
+    },
     "poster": "assets/posters/7bab3bf6.webp"
   },
   {
@@ -3579,7 +3786,11 @@
     "year": 2020,
     "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "332335",
+      "tmdb": "84503",
+      "imdb": "tt6994156"
+    },
     "poster": "assets/posters/526e39a7.webp"
   },
   {
@@ -3587,7 +3798,11 @@
     "year": 2025,
     "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "436198",
+      "tmdb": "228878",
+      "imdb": "tt28093628"
+    },
     "poster": "assets/posters/c8faad0e.webp"
   },
   {
@@ -3595,7 +3810,11 @@
     "year": 1996,
     "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "76599",
+      "tmdb": "1863",
+      "imdb": "tt0136658"
+    },
     "poster": "assets/posters/2a0e7b54.webp"
   },
   {
@@ -3603,7 +3822,11 @@
     "year": 2001,
     "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "171061",
+      "tmdb": "74125",
+      "imdb": "tt0414729"
+    },
     "poster": "assets/posters/9fa43583.webp"
   },
   {
@@ -3611,7 +3834,11 @@
     "year": 2006,
     "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "80732",
+      "tmdb": "41421",
+      "imdb": "tt2080835"
+    },
     "poster": "assets/posters/12017913.webp"
   },
   {
@@ -3619,7 +3846,11 @@
     "year": 2000,
     "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "74697",
+      "tmdb": "79",
+      "imdb": "tt0235917"
+    },
     "poster": "assets/posters/4a4322b7.webp"
   },
   {
@@ -3627,7 +3858,11 @@
     "year": 2024,
     "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tvdb": "441373",
+      "tmdb": "238126",
+      "imdb": "tt29627149"
+    },
     "poster": "assets/posters/0f6620ad.webp"
   },
   {
@@ -3635,7 +3870,11 @@
     "year": 2019,
     "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tvdb": "372481",
+      "tmdb": "95986",
+      "imdb": "tt11307176"
+    },
     "poster": "assets/posters/e85a92a5.webp"
   },
   {
@@ -3643,7 +3882,11 @@
     "year": 2023,
     "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tvdb": "441729",
+      "tmdb": "238240",
+      "imdb": "tt30106329"
+    },
     "poster": null
   },
   {
@@ -3651,7 +3894,11 @@
     "year": 2022,
     "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tvdb": "417703",
+      "tmdb": "195054",
+      "imdb": "tt18602688"
+    },
     "poster": "assets/posters/b06466c5.webp"
   },
   {
@@ -3659,7 +3906,11 @@
     "year": 2025,
     "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tvdb": "462818",
+      "tmdb": "289486",
+      "imdb": "tt36614653"
+    },
     "poster": "assets/posters/e8a78434.webp"
   },
   {
@@ -3667,7 +3918,11 @@
     "year": 2025,
     "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tvdb": "461727",
+      "tmdb": "287131",
+      "imdb": "tt36241713"
+    },
     "poster": "assets/posters/80430cf2.webp"
   },
   {
@@ -3675,7 +3930,11 @@
     "year": 2019,
     "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tvdb": "372566",
+      "tmdb": "96129",
+      "imdb": "tt11318602"
+    },
     "poster": "assets/posters/30785bce.webp"
   },
   {
@@ -3683,7 +3942,10 @@
     "year": 2026,
     "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "317464",
+      "imdb": "tt41136307"
+    },
     "poster": "assets/posters/d4cedf5f.webp"
   },
   {
@@ -3691,7 +3953,11 @@
     "year": 2025,
     "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tvdb": "468524",
+      "tmdb": "300999",
+      "imdb": "tt38362312"
+    },
     "poster": "assets/posters/3b783e4e.webp"
   },
   {
@@ -3699,7 +3965,11 @@
     "year": 2025,
     "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tvdb": "470120",
+      "tmdb": "305129",
+      "imdb": "tt39254998"
+    },
     "poster": null
   },
   {
@@ -3707,7 +3977,11 @@
     "year": 2015,
     "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tvdb": "289946",
+      "tmdb": "61929",
+      "imdb": "tt4299972"
+    },
     "poster": "assets/posters/c201bc10.webp"
   },
   {
@@ -3715,7 +3989,11 @@
     "year": 2024,
     "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tvdb": "457243",
+      "tmdb": "277028",
+      "imdb": "tt34745910"
+    },
     "poster": "assets/posters/80cbca76.webp"
   },
   {
@@ -3723,7 +4001,9 @@
     "year": 2025,
     "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "304388"
+    },
     "poster": null
   },
   {

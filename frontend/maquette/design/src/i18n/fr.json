@@ -1383,7 +1383,7 @@
         "sending": "Envoi…",
         "done": "Mot de passe provisoire enregistré : communiquez-le à {{name}}, qui le changera dans son Profil.",
         "refused": "La réinitialisation a été refusée.",
-        "beyondReach": "Son rôle tient des droits que le vôtre n'a pas : son mot de passe se réinitialise par un gestionnaire qui les détient."
+        "adminOnly": "Seul un Admin réinitialise un mot de passe. Chacun change le sien dans son Profil."
       }
     },
     "crossSeed": {
@@ -1906,9 +1906,7 @@
         "blockedHeadingOne": "« {{title}} » ne peut pas être supprimé",
         "blockedHeadingMany": "{{count}} médias ne peuvent pas être supprimés",
         "heldByRows": "{{count}} lignes, un même identifiant",
-        "unidentified": "aucun identifiant",
         "ambiguousText": "Un même identifiant est porté par plusieurs lignes de la médiathèque : c'est un doublon. Réglez-le d'abord — rien n'est supprimé tant qu'on ne sait pas lequel des deux partirait.",
-        "unidentifiedText": "Aucun identifiant de fournisseur ne désigne ce média : la médiathèque ne supprime que ce qu'elle sait nommer.",
         "close": "Fermer"
       },
       "deletedOne": "{{count}} média supprimé.",
@@ -2258,7 +2256,7 @@
       "required": "Un compte local reçoit un mot de passe provisoire : il est obligatoire.",
       "too_short": "Le nouveau mot de passe doit compter au moins {{minimum}} caractères.",
       "held_by_cli": "Ce mot de passe de secours ne se change que par une commande sur le serveur, jamais ici.",
-      "own_account": "Votre propre mot de passe se change dans votre Profil, avec l'actuel."
+      "reset_admin_only": "Seul un Admin réinitialise un mot de passe : le vôtre se change dans votre Profil."
     },
     "media": {
       "not_found": "Ce média est inconnu : la médiathèque ne le tient plus, ou son fournisseur ne le connaît pas.",

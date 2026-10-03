@@ -33,6 +33,7 @@ import { searchResults } from "../features/acquisition/search-queries";
 import { isAdded } from "../features/acquisition/add-visit";
 import { deleteLibraryItems, libraryNextPage } from "../features/library/queries";
 import { sortWays } from "../features/library/sorting";
+import { lensesOf } from "../features/library/lenses";
 import { releases } from "../features/releases/queries";
 import { cadenceSentence, followStatusLabel, nextSearchTime } from "../features/acquisition/follow-vocabulary";
 import { settingIdentifier } from "../features/settings/catalog";
@@ -60,6 +61,8 @@ import { verbNames } from "../lib/verbs";
 
 declare global {
   interface Window {
+    /** The Médiathèque's lenses over served leaves — the grouping a rule compares the pills against. */
+    __lensesOf: typeof lensesOf;
     /** The interface's store — the domain hooks and the probes read its state. */
     __store: Store;
     /** The frame's popover door — how a rule closes a popover it opened. */
@@ -206,6 +209,7 @@ export function publishSeams(): void {
   publish("__libraryNextPage", () => libraryNextPage);
   publish("__deleteLibraryItems", () => deleteLibraryItems);
   publish("__sortWays", () => sortWays);
+  publish("__lensesOf", () => lensesOf);
   publish("__releases", () => releases);
   publish("__settingLabels", () => settingLabels);
   publish("__queue", () => queueLists);

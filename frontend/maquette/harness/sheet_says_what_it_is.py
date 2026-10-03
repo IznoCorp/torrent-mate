@@ -90,7 +90,8 @@ async def main():
                           str({"drawn": seen["trailer"], "served": bool(sheet.get("trailerVideo"))}))
             if not film:
                 if sheet.get("status"):
-                    status = MEDIA["seriesStatus"].replace("{{statut}}", str(sheet["status"]).lower())
+                    # THE STATUS IS A CODE (K2-G6): its words are fr.json's, by that code.
+                    status = MEDIA["seriesStatus"].replace("{{statut}}", MEDIA["statusNames"][sheet["status"]])
                     journal.check(f"{state}: the series' status", status in seen["meta"], repr(seen["meta"]))
                 seasons = seen["rows"].get(MEDIA["seasons"]) or ""
                 catalogue = next((value for key, value in seen["rows"].items()

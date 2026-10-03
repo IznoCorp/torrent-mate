@@ -47,11 +47,8 @@ export function libraryTileMarkup(reference: EngineDrawing, row: Row, index: num
     // round, a tap on a tile opened the panel and nothing opened the medium.
     attributes: {
       "data-tile": index,
-      // A ROW NOTHING IDENTIFIES IS NOT TICKED: the layer deletes by identity.
       ...(selMode
-        ? row.ids
-          ? { "aria-pressed": selected.has(row.title), "data-selected-title": row.title }
-          : { "aria-disabled": "true" }
+        ? { "aria-pressed": selected.has(row.title), "data-selected-title": row.title }
         : { "data-mediasheet": row.title }),
       "data-panel": `media:${row.title}`,
     },
@@ -81,16 +78,13 @@ export function libraryRowMarkup(
       subtitle: libraryLine(row),
       artwork: posterArtwork(reference.icons, row.poster, row.title),
       check: svgIcon(reference.icons.check, 3),
-      attributes: row.ids
-        ? { "data-tile": index, "data-selected-title": row.title, "aria-pressed": selected.has(row.title) }
-        : { "data-tile": index, "aria-disabled": "true" },
+      attributes: { "data-tile": index, "data-selected-title": row.title, "aria-pressed": selected.has(row.title) },
     });
   }
   const card = libraryCardMarkup({ title: row.title, secondaryLine: libraryLine(row), overview: row.overview, poster: row.poster, ids: row.ids });
   // THE SWIPE DELETES, so it is offered to an account that may delete (§ 17):
-  // without `library.delete` the row is the card alone — and so is a row no
-  // provider identity names, since the layer deletes by identity (Q5 A).
-  if (!heldRights().holds("library.delete") || !row.ids) return card;
+  // without `library.delete` the row is the card alone.
+  if (!heldRights().holds("library.delete")) return card;
   return swipeRowMarkup(
     card,
     `<button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="del" data-del="${escapeHtml(row.title)}">${svgIcon(reference.icons.trash)}${removeLabel}</button>`,

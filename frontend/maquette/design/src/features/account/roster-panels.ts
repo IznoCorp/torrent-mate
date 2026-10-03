@@ -52,21 +52,6 @@ function said(role: Role): string {
 }
 
 /**
- * Whether the signed-in manager may reset an account's provisional password
- * (M7): Admin any; any other manager neither its own nor one whose role holds
- * rights beyond its own.
- *
- * @param manager The manager, as `readAccount` answered it.
- * @param account The account, as the roster answered it.
- * @returns « offered », or why it is not: « own », « beyond ».
- */
-function resetBy(manager: Schemas["Account"] | undefined, account: Schemas["AccountSummary"]): "offered" | "own" | "beyond" {
-  if (manager !== undefined && bypassesRights(manager.role)) return "offered";
-  if (manager !== undefined && manager.id === account.id) return "own";
-  return !bypassesRights(account.role) && withinReach(account.role.rights, manager) ? "offered" : "beyond";
-}
-
-/**
  * One account's panel: its role, and the roles it may be given.
  *
  * @param id The account.
@@ -81,7 +66,7 @@ function accountPanel(id: string, cache: PanelCache): PanelDescriptor | null {
   const translate = i18next.t.bind(i18next);
   const own = manager !== undefined && manager.id === account.id && !bypassesRights(manager.role);
   const demotedFrom = roster.roles.find((one) => one.id === account.demotedFrom);
-  const reset = account.signInKind === "local" ? resetBy(manager, account) : null;
+  const admin = manager !== undefined && bypassesRights(manager.role);
   return {
     address: "roster:" + id,
     title: account.name,
@@ -93,12 +78,9 @@ function accountPanel(id: string, cache: PanelCache): PanelDescriptor | null {
       // ITS PASSWORD, by its kind (the operator, 2026-10-03): a local account's
       // provisional one is set again here; the owner's fallback one only on the
       // server — said in the words its refusal already has.
-      // NEVER OFFERED BEYOND REACH (M7, as a role): a manager who is not Admin
-      // resets neither its own password — Profil changes it — nor one whose
-      // role holds rights beyond its own; each is said instead.
-      reset === "offered" ? { type: "accountPassword", account: account.id, name: account.name } : null,
-      reset === "own" ? { type: "note", text: translate("refusals.password.own_account") } : null,
-      reset === "beyond" ? { type: "note", text: translate("screens.accounts.reset.beyondReach") } : null,
+      // ADMIN ONLY (the operator, 2026-10-03): another manager is told so.
+      account.signInKind === "local" && admin ? { type: "accountPassword", account: account.id, name: account.name } : null,
+      account.signInKind === "local" && !admin ? { type: "note", text: translate("screens.accounts.reset.adminOnly") } : null,
       account.signInKind === "owner" ? { type: "note", text: translate("refusals.password.held_by_cli") } : null,
       { type: "note", text: translate("screens.accounts.oneRole") },
       own ? { type: "note", text: translate("screens.accounts.notOwnRole") } : null,

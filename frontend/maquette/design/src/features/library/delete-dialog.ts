@@ -132,16 +132,23 @@ export async function openDeleteDialog(title: string | null, many?: string[]): P
     quietWhenCancelled(failure);
     return;
   }
-  // WHAT CANNOT BE DELETED IS SAID BEFORE ANYTHING IS OFFERED: a title nothing
-  // identifies, and an identity two library rows hold (O-5 B).
+  // EVERY LIBRARY ENTRY IS IDENTIFIED (the operator, 2026-10-03): a title whose
+  // identity is not found is one the library no longer holds — said as the
+  // layer would refuse it, and nothing is offered.
+  if (refs.some((ref) => ref === null)) {
+    toast?.show({ message: i18next.t("refusals.media.not_found") });
+    return;
+  }
+  const identified = refs as MediaRef[];
+  // AN IDENTITY TWO LIBRARY ROWS HOLD IS SAID BEFORE ANYTHING IS OFFERED (O-5 B).
   const blocked = titles
-    .map((one, index) => ({ title: one, ref: refs[index], rows: mediaNamedBy(one) }))
-    .filter((one) => one.ref === null || one.rows > 1);
+    .map((one, index) => ({ title: one, ref: identified[index], rows: mediaNamedBy(one) }))
+    .filter((one) => one.rows > 1);
   if (blocked.length > 0) {
     openRefusedDialog(blocked);
     return;
   }
-  const doomed = titles.map((one, index) => ({ title: one, ref: refs[index] as MediaRef }));
+  const doomed = titles.map((one, index) => ({ title: one, ref: identified[index] }));
   const followingNow = followedTitles?.() ?? [];
   // THE ONE READING of « is it followed » (`followedAs`, B-676), the sheet's own.
   // An incomplete show is NOT followed: counting it as one made the dialog say
@@ -230,10 +237,10 @@ export async function openDeleteDialog(title: string | null, many?: string[]): P
  * nothing offered but to close (operator ruling O-5 B, 2026-10-03).
  *
  * Args:
- *     blocked: The titles that cannot go, each with its identity (null when
- *         nothing identifies it) and how many library rows hold it.
+ *     blocked: The titles that cannot go, each with its identity and how many
+ *         library rows hold it.
  */
-function openRefusedDialog(blocked: { title: string; ref: MediaRef | null; rows: number }[]): void {
+function openRefusedDialog(blocked: { title: string; ref: MediaRef; rows: number }[]): void {
   dialog?.open({
     heading:
       blocked.length > 1 ? say("blockedHeadingMany", { count: blocked.length }) : say("blockedHeadingOne", { title: blocked[0].title }),
@@ -242,10 +249,10 @@ function openRefusedDialog(blocked: { title: string; ref: MediaRef | null; rows:
         type: "manifest",
         entries: blocked.map((one) => ({
           text: one.title,
-          value: one.ref === null ? say("unidentified") : say("heldByRows", { count: one.rows }),
+          value: say("heldByRows", { count: one.rows }),
         })),
       },
-      { type: "paragraph", runs: [{ text: say(blocked.some((one) => one.ref !== null) ? "ambiguousText" : "unidentifiedText") }] },
+      { type: "paragraph", runs: [{ text: say("ambiguousText") }] },
     ],
     actions: [{ text: say("close"), tone: "ghost", dismiss: true }],
   });

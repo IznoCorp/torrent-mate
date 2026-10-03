@@ -1677,7 +1677,7 @@ export interface paths {
         put?: never;
         /**
          * Reset a local account's password to a provisional one
-         * @description An Admin in « Comptes » gives a LOCAL account a new PROVISIONAL password — a forgotten one replaced (the operator, 2026-10-03: « A »); the account then changes it in Profil (`changeOwnPassword`). LOCAL ACCOUNTS ONLY: the Plex server owner's fallback password is replaced by a command on the server, never here (refused `password.held_by_cli`); a Plex-linked account holds no password (refused `auth.plex_only`). A manager who is not Admin never touches an account on the Admin role (`account.admin_untouchable`), never resets its OWN password — Profil changes it, with the current one (`password.own_account`) — and never one whose role holds rights beyond its own (`role.escalation`), as `updateAccount` refuses (M7). The account's open sessions are not ended by this act.
+         * @description An Admin in « Comptes » gives a LOCAL account a new PROVISIONAL password — a forgotten one replaced (the operator, 2026-10-03: « A »); the account then changes it in Profil (`changeOwnPassword`). LOCAL ACCOUNTS ONLY: the Plex server owner's fallback password is replaced by a command on the server, never here (refused `password.held_by_cli`); a Plex-linked account holds no password (refused `auth.plex_only`). ADMIN ONLY (the operator, 2026-10-03: « Admin pour n'importe quel compte à mot de passe via "comptes", l'utilisateur d'un compte à mot de passe peut changer son mot de passe via son profil »): a caller whose role is not Admin is refused `password.reset_admin_only`, whatever the account — its own included, which it changes in Profil. The account's open sessions are not ended by this act.
          */
         post: operations["resetAccountPassword"];
         delete?: never;
@@ -1768,8 +1768,8 @@ export interface components {
         /** @description A library row as a LISTING shows it: facts, never a pre-formatted line (X4/X5) — the interface composes the line under the title from `year` and `kind` in its own words. The recents carry no category, so the category lives on LibraryItem. */
         LibraryRow: {
             title: string;
-            /** @description the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it */
-            ids: components["schemas"]["ProviderIds"] | null;
+            /** @description the medium's provider identity — the key its sheet is addressed by; at least one id, every library entry is identified */
+            ids: components["schemas"]["LibraryIds"];
             /** @description the poster's address, or null when none is known */
             poster: string | null;
             /** @description the year the medium is known by, or null when nothing states one */
@@ -1786,8 +1786,8 @@ export interface components {
             category: string;
             /** @description the synopsis the CARD shows. It comes from a family of its own, keyed by title; the media sheet carries a different text under the same question, and the demand register asks for one answer to it */
             overview?: string | null;
-            /** @description the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it */
-            ids: components["schemas"]["ProviderIds"] | null;
+            /** @description the medium's provider identity — the key its sheet is addressed by; at least one id, every library entry is identified */
+            ids: components["schemas"]["LibraryIds"];
             /** @description the poster's address, or null when none is known */
             poster: string | null;
             /** @description the year the medium is known by, or null when nothing states one */
@@ -1812,8 +1812,8 @@ export interface components {
             /** @description episodes aired */
             aired: number;
             year: number;
-            /** @description the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it */
-            ids: components["schemas"]["ProviderIds"] | null;
+            /** @description the medium's provider identity — the key its sheet is addressed by; at least one id, every library entry is identified */
+            ids: components["schemas"]["LibraryIds"];
             /** @description the poster's address, or null when none is known */
             poster: string | null;
             /** @description the engine's LEAF category id the show is stored under, so the interface's lens can filter it by the same leaves as the listing */
@@ -1832,8 +1832,8 @@ export interface components {
             rows: number;
             /** @description whether it is a series the library holds with holes */
             incomplete: boolean;
-            /** @description every provider identifier the held row carries, or null when the library does not hold it */
-            ids: components["schemas"]["ProviderIds"] | null;
+            /** @description every provider identifier the held row carries — at least one — or null when the library does not hold it */
+            ids: components["schemas"]["LibraryIds"] | null;
             /** @description whether the held medium is a film or a series, or null when the library does not hold it */
             kind: ("movie" | "show") | null;
         };
@@ -2130,6 +2130,8 @@ export interface components {
         ProviderIds: {
             [key: string]: number | string;
         };
+        /** @description THE IDENTITY EVERY LIBRARY ENTRY CARRIES — at least one provider id, never none (the operator, 2026-10-03: « aucun média de la médiathèque ne devrait exister sans au moins 1 identifiant. Si c'est le cas, on répertorie et on répare »). TVDB first for a show, TMDB first for a film. A row the engine holds without one is not served unidentified: it is listed and repaired upstream. */
+        LibraryIds: components["schemas"]["ProviderIds"];
         /** @description One media sheet. Every field's type below was MEASURED across the 326 sheets the fixture holds, not assumed: `runtime` is an integer count of minutes and was written as a string, `tmdbTelevisionId` is a string on the eleven sheets that carry it and was written as an integer, and `trailer` is a title rather than an object. The schema arm of `scripts/check-mock-seeds.py` found all three. */
         MediaSheet: {
             /** @description movie or show */
@@ -2969,7 +2971,7 @@ export interface components {
          * @description WHY A REQUEST WAS REFUSED, as a closed code (X4: no sentence on the wire). The interface says it in its own words, read from fr.json by this code; `params` carries the values those words name. The set grows per lot: an operation whose lot has not landed its codes yet may refuse without one. ANTI-ENUMERATION (O-K1-4): the two doors refuse with ONE code, `auth.refused`, whatever the cause — an unknown e-mail, a wrong password, a Plex-linked account's password, a Plex identity without access to the server — so no attempt tells which e-mails the server knows.
          * @enum {string}
          */
-        RefusalCode: "request.invalid" | "request.cross_origin" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "password.current_wrong" | "password.required" | "password.too_short" | "password.held_by_cli" | "password.own_account" | "media.not_found" | "media.ambiguous" | "provider.unavailable" | "library.locked";
+        RefusalCode: "request.invalid" | "request.cross_origin" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "password.current_wrong" | "password.required" | "password.too_short" | "password.held_by_cli" | "password.reset_admin_only" | "media.not_found" | "media.ambiguous" | "provider.unavailable" | "library.locked";
         /** @description A PLEX SIGN-IN STARTED on the server: its PIN, and Plex's page where the person confirms it (round 4 P-2 = B). */
         StartedPlexSignIn: {
             /** @description the PIN's key, the one `signInWithPlex` takes */

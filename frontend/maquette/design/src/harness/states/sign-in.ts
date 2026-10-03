@@ -91,8 +91,11 @@ function resetLocal(password: string): void {
   }, FILL_AFTER);
 }
 
-// A manager who is not Admin, on a local account: Invité's rights, given accounts.manage (M7).
-const LOCAL_MANAGER_RIGHTS = ["library.read", "accounts.manage"] as const;
+// Demandeur's rights, given accounts.manage: a manager who is not Admin, on a local account.
+const REQUESTER_MANAGER_RIGHTS = [
+  "library.read", "acquisition.request", "acquisition.follow", "acquisition.todo.view",
+  "acquisition.pilot.own", "acquisition.pause.own", "accounts.manage",
+] as const;
 
 /**
  * Signs in a local account whose role, not Admin's, manages accounts, and opens one panel.
@@ -100,8 +103,8 @@ const LOCAL_MANAGER_RIGHTS = ["library.read", "accounts.manage"] as const;
  * @param account The account whose panel is opened.
  */
 function managerPanel(account: string): void {
-  window.__mocks?.setRoleRights("local-guest", [...LOCAL_MANAGER_RIGHTS]);
-  as("local-guest");
+  window.__mocks?.setRoleRights("requester", [...REQUESTER_MANAGER_RIGHTS]);
+  as("local-account");
   accountPanel(account);
 }
 
@@ -209,13 +212,8 @@ export function signInStates(): NamedState[] {
       () => accountPanel("household-member"),
     ],
     [
-      "accounts-reset-out-of-reach",
-      "Comptes — un gestionnaire qui n'est pas Admin : le mot de passe d'un compte dont le rôle dépasse le sien ne se réinitialise pas",
-      () => managerPanel("local-account"),
-    ],
-    [
-      "accounts-reset-own",
-      "Comptes — un gestionnaire qui n'est pas Admin, sur son propre compte : son mot de passe se change dans son Profil",
+      "accounts-reset-not-admin",
+      "Comptes — un gestionnaire qui n'est pas Admin : un mot de passe ne se réinitialise que par un Admin",
       () => managerPanel("local-guest"),
     ],
   ];
