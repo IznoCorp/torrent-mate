@@ -29,7 +29,8 @@ if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
 
 from personalscraper._fs_utils import is_apple_double
-from personalscraper.conf.preprod_guard import PreprodGuardError
+from personalscraper.conf.environment import Environment, current_environment
+from personalscraper.conf.preprod_guard import PreprodGuardError, assert_within_preprod
 from personalscraper.core.delete_permit import ALLOW, AllowAllPermit, DeletePermit, PermitDecision
 from personalscraper.core.sqlite._fs_probe import is_mounted
 from personalscraper.indexer.deletion import DeleteOutcome, _publish_deleted, delete_media_folder
@@ -167,6 +168,7 @@ def _delete_file(
     label: str,
     db_path: Path,
     permit: DeletePermit = AllowAllPermit(),
+    config: Config | None = None,
 ) -> None:
     """Delete a single file, handling errors gracefully.
 
@@ -185,7 +187,20 @@ def _delete_file(
         db_path: Resolved ``Config.indexer.db_path`` forwarded to
             :func:`_publish_deleted` (DESIGN §9.4).
         permit: Deletion authority (fail-open default: AllowAllPermit).
+        config: Loaded configuration naming preprod's roots. Only read under
+            ``staging``, where it is required: a file outside the marked, mounted
+            roots (or any file when no *config* is given) is refused and counted as
+            an error, before any consult, unlink, journal row or outbox event.
     """
+    if current_environment() is Environment.STAGING:
+        try:
+            if config is None:
+                raise PreprodGuardError(f"cannot delete {path}: staging needs the config to know preprod's roots")
+            assert_within_preprod(config, path)
+        except PreprodGuardError as exc:
+            result.error_count += 1
+            result.errors.append(f"Refused to delete {label}: {path} — {exc}")
+            return
     # F2: the consult itself is fail-open (DESIGN §7.3 / §9). A permit whose
     # may_delete raises must NOT abort cleanup — treat the error as ALLOW (the
     # deletion proceeds) and log it.
@@ -451,7 +466,7 @@ def _clean_media_dir(
             helpers for write-through outbox publish (DESIGN §9.4).
         permit: Deletion authority forwarded to ``_delete_dir`` / ``_delete_file``
             (fail-open default: AllowAllPermit).
-        config: Loaded configuration forwarded to ``_delete_dir`` for the preprod guard.
+        config: Loaded configuration forwarded to ``_delete_dir`` / ``_delete_file`` for the preprod guard.
     """
     try:
         entries = list(media_dir.iterdir())
@@ -471,7 +486,7 @@ def _clean_media_dir(
 
         # Junk files (including macOS resource forks "._*")
         if clean_junk and (name in _JUNK_FILES or is_apple_double(name)) and item.is_file():
-            _delete_file(item, result, dry_run, "junk file", db_path, permit=permit)
+            _delete_file(item, result, dry_run, "junk file", db_path, permit=permit, config=config)
             continue
 
         # Empty directories and release-group artifacts

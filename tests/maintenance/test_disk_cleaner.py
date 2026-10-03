@@ -1018,3 +1018,44 @@ class TestPreprodGuard:
         assert config.indexer.db_path is not None
         journaled = [str(row["path"]) for row in list_recent(config.indexer.db_path)]
         assert not any("Outside (2024)" in path or "prod-media" in path for path in journaled)
+
+    def test_junk_file_outside_the_roots_is_refused_and_counted(self, tmp_path: Path, monkeypatch) -> None:
+        """A junk file inside a root is unlinked; one reached through a symlink out of it is refused.
+
+        The refusal is an error entry, never an exception, and the refused file is
+        neither unlinked, journaled nor published.
+        """
+        from personalscraper.conf import preprod_guard
+        from personalscraper.conf.preprod_guard import PREPROD_ROOT_MARKER
+        from personalscraper.indexer.destructive_journal import list_recent
+        from personalscraper.maintenance import disk_cleaner
+
+        disk = tmp_path / "medias"
+        inside = disk / "films" / "Inside (2024)"
+        inside.mkdir(parents=True)
+        (inside / ".DS_Store").write_bytes(b"\x00")
+        (disk / PREPROD_ROOT_MARKER).write_text("", encoding="utf-8")
+        outside = tmp_path / "prod-media" / "Outside (2024)"
+        outside.mkdir(parents=True)
+        (outside / ".DS_Store").write_bytes(b"\x00")
+        (disk / "films" / "Outside (2024)").symlink_to(outside, target_is_directory=True)
+
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+        published: list[Path] = []
+        monkeypatch.setattr(disk_cleaner, "_publish_deleted", lambda path, label, db_path: published.append(path))
+        monkeypatch.setattr(preprod_guard, "is_mounted", lambda path: True)
+        monkeypatch.setattr(disk_cleaner, "is_mounted", lambda path: True)
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
+
+        result = clean_library(config, apply=True, only="junk")
+
+        assert not (inside / ".DS_Store").exists()
+        assert (outside / ".DS_Store").exists()
+        assert result.deleted_count == 1
+        assert result.error_count == 1
+        assert len(result.errors) == 1
+        assert "Refused to delete" in result.errors[0]
+        assert [path.parent.name for path in published] == ["Inside (2024)"]
+        assert config.indexer.db_path is not None
+        journaled = [str(row["path"]) for row in list_recent(config.indexer.db_path)]
+        assert not any("Outside (2024)" in path or "prod-media" in path for path in journaled)
