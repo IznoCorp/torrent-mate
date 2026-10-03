@@ -4,7 +4,7 @@ A lot never decides a right: it copies it from here. The source is the ``x-right
 the contract ``frontend/maquette/contract/openapi.json`` stamps on each operation;
 ``tests/http_v1/test_rights_table.py`` compares the two. Two ruled corrections to the
 contract's session acts: the sign-in operations are :class:`Public`, and the account's
-own notification writes are ``SignedIn(write=True)``.
+own writes are ``SignedIn(write=True)``.
 
 A list is « any of »: a read opened by several rights. A write names exactly one
 right, so an instance ceiling subtracts it by name; piloting (own or any) is the
@@ -38,8 +38,9 @@ OPERATION_RIGHTS: Final[Mapping[str, Requirement]] = MappingProxyType(
         # The server-run PIN's first step: before any session, like the two sign-ins.
         "startPlexSignIn": Public(),
         "readVersion": SignedIn(),
-        # One's own password, on one's own account: a session act like signOut, no right to name.
-        "changeOwnPassword": SignedIn(),
+        # One's own password, on one's own account: a session act, no right to name; a write,
+        # refused on a read-only instance (the account's own writes, ruling of 2026-10-03).
+        "changeOwnPassword": SignedIn(write=True),
         # The account's own notification choices and devices: a session act, no right; the
         # writes are refused on a read-only instance (ruling of 2026-10-03).
         "readNotificationPreferences": SignedIn(),
@@ -83,8 +84,9 @@ OPERATION_RIGHTS: Final[Mapping[str, Requirement]] = MappingProxyType(
         "grabForFollow": _PILOT,
         "grabSeasonForFollow": _PILOT,
         "requeueJourney": _PILOT,
-        # The account's own seen mark on a closed tunnel: a session act, as the contract states.
-        "dismissClosure": SignedIn(),
+        # The account's own seen mark on a closed tunnel: a session act, as the contract states;
+        # a write, refused on a read-only instance (the account's own writes, ruling of 2026-10-03).
+        "dismissClosure": SignedIn(write=True),
         "rescrapeJourney": _PILOT,
         "setAcquisitionQuality": holds(Right.ACQUISITION_QUALITY_OWN),
         "setAcquisitionPause": holds(Right.ACQUISITION_PAUSE_OWN),

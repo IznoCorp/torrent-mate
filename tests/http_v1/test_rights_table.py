@@ -24,14 +24,17 @@ _MAQUETTE_TABLE = _REPO_ROOT / "frontend" / "maquette" / "design" / "src" / "moc
 _WRITE_METHODS = frozenset({"post", "put", "patch", "delete"})
 
 #: The ruled corrections to the source's ``null`` (DESIGN C.6): the sign-in
-#: operations ask no session; the account's own notification writes are refused
-#: on a read-only instance (2026-10-03: no right, but a write).
+#: operations ask no session; the account's own writes (notification choices and
+#: devices, its password, its seen mark on a closed tunnel) are refused on a
+#: read-only instance (2026-10-03: no right, but a write).
 _OVERRIDES: dict[str, Requirement] = {
     "signIn": Public(),
     "signInWithPlex": Public(),
     "startPlexSignIn": Public(),
     "updateNotificationPreference": SignedIn(write=True),
     "registerPushDevice": SignedIn(write=True),
+    "changeOwnPassword": SignedIn(write=True),
+    "dismissClosure": SignedIn(write=True),
 }
 
 _ENTRY = re.compile(r'^  (\w+): (null|"[^"]+"|\[[^\]]*\]|[A-Z_]+),', re.MULTILINE)
