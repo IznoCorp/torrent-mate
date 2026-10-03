@@ -732,7 +732,7 @@ REGISTRY: list[MaintenanceAction] = [
     MaintenanceAction(
         id="library-remove-phantom-rows",
         title="Supprimer les lignes fantômes",
-        description="Retire de l'index les lignes sans fichier voisines d'une ligne du même identifiant (fichiers intacts).",
+        description="Retire de l'index les lignes sans fichier d'un identifiant porté par une ligne avec fichiers.",
         category="fix",
         risk="destructive",
         long_running=False,
