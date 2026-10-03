@@ -1,5 +1,5 @@
 // The settings' own words, held against the 161 the seed holds — 159 when the
-// engine rendered them, the seventh scheduler since (B-327), and a tracker's
+// engine rendered them, the seventh scheduler since (B-327), the eighth (the seed-obligation sweep), and a tracker's
 // alert threshold, the setting the « Trackers » page offers beside its floor.
 //
 // WHAT MAKES THIS NON-VACUOUS. The expected values are the `displayedValue`
@@ -62,7 +62,7 @@ const WITH_PRECISION = new Set([
 
 describe("settingInWords", () => {
   it("has a corpus to compare", () => {
-    expect(FIELDS.length).toBe(173);
+    expect(FIELDS.length).toBe(174);
   });
 
   it("says every field exactly as the engine did", () => {
@@ -110,12 +110,12 @@ describe("settingInWords", () => {
   });
 
   it("has a schedule to say, and says it in words", () => {
-    // The corpus floor for the kind that had none: SEVEN cron settings — six
+    // The corpus floor for the kind that had none: EIGHT cron settings — six
     // until « Réglages » caught up with the machine's seventh scheduler
-    // (B-327) — and a rendering that is not the raw expression. A `schedule`
+    // (B-327), seven until the eighth, the seed-obligation sweep — and a rendering that is not the raw expression. A `schedule`
     // that renders as itself is the defect this file was written blind to.
     const withASchedule = FIELDS.filter((field) => field.type === "schedule");
-    expect(withASchedule.length).toBe(7);
+    expect(withASchedule.length).toBe(8);
     for (const field of withASchedule) {
       expect(settingInWords(field.type, field.raw)).not.toBe(String(field.raw));
     }

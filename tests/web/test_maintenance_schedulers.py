@@ -141,6 +141,7 @@ class TestSchedulersRoute:
             "personalscraper-follow-detect",
             "personalscraper-grab",
             "personalscraper-index-enrich",
+            "personalscraper-seed-sweep",
         }
         for cron in crons:
             assert cron["kind"] == "cron"

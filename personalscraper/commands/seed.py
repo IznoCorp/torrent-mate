@@ -4,27 +4,34 @@ Sub-commands:
 - ``seed mark <info_hash>``   — apply the ``seed-pure`` tag to a torrent.
 - ``seed unmark <info_hash>`` — remove the ``seed-pure`` tag from a torrent.
 - ``seed list``               — list all completed torrents tagged ``seed-pure``.
+- ``seed sweep``              — one obligation sweep: stamp ``satisfied_at`` / ``released_at``.
 
 Registered as a Typer sub-group (``seed_app = typer.Typer(...)`` mounted via
 ``_root_app.add_typer``). Sub-commands use ``@seed_app.command("name")``
 (NOT ``@command_with_telemetry`` which is root-app-only).
 Uses ``@handle_cli_errors``, ``per_step_boundary``,
-``build_torrent_client=True`` (all three sub-commands touch the torrent client;
-the guard ``torrent_client is not None`` is checked at command entry and exits 1
-with a clear message otherwise).
+``build_torrent_client=True`` (all four sub-commands touch the torrent client, and
+``sweep`` also guards the acquire store; the guard ``torrent_client is not None``
+is checked at command entry and exits 1 with a clear message otherwise).
 
 Import direction: commands/ imports core/, api/torrent/, cli_app, cli_helpers only.
 """
 
 from __future__ import annotations
 
+import dataclasses
+import json
+import time
+
 import typer
 from rich.console import Console
 from rich.table import Table
 
 from personalscraper import cli_helpers
+from personalscraper.acquire.obligations import DEFAULT_SEED_RULE, sweep_obligations
 from personalscraper.cli_app import app as _root_app
 from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
+from personalscraper.commands._cli_run_row import cli_run_row
 from personalscraper.core.tags import SEED_PURE
 from personalscraper.logger import get_logger
 
@@ -139,7 +146,61 @@ def seed_list(ctx: typer.Context) -> None:
         console.print(table)
 
 
+@seed_app.command("sweep")
+@handle_cli_errors
+def seed_sweep(ctx: typer.Context) -> None:
+    """Run one seed-obligation sweep and print its report as one JSON line.
+
+    Asks the torrent client once about every open obligation, stamps
+    ``satisfied_at`` on those whose floor is reached and ``released_at`` on those
+    whose torrent stayed gone for the confirmation delay, and emits the matching
+    events. Meant to run under ``personalscraper schedule`` (hourly).
+
+    Args:
+        ctx: Typer context carrying the loaded ``Config`` in ``ctx.obj``.
+
+    Raises:
+        typer.Exit: Exit code 1 when no torrent client or no acquire store is
+            configured, or when the client failed (nothing was written).
+    """
+    config = ctx.obj.config
+    settings = cli_helpers.get_settings()
+    with (
+        cli_run_row(config, "seed-sweep") as run_rec,
+        per_step_boundary(config, settings, build_torrent_client=True) as app_context,
+    ):
+        store = app_context.acquire.store if app_context.acquire is not None else None
+        if app_context.torrent_client is None or store is None:
+            log.error(
+                "seed_sweep_not_configured",
+                has_client=app_context.torrent_client is not None,
+                has_store=store is not None,
+            )
+            console.print("[red]Error:[/red] No torrent client or acquire store configured.")
+            raise typer.Exit(code=1)
+        report = sweep_obligations(
+            store,
+            app_context.torrent_client,
+            now=int(time.time()),
+            rule=DEFAULT_SEED_RULE,
+            event_bus=app_context.event_bus,
+        )
+        typer.echo(json.dumps(dataclasses.asdict(report)))
+        if report.client_error:
+            raise typer.Exit(code=1)
+        # §5 « résultat chiffré »: the pass's numbers on its pipeline_run row, so
+        # Système shows the sweep's last run like the other scheduled jobs.
+        run_rec.record_counts(
+            {
+                "open": report.open,
+                "satisfied": report.satisfied,
+                "marked_absent": report.marked_absent,
+                "released": report.released,
+            }
+        )
+
+
 # Register the seed sub-group on the root Typer app (import side-effect, called by cli.py).
 _root_app.add_typer(seed_app, name="seed")
 
-__all__ = ["seed_app", "seed_list", "seed_mark", "seed_unmark"]
+__all__ = ["seed_app", "seed_list", "seed_mark", "seed_sweep", "seed_unmark"]

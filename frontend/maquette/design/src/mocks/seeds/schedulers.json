@@ -33,5 +33,10 @@
     "label": "Analyse complète de l'index",
     "state": "on_time",
     "secondaryLine": "le lundi à 01 h 00 · dernier passage : aucun, le premier est à venir · 0 passage"
+  },
+  {
+    "label": "Suivi des obligations de seed",
+    "state": "on_time",
+    "secondaryLine": "toutes les heures à la 45ᵉ minute · dernier passage il y a moins d'une heure · 12 passages"
   }
 ]

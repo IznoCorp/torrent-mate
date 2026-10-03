@@ -1,18 +1,21 @@
 """Seed-obligation sweep: the single writer of ``satisfied_at`` and ``released_at``.
 
-One pass asks the torrent client ONCE about every open obligation
-(``satisfied_at`` and ``released_at`` both NULL):
+One pass asks the torrent client ONCE about every unreleased obligation
+(``released_at`` NULL, met or not):
 
 * a torrent the client still holds, whose floor is reached (:func:`is_met`),
-  gets ``satisfied_at``;
+  gets ``satisfied_at`` (an obligation already satisfied is never re-stamped);
 * a torrent the client does not hold is marked absent at the first pass and
-  released once it has stayed absent for ``confirm_absent_after_s`` — a client
+  released once it has stayed absent for ``confirm_absent_after_s``, whether or
+  not its obligation was met (released means the torrent is gone) — a client
   restarting and answering before its torrents are loaded must not release
   anything, because a FALSE release lets the disk cleaner delete files a
   torrent still seeds (``DeleteAuthority`` stops vetoing a released row);
 * a client error ends the pass with no write (fail-soft, logged).
 
-Pure of any clock: the caller passes ``now``. No event is emitted.
+Pure of any clock: the caller passes ``now``. After each write that changed a row
+it emits ``SeedObligationSatisfied`` / ``SeedObligationReleased`` on the bus (never
+before the write, never for a pass that wrote nothing).
 
 Import direction: acquire/ only; the client arrives through the narrow
 :class:`_SweepClient` port.
@@ -23,12 +26,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
+from personalscraper.acquire.events import SeedObligationReleased, SeedObligationSatisfied
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.acquire._ports import AcquireStore
     from personalscraper.acquire.domain import SeedObligation
     from personalscraper.api.torrent._base import TorrentItem
+    from personalscraper.core.event_bus import EventBus
 
 log = get_logger("acquire.obligations")
 
@@ -65,6 +70,12 @@ class SeedRule:
     ratio_margin: float
 
 
+#: The rule the scheduled sweep applies (operator's O4 ruling, 2026-10-03): the
+#: ratio arm counts, no grace is added to the seed-time floor, and the ratio
+#: needs a 0.1 margin over the tracker's floor.
+DEFAULT_SEED_RULE = SeedRule(count_ratio=True, grace_s=0, ratio_margin=0.1)
+
+
 def is_met(obligation: "SeedObligation", item: "TorrentItem", rule: SeedRule) -> bool:
     """Say whether *obligation* is met by what the client reports for *item*.
 
@@ -89,7 +100,7 @@ class ObligationSweepReport:
     """What one sweep pass did.
 
     Attributes:
-        open: Open obligations at the start of the pass.
+        open: Unreleased obligations at the start of the pass.
         satisfied: Obligations stamped ``satisfied_at``.
         marked_absent: Obligations whose torrent was seen missing for the first time.
         released: Obligations stamped ``released_at``.
@@ -109,28 +120,31 @@ def sweep_obligations(
     *,
     now: int,
     rule: SeedRule,
+    event_bus: "EventBus",
     confirm_absent_after_s: int = 1800,
 ) -> ObligationSweepReport:
-    """Run one sweep pass over the open obligations.
+    """Run one sweep pass over the unreleased obligations.
 
     Args:
         store: The acquire store (``store.seed`` is read and written).
         client: A torrent client answering ``get_by_hashes``.
         now: Unix epoch seconds stamped on every write of this pass.
         rule: The reading of « met ».
+        event_bus: Bus the ``SeedObligationSatisfied`` / ``SeedObligationReleased``
+            events are emitted on, one per write that changed a row.
         confirm_absent_after_s: How long a torrent must stay absent before its
             obligation is released.
 
     Returns:
         The :class:`ObligationSweepReport` of the pass.
     """
-    open_rows = store.seed.list_open()
+    open_rows = store.seed.list_unreleased()
     if not open_rows:
         return ObligationSweepReport(0, 0, 0, 0, client_error=False)
 
     try:
         items = client.get_by_hashes({o.info_hash.lower() for o in open_rows})
-    except Exception:
+    except Exception:  # noqa: BLE001 — fail-soft: a client failure ends the pass with no write, the next tick retries
         log.warning("acquire.obligations.client_error", open=len(open_rows), exc_info=True)
         return ObligationSweepReport(len(open_rows), 0, 0, 0, client_error=True)
     by_hash = {i.hash.lower(): i for i in items}
@@ -143,12 +157,22 @@ def sweep_obligations(
         if item is not None:
             if obligation.absent_since is not None:
                 store.seed.clear_absent(obligation.id)
-            if is_met(obligation, item, rule):
-                satisfied += store.seed.mark_satisfied(obligation.id, now)
+            if obligation.satisfied_at is None and is_met(obligation, item, rule):
+                if store.seed.mark_satisfied(obligation.id, now):
+                    satisfied += 1
+                    event_bus.emit(
+                        SeedObligationSatisfied(
+                            info_hash=obligation.info_hash, source_tracker=obligation.source_tracker
+                        )
+                    )
         elif obligation.absent_since is None:
             marked_absent += store.seed.mark_absent(obligation.id, now)
         elif now - obligation.absent_since >= confirm_absent_after_s:
-            released += store.seed.mark_released(obligation.id, now)
+            if store.seed.mark_released(obligation.id, now):
+                released += 1
+                event_bus.emit(
+                    SeedObligationReleased(info_hash=obligation.info_hash, source_tracker=obligation.source_tracker)
+                )
 
     log.info(
         "acquire.obligations.swept",

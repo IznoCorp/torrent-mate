@@ -381,6 +381,10 @@ class SeedSubStore(Protocol):
         """Return every obligation neither satisfied nor released."""
         ...
 
+    def list_unreleased(self) -> list[SeedObligation]:
+        """Return every obligation not yet released, satisfied or not."""
+        ...
+
     def mark_satisfied(self, obligation_id: int, satisfied_at: int) -> int:
         """Set ``satisfied_at`` on an open obligation row; return the row count."""
         ...
