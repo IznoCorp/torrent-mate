@@ -1,0 +1,167 @@
+{
+  "components": {
+    "schemas": {
+      "Problem": {
+        "additionalProperties": false,
+        "description": "The contract's ``Problem`` (``#/components/schemas/Problem``), plus ``code`` and ``params`` (gap G-1).\n\nAttributes:\n    status: The HTTP status, repeated in the body.\n    title: What went wrong, in one English line \u2014 the code's title.\n    detail: The real reason, an English developer line; never shown as is.\n    code: The refusal's code; the interface renders it through ``fr.json``.\n    params: The typed facts the interface composes its sentence from.",
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/RefusalCode"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
+          },
+          "status": {
+            "title": "Status",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "title",
+          "code"
+        ],
+        "title": "Problem",
+        "type": "object"
+      },
+      "RefusalCode": {
+        "description": "The closed set of refusal codes v1 answers (X4).\n\nEach lot adds its members; the interface owns every word (``fr.json``, by code).",
+        "enum": [
+          "request.invalid",
+          "request.cross_origin",
+          "route.unknown",
+          "internal",
+          "auth.required",
+          "right.missing",
+          "instance.read_only",
+          "instance.forbidden_write"
+        ],
+        "title": "RefusalCode",
+        "type": "string"
+      },
+      "Version": {
+        "additionalProperties": false,
+        "description": "``readVersion``'s answer (the contract's ``GET /version`` 200).\n\nAttributes:\n    version: The package version the running process serves.\n    commit: The git commit it booted with, or ``\"dev\"``.",
+        "properties": {
+          "commit": {
+            "title": "Commit",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "commit"
+        ],
+        "title": "Version",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "TorrentMate",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/version": {
+      "get": {
+        "description": "The version and the commit the running process serves.\n\nArgs:\n    app_services: The application services.\n\nReturns:\n    The build read once at boot, so a stale process never claims a newer stamp.",
+        "operationId": "readVersion",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Version"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Read Version"
+      }
+    }
+  }
+}

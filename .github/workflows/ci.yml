@@ -452,8 +452,13 @@ jobs:
         if: needs.changes.outputs.frontend_app == 'true'
         env:
           PERSONALSCRAPER_CONFIG: ${{ github.workspace }}/config.example
-      - run: git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts
+      - run: git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts frontend/openapi-v1.json
         if: needs.changes.outputs.frontend_app == 'true'
+      # The v1 register is computed from two committed documents (the contract and
+      # frontend/openapi-v1.json, fresh by the step above) with the standard library
+      # alone: a contract-only PR moves it too, so the maquette's changes run it.
+      - run: python3 scripts/compare-contracts.py --check --have v1
+        if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
 
   # ── Stage 3: Coverage gate + upload ───────────────────
   coverage-merge:

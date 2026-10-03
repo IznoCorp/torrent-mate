@@ -31,9 +31,18 @@ WHAT IT COMPARES, and what it deliberately does not. Five kinds:
 WHAT IT DOES NOT DO: it touches no backend. Nothing under `personalscraper/`
 is read or written; this reads two JSON documents and writes one Markdown file.
 
+TWO BACKENDS, TWO REGISTERS. `--have v0` (the default) compares the contract
+against today's backend (`frontend/openapi.json`) and writes
+`frontend-backend-demands.md`; `--have v1` compares it against the v1
+application (`frontend/openapi-v1.json`) and writes
+`frontend-backend-demands-v1.md`, whose row count is the measure of the
+backend's end. Either mode ends on one summary line,
+`compare-contracts: <have> missing=<n> shape=<n> spelling=<n> status=<n> unused=<n>`.
+
 Usage:
     python3 scripts/compare-contracts.py --write   # (re)compute the register
     python3 scripts/compare-contracts.py --check   # report drift, exit 1
+    python3 scripts/compare-contracts.py --check --have v1   # the same, against v1
 """
 
 from __future__ import annotations
@@ -42,6 +51,7 @@ import argparse
 import json
 import re
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -62,6 +72,38 @@ CARRIED = "CARRIED VERBATIM FROM THE FIXTURE"
 # it. The two are matched on the path BELOW each root, so the new root is one
 # demand said once in the register's head, not every operation reported missing.
 V0_ROOT = "/api"
+
+# WHERE v1 IS MOUNTED. Its generated document declares no `servers` and writes
+# its paths below the mount, as the contract writes them below its own root.
+V1_ROOT = "/api/v1"
+
+
+@dataclass(frozen=True)
+class Backend:
+    """One backend the contract is compared against.
+
+    Attributes:
+        name: `v0` or `v1`, as `--have` names it.
+        document: Its OpenAPI document, generated from it.
+        mount: What its document's paths are written below — empty when absolute.
+        root: The root its operations are matched below.
+        register: The register this comparison writes.
+        flag: The `--have` flag a rebuild command names (empty for the default).
+    """
+
+    name: str
+    document: Path
+    mount: str
+    root: str
+    register: Path
+    flag: str
+
+
+BACKENDS = {
+    "v0": Backend("v0", HAVE, "", V0_ROOT, REGISTER, ""),
+    "v1": Backend("v1", ROOT / "frontend" / "openapi-v1.json", V1_ROOT, V1_ROOT,
+                  ROOT / "docs" / "reference" / "frontend-backend-demands-v1.md", " --have v1"),
+}
 
 
 
@@ -99,9 +141,18 @@ def served_under(document: dict) -> str:
     return str(servers[0].get("url", "/")).rstrip("/")
 
 
-def operations(document: dict) -> dict:
-    """Reads a document's operations, keyed by `METHOD address` — its root and its path."""
-    root = served_under(document)
+def operations(document: dict, mount: str | None = None) -> dict:
+    """Reads a document's operations, keyed by `METHOD address` — its root and its path.
+
+    Args:
+        document: One OpenAPI document.
+        mount: Where its paths are served below, when the document does not say
+            (`None` reads its `servers`).
+
+    Returns:
+        Each operation, by `METHOD address`.
+    """
+    root = served_under(document) if mount is None else mount
     found = {}
     for path, entry in document["paths"].items():
         for method, operation in entry.items():
@@ -248,18 +299,26 @@ def formatted_fields(document: dict) -> list:
     return sorted(set(found))
 
 
-def compute() -> str:
-    """Builds the register from the two documents."""
-    wanted = json.loads(WANTED.read_text(encoding="utf-8"))
-    have = json.loads(HAVE.read_text(encoding="utf-8"))
-    ours, theirs = operations(wanted), operations(have)
+def compute(backend: Backend = BACKENDS["v0"], wanted_path: Path = WANTED) -> tuple[str, dict]:
+    """Builds one backend's register from the contract and that backend's document.
+
+    Args:
+        backend: The backend the contract is compared against.
+        wanted_path: The contract.
+
+    Returns:
+        The register's text, and the count of each kind of row for the summary line.
+    """
+    wanted = json.loads(wanted_path.read_text(encoding="utf-8"))
+    have = json.loads(backend.document.read_text(encoding="utf-8"))
+    ours, theirs = operations(wanted), operations(have, backend.mount)
     root = served_under(wanted)
 
     def ours_below(key: str) -> str:
         return below(key, root)
 
     def theirs_below(key: str) -> str:
-        return below(key, V0_ROOT)
+        return below(key, backend.root)
 
     # Matched on the path below each document's root with its parameter NAMES
     # blanked, so a `{followedId}` against a `{followed_id}` is not read as a
@@ -304,6 +363,11 @@ def compute() -> str:
             shape.append((key, ours[key]["operationId"], added, dropped))
 
     formatted = formatted_fields(wanted)
+    counts = {"missing": len(missing), "shape": len(shape), "spelling": len(spelling),
+              "status": len(status), "unused": len(unused)}
+    if backend.name == "v1":
+        return render_v1(root, len(ours), len(theirs), missing, ours, shape, spelling, status,
+                         formatted, unused), counts
 
     lines = [
         "# What the interface asks of the backend",
@@ -453,34 +517,163 @@ def compute() -> str:
         lines.append("None.")
 
     lines.append("")
+    return "\n".join(lines), counts
+
+
+def table(rows: list, header: str, divider: str) -> list:
+    """Renders one register table, or « None. » when it has no row.
+
+    Args:
+        rows: The table's rows, already rendered.
+        header: Its header line.
+        divider: Its divider line.
+
+    Returns:
+        The table's lines.
+    """
+    return [header, divider, *rows] if rows else ["None."]
+
+
+def render_v1(root: str, required: int, served: int, missing: list, ours: dict, shape: list,
+              spelling: list, status: list, formatted: list, unused: list) -> str:
+    """Writes v1's register: the same tables as v0's, in v1's words.
+
+    Args:
+        root: The root the contract addresses its operations under.
+        required: How many operations the contract declares.
+        served: How many operations v1 serves.
+        missing: The contract's operations v1 does not serve.
+        ours: The contract's operations, by key.
+        shape: The shared operations whose response names differ.
+        spelling: The shared operations whose path parameters are spelled differently.
+        status: The shared operations answered with a different success status.
+        formatted: The fields the contract carries pre-formatted.
+        unused: The operations v1 serves and the contract does not declare.
+
+    Returns:
+        The register's text.
+    """
+    def codes(found: list) -> str:
+        return ", ".join(f"`{code}`" for code in found) or "—"
+
+    lines = [
+        "# What the interface asks of v1",
+        "",
+        "**COMPUTED, NEVER WRITTEN.** `python3 scripts/compare-contracts.py --write --have v1`",
+        "builds this file by diffing `frontend/maquette/contract/openapi.json` — the contract the",
+        "interface REQUIRES — against `frontend/openapi-v1.json`, which",
+        "`python scripts/export-openapi.py --v1` generates FROM the v1 application.",
+        "`--check --have v1` refuses a committed register that differs from the computed one, so",
+        "the two cannot separate. Edit the contract or v1, not this file.",
+        "",
+        "**ITS ROW COUNT IS THE MEASURE OF THE BACKEND'S END**: v1 is done when sections 1, 2,",
+        "2b, 2c and 4 read « None. » (section 3 is a demand on the contract's fields, which v1",
+        "answers as declared). The v0 register, `docs/reference/frontend-backend-demands.md`,",
+        "compares the same contract against today's backend; this one does not replace it.",
+        "",
+        f"**BOTH SIDES ADDRESS EVERY OPERATION UNDER `{root}`**: the contract's `servers` URL, and",
+        "where the web application mounts v1. Operations are matched on the path below it.",
+        "",
+        "**IT DESCRIBES OPERATIONS, AND A WEBSOCKET IS NOT ONE.** OpenAPI cannot declare",
+        f"`{root}/events`; the stream's demands are written by hand in",
+        "`docs/reference/frontend-backend-demands-stream.md`.",
+        "",
+        "**A SERVED OPERATION IS HELD TO MORE THAN THIS.** Names and statuses are what a register",
+        "can carry; `tests/http_v1/test_contract_conformance.py` holds every operation v1 serves to",
+        "the contract field by field — enums, required sets, request bodies, refusals and rights.",
+        "",
+        "| | |",
+        "| --- | ---: |",
+        f"| operations the interface requires | {required} |",
+        f"| operations v1 serves | {served} |",
+        f"| required and not served | {len(missing)} |",
+        f"| served, different response shape | {len(shape)} |",
+        f"| served, path parameter spelled differently | {len(spelling)} |",
+        f"| served, answered with a different status | {len(status)} |",
+        f"| fields carried pre-formatted | {len(formatted)} |",
+        f"| v1 serves and the interface does not declare | {len(unused)} |",
+        "",
+        "---",
+        "",
+        "## 1. Operations the interface requires and v1 does not serve",
+        "",
+        *table([f"| `{key}` | `{ours[key]['operationId']}` | {ours[key].get('summary', '')} |"
+                for key in missing],
+               "| operation | operationId | what it is for |", "| --- | --- | --- |"),
+        "",
+        "## 2. Operations both declare, whose response carries different property names",
+        "",
+        *table([f"| `{key}` (`{operation_id}`) | {codes(added)} | {codes(dropped)} |"
+                for key, operation_id, added, dropped in shape],
+               "| operation | the interface adds | v1 has and the interface does not use |",
+               "| --- | --- | --- |"),
+        "",
+        "## 2b. Operations both declare, whose path parameter is spelled differently",
+        "",
+        *table([f"| `{mine}` | `{yours}` |" for mine, yours in spelling],
+               "| the interface requires | v1 has |", "| --- | --- |"),
+        "",
+        "## 2c. Operations both declare, answered with a different status",
+        "",
+        *table([f"| `{key}` | `{operation_id}` | {codes(mine)} | {codes(yours)} |"
+                for key, operation_id, mine, yours in status],
+               "| operation | operationId | the interface requires | v1 answers |",
+               "| --- | --- | --- | --- |"),
+        "",
+        "## 3. Fields the interface carries pre-formatted",
+        "",
+        "The demand is the same for every one of them: supply the underlying fact and let the",
+        "interface format it.",
+        "",
+        *table([f"| `{where}` | `{name}` |" for where, name in formatted],
+               "| where | field |", "| --- | --- |"),
+        "",
+        "## 4. Operations v1 serves and the interface does not declare",
+        "",
+        "v1 is written from the contract, so a row here is a defect: the contract declares it, or",
+        "v1 drops it.",
+        "",
+        *([f"- `{key}`" for key in unused] or ["None."]),
+        "",
+    ]
     return "\n".join(lines)
 
 
 def main() -> int:
-    """Writes or checks the register."""
+    """Writes or checks one backend's register, then prints its summary line."""
     parser = argparse.ArgumentParser(description=__doc__)
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--write", action="store_true", help="(re)compute the register")
     group.add_argument("--check", action="store_true", help="report drift, exit 1")
+    parser.add_argument("--have", choices=sorted(BACKENDS), default="v0",
+                        help="the backend compared against the contract (default: v0)")
     arguments = parser.parse_args()
+    backend = BACKENDS[arguments.have]
+    register = backend.register
 
-    computed = compute()
+    computed, counts = compute(backend)
+    summary = f"compare-contracts: {backend.name} " + " ".join(
+        f"{kind}={count}" for kind, count in counts.items())
     if arguments.write:
-        REGISTER.parent.mkdir(parents=True, exist_ok=True)
-        REGISTER.write_text(computed, encoding="utf-8")
-        print(f"compare-contracts: wrote {REGISTER.relative_to(ROOT)}")
+        register.parent.mkdir(parents=True, exist_ok=True)
+        register.write_text(computed, encoding="utf-8")
+        print(f"compare-contracts: wrote {register.relative_to(ROOT)}")
+        print(summary)
         return 0
 
-    if not REGISTER.is_file():
-        print(f"compare-contracts: {REGISTER.relative_to(ROOT)} is missing — the register "
+    if not register.is_file():
+        print(f"compare-contracts: {register.relative_to(ROOT)} is missing — the register "
               f"is the deliverable, not a by-product", file=sys.stderr)
+        print(summary)
         return 1
-    if REGISTER.read_text(encoding="utf-8") != computed:
-        print(f"compare-contracts: {REGISTER.relative_to(ROOT)} differs from the two "
+    if register.read_text(encoding="utf-8") != computed:
+        print(f"compare-contracts: {register.relative_to(ROOT)} differs from the two "
               f"contracts it is computed from. Rebuild with "
-              f"`python3 scripts/compare-contracts.py --write`", file=sys.stderr)
+              f"`python3 scripts/compare-contracts.py --write{backend.flag}`", file=sys.stderr)
+        print(summary)
         return 1
-    print(f"compare-contracts: {REGISTER.relative_to(ROOT)} matches the computed diff")
+    print(f"compare-contracts: {register.relative_to(ROOT)} matches the computed diff")
+    print(summary)
     return 0
 
 
