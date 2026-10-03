@@ -6,12 +6,14 @@ Covers:
 3. Option-flag validity — every ``options[].name`` maps to a real CLI flag.
 4. Destructive → dry-run invariant — every ``risk='destructive'`` action has
    ``dry_run='supported'``.
+5. Maquette parity — the maquette's seed draws exactly the registry's actions.
 """
 
 from __future__ import annotations
 
 import ast
 import importlib
+import json
 import re
 from pathlib import Path
 from typing import cast
@@ -234,3 +236,31 @@ def test_destructive_actions_support_dry_run() -> None:
         if action.risk == "destructive" and action.dry_run != "supported":
             violations.append(action.id)
     assert not violations, f"Destructive actions without dry_run='supported': {violations}"
+
+
+# ---------------------------------------------------------------------------
+# Test 5 — Maquette seed parity
+# ---------------------------------------------------------------------------
+
+_REPO_ROOT = Path(__file__).resolve().parents[4]
+_MAQUETTE_SEED = _REPO_ROOT / "frontend/maquette/design/src/mocks/seeds/maintenance-actions.json"
+
+
+def test_maquette_seed_matches_registry() -> None:
+    """The maquette's maintenance seed draws exactly the registry's action ids.
+
+    A command added to (or removed from) the registry must be mirrored in the
+    seed, otherwise the maquette's parity rule fails only in the slow harness.
+
+    Raises:
+        AssertionError: When ids are missing from or extra in the seed; the
+            message names them and the seed file to edit.
+    """
+    registry_ids = {action.id for action in REGISTRY}
+    seed_ids = {entry["id"] for entry in json.loads(_MAQUETTE_SEED.read_text(encoding="utf-8"))}
+    missing = sorted(registry_ids - seed_ids)
+    extra = sorted(seed_ids - registry_ids)
+    assert not missing and not extra, (
+        f"maquette seed out of step with the registry — missing from the seed: {missing}; "
+        f"extra in the seed: {extra}. Edit {_MAQUETTE_SEED.relative_to(_REPO_ROOT)}"
+    )
