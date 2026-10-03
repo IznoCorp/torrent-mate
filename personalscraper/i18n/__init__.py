@@ -126,6 +126,7 @@ def current_language() -> Language:
 
 @contextlib.contextmanager
 def _use_language(language: Language) -> Iterator[None]:
+    """Set the language override for the block and restore the previous one on exit."""
     token = _override.set(language)
     try:
         yield
@@ -143,6 +144,23 @@ def use_language(language: Language) -> AbstractContextManager[None]:
         A context manager restoring the previous language on exit.
     """
     return _use_language(language)
+
+
+def _coerce_language(language: Language | str | None) -> Language:
+    """Return ``language`` as a :class:`Language`, or the current language when it is not one.
+
+    Raises:
+        ValueError: Only in strict mode, for a value that is not a supported language.
+    """
+    if language is None:
+        return current_language()
+    try:
+        return Language(language)
+    except ValueError:
+        if _strict():
+            raise
+        _warn_once("i18n_language_unsupported", str(language), variable="language", value=str(language))
+        return current_language()
 
 
 def _find(key: str, language: Language, count: int | float | None) -> str | None:
@@ -170,7 +188,9 @@ def t(key: str, /, *, language: Language | None = None, **params: Param) -> str:
 
     Args:
         key: The dotted key; its first segment is the namespace file.
-        language: Overrides :func:`current_language` for this call.
+        language: Overrides :func:`current_language` for this call; a ``str`` is coerced, and an
+            unsupported one falls back to :func:`current_language` with one
+            ``i18n_language_unsupported`` warning.
         **params: The values of the text's placeholders.
 
     Returns:
@@ -179,8 +199,9 @@ def t(key: str, /, *, language: Language | None = None, **params: Param) -> str:
     Raises:
         MissingTranslation: Only in strict mode (``PERSONALSCRAPER_I18N_STRICT=1``), for a key in
             no catalogue or a placeholder not supplied.
+        ValueError: Only in strict mode, for a ``language`` that is not supported.
     """
-    chosen = language or current_language()
+    chosen = _coerce_language(language)
     count = params.get("count")
     text = _find(key, chosen, count if isinstance(count, (int, float)) else None)
     if text is None:

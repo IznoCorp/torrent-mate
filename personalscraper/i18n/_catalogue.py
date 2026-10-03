@@ -125,6 +125,7 @@ def interpolate(text: str, params: Mapping[str, object]) -> tuple[str, set[str]]
     missing: set[str] = set()
 
     def substitute(match: re.Match[str]) -> str:
+        """Return the supplied value of a placeholder, or the placeholder itself, noting it missing."""
         name = match.group(1)
         if name in params:
             return str(params[name])

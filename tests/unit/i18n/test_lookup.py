@@ -52,6 +52,47 @@ def test_reads_the_requested_language() -> None:
     assert t("units.yes", language=Language.EN) == "yes"
 
 
+def test_a_plain_string_language_is_read_like_the_enum() -> None:
+    """``language="fr"`` (a ``str``, not a ``Language``) reads the French text."""
+    assert t("units.yes", language="fr") == "oui"  # type: ignore[arg-type]
+    assert i18n.t_code("units", "yes", language="en") == "yes"  # type: ignore[arg-type]
+
+
+def test_an_unsupported_language_warns_once_and_falls_back(lenient: None) -> None:
+    """An unsupported ``language`` uses the current language, with one warning however often it repeats."""
+    with structlog.testing.capture_logs() as logs:
+        assert t("units.yes", language="de") == "yes"  # type: ignore[arg-type]
+        assert t("units.yes", language="de") == "yes"  # type: ignore[arg-type]
+    assert [e["event"] for e in logs] == ["i18n_language_unsupported"]
+
+
+def test_an_unsupported_language_raises_in_strict(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Strict mode turns an unsupported ``language`` into a ``ValueError``."""
+    monkeypatch.setenv(STRICT_VARIABLE, "1")
+    with pytest.raises(ValueError):
+        t("units.yes", language="de")  # type: ignore[arg-type]
+
+
+def test_a_nested_namespace_is_read_through_dotted_keys(fixture_root: Path) -> None:
+    """A nested catalogue answers ``t("ns.group.key")`` in both languages, plural groups included."""
+    _write(
+        fixture_root,
+        "en",
+        "demo",
+        {"group": {"key": "Deep", "files_one": "{{count}} file", "files_other": "{{count}} files"}},
+    )
+    _write(
+        fixture_root,
+        "fr",
+        "demo",
+        {"group": {"key": "Profond", "files_one": "{{count}} fichier", "files_other": "{{count}} fichiers"}},
+    )
+    assert t("demo.group.key", language=Language.EN) == "Deep"
+    assert t("demo.group.key", language=Language.FR) == "Profond"
+    assert t("demo.group.files", language=Language.EN, count=2) == "2 files"
+    assert t("demo.group.files", language=Language.FR, count=1) == "1 fichier"
+
+
 def test_falls_back_to_the_other_language(fixture_root: Path) -> None:
     """A key present in one language only is returned from that one."""
     _write(fixture_root, "en", "demo", {"only_english": "English only"})
@@ -148,6 +189,7 @@ def test_use_language_is_isolated_per_thread() -> None:
     barrier = threading.Barrier(2)
 
     def worker(name: str, language: Language) -> None:
+        """Read ``units.yes`` under ``language``, in step with the other thread."""
         with use_language(language):
             barrier.wait(timeout=5)
             seen[name] = t("units.yes")
