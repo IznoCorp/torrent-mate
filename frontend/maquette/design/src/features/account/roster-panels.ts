@@ -134,7 +134,7 @@ function rolePanel(id: string, cache: PanelCache): PanelDescriptor | null {
       // WHO STARTS ON IT (O-K1-4): its rights are every such newcomer's.
       ...(role.defaultFor ?? []).map((kind) => ({ type: "note" as const, text: translate(`screens.accounts.defaultFor.${kind}`) })),
       own ? { type: "note", text: translate("screens.accounts.notOwnRole") } : null,
-      nameOffered ? { type: "roleName", role: role.id, name: role.name } : null,
+      nameOffered ? { type: "roleName", role: role.id, name: roleLabel(role) } : null,
       nameOffered
         ? { type: "actions", actions: [{ text: translate("screens.accounts.rename"), target: { "role-rename": role.id } }] }
         : null,

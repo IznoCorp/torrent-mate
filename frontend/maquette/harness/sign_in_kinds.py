@@ -137,9 +137,9 @@ async def main():
                 unsaid.append(account)
         journal.check("Comptes: every account says how it signs in", not unsaid, str(unsaid))
         journal.check("Comptes: the Admin role is named by its kind",
-                      await say("access.roleKinds.admin") in roster["roles"], str(roster["roles"]))
+                      await say("roles.seed.admin") in roster["roles"], str(roster["roles"]))
         demoted = next(one for one in SEEDS["accounts"] if one.get("demotedFrom"))
-        before = next(role["name"] for role in SEEDS["roles"] if role["id"] == demoted["demotedFrom"])
+        before = await say(f"roles.seed.{demoted['demotedFrom']}")
         panel = await page.evaluate(PANEL)
         journal.check("Comptes: the account a link demoted says so on its row, and its panel names the role it held",
                       await say("screens.accounts.demotedShort") in rows[demoted["name"]]["detail"]

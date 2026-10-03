@@ -56,8 +56,6 @@ export type Rights = {
   readonly known: boolean;
   /** The account's key — what a requester list names it by. */
   readonly id: string;
-  /** The role's name, for display — never compared. */
-  readonly roleName: string;
   /** The instance's forbidden writes, for the ceiling's own sentence. */
   readonly forbidden: readonly Right[];
   /**
@@ -81,7 +79,6 @@ export type Rights = {
 export const NO_RIGHTS: Rights = {
   known: false,
   id: "",
-  roleName: "",
   forbidden: [],
   holds: () => false,
   holdsAny: () => false,
@@ -106,7 +103,6 @@ export function rightsOf(account: Account | undefined): Rights {
   return {
     known: true,
     id: account.id,
-    roleName: account.role.name,
     forbidden,
     holds,
     holdsAny: (rights) => rights.some(holds),

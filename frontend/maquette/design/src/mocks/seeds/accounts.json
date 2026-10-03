@@ -3,13 +3,11 @@
   "roles": [
     {
       "id": "admin",
-      "name": "Admin",
       "kind": "admin",
       "rights": []
     },
     {
       "id": "household",
-      "name": "Membre du foyer",
       "kind": "ordinary",
       "rights": [
         "library.read",
@@ -25,7 +23,6 @@
     },
     {
       "id": "plex-guest",
-      "name": "Invité Plex",
       "kind": "ordinary",
       "rights": [
         "library.read"
@@ -36,7 +33,6 @@
     },
     {
       "id": "requester",
-      "name": "Demandeur",
       "kind": "ordinary",
       "rights": [
         "library.read",
@@ -49,7 +45,6 @@
     },
     {
       "id": "local-guest",
-      "name": "Invité",
       "kind": "ordinary",
       "rights": [
         "library.read"

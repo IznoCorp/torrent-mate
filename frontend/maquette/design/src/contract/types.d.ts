@@ -2780,8 +2780,8 @@ export interface components {
         Role: {
             /** @description the role's key */
             id: string;
-            /** @description its name, for display only — never compared */
-            name: string;
+            /** @description its name when an Admin gave it one, for display only — never compared; ABSENT on a seeded role never renamed, for which the interface shows the translation of its `id` */
+            name?: string;
             /**
              * @description `admin` is the system role; `ordinary` is everything else
              * @enum {string}

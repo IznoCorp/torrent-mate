@@ -10275,7 +10275,7 @@
           },
           "name": {
             "type": "string",
-            "description": "its name, for display only — never compared"
+            "description": "its name when an Admin gave it one, for display only — never compared; ABSENT on a seeded role never renamed, for which the interface shows the translation of its `id`"
           },
           "kind": {
             "type": "string",
@@ -10307,7 +10307,6 @@
         },
         "required": [
           "id",
-          "name",
           "kind",
           "rights"
         ]

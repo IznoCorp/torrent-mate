@@ -90,11 +90,11 @@ export function roles(): Role[] {
   const { roleRights, roleNames, createdRoles, testRoster } = dials();
   const seeded = ACCOUNTS.roles as Role[];
   const tested = testRoster ? (ACCOUNTS.testRoles as Role[]) : [];
-  return [...seeded, ...tested, ...createdRoles].map((role) => ({
-    ...role,
-    name: roleNames[role.id] ?? role.name,
-    rights: [...(roleRights[role.id] ?? role.rights)],
-  }));
+  return [...seeded, ...tested, ...createdRoles].map((role) => {
+    const name = roleNames[role.id] ?? role.name;
+    // A role never renamed keeps no name at all: the key stays absent.
+    return { ...role, ...(name === undefined ? {} : { name }), rights: [...(roleRights[role.id] ?? role.rights)] };
+  });
 }
 
 /** The role one id names. */
