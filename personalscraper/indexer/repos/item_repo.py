@@ -106,6 +106,9 @@ def _row_to_item(row: sqlite3.Row) -> MediaItemRow:
         date_metadata_refreshed=row["date_metadata_refreshed"],
         is_locked=row["is_locked"],
         preferred_lang=row["preferred_lang"],
+        overview=row["overview"],
+        poster_url=row["poster_url"],
+        date_provider_read=row["date_provider_read"],
     )
 
 
@@ -150,8 +153,9 @@ def insert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
             external_ids_json, ratings_json, canonical_provider,
             nfo_status, artwork_json,
             date_created, date_modified, date_metadata_refreshed,
-            is_locked, preferred_lang
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            is_locked, preferred_lang,
+            overview, poster_url, date_provider_read
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             row.kind,
@@ -170,6 +174,9 @@ def insert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
             row.date_metadata_refreshed,
             row.is_locked,
             row.preferred_lang,
+            row.overview,
+            row.poster_url,
+            row.date_provider_read,
         ),
     )
     rowid: int = cursor.lastrowid  # type: ignore[assignment]
@@ -191,7 +198,8 @@ def get_by_id(conn: sqlite3.Connection, id: int) -> MediaItemRow | None:
     row = conn.execute(
         "SELECT id, kind, title, title_sort, original_title, year, category_id, "
         "external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, "
-        "date_created, date_modified, date_metadata_refreshed, is_locked, preferred_lang "
+        "date_created, date_modified, date_metadata_refreshed, is_locked, preferred_lang, "
+        "overview, poster_url, date_provider_read "
         "FROM media_item WHERE id = ?",
         (id,),
     ).fetchone()
@@ -214,7 +222,8 @@ def find_by_tmdb_id(conn: sqlite3.Connection, tmdb_id: int) -> MediaItemRow | No
     row = conn.execute(
         "SELECT id, kind, title, title_sort, original_title, year, category_id, "
         "external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, "
-        "date_created, date_modified, date_metadata_refreshed, is_locked, preferred_lang "
+        "date_created, date_modified, date_metadata_refreshed, is_locked, preferred_lang, "
+        "overview, poster_url, date_provider_read "
         "FROM media_item "
         "WHERE CAST(json_extract(external_ids_json, '$.tmdb.series_id') AS TEXT) = CAST(? AS TEXT)",
         (tmdb_id,),
@@ -269,6 +278,7 @@ def find_by_external_id(
         "SELECT m.id, m.kind, m.title, m.title_sort, m.original_title, m.year, m.category_id, "
         "m.external_ids_json, m.ratings_json, m.canonical_provider, m.nfo_status, m.artwork_json, "
         "m.date_created, m.date_modified, m.date_metadata_refreshed, m.is_locked, m.preferred_lang, "
+        "m.overview, m.poster_url, m.date_provider_read, "
         "a1.value AS dispatch_disk, a2.value AS dispatch_path "
         "FROM media_item m "
         "LEFT JOIN item_attribute a1 ON a1.item_id = m.id AND a1.key = ? "
@@ -354,7 +364,8 @@ def get_by_canonical_id(conn: sqlite3.Connection, row: MediaItemRow) -> MediaIte
     rows = conn.execute(
         "SELECT id, kind, title, title_sort, original_title, year, category_id, "
         "external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, "
-        "date_created, date_modified, date_metadata_refreshed, is_locked, preferred_lang "
+        "date_created, date_modified, date_metadata_refreshed, is_locked, preferred_lang, "
+        "overview, poster_url, date_provider_read "
         "FROM media_item "
         f"WHERE CAST(json_extract(external_ids_json, '{json_path}') AS TEXT) = CAST(? AS TEXT) "
         "AND kind = ? "
@@ -403,7 +414,8 @@ def _get_holder_at_dispatch_path(
     rows = conn.execute(
         "SELECT m.id, m.kind, m.title, m.title_sort, m.original_title, m.year, m.category_id, "
         "m.external_ids_json, m.ratings_json, m.canonical_provider, m.nfo_status, m.artwork_json, "
-        "m.date_created, m.date_modified, m.date_metadata_refreshed, m.is_locked, m.preferred_lang "
+        "m.date_created, m.date_modified, m.date_metadata_refreshed, m.is_locked, m.preferred_lang, "
+        "m.overview, m.poster_url, m.date_provider_read "
         "FROM media_item m "
         "JOIN item_attribute a ON a.item_id = m.id AND a.key = ? "
         f"WHERE CAST(json_extract(m.external_ids_json, '{json_path}') AS TEXT) = CAST(? AS TEXT) "
@@ -788,7 +800,8 @@ def get_by_title_kind_year(
     row = conn.execute(
         "SELECT id, kind, title, title_sort, original_title, year, category_id, "
         "external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, "
-        "date_created, date_modified, date_metadata_refreshed, is_locked, preferred_lang "
+        "date_created, date_modified, date_metadata_refreshed, is_locked, preferred_lang, "
+        "overview, poster_url, date_provider_read "
         "FROM media_item "
         "WHERE title = ? AND kind = ? "
         # Year-compatible: the incoming year is unknown, the stored year is
@@ -838,6 +851,7 @@ def find_by_normalized_name(
         "SELECT m.id, m.kind, m.title, m.title_sort, m.original_title, m.year, m.category_id, "
         "m.external_ids_json, m.ratings_json, m.canonical_provider, m.nfo_status, m.artwork_json, "
         "m.date_created, m.date_modified, m.date_metadata_refreshed, m.is_locked, m.preferred_lang, "
+        "m.overview, m.poster_url, m.date_provider_read, "
         "a1.value AS dispatch_disk, a2.value AS dispatch_path "
         "FROM media_item m "
         "INNER JOIN item_attribute anorm ON anorm.item_id = m.id AND anorm.key = ? AND anorm.value = ? "
@@ -884,6 +898,7 @@ def find_on_disk(
         "m.id, m.kind, m.title, m.title_sort, m.original_title, m.year, m.category_id, "
         "m.external_ids_json, m.ratings_json, m.canonical_provider, m.nfo_status, m.artwork_json, "
         "m.date_created, m.date_modified, m.date_metadata_refreshed, m.is_locked, m.preferred_lang, "
+        "m.overview, m.poster_url, m.date_provider_read, "
         "d.mount_path AS disk_mount, p.rel_path AS item_rel_path "
         "FROM media_item m "
         "INNER JOIN media_release mr ON mr.item_id = m.id "
@@ -923,6 +938,7 @@ def find_items_needing_rescrape(conn: sqlite3.Connection) -> list[tuple[MediaIte
         "m.id, m.kind, m.title, m.title_sort, m.original_title, m.year, m.category_id, "
         "m.external_ids_json, m.ratings_json, m.canonical_provider, m.nfo_status, m.artwork_json, "
         "m.date_created, m.date_modified, m.date_metadata_refreshed, m.is_locked, m.preferred_lang, "
+        "m.overview, m.poster_url, m.date_provider_read, "
         "d.mount_path AS disk_mount, p.rel_path AS item_rel_path "
         "FROM media_item m "
         "INNER JOIN media_release mr ON mr.item_id = m.id "
@@ -994,6 +1010,7 @@ def list_all_dispatch_items(conn: sqlite3.Connection) -> list[tuple[MediaItemRow
         "SELECT m.id, m.kind, m.title, m.title_sort, m.original_title, m.year, m.category_id, "
         "m.external_ids_json, m.ratings_json, m.canonical_provider, m.nfo_status, m.artwork_json, "
         "m.date_created, m.date_modified, m.date_metadata_refreshed, m.is_locked, m.preferred_lang, "
+        "m.overview, m.poster_url, m.date_provider_read, "
         "a1.value AS dispatch_disk, a2.value AS dispatch_path "
         "FROM media_item m "
         "INNER JOIN item_attribute anorm ON anorm.item_id = m.id AND anorm.key = ? "
