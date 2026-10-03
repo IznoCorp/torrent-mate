@@ -10,6 +10,7 @@ from personalscraper.commands.library.analyze import (
     library_rescrape,
 )
 from personalscraper.commands.library.audit import library_ghost_audit, library_reconcile, library_relink
+from personalscraper.commands.library.catalogue import library_catalogue_refresh
 from personalscraper.commands.library.dedup_titles import library_dedup_titles
 from personalscraper.commands.library.doctor import library_doctor
 from personalscraper.commands.library.duplicates_by_id import library_duplicates_by_id
@@ -24,6 +25,7 @@ from personalscraper.commands.library.scan import library_index, library_init_ca
 
 __all__ = [
     "library_analyze",
+    "library_catalogue_refresh",
     "library_clean",
     "library_dedup_titles",
     "library_fix_canonical_provider",
