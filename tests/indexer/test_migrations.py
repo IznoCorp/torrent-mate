@@ -113,11 +113,11 @@ class TestApplyMigrations001:
     """
 
     def test_user_version_matches_latest(self, tmp_path: Path) -> None:
-        """After applying every migration, PRAGMA user_version equals the latest version (16)."""
+        """After applying every migration, PRAGMA user_version equals the latest version (17)."""
         db_path = tmp_path / "lib.db"
         conn = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, MIGRATIONS_DIR)
-        assert _user_version(conn) == 16
+        assert _user_version(conn) == 17
 
     def test_all_tables_present(self, tmp_path: Path) -> None:
         """After applying all migrations, all expected tables exist."""
@@ -160,7 +160,7 @@ class TestApplyMigrationsIdempotence:
         conn = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, MIGRATIONS_DIR)
         version_after_first = _user_version(conn)
-        assert version_after_first == 16
+        assert version_after_first == 17
         # Second call must be a no-op.
         apply_migrations(conn, MIGRATIONS_DIR)
         assert _user_version(conn) == version_after_first
@@ -361,12 +361,12 @@ class TestApplyMigrationsFailureRollback:
     """
 
     def _setup_db_and_mig_dir(self, tmp_path: Path) -> tuple[Path, sqlite3.Connection, Path]:
-        """Create a seeded DB at latest version (via MIGRATIONS_DIR) and a mig_dir with 017_noop + 999_bad.
+        """Create a seeded DB at latest version (via MIGRATIONS_DIR) and a mig_dir with 018_noop + 999_bad.
 
         After applying MIGRATIONS_DIR the DB is at the latest committed version
-        (migrations 001-016). The custom mig_dir uses version 017 for the noop
-        migration so it runs after the real chain. Bumped to 017 when the real
-        ``016_pipeline_run_open_command`` migration was added (m24 partial index).
+        (migrations 001-017). The custom mig_dir uses version 018 for the noop
+        migration so it runs after the real chain. Bumped to 018 when the real
+        ``017_item_facts`` migration was added.
 
         Args:
             tmp_path: Pytest-provided temporary directory.
@@ -378,10 +378,10 @@ class TestApplyMigrationsFailureRollback:
         """
         mig_dir = tmp_path / "migrations"
         mig_dir.mkdir()
-        # Valid migration: creates `noop` table at version 17 (one past the real
-        # chain, which now ends at the committed migration 016).
-        (mig_dir / "017_noop.sql").write_text(
-            "CREATE TABLE noop (id INTEGER PRIMARY KEY);\nPRAGMA user_version = 17;\n",
+        # Valid migration: creates `noop` table at version 18 (one past the real
+        # chain, which now ends at the committed migration 017).
+        (mig_dir / "018_noop.sql").write_text(
+            "CREATE TABLE noop (id INTEGER PRIMARY KEY);\nPRAGMA user_version = 18;\n",
             encoding="utf-8",
         )
         # Malformed migration: intentionally broken SQL at version 999.
@@ -391,20 +391,20 @@ class TestApplyMigrationsFailureRollback:
         )
         db_path = tmp_path / "lib.db"
         conn = open_db(db_path, event_bus=EventBus())
-        apply_migrations(conn, MIGRATIONS_DIR)  # applies the full chain; user_version=latest (16)
+        apply_migrations(conn, MIGRATIONS_DIR)  # applies the full chain; user_version=latest (17)
         return db_path, conn, mig_dir
 
     def test_bad_migration_raises_indexer_migration_error(self, tmp_path: Path) -> None:
         """IndexerMigrationError is raised with version=999 when migration 999 is malformed.
 
         In a single ``apply_migrations`` call on ``mig_dir`` (which contains both
-        ``016_noop.sql`` and ``999_bad.sql``):
-        - ``016`` is applied successfully (version → 16).
+        ``018_noop.sql`` and ``999_bad.sql``):
+        - ``018`` is applied successfully (version → 18).
         - ``999`` fails → ``IndexerMigrationError(version=999)`` is raised.
         """
         db_path, conn, mig_dir = self._setup_db_and_mig_dir(tmp_path)
 
-        # Single call: 016 succeeds, 999 fails → IndexerMigrationError(999).
+        # Single call: 018 succeeds, 999 fails → IndexerMigrationError(999).
         with pytest.raises(IndexerMigrationError) as exc_info:
             apply_migrations(conn, mig_dir)
 
@@ -436,9 +436,9 @@ class TestApplyMigrationsFailureRollback:
         conn2 = open_db(db_path, event_bus=EventBus())
         tables = _table_names(conn2)
         assert "foo" not in tables, "foo table should not exist after rollback"
-        # noop was added by the successful 016 migration and should still be present
+        # noop was added by the successful 018 migration and should still be present
         # in the restored snapshot (which was taken just before 999).
-        assert "noop" in tables, "noop table from migration 016 should be preserved in snapshot"
+        assert "noop" in tables, "noop table from migration 018 should be preserved in snapshot"
 
 
 # ---------------------------------------------------------------------------
@@ -590,3 +590,49 @@ class TestMigration016PipelineRunOpenCommand:
 
         assert len(rows) == 1
         assert rows[0][0] == 16
+
+
+class TestMigration017ItemFacts:
+    """``017_item_facts.sql`` — the three media_item facts read from the NFO."""
+
+    @staticmethod
+    def _at_016(tmp_path: Path) -> sqlite3.Connection:
+        """Return a connection migrated up to 016 only (the chain prod runs today)."""
+        partial = tmp_path / "migrations_016"
+        partial.mkdir()
+        for script in sorted(MIGRATIONS_DIR.glob("*.sql")):
+            if int(script.name[:3]) <= 16:
+                (partial / script.name).write_text(script.read_text(encoding="utf-8"), encoding="utf-8")
+        conn = open_db(tmp_path / "lib.db", event_bus=EventBus())
+        apply_migrations(conn, partial)
+        assert _user_version(conn) == 16
+        return conn
+
+    def test_016_to_017_keeps_every_row_with_the_new_columns_null(self, tmp_path: Path) -> None:
+        """Every media_item row survives 016 → 017 and its three new columns are NULL."""
+        conn = self._at_016(tmp_path)
+        for title, kind in (("Inception", "movie"), ("Friends", "show"), ("Dune", "movie")):
+            conn.execute(
+                "INSERT INTO media_item (kind, title, title_sort, category_id, external_ids_json,"
+                " date_created, date_modified, is_locked, preferred_lang)"
+                " VALUES (?, ?, ?, 'movies', '{}', 1, 1, 0, 'fr')",
+                (kind, title, title),
+            )
+        conn.commit()
+        before = conn.execute("SELECT COUNT(*) FROM media_item").fetchone()[0]
+
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        assert _user_version(conn) == 17
+        assert conn.execute("SELECT COUNT(*) FROM media_item").fetchone()[0] == before
+        facts = conn.execute("SELECT overview, poster_url, date_provider_read FROM media_item").fetchall()
+        assert facts == [(None, None, None)] * before
+
+    def test_version_registered_in_schema_version(self, tmp_path: Path) -> None:
+        """Version 17 is registered in ``schema_version`` (the house pattern)."""
+        conn = open_db(tmp_path / "lib.db", event_bus=EventBus())
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        rows = conn.execute("SELECT version FROM schema_version WHERE version = 17").fetchall()
+
+        assert rows == [(17,)]
