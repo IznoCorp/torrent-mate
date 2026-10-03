@@ -23,6 +23,10 @@ entry carries one, and the interface keeps no branch for an entry without.
 7. EVERY ENTRY IDENTIFIED: every seeded library row, recent row and incomplete show carries at
    least one provider id, and so does every row the listing serves; a row the seed once held
    without one (« Famille Pirate ») offers its removal and its tick like any other.
+8. AN ACT NAMES ITS ROW'S MEDIUM (`lib-same-title`): « RoboCop » 1987 and 2014 are two films
+   under two TMDB ids; the 2014 row's swipe, and a selection ticking it alone, delete TMDB 97020
+   and nothing else — a title resolved to the first medium it names deleted the 1987 one. A film
+   that carries a TVDB id too is deleted by its TMDB id.
 """
 import asyncio
 import json
@@ -51,6 +55,38 @@ ASK = """async ([method, path, body]) => {
 }"""
 
 MEMBERSHIP = "/api/v1/library/membership?provider={provider}&providerId={providerId}"
+
+# TWO FILMS, ONE TITLE (`lib-same-title`): « RoboCop » 1987 and 2014, each under its own TMDB id.
+SAME_TITLE = "RoboCop"
+PAIR = {1987: "5548", 2014: "97020"}
+# A film the seed names at TMDB and TVDB both: its identity is TMDB's.
+BOTH_IDS = next(row for row in LIBRARY if row["kind"] == "movie" and {"tmdb", "tvdb"} <= set(row["ids"]))
+
+# WHAT DELETE IS SENT, read off the wire: `send` calls `globalThis.fetch` at call time.
+RECORD_DELETES = """() => {
+  window.__deleted = [];
+  const fetchOnce = window.__fetchBeforeRecord ?? window.fetch;
+  window.__fetchBeforeRecord = fetchOnce;
+  window.fetch = (path, init) => {
+    if (init?.method === 'DELETE' && String(path).includes('/library/items'))
+      window.__deleted.push(JSON.parse(init.body));
+    return fetchOnce(path, init);
+  };
+}"""
+
+# TAPS the element carrying an attribute whose row is the titled one drawn with a given line.
+TAP_ROW_OF = """([selector, title, line]) => {
+  const one = [...document.querySelectorAll(selector)].find((element) => {
+    const named = element.dataset.del ?? element.dataset.selectedTitle;
+    let row = element;
+    while (row && !(row.textContent ?? '').includes(line)) row = row.parentElement;
+    return named === title && row !== null && row !== document.body
+      && Number(row.matches(selector)) + row.querySelectorAll(selector).length === 1;
+  });
+  if (!one) return false;
+  one.click();
+  return true;
+}"""
 
 
 async def main():
@@ -219,6 +255,71 @@ async def main():
         unnamed_rows = [row["title"] for row in served_rows if not any((row.get("ids") or {}).values())]
         journal.check("every row the listing serves carries a provider id",
                       len(served_rows) == len(LIBRARY) and not unnamed_rows, f"{len(served_rows)} rows, unnamed {unnamed_rows[:5]}")
+
+        # ── 8. an act names its row's medium, never its title's ────────────
+        seeded = sorted(str(row["ids"]["tmdb"]) for row in LIBRARY if row["title"] == SAME_TITLE)
+        journal.check(f"the seed holds two films titled « {SAME_TITLE} » under two TMDB ids",
+                      seeded == sorted(PAIR.values()), str(seeded))
+        film_kind = await say("common.film")
+
+        async def removal_of():
+            """Confirms the removal the dialog offers and returns the bodies DELETE was sent."""
+            await page.wait_for_timeout(ACTED)
+            await page.evaluate("()=>document.querySelector('#dlg[data-open] [data-part=\"dialog/button\"]')?.click()")
+            await page.wait_for_timeout(ACTED + SETTLED)
+            return await page.evaluate("()=>window.__deleted")
+
+        async def held(provider_id):
+            answer = await ask("GET", MEMBERSHIP.format(provider="tmdb", providerId=provider_id))
+            return answer["body"]["inLibrary"]
+
+        # The swipe of the 2014 row.
+        await page.evaluate("()=>window.__mocks.reset()")
+        await page.evaluate("(id)=>window.__go(id)", "lib-same-title")
+        await page.wait_for_timeout(SETTLED)
+        await page.evaluate(RECORD_DELETES)
+        line = await say("screens.library.rowLine", year=2014, kind=film_kind)
+        swiped = await page.evaluate(TAP_ROW_OF, ["[data-del]", SAME_TITLE, line])
+        sent = await removal_of()
+        journal.check(f"the swipe of « {SAME_TITLE} » 2014 deletes TMDB {PAIR[2014]}, and only it",
+                      swiped and sent == [{"media": [{"provider": "tmdb", "providerId": PAIR[2014]}]}]
+                      and not await held(PAIR[2014]) and await held(PAIR[1987]),
+                      f"tapped {swiped}, sent {sent}")
+
+        # A selection ticking the 2014 row alone.
+        await page.evaluate("()=>window.__mocks.reset()")
+        await page.evaluate("(id)=>window.__go(id)", "lib-same-title")
+        await page.wait_for_timeout(SETTLED)
+        await page.evaluate("()=>{ window.__store.write({ selMode: true }); }")
+        await page.wait_for_timeout(ACTED)
+        await page.evaluate(RECORD_DELETES)
+        ticked = await page.evaluate(TAP_ROW_OF, ["[data-selected-title]", SAME_TITLE, line])
+        await page.wait_for_timeout(ACTED)
+        pressed = await page.evaluate("""(title) => [...document.querySelectorAll('[data-selected-title]')]
+          .filter((one) => one.dataset.selectedTitle === title).map((one) => one.getAttribute('aria-pressed'))""",
+                                      SAME_TITLE)
+        journal.check(f"ticking « {SAME_TITLE} » 2014 presses its row, not the 1987 one",
+                      ticked and sorted(pressed) == ["false", "true"], f"tapped {ticked}, pressed {pressed}")
+        await page.evaluate("()=>document.querySelector('[data-delsel]')?.click()")
+        sent = await removal_of()
+        journal.check(f"and the selection deletes TMDB {PAIR[2014]}, and only it",
+                      sent == [{"media": [{"provider": "tmdb", "providerId": PAIR[2014]}]}]
+                      and not await held(PAIR[2014]) and await held(PAIR[1987]),
+                      f"sent {sent}")
+
+        # A film carrying a TVDB id too is named TMDB-first.
+        await page.evaluate("()=>window.__mocks.reset()")
+        await page.evaluate("(id)=>window.__go(id)", "lib-list")
+        await page.wait_for_timeout(SETTLED)
+        await page.evaluate("(q)=>window.__store.write({ q })", BOTH_IDS["title"])
+        await page.wait_for_timeout(SETTLED)
+        await page.evaluate(RECORD_DELETES)
+        film_line = await say("screens.library.rowLine", year=BOTH_IDS["year"], kind=film_kind)
+        swiped = await page.evaluate(TAP_ROW_OF, ["[data-del]", BOTH_IDS["title"], film_line])
+        sent = await removal_of()
+        journal.check(f"« {BOTH_IDS['title']} », a film with a TVDB id too, is deleted as TMDB {BOTH_IDS['ids']['tmdb']}",
+                      swiped and sent == [{"media": [{"provider": "tmdb", "providerId": str(BOTH_IDS["ids"]["tmdb"])}]}],
+                      f"tapped {swiped}, sent {sent}")
 
         journal.check("no error was raised", not errors, " · ".join(errors[:3]))
         await context.close()

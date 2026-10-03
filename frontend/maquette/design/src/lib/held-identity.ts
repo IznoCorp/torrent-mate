@@ -42,10 +42,12 @@ function found(value: unknown, title: string, depth: number): CarriedIdentity | 
       record.ids !== null &&
       typeof record.ids === "object"
     ) {
+      const kind = record.kind ?? record.k;
       return {
         title: named,
         poster: typeof record.poster === "string" ? record.poster : null,
         ids: record.ids as CarriedIdentity["ids"],
+        kind: typeof kind === "string" ? kind : null,
       };
     }
   }
@@ -67,7 +69,7 @@ function found(value: unknown, title: string, depth: number): CarriedIdentity | 
  *     title: The title a surface drew the item under.
  *
  * Returns:
- *     Its title, poster and identifiers, or null when no landed read carries an
+ *     Its title, poster, identifiers and kind, or null when no landed read carries an
  *     item of that title with identifiers — §11's explicit case, a medium
  *     nobody has identified.
  */

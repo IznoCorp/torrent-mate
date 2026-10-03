@@ -808,7 +808,7 @@
   },
   {
     "title": "RoboCop",
-    "year": 2014,
+    "year": 1987,
     "kind": "movie",
     "category": "movies",
     "ids": {
@@ -816,6 +816,17 @@
       "imdb": "tt0093870"
     },
     "poster": "assets/posters/a56f60d1.webp"
+  },
+  {
+    "title": "RoboCop",
+    "year": 2014,
+    "kind": "movie",
+    "category": "movies",
+    "ids": {
+      "tmdb": "97020",
+      "imdb": "tt1234721"
+    },
+    "poster": null
   },
   {
     "title": "Superman",

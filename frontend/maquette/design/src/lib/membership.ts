@@ -10,7 +10,9 @@
 // THE WIRE KNOWS ONE IDENTITY, THE PROVIDER'S (operator ruling Q5 A). A surface
 // that holds only the title it drew — a panel's subject — first finds the
 // identity that title was drawn with: in the cache, which holds the read the
-// title came from, and otherwise in the library's own search.
+// title came from, and otherwise in the library's own search. That resolution
+// answers a QUESTION (is it held?) and never reaches a removal: two media may
+// share a title, so a removal is handed the identity its row was drawn with.
 import { read, sharedQueryClient } from "./query-client";
 import { heldIdentity } from "./held-identity";
 import { baseTitle } from "./titles";
@@ -58,6 +60,30 @@ export function mediaRefOf(
 }
 
 /**
+ * The key one identity is written under — a selection's, a row's attribute.
+ *
+ * @param ref The identity.
+ * @returns `provider:providerId`.
+ */
+export function refKey(ref: MediaRef): string {
+  return `${ref.provider}:${ref.providerId}`;
+}
+
+/**
+ * The identity one key names — the inverse of `refKey`.
+ *
+ * @param key The key a row's attribute carries, when it carries one.
+ * @returns The identity, or null when the key names none.
+ */
+export function refOfKey(key: string | null | undefined): MediaRef | null {
+  const cut = key?.indexOf(":") ?? -1;
+  if (key == null || cut <= 0 || cut === key.length - 1) return null;
+  const provider = key.slice(0, cut);
+  if (!(SHOW_ORDER as readonly string[]).includes(provider)) return null;
+  return { provider: provider as MediaRef["provider"], providerId: key.slice(cut + 1) };
+}
+
+/**
  * The membership read for one identity, as a query the cache and a producer share.
  *
  * @param ref The medium's provider identity.
@@ -85,7 +111,8 @@ export function membershipByRefQuery(ref: MediaRef) {
  * @returns The identity, or null when nothing identifies that title.
  */
 export async function identityOfTitle(title: string): Promise<MediaRef | null> {
-  const cached = mediaRefOf(heldIdentity(title)?.ids);
+  const held = heldIdentity(title);
+  const cached = mediaRefOf(held?.ids, held?.kind);
   if (cached !== null) return cached;
   const base = baseTitle(title);
   const page = await read<{

@@ -148,7 +148,7 @@ function reset(): boolean {
     followSort: "urgency",
     sugCount: 30,
     selMode: false,
-    selected: new Set(),
+    selected: new Map(),
     sugGone: new Set(),
     // The deck order is state too: without this a measurement inherits the
     // card order left by the previous one.

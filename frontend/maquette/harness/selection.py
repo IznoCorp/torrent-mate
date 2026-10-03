@@ -103,7 +103,7 @@ async def main():
     await pg.click("[data-tile='0']"); await pg.wait_for_timeout(150)
     # SAID AT ONCE, not only at the end: a tap that ticks nothing can leave a layer
     # up that blocks every later tap, and a rule that crashes there names nothing.
-    first = await pg.evaluate("(title)=>window.__store.read().state.selected.has(title)", ticked[0])
+    first = await pg.evaluate("(title)=>[...window.__store.read().state.selected.values()].some((one)=>one.title===title)", ticked[0])
     if not first:
         failures.append(f"a selection tap did not tick the medium its tile names: {ticked[0]!r}")
         print(f"  FAIL a selection tap ticks the medium its tile names — {ticked[0]!r} not ticked")

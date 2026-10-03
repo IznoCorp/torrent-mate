@@ -62,11 +62,11 @@ NARROWING_QUERY = "Marjorie"
 OTHER_LENS = "rec"
 
 # WHAT IS SELECTED, read where the selection lives rather than off the caption.
-SELECTED = """()=>[...(window.__store?.read().state.selected || [])]"""
+SELECTED = """()=>[...(window.__store?.read().state.selected?.values() || [])].map((one) => one.title)"""
 
-# PUTS TITLES BACK INTO THE SELECTION, the way the named state seeds it.
+# PUTS TITLES BACK INTO THE SELECTION, the way the named state seeds it: each by its row's identity.
 RESEED = """(titles)=>{
-  window.__store.write({ selected: new Set(titles) });
+  window.__store.write({ selected: window.__librarySelection(titles) });
 }"""
 
 # THE CAPTION'S FIGURE, and which ticked titles the listing still draws.

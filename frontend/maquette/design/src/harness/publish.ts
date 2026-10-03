@@ -58,11 +58,14 @@ import { baseTitle } from "../lib/titles";
 import { dateLabel } from "../features/media/format";
 import { watchNow } from "../features/system/watch-run";
 import { verbNames } from "../lib/verbs";
+import { librarySelection } from "./library-selection";
 
 declare global {
   interface Window {
     /** The Médiathèque's lenses over served leaves — the grouping a rule compares the pills against. */
     __lensesOf: typeof lensesOf;
+    /** The library selection ticking some seeded titles, keyed by identity — how a rule ticks or removes by title. */
+    __librarySelection: typeof librarySelection;
     /** The interface's store — the domain hooks and the probes read its state. */
     __store: Store;
     /** The frame's popover door — how a rule closes a popover it opened. */
@@ -208,6 +211,7 @@ export function publishSeams(): void {
     (searchResults?.().results ?? []).flatMap((result, position) => (isAdded(result) ? [position] : [])));
   publish("__libraryNextPage", () => libraryNextPage);
   publish("__deleteLibraryItems", () => deleteLibraryItems);
+  publish("__librarySelection", () => librarySelection);
   publish("__sortWays", () => sortWays);
   publish("__lensesOf", () => lensesOf);
   publish("__releases", () => releases);

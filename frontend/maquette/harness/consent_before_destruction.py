@@ -24,10 +24,14 @@ import asyncio
 from common import ACTED, SETTLED, Journal, open_page, read_at, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
+# A LIBRARY REMOVAL IS TAPPED AS ITS ROW CARRIES IT: the title and the row's identity
+# (`data-del-ref`), because a title alone removes nothing — two media may share one.
 TAP = """([attribute, value]) => {
   const before = window.__mocks.answered().length;
   const button = document.createElement('button');
   button.setAttribute(attribute, value);
+  if (attribute === 'data-del')
+    button.setAttribute('data-del-ref', [...window.__librarySelection([value]).keys()][0] ?? '');
   document.body.append(button);
   button.click();
   button.remove();

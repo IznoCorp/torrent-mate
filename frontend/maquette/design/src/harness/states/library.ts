@@ -7,6 +7,7 @@
 import { applyState, type NamedState } from "../drive";
 import { redraw } from "../../lib/shell-doors";
 import { openDeleteDialog } from "../../features/library/delete-dialog";
+import { librarySelection } from "../library-selection";
 
 export function libraryStates(): NamedState[] {
   // The store the shell creates and publishes, read when the table is built.
@@ -86,11 +87,11 @@ export function libraryStates(): NamedState[] {
           phase: "ready",
           selMode: true,
         });
-        // THE TITLES, because the selection is keyed by title — the three
-        // rows drawn at ranks 0, 2 and 5 of the unfiltered listing, which is
-        // the source's own order. french-ok: media titles, which are data.
+        // THE TITLES the selection ticks, each taken to its row's identity —
+        // the three rows drawn at ranks 0, 2 and 5 of the unfiltered listing,
+        // which is the source's own order. french-ok: media titles, which are data.
         store.write({
-          selected: new Set([
+          selected: librarySelection([
             "On l'appelait Robin des Bois",
             "Big Chicken Le complot de la malbouffe",
             "Marjorie Prime",
@@ -115,7 +116,7 @@ export function libraryStates(): NamedState[] {
         });
         // french-ok: media titles, which are data.
         store.write({
-          selected: new Set([
+          selected: librarySelection([
             "On l'appelait Robin des Bois",
             "Big Chicken Le complot de la malbouffe",
             "Marjorie Prime",
@@ -129,7 +130,7 @@ export function libraryStates(): NamedState[] {
       "Médiathèque — dialogue de suppression",
       () => {
         applyState({ page: "lib", phase: "ready" });
-        openDeleteDialog("Les Animaniacs");
+        openDeleteDialog([...librarySelection(["Les Animaniacs"]).values()]);
       },
     ],
     [
@@ -137,7 +138,7 @@ export function libraryStates(): NamedState[] {
       "Médiathèque — suppression multiple",
       () => {
         applyState({ page: "lib", phase: "ready" });
-        openDeleteDialog(null, ["Les Animaniacs", "La cour de récré", "Earl"]);
+        openDeleteDialog([...librarySelection(["Les Animaniacs", "La cour de récré", "Earl"]).values()]);
       },
     ],
     /* O-5 B (2026-10-03): an identity two library rows hold is not deleted
@@ -148,8 +149,16 @@ export function libraryStates(): NamedState[] {
       "Médiathèque — suppression refusée : un doublon",
       () => {
         applyState({ page: "lib", phase: "ready" });
-        openDeleteDialog("Doctor Who");
+        openDeleteDialog([...librarySelection(["Doctor Who"]).values()]);
       },
+    ],
+    /* TWO MEDIA, ONE TITLE: « RoboCop » 1987 (TMDB 5548) and 2014 (TMDB
+       97020) are two films, each held once under its own id. Every act on one
+       of the two rows names that row's medium, never the other. */
+    [
+      "lib-same-title",
+      "Médiathèque — deux médias sous un même titre",
+      () => applyState({ page: "lib", libLens: "cat", libMode: "list", q: "RoboCop", phase: "ready", selMode: false }),
     ],
     /* THE PIPELINE HOLDS ITS LOCK, and the server refuses the deletion
        `library.locked`: the confirmed row comes back and the toast says why in
@@ -160,7 +169,7 @@ export function libraryStates(): NamedState[] {
       () => {
         applyState({ page: "lib", libLens: "cat", libMode: "list", phase: "ready" });
         window.__mocks?.setPipelineState("running");
-        void openDeleteDialog("Les Animaniacs").then(() => {
+        void openDeleteDialog([...librarySelection(["Les Animaniacs"]).values()]).then(() => {
           let framesLeft = 60;
           const confirm = () => {
             const button = document.querySelector<HTMLElement>('[data-part="dialog/button"]');
