@@ -14,16 +14,15 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-import structlog
 from cryptography.fernet import Fernet, InvalidToken
+
+from personalscraper.app.accounts.repository import AccountRepository, AccountRow, PlexLinkRow
 from personalscraper.app.accounts.token_vault import (
     TokenVault,
     forget_kept_tokens,
     purge_undecryptable,
     rotate_kept_tokens,
 )
-
-from personalscraper.app.accounts.repository import AccountRepository, AccountRow, PlexLinkRow
 from personalscraper.app.store.store import AppStore
 from personalscraper.config import Settings
 
@@ -89,6 +88,29 @@ def repo(store: AppStore) -> AccountRepository:
     return store.accounts
 
 
+#: The keys every structlog record carries, whatever was logged.
+_LOG_FRAME = frozenset({"event", "level", "log_level", "logger", "timestamp"})
+
+
+def _vault_events(caplog: pytest.LogCaptureFixture) -> list[dict[str, object]]:
+    """The vault's structlog events, read from the stdlib records they are rendered through.
+
+    ``structlog.testing.capture_logs`` misses a logger cached before it (``cache_logger_on_first_use``,
+    as after a CLI run in the same process); the stdlib records see every event.
+
+    Args:
+        caplog: pytest's log capture.
+
+    Returns:
+        The event dicts of ``app.accounts.token_vault``, in order.
+    """
+    return [
+        dict(record.msg)
+        for record in caplog.records
+        if record.name == "app.accounts.token_vault" and isinstance(record.msg, dict)
+    ]
+
+
 def _kept(repo: AccountRepository, account_id: str) -> bytes | None:
     """An account's stored ciphertext.
 
@@ -116,14 +138,14 @@ class TestSealAndOpen:
         assert _TOKEN.encode() not in blob
         assert vault.open(_ALICE, blob) == _TOKEN
 
-    def test_a_ciphertext_on_another_account_reads_as_absent(self) -> None:
+    def test_a_ciphertext_on_another_account_reads_as_absent(self, caplog: pytest.LogCaptureFixture) -> None:
         """Alice's blob copied onto Bob's row: ``None``, and one log naming Bob's id only."""
         vault = TokenVault([Fernet.generate_key()])
         blob = vault.seal(_ALICE, _TOKEN)
 
-        with structlog.testing.capture_logs() as logs:
-            assert vault.open(_BOB, blob) is None
+        assert vault.open(_BOB, blob) is None
 
+        logs = _vault_events(caplog)
         assert [entry["event"] for entry in logs] == ["plex_token.undecryptable"]
         assert logs[0]["account_id"] == _BOB
         assert _ALICE not in str(logs)
@@ -139,16 +161,16 @@ class TestSealAndOpen:
         assert TokenVault([new]).open(_ALICE, rotated) == _TOKEN
         assert TokenVault([old]).open(_ALICE, rotated) is None
 
-    def test_a_removed_key_reads_as_absent_and_logs_the_account_id_only(self) -> None:
+    def test_a_removed_key_reads_as_absent_and_logs_the_account_id_only(self, caplog: pytest.LogCaptureFixture) -> None:
         """A blob no key opens: ``None`` and one ``plex_token.undecryptable`` record with the account id alone."""
         blob = TokenVault([Fernet.generate_key()]).seal(_ALICE, _TOKEN)
 
-        with structlog.testing.capture_logs() as logs:
-            assert TokenVault([Fernet.generate_key()]).open(_ALICE, blob) is None
+        assert TokenVault([Fernet.generate_key()]).open(_ALICE, blob) is None
 
+        logs = _vault_events(caplog)
         assert len(logs) == 1
         assert logs[0]["event"] == "plex_token.undecryptable"
-        assert {key for key in logs[0] if key not in ("event", "log_level")} == {"account_id"}
+        assert {key for key in logs[0] if key not in _LOG_FRAME} == {"account_id"}
         assert logs[0]["account_id"] == _ALICE
 
     def test_a_vault_needs_a_key(self) -> None:
@@ -224,18 +246,22 @@ class TestRows:
             link = repo.plex_link(account_id)
             assert link is not None and link.token_stored_at == _NOW
 
-    def test_rotate_leaves_an_undecryptable_row_alone(self, repo: AccountRepository) -> None:
+    def test_rotate_leaves_an_undecryptable_row_alone(
+        self, repo: AccountRepository, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """A row no key opens is not counted, not changed, and logged by account id."""
         old, new, lost = (Fernet.generate_key() for _ in range(3))
         repo.set_token_ciphertext(_ALICE, TokenVault([old]).seal(_ALICE, _TOKEN), now=1.0)
         lost_blob = TokenVault([lost]).seal(_BOB, _TOKEN)
         repo.set_token_ciphertext(_BOB, lost_blob, now=1.0)
 
-        with structlog.testing.capture_logs() as logs:
-            assert rotate_kept_tokens(repo, TokenVault([new, old]), now=_NOW) == 1
+        assert rotate_kept_tokens(repo, TokenVault([new, old]), now=_NOW) == 1
 
         assert _kept(repo, _BOB) == lost_blob
-        assert [(entry["event"], entry["account_id"]) for entry in logs] == [("plex_token.undecryptable", _BOB)]
+        undecryptable = [
+            entry["account_id"] for entry in _vault_events(caplog) if entry["event"] == "plex_token.undecryptable"
+        ]
+        assert undecryptable == [_BOB]
 
     def test_rotate_does_not_launder_a_foreign_ciphertext(self, repo: AccountRepository) -> None:
         """Alice's blob on Bob's row stays unread after a rotation: the binding survives it."""
@@ -299,31 +325,32 @@ class TestLeaks:
         texts: list[str] = [repr(settings), str(settings)]
 
         caplog.set_level(logging.DEBUG)
-        with structlog.testing.capture_logs() as logs:
-            vault = TokenVault.from_settings(settings)
-            assert vault is not None
-            texts.append(repr(vault))
-            texts.append(str(vault))
-            blob = vault.seal(_ALICE, _TOKEN)
-            repo.set_token_ciphertext(_ALICE, blob, now=1.0)
-            repo.set_token_ciphertext(_BOB, blob, now=1.0)
-            vault.open(_BOB, blob)
-            TokenVault([Fernet.generate_key()]).open(_ALICE, blob)
-            rotate_kept_tokens(repo, vault, now=_NOW)
-            purge_undecryptable(repo, vault, now=_NOW)
-            forget_kept_tokens(repo, account_id=None)
-            texts.extend(repr(link) for link in [repo.plex_link(_ALICE), repo.plex_link(_BOB)])
-            for raw in (f"{key.decode()},{_TOKEN}", f"{key.decode()}x"):
-                with pytest.raises(ValueError) as caught:
-                    TokenVault.from_settings(Settings(plex_token_keys=raw))
-                texts.append(str(caught.value))
-                texts.append(repr(caught.value))
-            with pytest.raises(InvalidToken) as invalid:
-                TokenVault([Fernet.generate_key()]).rotate(blob)
-            texts.append(str(invalid.value))
-            texts.append(repr(invalid.value))
+        vault = TokenVault.from_settings(settings)
+        assert vault is not None
+        texts.append(repr(vault))
+        texts.append(str(vault))
+        blob = vault.seal(_ALICE, _TOKEN)
+        repo.set_token_ciphertext(_ALICE, blob, now=1.0)
+        repo.set_token_ciphertext(_BOB, blob, now=1.0)
+        vault.open(_BOB, blob)
+        TokenVault([Fernet.generate_key()]).open(_ALICE, blob)
+        rotate_kept_tokens(repo, vault, now=_NOW)
+        purge_undecryptable(repo, vault, now=_NOW)
+        forget_kept_tokens(repo, account_id=None)
+        texts.extend(repr(link) for link in [repo.plex_link(_ALICE), repo.plex_link(_BOB)])
+        for raw in (f"{key.decode()},{_TOKEN}", key.decode()[:-2]):
+            with pytest.raises(ValueError) as caught:
+                TokenVault.from_settings(Settings(plex_token_keys=raw))
+            texts.append(str(caught.value))
+            texts.append(repr(caught.value))
+        with pytest.raises(InvalidToken) as invalid:
+            TokenVault([Fernet.generate_key()]).rotate(blob)
+        texts.append(str(invalid.value))
+        texts.append(repr(invalid.value))
 
-        texts.extend(str(entry) for entry in logs)
+        vault_events = _vault_events(caplog)
+        assert {entry["event"] for entry in vault_events} >= {"plex_token.undecryptable", "plex_token.rotated"}
+        texts.extend(str(entry) for entry in vault_events)
         texts.extend(record.getMessage() for record in caplog.records)
         texts.append(caplog.text)
         for secret in secrets:

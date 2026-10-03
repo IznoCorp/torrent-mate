@@ -16,10 +16,10 @@ from unittest.mock import patch
 
 import pytest
 from cryptography.fernet import Fernet
-from personalscraper.app.accounts.token_vault import TokenVault
 from typer.testing import CliRunner
 
 from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow
+from personalscraper.app.accounts.token_vault import TokenVault
 from personalscraper.app.store.store import AppStore, build_app_store
 from personalscraper.cli import app as cli_app
 from personalscraper.conf.models.config import Config
