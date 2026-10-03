@@ -33,7 +33,15 @@ FRENCH = "T\u00e9l\u00e9chargement termin\u00e9"
 
 
 def tree(tmp_path: Path, source: str) -> Path:
-    """Writes one module under a fixture `personalscraper/` and returns the root."""
+    """Writes one module under a fixture `personalscraper/` and returns the root.
+
+    Args:
+        tmp_path: The pytest temporary directory serving as the repository root.
+        source: The module's source text.
+
+    Returns:
+        The fixture root.
+    """
     package = tmp_path / "personalscraper"
     package.mkdir()
     (package / "mod.py").write_text(source, encoding="utf-8")
@@ -41,21 +49,45 @@ def tree(tmp_path: Path, source: str) -> Path:
 
 
 def baseline(tmp_path: Path, **figures: int) -> Path:
-    """Writes a baseline file holding the given figures."""
+    """Writes a baseline file holding the given figures.
+
+    Args:
+        tmp_path: The directory to write `baseline.json` into.
+        **figures: The baseline keys and their allowed counts.
+
+    Returns:
+        The path of the baseline file.
+    """
     path = tmp_path / "baseline.json"
     path.write_text(json.dumps(figures), encoding="utf-8")
     return path
 
 
 def run_french(root: Path, allowed: int) -> list[str]:
-    """Runs arm 14 over a fixture against a baseline of `allowed`."""
+    """Runs arm 14 over a fixture against a baseline of `allowed`.
+
+    Args:
+        root: The fixture root.
+        allowed: The `backend` baseline figure.
+
+    Returns:
+        The violations the arm reported.
+    """
     violations: list[str] = []
     guard.check_backend_french(violations, root=root, baseline_path=baseline(root, backend=allowed))
     return violations
 
 
 def run_sinks(root: Path, allowed: int) -> list[str]:
-    """Runs arm 15 over a fixture against a baseline of `allowed`."""
+    """Runs arm 15 over a fixture against a baseline of `allowed`.
+
+    Args:
+        root: The fixture root.
+        allowed: The `backend_sinks` baseline figure.
+
+    Returns:
+        The violations the arm reported.
+    """
     violations: list[str] = []
     guard.check_backend_sinks(violations, root=root, baseline_path=baseline(root, backend_sinks=allowed))
     return violations
@@ -99,7 +131,15 @@ class TestBackendSinks:
     """Arm 15: the user-text sinks not fed by `t()`, under a ratchet."""
 
     def sites(self, tmp_path: Path, source: str) -> list[tuple[Path, int, str]]:
-        """Measures one fixture module."""
+        """Measures one fixture module.
+
+        Args:
+            tmp_path: The pytest temporary directory.
+            source: The module's source text.
+
+        Returns:
+            One (file, line, kind) per counted sink.
+        """
         return backend.backend_text_sinks(tree(tmp_path, source))
 
     def test_a_console_print_of_text_is_counted(self, tmp_path: Path) -> None:
@@ -118,6 +158,11 @@ class TestBackendSinks:
     def test_an_echo_of_an_f_string_is_counted(self, tmp_path: Path) -> None:
         """`echo(f"{n} items")` is a sink with text."""
         assert len(self.sites(tmp_path, 'echo(f"{n} items")\n')) == 1
+
+    def test_a_print_through_a_subscripted_console_is_counted(self, tmp_path: Path) -> None:
+        """`state["console"].print(f"... {x}")` is a console sink like any other."""
+        source = 'state["console"].print(f"Done {x}")\n'
+        assert [kind for _, _, kind in self.sites(tmp_path, source)] == ["output"]
 
     def test_text_beside_a_translated_part_is_counted(self, tmp_path: Path) -> None:
         """Only the `t()` subtree is exempt; literal text around it still counts."""

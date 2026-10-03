@@ -54,10 +54,25 @@ COMMAND_DECORATORS = {"command", "callback"}
 
 
 def _dotted(node: ast.expr) -> list[str]:
-    """Returns a callee's dotted name as its segments, empty when not a name."""
+    """Returns a callee's dotted name as its segments, empty when not a name.
+
+    A subscript with a `str` constant key contributes that key as a segment, so
+    `state["console"].print` reads as `state.console.print`.
+
+    Args:
+        node: The callee expression of a call or a decorator.
+
+    Returns:
+        The segments from the root name to the last attribute, or `[]`.
+    """
     parts: list[str] = []
-    while isinstance(node, ast.Attribute):
-        parts.append(node.attr)
+    while isinstance(node, (ast.Attribute, ast.Subscript)):
+        if isinstance(node, ast.Attribute):
+            parts.append(node.attr)
+        elif isinstance(node.slice, ast.Constant) and isinstance(node.slice.value, str):
+            parts.append(node.slice.value)
+        else:
+            return []
         node = node.value
     if isinstance(node, ast.Name):
         parts.append(node.id)
@@ -66,7 +81,14 @@ def _dotted(node: ast.expr) -> list[str]:
 
 
 def _is_translation(node: ast.AST) -> bool:
-    """Whether a node is a `t(...)` / `t_code(...)` call."""
+    """Whether a node is a `t(...)` / `t_code(...)` call.
+
+    Args:
+        node: Any AST node.
+
+    Returns:
+        True when the node calls one of `TRANSLATION_CALLS`.
+    """
     if not isinstance(node, ast.Call):
         return False
     name = _dotted(node.func)
@@ -78,6 +100,12 @@ def _carries_text(node: ast.AST) -> bool:
 
     Text is an f-string, or a `str` constant holding a space (a one-word constant
     is a key, a style or a unit, not a sentence).
+
+    Args:
+        node: The root of the subtree to inspect.
+
+    Returns:
+        True when untranslated literal text is found in the subtree.
     """
     if _is_translation(node):
         return False
@@ -89,7 +117,14 @@ def _carries_text(node: ast.AST) -> bool:
 
 
 def _is_output_call(call: ast.Call) -> bool:
-    """Whether a call writes to the user: typer output, a console, a prompt."""
+    """Whether a call writes to the user: typer output, a console, a prompt.
+
+    Args:
+        call: The call node to classify.
+
+    Returns:
+        True when the callee is a user-facing output sink.
+    """
     name = _dotted(call.func)
     if not name:
         return False
@@ -102,7 +137,14 @@ def _is_output_call(call: ast.Call) -> bool:
 
 
 def _is_command(function: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    """Whether a function is decorated `*.command` / `*.callback`."""
+    """Whether a function is decorated `*.command` / `*.callback`.
+
+    Args:
+        function: The function definition to inspect.
+
+    Returns:
+        True when one of its decorators is a command or callback.
+    """
     for decorator in function.decorator_list:
         target = decorator.func if isinstance(decorator, ast.Call) else decorator
         name = _dotted(target)
@@ -112,7 +154,14 @@ def _is_command(function: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
 
 
 def _has_help_keyword(function: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    """Whether a command's decorator already gives `help=` (the docstring stays)."""
+    """Whether a command's decorator already gives `help=` (the docstring stays).
+
+    Args:
+        function: The command's function definition.
+
+    Returns:
+        True when a decorator call passes `help=` or `short_help=`.
+    """
     return any(isinstance(decorator, ast.Call)
                and any(keyword.arg in {"help", "short_help"} for keyword in decorator.keywords)
                for decorator in function.decorator_list)
@@ -178,7 +227,14 @@ def backend_text_sinks(root: Path) -> list[tuple[Path, int, str]]:
 
 
 def _shown(path: Path) -> str:
-    """Returns a path relative to the repository when it is under it."""
+    """Returns a path relative to the repository when it is under it.
+
+    Args:
+        path: The path to display.
+
+    Returns:
+        The POSIX path relative to `ROOT`, or the path as is when outside it.
+    """
     try:
         return path.relative_to(ROOT).as_posix()
     except ValueError:
