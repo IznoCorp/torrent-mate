@@ -1661,6 +1661,15 @@
         "name": "cron_restart",
         "displayedValue": "le dimanche à 05 h 00",
         "note": "Sundays 05:00 local (after enrich)."
+      },
+      {
+        "file": "ecosystem.config.js",
+        "key": "personalscraper-seed-sweep",
+        "type": "schedule",
+        "raw": "45 * * * *",
+        "name": "cron_restart",
+        "displayedValue": "toutes les heures, à la 45ᵉ minute",
+        "note": "Hourly at :45 — stamps satisfied_at and released_at on the seed obligations."
       }
     ]
   }

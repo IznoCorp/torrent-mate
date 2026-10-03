@@ -8,7 +8,7 @@ Tests verify:
 4. Fail-soft guards: _send handles False return / None notifier (synchronous),
    and _spawn worker-crashed WARNING (daemon thread, poll-based).
 5. Regression: WantedEnqueued season=0 formats S00E05, not '?'.
-6. close() unsubscribes all 13 subscriptions — emit post-close is a no-op.
+6. close() unsubscribes all 12 subscriptions — emit post-close is a no-op.
 7. Counter-review F-C: SeasonFellBackToEpisodes reaches the notifier (DESIGN §2 R6).
 """
 
@@ -28,6 +28,7 @@ from personalscraper.acquire.events import (
     SeasonFellBackToEpisodes,
     SeedObligationBreached,
     SeedObligationRecorded,
+    SeedObligationReleased,
     SeedObligationSatisfied,
     SeriesFollowed,
     SeriesUnfollowed,
@@ -52,7 +53,6 @@ _ALL_ACQUIRE_EVENT_CLASSES = [
     GrabFailed,
     SeedObligationRecorded,
     SeedObligationBreached,
-    SeedObligationSatisfied,
     RatioMeasured,
     TrackerAuthFailed,
     DownloadCompleted,
@@ -125,6 +125,27 @@ def test_handler_enabled_sends_once(event_cls: type) -> None:
     )
     msg = notifier.send.call_args[0][0]
     assert msg, f"send called with empty message for {event_cls.__name__}"
+    sub.close()
+
+
+# ---------------------------------------------------------------------------
+# 2b. Operator ruling O6: a satisfied / released obligation never reaches Telegram
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("event_cls", [SeedObligationSatisfied, SeedObligationReleased], ids=lambda c: c.__name__)
+def test_satisfied_and_released_obligations_send_nothing_to_telegram(event_cls: type) -> None:
+    """Even enabled, the subscriber relays neither a satisfied nor a released obligation.
+
+    The operator replaced the Telegram channel with FCM and in-app messages
+    for these two (O6), so the subscriber must not listen to them at all.
+    """
+    import time
+
+    bus, sub, notifier = _make_bus_and_sub(enabled=True)
+    bus.emit(EVENT_SAMPLE_FACTORIES[event_cls]())
+    time.sleep(0.2)  # the relay, when subscribed, runs on a daemon thread
+    notifier.send.assert_not_called()
     sub.close()
 
 
@@ -276,10 +297,10 @@ def test_season_fell_back_to_episodes_notifies_operator() -> None:
 
 
 def test_close_unsubscribes_all() -> None:
-    """close() unregisters all 13 subscriptions."""
+    """close() unregisters all 12 subscriptions."""
     bus = EventBus()
     sub = AcquisitionTelegramSubscriber(bus, enabled=False)
-    assert len(sub._tokens) == 13
+    assert len(sub._tokens) == 12
     sub.close()
     assert len(sub._tokens) == 0
     # Emit after close — notifier.send must not be called (no subscriptions)

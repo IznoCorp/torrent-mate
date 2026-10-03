@@ -717,6 +717,28 @@ class _SeedSubStore:
         ).fetchall()
         return [_row_to_seed(r) for r in rows]
 
+    def list_unreleased(self) -> list[SeedObligation]:
+        """Return every obligation whose ``released_at`` is still NULL, met or not.
+
+        The sweep reads this one: an obligation already satisfied is released
+        when its torrent leaves the client, so it must stay in the sweep's view.
+
+        Returns:
+            The unreleased :class:`SeedObligation` rows, oldest id first.
+        """
+        self._conn.row_factory = sqlite3.Row
+        rows = self._conn.execute(
+            """
+            SELECT id, info_hash, source_tracker, dispatched_path,
+                   min_seed_time_s, min_ratio, added_at,
+                   satisfied_at, breached_at, released_at, absent_since
+            FROM seed_obligation
+            WHERE released_at IS NULL
+            ORDER BY id
+            """
+        ).fetchall()
+        return [_row_to_seed(r) for r in rows]
+
     def mark_satisfied(self, obligation_id: int, satisfied_at: int) -> int:
         """Set ``satisfied_at`` on an open ``seed_obligation`` row.
 

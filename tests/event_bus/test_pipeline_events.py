@@ -107,7 +107,7 @@ def test_every_event_has_factory() -> None:
 
 
 def test_event_registry_has_all_v1_events() -> None:
-    """The catalog is pinned at 48 events.
+    """The catalog is pinned at 49 events.
 
     Phase 5 acceptance landed at 13 ; the ``provider-ids`` feature
     (sub-phase 8.4) added 4 ``Backfill*`` events for the IDs/ratings
@@ -141,14 +141,16 @@ def test_event_registry_has_all_v1_events() -> None:
     The ``seed-caps`` feature (O4) adds ``DownloadStarted``,
     ``DownloadProgressed`` and ``DownloadCompleted`` — download lifecycle
     observations emitted by the reconcile sweep (→ 47).
+    The ``k0-obligation-sweep`` feature adds ``SeedObligationReleased`` — the
+    sweep found a seeding torrent gone from the client (→ 49).
     The literal count guards against silent
     additions that bypass the documented event catalog in
     ``docs/production/event-bus.md``.
     """
     import personalscraper.events  # noqa: F401 — eager-import side effect
 
-    assert len(_EVENT_CLASS_REGISTRY) == 48, (
-        f"Expected 48 events (47 existing + acq-escalade SeasonEscalatedAfterEpisodeFailures), "
+    assert len(_EVENT_CLASS_REGISTRY) == 49, (
+        f"Expected 49 events (48 existing + k0 SeedObligationReleased), "
         f"found {len(_EVENT_CLASS_REGISTRY)}: {sorted(_EVENT_CLASS_REGISTRY)}"
     )
 
