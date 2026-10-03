@@ -27,6 +27,12 @@ for _forced in ("FORCE_COLOR", "CLICOLOR_FORCE"):
     _os.environ.pop(_forced, None)
 _os.environ["NO_COLOR"] = "1"
 
+# The translation layer: strict (a missing key fails the test that reaches it) and pinned to English,
+# because CI's locale is not the machine's and every assertion must read the same everywhere. A test
+# that asserts French uses `use_language(Language.FR)`.
+_os.environ.setdefault("PERSONALSCRAPER_I18N_STRICT", "1")
+_os.environ.setdefault("PERSONALSCRAPER_LANG", "en")
+
 # E402 for the whole file, declared once with its reason rather than eleven
 # times: the block above MUST precede every import, because Rich reads the
 # environment when a Console is constructed and `personalscraper.cli_state`
