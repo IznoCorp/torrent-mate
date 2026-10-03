@@ -32,6 +32,8 @@ class RefusalCode(StrEnum):
     RIGHT_MISSING = "right.missing"
     INSTANCE_READ_ONLY = "instance.read_only"
     INSTANCE_FORBIDDEN_WRITE = "instance.forbidden_write"
+    MEDIA_NOT_FOUND = "media.not_found"
+    PROVIDER_UNAVAILABLE = "provider.unavailable"
 
 
 class AppRefusal(Exception):

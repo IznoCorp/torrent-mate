@@ -35,6 +35,8 @@ REFUSAL_TITLES: Final[Mapping[RefusalCode, str]] = {
     RefusalCode.RIGHT_MISSING: "A right is missing.",
     RefusalCode.INSTANCE_READ_ONLY: "This instance is read-only.",
     RefusalCode.INSTANCE_FORBIDDEN_WRITE: "This instance forbids this write.",
+    RefusalCode.MEDIA_NOT_FOUND: "No medium answers this provider identity.",
+    RefusalCode.PROVIDER_UNAVAILABLE: "A metadata provider did not answer.",
 }
 
 _INTERNAL_DETAIL: Final[str] = "An unexpected error occurred."
