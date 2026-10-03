@@ -257,8 +257,9 @@ export function AddScreen() {
             <input
               className={searchInput()}
               type="search"
-              // A SEARCH IS NOT A SENTENCE (B-690): no capital, no correction of a title.
-              autoCapitalize="off"
+              // A TITLE STARTS WITH A CAPITAL (B-694): the keyboard's first capital, `sentences`, and
+              // no correction — a title is a proper noun, often foreign, that autocorrect would mangle (B-690).
+              autoCapitalize="sentences"
               autoCorrect="off"
               id="addq"
               value={typed}

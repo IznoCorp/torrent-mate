@@ -1,4 +1,4 @@
-"""R515 — what is typed in a search field stays as typed: the page writes nothing into it, and it asks for no capital (B-690).
+"""R515 — what is typed in a search field stays as typed: the page writes nothing into it, and it asks for a capital only where a title is typed (B-690, B-694).
 
 « quand je tape quelque chose, la deuxième lettre est à chaque fois en majuscule »
 (Laura, iPhone SE, the installed app): « star » typed in the « + » search came out
@@ -15,8 +15,12 @@ settings' search), each reached by its named state:
   1. typing « star » with the keyboard, the page writes NOTHING into the focused
      field — every assignment to its `value` while it has the focus is counted;
   2. the field holds « star »;
-  3. it asks for no capital and no correction (`autocapitalize`/`autocorrect`
-     off): a search is not a sentence.
+  3. it asks for no correction (`autocorrect` off) in every one of them, and for
+     the keyboard's first capital (`autocapitalize="sentences"`) only where a TITLE
+     is typed — the « + » search, « Filtrer par nom », the Médiathèque's search
+     (B-694: « la première lettre en majuscule aussi et ça c'est dommage »). The
+     identifier field and the settings' search (setting keys, typed as written)
+     ask for no capital at all.
 
 WHAT NO ENGINE HERE SHOWS: the capital itself is the iPhone keyboard's; the
 reporter confirms it on the device. The rewrite that arms it is what is held.
@@ -55,11 +59,11 @@ READ = """(selector) => {
 
 # The fields, each with the named state that draws it.
 FIELDS = (
-    ("acq-add-empty", "#addq", "the « + » search"),
-    ("acq-add-empty", "#byidv", "the « + » identifier"),
-    ("acq-follows-list", "#follq", "« Filtrer par nom »"),
-    ("lib-grid", "#libq", "the Médiathèque's search"),
-    ("settings", "#qsettings", "the settings' search"),
+    ("acq-add-empty", "#addq", "the « + » search", "sentences"),
+    ("acq-add-empty", "#byidv", "the « + » identifier", "off"),
+    ("acq-follows-list", "#follq", "« Filtrer par nom »", "sentences"),
+    ("lib-grid", "#libq", "the Médiathèque's search", "sentences"),
+    ("settings", "#qsettings", "the settings' search", "off"),
 )
 
 
@@ -74,7 +78,7 @@ async def main():
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
 
-        for state, selector, name in FIELDS:
+        for state, selector, name, capital in FIELDS:
             await read_at(page, state, "() => null", wait=SETTLED)
             field = page.locator(selector)
             if selector == "#byidv":
@@ -90,8 +94,8 @@ async def main():
                           read["writes"] == [], str(read["writes"]))
             journal.check(f"{state}, {name}: the field holds what was typed", read["value"] == "star",
                           str(read["value"]))
-            journal.check(f"{state}, {name}: no capital, no correction asked",
-                          read["capitalize"] == "off" and read["correct"] == "off",
+            journal.check(f"{state}, {name}: capital asked as `{capital}`, no correction asked",
+                          read["capitalize"] == capital and read["correct"] == "off",
                           str({"autocapitalize": read["capitalize"], "autocorrect": read["correct"]}))
 
         await context.close()
