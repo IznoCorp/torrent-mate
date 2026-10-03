@@ -318,6 +318,35 @@ class TestCrashRecovery:
 
         assert lockout.exists()
 
+    def test_default_lockout_path_follows_the_environment(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Without ``lockout_path``, staging sweeps its own stale lockout and leaves the prod file."""
+        monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
+        cache = tmp_path / ".cache" / "personalscraper"
+        cache.mkdir(parents=True)
+        staging_lockout = cache / "qbit_auth_lockout-staging"
+        prod_lockout = cache / "qbit_auth_lockout"
+        old_time = time.time() - 7200
+        for lockout in (staging_lockout, prod_lockout):
+            lockout.write_text("login_failed")
+            os.utime(lockout, (old_time, old_time))
+
+        (tmp_path / "097-TEMP").mkdir()
+        pipeline = Pipeline(
+            AppContext(
+                config=self._make_config(tmp_path),
+                settings=MagicMock(),
+                event_bus=EventBus(),
+                provider_registry=MagicMock(spec=ProviderRegistry),
+            )
+        )
+        pipeline._recover_from_previous_run()
+
+        assert not staging_lockout.exists()
+        assert prod_lockout.exists()
+
     def test_orphan_tmp_dispatch_cleaned(self, tmp_path: Path) -> None:
         """Orphan _tmp_dispatch_* dirs on storage disks should be removed."""
         # Simulate a storage disk with an orphan
