@@ -30,13 +30,14 @@ def _json_from(result: Any) -> dict[str, Any]:
 
 
 def _seed_shared_tvdb(db_path: Path) -> None:
-    """Seed a row with files and its 0-file phantom, both holding tvdb 371572.
+    """Seed a row with files and its 0-file phantom (tvdb 371572), and a movie copied on two disks.
 
     Args:
         db_path: Path of the migrated database.
     """
     conn = sqlite3.connect(str(db_path))
     conn.execute("INSERT INTO disk(uuid, label, mount_path, is_mounted) VALUES ('u', 'Disk1', '/d', 1)")
+    conn.execute("INSERT INTO disk(uuid, label, mount_path, is_mounted) VALUES ('u2', 'Disk2', '/d2', 1)")
     ids = json.dumps({"tvdb": {"series_id": "371572", "episode_id": None}})
     for title in ("House of the Dragon (2022)", "House of the Dragon"):
         conn.execute(
@@ -53,6 +54,23 @@ def _seed_shared_tvdb(db_path: Path) -> None:
         " scan_generation, last_verified_at) VALUES (?, 1, 'e01.mkv', 1, 1, '0', 1, 1)",
         (release,),
     )
+    # A third row: one movie whose folder is copied whole on both disks (one row, two folders).
+    movie_ids = json.dumps({"tmdb": {"series_id": "77", "episode_id": None}})
+    conn.execute(
+        "INSERT INTO media_item(kind, title, title_sort, year, category_id, date_created, date_modified,"
+        " external_ids_json) VALUES ('movie', 'Enemy', 'Enemy', 2014, 'movies', 0, 0, ?)",
+        (movie_ids,),
+    )
+    for disk_id in (1, 2):
+        path_id = conn.execute(
+            "INSERT INTO path(disk_id, rel_path) VALUES (?, 'films/Enemy (2014)')", (disk_id,)
+        ).lastrowid
+        movie_release = conn.execute("INSERT INTO media_release(item_id) VALUES (3)").lastrowid
+        conn.execute(
+            "INSERT INTO media_file(release_id, path_id, filename, size_bytes, mtime_ns, oshash,"
+            " scan_generation, last_verified_at) VALUES (?, ?, 'enemy.mkv', 1, 1, '0', 1, 1)",
+            (movie_release, path_id),
+        )
     conn.commit()
     conn.close()
 
@@ -67,10 +85,16 @@ def test_report_is_codes_and_counts(tmp_path: Path, test_config: Any) -> None:
 
     assert result.exit_code == 0, result.output
     assert _json_from(result) == {
-        "groups": 1,
-        "rows": 2,
+        "groups": 2,
+        "rows": 3,
         "empty_rows": 1,
         "duplicates": [
+            {
+                "provider": "tmdb",
+                "provider_id": "77",
+                "kind": "movie",
+                "rows": [{"item_id": 3, "live_files": 2, "folders": 2}],
+            },
             {
                 "provider": "tvdb",
                 "provider_id": "371572",
@@ -79,7 +103,7 @@ def test_report_is_codes_and_counts(tmp_path: Path, test_config: Any) -> None:
                     {"item_id": 1, "live_files": 1, "folders": 1},
                     {"item_id": 2, "live_files": 0, "folders": 0},
                 ],
-            }
+            },
         ],
     }
 

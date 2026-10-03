@@ -7,10 +7,13 @@ merges two rows that hold the same id; this module names them:
 * an id held by two or more ``media_item`` rows (typically an old row that holds
   the files and a 0-file phantom beside it), or
 * an id held by one row whose live files lie in two or more media folders
-  (« Friends » / « Friends [UNCUT] »).
+  (« Friends » / « Friends [UNCUT] », or the same folder copied on two disks: a folder
+  is keyed by its disk and its NFC name).
 
-Nothing here writes. The CLI action ``library-duplicates-by-id`` and the library
-service both read through :func:`find_provider_id_duplicates`.
+Nothing here writes. :func:`find_provider_id_duplicates` is the report the CLI action
+``library-duplicates-by-id`` prints; :func:`rows_holding` lists the rows that hold a
+given medium's canonical id, for a caller that must know whether an id is held more
+than once. Neither has a service caller yet.
 """
 
 from __future__ import annotations
@@ -41,18 +44,20 @@ _MEDIA_FOLDER_DEPTH = 2
 
 # Live (non tombstoned) files of every item, movie releases and episode releases alike.
 _LIVE_FILES_SQL = """
-SELECT r.item_id AS item_id, p.rel_path AS rel_path
+SELECT r.item_id AS item_id, d.label AS disk, p.rel_path AS rel_path
 FROM media_file f
 JOIN media_release r ON r.id = f.release_id
 JOIN path p ON p.id = f.path_id
+JOIN disk d ON d.id = p.disk_id
 WHERE f.deleted_at IS NULL AND r.item_id IS NOT NULL
 UNION ALL
-SELECT s.item_id, p.rel_path
+SELECT s.item_id, d.label, p.rel_path
 FROM media_file f
 JOIN media_release r ON r.id = f.release_id
 JOIN episode e ON e.id = r.episode_id
 JOIN season s ON s.id = e.season_id
 JOIN path p ON p.id = f.path_id
+JOIN disk d ON d.id = p.disk_id
 WHERE f.deleted_at IS NULL
 """
 
@@ -65,8 +70,9 @@ class DuplicateRow:
         item_id: ``media_item.id``.
         title: The row's stored title.
         live_files: Number of non-deleted ``media_file`` rows of the item.
-        folders: Distinct media folders (NFC, relative to their disk) holding the
-            item's live files, sorted.
+        folders: Distinct media folders holding the item's live files, sorted, each
+            as ``"<disk label>:<category>/<media folder>"`` (NFC): the same folder on
+            two disks is two folders.
     """
 
     item_id: int
@@ -92,20 +98,21 @@ class DuplicateGroup:
     rows: tuple[DuplicateRow, ...]
 
 
-def _media_folder(rel_path: str) -> str:
-    """Return the media folder a file's directory lies in.
+def _media_folder(disk: str, rel_path: str) -> str:
+    """Return the media folder a file's directory lies in, qualified by its disk.
 
     The name is NFC-normalised: macOS lists folders in NFD, the index may hold both.
 
     Args:
+        disk: ``disk.label`` of the disk holding the file.
         rel_path: ``path.rel_path`` of the file's directory
             (``series/Friends (1994)/Saison 01``).
 
     Returns:
-        The NFC media folder, relative to its disk (``series/Friends (1994)``).
+        The NFC media folder keyed by its disk (``Disk1:series/Friends (1994)``).
     """
     parts = unicodedata.normalize("NFC", rel_path).strip("/").split("/")
-    return "/".join(parts[:_MEDIA_FOLDER_DEPTH])
+    return f"{disk}:{'/'.join(parts[:_MEDIA_FOLDER_DEPTH])}"
 
 
 def find_provider_id_duplicates(conn: sqlite3.Connection) -> list[DuplicateGroup]:
@@ -124,8 +131,8 @@ def find_provider_id_duplicates(conn: sqlite3.Connection) -> list[DuplicateGroup
 
     folders: dict[int, set[str]] = {}
     live_files: dict[int, int] = {}
-    for item_id, rel_path in conn.execute(_LIVE_FILES_SQL):
-        folders.setdefault(item_id, set()).add(_media_folder(rel_path))
+    for item_id, disk, rel_path in conn.execute(_LIVE_FILES_SQL):
+        folders.setdefault(item_id, set()).add(_media_folder(disk, rel_path))
         live_files[item_id] = live_files.get(item_id, 0) + 1
 
     holders: dict[tuple[str, str, str], list[DuplicateRow]] = {}

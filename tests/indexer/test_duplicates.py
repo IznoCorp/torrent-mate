@@ -30,12 +30,13 @@ def conn() -> sqlite3.Connection:
     """Open an in-memory SQLite DB with every indexer migration applied.
 
     Returns:
-        An open :class:`sqlite3.Connection` with one disk (id 1).
+        An open :class:`sqlite3.Connection` with two disks (id 1 ``Disk1``, id 2 ``Disk2``).
     """
     c = sqlite3.connect(":memory:", isolation_level=None, check_same_thread=False)
     c.execute("PRAGMA foreign_keys=ON")
     apply_migrations(c, _MIGRATIONS_DIR)
     c.execute("INSERT INTO disk(uuid, label, mount_path, is_mounted) VALUES ('u1', 'Disk1', '/d1', 1)")
+    c.execute("INSERT INTO disk(uuid, label, mount_path, is_mounted) VALUES ('u2', 'Disk2', '/d2', 1)")
     return c
 
 
@@ -77,7 +78,9 @@ def _item(
     return cur.lastrowid
 
 
-def _file(conn: sqlite3.Connection, item_id: int, rel_path: str, name: str, *, deleted: bool = False) -> None:
+def _file(
+    conn: sqlite3.Connection, item_id: int, rel_path: str, name: str, *, deleted: bool = False, disk: int = 1
+) -> None:
     """Attach one file to a movie row (``rel_path`` is the movie folder) or a show row.
 
     A show row gets the file through season → episode → release; a movie row through its release.
@@ -88,10 +91,11 @@ def _file(conn: sqlite3.Connection, item_id: int, rel_path: str, name: str, *, d
         rel_path: The file's folder (``films/X (2020)`` or ``series/X/Saison 01``).
         name: File name.
         deleted: Whether the file is soft-deleted.
+        disk: ``disk.id`` the file lies on.
     """
     kind = conn.execute("SELECT kind FROM media_item WHERE id = ?", (item_id,)).fetchone()[0]
-    conn.execute("INSERT OR IGNORE INTO path(disk_id, rel_path) VALUES (1, ?)", (rel_path,))
-    path_id = conn.execute("SELECT id FROM path WHERE disk_id = 1 AND rel_path = ?", (rel_path,)).fetchone()[0]
+    conn.execute("INSERT OR IGNORE INTO path(disk_id, rel_path) VALUES (?, ?)", (disk, rel_path))
+    path_id = conn.execute("SELECT id FROM path WHERE disk_id = ? AND rel_path = ?", (disk, rel_path)).fetchone()[0]
     if kind == "movie":
         cur = conn.execute("INSERT INTO media_release(item_id, quality) VALUES (?, ?)", (item_id, name))
     else:
@@ -123,7 +127,7 @@ def test_two_rows_sharing_a_tvdb_id_form_one_group(conn: sqlite3.Connection) -> 
                     item_id=real,
                     title="House of the Dragon (2022)",
                     live_files=1,
-                    folders=("series/House of the Dragon (2022)",),
+                    folders=("Disk1:series/House of the Dragon (2022)",),
                 ),
                 DuplicateRow(item_id=phantom, title="House of the Dragon", live_files=0, folders=()),
             ),
@@ -141,7 +145,19 @@ def test_one_row_with_files_in_two_media_folders_is_a_group_of_one_row(conn: sql
 
     assert len(group.rows) == 1
     assert group.rows[0].live_files == 2
-    assert group.rows[0].folders == ("series/Friends (1994)", "series/Friends [UNCUT] (1994)")
+    assert group.rows[0].folders == ("Disk1:series/Friends (1994)", "Disk1:series/Friends [UNCUT] (1994)")
+
+
+def test_one_row_with_the_same_folder_on_two_disks_is_a_group_of_one_row(conn: sqlite3.Connection) -> None:
+    """A medium copied whole on two disks is two folders: one group, one row, two folders."""
+    item = _item(conn, "Enemy", kind="movie", year=2014, tmdb="77")
+    _file(conn, item, "films/Enemy (2014)", "a.mkv", disk=1)
+    _file(conn, item, "films/Enemy (2014)", "a.mkv", disk=2)
+
+    (group,) = find_provider_id_duplicates(conn)
+
+    assert len(group.rows) == 1
+    assert group.rows[0].folders == ("Disk1:films/Enemy (2014)", "Disk2:films/Enemy (2014)")
 
 
 def test_two_seasons_of_one_folder_are_not_a_duplicate(conn: sqlite3.Connection) -> None:
@@ -212,3 +228,13 @@ def test_rows_holding_returns_every_holder_live_or_not(conn: sqlite3.Connection)
     assert rows_holding(conn, MediaRef(tmdb_id=11), "movie") == [movie]
     assert rows_holding(conn, MediaRef(tvdb_id=11)) == [a, b]
     assert rows_holding(conn, MediaRef(tvdb_id=999), "show") == []
+
+
+def test_rows_holding_kind_filter_separates_a_show_from_a_movie(conn: sqlite3.Connection) -> None:
+    """A tmdb-canonical show and a movie sharing tmdb 11: ``kind`` picks one, ``None`` both."""
+    show = _item(conn, "Show", kind="show", tmdb="11", canonical="tmdb")
+    movie = _item(conn, "Film", kind="movie", year=2020, tmdb="11")
+
+    assert rows_holding(conn, MediaRef(tmdb_id=11), "show") == [show]
+    assert rows_holding(conn, MediaRef(tmdb_id=11), "movie") == [movie]
+    assert rows_holding(conn, MediaRef(tmdb_id=11)) == [show, movie]
