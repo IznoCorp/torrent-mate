@@ -27,6 +27,13 @@ def test_unreadable_commit_is_dev(tmp_path: Path) -> None:
     assert read_build_commit(tmp_path) == "dev"
 
 
+def test_undecodable_commit_is_dev(tmp_path: Path) -> None:
+    """A ``BUILD_COMMIT`` that is not UTF-8 is answered as ``dev``: the import never raises, the process starts."""
+    (tmp_path / "BUILD_COMMIT").write_bytes(b"\xff\xfe")
+
+    assert read_build_commit(tmp_path) == "dev"
+
+
 def test_boot_value_carries_the_package_version() -> None:
     """The value read at import names this package's version."""
     assert isinstance(BUILD_INFO, BuildInfo)

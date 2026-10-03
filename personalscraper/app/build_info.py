@@ -38,11 +38,11 @@ def read_build_commit(static_dir: Path) -> str:
 
     Returns:
         The stamp without its surrounding whitespace, or ``"dev"`` when it is absent
-        or unreadable (a development checkout).
+        or unreadable (a development checkout, or a stamp that is not UTF-8).
     """
     try:
         return (static_dir / "BUILD_COMMIT").read_text(encoding="utf-8").strip()
-    except OSError:
+    except (OSError, UnicodeDecodeError):
         return "dev"
 
 
