@@ -16,7 +16,7 @@ import pytest
 from personalscraper.indexer import migrations as _migrations_pkg
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.repos import item_repo
-from personalscraper.indexer.repos.item_repo import MediaItemRow
+from personalscraper.indexer.repos.item_repo import ItemAttributeRow, MediaItemRow
 
 _FACTS = {
     "overview": "A detective and his doctor.",
@@ -95,7 +95,7 @@ def test_insert_writes_the_facts(conn: sqlite3.Connection) -> None:
 
 def test_every_item_read_carries_the_facts(conn: sqlite3.Connection) -> None:
     """Each read returning a ``MediaItemRow`` carries the facts ``upsert`` wrote."""
-    item_id = item_repo.upsert(conn, _row())
+    item_id = item_repo.upsert(conn, _row(nfo_status="invalid", date_metadata_refreshed=None))
 
     assert _facts(item_repo.get_by_id(conn, item_id)) == _FACTS
     assert _facts(item_repo.find_by_tmdb_id(conn, 10528)) == _FACTS
@@ -106,3 +106,39 @@ def test_every_item_read_carries_the_facts(conn: sqlite3.Connection) -> None:
     canonical = item_repo.get_by_canonical_id(conn, _row())
     assert isinstance(canonical, MediaItemRow)
     assert _facts(canonical) == _FACTS
+    _on_a_disk_with_dispatch_attributes(conn, item_id)
+
+    named = item_repo.find_by_normalized_name(conn, "sherlock holmes", "movie")
+    assert named is not None
+    assert _facts(named[0]) == _FACTS
+    on_disk = item_repo.find_on_disk(conn, 1)
+    assert [_facts(item) for item, _, _ in on_disk] == [_FACTS]
+    rescrape = item_repo.find_items_needing_rescrape(conn)
+    assert [_facts(item) for item, _, _ in rescrape] == [_FACTS]
+    dispatched = item_repo.list_all_dispatch_items(conn)
+    assert [_facts(item) for item, _, _ in dispatched] == [_FACTS]
+    at_path = item_repo._get_holder_at_dispatch_path(conn, _row(), "/Volumes/D1/films/Sherlock Holmes")
+    assert _facts(at_path) == _FACTS
+
+
+def _on_a_disk_with_dispatch_attributes(conn: sqlite3.Connection, item_id: int) -> None:
+    """Give an item a file on a disk and the dispatch attributes the dispatch reads need.
+
+    Args:
+        conn: The open index.
+        item_id: The item.
+    """
+    conn.execute("INSERT INTO disk(uuid, label, mount_path, is_mounted) VALUES ('u1', 'D1', '/Volumes/D1', 1)")
+    conn.execute("INSERT INTO path(disk_id, rel_path) VALUES (1, 'films/Sherlock Holmes')")
+    release = conn.execute("INSERT INTO media_release(item_id) VALUES (?)", (item_id,)).lastrowid
+    conn.execute(
+        "INSERT INTO media_file(release_id, path_id, filename, size_bytes, mtime_ns, oshash, scan_generation,"
+        " last_verified_at) VALUES (?, 1, 'x.mkv', 1, 1, '0', 1, 1)",
+        (release,),
+    )
+    for key, value in (
+        ("dispatch_normalized_title", "sherlock holmes"),
+        ("dispatch_disk", "drive_a"),
+        ("dispatch_path", "/Volumes/D1/films/Sherlock Holmes"),
+    ):
+        item_repo.upsert_attr(conn, ItemAttributeRow(item_id=item_id, key=key, value=value))
