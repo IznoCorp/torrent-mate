@@ -99,7 +99,7 @@ def _operations(document: dict[str, Any]) -> dict[str, _Operation]:
     return found
 
 
-class _Comparer:
+class _SchemaDiff:
     """Compares one contract schema against one served schema, recording every difference."""
 
     def __init__(self, contract: dict[str, Any], served: dict[str, Any], operation_id: str) -> None:
@@ -248,7 +248,7 @@ def _json_schema(document: dict[str, Any], carrier: Any) -> Any:
     Returns:
         Its JSON schema, or ``None`` when it carries no JSON body.
     """
-    carrier, _ = _Comparer._resolve(document, carrier)
+    carrier, _ = _SchemaDiff._resolve(document, carrier)
     if not isinstance(carrier, dict):
         return None
     return carrier.get("content", {}).get("application/json", {}).get("schema")
@@ -308,8 +308,8 @@ def check_operation(
     if operation_id not in wanted_by_id:
         return [Violation(operation_id, "address", "the contract declares no such operationId")]
     wanted = wanted_by_id[operation_id]
-    comparer = _Comparer(contract, served, operation_id)
-    record = comparer._record
+    schema_diff = _SchemaDiff(contract, served, operation_id)
+    record = schema_diff._record
 
     if (wanted.method, wanted.path) != (have.method, have.path):
         record("address", f"{wanted.method} {wanted.path} in the contract, {have.method} {have.path} in v1")
@@ -324,7 +324,7 @@ def check_operation(
     if wanted_success != have_success:
         record("status", f"success {sorted(wanted_success)} in the contract, {sorted(have_success)} in v1")
     for code in sorted(wanted_success & have_success):
-        comparer.compare(
+        schema_diff.compare(
             _json_schema(contract, wanted_answers[code]), _json_schema(served, have_answers[code]), code, "response"
         )
 
@@ -332,11 +332,13 @@ def check_operation(
     if (wanted_request is None) != (have_request is None):
         record("request", f"a body in the contract: {wanted_request is not None}, in v1: {have_request is not None}")
     elif wanted_request is not None and have_request is not None:
-        wanted_request, _ = _Comparer._resolve(contract, wanted_request)
-        have_request, _ = _Comparer._resolve(served, have_request)
+        wanted_request, _ = _SchemaDiff._resolve(contract, wanted_request)
+        have_request, _ = _SchemaDiff._resolve(served, have_request)
         if bool(wanted_request.get("required")) != bool(have_request.get("required")):
             record("request", "the body is required in one document and optional in the other")
-        comparer.compare(_json_schema(contract, wanted_request), _json_schema(served, have_request), "body", "request")
+        schema_diff.compare(
+            _json_schema(contract, wanted_request), _json_schema(served, have_request), "body", "request"
+        )
 
     wanted_refusals = {code for code in wanted_answers if not code.startswith("2")}
     have_refusals = {code for code in have_answers if not code.startswith("2")}
@@ -345,46 +347,46 @@ def check_operation(
             "refusal",
             f"v1 lacks {sorted(wanted_refusals - have_refusals)}, v1 adds {sorted(have_refusals - wanted_refusals)}",
         )
-    problem, _ = _Comparer._resolve(contract, contract["components"]["schemas"]["Problem"])
+    problem, _ = _SchemaDiff._resolve(contract, contract["components"]["schemas"]["Problem"])
     for code in sorted(have_refusals):
-        answered, _ = _Comparer._normal(served, _json_schema(served, have_answers[code]))
-        _check_problem(comparer, problem, answered, code)
+        answered, _ = _SchemaDiff._normal(served, _json_schema(served, have_answers[code]))
+        _check_problem(schema_diff, problem, answered, code)
 
     expected = _expected_right(operation_id, wanted.body)
     if expected is None:
         record("right", "the contract stamps no x-rights on the operation")
     elif rights.get(operation_id) != expected:
         record("right", f"the contract asks {expected!r}, OPERATION_RIGHTS asks {rights.get(operation_id)!r}")
-    return comparer.violations
+    return schema_diff.violations
 
 
-def _check_problem(comparer: _Comparer, problem: dict[str, Any], answered: Any, code: str) -> None:
+def _check_problem(schema_diff: _SchemaDiff, problem: dict[str, Any], answered: Any, code: str) -> None:
     """Check one refusal's body against the contract's ``Problem``.
 
     Args:
-        comparer: The operation's comparer, which records the violations.
+        schema_diff: The operation's schema_diff, which records the violations.
         problem: The contract's resolved ``Problem``.
         answered: The served refusal's resolved schema.
         code: The refusal status, for the record.
     """
     if not isinstance(answered, dict):
-        comparer._record("problem", f"{code}: v1 answers no JSON Problem")
+        schema_diff._record("problem", f"{code}: v1 answers no JSON Problem")
         return
     wanted_names, have_names = set(problem.get("properties", {})), set(answered.get("properties", {}))
     if wanted_names != have_names:
-        comparer._record(
+        schema_diff._record(
             "problem",
             f"{code}: v1 lacks {sorted(wanted_names - have_names)}, v1 adds {sorted(have_names - wanted_names)}",
         )
     unmet = set(problem.get("required", [])) - set(answered.get("required", []))
     if unmet:
-        comparer._record("problem", f"{code}: v1 does not require {sorted(unmet)}")
+        schema_diff._record("problem", f"{code}: v1 does not require {sorted(unmet)}")
     if "code" in wanted_names & have_names:
-        wanted_codes, _ = _Comparer._normal(comparer.contract, problem["properties"]["code"])
-        have_codes, _ = _Comparer._normal(comparer.served, answered["properties"]["code"])
+        wanted_codes, _ = _SchemaDiff._normal(schema_diff.contract, problem["properties"]["code"])
+        have_codes, _ = _SchemaDiff._normal(schema_diff.served, answered["properties"]["code"])
         undeclared = set(have_codes.get("enum", [])) - set(wanted_codes.get("enum", []))
         if undeclared or "enum" not in have_codes:
-            comparer._record(
+            schema_diff._record(
                 "problem", f"{code}: v1 answers refusal codes the contract does not declare: {sorted(undeclared)}"
             )
 
@@ -426,7 +428,7 @@ def test_served_operation_conforms(operation_id: str) -> None:
 
 
 class _Version(ContractModel):
-    """The contract's ``readVersion`` answer, conformant."""
+    """The contract's ``readVersion`` answer, faithful."""
 
     version: str
     commit: str
@@ -455,7 +457,7 @@ class _RoleKind(StrEnum):
 
 
 class _Role(ContractModel):
-    """The contract's ``Role``, conformant."""
+    """The contract's ``Role``, faithful."""
 
     id: str
     name: str
@@ -465,7 +467,7 @@ class _Role(ContractModel):
 
 
 class _RoleDraft(ContractModel):
-    """``createRole``'s body, conformant."""
+    """``createRole``'s body, faithful."""
 
     name: str
     rights: list[Right]
@@ -493,7 +495,7 @@ class _OptionalWatcher(ContractModel):
 
 
 class _WatcherAnswer(ContractModel):
-    """``setWatcher``'s answer, conformant."""
+    """``setWatcher``'s answer, faithful."""
 
     watcher_enabled: bool
 
@@ -565,7 +567,7 @@ def _version_router(
     return router
 
 
-def test_conformant_plant_passes() -> None:
+def test_faithful_plant_passes() -> None:
     """The control: a planted ``readVersion`` written from the contract shows no violation."""
     assert check_operation(_contract(), _planted(_version_router()), OPERATION_RIGHTS, "readVersion") == []
 
