@@ -35,11 +35,14 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   readVersion: null,
   // The account's own notification choices and its devices' tokens: each
   // account reads its own, and the read answers only the types its rights
-  // receive (ruling Q1 A). Writing them is a right, so the read-only
-  // instance's ceiling subtracts it like any other write.
+  // receive (ruling Q1 A). WRITING THEM IS A SESSION ACT, NO RIGHT (the
+  // operator, 2026-10-03: « tout le monde à le droit de changer les
+  // notifications de son propre compte »): the read-only instance refuses
+  // them by its server (`require_not_staging`), not by a right the ceiling
+  // subtracts.
   readNotificationPreferences: null,
-  updateNotificationPreference: "notifications.manage",
-  registerPushDevice: "notifications.manage",
+  updateNotificationPreference: null,
+  registerPushDevice: null,
   // The roster: « Comptes » manages it; the reassign chooser reads it narrowly (F46).
   readAccounts: ["accounts.manage", "acquisition.reassign"],
   createAccount: "accounts.manage",

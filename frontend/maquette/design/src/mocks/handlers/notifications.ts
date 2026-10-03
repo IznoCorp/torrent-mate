@@ -47,7 +47,7 @@ export const NOTIFICATION_RIGHTS: Readonly<Record<NotificationType, Right>> = {
 function receivable(): NotificationType[] {
   // BY THE ROLE, NOT THE INSTANCE'S CEILING: the ceiling forbids this instance's writes, and
   // receiving a type is not one — the read-only instance still shows every choice the account
-  // holds, and refuses only changing them (`notifications.manage`, a write).
+  // holds; the server refuses changing them on its own (`require_not_staging`).
   const rights = rightsOf({ ...signedIn(), forbiddenWrites: [] });
   return (Object.keys(NOTIFICATION_RIGHTS) as NotificationType[]).filter((one) =>
     rights.holds(NOTIFICATION_RIGHTS[one]),

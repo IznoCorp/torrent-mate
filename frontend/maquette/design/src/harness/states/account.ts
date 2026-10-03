@@ -88,9 +88,12 @@ export function accountStates(): NamedState[] {
     ],
     [
       "profile-notifications-ceiling",
-      "Profil — « Notifications » sur l'instance en lecture seule : les choix lus, aucun interrupteur ni « Activer »",
+      "Profil — « Notifications » sur l'instance en lecture seule : les interrupteurs se pressent, le serveur refuse et le dit",
       () => {
         window.__mocks?.setForbiddenWrites(EVERY_WRITE);
+        // THE SERVER'S OWN REFUSAL (`require_not_staging`): no right is subtracted, the write is answered 403.
+        window.__mocks?.setOperationOutcome("updateNotificationPreference", { status: 403 });
+        window.__mocks?.setOperationOutcome("registerPushDevice", { status: 403 });
         void window.__queries?.resetQueries();
         profileOn({ environment: { ...ANDROID, permission: "default" }, answer: "granted" });
       },
