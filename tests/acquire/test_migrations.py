@@ -29,7 +29,7 @@ from personalscraper.core.sqlite import apply_migrations
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "acquire" / "migrations"
 
 # Latest applied migration of the full chain (bump alongside every new script).
-_LATEST_VERSION = 25
+_LATEST_VERSION = 26
 
 _EXPECTED_TABLES = {
     "followed_series",
@@ -42,6 +42,8 @@ _EXPECTED_TABLES = {
     "aired_episode",
     "staging_provenance",
     "download_marks",
+    "catalogue_show",
+    "catalogue_episode",
     "schema_version",
 }
 
@@ -109,7 +111,7 @@ class TestAcquireMigrations:
         apply_migrations(conn, MIGRATIONS_DIR)
         rows = conn.execute("SELECT version FROM schema_version ORDER BY version").fetchall()
         expected = [
-            (v,) for v in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25)
+            (v,) for v in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26)
         ]
         assert rows == expected
 
