@@ -657,3 +657,111 @@ def test_app_http_import_is_flagged() -> None:
     violations = _collect_violations_from_source(source, _APP_SYNTHETIC_REL, _APP_HTTP_FORBIDDEN_PREFIXES)
     assert violations, "app HTTP guard failed to flag a fastapi import (vacuous guard!)"
     assert "fastapi" in violations[0]
+
+
+# ---------------------------------------------------------------------------
+# The v1 interface (``http_v1/``) and the application layer, one direction:
+# http_v1 → app → engine. ``app/`` never imports ``http_v1`` (the services
+# know no HTTP interface); ``http_v1/`` never imports the engine (a route
+# reaches it only through a service); and no ``http_v1/`` route carries a
+# ``Depends(require…)`` of its own (the perimeter is the ONE dependency).
+# ``test_engine_does_not_import_web`` already keeps ``http_v1/`` off v0.
+# ---------------------------------------------------------------------------
+
+_HTTP_V1_PACKAGE_DIR = _PACKAGE_ROOT / "http_v1"
+_HTTP_V1_SYNTHETIC_REL = "personalscraper/http_v1/_synthetic_probe.py"
+_APP_HTTP_V1_FORBIDDEN_PREFIXES = ("personalscraper.http_v1",)
+
+# What http_v1/ may import from the package: the application layer, the config,
+# the core, the logger. Every other top-level package or module is the engine.
+_HTTP_V1_ALLOWED_TOP_LEVEL = frozenset({"app", "conf", "core", "logger", "config", "http_v1"})
+_HTTP_V1_ENGINE_PREFIXES: tuple[str, ...] = tuple(
+    sorted(
+        f"personalscraper.{entry.stem if entry.is_file() else entry.name}"
+        for entry in _PACKAGE_ROOT.iterdir()
+        if not entry.name.startswith("__")
+        and not entry.name.startswith(".")
+        and (entry.is_dir() or entry.suffix == ".py")
+        and (entry.stem if entry.is_file() else entry.name) not in _HTTP_V1_ALLOWED_TOP_LEVEL
+    )
+)
+
+_REQUIRE_DEPENDENCY = "Depends(require"
+
+
+def test_app_does_not_import_http_v1() -> None:
+    """No module under ``personalscraper/app/`` imports ``personalscraper.http_v1`` at runtime."""
+    violations: list[str] = []
+    for py_file in sorted(_APP_PACKAGE_DIR.rglob("*.py")):
+        rel = py_file.relative_to(_REPO_ROOT).as_posix()
+        source = py_file.read_text(encoding="utf-8")
+        violations.extend(_collect_violations_from_source(source, rel, _APP_HTTP_V1_FORBIDDEN_PREFIXES))
+    assert not violations, "app/ must not import the v1 interface (http_v1 -> app, never back):\n" + "\n".join(
+        violations
+    )
+
+
+def test_app_http_v1_import_is_flagged() -> None:
+    """POSITIVE control: a synthetic app/ file importing http_v1 IS flagged (non-vacuous anchor)."""
+    source = "from personalscraper.http_v1.app import V1_PREFIX\n"
+    violations = _collect_violations_from_source(source, _APP_SYNTHETIC_REL, _APP_HTTP_V1_FORBIDDEN_PREFIXES)
+    assert violations, "app -> http_v1 guard failed to flag an http_v1 import (vacuous guard!)"
+    assert "personalscraper.http_v1" in violations[0]
+
+
+def test_http_v1_does_not_import_the_engine() -> None:
+    """No module under ``personalscraper/http_v1/`` imports the engine: a route reaches it through a service."""
+    assert _HTTP_V1_PACKAGE_DIR.is_dir(), "personalscraper/http_v1/ is missing (the guard would scan nothing)"
+    assert "personalscraper.api" in _HTTP_V1_ENGINE_PREFIXES, "the engine list is empty or wrong"
+    violations: list[str] = []
+    for py_file in sorted(_HTTP_V1_PACKAGE_DIR.rglob("*.py")):
+        rel = py_file.relative_to(_REPO_ROOT).as_posix()
+        source = py_file.read_text(encoding="utf-8")
+        violations.extend(_collect_violations_from_source(source, rel, _HTTP_V1_ENGINE_PREFIXES))
+    assert not violations, "http_v1/ must not import the engine (go through an app/ service):\n" + "\n".join(violations)
+
+
+def test_http_v1_engine_import_is_flagged() -> None:
+    """POSITIVE control: a synthetic http_v1/ file importing the engine IS flagged (non-vacuous anchor)."""
+    source = "from personalscraper.indexer.db import apply_migrations\n"
+    violations = _collect_violations_from_source(source, _HTTP_V1_SYNTHETIC_REL, _HTTP_V1_ENGINE_PREFIXES)
+    assert violations, "http_v1 -> engine guard failed to flag an indexer import (vacuous guard!)"
+    assert "personalscraper.indexer" in violations[0]
+
+
+def test_http_v1_app_import_is_not_flagged() -> None:
+    """NEGATIVE control: an app/ import from http_v1/ is the allowed direction."""
+    source = (
+        "from personalscraper.app.errors import AppRefusal\nfrom personalscraper.conf.models.config import Config\n"
+    )
+    violations = _collect_violations_from_source(source, _HTTP_V1_SYNTHETIC_REL, _HTTP_V1_ENGINE_PREFIXES)
+    assert violations == [], f"http_v1 -> app/conf imports wrongly flagged: {violations}"
+
+
+def _require_dependency_lines(source: str) -> list[int]:
+    """Return the line numbers of a ``Depends(require…)`` in ``source`` (a text scan).
+
+    Args:
+        source: Python source code.
+
+    Returns:
+        The 1-based line numbers carrying the pattern.
+    """
+    return [number for number, line in enumerate(source.splitlines(), start=1) if _REQUIRE_DEPENDENCY in line]
+
+
+def test_http_v1_routes_carry_no_guard_of_their_own() -> None:
+    """No ``Depends(require…)`` anywhere in ``http_v1/``: the perimeter is the single guard."""
+    violations: list[str] = []
+    for py_file in sorted(_HTTP_V1_PACKAGE_DIR.rglob("*.py")):
+        rel = py_file.relative_to(_REPO_ROOT).as_posix()
+        violations.extend(f"{rel}:{n}" for n in _require_dependency_lines(py_file.read_text(encoding="utf-8")))
+    assert not violations, "http_v1/ routes carry their own guard (the perimeter is the only one):\n" + "\n".join(
+        violations
+    )
+
+
+def test_planted_require_dependency_is_flagged() -> None:
+    """POSITIVE control: a planted per-route guard IS flagged (non-vacuous anchor)."""
+    source = "def route(_: Annotated[None, Depends(require_session)]) -> None: ...\n"
+    assert _require_dependency_lines(source) == [1]
