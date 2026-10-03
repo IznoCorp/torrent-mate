@@ -119,7 +119,7 @@ class TestFreshFile:
             ("local-guest", None, "ordinary"),
         ]
 
-    def test_seeds_the_maquettes_rights_and_admin_holds_none(self, fresh: sqlite3.Connection) -> None:
+    def test_seeds_the_seed_rights_and_admin_holds_none(self, fresh: sqlite3.Connection) -> None:
         """``admin`` has no ``role_right`` row; the others carry the seed's rights exactly."""
         rights: dict[str, set[str]] = {}
         for role_id, right in fresh.execute("SELECT role_id, right_name FROM role_right"):
