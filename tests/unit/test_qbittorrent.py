@@ -437,26 +437,17 @@ class TestQBitClient:
         client.logout()
         client._client.auth_log_out.assert_called_once()  # type: ignore[attr-defined]
 
-    def test_login_failed_raises_apierror_401(self) -> None:
+    def test_login_failed_raises_apierror_401(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """qbittorrentapi.LoginFailed → ApiError(http_status=401) per DESIGN §1.1."""
-        from personalscraper.api.torrent.qbittorrent import lockout_path  # noqa: PLC0415
-
-        _LOCKOUT_FILE = lockout_path()  # noqa: N806
+        # The failed login writes a lockout file: keep it out of the real ``~/.cache``.
+        monkeypatch.setenv("HOME", str(tmp_path))
         client = self._client()
         client._client.auth_log_in.side_effect = qbittorrentapi.LoginFailed("bad creds")  # type: ignore[attr-defined]
 
-        # Ensure no stale lockout file from a prior test
-        if _LOCKOUT_FILE.exists():
-            _LOCKOUT_FILE.unlink()
-
-        try:
-            with pytest.raises(ApiError, match="login failed") as exc_info:
-                client.login()
-            assert exc_info.value.http_status == 401
-            assert exc_info.value.provider == "qbittorrent"
-        finally:
-            if _LOCKOUT_FILE.exists():
-                _LOCKOUT_FILE.unlink()
+        with pytest.raises(ApiError, match="login failed") as exc_info:
+            client.login()
+        assert exc_info.value.http_status == 401
+        assert exc_info.value.provider == "qbittorrent"
 
     def test_forbidden_raises_apierror_403(self) -> None:
         """qbittorrentapi.Forbidden403Error → ApiError(http_status=403)."""
