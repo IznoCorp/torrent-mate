@@ -924,7 +924,8 @@ class TestDeletePermitConsultFailOpen:
         (d / "thumb.jpg").write_bytes(b"\x00" * 100)
 
         result = _dc.CleanResult(dry_run=False)
-        monkeypatch.setattr(_dc, "_publish_deleted", lambda *a, **k: None)
+        # ``_delete_dir`` publishes through the primitive, which resolves it in ``deletion``.
+        monkeypatch.setattr("personalscraper.indexer.deletion._publish_deleted", lambda *a, **k: None)
         with caplog.at_level("WARNING"):
             _dc._delete_dir(
                 d, result, dry_run=False, label=".actors", db_path=tmp_path / "db.sqlite", permit=_RaisingPermit()

@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
 
+import pytest
+
+import personalscraper.indexer.deletion as deletion
+import personalscraper.indexer.migrations as _migrations_pkg
 from personalscraper.core.delete_permit import PermitDecision, veto
+from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.deletion import DeleteOutcome, delete_media_folder
+from personalscraper.indexer.destructive_journal import OP_DELETE, list_recent, record_destruction
 
 
 class _Veto:
@@ -52,3 +59,86 @@ def test_failure_reports_error(tmp_path: Path) -> None:
     res = delete_media_folder(tmp_path / "absent", db_path=tmp_path / "x.db", actor="t", label="l")
     assert res.outcome is DeleteOutcome.FAILED
     assert res.error
+
+
+def _journal_db(tmp_path: Path) -> Path:
+    """Create a migrated library.db (the schema the destructive journal uses)."""
+    db_path = tmp_path / "library.db"
+    conn = sqlite3.connect(str(db_path))
+    apply_migrations(conn, Path(_migrations_pkg.__file__).parent)
+    conn.close()
+    return db_path
+
+
+class _Spies:
+    """Records every journal write and outbox publish the primitive makes."""
+
+    def __init__(self) -> None:
+        self.journal: list[dict[str, object]] = []
+        self.published: list[tuple[Path, str, Path]] = []
+
+
+@pytest.fixture
+def spies(monkeypatch: pytest.MonkeyPatch) -> _Spies:
+    """Spy on the journal (still writing for real) and the outbox publish."""
+    spy = _Spies()
+
+    def journal(db_path: Path, **kwargs: object) -> None:
+        spy.journal.append(kwargs)
+        record_destruction(db_path, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(deletion, "record_destruction", journal)
+    monkeypatch.setattr(deletion, "_publish_deleted", lambda *args: spy.published.append(args))
+    return spy
+
+
+def test_deleted_writes_one_journal_row(tmp_path: Path, spies: _Spies) -> None:
+    """A real deletion appends one destructive_op row with op, actor, detail, label and run_uid."""
+    folder = _folder(tmp_path)
+    db_path = _journal_db(tmp_path)
+    res = delete_media_folder(folder, db_path=db_path, actor="disk-clean", label=".actors", run_uid="run-1")
+    assert res.outcome is DeleteOutcome.DELETED
+    rows = list_recent(db_path)
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["op"] == OP_DELETE
+    assert row["actor"] == "disk-clean"
+    assert row["path"] == str(folder)
+    assert row["run_uid"] == "run-1"
+    assert ".actors" in str(row["detail"])
+
+
+def test_deleted_publishes_outbox_event(tmp_path: Path, spies: _Spies) -> None:
+    """A real deletion publishes exactly one outbox event for the removed path."""
+    folder = _folder(tmp_path)
+    db_path = _journal_db(tmp_path)
+    delete_media_folder(folder, db_path=db_path, actor="t", label="l")
+    assert spies.published == [(folder, "l", db_path)]
+
+
+def test_dry_run_neither_journals_nor_publishes(tmp_path: Path, spies: _Spies) -> None:
+    """A dry run leaves no journal row and publishes nothing."""
+    db_path = _journal_db(tmp_path)
+    delete_media_folder(_folder(tmp_path), db_path=db_path, actor="t", label="l", dry_run=True)
+    assert spies.journal == []
+    assert spies.published == []
+    assert list_recent(db_path) == []
+
+
+def test_veto_neither_journals_nor_publishes(tmp_path: Path, spies: _Spies) -> None:
+    """A vetoed deletion leaves no journal row and publishes nothing."""
+    db_path = _journal_db(tmp_path)
+    delete_media_folder(_folder(tmp_path), db_path=db_path, actor="t", label="l", permit=_Veto())
+    assert spies.journal == []
+    assert spies.published == []
+    assert list_recent(db_path) == []
+
+
+def test_failure_neither_journals_nor_publishes(tmp_path: Path, spies: _Spies) -> None:
+    """A failed removal leaves no journal row and publishes nothing."""
+    db_path = _journal_db(tmp_path)
+    res = delete_media_folder(tmp_path / "absent", db_path=db_path, actor="t", label="l")
+    assert res.outcome is DeleteOutcome.FAILED
+    assert spies.journal == []
+    assert spies.published == []
+    assert list_recent(db_path) == []
