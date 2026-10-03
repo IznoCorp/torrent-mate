@@ -5,7 +5,7 @@
 // `run` builds the state. The driver resets the interface before every state,
 // so an entry pins only what its state means to show.
 import { applyState, onLeave, type NamedState } from "../drive";
-import { as } from "./rights";
+import { as, EVERY_WRITE } from "./rights";
 import { poseDevice, type PosedDevice } from "../../features/account/push-device";
 import type { PushEnvironment } from "../../lib/push-registration";
 
@@ -85,6 +85,15 @@ export function accountStates(): NamedState[] {
       "profile-notifications-unsupported",
       "Profil — « Notifications » : un navigateur sans notifications",
       () => profileOn({ environment: NO_PUSH, answer: "default" }),
+    ],
+    [
+      "profile-notifications-ceiling",
+      "Profil — « Notifications » sur l'instance en lecture seule : les choix lus, aucun interrupteur ni « Activer »",
+      () => {
+        window.__mocks?.setForbiddenWrites(EVERY_WRITE);
+        void window.__queries?.resetQueries();
+        profileOn({ environment: { ...ANDROID, permission: "default" }, answer: "granted" });
+      },
     ],
     [
       "profile-notifications-household",

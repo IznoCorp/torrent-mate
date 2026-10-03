@@ -25,7 +25,15 @@ R521-b — the switches, the account's:
    (the server holds the choice, never the device);
 7. an account that may receive no type (`profile-notifications-none`) is shown no section.
 
-Red before the change: none of the named states exists, Profil has no « Notifications » section,
+R521-c — the writes ask `notifications.manage`, and the interface says so:
+8. under the read-only instance's ceiling (`profile-notifications-ceiling`, on a device that
+   could still be asked), the switches are drawn with their state but none can be pressed, and
+   « activer » is absent — the ceiling's notice, said once on the page, is the reason;
+9. a write the server refuses is SAID refused, in a message naming the type, and the switch
+   returns to what the server holds — never a silent snap back.
+
+Red before R521-c: the switches were pressable and « activer » offered under the ceiling, and a
+refused write rolled back with no word. Red before the change: none of the named states exists, Profil has no « Notifications » section,
 and the contract declares neither the read nor the write.
 """
 import asyncio
@@ -49,6 +57,8 @@ PAGE = WORDS["screens"]["accountPage"]
 NOTIFICATIONS = PAGE.get("notifications", {})
 DEVICE = NOTIFICATIONS.get("device", {})
 TYPE_WORDS = WORDS.get("notifications", {}).get("types", {})
+REFUSED = NOTIFICATIONS.get("refused", ABSENT)
+CEILING_EVERY = WORDS["access"]["ceilingEvery"]
 
 
 def type_label(notification_type):
@@ -79,9 +89,15 @@ SECTION = """() => {
       type: row.dataset.notificationType,
       text: row.textContent,
       on: row.querySelector('[role="switch"]')?.getAttribute('aria-checked') === 'true',
+      pressable: row.querySelector('[role="switch"]')?.disabled === false,
     })),
   };
 }"""
+
+SAID = """()=>{const held = window.__toast?.read?.();
+  return held && held.message ? (held.message.message || "") : "";}"""
+
+CEILING = """()=>document.querySelector('[data-part="access/ceiling"]')?.textContent ?? null"""
 
 ACCOUNT = """async () => {
   const answer = await fetch('/api/auth/me');
@@ -199,6 +215,42 @@ async def main():
             kept = {row["type"]: row["on"] for row in (reread or {}).get("switches", [])}
             journal.check("a fresh read keeps it off — the server holds the choice", kept.get(turned) is False,
                           repr(kept))
+
+        # ── R521-c: the right the writes ask ────────────────────────────────
+        if await exists(page, "profile-notifications-ceiling"):
+            seen = await read_at(page, "profile-notifications-ceiling", SECTION)
+            switches = (seen or {}).get("switches", [])
+            journal.check("under the ceiling the switches are drawn, their state shown",
+                          len(switches) == len(TYPES), f"{len(switches)} switches")
+            journal.check("under the ceiling no switch can be pressed",
+                          bool(switches) and not any(row["pressable"] for row in switches),
+                          repr([row["type"] for row in switches if row["pressable"]]))
+            journal.check("under the ceiling « activer » is absent, on a device that could still be asked",
+                          seen is not None and seen["support"] == "unasked" and not seen["enable"],
+                          f"{seen and seen['support']} · enable {seen and seen['enable']}")
+            notice = await page.evaluate(CEILING)
+            journal.check("the ceiling's notice says why, once on the page",
+                          notice is not None and CEILING_EVERY in notice, repr(notice))
+        else:
+            journal.check("the named state profile-notifications-ceiling exists", False, "absent")
+
+        if await exists(page, "profile-notifications"):
+            await read_at(page, "profile-notifications", SECTION)
+            await page.evaluate("()=>window.__toast?.hide?.()")
+            # ARMED AFTER `__go`, which re-seeds the scenario and would throw an earlier outcome away.
+            await page.evaluate(
+                """()=>window.__mocks.setOperationOutcome("updateNotificationPreference", {status: 403})""")
+            refused = "system.run_failed"
+            await page.click(f'[data-notification-type="{refused}"] [role="switch"]')
+            await page.wait_for_timeout(SETTLED)
+            said = (await page.evaluate(SAID)).replace("\xa0", " ")
+            expected = REFUSED.replace("{{type}}", type_label(refused))
+            journal.check("a refused write is said refused, naming its type", said == expected,
+                          f"said {said!r}, expected {expected!r}")
+            after = await page.evaluate(SECTION)
+            states = {row["type"]: row["on"] for row in (after or {}).get("switches", [])}
+            journal.check("the refused switch returns to what the server holds", states.get(refused) is True,
+                          repr(states.get(refused)))
 
         if await exists(page, "profile-notifications-household"):
             seen = await read_at(page, "profile-notifications-household", SECTION)
