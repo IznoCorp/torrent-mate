@@ -28,6 +28,16 @@ class TestTorrentScope:
         with pytest.raises(ValidationError, match="category"):
             TorrentScope(category=category, download_root=tmp_path)
 
+    def test_relative_download_root_refused(self) -> None:
+        """A relative root would resolve against each process's working directory: refused."""
+        with pytest.raises(ValidationError, match="absolute"):
+            TorrentScope(category="tm-preprod", download_root=Path("downloads/preprod"))
+
+    def test_absolute_download_root_accepted(self, tmp_path: Path) -> None:
+        """An absolute root validates unchanged."""
+        assert tmp_path.is_absolute()
+        assert TorrentScope(category="tm-preprod", download_root=tmp_path).download_root == tmp_path
+
     def test_empty_tag_refused(self, tmp_path: Path) -> None:
         """An empty instance tag would match every torrent in a tag filter: refused."""
         with pytest.raises(ValidationError, match="empty"):

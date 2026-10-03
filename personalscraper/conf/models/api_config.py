@@ -225,6 +225,27 @@ class TorrentScope(_StrictModel):
             raise ValueError("category: the category is empty")
         return v
 
+    @field_validator("download_root")
+    @classmethod
+    def _download_root_absolute(cls, v: Path) -> Path:
+        """Refuse a relative download root.
+
+        A relative path would resolve against each process's working directory,
+        and the web server and the cron jobs do not share one.
+
+        Args:
+            v: The download root as configured.
+
+        Returns:
+            The download root, unchanged.
+
+        Raises:
+            ValueError: The download root is relative.
+        """
+        if not v.is_absolute():
+            raise ValueError(f"download_root: {v} is not an absolute path")
+        return v
+
     @field_validator("instance_tags")
     @classmethod
     def _non_empty_and_seed_pure(cls, v: tuple[str, ...]) -> tuple[str, ...]:
