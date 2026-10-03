@@ -391,21 +391,26 @@ def run_post_dispatch_maintenance(
     Sequentially scans each touched disk (incremental mode), then runs
     a global relink pass and season-episode-count repair.  Fail-soft:
     exceptions are caught, logged as warnings, and the manual fallback
-    command is printed — the function never raises.
+    command is printed — the function never raises. A touched disk whose index
+    is NOT refreshed (maintenance disabled, or its scan failed) is announced as
+    one :class:`LibraryScanSkipped` per disk.
 
     Args:
         config: Validated application Config.
         touched_disks: Distinct, non-None disk labels from ``DispatchResult.disk``
             for items whose action was ``moved | merged | replaced``.
         event_bus: The caller's process bus, forwarded to every per-disk scan so
-            ``LibraryScanCompleted`` reaches live subscribers. Required (D4) — a
+            ``LibraryScanCompleted`` reaches live subscribers, and used to emit
+            ``LibraryScanSkipped`` for a disk that was not refreshed. Required (D4) — a
             defaulted bus reaches nobody and silently disables post-dispatch
             reconciliation.
         destinations: Dispatched destination paths per disk
             (:func:`collect_touched_destinations`) — their subtrees are
             invalidated so the incremental scan re-walks them even when the
             filesystem did not bump the parent mtimes (NTFS/macFUSE merge).
-        enabled: Feature toggle. When ``False``, the function is a no-op.
+        enabled: Feature toggle. When ``False``, nothing is scanned, relinked or
+            repaired; the only effect is one ``LibraryScanSkipped(disabled)`` per
+            touched disk.
             Callers should resolve ``flag > config > default(true)`` before
             passing this parameter.
     """

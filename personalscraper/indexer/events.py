@@ -176,6 +176,8 @@ class BackfillCompleted(Event):
 __all__ = [
     "DiskFullWarning",
     "LibraryScanCompleted",
+    "LibraryScanSkipped",
+    "ScanSkipReason",
     "BackfillStarted",
     "BackfillItemCompleted",
     "BackfillSkipped",
