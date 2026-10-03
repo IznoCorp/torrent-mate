@@ -214,7 +214,7 @@ def test_lifespan_closes_the_services() -> None:
             closed.append(True)
 
     v1_app = FastAPI()
-    v1_app.state.services = _Services(event_bus=EventBus(), build_info=BUILD_INFO)
+    v1_app.state.services = _Services(event_bus=EventBus(), build_info=BUILD_INFO, library=None)  # type: ignore[arg-type] — close() is overridden
 
     async def enter_both() -> None:
         """Enter the lifespan with no sub-application, then with one, checking nothing closes early."""
@@ -242,7 +242,7 @@ def test_parent_lifespan_enters_the_v1_lifespan(test_config: Config) -> None:
     config = _with_v1(test_config, True)
     config = config.model_copy(update={"web": config.web.model_copy(update={"enabled": False})})
     app = create_app(config, _settings())
-    app.state.v1_app.state.services = _Services(event_bus=EventBus(), build_info=BUILD_INFO)
+    app.state.v1_app.state.services = _Services(event_bus=EventBus(), build_info=BUILD_INFO, library=None)  # type: ignore[arg-type] — close() is overridden
 
     with TestClient(app):
         assert closed == []

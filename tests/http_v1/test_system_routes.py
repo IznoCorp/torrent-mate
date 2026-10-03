@@ -61,7 +61,7 @@ def _client(config: Config, services: AppServices, resolver: ActorResolver | Non
 
 def test_without_a_session_is_auth_required(test_config: Config) -> None:
     """No session: 401 ``auth.required``, as a Problem."""
-    services = AppServices(event_bus=EventBus(), build_info=BUILD_INFO)
+    services = AppServices(event_bus=EventBus(), build_info=BUILD_INFO, library=None)  # type: ignore[arg-type] — /version reads no library
 
     response = _client(test_config, services, None).get("/version")
 
@@ -71,7 +71,11 @@ def test_without_a_session_is_auth_required(test_config: Config) -> None:
 
 def test_signed_in_answers_the_services_build(test_config: Config) -> None:
     """Any signed-in account, even rightless on a read-only instance, reads the services' build."""
-    services = AppServices(event_bus=EventBus(), build_info=BuildInfo(version="9.9.9", commit="feedbee"))
+    services = AppServices(
+        event_bus=EventBus(),
+        build_info=BuildInfo(version="9.9.9", commit="feedbee"),
+        library=None,  # type: ignore[arg-type] — /version reads no library
+    )
 
     response = _client(test_config, services, _StubResolver()).get("/version")
 
