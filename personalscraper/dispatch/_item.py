@@ -612,7 +612,7 @@ def _dispatch_item(
                 # it is the same path the index write-through and the outbox
                 # publish just used, so the three records agree by construction.
                 target_path=result.destination,
-                # K2-6 E1 — which medium, by provider id: the destination's NFO
+                # Which medium, by provider id: the destination's NFO
                 # first (what the index will see), the staging source's second.
                 media_ref=media_ref_from_nfo(spec.media_type, result.destination, src),
             ),

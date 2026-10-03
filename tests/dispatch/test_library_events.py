@@ -1,8 +1,8 @@
-"""K2-6 — ``ItemDispatched.media_ref`` (E1) and ``LibraryScanSkipped`` (E2).
+"""``ItemDispatched.media_ref`` and ``LibraryScanSkipped``.
 
-E1: a dispatch names WHICH medium it touched, by provider id (read from the
+Media reference: a dispatch names WHICH medium it touched, by provider id (read from the
 item's NFO); no NFO → ``None``.
-E2: a disk whose post-dispatch index refresh did not run (maintenance disabled
+Skipped scan: a disk whose post-dispatch index refresh did not run (maintenance disabled
 or the scan failed) is announced, so a library sheet never shows stale counts
 silently.
 """

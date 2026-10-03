@@ -411,7 +411,7 @@ def run_post_dispatch_maintenance(
     """
     if not enabled:
         _log.info("post_maintenance_disabled")
-        # K2-6 E2 — the touched disks' index is NOT refreshed: say so, per disk.
+        # The touched disks' index is NOT refreshed: say so, per disk.
         _announce_scan_skipped(event_bus, touched_disks, ScanSkipReason.DISABLED)
         return
 
