@@ -77,6 +77,38 @@ def _show(conn: sqlite3.Connection, title: str, tvdb: str) -> int:
     return cur.lastrowid
 
 
+def _movie(conn: sqlite3.Connection, title: str, tmdb: str, *, files: bool) -> int:
+    """Insert one movie row carrying *tmdb*, with one live file through its own release when *files*.
+
+    Args:
+        conn: Open connection.
+        title: Row title.
+        tmdb: TMDB movie id.
+        files: Whether the movie's release holds a live file.
+
+    Returns:
+        The new ``media_item.id``.
+    """
+    ids = json.dumps({"tmdb": {"series_id": tmdb}})
+    item_id = conn.execute(
+        "INSERT INTO media_item(kind, title, title_sort, category_id, date_created, date_modified,"
+        " external_ids_json) VALUES ('movie', ?, ?, 'movies', 0, 0, ?)",
+        (title, title, ids),
+    ).lastrowid
+    if files:
+        folder = f"movies/{title}"
+        conn.execute("INSERT OR IGNORE INTO path(disk_id, rel_path) VALUES (1, ?)", (folder,))
+        path_id = conn.execute("SELECT id FROM path WHERE rel_path = ?", (folder,)).fetchone()[0]
+        release = conn.execute("INSERT INTO media_release(item_id) VALUES (?)", (item_id,)).lastrowid
+        conn.execute(
+            "INSERT INTO media_file(release_id, path_id, filename, size_bytes, mtime_ns, oshash,"
+            " scan_generation, last_verified_at, deleted_at) VALUES (?, ?, 'movie.mkv', 1, 1, '0', 1, 1, NULL)",
+            (release, path_id),
+        )
+    assert item_id is not None
+    return item_id
+
+
 def _episodes(conn: sqlite3.Connection, item_id: int, folder: str, count: int, *, deleted: bool = False) -> None:
     """Give *item_id* one season of *count* episodes, each with one file in *folder*.
 
@@ -260,3 +292,16 @@ def test_a_row_with_only_tombstoned_files_is_a_phantom(conn: sqlite3.Connection,
 
     assert (ids, removed) == ([phantom], 1)
     assert [r[0] for r in conn.execute("SELECT id FROM media_item")] == [real]
+
+
+def test_remove_keeps_the_movie_row_holding_a_live_file(conn: sqlite3.Connection, db_path: Path) -> None:
+    """A movie duplicate group: the row whose release holds a live file is kept, the 0-file twin removed."""
+    real = _movie(conn, "Dune (2021)", "438631", files=True)
+    phantom = _movie(conn, "Dune", "438631", files=False)
+
+    ids = phantom_rows(find_provider_id_duplicates(conn))
+    removed = remove_phantom_rows(conn, [real, *ids], db_path=db_path, run_uid="r7", dry_run=False)
+
+    assert (ids, removed) == ([phantom], 1)
+    assert [r[0] for r in conn.execute("SELECT id FROM media_item")] == [real]
+    assert _journal(conn) == [("delete", f"index:media_item/{phantom}", "maintenance", "r7")]
