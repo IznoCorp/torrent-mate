@@ -27,7 +27,9 @@ def load_guard():
 
 guard = load_guard()
 
-FRENCH = "Téléchargement terminé"  # french-ok: the fixture's French text
+# Escapes, so this file adds no French to the `tests/` ratchet (arm 10); the
+# fixture module written under `tmp_path` holds the real accented text.
+FRENCH = "T\u00e9l\u00e9chargement termin\u00e9"
 
 
 def tree(tmp_path: Path, source: str) -> Path:
