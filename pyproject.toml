@@ -101,6 +101,8 @@ include = ["personalscraper*"]
 # present under web/static/: the .gitkeep placeholder in a source checkout, or the
 # real built bundle (index.html + assets/**) after `cd frontend && npm run build`.
 "personalscraper.web" = ["static/*", "static/**/*", "static/.gitkeep"]
+# The backend translation catalogues are read at runtime through importlib.resources.
+"personalscraper.i18n" = ["fr/*.json", "en/*.json", "one_sided/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
