@@ -8,8 +8,9 @@ ranking share one source of truth.
 """
 
 import math
+from pathlib import Path
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from personalscraper.conf.models._base import _StrictModel
 from personalscraper.conf.models._duration import parse_duration
@@ -19,6 +20,7 @@ from personalscraper.conf.models._ranking import (
     RankingCriterion,
     ThresholdEntry,
 )
+from personalscraper.core.tags import SEED_PURE
 
 __all__ = [
     "MetadataConfig",
@@ -35,6 +37,7 @@ __all__ = [
     "ThresholdEntry",
     "TorrentClientEntry",
     "TorrentConfig",
+    "TorrentScope",
     "TrackerConfig",
     "TrackerEconomyConfig",
     "TrackerProviderConfig",
@@ -182,6 +185,50 @@ class MetadataConfig(_StrictModel):
 # ---------------------------------------------------------------------------
 
 
+class TorrentScope(_StrictModel):
+    """What this instance owns in a shared client. Absent = the whole client (today).
+
+    Two instances may share one client: each keeps to its own category and save
+    path, and tags every torrent it adds with its instance tags. ``seed-pure`` is
+    mandatory among them so the other instance's triage (ingest, sort, watcher,
+    cross-seed) never picks these torrents up.
+
+    Attributes:
+        category: Client category of every torrent this instance adds and reads.
+        download_root: Save path root of this instance's torrents.
+        instance_tags: Tags added to every torrent this instance adds.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    category: str = Field(min_length=1)
+    download_root: Path
+    instance_tags: tuple[str, ...] = ("tm-preprod", SEED_PURE)
+
+    @field_validator("instance_tags")
+    @classmethod
+    def _non_empty_and_seed_pure(cls, v: tuple[str, ...]) -> tuple[str, ...]:
+        """Refuse an empty tag and a tag set without ``seed-pure``.
+
+        An empty tag filter lists every torrent of the client, so one empty tag
+        would put the whole client in scope.
+
+        Args:
+            v: The instance tags as configured.
+
+        Returns:
+            The tags, unchanged.
+
+        Raises:
+            ValueError: A tag is empty, or ``seed-pure`` is missing.
+        """
+        if any(not tag.strip() for tag in v):
+            raise ValueError("instance_tags: a tag is empty")
+        if SEED_PURE not in v:
+            raise ValueError(f"instance_tags: {SEED_PURE!r} is required")
+        return v
+
+
 class TorrentClientEntry(_StrictModel):
     """Configuration for a single torrent client.
 
@@ -189,11 +236,13 @@ class TorrentClientEntry(_StrictModel):
         enabled: Whether this client is available.
         host: Hostname or IP address.
         port: WebUI port number.
+        scope: The part of the client this instance owns; ``None`` = the whole client.
     """
 
     enabled: bool = True
     host: str = "localhost"
     port: int = 8080
+    scope: TorrentScope | None = None
 
 
 class TorrentConfig(_StrictModel):
