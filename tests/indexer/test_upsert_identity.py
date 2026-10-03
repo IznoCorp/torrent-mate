@@ -189,7 +189,11 @@ def test_upsert_tmdb_canonical_show_matches_by_tmdb_id(conn: sqlite3.Connection)
 def test_upsert_id_shared_by_two_rows_takes_title_path_and_logs(
     conn: sqlite3.Connection, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Two rows hold tvdb 79168: the write runs the title path, logs the ids, merges nothing."""
+    """Two rows hold tvdb 79168: the write runs the title path, logs the ids, merges nothing.
+
+    The incoming title resolves to the SECOND holder, so a write that took the
+    first holder of an ambiguous id instead of the title path is caught.
+    """
     friends_id = item_repo.insert(
         conn, _make_item("Friends", external_ids_json=_ids_json(tvdb="79168"), canonical_provider="tvdb")
     )
@@ -199,10 +203,11 @@ def test_upsert_id_shared_by_two_rows_takes_title_path_and_logs(
 
     with caplog.at_level(logging.WARNING):
         result_id = item_repo.upsert(
-            conn, _make_item("Friends", external_ids_json=_ids_json(tvdb="79168"), canonical_provider="tvdb")
+            conn, _make_item("Friends [UNCUT]", external_ids_json=_ids_json(tvdb="79168"), canonical_provider="tvdb")
         )
 
-    assert result_id == friends_id, "the title path must pick the row titled « Friends »"
+    # The first holder (by id) is « Friends »: only the title path reaches the uncut row.
+    assert result_id == uncut_id, "the title path must pick the row titled « Friends [UNCUT] »"
     assert _count(conn) == 2, "an ambiguous id must never merge the duplicate rows"
     events = _events(caplog, "indexer.upsert.external_id_ambiguous")
     assert events, f"expected the ambiguity to be logged; got {[r.msg for r in caplog.records]}"
@@ -307,6 +312,45 @@ def test_upsert_by_id_skips_a_year_backfill_that_would_collide(conn: sqlite3.Con
     assert stored is not None
     assert stored.year is None
     assert _count(conn) == 2
+
+
+def test_upsert_yearless_by_id_picks_the_holder_without_the_ambiguity_warning(
+    conn: sqlite3.Connection, caplog: pytest.LogCaptureFixture
+) -> None:
+    """« Foo » 2020 tvdb 111 and « Foo » 2021 tvdb 222; a year-less « Foo » tvdb 111 updates the 2020 row.
+
+    The id decides between the two remakes, so the year-less guess warning of the
+    title path is not logged, and the update log names the provider id as the key.
+    """
+    foo_2020 = item_repo.insert(
+        conn, _make_item("Foo", year=2020, external_ids_json=_ids_json(tvdb="111"), canonical_provider="tvdb")
+    )
+    item_repo.insert(
+        conn, _make_item("Foo", year=2021, external_ids_json=_ids_json(tvdb="222"), canonical_provider="tvdb")
+    )
+
+    with caplog.at_level(logging.INFO):
+        result_id = item_repo.upsert(
+            conn, _make_item("Foo", external_ids_json=_ids_json(tvdb="111"), canonical_provider="tvdb")
+        )
+
+    assert result_id == foo_2020
+    assert _count(conn) == 2
+    assert not _events(caplog, "indexer.item.ambiguous_yearless_match")
+    updates = _events(caplog, "indexer.item.upsert_update")
+    assert [u["matched_by"] for u in updates] == ["provider_id"]
+
+
+def test_upsert_update_log_names_the_title_path(conn: sqlite3.Connection, caplog: pytest.LogCaptureFixture) -> None:
+    """A row matched by its title (no id on the incoming row) is logged ``matched_by="title"``."""
+    stored_id = item_repo.insert(conn, _make_item("Foo", year=2020))
+
+    with caplog.at_level(logging.INFO):
+        result_id = item_repo.upsert(conn, _make_item("Foo (2020)", year=2020))
+
+    assert result_id == stored_id
+    updates = _events(caplog, "indexer.item.upsert_update")
+    assert [u["matched_by"] for u in updates] == ["title"]
 
 
 def test_get_by_canonical_id_ignores_a_placeholder_id(conn: sqlite3.Connection) -> None:
