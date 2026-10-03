@@ -182,9 +182,9 @@ def test_distinct_ids_and_soft_deleted_files_are_not_duplicates(conn: sqlite3.Co
 
 def test_nfc_and_nfd_folder_names_count_once(conn: sqlite3.Connection) -> None:
     """The same accented folder stored in NFC and NFD is one folder."""
-    item = _item(conn, "Élite", kind="movie", tmdb="9")
-    nfc = unicodedata.normalize("NFC", "films/Élite (2020)")
-    nfd = unicodedata.normalize("NFD", "films/Élite (2020)")
+    item = _item(conn, "\u00c9lite", kind="movie", tmdb="9")
+    nfc = unicodedata.normalize("NFC", "films/\u00c9lite (2020)")
+    nfd = unicodedata.normalize("NFD", "films/\u00c9lite (2020)")
     _file(conn, item, nfc, "a.mkv")
     _file(conn, item, nfd, "b.mkv")
 
