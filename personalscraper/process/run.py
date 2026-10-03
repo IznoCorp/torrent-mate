@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from personalscraper.conf.models.config import Config
+from personalscraper.conf.preprod_guard import assert_all_within_preprod
 from personalscraper.conf.staging import find_by_file_type, find_ingest_dir, folder_name
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
@@ -191,6 +192,10 @@ def run_clean(
 
     Returns:
         StepReport with combined reclean + dedup counts.
+
+    Raises:
+        PreprodGuardError: Under ``staging``, the staging tree is outside preprod's marked,
+            mounted roots. Nothing is touched.
     """
     from personalscraper.process.dedup import dedup_folders
     from personalscraper.process.extract import extract_release_archives, strip_sample_artifacts
@@ -199,6 +204,8 @@ def run_clean(
     staging = config.paths.staging_dir
     movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
     tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
+    # Preprod guard (``staging`` only): no write or purge outside preprod's own roots.
+    assert_all_within_preprod(config, staging, movies_dir, tvshows_dir)
 
     has_polluted = _has_polluted_folders(movies_dir) or _has_polluted_folders(tvshows_dir)
 
@@ -289,12 +296,18 @@ def run_cleanup(
 
     Returns:
         StepReport with cleanup counts.
+
+    Raises:
+        PreprodGuardError: Under ``staging``, the staging tree is outside preprod's marked,
+            mounted roots. Nothing is touched.
     """
     from personalscraper.process.cleanup import cleanup_empty_dirs
 
     staging = config.paths.staging_dir
     movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
     tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
+    # Preprod guard (``staging`` only): no write or purge outside preprod's own roots.
+    assert_all_within_preprod(config, staging, movies_dir, tvshows_dir)
     # Artifact-prone dirs: layout debris (e.g. an empty legacy "TV SHOWS/"
     # folder) lands in the ingest dir and gets sorted to the "other" category,
     # where the web UI would present it as a blocked media. Sweeping empty

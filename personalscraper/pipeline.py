@@ -245,7 +245,7 @@ class Pipeline:
 
         # Boot recovery always applies real cleanup (guarded to non-dry-run runs
         # by the caller); dry_run=False.
-        cleaned = sweep_orphans(roots, dry_run=False)
+        cleaned = sweep_orphans(roots, dry_run=False, config=self.config)
         if cleaned:
             self._log.info("crash_recovery_done", cleaned=cleaned)
         return cleaned

@@ -46,6 +46,7 @@ from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_helpers.output import emit
 from personalscraper.commands.library._fix_stats_base import CliFixStatsMixin
+from personalscraper.conf.preprod_guard import PreprodGuardError, assert_within_preprod
 from personalscraper.logger import get_logger
 
 log = get_logger("cli")
@@ -65,6 +66,7 @@ _Outcome = Literal[
     "skipped_apple_double",
     "backup_failed",
     "truncate_failed",
+    "preprod_refused",
     "nfo_unreadable",
     "ambiguous_nfo",
 ]
@@ -92,6 +94,7 @@ class FixNfoStats(CliFixStatsMixin):
     skipped_apple_double: int = 0
     backup_failed: int = 0
     truncate_failed: int = 0
+    preprod_refused: int = 0
     nfo_unreadable: int = 0
     ambiguous_nfo: int = 0
 
@@ -356,6 +359,13 @@ def library_fix_nfo(
         bytes_trimmed = len(data) - cutoff
 
         if apply:
+            # Preprod guard (``staging`` only): the NFO and its backup stay inside preprod's roots.
+            try:
+                assert_within_preprod(cfg, nfo_path)
+            except PreprodGuardError as exc:
+                stats.inc("preprod_refused")
+                log.error("nfo_fix_preprod_refused", item_id=item_id, nfo=str(nfo_path), error=str(exc))
+                continue
             bak_path = nfo_path.with_suffix(nfo_path.suffix + ".bak")
             try:
                 bak_path.write_bytes(data)

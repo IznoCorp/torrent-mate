@@ -33,11 +33,11 @@ def test_destination_outside_the_roots_is_refused_under_staging(
 
 
 def test_destination_inside_a_root_passes_under_staging(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A destination under a marked, mounted root is not refused."""
+    """A destination and a staging source under marked, mounted roots are not refused."""
     dispatcher, disk = _dispatcher(tmp_path)
     monkeypatch.setattr(preprod_guard, "is_mounted", lambda path: True)
     monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
-    result = DispatchResult(source=tmp_path / "src")
+    result = DispatchResult(source=tmp_path / "stage" / "001-MOVIES" / "Film (2024)")
     assert _refused_by_preprod_guard(dispatcher, result, disk / "movies" / "Film (2024)") is False
     assert result.action == "error"  # untouched: the DispatchResult default
 

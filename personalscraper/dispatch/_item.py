@@ -43,7 +43,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from personalscraper.conf import resolver
-from personalscraper.conf.preprod_guard import PreprodGuardError, assert_within_preprod
+from personalscraper.conf.preprod_guard import PreprodGuardError, assert_all_within_preprod
 from personalscraper.core.delete_permit import ALLOW
 from personalscraper.core.media_types import TV_TRAILER_SUBFOLDER, VIDEO_EXTENSIONS
 from personalscraper.dispatch import _transfer
@@ -94,19 +94,21 @@ class TransferOutcome:
 
 
 def _refused_by_preprod_guard(dispatcher: Dispatcher, result: DispatchResult, dest: Path) -> bool:
-    """Refuse a destination outside preprod's marked, mounted roots (``staging`` only).
+    """Refuse a destination or source outside preprod's marked, mounted roots (``staging`` only).
 
     Args:
         dispatcher: The owning dispatcher (its config names the roots).
         result: The result to mark as an error when the destination is refused.
-        dest: The destination folder about to receive the transfer.
+        dest: The destination folder about to receive the transfer. The staging
+            source (``result.source``), purged once the transfer lands, is judged too.
 
     Returns:
         True when the guard refused (``result`` is then final), False otherwise —
         always False outside ``staging``.
     """
     try:
-        assert_within_preprod(dispatcher.config, dest)
+        # The transfer purges the staging source on success: judge both ends.
+        assert_all_within_preprod(dispatcher.config, dest, result.source)
     except PreprodGuardError as exc:
         log.error("preprod_destination_refused", destination=str(dest), error=str(exc))
         result.action = "error"
