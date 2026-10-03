@@ -145,7 +145,8 @@ class Config(_StrictModel):
 
         The store file names follow ``PERSONALSCRAPER_ENV`` (absent = prod, the
         historical ``library.db`` / ``acquire.db``). Then the isolation guard checks
-        that ``paths.data_dir`` and ``web.stream_key`` belong to this environment.
+        that ``paths.data_dir``, the store paths and ``web.stream_key`` belong to this
+        environment.
 
         Returns:
             self with derived paths resolved.
@@ -154,8 +155,9 @@ class Config(_StrictModel):
             EnvironmentSettingError: ``PERSONALSCRAPER_ENV`` is set to an unknown
                 value (a ``ValueError``, so Pydantic wraps it as a load error).
             EnvironmentIsolationError: ``paths.data_dir`` is marked for another
-                environment, is unmarked outside prod, or ``staging`` uses prod's
-                stream key (a ``ValueError`` too).
+                environment or its marker is unreadable, is unmarked outside prod, a
+                store lies outside it outside prod, or ``staging`` uses prod's stream
+                key (a ``ValueError`` too).
         """
         if self.indexer.db_path is None:
             object.__setattr__(self.indexer, "db_path", store_path(self.paths.data_dir, StoreName.LIBRARY))
