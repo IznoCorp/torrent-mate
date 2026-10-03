@@ -699,7 +699,7 @@ async def main():
             #
             # THIS HOLD USED TO REQUIRE CANDIDATES, and its stated reason was
             # « RELEASES carries no per-title lookup to fail ». Since L09 it
-            # does: the picker asks `/api/acquisition/releases?title=…` and the
+            # does: the picker asks `/api/v1/acquisition/releases?title=…` and the
             # layer answers for the title. So an unknown title legitimately
             # answers none — that is the lookup working — and what has to hold
             # is the other half, which nothing was reading: the screen still
@@ -729,7 +729,7 @@ async def main():
             # ─── Holds (q)-(r), R187: one passage's address. ───────────────
             run_context, run_page, errors = await open_at(browser, f"{base}/")
             run_uid = await run_page.evaluate(
-                "async ()=>((await (await fetch('/api/pipeline/history')).json()).runs[0] || {}).runUid")
+                "async ()=>((await (await fetch('/api/v1/pipeline/history')).json()).runs[0] || {}).runUid")
             await run_context.close()
             journal.check("(q0) the layer's history names a run to open", bool(run_uid),
                           f"{run_uid!r}")

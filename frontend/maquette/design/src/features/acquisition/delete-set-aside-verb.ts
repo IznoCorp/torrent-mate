@@ -20,7 +20,7 @@ const CASE_WORDS: Record<string, string> = { keeps_files: "caseKeepsFiles", only
 const UNKNOWN_WORDS = "caseUnknown";
 
 /** The two reads a deleted folder leaves: the queue, and the staging area. */
-const LEFT = [["/api/acquisition/to-handle"], ["/api/staging/media"]];
+const LEFT = [["/api/v1/acquisition/to-handle"], ["/api/v1/staging/media"]];
 
 /**
  * Deletes one folder, then says it is gone.
@@ -28,7 +28,7 @@ const LEFT = [["/api/acquisition/to-handle"], ["/api/staging/media"]];
  * @param title The folder.
  */
 async function deleteFolder(title: string): Promise<void> {
-  await send("DELETE", `/api/staging/media/${encodeURIComponent(title)}`);
+  await send("DELETE", `/api/v1/staging/media/${encodeURIComponent(title)}`);
   for (const queryKey of LEFT) await sharedQueryClient?.invalidateQueries({ queryKey });
   toast?.show({ message: i18next.t("verbs.acquisition.deleteStaged.done", { title }) });
 }
@@ -41,7 +41,7 @@ async function deleteFolder(title: string): Promise<void> {
  * @param title The folder.
  */
 export function openDeleteConfirm(title: string): void {
-  void read<{ case: string }>(`/api/staging/media/${encodeURIComponent(title)}/copies`)
+  void read<{ case: string }>(`/api/v1/staging/media/${encodeURIComponent(title)}/copies`)
     .then((answer) => CASE_WORDS[answer.case] ?? UNKNOWN_WORDS, () => UNKNOWN_WORDS)
     .then((words) => openConfirm(title, words));
 }

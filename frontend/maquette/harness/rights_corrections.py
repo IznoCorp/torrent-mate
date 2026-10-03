@@ -35,9 +35,9 @@ ROW_ACTS = """(title) => { const row = [...document.querySelectorAll('#view [dat
   return row ? [...row.querySelectorAll('[data-part="swipe/action"]')].map((one) => one.dataset.swipeact) : null; }"""
 TAP_INJECTED = """([attribute, title]) => { const button = document.createElement('button');
   button.setAttribute(attribute, title); document.querySelector('#view').append(button); button.click(); button.remove(); }"""
-FOLLOW = """async (title) => (await (await fetch('/api/acquisition/followed')).json()).find((one) => one.title === title) || null"""
+FOLLOW = """async (title) => (await (await fetch('/api/v1/acquisition/followed')).json()).find((one) => one.title === title) || null"""
 PUT_PAUSE = """async ([who, title]) => { window.__mocks.setIdentity(who);
-  return (await fetch('/api/acquisition/followed/' + encodeURIComponent(title) + '/pause',
+  return (await fetch('/api/v1/acquisition/followed/' + encodeURIComponent(title) + '/pause',
     { method: 'PUT', body: JSON.stringify({ paused: true }) })).status; }"""
 
 
@@ -77,7 +77,7 @@ async def main():
         await page.wait_for_timeout(SETTLED)
         await page.click('[data-part="accounts/role-create"]')
         await page.wait_for_timeout(ACTED + SETTLED)
-        created = await page.evaluate("async()=>(await (await fetch('/api/accounts')).json()).roles.at(-1)")
+        created = await page.evaluate("async()=>(await (await fetch('/api/v1/accounts')).json()).roles.at(-1)")
         await panel("role", created["id"])
         field = await page.query_selector('#sheet [data-part="accounts/role-name"]')
         if field is not None:

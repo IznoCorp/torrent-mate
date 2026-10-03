@@ -111,7 +111,7 @@ async def main():
         # engine's `CADENCE_CRON` literal until that left it, and was re-aimed at
         # the answer the tab draws from. The next state resets the cache.
         cron = await pg.evaluate(
-            "()=>window.__queries.getQueryData(['/api/acquisition/status'])?.cadence ?? null")
+            "()=>window.__queries.getQueryData(['/api/v1/acquisition/status'])?.cadence ?? null")
 
         # ── a fruitless search is said on the follow, and only there ────────
         # INVERTED, SAID OUT LOUD: « En cours » had the sentence and « Suivis »
@@ -162,7 +162,7 @@ async def main():
                   /* THE SYNOPSIS IS A FIELD OF A ROW SINCE L09 — `SYNOPSIS` was a global
                      map keyed by title, and the library row carries its own `overview`. */
                   const title=(c.querySelector('[data-part="card/title"]')||{}).textContent;
-                  return e && !((window.__queries.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages||[]).flatMap(p=>p.items).find(r=>r.title===title)||{}).overview;
+                  return e && !((window.__queries.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/v1/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages||[]).flatMap(p=>p.items).find(r=>r.title===title)||{}).overview;
                 }).map(c => (c.querySelector('[data-part="card/title"]')||{}).textContent)};}""")
             check(f"{name}: the rows carry the synopsis",
                   seen["n"] > 4 and seen["withPlot"] == seen["n"], f"{seen['withPlot']}/{seen['n']}")
@@ -222,7 +222,7 @@ async def main():
           const found = [];
           for (let page = 0; page < 40; page += 1) {
             const answer = await (await window.fetch(
-              `/api/library/items?page=${page}`)).json();
+              `/api/v1/library/items?page=${page}`)).json();
             if (!answer.items.length) break;
             for (const row of answer.items) if (!row.overview) found.push(row.title);
           }

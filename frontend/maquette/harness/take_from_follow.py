@@ -34,7 +34,7 @@ SENTENCE = "récupéré à la prochaine passe, à "  # french-ok: the sheet's ow
 # The next slot of a daily cron « M H1,H2 * * * » after the page's clock, read
 # independently of the interface's own derivation.
 NEXT_SLOT = """() => {
-  const status = window.__queries.getQueryData(["/api/acquisition/status"]);
+  const status = window.__queries.getQueryData(["/api/v1/acquisition/status"]);
   const matched = /^(\\d+)\\s+([\\d,]+)\\s+\\*\\s+\\*\\s+\\*$/.exec(String(status?.cadence ?? "").trim());
   if (!matched) return null;
   const minute = Number(matched[1]);
@@ -54,7 +54,7 @@ SHEET = """() => {
 
 SENT = """(title) => (window.__mocks?.answered?.() || [])
   .filter((call) => call.operationId === "grabForFollow" && call.method === "POST"
-    && decodeURIComponent(call.path) === `/api/acquisition/followed/${title}/grab`).length"""
+    && decodeURIComponent(call.path) === `/api/v1/acquisition/followed/${title}/grab`).length"""
 
 
 async def open_follow(page, title):

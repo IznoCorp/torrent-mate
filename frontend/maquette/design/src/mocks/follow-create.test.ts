@@ -30,10 +30,10 @@ type Sheet = { kind: string; year: string; ids: Record<string, string | number> 
  * @returns The recorded follow.
  */
 function create(title: string, kind: string, ids: Record<string, unknown> | null): Follow {
-  const found = resolve(routes(), "POST", "/api/acquisition/followed");
+  const found = resolve(routes(), "POST", "/acquisition/followed");
   if (found === null) throw new Error("no createFollow route");
   const body = { title, kind, ...sentIdentity(ids) };
-  return found.route.handle({ path: "/api/acquisition/followed", parameters: {},
+  return found.route.handle({ path: "/acquisition/followed", parameters: {},
                               query: new URLSearchParams(), body }) as Follow;
 }
 

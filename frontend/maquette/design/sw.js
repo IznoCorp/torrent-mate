@@ -68,8 +68,9 @@ const OFFLINE = "/offline.html";
 
 // Never cached, in any mode. The stream is a connection, not a document.
 //
-// `startsWith` AND NOT `===`. The relay's address is `/ws/events`
-// (`mocks/stream.ts`), so an equality against `/ws` never fired — and it went
+// `startsWith` AND NOT `===`. The relay's address is `/api/v1/events`
+// (`mocks/stream.ts`), under the first clause; it was `/ws/events`, so an
+// equality against `/ws` never fired — and it went
 // unnoticed because a WebSocket handshake is not a `fetch` event and never
 // reaches this handler at all. The clause was dead both ways while the file's
 // headline promise read as enforced. It becomes live the day the stream is

@@ -3,7 +3,7 @@
 §20 says a blocked tunnel « reprend là où il s'est arrêté, par l'opérateur ».
 The journey sheet IS the tunnel as the operator sees it, and it offered exactly
 one action — « Voir la fiche » — while
-`POST /api/acquisition/journeys/{infoHash}/requeue` and `/rescrape` went
+`POST /api/v1/acquisition/journeys/{infoHash}/requeue` and `/rescrape` went
 uncalled. The producer's own header said the verbs « belong to the lot that
 wires the tunnel's verbs ».
 
@@ -77,7 +77,7 @@ SAID = """()=>{
 # real. The producer reads them from the query cache, so this is the same answer
 # the panel was drawn from rather than a second opinion.
 STAGES_HELD = """(title)=>{
-  const held = window.__queries.getQueryData(["/api/acquisition/journeys", title]);
+  const held = window.__queries.getQueryData(["/api/v1/acquisition/journeys", title]);
   return Array.isArray(held) ? held.map((one) => ({label: one.label, state: one.state}))
                              : null;}"""
 
@@ -223,7 +223,7 @@ async def main():
         await page.evaluate("(id)=>window.__go(id)", JOURNEY_STATE)
         await page.wait_for_timeout(SETTLED)
         started = await page.evaluate("""async()=>{
-            const answer = await window.fetch("/api/pipeline/run", {method: "POST"});
+            const answer = await window.fetch("/api/v1/pipeline/run", {method: "POST"});
             const body = await answer.json().catch(() => ({}));
             return body.state || "";}""")
         await page.evaluate("""()=>window.__pipeline("running")""")

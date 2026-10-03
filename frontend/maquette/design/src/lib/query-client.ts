@@ -22,6 +22,7 @@ import { CancelledError, QueryClient, useQueryClient } from "@tanstack/react-que
 import { useSyncExternalStore } from "react";
 import { holdBack, setDeparture } from "../app/outbox";
 import type { paths } from "../contract/types";
+import { SERVER_BASE } from "./server-base";
 
 /**
  * Lets a read CANCELLED by the cache's own reset pass in silence.
@@ -90,8 +91,8 @@ export function installSharedQueryClient(client: QueryClient): void {
   sharedQueryClient = client;
 }
 
-/** Every address the maquette's own contract declares. */
-type ContractPath = keyof paths;
+/** Every address the maquette's own contract declares, under its base. */
+type ContractPath = `${typeof SERVER_BASE}${keyof paths}`;
 
 /**
  * What `send()` answers when a mutation was HELD rather than sent.

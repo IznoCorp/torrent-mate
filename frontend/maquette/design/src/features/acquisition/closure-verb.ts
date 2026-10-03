@@ -15,7 +15,7 @@ import { acquisitionKey } from "../../lib/arrival-slots";
 import type { Schemas } from "../../lib/contract-schemas";
 
 /** The queue's reads, in every world the cache holds one for. */
-const QUEUE = ["/api/acquisition/to-handle"];
+const QUEUE = ["/api/v1/acquisition/to-handle"];
 // Between a title and the season or episode it is of, in a key.
 const KEY_SEPARATOR = "|";
 
@@ -51,7 +51,7 @@ async function markSeen(subject: string): Promise<void> {
   const before = takeOut(subject);
   panel?.close();
   try {
-    const outcome = await send("POST", `/api/acquisition/journeys/${encodeURIComponent(subject)}/closure/seen`);
+    const outcome = await send("POST", `/api/v1/acquisition/journeys/${encodeURIComponent(subject)}/closure/seen`);
     if (outcome !== HELD) await sharedQueryClient?.invalidateQueries({ queryKey: QUEUE });
   } catch {
     for (const [key, queue] of before) sharedQueryClient?.setQueryData(key, queue);

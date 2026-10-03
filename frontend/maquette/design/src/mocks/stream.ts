@@ -29,6 +29,7 @@
 // which is what keeps the oracle's recorded states measurable at all, and it is
 // the half of the settle decision that no amount of counting could replace.
 
+import { SERVER_BASE } from "../lib/server-base";
 import {
   connections,
   deliveries,
@@ -51,7 +52,7 @@ import {
 export type { StreamEntry };
 
 /** The address the stream is served at, so a rule can read the cursor back. */
-const RELAY_ADDRESS = "/ws/events";
+const RELAY_ADDRESS = `${SERVER_BASE}/events`;
 
 /** The state of the simulated server, as a rule reads it. */
 type ServerState = {

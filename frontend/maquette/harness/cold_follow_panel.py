@@ -71,7 +71,7 @@ UNIDENTIFIED = "BoJack Horseman"
 # EVERY CACHE ENTRY OF A MEDIUM'S READS whose address is empty (B-503).
 EMPTY_ADDRESS_READS = """()=>window.__queries.getQueryCache().getAll()
   .map((query) => query.queryKey)
-  .filter((key) => key[0] === '/api/media' && (key[1] === '' || key[2] === ''))
+  .filter((key) => key[0] === '/api/v1/media' && (key[1] === '' || key[2] === ''))
   .map((key) => JSON.stringify(key))"""
 
 

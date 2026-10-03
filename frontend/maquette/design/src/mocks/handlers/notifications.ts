@@ -76,10 +76,10 @@ function preference(type: NotificationType) {
 
 export function notificationRoutes(): MockRoute[] {
   return [
-    route("readNotificationPreferences", GET, "/api/notifications/preferences", () => ({
+    route("readNotificationPreferences", GET, "/notifications/preferences", () => ({
       preferences: receivable().map(preference),
     })),
-    route("updateNotificationPreference", PUT, "/api/notifications/preferences/{type}", (request) => {
+    route("updateNotificationPreference", PUT, "/notifications/preferences/{type}", (request) => {
       const type = request.parameters.type as NotificationType;
       if (!(type in NOTIFICATION_RIGHTS)) return refused(INVALID, "no notification type carries that id");
       if (!receivable().includes(type)) return refused(FORBIDDEN, "the account does not hold the right this type asks");
@@ -90,7 +90,7 @@ export function notificationRoutes(): MockRoute[] {
       mockState().notificationsOff[signedInId()] = off;
       return preference(type);
     }),
-    route("registerPushDevice", POST, "/api/notifications/devices", (request) => {
+    route("registerPushDevice", POST, "/notifications/devices", (request) => {
       const token = text(request.body, "token");
       const platform = text(request.body, "platform") as Platform;
       if (!token || !PLATFORMS.includes(platform)) return refused(INVALID, "a device carries a token and a platform");

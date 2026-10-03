@@ -37,16 +37,16 @@ READ = """(key) => ({
   row: document.querySelector('#sheet[data-open] [data-part="tracker/uploads"]')?.dataset.on ?? null,
   state: document.querySelector('#sheet[data-open] [data-part="tracker/uploads-state"]')?.textContent.trim() ?? null,
   crossSeed: document.querySelector('#sheet[data-open] [data-part="tracker/cross-seed-state"]')?.dataset.on ?? null,
-  summary: (window.__queries?.getQueryData(['/api/trackers']) || []).find(one => one.name === 'v3x.club')
+  summary: (window.__queries?.getQueryData(['/api/v1/trackers']) || []).find(one => one.name === 'v3x.club')
     ?.crossSeed.acceptsUploads ?? null,
-  setting: (window.__queries?.getQueryData(['/api/config/schema']) || []).flatMap(t => t.settings)
+  setting: (window.__queries?.getQueryData(['/api/v1/config/schema']) || []).flatMap(t => t.settings)
     .find(s => s.key === key)?.raw ?? null,
   dialog: !!document.querySelector('[data-part="dialog"][data-open]'),
 })"""
 WRITES = """() => (window.__mocks?.answered() || []).filter(call => call.operationId === 'updateConfigurationFile').length"""
 # Réglages' own write: the same file, the same key — the other door.
 SETTINGS_WRITE = """async (key) => {
-  await fetch('/api/config/files/tracker', { method: 'PUT', headers: { 'content-type': 'application/json' },
+  await fetch('/api/v1/config/files/tracker', { method: 'PUT', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ [`tracker:${key}`]: false }) });
   await window.__queries?.invalidateQueries();
 }"""

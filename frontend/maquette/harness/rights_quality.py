@@ -18,9 +18,9 @@ from playwright.async_api import async_playwright
 
 KYMA = "Kyma, l'onde mystérieuse"
 
-FOLLOW = """async (title) => (await (await fetch('/api/acquisition/followed')).json()).find((one) => one.title === title)"""
+FOLLOW = """async (title) => (await (await fetch('/api/v1/acquisition/followed')).json()).find((one) => one.title === title)"""
 AS = """async ([who, method, what, body]) => { window.__mocks.setIdentity(who);
-  const address = '/api/acquisition/followed/' + encodeURIComponent(%r) + '/' + what;
+  const address = '/api/v1/acquisition/followed/' + encodeURIComponent(%r) + '/' + what;
   return (await fetch(address, { method, body: JSON.stringify(body) })).status; }""" % KYMA
 OFFER = """() => ({ quality: !!document.querySelector('#sheet [data-profile]'),
                     pause: !!document.querySelector('#sheet [data-pause-own]') })"""

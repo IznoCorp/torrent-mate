@@ -190,7 +190,7 @@ async def open_at(browser, page_id):
 async def file_an_edit(page):
     """Files one pending edit of Réglages, as its field would."""
     await page.evaluate("""(identifier)=>{
-      const setting = window.__queries.getQueryData(['/api/config/schema']).flatMap(t => t.settings)
+      const setting = window.__queries.getQueryData(['/api/v1/config/schema']).flatMap(t => t.settings)
         .find(s => window.settingId(s) === identifier);
       window.__changeSetting(identifier, Number(setting.raw) + 7);}""", EDITED)
     await page.wait_for_timeout(ACTED)

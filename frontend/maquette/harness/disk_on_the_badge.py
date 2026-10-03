@@ -24,7 +24,7 @@ from playwright.async_api import async_playwright
 BUTTON = """() => document.querySelector('[data-drawer] [data-part="shell/menu-badge"]')?.textContent.trim() ?? null"""
 CARE = """async () => {
   const read = async (address) => (await fetch(address)).json();
-  const facts = [...await read('/api/maintenance/disks'), ...await read('/api/maintenance/index-health')];
+  const facts = [...await read('/api/v1/maintenance/disks'), ...await read('/api/v1/maintenance/index-health')];
   return facts.filter((fact) => fact.state === 'nearly_full' || fact.state === 'to_clean').length;
 }"""
 

@@ -81,7 +81,7 @@ async def main():
             await page.wait_for_timeout(SETTLED)
             journal.check(f"R-L18-o: no write offered on {where} under the ceiling",
                           not await page.evaluate(PRESENT, selector), selector)
-        forced = await page.evaluate("async()=>(await fetch('/api/pipeline/run',{method:'POST',body:'{}'})).status")
+        forced = await page.evaluate("async()=>(await fetch('/api/v1/pipeline/run',{method:'POST',body:'{}'})).status")
         journal.check("R-L18-o: forcing a run as the owner answers 403", forced == 403, str(forced))
         # « CORRIGER » (L24) decides for the pipeline: the settled decision is read, its act absent.
         await page.evaluate("(title)=>window.__screens.mediaSheet(title, window.__carriedFor(title) ?? undefined)",
@@ -107,8 +107,8 @@ async def main():
         journal.check("preprod: the notice names the forbidden right, not « lecture seule »",
                       notice and "supprimer de la médiathèque" in notice and "lecture seule" not in notice, str(notice))
         statuses = await page.evaluate("""async () => ({
-          remove: (await fetch('/api/library/items', { method: 'DELETE', body: JSON.stringify({ titles: [] }) })).status,
-          rescrape: (await fetch('/api/media/tmdb/1/rescrape', { method: 'POST', body: '{}' })).status })""")
+          remove: (await fetch('/api/v1/library/items', { method: 'DELETE', body: JSON.stringify({ titles: [] }) })).status,
+          rescrape: (await fetch('/api/v1/media/tmdb/1/rescrape', { method: 'POST', body: '{}' })).status })""")
         journal.check("preprod: forcing the delete answers 403, the rescrape does not",
                       statuses["remove"] == 403 and statuses["rescrape"] != 403, str(statuses))
 

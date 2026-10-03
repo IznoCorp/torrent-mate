@@ -77,7 +77,7 @@ registerVerb("sheetprim", (value) => {
  */
 async function searchNow(title: string): Promise<void> {
   const answer = await send<{ found: number }>(
-    "POST", `/api/acquisition/followed/${encodeURIComponent(title)}/search`);
+    "POST", `/api/v1/acquisition/followed/${encodeURIComponent(title)}/search`);
   // HELD OR REFUSED, the queue and the refusal say so themselves.
   if (answer === undefined || answer === HELD) return;
   const named = baseTitle(title);

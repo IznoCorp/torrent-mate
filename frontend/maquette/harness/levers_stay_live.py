@@ -54,9 +54,9 @@ EMIT = """async (type) => {
   await window.__mocks.quiet();
 }"""
 
-RUN = "/api/maintenance/actions/library-status/run"
-PAUSE = "/api/pipeline/pause"
-KILL = "/api/pipeline/kill"
+RUN = "/api/v1/maintenance/actions/library-status/run"
+PAUSE = "/api/v1/pipeline/pause"
+KILL = "/api/v1/pipeline/kill"
 
 
 async def settle(page):

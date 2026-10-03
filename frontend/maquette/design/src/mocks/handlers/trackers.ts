@@ -79,7 +79,7 @@ export function activationRefusal(values: Record<string, unknown>): string | nul
 /** Every route this subject answers. */
 export function trackerRoutes(): MockRoute[] {
   return [
-    route("readTrackers", GET, "/api/trackers", (): Schemas["Tracker"][] =>
+    route("readTrackers", GET, "/trackers", (): Schemas["Tracker"][] =>
       trackersState().trackers.map((tracker) => {
         const enabled = enabledOf(tracker.name);
         return {
@@ -89,7 +89,7 @@ export function trackerRoutes(): MockRoute[] {
         };
       }),
     ),
-    route("markBrokenObligationSeen", POST, "/api/trackers/{tracker}/broken-obligations/{infoHash}/seen", (request) => {
+    route("markBrokenObligationSeen", POST, "/trackers/{tracker}/broken-obligations/{infoHash}/seen", (request) => {
       // SEEN IS NOT GONE: the row stays on its tracker, and leaves the alert's count.
       const tracker = trackersState().trackers.find((one) => one.name === request.parameters.tracker);
       const broken = tracker?.brokenObligations.find((row) => row.infoHash === request.parameters.infoHash);
@@ -99,21 +99,21 @@ export function trackerRoutes(): MockRoute[] {
     }),
     // THE RANKING EDITOR'S LIVE PREVIEW: read-only and pure, the fixed sample set
     // scored under the ranking the request carries.
-    route("previewRanking", POST, "/api/acquisition/ranking/preview",
+    route("previewRanking", POST, "/acquisition/ranking/preview",
           (request) => previewOf(request.body as Schemas["RankingConfig"])),
-    route("readDownloads", GET, "/api/acquisition/downloads", (): Schemas["Downloads"] => ({
+    route("readDownloads", GET, "/acquisition/downloads", (): Schemas["Downloads"] => ({
       clientAvailable: true,
       // THE MARK'S PAIRS FOLDED INTO THE SAME ANSWER (R-L17-k): no second read for them.
       downloads: trackersState().downloads.map((entry) => ({ ...entry, crossSeed: crossSeedOfEntry(entry) })),
       crossSeedQuota: crossSeedState().quota,
     })),
-    route("readObligations", GET, "/api/acquisition/obligations", (): Schemas["Obligations"] => ({
+    route("readObligations", GET, "/acquisition/obligations", (): Schemas["Obligations"] => ({
       // AN OBLIGATION A CROSS-SEED CREATED says whose copy it is (§ 19 point 2).
       items: trackersState().obligations.map((obligation) => ({
         ...obligation, crossSeedOf: crossSeedOrigin(obligation, trackersState().downloads),
       })),
     })),
-    route("removeDownload", DELETE, "/api/acquisition/downloads/{infoHash}", (request) => {
+    route("removeDownload", DELETE, "/acquisition/downloads/{infoHash}", (request) => {
       // THE ENTRY LEAVES THE CLIENT, and a running obligation it owed is CLOSED
       // at that moment — released, never left reading in breach.
       const held = trackersState();

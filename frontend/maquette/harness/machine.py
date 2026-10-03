@@ -103,14 +103,14 @@ def cached(address):
     return f"window.__queries.getQueryData(['{address}'])"
 
 
-SCHEDULERS_SOURCE = cached("/api/maintenance/schedulers")
+SCHEDULERS_SOURCE = cached("/api/v1/maintenance/schedulers")
 
 BLOCKS = (
-    ("Services", "services", "service", cached("/api/system/services")),
+    ("Services", "services", "service", cached("/api/v1/system/services")),
     ("Planificateurs", "schedulers", "scheduler", SCHEDULERS_SOURCE),
-    ("Disques", "disks", "disk", cached("/api/maintenance/disks")),
-    ("Index de la médiathèque", "index", "index row", cached("/api/maintenance/index-health")),
-    ("Dépendances", "dependencies", "dependency", cached("/api/system/dependencies")),
+    ("Disques", "disks", "disk", cached("/api/v1/maintenance/disks")),
+    ("Index de la médiathèque", "index", "index row", cached("/api/v1/maintenance/index-health")),
+    ("Dépendances", "dependencies", "dependency", cached("/api/v1/system/dependencies")),
 )
 
 # TWO MORE LISTS CARRY A TONE, and no comparison against a declared field can
@@ -495,7 +495,7 @@ async def main():
         # are asked of the layer itself, the answer as served: what the
         # server reports stuck is what must not be drawn here.
         blocked = await pg.evaluate(
-            "()=>fetch('/api/staging/media').then((r)=>r.json())"
+            "()=>fetch('/api/v1/staging/media').then((r)=>r.json())"
             ".then((a)=>(a.stuck || []).map((card)=>card.title))")
         journal.check("the list of blocked media is reachable",
                          bool(blocked),

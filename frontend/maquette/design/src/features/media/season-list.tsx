@@ -23,7 +23,7 @@ import type { CatalogSeason, MediaSheetFields, SeasonRow } from "./sheet-fields"
 import { dateLabel, episodeStateLabel, episodeRanges } from "./format";
 
 // The follows' cache key — the one read the season's take asks who requested.
-const FOLLOWS_KEY = ["/api/acquisition/followed"];
+const FOLLOWS_KEY = ["/api/v1/acquisition/followed"];
 
 export function SeasonList({
   followed,

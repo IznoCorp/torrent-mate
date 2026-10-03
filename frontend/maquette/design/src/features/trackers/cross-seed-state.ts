@@ -145,7 +145,7 @@ export type TrackerOff = NonNullable<Schemas["Tracker"]["disabled"]>["by"];
  * searches nor publishes anything on a tracker off or down, whatever its two
  * cross-seed switches say (§ 17 point 1).
  *
- * @param tracker The tracker as `/api/trackers` answers it, or undefined while unread.
+ * @param tracker The tracker as `/api/v1/trackers` answers it, or undefined while unread.
  * @returns Who switched it off, or null while it is on (or unread: nothing is said that is not read).
  */
 export function trackerOffBy(tracker: Schemas["Tracker"] | undefined): TrackerOff | null {

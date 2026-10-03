@@ -106,7 +106,7 @@ def operation_path(operation_id):
         operation_id: The operation, as the contract names it.
 
     Returns:
-        The path template.
+        The path template, under the contract's server URL its paths are relative to.
 
     Raises:
         SystemExit: When the contract declares no such operation.
@@ -114,7 +114,7 @@ def operation_path(operation_id):
     for path, item in CONTRACT["paths"].items():
         for operation in item.values():
             if isinstance(operation, dict) and operation.get("operationId") == operation_id:
-                return path
+                return CONTRACT["servers"][0]["url"] + path
     raise SystemExit(f"the contract declares no {operation_id}")
 
 

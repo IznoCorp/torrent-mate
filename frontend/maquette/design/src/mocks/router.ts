@@ -1,7 +1,7 @@
 // Matching a request to the operation the contract declares for it.
 //
 // The table is keyed by the contract's own path templates —
-// `/api/media/{provider}/{providerId}` — so a route this layer answers and a
+// `/media/{provider}/{providerId}` — so a route this layer answers and a
 // route the contract declares cannot drift apart without a guard seeing it.
 import { setLastStatus } from "./answered";
 

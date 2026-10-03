@@ -34,8 +34,8 @@ ENGINE_OFF = LINE["engineOff"]
 BARE = re.compile(r"\b[a-z0-9]+_[a-z0-9_]+\b|\b(trackerWithout|noMatch|notSearched|stopped|active)\b")
 
 READ = """() => {
-  const served = window.__queries?.getQueryData(['/api/trackers']) || [];
-  const downloads = window.__queries?.getQueryData(['/api/acquisition/downloads'])?.downloads || [];
+  const served = window.__queries?.getQueryData(['/api/v1/trackers']) || [];
+  const downloads = window.__queries?.getQueryData(['/api/v1/acquisition/downloads'])?.downloads || [];
   const pairs = downloads.flatMap(entry => entry.crossSeed?.pairs || []);
   return served.map(tracker => {
     const line = document.querySelector(`#view [data-part="trackers/entry"][data-tracker="${tracker.name}"] [data-part="trackers/cross-seed"]`);
@@ -45,7 +45,7 @@ READ = """() => {
     };
   });
 }"""
-PAIRS = """() => (window.__queries?.getQueryData(['/api/acquisition/downloads'])?.downloads || [])
+PAIRS = """() => (window.__queries?.getQueryData(['/api/v1/acquisition/downloads'])?.downloads || [])
   .flatMap(entry => (entry.crossSeed?.pairs || []).map(pair => `${entry.infoHash}:${pair.tracker}:${pair.state}`)).sort()"""
 
 

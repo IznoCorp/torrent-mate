@@ -34,7 +34,7 @@ import type { components } from "../../contract/types";
 type Preferences = components["schemas"]["NotificationPreferences"];
 type NotificationType = components["schemas"]["NotificationType"];
 
-const PREFERENCES_KEY = ["/api/notifications/preferences"];
+const PREFERENCES_KEY = ["/api/v1/notifications/preferences"];
 
 /**
  * The account's switches, read from the server.
@@ -44,7 +44,7 @@ const PREFERENCES_KEY = ["/api/notifications/preferences"];
 function usePreferences() {
   return useQuery({
     queryKey: PREFERENCES_KEY,
-    queryFn: () => read<Preferences>("/api/notifications/preferences"),
+    queryFn: () => read<Preferences>("/api/v1/notifications/preferences"),
   });
 }
 
@@ -118,7 +118,7 @@ export function NotificationsSection(): ReactElement | null {
     // OPTIMISTIC, and on a refusal SAID refused, then rolled back by a fresh read.
     client.setQueryData<Preferences>(PREFERENCES_KEY, (held) =>
       held && { preferences: held.preferences.map((one) => (one.type === type ? { ...one, enabled } : one)) });
-    send("PUT", `/api/notifications/preferences/${encodeURIComponent(type)}`, { enabled })
+    send("PUT", `/api/v1/notifications/preferences/${encodeURIComponent(type)}`, { enabled })
       .catch(() => {
         toast?.show({ message: t("screens.accountPage.notifications.refused", { type: t(`${typeKey(type)}.label`) }) });
         return client.invalidateQueries({ queryKey: PREFERENCES_KEY });

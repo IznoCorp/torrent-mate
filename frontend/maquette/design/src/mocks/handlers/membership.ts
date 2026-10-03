@@ -70,5 +70,5 @@ function membership(request: MockRequest) {
 
 /** Every route this subject answers. */
 export function membershipRoutes(): MockRoute[] {
-  return [route("readLibraryMembership", GET, "/api/library/membership", membership)];
+  return [route("readLibraryMembership", GET, "/library/membership", membership)];
 }

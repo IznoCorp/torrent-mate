@@ -89,7 +89,7 @@ SYSTEM_WALKS = [
 ]
 ENTRIES = "()=>history.length"
 # Where each section of Système is read from, and its facts as a row says them: label, state's word, line.
-REST_READS = {"disks": "/api/maintenance/disks", "dependencies": "/api/system/dependencies"}
+REST_READS = {"disks": "/api/v1/maintenance/disks", "dependencies": "/api/v1/system/dependencies"}
 AT_REST = """async ([address, states]) => (await (await fetch(address)).json())
   .map((fact) => `${fact.label}${fact.state ? states[fact.state] : (fact.value ?? '')}${fact.secondaryLine ?? ''}`)"""
 PORT = "()=>document.querySelector('#port')?.scrollTop ?? null"

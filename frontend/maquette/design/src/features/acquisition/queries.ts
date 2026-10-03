@@ -29,7 +29,7 @@ import { sentIdentity } from "./sent-identity";
  * machinery nobody could justify.
  */
 export const suggestionsQuery = {
-  queryKey: ["/api/acquisition/suggestions"],
+  queryKey: ["/api/v1/acquisition/suggestions"],
   queryFn: async () =>
     // ONE BATCH, and the rest is asked for. This drained the layer — twenty
     // pages in a loop — so that the deck, which indexes into a list it holds,
@@ -41,7 +41,7 @@ export const suggestionsQuery = {
     // So the reserve GROWS instead. `loadMoreSuggestions` appends the next
     // page, indices already held keep their meaning, and what was dismissed
     // stays dismissed because `sugGone` holds positions into this same list.
-    read<Schemas["Suggestion"][]>("/api/acquisition/suggestions", new URLSearchParams()),
+    read<Schemas["Suggestion"][]>("/api/v1/acquisition/suggestions", new URLSearchParams()),
 };
 
 // The cache the deck's paging reads, captured where it is already handed over.
@@ -86,7 +86,7 @@ export async function loadMoreSuggestions(): Promise<number> {
   // for ever.
   const last = held[held.length - 1] as { title?: string } | undefined;
   if (last?.title !== undefined) parameters.set("after", last.title);
-  const batch = await read<Schemas["Suggestion"][]>("/api/acquisition/suggestions", parameters);
+  const batch = await read<Schemas["Suggestion"][]>("/api/v1/acquisition/suggestions", parameters);
   if (batch.length === 0) {
     reserveExhausted = true;
     return 0;
@@ -127,7 +127,7 @@ export function installSuggestionsLookup(queryClient: QueryClient): void {
 }
 
 // The prefix every world's follows are cached under: a write invalidates them all.
-const FOLLOWS_KEY = ["/api/acquisition/followed"];
+const FOLLOWS_KEY = ["/api/v1/acquisition/followed"];
 
 // The worlds the harness's dial can name: the real one, and the dense one.
 const EVERY_WORLD = ["", "loaded"] as const;
@@ -157,7 +157,7 @@ export function followsQuery(world: string = currentWorld()) {
   return {
     queryKey: [...FOLLOWS_KEY, world],
     queryFn: async () =>
-      read<Follow[]>("/api/acquisition/followed", new URLSearchParams(world ? { scenario: world } : {})),
+      read<Follow[]>("/api/v1/acquisition/followed", new URLSearchParams(world ? { scenario: world } : {})),
   };
 }
 
@@ -176,9 +176,9 @@ export function followsQuery(world: string = currentWorld()) {
  * the cache holds one answer whichever of the two asked first.
  */
 export const incompleteShowsQuery = {
-  queryKey: ["/api/library/incomplete"],
+  queryKey: ["/api/v1/library/incomplete"],
   queryFn: async () =>
-    read<Schemas["IncompleteShow"][]>("/api/library/incomplete"),
+    read<Schemas["IncompleteShow"][]>("/api/v1/library/incomplete"),
 };
 
 /** What the scheduler answers about the acquisition engine: its cadence. */
@@ -186,8 +186,8 @@ export type AcquisitionStatus = { cadence: string; nextSearch: string | null };
 
 /** The scheduler's answer, one key for the cadence line and the follow's sheet. */
 export const acquisitionStatusQuery = {
-  queryKey: ["/api/acquisition/status"],
-  queryFn: () => read<AcquisitionStatus>("/api/acquisition/status"),
+  queryKey: ["/api/v1/acquisition/status"],
+  queryFn: () => read<AcquisitionStatus>("/api/v1/acquisition/status"),
 };
 
 /**
@@ -274,13 +274,13 @@ export function installFollowActions(queryClient: QueryClient): void {
       const before = held();
       write(before.map((follow) =>
         follow.title === title ? { ...follow, st: status } : follow));
-      return settle(send("PATCH", `/api/acquisition/followed/${encodeURIComponent(title)}`,
+      return settle(send("PATCH", `/api/v1/acquisition/followed/${encodeURIComponent(title)}`,
                          { status }), before);
     },
     remove: (title) => {
       const before = held();
       write(before.filter((follow) => follow.title !== title));
-      return settle(send("DELETE", `/api/acquisition/followed/${encodeURIComponent(title)}`), before);
+      return settle(send("DELETE", `/api/v1/acquisition/followed/${encodeURIComponent(title)}`), before);
     },
     // PUTTING A REMOVED FOLLOW BACK IS NOT ADDING ONE. `add` posts a title and
     // a kind, which is all a NEW follow has; a restored one has a year, a date
@@ -295,7 +295,7 @@ export function installFollowActions(queryClient: QueryClient): void {
       const before = held();
       write([follow as Follow, ...before]);
       void send("POST",
-                `/api/acquisition/followed/${encodeURIComponent(follow.title)}/restore`)
+                `/api/v1/acquisition/followed/${encodeURIComponent(follow.title)}/restore`)
         .catch((refusal) => { write(before); throw refusal; })
         .then((outcome) => { if (outcome !== HELD) refresh(); },
               () => { refresh(); });
@@ -319,7 +319,7 @@ export function installFollowActions(queryClient: QueryClient): void {
       // title against what it serves otherwise, and refuses a create it can
       // identify from neither (B-366). A provider identifier the contract can
       // carry is a NUMBER, so a title-shaped one (imdb) is not the one sent.
-      return send("POST", "/api/acquisition/followed", {
+      return send("POST", "/api/v1/acquisition/followed", {
         title: follow.title, kind: follow.kind, ...sentIdentity(follow.ids),
       })
         .then((outcome) => {

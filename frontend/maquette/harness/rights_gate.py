@@ -129,7 +129,7 @@ async def main():
           const ask = window.fetch;
           window.__heldFetch = ask;
           window.fetch = async (...asked) => {
-            if (String(asked[0]?.url ?? asked[0]).includes('/api/auth/me'))
+            if (String(asked[0]?.url ?? asked[0]).includes('/api/v1/auth/me'))
               await new Promise((done) => setTimeout(done, 800));
             return ask(...asked);
           };}""")

@@ -14,8 +14,8 @@ import { HELD, send, sharedQueryClient } from "../../lib/query-client";
 import { panel } from "../../lib/shell-doors";
 
 /** The reads a lever moves, so what is on screen follows what was asked. */
-const PIPELINE = ["/api/pipeline/status"];
-const LOCKS = ["/api/maintenance/locks"];
+const PIPELINE = ["/api/v1/pipeline/status"];
+const LOCKS = ["/api/v1/maintenance/locks"];
 
 /** What the automatic trigger's control carries when it would turn it on. */
 const ON = "on";
@@ -37,11 +37,11 @@ async function ask(address: string, body?: unknown): Promise<void> {
 }
 
 registerVerb("pipeline-pause", () => {
-  void ask("/api/pipeline/pause");
+  void ask("/api/v1/pipeline/pause");
 });
 
 registerVerb("pipeline-resume", () => {
-  void ask("/api/pipeline/resume");
+  void ask("/api/v1/pipeline/resume");
 });
 
 // THE VALUE SAYS WHICH WAY, and the control carries it: a verb that read the
@@ -49,7 +49,7 @@ registerVerb("pipeline-resume", () => {
 // about to change. The markup says what the press MEANS; the server says what
 // is true afterwards.
 registerVerb("watcher", (value) => {
-  void ask("/api/pipeline/watcher", { enabled: value === ON });
+  void ask("/api/v1/pipeline/watcher", { enabled: value === ON });
 });
 
 // THE BOUND IS A PATH, NOT A CONTROL (the operator's ruling): a setting is

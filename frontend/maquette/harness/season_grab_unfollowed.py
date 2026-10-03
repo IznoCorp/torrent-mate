@@ -4,7 +4,7 @@ RE-AIMED: the fixture's holes and the count a season's ask answers are `window._
 the seed the layer counts from, since the engine's season table (its copy) died.
 
 RE-AIMED: the incomplete shows are the served answer in the query cache
-(`["/api/library/incomplete"]`), since the engine's copy died.
+(`["/api/v1/library/incomplete"]`), since the engine's copy died.
 
 THE PREMISE THIS RULE REFUSES was written in the code as a comment: « the panel
 is only ever drawn for [a follow] ». It was false. A card in the library's
@@ -179,7 +179,7 @@ FOLLOWS = """()=>Object.fromEntries((window.__followActions?.all() || []).map(
 # from the data, before a finger moves.
 THE_SUBJECTS = """()=>{
   const followed = new Set((window.__followActions?.all() || []).map((one) => one.title));
-  const incomplete = (window.__queries.getQueryData(["/api/library/incomplete"]) || []).map((show) => show.title);
+  const incomplete = (window.__queries.getQueryData(["/api/v1/library/incomplete"]) || []).map((show) => show.title);
   return {
     incomplete: incomplete.length,
     followedAmongThem: incomplete.filter((title) => followed.has(title)),
@@ -328,7 +328,7 @@ SAID = """()=>{
 # A one-off acquisition of one season, in the queue as the layer answers it.
 ONE_OFF = """async ({ title, season }) => {
   const worlds = await Promise.all(['', '?scenario=loaded'].map(async (query) =>
-    (await fetch('/api/acquisition/to-handle' + query)).json()));
+    (await fetch('/api/v1/acquisition/to-handle' + query)).json()));
   const episode = 'S' + String(season).padStart(2, '0');
   return worlds.some((answer) => Object.values(answer).flat().some((card) => card && card.title === title
     && card.requester?.via === 'request' && card.secondaryLine.startsWith(episode)));
@@ -552,7 +552,7 @@ async def main():
                 # the interface drew it at the press, and the refetch the act causes
                 # would read as the act having moved it.
                 await page.evaluate("""()=>window.__queries.refetchQueries(
-                  {queryKey: ["/api/acquisition/followed"]})""")
+                  {queryKey: ["/api/v1/acquisition/followed"]})""")
                 await page.wait_for_timeout(SETTLED)
                 status_before = (await page.evaluate(FOLLOWS)).get(ALL_AIRED)
                 mark = len(await page.evaluate(ANSWERED))

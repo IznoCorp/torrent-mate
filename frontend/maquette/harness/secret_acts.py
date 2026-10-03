@@ -45,7 +45,7 @@ TYPED = "rule-secret-probe"
 
 # WHAT THE LAYER HOLDS about the secrets, read through the query cache: the
 # same answer the panel was built from, rather than a second opinion about it.
-SECRETS = """()=>(window.__queries?.getQueryData(['/api/config/secrets']) || [])
+SECRETS = """()=>(window.__queries?.getQueryData(['/api/v1/config/secrets']) || [])
   .map((one) => ({k: one.key, label: one.label, def: !!one.defined}))"""
 
 DIALOG = """()=>{const dialog = document.querySelector('#dlg');

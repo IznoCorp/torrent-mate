@@ -77,7 +77,7 @@ async def main():
         # existed, so a film ended one rung early still showed — the hold was
         # green over nothing.
         await page.evaluate(
-            "()=>window.__queries?.refetchQueries({ queryKey: ['/api/acquisition/followed'] })")
+            "()=>window.__queries?.refetchQueries({ queryKey: ['/api/v1/acquisition/followed'] })")
         await page.wait_for_timeout(SETTLED)
         before = await page.evaluate(TITLES)
         journal.check(f"while its last rung is pending, « {FILM} » is in « Suivis »",

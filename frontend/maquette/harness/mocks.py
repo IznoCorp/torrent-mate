@@ -163,7 +163,7 @@ async def main():
         )
 
         # ── determinism ─────────────────────────────────────────────────────
-        probe = "/api/acquisition/followed"
+        probe = "/api/v1/acquisition/followed"
         first = await body_of(page, probe)
         second = await body_of(page, probe)
         journal.check(
@@ -202,39 +202,39 @@ async def main():
             # read is the pipeline's own status, which must say what the run did.
             (
                 "runPipeline",
-                ("/api/pipeline/run", "POST", None),
-                ("/api/pipeline/status", "GET", None),
+                ("/api/v1/pipeline/run", "POST", None),
+                ("/api/v1/pipeline/status", "GET", None),
                 lambda first, second: second["state"] == first["state"] != "idle",
             ),
             (
                 "updateConfigurationFile",
-                (f"/api/config/files/{CONFIGURATION_FILE}", "PUT", {}),
-                ("/api/config/files", "GET", None),
+                (f"/api/v1/config/files/{CONFIGURATION_FILE}", "PUT", {}),
+                ("/api/v1/config/files", "GET", None),
                 lambda _first, second: any(entry["changed"] for entry in second),
             ),
             (
                 "resolveDecision",
                 (None, None, None),
-                ("/api/decisions/", "GET", None),
+                ("/api/v1/decisions/", "GET", None),
                 lambda _first, second: any(
                     "choice" in entry for entry in second["settled"]),
             ),
             (
                 "discardStagedMedia",
                 (None, None, None),
-                ("/api/staging/media", "GET", None),
+                ("/api/v1/staging/media", "GET", None),
                 lambda first, second: len(second["stuck"]) == len(first["stuck"]) - 1,
             ),
         ):
             await page.evaluate("() => window.__mocks.reset()")
             if operation == "resolveDecision":
-                pending = json.loads((await body_of(page, "/api/decisions/"))["body"])
+                pending = json.loads((await body_of(page, "/api/v1/decisions/"))["body"])
                 one = pending["pending"][0]
                 candidate = one["candidates"][0]
                 first = pending["settled"]
                 await body_of(
                     page,
-                    f"/api/decisions/{one['folder']}/resolve",
+                    f"/api/v1/decisions/{one['folder']}/resolve",
                     json.dumps({
                         "method": "POST",
                         "body": json.dumps({
@@ -244,11 +244,11 @@ async def main():
                     }),
                 )
             elif operation == "discardStagedMedia":
-                staging = json.loads((await body_of(page, "/api/staging/media"))["body"])
+                staging = json.loads((await body_of(page, "/api/v1/staging/media"))["body"])
                 first = staging
                 await body_of(
                     page,
-                    f"/api/staging/media/{staging['stuck'][0]['title']}/discard",
+                    f"/api/v1/staging/media/{staging['stuck'][0]['title']}/discard",
                     json.dumps({"method": "POST"}),
                 )
             else:
@@ -287,7 +287,7 @@ async def main():
         await page.evaluate("() => window.__mocks.reset()")
 
         # ── an unclaimed route fails, naming itself ─────────────────────────
-        unclaimed = await body_of(page, "/api/nothing-declares-this")
+        unclaimed = await body_of(page, "/api/v1/nothing-declares-this")
         journal.check(
             "a request no route claims fails and names the route",
             unclaimed["status"] == 404
@@ -395,7 +395,7 @@ async def main():
         # host serves no `/api/...` — so a request reaching it would answer the
         # document rather than JSON. Both halves are read: the status, and that
         # the body is JSON rather than a page.
-        answer = await body_of(page, "/api/system/services")
+        answer = await body_of(page, "/api/v1/system/services")
         journal.check(
             "no request reaches the real network",
             answer["status"] == 200 and answer["body"].lstrip().startswith("["),
@@ -414,7 +414,7 @@ async def main():
                  stream.reset();
                  const seen = [];
                  const closed = [];
-                 const socket = new WebSocket("/ws/events");
+                 const socket = new WebSocket("/api/v1/events");
                  socket.addEventListener("message", (e) => seen.push(JSON.parse(e.data)));
                  socket.addEventListener("close", (e) => closed.push(e.code));
                  await new Promise((r) => setTimeout(r, 80));
@@ -440,14 +440,14 @@ async def main():
 
                  // Reconnect having seen the FIRST of the three.
                  const replayed = [];
-                 const second = new WebSocket("/ws/events?last_id=1-0");
+                 const second = new WebSocket("/api/v1/events?last_id=1-0");
                  second.addEventListener("message", (e) => replayed.push(JSON.parse(e.data)));
                  await new Promise((r) => setTimeout(r, 80));
 
                  // A refused session: accepted first, then closed 4401.
                  stream.refuse(true);
                  const order = [];
-                 const third = new WebSocket("/ws/events");
+                 const third = new WebSocket("/api/v1/events");
                  third.addEventListener("open", () => order.push("open"));
                  third.addEventListener("close", (e) => order.push(`close:${e.code}`));
                  await new Promise((r) => setTimeout(r, 80));

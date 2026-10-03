@@ -17,7 +17,7 @@ import {
 } from "../../ui/variants";
 
 /** The preview operation's address. */
-const PREVIEW_PATH = "/api/acquisition/ranking/preview";
+const PREVIEW_PATH = "/api/v1/acquisition/ranking/preview";
 /** The file's key for the seeders under which a release is excluded — the engine's spelling. */
 const FILE_MINIMUM_KEY = "min_seeders";
 /** The engine's own minimum when the file sets none (`RankingConfig.min_seeders`). */

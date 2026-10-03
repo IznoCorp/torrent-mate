@@ -5,7 +5,7 @@ with their failure words, R119 reads the sheet's parts IN FLIGHT and R63 the
 library rows' synopsis — no rule read DOIT-11's fields on the sheet AT REST.
 
 WHAT IS READ, on each sheet named below, every field against the sheet the layer
-answered (`/api/media/{provider}/{id}` in the query cache) — the field, or the
+answered (`/api/v1/media/{provider}/{id}` in the query cache) — the field, or the
 words that say it is missing, never nothing:
 
   - title, year, synopsis, trailer — every medium;
@@ -27,7 +27,7 @@ STATES = ("mediasheet-movie", "mediasheet-series", "mediasheet-no-trailer", "med
 READ = """(words) => {
   const screen = document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
   const [, , provider, id] = location.pathname.split('/');
-  const sheet = window.__queries.getQueryData(['/api/media', provider, decodeURIComponent(id ?? '')]) ?? null;
+  const sheet = window.__queries.getQueryData(['/api/v1/media', provider, decodeURIComponent(id ?? '')]) ?? null;
   const text = (node) => node?.textContent.replace(/\\s+/g, ' ').trim() ?? null;
   const synopsisHeading = [...(screen?.querySelectorAll('[data-part="heading"]') ?? [])]
     .find((heading) => heading.textContent.trim() === words.synopsis);

@@ -7,13 +7,13 @@ identified now reads on EACH medium's card, from its own journey.
 WHAT IS READ, on « En cours » (`acq-card-rungs`), for the card the layer lays at
 « identifié » running (« Furious »):
 
-  1. the medium's own journey read (`/api/acquisition/journeys/{subject}`) holds
+  1. the medium's own journey read (`/api/v1/acquisition/journeys/{subject}`) holds
      the rung « identifié » in the state `now`;
   2. its card's chip names that rung, in the running tone — never done, never
      blocked;
   3. its journey sheet draws the same rung running, with the running rung's
      words (« en cours depuis … »);
-  4. nothing asks a global activity: no call to `/api/decisions/activity`, and
+  4. nothing asks a global activity: no call to `/api/v1/decisions/activity`, and
      no shipped module names it.
 """
 import asyncio
@@ -35,7 +35,7 @@ CARD = """(subject) => {
     .find((one) => one.querySelector('[data-part="card/title"]')?.textContent.trim() === subject);
   const chips = [...(card?.querySelectorAll('[data-part="chip"]') ?? [])]
     .map((chip) => ({label: chip.textContent.trim(), tone: chip.dataset.tone}));
-  const stages = window.__queries.getQueryData(['/api/acquisition/journeys', subject]) ?? null;
+  const stages = window.__queries.getQueryData(['/api/v1/acquisition/journeys', subject]) ?? null;
   return {card: !!card, chips, stages};
 }"""
 
@@ -59,8 +59,8 @@ async def main():
         page.on("pageerror", lambda error: errors.append(str(error)))
 
         await read_at(page, "acq-card-rungs", "() => true")
-        await page.evaluate("(subject) => window.__queries.fetchQuery({queryKey: ['/api/acquisition/journeys', subject], "
-                            "queryFn: () => fetch('/api/acquisition/journeys/' + encodeURIComponent(subject))"
+        await page.evaluate("(subject) => window.__queries.fetchQuery({queryKey: ['/api/v1/acquisition/journeys', subject], "
+                            "queryFn: () => fetch('/api/v1/acquisition/journeys/' + encodeURIComponent(subject))"
                             ".then((answer) => answer.json())})", SUBJECT)
         await page.wait_for_timeout(ACTED)
         seen = await page.evaluate(CARD, SUBJECT)

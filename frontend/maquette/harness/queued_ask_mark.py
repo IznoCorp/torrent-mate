@@ -24,7 +24,7 @@ rather than blurred:
     row's own centre, and the grab is the button he presses. Nothing here calls
     a producer or a verb directly, so what is measured is the path and not just
     the drawing at the end of it.
-  · **The BUSY-NESS is arranged**, through `/api/pipeline/run` and the store's
+  · **The BUSY-NESS is arranged**, through `/api/v1/pipeline/run` and the store's
     own `pipe`, because `window.__go` re-seeds the layer: a pipeline started
     BEFORE the state is driven is idle again by the time the act lands. R125
     paid for that ordering.
@@ -86,7 +86,7 @@ FOLLOWS_STATE = "acq-follows-list"
 # a reading already discarded. R125 paid for that ordering; this rule inherits
 # it rather than re-discovering it.
 RUN_THE_PIPELINE = """async()=>{
-  const answer = await window.fetch("/api/pipeline/run", {method: "POST"});
+  const answer = await window.fetch("/api/v1/pipeline/run", {method: "POST"});
   const body = await answer.json().catch(() => ({}));
   return body.state || "";}"""
 

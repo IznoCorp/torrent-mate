@@ -1682,7 +1682,7 @@
           "normal": "A → Z",
           "inverse": "Z → A"
         },
-        "manque": {
+        "missing": {
           "normal": "Les plus incomplets",
           "inverse": "Les plus complets"
         }

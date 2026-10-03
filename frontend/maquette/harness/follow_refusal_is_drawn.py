@@ -75,7 +75,7 @@ SUCCESS_WORDS = [SENTENCES["added"].split(" » ")[-1].split(" —")[0],
                  SENTENCES["followed"].split(" » ")[-1].split(" —")[0]]
 
 CREATE = """async(body)=>{
-  const answer = await fetch("/api/acquisition/followed", {
+  const answer = await fetch("/api/v1/acquisition/followed", {
     method: "POST", headers: {"Content-Type": "application/json"},
     body: JSON.stringify(body)});
   let payload = null;
@@ -84,7 +84,7 @@ CREATE = """async(body)=>{
 }"""
 
 FOLLOWS = """async()=>{
-  const answer = await fetch("/api/acquisition/followed");
+  const answer = await fetch("/api/v1/acquisition/followed");
   const body = await answer.json();
   const rows = Array.isArray(body) ? body : (body.items ?? body.follows ?? []);
   return rows.map((row) => ({title: row.title, ids: row.ids}));

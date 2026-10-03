@@ -45,7 +45,7 @@ REFERENCE = """() => {
   return card ? card.className.split(/\\s+/).filter(name => name && name !== 'fresh').sort().join(' ') : null;
 }"""
 CARDS = """() => {
-  const queue = window.__queries?.getQueryData(['/api/acquisition/to-handle', 'loaded']) || {};
+  const queue = window.__queries?.getQueryData(['/api/v1/acquisition/to-handle', 'loaded']) || {};
   const pad = (value) => String(value).padStart(2, '0');
   const keyOf = (one) => one.season == null ? one.title
     : `${one.title}|S${pad(one.season)}${one.episode == null ? '' : 'E' + pad(one.episode)}`;

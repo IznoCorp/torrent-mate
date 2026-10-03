@@ -207,9 +207,9 @@ PANEL_SUBJECTS = {
     "journey": ("()=>{const flying=(window.__queue?.().inFlight||[])[0];"
                 " if (flying && flying.title) return flying.title;"
                 " return ((window.__followActions?.all()||[])[0]||{}).title||'';}"),
-    "setting": ("async()=>{const topics=await (await fetch('/api/config/schema')).json();"
+    "setting": ("async()=>{const topics=await (await fetch('/api/v1/config/schema')).json();"
                 " const s=((topics[0]||{}).settings||[])[0]; return s?s.file+':'+s.key:'';}"),
-    "action": "async()=>((await (await fetch('/api/maintenance/actions')).json())[0]||{}).id||''",
+    "action": "async()=>((await (await fetch('/api/v1/maintenance/actions')).json())[0]||{}).id||''",
 }
 
 # One concrete value per `$segment` a screen route carries, so the address

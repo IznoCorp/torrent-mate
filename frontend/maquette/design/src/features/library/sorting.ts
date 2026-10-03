@@ -25,7 +25,7 @@ import i18next from "i18next";
  * resource bundle would make the drawing depend on how a translator's file
  * happens to be written.
  */
-export const SORT_KEYS = ["recent", "az", "manque"] as const;
+export const SORT_KEYS = ["recent", "az", "missing"] as const;
 
 /** The two directions every sort key offers. */
 export const SORT_DIRECTIONS = ["normal", "inverse"] as const;

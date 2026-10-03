@@ -58,8 +58,8 @@ BLOCKED_REASON = next(card["reason"] for card in json.loads((SOURCE / "mocks/see
 
 # Re-read from the layer: no surface on « En cours » observes the decisions read.
 PENDING = """async () => {
-  await window.__queries.refetchQueries({queryKey: ['/api/decisions/'], type: 'all'});
-  return (window.__queries.getQueryData(['/api/decisions/'])?.pending ?? []).map((one) => one.folder);
+  await window.__queries.refetchQueries({queryKey: ['/api/v1/decisions/'], type: 'all'});
+  return (window.__queries.getQueryData(['/api/v1/decisions/'])?.pending ?? []).map((one) => one.folder);
 }"""
 
 BLOCK = """() => {

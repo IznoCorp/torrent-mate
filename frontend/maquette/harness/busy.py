@@ -263,7 +263,7 @@ async def main():
         await page.wait_for_timeout(SETTLED)
         await page.evaluate("""()=>window.__pipeline("running")""")
         await page.wait_for_timeout(SETTLED)
-        running = await page.evaluate("async ()=>(await (await fetch('/api/pipeline/status')).json()).state")
+        running = await page.evaluate("async ()=>(await (await fetch('/api/v1/pipeline/status')).json()).state")
         journal.check(
             "the scenario really has the pipeline busy, so this walk measures "
             "the clause and not the actions",
@@ -329,7 +329,7 @@ async def main():
         journal.check(
             "the follows list has the pipeline busy too, so this half measures "
             "the clause and not the page",
-            await page.evaluate("async ()=>(await (await fetch('/api/pipeline/status')).json()).state") == "running")
+            await page.evaluate("async ()=>(await (await fetch('/api/v1/pipeline/status')).json()).state") == "running")
 
         drawn = await page.evaluate(
             """()=>[...document.querySelectorAll('[data-panel]')].map(

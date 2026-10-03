@@ -15,10 +15,10 @@ export const settingsLiveRules: readonly LiveRule[] = [];
 export const settingsLiveExemptions: LiveExemptions = {
   types: [],
   keys: [
-    "/api/config/schema",
-    "/api/config/secrets",
-    "/api/config/status",
-    "/api/config/files/ranking.json5",
+    "/api/v1/config/schema",
+    "/api/v1/config/secrets",
+    "/api/v1/config/status",
+    "/api/v1/config/files/ranking.json5",
   ],
   because:
     "the configuration changes when someone edits it, and the interface that "

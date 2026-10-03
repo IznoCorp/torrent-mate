@@ -108,7 +108,7 @@ export function candidateSheet(provider: string, identifier: string): unknown {
     return {
       title: candidate.title,
       kind: decision.kind,
-      year: candidate.year == null ? "" : String(candidate.year),
+      year: yearOf(candidate.year),
       rating: null,
       genres: null,
       runtime: null,
@@ -167,6 +167,21 @@ export function knownMedium(
 }
 
 /**
+ * The year a sheet answers: a number, or null when nobody knows it.
+ *
+ * THE SEEDS WRITE IT AS TEXT, as the fixture they were taken from does, and the
+ * contract's `MediaSheet.year` is an integer like every other year it carries —
+ * so the answer converts, and the seeds stay what they were taken from.
+ *
+ * @param written The year as a seed or a candidate holds it.
+ * @returns The year, or null.
+ */
+function yearOf(written: unknown): number | null {
+  if (typeof written === "number") return written;
+  return typeof written === "string" && /^\d+$/.test(written) ? Number(written) : null;
+}
+
+/**
  * Answers one media sheet, composed from the families that hold it.
  *
  * @param request The request.
@@ -193,6 +208,7 @@ function sheet(request: MockRequest): unknown {
   const deleted = titles.some((title) => mockState().deletedTitles.includes(title));
   return {
     ...found,
+    year: yearOf(found.year),
     ...(deleted ? { owned: false } : {}),
     // AND THE CONTRACT'S OWN « UNKNOWN ». `MediaSheetResponse.ownership` is
     // required and NULLABLE — null « when the library database is unavailable »
@@ -346,11 +362,11 @@ export function seasonsAnswerFor(title: string, ids: Record<string, unknown> | u
 /** Every route this subject answers. */
 export function mediaRoutes(): MockRoute[] {
   return [
-    route("readMediaSheet", GET, "/api/media/{provider}/{providerId}", sheet),
+    route("readMediaSheet", GET, "/media/{provider}/{providerId}", sheet),
     route(
       "readMediaSeasons",
       GET,
-      "/api/media/{provider}/{providerId}/seasons",
+      "/media/{provider}/{providerId}/seasons",
       (request) => {
         const titles = titlesFor(
           request.parameters.provider,
@@ -370,7 +386,7 @@ export function mediaRoutes(): MockRoute[] {
     route(
       "rescrapeMedia",
       POST,
-      "/api/media/{provider}/{providerId}/rescrape",
+      "/media/{provider}/{providerId}/rescrape",
       (request) => {
         const titles = titlesFor(
           request.parameters.provider,

@@ -17,11 +17,11 @@ const IDLE: PipelineState = "idle";
 /** Every route this subject answers. */
 export function maintenanceRoutes(): MockRoute[] {
   return [
-    route("readMaintenanceActions", GET, "/api/maintenance/actions", () => MAINTENANCE_ACTIONS),
+    route("readMaintenanceActions", GET, "/maintenance/actions", () => MAINTENANCE_ACTIONS),
     route(
       "runMaintenanceAction",
       POST,
-      "/api/maintenance/actions/{actionId}/run",
+      "/maintenance/actions/{actionId}/run",
       (request) => {
         const held = mockState();
         const known = MAINTENANCE_ACTIONS.find(
@@ -41,6 +41,6 @@ export function maintenanceRoutes(): MockRoute[] {
         return { state: held.pipelineState, uid: null };
       },
     ),
-    route("readDeletionJournal", GET, "/api/maintenance/destructive-log", () => DELETION_JOURNAL),
+    route("readDeletionJournal", GET, "/maintenance/destructive-log", () => DELETION_JOURNAL),
   ];
 }

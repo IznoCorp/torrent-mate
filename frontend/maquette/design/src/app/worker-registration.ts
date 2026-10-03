@@ -6,7 +6,7 @@
 // against the built one; a new worker asked to take over, and ONE reload. Two
 // things change here, and the second was got WRONG the first time.
 //
-//   THE SIGNAL — `/build.json` and not `/api/version`, for the reason written
+//   THE SIGNAL — `/build.json` and not `/api/v1/version`, for the reason written
 //       at `SERVED_BUILD` below.
 //   THE ORDER — and this is the correction. The first version read
 //       `registration.waiting` straight after `await registration.update()` and
@@ -42,7 +42,7 @@ import { askTheHost } from "../lib/platform-network";
 /** What the running bundle was built from. The build injects it. */
 declare const __BUILD_ID__: string;
 
-// WHERE THE HOST PUBLISHES WHAT IT IS SERVING, and why it is not `/api/version`
+// WHERE THE HOST PUBLISHES WHAT IT IS SERVING, and why it is not `/api/v1/version`
 // as production has it. The mock layer replaces the page's `fetch` and answers
 // only the maquette's contract, so a poll under `/api/` would be answered by a
 // fixture and could never fail — a check that cannot fail is not a check. The

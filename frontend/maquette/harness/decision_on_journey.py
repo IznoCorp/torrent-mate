@@ -7,7 +7,7 @@ chosen, among how many candidates, by whom — the operator or the engine — an
 when. A decision left as it was says its own sentence in the choice's place.
 
 WHAT IS READ, every expected word from the ONE settled read the layer answered
-(`/api/decisions/` in the query cache) and from `fr.json`, never retyped:
+(`/api/v1/decisions/` in the query cache) and from `fr.json`, never retyped:
 
   1. `sheet-journey-decision-operator` — the choice (title · PROVIDER id), the
      candidates' count, « vous — <how it was reached> », the date;
@@ -65,7 +65,7 @@ READ = """(subject) => {
   });
   const identified = [...(sheet?.querySelectorAll('[data-part="key-value"]') ?? [])]
     .find((row) => row.querySelector('span')?.textContent.trim() === IDENTIFIED);
-  const answer = window.__queries.getQueryData(['/api/decisions/']);
+  const answer = window.__queries.getQueryData(['/api/v1/decisions/']);
   return {open: !!sheet, block: !!block, rows,
           meta: sheet?.querySelector('[data-part="sheet/meta"]')?.textContent.trim() ?? '',
           identified: identified ? {tone: identified.querySelector('[data-part="status-dot"]')?.dataset.tone,
@@ -155,11 +155,11 @@ async def main():
                       pending["open"] and not pending["block"], str(pending["block"]))
 
         waited = await page.evaluate("""async () => {
-          const pending = window.__queries.getQueryData(['/api/decisions/']).pending.find((one) => one.folder === 'Lucky');
+          const pending = window.__queries.getQueryData(['/api/v1/decisions/']).pending.find((one) => one.folder === 'Lucky');
           const kept = pending.candidates[0];
-          await fetch('/api/decisions/Lucky/resolve', {method: 'POST', headers: {'Content-Type': 'application/json'},
+          await fetch('/api/v1/decisions/Lucky/resolve', {method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({provider: kept.provider, providerId: kept.id})});
-          await window.__queries.refetchQueries({queryKey: ['/api/decisions/']});
+          await window.__queries.refetchQueries({queryKey: ['/api/v1/decisions/']});
           window.__panel.close(); window.__panel.produce('journey', 'Lucky');
           return {when: pending.when};
         }""")

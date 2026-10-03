@@ -301,7 +301,7 @@ async def hold_one_entry_one_owner(journal, browser, warmed):
         # which died when the screen began reading the payload; the count is
         # unchanged.
         warmed_source = await page.evaluate("""async ()=>{
-          const answer = await fetch('/api/media/tmdb/1284465');
+          const answer = await fetch('/api/v1/media/tmdb/1284465');
           const sheet = answer.ok ? await answer.json() : null;
           const source = (sheet && sheet.hero) || null;
           if (!source) return null;
@@ -496,9 +496,9 @@ MEDIA_TITLE = '[data-part="hero/title"]'
 
 READ_PRIMING = """()=>{
   // THE SHEET'S OWN QUERY, not the seasons one beside it: both keys begin
-  // '/api/media', and `find` took whichever came first.
+  // '/api/v1/media', and `find` took whichever came first.
   const sheet = window.__queries.getQueryCache().getAll()
-    .find((query) => query.queryKey[0] === '/api/media'
+    .find((query) => query.queryKey[0] === '/api/v1/media'
                      && query.queryKey.length === 3);
   // THE TITLE, AND ONLY PRIMING DRAWS IT BEFORE THE READ LANDS. RE-AIMED, said out
   // loud: this read the META line, because the title was

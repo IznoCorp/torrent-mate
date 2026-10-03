@@ -75,7 +75,7 @@ JOURNEY_LINES = """() => [...document.querySelectorAll('#sheet[data-open] [data-
   .map(row => row.textContent.replace(/\\s+/g, ' ').trim())"""
 # The Torrents tab, asked for as a page's dials are: the downloads read again.
 TO_TORRENTS = """() => {
-  window.__queries?.removeQueries({queryKey: ['/api/acquisition/downloads']});
+  window.__queries?.removeQueries({queryKey: ['/api/v1/acquisition/downloads']});
   window.applyState({page: 'trackers', trackersTab: 'torrents', phase: 'ready'});
 }"""
 TORRENT = """(name) => {

@@ -42,7 +42,7 @@ describe("an owned medium", () => {
 
   it("is found by the library's search", () => {
     const missing = OWNED.filter(({ title }) => {
-      const page = get<{ items: { title: string }[] }>("/api/library/items", { query: title });
+      const page = get<{ items: { title: string }[] }>("/library/items", { query: title });
       return !page.items.some((row) => baseTitle(row.title) === title);
     });
     expect(missing.map((one) => one.title)).toEqual([]);
@@ -53,7 +53,7 @@ describe("an owned medium", () => {
     const owned = new Set(OWNED.map((one) => one.title));
     const refused = FOLLOWS
       .filter((follow) => owned.has(follow.title))
-      .filter((follow) => !get<{ inLibrary: boolean }>("/api/library/membership", { title: follow.title }).inLibrary);
+      .filter((follow) => !get<{ inLibrary: boolean }>("/library/membership", { title: follow.title }).inLibrary);
     expect(refused.map((one) => one.title)).toEqual([]);
   });
 });

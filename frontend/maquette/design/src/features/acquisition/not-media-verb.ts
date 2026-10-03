@@ -21,10 +21,10 @@ import type { Schemas } from "../../lib/contract-schemas";
 type Destination = Schemas["StagingDestination"];
 
 /** Where the destinations are read, and cached. */
-const DESTINATION_READ = ["/api/staging/destinations"];
+const DESTINATION_READ = ["/api/v1/staging/destinations"];
 
 /** The two reads a reclassified folder leaves: the queue, and the staging area. */
-const LEFT = [["/api/acquisition/to-handle"], ["/api/staging/media"]];
+const LEFT = [["/api/v1/acquisition/to-handle"], ["/api/v1/staging/media"]];
 
 // Between the folder and the destination in a choice's target: a folder name
 // is the operator's disk, a destination a configured directory name.
@@ -69,7 +69,7 @@ function choicePanel(folder?: string): PanelDescriptor | null {
  * @param destination The destination's name.
  */
 async function reclassify(folder: string, destination: string): Promise<void> {
-  const path = `/api/staging/media/${encodeURIComponent(folder)}/reclassify`;
+  const path = `/api/v1/staging/media/${encodeURIComponent(folder)}/reclassify`;
   const answer = (await send("POST", path, { destination })) as { destination?: string } | undefined;
   await readAgain();
   toast?.show({

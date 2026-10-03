@@ -34,14 +34,14 @@ OWNER = json.loads((SOURCE / "mocks/seeds/account.json").read_text(encoding="utf
 # settings (the operator, 2026-10-03: « tout le monde à le droit de changer les notifications de
 # son propre compte »).
 SESSION = {
-    "POST /api/auth/login", "POST /api/auth/logout", "POST /api/auth/plex",
-    "PUT /api/notifications/preferences/{type}", "POST /api/notifications/devices",
+    "POST /auth/login", "POST /auth/logout", "POST /auth/plex",
+    "PUT /notifications/preferences/{type}", "POST /notifications/devices",
 }
 # The reads F30 gates: Système, Maintenance, the pipeline's record, Trackers, the
 # configuration's own files and secrets.
-GATED_READ = re.compile(r"^GET /api/(system|maintenance|pipeline|trackers|acquisition/(downloads|obligations)"
+GATED_READ = re.compile(r"^GET /(system|maintenance|pipeline|trackers|acquisition/(downloads|obligations)"
                         r"|config/(secrets|files))")
-ACQUISITION_LISTS = ("GET /api/acquisition/followed", "GET /api/acquisition/to-handle")
+ACQUISITION_LISTS = ("GET /acquisition/followed", "GET /acquisition/to-handle")
 MODEL = "lib/rights.ts"
 ROLE_COMPARED = re.compile(r"(\brole\??\.(kind|name|id)|\broleName)\s*[!=]==|[!=]==\s*[\"'](admin|default)[\"']")
 
@@ -55,7 +55,8 @@ FORCE = """async (identity) => {
     // A handler handed an empty body may throw once past the guard: that is
     // not a refusal, and it is not this rule's question.
     try {
-      const answer = await fetch(path, method === 'GET' ? {} : { method, body: '{}' });
+      // The routes are the contract's paths, relative to its server URL.
+      const answer = await fetch('/api/v1' + path, method === 'GET' ? {} : { method, body: '{}' });
       out[line] = answer.status;
     } catch (error) {
       out[line] = 'threw';
@@ -66,9 +67,9 @@ FORCE = """async (identity) => {
 
 REST = """async () => {
   window.__go('profile');
-  const account = await (await fetch('/api/auth/me')).json();
-  const follows = await (await fetch('/api/acquisition/followed')).json();
-  const queue = await (await fetch('/api/acquisition/to-handle')).json();
+  const account = await (await fetch('/api/v1/auth/me')).json();
+  const follows = await (await fetch('/api/v1/acquisition/followed')).json();
+  const queue = await (await fetch('/api/v1/acquisition/to-handle')).json();
   const cards = [...follows, ...Object.values(queue).flat()];
   return { account, requesters: cards.map((card) => (card.requesters || []).map((one) => one.id).join(',')) };
 }"""

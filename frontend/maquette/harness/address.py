@@ -173,7 +173,7 @@ async def main():
         # left it; re-aimed at the answer the page draws from, which is what
         # « invented » is measured against.
         real_one = await pg.evaluate(
-            "()=>window.__queries.getQueryData(['/api/auth/me'])?.email ?? null")
+            "()=>window.__queries.getQueryData(['/api/v1/auth/me'])?.email ?? null")
         # NOT OVER THE EMPTY SET (B-542): a surface drawing no address at all
         # held « no other account » trivially.
         journal.check("no other account is invented to fill the screen",

@@ -82,15 +82,15 @@ CHOICES = """() => { const sheet = document.querySelector('#sheet');
     text: choice.querySelector('.lb')?.firstChild?.textContent.trim() ?? '',
     hint: choice.querySelector('small')?.textContent.trim() ?? '',
     checked: choice.getAttribute('aria-checked') === 'true'})); }"""
-CATEGORIES = """() => window.__queries.getQueryData(['/api/library/categories']) ?? null"""
+CATEGORIES = """() => window.__queries.getQueryData(['/api/v1/library/categories']) ?? null"""
 LIBRARY_TITLES = """() => [...document.querySelectorAll('#libitems [data-part="card/title"], #libitems [data-part="tile"] [data-part="tile/title"]')]
   .map((element) => element.textContent.trim())"""
-LIBRARY_ROWS = """() => (window.__queries.getQueryCache().getAll().filter(q => q.queryKey[0] === '/api/library/items')
+LIBRARY_ROWS = """() => (window.__queries.getQueryCache().getAll().filter(q => q.queryKey[0] === '/api/v1/library/items')
   .sort((l, r) => r.state.dataUpdatedAt - l.state.dataUpdatedAt)[0]?.state.data?.pages ?? []).flatMap(p => p.items)
   .map(item => ({title: item.title, category: item.category}))"""
 FOLLOW_TITLES = """() => [...document.querySelectorAll('#view [data-region="acquisition/body"] [data-part="card/title"]')]
   .filter(title => !title.closest('[data-part="section/paused"]')).map(title => title.textContent.trim())"""
-FOLLOWS = """() => window.__queries.getQueryData(['/api/acquisition/followed', '']) ?? null"""
+FOLLOWS = """() => window.__queries.getQueryData(['/api/v1/acquisition/followed', '']) ?? null"""
 
 
 async def tap(page, selector):
@@ -320,7 +320,7 @@ async def narrow(journal, browser):
     """Hold 9: at 320 px, the two pills are whole beside the view switch."""
     context, page = await open_page(browser, **NARROW)
     for name, state, dials in (
-        ("Médiathèque", "lib-list", "{sortKey: 'manque', sortReversed: false}"),
+        ("Médiathèque", "lib-list", "{sortKey: 'missing', sortReversed: false}"),
         ("Suivis", "follows-sort-next-release", "{}"),
     ):
         await go(page, state)

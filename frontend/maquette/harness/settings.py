@@ -98,10 +98,10 @@ async def main():
 
         # ── every real setting belongs to exactly one rubric ───────────────
         coverage = await pg.evaluate("""()=>{
-          const all = window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.settings.map(x => r.f + ':' + x.file + ':' + x.key));
-          const keys = window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.settings.map(x => x.file + ':' + x.key));
+          const all = window.__queries.getQueryData(['/api/v1/config/schema']).flatMap(r => r.settings.map(x => r.f + ':' + x.file + ':' + x.key));
+          const keys = window.__queries.getQueryData(['/api/v1/config/schema']).flatMap(r => r.settings.map(x => x.file + ':' + x.key));
           return {total: keys.length, distinct: new Set(keys).size,
-                  files: [...new Set(window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.fileNames))].sort()};}""")
+                  files: [...new Set(window.__queries.getQueryData(['/api/v1/config/schema']).flatMap(r => r.fileNames))].sort()};}""")
         check("a setting belongs to one topic and no other",
               coverage["total"] == coverage["distinct"],
               f"{coverage['total']} settings, {coverage['distinct']} distinct")
@@ -355,12 +355,12 @@ async def main():
         await pg.wait_for_timeout(400)
         # RE-AIMED BY THE SETTINGS MICRO-WAVE (B-343). « Cancelling leaves the
         # restart OWED » is the property, untouched; the fact is the LAYER's
-        # now — `/api/config/status` — because on the engine's own object
+        # now — `/api/v1/config/status` — because on the engine's own object
         # nothing re-rendered the banner and B-300 could not be reached through
         # a save at all. Read from the old place, this hold would have gone
         # green on `undefined` and said nothing.
         after_cancel = await pg.evaluate("""()=>({
-          owed: !!(window.__queries.getQueryData(['/api/config/status'])
+          owed: !!(window.__queries.getQueryData(['/api/v1/config/status'])
             || {}).restartRequired,
           said: (document.querySelector('#toast') || {}).textContent || ''})""")
         check("cancelling leaves the restart OWED (B-300)",
@@ -378,7 +378,7 @@ async def main():
         await pg.wait_for_timeout(500)
         # RE-AIMED with the hold above, and for the same reason.
         after_confirm = await pg.evaluate("""()=>({
-          owed: !!(window.__queries.getQueryData(['/api/config/status'])
+          owed: !!(window.__queries.getQueryData(['/api/v1/config/status'])
             || {}).restartRequired,
           said: (document.querySelector('#toast') || {}).textContent || ''})""")
         check("confirming restarts (B-300)", not after_confirm["owed"],
@@ -441,7 +441,7 @@ async def main():
         # the explanation in the panel, where a sentence has room.
         english = await pg.evaluate("""()=>{
           const words = /\\b(the|of|for|before|when|with|and|from|number|seconds|days|file|path|used|which|that)\\b/i;
-          return window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.settings)
+          return window.__queries.getQueryData(['/api/v1/config/schema']).flatMap(r => r.settings)
             .map((x) => window.__settingLabels.label(x)).filter(t => words.test(t));}""")
         check("no setting is labelled in English",
               not english, f"{len(english)}: {english[:3]}")
@@ -451,7 +451,7 @@ async def main():
         # every client owns one, and the only thing telling them apart was the
         # machine path — which is there to be read AFTER one has found the row,
         # not to find it.
-        collisions = await pg.evaluate("""()=>window.__queries.getQueryData(['/api/config/schema']).flatMap(r => {
+        collisions = await pg.evaluate("""()=>window.__queries.getQueryData(['/api/v1/config/schema']).flatMap(r => {
           const by = {};
           for (const x of r.settings) (by[window.__settingLabels.label(x)] ||= []).push(x.key);
           return Object.entries(by).filter(([, v]) => v.length > 1)
@@ -492,7 +492,7 @@ async def main():
               if probe["caught"] else "the detector is dead — the hold below "
               "would pass on nothing")
         unnamed_subjects = await pg.evaluate("""()=>{
-          window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.settings).forEach((x) => window.__settingLabels.label(x));
+          window.__queries.getQueryData(['/api/v1/config/schema']).flatMap(r => r.settings).forEach((x) => window.__settingLabels.label(x));
           return [...window.__settingLabels.unnamedSubjects];}""")
         check("every setting subject carries a written name", not unnamed_subjects,
               str(unnamed_subjects))
@@ -525,7 +525,7 @@ async def main():
             "schedule": '[data-part="field/input"][type=text]',
         }
         seen = await pg.evaluate(
-            """()=>[...new Set(window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.settings).map(x => x.type))].sort()""")
+            """()=>[...new Set(window.__queries.getQueryData(['/api/v1/config/schema']).flatMap(r => r.settings).map(x => x.type))].sort()""")
         check("every setting carries the type of its value",
               set(seen) == set(expected), str(sorted(seen)))
 
@@ -563,7 +563,7 @@ async def main():
               filed == [[42, "number"]], str(filed))
 
         original = await pg.evaluate(
-            """()=>String(window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.settings).find(x => x.type === 'number').raw)""")
+            """()=>String(window.__queries.getQueryData(['/api/v1/config/schema']).flatMap(r => r.settings).find(x => x.type === 'number').raw)""")
         await pg.fill('#sheetin [data-part="field/input"]', original)
         await pg.evaluate("""()=>document.querySelector('#sheetin [data-part="field/input"]')"""
                           ".dispatchEvent(new Event('change'))")
@@ -592,9 +592,9 @@ async def main():
               f"aria-checked {switch_before} → {switch_after}")
 
         await pg.evaluate("""()=>{
-          const x = window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.settings)
+          const x = window.__queries.getQueryData(['/api/v1/config/schema']).flatMap(r => r.settings)
             .find(y => y.type === 'list' && (y.raw || []).length > 1);
-          SETTINGS_STATE.topic = window.__queries.getQueryData(['/api/config/schema']).find(r => r.settings.includes(x)).id;
+          SETTINGS_STATE.topic = window.__queries.getQueryData(['/api/v1/config/schema']).find(r => r.settings.includes(x)).id;
           window.__store.touch(); window.__panel.produce("setting", settingId(x));}""")
         await pg.wait_for_timeout(330)
         before = await pg.evaluate("""()=>document.querySelectorAll('#sheetin [data-part="field/list-item"]').length""")
@@ -631,9 +631,9 @@ async def main():
         # not the setting's and files it under the setting's id on the next
         # commit — a setting silently overwritten with another's value.
         open_text = """(n) => {
-          const texts = window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.settings).filter(x => x.type === 'text');
+          const texts = window.__queries.getQueryData(['/api/v1/config/schema']).flatMap(r => r.settings).filter(x => x.type === 'text');
           const x = texts[n];
-          SETTINGS_STATE.topic = window.__queries.getQueryData(['/api/config/schema']).find(r => r.settings.includes(x)).id;
+          SETTINGS_STATE.topic = window.__queries.getQueryData(['/api/v1/config/schema']).find(r => r.settings.includes(x)).id;
           window.__store.touch(); window.__panel.produce("setting", settingId(x));
           return {id: settingId(x), own: String(x.raw ?? '')};}"""
         read_field = """() => {const e = document.querySelector('#sheetin [data-part="field/input"]');

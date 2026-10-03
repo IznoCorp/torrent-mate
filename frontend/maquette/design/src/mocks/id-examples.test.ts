@@ -19,7 +19,7 @@ import type { SearchResults } from "../features/acquisition/types";
  * @returns What the layer answers.
  */
 function search(query: URLSearchParams): SearchResults {
-  const path = "/api/acquisition/search/by-id";
+  const path = "/acquisition/search/by-id";
   const found = resolve(routes(), "GET", path);
   if (found === null) throw new Error(`no route for ${path}`);
   return found.route.handle({ path, parameters: found.parameters ?? {}, query, body: null }) as SearchResults;

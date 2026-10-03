@@ -14,7 +14,7 @@ export const accountLiveRules: readonly LiveRule[] = [];
 /** Why nothing does. */
 export const accountLiveExemptions: LiveExemptions = {
   types: [],
-  keys: ["/api/auth/me"],
+  keys: ["/api/v1/auth/me"],
   because:
     "who is signed in changes when they sign in or out, which is a navigation "
     + "and not an event. A session ENDING does reach the interface — as the "

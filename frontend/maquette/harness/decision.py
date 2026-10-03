@@ -263,7 +263,7 @@ async def main():
         tapped = await pg.evaluate("()=>{const x=document.querySelector('[data-leave]'); if(!x) return false; x.click(); return true;}")
         await pg.wait_for_timeout(700)
         after = await pg.evaluate(queued)
-        aside = await pg.evaluate("""()=>{const a=window.__queries?.getQueryData(["/api/acquisition/to-handle",""])||{};
+        aside = await pg.evaluate("""()=>{const a=window.__queries?.getQueryData(["/api/v1/acquisition/to-handle",""])||{};
           const card=(a.blocked||[]).find(c=>c.title==='Lucky');
           return !!card && (card.ladder||[]).some(r=>r.state==='aside');}""")
         check("« Laisser tel quel » keeps the folder queued, set aside",

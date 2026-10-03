@@ -80,7 +80,7 @@ function NewAccount({ roles }: { roles: Schemas["Role"][] }): ReactElement {
       return;
     }
     try {
-      await send("POST", "/api/accounts", {
+      await send("POST", "/api/v1/accounts", {
         name: String(fields.get("name") ?? "").trim(),
         email,
         role: String(fields.get("role") ?? ""),

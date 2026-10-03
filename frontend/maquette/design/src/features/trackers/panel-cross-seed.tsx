@@ -285,7 +285,7 @@ function CrossSeedBlock({ block: posed }: { block: { type: "crossSeed" } & Panel
   const control = useRights().holds("trackers.control");
   const held = entry?.crossSeed;
   const quota = downloads?.crossSeedQuota;
-  // THE PAIR'S OWN TRACKER SWITCH (§ 17 point 1): the same `/api/trackers` read
+  // THE PAIR'S OWN TRACKER SWITCH (§ 17 point 1): the same `/api/v1/trackers` read
   // the page already holds (R-L17-k), never a second operation for this block.
   const trackers = useTrackers().data;
   // THE TRACKER ITSELF (§ 17 point 1): off by the operator or down, nothing is searched nor published there.

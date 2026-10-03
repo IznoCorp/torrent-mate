@@ -99,7 +99,7 @@ QUEUE_SUBJECTS = """()=>{const now = window.__queue?.() || {};
 # THE STAGES THE LAYER HOLDS for one journey, as the cache has them.
 STAGES_HELD = """(title)=>{
   const held = window.__queries.getQueryData(
-    ["/api/acquisition/journeys", title]);
+    ["/api/v1/acquisition/journeys", title]);
   return Array.isArray(held) ? held.map((one) => one.state) : null;}"""
 
 # WHICH SUBJECT CAN MOVE AT ALL. `restart` sets every stage from the first

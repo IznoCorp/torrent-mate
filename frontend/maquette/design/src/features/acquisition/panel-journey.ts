@@ -10,7 +10,7 @@
 //
 // ITS STEPS COME FROM THE LAYER, not from a literal inside the function. The
 // engine's producer carried the five stages inline; the mock layer already
-// answered them at `/api/acquisition/journeys/{infoHash}` and nothing called
+// answered them at `/api/v1/acquisition/journeys/{infoHash}` and nothing called
 // it. That fixture dies here, which is what D5 asks of every producer that
 // moves.
 //
@@ -146,9 +146,9 @@ function identifiedDone(stages: Stage[]): boolean {
 /** The stages of one journey, as a query definition. */
 function journeyQuery(subject: string): PanelNeed {
   return {
-    queryKey: ["/api/acquisition/journeys", subject],
+    queryKey: ["/api/v1/acquisition/journeys", subject],
     queryFn: async () =>
-      read<Stage[]>(`/api/acquisition/journeys/${encodeURIComponent(subject)}`),
+      read<Stage[]>(`/api/v1/acquisition/journeys/${encodeURIComponent(subject)}`),
   };
 }
 
@@ -162,7 +162,7 @@ function queueQuery(): PanelNeed {
   const world = scenario();
   return {
     queryKey: queueKey(world),
-    queryFn: async () => read<AcquisitionQueue>("/api/acquisition/to-handle",
+    queryFn: async () => read<AcquisitionQueue>("/api/v1/acquisition/to-handle",
       new URLSearchParams(world ? { scenario: world } : {})),
   };
 }

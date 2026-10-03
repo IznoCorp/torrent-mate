@@ -34,7 +34,7 @@ function say(key: string, values: Record<string, string> = {}): string {
  * @param deleteFiles Whether its files leave the disk with it.
  */
 async function removeEntry(entry: Schemas["Download"], deleteFiles: boolean): Promise<void> {
-  const answered = await send("DELETE", `/api/acquisition/downloads/${encodeURIComponent(entry.infoHash)}`, { deleteFiles });
+  const answered = await send("DELETE", `/api/v1/acquisition/downloads/${encodeURIComponent(entry.infoHash)}`, { deleteFiles });
   // HELD IS NOT DONE: the outbox keeps the removal and says so; the entry has
   // not left qBittorrent, and asking the reads again offline would replace the
   // tab with a failure. Nothing more is said until it departs.
@@ -60,8 +60,8 @@ export function openRemoveConfirm(infoHash: string, tracker: string): void {
   const held = <Result>(address: string) =>
     client.ensureQueryData({ queryKey: [address], queryFn: async () => read<Result>(address) });
   void Promise.all([
-    held<Schemas["Downloads"]>("/api/acquisition/downloads"),
-    held<Schemas["Obligations"]>("/api/acquisition/obligations"),
+    held<Schemas["Downloads"]>("/api/v1/acquisition/downloads"),
+    held<Schemas["Obligations"]>("/api/v1/acquisition/obligations"),
   ]).then(([downloads, obligations]) => {
     const entry = downloads.downloads.find((one) => one.infoHash === infoHash && one.tracker === tracker);
     if (entry !== undefined) openConfirm(entry, downloads.downloads, obligations.items);

@@ -14,6 +14,10 @@
 import { useInfiniteQuery, useQuery, type QueryClient } from "@tanstack/react-query";
 import { HELD, read, send } from "../../lib/query-client";
 import type { IncompleteShow, LibraryCategory, LibraryRow } from "./types";
+import { SORT_KEYS } from "./sorting";
+
+/** The order the listing answers when none is named. */
+const RECENT = SORT_KEYS[0];
 
 /** One page of the listing: the rows, and how many there are in all. */
 export type LibraryPage = {
@@ -46,17 +50,19 @@ export function useLibraryListing(
   reversed: boolean,
 ) {
   return useInfiniteQuery({
-    queryKey: ["/api/library/items", query, category, sort, reversed],
+    queryKey: ["/api/v1/library/items", query, category, sort, reversed],
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
       const parameters = new URLSearchParams({ page: String(pageParam) });
       if (query) parameters.set("query", query);
       if (category) parameters.set("category", category);
-      if (sort) parameters.set("sort", sort);
+      // THE DEFAULT ORDER IS SAID BY SAYING NOTHING: the contract's `sort` names
+      // the two other orders, and an absent one is the most recent first.
+      if (sort && sort !== RECENT) parameters.set("sort", sort);
       if (reversed) parameters.set("reversed", "1");
       const answer = await read<{
         total: number; matching: number; loaded: number; items: LibraryRow[];
-      }>("/api/library/items", parameters);
+      }>("/api/v1/library/items", parameters);
       return {
         total: answer.total,
         matching: answer.matching,
@@ -81,18 +87,18 @@ export function useLibraryListing(
 /** The category pills, with the count each claims. */
 export function useLibraryCategories() {
   return useQuery({
-    queryKey: ["/api/library/categories"],
+    queryKey: ["/api/v1/library/categories"],
     queryFn: async () =>
-      read<LibraryCategory[]>("/api/library/categories"),
+      read<LibraryCategory[]>("/api/v1/library/categories"),
   });
 }
 
 
 /** The shows the index knows are incomplete, as a query a surface and the removal dialog share. */
 export const libraryIncompleteQuery = {
-  queryKey: ["/api/library/incomplete"],
+  queryKey: ["/api/v1/library/incomplete"],
   queryFn: async () =>
-    read<IncompleteShow[]>("/api/library/incomplete"),
+    read<IncompleteShow[]>("/api/v1/library/incomplete"),
 };
 
 /** The shows the index knows are incomplete. */
@@ -141,7 +147,7 @@ export function installLibraryPaging(queryClient: QueryClient): void {
       const listing = queryClient
         .getQueryCache()
         .getAll()
-        .find((query) => query.queryKey[0] === "/api/library/items");
+        .find((query) => query.queryKey[0] === "/api/v1/library/items");
       const landed =
         ((listing?.state.data as { pages?: unknown[] } | undefined)?.pages ?? []).length > 0;
       if (askListingForOneMore !== null && landed) {
@@ -186,7 +192,7 @@ export function installLibraryDelete(queryClient: QueryClient): void {
     const listings = queryClient
       .getQueryCache()
       .getAll()
-      .filter((query) => query.queryKey[0] === "/api/library/items");
+      .filter((query) => query.queryKey[0] === "/api/v1/library/items");
     const before = listings.map((listing) => [listing.queryKey, listing.state.data] as const);
     const gone = new Set(titles);
     for (const [key, data] of before) {
@@ -200,7 +206,7 @@ export function installLibraryDelete(queryClient: QueryClient): void {
         })),
       });
     }
-    void send("DELETE", "/api/library/items", { titles })
+    void send("DELETE", "/api/v1/library/items", { titles })
       .catch((refusal) => {
         for (const [key, data] of before) queryClient.setQueryData(key, data);
         throw refusal;
@@ -212,7 +218,7 @@ export function installLibraryDelete(queryClient: QueryClient): void {
         // does not contain the mutation — the action snapping back with no
         // explanation, minutes before it actually applies.
         if (outcome === HELD) return;
-        void queryClient.invalidateQueries({ queryKey: ["/api/library/items"] });
+        void queryClient.invalidateQueries({ queryKey: ["/api/v1/library/items"] });
         // AND THE SHEETS OF WHAT LEFT. The list is honest in the same task and
         // the SHEET was not: reopened after a confirmed delete it still read
         // « Possédés 24 » from its own cached answer and offered « Supprimer »
@@ -220,15 +226,15 @@ export function installLibraryDelete(queryClient: QueryClient): void {
         // says it is done. Every media read is invalidated rather than the
         // deleted ones alone — the sheet's key is the provider's identifier,
         // and nothing here maps a title to it.
-        void queryClient.invalidateQueries({ queryKey: ["/api/media"] });
+        void queryClient.invalidateQueries({ queryKey: ["/api/v1/media"] });
         // AND WHAT THE LIBRARY SAYS IT HOLDS is REMOVED, not merely marked
         // stale: a producer reads the cache synchronously and would still see
         // the answer from before, so every panel opened about a removed title
         // afterwards has to ask again.
-        queryClient.removeQueries({ queryKey: ["/api/library/membership"] });
+        queryClient.removeQueries({ queryKey: ["/api/v1/library/membership"] });
       }, () => {
         // AND ON A REFUSAL, which the `.finally` this replaced also covered.
-        void queryClient.invalidateQueries({ queryKey: ["/api/library/items"] });
+        void queryClient.invalidateQueries({ queryKey: ["/api/v1/library/items"] });
       });
   };
 }

@@ -92,10 +92,10 @@ COUNTS = """async ()=>{
   const detect = (window.__mocks?.answered?.() || [])
     .filter((call) => call.operationId === 'runDetection');
   if (detect.length === 0) return null;
-  const runs = await (await fetch('/api/pipeline/history')).json();
+  const runs = await (await fetch('/api/v1/pipeline/history')).json();
   const launched = runs.runs.find((one) => one.runUid.startsWith('detection-'));
   if (!launched) return null;
-  const detail = await (await fetch('/api/pipeline/history/' + launched.runUid)).json();
+  const detail = await (await fetch('/api/v1/pipeline/history/' + launched.runUid)).json();
   const step = (detail.steps || [])[0];
   return step ? (step.counts || null) : null;
 }"""
@@ -112,14 +112,14 @@ MESSAGE = """()=>window.__toast?.read()?.message?.message || ''"""
 
 # WHAT THE LAYER SAYS OF THE RUN THE VEILLE LAUNCHED: still going, or how it ended.
 LAUNCHED_OUTCOME = """async ()=>{
-  const runs = await (await fetch('/api/pipeline/history')).json();
+  const runs = await (await fetch('/api/v1/pipeline/history')).json();
   const launched = runs.runs.find((one) => one.runUid.startsWith('detection-'));
   return launched ? launched.outcome : null;
 }"""
 
 # THE LAST VEILLE THE HISTORY HOLDS: its detection command, ended.
 LAST_WATCH = """async ()=>{
-  const runs = (await (await fetch('/api/pipeline/history')).json()).runs;
+  const runs = (await (await fetch('/api/v1/pipeline/history')).json()).runs;
   const last = runs.find((one) => one.command === 'follow-detect' && one.outcome !== 'running');
   return last ? {runUid: last.runUid, counts: (last.steps[0] || {}).counts || {}} : null;
 }"""

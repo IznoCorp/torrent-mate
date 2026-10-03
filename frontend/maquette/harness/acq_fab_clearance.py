@@ -142,7 +142,7 @@ async def main():
             if state == SET_ASIDE:
                 # The layer is reset by every named state, so the second card is set aside after it.
                 await page.evaluate("""(title)=>{window.__mocks?.setAside(title);
-                    window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });}""", ALSO_ASIDE)
+                    window.__queries?.removeQueries({ queryKey: ["/api/v1/acquisition/to-handle"] });}""", ALSO_ASIDE)
                 await page.wait_for_timeout(SETTLED)
             await page.evaluate(FOLD, part)
             await page.wait_for_timeout(ACTED)

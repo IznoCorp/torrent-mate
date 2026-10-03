@@ -84,11 +84,11 @@ ROW = """(name) => {
 SAVE_BAR = """() => document.querySelector('#savebar')?.textContent ?? null"""
 WRITES = """() => (window.__mocks?.answered() || []).filter(call => call.operationId === 'updateConfigurationFile')
   .map(call => ({status: call.status, path: decodeURIComponent(call.path)}))"""
-CATALOGUE = """(key) => (window.__queries?.getQueryData(['/api/config/schema']) || [])
+CATALOGUE = """(key) => (window.__queries?.getQueryData(['/api/v1/config/schema']) || [])
   .flatMap(topic => topic.settings).find(one => one.key === key)?.raw"""
 BADGE = """() => document.querySelector('[data-part="shell/tab-bar"] [data-page="trackers"] [data-part="shell/tab-badge"]')
   ?.textContent.trim() ?? ''"""
-SERVED = """() => (window.__queries?.getQueryData(['/api/trackers']) || []).map(t => ({name: t.name, by: t.disabled?.by ?? null,
+SERVED = """() => (window.__queries?.getQueryData(['/api/v1/trackers']) || []).map(t => ({name: t.name, by: t.disabled?.by ?? null,
   crossSeedFailed: t.crossSeed?.failed ?? 0}))"""
 TOASTS = """() => { window.__seen = []; const toast = document.getElementById('toast');
   if (toast) new MutationObserver(() => window.__seen.push(toast.textContent.trim()))

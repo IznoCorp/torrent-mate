@@ -56,7 +56,7 @@ FILM_WORD = "Film"
 NAMELESS = "Un dossier que rien n'identifie"
 
 CREATE = """async(body)=>{
-  const answer = await fetch("/api/acquisition/followed", {
+  const answer = await fetch("/api/v1/acquisition/followed", {
     method: "POST", headers: {"Content-Type": "application/json"},
     body: JSON.stringify(body)});
   let payload = null;
@@ -65,7 +65,7 @@ CREATE = """async(body)=>{
 }"""
 
 FOLLOWS = """async()=>{
-  const answer = await fetch("/api/acquisition/followed");
+  const answer = await fetch("/api/v1/acquisition/followed");
   const body = await answer.json();
   const rows = Array.isArray(body) ? body : (body.items ?? body.follows ?? []);
   return rows.map((row) => ({title: row.title, ids: row.ids}));
@@ -77,7 +77,7 @@ FOLLOWS = """async()=>{
 # whose two holds share a subject holds one thing twice.
 # french-ok: the kind word the seeds carry, a data value compared where it arrives
 IDENTIFIABLE = """async(wanted)=>{
-  const answer = await fetch("/api/acquisition/suggestions");
+  const answer = await fetch("/api/v1/acquisition/suggestions");
   const body = await answer.json();
   const rows = Array.isArray(body) ? body : (body.items ?? body.suggestions ?? []);
   const isFilm = (row) => row.kind === "Film";
@@ -92,7 +92,7 @@ IDENTIFIABLE = """async(wanted)=>{
 # carries a single provider pair, so a layer that PREFERRED the request would
 # record one identifier where its own entry holds three.
 RICHEST_RESULT = """async()=>{
-  const answer = await fetch("/api/acquisition/search");
+  const answer = await fetch("/api/v1/acquisition/search");
   const body = await answer.json();
   const rows = (body.results ?? []).filter(
     (row) => row.ids && Object.keys(row.ids).length > 1);

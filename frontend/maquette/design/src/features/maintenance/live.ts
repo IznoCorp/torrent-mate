@@ -2,9 +2,9 @@
 import type { LiveExemptions, LiveRule } from "../../lib/live-rule";
 
 /** The actions, and whether each can run now. */
-const ACTIONS_KEY = ["/api/maintenance/actions"];
+const ACTIONS_KEY = ["/api/v1/maintenance/actions"];
 /** The append-only record of what was destroyed, by whom and when. */
-const DESTRUCTIVE_LOG_KEY = ["/api/maintenance/destructive-log"];
+const DESTRUCTIVE_LOG_KEY = ["/api/v1/maintenance/destructive-log"];
 
 /** What a server event refreshes on maintenance. */
 export const maintenanceLiveRules: readonly LiveRule[] = [
@@ -25,7 +25,7 @@ export const maintenanceLiveRules: readonly LiveRule[] = [
 /** The events that reach maintenance and deliberately refresh nothing. */
 export const maintenanceLiveExemptions: LiveExemptions = {
   types: ["PipelineStarted", "PipelineEnded", "PipelinePaused", "PipelineResumed"],
-  keys: ["/api/maintenance/actions"],
+  keys: ["/api/v1/maintenance/actions"],
   /* every address this feature reads is refreshed by a rule above */
   because:
     "THE CATALOGUE CANNOT SAY WHAT CAN RUN NOW, so refreshing it on a pipeline "

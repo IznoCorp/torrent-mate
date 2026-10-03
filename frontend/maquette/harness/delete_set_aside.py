@@ -122,8 +122,8 @@ async def main():
 
         # ── the layer holds it: both reads asked again ───────────────────────
         await page.evaluate("""()=>{
-            window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
-            window.__queries?.removeQueries({ queryKey: ["/api/staging/media"] }); }""")
+            window.__queries?.removeQueries({ queryKey: ["/api/v1/acquisition/to-handle"] });
+            window.__queries?.removeQueries({ queryKey: ["/api/v1/staging/media"] }); }""")
         await page.evaluate("()=>document.querySelector('[data-acqtab=\"now\"]')?.click()")
         await page.wait_for_timeout(ACTED)
         await page.evaluate("()=>document.querySelector('[data-acqtab=\"todo\"]')?.click()")

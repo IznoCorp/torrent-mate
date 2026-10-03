@@ -36,9 +36,9 @@ COPY = "7c1e0b2f95c438b7db4f7c855bd451d8bb1f0046"
 EXCLUDED = "e1af6819d9e3159e0aa191b534b6a66af4344788"
 
 READ = """([origin, copy]) => {
-  const downloads = window.__queries?.getQueryData(['/api/acquisition/downloads'])?.downloads || [];
+  const downloads = window.__queries?.getQueryData(['/api/v1/acquisition/downloads'])?.downloads || [];
   const entry = downloads.find(one => one.infoHash === origin);
-  const obligation = (window.__queries?.getQueryData(['/api/acquisition/obligations'])?.items || [])
+  const obligation = (window.__queries?.getQueryData(['/api/v1/acquisition/obligations'])?.items || [])
     .find(one => one.infoHash === copy);
   return {
     pairs: entry?.crossSeed?.pairs ?? null, titleExcluded: entry?.crossSeed?.titleExcluded ?? null,

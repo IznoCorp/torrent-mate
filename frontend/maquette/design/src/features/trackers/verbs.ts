@@ -136,7 +136,7 @@ registerVerb("obligation-seen", (value) => {
   if (!tracker || !infoHash) return;
   void send(
     "POST",
-    `/api/trackers/${encodeURIComponent(tracker)}/broken-obligations/${encodeURIComponent(infoHash)}/seen`,
+    `/api/v1/trackers/${encodeURIComponent(tracker)}/broken-obligations/${encodeURIComponent(infoHash)}/seen`,
   ).then(() => sharedQueryClient?.invalidateQueries({ queryKey: trackersKey }))
     // THE PANEL IT WAS TAPPED IN is drawn again from the answer: the row says « vue ».
     .then(() => panel.redraw());

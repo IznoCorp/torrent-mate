@@ -120,7 +120,7 @@ export async function enablePush(): Promise<DeviceSupport> {
   const outcome = await registerPush(
     PROTOTYPE_CONFIG,
     async (token) => {
-      await send("POST", "/api/notifications/devices", { token, platform: platformOf(env) });
+      await send("POST", "/api/v1/notifications/devices", { token, platform: platformOf(env) });
     },
     {
       requestPermission: () => (posed ? Promise.resolve(posed.answer) : Notification.requestPermission()),

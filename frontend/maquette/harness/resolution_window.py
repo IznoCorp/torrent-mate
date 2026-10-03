@@ -97,7 +97,7 @@ LISTS = """()=>({
 
 # WHEN THE QUEUE WAS LAST ANSWERED, in the dense scenario the tied screen uses.
 QUEUE_ANSWERED_AT = """()=>window.__queries?.getQueryCache()
-  .find({queryKey: ['/api/acquisition/to-handle', 'loaded'], exact: true})?.state.dataUpdatedAt ?? 0"""
+  .find({queryKey: ['/api/v1/acquisition/to-handle', 'loaded'], exact: true})?.state.dataUpdatedAt ?? 0"""
 
 # THE RESOLUTION SCREEN'S OWN REASON AND ITS CANDIDATES, once reopened. The
 # reason is the chip under the folder's heading, a direct child of the screen's
@@ -254,8 +254,8 @@ async def fresh_answer_leaves_the_card_out(page, journal):
     folder = screen["folder"]
     answered_before = await page.evaluate(QUEUE_ANSWERED_AT)
     await page.evaluate("""()=>Promise.all([
-      window.__queries.refetchQueries({queryKey: ['/api/acquisition/to-handle'], type: 'all'}),
-      window.__queries.refetchQueries({queryKey: ['/api/staging/media'], type: 'all'})])""")
+      window.__queries.refetchQueries({queryKey: ['/api/v1/acquisition/to-handle'], type: 'all'}),
+      window.__queries.refetchQueries({queryKey: ['/api/v1/staging/media'], type: 'all'})])""")
     await page.evaluate("()=>window.__mocks?.quiet()")
     await page.wait_for_timeout(SETTLED)
     answered_after = await page.evaluate(QUEUE_ANSWERED_AT)

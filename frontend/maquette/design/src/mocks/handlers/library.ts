@@ -24,7 +24,7 @@ const PAGE_SIZE = 24;
 // parameter's, so a constant is what stops these being four bare strings that
 // nobody can tie back to the contract.
 const BY_TITLE = "az";
-const BY_WHAT_IS_MISSING = "manque";
+const BY_WHAT_IS_MISSING = "missing";
 const REVERSED = "1";
 
 // The collation the alphabetical order is read in. It is the engine's own, and
@@ -154,11 +154,11 @@ function listing(request: MockRequest): unknown {
 /** Every route this subject answers. */
 export function libraryRoutes(): MockRoute[] {
   return [
-    route("readLibraryItems", GET, "/api/library/items", listing),
-    route("readLibraryCategories", GET, "/api/library/categories", () => LIBRARY_CATEGORIES),
-    route("readLibraryRecent", GET, "/api/library/recent", () => RECENT),
-    route("readLibraryIncomplete", GET, "/api/library/incomplete", () => INCOMPLETE_SHOWS),
-    route("deleteLibraryItems", DELETE, "/api/library/items", (request) => {
+    route("readLibraryItems", GET, "/library/items", listing),
+    route("readLibraryCategories", GET, "/library/categories", () => LIBRARY_CATEGORIES),
+    route("readLibraryRecent", GET, "/library/recent", () => RECENT),
+    route("readLibraryIncomplete", GET, "/library/incomplete", () => INCOMPLETE_SHOWS),
+    route("deleteLibraryItems", DELETE, "/library/items", (request) => {
       const state = mockState();
       const asked = field(request.body, "titles");
       const titles = Array.isArray(asked) ? asked.map(String) : [];

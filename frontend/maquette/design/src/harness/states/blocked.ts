@@ -21,8 +21,8 @@ const SUBJECT = "This City Is Ours";
  * The queue's reads dropped, so the next draw reads what was just posed.
  */
 function dropQueue(): void {
-  window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
-  window.__queries?.removeQueries({ queryKey: ["/api/staging/media"] });
+  window.__queries?.removeQueries({ queryKey: ["/api/v1/acquisition/to-handle"] });
+  window.__queries?.removeQueries({ queryKey: ["/api/v1/staging/media"] });
 }
 
 /** One block to pose: the acquisition's key, the cause, what it names. */
@@ -213,7 +213,7 @@ export function blockedStates(): NamedState[] {
       () => {
         window.__mocks?.reset();
         window.__mocks?.poseServiceDown("Plex", PLEX_DOWN_FOR);
-        window.__queries?.removeQueries({ queryKey: ["/api/system/dependencies"] });
+        window.__queries?.removeQueries({ queryKey: ["/api/v1/system/dependencies"] });
         applyState({ page: "sys", phase: "ready", fault: false });
       }],
     // THE AUTO-RESUME (§ 1.4) — the engine lifts, the card leaves on its own.

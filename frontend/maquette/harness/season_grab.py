@@ -13,7 +13,7 @@ THE SEASON MATRIX PRINTS A HOLE AND OFFERS NOTHING. `panel-seasons.tsx` draws
 one cell per episode and marks a season whose owned count is short of what
 aired — « Saison 3 · 6/7 · 1 manquant ». The interface SHOWS what is wanted and
 gives no way to ask for it, while
-`POST /api/acquisition/follows/{followedId}/seasons/{season}/grab` goes uncalled.
+`POST /api/v1/acquisition/follows/{followedId}/seasons/{season}/grab` goes uncalled.
 DOIT-3 is « agir là où l'on observe », and this is the clearest place in the
 application where one cannot.
 
@@ -133,7 +133,7 @@ SAID = """()=>{
 # decide whether an ask waits. It answers what the state became, so a walk
 # cannot believe it succeeded.
 RUN_THE_PIPELINE = """async()=>{
-  const answer = await window.fetch("/api/pipeline/run", {method: "POST"});
+  const answer = await window.fetch("/api/v1/pipeline/run", {method: "POST"});
   const body = await answer.json().catch(() => ({}));
   return body.state || "";}"""
 
@@ -266,7 +266,7 @@ async def open_a_season_panel(page, journal, when, put_to_work=False):
         journal.check(
             "and the interface is drawing it busy too, so this half measures "
             "the clause and not the verb",
-            await page.evaluate("async ()=>(await (await fetch('/api/pipeline/status')).json()).state") == "running")
+            await page.evaluate("async ()=>(await (await fetch('/api/v1/pipeline/status')).json()).state") == "running")
     subject = await page.evaluate(THE_MEDIUM_WITH_A_HOLE)
     journal.check(
         f"the fixture really holds a season with a hole, so this walk has a "

@@ -160,7 +160,7 @@ async def menu_from_a_topic(browser, journal):
 
     context, page = await cold_at(browser, "cfg")
     await page.evaluate("""(identifier)=>{
-      const setting = window.__queries.getQueryData(['/api/config/schema']).flatMap(t => t.settings)
+      const setting = window.__queries.getQueryData(['/api/v1/config/schema']).flatMap(t => t.settings)
         .find(s => window.settingId(s) === identifier);
       window.__changeSetting(identifier, Number(setting.raw) + 7);}""", EDITED)
     await page.wait_for_timeout(ACTED)

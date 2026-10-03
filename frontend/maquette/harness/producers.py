@@ -79,16 +79,16 @@ MOVED = ("account", "action", "journey", "more", "secret", "setting", "sort",
 # element names where — so this file states a relation and never a value.
 DRIVEN = (
     # kind, subject, how the expected title is read from the page
-    ("account", "", "window.__queries.getQueryData(['/api/auth/me']).name"),
+    ("account", "", "window.__queries.getQueryData(['/api/v1/auth/me']).name"),
     ("action", "library-clean",
-     "window.__queries.getQueryData(['/api/maintenance/actions'])"
+     "window.__queries.getQueryData(['/api/v1/maintenance/actions'])"
      ".find(a=>a.id==='library-clean').label"),
     ("setting", "thresholds:thresholds.min_free_space_staging_gb",
      "window.__settingLabels.label("
-     "window.__queries.getQueryData(['/api/config/schema']).flatMap(r=>r.settings)"
+     "window.__queries.getQueryData(['/api/v1/config/schema']).flatMap(r=>r.settings)"
      ".find(s=>`${s.file}:${s.key}`==='thresholds:thresholds.min_free_space_staging_gb'))"),
     ("secret", "TMDB_API_KEY",
-     "window.__queries.getQueryData(['/api/config/secrets'])"
+     "window.__queries.getQueryData(['/api/v1/config/secrets'])"
      ".find(s=>s.key==='TMDB_API_KEY').label"),
     ("sort", "", "window.__i18n.t('panels.sort.title')"),
     ("more", "", "window.__i18n.t('panels.standby.title')"),

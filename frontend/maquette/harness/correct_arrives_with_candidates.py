@@ -49,7 +49,7 @@ TAP = """(scope) => {
   const act = root?.querySelector('[data-part="decision/correct"]');
   window.__mocks.clearAnswered?.();
   const before = window.__mocks.answered().length;
-  const decision = act ? window.__queries.getQueryData(['/api/decisions/'])
+  const decision = act ? window.__queries.getQueryData(['/api/v1/decisions/'])
     ?.settled.find((one) => one.id === act.dataset.decisionCorrect) ?? null : null;
   act?.click();
   return {tapped: !!act, before, folder: decision?.folder ?? null,

@@ -171,12 +171,12 @@ BACKEND_WORD = "serveur"
 # WHAT THE PIPELINE IS DOING, asked of the layer rather than read off the
 # screen: « the state moved » is a claim about the machine, and the screen is
 # what this rule is trying to prove FOLLOWS it.
-PIPELINE_STATE = """async ()=>(await (await fetch('/api/pipeline/status')).json()).state"""
+PIPELINE_STATE = """async ()=>(await (await fetch('/api/v1/pipeline/status')).json()).state"""
 
 # WHETHER THE AUTOMATIC TRIGGER IS ON, asked of the layer: « setWatcher was
 # called » is true of a press that sent the wrong value, so the hold reads the
 # state the press left.
-WATCHER_ENABLED = """async ()=>(await (await fetch('/api/pipeline/status')).json()).watcherEnabled"""
+WATCHER_ENABLED = """async ()=>(await (await fetch('/api/v1/pipeline/status')).json()).watcherEnabled"""
 
 # THE INTERFACE'S OWN SENTENCES, read from its resources rather than retyped.
 DESIGN = pathlib.Path(__file__).resolve().parent.parent / "design" / "src"

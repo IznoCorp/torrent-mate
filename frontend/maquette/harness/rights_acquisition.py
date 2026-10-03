@@ -31,8 +31,8 @@ CARDS = """() => [...document.querySelectorAll('#view [data-region="acquisition/
   .filter((one) => !one.hasAttribute('aria-label'))
   .map((one) => one.dataset.panel.slice(one.dataset.panel.indexOf(':') + 1))"""
 ANSWER = """async (who) => {
-  const queue = await (await fetch('/api/acquisition/to-handle')).json();
-  const follows = await (await fetch('/api/acquisition/followed')).json();
+  const queue = await (await fetch('/api/v1/acquisition/to-handle')).json();
+  const follows = await (await fetch('/api/v1/acquisition/followed')).json();
   const rows = [...Object.values(queue).flat(), ...follows];
   return { all: rows.length, others: rows.filter((row) => !(row.requesters || []).some((one) => one.id === who))
     .map((row) => row.title) };
@@ -59,13 +59,13 @@ QUIET = """async (who) => {
   document.dispatchEvent(new PointerEvent('pointerdown'));
   for (let i = 0; i < 40 && document.querySelector('#toast[data-shown]'); i += 1) {
     document.querySelector('#toastx')?.click(); await pause(250); }
-  for (let i = 0; i < 40 && window.__queries.getQueryData(['/api/auth/me'])?.id !== who; i += 1) await pause(100);
+  for (let i = 0; i < 40 && window.__queries.getQueryData(['/api/v1/auth/me'])?.id !== who; i += 1) await pause(100);
   await pause(300);
   await new Promise((settle) => requestAnimationFrame(() => requestAnimationFrame(settle))); }"""
 PANEL_VERBS = """() => [...document.querySelectorAll('#sheet [data-journey-requeue], #sheet [data-journey-rescrape]')]
   .map((one) => one.getAttribute('data-journey-requeue') ? 'requeue' : 'rescrape')"""
 FORCE_REQUEUE = """async ([who, title]) => { window.__mocks.setIdentity(who);
-  return (await fetch('/api/acquisition/journeys/' + encodeURIComponent(title) + '/requeue', { method: 'POST' })).status; }"""
+  return (await fetch('/api/v1/acquisition/journeys/' + encodeURIComponent(title) + '/requeue', { method: 'POST' })).status; }"""
 
 
 async def main():

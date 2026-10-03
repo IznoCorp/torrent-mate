@@ -90,7 +90,7 @@ ADDRESS = """()=>location.pathname + location.search"""
 # WHAT THE LAYER ANSWERED FOR THE LIST, so the line drawn can be compared
 # against the figures it claims to be made of.
 ANSWERED_RUNS = """async ()=>{
-  const answer = await (await fetch('/api/pipeline/history')).json();
+  const answer = await (await fetch('/api/v1/pipeline/history')).json();
   return (answer.runs || []).map((run) => ({
     runUid: run.runUid,
     kind: run.kind,
@@ -113,7 +113,7 @@ TEXT = """(part)=>{
 # WHAT ONE PASSAGE'S ROW SAYS, found by the run it stands for.
 # EVERY ROW'S OUTCOME WORD AND LINE, with what the layer answered for it.
 ROWS_SAID = """async ()=>{
-  const answer = await (await fetch('/api/pipeline/history')).json();
+  const answer = await (await fetch('/api/v1/pipeline/history')).json();
   return (answer.runs || []).map((run) => {
     const row = document.querySelector(`[data-run="${run.runUid}"]`);
     const said = (part) => {
@@ -144,7 +144,7 @@ ROW_TEXT = """(runUid)=>{
 # THE ROWS IN THE ORDER THEY ARE DRAWN, each with the instant the layer answered
 # for it — the order a reader sees, never the order the answer came in.
 DRAWN_ORDER = """async ()=>{
-  const answer = await (await fetch('/api/pipeline/history')).json();
+  const answer = await (await fetch('/api/v1/pipeline/history')).json();
   const started = new Map((answer.runs || []).map((run) => [run.runUid, run.startedAt]));
   return [...document.querySelectorAll('[data-run]')].map((row) => ({
     runUid: row.dataset.run || '',
@@ -164,7 +164,7 @@ RUNNING = "run-detail-running"
 # showing and agree with it.
 ANSWERED_RUN = """async ()=>{
   const uid = decodeURIComponent(location.pathname.split('/').pop());
-  const answer = await fetch('/api/pipeline/history/' + uid);
+  const answer = await fetch('/api/v1/pipeline/history/' + uid);
   if (!answer.ok) return null;
   const run = await answer.json();
   if (!run) return null;

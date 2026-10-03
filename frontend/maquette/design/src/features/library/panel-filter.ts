@@ -16,7 +16,7 @@ import { categoryCount } from "./category-filter";
 import { libraryIncompleteQuery, type LibraryPage } from "./queries";
 import type { IncompleteShow, LibraryCategory } from "./types";
 
-const CATEGORIES_KEY = ["/api/library/categories"];
+const CATEGORIES_KEY = ["/api/v1/library/categories"];
 
 /**
  * Builds the filter panel's descriptor.
@@ -32,7 +32,7 @@ function filterPanel(_subject: string, cache: PanelCache): PanelDescriptor | nul
   const incomplete = cache.held<IncompleteShow[]>(libraryIncompleteQuery.queryKey) ?? [];
   // « Récents »' rows: the listing that lens draws, under the key it reads.
   const recent = (cache.held<{ pages: LibraryPage[] }>(
-    ["/api/library/items", String(q ?? ""), "", String(sortKey ?? ""), Boolean(sortReversed)],
+    ["/api/v1/library/items", String(q ?? ""), "", String(sortKey ?? ""), Boolean(sortReversed)],
   )?.pages ?? []).flatMap((page) => page.items);
   return choicesDescriptor(
     i18next.t("screens.library.filterTitle"),

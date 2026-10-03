@@ -83,18 +83,18 @@ const NOTHING_TO_REPORT = "";
 /** Every route this subject answers. */
 export function systemRoutes(): MockRoute[] {
   return [
-    route("readServices", GET, "/api/system/services", () => SERVICES),
-    route("readDependencies", GET, "/api/system/dependencies", () => (DEPENDENCIES as Schemas["Fact"][]).map(downWhenPosed)),
-    route("readErrors", GET, "/api/system/errors", () => ERRORS),
-    route("readSchedulers", GET, "/api/maintenance/schedulers", () => SCHEDULERS),
-    route("readDisks", GET, "/api/maintenance/disks", () => disksUnderBlocks(asPosed(DISKS))),
-    route("readIndexHealth", GET, "/api/maintenance/index-health", () => asPosed(INDEX_HEALTH)),
+    route("readServices", GET, "/system/services", () => SERVICES),
+    route("readDependencies", GET, "/system/dependencies", () => (DEPENDENCIES as Schemas["Fact"][]).map(downWhenPosed)),
+    route("readErrors", GET, "/system/errors", () => ERRORS),
+    route("readSchedulers", GET, "/maintenance/schedulers", () => SCHEDULERS),
+    route("readDisks", GET, "/maintenance/disks", () => disksUnderBlocks(asPosed(DISKS))),
+    route("readIndexHealth", GET, "/maintenance/index-health", () => asPosed(INDEX_HEALTH)),
     // The maquette is not a server and has no version of its own. The shape is
     // answered so a surface can be wired to it; the value is EMPTY rather than
     // invented, because a plausible-looking version string is exactly the kind
     // of made-up datum this whole lot exists to keep out. The operation's
     // `x-unseeded` in the contract says so.
-    route("readVersion", GET, "/api/version", () => ({
+    route("readVersion", GET, "/version", () => ({
       version: NOTHING_TO_REPORT,
       commit: NOTHING_TO_REPORT,
     })),

@@ -31,7 +31,7 @@ STATES = ("acq-card-deferred-ratio", "acq-card-deferred-space", "acq-card-deferr
           "acq-todo-every-cause", "acq-block-client-unreachable", "acq-closure-torrent-removed",
           "acq-superseded-episode")
 SERVER_COUNT = """async () => {
-  const queue = await (await fetch('/api/acquisition/to-handle?scenario=loaded')).json();
+  const queue = await (await fetch('/api/v1/acquisition/to-handle?scenario=loaded')).json();
   const titles = new Set();
   for (const card of [...queue.blocked, ...queue.arrivals, ...queue.inFlight]) {
     const ladder = card.ladder || [];

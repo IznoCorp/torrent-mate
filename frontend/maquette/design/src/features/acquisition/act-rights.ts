@@ -129,9 +129,9 @@ export function heldAcquisition(title: string): { requesters?: readonly { id: st
   // EVERY WORLD'S FOLLOWS: they are cached per world, and a title's requesters
   // are the same in each.
   const follows = client.getQueriesData<{ title: string; requesters?: { id: string; name: string }[] }[]>(
-    { queryKey: ["/api/acquisition/followed"] }).flatMap(([, answer]) => answer ?? []);
+    { queryKey: ["/api/v1/acquisition/followed"] }).flatMap(([, answer]) => answer ?? []);
   const queues = client.getQueriesData<Record<string, { title: string; requesters?: { id: string; name: string }[] }[]>>(
-    { queryKey: ["/api/acquisition/to-handle"] }).map(([, answer]) => answer ?? {});
+    { queryKey: ["/api/v1/acquisition/to-handle"] }).map(([, answer]) => answer ?? {});
   const rows = [...follows, ...queues.flatMap((queue) => Object.values(queue).flat())];
   return rows.find((row) => row.title === title) ?? {};
 }

@@ -124,7 +124,7 @@ async def main():
                 await page.wait_for_timeout(420)
                 found = await page.evaluate(
                     """()=>{const topics = window.__queries
-                        ?.getQueryData(['/api/config/schema']) || [];
+                        ?.getQueryData(['/api/v1/config/schema']) || [];
                       const text = topics.flatMap((t) => t.settings)
                         .find((s) => s.type === 'path' || s.type === 'text');
                       return text ? (text.file + ':' + text.key) : null;}""")
@@ -230,7 +230,7 @@ async def main():
             # is what B-342 IS — the interface saying a thing it had not done.
             answered = await page.evaluate(
                 """(id)=>{const topics = window.__queries
-                    ?.getQueryData(['/api/config/schema']) || [];
+                    ?.getQueryData(['/api/v1/config/schema']) || [];
                   const one = topics.flatMap((t) => t.settings)
                     .find((s) => (s.file + ':' + s.key) === id);
                   return one ? String(one.raw) : null;}""", editable)

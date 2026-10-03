@@ -43,26 +43,26 @@ function useSystemRead<Result>(address: string) {
 
 /** The services, and what each is doing. */
 export const useServices = () =>
-  useSystemRead<Schemas["Fact"][]>("/api/system/services");
+  useSystemRead<Schemas["Fact"][]>("/api/v1/system/services");
 
 /** The schedulers, and when each next runs. */
 export const useSchedulers = () =>
-  useSystemRead<Schemas["Fact"][]>("/api/maintenance/schedulers");
+  useSystemRead<Schemas["Fact"][]>("/api/v1/maintenance/schedulers");
 
 /** The disks, and what is left on each. */
-export const useDisks = () => useSystemRead<Schemas["Fact"][]>("/api/maintenance/disks");
+export const useDisks = () => useSystemRead<Schemas["Fact"][]>("/api/v1/maintenance/disks");
 
 /** The index's own health. */
 export const useIndexHealth = () =>
-  useSystemRead<Schemas["Fact"][]>("/api/maintenance/index-health");
+  useSystemRead<Schemas["Fact"][]>("/api/v1/maintenance/index-health");
 
 /** What the engine depends on, and whether each answers. */
 export const useDependencies = () =>
-  useSystemRead<Schemas["Fact"][]>("/api/system/dependencies");
+  useSystemRead<Schemas["Fact"][]>("/api/v1/system/dependencies");
 
 /** What has gone wrong lately. */
 export const useSystemErrors = () =>
-  useSystemRead<CodeErrors>("/api/system/errors");
+  useSystemRead<CodeErrors>("/api/v1/system/errors");
 
 /**
  * The last runs, a page of them, and whether the list can be trusted.
@@ -74,8 +74,8 @@ export const useSystemErrors = () =>
  */
 export const usePipelineHistory = () =>
   useQuery({
-    queryKey: ["/api/pipeline/history"],
-    queryFn: async () => (await read("/api/pipeline/history")) as RunHistory,
+    queryKey: ["/api/v1/pipeline/history"],
+    queryFn: async () => (await read("/api/v1/pipeline/history")) as RunHistory,
   });
 
 /**
@@ -90,8 +90,8 @@ export const usePipelineHistory = () =>
  */
 export const useRun = (runUid: string) =>
   useQuery({
-    queryKey: ["/api/pipeline/history", runUid],
-    queryFn: async () => (await read(`/api/pipeline/history/${runUid}`)) as RunDetail,
+    queryKey: ["/api/v1/pipeline/history", runUid],
+    queryFn: async () => (await read(`/api/v1/pipeline/history/${runUid}`)) as RunDetail,
   });
 
 /**
@@ -106,9 +106,9 @@ export const useRun = (runUid: string) =>
  */
 export const usePipelineState = () =>
   useQuery({
-    queryKey: ["/api/pipeline/status"],
+    queryKey: ["/api/v1/pipeline/status"],
     queryFn: async () =>
-      read<PipelineStatus>("/api/pipeline/status"),
+      read<PipelineStatus>("/api/v1/pipeline/status"),
   });
 
 /**
@@ -124,9 +124,9 @@ export const usePipelineState = () =>
 export function useBoundSetting(): { identity?: string; said: string } | undefined {
   const { t } = useTranslation();
   const { data: topics } = useQuery({
-    queryKey: ["/api/config/schema"],
+    queryKey: ["/api/v1/config/schema"],
     queryFn: async () =>
-      read<SettingsTopic[]>("/api/config/schema"),
+      read<SettingsTopic[]>("/api/v1/config/schema"),
   });
   if (topics === undefined) return undefined;
   const setting = topics

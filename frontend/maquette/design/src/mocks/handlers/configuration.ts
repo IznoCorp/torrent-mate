@@ -34,11 +34,11 @@ function isNamedBy(setting: Schemas["Setting"], identity: string): boolean {
 /** Every route this subject answers. */
 export function configurationRoutes(): MockRoute[] {
   return [
-    route("readSettings", GET, "/api/config/schema", () => mockState().settings),
+    route("readSettings", GET, "/config/schema", () => mockState().settings),
     // A secret's VALUE is never read back. The seed carries which keys exist
     // and whether each is defined, and that is the whole of what this answers.
-    route("readSecrets", GET, "/api/config/secrets", () => mockState().secrets),
-    route("updateSecrets", PUT, "/api/config/secrets", (request) => {
+    route("readSecrets", GET, "/config/secrets", () => mockState().secrets),
+    route("updateSecrets", PUT, "/config/secrets", (request) => {
       const held = mockState();
       const asked = request.body;
       if (typeof asked === "object" && asked !== null) {
@@ -53,11 +53,11 @@ export function configurationRoutes(): MockRoute[] {
       return { restartRequired: held.restartRequired };
     }),
     // ONE FILE'S CONTENT, as the layer holds it — what an editor opens on.
-    route("readConfigurationFile", GET, "/api/config/files/{name}", (request) =>
+    route("readConfigurationFile", GET, "/config/files/{name}", (request) =>
       configurationFiles().find((file) => file.name === request.parameters.name)
         ?? refused(404, UNKNOWN_FILE)),
     // Derived from the seeded settings, whose topics name their own files.
-    route("readConfigurationFiles", GET, "/api/config/files", () => {
+    route("readConfigurationFiles", GET, "/config/files", () => {
       const held = mockState();
       const names = new Set<string>();
       for (const topic of held.settings) {
@@ -78,7 +78,7 @@ export function configurationRoutes(): MockRoute[] {
     // without moving certifies nothing (D7), and an interface that says a
     // thing was done when it was not is NE-DOIT-PAS-1 — the two halves of one
     // defect, and this is the half that lives here.
-    route("updateConfigurationFile", PUT, "/api/config/files/{name}", (request) => {
+    route("updateConfigurationFile", PUT, "/config/files/{name}", (request) => {
       const held = mockState();
       const name = request.parameters.name;
       // A FILE THAT MOVED TAKES NOTHING. « Rien n'a été écrit » is what the
@@ -137,13 +137,13 @@ export function configurationRoutes(): MockRoute[] {
       held.restartRequired = true;
       return { restartRequired: held.restartRequired, conflict: false };
     }),
-    route("restartWeb", POST, "/api/config/restart-web", () => {
+    route("restartWeb", POST, "/config/restart-web", () => {
       const held = mockState();
       held.restartRequired = false;
       held.changedFiles = [];
       return { ok: true };
     }),
-    route("readConfigurationStatus", GET, "/api/config/status", () => {
+    route("readConfigurationStatus", GET, "/config/status", () => {
       const held = mockState();
       return { restartRequired: held.restartRequired };
     }),

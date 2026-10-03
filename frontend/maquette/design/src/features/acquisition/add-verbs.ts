@@ -134,7 +134,7 @@ export type IdOutcome = { kind: "added" } | { kind: "missing" } | { kind: "owned
  *     What the identifier came to.
  */
 export async function addById(provider: IdProvider, id: string): Promise<IdOutcome> {
-  const answer = await read<SearchResults>("/api/acquisition/search/by-id", idQuery(provider, id));
+  const answer = await read<SearchResults>("/api/v1/acquisition/search/by-id", idQuery(provider, id));
   const result = answer.results[0];
   if (result === undefined) return { kind: "missing" };
   if (identifying()) {

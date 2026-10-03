@@ -53,19 +53,19 @@ ADD_ACTION = 'tap:[data-part="shell/add-action"]'
 # left « En cours »).
 RATIO_DEFERRAL = ("js:(()=>{window.__mocks.poseBlock('This City Is Ours',"
                   "'ratio_below_threshold',{tracker:'c411'});"
-                  "window.__queries.removeQueries({queryKey:['/api/acquisition/to-handle']});"
-                  "window.__queries.removeQueries({queryKey:['/api/staging/media']});"
+                  "window.__queries.removeQueries({queryKey:['/api/v1/acquisition/to-handle']});"
+                  "window.__queries.removeQueries({queryKey:['/api/v1/staging/media']});"
                   "window.__store.write({scen:'loaded'});return true})()")
 
 # A space deferral, posed the same way: the card then offers « Voir les disques »
 # (maquette-blocked § 1.3, the ratio's door generalised to every external cause).
 SPACE_DEFERRAL = ("js:(()=>{window.__mocks.poseBlock('This City Is Ours','insufficient_space');"
-                  "window.__queries.removeQueries({queryKey:['/api/acquisition/to-handle']});"
-                  "window.__queries.removeQueries({queryKey:['/api/staging/media']});"
+                  "window.__queries.removeQueries({queryKey:['/api/v1/acquisition/to-handle']});"
+                  "window.__queries.removeQueries({queryKey:['/api/v1/staging/media']});"
                   "window.__store.write({scen:'loaded'});return true})()")
 
 # The dense world, where Silo's whole-season recovery runs at rest (maquette-season-recovery).
-LOADED_WORLD = ("js:(()=>{window.__queries.removeQueries({queryKey:['/api/acquisition/to-handle']});"
+LOADED_WORLD = ("js:(()=>{window.__queries.removeQueries({queryKey:['/api/v1/acquisition/to-handle']});"
                 "window.__store.write({scen:'loaded'});return true})()")
 
 # A real add, so the add screen's footer exists: a query, a result's panel, its act.

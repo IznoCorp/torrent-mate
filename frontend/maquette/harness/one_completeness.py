@@ -1,7 +1,7 @@
 """R405 — one completeness: a followed series' season figures come from the engine's answer (L24, NE-DOIT-PAS-1, § 13).
 
 The engine answers « what has aired against what the library holds, season by
-season » for a follow — `GET /api/acquisition/followed/{id}/completeness`, one
+season » for a follow — `GET /api/v1/acquisition/followed/{id}/completeness`, one
 matrix read from the cache so that « this panel and the followed card read the
 same facts through the same derivation and can never disagree ». The maquette
 never called it: both sheets crossed a seasons read of their own.
@@ -30,7 +30,7 @@ READ = """(args) => {
                                  : document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
   const seasons = [...(root?.querySelectorAll('[data-part="season"] summary') ?? [])]
     .map((summary) => summary.textContent.replace(/\\s+/g, ' ').trim());
-  const answer = follow ? window.__queries.getQueryData(['/api/acquisition/followed', follow, 'completeness']) : null;
+  const answer = follow ? window.__queries.getQueryData(['/api/v1/acquisition/followed', follow, 'completeness']) : null;
   const calls = window.__mocks.answered().filter((call) => call.operationId === 'readFollowCompleteness')
     .map((call) => call.path + ' ' + call.status);
   return {seasons, answer, calls};

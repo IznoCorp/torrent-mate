@@ -43,8 +43,8 @@ READ = """() => {
 
 # The route's own answer and the downloads read's, asked once the sheet's own reads are counted.
 ANSWERS = """async (address) => {
-  const answer = await (await fetch(`/api${address}/cross-seed`)).json();
-  const downloads = await (await fetch('/api/acquisition/downloads')).json();
+  const answer = await (await fetch(`/api/v1${address}/cross-seed`)).json();
+  const downloads = await (await fetch('/api/v1/acquisition/downloads')).json();
   return { answer, downloads: downloads.downloads };
 }"""
 
@@ -108,7 +108,7 @@ async def main():
                           read["address"])
             journal.check(f"R-L18-w: {identity}'s sheet asks no cross-seed read", read["asked"] == before,
                           f"{read['asked'] - before} asked")
-            status = await page.evaluate("async (a)=>(await fetch(`/api${a}/cross-seed`)).status", owner["address"])
+            status = await page.evaluate("async (a)=>(await fetch(`/api/v1${a}/cross-seed`)).status", owner["address"])
             journal.check(f"R-L18-w: {identity} forcing the read is refused 403", status == 403, str(status))
 
         await page.evaluate("()=>window.__go('media-cross-seed-hidden')")

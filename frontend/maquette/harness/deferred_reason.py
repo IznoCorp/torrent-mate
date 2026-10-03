@@ -54,8 +54,8 @@ REASONS = LADDER["reasons"]
 # The tracker with no threshold of its own: its policy is unset in the seeds.
 UNSET = "tr4ker"
 # The reads a card's ladder is drawn from, as the posed states drop them.
-QUEUE = "['/api/acquisition/to-handle']"
-STAGED = "['/api/staging/media']"
+QUEUE = "['/api/v1/acquisition/to-handle']"
+STAGED = "['/api/v1/staging/media']"
 SETTINGS = json.loads((SOURCE / "mocks/seeds/settings.json").read_text(encoding="utf-8"))
 
 # Each posed state, the card it poses on, and the cause's token. A deferral
@@ -126,7 +126,7 @@ async def main():
                 journal.check(f"it names {TRACKER} and its own threshold {written(OWN)}, never the global {written(GLOBAL)}"
                               f" — « {sentence} »", sentence in card["reason"], repr(card["reason"]))
             ladder = await page.evaluate(
-                """(title)=>{const queue=window.__queries?.getQueryData(['/api/acquisition/to-handle','loaded'])||{};
+                """(title)=>{const queue=window.__queries?.getQueryData(['/api/v1/acquisition/to-handle','loaded'])||{};
                   const card=[...(queue.inFlight||[]),...(queue.arrivals||[])].find(one=>one.title===title);
                   return ((card&&card.ladder)||[]).map(rung=>rung.reason).filter(Boolean);}""", title)
             offered = await page.evaluate(PATH, title)

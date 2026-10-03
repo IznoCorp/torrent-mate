@@ -77,7 +77,7 @@ async def main():
         await go("menu-system-badge")
         owner_badge = await page.evaluate(MENU_BADGE)
         await page.evaluate("""async () => { window.__mocks.setIdentity('household-member');
-          await window.__queries.invalidateQueries({ queryKey: ['/api/auth/me'] }); }""")
+          await window.__queries.invalidateQueries({ queryKey: ['/api/v1/auth/me'] }); }""")
         await page.wait_for_timeout(SETTLED)
         member_badge = await page.evaluate(MENU_BADGE)
         journal.check("R-L18-e: one Système fault badges the owner's menu and not a household member's",

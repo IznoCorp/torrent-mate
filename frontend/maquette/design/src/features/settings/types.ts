@@ -22,7 +22,7 @@ export type Setting = Schemas["Setting"] & { topic?: Record<string, unknown> };
 // A component READS it — it never replaces it — and re-reads on every store bump.
 //
 // `redemarrage` LEFT THIS OBJECT at B-343. A restart owed is a fact of the
-// LAYER, answered by `/api/config/status`, and the banner is a reader of that
+// LAYER, answered by `/api/v1/config/status`, and the banner is a reader of that
 // query: raised here it was raised on something nothing re-renders, so the
 // operator saved, was told « Enregistré », and saw no banner at all.
 export type SettingsState = {

@@ -88,39 +88,39 @@ LATENCY_MILLISECONDS = 10
 ASKED_FOR = {
     # A follow's claim answers 202 with the run it spawned, the backend's own
     # « Récupérer maintenant »; the corpus hold fell until it was asked here.
-    "grabForFollow": ("POST", "/api/acquisition/followed/Silo/grab"),
+    "grabForFollow": ("POST", "/api/v1/acquisition/followed/Silo/grab"),
     "grabSeasonForFollow": (
-        "POST", "/api/acquisition/follows/Silo/seasons/1/grab"),
-    "requeueJourney": ("POST", "/api/acquisition/journeys/Silo/requeue"),
-    "rescrapeJourney": ("POST", "/api/acquisition/journeys/Silo/rescrape"),
+        "POST", "/api/v1/acquisition/follows/Silo/seasons/1/grab"),
+    "requeueJourney": ("POST", "/api/v1/acquisition/journeys/Silo/requeue"),
+    "rescrapeJourney": ("POST", "/api/v1/acquisition/journeys/Silo/rescrape"),
     # ADDED BY THE COMMIT THAT DECLARED THE OPERATION, because the corpus hold
     # below FELL when it was declared without one — which is the hold doing its
     # whole job: a contract that gains a 202 and a rule that goes on exercising
     # three operations would be green about the fourth.
-    "rescrapeMedia": ("POST", "/api/media/tvdb/403245/rescrape"),
+    "rescrapeMedia": ("POST", "/api/v1/media/tvdb/403245/rescrape"),
     # The veille answers 202 with the run it launched, since its figures are read
     # from that run rather than returned at once.
-    "runDetection": ("POST", "/api/acquisition/detect"),
+    "runDetection": ("POST", "/api/v1/acquisition/detect"),
     # A cross-seed search answers 202 with what it queued, since the engine
     # searches on its own quota's time rather than at once. The origin is Star
     # Trek's complete download, whose `lacale` and `v3x.club` pairs are each in
     # a searchable state (DOIT-4's own corpus hold fell until this was asked).
     "searchCrossSeed": (
-        "POST", "/api/torrents/8d51568b1a4f46e1fb7e7b535b52a5203312fc28/cross-seed/search"),
+        "POST", "/api/v1/torrents/8d51568b1a4f46e1fb7e7b535b52a5203312fc28/cross-seed/search"),
     # An upload answers 202 too: the engine builds and publishes on its own time.
     # The origin is the seeded complete, seeding one whose `v3x.club` pair has no
     # match and whose tracker accepts uploads (L23 § 2.3).
     "uploadCrossSeed": (
-        "POST", "/api/torrents/e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb/cross-seed/v3x.club/upload"),
+        "POST", "/api/v1/torrents/e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb/cross-seed/v3x.club/upload"),
     # « Comptes »' two creations answer 201 with what they made (L18). A creation
     # carries its body, or the handler's refusal answers before the outcome.
-    "createAccount": ("POST", "/api/accounts",
+    "createAccount": ("POST", "/api/v1/accounts",
                       {"name": "Witness", "email": "witness@example.org", "role": "household"}),
-    "createRole": ("POST", "/api/roles", {"name": "Witness", "rights": []}),
+    "createRole": ("POST", "/api/v1/roles", {"name": "Witness", "rights": []}),
     # The 200 family's witness. A read, because the plain success is what every
     # read answers and a rule holding only mutations would say nothing about
     # the fifty-five operations that make up the rest of the contract.
-    "readFollows": ("GET", "/api/acquisition/followed"),
+    "readFollows": ("GET", "/api/v1/acquisition/followed"),
 }
 
 

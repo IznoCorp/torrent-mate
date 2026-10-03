@@ -106,7 +106,7 @@ PRESS = """(danger) => {
   const button = buttons.find(one => (one.dataset.tone === 'danger') === danger);
   if (!button) return false; button.click(); return true;
 }"""
-OBLIGATION = """(hash) => (window.__queries?.getQueryData(["/api/acquisition/obligations"])?.items || [])
+OBLIGATION = """(hash) => (window.__queries?.getQueryData(["/api/v1/acquisition/obligations"])?.items || [])
   .find(item => item.infoHash === hash) ?? null"""
 
 

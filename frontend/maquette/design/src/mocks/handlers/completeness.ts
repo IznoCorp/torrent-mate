@@ -60,7 +60,7 @@ function completenessOf(followedId: string): unknown {
 /** Every route this subject answers. */
 export function completenessRoutes(): MockRoute[] {
   return [
-    route("readFollowCompleteness", GET, "/api/acquisition/followed/{followedId}/completeness", (request) =>
+    route("readFollowCompleteness", GET, "/acquisition/followed/{followedId}/completeness", (request) =>
       completenessOf(request.parameters.followedId),
     ),
   ];

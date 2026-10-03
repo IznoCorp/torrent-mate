@@ -1,7 +1,7 @@
 // The signed-in picture, placed in the top bar once the account is known.
 //
 // The server serves the account's picture with the rest of the account
-// (`/api/auth/me`), so the bar shows what that read answered — the same answer
+// (`/api/v1/auth/me`), so the bar shows what that read answered — the same answer
 // the account page and its menu read, through the same query definition. The
 // bar is the frame's; the feature hands the picture to its door
 // (`lib/topbar-avatar.ts`).
@@ -21,7 +21,7 @@ import { accountQuery, type Account } from "./queries";
  */
 export function installSignedInAvatar(queryClient: QueryClient): void {
   const show = (account: Account | undefined) => {
-    if (account) showAvatar(account.avatar, account.name);
+    if (account) showAvatar(account.avatar ?? "", account.name);
   };
   // THE CACHE IS WATCHED, not one observer: the cache is emptied and refilled
   // by a reset, and an observer would keep reading the entry it was given.

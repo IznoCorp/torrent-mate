@@ -37,7 +37,7 @@ from playwright.async_api import async_playwright
 # rather than the library.
 READ = """()=>{
   const listing = window.__queries.getQueryCache().getAll()
-    .find((query) => query.queryKey[0] === '/api/library/items');
+    .find((query) => query.queryKey[0] === '/api/v1/library/items');
   const pages = listing?.state.data?.pages ?? [];
   return {
     foot: (document.querySelector('#libload')||{}).textContent || '',
@@ -150,7 +150,7 @@ async def main():
         await page.evaluate("""async ()=>{
           const held = () => {
             const listing = window.__queries.getQueryCache().getAll()
-              .find((query) => query.queryKey[0] === '/api/library/items');
+              .find((query) => query.queryKey[0] === '/api/v1/library/items');
             return (listing?.state.data?.pages ?? [])
               .reduce((count, page) => count + page.items.length, 0);
           };

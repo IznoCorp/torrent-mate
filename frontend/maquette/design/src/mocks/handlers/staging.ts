@@ -268,7 +268,7 @@ export function poseStuckFolders(titles: string[]): void {
 /** Every route this subject answers. */
 export function stagingRoutes(): MockRoute[] {
   return [
-    route("readStaging", GET, "/api/staging/media", (request: MockRequest) => {
+    route("readStaging", GET, "/staging/media", (request: MockRequest) => {
       const state = mockState();
       // THE SCENARIO PICKS THE WORLD, and the pairing is the engine's own
       // `derived`. Under the DENSE one the queue is what a busy morning looks
@@ -288,7 +288,7 @@ export function stagingRoutes(): MockRoute[] {
     route(
       "continueStagedMedia",
       POST,
-      "/api/staging/media/{mediaId}/continue",
+      "/staging/media/{mediaId}/continue",
       (request) => {
         const asked = request.parameters.mediaId;
         if (text(request.body, "outcome") === LEFT_AS_IT_IS) return { ok: setAside(asked) };
@@ -298,7 +298,7 @@ export function stagingRoutes(): MockRoute[] {
     route(
       "discardStagedMedia",
       POST,
-      "/api/staging/media/{mediaId}/discard",
+      "/staging/media/{mediaId}/discard",
       (request) => {
         const asked = request.parameters.mediaId;
         // QUARANTINED, NOT DELETED, journaled, at the backend's own path; a follow's folder is searched again.
@@ -311,18 +311,18 @@ export function stagingRoutes(): MockRoute[] {
     ),
     // DELETED, NOT QUARANTINED: « Supprimer » on a folder set aside removes it
     // from the disk and journals it; the answer carries no place it went.
-    route("readStagedMediaCopies", GET, "/api/staging/media/{mediaId}/copies", (request) => ({
+    route("readStagedMediaCopies", GET, "/staging/media/{mediaId}/copies", (request) => ({
       case: copiesOf(request.parameters.mediaId),
     })),
-    route("deleteStagedMedia", DELETE, "/api/staging/media/{mediaId}", (request) => {
+    route("deleteStagedMedia", DELETE, "/staging/media/{mediaId}", (request) => {
       const removed = takeOutOfStaging(request.parameters.mediaId);
       return { ok: removed, journaled: removed };
     }),
-    route("readStagingDestinations", GET, "/api/staging/destinations", () => DESTINATIONS),
+    route("readStagingDestinations", GET, "/staging/destinations", () => DESTINATIONS),
     route(
       "resolvePlexMatch",
       POST,
-      "/api/acquisition/journeys/{infoHash}/plex-match",
+      "/acquisition/journeys/{infoHash}/plex-match",
       (request) => {
         // THE ANSWER MOVES THE CARD: confirmed or corrected, the match no
         // longer waits for the operator, so the card leaves « À traiter » and
@@ -355,7 +355,7 @@ export function stagingRoutes(): MockRoute[] {
     route(
       "reclassifyStagedMedia",
       POST,
-      "/api/staging/media/{mediaId}/reclassify",
+      "/staging/media/{mediaId}/reclassify",
       (request) => {
         // « CE N'EST PAS UN MÉDIA »: the folder leaves the staging area — and
         // so the arrivals — for a destination the configuration declares.
@@ -378,7 +378,7 @@ export function stagingRoutes(): MockRoute[] {
     route(
       "restoreReclassifiedMedia",
       DELETE,
-      "/api/staging/media/{mediaId}/reclassify",
+      "/staging/media/{mediaId}/reclassify",
       (request) => {
         // THE INVERSE: the folder goes back to the list it was taken from.
         const state = mockState();

@@ -106,7 +106,7 @@ UNKNOWN_RUN = "nobody"
 # against what the fold reveals.
 ANSWERED_TAIL = """async ()=>{
   const uid = location.pathname.split('/').pop();
-  const answer = await fetch('/api/pipeline/history/' + uid);
+  const answer = await fetch('/api/v1/pipeline/history/' + uid);
   const detail = answer.ok ? await answer.json() : null;
   return detail ? detail.outputTail : null;
 }"""

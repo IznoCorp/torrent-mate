@@ -37,7 +37,7 @@ READ = """() => ({
   waiting: !!document.querySelector('[data-part="add/id-waiting"]'),
   missing: document.querySelector('[data-part="add/id-missing"]')?.textContent ?? null,
   follows: (window.__queries.getQueryCache().getAll()
-    .find((query) => query.queryKey[0] === '/api/acquisition/followed' && query.queryKey.length <= 2)
+    .find((query) => query.queryKey[0] === '/api/v1/acquisition/followed' && query.queryKey.length <= 2)
     ?.state.data ?? []).map((follow) => follow.title),
   creates: window.__mocks.answered().filter((call) => call.operationId === 'createFollow')
     .map((call) => call.status),

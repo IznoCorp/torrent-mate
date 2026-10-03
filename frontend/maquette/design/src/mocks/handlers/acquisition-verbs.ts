@@ -198,7 +198,7 @@ export function acquisitionVerbRoutes(): MockRoute[] {
     route(
       "grabSeasonForFollow",
       POST,
-      "/api/acquisition/follows/{followedId}/seasons/{season}/grab",
+      "/acquisition/follows/{followedId}/seasons/{season}/grab",
       (request) => {
         const title = request.parameters.followedId;
         const season = Number(request.parameters.season);
@@ -239,7 +239,7 @@ export function acquisitionVerbRoutes(): MockRoute[] {
     route(
       "requeueJourney",
       POST,
-      "/api/acquisition/journeys/{infoHash}/requeue",
+      "/acquisition/journeys/{infoHash}/requeue",
       (request) => {
         // QUEUED, so nothing runs: every unfinished stage is waiting.
         restart(request.parameters.infoHash, false);
@@ -249,7 +249,7 @@ export function acquisitionVerbRoutes(): MockRoute[] {
     route(
       "rescrapeJourney",
       POST,
-      "/api/acquisition/journeys/{infoHash}/rescrape",
+      "/acquisition/journeys/{infoHash}/rescrape",
       (request) => {
         // RUNNING AGAIN, from the stage the passage stopped at.
         restart(request.parameters.infoHash, true);

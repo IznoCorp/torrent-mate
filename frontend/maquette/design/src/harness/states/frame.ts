@@ -39,7 +39,7 @@ export function drawerStates(): NamedState[] {
         // THE TWO TRACKERS A FAILURE SWITCHED OFF RECOVER, so only the cross-seed's failures count.
         window.__mocks?.poseRecovered("lacale");
         window.__mocks?.poseRecovered("digitalcore.club");
-        for (const address of ["/api/trackers", "/api/acquisition/downloads", "/api/acquisition/obligations"]) {
+        for (const address of ["/api/v1/trackers", "/api/v1/acquisition/downloads", "/api/v1/acquisition/obligations"]) {
           window.__queries?.removeQueries({ queryKey: [address] });
         }
         applyState({ page: "acq", acqTab: "follows", phase: "ready" });

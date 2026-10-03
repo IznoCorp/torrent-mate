@@ -134,7 +134,7 @@ async def main():
         await page.goto(PROTOTYPE.rstrip("/") + PAGE_PATHS.get("trackers", "/trackers"), wait_until="load")
         await page.evaluate("()=>window.__loadingDone?.()")
         await page.wait_for_timeout(SETTLED)
-        roster = await page.evaluate("()=>(window.__queries?.getQueryData(['/api/trackers']) || []).map(t => t.name)")
+        roster = await page.evaluate("()=>(window.__queries?.getQueryData(['/api/v1/trackers']) || []).map(t => t.name)")
         selector = page.locator('#view [data-part="pill/select"][data-trackers-selector]')
         if await selector.count():
             await selector.first.tap()

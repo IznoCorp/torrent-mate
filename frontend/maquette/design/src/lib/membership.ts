@@ -20,8 +20,8 @@ export type Membership = components["schemas"]["LibraryMembership"];
  */
 export function membershipQuery(title: string) {
   return {
-    queryKey: ["/api/library/membership", title] as const,
+    queryKey: ["/api/v1/library/membership", title] as const,
     queryFn: () =>
-      read<Membership>(`/api/library/membership?title=${encodeURIComponent(title)}`),
+      read<Membership>(`/api/v1/library/membership?title=${encodeURIComponent(title)}`),
   };
 }
