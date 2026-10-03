@@ -191,6 +191,57 @@ def test_failed_scan_announces_skip_and_dispatch_continues(mock_config: MagicMoc
     assert [(s.disk, s.reason) for s in skips] == [("disk_1", ScanSkipReason.FAILED)]
 
 
+def test_failed_scan_on_one_disk_announces_only_that_disk(mock_config: MagicMock) -> None:
+    """Two touched disks, one scan fails → exactly one ``failed`` skip, for the failing disk."""
+    bus = EventBus()
+    skips = _skips(bus)
+
+    def _scan(_config: object, disk: str, **_kwargs: object) -> int:
+        return 1 if disk == "disk_2" else 0
+
+    with (
+        patch("personalscraper.dispatch.post_maintenance._scan_disk_incremental", side_effect=_scan),
+        patch(
+            "personalscraper.dispatch.post_maintenance._run_relink",
+            return_value={"linked": 0, "unmatched": 0, "errors": 0},
+        ),
+        patch("personalscraper.dispatch.post_maintenance._run_fix_season_counts", return_value=0),
+        patch("personalscraper.dispatch.post_maintenance._run_repair_drain", return_value=0),
+    ):
+        post_maintenance.run_post_dispatch_maintenance(mock_config, {"disk_1", "disk_2"}, event_bus=bus, enabled=True)
+    assert [(s.disk, s.reason) for s in skips] == [("disk_2", ScanSkipReason.FAILED)]
+
+
+class _RaisingOnSkipBus(EventBus):
+    """A bus whose ``emit`` raises for ``LibraryScanSkipped`` only."""
+
+    def emit(self, event: object) -> None:
+        """Raise on a skip announcement, delegate everything else."""
+        if isinstance(event, LibraryScanSkipped):
+            raise RuntimeError("bus down")
+        super().emit(event)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_a_raising_bus_never_fails_the_maintenance(
+    mock_config: MagicMock, enabled: bool, caplog: pytest.LogCaptureFixture
+) -> None:
+    """An ``emit`` that raises on the announce → the run returns normally and logs the failure."""
+    bus = _RaisingOnSkipBus()
+    caplog.set_level("WARNING")
+    with (
+        patch("personalscraper.dispatch.post_maintenance._scan_disk_incremental", return_value=1),
+        patch(
+            "personalscraper.dispatch.post_maintenance._run_relink",
+            return_value={"linked": 0, "unmatched": 0, "errors": 0},
+        ),
+        patch("personalscraper.dispatch.post_maintenance._run_fix_season_counts", return_value=0),
+        patch("personalscraper.dispatch.post_maintenance._run_repair_drain", return_value=0),
+    ):
+        post_maintenance.run_post_dispatch_maintenance(mock_config, {"disk_1"}, event_bus=bus, enabled=enabled)
+    assert "post_maintenance_skip_emit_failed" in caplog.text
+
+
 def test_successful_scan_announces_no_skip(mock_config: MagicMock) -> None:
     """A scan that succeeds announces nothing."""
     bus = EventBus()
