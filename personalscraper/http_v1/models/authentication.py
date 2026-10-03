@@ -1,0 +1,102 @@
+"""The ``authentication`` tag's bodies, written from the contract's ``Account`` and ``Role``.
+
+A property the contract marks ABSENT when empty (``Account.avatar``, ``Role.name``,
+``Role.defaultFor``) is ``None`` here and left out of the answer: the routes serialise
+with ``response_model_exclude_none``.
+"""
+
+from __future__ import annotations
+
+from personalscraper.app.accounts.actor import RoleKind
+from personalscraper.app.accounts.repository import StartKind
+from personalscraper.app.accounts.rights import Right
+from personalscraper.app.accounts.views import AccountView, RoleView, SignInKind
+from personalscraper.http_v1.contract import ContractModel
+
+
+class RoleModel(ContractModel):
+    """The contract's ``Role``.
+
+    Attributes:
+        id: The role's key.
+        name: Its name when an Admin gave it one; absent on a seeded role never renamed.
+        kind: ``admin`` or ``ordinary``.
+        rights: The rights it carries; empty for Admin.
+        default_for: Who starts on it; absent for a role nobody starts on.
+    """
+
+    id: str
+    name: str | None = None
+    kind: RoleKind
+    rights: list[Right]
+    default_for: list[StartKind] | None = None
+
+    @classmethod
+    def from_view(cls, view: RoleView) -> RoleModel:
+        """Map a role view.
+
+        Args:
+            view: The service's view.
+
+        Returns:
+            The body.
+        """
+        return cls(
+            id=view.id,
+            name=view.name,
+            kind=view.kind,
+            rights=list(view.rights),
+            default_for=list(view.default_for) or None,
+        )
+
+
+class AccountModel(ContractModel):
+    """The contract's ``Account``: who is signed in, and what the instance forbids.
+
+    Attributes:
+        name: The display name.
+        email: The e-mail.
+        avatar: The picture's address; absent for an account that has none.
+        id: The account's key.
+        role: Its one role.
+        sign_in_kind: How it signs in.
+        forbidden_writes: The instance's forbidden writes.
+    """
+
+    name: str
+    email: str
+    avatar: str | None = None
+    id: str
+    role: RoleModel
+    sign_in_kind: SignInKind
+    forbidden_writes: list[Right]
+
+    @classmethod
+    def from_view(cls, view: AccountView) -> AccountModel:
+        """Map an account view.
+
+        Args:
+            view: The service's view.
+
+        Returns:
+            The body.
+        """
+        return cls(
+            name=view.name,
+            email=view.email,
+            avatar=view.avatar,
+            id=view.id,
+            role=RoleModel.from_view(view.role),
+            sign_in_kind=view.sign_in_kind,
+            forbidden_writes=list(view.forbidden_writes),
+        )
+
+
+class SignedOut(ContractModel):
+    """``signOut``'s acknowledgement.
+
+    Attributes:
+        ok: Always true: the session is closed.
+    """
+
+    ok: bool

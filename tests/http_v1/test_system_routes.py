@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import dataclasses
+from collections.abc import Callable
+
 import pytest
 from fastapi import Request
 from fastapi.testclient import TestClient
@@ -14,7 +17,6 @@ from personalscraper.app.composition import build_app_services
 from personalscraper.app.services import AppServices
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
-from personalscraper.core.event_bus import EventBus
 from personalscraper.http_v1.app import create_v1_app
 from personalscraper.http_v1.perimeter import ActorResolver
 
@@ -59,9 +61,9 @@ def _client(config: Config, services: AppServices, resolver: ActorResolver | Non
     return TestClient(create_v1_app(config, settings, services, resolver=resolver), raise_server_exceptions=False)
 
 
-def test_without_a_session_is_auth_required(test_config: Config) -> None:
+def test_without_a_session_is_auth_required(test_config: Config, make_v1_services: Callable[[], AppServices]) -> None:
     """No session: 401 ``auth.required``, as a Problem."""
-    services = AppServices(event_bus=EventBus(), build_info=BUILD_INFO, library=None)  # type: ignore[arg-type] — /version reads no library
+    services = make_v1_services()
 
     response = _client(test_config, services, None).get("/version")
 
@@ -69,13 +71,9 @@ def test_without_a_session_is_auth_required(test_config: Config) -> None:
     assert response.json()["code"] == "auth.required"
 
 
-def test_signed_in_answers_the_services_build(test_config: Config) -> None:
+def test_signed_in_answers_the_services_build(test_config: Config, make_v1_services: Callable[[], AppServices]) -> None:
     """Any signed-in account, even rightless on a read-only instance, reads the services' build."""
-    services = AppServices(
-        event_bus=EventBus(),
-        build_info=BuildInfo(version="9.9.9", commit="feedbee"),
-        library=None,  # type: ignore[arg-type] — /version reads no library
-    )
+    services = dataclasses.replace(make_v1_services(), build_info=BuildInfo(version="9.9.9", commit="feedbee"))
 
     response = _client(test_config, services, _StubResolver()).get("/version")
 

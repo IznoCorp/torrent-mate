@@ -7,6 +7,7 @@ Public API:
   db_lock(path, *, timeout=0)  — FileLock + sidecar + stale-PID recovery
   apply_migrations(conn, dir_) — apply *.sql migration scripts
   probe_mount(path)            — filesystem-type probe
+  serialised                   — a store method run under its connection lock
   Sqlite*Error                 — marker exception hierarchy
 """
 
@@ -17,6 +18,7 @@ from personalscraper.core.sqlite._lock import db_lock
 from personalscraper.core.sqlite._migrate import apply_migrations
 from personalscraper.core.sqlite._open import open_db
 from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.core.sqlite._serialised import serialised
 from personalscraper.core.sqlite.errors import (
     SqliteCorruptError,
     SqliteDiskFullError,
@@ -39,4 +41,5 @@ __all__ = [
     "db_lock",
     "open_db",
     "probe_mount",
+    "serialised",
 ]

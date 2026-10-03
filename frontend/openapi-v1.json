@@ -1,6 +1,58 @@
 {
   "components": {
     "schemas": {
+      "AccountModel": {
+        "additionalProperties": false,
+        "description": "The contract's ``Account``: who is signed in, and what the instance forbids.\n\nAttributes:\n    name: The display name.\n    email: The e-mail.\n    avatar: The picture's address; absent for an account that has none.\n    id: The account's key.\n    role: Its one role.\n    sign_in_kind: How it signs in.\n    forbidden_writes: The instance's forbidden writes.",
+        "properties": {
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "forbiddenWrites": {
+            "items": {
+              "$ref": "#/components/schemas/Right"
+            },
+            "title": "Forbiddenwrites",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/RoleModel"
+          },
+          "signInKind": {
+            "$ref": "#/components/schemas/SignInKind"
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "id",
+          "role",
+          "signInKind",
+          "forbiddenWrites"
+        ],
+        "title": "AccountModel",
+        "type": "object"
+      },
       "Problem": {
         "additionalProperties": false,
         "description": "The contract's ``Problem`` (``#/components/schemas/Problem``).\n\nAttributes:\n    status: The HTTP status, repeated in the body.\n    title: What went wrong, in one English line \u2014 the code's title.\n    detail: The real reason, an English developer line; never shown as is.\n    code: The refusal's code; the interface renders it through ``fr.json``.\n    params: The typed facts the interface composes its sentence from.",
@@ -58,6 +110,124 @@
         "title": "RefusalCode",
         "type": "string"
       },
+      "Right": {
+        "description": "One right of the ACL, in the contract's own names (``#/components/schemas/Right``).",
+        "enum": [
+          "library.read",
+          "library.delete",
+          "library.rescrape",
+          "acquisition.request",
+          "acquisition.follow",
+          "acquisition.pilot.own",
+          "acquisition.pilot.any",
+          "acquisition.see.others",
+          "acquisition.todo.view",
+          "acquisition.quality.own",
+          "acquisition.pause.own",
+          "acquisition.reassign",
+          "pipeline.control",
+          "trackers.view",
+          "trackers.control",
+          "trackers.upload",
+          "system.view",
+          "configuration.view",
+          "configuration.write",
+          "accounts.manage"
+        ],
+        "title": "Right",
+        "type": "string"
+      },
+      "RoleKind": {
+        "description": "The contract's role kinds: the one Admin role and every other one.",
+        "enum": [
+          "admin",
+          "ordinary"
+        ],
+        "title": "RoleKind",
+        "type": "string"
+      },
+      "RoleModel": {
+        "additionalProperties": false,
+        "description": "The contract's ``Role``.\n\nAttributes:\n    id: The role's key.\n    name: Its name when an Admin gave it one; absent on a seeded role never renamed.\n    kind: ``admin`` or ``ordinary``.\n    rights: The rights it carries; empty for Admin.\n    default_for: Who starts on it; absent for a role nobody starts on.",
+        "properties": {
+          "defaultFor": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "plexHome",
+                    "plexGuest",
+                    "local"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defaultfor"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/RoleKind"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "rights": {
+            "items": {
+              "$ref": "#/components/schemas/Right"
+            },
+            "title": "Rights",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "rights"
+        ],
+        "title": "RoleModel",
+        "type": "object"
+      },
+      "SignInKind": {
+        "description": "How an account signs in \u2014 a fact of the account, never of its role (the contract's ``SignInKind``).",
+        "enum": [
+          "owner",
+          "plex",
+          "local"
+        ],
+        "title": "SignInKind",
+        "type": "string"
+      },
+      "SignedOut": {
+        "additionalProperties": false,
+        "description": "``signOut``'s acknowledgement.\n\nAttributes:\n    ok: Always true: the session is closed.",
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "SignedOut",
+        "type": "object"
+      },
       "Version": {
         "additionalProperties": false,
         "description": "``readVersion``'s answer (the contract's ``GET /version`` 200).\n\nAttributes:\n    version: The package version the running process serves.\n    commit: The git commit it booted with, or ``\"dev\"``.",
@@ -86,6 +256,164 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/auth/logout": {
+      "post": {
+        "description": "Close the session and clear its cookie.\n\nArgs:\n    request: The incoming request (the sub-application's web configuration).\n    response: The answer the cleared cookie is set on.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    token: The session's value.\n\nReturns:\n    ``{\"ok\": true}``.",
+        "operationId": "signOut",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Sign Out"
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "description": "The signed-in account, its role, how it signs in, and the instance's forbidden writes.\n\nArgs:\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The account.",
+        "operationId": "readAccount",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Read Account"
+      }
+    },
     "/version": {
       "get": {
         "description": "The version and the commit the running process serves.\n\nArgs:\n    app_services: The application services.\n\nReturns:\n    The build read once at boot, so a stale process never claims a newer stamp.",

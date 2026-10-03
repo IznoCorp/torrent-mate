@@ -26,8 +26,8 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | | |
 | --- | ---: |
 | operations the interface requires | 101 |
-| operations v1 serves | 1 |
-| required and not served | 100 |
+| operations v1 serves | 3 |
+| required and not served | 98 |
 | served, different response shape | 0 |
 | served, path parameter spelled differently | 0 |
 | served, answered with a different status | 0 |
@@ -58,7 +58,6 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `GET /api/v1/acquisition/status` | `readAcquisitionStatus` | The grab cadence, and when the next search runs |
 | `GET /api/v1/acquisition/suggestions` | `readSuggestions` | Titles worth following, and why |
 | `GET /api/v1/acquisition/to-handle` | `readAcquisitionQueue` | What the acquisition side is holding, by bucket |
-| `GET /api/v1/auth/me` | `readAccount` | The signed-in account |
 | `GET /api/v1/config/files` | `readConfigurationFiles` | The configuration files, and which have pending edits |
 | `GET /api/v1/config/files/{name}` | `readConfigurationFile` | Read one configuration file's content |
 | `GET /api/v1/config/schema` | `readSettings` | Every setting, by topic |
@@ -108,7 +107,6 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `POST /api/v1/acquisition/ranking/preview` | `previewRanking` | Score the preview's fixed sample set under a candidate ranking |
 | `POST /api/v1/acquisition/requesters/reassign` | `reassignRequester` | Move one requester of an acquisition to another account |
 | `POST /api/v1/auth/login` | `signIn` | Open a session |
-| `POST /api/v1/auth/logout` | `signOut` | Close the session |
 | `POST /api/v1/auth/plex` | `signInWithPlex` | Open a session through Plex |
 | `POST /api/v1/auth/plex/start` | `startPlexSignIn` | Start a Plex sign-in |
 | `POST /api/v1/config/restart-web` | `restartWeb` | Restart the web process so a change takes |
