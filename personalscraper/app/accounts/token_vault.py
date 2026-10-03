@@ -49,6 +49,10 @@ class MalformedTokenKey(ValueError):
         self.position = position
 
 
+class NoKeptTokenOpens(RuntimeError):
+    """No kept token opens under the vault's keys: the keys are probably the wrong ones."""
+
+
 class TokenVault:
     """Seals and opens kept Plex tokens, each bound to its account."""
 
@@ -209,24 +213,38 @@ def forget_kept_tokens(repo: AccountRepository, *, account_id: str | None) -> in
     return forgotten
 
 
-def purge_undecryptable(repo: AccountRepository, vault: TokenVault, *, now: float) -> int:
+def purge_undecryptable(repo: AccountRepository, vault: TokenVault, *, now: float, force: bool = False) -> int:
     """Clear every kept token the vault cannot open for its own account.
+
+    A well-formed but wrong key set (a typo, the old key dropped too early, a stale
+    environment) opens nothing and would clear every row: when kept tokens exist and none
+    opens, the purge refuses unless ``force`` says that is meant.
 
     Args:
         repo: The account rows.
         vault: The vault over the keys still trusted.
         now: The purge time (epoch seconds), logged.
+        force: Clear the rows even when none of them opens.
 
     Returns:
         How many rows were cleared.
+
+    Raises:
+        NoKeptTokenOpens: When at least one token is kept, none opens, and ``force`` is unset;
+            nothing is written.
     """
     purged = 0
     with repo.immediate():
-        for link in repo.plex_links_with_token():
+        links = repo.plex_links_with_token()
+        unreadable = []
+        for link in links:
             assert link.token_ciphertext is not None  # the query keeps only rows holding one
-            if vault.open(link.account_id, link.token_ciphertext) is not None:
-                continue
-            repo.set_token_ciphertext(link.account_id, None, now=None)
+            if vault.open(link.account_id, link.token_ciphertext) is None:
+                unreadable.append(link.account_id)
+        if links and len(unreadable) == len(links) and not force:
+            raise NoKeptTokenOpens
+        for account_id in unreadable:
+            repo.set_token_ciphertext(account_id, None, now=None)
             purged += 1
     log.info("plex_token.purged", count=purged, at=now)
     return purged

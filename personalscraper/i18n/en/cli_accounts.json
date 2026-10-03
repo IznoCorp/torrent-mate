@@ -31,6 +31,8 @@
     },
     "purge": {
       "help": "Clear every kept Plex token no key of PLEX_TOKEN_KEYS opens (a removed key, a token moved from another account).",
+      "force_help": "Clear the kept tokens even when none opens under the current keys.",
+      "none_opens": "No kept token opens under the current PLEX_TOKEN_KEYS, so they are probably wrong. Nothing was changed; pass --force to clear them anyway.",
       "done_one": "{{count}} undecryptable kept token cleared.",
       "done_other": "{{count}} undecryptable kept tokens cleared."
     }

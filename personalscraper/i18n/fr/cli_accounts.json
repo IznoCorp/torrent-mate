@@ -31,6 +31,8 @@
     },
     "purge": {
       "help": "Efface chaque jeton Plex conservé qu'aucune clé de PLEX_TOKEN_KEYS n'ouvre (une clé retirée, un jeton déplacé depuis un autre compte).",
+      "force_help": "Efface les jetons conservés même si aucun ne s'ouvre avec les clés actuelles.",
+      "none_opens": "Aucun jeton conservé ne s'ouvre avec les PLEX_TOKEN_KEYS actuelles : elles sont probablement fausses. Rien n'a été modifié ; passez --force pour les effacer quand même.",
       "done_one": "{{count}} jeton conservé indéchiffrable effacé.",
       "done_other": "{{count}} jetons conservés indéchiffrables effacés."
     }

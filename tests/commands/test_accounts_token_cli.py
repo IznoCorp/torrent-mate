@@ -303,14 +303,16 @@ class TestPurge:
     def test_clears_what_no_key_opens(
         self, cli_runner: CliRunner, test_config: Config, store: AppStore, keys: list[bytes], monkeypatch
     ) -> None:
-        """The old key dropped: both rows undecryptable, cleared and counted; nothing printed of them."""
+        """The old key dropped: Alice (re-sealed under the new key) stays, Bob (old key) is cleared and counted."""
+        store.accounts.set_token_ciphertext(_ALICE, TokenVault([keys[0]]).seal(_ALICE, _TOKEN), now=2.0)
         _set_keys(monkeypatch, keys[0].decode())
 
         result = _invoke(cli_runner, test_config, ["accounts", "token", "purge-undecryptable"])
 
         assert result.exit_code == 0, result.output
-        assert result.stdout.strip() == "2 undecryptable kept tokens cleared."
-        assert store.accounts.plex_links_with_token() == []
+        assert result.stdout.strip() == "1 undecryptable kept token cleared."
+        assert _kept(store, _ALICE) is not None
+        assert _kept(store, _BOB) is None
         _assert_no_secret(result.output, keys)
 
     def test_keeps_what_a_key_opens(
@@ -332,6 +334,45 @@ class TestPurge:
         assert result.exit_code == 1
         assert "PLEX_TOKEN_KEYS is empty" in result.stderr
         assert len(store.accounts.plex_links_with_token()) == 2
+
+    def test_a_wrong_key_set_refuses_the_purge(
+        self, cli_runner: CliRunner, test_config: Config, store: AppStore, keys: list[bytes], monkeypatch
+    ) -> None:
+        """A well-formed key opening nothing: exit 1, a line saying so, rows unchanged."""
+        before = {account_id: _kept(store, account_id) for account_id in (_ALICE, _BOB)}
+        _set_keys(monkeypatch, Fernet.generate_key().decode())
+
+        result = _invoke(cli_runner, test_config, ["accounts", "token", "purge-undecryptable"])
+
+        assert result.exit_code == 1
+        assert "No kept token opens under the current PLEX_TOKEN_KEYS" in result.stderr
+        assert {account_id: _kept(store, account_id) for account_id in (_ALICE, _BOB)} == before
+
+    def test_force_clears_every_row_under_a_wrong_key_set(
+        self, cli_runner: CliRunner, test_config: Config, store: AppStore, keys: list[bytes], monkeypatch
+    ) -> None:
+        """The same wrong keys with ``--force``: both rows cleared."""
+        _set_keys(monkeypatch, Fernet.generate_key().decode())
+
+        result = _invoke(cli_runner, test_config, ["accounts", "token", "purge-undecryptable", "--force"])
+
+        assert result.exit_code == 0, result.output
+        assert result.stdout.strip() == "2 undecryptable kept tokens cleared."
+        assert store.accounts.plex_links_with_token() == []
+
+    def test_one_readable_row_needs_no_force(
+        self, cli_runner: CliRunner, test_config: Config, store: AppStore, keys: list[bytes], monkeypatch
+    ) -> None:
+        """Alice opens under the current key, Bob does not: only Bob is cleared, no ``--force``."""
+        store.accounts.set_token_ciphertext(_ALICE, TokenVault([keys[0]]).seal(_ALICE, _TOKEN), now=2.0)
+        _set_keys(monkeypatch, keys[0].decode())
+
+        result = _invoke(cli_runner, test_config, ["accounts", "token", "purge-undecryptable"])
+
+        assert result.exit_code == 0, result.output
+        assert result.stdout.strip() == "1 undecryptable kept token cleared."
+        assert _kept(store, _ALICE) is not None
+        assert _kept(store, _BOB) is None
 
 
 def _catalogue_line(language: Language, namespace: str, *path: str) -> str:

@@ -20,6 +20,7 @@ from personalscraper.app.accounts.repository import AccountRepository, AccountRo
 from personalscraper.app.accounts.token_vault import (
     TokenVault,
     forget_kept_tokens,
+    NoKeptTokenOpens,
     purge_undecryptable,
     rotate_kept_tokens,
 )
@@ -310,6 +311,33 @@ class TestRows:
         assert _kept(repo, _BOB) is None
         alice = _kept(repo, _ALICE)
         assert alice is not None and vault.open(_ALICE, alice) == _TOKEN
+
+    def test_purge_refuses_when_no_kept_token_opens(self, repo: AccountRepository) -> None:
+        """Every row unreadable (a wrong key set): refused, every row unchanged."""
+        wrong, removed = Fernet.generate_key(), Fernet.generate_key()
+        blobs = {}
+        for account_id in (_ALICE, _BOB):
+            blobs[account_id] = TokenVault([removed]).seal(account_id, _TOKEN)
+            repo.set_token_ciphertext(account_id, blobs[account_id], now=1.0)
+
+        with pytest.raises(NoKeptTokenOpens):
+            purge_undecryptable(repo, TokenVault([wrong]), now=_NOW)
+
+        for account_id in (_ALICE, _BOB):
+            assert _kept(repo, account_id) == blobs[account_id]
+
+    def test_purge_force_clears_every_row_even_when_none_opens(self, repo: AccountRepository) -> None:
+        """The same vault with ``force``: every row cleared."""
+        wrong, removed = Fernet.generate_key(), Fernet.generate_key()
+        for account_id in (_ALICE, _BOB):
+            repo.set_token_ciphertext(account_id, TokenVault([removed]).seal(account_id, _TOKEN), now=1.0)
+
+        assert purge_undecryptable(repo, TokenVault([wrong]), now=_NOW, force=True) == 2
+        assert repo.plex_links_with_token() == []
+
+    def test_purge_with_nothing_kept_is_not_a_refusal(self, repo: AccountRepository) -> None:
+        """No kept token at all: nothing to refuse over, zero cleared."""
+        assert purge_undecryptable(repo, TokenVault([Fernet.generate_key()]), now=_NOW) == 0
 
 
 class TestLeaks:

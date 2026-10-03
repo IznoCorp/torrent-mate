@@ -19,6 +19,7 @@ import typer
 
 from personalscraper.app.accounts.token_vault import (
     MalformedTokenKey,
+    NoKeptTokenOpens,
     TokenVault,
     forget_kept_tokens,
     purge_undecryptable,
@@ -170,15 +171,20 @@ def forget_token(
 
 @token_app.command("purge-undecryptable", help=t("cli_accounts.token.purge.help"))
 @handle_cli_errors
-def purge_undecryptable_tokens(ctx: typer.Context) -> None:
+def purge_undecryptable_tokens(
+    ctx: typer.Context,
+    force: bool = typer.Option(False, "--force", help=t("cli_accounts.token.purge.force_help")),
+) -> None:
     """Clear every kept Plex token no key of ``PLEX_TOKEN_KEYS`` opens for its own account.
 
     Args:
         ctx: Typer context carrying the loaded ``Config`` on ``ctx.obj``.
+        force: Clear the tokens even when none opens (the keys are probably wrong).
 
     Raises:
         typer.Exit: Code 1 when no key is set (every token would read as undecryptable:
-            ``token forget --all`` does that on purpose), or one is malformed.
+            ``token forget --all`` does that on purpose), one is malformed, or no kept
+            token opens under the keys and ``--force`` is not given.
     """
     config: Config = ctx.obj.config
     assert config is not None
@@ -186,7 +192,10 @@ def purge_undecryptable_tokens(ctx: typer.Context) -> None:
     vault = _vault()
     services = build_app_services(config, get_settings())
     try:
-        count = purge_undecryptable(services.app_store.accounts, vault, now=time.time())
+        count = purge_undecryptable(services.app_store.accounts, vault, now=time.time(), force=force)
+    except NoKeptTokenOpens:
+        typer.echo(t("cli_accounts.token.purge.none_opens"), err=True)
+        raise typer.Exit(code=1) from None
     finally:
         services.close()
     typer.echo(t("cli_accounts.token.purge.done", count=count))
