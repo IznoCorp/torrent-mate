@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Callable
 
 import structlog
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
 from starlette.types import Message, Receive, Scope, Send
@@ -44,6 +44,11 @@ def _probe_router() -> APIRouter:
     @router.post("/body")
     def _body(body: _Body) -> None:
         """Take a body."""
+
+    @router.get("/teapot")
+    def _teapot() -> None:
+        """Raise the router's own exception under a status that is neither 404 nor 405."""
+        raise HTTPException(status_code=418, detail=_SECRET)
 
     @router.get("/crash")
     def _crash() -> None:
@@ -121,6 +126,19 @@ def test_wrong_method_is_route_unknown(make_v1_app: Callable[..., FastAPI]) -> N
     assert response.status_code == 405
     assert response.json()["code"] == "route.unknown"
     assert response.headers["allow"] == "GET"
+
+
+def test_http_exception_other_than_404_405_is_internal_and_logged(make_v1_app: Callable[..., FastAPI]) -> None:
+    """A v1 route raising ``HTTPException`` is a v1 defect: 500 ``internal``, status logged, detail never answered."""
+    client = _client(make_v1_app)
+
+    with structlog.testing.capture_logs() as logs:
+        response = client.get("/teapot")
+
+    assert response.status_code == 500
+    assert response.json()["code"] == "internal"
+    assert _SECRET not in response.text
+    assert any(entry["event"] == "v1_http_exception" and entry["status"] == 418 for entry in logs)
 
 
 def test_crash_is_internal_with_no_trace(make_v1_app: Callable[..., FastAPI]) -> None:
