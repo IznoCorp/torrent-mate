@@ -11,7 +11,8 @@ never a failure here; an operation v1 serves is held to the contract strictly:
 - ``enum``      every enum met on the way equal, member for member (X4);
 - ``request``   the request body's presence, its required flag, its properties and
                 required set equal the contract's;
-- ``parameter`` the same path, query and header parameters, each equally required;
+- ``parameter`` the same path, query and header parameters, each equally required, each
+                schema compared as the bodies are (its enum under ``enum``);
 - ``refusal``   the refusal statuses equal the contract's: none missing, none it does not
                 declare (DESIGN C.4: a lot never answers a status its operation does not declare);
 - ``problem``   each refusal answers the contract's ``Problem``: the same property names,
@@ -270,6 +271,23 @@ def _parameters(operation: dict[str, Any]) -> set[tuple[str, str, bool]]:
     }
 
 
+def _parameter_schemas(document: dict[str, Any], operation: dict[str, Any]) -> dict[tuple[str, str], Any]:
+    """An operation's parameter schemas, keyed by ``(in, name)``.
+
+    Args:
+        document: The document the operation belongs to.
+        operation: One operation.
+
+    Returns:
+        Each parameter's schema (``None`` when it declares none).
+    """
+    schemas: dict[tuple[str, str], Any] = {}
+    for parameter in operation.get("parameters", []):
+        parameter, _ = _SchemaDiff._resolve(document, parameter)
+        schemas[(parameter["in"], parameter["name"])] = parameter.get("schema")
+    return schemas
+
+
 def _expected_right(
     operation_id: str, operation: dict[str, Any], overrides: Mapping[str, Requirement]
 ) -> Requirement | None:
@@ -323,6 +341,9 @@ def check_operation(
         record(
             "parameter", f"{sorted(_parameters(wanted.body))} in the contract, {sorted(_parameters(have.body))} in v1"
         )
+    wanted_schemas, have_schemas = _parameter_schemas(contract, wanted.body), _parameter_schemas(served, have.body)
+    for location in sorted(wanted_schemas.keys() & have_schemas.keys()):
+        schema_diff.compare(wanted_schemas[location], have_schemas[location], " ".join(location), "parameter")
 
     wanted_answers, have_answers = wanted.body.get("responses", {}), have.body.get("responses", {})
     wanted_success = {code for code in wanted_answers if code.startswith("2")}
@@ -664,6 +685,54 @@ def test_detects_an_override_over_a_contract_right() -> None:
 
     assert {violation.kind for violation in violations} == {"right"}
     assert any("readVersion" in violation.detail for violation in violations)
+
+
+#: The contract's ``searchProviderById`` sources, faithful, and with ``imdb`` missing.
+_Provider = Literal["tmdb", "tvdb", "imdb"]
+_ShortProvider = Literal["tmdb", "tvdb"]
+
+
+def _search_by_id_router(short: bool) -> APIRouter:
+    """A planted ``searchProviderById``.
+
+    Args:
+        short: Whether its ``provider`` query parameter lacks ``imdb``.
+
+    Returns:
+        The router.
+    """
+    router = APIRouter()
+    route = router.get(
+        "/acquisition/search/by-id", operation_id="searchProviderById", responses=_refusals("searchProviderById")
+    )
+    if short:
+
+        @route
+        def _search_short(provider: _ShortProvider, id: str) -> Any:  # noqa: A002 - the contract's name
+            """The planted route; never called."""
+
+    else:
+
+        @route
+        def _search(provider: _Provider, id: str) -> Any:  # noqa: A002 - the contract's name
+            """The planted route; never called."""
+
+    return router
+
+
+def test_detects_a_wrong_query_parameter_enum() -> None:
+    """``searchProviderById`` whose ``provider`` query parameter lacks ``imdb`` fails the enum check.
+
+    The plant answers no response model, so only the enum kind is asserted; the control
+    with the contract's three members shows it comes from the parameter.
+    """
+    faithful = _planted(_search_by_id_router(short=False))
+    short = _planted(_search_by_id_router(short=True))
+
+    assert "enum" not in _kinds(faithful, "searchProviderById")
+    enums = [v for v in check_operation(_contract(), short, OPERATION_RIGHTS, "searchProviderById") if v.kind == "enum"]
+    assert len(enums) == 1
+    assert "query provider" in enums[0].detail and "imdb" in enums[0].detail
 
 
 def test_detects_a_wrong_path() -> None:
