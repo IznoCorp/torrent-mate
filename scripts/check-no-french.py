@@ -7,7 +7,7 @@ lives in the code**: the French a reader of the interface sees lives in the i18n
 resources. This script is the half of the rule that is enforced rather than
 remembered; it runs in `make check` and in CI.
 
-Thirteen arms, each with its own scope, because "French" means a different thing
+Fifteen arms, each with its own scope, because "French" means a different thing
 in a component than it does in a rule script that ASSERTS the French the app
 renders. `ARMS` is the list `main` walks; arm 13 holds this enumeration against
 it, so an arm added without a heading here fails the gate:
@@ -77,6 +77,19 @@ it, so an arm added without a heading here fails the gate:
    carried three different counts and none of them was right; this one reads
    `main`, this docstring and `CLAUDE.md`, and refuses a description that has
    drifted away from the arms that actually run.
+14. **Backend French** — the French literals under `personalscraper/`, docstrings
+   included, counted and held to the `backend` baseline. A COUNTING ratchet like
+   arm 10: the code is English and the texts a user reads live in the translation
+   layer (`personalscraper.i18n`), but hundreds were written in place before it
+   existed, so the figure may go down and is refused going up. A
+   `# french-ok: <reason>` pragma licenses its line; a bare one licenses nothing.
+   Body in `nofrench_backend.py`.
+15. **Backend text sinks** — the places `personalscraper/` shows literal text to a
+   user (CLI output, `help=`/`prompt=` keywords, a command's docstring help) that
+   are not fed by `t(...)` / `t_code(...)`, counted and held to the
+   `backend_sinks` baseline. English inline text is invisible to arm 14, so this
+   is the arm that makes « every user text goes through the layer » measurable.
+   Body in `nofrench_backend.py`.
 
 Each arm also reports how much it READ, and an arm that read nothing is itself a
 violation: a scope that silently empties — a renamed directory, a glob that stops
@@ -132,6 +145,10 @@ from nofrench_scan import (  # noqa: E402
 # only their bodies live next door, where that module's header says why.
 from nofrench_ratchets import (  # noqa: E402
     check_app_interface_text, check_test_prose, jsx_text,
+)
+# Arms 14 and 15 — the backend's two counting ratchets, one module like 10 and 11.
+from nofrench_backend import (  # noqa: E402
+    check_backend_french, check_backend_sinks,
 )
 # Arm 12 and the stylesheet machinery arm 4 borrows — see that module's header.
 from nofrench_css import (  # noqa: E402
@@ -614,6 +631,8 @@ ARMS: tuple[tuple[object, str], ...] = (
     (check_custom_properties, "Custom-property names"),
     (check_state_identifiers, "Named-state ids"),
     (check_arm_count, "The self-description"),
+    (check_backend_french, "Backend French"),
+    (check_backend_sinks, "Backend text sinks"),
 )
 
 
@@ -653,6 +672,10 @@ def main(argv: list[str] | None = None) -> int:
     if counts_only:
         for what, count in examined.items():
             print(f"{count} {what}")
+        # The ratchets' figures are not « read » counts: they are the held
+        # numbers, and a baseline is compared against these lines.
+        for what, count in exempted.items():
+            print(f"{count} {what} (counted, held to its baseline)")
         return 0
     print(f"no-French guardrail: {len(ARMS)} arms ("
           + ", ".join(label for _, label in ARMS)

@@ -127,7 +127,7 @@ document; French inside an English one only quotes UI copy, media titles or the 
   with no reason is a violation.
 - `frontend/src` is exempt (no i18n layer, dies at switchover), under a ratchet
   (`scripts/french-exemption-baseline.json`).
-- Enforced in CI by `scripts/check-no-french.py` (thirteen arms, listed in its docstring).
+- Enforced in CI by `scripts/check-no-french.py` (fifteen arms, listed in its docstring).
 
 ## Domain rules
 

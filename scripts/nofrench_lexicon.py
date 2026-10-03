@@ -379,6 +379,8 @@ examined: dict[str, int] = {
     "string literals / tests": 0,
     "custom-property names / css": 0,
     "arms / self-description": 0,
+    "string literals / backend": 0,
+    "sink candidates / backend": 0,
 }
 
 # Counted, reported, and deliberately NOT refused. An exemption nobody counts
