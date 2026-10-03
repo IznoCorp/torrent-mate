@@ -51,7 +51,9 @@
           "auth.required",
           "right.missing",
           "instance.read_only",
-          "instance.forbidden_write"
+          "instance.forbidden_write",
+          "media.not_found",
+          "provider.unavailable"
         ],
         "title": "RefusalCode",
         "type": "string"
