@@ -6,6 +6,7 @@ converts VerifyResult lists to StepReport.
 
 from dataclasses import asdict
 
+from personalscraper.conf.environment import Environment, current_environment
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.preprod_guard import assert_all_within_preprod
 from personalscraper.conf.staging import find_by_file_type, folder_name
@@ -88,13 +89,16 @@ def run_verify(
             mounted roots. Nothing is touched.
     """
     # Preprod guard (``staging`` only): no write or purge outside preprod's own roots.
+    # The category folders are resolved only under ``staging``: outside it the guard must cost
+    # nothing and raise nothing (a production config may have no entry for a category).
     staging = config.paths.staging_dir
-    assert_all_within_preprod(
-        config,
-        staging,
-        staging / folder_name(find_by_file_type(config, FileType.MOVIE)),
-        staging / folder_name(find_by_file_type(config, FileType.TVSHOW)),
-    )
+    if current_environment() is Environment.STAGING:
+        assert_all_within_preprod(
+            config,
+            staging,
+            staging / folder_name(find_by_file_type(config, FileType.MOVIE)),
+            staging / folder_name(find_by_file_type(config, FileType.TVSHOW)),
+        )
     # Fast-skip: no media folders to verify
     if not _has_items_to_verify(settings, config):
         log.info("verify_fast_skip")
