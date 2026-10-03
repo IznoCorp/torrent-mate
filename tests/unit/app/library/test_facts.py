@@ -22,7 +22,9 @@ def test_tmdb_genres_are_read_by_id() -> None:
 
 def test_tvdb_genres_are_read_by_name() -> None:
     """TVDB's names, English or French, accents and case ignored; duplicates kept once."""
-    details = MediaDetails(provider="tvdb", provider_id="1", genres=["Science Fiction", "Comédie", "Comedy", "Soap"])
+    details = MediaDetails(
+        provider="tvdb", provider_id="1", genres=["Science Fiction", "Com\u00e9die", "Comedy", "Soap"]
+    )
 
     assert genres_of(details) == (GenreId.SCIENCE_FICTION, GenreId.COMEDY)
 

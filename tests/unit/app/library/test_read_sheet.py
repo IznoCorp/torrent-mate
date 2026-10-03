@@ -120,7 +120,7 @@ def test_a_held_show(world: World) -> None:
 
 
 def test_a_medium_the_library_does_not_hold(world: World) -> None:
-    """Opened from Découvrir: still answered, not owned; the show is asked first, the movie on its 404."""
+    """Opened from the discovery screen: still answered, not owned; the show is asked first, the movie on its 404."""
     world.tmdb.movies["949"] = _movie_details()
 
     sheet = world.service.read_sheet(world.actor, MediaRef(tmdb_id=949))

@@ -8,6 +8,10 @@ from datetime import date
 from personalscraper.app.library.service import LIBRARY_PAGE_SIZE, LibrarySort
 from tests.unit.app.library.world import World, catalogued
 
+# Two French titles, the collation's own test data: an accented initial sorts with its letter.
+ELITE = "\u00c9lite"
+SCREEN = "\u00c9cran"
+
 
 def _titles(world: World, **kwargs: object) -> list[str]:
     """Read one page and return its titles.
@@ -83,32 +87,32 @@ def test_recent_is_the_default_order(world: World) -> None:
 def test_az_is_the_french_collation(world: World) -> None:
     """« Élite » sorts between « Eagle » and « Eternals », whatever its normal form."""
     _movie(world, "Eternals", "1")
-    _movie(world, unicodedata.normalize("NFD", "Élite"), "2")
+    _movie(world, unicodedata.normalize("NFD", ELITE), "2")
     _movie(world, "Zorro", "3")
     _movie(world, "Eagle", "4")
-    _movie(world, "Écran", "5")
+    _movie(world, SCREEN, "5")
     _movie(world, "Emma", "6")
 
     titles = _titles(world, sort=LibrarySort.AZ)
 
-    assert [unicodedata.normalize("NFC", t) for t in titles] == ["Eagle", "Écran", "Élite", "Emma", "Eternals", "Zorro"]
+    assert [unicodedata.normalize("NFC", t) for t in titles] == ["Eagle", SCREEN, ELITE, "Emma", "Eternals", "Zorro"]
     assert [unicodedata.normalize("NFC", t) for t in _titles(world, sort=LibrarySort.AZ, reversed_=True)] == [
         "Zorro",
         "Eternals",
         "Emma",
-        "Élite",
-        "Écran",
+        ELITE,
+        SCREEN,
         "Eagle",
     ]
 
 
 def test_az_reads_the_sort_title(world: World) -> None:
     """The alphabetical order reads ``title_sort`` (the article stripped), not the title."""
-    _movie(world, "Le Zèbre", "1", title_sort="Zèbre")
+    _movie(world, "Le Parrain", "1", title_sort="Parrain")
     _movie(world, "Avatar", "2")
     _movie(world, "Mulan", "3")
 
-    assert _titles(world, sort=LibrarySort.AZ) == ["Avatar", "Mulan", "Le Zèbre"]
+    assert _titles(world, sort=LibrarySort.AZ) == ["Avatar", "Mulan", "Le Parrain"]
 
 
 def test_missing_most_first_unknown_last(world: World) -> None:
@@ -158,13 +162,14 @@ def test_missing_counts_aired_episodes_not_announced_ones(world: World) -> None:
 
 def test_query_is_case_and_accent_insensitive(world: World) -> None:
     """« elite », « ÉLITE » and an NFD « Élite » all find the same row; the original title is searched too."""
-    _movie(world, unicodedata.normalize("NFD", "Élite"), "1")
+    _movie(world, unicodedata.normalize("NFD", ELITE), "1")
     _movie(world, "La Casa de papel", "2", original_title="Money Heist")
     _movie(world, "Avatar", "3")
 
-    assert _titles(world, query="elite") == [unicodedata.normalize("NFD", "Élite")]
-    assert _titles(world, query="ÉLITE") == [unicodedata.normalize("NFD", "Élite")]
-    assert _titles(world, query=unicodedata.normalize("NFD", "élite")) == [unicodedata.normalize("NFD", "Élite")]
+    held = [unicodedata.normalize("NFD", ELITE)]
+    assert _titles(world, query="elite") == held
+    assert _titles(world, query=ELITE.upper()) == held
+    assert _titles(world, query=unicodedata.normalize("NFD", ELITE.lower())) == held
     assert _titles(world, query="heist") == ["La Casa de papel"]
 
 
