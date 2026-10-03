@@ -8,6 +8,7 @@ loads exactly as before.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -22,9 +23,12 @@ from personalscraper.conf.isolation import (
     assert_isolated,
     read_marker,
 )
+from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
+from personalscraper.conf.models.indexer import IndexerConfig
 from personalscraper.conf.models.paths import PathConfig
+from personalscraper.conf.models.trailers import TrailersConfig
 from personalscraper.conf.models.web import WebConfig
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
@@ -76,9 +80,12 @@ def test_prod_refuses_a_staging_data_dir(tmp_path: Path) -> None:
     data_dir = _data_dir(tmp_path, "staging\n")
     with pytest.raises(ValidationError) as excinfo:
         _config(data_dir, tmp_path)
-    message = str(excinfo.value)
-    assert "staging" in message
-    assert "prod" in message
+    cause = excinfo.value.errors()[0]["ctx"]["error"]
+    assert isinstance(cause, EnvironmentIsolationError)
+    message = str(cause)
+    assert str(data_dir / ENVIRONMENT_MARKER) in message
+    assert "runs in 'prod'" in message
+    assert "names 'staging'" in message
 
 
 def test_staging_refuses_an_unmarked_data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -151,12 +158,20 @@ def test_read_marker_refuses_an_unknown_name(tmp_path: Path, raw: str) -> None:
         read_marker(_data_dir(tmp_path, raw))
 
 
-def test_assert_isolated_takes_an_explicit_environment(tmp_path: Path) -> None:
-    """An explicit ``env`` wins over the variable: a prod-loaded config is refused for ``dev``."""
+def test_assert_isolated_takes_an_explicit_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An explicit ``env`` wins over the variable: with ``dev`` set, an explicit PROD accepts an unmarked directory."""
     cfg = _config(_data_dir(tmp_path), tmp_path)
-    assert_isolated(cfg, Environment.PROD)
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "dev")
     with pytest.raises(EnvironmentIsolationError):
-        assert_isolated(cfg, Environment.DEV)
+        assert_isolated(cfg)
+    assert_isolated(cfg, Environment.PROD)
+
+
+def test_assert_isolated_explicit_staging_refuses_an_unmarked_data_dir(tmp_path: Path) -> None:
+    """An explicit STAGING, the variable unset, refuses the unmarked directory a prod load accepted."""
+    cfg = _config(_data_dir(tmp_path), tmp_path)
+    with pytest.raises(EnvironmentIsolationError, match=ENVIRONMENT_MARKER):
+        assert_isolated(cfg, Environment.STAGING)
 
 
 def test_dev_loads_on_its_own_marker_with_the_default_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -172,3 +187,93 @@ def test_staging_refuses_a_prod_marked_data_dir(tmp_path: Path, monkeypatch: pyt
     data_dir = _data_dir(tmp_path, "prod")
     with pytest.raises(ValidationError):
         _config(data_dir, tmp_path, web=WebConfig(stream_key=_STAGING_KEY))
+
+
+def test_a_marker_that_is_a_directory_fails_naming_the_file(tmp_path: Path) -> None:
+    """A marker path that is a directory cannot be read: the load fails typed, naming the file."""
+    data_dir = _data_dir(tmp_path)
+    (data_dir / ENVIRONMENT_MARKER).mkdir()
+    with pytest.raises(EnvironmentIsolationError, match=str(data_dir / ENVIRONMENT_MARKER)):
+        read_marker(data_dir)
+    with pytest.raises(ValidationError):
+        _config(data_dir, tmp_path)
+
+
+@pytest.mark.skipif(os.name != "posix" or os.geteuid() == 0, reason="root reads a mode-000 file")
+def test_an_unreadable_marker_fails_naming_the_file(tmp_path: Path) -> None:
+    """A marker with mode 000 fails typed, naming the file (fail closed, never untyped)."""
+    data_dir = _data_dir(tmp_path, "prod")
+    marker = data_dir / ENVIRONMENT_MARKER
+    marker.chmod(0)
+    try:
+        with pytest.raises(EnvironmentIsolationError, match=str(marker)):
+            read_marker(data_dir)
+        with pytest.raises(ValidationError):
+            _config(data_dir, tmp_path)
+    finally:
+        marker.chmod(0o644)
+
+
+def test_a_marker_not_in_utf8_fails_naming_the_file(tmp_path: Path) -> None:
+    """A marker whose bytes are not UTF-8 fails typed, naming the file."""
+    data_dir = _data_dir(tmp_path)
+    marker = data_dir / ENVIRONMENT_MARKER
+    marker.write_bytes(b"\xffprod")
+    with pytest.raises(EnvironmentIsolationError, match=str(marker)):
+        read_marker(data_dir)
+    with pytest.raises(ValidationError):
+        _config(data_dir, tmp_path)
+
+
+def test_a_data_dir_that_is_a_file_reads_as_unmarked_and_loads_under_prod(tmp_path: Path) -> None:
+    """``data_dir`` naming a file reads as no marker (NotADirectoryError), so prod loads as before."""
+    data_file = tmp_path / "data"
+    data_file.write_text("", encoding="utf-8")
+    assert read_marker(data_file) is None
+    cfg = _config(data_file, tmp_path)
+    assert cfg.indexer.db_path == data_file / "library.db"
+
+
+def test_staging_refuses_a_store_outside_its_data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Under staging, a store path outside the marked data directory is refused, naming the path."""
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
+    data_dir = _data_dir(tmp_path, "staging")
+    elsewhere = tmp_path / "prod-data" / "library.db"
+    elsewhere.parent.mkdir()
+    with pytest.raises(ValidationError) as excinfo:
+        _config(
+            data_dir,
+            tmp_path,
+            web=WebConfig(stream_key=_STAGING_KEY),
+            indexer=IndexerConfig(db_path=elsewhere),
+        )
+    cause = excinfo.value.errors()[0]["ctx"]["error"]
+    assert isinstance(cause, EnvironmentIsolationError)
+    assert str(elsewhere) in str(cause)
+
+
+@pytest.mark.parametrize("field", ["acquire", "trailers"])
+def test_dev_refuses_each_store_outside_its_data_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, field: str
+) -> None:
+    """The rule holds for every resolved store, and for every environment but prod."""
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "dev")
+    data_dir = _data_dir(tmp_path, "dev")
+    outside = tmp_path / "elsewhere"
+    outside.mkdir()
+    extra = (
+        {"acquire": AcquireConfig(db_path=outside / "acquire.db")}
+        if field == "acquire"
+        else {"trailers": TrailersConfig(state_file=str(outside / "trailers_state.json"))}
+    )
+    with pytest.raises(ValidationError, match="elsewhere"):
+        _config(data_dir, tmp_path, **extra)
+
+
+def test_prod_loads_with_a_store_outside_its_data_dir(tmp_path: Path) -> None:
+    """Prod is unchanged: an explicit store path outside ``data_dir`` still loads."""
+    data_dir = _data_dir(tmp_path)
+    elsewhere = tmp_path / "elsewhere" / "library.db"
+    elsewhere.parent.mkdir()
+    cfg = _config(data_dir, tmp_path, indexer=IndexerConfig(db_path=elsewhere))
+    assert cfg.indexer.db_path == elsewhere.resolve()
