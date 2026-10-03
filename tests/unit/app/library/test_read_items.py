@@ -156,8 +156,14 @@ def test_missing_counts_aired_episodes_not_announced_ones(world: World) -> None:
     world.index.episodes(other, 1, [1])
     catalogued(world.store, "tvdb", "21", {1: [date(2026, 1, 1)]})
 
+    # « Rival » is older than « Airing » and misses two aired episodes: it leads only while the
+    # announced e3 of « Airing » is not counted (counted, both miss two and the newer row leads).
+    rival = world.index.item("Rival", kind="show", tvdb="22", created=5)
+    world.index.episodes(rival, 1, [9])
+    catalogued(world.store, "tvdb", "22", {1: [date(2026, 1, 1), date(2026, 1, 8)]})
+
     # « Airing »: e1 and e2 aired (e2 airs today), e3 is announced; e1 held, e9 off the catalogue → 1 missing.
-    assert _titles(world, sort=LibrarySort.MISSING) == ["Airing", "Other"]
+    assert _titles(world, sort=LibrarySort.MISSING) == ["Rival", "Airing", "Other"]
 
 
 def test_query_is_case_and_accent_insensitive(world: World) -> None:
