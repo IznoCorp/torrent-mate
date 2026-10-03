@@ -7,11 +7,9 @@ from collections.abc import Callable
 import pytest
 from fastapi import FastAPI
 
-from personalscraper.app.build_info import BUILD_INFO
-from personalscraper.app.services import AppServices
+from personalscraper.app.composition import build_app_services
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
-from personalscraper.core.event_bus import EventBus
 from personalscraper.http_v1.app import create_v1_app
 from personalscraper.http_v1.perimeter import ActorResolver
 
@@ -28,7 +26,7 @@ def make_v1_app(test_config: Config) -> Callable[..., FastAPI]:
     """
 
     def _make(resolver: ActorResolver | None = None) -> FastAPI:
-        """Build the sub-application over the synthetic config and a bare ``AppServices``.
+        """Build the sub-application over the synthetic config and its inert ``AppServices``.
 
         Args:
             resolver: The actor resolver; ``None`` keeps the default (nobody signed in).
@@ -37,8 +35,6 @@ def make_v1_app(test_config: Config) -> Callable[..., FastAPI]:
             The v1 sub-application.
         """
         settings = Settings(_env_file=None)  # type: ignore[call-arg]
-        return create_v1_app(
-            test_config, settings, AppServices(event_bus=EventBus(), build_info=BUILD_INFO), resolver=resolver
-        )
+        return create_v1_app(test_config, settings, build_app_services(test_config, settings), resolver=resolver)
 
     return _make

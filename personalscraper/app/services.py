@@ -8,9 +8,13 @@ field and its builder line.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from personalscraper.app.build_info import BuildInfo
 from personalscraper.core.event_bus import EventBus
+
+if TYPE_CHECKING:
+    from personalscraper.app.library.service import LibraryService
 
 
 @dataclass(frozen=True)
@@ -21,14 +25,17 @@ class AppServices:
         event_bus: The process's bus; a service publishes its domain events on it
             after its write commits. No publisher is attached yet.
         build_info: The build this process serves (``readVersion``).
+        library: The library's reads over the index, the aired catalogue and the providers.
     """
 
     event_bus: EventBus
     build_info: BuildInfo
+    library: LibraryService
 
     def close(self) -> None:
-        """Release what the services hold: nothing is opened yet, so nothing is released.
+        """Release what the services hold: the library's catalogue store and index reader.
 
         Called once, from the web parent's lifespan (Starlette never runs a mounted
         sub-application's lifespan); a lot adding a store or a publisher closes it here.
         """
+        self.library.close()

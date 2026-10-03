@@ -18,6 +18,7 @@ log = get_logger("app.composition")
 
 if TYPE_CHECKING:
     from personalscraper.api.transport._policy import RetryPolicy
+    from personalscraper.app.library.service import LibraryService
     from personalscraper.conf.models.config import Config
     from personalscraper.config import Settings
     from personalscraper.core.ownership import OwnershipChecker
@@ -205,7 +206,63 @@ def build_app_services(config: "Config", settings: "Settings") -> AppServices:
         The application services, with a fresh in-process :class:`EventBus` and the
         build read at boot.
     """
-    return AppServices(event_bus=EventBus(), build_info=BUILD_INFO)
+    event_bus = EventBus()
+    return AppServices(
+        event_bus=event_bus, build_info=BUILD_INFO, library=_build_library_service(config, settings, event_bus)
+    )
+
+
+def _build_library_service(config: "Config", settings: "Settings", event_bus: EventBus) -> "LibraryService":
+    """Build the library's read service over the index, the aired catalogue and the providers.
+
+    Inert: the catalogue store and the ownership checker open on first use, and the
+    provider clients connect on their first call (TVDB logs in then). A provider whose
+    API key is not set gets no client: its sheets answer ``provider.unavailable``. The
+    clients make ONE attempt per call, so a dead provider cannot hold a web request
+    through a backed-off retry loop (v0's sheet rule, D1).
+
+    Args:
+        config: The typed configuration; ``indexer.db_path`` and ``acquire.db_path`` are
+            resolved by the loader.
+        settings: The env-var settings (the provider API keys).
+        event_bus: The process's bus, for the clients' transport events.
+
+    Returns:
+        The service.
+    """
+    # Lazy imports: the provider clients and the indexer pull heavy trees; building
+    # AppServices for a command that never reads the library stays import-light.
+    from personalscraper.acquire.catalogue import CatalogueStore, ProviderClients  # noqa: PLC0415
+    from personalscraper.api.metadata.tmdb import TMDBClient  # noqa: PLC0415
+    from personalscraper.api.metadata.tvdb import TVDBClient  # noqa: PLC0415
+    from personalscraper.api.transport._http import HttpTransport  # noqa: PLC0415
+    from personalscraper.api.transport._policy import RetryPolicy  # noqa: PLC0415
+    from personalscraper.app.library.service import LibraryService  # noqa: PLC0415
+    from personalscraper.indexer.ownership import IndexerOwnershipChecker  # noqa: PLC0415
+
+    index_db = config.indexer.db_path
+    acquire_db = config.acquire.db_path
+    assert index_db is not None and acquire_db is not None  # noqa: S101 — resolved by the config loader
+    once = RetryPolicy(max_attempts=1)
+    tmdb = (
+        TMDBClient(
+            HttpTransport(TMDBClient.policy(settings.tmdb_api_key, retry=once), event_bus=event_bus),
+            language="fr-FR",
+        )
+        if settings.tmdb_api_key
+        else None
+    )
+    tvdb = (
+        TVDBClient(settings.tvdb_api_key, language="fr-FR", retry=once, event_bus=event_bus)
+        if settings.tvdb_api_key
+        else None
+    )
+    return LibraryService(
+        index_db=index_db,
+        catalogue=CatalogueStore(acquire_db),
+        ownership=IndexerOwnershipChecker(index_db),
+        providers=ProviderClients(tvdb=tvdb, tmdb=tmdb),
+    )
 
 
 def build_ownership_checker(config: "Config") -> "OwnershipChecker":
