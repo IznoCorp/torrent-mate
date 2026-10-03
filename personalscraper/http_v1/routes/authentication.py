@@ -61,7 +61,8 @@ def sign_in(
     """Open a session from an e-mail and a password, and hand its cookie.
 
     A public operation: the perimeter resolves no session, so a ``tm_v1_session`` the
-    browser already carries is ignored and replaced by the new one.
+    browser already carries is ignored: the browser's cookie is replaced by the new one,
+    while the server-side session it named stays valid until it expires or signs out.
 
     Args:
         body: The e-mail and the password.

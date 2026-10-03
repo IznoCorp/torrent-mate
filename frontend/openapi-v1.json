@@ -281,7 +281,7 @@
   "paths": {
     "/auth/login": {
       "post": {
-        "description": "Open a session from an e-mail and a password, and hand its cookie.\n\nA public operation: the perimeter resolves no session, so a ``tm_v1_session`` the\nbrowser already carries is ignored and replaced by the new one.\n\nArgs:\n    body: The e-mail and the password.\n    request: The incoming request (the client's key, its user agent, the web configuration).\n    response: The answer the session cookie is set on.\n    app_services: The application services.\n\nReturns:\n    The signed-in account.",
+        "description": "Open a session from an e-mail and a password, and hand its cookie.\n\nA public operation: the perimeter resolves no session, so a ``tm_v1_session`` the\nbrowser already carries is ignored: the browser's cookie is replaced by the new one,\nwhile the server-side session it named stays valid until it expires or signs out.\n\nArgs:\n    body: The e-mail and the password.\n    request: The incoming request (the client's key, its user agent, the web configuration).\n    response: The answer the session cookie is set on.\n    app_services: The application services.\n\nReturns:\n    The signed-in account.",
         "operationId": "signIn",
         "requestBody": {
           "content": {
