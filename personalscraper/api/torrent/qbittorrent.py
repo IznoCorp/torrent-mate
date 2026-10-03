@@ -42,13 +42,35 @@ from personalscraper.api.torrent._errors import (
     TorrentAuthError,
     TorrentUnreachableError,
 )
+from personalscraper.conf.environment import Environment, current_environment
 from personalscraper.conf.models.api_config import TorrentClientEntry
 from personalscraper.logger import get_logger
 
 log = get_logger("api.torrent.qbittorrent")
 
-_LOCKOUT_FILE = Path.home() / ".cache" / "personalscraper" / "qbit_auth_lockout"
 _LOCKOUT_DURATION_SECONDS = 3600
+
+
+def lockout_path(env: Environment | None = None) -> Path:
+    """Locate the auth lockout file of an environment.
+
+    Prod keeps the historical name, so nothing changes in production; every other
+    environment writes its own file, so a preprod lockout never blocks prod's logins.
+
+    Args:
+        env: The environment; ``None`` reads ``PERSONALSCRAPER_ENV``.
+
+    Returns:
+        ``~/.cache/personalscraper/qbit_auth_lockout`` for prod,
+        ``~/.cache/personalscraper/qbit_auth_lockout-<env>`` otherwise.
+
+    Raises:
+        EnvironmentSettingError: ``env`` is ``None`` and the variable is invalid.
+    """
+    env = env if env is not None else current_environment()
+    name = "qbit_auth_lockout" if env is Environment.PROD else f"qbit_auth_lockout-{env.value}"
+    return Path.home() / ".cache" / "personalscraper" / name
+
 
 # The narrow set of qbittorrentapi exceptions that ``add`` / ``inject`` translate
 # to a uniform ApiError (via ``_map_qbit_api_error``). A bare
@@ -846,36 +868,38 @@ def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
 
 def _check_lockout() -> None:
     """Raise QBitAuthLockoutError if a recent auth failure lockout is active."""
-    if not _LOCKOUT_FILE.exists():
+    lockout = lockout_path()
+    if not lockout.exists():
         return
     try:
-        age = time.time() - _LOCKOUT_FILE.stat().st_mtime
+        age = time.time() - lockout.stat().st_mtime
         if age < _LOCKOUT_DURATION_SECONDS:
             remaining = int(_LOCKOUT_DURATION_SECONDS - age)
             log.warning(
                 "qbit_auth_lockout_active",
                 remaining_seconds=remaining,
-                lockout_file=str(_LOCKOUT_FILE),
+                lockout_file=str(lockout),
             )
             raise QBitAuthLockoutError(
-                f"Auth lockout active ({remaining}s remaining). Fix credentials and delete {_LOCKOUT_FILE} to retry."
+                f"Auth lockout active ({remaining}s remaining). Fix credentials and delete {lockout} to retry."
             )
-        _LOCKOUT_FILE.unlink(missing_ok=True)
+        lockout.unlink(missing_ok=True)
     except OSError as e:
         log.warning("qbit_lockout_read_failed", error=str(e))
 
 
 def _set_lockout(reason: str) -> None:
     """Write a lockout file to prevent further auth attempts."""
+    lockout = lockout_path()
     try:
-        _LOCKOUT_FILE.parent.mkdir(parents=True, exist_ok=True)
-        _LOCKOUT_FILE.write_text(reason)
+        lockout.parent.mkdir(parents=True, exist_ok=True)
+        lockout.write_text(reason)
         log.error(
             "qbit_auth_lockout_set",
             reason=reason,
             duration_seconds=_LOCKOUT_DURATION_SECONDS,
-            lockout_file=str(_LOCKOUT_FILE),
-            hint=f"Fix credentials in .env, then delete {_LOCKOUT_FILE} to retry",
+            lockout_file=str(lockout),
+            hint=f"Fix credentials in .env, then delete {lockout} to retry",
         )
     except OSError as e:
         # Lockout file write failure is a security-control regression: the next
@@ -885,7 +909,7 @@ def _set_lockout(reason: str) -> None:
             "qbit_lockout_write_failed",
             error=str(e),
             hint="Cannot enforce auth lockout — credentials may keep retrying. Check filesystem permissions on "
-            f"{_LOCKOUT_FILE.parent}.",
+            f"{lockout.parent}.",
         )
 
 

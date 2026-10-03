@@ -288,10 +288,11 @@ class TestBuildClient:
         assert exc_info.value.provider == "qbittorrent"
 
     @patch("personalscraper.api.torrent.qbittorrent.requests.get")
-    @patch("personalscraper.api.torrent.qbittorrent._LOCKOUT_FILE")
-    def test_lockout_blocks_login(self, mock_lockout: MagicMock, mock_get: MagicMock) -> None:
+    @patch("personalscraper.api.torrent.qbittorrent.lockout_path")
+    def test_lockout_blocks_login(self, mock_path: MagicMock, mock_get: MagicMock) -> None:
         """Active lockout file → QBitAuthLockoutError before login."""
         mock_get.return_value.status_code = 200
+        mock_lockout = mock_path.return_value
         mock_lockout.exists.return_value = True
         mock_lockout.stat.return_value.st_mtime = __import__("time").time()
 
@@ -438,8 +439,9 @@ class TestQBitClient:
 
     def test_login_failed_raises_apierror_401(self) -> None:
         """qbittorrentapi.LoginFailed → ApiError(http_status=401) per DESIGN §1.1."""
-        from personalscraper.api.torrent.qbittorrent import _LOCKOUT_FILE  # noqa: PLC0415
+        from personalscraper.api.torrent.qbittorrent import lockout_path  # noqa: PLC0415
 
+        _LOCKOUT_FILE = lockout_path()  # noqa: N806
         client = self._client()
         client._client.auth_log_in.side_effect = qbittorrentapi.LoginFailed("bad creds")  # type: ignore[attr-defined]
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
+from personalscraper.conf.environment import StoreName, store_path
 from personalscraper.logger import get_logger
 
 router = APIRouter(prefix="/api", tags=["health"])
@@ -21,7 +22,7 @@ class HealthResponse(BaseModel):
     Attributes:
         status: Always ``"ok"`` if the handler is reachable.
         redis: ``True`` if the configured Redis instance responds to PING.
-        db: ``True`` if ``library.db`` exists at the configured data_dir path.
+        db: ``True`` if the environment's library store exists at the configured data_dir path.
     """
 
     status: str
@@ -62,7 +63,7 @@ def health(request: Request) -> HealthResponse:
     # DB probe — simple existence check, fail-soft.
     db_ok = False
     try:
-        db_ok = (config.paths.data_dir / "library.db").exists()
+        db_ok = store_path(config.paths.data_dir, StoreName.LIBRARY).exists()
     except Exception:
         logger.warning("db_health_check_failed", data_dir=str(config.paths.data_dir))
 

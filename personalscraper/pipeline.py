@@ -220,11 +220,12 @@ class Pipeline:
 
         Args:
             lockout_path: Override lockout file path (for testing).
-                Defaults to ~/.cache/personalscraper/qbit_auth_lockout.
+                Defaults to the current environment's lockout file (``api.torrent.qbittorrent.lockout_path``).
 
         Returns:
             Number of artifacts cleaned.
         """
+        from personalscraper.api.torrent.qbittorrent import lockout_path as qbit_lockout_path
         from personalscraper.dispatch.crash_recovery import (
             DryRunPolicy,
             RootKind,
@@ -233,7 +234,7 @@ class Pipeline:
         )
 
         if lockout_path is None:
-            lockout_path = Path.home() / ".cache" / "personalscraper" / "qbit_auth_lockout"
+            lockout_path = qbit_lockout_path()
 
         roots: list[SweepRoot] = [
             SweepRoot(disk_config.path, RootKind.MEDIA_TREE, DryRunPolicy.REPORT) for disk_config in self.config.disks
