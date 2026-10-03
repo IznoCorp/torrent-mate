@@ -40,9 +40,7 @@ class TestTorrentScope:
     def test_unknown_field_refused(self, tmp_path: Path) -> None:
         """A typo in the scope is caught, as everywhere in the config."""
         with pytest.raises(ValidationError):
-            TorrentScope.model_validate(
-                {"category": "tm-preprod", "download_root": str(tmp_path), "save_path": "/x"}
-            )
+            TorrentScope.model_validate({"category": "tm-preprod", "download_root": str(tmp_path), "save_path": "/x"})
 
     def test_scope_is_frozen(self, tmp_path: Path) -> None:
         """A scope read from the config cannot be changed in flight."""
