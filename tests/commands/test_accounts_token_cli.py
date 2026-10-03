@@ -212,7 +212,7 @@ class TestRotate:
 
         assert result.exit_code == 0, result.output
         assert result.stdout.strip() == "2 kept tokens re-sealed under the first key."
-        assert "skipped" not in result.output
+        assert "Warning:" not in result.output
 
     def test_one_key_is_refused(
         self, cli_runner: CliRunner, test_config: Config, store: AppStore, keys: list[bytes], monkeypatch
