@@ -199,7 +199,7 @@ def test_phantom_rows_leaves_a_group_of_rows_that_all_hold_files() -> None:
 
 
 def test_remove_deletes_the_phantom_and_keeps_the_row_with_files(conn: sqlite3.Connection, db_path: Path) -> None:
-    """"House of the Dragon (2022)" (70 files) + its 0-file twin: one row stays, files unchanged."""
+    """ "House of the Dragon (2022)" (70 files) + its 0-file twin: one row stays, files unchanged."""
     real = _show(conn, "House of the Dragon (2022)", "371572")
     phantom = _show(conn, "House of the Dragon", "371572")
     _episodes(conn, real, "series/House of the Dragon (2022)/Saison 01", 70)
