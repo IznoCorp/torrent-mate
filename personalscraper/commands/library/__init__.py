@@ -21,6 +21,7 @@ from personalscraper.commands.library.fix_season_counts import library_fix_seaso
 from personalscraper.commands.library.gc import library_gc
 from personalscraper.commands.library.maintenance import library_clean, library_repair, library_validate, library_verify
 from personalscraper.commands.library.query import library_search, library_show, library_status
+from personalscraper.commands.library.remove_phantom_rows import library_remove_phantom_rows
 from personalscraper.commands.library.scan import library_index, library_init_canonical
 
 __all__ = [
@@ -41,6 +42,7 @@ __all__ = [
     "library_recommend",
     "library_reconcile",
     "library_relink",
+    "library_remove_phantom_rows",
     "library_repair",
     "library_report",
     "library_rescrape",

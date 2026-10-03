@@ -22,6 +22,8 @@ Category mapping (from module to registry category):
 * ``dedup_titles.py`` → ``"fix"``
 * ``duplicates_by_id.py`` → ``"query"`` (read-only report of provider ids held by
   two rows or two media folders)
+* ``remove_phantom_rows.py`` → ``"fix"`` (removes the 0-file index rows beside a
+  row of the same provider id that holds files)
 """
 
 from __future__ import annotations
@@ -724,6 +726,17 @@ REGISTRY: list[MaintenanceAction] = [
         risk="ro",
         long_running=False,
         dry_run="unsupported",
+        options=[],
+    ),
+    # ── remove_phantom_rows.py (1 command) ────────────────────────────────
+    MaintenanceAction(
+        id="library-remove-phantom-rows",
+        title="Supprimer les lignes fantômes",
+        description="Retire de l'index les lignes sans fichier voisines d'une ligne du même identifiant (fichiers intacts).",
+        category="fix",
+        risk="destructive",
+        long_running=False,
+        dry_run="supported",
         options=[],
     ),
 ]
