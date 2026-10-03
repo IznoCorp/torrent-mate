@@ -9,21 +9,25 @@ never a failure here; an operation v1 serves is held to the contract strictly:
 - ``response``  each success body's property names and required set equal the contract's,
                 at every depth (X2);
 - ``enum``      every enum met on the way equal, member for member (X4);
+- ``const``     every ``const`` equal (a ``const`` is a one-member enum);
+- ``type``      every JSON ``type`` both sides declare equal, as a set, ``null`` set aside;
+                recorded under the kind of the schema it sits in (``response``, ``request``,
+                ``parameter``, ``problem``);
 - ``request``   the request body's presence, its required flag, its properties and
                 required set equal the contract's;
 - ``parameter`` the same path, query and header parameters, each equally required, each
                 schema compared as the bodies are (its enum under ``enum``);
 - ``refusal``   the refusal statuses equal the contract's: none missing, none it does not
                 declare (DESIGN C.4: a lot never answers a status its operation does not declare);
-- ``problem``   each refusal answers the contract's ``Problem``: the same property names,
-                at least its required ones, and only refusal codes the contract declares (the
-                contract's set is the whole interface's; v1's grows lot by lot);
+- ``problem``   each refusal answers the contract's ``Problem``: the same property names
+                and types, at least its required ones, and only refusal codes the contract
+                declares (the contract's set is the whole interface's; v1's grows lot by lot);
 - ``right``     the operation's ``OPERATION_RIGHTS`` entry asks what the contract's
                 ``x-rights`` asks, the ruled overrides applied; an override stands only
                 over a session act (``x-rights: null``).
 
-Types are not compared: a JSON type comparison across a hand-written contract and a
-generated document reports every nullable optional, and nullability is read off neither.
+Nullability is not compared: a hand-written contract writes ``["string", "null"]`` where a
+generated document writes an ``anyOf`` with ``null``, and neither is judged on it.
 
 The served document is the committed ``frontend/openapi-v1.json``; one test proves it
 equals what ``create_v1_app`` serves, so the parametrisation covers every served operation.
@@ -40,8 +44,10 @@ from typing import Any, Final, Literal
 
 import pytest
 from fastapi import APIRouter, FastAPI
+from pydantic import Field
 
 from personalscraper.app.accounts.rights import Requirement, Right, SignedIn, holds
+from personalscraper.app.errors import RefusalCode
 from personalscraper.http_v1.app import _without_validation_answers, include_v1_router
 from personalscraper.http_v1.contract import PROBLEM_RESPONSES, ContractModel
 from personalscraper.http_v1.rights import OPERATION_RIGHTS
@@ -191,11 +197,8 @@ class _SchemaDiff:
             if wanted != have:
                 self._record(kind, f"{where}: the contract says {wanted!r}, v1 says {have!r}")
             return
-        if "enum" in wanted or "enum" in have:
-            missing = sorted(map(str, set(wanted.get("enum", [])) - set(have.get("enum", []))))
-            extra = sorted(map(str, set(have.get("enum", [])) - set(wanted.get("enum", []))))
-            if missing or extra:
-                self._record("enum", f"{where}: v1 lacks {missing}, v1 adds {extra}")
+        self._compare_values(wanted, have, where)
+        self.compare_type(wanted, have, where, kind)
         self._compare_object(wanted, have, where, kind)
         for keyword in ("items", "additionalProperties"):
             if isinstance(wanted.get(keyword), dict) or isinstance(have.get(keyword), dict):
@@ -212,6 +215,74 @@ class _SchemaDiff:
                     continue
                 for index, (one, other) in enumerate(zip(wanted_members, have_members, strict=True)):
                     self.compare(one, other, f"{where}<{keyword}{index}>", kind)
+
+    def _compare_values(self, wanted: dict[str, Any], have: dict[str, Any], where: str) -> None:
+        """Compare two schemas' allowed values: an ``enum``'s members, a ``const``'s one value.
+
+        A ``const`` is a one-member enum: a single-value ``Literal`` emits ``const``, and a
+        contract may write the same constraint as ``enum: [x]``.
+
+        Args:
+            wanted: The contract's resolved schema.
+            have: The served resolved schema.
+            where: The dotted location.
+        """
+        if not {"enum", "const"} & (wanted.keys() | have.keys()):
+            return
+        # JSON spellings, so that true and 1 stay two values (they are one Python set member).
+        wanted_values = {json.dumps(value) for value in self._values(wanted)}
+        have_values = {json.dumps(value) for value in self._values(have)}
+        if wanted_values != have_values:
+            kind = "const" if "const" in wanted or "const" in have else "enum"
+            missing, extra = sorted(wanted_values - have_values), sorted(have_values - wanted_values)
+            self._record(kind, f"{where}: v1 lacks {missing}, v1 adds {extra}")
+
+    @staticmethod
+    def _values(node: dict[str, Any]) -> list[Any]:
+        """The values a schema allows by ``const`` or ``enum``.
+
+        Args:
+            node: A resolved schema.
+
+        Returns:
+            Its ``const`` alone, else its ``enum`` members, else nothing.
+        """
+        if "const" in node:
+            return [node["const"]]
+        members: list[Any] = node.get("enum", [])
+        return members
+
+    def compare_type(self, wanted: dict[str, Any], have: dict[str, Any], where: str, kind: str) -> None:
+        """Compare two schemas' JSON types, where both declare one.
+
+        A side without ``type`` is no drift by itself. ``null`` is set aside: nullability is
+        judged on neither side (``_normal``), and a hand-written ``["string", "null"]`` is a
+        generated ``anyOf`` with null.
+
+        Args:
+            wanted: The contract's resolved schema.
+            have: The served resolved schema.
+            where: The dotted location.
+            kind: The kind a difference is recorded under.
+        """
+        if "type" not in wanted or "type" not in have:
+            return
+        wanted_types, have_types = self._types(wanted) - {"null"}, self._types(have) - {"null"}
+        if wanted_types != have_types:
+            self._record(kind, f"{where}: type {sorted(wanted_types)} in the contract, {sorted(have_types)} in v1")
+
+    @staticmethod
+    def _types(node: dict[str, Any]) -> set[str]:
+        """A schema's ``type``, as a set.
+
+        Args:
+            node: A resolved schema declaring ``type``.
+
+        Returns:
+            Its type names.
+        """
+        declared = node["type"]
+        return {declared} if isinstance(declared, str) else set(declared)
 
     def _compare_object(self, wanted: dict[str, Any], have: dict[str, Any], where: str, kind: str) -> None:
         """Compare two object schemas' property names and required sets, then each property.
@@ -415,6 +486,11 @@ def _check_problem(schema_diff: _SchemaDiff, problem: dict[str, Any], answered: 
     unmet = set(problem.get("required", [])) - set(answered.get("required", []))
     if unmet:
         schema_diff._record("problem", f"{code}: v1 does not require {sorted(unmet)}")
+    for name in sorted((wanted_names & have_names) - {"code"}):
+        wanted_property, _ = _SchemaDiff._normal(schema_diff.contract, problem["properties"][name])
+        have_property, _ = _SchemaDiff._normal(schema_diff.served, answered["properties"][name])
+        if isinstance(wanted_property, dict) and isinstance(have_property, dict):
+            schema_diff.compare_type(wanted_property, have_property, f"{code}.{name}", "problem")
     if "code" in wanted_names & have_names:
         wanted_codes, _ = _SchemaDiff._normal(schema_diff.contract, problem["properties"]["code"])
         have_codes, _ = _SchemaDiff._normal(schema_diff.served, answered["properties"]["code"])
@@ -733,6 +809,95 @@ def test_detects_a_wrong_query_parameter_enum() -> None:
     enums = [v for v in check_operation(_contract(), short, OPERATION_RIGHTS, "searchProviderById") if v.kind == "enum"]
     assert len(enums) == 1
     assert "query provider" in enums[0].detail and "imdb" in enums[0].detail
+
+
+class _IntegerCommitVersion(ContractModel):
+    """``readVersion``'s answer with ``commit`` typed as an integer."""
+
+    version: str
+    commit: int
+
+
+class _StringStatusProblem(ContractModel):
+    """The contract's ``Problem`` with ``status`` typed as a string."""
+
+    status: str
+    title: str
+    detail: str | None = None
+    code: RefusalCode
+    params: dict[str, Any] = Field(default_factory=dict)
+
+
+class _Pending(ContractModel):
+    """``signInWithPlex``'s 202 answer, faithful: ``pending`` is always true."""
+
+    pending: Literal[True]
+
+
+class _NotPending(ContractModel):
+    """``signInWithPlex``'s 202 answer with ``pending`` fixed to false."""
+
+    pending: Literal[False]
+
+
+def test_detects_a_wrong_property_type() -> None:
+    """``commit`` served as an integer where the contract says a string fails the response check."""
+    assert _kinds(_planted(_version_router(_IntegerCommitVersion)), "readVersion") == {"response"}
+
+
+def test_detects_a_wrong_problem_property_type() -> None:
+    """A refusal whose ``Problem.status`` is a string where the contract says an integer fails the problem check."""
+    router = APIRouter()
+    responses = {code: {"model": _StringStatusProblem} for code in _refusals("readVersion")}
+
+    @router.get("/version", operation_id="readVersion", response_model=_Version, responses=responses)
+    def _read_version() -> Any:
+        """The planted route; never called."""
+
+    assert _kinds(_planted(router), "readVersion") == {"problem"}
+
+
+class _PinDraft(ContractModel):
+    """``signInWithPlex``'s body, faithful."""
+
+    pin_id: int
+
+
+def _plex_router(model: type[ContractModel]) -> APIRouter:
+    """A planted ``signInWithPlex`` answering only its 202.
+
+    Args:
+        model: The 202 answer's model.
+
+    Returns:
+        The router.
+    """
+    router = APIRouter()
+
+    @router.post(
+        "/auth/plex",
+        operation_id="signInWithPlex",
+        status_code=202,
+        response_model=model,
+        responses=_refusals("signInWithPlex"),
+    )
+    def _sign_in(body: _PinDraft) -> Any:
+        """The planted route; never called."""
+
+    return router
+
+
+def test_detects_a_wrong_const() -> None:
+    """``signInWithPlex``'s 202 ``pending`` fixed to false where the contract fixes it to true fails the const check.
+
+    The plant leaves out the 200 (an ``Account``), so only the const kind is asserted; the
+    control with ``Literal[True]`` shows it comes from the value.
+    """
+    assert "const" not in _kinds(_planted(_plex_router(_Pending)), "signInWithPlex")
+    violations = check_operation(_contract(), _planted(_plex_router(_NotPending)), OPERATION_RIGHTS, "signInWithPlex")
+    consts = [violation for violation in violations if violation.kind == "const"]
+    assert len(consts) == 1
+    assert "pending" in consts[0].detail
 
 
 def test_detects_a_wrong_path() -> None:
