@@ -90,6 +90,22 @@ BOTTOM = """() => {
 }"""
 
 
+# What can keep the « + » hidden (`app/action-button.tsx`): a message on screen, the 200 ms after
+# one leaves, or a page without the right. Read when the « + » did not come, so a red says which.
+HIDING = """() => {
+  const fab = document.querySelector('#fab');
+  const toast = document.querySelector('#toast');
+  const message = document.querySelector('#toastmsg');
+  return { fab: fab ? { hidden: fab.hidden } : null,
+           toast: toast ? { hidden: toast.hidden, shown: toast.getAttribute('data-shown'), text: (message && message.textContent || '').trim().slice(0, 80) } : null,
+           page: window.__store && window.__store.read ? window.__store.read().page : null };
+}"""
+DRAWN = "()=>{const fab=document.querySelector('#fab'); return !!fab && !fab.hidden;}"
+# The « + » returns 200 ms after a message leaves, and a boot hint can land after the state was
+# asked for: so the wait is bounded by seconds, not by one fixed pause.
+FAB_WAIT_MS = 10000
+
+
 def meets(a, b):
     """Whether two boxes share any area."""
     return a["left"] < b["right"] and b["left"] < a["right"] and a["top"] < b["bottom"] and b["top"] < a["bottom"]
@@ -100,6 +116,25 @@ async def fresh(browser, errors):
     context, page = await open_page(browser)
     page.on("pageerror", lambda error: errors.append(str(error)))
     return context, page
+
+
+async def settle_fab(page):
+    """Waits for the « + » to be drawn, dismissing a message that hides it; says what hid it otherwise.
+
+    Args:
+        page: The page, past its named state.
+
+    Returns:
+        None when the « + » is drawn, else what was found hiding it after `FAB_WAIT_MS`.
+    """
+    waited = 0
+    while waited < FAB_WAIT_MS:
+        if await page.evaluate(DRAWN):
+            return None
+        await page.evaluate("()=>document.querySelector('#toastx')?.click()")
+        await page.wait_for_timeout(ACTED)
+        waited += ACTED
+    return await page.evaluate(HIDING) if not await page.evaluate(DRAWN) else None
 
 
 SCROLL = """() => { const port = document.querySelector('#port'); port.scrollTop = port.scrollHeight; return port.scrollTop; }"""
@@ -160,10 +195,7 @@ async def main():
             contexts.append(context)
             answer = await go(page, state)
             journal.check(f"the named state {state} exists", answer is None, answer or "")
-            try:
-                await page.wait_for_function("()=>document.querySelector('#fab') && !document.querySelector('#fab').hidden", timeout=3000)
-            except Exception:  # the check below says it, with the reading
-                pass
+            hiding = await settle_fab(page)
             if sort == "open-paused":
                 await page.evaluate(FOLD, "section/paused")
                 await page.wait_for_timeout(ACTED)
@@ -171,9 +203,14 @@ async def main():
                 await page.evaluate("(filter)=>window.__store.write({ todoFilter: filter })", sort)
                 await page.wait_for_timeout(SETTLED)
             await to_the_bottom(page)
+            # The clearance is the « + »'s own: if it came while the page was being scrolled, the
+            # padding grew after the scroll stopped, so the page is followed to its end again.
+            hiding = hiding or await settle_fab(page)
+            await to_the_bottom(page)
             reading = await page.evaluate(BOTTOM)
             journal.check(f"« {label} »: the « + » is drawn and the page holds cards",
-                          reading["fab"] is not None and reading["last"] is not None, str(reading))
+                          reading["fab"] is not None and reading["last"] is not None,
+                          f"{reading} — hidden by {hiding}")
             if reading["fab"] is None or reading["last"] is None:
                 continue
             journal.check(f"« {label} »: at full scroll the last card does not touch the « + »",
