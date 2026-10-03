@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from personalscraper.app.accounts.repository import AccountRow
+from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.store import store as store_module
 from personalscraper.app.store.store import AppStore, build_app_store
 from personalscraper.conf.models.config import Config
@@ -166,3 +167,60 @@ def test_concurrent_first_accesses_open_one_connection(tmp_path: Path, monkeypat
             continue
         still_open += 1
     assert still_open == 0
+
+
+def test_concurrent_queries_share_the_one_connection_safely(tmp_path: Path) -> None:
+    """Threads querying one open store at once each read the right rows; none crashes the process."""
+    threads_count = 12
+    store = AppStore(tmp_path / "app.db")
+    store.accounts.insert_account(
+        AccountRow(
+            id="alice",
+            name="Alice",
+            email="alice@example.org",
+            avatar="",
+            role_id="household",
+            password_hash=None,
+            created_at=0.0,
+            updated_at=0.0,
+        )
+    )
+    sessions = SessionService(lambda: store.accounts, ttl_hours=1)
+    barrier = threading.Barrier(threads_count)
+    errors: list[BaseException] = []
+    results: list[bool] = []
+
+    def query(index: int) -> None:
+        """Wait for every thread, then read a role, or open, resolve and close a session.
+
+        Args:
+            index: The thread's number; even ones read a role, odd ones run a session.
+        """
+        barrier.wait()
+        try:
+            for _ in range(20):
+                if index % 2 == 0:
+                    role = store.accounts.role("admin")
+                    results.append(role is not None and role.id == "admin")
+                else:
+                    token = sessions.open("alice", user_agent=None)
+                    actor = sessions.resolve(token)
+                    sessions.close(token)
+                    results.append(
+                        actor is not None and actor.account_id == "alice" and sessions.resolve(token) is None
+                    )
+        except BaseException as exc:  # noqa: BLE001 — a thread's failure is asserted by the test
+            errors.append(exc)
+
+    workers = [threading.Thread(target=query, args=(index,)) for index in range(threads_count)]
+    try:
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            worker.join()
+    finally:
+        store.close()
+
+    assert errors == []
+    assert len(results) == threads_count * 20
+    assert all(results)

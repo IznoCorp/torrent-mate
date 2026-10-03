@@ -59,6 +59,9 @@ class AppStore:
         # ``db_lock`` serialises open + migrate across processes only; this one serialises
         # the threads of one process, so concurrent first accesses open a single connection.
         self._open_lock = threading.Lock()
+        # Python's sqlite3 does not make concurrent use of one connection safe: the
+        # repositories over it hold this one lock around every use.
+        self._conn_lock = threading.RLock()
 
     def _ensure_open(self) -> sqlite3.Connection:
         """Open the connection and migrate the schema on first access.
@@ -99,7 +102,7 @@ class AppStore:
         """
         conn = self._ensure_open()
         if self._push is None:
-            self._push = SqlitePushSubscriptionStore(conn)
+            self._push = SqlitePushSubscriptionStore(conn, lock=self._conn_lock)
         return self._push
 
     @property
@@ -111,7 +114,7 @@ class AppStore:
         """
         conn = self._ensure_open()
         if self._accounts is None:
-            self._accounts = AccountRepository(conn)
+            self._accounts = AccountRepository(conn, lock=self._conn_lock)
         return self._accounts
 
     def close(self) -> None:

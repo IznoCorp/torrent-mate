@@ -24,10 +24,12 @@ keeps it out of its ``repr``.
 from __future__ import annotations
 
 import sqlite3
+import threading
 from dataclasses import dataclass, field
 from typing import Literal, Protocol, get_args
 
 from personalscraper.api.notify.fcm import PushOutcome, PushResult
+from personalscraper.core.sqlite import serialised
 
 PushPlatform = Literal["android", "ios", "desktop", "unknown"]
 RevokeReason = Literal["token_dead", "unregistered", "signed_out", "stale"]
@@ -107,13 +109,16 @@ _COLUMNS = (
 class SqlitePushSubscriptionStore:
     """:class:`PushSubscriptionStore` over a ``sqlite3.Connection`` it is given."""
 
-    def __init__(self, conn: sqlite3.Connection) -> None:
+    def __init__(self, conn: sqlite3.Connection, *, lock: threading.RLock | None = None) -> None:
         """Wraps a connection; creates nothing.
 
         Args:
             conn: An open connection to the environment's ``app`` store (``:memory:`` in tests).
+            lock: The lock every user of ``conn`` holds around it (the store's); a lock of
+                its own when ``conn`` is this store's alone.
         """
         self._conn = conn
+        self._lock = lock if lock is not None else threading.RLock()
 
     def _one(self, token: str) -> PushSubscription:
         """Reads one subscription by token.
@@ -132,6 +137,7 @@ class SqlitePushSubscriptionStore:
             raise LookupError("no push subscription for that token")
         return PushSubscription(*row)
 
+    @serialised
     def upsert(
         self, *, account_id: str, token: str, platform: PushPlatform, user_agent: str | None, now: float
     ) -> PushSubscription:
@@ -175,6 +181,7 @@ class SqlitePushSubscriptionStore:
             )
         return self._one(token)
 
+    @serialised
     def live_for(self, account_id: str) -> list[PushSubscription]:
         """Returns the account's subscriptions that are not revoked, oldest first.
 
@@ -190,6 +197,7 @@ class SqlitePushSubscriptionStore:
         ).fetchall()
         return [PushSubscription(*row) for row in rows]
 
+    @serialised
     def revoke(self, token: str, *, reason: RevokeReason, now: float) -> None:
         """Stops sending to a token; a no-op when unknown or already revoked (the first reason stays).
 
@@ -205,6 +213,7 @@ class SqlitePushSubscriptionStore:
                 (now, reason, token),
             )
 
+    @serialised
     def record(self, token: str, result: PushResult, *, now: float) -> None:
         """Records one send's outcome.
 
@@ -230,6 +239,7 @@ class SqlitePushSubscriptionStore:
                 (now, result.outcome.value, token),
             )
 
+    @serialised
     def revoke_stale(self, *, not_refreshed_since: float, now: float) -> int:
         """Revokes every live subscription not refreshed since a moment, as ``stale``.
 

@@ -8,11 +8,15 @@ one account per plex id) and this module lets them surface as ``sqlite3.Integrit
 The connection is in autocommit mode (``isolation_level=None``): a single statement commits on
 its own, a method writing several statements runs them under a SAVEPOINT, and a service that
 needs several calls to be one act wraps them in :meth:`AccountRepository.immediate`.
+
+The connection is shared by the web's threads: every public method, and
+:meth:`AccountRepository.immediate` for its whole transaction, holds the store's lock.
 """
 
 from __future__ import annotations
 
 import sqlite3
+import threading
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
@@ -20,6 +24,7 @@ from typing import Literal
 
 from personalscraper.app.accounts.actor import RoleKind
 from personalscraper.app.accounts.rights import Right
+from personalscraper.core.sqlite import serialised
 from personalscraper.core.sqlite._migrate import safe_rollback
 
 #: What a new account starts as: a Plex Home member, a Plex guest, a local account.
@@ -170,13 +175,16 @@ def _link(row: tuple[object, ...]) -> PlexLinkRow:
 class AccountRepository:
     """The accounts' rows over one ``app.db`` connection it is GIVEN; it opens nothing."""
 
-    def __init__(self, conn: sqlite3.Connection) -> None:
+    def __init__(self, conn: sqlite3.Connection, *, lock: threading.RLock | None = None) -> None:
         """Wrap an open, migrated ``app.db`` connection.
 
         Args:
             conn: The connection, in autocommit mode.
+            lock: The lock every user of ``conn`` holds around it (the store's); a lock of
+                its own when ``conn`` is this repository's alone.
         """
         self._conn = conn
+        self._lock = lock if lock is not None else threading.RLock()
 
     @contextmanager
     def immediate(self) -> Iterator[None]:
@@ -189,19 +197,22 @@ class AccountRepository:
             BaseException: Whatever the block raised, after the rollback; a refused
                 ``COMMIT`` is rolled back too, so the writer lock is never kept.
         """
-        self._conn.execute("BEGIN IMMEDIATE")
-        try:
-            yield
-        except BaseException:
-            # SQLite may already have ended the transaction (SQLITE_FULL, IOERR): a bare
-            # ROLLBACK would then raise and hide the block's own error.
-            safe_rollback(self._conn)
-            raise
-        try:
-            self._conn.execute("COMMIT")
-        except BaseException:
-            safe_rollback(self._conn)
-            raise
+        # The lock spans the whole transaction: no other thread's statement may land
+        # inside it on the shared connection; this thread's calls re-enter it.
+        with self._lock:
+            self._conn.execute("BEGIN IMMEDIATE")
+            try:
+                yield
+            except BaseException:
+                # SQLite may already have ended the transaction (SQLITE_FULL, IOERR): a bare
+                # ROLLBACK would then raise and hide the block's own error.
+                safe_rollback(self._conn)
+                raise
+            try:
+                self._conn.execute("COMMIT")
+            except BaseException:
+                safe_rollback(self._conn)
+                raise
 
     @contextmanager
     def _atomic(self) -> Iterator[None]:
@@ -257,6 +268,7 @@ class AccountRepository:
             for role_id, name, kind in roles
         ]
 
+    @serialised
     def roles(self) -> list[RoleRow]:
         """Every role, in creation order (the seeds first, in seed order).
 
@@ -265,6 +277,7 @@ class AccountRepository:
         """
         return self._role_rows()
 
+    @serialised
     def role(self, role_id: str) -> RoleRow | None:
         """One role by key.
 
@@ -277,6 +290,7 @@ class AccountRepository:
         rows = self._role_rows("WHERE id = ?", (role_id,))
         return rows[0] if rows else None
 
+    @serialised
     def insert_role(self, role: RoleRow, *, now: float) -> None:
         """Insert a role, its rights and its start kinds, as one unit.
 
@@ -301,6 +315,7 @@ class AccountRepository:
                 [(start, role.id) for start in sorted(role.default_for)],
             )
 
+    @serialised
     def update_role(self, role_id: str, *, name: str | None, rights: frozenset[Right] | None, now: float) -> None:
         """Rename a role and/or replace its rights; ``None`` leaves a field as it was.
 
@@ -321,6 +336,7 @@ class AccountRepository:
                 )
             self._conn.execute("UPDATE role SET updated_at = ? WHERE id = ?", (now, role_id))
 
+    @serialised
     def role_for_start(self, start: StartKind) -> RoleRow | None:
         """The role a new account of one start kind begins on.
 
@@ -333,6 +349,7 @@ class AccountRepository:
         row = self._conn.execute("SELECT role_id FROM role_start WHERE start = ?", (start,)).fetchone()
         return self.role(row[0]) if row else None
 
+    @serialised
     def set_role_start(self, start: StartKind, role_id: str) -> None:
         """Name the role a start kind begins on, replacing the previous one.
 
@@ -351,6 +368,7 @@ class AccountRepository:
 
     # ── accounts ─────────────────────────────────────────────────────────────
 
+    @serialised
     def accounts(self) -> list[AccountRow]:
         """Every account, in creation order.
 
@@ -360,6 +378,7 @@ class AccountRepository:
         rows = self._conn.execute(f"SELECT {_ACCOUNT_COLUMNS} FROM account ORDER BY created_at, rowid")  # noqa: S608
         return [AccountRow(*row) for row in rows]
 
+    @serialised
     def account(self, account_id: str) -> AccountRow | None:
         """One account by key.
 
@@ -372,6 +391,7 @@ class AccountRepository:
         row = self._conn.execute(f"SELECT {_ACCOUNT_COLUMNS} FROM account WHERE id = ?", (account_id,)).fetchone()  # noqa: S608
         return AccountRow(*row) if row else None
 
+    @serialised
     def account_by_email(self, email: str) -> AccountRow | None:
         """One account by e-mail, whatever its case.
 
@@ -387,6 +407,7 @@ class AccountRepository:
         ).fetchone()
         return AccountRow(*row) if row else None
 
+    @serialised
     def insert_account(self, account: AccountRow) -> None:
         """Insert an account.
 
@@ -410,6 +431,7 @@ class AccountRepository:
             ),
         )
 
+    @serialised
     def set_role(self, account_id: str, role_id: str, *, now: float) -> None:
         """Put an account on a role.
 
@@ -423,6 +445,7 @@ class AccountRepository:
         """
         self._conn.execute("UPDATE account SET role_id = ?, updated_at = ? WHERE id = ?", (role_id, now, account_id))
 
+    @serialised
     def set_password_hash(self, account_id: str, password_hash: str | None, *, now: float) -> None:
         """Store or clear an account's password hash.
 
@@ -435,6 +458,7 @@ class AccountRepository:
             "UPDATE account SET password_hash = ?, updated_at = ? WHERE id = ?", (password_hash, now, account_id)
         )
 
+    @serialised
     def count_on_role_kind(self, kind: RoleKind) -> int:
         """How many accounts hold a role of one kind.
 
@@ -449,6 +473,7 @@ class AccountRepository:
         ).fetchone()
         return int(row[0])
 
+    @serialised
     def accounts_on_role(self, role_id: str) -> list[str]:
         """The keys of the accounts holding one role, in creation order.
 
@@ -465,6 +490,7 @@ class AccountRepository:
 
     # ── plex links ───────────────────────────────────────────────────────────
 
+    @serialised
     def plex_link(self, account_id: str) -> PlexLinkRow | None:
         """An account's Plex link.
 
@@ -480,6 +506,7 @@ class AccountRepository:
         ).fetchone()
         return _link(row) if row else None
 
+    @serialised
     def plex_link_by_plex_id(self, plex_id: int) -> PlexLinkRow | None:
         """The link of one plex.tv identity.
 
@@ -492,6 +519,7 @@ class AccountRepository:
         row = self._conn.execute(f"SELECT {_LINK_COLUMNS} FROM plex_link WHERE plex_id = ?", (plex_id,)).fetchone()  # noqa: S608
         return _link(row) if row else None
 
+    @serialised
     def upsert_plex_link(self, link: PlexLinkRow) -> None:
         """Insert an account's Plex link, or replace every field of the existing one.
 
@@ -520,6 +548,7 @@ class AccountRepository:
             ),
         )
 
+    @serialised
     def plex_links_with_token(self) -> list[PlexLinkRow]:
         """Every link keeping a token.
 
@@ -531,6 +560,7 @@ class AccountRepository:
         )
         return [_link(row) for row in rows]
 
+    @serialised
     def set_token_ciphertext(self, account_id: str, blob: bytes | None, *, now: float | None) -> None:
         """Store, replace or clear an account's kept token.
 
@@ -546,6 +576,7 @@ class AccountRepository:
 
     # ── sessions ─────────────────────────────────────────────────────────────
 
+    @serialised
     def insert_session(self, row: SessionRow) -> int:
         """Insert a session; its ``id`` is ignored and assigned by the base.
 
@@ -574,6 +605,7 @@ class AccountRepository:
         assert cursor.lastrowid is not None  # an INSERT into a rowid table always sets it
         return cursor.lastrowid
 
+    @serialised
     def session_by_hash(self, token_hash: str) -> SessionRow | None:
         """A session by its cookie value's hash, revoked or not.
 
@@ -589,6 +621,7 @@ class AccountRepository:
         ).fetchone()
         return SessionRow(*row) if row else None
 
+    @serialised
     def touch_session(self, session_id: int, *, now: float) -> None:
         """Record a session's use.
 
@@ -598,6 +631,7 @@ class AccountRepository:
         """
         self._conn.execute("UPDATE session SET last_seen_at = ? WHERE id = ?", (now, session_id))
 
+    @serialised
     def revoke_session(self, session_id: int, *, now: float) -> None:
         """Mark a session revoked.
 
@@ -609,6 +643,7 @@ class AccountRepository:
 
     # ── pins, settings ───────────────────────────────────────────────────────
 
+    @serialised
     def insert_pin(self, row: PlexPinRow) -> None:
         """Insert a Plex PIN.
 
@@ -631,6 +666,7 @@ class AccountRepository:
             ),
         )
 
+    @serialised
     def pin(self, pin_id: int) -> PlexPinRow | None:
         """One Plex PIN.
 
@@ -643,6 +679,7 @@ class AccountRepository:
         row = self._conn.execute(f"SELECT {_PIN_COLUMNS} FROM plex_pin WHERE pin_id = ?", (pin_id,)).fetchone()  # noqa: S608
         return PlexPinRow(*row) if row else None
 
+    @serialised
     def mark_pin_checked(self, pin_id: int, *, now: float) -> None:
         """Record a poll of plex.tv for a PIN.
 
@@ -652,6 +689,7 @@ class AccountRepository:
         """
         self._conn.execute("UPDATE plex_pin SET last_checked_at = ? WHERE pin_id = ?", (now, pin_id))
 
+    @serialised
     def consume_pin(self, pin_id: int, *, now: float) -> None:
         """Mark a PIN used by a sign-in.
 
@@ -661,6 +699,7 @@ class AccountRepository:
         """
         self._conn.execute("UPDATE plex_pin SET consumed_at = ? WHERE pin_id = ?", (now, pin_id))
 
+    @serialised
     def setting(self, key: str) -> str | None:
         """One application setting.
 
@@ -673,6 +712,7 @@ class AccountRepository:
         row = self._conn.execute("SELECT value FROM app_setting WHERE key = ?", (key,)).fetchone()
         return row[0] if row else None
 
+    @serialised
     def set_setting(self, key: str, value: str) -> None:
         """Store an application setting, replacing its value.
 
