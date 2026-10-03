@@ -596,10 +596,23 @@ class LibraryService:
         Returns:
             The catalogued and held seasons, the held episodes, the aired counts. A show
             never catalogued lists its held seasons with nothing known of them.
+
+        Raises:
+            AppNotFound: ``media.not_found`` for an id a held movie carries, for an IMDb id
+                the library does not hold, and when the provider does not know the id.
+            AppUnavailable: ``provider.unavailable`` when the provider is not configured or
+                does not answer for an id the library does not hold.
         """
         with closing(self._connect()) as conn:
             holders, folders = self._held(conn, ref)
         shows = [row for row in holders if row.kind == "show"]
+        provider, provider_id = ref_key(ref)
+        if holders and not shows:
+            raise refuse_not_found(provider.value)
+        if not holders:
+            if provider is Provider.IMDB:
+                raise refuse_not_found(provider.value)
+            self._provider_sheet(provider.value, provider_id, "show")
         held_row = next((row for row in shows if row.item_id in folders), shows[0] if shows else None)
         episodes = self._catalogue_of(held_row) if held_row is not None else None
         owned_pairs: set[tuple[int, int]] = set()

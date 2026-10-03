@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from datetime import date
 
+import pytest
+
+from personalscraper.app.errors import AppNotFound, RefusalCode
 from personalscraper.app.library.service import RECENT_LIMIT
 from personalscraper.core.identity import MediaRef
 from tests.unit.app.library.world import World, catalogued
@@ -195,3 +198,30 @@ def test_incomplete_joins_the_rows_of_one_identity(world: World) -> None:
     catalogued(world.store, "tvdb", "40", {1: [_AIRED], 2: [_AIRED]})
 
     assert world.service.read_incomplete(world.actor) == []
+
+
+def test_seasons_of_an_id_no_provider_knows_is_not_found(world: World) -> None:
+    """An id neither the library nor the provider holds answers ``media.not_found``, never empty seasons."""
+    with pytest.raises(AppNotFound) as refusal:
+        world.service.read_seasons(world.actor, MediaRef(tvdb_id=9999))
+
+    assert refusal.value.code is RefusalCode.MEDIA_NOT_FOUND
+
+
+def test_seasons_of_a_movie_is_not_found(world: World) -> None:
+    """A movie's id names no show: ``media.not_found``."""
+    movie = world.index.item("Heat", tmdb="949")
+    world.index.movie_file(movie, "films/Heat")
+
+    with pytest.raises(AppNotFound) as refusal:
+        world.service.read_seasons(world.actor, MediaRef(tmdb_id=949))
+
+    assert refusal.value.code is RefusalCode.MEDIA_NOT_FOUND
+
+
+def test_seasons_of_an_imdb_id_the_library_does_not_hold_is_not_found(world: World) -> None:
+    """No client reads seasons by an IMDb id the library does not hold: ``media.not_found``."""
+    with pytest.raises(AppNotFound) as refusal:
+        world.service.read_seasons(world.actor, MediaRef(imdb_id="tt0113277"))
+
+    assert refusal.value.code is RefusalCode.MEDIA_NOT_FOUND
