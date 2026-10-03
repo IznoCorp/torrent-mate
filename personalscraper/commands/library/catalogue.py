@@ -13,15 +13,36 @@ import json
 import sqlite3
 import time
 from pathlib import Path
+from typing import cast
 
 import typer
 
 from personalscraper import cli_helpers
-from personalscraper.acquire.catalogue import CatalogueStore, ProviderClients, refresh_catalogue
+from personalscraper.acquire.catalogue import CatalogueStore, ProviderClients, TvCatalogueClient, refresh_catalogue
+from personalscraper.api.metadata.registry import ProviderRegistry
+from personalscraper.api.metadata.registry._errors import UnknownProviderError
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
 
 _DEFAULT_MAX_SHOWS = 50
+
+
+def _client_of(registry: ProviderRegistry, name: str) -> TvCatalogueClient | None:
+    """Return the registered provider ``name`` as a catalogue client, or ``None``.
+
+    An unconfigured provider is not an error here: its shows are reported skipped.
+
+    Args:
+        registry: The provider registry.
+        name: ``"tvdb"`` or ``"tmdb"``.
+
+    Returns:
+        The provider, or ``None`` when the registry does not hold it.
+    """
+    try:
+        return cast(TvCatalogueClient, registry.get(name))
+    except UnknownProviderError:
+        return None
 
 
 @app.command("library-catalogue-refresh")
@@ -52,7 +73,7 @@ def library_catalogue_refresh(
     settings = cli_helpers.get_settings()
     with per_step_boundary(config, settings, build_torrent_client=False) as app_context:
         registry = app_context.provider_registry
-        clients = ProviderClients(tvdb=registry.get("tvdb"), tmdb=registry.get("tmdb"))  # type: ignore[arg-type]
+        clients = ProviderClients(tvdb=_client_of(registry, "tvdb"), tmdb=_client_of(registry, "tmdb"))
         store = CatalogueStore(Path(config.acquire.db_path))
         index = sqlite3.connect(f"file:{config.indexer.db_path}?mode=ro", uri=True)
         try:

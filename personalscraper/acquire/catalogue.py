@@ -231,22 +231,26 @@ def aired_by_season(episodes: Sequence[CatalogueEpisode], today: date) -> dict[i
     return counts
 
 
-class _TvClient(Protocol):
+class TvCatalogueClient(Protocol):
     """The two calls a provider client must answer to be catalogued."""
 
-    def get_tv(self, provider_id: int | str) -> MediaDetails: ...
+    def get_tv(self, provider_id: int | str) -> MediaDetails:
+        """Return a show's details, its status and season list included."""
+        ...
 
-    def get_episodes(self, series_id: str | int, season: int) -> list[EpisodeInfo]: ...
+    def get_episodes(self, series_id: str | int, season: int) -> list[EpisodeInfo]:
+        """Return the episodes of one season."""
+        ...
 
 
 @dataclass(frozen=True)
 class ProviderClients:
     """The provider clients a refresh may ask; ``None`` = provider unavailable."""
 
-    tvdb: _TvClient | None
-    tmdb: _TvClient | None
+    tvdb: TvCatalogueClient | None
+    tmdb: TvCatalogueClient | None
 
-    def get(self, provider: str) -> _TvClient | None:
+    def get(self, provider: str) -> TvCatalogueClient | None:
         """Return the client of ``provider`` (``"tvdb"`` / ``"tmdb"``), or ``None``."""
         return self.tvdb if provider == "tvdb" else self.tmdb if provider == "tmdb" else None
 
@@ -338,7 +342,7 @@ def refresh_catalogue(
     return CatalogueRefreshReport(refreshed=refreshed, failed=failed, skipped=skipped, remaining=remaining)
 
 
-def _fetch_show(client: _TvClient, provider_id: str) -> tuple[str | None, list[CatalogueEpisode]]:
+def _fetch_show(client: TvCatalogueClient, provider_id: str) -> tuple[str | None, list[CatalogueEpisode]]:
     """Read a show's status and every episode, specials included.
 
     Args:
