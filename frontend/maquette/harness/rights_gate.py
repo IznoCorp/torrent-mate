@@ -10,7 +10,7 @@ DESIGN maquette-l18 § 3.1, § 5 (R-L18-q, R-L18-r), round 8 Q10 = B, F47.
 3. R-L18-r — PLEX UNREACHABLE opens the disclosure by itself and says why.
 4. R-L18-r — A PASSWORD FOR A PLEX-LINKED ACCOUNT is refused with the one refusal every failed
    attempt gets (401 `auth.refused`, O-K1-4 anti-enumeration); the owner's fallback walks through.
-5. R-L18-r — A Default-only Plex account is admitted, read-only: it lands on the Médiathèque,
+5. R-L18-r — A Plex account on the Invité Plex role (O-K1-4) is admitted, read-only: it lands on the Médiathèque,
    with no bar.
 6. A landing whose account read is CANCELLED — the cache cleared under it — lands nowhere and
    raises nothing.
@@ -119,7 +119,7 @@ async def main():
         journal.check("R-L18-r: the owner's fallback password walks through", not owner["shown"], str(owner))
 
         bare = await at("signin-plex-bare", ACTED + SETTLED)
-        journal.check("R-L18-r: a Default-only Plex account lands on the Médiathèque, with no bar",
+        journal.check("R-L18-r: a Plex account on the Invité Plex role lands on the Médiathèque, with no bar",
                       not bare["shown"] and bare["page"] == "lib" and not bare["bar"], str(bare))
 
         # A LANDING WHOSE ACCOUNT READ IS CANCELLED — the cache cleared under it,

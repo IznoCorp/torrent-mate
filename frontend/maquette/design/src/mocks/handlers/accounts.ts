@@ -160,8 +160,17 @@ export function accountRoutes(): MockRoute[] {
     route("resetAccountPassword", POST, "/accounts/{accountId}/password", (request) => {
       const account = heldAccounts().find((one) => one.id === request.parameters.accountId);
       if (account === undefined) return refused(MISSING, "no account carries that id", "account.unknown");
-      if (callerRole().kind !== ADMIN && roleFor(account.role).kind === ADMIN)
-        return refused(FORBIDDEN, "a manager who is not Admin never touches Admin", "account.admin_untouchable");
+      // M7, AS updateAccount: a manager who is not Admin resets no Admin, not
+      // its own password (Profil changes it, with the current one), and no
+      // account whose role holds rights beyond its own.
+      if (callerRole().kind !== ADMIN) {
+        if (roleFor(account.role).kind === ADMIN)
+          return refused(FORBIDDEN, "a manager who is not Admin never touches Admin", "account.admin_untouchable");
+        if (account.id === signedInId())
+          return refused(FORBIDDEN, "a manager changes its own password in Profil", "password.own_account");
+        if (!within(roleFor(account.role).rights))
+          return refused(FORBIDDEN, "the account's role holds rights the caller's does not", "role.escalation");
+      }
       if (account.signInKind === "owner")
         return refused(FORBIDDEN, "the owner's fallback password is replaced on the server only", "password.held_by_cli");
       if (account.signInKind === "plex")

@@ -130,9 +130,6 @@
           "401": {
             "$ref": "#/components/responses/Problem"
           },
-          "403": {
-            "$ref": "#/components/responses/Problem"
-          },
           "409": {
             "$ref": "#/components/responses/Problem"
           },
@@ -6683,7 +6680,7 @@
         "operationId": "resetAccountPassword",
         "x-rights": "accounts.manage",
         "summary": "Reset a local account's password to a provisional one",
-        "description": "An Admin in « Comptes » gives a LOCAL account a new PROVISIONAL password — a forgotten one replaced (the operator, 2026-10-03: « A »); the account then changes it in Profil (`changeOwnPassword`). LOCAL ACCOUNTS ONLY: the Plex server owner's fallback password is replaced by a command on the server, never here (refused `password.held_by_cli`); a Plex-linked account holds no password (refused `auth.plex_only`). A manager who is not Admin never touches an account on the Admin role (`account.admin_untouchable`, M7). The account's open sessions are not ended by this act.",
+        "description": "An Admin in « Comptes » gives a LOCAL account a new PROVISIONAL password — a forgotten one replaced (the operator, 2026-10-03: « A »); the account then changes it in Profil (`changeOwnPassword`). LOCAL ACCOUNTS ONLY: the Plex server owner's fallback password is replaced by a command on the server, never here (refused `password.held_by_cli`); a Plex-linked account holds no password (refused `auth.plex_only`). A manager who is not Admin never touches an account on the Admin role (`account.admin_untouchable`), never resets its OWN password — Profil changes it, with the current one (`password.own_account`) — and never one whose role holds rights beyond its own (`role.escalation`), as `updateAccount` refuses (M7). The account's open sessions are not ended by this act.",
         "tags": [
           "authentication"
         ],
@@ -10913,6 +10910,7 @@
           "password.required",
           "password.too_short",
           "password.held_by_cli",
+          "password.own_account",
           "media.not_found",
           "media.ambiguous",
           "provider.unavailable",

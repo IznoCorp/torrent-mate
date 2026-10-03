@@ -91,6 +91,20 @@ function resetLocal(password: string): void {
   }, FILL_AFTER);
 }
 
+// A manager who is not Admin, on a local account: Invité's rights, given accounts.manage (M7).
+const LOCAL_MANAGER_RIGHTS = ["library.read", "accounts.manage"] as const;
+
+/**
+ * Signs in a local account whose role, not Admin's, manages accounts, and opens one panel.
+ *
+ * @param account The account whose panel is opened.
+ */
+function managerPanel(account: string): void {
+  window.__mocks?.setRoleRights("local-guest", [...LOCAL_MANAGER_RIGHTS]);
+  as("local-guest");
+  accountPanel(account);
+}
+
 // A password long enough for the layer's minimum, and one that is not.
 const LONG = "correct horse battery";
 const SHORT = "court";
@@ -193,6 +207,16 @@ export function signInStates(): NamedState[] {
       "accounts-plex-no-password",
       "Comptes — un compte lié à Plex : aucun mot de passe à réinitialiser",
       () => accountPanel("household-member"),
+    ],
+    [
+      "accounts-reset-out-of-reach",
+      "Comptes — un gestionnaire qui n'est pas Admin : le mot de passe d'un compte dont le rôle dépasse le sien ne se réinitialise pas",
+      () => managerPanel("local-account"),
+    ],
+    [
+      "accounts-reset-own",
+      "Comptes — un gestionnaire qui n'est pas Admin, sur son propre compte : son mot de passe se change dans son Profil",
+      () => managerPanel("local-guest"),
     ],
   ];
 }

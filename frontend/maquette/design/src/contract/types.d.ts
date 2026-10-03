@@ -1677,7 +1677,7 @@ export interface paths {
         put?: never;
         /**
          * Reset a local account's password to a provisional one
-         * @description An Admin in « Comptes » gives a LOCAL account a new PROVISIONAL password — a forgotten one replaced (the operator, 2026-10-03: « A »); the account then changes it in Profil (`changeOwnPassword`). LOCAL ACCOUNTS ONLY: the Plex server owner's fallback password is replaced by a command on the server, never here (refused `password.held_by_cli`); a Plex-linked account holds no password (refused `auth.plex_only`). A manager who is not Admin never touches an account on the Admin role (`account.admin_untouchable`, M7). The account's open sessions are not ended by this act.
+         * @description An Admin in « Comptes » gives a LOCAL account a new PROVISIONAL password — a forgotten one replaced (the operator, 2026-10-03: « A »); the account then changes it in Profil (`changeOwnPassword`). LOCAL ACCOUNTS ONLY: the Plex server owner's fallback password is replaced by a command on the server, never here (refused `password.held_by_cli`); a Plex-linked account holds no password (refused `auth.plex_only`). A manager who is not Admin never touches an account on the Admin role (`account.admin_untouchable`), never resets its OWN password — Profil changes it, with the current one (`password.own_account`) — and never one whose role holds rights beyond its own (`role.escalation`), as `updateAccount` refuses (M7). The account's open sessions are not ended by this act.
          */
         post: operations["resetAccountPassword"];
         delete?: never;
@@ -2969,7 +2969,7 @@ export interface components {
          * @description WHY A REQUEST WAS REFUSED, as a closed code (X4: no sentence on the wire). The interface says it in its own words, read from fr.json by this code; `params` carries the values those words name. The set grows per lot: an operation whose lot has not landed its codes yet may refuse without one. ANTI-ENUMERATION (O-K1-4): the two doors refuse with ONE code, `auth.refused`, whatever the cause — an unknown e-mail, a wrong password, a Plex-linked account's password, a Plex identity without access to the server — so no attempt tells which e-mails the server knows.
          * @enum {string}
          */
-        RefusalCode: "request.invalid" | "request.cross_origin" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "password.current_wrong" | "password.required" | "password.too_short" | "password.held_by_cli" | "media.not_found" | "media.ambiguous" | "provider.unavailable" | "library.locked";
+        RefusalCode: "request.invalid" | "request.cross_origin" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "password.current_wrong" | "password.required" | "password.too_short" | "password.held_by_cli" | "password.own_account" | "media.not_found" | "media.ambiguous" | "provider.unavailable" | "library.locked";
         /** @description A PLEX SIGN-IN STARTED on the server: its PIN, and Plex's page where the person confirms it (round 4 P-2 = B). */
         StartedPlexSignIn: {
             /** @description the PIN's key, the one `signInWithPlex` takes */
@@ -3071,7 +3071,6 @@ export interface operations {
             };
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
-            403: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
             429: components["responses"]["Problem"];
             500: components["responses"]["Problem"];

@@ -17,6 +17,10 @@ local account a PROVISIONAL password at creation in « Comptes » and may reset 
 5. THE PROVISIONAL PASSWORD: a local account is created with one, and refused without it; a local
    account's panel resets it and says it is set, or refused short; the owner's panel says his is
    changed on the server only, and neither his nor a Plex-linked account's offers a reset.
+6. NO ESCALATION BY A RESET (M7): a manager who is not Admin is offered no reset of an account whose
+   role holds rights beyond its own, nor of its own account (its password changes in Profil, with
+   the current one) — each said on the panel; forced, the first answers 403 `role.escalation`, the
+   second 403 `password.own_account`.
 """
 import asyncio
 import json
@@ -52,6 +56,10 @@ ROSTER = """() => ({
     detail: row.querySelector('[data-part="flux/detail"]')?.textContent || '' })),
   roles: [...document.querySelectorAll('[data-part="accounts/role"] [data-part="flux/name"]')].map((one) => one.textContent),
   refusal: document.querySelector('[data-part="accounts/refusal"]')?.textContent || null })"""
+
+FORCE = """async ([account]) => {
+  const answer = await fetch(`/api/v1/accounts/${account}/password`, { method: 'POST', body: JSON.stringify({ password: 'correct horse battery' }) });
+  return [answer.status, (await answer.json()).code ?? null]; }"""
 
 PANEL = """() => ({
   text: document.querySelector('#sheet')?.textContent || '',
@@ -163,6 +171,20 @@ async def main():
         plex = await at("accounts-plex-no-password", PANEL, PANEL_IN + SETTLED)
         journal.check("a Plex-linked account's panel offers no reset", not plex["reset"] and plex["text"],
                       plex["text"][:120])
+
+        # 6. No escalation by a reset (M7).
+        beyond = await at("accounts-reset-out-of-reach", PANEL, PANEL_IN + SETTLED)
+        journal.check("M7: a manager who is not Admin is offered no reset of an account whose role is beyond its own, and is told why",
+                      not beyond["reset"] and await say("screens.accounts.reset.beyondReach") in beyond["text"],
+                      beyond["text"][:160])
+        forced = await page.evaluate(FORCE, ["local-account"])
+        journal.check("M7: forced, that reset answers 403 role.escalation", forced == [403, "role.escalation"], str(forced))
+        own = await at("accounts-reset-own", PANEL, PANEL_IN + SETTLED)
+        journal.check("M7: a manager who is not Admin is offered no reset of its own account, and is sent to Profil",
+                      not own["reset"] and await say("refusals.password.own_account") in own["text"], own["text"][:160])
+        forced = await page.evaluate(FORCE, ["local-guest"])
+        journal.check("M7: forced, its own reset answers 403 password.own_account",
+                      forced == [403, "password.own_account"], str(forced))
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()
