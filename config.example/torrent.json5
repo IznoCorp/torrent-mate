@@ -2,6 +2,18 @@
   // PROVIDER_CREDS hardcoded in api/_activation.py:
   //   qbittorrent  → ["QBIT_USERNAME", "QBIT_PASSWORD"]
   //   transmission → ["TRANSMISSION_USERNAME", "TRANSMISSION_PASSWORD"]
+  //
+  // scope (per client, optional, default null = the whole client): the part of a
+  // client shared with another instance that this instance owns. "seed-pure" must
+  // be among instance_tags; the category's save path is set on the client.
+  //   qbittorrent: {
+  //     enabled: true, host: "localhost", port: 8080,
+  //     scope: {
+  //       category: "tm-preprod",
+  //       download_root: "/Volumes/Disk3/tm-preprod/downloads",
+  //       instance_tags: ["tm-preprod", "seed-pure"],
+  //     },
+  //   },
   torrent: {
     active: "qbittorrent",
     clients: {
