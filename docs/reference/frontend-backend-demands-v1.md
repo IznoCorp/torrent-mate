@@ -26,8 +26,8 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | | |
 | --- | ---: |
 | operations the interface requires | 101 |
-| operations v1 serves | 4 |
-| required and not served | 97 |
+| operations v1 serves | 9 |
+| required and not served | 92 |
 | served, different response shape | 0 |
 | served, path parameter spelled differently | 0 |
 | served, answered with a different status | 0 |
@@ -46,7 +46,6 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `DELETE /api/v1/staging/media/{mediaId}` | `deleteStagedMedia` | Delete a staged folder from the disk |
 | `DELETE /api/v1/staging/media/{mediaId}/reclassify` | `restoreReclassifiedMedia` | Put a reclassified folder back in the staging area |
 | `DELETE /api/v1/torrents/{infoHash}/cross-seed/exclusions` | `undoCrossSeedExclusion` | Lift an exclusion, of one pair or of a whole title |
-| `GET /api/v1/accounts` | `readAccounts` | Every account and every role |
 | `GET /api/v1/acquisition/downloads` | `readDownloads` | Every entry the download client holds, one per tracker it is active on |
 | `GET /api/v1/acquisition/followed` | `readFollows` | Everything being followed |
 | `GET /api/v1/acquisition/followed/{followedId}/completeness` | `readFollowCompleteness` | What has aired against what the library holds, season by season, for one follow |
@@ -89,10 +88,7 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `GET /api/v1/system/errors` | `readErrors` | How many errors, out of how many runs, and the latest |
 | `GET /api/v1/system/services` | `readServices` | The services, and whether each answers |
 | `GET /api/v1/trackers` | `readTrackers` | Every configured tracker, its ratio, volumes, trend, alert threshold and health |
-| `PATCH /api/v1/accounts/{accountId}` | `updateAccount` | Assign an account its one role |
 | `PATCH /api/v1/acquisition/followed/{followedId}` | `updateFollow` | Pause or resume a follow |
-| `PATCH /api/v1/roles/{roleId}` | `updateRole` | Rename a role or set its rights |
-| `POST /api/v1/accounts` | `createAccount` | Create an account |
 | `POST /api/v1/accounts/{accountId}/password` | `resetAccountPassword` | Reset a local account's password to a provisional one |
 | `POST /api/v1/acquisition/detect` | `runDetection` | Look now for everything that could be taken |
 | `POST /api/v1/acquisition/followed` | `createFollow` | Follow a title |
@@ -121,7 +117,6 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `POST /api/v1/pipeline/resume` | `resumePipeline` | Resume the run |
 | `POST /api/v1/pipeline/run` | `runPipeline` | Start a run, or queue one visibly |
 | `POST /api/v1/pipeline/watcher` | `setWatcher` | Turn the automatic trigger on or off, and say which it now is |
-| `POST /api/v1/roles` | `createRole` | Create an ordinary role |
 | `POST /api/v1/staging/media/{mediaId}/continue` | `continueStagedMedia` | Send a staged item back through the pipeline |
 | `POST /api/v1/staging/media/{mediaId}/discard` | `discardStagedMedia` | Quarantine a staged folder |
 | `POST /api/v1/staging/media/{mediaId}/enqueue` | `enqueueForResolution` | Send a staged medium to arbitration: a pending decision, with the candidates a provider search found |

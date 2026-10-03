@@ -11,6 +11,7 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 
+from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
 from personalscraper.core.circuit import (
     CircuitBreakerClosed,
     CircuitBreakerHalfOpened,
@@ -213,6 +214,20 @@ def make_library_scan_completed() -> LibraryScanCompleted:
 def make_library_scan_skipped() -> LibraryScanSkipped:
     """Realistic :class:`LibraryScanSkipped` factory."""
     return LibraryScanSkipped(disk="disk_1", reason=ScanSkipReason.FAILED)
+
+
+# ---------------------------------------------------------------------------
+# k1-comptes feature — E8, an account's rights moved
+# ---------------------------------------------------------------------------
+
+
+@register_factory(AccountRightsChanged)
+def make_account_rights_changed() -> AccountRightsChanged:
+    """Realistic :class:`AccountRightsChanged` factory."""
+    return AccountRightsChanged(
+        account_ids=("account-3f2a9c1e", "account-77b04d10"),
+        cause=RightsChangeCause.ROLE_RIGHTS_CHANGED,
+    )
 
 
 # ---------------------------------------------------------------------------

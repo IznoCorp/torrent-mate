@@ -11,6 +11,11 @@ import binascii
 import hashlib
 import hmac
 import secrets
+from typing import Final
+
+#: The shortest password an Admin may give a local account, in characters (the
+#: maquette's ``passwordMinimum``); answered as ``password.too_short``'s ``minimum``.
+PASSWORD_MINIMUM: Final[int] = 12
 
 # scrypt parameters — DESIGN §4.4 / §4.8 (stdlib only, no extra dep).
 # maxmem=64 MiB bypasses the default maxmem=0 which rejects n=16384,r=8 on macOS.

@@ -13,19 +13,34 @@
     "rate_limited": "Too many failed sign-ins; try again in a minute."
   },
   "right": {
-    "missing": "The account's role lacks the right this needs."
+    "missing": "The account's role lacks the right this needs.",
+    "unknown": "A right named is not one the server knows."
   },
   "instance": {
     "read_only": "This instance is read-only: nothing was changed.",
     "forbidden_write": "This instance forbids this change: nothing was changed."
   },
   "account": {
-    "unknown": "No account has the e-mail given as EMAIL."
+    "unknown": "No account has the e-mail given as EMAIL.",
+    "email_invalid": "An account needs a name and a valid e-mail.",
+    "email_taken": "An account already has this e-mail.",
+    "admin_untouchable": "Only an Admin changes an Admin account or gives the Admin role.",
+    "last_admin": "No account would be left on the Admin role: nothing was changed."
   },
   "media": {
     "not_found": "No media answers this provider id."
   },
   "provider": {
     "unavailable": "A metadata provider did not answer; try again later."
+  },
+  "role": {
+    "unknown": "No role has this id.",
+    "system_immutable": "The Admin role cannot be changed.",
+    "own_role": "A manager who is not Admin cannot change their own role.",
+    "escalation": "The role would give rights your own role lacks."
+  },
+  "password": {
+    "required": "A local account needs a password.",
+    "too_short": "The password needs at least {minimum} characters."
   }
 }
