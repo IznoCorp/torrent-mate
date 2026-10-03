@@ -8,6 +8,7 @@ from personalscraper.commands.library.analyze import (
     library_recommend,
     library_report,
     library_rescrape,
+    library_rescrape_item,
 )
 from personalscraper.commands.library.audit import library_ghost_audit, library_reconcile, library_relink
 from personalscraper.commands.library.catalogue import library_catalogue_refresh
@@ -46,6 +47,7 @@ __all__ = [
     "library_repair",
     "library_report",
     "library_rescrape",
+    "library_rescrape_item",
     "library_search",
     "library_show",
     "library_status",

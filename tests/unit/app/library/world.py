@@ -262,6 +262,7 @@ def world(tmp_path: Path) -> Iterator[World]:
     ownership = IndexerOwnershipChecker(index.path)
     service = LibraryService(
         index_db=index.path,
+        data_dir=tmp_path,
         catalogue=store,
         ownership=ownership,
         providers=ProviderClients(tvdb=tvdb, tmdb=tmdb),  # type: ignore[arg-type]

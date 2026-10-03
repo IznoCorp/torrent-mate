@@ -281,12 +281,81 @@ def library_rescrape(
         personalscraper library-rescrape --interactive
         personalscraper library-rescrape --item-id 1600
     """
+    _rescrape(
+        ctx,
+        command="library-rescrape",
+        only=only,
+        disk=disk,
+        category_id=_resolve_category(ctx, category),
+        interactive=interactive,
+        dry_run=dry_run,
+        max_items=max_items,
+        item_id=item_id,
+    )
+
+
+@app.command()
+@handle_cli_errors
+def library_rescrape_item(
+    ctx: typer.Context,
+    item_id: int = typer.Argument(..., help="The indexer DB id of the item to re-scrape."),
+) -> None:
+    """Re-scrape exactly one library item via TMDB/TVDB, live.
+
+    The per-medium twin of ``library-rescrape --item-id``: no dry run, no filter,
+    the needs-rescrape predicate bypassed. It takes ``pipeline.lock`` itself (exit 3
+    when held, the code the maintenance runner re-queues on).
+
+    Examples:
+        personalscraper library-rescrape-item 1600
+    """
+    _rescrape(
+        ctx,
+        command="library-rescrape-item",
+        only=None,
+        disk=None,
+        category_id=None,
+        interactive=False,
+        dry_run=False,
+        max_items=None,
+        item_id=item_id,
+    )
+
+
+def _rescrape(
+    ctx: typer.Context,
+    *,
+    command: str,
+    only: str | None,
+    disk: str | None,
+    category_id: str | None,
+    interactive: bool,
+    dry_run: bool,
+    max_items: int | None,
+    item_id: int | None,
+) -> None:
+    """Run a library re-scrape under ``pipeline.lock`` and report it.
+
+    Args:
+        ctx: The Typer context (its ``obj.config``).
+        command: The CLI command name the run row is recorded under.
+        only: Restrict to ``nfo``, ``artwork`` or ``episodes``; ``None`` for all.
+        disk: Restrict to this disk id.
+        category_id: Restrict to this resolved category id.
+        interactive: Confirm low-confidence matches.
+        dry_run: Preview without modifying files (no lock, no run row).
+        max_items: Limit the number of items processed.
+        item_id: Target exactly this indexer item, bypassing the needs-rescrape predicate.
+
+    Raises:
+        typer.Exit: 1 on a bad option, an unreachable index or an unresolved item;
+            3 when ``pipeline.lock`` is held.
+    """
     import sqlite3  # noqa: PLC0415
 
     from personalscraper.io_utils import write_json
     from personalscraper.maintenance.rescraper import rescrape_library
 
-    category_id = _resolve_category(ctx, category)
     console = state["console"]
     config = ctx.obj.config
     settings = cli_helpers.get_settings()
@@ -324,7 +393,7 @@ def library_rescrape(
         # §1/§2 — the repair run is OBSERVABLE: a pipeline_run row (kind
         # maintenance) carries its numeric result, incl. how many items got
         # their artwork back (« Posters récupérés »). Dry-runs stay silent.
-        run_row_cm = cli_run_row(config, "library-rescrape") if not dry_run else nullcontext(None)
+        run_row_cm = cli_run_row(config, command) if not dry_run else nullcontext(None)
         with run_row_cm as run_rec, per_step_boundary(config, settings) as app_context:
             # Open the indexer DB connection when item_id is provided so that
             # _collect_rescrape_candidates can look up the item by id.  The

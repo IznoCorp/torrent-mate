@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.app.errors import AppNotFound, AppPreconditionRequired, RefusalCode
+from personalscraper.app.errors import AppInternalError, AppNotFound, AppPreconditionRequired, RefusalCode
 from personalscraper.app.library.identity import Provider
 from personalscraper.app.maintenance import service as maintenance_service
 from personalscraper.app.maintenance.registry import REGISTRY, canonical_options_json
@@ -198,3 +198,23 @@ def test_the_library_wide_rescrape_still_demands_a_dry_run(world: World) -> None
         )
 
     assert _runs(world.index.path) == []
+
+
+def test_a_failed_spawn_is_an_internal_refusal_and_finalises_the_row(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The runner cannot start: 500, and the reserved row never stays ``running``."""
+    movie = world.index.item("Heat", tmdb="949")
+    world.index.movie_file(movie, "films/Heat")
+
+    def broken_spawn(run_uid: str, action_id: str, options_json: str, dry_run: bool) -> int:
+        """Fail as a missing interpreter would."""
+        raise OSError("no interpreter")
+
+    monkeypatch.setattr(maintenance_service, "_spawn_runner", broken_spawn)
+
+    with pytest.raises(AppInternalError):
+        world.service.request_rescrape(world.actor, MediaRef(tmdb_id=949))
+
+    with sqlite3.connect(world.index.path) as conn:
+        assert conn.execute("SELECT outcome FROM pipeline_run").fetchall() == [("error",)]

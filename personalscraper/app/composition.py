@@ -270,6 +270,7 @@ def _build_library_service(config: "Config", settings: "Settings", event_bus: Ev
     )
     return LibraryService(
         index_db=index_db,
+        data_dir=config.paths.data_dir,
         catalogue=CatalogueStore(acquire_db),
         ownership=IndexerOwnershipChecker(index_db),
         providers=ProviderClients(tvdb=tvdb, tmdb=tmdb),
