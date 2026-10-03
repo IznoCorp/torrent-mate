@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 
 import structlog
 from fastapi import APIRouter, FastAPI
+from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
+from starlette.types import Message, Receive, Scope, Send
 
 from personalscraper.app.errors import AppConflict, AppForbidden, RefusalCode
 from personalscraper.http_v1.app import V1_PREFIX
@@ -148,6 +150,50 @@ def test_crash_inside_the_mount_does_not_reach_the_parent(make_v1_app: Callable[
 
     assert response.status_code == 500
     assert response.json()["code"] == "internal"
+
+
+def test_crash_after_the_response_started_is_swallowed_and_never_answered_twice(
+    make_v1_app: Callable[..., FastAPI],
+) -> None:
+    """Row 5, late: once the response has started nothing is re-raised and no second start is sent."""
+    v1_app = make_v1_app()
+
+    async def _stream_then_crash() -> AsyncIterator[bytes]:
+        """Send one chunk, then fail."""
+        yield b"first chunk"
+        raise RuntimeError(f"boom {_SECRET}")
+
+    @v1_app.get("/started")
+    def _started() -> StreamingResponse:
+        """Start a streamed response that crashes mid-way."""
+        return StreamingResponse(_stream_then_crash())
+
+    parent = FastAPI()
+    parent.mount(V1_PREFIX, v1_app)
+    sent: list[str] = []
+
+    async def recorder(scope: Scope, receive: Receive, send: Send) -> None:
+        """Run the parent, recording the type of every message it sends.
+
+        Args:
+            scope: The ASGI scope.
+            receive: The ASGI receive channel.
+            send: The ASGI send channel.
+        """
+
+        async def _record(message: Message) -> None:
+            sent.append(message["type"])
+            await send(message)
+
+        await parent(scope, receive, _record)
+
+    with structlog.testing.capture_logs() as logs:
+        response = TestClient(recorder, raise_server_exceptions=True).get(f"{V1_PREFIX}/started")
+
+    assert response.status_code == 200
+    assert _SECRET not in response.text
+    assert sent.count("http.response.start") == 1
+    assert any(entry["event"] == "v1_unhandled_exception" and entry["started"] is True for entry in logs)
 
 
 def test_every_code_has_a_title() -> None:
