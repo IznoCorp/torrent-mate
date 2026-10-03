@@ -324,16 +324,6 @@
             },
             "description": "A refusal, answered as a Problem."
           },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "A refusal, answered as a Problem."
-          },
           "409": {
             "content": {
               "application/json": {
