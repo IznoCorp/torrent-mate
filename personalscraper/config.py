@@ -90,6 +90,8 @@ class Settings(BaseSettings):
         healthcheck_url: Healthchecks.io ping URL for scheduling monitoring.
         plex_url: Plex server root for the post-dispatch library refresh.
         plex_token: Plex auth token; empty disables the refresh subscriber.
+        plex_token_keys: Comma-separated Fernet keys sealing the Plex tokens a sign-in keeps
+            in ``app.db``; the first encrypts, all decrypt; empty keeps no token.
         web_password_hash: scrypt-hashed password for web UI login.
         web_jwt_secret: HS256 secret key for JWT session tokens.
     """
@@ -124,6 +126,7 @@ class Settings(BaseSettings):
     # subscriber unwired: no request is ever made and the pipeline logs once why.
     plex_url: str = "http://localhost:32400"
     plex_token: str = ""
+    plex_token_keys: str = ""
 
     # TorrentMate Web UI
     web_password_hash: str = ""
@@ -139,6 +142,7 @@ class Settings(BaseSettings):
             "telegram_bot_token",
             "healthcheck_url",
             "plex_token",
+            "plex_token_keys",
             "web_password_hash",
             "web_jwt_secret",
         }
