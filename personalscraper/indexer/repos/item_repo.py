@@ -13,6 +13,7 @@ import json
 import re
 import sqlite3
 import unicodedata
+from typing import Literal
 
 from personalscraper.indexer.schema import ItemAttributeRow, MediaItemRow
 from personalscraper.logger import get_logger
@@ -297,6 +298,124 @@ def find_by_external_id(
     return (item, dispatch_disk, dispatch_path)
 
 
+def _canonical_series_id(row: MediaItemRow) -> tuple[str, str] | None:
+    """Return the ``(provider, series_id)`` pair that identifies *row*.
+
+    A show is identified by its TVDB id unless its ``canonical_provider`` says
+    TMDB; a movie by its TMDB id. A missing, malformed or placeholder id yields
+    ``None`` (the caller falls back to the title).
+
+    Args:
+        row: The incoming :class:`MediaItemRow`.
+
+    Returns:
+        The provider family and its series id as a string, or ``None``.
+    """
+    if row.kind == "show" and row.canonical_provider != "tmdb":
+        provider = "tvdb"
+    else:
+        provider = "tmdb"
+    try:
+        ids = json.loads(row.external_ids_json or "{}")
+    except (json.JSONDecodeError, TypeError):
+        return None
+    family = ids.get(provider) if isinstance(ids, dict) else None
+    series_id = family.get("series_id") if isinstance(family, dict) else None
+    if series_id is None:
+        return None
+    text = str(series_id).strip()
+    if text.lower() in _PLACEHOLDER_PROVIDER_IDS:
+        return None
+    return provider, text
+
+
+def get_by_canonical_id(conn: sqlite3.Connection, row: MediaItemRow) -> MediaItemRow | Literal["ambiguous"] | None:
+    """Find the one ``media_item`` row holding *row*'s canonical provider id.
+
+    The canonical id is the TVDB id for a show (the TMDB id when its
+    ``canonical_provider`` says ``tmdb``) and the TMDB id for a movie; only rows
+    of the same ``kind`` match. Two or more holders are a known duplicate: the
+    ambiguity is logged with their ids and never resolved here.
+
+    Args:
+        conn: Open SQLite connection.
+        row: The incoming :class:`MediaItemRow`.
+
+    Returns:
+        The single holding row; ``"ambiguous"`` when two or more rows hold the
+        id; ``None`` when *row* carries no usable id or no row holds it.
+    """
+    key = _canonical_series_id(row)
+    if key is None:
+        return None
+    provider, series_id = key
+    json_path = _EXTERNAL_ID_JSON_PATHS[provider]
+    _set_row_factory(conn)
+    rows = conn.execute(
+        "SELECT id, kind, title, title_sort, original_title, year, category_id, "
+        "external_ids_json, ratings_json, canonical_provider, nfo_status, artwork_json, "
+        "date_created, date_modified, date_metadata_refreshed, is_locked, preferred_lang "
+        "FROM media_item "
+        f"WHERE CAST(json_extract(external_ids_json, '{json_path}') AS TEXT) = CAST(? AS TEXT) "
+        "AND kind = ? "
+        "ORDER BY id",
+        (series_id, row.kind),
+    ).fetchall()
+    if not rows:
+        return None
+    if len(rows) > 1:
+        log.warning(
+            "indexer.upsert.external_id_ambiguous",
+            provider=provider,
+            series_id=series_id,
+            kind=row.kind,
+            item_ids=[r["id"] for r in rows],
+        )
+        return "ambiguous"
+    return _row_to_item(rows[0])
+
+
+def _get_holder_at_dispatch_path(
+    conn: sqlite3.Connection, row: MediaItemRow, dispatch_path: str
+) -> MediaItemRow | None:
+    """Pick, among the holders of *row*'s ambiguous canonical id, the one in *dispatch_path*.
+
+    A re-scan of one holder's folder must update that holder: its stored title
+    may carry « (YYYY) », which the title path misses, and a phantom row would
+    then be inserted in its folder. The folder is the holder's
+    ``item_attribute(dispatch_path)``, compared verbatim.
+
+    Args:
+        conn: Open SQLite connection.
+        row: The incoming :class:`MediaItemRow` (its canonical id has two or more holders).
+        dispatch_path: The incoming media folder, as the caller stores it.
+
+    Returns:
+        The one holder whose ``dispatch_path`` equals *dispatch_path*; ``None``
+        when none or several do.
+    """
+    key = _canonical_series_id(row)
+    if key is None:
+        return None
+    provider, series_id = key
+    json_path = _EXTERNAL_ID_JSON_PATHS[provider]
+    _set_row_factory(conn)
+    rows = conn.execute(
+        "SELECT m.id, m.kind, m.title, m.title_sort, m.original_title, m.year, m.category_id, "
+        "m.external_ids_json, m.ratings_json, m.canonical_provider, m.nfo_status, m.artwork_json, "
+        "m.date_created, m.date_modified, m.date_metadata_refreshed, m.is_locked, m.preferred_lang "
+        "FROM media_item m "
+        "JOIN item_attribute a ON a.item_id = m.id AND a.key = ? "
+        f"WHERE CAST(json_extract(m.external_ids_json, '{json_path}') AS TEXT) = CAST(? AS TEXT) "
+        "AND m.kind = ? AND a.value = ? "
+        "LIMIT 2",
+        (_ATTR_DISPATCH_PATH, series_id, row.kind, dispatch_path),
+    ).fetchall()
+    if len(rows) != 1:
+        return None
+    return _row_to_item(rows[0])
+
+
 def delete(conn: sqlite3.Connection, id: int) -> bool:
     """Hard-delete a media item row (cascades to child tables via ON DELETE CASCADE).
 
@@ -426,10 +545,27 @@ def _merge_external_ids(existing_json: str | None, incoming_json: str | None) ->
     return json.dumps({**existing, **incoming})
 
 
-def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
-    """Insert or update a :class:`MediaItemRow`, deduplicating on ``(title, kind, year)``.
+def upsert(conn: sqlite3.Connection, row: MediaItemRow, *, dispatch_path: str | None = None) -> int:
+    """Insert or update a :class:`MediaItemRow`, found by provider id first, then by title.
 
-    Performs a SELECT-then-UPDATE-or-INSERT keyed by the canonicalised title
+    The existing row is first looked up by the incoming row's canonical provider
+    id (:func:`get_by_canonical_id`): when exactly one row of the same kind holds
+    it and its year is compatible (equal, or either side ``NULL``), that row is
+    updated, whatever its stored title — a stored « Title (YYYY) » no longer lets
+    a canonical-title phantom be inserted beside it. When the incoming row
+    carries no id, when no row holds it, or when the single holder has another
+    explicit year (logged), the title path below runs unchanged. When two or
+    more rows hold it (a known duplicate, logged and never merged), the one
+    holder whose ``dispatch_path`` attribute equals the caller's *dispatch_path*
+    is updated — a re-scan of its own folder, whose stored title may carry
+    « (YYYY) » that the title path would miss; with no *dispatch_path*, or none
+    or several holders in that folder, the title path runs.
+
+    On a row found by id, the year backfill below is skipped when another row
+    of the same stored title already holds the incoming year (it would break
+    ``UNIQUE(title, kind, year)``): the found row keeps its ``NULL`` year.
+
+    The title path performs a SELECT-then-UPDATE-or-INSERT keyed by the canonicalised title
     (:func:`_canonical_title` strips a trailing `` (YYYY)``), the kind, and a
     *year-compatible* match (see :func:`get_by_title_kind_year`).  A remake and
     its original share a base title but carry *different explicit* years, so they
@@ -451,19 +587,45 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
         row: :class:`MediaItemRow` to upsert.  The ``id`` field is ignored;
             ``title`` may carry a trailing `` (YYYY)`` suffix which will be
             stripped before storage.  ``year`` disambiguates same-title remakes.
+        dispatch_path: The media folder being written, as the caller stores it
+            in ``item_attribute(dispatch_path)``; only consulted when the
+            canonical id is ambiguous. ``None`` when the caller has no folder.
 
     Returns:
         The ``rowid`` (= ``id``) of the inserted or updated row.
     """
     canonical = _canonical_title(row.title)
-    existing = get_by_title_kind_year(conn, canonical, row.kind, row.year)
+    by_id = get_by_canonical_id(conn, row)
+    if isinstance(by_id, MediaItemRow) and by_id.year is not None and row.year is not None and by_id.year != row.year:
+        # One id, two explicit years: two real folders (a misdated one beside
+        # the right one). Folding them would leave one row whose year and
+        # dispatch target contradict each other, so the title path keeps them
+        # apart as before — the same year-compatibility rule it applies.
+        log.warning(
+            "indexer.upsert.external_id_year_mismatch",
+            title=canonical,
+            kind=row.kind,
+            item_id=by_id.id,
+            stored_year=by_id.year,
+            incoming_year=row.year,
+        )
+        by_id = None
+    matched_by = "provider_id"
+    if by_id == "ambiguous":
+        by_id = _get_holder_at_dispatch_path(conn, row, dispatch_path) if dispatch_path else None
+        matched_by = "dispatch_path"
+    matched_by_id = isinstance(by_id, MediaItemRow)
+    if not matched_by_id:
+        matched_by = "title"
+    existing = by_id if isinstance(by_id, MediaItemRow) else get_by_title_kind_year(conn, canonical, row.kind, row.year)
     if existing is not None:
         # A year-less incoming item is ambiguous only when it matched an
         # *explicit*-year row (no year-less row existed to absorb it) while
         # several explicit-year remakes share its canonical title — then it
         # could belong to any of them. When a year-less row exists it merges
         # into that one deterministically (unambiguous), so no warning fires.
-        if row.year is None and existing.year is not None:
+        # A match by provider id is not a guess: no warning either.
+        if not matched_by_id and row.year is None and existing.year is not None:
             siblings: int = conn.execute(
                 "SELECT COUNT(*) FROM media_item WHERE title = ? AND kind = ?",
                 (canonical, row.kind),
@@ -482,7 +644,21 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
         # written at INSERT only, so an item whose artwork changed after its
         # first indexing kept a stale artwork_json forever (prod: 28 items
         # reported poster-less while their posters sat on disk).
-        if existing.year is None and row.year is not None:
+        # A row found by id may share its title with another row that already
+        # holds the incoming year (a remake with another id): backfilling it
+        # would break UNIQUE(title, kind, year), so the year stays NULL. The
+        # title path never meets this — the exact-year row would have won.
+        year_taken = (
+            matched_by_id
+            and existing.year is None
+            and row.year is not None
+            and conn.execute(
+                "SELECT 1 FROM media_item WHERE title = ? AND kind = ? AND year = ? AND id != ?",
+                (existing.title, row.kind, row.year, existing.id),
+            ).fetchone()
+            is not None
+        )
+        if existing.year is None and row.year is not None and not year_taken:
             # Heal a year-less survivor by backfilling the first explicit year
             # seen, so a later *different*-year remake splits into its own row
             # instead of being absorbed by the NULL-year "merge magnet".
@@ -520,7 +696,13 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
                     existing.id,
                 ),
             )
-        log.info("indexer.item.upsert_update", title=canonical, kind=row.kind, id=existing.id)
+        log.info(
+            "indexer.item.upsert_update",
+            title=canonical,
+            kind=row.kind,
+            id=existing.id,
+            matched_by=matched_by,
+        )
         return existing.id
     cursor = conn.execute(
         """

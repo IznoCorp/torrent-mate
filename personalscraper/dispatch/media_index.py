@@ -592,7 +592,7 @@ class MediaIndex:
             )
             row["date_created"] = now_ts
             row["date_modified"] = now_ts
-            item_id = item_repo.upsert(self._conn, MediaItemRow(**row))
+            item_id = item_repo.upsert(self._conn, MediaItemRow(**row), dispatch_path=entry.path)
 
         # Write dispatch-specific attributes (upsert replaces on conflict).
         for key, value in (
