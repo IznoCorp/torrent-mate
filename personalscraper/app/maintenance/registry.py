@@ -694,4 +694,15 @@ REGISTRY: list[MaintenanceAction] = [
         dry_run="supported",
         options=[],
     ),
+    # ── duplicates_by_id.py (1 command) ───────────────────────────────────
+    MaintenanceAction(
+        id="library-duplicates-by-id",
+        title="Doublons par identifiant fournisseur",
+        description="Liste les identifiants TVDB/TMDB portés par plusieurs lignes ou dossiers (lecture seule).",
+        category="query",
+        risk="ro",
+        long_running=False,
+        dry_run="unsupported",
+        options=[],
+    ),
 ]
