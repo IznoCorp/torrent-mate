@@ -632,6 +632,30 @@ class TestUpdateRole:
             (("account-guest", "account-guest-2"), RightsChangeCause.ROLE_RIGHTS_CHANGED)
         ]
 
+    def test_e8_is_published_after_the_commit(
+        self, store: AppStore, tmp_path: Path, admin: Actor, bus: EventBus
+    ) -> None:
+        """When E8 arrives, another connection already reads the role's new rights."""
+        seen: list[list[str]] = []
+
+        def _read_committed(event: AccountRightsChanged) -> None:
+            """Read the role's rights from a separate connection.
+
+            Args:
+                event: The E8.
+            """
+            conn = sqlite3.connect(tmp_path / "app.db")
+            try:
+                rows = conn.execute("SELECT right_name FROM role_right WHERE role_id = ?", ("local-guest",))
+                seen.append(sorted(name for (name,) in rows))
+            finally:
+                conn.close()
+
+        bus.subscribe(AccountRightsChanged, _read_committed)
+        _service(store, bus).update_role(admin, "local-guest", rights=["library.read", "trackers.view"])
+
+        assert seen == [["library.read", "trackers.view"]]
+
     def test_a_rename_alone_publishes_role_renamed(
         self, accounts: AccountService, admin: Actor, published: list[AccountRightsChanged]
     ) -> None:
