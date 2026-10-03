@@ -6,9 +6,7 @@
       "WebFetch(domain:*.omdbapi.com)",
       "Bash(pm2 list)",
       "Bash(pm2 logs:*)",
-      "Bash(pm2 describe:*)",
-      "Bash(python3 /Users/izno/.claude/skills/tm-bugs/scripts/tm_bugs.py:*)",
-      "Bash(sh /Users/izno/.claude/plugins/cache/lounisbou/orchestrator/0.38.0/skills/context-gauge/scripts/context-gauge.sh:*)"
+      "Bash(pm2 describe:*)"
     ],
     "ask": [
       "Bash(pm2 restart torrentmate-web)",
