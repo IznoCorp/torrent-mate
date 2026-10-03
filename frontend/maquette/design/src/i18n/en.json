@@ -1,0 +1,2408 @@
+{
+  "harness": {
+    "menu": {
+      "group": "Mockup",
+      "notes": "Design notes",
+      "notesShown": "Design notes shown.",
+      "notesHidden": "Notes hidden.",
+      "hint": "Open the menu to show the design notes."
+    },
+    "scenarioToggle": {
+      "toDense": "Switch to the dense world",
+      "toReal": "Back to the real world",
+      "toastDense": "Dense world — to judge the density.",
+      "toastReal": "Real world — the system's calm state."
+    }
+  },
+  "server": {
+    "login": {
+      "title": "TorrentMate Design — sign in"
+    },
+    "offline": {
+      "title": "TorrentMate Design — offline",
+      "heading": "Offline",
+      "body": "The mockup is served by the design server. It is not cached, so that what you are judging is always today's version."
+    },
+    "buildFailure": {
+      "title": "Build failed",
+      "heading": "The mockup build failed",
+      "body": "The server rebuilds the document whenever a source changes; this rebuild has just failed, and serving the old version would misrepresent the date of what you are judging."
+    },
+    "manifest": {
+      "description": "Reference prototype of the TorrentMate interface."
+    }
+  },
+  "common": {
+    "monthsShort": [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ],
+    "season": "Season",
+    "missing": "missing",
+    "missingPlural": "missing",
+    "film": "Movie",
+    "series": "Series",
+    "servedIdentity": {
+      "label": "Deployed version",
+      "dirty": "modified",
+      "detached": "detached HEAD — no branch",
+      "unavailable": "identity unavailable",
+      "unavailableReason": "this copy is not served by the design host"
+    }
+  },
+  "settings": {
+    "labels": {
+      "personalscraper-health-check": "System health check",
+      "personalscraper-search": "Search for followed releases",
+      "personalscraper-grab": "Grabbing of found releases",
+      "personalscraper-follow-detect": "Detection of aired episodes",
+      "personalscraper-index-enrich": "Index enrichment",
+      "personalscraper-index-full": "Full index scan",
+      "personalscraper-backfill-ids": "Cross-ID backfill",
+      "personalscraper-seed-sweep": "Seed obligation tracking",
+      "torrent_complete_dir": "Folder where qBittorrent drops finished torrents",
+      "staging_dir": "Staging folder before shelving",
+      "data_dir": "Pipeline data folder",
+      "disks": "Destination disks",
+      "active": "Active",
+      "priority": "Priority",
+      "movies": "Movies",
+      "tv_shows": "TV shows",
+      "staging_dirs": "Staging subfolders",
+      "category_rules": "Category rules",
+      "custom_categories": "Custom categories",
+      "default_movies_category": "Default movie category",
+      "default_tv_category": "Default TV show category",
+      "maps_to": "Shelves into",
+      "applies_to": "Applies to",
+      "requires_genre_id": "Requires the genre",
+      "requires_origin_country": "Requires the country of origin",
+      "aliases": "Other accepted names",
+      "episode_default_name": "Name given to an untitled episode",
+      "folder_name": "Folder name pattern",
+      "encoding_rules": "Name encoding rules",
+      "allow_synthetic_rename_on_unmatched": "Rename even without a match",
+      "long_title_threshold": "Length above which a title is long",
+      "short_title_length": "Length of a shortened title",
+      "short_title_threshold": "Length below which a title is short",
+      "min_length_ratio": "Minimum share of a title kept",
+      "enabled": "Enabled",
+      "max_per_tracker": "Maximum results per tracker",
+      "max_total_results": "Maximum results in total",
+      "timeout_per_tracker": "Timeout per tracker",
+      "search_query_format": "Shape of the query sent to the tracker",
+      "tiers": "Tracker tiers",
+      "preferred_resolution": "Preferred resolution",
+      "preferred_codec": "Preferred codec",
+      "fallback_codecs": "Codecs accepted as a fallback",
+      "rejected_codecs": "Rejected codecs",
+      "required_languages": "Required languages",
+      "fallback_language": "Language accepted as a fallback",
+      "max_size_movie_gb": "Maximum size of a movie",
+      "max_size_episode_gb": "Maximum size of an episode",
+      "min_free_space_staging_gb": "Minimum free space before an ingest",
+      "min_free_space_disk_gb": "Minimum free space before a shelving",
+      "circuit_breaker_threshold": "Consecutive errors before cutting off",
+      "circuit_breaker_cooldown": "Wait before retrying after a cut-off",
+      "target_ratio": "Target sharing ratio",
+      "min_ratio": "Minimum sharing ratio",
+      "min_seed_time": "Minimum seeding time",
+      "alert_threshold": "Ratio alert threshold",
+      "hit_and_run_grace": "Grace before counting an abandonment",
+      "cross_seed": "Cross-seed",
+      "accepts_uploads": "Accepts uploads",
+      "verify_seed_pure": "Check that a share stays intact",
+      "cutoff_days": "Age beyond which we stop insisting",
+      "budget_seconds": "Time allowed for a search",
+      "language": "Metadata language",
+      "languages": "Accepted languages",
+      "artwork_language": "Artwork language",
+      "prefer_local_title": "Prefer the local title",
+      "fallback_youtube_search": "Search YouTube as a fallback",
+      "lock_to_series_provider": "Stick to the series' provider",
+      "use_when_available": "Use when available",
+      "profile_priority": "Profile order",
+      "overlays": "Configuration overlays",
+      "tmdb": "TMDB",
+      "tvdb": "TVDB",
+      "omdb": "OMDb",
+      "trakt": "Trakt",
+      "paranoia_window_seconds": "Extra verification window",
+      "db_path": "Index database location",
+      "max_workers_total": "Simultaneous workers",
+      "read_rate_mb_per_sec": "Allowed read rate",
+      "checkpoint_every_n_files": "Checkpoints, every N files",
+      "drop_indexes_during_full_scan": "Drop the indexes during a full scan",
+      "merkle_delta_freeze_threshold": "Freeze threshold of the delta computation",
+      "n_strikes_for_softdelete": "Absences before marking a title as gone",
+      "deleted_item_retention_days": "Retention of a deleted title",
+      "host": "Listening address",
+      "port": "Listening port",
+      "username": "Username",
+      "redis_url": "Redis address",
+      "stream_key": "Event stream name",
+      "stream_maxlen": "Events kept in the stream",
+      "session_ttl_hours": "Session duration",
+      "cookie_secure": "Cookie reserved for secure connections",
+      "dev_mode": "Development mode",
+      "config_version": "Configuration format version",
+      "scraper.language": "Language targeted by scraping",
+      "scraper.fallback_language": "Scraping fallback language",
+      "scraper.prefer_local_title": "Prefer the local title when scraping",
+      "web.enabled": "Web server enabled"
+    },
+    "subjects": {
+      "c411": "C411",
+      "tr4ker": "Tr4ker",
+      "lacale": "LaCale",
+      "qbittorrent": "qBittorrent",
+      "transmission": "Transmission",
+      "tmdb": "TMDB",
+      "tvdb": "TVDB",
+      "omdb": "OMDb",
+      "trakt": "Trakt",
+      "telegram": "Telegram",
+      "healthchecks": "Healthchecks",
+      "movies": "Movies",
+      "movies_animation": "Animated movies",
+      "movies_documentary": "Documentaries",
+      "tv_shows": "TV shows",
+      "tv_shows_animation": "Animated TV shows",
+      "tv_shows_documentary": "Documentary series",
+      "anime": "Anime",
+      "tv_programs": "TV programs",
+      "standup": "Stand-up",
+      "theater": "Theater",
+      "audiobooks": "Audiobooks",
+      "movie_scraping": "Movie scraping",
+      "series_scraping": "Series scraping",
+      "episode_scraping": "Episode scraping",
+      "episode_scraping_policy": "Episode scraping policy",
+      "season_pack_policy": "Single-file seasons",
+      "anime_rule": "Anime rule",
+      "recommendations": "Recommendations",
+      "notations": "Ratings",
+      "spotlight": "Spotlight",
+      "drift": "Drift",
+      "economy": "Sharing obligations",
+      "fuzzy_match": "Fuzzy matching",
+      "library_check": "Library check",
+      "library": "Library",
+      "ingest": "Ingest",
+      "scan": "Scan",
+      "sort": "Sort",
+      "watch": "Watch",
+      "seasons": "Seasons",
+      "subtitles": "Subtitles",
+      "cross_seed": "Cross-seed",
+      "audio": "Audio",
+      "video": "Video",
+      "log": "Log",
+      "tmdb_movies": "TMDB genres (movies)",
+      "tmdb_tv": "TMDB genres (TV shows)",
+      "Searchable": "Search",
+      "MovieDetailsProvider": "Movie details",
+      "TvDetailsProvider": "TV show details",
+      "EpisodeFetcher": "Episodes",
+      "ArtworkProvider": "Artwork",
+      "VideoProvider": "Trailers"
+    },
+    "units": {
+      "gb": "GB",
+      "days": "days",
+      "hours": "hours",
+      "seconds": "seconds",
+      "minutes": "minutes",
+      "m": "minutes",
+      "s": "seconds",
+      "ratio": "ratio"
+    },
+    "genre": "Genre",
+    "field": {
+      "structureBefore": "This value is a",
+      "structureWord": "structure",
+      "structureAfter": "— a list of objects with their own keys. It is not edited here: a form that cannot be validated would promise a change that breaks the file. Open",
+      "removeAria": "Remove {{valeur}}",
+      "emptyList": "No value. The list is empty, which is not the same thing as a missing value.",
+      "add": "Add",
+      "addedItem": "value {{position}}",
+      "undefinedPlaceholder": "not set",
+      "durationFormat": "format 72h"
+    }
+  },
+  "screens": {
+    "ranking": {
+      "title": "Release ranking",
+      "back": "Settings",
+      "threshold": "≥ {{at}} → {{score}}",
+      "errorSubject": "the release ranking",
+      "weightLabel": "Weight of the {{field}} criterion",
+      "save": "Save",
+      "saving": "Saving…",
+      "saveRefused": "Save refused by the server — the weights you entered are kept.",
+      "conflictReload": "Reload the ranking",
+      "previewTitle": "Live preview",
+      "previewLead": "Sample releases, ranked the way the weights shown would rank them — before anything is saved.",
+      "previewScore": "{{score}} points",
+      "previewExcluded": "Excluded",
+      "previewExcludedReason": "{{seeders}} seeders, below the minimum of {{minimum}}",
+      "previewErrorSubject": "the ranking preview"
+    },
+    "trackers": {
+      "tabTorrents": "Torrents",
+      "tabTrackers": "Trackers",
+      "errorSubject": "the trackers",
+      "ratio": "Ratio {{ratio}}",
+      "ratioUnknown": "Ratio unknown",
+      "trend": "Trend: {{trend}}",
+      "trends": {
+        "up": "rising",
+        "stable": "stable",
+        "down": "falling"
+      },
+      "volumes": "Downloaded {{downloaded}} GB · Uploaded {{uploaded}} GB",
+      "empty": "No tracker configured.",
+      "emptyBody": "Trackers are declared in the configuration; each one will appear here with its ratio.",
+      "minRatio": "Minimum ratio",
+      "minSeedTime": "Minimum seed time",
+      "alertBelowThreshold": "Below the alert threshold of {{threshold}}",
+      "brokenObligations_one": "{{count}} obligation breached",
+      "brokenObligations_other": "{{count}} obligations breached",
+      "brokenList": "Obligations breached, torrent gone",
+      "brokenOn": "Breached on {{date}}",
+      "seen": "Seen",
+      "seenMark": "Seen",
+      "alertThreshold": "Ratio alert threshold",
+      "floorGuidance": "The ratio from which a torrent can be removed without owing the tracker anything — a floor, not a target.",
+      "policyUnset": "No policy set for this tracker.",
+      "policyErrorSubject": "this tracker's policy",
+      "seeTorrents": "See the torrents",
+      "disabledByOperator": "Disabled",
+      "failureReasons": {
+        "identifierRefused": "Credentials refused",
+        "unreachable": "Unreachable",
+        "other": "Down"
+      },
+      "switchLabel": "Activation of {{tracker}}",
+      "refusedLead": "Reactivation refused",
+      "legendAlert": "Below its alert threshold",
+      "legendBroken": "Obligations breached, torrent gone",
+      "legendFailure": "Disabled by a fault",
+      "legendOperator": "Disabled by you",
+      "panel": {
+        "ratio": "Ratio",
+        "trend": "Trend",
+        "volumes": "Volumes",
+        "state": "State",
+        "reachability": "Reachability",
+        "reachable": "Reachable",
+        "unreachableSince": "Not answering since {{time}}",
+        "active": "Enabled",
+        "policyLead": "This tracker's policy",
+        "brokenLead": "Obligations breached, torrent gone",
+        "seenAction": "Seen: {{title}}",
+        "brokenSeen": "seen",
+        "brokenUnseen": "breached on {{date}}",
+        "policyRow": "{{label}}: {{value}}",
+        "stateWithReason": "{{state}} — {{reason}}"
+      },
+      "writeFailedLead": "Unable to save",
+      "failureSince": "{{reason}} since {{date}}",
+      "policyLoading": "This tracker's policy is being read."
+    },
+    "torrents": {
+      "errorSubject": "the torrents",
+      "origin": "Downloaded here first",
+      "crossSeed": "Cross-seed of a torrent already present",
+      "published": "Published by you",
+      "deadline": "Deadline on {{date}}",
+      "noDeadline": "No deadline",
+      "obligationOpen": "Obligation in progress",
+      "obligationBreached": "In breach since {{date}}",
+      "obligationDone": "Obligation fulfilled",
+      "empty": "Nothing in progress on any tracker.",
+      "emptyBody": "A torrent appears here as soon as the client downloads or shares it.",
+      "emptyFiltered": "Nothing in progress on this tracker.",
+      "emptyFilteredBody": "Other trackers may have some: “All trackers” lifts the filter.",
+      "remove": "Remove from qBittorrent",
+      "states": {
+        "downloading": "Downloading",
+        "stalled": "Stalled",
+        "seeding": "Seeding",
+        "paused": "Paused",
+        "queued": "Queued",
+        "in_client": "In the client",
+        "missing": "Files not found",
+        "errored": "Errored"
+      },
+      "units": {
+        "b": "B",
+        "kb": "KB",
+        "mb": "MB",
+        "gb": "GB",
+        "tb": "TB"
+      },
+      "size": "{{value}} {{unit}}",
+      "rate": "{{value}} {{unit}}/s",
+      "volumes": "↓ {{downloaded}} · ↑ {{uploaded}}",
+      "volumesUnknown": "Volumes received and sent unknown",
+      "downloadRate": "↓ {{rate}}",
+      "uploadRate": "↑ {{rate}}",
+      "rateUnknown": "Rate unknown",
+      "progress": "{{percent}}% downloaded",
+      "sources_one": "{{count}} source",
+      "sources_other": "{{count}} sources",
+      "sourcesUnknown": "Sources unknown",
+      "added": "Added on {{date}}",
+      "addedUnknown": "Date added unknown",
+      "swipeRemove": "Remove",
+      "panel": {
+        "name": "Name",
+        "medium": "Title",
+        "tracker": "Tracker",
+        "origin": "Origin",
+        "state": "State",
+        "size": "Size",
+        "progress": "Progress",
+        "transfer": "Received and sent",
+        "sources": "Popularity",
+        "added": "Added on",
+        "ratio": "Ratio on this tracker",
+        "obligation": "Obligation",
+        "deadline": "Deadline",
+        "unknown": "unknown",
+        "none": "none",
+        "obligationRunning": "in progress",
+        "obligationMet": "fulfilled on {{date}}",
+        "obligationBroken": "breached on {{date}}",
+        "obligationReleased": "released on {{date}}",
+        "seeSheet": "See the sheet",
+        "identify": "Identify",
+        "noFolder": "No folder to identify.",
+        "crossSeedOf": "Cross-seed of",
+        "seeOrigin": "See the original's sheet",
+        "gone": "This torrent is no longer in qBittorrent."
+      },
+      "outcome": {
+        "metLead": "Obligation fulfilled on {{date}}",
+        "releasedLead": "Obligation released on {{date}}",
+        "seedTime": "The {{hours}} h of seeding the tracker requires are reached.",
+        "ratio": "The ratio of {{ratio}} is reached on this tracker (its minimum plus a margin of 0.1).",
+        "unknown": "The reason is not known.",
+        "released": {
+          "removedHere": "The torrent was removed from qBittorrent through TorrentMate",
+          "goneFromClient": "The torrent left qBittorrent outside TorrentMate (removed by hand, or by the client)",
+          "unknown": "The torrent left qBittorrent"
+        },
+        "releasedEarly": "{{departure}}, before the end of the obligation.",
+        "releasedAfterMet": "{{departure}}; the obligation had already been fulfilled on {{date}}."
+      },
+      "selectorAll": "All trackers",
+      "selectorTitle": "Show the torrents of",
+      "selectorCount_one": "{{count}} torrent",
+      "selectorCount_other": "{{count}} torrents",
+      "selectorCountOff": "{{count}} · {{state}}",
+      "legendBreached": "In breach",
+      "selectorMeta": "Each tracker with the number of its torrents in the client.",
+      "crossSeedOf": "cross-seed of {{title}}",
+      "crossSeedActive_one": "cross-seed active on {{count}} tracker",
+      "crossSeedActive_other": "cross-seed active on {{count}} trackers",
+      "crossSeedNone": "no active cross-seed",
+      "swipeSearch": "Search"
+    },
+    "releases": {
+      "back": "Back",
+      "noteTitle": "New screen.",
+      "noteBeforePourquoi": "“Search for another release” led nowhere. What was missing is not a list: it is",
+      "notePourquoi": "why",
+      "noteAfterPourquoi": "the engine ranked them this way — without that, choosing is a gamble.",
+      "rescount_one": "candidate kept by the quality profile · last search 12 min ago",
+      "rescount_other": "candidates kept by the quality profile · last search 12 min ago",
+      "allCovered_one": "candidate — covered by season {{season}}",
+      "allCovered_other": "candidates — all covered by season {{season}}",
+      "coveredBySeason": "Covered by season {{season}}",
+      "qhint": "Chosen: best resolution the profile allows, MULTi language preferred, and the most sources at equal quality.",
+      "pickCurrent": "Take this one again",
+      "pickAlternative": "Take this one instead",
+      "sourcesUnit": "sources",
+      "goUnit": "GB",
+      "scoreLabel": "score",
+      "emptyTitle": "None of them fits?",
+      "emptyBody": "Widening the quality profile will bring back excluded candidates — the list says what it rejected and why.",
+      "openProfile": "Open the quality profile →"
+    },
+    "error": {
+      "message": "This screen failed to render. Details in the console."
+    },
+    "media": {
+      "back": "Back",
+      "unidentified": "unidentified title",
+      "dateUnknown": "date unknown",
+      "episodeAria": "Episode {{n}} — {{etat}}",
+      "beyondEpisode": "Beyond episode {{n}}, the provider does not say how many episodes the season has.",
+      "seasonAnnounced": "Season announced: no episode aired yet.",
+      "episodesNotDetailed": "Episodes not detailed for this season.",
+      "seasonUpcoming": "upcoming",
+      "upcomingEpisodes": "{{count}} upcoming · from {{date}}",
+      "upcomingFrom": "from {{date}}",
+      "episodesShort": "ep.",
+      "missingList": "Missing: {{liste}}",
+      "yearUnknown": "year unknown",
+      "minutesShort": "min",
+      "metadataUnknown": "Metadata unknown",
+      "genresUnknown": "Genres unknown",
+      "seriesStatus": "Series {{statut}}",
+      "ratingSource": "on TMDB",
+      "trailer": "Trailer",
+      "noTrailer": "No trailer supplied by the provider.",
+      "synopsis": "Synopsis",
+      "synopsisUnknown": "Synopsis unknown — the provider does not supply one.",
+      "castHeadingFilm": "Direction and cast",
+      "castHeadingSeries": "Creation and cast",
+      "director": "Director",
+      "creator": "Creator",
+      "unknown": "unknown",
+      "unknownFeminine": "unknown",
+      "roleUnknown": "role unknown",
+      "castUnknown": "Cast unknown.",
+      "library": "Library",
+      "inLibrary": "In your library",
+      "no": "no",
+      "yes": "yes",
+      "follow": "Follow",
+      "catalogue": "Catalogue",
+      "catalogueKnown": "known",
+      "seasonLower": "season",
+      "seasonLowerPlural": "seasons",
+      "episodes": "episodes",
+      "owned": "Owned",
+      "file": "File",
+      "seasons": "Seasons",
+      "airedEpisodes": "Aired episodes",
+      "ownedPlural": "Owned",
+      "completeness": "Completeness",
+      "information": "Information",
+      "metadataRefreshed": "Metadata refreshed",
+      "metadataRefreshedValue": "Aug 10, 04:12",
+      "rescrape": "Rescrape the metadata",
+      "delete": "Delete from the library",
+      "added": "Added",
+      "followed": "Followed",
+      "add": "Add",
+      "followVerb": "Follow",
+      "noteTitle": "A single template for every title.",
+      "noteBody": "The differences visible here are those the nature of the title imposes — director and runtime for a movie, creator, status and catalogue for a series. Any other difference would be drift.",
+      "sheetSubject": "this sheet",
+      "synopsisUnread": "Synopsis not read.",
+      "trailerUnread": "Trailer not read.",
+      "titleUnread": "Title not read",
+      "seasonsSubject": "the seasons of this sheet",
+      "yearUnread": "year not read",
+      "genresUnread": "Genres not read",
+      "castUnread": "Cast not read.",
+      "followWaitsForKind": "Title type unknown — the follow is waiting to know whether it is a movie or a series.",
+      "kindUnread": "type not read",
+      "castHeadingUnread": "Cast",
+      "creditUnread": "Credit not read",
+      "unread": "not read",
+      "unreadFeminine": "not read",
+      "seasonWaitingOnPipeline": "Queued — pipeline running",
+      "seasonRequested": "Requested",
+      "seasonRequestedAutomatic": "Requested · auto",
+      "episodeState": {
+        "in_library": "In the library",
+        "to_grab": "To grab",
+        "acquiring": "Being acquired",
+        "pending": "Waiting for a torrent",
+        "announced": "Announced",
+        "unverified": "Not verified"
+      },
+      "genreNames": {
+        "action": "Action",
+        "action_adventure": "Action & Adventure",
+        "adventure": "Adventure",
+        "animation": "Animation",
+        "comedy": "Comedy",
+        "crime": "Crime",
+        "documentary": "Documentary",
+        "drama": "Drama",
+        "family": "Family",
+        "fantasy": "Fantasy",
+        "history": "History",
+        "horror": "Horror",
+        "kids": "Kids",
+        "music": "Music",
+        "mystery": "Mystery",
+        "reality": "Reality",
+        "romance": "Romance",
+        "science_fiction": "Science Fiction",
+        "sci_fi_fantasy": "Sci-Fi & Fantasy",
+        "thriller": "Thriller",
+        "tv_movie": "TV Movie",
+        "war": "War",
+        "war_politics": "War & Politics",
+        "western": "Western"
+      },
+      "statusNames": {
+        "continuing": "ongoing",
+        "ended": "ended",
+        "canceled": "canceled",
+        "released": "released",
+        "in_production": "in production",
+        "planned": "planned"
+      }
+    },
+    "profile": {
+      "back": "Back",
+      "defaultProfile": "default profile",
+      "noteTitle": "Corrected after checking the backend.",
+      "noteBefore": "My first version of this screen set “accepted sources” and CAM/TS exclusions that",
+      "noteEmphasis": "do not exist",
+      "noteAfterEmphasis": "per follow. The",
+      "noteAfterCode": "actual one has only the four fields below. The rest — the weights that break ties — is global and already lives in",
+      "leadBefore": "This profile",
+      "leadEmphasis": "filters",
+      "leadAfter": ": it eliminates what will never do. It does not order — what survives is separated by the global ranking.",
+      "minResolution": "Minimum resolution",
+      "minResolutionHint": "A floor, not a list: everything below it is excluded. “No floor” lets through sources with no readable resolution (REMUX, COMPLETE.BLURAY), which the ranking scores on merit.",
+      "singleChoice": "Single choice",
+      "noFloor": "No floor",
+      "noFloorHint": "No resolution is excluded",
+      "orBetter": "or better",
+      "hint720": "Excludes everything below 720p",
+      "hint1080": "Excludes 720p and below",
+      "hint2160": "Only accepts 4K",
+      "audioTracks": "Required audio tracks",
+      "audioHintBefore": "No selection = no language filter. A release must carry",
+      "audioHintEmphasis": "at least one",
+      "audioHintAfter": "of the ticked tracks.",
+      "multiChoice": "Several choices possible",
+      "noneChecked": "none ticked = no filter",
+      "twoLocks": "Two locks",
+      "exclude3d": "Exclude 3D",
+      "exclude3dHint": "An SBS / Over-Under release is unwatchable on a 2D screen. On by default: it is a correctness floor, not a taste.",
+      "requireKnownResolution": "Refuse an unreadable resolution",
+      "requireKnownResolutionHint": "By default we let it through: a name that cannot be parsed is most often a REMUX, not a bad file.",
+      "candidatesKept": "Candidates kept by this profile",
+      "outOf": "out of",
+      "scope": "Scope",
+      "scopeThisFollow": "this follow only",
+      "scopeAllFollows": "all follows",
+      "rankingWeights": "Ranking weights (global) →",
+      "rulenote": "If this profile no longer accepts any torrent, the follow reports it and its search answers “no torrent found”.",
+      "saveToast": "Profile saved — the next search will apply it.",
+      "save": "Save",
+      "audioOptions": {
+        "VF": "French track (VF, VFF, VFQ, TRUEFRENCH)",
+        "VOSTFR": "French subtitles",
+        "VO": "Original version"
+      },
+      "inForce": "In force: {{floor}} — the highest quality requested by those who can choose it.",
+      "inForceDefault": "the default profile"
+    },
+    "add": {
+      "back": "Back",
+      "identifyFolder": "identify a folder",
+      "identifyTitle": "Identify “{{titre}}”",
+      "identifyBody": "You are NOT creating a follow: you are telling the pipeline which title this folder is. It will resume its scrape — renaming, metadata, posters — then shelve it in the library.",
+      "searchPlaceholder": "Movie or series title",
+      "searchAria": "Search for a title to add",
+      "search": "Search",
+      "kindAll": "All",
+      "kindSeries": "Series",
+      "kindFilms": "Movies",
+      "result": "result",
+      "resultPlural": "results",
+      "shown": "shown",
+      "shownPlural": "shown",
+      "outOf": "out of",
+      "found": "found",
+      "foundPlural": "found",
+      "filteredOn": "· filtered on “{{kind}}”",
+      "mostRelevant": "most relevant first.",
+      "emptyTitle": "Search for a title.",
+      "emptyBody": "Your recent searches are above. The search starts on submit.",
+      "byIdIdentify": "Or identify by provider ID",
+      "byIdAdd": "Or add by ID",
+      "idAria": "{{prov}} ID",
+      "tvdbHint": "A TVDB ID contains only digits. If TVDB cannot resolve it, the follow will be created but episode detection will stay unavailable — and you will be told.",
+      "idRefusedImdb": "“{{typed}}” is not an IMDB ID: it starts with “tt”, followed by digits.",
+      "idRefusedNumber": "“{{typed}}” is not a {{prov}} ID: it contains only digits.",
+      "idExample": "E.g. {{id}}",
+      "idWaiting": "“Add” becomes active as soon as a {{prov}} ID is entered.",
+      "idMissing": "No title found for the {{prov}} ID “{{typed}}”.",
+      "idOwned": "“{{title}}” is already in your library: search for it by title to replace it.",
+      "add": "Add",
+      "media": "title",
+      "mediaPlural": "titles",
+      "added": "added",
+      "addedPlural": "added",
+      "seeFollows": "See my follows →",
+      "alreadyInLibrary": "Already in the library",
+      "landmark": "Add a title",
+      "dismissAdded": "Dismiss this notification",
+      "verb": {
+        "add": "Add",
+        "follow": "Follow",
+        "associate": "Link",
+        "added": "✓ Added",
+        "followed": "✓ Followed",
+        "associated": "✓ Linked"
+      }
+    },
+    "resolution": {
+      "back": "Back",
+      "noPosterTitle": "No poster at the provider for this candidate.",
+      "confidence": "confidence",
+      "choose": "Choose",
+      "kept": "Chosen",
+      "chooseOf": "Choose {{name}}",
+      "numbers": [
+        "",
+        "One",
+        "Two",
+        "Three",
+        "Four",
+        "Five"
+      ],
+      "tieNote": "candidates come out with the same score. The ranking cannot decide — which is why the question is put to you.",
+      "noteTitle": "Resolution is a screen, not a panel.",
+      "noteOn": "On",
+      "noteAppeared": "it appeared",
+      "noteUnder": "under",
+      "noteRest": "the list being read: on a phone, you never saw it.",
+      "noMediaIdentified": "No title identified. Here is what the providers suggest for this name.",
+      "plexHeld": "Plex recognised it as “{{title}}”. If it is the right one, choose it; otherwise, look for the right identity.",
+      "noCandidates": "The providers returned no candidate for this name. There is nothing to choose: manual search is the only way.",
+      "emptyTitle": "None of these?",
+      "emptyBody": "Manual search opens pre-filled with the folder name.",
+      "searchManually": "Search manually →",
+      "leaveAsIs": "Leave as is",
+      "notMedia": "This is not a title",
+      "note2Title": "Leaving as is does not mean ignoring.",
+      "note2Body": "It means “later”: the folder stays on the machine, set aside, folded at the end of “To handle” — out of its count, never forgotten. You pick it up from there whenever you want.",
+      "settledHeading": "Recently settled",
+      "settledHint": "What has already been decided, so you do not answer twice — and so you can find what you chose.",
+      "reason": {
+        "below_threshold": "Low confidence",
+        "mid_band": "Medium confidence",
+        "ambiguous": "Ambiguous candidates",
+        "manual": "Manual submission"
+      },
+      "reasonDetail": {
+        "below_threshold": "No candidate reached the automatic confidence threshold.",
+        "mid_band": "The best candidate was at medium confidence — a human check is requested.",
+        "ambiguous": "Several candidates were too close to decide automatically.",
+        "manual": "Folder sent by hand from the preparation area."
+      },
+      "decisionState": {
+        "resolved": "Settled",
+        "dismissed": "Left as is",
+        "superseded": "Superseded since"
+      },
+      "decisionStateDetail": {
+        "resolved": "A candidate was chosen, and a targeted rescrape was launched.",
+        "dismissed": "The folder was left as is: the automatic result is kept, nothing was rescraped.",
+        "superseded": "A more recent version of the folder has been rescraped since. This decision no longer means anything."
+      },
+      "via": {
+        "pick": "chosen from the list",
+        "search_override": "found by a manual search"
+      }
+    },
+    "system": {
+      "errorSubject": "the machine's state",
+      "introLead": "System answers a single question: is the machine doing well?",
+      "introRest": " A blocked title is not here — it waits for your hand in “To handle”, on Acquisition. What you find here are the processes, the scheduled passes, the room that is left, and the code that raised an error.",
+      "faultLead": "SIMULATED fault.",
+      "faultRest": " This machine is green everywhere, and a screen that can only be green cannot be judged: this state replays a fault to show what you would see the day something stops. Nothing here is read from the system.",
+      "services": "Services",
+      "schedulers": "Schedulers",
+      "schedulerLead": "A scheduler between two passes is not stopped.",
+      "schedulerRest": " PM2 calls it “stopped”, which is the truth about the process and a lie about the system: seven red lines on a machine in perfect health. A service is judged on “is it running”, a scheduler on “did it run”.",
+      "schedulerLateLabel": "Health check",
+      "schedulerLateLine": "every hour at minute 15 · last pass 3 days ago · 71 missed passes",
+      "runs": "Pipeline runs",
+      "toAcquisition": "The pipeline is driven from here, with its levers; what it does to a title is read on its card, in Acquisition. ",
+      "toAcquisitionLink": "Acquisition →",
+      "disks": "Disks",
+      "index": "Library index",
+      "toMaintenance": "Repairing what the index reports is done from Maintenance. ",
+      "toMaintenanceLink": "Maintenance →",
+      "dependencies": "Dependencies",
+      "downSince": "not answering since {{time}}",
+      "unavailableLabel": "State",
+      "unavailable": "unavailable",
+      "unavailableLine": {
+        "services": "The state of the services could not be read.",
+        "disks": "The room on the disks could not be read.",
+        "index": "The health of the index could not be read.",
+        "dependencies": "Redis and the providers could not be queried."
+      },
+      "codeErrors": "Code errors",
+      "errorsRaised": "Code raised",
+      "errorsValue": "errors",
+      "errorsDetail": "{{total}} runs out of {{over}} · the last {{last}} — {{what}}",
+      "errorsWhere": "Where",
+      "settings": "Settings",
+      "settingsSubtitle": "What the pipeline does, and how — including the time of the scheduled passes. Grouped by what you want to change, not by file.",
+      "arrow": "→",
+      "serviceDownLabel": "Download watch",
+      "serviceDownLine": "stopped since 14:02 · exited with an error",
+      "pipeline": "The pipeline",
+      "pipelineGuidance": "These settings apply to every title at once.",
+      "pipelineLock": "Pipeline lock",
+      "lockFree": "Free",
+      "lockHeld": "Held — {{age}}",
+      "lockStale": "Stale lock",
+      "lockStaleLine": "The file is there, the process that took it is no longer running: nothing can start while it remains.",
+      "pauseSentinel": "Pause",
+      "tmpOrphans": "Temporary entries",
+      "orphansNone": "None.",
+      "orphansFound_one": "One entry was left behind",
+      "orphansFound_other": "{{count}} entries were left behind",
+      "toLocksRepair": "Removing what a crash left behind is done from Maintenance. ",
+      "ageNow": "just now",
+      "ageMinutes_one": "a minute ago",
+      "ageMinutes_other": "{{count}} minutes ago",
+      "ageHours_one": "an hour ago",
+      "ageHours_other": "{{count}} hours ago",
+      "ageDays_one": "a day ago",
+      "ageDays_other": "{{count}} days ago",
+      "bound": "Parallel tunnels",
+      "boundEdit": "Adjust",
+      "boundUnset": "not set",
+      "pauseAll": "Pause everything",
+      "resumeAll": "Resume",
+      "nothingRunning": "Nothing is running.",
+      "pipelineQueued": "Requested — this pass waits for the maintenance in progress to finish.",
+      "automaticTrigger": "Automatic processing of downloads",
+      "turnTriggerOn": "Turn on automatic processing",
+      "turnTriggerOff": "Turn off automatic processing",
+      "automaticTriggerDown": "Stopped by a technical fault: it is not answering.",
+      "automaticTriggerOff": "Finished downloads no longer open a pass by themselves.",
+      "watchIdle": "Watch: never run.",
+      "watchLast": "Last watch: {{when}} —",
+      "detectedCount_one": "{{count}} detected",
+      "detectedCount_other": "{{count}} detected",
+      "watchRunning": "In progress…",
+      "watchFigures": "{{detected}} new episodes detected, {{available}} available, {{grabbed}} grabbed.",
+      "watchNothing": "Nothing new.",
+      "watchFailed": "The watch could not run.",
+      "boundOwed": "not adjustable here yet",
+      "noRuns": "No pass recorded.",
+      "runsDegraded": "This list may be incomplete — the passes database did not answer.",
+      "runSorted_one": "{{count}} shelved",
+      "runSorted_other": "{{count}} shelved",
+      "runBlocked_one": "{{count}} blocked",
+      "runBlocked_other": "{{count}} blocked",
+      "runNothing": "nothing new",
+      "runSeconds_one": "{{count}} s",
+      "runSeconds_other": "{{count}} s",
+      "runMinutes_one": "{{count}} min",
+      "runMinutes_other": "{{count}} min",
+      "runMinutesSeconds_one": "{{count}} min {{seconds}}",
+      "runMinutesSeconds_other": "{{count}} min {{seconds}}",
+      "runCommand": "{{command}} command",
+      "runRunningSince_one": "running for {{count}} min",
+      "runRunningSince_other": "running for {{count}} min",
+      "runRunningJustNow": "running for less than a minute",
+      "trigger": {
+        "completion": "a finished download",
+        "safety_net": "the safety net",
+        "watcher": "the watch",
+        "web": "from the interface",
+        "cli": "on the command line",
+        "cron": "the scheduler",
+        "scrape-resolve": "an identification resume"
+      }
+    },
+    "run": {
+      "back": "Back",
+      "title": "A pass",
+      "outcome": {
+        "success": "succeeded",
+        "error": "failed",
+        "running": "in progress",
+        "killed": "interrupted",
+        "paused": "paused"
+      },
+      "triggeredBy": "triggered by {{trigger}}",
+      "dryRun": "dry run",
+      "steps": "Steps",
+      "step": {
+        "ingest": "Arrival of downloads",
+        "sort": "Sorting by category",
+        "clean": "Name cleanup",
+        "scrape": "Identification",
+        "cleanup": "Leftover cleanup",
+        "enforce": "Standards enforcement",
+        "verify": "Verification",
+        "trailers": "Trailers",
+        "dispatch": "Shelving on the disks",
+        "follow-detect": "Follow detection",
+        "search": "Search for releases",
+        "grab": "Grabbing"
+      },
+      "stepStatus": {
+        "success": "done",
+        "skipped": "skipped",
+        "error": "failed",
+        "running": "Step in progress",
+        "unknown": "—"
+      },
+      "succeeded_one": "{{count}} succeeded",
+      "succeeded_other": "{{count}} succeeded",
+      "skipped_one": "{{count}} skipped",
+      "skipped_other": "{{count}} skipped",
+      "failed_one": "{{count}} failed",
+      "failed_other": "{{count}} failed",
+      "unmatched_one": "{{count}} unidentified",
+      "unmatched_other": "{{count}} unidentified",
+      "counted": "{{name}}: {{count}}",
+      "count": {
+        "detected": "detected",
+        "enqueued": "queued",
+        "skipped_owned": "already owned",
+        "skipped_dup": "duplicates",
+        "resurrected": "resumed",
+        "closed_owned": "closed, already owned",
+        "available": "available",
+        "waiting": "waiting",
+        "grabbed": "grabbed",
+        "rc": "exit code"
+      },
+      "nothingCounted": "no items",
+      "error": "Recorded error",
+      "options": "Options",
+      "rawLog": "Raw log",
+      "noLog": "Output not kept for this pass.",
+      "notFound": "This pass does not exist or is no longer recorded.",
+      "notFoundBack": "Back to the passes",
+      "errorSubject": "this pass",
+      "leftBehind": "What this pass left behind",
+      "leftBehindLink": "See “To handle”"
+    },
+    "library": {
+      "lensMedia": "Titles",
+      "lensRecent": "Recent",
+      "lensIncomplete": "Incomplete",
+      "searchPlaceholder": "Search my library",
+      "searchLabel": "Search",
+      "clearLabel": "Clear",
+      "listLabel": "List",
+      "gridLabel": "Grid",
+      "incompleteTitle": "Incomplete series",
+      "incompleteNoteLead": "A single derivation per question (§13).",
+      "incompleteNoteMiddle": " The fraction shown here reads the same computation as the sheet and the season headers. A season whose episode count is unknown shows ",
+      "incompleteNoteAfterUnknown": " — never an invented ",
+      "incompleteNoteEnd": ".",
+      "incompleteUnknown": "?",
+      "incompleteInvented": "12/12",
+      "incompleteEpisodes": "{{owned}}/{{all}} episodes",
+      "incompleteSubOne": "{{year}} · {{count}} episode missing",
+      "incompleteSubMany": "{{year}} · {{count}} episodes missing",
+      "incompleteChip": "Incomplete",
+      "recentTitle": "Seen by the index for the first time",
+      "recentNoteLead": "Honest wording.",
+      "recentNoteMiddle": " The database does not know the date a title arrived on disk, only the one on which ",
+      "recentNoteEmphasis": "the index first saw the title",
+      "recentNoteEnd": ". That is therefore what the page says — §13: no state shown is a silent approximation.",
+      "select": "Select",
+      "mediaNoteLead": "Entirely new page.",
+      "mediaNoteMiddle": " No route listed what you own: the sheet ",
+      "mediaNoteRoute": "/media/:provider/:id",
+      "mediaNoteEnd": " could only be reached by already knowing the ID. In list mode, a swipe to the left reveals “Delete”.",
+      "loadingNoteLead": "Loading: infinite scroll, because here it is free.",
+      "loadingNoteMiddle": " The library is read from ",
+      "loadingNoteDatabase": "library.db",
+      "loadingNoteEnd": ", locally: another page of 24 costs neither quota nor external network. The count line above always says how many are shown out of the total — §8, we never hide what is missing.",
+      "countShownMiddle": " shown out of ",
+      "countResultOne": " result for “{{query}}”",
+      "countResultMany": " results for “{{query}}”",
+      "countCategory": " · {{category}}",
+      "emptySearchLead": "Nothing matches “{{query}}”",
+      "emptySearchInCategory": " in {{category}}",
+      "emptySearchDot": ".",
+      "emptySearchBody": "The search ignores case and accents.",
+      "emptySearchNarrow": " The category filter may be too narrow — try “All”.",
+      "emptySearchElsewhereLead": "This title may not be yours: ",
+      "emptySearchElsewhereAction": "add it",
+      "emptySearchElsewhereEnd": " from Acquisition.",
+      "emptyCategoryLead": "No title loaded in {{category}}.",
+      "emptyCategoryFallback": "this view",
+      "emptyCategoryMiddle": "Your library has ",
+      "emptyCategoryEnd": ", but this mockup only carries the 260 most recent titles — this category is not among them.",
+      "emptyIncompleteLead": "No incomplete title in {{category}}.",
+      "emptyIncompleteBody": " “Incomplete” only lists the series with missing episodes.",
+      "endMark": "End of the sample — this mockup loads {{count}} real titles out of the 1,861 in your library. In real life, scrolling would continue to the end.",
+      "loadErrorLead": "Unable to load more.",
+      "loadErrorRest": " The connection was lost during the request. The {{count}} titles already shown remain valid.",
+      "retry": "Try again",
+      "swipeRemove": "Delete",
+      "errorSubject": "your library",
+      "selection": {
+        "barLabel": "Selection in progress",
+        "hint": "Tap the posters to delete",
+        "count": "{{count}} selected",
+        "countPlural": "{{count}} selected",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      },
+      "filterTitle": "Show in the library",
+      "filterMeta": "Each category with the number of its titles.",
+      "filterCount_one": "{{count}} title",
+      "filterCount_other": "{{count}} titles",
+      "lenses": {
+        "all": "All",
+        "movies": "Movies",
+        "tv": "TV shows",
+        "anim": "Animation",
+        "standup": "Stand-up",
+        "doc": "Documentaries",
+        "anime": "Anime",
+        "tvprog": "TV programs",
+        "theater": "Theater"
+      },
+      "rowLine": "{{year}} · {{kind}}"
+    },
+    "acquisition": {
+      "nowNoteLead": "“In progress” view — what moves, on its own.",
+      "nowNoteRest": " One section, “In flight”. What waits to be grabbed is grabbed from the follow's sheet; what has arrived is read in the Library's “Recent”; what found nothing is read on the follow; what is blocked is “To handle”.",
+      "followsNoteLead": "Delivered view, taken up to the letter.",
+      "followsNoteRest": " Three modes (list · grouped · grid), dot pill on a 20 % tinted background, meta line = fraction then status then figure caption, no subtitle: the year lives in the sheet. The 12 follows shown are yours, with their real state.",
+      "cadenceNoteLead": "A flaw this take-up brings to light.",
+      "cadenceNoteBefore": " The cadence is displayed as the scheduler returns it — ",
+      "cadenceNoteInner": "20 3,15 * * *",
+      "cadenceNoteAfter": ". A cron expression on a phone card is raw jargon: NE-DOIT-PAS-4. To be translated into “twice a day, at 3:20 am and 3:20 pm”.",
+      "discoverNoteLead": "New view.",
+      "discoverNoteRest": " Recommendations live here because they lead to “Follow” — the action of the (+) right next to it. The bar's badge never counts them: they wait for nothing from you.",
+      "callsNoteLead": "The TMDB calls are off the thumb.",
+      "gesturesNoteLead": "Gestures.",
+      "gesturesNoteBefore": " The poster opens the sheet. The rest of the card opens the bottom panel (“Follow” / “Add”, “See the sheet”). A swipe ",
+      "gesturesNoteInner": "in either direction",
+      "gesturesNoteAfter": " dismisses the suggestion — with an “Undo” in the notification, because a quick gesture gets it wrong.",
+      "tmdbMissingNoteLead": "If the TMDB account is not connected",
+      "tmdbMissingNoteRest": ", the view does not go empty: it serves the similar titles of your library and says what is missing and why. §8 — no silent nothing.",
+      "tabNow": "In progress",
+      "tabFollows": "Follows",
+      "tabTodo": "To handle",
+      "moreLabel": "More — watch",
+      "errorNow": "what is waiting for you",
+      "errorTodo": "what is waiting for your hand",
+      "errorFollows": "your follows",
+      "errorSuggestions": "the suggestions",
+      "ratioReasonTracker": "See the tracker",
+      "blockDisks": "See the disks",
+      "blockDependencies": "See the dependencies",
+      "resumedOne": "{{title}} is back on track",
+      "resumedMany": "{{count}} acquisitions are back on track",
+      "nowEmpty": "Nothing in progress.",
+      "blocked": "To handle",
+      "blockedFoot": "Resolve →",
+      "inflight": "In flight",
+      "followFoot": "Follow",
+      "pillAll": "All",
+      "pillSeries": "Series",
+      "pillMovies": "Movies",
+      "followFilterTitle": "Show in “Follows”",
+      "followFilterMeta": "Followed series and movies, with their count. Paused ones stay apart.",
+      "followFilterCount_one": "{{count}} follow",
+      "followFilterCount_other": "{{count}} follows",
+      "followSort": {
+        "urgency": "Urgency",
+        "az": "A → Z",
+        "za": "Z → A",
+        "added": "Recently followed",
+        "nextRelease": "Next release"
+      },
+      "followSortTitle": "Sort “Follows”",
+      "followSortMeta": "Urgency first: new follows, then what needs a grab or is moving, then what is waiting, then what is up to date. With no known release date, a follow comes last.",
+      "followsPaused": "Paused",
+      "filterPlaceholder": "Filter by name",
+      "filterLabel": "Filter the follows",
+      "clearLabel": "Clear",
+      "modeList": "List",
+      "modeGroup": "Grouped",
+      "modeGrid": "Grid",
+      "movie": "movie",
+      "series": "series",
+      "seriesOngoing": "ongoing",
+      "seriesEnded": "ended",
+      "noConformRelease": "No release matching the profile.",
+      "followedSince": "followed since ",
+      "paused": "paused",
+      "emptyFilterBodyBefore": "Of your ",
+      "emptyFilterBodyAfter": " follows, none carries this name. The filter ignores case and accents.",
+      "emptyNoFollows": "No follows.",
+      "emptyNoFollowsBodyBefore": "The ",
+      "emptyNoFollowsBodyPlus": "+",
+      "emptyNoFollowsBodyAfter": " at the bottom right adds a movie or a series.",
+      "swipePause": "Pause",
+      "swipeStopSearching": "Stop searching",
+      "swipeRemove": "Remove",
+      "swipeSearch": "Search",
+      "modePosters": "Posters",
+      "modeDeck": "Cards",
+      "tmdbDisconnected": "TMDB account not connected.",
+      "connectTmdb": "Connect my TMDB account",
+      "tmdbBefore": "\n             Without it, two things are missing: your ",
+      "tmdbNotes": "ratings",
+      "tmdbMiddle": " — so we cannot know what you have already seen without owning it — and the personalised recommendations TMDB computes for you.\n             ",
+      "tmdbAfterBreaks": "The view does not go empty for all that: below, the ",
+      "tmdbSimilar": "similar titles",
+      "tmdbEnd": " of what you own, filtered against your library and your follows. It is less fine-grained, and it says so.\n             ",
+      "nextSearch": "Next search at {{at}}.",
+      "searchesOne": "{{count}} search",
+      "searchesMany": "{{count}} searches",
+      "emptyFilter": "No follow contains “{{term}}”.",
+      "callsNoteBefore": " A background pass — like the watch — pages through TMDB at a civil pace, filters against your library, your ratings, your follows and your dismissed titles, then stores the survivors in a local reserve. Measured on your real data: ",
+      "callsNoteInner": "32 calls → 503 suggestions",
+      "callsNoteAfter": ". The screen reads the reserve, so scrolling costs nothing any more — which is what makes batches of 30 possible without ever bursting (NE-DOIT-PAS-8).",
+      "status": {
+        "disabled": "Paused",
+        "verifying": "Verifying",
+        "to_grab": "To grab",
+        "acquiring": "Being acquired",
+        "pending": "Waiting for a torrent",
+        "unverified": "Not verified",
+        "up_to_date": "Up to date",
+        "ended": "Ended"
+      },
+      "movieStatus": {
+        "up_to_date": "Acquired",
+        "ended": "Acquired",
+        "disabled": "Search stopped"
+      },
+      "groups": {
+        "asking": "Asking for something",
+        "moving": "In progress",
+        "upToDate": "Up to date",
+        "ended": "Ended",
+        "paused": "Paused"
+      },
+      "cadence": {
+        "sentence": "Automatic search: {{frequency}}, {{when}}",
+        "unread": "Automatic search: {{expression}} (cadence not interpreted)",
+        "onceADay": "once a day",
+        "timesADay": "{{times}} times a day",
+        "atOne": "at {{hour}}",
+        "atMany": "at {{hours}} and {{last}}"
+      },
+      "todoEmptyTitle": "Nothing is blocked.",
+      "todoEmptyBody": "What is moving is in “In progress”.",
+      "todoResolve": "To resolve",
+      "todoTunnelError": "A step does not go through",
+      "todoSetAside": "Set aside",
+      "todoRequeueFoot": "Rerun",
+      "todoPlexMatch": "Plex match to confirm",
+      "plexConfirmFoot": "Confirm",
+      "plexCorrectFoot": "Correct",
+      "abandonFoot": "Abandon",
+      "deleteFoot": "Delete",
+      "headerSeries_one": "{{count}} series",
+      "headerSeries_other": "{{count}} series",
+      "headerFilms_one": "{{count}} movie",
+      "headerFilms_other": "{{count}} movies",
+      "headerCount": "{{series}} and {{films}} to discover",
+      "headerLoading": "Reading suggestions…",
+      "headerUnavailable": "Suggestions unavailable for the moment.",
+      "headerTitle": "To discover",
+      "todoFilter": {
+        "all": "All",
+        "resolve": "To resolve",
+        "plex": "Plex match to confirm",
+        "step": "A step does not go through",
+        "disks": "Disk full",
+        "ratio": "Ratio too low",
+        "unreachable": "Service unreachable",
+        "closed": "Closed — to read"
+      },
+      "todoFilterTitle": "Show in “To handle”",
+      "todoFilterMeta": "Each cause with the number of its cards.",
+      "todoFilterEmpty": "No card for this filter.",
+      "todoSort": {
+        "urgency": "Urgency",
+        "newest": "Newest",
+        "oldest": "Oldest"
+      },
+      "todoSortTitle": "Sort “To handle”",
+      "todoSortMeta": "Urgency first: what awaits your judgement, then what resumes on its own, then what is closed.",
+      "todoFilterCount_one": "{{count}} card",
+      "todoFilterCount_other": "{{count}} cards"
+    },
+    "accountPage": {
+      "noteLead": "This account, its role and what it can do.",
+      "noteRest": " Rights belong to the role, never to the account: what is missing here is granted by changing role, in “Accounts”.",
+      "you": "You",
+      "identifier": "Name",
+      "identifierSub": "set in the configuration, not here",
+      "address": "E-mail address",
+      "session": "Your session",
+      "duration": "Duration",
+      "durationValue": "30 days",
+      "durationSub": "720 hours — after that, you must sign in again",
+      "transport": "Transport",
+      "transportValue": "encrypted",
+      "transportSub": "the cookie is only sent over a secure connection",
+      "where": "Where it lives",
+      "whereValue": "on the server",
+      "whereSub": "the session IS the cookie; signing out asks the server to let go of it, and the screen only reflects what has already happened",
+      "signOut": "Sign out",
+      "role": "Role",
+      "roleSub": "only one per account; its rights are yours",
+      "can": "What this account can do",
+      "cannot": "What it cannot do",
+      "forbiddenHere": "forbidden on this instance, for every account",
+      "held": "held",
+      "noRight": "No right: this role opens nothing here.",
+      "notifications": {
+        "heading": "Notifications",
+        "intro": "Your choices apply to all your devices. Only the types your role lets you follow are offered.",
+        "device": {
+          "label": "This device",
+          "granted": {
+            "value": "Notifications on",
+            "line": "The types ticked below arrive on this device."
+          },
+          "unasked": {
+            "value": "Not turned on yet",
+            "line": "This browser has not given its permission yet: the ticked types arrive on your other devices, not on this one."
+          },
+          "denied": {
+            "value": "Blocked by the browser",
+            "line": "Permission was refused: restore it in this browser's site settings to receive notifications here."
+          },
+          "needs-install": {
+            "value": "App needs installing",
+            "line": "On iPhone and iPad, notifications only reach the app added to the home screen (Share, then “Add to Home Screen”)."
+          },
+          "unsupported": {
+            "value": "Not supported",
+            "line": "This browser does not receive notifications: your choices apply to your other devices."
+          },
+          "enable": "Turn on for this device",
+          "enabling": "Turning on…",
+          "failed": "Turning on did not go through: try again in a moment."
+        },
+        "refused": "“{{type}}” was not changed: the server refused the request."
+      },
+      "addressSub": "your sign-in identifier",
+      "signIn": "Sign-in",
+      "signInKind": {
+        "owner": {
+          "value": "Plex, and a fallback password",
+          "line": "Owner of the Plex server: the fallback password is used when Plex is not answering. It can only be changed by a command on the server, never here."
+        },
+        "plex": {
+          "value": "Plex only",
+          "line": "This account is linked to Plex: it has no password here."
+        },
+        "local": {
+          "value": "Password",
+          "line": "Local account: your e-mail address is not a user of the Plex server. Your password is changed below."
+        }
+      },
+      "password": {
+        "heading": "Password",
+        "current": "Current password",
+        "new": "New password",
+        "confirm": "New password, again",
+        "submit": "Change the password",
+        "sending": "Changing…",
+        "changed": "Password changed: it applies from your next sign-in.",
+        "mismatch": "The two new passwords are not the same.",
+        "missing": "All three fields are required.",
+        "refused": "The change was refused: nothing was changed."
+      }
+    },
+    "notFound": {
+      "title": "This address leads nowhere.",
+      "bodyBefore": "Nothing is served at ",
+      "bodyFallback": "/unknown",
+      "bodyAfter": " — a link has aged, or the address was retyped. Nothing is broken for all that.",
+      "toAcquisition": "Go to Acquisition",
+      "allPages": "See all the pages ",
+      "menuLink": "Menu →"
+    },
+    "maintenance": {
+      "errorSubject": "the maintenance commands",
+      "allCommands": "All commands",
+      "introLead": "What we DO to the library.",
+      "introRest": " System says whether the machine is doing well; here you act on what it contains. The commands are grouped by what you want to do, never by the file they live in.",
+      "mayBeLong": " · can be long",
+      "deletesOne": " · {{count}} that deletes",
+      "deletesMany": " · {{count}} that delete",
+      "arrow": " →",
+      "journal": "Deletion log",
+      "journalNote": "The {{total}} destructive operations the library has undergone. All were written by the pipeline itself, none by a hand: a log that only recorded the operator would be a log nobody opens.",
+      "topics": {
+        "query": {
+          "title": "Look",
+          "explanation": "Read the state of the library. Nothing is modified."
+        },
+        "scan": {
+          "title": "Index",
+          "explanation": "Go through the disks and bring the index back in line with them."
+        },
+        "repair": {
+          "title": "Verify and repair",
+          "explanation": "Check the files, and empty the repair queue."
+        },
+        "clean": {
+          "title": "Clean the disks",
+          "explanation": "Remove what has no business being there. These commands delete."
+        },
+        "fix": {
+          "title": "Fix",
+          "explanation": "Straighten out wrong data: a link, a count, an identifier."
+        },
+        "analyze": {
+          "title": "Analyze",
+          "explanation": "Understand what the library contains, and what it lacks."
+        }
+      }
+    },
+    "settings": {
+      "searchPlaceholder": "Search for a setting",
+      "noMatchTitle": "No setting matches",
+      "noMatchBody": "Search by what the setting DOES — “space”, “threshold”, “language” — or by its key name.",
+      "countOne": "{{found}} setting out of {{total}}",
+      "countMany": "{{found}} settings out of {{total}}",
+      "readOnlyLead": "Read-only.",
+      "readOnlyRest": " This instance changes nothing — it is staging, which writes to the same disks as production.",
+      "restartLead": "Restart needed.",
+      "restartRest": " will only take effect at the next start of the service.",
+      "restartSomeSettings": "Some settings",
+      "restartNow": "Restart now",
+      "secretsTitle": "Secrets and access",
+      "secretsSubtitle": "API keys and passwords. You can see that they are set, never what they are worth.",
+      "secretsHint": "You can see that a key is set, never what it is worth.",
+      "secretSet": "set",
+      "secretUnset": "absent",
+      "secretsNoteLead": "Write only what was typed.",
+      "secretsNoteRest": " A field left empty erases nothing: only a key actually entered goes to the server, otherwise opening this screen and saving would be enough to erase everything.",
+      "rankingTitle": "Release ranking",
+      "rankingSubtitle": "What makes one release preferred over another. Adjusted with a live preview, hence a screen of its own.",
+      "arrow": "→",
+      "unknownTopic": "Unknown topic",
+      "mapNoteLead": "We navigate by what we want to change, never by file.",
+      "mapNoteRest": " The engine keeps nineteen of them; knowing which one holds the minimum disk space before an ingest is knowledge of the code, not of the library. Every setting says where it comes from — that is what you need to read a log — but it is not the map.",
+      "pendingOne": "{{count}} change pending",
+      "pendingMany": "{{count}} changes pending",
+      "willWrite": "Will write {{files}}.",
+      "save": "Save",
+      "clearLabel": "Clear the search",
+      "saveBarLabel": "Unsaved changes",
+      "conflictLead": "Version conflict.",
+      "conflictRest": " The file changed on disk while you were editing it: what is on screen no longer describes what is saved. Nothing was written.",
+      "conflictReload": "Reload the settings",
+      "restartConfirmHeading": "Restart the service?",
+      "restartConfirmBody": "The service stops and starts again. It is unavailable for a few seconds — for every account in the house, not only you, and an acquisition in progress will resume where it stopped.",
+      "restartConfirmGo": "Restart",
+      "restartConfirmCancel": "Cancel",
+      "restartDone": "Service restarted — the settings are in effect.",
+      "allTopics": "All settings",
+      "leaveHeading": "Unsaved changes",
+      "leaveBodyOne": "{{count}} change is waiting to be saved. What should happen before leaving {{page}}?",
+      "leaveBodyMany": "{{count}} changes are waiting to be saved. What should happen before leaving {{page}}?",
+      "leaveSave": "Save",
+      "leaveAbandon": "Discard the changes",
+      "leaveStay": "Stay on {{page}}"
+    },
+    "noAccess": {
+      "title": "This account opens no page.",
+      "body": " Its role gives it no right here: the administrator can assign it another one in “Accounts”."
+    },
+    "gate": {
+      "plex": "Sign in with Plex",
+      "plexUnreachable": "Plex is not answering: sign in with a password.",
+      "usePassword": "Use a password",
+      "invalid": "Invalid credentials",
+      "email": "E-mail address",
+      "plexPending": "Waiting for Plex: confirm the sign-in in the Plex page that has just opened.",
+      "plexReopen": "Reopen the Plex page",
+      "plexCancel": "Cancel",
+      "doors": "Account linked to Plex: come in with Plex. Local account: come in with your e-mail address and password."
+    },
+    "accounts": {
+      "accounts": "Accounts",
+      "roles": "Roles",
+      "bypass": "bypasses every right",
+      "roleCount_one": "{{count}} right",
+      "roleCount_other": "{{count}} rights",
+      "oneRole": "An account has a single role; its rights are the role's.",
+      "notOwnRole": "Your own role cannot be changed from here: another manager does it.",
+      "current": "current role",
+      "adminRole": "The Admin role holds no list: it bypasses every right, present and future. It can be neither restricted nor modified.",
+      "grant": "Grant: {{right}}",
+      "withdraw": "Withdraw: {{right}}",
+      "saved": "Saved.",
+      "refused": "Refused: this change goes beyond your rights, or would leave the server without an Admin.",
+      "newRole": "New role",
+      "newRoleName": "Role {{count}}",
+      "newAccount": "New account",
+      "name": "Name",
+      "email": "E-mail address (required)",
+      "initialRole": "Starting role",
+      "plexHint": "An address that is a user of the Plex server is linked: the account comes in through Plex only, with no password. Any other address makes a local account, which comes in with the temporary password given here and then changes it in its Profile.",
+      "create": "Create the account",
+      "emailRequired": "The e-mail address is required.",
+      "createRefused": "The creation was refused.",
+      "roleName": "Role name",
+      "rename": "Rename",
+      "nameRequired": "A role has a name: it cannot stay empty.",
+      "createBeyond": "Refused: this starting role goes beyond your rights.",
+      "signInKind": {
+        "owner": "Plex owner: Plex and fallback password",
+        "plex": "linked to Plex: Plex only",
+        "local": "local account: password"
+      },
+      "demoted": "Linked to Plex: its role went back to the starting one. To be promoted again (before: {{role}}).",
+      "demotedShort": "starting role since its Plex link",
+      "defaultFor": {
+        "plexHome": "Starting role of the Plex Home users of the Plex server, at their first sign-in or when they are linked.",
+        "plexGuest": "Starting role of the other users of the Plex server, at their first sign-in or when they are linked.",
+        "local": "Starting role of a local account created with no role chosen."
+      },
+      "provisionalPassword": "Temporary password (local account)",
+      "reset": {
+        "field": "New temporary password",
+        "hint": "Replaces a forgotten password. Pass it on to the person: they will change it in their Profile.",
+        "submit": "Reset the password",
+        "sending": "Sending…",
+        "done": "Temporary password saved: pass it on to {{name}}, who will change it in their Profile.",
+        "refused": "The reset was refused.",
+        "adminOnly": "Only an Admin resets a password. Everyone changes their own in their Profile."
+      }
+    },
+    "crossSeed": {
+      "states": {
+        "active": "active",
+        "stopped": "stopped",
+        "trackerWithout": "tracker without cross-seed",
+        "error": "cross-seed error",
+        "noMatch": "no match",
+        "notSearched": "not searched yet"
+      },
+      "reasons": {
+        "piece_length_mismatch": "The candidate's pieces are not the same size as the original's.",
+        "file_list_mismatch": "The candidate's file list differs from the original's.",
+        "root_name_mismatch": "The candidate's folder does not have the same name as the original's.",
+        "v2_hybrid": "The original is in v2 or hybrid format, which cross-seed does not support.",
+        "self_candidate": "The candidate found is the original itself.",
+        "fetch_failed": "The candidate's .torrent file could not be downloaded from the tracker.",
+        "verify_timeout": "The file verification did not finish in time.",
+        "recheck_failed": "The file verification failed.",
+        "magnet_not_supported": "The tracker only offered a magnet link, which cross-seed does not support.",
+        "parse_failed": "The .torrent file received is unreadable.",
+        "inject_failed": "qBittorrent refused to add the torrent.",
+        "obligation_write_failed": "The torrent was added, but its sharing obligation could not be recorded.",
+        "creation_failed": "The torrent could not be created from the original's files.",
+        "publish_failed": "The tracker did not accept the publication of the torrent."
+      },
+      "families": {
+        "files": "Not the same files",
+        "self": "The same torrent",
+        "attempt": "The attempt failed",
+        "engine": "The engine could not finish"
+      },
+      "waits": {
+        "downloading": "the original is still downloading",
+        "quota": "waiting for today's quota",
+        "switchOff": "the tracker's cross-seed switch is off",
+        "trackerOff": "the tracker is disabled: nothing is searched or published there",
+        "trackerDown": "the tracker is disabled by a fault: nothing is searched or published there"
+      },
+      "line": {
+        "active_one": "Cross-seed: active — {{count}} torrent",
+        "active_other": "Cross-seed: active — {{count}} torrents",
+        "activeNone": "Cross-seed: active — no torrent",
+        "off": "Cross-seed: off on this tracker",
+        "offRunning_one": "Cross-seed: off on this tracker — {{count}} torrent continues",
+        "offRunning_other": "Cross-seed: off on this tracker — {{count}} torrents continue",
+        "engineOff": "Cross-seed: the engine is off",
+        "engineOffOwn": "{{engine}} · this tracker: {{own}}",
+        "ownOn": "active",
+        "ownOff": "off",
+        "failures_one": "{{line}} · {{count}} failure",
+        "failures_other": "{{line}} · {{count}} failures"
+      },
+      "panel": {
+        "lead": "Cross-seed, tracker by tracker",
+        "injected": "injected on {{date}}",
+        "published": "published by you on {{date}}",
+        "publishTried": "publication attempted on {{date}}",
+        "trackerReason": "Answer from {{tracker}}: {{reason}}",
+        "uploadOff": "Publish here: {{tracker}} does not accept uploads",
+        "stoppedBySwitch": "stopped on {{date}} — the tracker's switch cut the cross-seeds in progress",
+        "stoppedByCut": "stopped on {{date}} — cut from this torrent",
+        "tried": "searched on {{date}}",
+        "candidate": "Candidate: {{name}} on {{tracker}}",
+        "source": "Source: {{name}} on {{tracker}}",
+        "wait": "Why: {{reason}}",
+        "excluded": "Excluded from the engine's next passes",
+        "titleExcluded": "Title excluded: no more cross-seed, on any tracker.",
+        "none": "No other tracker is eligible for the cross-seed of this torrent.",
+        "cut": "Stop cross-seed on this tracker",
+        "include": "Stop excluding this tracker",
+        "excludeTitle": "Stop sharing this title",
+        "includeTitle": "Share this title again",
+        "search": "Search for a cross-seed",
+        "queued": "Queued — the search is waiting its turn in the engine",
+        "upload": "Create and publish a torrent",
+        "uploadQueued": "Queued — the publication is waiting its turn in the engine",
+        "quota": "Searches today: {{used}} of {{perDay}} · at most one every {{delay}} min"
+      },
+      "switch": {
+        "engineOff": "The cross-seed engine is off: no tracker starts a new one, what is running continues.",
+        "on": "Cross-seed active on this tracker",
+        "off": "Cross-seed off on this tracker",
+        "onDetail": "The engine searches and injects cross-seeds there.",
+        "onEngineOffDetail": "Switched on for this tracker, but the engine is off: it neither searches nor injects anything there.",
+        "offDetail": "No new cross-seed here any more; those in progress continue until they are stopped.",
+        "offStoppedDetail": "No new cross-seed here any more, and those that were running have been stopped.",
+        "label": "Cross-seed on {{tracker}}",
+        "nextPass": "Takes effect on the engine's next pass.",
+        "uploadsOn": "Accepts uploads",
+        "uploadsOff": "Does not accept uploads",
+        "uploadsOnDetail": "A torrent can be created and published there from a torrent being shared, where no cross-seed was found.",
+        "uploadsOffDetail": "No torrent will be published there; those already published continue.",
+        "uploadsLabel": "Uploads on {{tracker}}"
+      },
+      "media": {
+        "heading": "Cross-seed, tracker by tracker",
+        "origin": "{{name}} — the original, on {{tracker}}"
+      }
+    }
+  },
+  "surfaces": {
+    "decision": {
+      "heading": "Identification",
+      "chosen": "Chosen",
+      "among": "Among",
+      "candidates_one": "{{count}} candidate",
+      "candidates_other": "{{count}} candidates",
+      "by": "By",
+      "byOperator": "you — {{via}}",
+      "byOperatorAlone": "you",
+      "byEngine": "the engine, alone",
+      "when": "On",
+      "state": "Decision",
+      "correct": "Correct"
+    },
+    "card": {
+      "sheetOf": "Sheet for {{title}}",
+      "folderActions": "Actions for the {{title}} folder",
+      "folder": "Folder",
+      "automatic": "{{line}} · auto",
+      "freshTag": "New",
+      "stages": [
+        "grabbed",
+        "downloaded",
+        "ingested",
+        "scraped",
+        "shelved"
+      ],
+      "requester": {
+        "qbittorrent": "added by {{name}}, in qBittorrent",
+        "follow": "requested by {{name}}",
+        "request": "requested by {{name}}, for this season",
+        "unknown": "unknown origin"
+      },
+      "plexMatch": "Plex recognised it as “{{title}}”, not as this title.",
+      "failedStep": "The “{{step}}” step failed.",
+      "closure": {
+        "torrent_removed": "The torrent was removed from qBittorrent: this journey is closed.",
+        "files_absent": "Its files have disappeared from qBittorrent's disk: this journey is closed.",
+        "superseded": "Replaced by a more recent choice: {{winner}} is in place.",
+        "reopens": "If it comes back, a new journey will open.",
+        "seeding": "Its torrent keeps seeding."
+      }
+    },
+    "error": {
+      "lead": "Unable to load {{subject}}.",
+      "body": "\n      The server did not answer in time. Nothing is lost — what is shown\n      elsewhere remains valid.\n      ",
+      "retry": "Try again"
+    },
+    "ladder": {
+      "figure": "{{position}} of {{count}}",
+      "setAside": "Set aside by you, on {{day}}.",
+      "rungs": {
+        "requested": "requested",
+        "searched": "searched",
+        "grabbed": "grabbed",
+        "downloading": "downloading",
+        "arrived": "arrived",
+        "identified": "identified",
+        "shelved": "shelved",
+        "verified": "verified in Plex"
+      },
+      "steps": {
+        "sorted": "sorted",
+        "enriched": "enriched",
+        "shelved": "shelved",
+        "metadata": "metadata",
+        "posters": "posters retrieved",
+        "trailer": "trailer"
+      },
+      "step": "· {{name}}",
+      "subStep": "· · {{name}}",
+      "doneUntimed": "done",
+      "nowUntimed": "in progress",
+      "toConfirm": "{{rung}} — to confirm",
+      "closed": "closed",
+      "ratioWithoutThreshold": "Deferred: the ratio on {{tracker}} is too low, and this tracker has no threshold set.",
+      "reasons": {
+        "queued": "Queued — this pass waits for the maintenance in progress to finish.",
+        "confirmation": "The Plex match is waiting for your confirmation.",
+        "ratio_below_threshold": "Deferred: the ratio on {{tracker}} is below its {{minimum}} threshold.",
+        "insufficient_space": "Deferred: not enough space on the staging disk to receive it.",
+        "content_missing": "Deferred: the disk where qBittorrent downloaded it is not readable.",
+        "library_full": "No library disk has room to receive it ({{size}}).",
+        "tracker_unreachable": "{{tracker}} is not answering: the torrent cannot be retrieved.",
+        "provider_unreachable": "{{provider}} is not answering: identification is waiting.",
+        "plex_unreachable": "Plex is not answering: the match cannot be verified.",
+        "client_unreachable": "qBittorrent is not answering: the download is no longer tracked."
+      },
+      "lifts": {
+        "ratio_below_threshold": "It resumes on its own once this ratio exceeds {{minimum}}.",
+        "insufficient_space": "It resumes on its own once room is made.",
+        "content_missing": "It resumes on its own once this disk is back.",
+        "library_full": "It is shelved on its own once a disk has room.",
+        "tracker_unreachable": "It resumes on its own once {{tracker}} answers.",
+        "provider_unreachable": "It resumes on its own once {{provider}} answers.",
+        "plex_unreachable": "The check resumes on its own once Plex answers.",
+        "client_unreachable": "Tracking resumes on its own once qBittorrent answers."
+      },
+      "blockedLine": "blocked — {{cause}}",
+      "resumedLine": "resumed",
+      "causeShort": {
+        "ratio_below_threshold": "ratio too low",
+        "insufficient_space": "staging disk full",
+        "content_missing": "qBittorrent disk unreadable",
+        "library_full": "library full",
+        "tracker_unreachable": "tracker unreachable",
+        "provider_unreachable": "provider unreachable",
+        "plex_unreachable": "Plex unreachable",
+        "client_unreachable": "qBittorrent unreachable"
+      },
+      "liftWithoutThreshold": "It resumes on its own once this ratio recovers."
+    },
+    "clock": {
+      "timeOfDay": "{{hour}}:{{minute}}",
+      "dayAndTime": "on {{day}} at {{time}}"
+    },
+    "season": {
+      "offCatalogue": "off-catalogue ({{count}})"
+    }
+  },
+  "states": {
+    "active": "active",
+    "inactive": "inactive",
+    "paused": "paused",
+    "reachable": "reachable",
+    "on_time": "on time",
+    "room": "room left",
+    "nearly_full": "nearly full",
+    "succeeded": "succeeded",
+    "none": "none",
+    "to_clean": "to clean",
+    "offline": "offline",
+    "late": "late"
+  },
+  "settingValue": {
+    "undefined": "not set",
+    "none": "none",
+    "entries": "{{count}} entries",
+    "andMore": "{{named}} +{{rest}}",
+    "everyHourAtMinute": "every hour, at minute {{minute}}",
+    "everyDayAt": "every day at {{time}}",
+    "onDayAt": "on {{day}} at {{time}}",
+    "atTimes": "at {{first}} and {{last}}",
+    "days": {
+      "0": "Sunday",
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday"
+    }
+  },
+  "connection": {
+    "since": "The information shown dates from {{time}}.",
+    "connecting": {
+      "short": "Connecting…",
+      "title": "Live updates: connecting"
+    },
+    "connected": {
+      "short": "Connected",
+      "title": "Live updates connected"
+    },
+    "reconnecting": {
+      "short": "Reconnecting…",
+      "title": "Live updates: the connection was lost, reconnecting"
+    },
+    "lost": {
+      "short": "Offline",
+      "title": "Live updates interrupted — this screen no longer updates",
+      "body": "This screen no longer updates: the connection to the server is lost.",
+      "action": "Retry now"
+    },
+    "refused": {
+      "short": "Session expired",
+      "title": "Session expired — sign in again to see updates",
+      "body": "Your session is no longer valid, so this screen no longer updates.",
+      "action": "Sign in again"
+    },
+    "waiting_one": "One action is waiting to be sent to the server.",
+    "waiting_other": "{{count}} actions are waiting to be sent to the server.",
+    "send": "Send now",
+    "refusedOnSending_one": "One action was refused by the server when sent.",
+    "refusedOnSending_other": "{{count}} actions were refused by the server when sent.",
+    "acknowledge": "Got it"
+  },
+  "navigation": {
+    "pages": {
+      "acq": "Acquisition",
+      "lib": "Library",
+      "discover": "Discover",
+      "trackers": "Trackers",
+      "sys": "System",
+      "maint": "Maintenance",
+      "cfg": "Settings",
+      "profile": "Profile and preferences",
+      "404": "Address not found",
+      "noAccess": "No access",
+      "accounts": "Accounts"
+    },
+    "groups": {
+      "supervision": "Supervision",
+      "system": "System",
+      "configuration": "Configuration"
+    },
+    "barLabel": "Main navigation",
+    "actionButtonLabel": "Add a title",
+    "drawerLabel": "Menu",
+    "railCollapse": "Collapse the menu",
+    "railExpand": "Expand the menu",
+    "appearanceGroup": "Appearance",
+    "appearanceLabel": "Theme",
+    "appearance": {
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    }
+  },
+  "message": {
+    "undo": "Undo",
+    "close": "Close",
+    "installRequested": "Installation requested — the browser takes over.",
+    "installing": "Installing — the icon is on its way to your home screen.",
+    "installRefused": "Installation declined — the banner will come back on your next visit.",
+    "installed": "TorrentMate is installed.",
+    "oneMoreBack": "One more back to leave TorrentMate.",
+    "refreshed": "Refreshed."
+  },
+  "panels": {
+    "maintenance": {
+      "whatItDoes": "What it does",
+      "duration": "Duration",
+      "durationLong": "can be long",
+      "durationImmediate": "immediate",
+      "dryRun": "Dry run",
+      "dryRunImpossible": "not possible",
+      "destructiveEmphasis": "This command deletes.",
+      "destructiveNote": " The dry run stays on as long as nothing has shown what would be destroyed: an “are you sure?” gets answered without reading, a list gets looked at. Run it dry, read what it names, then run it for real.",
+      "runDry": "Run dry",
+      "run": "Run",
+      "runForReal": "Run for real",
+      "runForRealHint": "First read what the dry run names.",
+      "runForRealMention": "after the dry run"
+    },
+    "risks": {
+      "ro": "changes nothing",
+      "write": "writes",
+      "destructive": "deletes"
+    },
+    "secret": {
+      "set": "set",
+      "absent": "absent",
+      "neverReturned": "The server never returns the value, so it is not shown here. We know it is set, we do not know what it is.",
+      "readOnly": "Read-only on this instance",
+      "replace": "Replace the value",
+      "removeKey": "Remove the key",
+      "newKeyLabel": "New key",
+      "newKeyPlaceholder": "Enter the new key",
+      "removeConfirmHeading": "Remove the {{provider}} key?",
+      "removeConfirmBody": "The key will be removed for every account of the household. This provider will stop answering until a new key is entered.",
+      "removeConfirmGo": "Remove the key",
+      "removeConfirmCancel": "Cancel"
+    },
+    "setting": {
+      "edited": "modified, not written yet",
+      "pendingValue": "New value",
+      "storedValue": "Stored value",
+      "readOnly": "Read-only on this instance",
+      "cancelEdit": "Cancel the change",
+      "nothingWritten": "Nothing is written until the bottom bar is used. It says which files will be touched.",
+      "cancelledToast": "Change cancelled — nothing had been written.",
+      "savedToast": "Saved — {{files}}.",
+      "commit": "Apply"
+    },
+    "sort": {
+      "title": "Sort the library",
+      "note": "The sort is a preference, not a location: it stays on this device and does not enter the URL (A7).",
+      "ways": {
+        "recent": {
+          "normal": "Recently added",
+          "inverse": "Added longest ago"
+        },
+        "az": {
+          "normal": "A → Z",
+          "inverse": "Z → A"
+        },
+        "missing": {
+          "normal": "Most incomplete",
+          "inverse": "Most complete"
+        }
+      }
+    },
+    "journey": {
+      "metaBefore": "Acquisition journey · release ",
+      "metaAlone": "Acquisition journey",
+      "provenanceNote": "A step not yet reached shows “upcoming”.",
+      "seeSheet": "See the sheet",
+      "requeue": "Requeue",
+      "rescrape": "Rescrape this pass",
+      "absorbedBy": "This episode is covered by the retrieval of season {{season}}.",
+      "absorbedEnded": "Season {{season}} has arrived in the library.",
+      "seeSeasonCard": "See the season card",
+      "absorbedRunning": "{{episode}} — download already in progress",
+      "absorbedCovered": "{{episode}} — covered by the season",
+      "markSeen": "Mark as seen",
+      "keptNewer": "{{episode}} — kept: chosen more recently"
+    },
+    "notMedia": {
+      "title": "This is not a title",
+      "meta": "Where should “{{folder}}” be shelved? It leaves the acquisitions."
+    },
+    "standby": {
+      "title": "Watch",
+      "meta": "Second tier — consulted, not monitored.",
+      "lastPass": "Last pass",
+      "nextPass": "Next pass",
+      "runNow": "Run the watch now"
+    },
+    "suggestion": {
+      "metaRating": "{{year}} · {{kind}} · TMDB rating {{rating}}",
+      "addFilm": "Add",
+      "followSeries": "Follow",
+      "seeSheet": "See the sheet",
+      "notInterested": "Not interested",
+      "filmLeavesNote": "Once acquired, this movie will leave your list automatically."
+    },
+    "add": {
+      "meta": "{{year}} · {{kind}} · TMDB",
+      "ownedBefore": "Already in the library — the acquisition ",
+      "ownedEmphasis": "will replace",
+      "ownedAfter": " the version in place.",
+      "seeSheet": "See the sheet"
+    },
+    "follow": {
+      "film": "Movie",
+      "series": "Series",
+      "episodesSuffix": " episodes",
+      "resolve": "Resolve →",
+      "offerFollow": "Follow",
+      "takeNow": "Grab now",
+      "complete": "Complete → Acquisitions",
+      "searchNow": "Search now",
+      "seeSheet": "See the sheet",
+      "seeJourney": "See the journey",
+      "noSeasonData": "No season data known for this series — the catalogue has not been retrieved yet.",
+      "otherRelease": "Search for another release",
+      "qualityProfile": "Quality profile",
+      "rescrape": "Rescrape the metadata",
+      "stopSearchingFilm": "Stop searching",
+      "pauseSeries": "Pause",
+      "removeFilm": "Remove from the list",
+      "removeSeries": "Remove the follow",
+      "deleteFromLibrary": "Delete from the library",
+      "plexConfirm": "Confirm the Plex match",
+      "plexCorrect": "Correct the Plex match",
+      "requeue": "Rerun the step",
+      "abandon": "Abandon",
+      "deleteStaged": "Delete from disk",
+      "foundNextPassAt": "Found, will be grabbed on the next pass, at {{at}}.",
+      "foundNextPass": "Found, will be grabbed on the next pass.",
+      "filmLeavesNote": "Once acquired, this movie will leave your list automatically.",
+      "grabSeason": "Grab season {{season}}",
+      "readOnly": "This acquisition belongs to another account: it can be read here, not driven.",
+      "pauseOwn": "Pause for me",
+      "resumeOwn": "Resume for me",
+      "pausedForAll": "Paused: every requester who can pause it has asked for it.",
+      "pauseWaitsForOthers": "Your pause is noted; the acquisition continues until the other requesters have paused it."
+    },
+    "reassign": {
+      "act": "Reassign…",
+      "title": "Reassign “{{title}}”",
+      "note": "{{name}}'s request moves to the chosen account. Only the accounts that see this acquisition are offered.",
+      "empty": "No other account sees this acquisition."
+    }
+  },
+  "verbs": {
+    "decision": {
+      "correctHeld": "Correction requested — waiting for the network.",
+      "correctRefused": {
+        "gone": "This identification is no longer on the server: there is nothing left to correct.",
+        "conflict": "The state of this title has changed in the meantime: reopen its sheet and try again.",
+        "other": "The server refused the correction."
+      }
+    },
+    "library": {
+      "sorted": "Sorted by {{way}}.",
+      "delete": {
+        "headingMany": "Delete {{media}} titles?",
+        "headingOneTitleMany": "Delete “{{title}}” — {{media}} titles?",
+        "headingOne": "Delete “{{title}}”?",
+        "fileOne": "{{count}} file",
+        "fileMany": "{{count}} files",
+        "otherOne": "and {{count}} other",
+        "otherMany": "and {{count}} others",
+        "exactly": "Here is exactly what would be deleted:",
+        "videoFiles": "Video files",
+        "videoFilesValue": "{{files}} · {{size}}",
+        "size": "{{size}} GB",
+        "metadata": "Metadata (NFO, posters, fanart)",
+        "metadataValue": "{{count}} files",
+        "libraryRows": "Library rows",
+        "itemOne": "{{count}} item",
+        "itemMany": "{{count}} items",
+        "plexEntry": "Plex entry",
+        "plexEntryValue": "{{count}} · to check",
+        "followedOne": "“{{title}}” is followed.",
+        "followedMany": "{{count}} of these titles are followed.",
+        "followedText": "Unless you act, these episodes will be downloaded again on the next search.",
+        "deleteAndStop": "Delete and stop following",
+        "followStopped": "The follow is stopped.",
+        "deleteAndKeep": "Delete, keep following",
+        "followKept": "The follow is kept.",
+        "delete": "Delete",
+        "done": "“{{title}}” deleted.",
+        "doneMany": "{{count}} titles deleted.",
+        "cancel": "Cancel",
+        "blockedHeadingOne": "“{{title}}” cannot be deleted",
+        "blockedHeadingMany": "{{count}} titles cannot be deleted",
+        "heldByRows": "{{count}} rows, one identifier",
+        "ambiguousText": "One identifier is carried by several lines of the library: this is a duplicate. Settle it first — nothing is deleted until we know which of the two would go.",
+        "close": "Close"
+      },
+      "deletedOne": "{{count}} title deleted.",
+      "deletedMany": "{{count}} titles deleted.",
+      "deleteRefused": "The deletion was refused: nothing was deleted."
+    },
+    "acquisition": {
+      "taken": "“{{title}}” grabbed — follow it in “In flight”.",
+      "searchFoundNone": "No torrent found for “{{title}}”.",
+      "searchFound_one": "“{{title}}”: {{count}} torrent found.",
+      "searchFound_other": "“{{title}}”: {{count}} torrents found.",
+      "completionStarted": "“{{title}}”: search for the missing episodes started.",
+      "tmdbConnected": "TMDB account connected — the reserve is filling up, your ratings are being read.",
+      "identified": "“{{target}}” identified as “{{title}}” — scraping resumes, no follow created.",
+      "replaceHeading": "Replace “{{title}}”?",
+      "replaceMovieOwned": "This movie is already in the library. The acquisition ",
+      "replaceMediumOwned": "This title is already in the library. The acquisition ",
+      "replaceEmphasis": "will replace",
+      "replaceAfter": " the version in place with the one that gets downloaded.",
+      "replace": "Replace",
+      "replaceCancel": "Cancel",
+      "replacementQueued": "Added — the version in place will be replaced once the new one is downloaded.",
+      "searchAgain": "{{label}} — {{title}}",
+      "plexConfirmed": "Plex match confirmed: {{title}}",
+      "reclassified": "“{{title}}” shelved in “{{destination}}” — it leaves the acquisitions.",
+      "plexCorrected": "Plex match corrected: {{title}} is “{{choice}}”",
+      "abandon": {
+        "heading": "Abandon “{{title}}”?",
+        "bodyBefore": "The folder ",
+        "bodyAfter": " will be quarantined in staging and the move logged. Nothing is deleted.",
+        "bodyFollow": " The follow continues: another release will be searched for.",
+        "confirm": "Quarantine",
+        "cancel": "Cancel",
+        "done": "“{{title}}” quarantined: {{path}}"
+      },
+      "deleteStaged": {
+        "heading": "Delete “{{title}}” from disk?",
+        "bodyBefore": "The folder ",
+        "bodyAfter": " will be deleted from disk and the deletion logged. ",
+        "caseKeepsFiles": "The torrent keeps its files in qBittorrent: this folder is only a copy of them.",
+        "caseOnlyCopy": "This is the only copy: no torrent keeps these files.",
+        "caseUnknown": "qBittorrent did not answer: this folder is treated as the only copy.",
+        "confirm": "Delete",
+        "cancel": "Cancel",
+        "done": "“{{title}}” deleted from disk."
+      },
+      "left": "“{{title}}” set aside — it is waiting for you, folded at the end of “To handle”.",
+      "resolved": "Identified as “{{choice}}” — the pipeline resumes through to the library.",
+      "closureSeenRefused": "“{{title}}” could not be marked as seen: its card stays in “To handle”."
+    },
+    "media": {
+      "seasonAsked": "Season {{season}} of “{{title}}” requested — {{count}} episodes to download.",
+      "seasonAskedOne": "Season {{season}} of “{{title}}” requested — 1 episode to download.",
+      "seasonAskedNone": "Season {{season}} of “{{title}}” requested — no episode to download.",
+      "seasonAskedOneOff": "Season {{season}} of “{{title}}” requested — follow it in “In progress”.",
+      "seasonAlreadyAsked": "Season {{season}} of “{{title}}” already requested — it is being downloaded.",
+      "seasonQueued": "Season {{season}} of “{{title}}” queued — pipeline running.",
+      "seasonHeld": "Season {{season}} of “{{title}}” requested — waiting for the network, it will go out when it is back.",
+      "seasonRefused": "Season {{season}} of “{{title}}”: the request did not go through.",
+      "rescrapeAsked": "Metadata for “{{title}}” requested again from the providers.",
+      "rescrapeQueued": "Rescrape of “{{title}}” queued — pipeline running.",
+      "rescrapeHeld": "Rescrape of “{{title}}” requested — waiting for the network, it will go out when it is back.",
+      "rescrapeRefused": "The rescrape of “{{title}}” did not go through.",
+      "rescrapeUnidentified": "“{{title}}” has no provider identity: there is nothing to rescrape until it is identified.",
+      "seasonForbidden": "Season {{season}} of “{{title}}”: your role does not give you the right to download it."
+    },
+    "journey": {
+      "requeueAsked": "Requeued — the pass resumes where it stopped.",
+      "requeueQueued": "Requeue requested — queued, pipeline running.",
+      "requeueHeld": "Requeue requested — waiting for the network.",
+      "requeueRefused": "The requeue did not go through.",
+      "rescrapeAsked": "Pass rescraped — the pipeline resumes from the scrape.",
+      "rescrapeQueued": "Rescrape requested — queued, pipeline running.",
+      "rescrapeHeld": "Rescrape requested — waiting for the network.",
+      "rescrapeRefused": "The rescrape did not go through."
+    },
+    "follows": {
+      "added": "“{{title}}” added to your list — it appears at the top of “Follows”, marked New.",
+      "followed": "“{{title}}” added to your follows — it appears at the top of “Follows”, marked New.",
+      "resumed": "“{{title}}” reactivated.",
+      "searchStopped": "“{{title}}” will no longer be searched for.",
+      "paused": "“{{title}}” paused.",
+      "refused": "“{{title}}” could not be saved: the server refused the request.",
+      "removed": "“{{title}}” removed from your follows.",
+      "forbidden": "“{{title}}”: your role does not give you this right on this follow.",
+      "actRefused": "“{{title}}”: the change did not go through."
+    },
+    "deck": {
+      "loaded": "{{count}} more suggestions — the reserve holds {{total}}.",
+      "loadedOne": "1 more suggestion — the reserve holds {{total}}.",
+      "spent": "Reserve exhausted — all {{total}} loaded suggestions have been seen.",
+      "refused": "The loading did not go through."
+    },
+    "releases": {
+      "taken": "“{{quality}}” chosen for “{{title}}” — follow it in “In flight”."
+    },
+    "secret": {
+      "replaceDone": "Key replaced.",
+      "replaceHeld": "Key kept — it will be sent as soon as the network is back.",
+      "replaceRefused": "The key could not be replaced.",
+      "replaceEmpty": "Enter the new key before confirming.",
+      "removeDone": "Key removed.",
+      "removeHeld": "Removal kept — it will be sent as soon as the network is back.",
+      "removeRefused": "The key could not be removed."
+    },
+    "system": {
+      "watchLaunched": "Watch launched — it is running, its result will appear in System."
+    },
+    "maintenance": {
+      "started": "Command launched — follow it in “System”.",
+      "queued": "Command queued — pipeline running.",
+      "dryDone": "Dry run finished — nothing was modified.",
+      "held": "Command requested — waiting for the network, it will go out when it is back.",
+      "dryHeld": "Dry run requested — waiting for the network.",
+      "refused": "The command did not go through."
+    },
+    "trackers": {
+      "remove": {
+        "heading": "Remove from qBittorrent?",
+        "bodyOn": " leaves qBittorrent on ",
+        "bodyFiles": ".",
+        "deleteFiles": "Delete the files",
+        "shared": "The same files are shared on {{trackers}}: that sharing ends too.",
+        "obligation": "Obligation in progress on {{tracker}}.",
+        "obligationBody": " Removing it now closes it before it is fulfilled.",
+        "confirm": "Remove",
+        "cancel": "Cancel",
+        "done": "“{{title}}” left qBittorrent."
+      }
+    },
+    "reassign": {
+      "done": "Request reassigned to {{name}}.",
+      "refused": "The reassignment was refused."
+    },
+    "acquisitionSettings": {
+      "paused": "Pause noted for you.",
+      "resumed": "Pause lifted for you.",
+      "refused": "This setting was refused."
+    },
+    "crossSeed": {
+      "switchHeading": "Switch off cross-seed on {{tracker}}?",
+      "switchBody": "The engine will no longer start new cross-seeds on {{tracker}}.",
+      "switchNoneRunning": "No cross-seed is running on {{tracker}}.",
+      "switchOffDone": "Cross-seed switched off on {{tracker}}: no new ones, those in progress continue.",
+      "switchOffStoppedDone": "Cross-seed switched off on {{tracker}}, and those in progress were stopped.",
+      "switchOnDone": "Cross-seed switched on for {{tracker}}.",
+      "switchRunning_one": "{{count}} cross-seed is running on {{tracker}}: it continues, unless you tick the box below.",
+      "switchRunning_other": "{{count}} cross-seeds are running on {{tracker}}: they continue, unless you tick the box below.",
+      "stopRunning": "Also stop the cross-seeds in progress for {{tracker}}",
+      "switchEnding": "Ticked, this box ends these obligations, released:",
+      "obligation": "Obligation in progress on {{tracker}} — {{title}}.",
+      "obligationBody": " Stopping it now closes it released, never in breach.",
+      "switchConfirm": "Switch off",
+      "cancel": "Cancel",
+      "cutHeading": "Stop cross-seed on {{tracker}}?",
+      "cutBody": "The entry for “{{title}}” on {{tracker}} leaves qBittorrent, without its files: the original keeps its copy and keeps sharing on {{origin}}.",
+      "cutMemory": "{{tracker}} is excluded from the engine's next passes for this title; undoing this lets it be searched again.",
+      "cutConfirm": "Stop",
+      "cutDone": "Cross-seed stopped on {{tracker}}.",
+      "titleHeading": "Stop sharing “{{title}}”?",
+      "titleBody": "The title is excluded from all the engine's next passes, on every tracker.",
+      "titleRunning": "The cross-seeds in progress are stopped: {{trackers}} — their entries leave qBittorrent, without their files.",
+      "titleOrigin": "The original stays shared on {{origin}}.",
+      "titleConfirm": "Stop sharing",
+      "titleDone": "“{{title}}” is no longer shared by cross-seed.",
+      "includeDone": "{{tracker}} is no longer excluded for this title.",
+      "includeTitleDone": "“{{title}}” can be shared by cross-seed again.",
+      "searchQueued": "Cross-seed search queued.",
+      "searchWaiting": "Queued: today's quota is reached, the search will go out tomorrow.",
+      "searchDuplicate": "A search is already queued for this cross-seed.",
+      "uploadHeading": "Create and publish a torrent on {{tracker}}?",
+      "uploadBody": "The engine creates a torrent from the files of “{{title}}” and publishes it on {{tracker}}, in your name, to open a cross-seed there.",
+      "uploadFiles": "Files published:",
+      "uploadRules": "{{tracker}} applies its own publishing rules: if it refuses, the torrent's line will say so, with its reason.",
+      "uploadConfirm": "Create and publish",
+      "uploadQueued": "Publication queued for {{tracker}}.",
+      "uploadRefused": "{{tracker}} cannot receive this publication right now.",
+      "uploadsOnDone": "{{tracker}} accepts uploads.",
+      "uploadsOffDone": "{{tracker}} no longer accepts uploads: no torrent will be published there."
+    }
+  },
+  "discover": {
+    "notInterested": "Not interested",
+    "skip": "Skip",
+    "onTmdb": " on TMDB",
+    "allSeenLead": "You have been through everything.",
+    "allSeenRest": "The {{count}} suggestions of the batch have been seen. The reserve holds more.",
+    "allSeenRestList": "The {{count}} loaded suggestions have been seen — more are waiting to be loaded.",
+    "allSeenRestExhausted": "All {{count}} loaded suggestions have been seen — the reserve is exhausted.",
+    "loadThirtyMore": "Load 30 more",
+    "endOfReserve": "End of the reserve loaded in this mockup — {{loaded}} of the 503 suggestions actually computed for you. The background pass computes more after each new TMDB rating.",
+    "dismissed": "“{{title}}” dismissed."
+  },
+  "popover": {
+    "airDateUnknown": "Air date unknown.",
+    "airsOn": "Airs on {{date}}",
+    "airedOn": "Aired on {{date}}"
+  },
+  "access": {
+    "reservedTag": "Reserved",
+    "reservedTitle": "{{page}} — reserved.",
+    "reservedBody": "This account is not allowed to {{right}}.",
+    "rights": {
+      "library": {
+        "read": "view the library",
+        "delete": "delete from the library",
+        "rescrape": "rescrape a title"
+      },
+      "acquisition": {
+        "request": "request a title",
+        "follow": "manage its follows",
+        "pilot": {
+          "own": "drive its own acquisitions",
+          "any": "drive every acquisition"
+        },
+        "see": {
+          "others": "see other people's acquisitions"
+        },
+        "quality": {
+          "own": "choose the quality of its acquisitions"
+        },
+        "pause": {
+          "own": "pause its acquisitions"
+        },
+        "reassign": "reassign an acquisition",
+        "todo": {
+          "view": "see “To handle”"
+        }
+      },
+      "pipeline": {
+        "control": "drive processing"
+      },
+      "trackers": {
+        "view": "view the trackers",
+        "control": "act on the trackers",
+        "upload": "create and publish a torrent"
+      },
+      "system": {
+        "view": "view System and Maintenance"
+      },
+      "configuration": {
+        "view": "view the settings",
+        "write": "change the settings"
+      },
+      "accounts": {
+        "manage": "manage accounts"
+      }
+    },
+    "holders": {
+      "library": {
+        "read": "Every role holds it by default.",
+        "delete": "By default, only the Admin role holds it.",
+        "rescrape": "By default, only the Admin role holds it."
+      },
+      "acquisition": {
+        "request": "By default: Admin, Household member and Plex guest.",
+        "follow": "By default: Admin, Household member and Plex guest.",
+        "pilot": {
+          "own": "By default: Admin, Household member and Plex guest.",
+          "any": "By default, only the Admin role holds it."
+        },
+        "see": {
+          "others": "By default, only the Admin role holds it."
+        },
+        "quality": {
+          "own": "By default: Admin and Household member."
+        },
+        "pause": {
+          "own": "By default: Admin and Household member."
+        },
+        "reassign": "By default, only the Admin role holds it.",
+        "todo": {
+          "view": "By default: Admin and Household member."
+        }
+      },
+      "pipeline": {
+        "control": "By default, only the Admin role holds it."
+      },
+      "trackers": {
+        "view": "By default, only the Admin role holds it.",
+        "control": "By default, only the Admin role holds it.",
+        "upload": "By default, only the Admin role holds it."
+      },
+      "system": {
+        "view": "By default, only the Admin role holds it."
+      },
+      "configuration": {
+        "view": "By default, only the Admin role holds it.",
+        "write": "By default, only the Admin role holds it."
+      },
+      "accounts": {
+        "manage": "By default, only the Admin role holds it."
+      }
+    },
+    "ceilingEvery": "This instance is read-only: no write is allowed on it, for any account.",
+    "ceilingSome": "This instance forbids, for every account: {{rights}}."
+  },
+  "roles": {
+    "seed": {
+      "admin": "Admin",
+      "household": "Household member",
+      "plex-guest": "Plex guest",
+      "requester": "Requester",
+      "local-guest": "Guest"
+    }
+  },
+  "refusals": {
+    "request": {
+      "invalid": "The request is malformed: nothing was changed.",
+      "cross_origin": "Request refused: it does not come from this interface."
+    },
+    "route": {
+      "unknown": "This action does not exist on this server."
+    },
+    "internal": "The server hit an error: try again in a moment.",
+    "auth": {
+      "required": "Your session has ended: sign in again.",
+      "refused": "Sign-in refused: check your e-mail address and password, or come in through your account's own door.",
+      "plex_only": "This account signs in with Plex: it has no password here.",
+      "rate_limited": "Too many attempts: try again in a few minutes."
+    },
+    "right": {
+      "missing": "Your role does not hold the right to do this.",
+      "not_own": "This is not yours: your role only acts on what you requested.",
+      "unknown": "This right does not exist."
+    },
+    "instance": {
+      "read_only": "This instance is read-only: nothing is written to it.",
+      "forbidden_write": "This instance forbids this write, for every account."
+    },
+    "account": {
+      "unknown": "This account no longer exists.",
+      "email_invalid": "The e-mail address is invalid.",
+      "email_taken": "An account already uses this e-mail address.",
+      "admin_untouchable": "An Admin account can only be changed by an Admin.",
+      "last_admin": "Refused: the server would be left without an Admin."
+    },
+    "role": {
+      "unknown": "This role no longer exists.",
+      "system_immutable": "A system role cannot be renamed, and the Admin role cannot be modified.",
+      "own_role": "Your own role cannot be changed from here: another manager does it.",
+      "escalation": "Refused: this change goes beyond your rights."
+    },
+    "plex": {
+      "unreachable": "Plex is not answering: sign in with a password.",
+      "server_unreachable": "TorrentMate's Plex server is not answering: sign in with a password.",
+      "token_refused": "Plex refused the sign-in: try again.",
+      "pin_unknown": "This Plex request no longer exists: try again.",
+      "pin_expired": "The Plex request expired before it was confirmed: try again."
+    },
+    "password": {
+      "current_wrong": "The current password is incorrect: nothing was changed.",
+      "required": "A local account gets a temporary password: it is required.",
+      "too_short": "The new password must be at least {{minimum}} characters long.",
+      "held_by_cli": "This fallback password can only be changed by a command on the server, never here.",
+      "reset_admin_only": "Only an Admin resets a password: yours is changed in your Profile."
+    },
+    "media": {
+      "not_found": "This title is unknown: the library no longer holds it, or its provider does not know it.",
+      "ambiguous": "One identifier designates several lines of the library: settle the duplicate before deleting."
+    },
+    "provider": {
+      "unavailable": "The metadata provider is not answering: try again in a moment."
+    },
+    "library": {
+      "locked": "The pipeline is running: the library cannot be modified while it runs. Try again when the run ends."
+    }
+  },
+  "push": {
+    "generic": {
+      "title": "TorrentMate",
+      "body": "Something new is waiting for you in the app."
+    },
+    "obligation": {
+      "met": {
+        "seed_time": {
+          "title": "Obligation fulfilled",
+          "body": "{{title}} on {{tracker}}: the required seed time is reached."
+        },
+        "ratio": {
+          "title": "Obligation fulfilled",
+          "body": "{{title}} on {{tracker}}: the required ratio is reached."
+        }
+      },
+      "released": {
+        "removed_here": {
+          "title": "Obligation released",
+          "body": "{{title}} on {{tracker}}: removed from qBittorrent through TorrentMate."
+        },
+        "gone_from_client": {
+          "title": "Obligation released",
+          "body": "{{title}} on {{tracker}}: left qBittorrent outside TorrentMate."
+        }
+      },
+      "breached": {
+        "title": "Obligation breached",
+        "body": "{{title}} on {{tracker}}: the deadline passed without the obligation being met."
+      }
+    },
+    "tracker": {
+      "ratio_low": {
+        "title": "Low ratio on {{tracker}}",
+        "body": "The ratio on {{tracker}} has dropped below its alert threshold."
+      },
+      "disabled": {
+        "title": "{{tracker}} disabled",
+        "body": "TorrentMate switched {{tracker}} off after an error. Open Trackers to see it."
+      }
+    },
+    "crossseed": {
+      "failed": {
+        "title": "Cross-seed failed",
+        "body": "{{title}} on {{tracker}}: the cross-seed failed."
+      }
+    },
+    "acquisition": {
+      "arrived": {
+        "title": "Arrived in the library",
+        "body": "{{title}} is available."
+      },
+      "to_handle": {
+        "title": "To handle",
+        "body": "{{title}} is waiting for your decision."
+      }
+    },
+    "system": {
+      "run_failed": {
+        "title": "Pipeline step failed",
+        "body": "The {{step}} step failed. See System."
+      },
+      "disk_full": {
+        "title": "Disk almost full",
+        "body": "{{disk}} is below its free-space threshold."
+      },
+      "service_down": {
+        "title": "Service unreachable",
+        "body": "{{service}} is no longer answering."
+      }
+    }
+  },
+  "notifications": {
+    "types": {
+      "obligation": {
+        "met": {
+          "label": "Obligation fulfilled",
+          "description": "A torrent has seeded for the time or ratio its tracker requires."
+        },
+        "released": {
+          "label": "Obligation released",
+          "description": "A torrent left qBittorrent, through TorrentMate or outside it."
+        },
+        "breached": {
+          "label": "Obligation breached",
+          "description": "A torrent's deadline passed without its obligation being met."
+        }
+      },
+      "tracker": {
+        "ratio_low": {
+          "label": "Low ratio",
+          "description": "A tracker's ratio drops below its alert threshold."
+        },
+        "disabled": {
+          "label": "Tracker switched off",
+          "description": "TorrentMate switches a tracker off after an error (credentials refused, host unreachable)."
+        }
+      },
+      "crossseed": {
+        "failed": {
+          "label": "Cross-seed failed",
+          "description": "A cross-seed fails — never a mere absence of a match."
+        }
+      },
+      "acquisition": {
+        "arrived": {
+          "label": "Arrivals",
+          "description": "A followed movie or episode arrives in the library."
+        },
+        "to_handle": {
+          "label": "To handle",
+          "description": "An acquisition is waiting for your decision."
+        }
+      },
+      "system": {
+        "run_failed": {
+          "label": "Pipeline failed",
+          "description": "A pipeline step fails."
+        },
+        "disk_full": {
+          "label": "Disk almost full",
+          "description": "A disk drops below its free-space threshold."
+        },
+        "service_down": {
+          "label": "Service unreachable",
+          "description": "A provider or a service is no longer answering."
+        }
+      }
+    }
+  }
+}
