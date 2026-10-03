@@ -18,7 +18,8 @@ never a failure here; an operation v1 serves is held to the contract strictly:
                 at least its required ones, and only refusal codes the contract declares (the
                 contract's set is the whole interface's; v1's grows lot by lot);
 - ``right``     the operation's ``OPERATION_RIGHTS`` entry asks what the contract's
-                ``x-rights`` asks, the ruled overrides applied.
+                ``x-rights`` asks, the ruled overrides applied; an override stands only
+                over a session act (``x-rights: null``).
 
 Types are not compared: a JSON type comparison across a hand-written contract and a
 generated document reports every nullable optional, and nullability is read off neither.
@@ -39,7 +40,7 @@ from typing import Any, Final, Literal
 import pytest
 from fastapi import APIRouter, FastAPI
 
-from personalscraper.app.accounts.rights import Requirement, Right, holds
+from personalscraper.app.accounts.rights import Requirement, Right, SignedIn, holds
 from personalscraper.http_v1.app import _without_validation_answers, include_v1_router
 from personalscraper.http_v1.contract import PROBLEM_RESPONSES, ContractModel
 from personalscraper.http_v1.rights import OPERATION_RIGHTS
@@ -269,18 +270,21 @@ def _parameters(operation: dict[str, Any]) -> set[tuple[str, str, bool]]:
     }
 
 
-def _expected_right(operation_id: str, operation: dict[str, Any]) -> Requirement | None:
+def _expected_right(
+    operation_id: str, operation: dict[str, Any], overrides: Mapping[str, Requirement]
+) -> Requirement | None:
     """What the contract's ``x-rights`` asks, the ruled overrides applied.
 
     Args:
         operation_id: The operation.
         operation: The contract's operation.
+        overrides: The ruled corrections to the contract's ``null``.
 
     Returns:
         The requirement, or ``None`` when the contract stamps no ``x-rights`` on it.
     """
-    if operation_id in _OVERRIDES:
-        return _OVERRIDES[operation_id]
+    if operation_id in overrides:
+        return overrides[operation_id]
     if "x-rights" not in operation:
         return None
     return _requirement(operation["x-rights"])
@@ -291,6 +295,7 @@ def check_operation(
     served: dict[str, Any],
     rights: Mapping[str, Requirement],
     operation_id: str,
+    overrides: Mapping[str, Requirement] = _OVERRIDES,
 ) -> list[Violation]:
     """Check one served operation against the contract.
 
@@ -299,6 +304,7 @@ def check_operation(
         served: The served v1 document (paths below its mount, ``/api/v1``).
         rights: The rights table the perimeter applies.
         operation_id: The served operation to check.
+        overrides: The ruled corrections to the contract's ``null`` (a session act).
 
     Returns:
         Every violation found; empty when the operation conforms.
@@ -352,8 +358,15 @@ def check_operation(
         answered, _ = _SchemaDiff._normal(served, _json_schema(served, have_answers[code]))
         _check_problem(schema_diff, problem, answered, code)
 
-    expected = _expected_right(operation_id, wanted.body)
-    if expected is None:
+    expected = _expected_right(operation_id, wanted.body, overrides)
+    if operation_id in overrides and wanted.body.get("x-rights") is not None:
+        # An override corrects a session act (null); applied over a right, it would silence it.
+        record(
+            "right",
+            f"{operation_id}: an override replaces the contract's x-rights {wanted.body['x-rights']!r}, "
+            "which is no longer a session act",
+        )
+    elif expected is None:
         record("right", "the contract stamps no x-rights on the operation")
     elif rights.get(operation_id) != expected:
         record("right", f"the contract asks {expected!r}, OPERATION_RIGHTS asks {rights.get(operation_id)!r}")
@@ -634,6 +647,23 @@ def test_detects_a_right_differing_from_the_contract() -> None:
     rights = {**OPERATION_RIGHTS, "readVersion": holds(Right.LIBRARY_READ)}
 
     assert _kinds(_planted(_version_router()), "readVersion", rights) == {"right"}
+
+
+def test_detects_an_override_over_a_contract_right() -> None:
+    """An override on an operation the contract stamps a right on fails the right check, naming the operation.
+
+    An override corrects a session act (``null``); once the contract asks a right, the
+    override would silence it.
+    """
+    contract = _contract()
+    contract["paths"]["/version"]["get"]["x-rights"] = Right.SYSTEM_VIEW.value
+    override = {**_OVERRIDES, "readVersion": SignedIn()}
+    rights = {**OPERATION_RIGHTS, "readVersion": SignedIn()}
+
+    violations = check_operation(contract, _planted(_version_router()), rights, "readVersion", override)
+
+    assert {violation.kind for violation in violations} == {"right"}
+    assert any("readVersion" in violation.detail for violation in violations)
 
 
 def test_detects_a_wrong_path() -> None:
