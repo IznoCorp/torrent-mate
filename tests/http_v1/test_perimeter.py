@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.dependencies.models import Dependant
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
@@ -113,12 +114,50 @@ def test_operation_absent_from_the_table_is_internal(make_v1_app: Callable[..., 
     assert response.json()["code"] == "internal"
 
 
-def test_cross_origin_write_is_refused(make_v1_app: Callable[..., FastAPI]) -> None:
-    """A write from another origin is 403 ``request.cross_origin``, even on a public operation."""
-    response = _client(make_v1_app).post("/auth/login", headers={"Origin": "https://evil.example"})
+@pytest.mark.parametrize("method", ["POST", "PUT", "PATCH", "DELETE"])
+@pytest.mark.parametrize(
+    "origin",
+    [
+        pytest.param("https://evil.example", id="other-host"),
+        pytest.param("https://testserver", id="same-host-other-scheme"),
+        pytest.param("null", id="opaque-origin"),
+    ],
+)
+def test_cross_origin_write_is_refused(make_v1_app: Callable[..., FastAPI], method: str, origin: str) -> None:
+    """An unsafe request from another origin is 403 ``request.cross_origin``, even toward a public operation.
+
+    Args:
+        make_v1_app: The sub-application factory.
+        method: The unsafe method.
+        origin: The ``Origin`` header; the request itself is ``http://testserver``.
+    """
+    app = make_v1_app()
+    router = APIRouter()
+    router.add_api_route("/probe", lambda: None, methods=[method], operation_id="signIn")
+    include_v1_router(app, router)
+    response = TestClient(app, raise_server_exceptions=False).request(method, "/probe", headers={"Origin": origin})
 
     assert response.status_code == 403
     assert response.json()["code"] == "request.cross_origin"
+
+
+def test_https_origin_behind_the_proxy_headers_is_accepted(make_v1_app: Callable[..., FastAPI]) -> None:
+    """Behind the reverse proxy (``X-Forwarded-Proto: https``) an ``https`` Origin is the request's own.
+
+    The app runs under uvicorn's proxy-headers middleware, which rewrites the scope's
+    scheme; it is applied here with every client trusted, the test client not being loopback.
+    """
+    app = make_v1_app()
+    include_v1_router(app, _probe_router())
+    proxied = ProxyHeadersMiddleware(app, trusted_hosts="*")
+
+    response = TestClient(proxied, raise_server_exceptions=False).post(
+        "/library/items/delete",
+        headers={"Origin": "https://testserver", "X-Forwarded-Proto": "https"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["code"] == "auth.required"
 
 
 def test_same_origin_write_reaches_the_requirement(make_v1_app: Callable[..., FastAPI]) -> None:
