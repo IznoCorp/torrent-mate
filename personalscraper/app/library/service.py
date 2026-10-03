@@ -53,6 +53,7 @@ from personalscraper.app.library.listing import (
     LIBRARY_PAGE_SIZE,
     IndexRow,
     LibrarySort,
+    live_episode_pairs,
     live_folders,
     matches,
     ordered,
@@ -390,6 +391,42 @@ class LibraryService:
             return None
         return completeness(episodes, self._owned_pairs(row), today)
 
+    def _library_completeness(
+        self, conn: sqlite3.Connection, rows: Sequence[IndexRow], today: date
+    ) -> dict[int, Completeness]:
+        """Measure every catalogued show of the library at once.
+
+        The held episodes are read in one query and united over the rows sharing a
+        catalogue key (a duplicate's rows hold one identity); each key's catalogue is read
+        once.
+
+        Args:
+            conn: The open index.
+            rows: The live rows.
+            today: The reference date.
+
+        Returns:
+            ``{item_id: completeness}`` for the show rows whose catalogue is known.
+        """
+        held = live_episode_pairs(conn)
+        by_key: dict[tuple[str, str], list[IndexRow]] = {}
+        for row in rows:
+            key = catalogue_key(row.ids, row.canonical_provider) if row.kind == "show" else None
+            if key is not None:
+                by_key.setdefault(key, []).append(row)
+        measured: dict[int, Completeness] = {}
+        for key, sharing in by_key.items():
+            with self._lock:
+                episodes = self._catalogue.episodes(*key)
+            if episodes is None:
+                continue
+            owned = set().union(*(held.get(row.item_id, set()) for row in sharing))
+            counts = completeness(episodes, owned, today)
+            if counts is not None:
+                for row in sharing:
+                    measured[row.item_id] = counts
+        return measured
+
     def _holders(self, conn: sqlite3.Connection, ref: MediaRef) -> list[IndexRow]:
         """Every row carrying the reference's id.
 
@@ -447,18 +484,19 @@ class LibraryService:
         """
         if page < 0:
             raise AppBadRequest("The page is negative.", code=RefusalCode.REQUEST_INVALID, params={"fields": ["page"]})
+        today = self._today()
         with closing(self._connect()) as conn:
             rows = read_live_rows(conn)
+            measured = self._library_completeness(conn, rows, today) if sort is LibrarySort.MISSING else {}
         wanted = set(category or ())
         selected = [
             row for row in rows if (not wanted or row.category_id in wanted) and (query is None or matches(row, query))
         ]
         filtered = bool(wanted) or bool(query and query.strip())
-        today = self._today()
 
         def missing_of(row: IndexRow) -> int | None:
-            measured = self._completeness(row, today)
-            return measured.missing if measured is not None else None
+            counts = measured.get(row.item_id)
+            return counts.missing if counts is not None else None
 
         result = ordered(selected, sort, reversed_, missing_of)
         return LibraryPage(
@@ -512,12 +550,12 @@ class LibraryService:
         """
         with closing(self._connect()) as conn:
             rows = read_live_rows(conn)
-        today = self._today()
+            measured = self._library_completeness(conn, rows, self._today())
         found: list[tuple[int, IncompleteEntry]] = []
         for row in rows:
-            measured = self._completeness(row, today)
-            if measured is not None and measured.missing > 0:
-                found.append((measured.missing, IncompleteEntry(_entry(row), measured.owned, measured.aired)))
+            counts = measured.get(row.item_id)
+            if counts is not None and counts.missing > 0:
+                found.append((counts.missing, IncompleteEntry(_entry(row), counts.owned, counts.aired)))
         found.sort(key=lambda pair: -pair[0])
         return [entry for _, entry in found]
 

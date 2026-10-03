@@ -65,6 +65,21 @@ _LIVE_FOLDERS_SQL: Final[str] = (
 _MEDIA_FOLDER_DEPTH: Final[int] = 2
 
 
+# Every live (season, episode) pair of every show row, a multi-episode file owning its
+# whole span — the rule of ``indexer/ownership.py``'s ``_OWNED_PAIRS_TMPL``, read for the
+# whole library in one query instead of one per show and provider id.
+_LIVE_PAIRS_SQL: Final[str] = (
+    "SELECT DISTINCT s.item_id, s.number, e2.number FROM season s"
+    " JOIN episode e ON e.season_id = s.id"
+    " JOIN media_release mr ON mr.episode_id = e.id"
+    " LEFT JOIN episode ee ON ee.id = mr.episode_end_id"
+    " JOIN episode e2 ON e2.season_id = s.id"
+    " AND e2.number BETWEEN e.number AND COALESCE(ee.number, e.number)"
+    " JOIN media_file mf ON mf.release_id = mr.id"
+    " WHERE mf.deleted_at IS NULL"
+)
+
+
 class LibrarySort(StrEnum):
     """The listing's orders, by their wire values; ``RECENT`` is the order an absent ``sort`` asks for."""
 
@@ -258,6 +273,21 @@ def live_folders(conn: sqlite3.Connection, item_ids: Sequence[int]) -> dict[int,
         parts = unicodedata.normalize("NFC", rel_path).strip("/").split("/")
         folders.setdefault(item_id, set()).add(f"{disk_id}:{'/'.join(parts[:_MEDIA_FOLDER_DEPTH])}")
     return folders
+
+
+def live_episode_pairs(conn: sqlite3.Connection) -> dict[int, set[tuple[int, int]]]:
+    """Read the held ``(season, episode)`` pairs of every show row at once.
+
+    Args:
+        conn: An open connection to ``library.db``.
+
+    Returns:
+        ``{item_id: pairs}`` for the show rows holding at least one live episode.
+    """
+    pairs: dict[int, set[tuple[int, int]]] = {}
+    for item_id, season, episode in conn.execute(_LIVE_PAIRS_SQL):
+        pairs.setdefault(item_id, set()).add((int(season), int(episode)))
+    return pairs
 
 
 def fold(text: str) -> str:

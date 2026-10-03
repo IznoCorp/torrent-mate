@@ -184,3 +184,14 @@ def test_seasons_aired_is_null_when_no_episode_carries_a_date(world: World) -> N
     catalogued(world.store, "tvdb", "32", {1: [None, None]})
 
     assert dict(world.service.read_seasons(world.actor, MediaRef(tvdb_id=32)).aired) == {1: None}
+
+
+def test_incomplete_unites_the_rows_of_one_identity(world: World) -> None:
+    """Two live rows under one TVDB id, each holding one season, hold the show whole between them."""
+    first = world.index.item("Split", kind="show", tvdb="40")
+    world.index.episodes(first, 1, [1])
+    second = world.index.item("Split [UNCUT]", kind="show", tvdb="40")
+    world.index.episodes(second, 2, [1], disk=2)
+    catalogued(world.store, "tvdb", "40", {1: [_AIRED], 2: [_AIRED]})
+
+    assert world.service.read_incomplete(world.actor) == []
