@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from personalscraper.app.build_info import BUILD_INFO
 from personalscraper.app.services import AppServices
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus
@@ -201,9 +202,10 @@ def build_app_services(config: "Config", settings: "Settings") -> AppServices:
         settings: The Pydantic env-var settings.
 
     Returns:
-        The application services, with a fresh in-process :class:`EventBus`.
+        The application services, with a fresh in-process :class:`EventBus` and the
+        build read at boot.
     """
-    return AppServices(event_bus=EventBus())
+    return AppServices(event_bus=EventBus(), build_info=BUILD_INFO)
 
 
 def build_ownership_checker(config: "Config") -> "OwnershipChecker":

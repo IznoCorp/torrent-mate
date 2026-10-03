@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from personalscraper.app.build_info import BuildInfo
 from personalscraper.core.event_bus import EventBus
 
 
@@ -19,9 +20,11 @@ class AppServices:
     Attributes:
         event_bus: The process's bus; a service publishes its domain events on it
             after its write commits. No publisher is attached yet.
+        build_info: The build this process serves (``readVersion``).
     """
 
     event_bus: EventBus
+    build_info: BuildInfo
 
     def close(self) -> None:
         """Release what the services hold: nothing is opened yet, so nothing is released.

@@ -439,12 +439,14 @@ jobs:
       - run: npm run build
         if: needs.changes.outputs.frontend_app == 'true'
         working-directory: frontend
+      # Python for the OpenAPI export below, and for the conformance test at the end,
+      # which a contract-only (maquette) change must run too.
       - uses: actions/setup-python@v5
-        if: needs.changes.outputs.frontend_app == 'true'
+        if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
-        if: needs.changes.outputs.frontend_app == 'true'
+        if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
       # config-home (#326): the live config left the repo (config/ untracked, canonical at
       # ~/.torrentmate/config). CI boots the app for OpenAPI generation against the tracked
       # config.example/ via the resolver's env-first seam — never a real config.
@@ -452,8 +454,20 @@ jobs:
         if: needs.changes.outputs.frontend_app == 'true'
         env:
           PERSONALSCRAPER_CONFIG: ${{ github.workspace }}/config.example
-      - run: git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts
+      - run: git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts frontend/openapi-v1.json
         if: needs.changes.outputs.frontend_app == 'true'
+      # The v1 register is computed from two committed documents (the contract and
+      # frontend/openapi-v1.json, fresh by the step above) with the standard library
+      # alone: a contract-only PR moves it too, so the maquette's changes run it.
+      - run: python3 scripts/compare-contracts.py --check --have v1
+        if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
+      # The comparer sees names and statuses only; the conformance test judges every served
+      # operation's shapes, enums, types and rights against the contract. A contract-only PR
+      # skips the `test` job (no python change), so it runs here under the comparer's condition.
+      - run: python -m pytest tests/http_v1/test_contract_conformance.py tests/http_v1/test_rights_table.py -q --no-header
+        if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
+        env:
+          PERSONALSCRAPER_CONFIG: ${{ github.workspace }}/config.example
 
   # ── Stage 3: Coverage gate + upload ───────────────────
   coverage-merge:

@@ -82,8 +82,9 @@ check: lint
 	python3 scripts/check-command-safety.py
 	python3 scripts/check-viewport-directives.py
 	python3 scripts/check-poster-box.py
+	python3 scripts/compare-contracts.py --check --have v1
 	@echo "Checking OpenAPI drift..."
-	@if [ -d frontend/node_modules ]; then $(MAKE) openapi && git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts; else echo "openapi-drift: skipped (frontend/node_modules absent)"; fi
+	@if [ -d frontend/node_modules ]; then $(MAKE) openapi && git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts frontend/openapi-v1.json; else echo "openapi-drift: skipped (frontend/node_modules absent)"; fi
 	@if [ -d frontend/node_modules ]; then $(MAKE) check-contract-types; else echo "contract-types: skipped (frontend/node_modules absent)"; fi
 	@if [ -d frontend/node_modules ]; then $(MAKE) check-frontend; else echo "check-frontend: skipped (frontend/node_modules absent)"; fi
 
@@ -119,6 +120,7 @@ fixture:
 openapi:
 	@echo "Exporting OpenAPI schema..."
 	python scripts/export-openapi.py
+	python scripts/export-openapi.py --v1
 	@echo "Regenerating frontend TypeScript types..."
 	cd frontend && npm run gen-api
 	@echo "OpenAPI schema and TS types are up to date."

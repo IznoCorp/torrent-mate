@@ -18,6 +18,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 from starlette.routing import Mount
 
+from personalscraper.app.build_info import BUILD_INFO
 from personalscraper.app.services import AppServices
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
@@ -64,7 +65,7 @@ def _v1_mounts(app: FastAPI) -> list[Mount]:
 
 
 def _canary_router() -> APIRouter:
-    """Two v1 routes at contract paths, mount-relative, as every v1 route module writes them.
+    """A v1 write at its contract path, mount-relative, beside the served ``readVersion``.
 
     The POST is the canary of v0's mutating-route walkers: it is no v0 route, so
     neither policy table classifies it.
@@ -73,11 +74,6 @@ def _canary_router() -> APIRouter:
         The router.
     """
     router = APIRouter()
-
-    @router.get("/version", operation_id="readVersion")
-    def _version() -> dict[str, str]:
-        """A signed-in read."""
-        return {"version": "x"}
 
     @router.post("/library/items/delete", operation_id="deleteLibraryItems")
     def _delete() -> dict[str, str]:
@@ -218,7 +214,7 @@ def test_lifespan_closes_the_services() -> None:
             closed.append(True)
 
     v1_app = FastAPI()
-    v1_app.state.services = _Services(event_bus=EventBus())
+    v1_app.state.services = _Services(event_bus=EventBus(), build_info=BUILD_INFO)
 
     async def enter_both() -> None:
         """Enter the lifespan with no sub-application, then with one, checking nothing closes early."""
@@ -246,7 +242,7 @@ def test_parent_lifespan_enters_the_v1_lifespan(test_config: Config) -> None:
     config = _with_v1(test_config, True)
     config = config.model_copy(update={"web": config.web.model_copy(update={"enabled": False})})
     app = create_app(config, _settings())
-    app.state.v1_app.state.services = _Services(event_bus=EventBus())
+    app.state.v1_app.state.services = _Services(event_bus=EventBus(), build_info=BUILD_INFO)
 
     with TestClient(app):
         assert closed == []

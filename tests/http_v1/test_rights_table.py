@@ -156,3 +156,10 @@ def test_own_scoped_equals_the_maquette() -> None:
     # The TypeScript list ends with a trailing comma, which JSON refuses.
     assert frozenset(json.loads(re.sub(r",\s*\]", "]", match.group(1)))) == OWN_SCOPED
     assert len(OWN_SCOPED) == 7
+
+
+def test_right_is_the_contract_enum() -> None:
+    """``Right`` holds the contract's rights, member for member: a retired right is no member."""
+    document = json.loads(_CONTRACT.read_text(encoding="utf-8"))
+
+    assert sorted(Right) == sorted(document["components"]["schemas"]["Right"]["enum"])

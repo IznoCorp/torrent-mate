@@ -37,11 +37,10 @@ class Right(StrEnum):
     CONFIGURATION_VIEW = "configuration.view"
     CONFIGURATION_WRITE = "configuration.write"
     ACCOUNTS_MANAGE = "accounts.manage"
-    AUTH_PASSWORD = "auth.password"
 
 
 #: Every WRITE right — what an instance's forbidden-writes list may name (ruling 23).
-#: The view rights and the password door are never forbidden writes. Mirrors the
+#: The view rights are never forbidden writes. Mirrors the
 #: maquette's ``WRITE_RIGHTS`` (``frontend/maquette/design/src/lib/rights.ts``).
 WRITE_RIGHTS: Final[frozenset[Right]] = frozenset(
     {
