@@ -3,7 +3,7 @@
 A phantom is a ``media_item`` row holding no live file in a duplicate group
 (:func:`personalscraper.indexer.duplicates.find_provider_id_duplicates`) where at
 least one other row holds live files — typically the canonical-title row created
-beside an old « Title (YYYY) » row that holds the files. Removing it deletes the
+beside an old "Title (YYYY)" row that holds the files. Removing it deletes the
 index row and its empty seasons and episodes by cascade; no file on disk is
 touched, a row holding a live file is never deleted, and a group whose every row
 holds no file is left alone (an id is never emptied of its rows).
@@ -137,8 +137,8 @@ def remove_phantom_rows(
     """Delete those media_item rows (tombstone as today) and journal each; files untouched.
 
     Each id is checked again before it is deleted: a row that no longer exists or
-    holds a live file, or whose group has no other row holding one, is skipped (logged), never deleted. The deletions run in one
-    transaction; the journal rows (``record_destruction(op="delete",
+    holds a live file, or whose group has no other row holding one, is skipped
+    (logged), never deleted. The deletions run in one transaction; the journal rows (``record_destruction(op="delete",
     path="index:media_item/<id>", actor="maintenance")``) are written after it
     commits, through the journal's own connection.
 

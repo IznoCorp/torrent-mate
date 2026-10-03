@@ -57,7 +57,7 @@ def _show(conn: sqlite3.Connection, title: str, tvdb: str) -> int:
 
 
 def _seed(db_path: Path, mount: Path) -> None:
-    """Seed « House of the Dragon (2022) » (70 files on disk) and its 0-file twin, plus two all-empty rows.
+    """Seed "House of the Dragon (2022)" (70 files on disk) and its 0-file twin, plus two all-empty rows.
 
     Rows: 1 holds the files, 2 is its phantom (same tvdb 371572), 3 and 4 share tvdb 1 and
     both hold no file (a group that must stay untouched).
@@ -107,7 +107,7 @@ def _read(db_path: Path, sql: str) -> list[tuple[Any, ...]]:
 
 
 def test_apply_removes_the_phantom_and_keeps_the_row_and_its_files(tmp_path: Path, test_config: Any) -> None:
-    """After ``--apply``: one « House of the Dragon » row, its 70 files and their index rows unchanged."""
+    """After ``--apply``: one "House of the Dragon" row, its 70 files and their index rows unchanged."""
     db_path = make_synthetic_db(tmp_path)
     mount = tmp_path / "disk"
     _seed(db_path, mount)
