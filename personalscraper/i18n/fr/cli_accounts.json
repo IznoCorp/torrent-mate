@@ -7,5 +7,36 @@
     "confirm": "Répétez le nouveau mot de passe",
     "mismatch": "Les deux mots de passe diffèrent ; rien n'a été modifié.",
     "done": "Mot de passe défini pour {{email}}."
+  },
+  "token_key": {
+    "help": "Les clés qui scellent les jetons Plex conservés, lues dans PLEX_TOKEN_KEYS dans l'environnement.",
+    "rotate": {
+      "help": "Rescelle chaque jeton Plex conservé sous la première clé de PLEX_TOKEN_KEYS (la nouvelle clé d'abord, les anciennes ensuite) ; retirez ensuite les anciennes clés.",
+      "needs_two": "La rotation exige au moins deux clés dans PLEX_TOKEN_KEYS : la nouvelle d'abord, puis les anciennes. Rien n'a été modifié.",
+      "done_one": "{{count}} jeton conservé rescellé sous la première clé.",
+      "done_other": "{{count}} jetons conservés rescellés sous la première clé.",
+      "skipped_one": "Attention : {{count}} jeton conservé a été ignoré, aucune clé ne l'ouvre ; il ne s'ouvrira plus une fois l'ancienne clé retirée.",
+      "skipped_other": "Attention : {{count}} jetons conservés ont été ignorés, aucune clé ne les ouvre ; ils ne s'ouvriront plus une fois l'ancienne clé retirée."
+    }
+  },
+  "token": {
+    "help": "Les jetons Plex conservés par les connexions Plex.",
+    "keys_missing": "PLEX_TOKEN_KEYS est vide : aucune clé pour ouvrir les jetons conservés. Rien n'a été modifié.",
+    "keys_malformed": "PLEX_TOKEN_KEYS contient une clé malformée en position {{position}}. Rien n'a été modifié.",
+    "forget": {
+      "help": "Oublie le jeton Plex conservé d'un compte, ou de tous les comptes avec --all.",
+      "email_help": "L'adresse e-mail du compte, quelle que soit sa casse.",
+      "all_help": "Oublie tous les jetons conservés.",
+      "target_required": "Indiquez un EMAIL ou passez --all, pas les deux.",
+      "done_one": "{{count}} jeton conservé oublié.",
+      "done_other": "{{count}} jetons conservés oubliés."
+    },
+    "purge": {
+      "help": "Efface chaque jeton Plex conservé qu'aucune clé de PLEX_TOKEN_KEYS n'ouvre (une clé retirée, un jeton déplacé depuis un autre compte).",
+      "force_help": "Efface les jetons conservés même si aucun ne s'ouvre avec les clés actuelles.",
+      "none_opens": "Aucun jeton conservé ne s'ouvre avec les PLEX_TOKEN_KEYS actuelles : elles sont probablement fausses. Rien n'a été modifié ; passez --force pour les effacer quand même.",
+      "done_one": "{{count}} jeton conservé indéchiffrable effacé.",
+      "done_other": "{{count}} jetons conservés indéchiffrables effacés."
+    }
   }
 }
