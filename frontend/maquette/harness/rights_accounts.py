@@ -5,15 +5,16 @@ ruling 22, round 9 Q14 = A, M7, F2.
 
 1. R-L18-s — BOTH SIDES: « Comptes » is a menu entry, MARKED for a household member and its
    page explains the right it lacks; forcing the roster answers 403.
-2. R-L18-t — FROM THE ANSWER: one row per account, its role by the served name, « sans droits »
-   for the Default role; one row per role; Admin's role panel offers nothing.
+2. R-L18-t — FROM THE ANSWER: one row per account, its role by the served name (Admin by its
+   kind, gap G-10); one row per role, the five the operator seeded (O-K1-4); Admin's role panel
+   offers nothing.
 3. R-L18-u — A CHANGE MOVES, AND REACHES THE ACCOUNT: giving `trackers.view` to the household
    role through its panel calls updateRole, and a household member signed in afterwards has
    Trackers in its bar. Demoting the last Admin answers 409.
 4. R-L18-u (M7) — NO ESCALATION: a manager who is not Admin sees no Admin account, sees the roles
    beyond its own greyed, and forcing one, or touching its own role, answers 403.
-5. R-L18-v — A NEW ACCOUNT: refused without an e-mail; created with one, on its role, linked to
-   Plex when the e-mail matches.
+5. R-L18-v — A NEW ACCOUNT: refused without an e-mail; created with one that is a user of the
+   managed server, linked to Plex on the role its kind starts on (O-K1-4).
 """
 import asyncio
 import json
@@ -64,10 +65,10 @@ async def main():
         role_name = {role["id"]: role["name"] for role in SEEDS["roles"]}
         journal.check("R-L18-t: one row per account, in the answer's order",
                       [one["name"] for one in rows["accounts"]] == [one["name"] for one in every], str(rows["accounts"]))
-        bare = next(one for one in rows["accounts"] if one["name"] == next(
-            a["name"] for a in SEEDS["accounts"] if a["role"] == "default"))
-        journal.check("R-L18-t: the Default role reads « sans droits »", bare["role"] == "sans droits", str(bare))
-        others = [one for one in rows["accounts"] if one is not bare and one["name"] != OWNER["name"]]
+        owner = next(one for one in rows["accounts"] if one["name"] == OWNER["name"])
+        admin_words = await page.evaluate("()=>window.__i18n.t('access.roleKinds.admin')")
+        journal.check("G-10: the Admin role is named by its kind, from fr.json", owner["role"] == admin_words, str(owner))
+        others = [one for one in rows["accounts"] if one["name"] != OWNER["name"]]
         journal.check("R-L18-t: every other account shows its role's served name",
                       all(one["role"] in role_name.values() for one in others), str(others))
         journal.check("R-L18-t: one row per role", rows["roles"] == [role["name"] for role in SEEDS["roles"]], str(rows["roles"]))
@@ -100,10 +101,10 @@ async def main():
         acts = await page.evaluate(ACTS, "data-account-role")
         greyed = {one["value"].split("|")[1] for one in acts if one["off"]}
         journal.check("Q14 = A: the roles beyond the manager's own are greyed, Admin's among them",
-                      {"admin", "household"} <= greyed and "default" not in greyed, str(sorted(greyed)))
+                      {"admin", "household"} <= greyed and "local-guest" not in greyed, str(sorted(greyed)))
         up = await page.evaluate(CALL, [None, "PATCH", "/api/v1/accounts/household-member", {"role": "household-sees-all"}])
         own = await page.evaluate(CALL, [None, "PATCH", "/api/v1/roles/spectator", {"rights": ["library.read"]}])
-        admin = await page.evaluate(CALL, [None, "PATCH", f"/api/v1/accounts/{OWNER['id']}", {"role": "default"}])
+        admin = await page.evaluate(CALL, [None, "PATCH", f"/api/v1/accounts/{OWNER['id']}", {"role": "local-guest"}])
         journal.check("Q14 = A / M7: forcing a wider role, its own role or an Admin account answers 403",
                       (up, own, admin) == (403, 403, 403), str((up, own, admin)))
 
@@ -112,7 +113,7 @@ async def main():
         created = await page.evaluate("()=>window.__mocks.answered().filter((one)=>one.operationId==='createAccount').length")
         journal.check("R-L18-v: a new account without an e-mail is refused, and nothing is asked",
                       refusal and created == 0, f"{refusal} / {created} calls")
-        forced = await page.evaluate(CALL, [None, "POST", "/api/v1/accounts", {"name": "Maya", "email": "", "role": "default"}])
+        forced = await page.evaluate(CALL, [None, "POST", "/api/v1/accounts", {"name": "Maya", "email": "", "role": "local-guest"}])
         journal.check("R-L18-v: forced without an e-mail, the creation answers 400", forced == 400, str(forced))
         await page.fill('[data-part="accounts/create"] input[name="name"]', "Maya")
         await page.fill('[data-part="accounts/create"] input[name="email"]', SEEDS["plexUsers"][0])
@@ -120,8 +121,9 @@ async def main():
         await page.wait_for_timeout(ACTED + SETTLED)
         roster = await page.evaluate("async()=>(await (await fetch('/api/v1/accounts')).json()).accounts")
         newcomer = next((one for one in roster if one["name"] == "Maya"), None)
-        journal.check("R-L18-v: with an e-mail, the account is created on its role and linked to Plex",
-                      newcomer is not None and newcomer["role"]["kind"] == "default" and newcomer["plexLinked"], str(newcomer))
+        journal.check("R-L18-v: an e-mail that is a user of the server links it, on the role its kind starts on",
+                      newcomer is not None and newcomer["role"]["id"] == "plex-guest" and newcomer["signInKind"] == "plex",
+                      str(newcomer))
         rows = await page.evaluate(ROWS)
         journal.check("R-L18-v: the roster draws it", "Maya" in [one["name"] for one in rows["accounts"]])
 

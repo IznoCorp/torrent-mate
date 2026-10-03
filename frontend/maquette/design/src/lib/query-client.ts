@@ -21,7 +21,7 @@
 import { CancelledError, QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useSyncExternalStore } from "react";
 import { holdBack, setDeparture } from "../app/outbox";
-import type { paths } from "../contract/types";
+import type { components, paths } from "../contract/types";
 import { SERVER_BASE } from "./server-base";
 
 /**
@@ -216,6 +216,10 @@ export type RequestFailure = {
   status: number;
   title: string;
   detail: string;
+  /** The closed reason a surface says in its own words (`lib/refusal.ts`; gap G-1). */
+  code?: components["schemas"]["RefusalCode"];
+  /** The values the code's words name. */
+  params?: Record<string, string | number>;
 };
 
 /**

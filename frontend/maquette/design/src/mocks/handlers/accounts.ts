@@ -4,14 +4,15 @@
 // INVENTED beside the owner (`../identity`): read only while a named state
 // dials a manager or turns the invented accounts on.
 //
-// THE GUARDS ARE THE SERVER'S, and each answers with its reason:
-//   · 409 — no account left on the Admin role, none left holding
-//     `auth.password` (the door of last resort), a system role renamed, the
-//     Admin role given a list (F2; ruling 22);
+// THE GUARDS ARE THE SERVER'S, and each answers with its code (gap G-1):
+//   · 409 — no account left on the Admin role, the Admin role modified
+//     (F2; ruling 22), an e-mail already taken;
 //   · 403 — escalation (round 9 Q14 = A, M7): a manager who is not Admin sets
 //     only rights its own role holds, never its own role, never an account on
 //     the Admin role;
 //   · 400 — a new account without an e-mail.
+// No guard keeps a password holder: the owner's fallback password is his
+// account's, replaced on the server only (the operator, 2026-10-03).
 import ACCOUNTS from "../seeds/accounts.json";
 import { GET, PATCH, POST, field, route, text } from "./shared";
 import { refused, type MockRoute } from "../router";
@@ -26,7 +27,6 @@ const FORBIDDEN = 403;
 const MISSING = 404;
 const CONFLICT = 409;
 const ADMIN = "admin";
-const DEFAULT = "default";
 
 /** The roster, as `readAccounts` answers it. */
 function answered() {
@@ -49,7 +49,8 @@ function summary(one: HeldAccount, every: Role[] = roles()) {
     name: one.name,
     email: one.email,
     role: every.find((role) => role.id === one.role)!,
-    plexLinked: one.plexLinked,
+    signInKind: one.signInKind,
+    ...(one.demotedFrom ? { demotedFrom: one.demotedFrom } : {}),
   };
 }
 
@@ -65,24 +66,24 @@ function within(rights: readonly string[]): boolean {
   return own.kind === ADMIN || rights.every((right) => own.rights.includes(right as Right));
 }
 
-/** Whether a role opens a right, Admin's bypass included. */
-function opens(role: Role, right: Right): boolean {
-  return role.kind === ADMIN || role.rights.includes(right);
+/**
+ * Whether the roster, as it would stand, keeps an account on the Admin role.
+ *
+ * @param accounts The accounts, each on the role it would hold.
+ * @returns True when one is left on it.
+ */
+function keepsAnAdmin(accounts: HeldAccount[]): boolean {
+  return accounts.some((one) => roleFor(one.role).kind === ADMIN);
 }
 
 /**
- * Whether the roster, as it would stand, keeps an Admin and a password holder.
+ * The role a newcomer of one kind starts on (O-K1-4).
  *
- * @param accounts The accounts, each on the role it would hold.
- * @param every The roles as they would stand.
- * @returns The reason it would not, or null.
+ * @param kind Who starts: a Plex Home user, another user of the server, a local account.
+ * @returns The role, or undefined when none is marked for it.
  */
-function lastResort(accounts: HeldAccount[], every: Role[]): string | null {
-  const role = (one: HeldAccount) => every.find((candidate) => candidate.id === one.role)!;
-  if (!accounts.some((one) => role(one).kind === ADMIN)) return "no account would be left on the Admin role";
-  if (!accounts.some((one) => opens(role(one), "auth.password")))
-    return "no account would be left holding auth.password";
-  return null;
+function startingRole(kind: "plexHome" | "plexGuest" | "local"): Role | undefined {
+  return roles().find((one) => one.defaultFor?.includes(kind));
 }
 
 /** Every route this subject answers. */
@@ -92,18 +93,27 @@ export function accountRoutes(): MockRoute[] {
     route("createAccount", POST, "/accounts", (request) => {
       const name = text(request.body, "name").trim();
       const email = text(request.body, "email").trim();
-      const role = text(request.body, "role");
-      if (!email.includes("@") || !name) return refused(INVALID, "a local account carries a name and an e-mail");
-      const target = roles().find((one) => one.id === role);
-      if (target === undefined) return refused(MISSING, "no role carries that id");
-      if (target.kind === ADMIN && callerRole().kind !== ADMIN) return refused(FORBIDDEN, "only Admin gives Admin");
-      if (!within(target.rights)) return refused(FORBIDDEN, "the role holds rights the caller's does not");
+      if (!email.includes("@") || !name) return refused(INVALID, "a local account carries a name and an e-mail", "account.email_invalid");
+      // AN E-MAIL THAT IS A USER OF THE MANAGED SERVER IS LINKED from the start,
+      // signs in by Plex only, and starts on its Plex kind's role; any other is a
+      // local account, on the role asked, else the one local accounts start on
+      // (O-K1-4).
+      const linked = ACCOUNTS.plexUsers.includes(email.toLowerCase());
+      const asked = text(request.body, "role");
+      const target = linked ? startingRole("plexGuest") : asked ? roles().find((one) => one.id === asked) : startingRole("local");
+      if (target === undefined) return refused(MISSING, "no role carries that id", "role.unknown");
+      if (target.kind === ADMIN && callerRole().kind !== ADMIN)
+        return refused(FORBIDDEN, "only Admin gives Admin", "role.escalation");
+      if (!within(target.rights))
+        return refused(FORBIDDEN, "the role holds rights the caller's does not", "role.escalation");
+      if (heldAccounts().some((one) => one.email.toLowerCase() === email.toLowerCase()))
+        return refused(CONFLICT, "an account already carries that e-mail", "account.email_taken");
       const created: HeldAccount = {
         id: `account-${heldAccounts().length + 1}`,
         name,
         email,
-        role,
-        plexLinked: ACCOUNTS.plexUsers.includes(email.toLowerCase()),
+        role: target.id,
+        signInKind: linked ? "plex" : "local",
       };
       roster.addAccount(created);
       return summary(created);
@@ -111,23 +121,26 @@ export function accountRoutes(): MockRoute[] {
     route("updateAccount", PATCH, "/accounts/{accountId}", (request) => {
       const account = heldAccounts().find((one) => one.id === request.parameters.accountId);
       const target = roles().find((one) => one.id === text(request.body, "role"));
-      if (account === undefined || target === undefined) return refused(MISSING, "no such account or role");
+      if (account === undefined) return refused(MISSING, "no account carries that id", "account.unknown");
+      if (target === undefined) return refused(MISSING, "no role carries that id", "role.unknown");
       const caller = callerRole();
       if (caller.kind !== ADMIN) {
-        if (account.id === signedInId()) return refused(FORBIDDEN, "a manager never touches its own role");
+        if (account.id === signedInId()) return refused(FORBIDDEN, "a manager never touches its own role", "role.own_role");
         if (roleFor(account.role).kind === ADMIN || target.kind === ADMIN)
-          return refused(FORBIDDEN, "a manager who is not Admin never touches Admin");
-        if (!within(target.rights)) return refused(FORBIDDEN, "the role holds rights the caller's does not");
+          return refused(FORBIDDEN, "a manager who is not Admin never touches Admin", "account.admin_untouchable");
+        if (!within(target.rights))
+          return refused(FORBIDDEN, "the role holds rights the caller's does not", "role.escalation");
       }
       const after = heldAccounts().map((one) => (one.id === account.id ? { ...one, role: target.id } : one));
-      const reason = lastResort(after, roles());
-      if (reason) return refused(CONFLICT, reason);
+      if (!keepsAnAdmin(after))
+        return refused(CONFLICT, "no account would be left on the Admin role", "account.last_admin");
       roster.assign(account.id, target.id);
-      return summary({ ...account, role: target.id });
+      return summary(heldAccounts().find((one) => one.id === account.id)!);
     }),
     route("createRole", POST, "/roles", (request) => {
       const rights = (field(request.body, "rights") as Right[] | undefined) ?? [];
-      if (!within(rights)) return refused(FORBIDDEN, "the role would hold rights the caller's does not");
+      if (!within(rights))
+        return refused(FORBIDDEN, "the role would hold rights the caller's does not", "role.escalation");
       const created: Role = {
         id: `role-${roles().length + 1}`,
         name: text(request.body, "name") || `role-${roles().length + 1}`,
@@ -139,23 +152,19 @@ export function accountRoutes(): MockRoute[] {
     }),
     route("updateRole", PATCH, "/roles/{roleId}", (request) => {
       const role = roles().find((one) => one.id === request.parameters.roleId);
-      if (role === undefined) return refused(MISSING, "no role carries that id");
-      if (role.kind === ADMIN) return refused(CONFLICT, "the Admin role holds no list and is not modified");
+      if (role === undefined) return refused(MISSING, "no role carries that id", "role.unknown");
+      if (role.kind === ADMIN)
+        return refused(CONFLICT, "the Admin role holds no list and is not modified", "role.system_immutable");
       const name = field(request.body, "name");
       const rights = field(request.body, "rights") as Right[] | undefined;
-      if (typeof name === "string" && role.kind === DEFAULT) return refused(CONFLICT, "a system role keeps its name");
       if (callerRole().kind !== ADMIN) {
-        if (callerRole().id === role.id) return refused(FORBIDDEN, "a manager never touches its own role");
-        if (rights && !within(rights)) return refused(FORBIDDEN, "the role would hold rights the caller's does not");
+        if (callerRole().id === role.id) return refused(FORBIDDEN, "a manager never touches its own role", "role.own_role");
+        if (rights && !within(rights))
+          return refused(FORBIDDEN, "the role would hold rights the caller's does not", "role.escalation");
         if (typeof name === "string" && !within(role.rights))
-          return refused(FORBIDDEN, "a manager renames only a role within its own rights");
+          return refused(FORBIDDEN, "a manager renames only a role within its own rights", "role.escalation");
       }
-      if (rights) {
-        const every = roles().map((one) => (one.id === role.id ? { ...one, rights } : one));
-        const reason = lastResort(heldAccounts(), every);
-        if (reason) return refused(CONFLICT, reason);
-        roster.setRoleRights(role.id, rights);
-      }
+      if (rights) roster.setRoleRights(role.id, rights);
       if (typeof name === "string" && name.trim()) roster.renameRole(role.id, name.trim());
       return roleFor(role.id);
     }),

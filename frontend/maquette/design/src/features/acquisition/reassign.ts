@@ -18,7 +18,7 @@ import { registerVerb } from "../../lib/verbs";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 import type { Schemas } from "../../lib/contract-schemas";
 import { rightsOf } from "../../lib/rights";
-import { accountsQuery } from "../../lib/account";
+import { accountsQuery, roleLabel } from "../../lib/account";
 import { heldAcquisition } from "./act-rights";
 import { followsQuery } from "./queries";
 import { queueKey } from "../../lib/queue";
@@ -68,7 +68,7 @@ function reassignPanel(subject: string, cache: PanelCache): PanelDescriptor | nu
             type: "actions",
             actions: choices.map((one) => ({
               text: one.name,
-              mention: one.role.name,
+              mention: roleLabel(one.role),
               target: { "reassign-to": [kind, title, from!.id, one.id].join(PART) },
             })),
           }

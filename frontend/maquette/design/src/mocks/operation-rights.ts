@@ -37,6 +37,10 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   signIn: null,
   signOut: null,
   signInWithPlex: null,
+  startPlexSignIn: null,
+  // A local account's own password (the operator, 2026-10-03): a session act.
+  // The owner's and a Plex-linked account's are refused by their kind, not a right.
+  changeOwnPassword: null,
   readVersion: null,
   // The account's own notification choices and its devices' tokens: each
   // account reads its own, and the read answers only the types its rights
@@ -74,6 +78,8 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   readStaging: ACQUISITION,
   readStagedMediaCopies: ACQUISITION,
   readStagingDestinations: ACQUISITION,
+  // SEARCHING SERVES ONLY ADDING, so it asks the right to request: an instance
+  // that cannot add (staging) keeps its « ＋ » closed, search included.
   readSuggestions: "acquisition.request",
   searchProviders: "acquisition.request",
   searchProviderById: "acquisition.request",
@@ -86,9 +92,10 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   grabForFollow: PILOT,
   grabSeasonForFollow: PILOT,
   requeueJourney: PILOT,
-  // THE ACCOUNT'S OWN SEEN MARK on a closed tunnel (BK5): whoever reads
-  // « À traiter » reads its closures, and marks them seen for itself.
-  dismissClosure: "acquisition.todo.view",
+  // THE ACCOUNT'S OWN SEEN MARK on a closed tunnel (BK5): a write on the
+  // account's own state, so a session act like the notification writes (the
+  // operator, 2026-10-03) — the read-only instance's server refuses it.
+  dismissClosure: null,
   rescrapeJourney: PILOT,
   setAcquisitionQuality: "acquisition.quality.own",
   setAcquisitionPause: "acquisition.pause.own",

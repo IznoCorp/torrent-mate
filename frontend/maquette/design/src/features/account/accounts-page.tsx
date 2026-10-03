@@ -3,25 +3,27 @@
 // with Réglages, opened by `accounts.manage`).
 //
 // EVERYTHING HERE IS THE ANSWER'S: one row per account the roster holds, its
-// role by the name the server gives it — « sans droits » for the Default role,
-// which opens the library alone — and one row per role. A tap opens the
+// role by the name the server gives it — the Admin role named by its kind
+// (gap G-10) — how it signs in, and one row per role. A tap opens the
 // account's panel (its role) or the role's (its rights).
+//
+// A LINK THAT DEMOTED AN ACCOUNT IS SAID ON ITS ROW (the operator, 2026-10-03:
+// « il perd son rôle et prend le rôle par défaut il devra être promu à nouveau
+// par un Admin »; O-K1-4): the role it held before, until a role is given again.
 import { useState } from "react";
 import type { FormEvent, ReactElement } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { accountsQuery, useAccount } from "../../lib/account";
-import { bypassesRights, isDefaultRole } from "../../lib/rights";
+import { accountsQuery, roleLabel, useAccount } from "../../lib/account";
+import { refusalWords } from "../../lib/refusal";
+import { bypassesRights } from "../../lib/rights";
 import { isRequestFailure, send } from "../../lib/query-client";
 import { FactRows } from "../../ui/fact-rows";
 import { actionButton, factList, guidance, sectionHeading, surfaceError } from "../../ui/variants";
 import type { Schemas } from "../../lib/contract-schemas";
 import { accountField, accountForm } from "./variants";
 import { withinReach } from "./roster-panels";
-
-// The status the escalation guard answers with.
-const FORBIDDEN = 403;
 
 export function AccountsPage(): ReactElement | null {
   const { t } = useTranslation();
@@ -33,8 +35,13 @@ export function AccountsPage(): ReactElement | null {
       <ol className={factList()} data-part="flux">
         <FactRows rows={roster.accounts.map((account) => ({
           label: account.name,
-          value: isDefaultRole(account.role) ? t("screens.accounts.rightless") : account.role.name,
-          secondaryLine: `${account.email} · ${t(account.plexLinked ? "screens.accounts.plexLinked" : "screens.accounts.plexNotLinked")}`,
+          value: roleLabel(account.role),
+          secondaryLine: [
+            account.email,
+            t(`screens.accounts.signInKind.${account.signInKind}`),
+            account.demotedFrom !== undefined ? t("screens.accounts.demotedShort") : null,
+          ].filter(Boolean).join(" · "),
+          tone: account.demotedFrom !== undefined ? "warning" : undefined,
           target: { panel: `roster:${account.id}` },
           part: "accounts/account",
         }))} />
@@ -43,7 +50,7 @@ export function AccountsPage(): ReactElement | null {
       <h2 className={sectionHeading()} data-part="heading">{t("screens.accounts.roles")}</h2>
       <ol className={factList()} data-part="flux">
         <FactRows rows={roster.roles.map((role) => ({
-          label: role.name,
+          label: roleLabel(role),
           value: bypassesRights(role) ? t("screens.accounts.bypass") : t("screens.accounts.roleCount", { count: role.rights.length }),
           target: { panel: `role:${role.id}` },
           part: "accounts/role",
@@ -89,10 +96,8 @@ function NewAccount({ roles }: { roles: Schemas["Role"][] }): ReactElement {
       form.reset();
       await client.refetchQueries({ queryKey: accountsQuery.queryKey });
     } catch (failure) {
-      // A REFUSAL SAYS WHY: refusedByRights the manager's rights is the one the guard
-      // gives (round 9 Q14 = A); anything else is said as a refusal.
-      const refusedByRights = isRequestFailure(failure) && failure.status === FORBIDDEN;
-      setRefusal(t(refusedByRights ? "screens.accounts.createBeyond" : "screens.accounts.createRefused"));
+      // A REFUSAL SAYS WHY, in `fr.json`'s words for its code (gap G-1).
+      setRefusal(refusalWords(isRequestFailure(failure) ? failure : undefined, "screens.accounts.createRefused"));
     }
   }
 
@@ -109,11 +114,11 @@ function NewAccount({ roles }: { roles: Schemas["Role"][] }): ReactElement {
       </label>
       <label>
         {t("screens.accounts.initialRole")}
-        <select className={accountField()} name="role" defaultValue={roles.find(isDefaultRole)?.id}>
+        <select className={accountField()} name="role" defaultValue={roles.find((role) => role.defaultFor?.includes("local"))?.id}>
           {/* GREYED, NEVER HIDDEN, where the manager may not give it — the
               account sheet's own rule for the same choice (round 9 Q14 = A). */}
           {roles.map((role) => (
-            <option key={role.id} value={role.id} disabled={!withinReach(role.rights, manager)}>{role.name}</option>
+            <option key={role.id} value={role.id} disabled={!withinReach(role.rights, manager)}>{roleLabel(role)}</option>
           ))}
         </select>
       </label>

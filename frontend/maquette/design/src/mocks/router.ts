@@ -4,6 +4,9 @@
 // `/media/{provider}/{providerId}` — so a route this layer answers and a
 // route the contract declares cannot drift apart without a guard seeing it.
 import { setLastStatus } from "./answered";
+import type { components } from "../contract/types";
+
+type RefusalCode = components["schemas"]["RefusalCode"];
 
 /** One request, as a handler receives it. */
 export type MockRequest = {
@@ -24,8 +27,11 @@ export type MockAnswer = unknown;
 // for one — a seed with a `status` field is data, not a decision.
 const REFUSAL = Symbol("refusal");
 
-/** A handler's own refusal: the status it chose, and the reason it gives. */
-type Refusal = { [REFUSAL]: true; status: number; detail: string };
+/** The closed reason a refusal carries (gap G-1), and the values its words name. */
+type Coded = { code: RefusalCode; params?: Record<string, string | number> };
+
+/** A handler's own refusal: the status it chose, the reason it gives, and its code when it has one. */
+type Refusal = { [REFUSAL]: true; status: number; detail: string; coded?: Coded };
 
 /**
  * A handler's refusal to answer, with the status the contract declares for it.
@@ -35,12 +41,40 @@ type Refusal = { [REFUSAL]: true; status: number; detail: string };
  * has looked, and answering `null` with a 200 in its place would tell the
  * interface the passage exists and is empty.
  *
+ * THE CODE IS WHAT THE INTERFACE READS (X4; gap G-1): `detail` is English, for
+ * logs, and a surface says the code in `fr.json`'s words.
+ *
  * @param status The status, one the operation declares.
  * @param detail Why, in the problem body's own words.
+ * @param code The closed reason, when the operation's lot has landed its codes.
+ * @param params The values the code's words name.
  * @returns The refusal, for the layer to answer with.
  */
-export function refused(status: number, detail: string): Refusal {
-  return { [REFUSAL]: true, status, detail };
+export function refused(
+  status: number,
+  detail: string,
+  code?: RefusalCode,
+  params?: Record<string, string | number>,
+): Refusal {
+  return { [REFUSAL]: true, status, detail, ...(code ? { coded: { code, ...(params ? { params } : {}) } } : {}) };
+}
+
+// THE MARK OF A SUCCESS WHOSE STATUS THE HANDLER CHOSE — one the operation
+// declares beside its first, as `signInWithPlex`'s 202 « not claimed yet ».
+const CHOSEN = Symbol("chosen");
+
+/** A handler's own success status, and its payload. */
+type Chosen = { [CHOSEN]: true; status: number; payload: unknown };
+
+/**
+ * A success answered with a status the handler chose, one the operation declares.
+ *
+ * @param status The status.
+ * @param payload The body.
+ * @returns The answer, for the layer to send.
+ */
+export function answeredWith(status: number, payload: unknown): Chosen {
+  return { [CHOSEN]: true, status, payload };
 }
 
 /**
@@ -54,6 +88,11 @@ export function refused(status: number, detail: string): Refusal {
  * @returns The status and the body to send.
  */
 export function settled(status: number, answer: MockAnswer): { status: number; payload: unknown } {
+  if (typeof answer === "object" && answer !== null && CHOSEN in answer) {
+    const chosen = answer as Chosen;
+    setLastStatus(chosen.status);
+    return { status: chosen.status, payload: chosen.payload };
+  }
   if (typeof answer !== "object" || answer === null || !(REFUSAL in answer)) {
     return { status, payload: answer };
   }
@@ -61,7 +100,7 @@ export function settled(status: number, answer: MockAnswer): { status: number; p
   setLastStatus(refusal.status);
   return {
     status: refusal.status,
-    payload: { status: refusal.status, title: "refused by the handler", detail: refusal.detail },
+    payload: { status: refusal.status, title: "refused by the handler", detail: refusal.detail, ...refusal.coded },
   };
 }
 

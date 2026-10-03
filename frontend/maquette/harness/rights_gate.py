@@ -1,4 +1,4 @@
-"""R427 — the gate offers Plex first, the password behind a disclosure, and `auth.password` decides who a password admits (§ 17).
+"""R427 — the gate offers Plex first, the password behind a disclosure, and the account's kind decides who a password admits (§ 17).
 
 DESIGN maquette-l18 § 3.1, § 5 (R-L18-q, R-L18-r), round 8 Q10 = B, F47.
 
@@ -8,14 +8,15 @@ DESIGN maquette-l18 § 3.1, § 5 (R-L18-q, R-L18-r), round 8 Q10 = B, F47.
 2. R-L18-q — PLEX FIRST: the gate draws « Se connecter avec Plex » and keeps the password form
    CLOSED behind « Utiliser un mot de passe »; tapped, the disclosure opens the form.
 3. R-L18-r — PLEX UNREACHABLE opens the disclosure by itself and says why.
-4. R-L18-r — A PASSWORD FOR AN ACCOUNT WITHOUT `auth.password` is refused with its reason (403);
-   the owner's password (Admin holds the right) walks through.
+4. R-L18-r — A PASSWORD FOR A PLEX-LINKED ACCOUNT is refused with the one refusal every failed
+   attempt gets (401 `auth.refused`, O-K1-4 anti-enumeration); the owner's fallback walks through.
 5. R-L18-r — A Default-only Plex account is admitted, read-only: it lands on the Médiathèque,
    with no bar.
 6. A landing whose account read is CANCELLED — the cache cleared under it — lands nowhere and
    raises nothing.
 """
 import asyncio
+import json
 import pathlib
 import re
 import subprocess
@@ -24,6 +25,7 @@ from common import SETTLED, ACTED, Journal, open_page, browser_channel, chrome_l
 from playwright.async_api import async_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+OWNER_EMAIL = json.loads((ROOT / "design/src/mocks/seeds/account.json").read_text(encoding="utf-8"))["email"]
 REGION = re.compile(r"<!-- login:markup:start -->.*?<!-- login:markup:end -->", re.S)
 
 GATE = """() => ({
@@ -103,18 +105,18 @@ async def main():
                       down["form"] and down["unreachable"], str(down))
 
         refused = await at("signin-password-refused", ACTED)
-        words = await page.evaluate("()=>window.__i18n.t('screens.gate.passwordRefused')")
+        words = await page.evaluate("()=>window.__i18n.t('refusals.auth.refused')")
         statuses = await page.evaluate("()=>window.__mocks.answered().filter((one)=>one.operationId==='signIn').map((one)=>one.status)")
-        journal.check("R-L18-r: a guest's password is refused with its reason", refused["shown"]
-                      and refused["refusal"] == words and 403 in statuses, f"{refused['refusal']} {statuses}")
+        journal.check("R-L18-r: a Plex-linked account's password is refused like any failed attempt", refused["shown"]
+                      and refused["refusal"] == words and 401 in statuses, f"{refused['refusal']} {statuses}")
 
         await at("signin-password-open")
-        await page.fill('#loginform input[name="username"]', "izno")
+        await page.fill('#loginform input[name="username"]', OWNER_EMAIL)
         await page.fill('#loginform input[name="password"]', "secret")
         await page.click('[data-part="login/submit"]')
         await page.wait_for_timeout(ACTED + SETTLED)
         owner = await page.evaluate(GATE)
-        journal.check("R-L18-r: the owner's password walks through (Admin holds the right)", not owner["shown"], str(owner))
+        journal.check("R-L18-r: the owner's fallback password walks through", not owner["shown"], str(owner))
 
         bare = await at("signin-plex-bare", ACTED + SETTLED)
         journal.check("R-L18-r: a Default-only Plex account lands on the Médiathèque, with no bar",

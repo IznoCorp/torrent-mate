@@ -20,7 +20,10 @@ from playwright.async_api import async_playwright
 SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
 SEEDS = json.loads((SOURCE / "mocks/seeds/accounts.json").read_text(encoding="utf-8"))
 CARD = "Star Trek: Strange New Worlds (2022)"
-SEES = {role["id"] for role in SEEDS["roles"] if "acquisition.see.others" in role["rights"]}
+# The chooser's state turns the test roster on (its invented requests are the test accounts').
+ROLES = SEEDS["roles"] + SEEDS["testRoles"]
+ACCOUNTS = SEEDS["accounts"] + SEEDS["testAccounts"]
+SEES = {role["id"] for role in ROLES if "acquisition.see.others" in role["rights"]}
 
 CHOICES = """() => [...document.querySelectorAll('#sheet [data-reassign-to]')]
   .map((one) => ({ value: one.getAttribute('data-reassign-to'), text: one.textContent }))"""
@@ -55,7 +58,7 @@ async def main():
         choices = await page.evaluate(CHOICES)
         before = await page.evaluate(REQUESTERS, CARD)
         chosen = sorted(choice["value"].split("|")[3] for choice in choices)
-        expected = sorted(one["id"] for one in SEEDS["accounts"]
+        expected = sorted(one["id"] for one in ACCOUNTS
                           if (one["id"] in (before or []) or one["role"] in SEES) and one["id"] != (before or [""])[0])
         journal.check("R-L18-i (M9): the chooser lists exactly the accounts that see the card", chosen == expected,
                       f"offered {chosen}, expected {expected}, requesters {before}")

@@ -4,10 +4,17 @@
 //
 // THE CONNECTED ACCOUNT AND ITS PREFERENCES, for everyone (ruling 14): its
 // role's NAME — shown, never compared (ruling 20) — what it can do and why not
-// the rest, and its Plex link. The other accounts left for « Comptes ».
+// the rest, and how it signs in. The other accounts left for « Comptes ».
+//
+// HOW IT SIGNS IN IS THE ACCOUNT'S OWN FACT (the operator, 2026-10-03): every
+// login is its e-mail; the Plex owner's fallback password changes on the server
+// only, a Plex-linked account holds none, and a LOCAL account changes its own
+// password here.
 import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useTranslation } from "react-i18next";
 import { useAccount, useRights } from "./queries";
+import { roleLabel } from "../../lib/account";
+import { PasswordSection } from "./password-section";
 import { RIGHTS, bypassesRights } from "../../lib/rights";
 import type { ReactElement } from "react";
 import { FactRows, type FactRow } from "../../ui/fact-rows";
@@ -26,9 +33,8 @@ export function AccountPage(): ReactElement | null {
   const held = RIGHTS.filter((right) => rights.holds(right));
   const lacking = RIGHTS.filter((right) => !rights.holds(right));
   // THE CONFIGURATION'S ACCOUNT IS THE ADMIN'S: its name comes from
-  // `web.username` and its address only notifies. Any other account is the
-  // roster's — named in « Comptes », its address the one that links Plex — and
-  // those two lines would be false for it (the reader's L18 round).
+  // `web.username`. Any other account is the roster's, named in « Comptes »,
+  // and that line would be false for it (the reader's L18 round).
   const fromConfiguration = bypassesRights(ACCOUNT.role);
   const facts = (rows: FactRow[]) => (
     <ol className={factList()} data-part="flux">
@@ -52,22 +58,23 @@ export function AccountPage(): ReactElement | null {
         {
           label: t("screens.accountPage.address"),
           value: ACCOUNT.email,
-          secondaryLine: fromConfiguration
-            ? t("screens.accountPage.addressSub")
-            : ACCOUNT.plexLinked ? t("screens.accountPage.addressPlexSub") : undefined,
+          secondaryLine: t("screens.accountPage.addressSub"),
         },
         {
           label: t("screens.accountPage.role"),
-          value: ACCOUNT.role.name,
+          value: roleLabel(ACCOUNT.role),
           secondaryLine: t("screens.accountPage.roleSub"),
           part: "profile/role",
         },
         {
-          label: t("screens.accountPage.plex"),
-          value: t(ACCOUNT.plexLinked ? "screens.accountPage.plexLinked" : "screens.accountPage.plexNotLinked"),
-          part: "profile/plex",
+          label: t("screens.accountPage.signIn"),
+          value: t(`screens.accountPage.signInKind.${ACCOUNT.signInKind}.value`),
+          secondaryLine: t(`screens.accountPage.signInKind.${ACCOUNT.signInKind}.line`),
+          part: "profile/sign-in",
         },
       ])}
+
+      {ACCOUNT.signInKind === "local" ? <PasswordSection /> : null}
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.accountPage.can")}</h2>
       {/* A HELD RIGHT SAYS SO in its chip — never an empty « — » — and a

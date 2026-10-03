@@ -16,7 +16,7 @@ import { offeredActs } from "./act-rights";
  */
 function holding(rights: Right[]) {
   const role = { id: "r", name: "r", kind: "ordinary", rights } as Schemas["Role"];
-  return rightsOf({ id: "a", name: "a", email: "a@example.invalid", avatar: "", role, plexLinked: true, forbiddenWrites: [] });
+  return rightsOf({ id: "a", name: "a", email: "a@example.invalid", avatar: "", role, signInKind: "plex", forbiddenWrites: [] });
 }
 
 const MARK_SEEN = [{ target: { "closure-seen": "Silo|S03E07" } }];
