@@ -3,7 +3,7 @@
     "schemas": {
       "Problem": {
         "additionalProperties": false,
-        "description": "The contract's ``Problem`` (``#/components/schemas/Problem``), plus ``code`` and ``params`` (gap G-1).\n\nAttributes:\n    status: The HTTP status, repeated in the body.\n    title: What went wrong, in one English line \u2014 the code's title.\n    detail: The real reason, an English developer line; never shown as is.\n    code: The refusal's code; the interface renders it through ``fr.json``.\n    params: The typed facts the interface composes its sentence from.",
+        "description": "The contract's ``Problem`` (``#/components/schemas/Problem``).\n\nAttributes:\n    status: The HTTP status, repeated in the body.\n    title: What went wrong, in one English line \u2014 the code's title.\n    detail: The real reason, an English developer line; never shown as is.\n    code: The refusal's code; the interface renders it through ``fr.json``.\n    params: The typed facts the interface composes its sentence from.",
         "properties": {
           "code": {
             "$ref": "#/components/schemas/RefusalCode"

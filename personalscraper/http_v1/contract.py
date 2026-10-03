@@ -21,7 +21,7 @@ class ContractModel(BaseModel):
 
 
 class Problem(ContractModel):
-    """The contract's ``Problem`` (``#/components/schemas/Problem``), plus ``code`` and ``params`` (gap G-1).
+    """The contract's ``Problem`` (``#/components/schemas/Problem``).
 
     Attributes:
         status: The HTTP status, repeated in the body.
