@@ -7,6 +7,7 @@ from pydantic import Field, field_validator, model_validator
 
 from personalscraper.conf.environment import StoreName, store_path
 from personalscraper.conf.ids import BUILTIN_CATEGORY_IDS
+from personalscraper.conf.isolation import assert_isolated
 from personalscraper.conf.models._base import _StrictModel
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.conf.models.api_config import (
@@ -143,7 +144,8 @@ class Config(_StrictModel):
         - ``trailers.state_file`` → ``paths.data_dir / 'trailers_state.json'``
 
         The store file names follow ``PERSONALSCRAPER_ENV`` (absent = prod, the
-        historical ``library.db`` / ``acquire.db``).
+        historical ``library.db`` / ``acquire.db``). Then the isolation guard checks
+        that ``paths.data_dir`` and ``web.stream_key`` belong to this environment.
 
         Returns:
             self with derived paths resolved.
@@ -151,6 +153,9 @@ class Config(_StrictModel):
         Raises:
             EnvironmentSettingError: ``PERSONALSCRAPER_ENV`` is set to an unknown
                 value (a ``ValueError``, so Pydantic wraps it as a load error).
+            EnvironmentIsolationError: ``paths.data_dir`` is marked for another
+                environment, is unmarked outside prod, or ``staging`` uses prod's
+                stream key (a ``ValueError`` too).
         """
         if self.indexer.db_path is None:
             object.__setattr__(self.indexer, "db_path", store_path(self.paths.data_dir, StoreName.LIBRARY))
@@ -158,6 +163,7 @@ class Config(_StrictModel):
             object.__setattr__(self.acquire, "db_path", store_path(self.paths.data_dir, StoreName.ACQUIRE))
         if self.trailers.state_file is None:
             object.__setattr__(self.trailers, "state_file", str(self.paths.data_dir / "trailers_state.json"))
+        assert_isolated(self)
         return self
 
     @property

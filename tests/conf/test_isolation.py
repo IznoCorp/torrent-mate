@@ -14,15 +14,20 @@ import pytest
 from pydantic import ValidationError
 
 from personalscraper.conf import ids as CID
+from personalscraper.conf.environment import Environment
+from personalscraper.conf.isolation import (
+    ENVIRONMENT_MARKER,
+    PROD_STREAM_KEY,
+    EnvironmentIsolationError,
+    assert_isolated,
+    read_marker,
+)
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.models.paths import PathConfig
 from personalscraper.conf.models.web import WebConfig
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
-# Spelled out rather than imported, so these load-level tests run (and fail) on a
-# base that has no isolation module; ``test_marker_constant`` pins the two together.
-_MARKER = ".tm-environment"
 _STAGING_KEY = "personalscraper:events:staging"
 
 
@@ -39,7 +44,7 @@ def _data_dir(tmp_path: Path, marker: str | None = None) -> Path:
     data_dir = tmp_path / "data"
     data_dir.mkdir()
     if marker is not None:
-        (data_dir / _MARKER).write_text(marker, encoding="utf-8")
+        (data_dir / ENVIRONMENT_MARKER).write_text(marker, encoding="utf-8")
     return data_dir
 
 
@@ -82,7 +87,7 @@ def test_staging_refuses_an_unmarked_data_dir(tmp_path: Path, monkeypatch: pytes
     data_dir = _data_dir(tmp_path)
     with pytest.raises(ValidationError) as excinfo:
         _config(data_dir, tmp_path, web=WebConfig(stream_key=_STAGING_KEY))
-    assert _MARKER in str(excinfo.value)
+    assert ENVIRONMENT_MARKER in str(excinfo.value)
 
 
 def test_staging_refuses_the_production_stream_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -108,8 +113,8 @@ def test_prod_unmarked_loads_as_today(tmp_path: Path) -> None:
     cfg = _config(data_dir, tmp_path)
     assert cfg.indexer.db_path == data_dir / "library.db"
     assert cfg.acquire.db_path == data_dir / "acquire.db"
-    assert cfg.web.stream_key == "personalscraper:events"
-    assert not (data_dir / _MARKER).exists()
+    assert cfg.web.stream_key == PROD_STREAM_KEY
+    assert not (data_dir / ENVIRONMENT_MARKER).exists()
 
 
 def test_a_marker_naming_no_environment_fails_naming_the_file(tmp_path: Path) -> None:
@@ -118,5 +123,52 @@ def test_a_marker_naming_no_environment_fails_naming_the_file(tmp_path: Path) ->
     with pytest.raises(ValidationError) as excinfo:
         _config(data_dir, tmp_path)
     message = str(excinfo.value)
-    assert str(data_dir / _MARKER) in message
+    assert str(data_dir / ENVIRONMENT_MARKER) in message
     assert "prd" in message
+
+
+def test_prod_stream_key_is_the_web_default() -> None:
+    """The key ``staging`` may not use is the one production gets by default."""
+    assert WebConfig().stream_key == PROD_STREAM_KEY
+
+
+@pytest.mark.parametrize("env", ["dev", "staging", "prod"])
+def test_read_marker_names_each_environment(tmp_path: Path, env: str) -> None:
+    """``read_marker`` reads each environment's name, surrounding whitespace ignored."""
+    assert read_marker(_data_dir(tmp_path, f" {env}\n")) is Environment(env)
+
+
+def test_read_marker_absent_is_none(tmp_path: Path) -> None:
+    """No marker, and no data directory at all, both read as ``None``."""
+    assert read_marker(_data_dir(tmp_path)) is None
+    assert read_marker(tmp_path / "missing") is None
+
+
+@pytest.mark.parametrize("raw", ["", "prd", "STAGING"])
+def test_read_marker_refuses_an_unknown_name(tmp_path: Path, raw: str) -> None:
+    """An empty marker or one naming no environment raises ``EnvironmentIsolationError``."""
+    with pytest.raises(EnvironmentIsolationError):
+        read_marker(_data_dir(tmp_path, raw))
+
+
+def test_assert_isolated_takes_an_explicit_environment(tmp_path: Path) -> None:
+    """An explicit ``env`` wins over the variable: a prod-loaded config is refused for ``dev``."""
+    cfg = _config(_data_dir(tmp_path), tmp_path)
+    assert_isolated(cfg, Environment.PROD)
+    with pytest.raises(EnvironmentIsolationError):
+        assert_isolated(cfg, Environment.DEV)
+
+
+def test_dev_loads_on_its_own_marker_with_the_default_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The stream-key rule is ``staging``'s alone: ``dev`` on a ``dev`` marker loads with the default key."""
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "dev")
+    data_dir = _data_dir(tmp_path, "dev")
+    assert _config(data_dir, tmp_path).indexer.db_path == data_dir / "library-dev.db"
+
+
+def test_staging_refuses_a_prod_marked_data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The reverse direction: ``staging`` refuses a data directory marked ``prod``."""
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
+    data_dir = _data_dir(tmp_path, "prod")
+    with pytest.raises(ValidationError):
+        _config(data_dir, tmp_path, web=WebConfig(stream_key=_STAGING_KEY))
