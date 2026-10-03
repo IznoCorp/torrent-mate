@@ -223,13 +223,25 @@ def merge_identity_conflict(staging_dir: Path, target_dir: Path) -> str | None:
     return None
 
 
-__all__ = ["merge_identity_conflict", "replace_identity_conflict"]
-
-
 def _as_int(value: Any) -> int | None:
-    """Return ``value`` as an ``int`` when it is a positive integer string, else ``None``."""
+    """Return ``value`` as a positive ``int`` when it is an ASCII decimal string, else ``None``.
+
+    Total: never raises. ``str.isdigit()`` is not enough here — it accepts
+    characters such as ``"²"`` or Arabic-Indic digits that ``int()`` rejects or
+    that are not provider ids — so the text is checked as ASCII decimal first.
+
+    Args:
+        value: A raw NFO id (usually a string, possibly ``None`` or blank).
+
+    Returns:
+        The id as a strictly positive ``int``, or ``None`` when ``value`` is
+        absent, blank, non-decimal, non-ASCII or zero.
+    """
     text = str(value).strip() if value is not None else ""
-    return int(text) if text.isdigit() and int(text) > 0 else None
+    if not (text.isascii() and text.isdigit()):
+        return None
+    number = int(text)
+    return number if number > 0 else None
 
 
 def media_ref_from_nfo(media_type: str, *folders: Path) -> MediaRef | None:
@@ -261,3 +273,6 @@ def media_ref_from_nfo(media_type: str, *folders: Path) -> MediaRef | None:
         if tvdb is not None or tmdb is not None or imdb:
             return MediaRef(tvdb_id=tvdb, tmdb_id=tmdb, imdb_id=imdb or None)
     return None
+
+
+__all__ = ["media_ref_from_nfo", "merge_identity_conflict", "replace_identity_conflict"]

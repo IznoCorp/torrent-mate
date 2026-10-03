@@ -45,8 +45,21 @@ _SHOW_NFO = (
 )
 
 
-def _dispatch_new_movie(test_config, tmp_path: Path, nfo: str | None) -> list[ItemDispatched]:
-    """Dispatch one new movie (transfer mocked) and return the emitted events."""
+def _dispatch_new_movie(
+    test_config, tmp_path: Path, nfo: str | None, *, destination_nfo: str | None = None
+) -> list[ItemDispatched]:
+    """Dispatch one new movie (transfer mocked) and return the emitted events.
+
+    Args:
+        test_config: The test ``Config`` fixture.
+        tmp_path: Scratch directory.
+        nfo: NFO body written in the staging folder (``None`` → no NFO).
+        destination_nfo: NFO body the mocked move leaves in the destination
+            folder (``None`` → the destination holds no NFO, as under a bare mock).
+
+    Returns:
+        The ``ItemDispatched`` events the dispatch emitted.
+    """
     bus = EventBus()
     collector: CollectingSubscriber[ItemDispatched] = CollectingSubscriber(bus, ItemDispatched)
     dispatcher = Dispatcher(
@@ -62,9 +75,17 @@ def _dispatch_new_movie(test_config, tmp_path: Path, nfo: str | None) -> list[It
     if nfo is not None:
         (movie_dir / "Inception (2010).nfo").write_text(nfo, encoding="utf-8")
     disk_root = tmp_path / "drive_a"
+
+    def _move(src: Path, dest: Path, **_kwargs: object) -> bool:
+        """Stand-in for the transfer: materialise the destination folder and its NFO."""
+        if destination_nfo is not None:
+            dest.mkdir(parents=True)
+            (dest / "Inception (2010).nfo").write_text(destination_nfo, encoding="utf-8")
+        return True
+
     with (
         patch("personalscraper.dispatch._item.get_disk_status") as status,
-        patch("personalscraper.dispatch.dispatcher.Dispatcher._move_new", return_value=True),
+        patch("personalscraper.dispatch.dispatcher.Dispatcher._move_new", side_effect=_move),
     ):
         status.return_value = DiskStatus(
             config=DiskConfig(id="drive_a", path=disk_root, categories=["movies"]),
@@ -81,6 +102,13 @@ def test_item_dispatched_carries_the_nfo_provider_ids(test_config, tmp_path: Pat
     events = _dispatch_new_movie(test_config, tmp_path, _MOVIE_NFO)
     assert len(events) == 1
     assert events[0].media_ref == MediaRef(tmdb_id=27205, imdb_id="tt1375666")
+
+
+def test_item_dispatched_media_ref_prefers_the_destination_nfo(test_config, tmp_path: Path) -> None:
+    """Different ids in destination and staging → the destination's (what the index will see)."""
+    destination_nfo = _MOVIE_NFO.replace("27205", "999").replace("tt1375666", "tt0000999")
+    events = _dispatch_new_movie(test_config, tmp_path, _MOVIE_NFO, destination_nfo=destination_nfo)
+    assert events[0].media_ref == MediaRef(tmdb_id=999, imdb_id="tt0000999")
 
 
 def test_item_dispatched_media_ref_none_without_nfo(test_config, tmp_path: Path) -> None:
