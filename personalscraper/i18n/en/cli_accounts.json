@@ -1,0 +1,11 @@
+{
+  "help": "Accounts of this environment's app.db.",
+  "set_password": {
+    "help": "Set an account's password: typed twice at a hidden prompt, never given as an argument.",
+    "email_help": "The account's e-mail, whatever its case.",
+    "prompt": "New password",
+    "confirm": "Repeat the new password",
+    "mismatch": "The two passwords differ; nothing was changed.",
+    "done": "Password set for {{email}}."
+  }
+}

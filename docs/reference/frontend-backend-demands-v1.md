@@ -26,8 +26,8 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | | |
 | --- | ---: |
 | operations the interface requires | 101 |
-| operations v1 serves | 3 |
-| required and not served | 98 |
+| operations v1 serves | 4 |
+| required and not served | 97 |
 | served, different response shape | 0 |
 | served, path parameter spelled differently | 0 |
 | served, answered with a different status | 0 |
@@ -106,7 +106,6 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `POST /api/v1/acquisition/journeys/{infoHash}/rescrape` | `rescrapeJourney` | Re-scrape one journey's tracked item |
 | `POST /api/v1/acquisition/ranking/preview` | `previewRanking` | Score the preview's fixed sample set under a candidate ranking |
 | `POST /api/v1/acquisition/requesters/reassign` | `reassignRequester` | Move one requester of an acquisition to another account |
-| `POST /api/v1/auth/login` | `signIn` | Open a session |
 | `POST /api/v1/auth/plex` | `signInWithPlex` | Open a session through Plex |
 | `POST /api/v1/auth/plex/start` | `startPlexSignIn` | Start a Plex sign-in |
 | `POST /api/v1/config/restart-web` | `restartWeb` | Restart the web process so a change takes |
