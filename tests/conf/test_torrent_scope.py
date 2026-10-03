@@ -22,10 +22,11 @@ class TestTorrentScope:
         assert scope.download_root == tmp_path
         assert scope.instance_tags == ("tm-preprod", SEED_PURE)
 
-    def test_empty_category_refused(self, tmp_path: Path) -> None:
-        """An empty category would scope nothing: refused."""
-        with pytest.raises(ValidationError):
-            TorrentScope(category="", download_root=tmp_path)
+    @pytest.mark.parametrize("category", ["", " ", "\t"])
+    def test_blank_category_refused(self, tmp_path: Path, category: str) -> None:
+        """An empty or whitespace-only category would scope nothing: refused."""
+        with pytest.raises(ValidationError, match="category"):
+            TorrentScope(category=category, download_root=tmp_path)
 
     def test_empty_tag_refused(self, tmp_path: Path) -> None:
         """An empty instance tag would match every torrent in a tag filter: refused."""

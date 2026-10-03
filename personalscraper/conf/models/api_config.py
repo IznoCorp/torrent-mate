@@ -205,6 +205,26 @@ class TorrentScope(_StrictModel):
     download_root: Path
     instance_tags: tuple[str, ...] = ("tm-preprod", SEED_PURE)
 
+    @field_validator("category")
+    @classmethod
+    def _category_not_blank(cls, v: str) -> str:
+        """Refuse a whitespace-only category, as a blank tag is refused.
+
+        ``min_length`` counts spaces, so ``"   "`` would pass it and scope nothing.
+
+        Args:
+            v: The category as configured.
+
+        Returns:
+            The category, unchanged.
+
+        Raises:
+            ValueError: The category is blank.
+        """
+        if not v.strip():
+            raise ValueError("category: the category is empty")
+        return v
+
     @field_validator("instance_tags")
     @classmethod
     def _non_empty_and_seed_pure(cls, v: tuple[str, ...]) -> tuple[str, ...]:
