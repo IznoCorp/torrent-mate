@@ -71,4 +71,3 @@ def library_catalogue_refresh(
             }
         )
     )
-
