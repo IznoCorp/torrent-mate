@@ -10,6 +10,7 @@ import asyncio
 import inspect
 import json
 from collections.abc import Callable, Iterator
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -22,7 +23,9 @@ from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
 from personalscraper.http_v1.app import V1_PREFIX, include_v1_router, v1_lifespan
+from personalscraper.web import app as web_app
 from personalscraper.web.app import create_app
+from personalscraper.web.static import mount_spa
 from tests.unit.web.routes import test_staging_write_policy, test_web_perimeter_policy
 
 
@@ -135,11 +138,21 @@ def test_enabled_leaves_the_v0_openapi_byte_identical(test_config: Config) -> No
     assert export(True) == export(False)
 
 
-def test_the_mount_precedes_the_spa_fallback() -> None:
-    """The mount line sits before ``mount_spa``, whose catch-all would answer a v1 GET."""
-    source = inspect.getsource(create_app)
+def test_the_spa_fallback_does_not_shadow_the_mount(
+    test_config: Config, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With a built SPA (its GET catch-all registered), ``/api/v1/...`` still answers a ``Problem``, not the HTML."""
+    (tmp_path / "index.html").write_text("<html>spa</html>")
+    monkeypatch.setattr(web_app, "mount_spa", lambda app, _static_dir, dev_mode: mount_spa(app, tmp_path, dev_mode))
+    app = create_app(_with_v1(test_config, True), _settings())
+    client = TestClient(app)
 
-    assert source.index("app.mount(V1_PREFIX") < source.index("mount_spa(")
+    assert "spa" in client.get("/somewhere-else").text
+    response = client.get(f"{V1_PREFIX}/anything")
+
+    assert response.status_code == 404
+    assert response.headers["content-type"] == "application/json"
+    assert response.json()["code"] == "route.unknown"
 
 
 def _policy_tests() -> Iterator[tuple[str, Callable[..., Any]]]:
