@@ -765,3 +765,44 @@ def test_planted_require_dependency_is_flagged() -> None:
     """POSITIVE control: a planted per-route guard IS flagged (non-vacuous anchor)."""
     source = "def route(_: Annotated[None, Depends(require_session)]) -> None: ...\n"
     assert _require_dependency_lines(source) == [1]
+
+
+# ---------------------------------------------------------------------------
+# i18n/ layering guard — the translation layer is a leaf
+#
+# Every surface (CLI, Telegram, app, web) imports ``personalscraper.i18n``; if it
+# imported any of them back, the layer would close a cycle. It may import the
+# logger only.
+# ---------------------------------------------------------------------------
+
+
+def _personalscraper_imports(source: str) -> set[str]:
+    """Absolute ``personalscraper`` modules a source imports (relative imports excluded)."""
+    modules: set[str] = set()
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Import):
+            modules.update(alias.name for alias in node.names if alias.name.split(".")[0] == "personalscraper")
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            if node.module.split(".")[0] == "personalscraper":
+                modules.add(node.module)
+    return modules
+
+
+def test_i18n_imports_only_the_logger() -> None:
+    """``personalscraper.i18n`` imports nothing from ``personalscraper`` but ``personalscraper.logger``."""
+    i18n_root = _PACKAGE_ROOT / "i18n"
+    assert i18n_root.exists(), "personalscraper/i18n does not exist"
+    leaks: list[str] = []
+    for py_file in sorted(i18n_root.rglob("*.py")):
+        rel = py_file.relative_to(_REPO_ROOT).as_posix()
+        for module in sorted(_personalscraper_imports(py_file.read_text(encoding="utf-8"))):
+            if module not in {"personalscraper.logger", "personalscraper.i18n"} and not module.startswith(
+                "personalscraper.i18n."
+            ):
+                leaks.append(f"{rel}: imports {module!r}")
+    assert not leaks, "i18n/ must import only personalscraper.logger:\n" + "\n".join(leaks)
+
+
+def test_i18n_import_scan_flags_an_upward_import() -> None:
+    """POSITIVE control: the scanner reports a ``personalscraper`` import (non-vacuous anchor)."""
+    assert _personalscraper_imports("from personalscraper.app import x\nimport os\n") == {"personalscraper.app"}
