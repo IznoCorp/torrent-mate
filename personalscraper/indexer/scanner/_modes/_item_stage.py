@@ -221,7 +221,7 @@ def upsert_item_with_attrs(
     write_row["date_created"] = stamp
     write_row["date_modified"] = stamp
 
-    item_id = item_repo.upsert(conn, MediaItemRow(**write_row))
+    item_id = item_repo.upsert(conn, MediaItemRow(**write_row), dispatch_path=attrs.get(item_repo._ATTR_DISPATCH_PATH))
 
     # Persist flex attributes (dispatch path/disk/normalized-title, ...) so
     # consumers that INNER JOIN on them (trailers cross-disk index, dispatch
