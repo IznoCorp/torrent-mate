@@ -2,15 +2,15 @@
 
 Dry-run by default. Requires --apply to actually delete.
 Handles NTFS deletion failures gracefully (per-item error, continues).
-Performs ``rmtree``-based deletion (``_scandir_rmtree``) and tolerates
-NTFS ghost-dirents (macFUSE/NTFS known issue).
+Folder deletion goes through :func:`personalscraper.indexer.deletion.delete_media_folder`,
+which tolerates NTFS ghost-dirents (macFUSE/NTFS known issue).
 
 ``clean_library`` accepts a ``Config`` object and resolves folder names
 from ``config.category(id).folder_name``. Disk filter uses ``disk.id``;
 category filter uses ``category_id``.
 
 Write-through: every real deletion (not dry-run) publishes a best-effort
-outbox event via :func:`personalscraper.indexer.outbox.publish_event` so
+outbox event (folders: inside ``delete_media_folder``; junk files: here) so
 the indexer can reconcile removed files at the next drain cycle (DESIGN
 §10.2).  The event uses ``op='move'`` with an empty ``dst_rel_path`` to
 signal removal.  On any outbox error the deletion is still reported as
@@ -21,7 +21,6 @@ Moved from the legacy library disk-cleaner module during lib-fold Phase 5.
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -32,6 +31,7 @@ if TYPE_CHECKING:
 from personalscraper._fs_utils import is_apple_double
 from personalscraper.core.delete_permit import ALLOW, AllowAllPermit, DeletePermit, PermitDecision
 from personalscraper.core.sqlite._fs_probe import is_mounted
+from personalscraper.indexer.deletion import DeleteOutcome, _publish_deleted, delete_media_folder
 from personalscraper.indexer.destructive_journal import OP_DELETE, record_destruction
 from personalscraper.logger import get_logger
 
@@ -96,133 +96,6 @@ class CleanResult:
     errors: list[str] = field(default_factory=list)
 
 
-def _dir_size(path: Path) -> int:
-    """Calculate total byte size of a directory recursively."""
-    total = 0
-    try:
-        for f in path.rglob("*"):
-            if f.is_file():
-                try:
-                    total += f.stat().st_size
-                except OSError:
-                    continue
-    except OSError as exc:
-        log.warning("library_clean_dir_size_error", path=str(path), exc_info=True, error=str(exc))
-    return total
-
-
-def _publish_deleted(path: Path, label: str, db_path: Path) -> None:
-    """Publish a best-effort outbox event signalling that *path* was removed.
-
-    Uses ``op='move'`` with ``src_rel_path=<path-str>`` and an empty
-    ``dst_rel_path`` as a convention understood by the drainer to mean the
-    path was deleted from the filesystem.  Any exception is swallowed — the
-    FS operation already succeeded; the indexer reconciles drift at the next
-    scan.
-
-    Args:
-        path: Absolute path that was deleted.
-        label: Human label for logging (e.g. ``".actors"``, ``"junk file"``).
-        db_path: Resolved ``Config.indexer.db_path`` so the event lands in the
-            user-configured DB (DESIGN §9.4).
-    """
-    try:
-        from personalscraper.indexer.outbox._disk import disk_id_for_path  # noqa: PLC0415
-        from personalscraper.indexer.outbox._publish import publish_event  # noqa: PLC0415
-
-        resolved = disk_id_for_path(path, db_path)
-        if resolved is None:
-            # Path not in any mounted disk's mount_path — skip outbox publish.
-            return
-        disk_pk, rel_path = resolved
-        publish_event(
-            disk_pk,
-            op="move",
-            payload={
-                "src_rel_path": rel_path,
-                "dst_rel_path": "",
-                "filename": path.name,
-                "size_bytes": None,
-                "mtime_ns": None,
-                "_clean_label": label,
-            },
-            db_path=db_path,
-            source="scanner",
-        )
-    except Exception as exc:  # noqa: BLE001
-        log.debug(
-            "library_clean_outbox_skipped",
-            path=str(path),
-            label=label,
-            error=str(exc),
-        )
-
-
-def _scandir_rmtree(path: Path, ghosts: list[str] | None = None) -> None:
-    """Recursive delete that survives NTFS-via-macFUSE NFC/NFD filename quirks.
-
-    ``shutil.rmtree`` walks the tree by re-listing each directory and then
-    re-stat'ing each entry by its decoded name. macFUSE-NTFS sometimes returns
-    a filename in one Unicode normalization form (NFD with combining accent)
-    while the kernel inode is reachable only via the other (NFC, single
-    codepoint), so the follow-up ``os.unlink(name)`` raises ``FileNotFoundError``
-    even though the file was just listed.
-
-    This walker:
-
-    * Uses the ``os.DirEntry`` objects from :func:`os.scandir` and their
-      ``.path`` attribute (no re-encoding round-trip).
-    * Tolerates **ghost dirents** — entries that ``scandir`` lists but the
-      kernel cannot ``stat`` / ``unlink``. These are recorded in *ghosts* and
-      skipped. They typically come from filesystem-level inconsistencies that
-      only an unmount + fsck can repair; we report them rather than abort the
-      whole rmtree, so the caller can free what is freeable.
-    * Bottom-up traversal so directories are emptied before they are removed.
-
-    Args:
-        path: Directory to remove (symlinks are unlinked, not descended).
-        ghosts: Mutable list that receives the path of every entry that
-            could not be removed because of a ghost-dirent inconsistency.
-            Pass ``None`` (default) to disable collection. The caller may
-            then decide whether the parent ``rmdir`` failure is fatal or
-            should be reported as a partial cleanup.
-
-    Raises:
-        OSError: If the final ``rmdir`` of *path* itself fails for a reason
-            other than ``ENOTEMPTY`` (i.e. caused by a ghost remnant). When
-            ``ENOTEMPTY`` is raised the function lets it propagate so the
-            caller can correlate with the ghost list.
-    """
-    if path.is_symlink() or not path.is_dir():
-        os.unlink(path)
-        return
-
-    with os.scandir(path) as it:
-        entries = list(it)
-    for entry in entries:
-        try:
-            is_subdir = entry.is_dir(follow_symlinks=False)
-        except OSError:
-            # Ghost dirent: even is_dir() round-trips through stat and may
-            # fail. Treat as a leaf-level ghost so we keep walking siblings.
-            if ghosts is not None:
-                ghosts.append(entry.path)
-            continue
-        try:
-            if is_subdir:
-                _scandir_rmtree(Path(entry.path), ghosts=ghosts)
-            else:
-                os.unlink(entry.path)
-        except FileNotFoundError:
-            # Classic NTFS-macFUSE NFC/NFD ghost: listed but unreachable.
-            if ghosts is not None:
-                ghosts.append(entry.path)
-            # Carry on with siblings; the parent rmdir at the bottom of
-            # the recursion will surface ENOTEMPTY if any ghost remains.
-            continue
-    os.rmdir(path)
-
-
 def _delete_dir(
     path: Path,
     result: CleanResult,
@@ -231,14 +104,13 @@ def _delete_dir(
     db_path: Path,
     permit: DeletePermit = AllowAllPermit(),
 ) -> None:
-    """Delete a directory, handling NTFS errors gracefully.
+    """Delete a directory through :func:`delete_media_folder` and fold its outcome into *result*.
 
-    On a successful real deletion (not dry-run) publishes a best-effort
-    outbox event so the indexer can reconcile removed content at drain time.
-
-    Consults *permit* before any deletion (VETO → hard-skip, counted as
-    ``skipped_by_obligation``). The consult runs in both dry-run and apply
-    modes so a dry-run preview correctly shows what would be skipped.
+    The primitive consults *permit*, removes the tree (tolerating NTFS ghost
+    dirents), journals the deletion and publishes the best-effort outbox event
+    so the indexer can reconcile removed content at drain time. A VETO is a
+    hard skip, counted as ``skipped_by_obligation``; the consult runs in both
+    dry-run and apply modes so a preview shows what would be skipped.
 
     Args:
         path: Directory to delete.
@@ -246,80 +118,36 @@ def _delete_dir(
         dry_run: If True, only count without deleting.
         label: Human label for logging (e.g. ".actors", "empty dir").
         db_path: Resolved ``Config.indexer.db_path`` forwarded to
-            :func:`_publish_deleted` (DESIGN §9.4).
+            :func:`delete_media_folder` for the journal and outbox (DESIGN §9.4).
         permit: Deletion authority (fail-open default: AllowAllPermit).
+
+    Returns:
+        None. *result* is updated in place.
     """
-    # F2: the consult itself is fail-open (DESIGN §7.3 / §9). A permit whose
-    # may_delete raises must NOT abort cleanup — treat the error as ALLOW (the
-    # deletion proceeds) and log it. Without this guard a raising permit would
-    # propagate out of _delete_dir and fail the whole clean run CLOSED.
-    try:
-        decision: PermitDecision = permit.may_delete(path)
-    except Exception as exc:
-        log.warning("disk_cleaner.permit_error", path=str(path), label=label, error=str(exc))
-        decision = ALLOW
-    if decision is not ALLOW:
-        log.info(
-            "disk_cleaner.skipped_by_obligation",
-            path=str(path),
-            label=label,
-            reason=str(decision),
-        )
+    outcome = delete_media_folder(
+        path, db_path=db_path, actor="disk-clean", label=label, permit=permit, dry_run=dry_run
+    )
+    if outcome.outcome is DeleteOutcome.VETOED:
         result.skipped_by_obligation += 1
         return
-
-    size = _dir_size(path)
-    if dry_run:
-        result.deleted_count += 1
-        result.freed_bytes += size
-        result.details.append(f"[DRY-RUN] Would delete {label}: {path} ({size} bytes)")
+    if outcome.outcome is DeleteOutcome.DELETED:
+        result.deleted_count += outcome.deleted_count
+        result.freed_bytes += outcome.size_bytes
+        prefix = "[DRY-RUN] Would delete" if dry_run else "Deleted"
+        result.details.append(f"{prefix} {label}: {path} ({outcome.size_bytes} bytes)")
         return
-
-    ghosts: list[str] = []
-    try:
-        _scandir_rmtree(path, ghosts=ghosts)
-        result.deleted_count += 1
-        result.freed_bytes += size
-        result.details.append(f"Deleted {label}: {path} ({size} bytes)")
-        log.info("library_clean_deleted_dir", label=label, path=str(path))
-        # §7 / Star City — append-only destruction trail (who/what/when/where).
-        record_destruction(db_path, op=OP_DELETE, path=path, actor="disk-clean", detail=f"Nettoyage disque — {label}")
-        # Write-through: notify the indexer that this subtree was removed.
-        _publish_deleted(path, label, db_path)
-    except OSError as exc:
-        # Most common failure: ENOTEMPTY raised by os.rmdir(path) because at
-        # least one ghost dirent (NFC/NFD inconsistency) blocked the leaf
-        # walk. Surface that as a precise error message and list the ghost
-        # paths so the operator can decide on a manual fix (typically
-        # unmount + fsck of the NTFS volume).
-        if ghosts:
-            ghost_summary = ", ".join(g.rsplit("/", 1)[-1] for g in ghosts[:3])
-            extra = f" ({len(ghosts) - 3} more)" if len(ghosts) > 3 else ""
-            result.error_count += 1
-            result.errors.append(
-                f"Partial delete of {label}: {path} — "
-                f"{len(ghosts)} ghost dirent(s) blocking rmdir: "
-                f"{ghost_summary}{extra}. NTFS NFC/NFD inconsistency; "
-                "unmount + fsck required."
-            )
-            log.warning(
-                "library_clean_ghost_dirent",
-                label=label,
-                path=str(path),
-                ghost_count=len(ghosts),
-                ghost_sample=ghosts[:5],
-                error=str(exc),
-            )
-        else:
-            result.error_count += 1
-            result.errors.append(f"Failed to delete {label}: {path} — {exc}")
-            log.warning(
-                "library_clean_ntfs_error",
-                label=label,
-                path=str(path),
-                exc_info=True,
-                error=str(exc),
-            )
+    result.error_count += 1
+    if outcome.ghosts:
+        ghost_summary = ", ".join(g.rsplit("/", 1)[-1] for g in outcome.ghosts[:3])
+        extra = f" ({len(outcome.ghosts) - 3} more)" if len(outcome.ghosts) > 3 else ""
+        result.errors.append(
+            f"Partial delete of {label}: {path} — "
+            f"{len(outcome.ghosts)} ghost dirent(s) blocking rmdir: "
+            f"{ghost_summary}{extra}. NTFS NFC/NFD inconsistency; "
+            "unmount + fsck required."
+        )
+    else:
+        result.errors.append(f"Failed to delete {label}: {path} — {outcome.error}")
 
 
 def _delete_file(
