@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import ast
 import json
-import re
 from enum import StrEnum
 from importlib import resources
 from pathlib import Path
@@ -19,7 +18,6 @@ _FRONTEND_FR = _REPO_ROOT / "frontend" / "maquette" / "design" / "src" / "i18n" 
 # phase adds a coded namespace: it declares the pair here and ships a key per member.
 CODE_SETS: dict[str, type[StrEnum]] = {}
 
-_PLACEHOLDER = re.compile(r"\{\{\s*(\w+)\s*\}\}")
 _MARKUP = ("**", "<", "[/", "[bold", "[cyan", "[red", "[green", "[yellow", "[dim")
 
 
@@ -29,14 +27,17 @@ def _real_root() -> Path:
 
 
 def _read(language: str, namespace: str) -> dict:
+    """The parsed shipped catalogue file of one namespace and language."""
     return json.loads((_real_root() / language / f"{namespace}.json").read_text(encoding="utf-8"))
 
 
 def _namespaces(language: str) -> set[str]:
+    """The namespaces shipped in ``language``."""
     return {p.stem for p in (_real_root() / language).glob("*.json")}
 
 
 def _one_sided(namespace: str) -> set[str]:
+    """The keys ``one_sided/<namespace>.json`` declares as translated in one language only."""
     path = _real_root() / "one_sided" / f"{namespace}.json"
     return set(json.loads(path.read_text(encoding="utf-8"))) if path.exists() else set()
 
@@ -47,6 +48,7 @@ def _plural_groups(keys: set[str]) -> set[str]:
 
 
 def _all_namespaces() -> list[str]:
+    """Every namespace shipped in either language, sorted."""
     return sorted(_namespaces("fr") | _namespaces("en"))
 
 
@@ -64,26 +66,30 @@ def test_pyproject_declares_the_package_data() -> None:
     assert '"personalscraper.i18n" = ["fr/*.json", "en/*.json", "one_sided/*.json"]' in text
 
 
+def _drift(namespace: str, fr: set[str], en: set[str], declared: set[str]) -> list[str]:
+    """Problems of one namespace: one-sided keys not declared, and declared keys translated in both."""
+    actual = fr ^ en
+    problems = [f"{namespace}.{key}: one-sided but not declared" for key in sorted(actual - declared)]
+    problems += [f"{namespace}.{key}: declared one-sided but translated in both" for key in sorted(declared - actual)]
+    return problems
+
+
 def test_every_namespace_in_both_languages_and_keys_match_but_declared_one_sided() -> None:
     """Completeness: key sets agree across languages except for the declared one-sided keys, both ways."""
     assert _namespaces("fr") == _namespaces("en"), "a namespace file exists in one language only"
+    problems: list[str] = []
     for namespace in _all_namespaces():
         fr = set(_catalogue.flatten(_read("fr", namespace)))
         en = set(_catalogue.flatten(_read("en", namespace)))
-        actual = fr ^ en
-        declared = _one_sided(namespace)
-        assert actual == declared, (
-            f"{namespace}: one-sided set {sorted(actual)} differs from one_sided/{namespace}.json {sorted(declared)}"
-        )
+        problems += _drift(namespace, fr, en, _one_sided(namespace))
+    assert not problems, "\n".join(problems)
 
 
-def test_one_sided_list_detects_drift(tmp_path: Path) -> None:
-    """Control: the comparison used above flags an undeclared and a stale declaration."""
-    fr = {"a": "x"}
-    en = {"a": "x", "b": "y"}
-    assert set(_catalogue.flatten(fr)) ^ set(_catalogue.flatten(en)) == {"b"}
-    assert {"b"} != set()  # an undeclared one-sided key is a difference
-    assert {"a"} ^ {"a"} == set()  # a stale declaration (declared, translated) would be {"a"} != set()
+def test_one_sided_list_detects_drift() -> None:
+    """Control: the comparison used above flags an undeclared and a stale declaration, and passes a consistent one."""
+    assert _drift("demo", {"a"}, {"a", "b"}, set()) == ["demo.b: one-sided but not declared"]
+    assert _drift("demo", {"a"}, {"a"}, {"a"}) == ["demo.a: declared one-sided but translated in both"]
+    assert _drift("demo", {"a"}, {"a", "b"}, {"b"}) == []
 
 
 def test_placeholders_and_plural_groups_agree_across_languages() -> None:
@@ -92,7 +98,7 @@ def test_placeholders_and_plural_groups_agree_across_languages() -> None:
         fr = _catalogue.flatten(_read("fr", namespace))
         en = _catalogue.flatten(_read("en", namespace))
         for key in set(fr) & set(en):
-            assert set(_PLACEHOLDER.findall(fr[key])) == set(_PLACEHOLDER.findall(en[key])), f"{namespace}.{key}"
+            assert _catalogue.placeholders(fr[key]) == _catalogue.placeholders(en[key]), f"{namespace}.{key}"
         for catalogue in (fr, en):
             for base in _plural_groups(set(catalogue)):
                 assert f"{base}_one" in catalogue and f"{base}_other" in catalogue, f"{namespace}.{base}"
@@ -122,12 +128,13 @@ def _check_calls(source: str, catalogue: dict[str, dict[str, str]]) -> list[str]
         namespace, _, path = key.partition(".")
         flat = catalogue.get(namespace, {})
         passed = {kw.arg for kw in call.keywords if kw.arg}
+        unpacked = any(kw.arg is None for kw in call.keywords)  # ``**values``: what it carries is unknowable
         if path in flat:
-            wanted = set(_PLACEHOLDER.findall(flat[path]))
+            wanted = _catalogue.placeholders(flat[path])
             if "count" in passed:
                 problems.append(f"{key}: count= passed but the key is not a plural group")
         elif f"{path}_one" in flat and f"{path}_other" in flat:
-            wanted = set(_PLACEHOLDER.findall(flat[f"{path}_one"])) | set(_PLACEHOLDER.findall(flat[f"{path}_other"]))
+            wanted = _catalogue.placeholders(flat[f"{path}_one"]) | _catalogue.placeholders(flat[f"{path}_other"])
             wanted.discard("count")  # the plural selector, passed (or flagged) separately
             if "count" not in passed:
                 problems.append(f"{key}: plural group called without count=")
@@ -135,12 +142,13 @@ def _check_calls(source: str, catalogue: dict[str, dict[str, str]]) -> list[str]
             problems.append(f"{key}: no such key")
             continue
         missing = wanted - passed
-        if missing:
+        if missing and not unpacked:
             problems.append(f"{key}: placeholders not passed: {sorted(missing)}")
     return problems
 
 
 def _union_catalogue() -> dict[str, dict[str, str]]:
+    """Namespace -> flat keys, French over English, for the literal-call scan."""
     merged: dict[str, dict[str, str]] = {}
     for namespace in _all_namespaces():
         merged[namespace] = {
@@ -167,6 +175,8 @@ def test_the_call_checker_catches_a_missing_key_and_a_missing_kwarg() -> None:
     assert _check_calls('t("demo.absent")', catalogue) == ["demo.absent: no such key"]
     assert _check_calls('t("demo.hello")', catalogue) == ["demo.hello: placeholders not passed: ['name']"]
     assert _check_calls('t("demo.files")', catalogue) == ["demo.files: plural group called without count="]
+    assert _check_calls('t("demo.hello", **values)', catalogue) == []  # ** is unverifiable for placeholders
+    assert _check_calls('t("demo.absent", **values)', catalogue) == ["demo.absent: no such key"]  # the key still is
     assert _check_calls('t("demo.hello", name="x", count=1)', catalogue) == [
         "demo.hello: count= passed but the key is not a plural group"
     ]
