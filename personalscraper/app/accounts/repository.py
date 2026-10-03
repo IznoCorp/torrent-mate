@@ -14,12 +14,13 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Iterator
-from contextlib import contextmanager
-from dataclasses import dataclass
+from contextlib import contextmanager, suppress
+from dataclasses import dataclass, field
 from typing import Literal
 
 from personalscraper.app.accounts.actor import RoleKind
 from personalscraper.app.accounts.rights import Right
+from personalscraper.core.sqlite._migrate import safe_rollback
 
 #: What a new account starts as: a Plex Home member, a Plex guest, a local account.
 StartKind = Literal["plexHome", "plexGuest", "local"]
@@ -65,7 +66,7 @@ class AccountRow:
     email: str
     avatar: str
     role_id: str
-    password_hash: str | None
+    password_hash: str | None = field(repr=False)
     created_at: float
     updated_at: float
 
@@ -91,7 +92,7 @@ class PlexLinkRow:
     plex_uuid: str
     plex_username: str
     server_access: Literal["owner", "shared"]
-    token_ciphertext: bytes | None
+    token_ciphertext: bytes | None = field(repr=False)
     token_stored_at: float | None
     linked_at: float
     last_sign_in_at: float | None
@@ -114,7 +115,7 @@ class SessionRow:
 
     id: int
     account_id: str
-    token_hash: str
+    token_hash: str = field(repr=False)
     created_at: float
     expires_at: float
     last_seen_at: float
@@ -138,7 +139,7 @@ class PlexPinRow:
 
     pin_id: int
     code: str
-    nonce_hash: str
+    nonce_hash: str = field(repr=False)
     created_at: float
     expires_at: float | None
     last_checked_at: float | None
@@ -185,15 +186,22 @@ class AccountRepository:
             Nothing; every write inside commits on exit, or none does.
 
         Raises:
-            BaseException: Whatever the block raised, after the rollback.
+            BaseException: Whatever the block raised, after the rollback; a refused
+                ``COMMIT`` is rolled back too, so the writer lock is never kept.
         """
         self._conn.execute("BEGIN IMMEDIATE")
         try:
             yield
         except BaseException:
-            self._conn.execute("ROLLBACK")
+            # SQLite may already have ended the transaction (SQLITE_FULL, IOERR): a bare
+            # ROLLBACK would then raise and hide the block's own error.
+            safe_rollback(self._conn)
             raise
-        self._conn.execute("COMMIT")
+        try:
+            self._conn.execute("COMMIT")
+        except BaseException:
+            safe_rollback(self._conn)
+            raise
 
     @contextmanager
     def _atomic(self) -> Iterator[None]:
@@ -209,8 +217,10 @@ class AccountRepository:
         try:
             yield
         except BaseException:
-            self._conn.execute("ROLLBACK TO account_repository")
-            self._conn.execute("RELEASE account_repository")
+            # The savepoint is gone when SQLite ended the transaction; keep the original error.
+            with suppress(sqlite3.Error):
+                self._conn.execute("ROLLBACK TO account_repository")
+                self._conn.execute("RELEASE account_repository")
             raise
         self._conn.execute("RELEASE account_repository")
 

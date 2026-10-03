@@ -390,3 +390,34 @@ class TestImmediate:
             raise RuntimeError("boom")
         assert repo.account("account-alice") is None
         assert repo.role("role-1") is None
+
+    def test_original_error_survives_a_transaction_ended_by_sqlite(self, repo: AccountRepository) -> None:
+        """When SQLite already ended the transaction, the block's own error still propagates."""
+        with pytest.raises(RuntimeError, match="boom"), repo.immediate():
+            repo._conn.execute("ROLLBACK")  # what SQLITE_FULL / SQLITE_IOERR do on their own
+            raise RuntimeError("boom")
+        assert not repo._conn.in_transaction
+
+    def test_failed_commit_releases_the_writer_lock(self, repo: AccountRepository) -> None:
+        """A COMMIT refused (deferred foreign key) propagates and leaves no open transaction."""
+        with pytest.raises(sqlite3.IntegrityError), repo.immediate():
+            repo._conn.execute("PRAGMA defer_foreign_keys = ON")
+            repo.insert_account(_account(role_id="role-that-does-not-exist"))
+        assert not repo._conn.in_transaction
+        assert repo.account("account-alice") is None
+
+
+class TestSecretsStayOutOfRepr:
+    """A row's secret never prints through ``repr`` or ``str``."""
+
+    def test_sentinels_do_not_print(self) -> None:
+        """Hash, ciphertext, token hash and nonce hash are absent from both renderings."""
+        rows = [
+            AccountRow("a", "n", "e@x.org", "", "r", "SENTINEL-PASSWORD-HASH", 1.0, 1.0),
+            PlexLinkRow("a", 1, "u", "p", "owner", b"SENTINEL-CIPHERTEXT", 1.0, 1.0, None),
+            SessionRow(1, "a", "SENTINEL-TOKEN-HASH", 1.0, 2.0, 1.0, None, None),
+            PlexPinRow(1, "c", "SENTINEL-NONCE-HASH", 1.0, None, None, None),
+        ]
+        for row in rows:
+            for text in (repr(row), str(row)):
+                assert "SENTINEL" not in text
