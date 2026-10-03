@@ -544,12 +544,7 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow) -> int:
     """
     canonical = _canonical_title(row.title)
     by_id = get_by_canonical_id(conn, row)
-    if (
-        isinstance(by_id, MediaItemRow)
-        and by_id.year is not None
-        and row.year is not None
-        and by_id.year != row.year
-    ):
+    if isinstance(by_id, MediaItemRow) and by_id.year is not None and row.year is not None and by_id.year != row.year:
         # One id, two explicit years: two real folders (a misdated one beside
         # the right one). Folding them would leave one row whose year and
         # dispatch target contradict each other, so the title path keeps them

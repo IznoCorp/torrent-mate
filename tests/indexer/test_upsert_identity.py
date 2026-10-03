@@ -253,7 +253,10 @@ def test_upsert_same_id_other_explicit_year_stays_two_rows(
         right_id = item_repo.upsert(
             conn,
             _make_item(
-                "Rick and Morty (2013)", year=2013, external_ids_json=_ids_json(tvdb="275274"), canonical_provider="tvdb"
+                "Rick and Morty (2013)",
+                year=2013,
+                external_ids_json=_ids_json(tvdb="275274"),
+                canonical_provider="tvdb",
             ),
         )
 
