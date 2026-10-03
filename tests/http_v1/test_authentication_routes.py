@@ -7,6 +7,7 @@ instance's ceiling; ``signOut`` revokes the session and clears its cookie.
 
 from __future__ import annotations
 
+import sqlite3
 from collections.abc import Callable
 from http.cookies import SimpleCookie
 
@@ -105,6 +106,24 @@ class TestReadAccount:
             "signInKind": "local",
             "forbiddenWrites": [],
         }
+
+    def test_a_session_whose_role_is_gone_is_auth_required(self, v1_client: Callable[..., TestClient]) -> None:
+        """The account's role was deleted: 401 ``auth.required``.
+
+        ``foreign_keys=ON`` forbids the state through the store; a separate connection
+        (foreign keys OFF) reaches it.
+        """
+        client = v1_client()
+        db_path = _services(client).app_store._db_path  # noqa: SLF001 — the test writes the file itself
+        conn = sqlite3.connect(db_path)
+        try:
+            conn.execute("DELETE FROM role WHERE id = 'household'")
+            conn.commit()
+        finally:
+            conn.close()
+        response = client.get("/auth/me")
+        assert response.status_code == 401
+        assert response.json()["code"] == "auth.required"
 
     def test_the_session_value_is_never_echoed(self, v1_client: Callable[..., TestClient]) -> None:
         """Neither the body nor any header of the answer carries the cookie value."""

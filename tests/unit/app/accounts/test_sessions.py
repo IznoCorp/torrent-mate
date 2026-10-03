@@ -19,8 +19,11 @@ from personalscraper.app.accounts.actor import RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.repository import AccountRow
 from personalscraper.app.accounts.rights import Right
+from personalscraper.app.accounts.service import AccountService
 from personalscraper.app.accounts.sessions import SESSION_TOUCH_INTERVAL_S, SessionService
+from personalscraper.app.errors import AppUnauthenticated, RefusalCode
 from personalscraper.app.store.store import AppStore
+from personalscraper.core.event_bus import EventBus
 
 _ACCOUNT_ID = "account-alice"
 _TTL_HOURS = 2
@@ -122,6 +125,25 @@ def _rows(store: AppStore) -> list[tuple[object, ...]]:
         conn.close()
 
 
+def _delete_the_role(store: AppStore, role_id: str) -> None:
+    """Delete a role its accounts still stand on.
+
+    The schema forbids it with ``foreign_keys=ON`` (``account.role_id`` references
+    ``role``), and deleting the account instead cascades its sessions; a separate
+    connection, which SQLite opens with foreign keys OFF, reaches the state.
+
+    Args:
+        store: The store.
+        role_id: The role to delete.
+    """
+    conn = sqlite3.connect(store._db_path)  # noqa: SLF001 — the test writes the file itself
+    try:
+        conn.execute("DELETE FROM role WHERE id = ?", (role_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 class TestOpen:
     """``SessionService.open``."""
 
@@ -188,6 +210,22 @@ class TestResolve:
         assert after.role_id == "local-guest"
         assert after.role_rights == store.accounts.role("local-guest").rights  # type: ignore[union-attr]
         assert after.role_rights != before.role_rights
+
+    def test_a_session_whose_role_is_gone_is_nobody(self, sessions: SessionService, store: AppStore) -> None:
+        """A live session whose account's role was deleted resolves to ``None``."""
+        token = sessions.open(_ACCOUNT_ID, user_agent=None)
+        _delete_the_role(store, "household")
+        assert sessions.resolve(token) is None
+
+    def test_read_account_refuses_once_the_role_is_gone(self, sessions: SessionService, store: AppStore) -> None:
+        """An actor resolved before its role vanished is refused ``auth.required``."""
+        accounts = AccountService(lambda: store.accounts, sessions, EventBus())
+        actor = sessions.resolve(sessions.open(_ACCOUNT_ID, user_agent=None))
+        assert actor is not None
+        _delete_the_role(store, "household")
+        with pytest.raises(AppUnauthenticated) as refused:
+            accounts.read_account(actor)
+        assert refused.value.code is RefusalCode.AUTH_REQUIRED
 
     def test_an_admin_role_carries_no_rights_list(self, sessions: SessionService, store: AppStore) -> None:
         """Admin is a kind, not a list."""
