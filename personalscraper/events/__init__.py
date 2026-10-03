@@ -60,6 +60,7 @@ from personalscraper.indexer.events import (
     BackfillStarted,
     DiskFullWarning,
     LibraryScanCompleted,
+    LibraryScanSkipped,
 )
 from personalscraper.pipeline_events import (
     ItemProgressed,
@@ -92,6 +93,7 @@ __all__ = [
     "ItemDispatched",
     "ItemProgressed",
     "LibraryScanCompleted",
+    "LibraryScanSkipped",
     "LockedCapabilityUnresolved",
     "PipelineEnded",
     "PipelinePaused",

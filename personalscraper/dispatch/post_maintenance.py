@@ -13,6 +13,7 @@ import sqlite3
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from personalscraper.indexer.events import LibraryScanSkipped, ScanSkipReason
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -359,6 +360,24 @@ def _run_repair_drain(config: Config, *, budget_seconds: float = 60.0) -> int:
         conn.close()
 
 
+def _announce_scan_skipped(event_bus: EventBus, disks: set[str], reason: ScanSkipReason) -> None:
+    """Emit one :class:`LibraryScanSkipped` per disk whose index was not refreshed.
+
+    Fail-soft like the rest of post-dispatch maintenance: an emit problem must
+    never fail the dispatch.
+
+    Args:
+        event_bus: The caller's process bus.
+        disks: Disk labels whose post-dispatch scan did not complete.
+        reason: Why the refresh did not happen.
+    """
+    for disk in sorted(disks):
+        try:
+            event_bus.emit(LibraryScanSkipped(source="dispatch.post_maintenance", disk=disk, reason=reason))
+        except Exception as exc:  # noqa: BLE001 — announcing must not fail dispatch
+            _log.warning("post_maintenance_skip_emit_failed", disk=disk, error=str(exc))
+
+
 def run_post_dispatch_maintenance(
     config: Config,
     touched_disks: set[str],
@@ -392,6 +411,8 @@ def run_post_dispatch_maintenance(
     """
     if not enabled:
         _log.info("post_maintenance_disabled")
+        # K2-6 E2 — the touched disks' index is NOT refreshed: say so, per disk.
+        _announce_scan_skipped(event_bus, touched_disks, ScanSkipReason.DISABLED)
         return
 
     if not touched_disks:
@@ -420,6 +441,7 @@ def run_post_dispatch_maintenance(
         except Exception as exc:
             scan_failures.append(disk)
             _log.warning("post_maintenance_scan_exception", disk=disk, error=str(exc))
+    _announce_scan_skipped(event_bus, set(scan_failures), ScanSkipReason.FAILED)
 
     # Global relink — fast, DB-only.
     relink_failed = False

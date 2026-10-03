@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Literal
 
 from personalscraper.core.event_bus import Event
+from personalscraper.core.identity import MediaRef
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -43,6 +44,12 @@ class ItemDispatched(Event):
             folder rather than a whole section — cannot reconstruct this path
             from disk + category + item name without re-deriving the naming
             rules, so the event carries what the dispatcher already knows.
+        media_ref: Provider ids of the dispatched medium, read from its NFO
+            (``<title>.nfo`` for a movie, ``tvshow.nfo`` for a show), or ``None``
+            when the item has no usable NFO. Additive with a ``None`` default:
+            existing emitters and subscribers are unaffected. Lets the library
+            services and live updates name WHICH medium a dispatch touched
+            without re-reading the folder.
     """
 
     item: str
@@ -50,6 +57,7 @@ class ItemDispatched(Event):
     category_id: str
     action: Literal["moved", "merged", "replaced"]
     target_path: Path | None = None
+    media_ref: MediaRef | None = None
 
 
 __all__ = ["ItemDispatched"]
