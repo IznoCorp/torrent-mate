@@ -267,7 +267,7 @@ Paths are under `personalscraper/`. The verdict is his four words: **adapt** (sa
 
 | Exists | Verdict | What changes |
 | --- | --- | --- |
-| `core/event_bus.py`, `subscribers/redis_stream.py:70` `RedisEventPublisher` (subscribes to the base `Event`: every bus event reaches the stream), `web/ws/relay.py`, `web/ws/routes.py:28` | adapt | payloads carry identity and codes (E1, E9); new events E3–E8 land with the lot that owns their subject |
+| `core/event_bus.py`, `subscribers/redis_stream.py:70` `RedisEventPublisher` (subscribes to the base `Event`: every bus event reaches the stream), `app/relay.py`, `web/ws/routes.py:28` | adapt | payloads carry identity and codes (E1, E9); new events E3–E8 land with the lot that owns their subject |
 
 ---
 

@@ -15,8 +15,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 import personalscraper
+from personalscraper.app.accounts.passwords import hash_password
 from personalscraper.config import Settings
-from personalscraper.web.auth.passwords import hash_password
 from personalscraper.web.routes import version as version_module
 from personalscraper.web.routes.version import _read_build_commit
 

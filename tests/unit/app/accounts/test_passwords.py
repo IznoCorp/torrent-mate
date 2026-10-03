@@ -1,4 +1,4 @@
-"""Unit tests for ``personalscraper.web.auth.passwords`` (tm-shell feature).
+"""Unit tests for ``personalscraper.app.accounts.passwords`` (tm-shell feature).
 
 Pure unit tests — no FastAPI, no TestClient, no config dependency.
 See docs/features/tm-shell/plan/phase-02-auth.md §2.4.
@@ -6,7 +6,7 @@ See docs/features/tm-shell/plan/phase-02-auth.md §2.4.
 
 from __future__ import annotations
 
-from personalscraper.web.auth.passwords import hash_password, verify_password
+from personalscraper.app.accounts.passwords import hash_password, verify_password
 
 
 class TestHashPassword:

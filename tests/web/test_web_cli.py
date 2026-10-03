@@ -13,12 +13,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
+from personalscraper.app.accounts.passwords import verify_password
+
 # Import the fully-wired CLI app so the ``web`` sub-app is mounted via
 # ``add_typer`` (matching the trailers/library sub-app test convention).
 from personalscraper.cli import app as cli_app
 from personalscraper.conf.models.web import WebConfig
 from personalscraper.config import Settings
-from personalscraper.web.auth.passwords import verify_password
 
 # Patch targets for the eager config load in the CLI callback.
 _PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"

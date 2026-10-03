@@ -10,15 +10,15 @@ import asyncio
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
-from personalscraper.logger import get_logger
-from personalscraper.web.deps import _validate_session_token
-from personalscraper.web.routes.version import _read_build_commit
-from personalscraper.web.ws.relay import (
+from personalscraper.app.relay import (
     PING_INTERVAL,
     ConnectionRegistry,
     _ReplayGuard,
     replay_events,
 )
+from personalscraper.logger import get_logger
+from personalscraper.web.deps import _validate_session_token
+from personalscraper.web.routes.version import _read_build_commit
 
 logger = get_logger(__name__)
 

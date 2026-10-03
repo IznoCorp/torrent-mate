@@ -17,11 +17,11 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from personalscraper.app.accounts.passwords import hash_password
 from personalscraper.conf.models.staging import StagingDirConfig
 from personalscraper.config import Settings
 from personalscraper.indexer import migrations as _migrations_pkg
 from personalscraper.indexer.db import apply_migrations
-from personalscraper.web.auth.passwords import hash_password
 from tests.web._web_harness import guarded_client
 
 TEST_USERNAME = "staging-test"

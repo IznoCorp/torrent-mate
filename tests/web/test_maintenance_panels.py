@@ -20,9 +20,9 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from personalscraper.app.accounts.passwords import hash_password
 from personalscraper.config import Settings
 from personalscraper.indexer.db import apply_migrations
-from personalscraper.web.auth.passwords import hash_password
 from tests.web._web_harness import build_guarded_app
 
 TEST_USERNAME = "testuser"
