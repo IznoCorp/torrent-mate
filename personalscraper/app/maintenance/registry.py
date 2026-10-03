@@ -1,4 +1,4 @@
-"""Maintenance action registry — typed models for the 26 ``library-*`` CLI commands.
+"""Maintenance action registry — typed models for the 27 ``library-*`` CLI commands.
 
 Each :class:`MaintenanceAction` entry models a single Typer-registered
 ``library-*`` command with its risk classification, dry-run capability,
@@ -20,6 +20,8 @@ Category mapping (from module to registry category):
 * ``fix_orphan_files.py`` → ``"fix"``
 * ``fix_season_counts.py`` → ``"fix"``
 * ``dedup_titles.py`` → ``"fix"``
+* ``duplicates_by_id.py`` → ``"query"`` (read-only report of provider ids held by
+  two rows or two media folders)
 """
 
 from __future__ import annotations
@@ -131,7 +133,7 @@ def canonical_options_json(options: dict[str, object]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Registry — 26 library-* commands registered on the Typer app.
+# Registry — 27 library-* commands registered on the Typer app.
 # Ground truth: @app.command decorators in personalscraper/commands/library/*.py
 # (NOT __all__, which is stale at 23 entries).
 # ---------------------------------------------------------------------------
