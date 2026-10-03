@@ -17,11 +17,13 @@ from personalscraper.conf.environment import (
     store_filename,
     store_path,
 )
+from personalscraper.conf.isolation import ENVIRONMENT_MARKER
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.models.indexer import IndexerConfig
 from personalscraper.conf.models.paths import PathConfig
+from personalscraper.conf.models.web import WebConfig
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
@@ -36,17 +38,33 @@ def _config(tmp_path: Path, **extra: object) -> Config:
         A loaded ``Config``.
     """
     return Config(
-        paths=PathConfig(torrent_complete_dir=tmp_path / "complete", staging_dir=tmp_path / "staging"),
+        paths=PathConfig(
+            torrent_complete_dir=tmp_path / "complete", staging_dir=tmp_path / "staging", data_dir=tmp_path
+        ),
         disks=[DiskConfig(id="disk_a", path=tmp_path / "disk_a", categories=list(CID.BUILTIN_CATEGORY_IDS))],
         staging_dirs=CANONICAL_STAGING_DIRS,
         **extra,  # type: ignore[arg-type]
     )
 
 
+def _mark(tmp_path: Path, env: str) -> None:
+    """Mark ``tmp_path`` (the configs' data directory) as owned by ``env``.
+
+    Args:
+        tmp_path: Pytest tmp_path fixture value.
+        env: The environment name written into the marker.
+    """
+    (tmp_path / ENVIRONMENT_MARKER).write_text(env, encoding="utf-8")
+
+
+_STAGING_WEB = WebConfig(stream_key="personalscraper:events:staging")
+
+
 def test_staging_names_the_stores(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``staging`` suffixes both derived store names."""
     monkeypatch.setenv(ENV_VAR, "staging")
-    cfg = _config(tmp_path)
+    _mark(tmp_path, "staging")
+    cfg = _config(tmp_path, web=_STAGING_WEB)
     assert cfg.acquire.db_path is not None and cfg.acquire.db_path.name == "acquire-staging.db"
     assert cfg.indexer.db_path is not None and cfg.indexer.db_path.name == "library-staging.db"
 
@@ -54,6 +72,7 @@ def test_staging_names_the_stores(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 def test_dev_names_the_stores(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``dev`` suffixes both derived store names."""
     monkeypatch.setenv(ENV_VAR, "dev")
+    _mark(tmp_path, "dev")
     cfg = _config(tmp_path)
     assert cfg.acquire.db_path is not None and cfg.acquire.db_path.name == "acquire-dev.db"
     assert cfg.indexer.db_path is not None and cfg.indexer.db_path.name == "library-dev.db"
@@ -89,7 +108,10 @@ def test_explicit_path_wins_over_the_variable(tmp_path: Path, monkeypatch: pytes
     monkeypatch.setenv(ENV_VAR, "staging")
     acquire = tmp_path / "acquire.db"
     indexer = tmp_path / "library.db"
-    cfg = _config(tmp_path, acquire=AcquireConfig(db_path=acquire), indexer=IndexerConfig(db_path=indexer))
+    _mark(tmp_path, "staging")
+    cfg = _config(
+        tmp_path, acquire=AcquireConfig(db_path=acquire), indexer=IndexerConfig(db_path=indexer), web=_STAGING_WEB
+    )
     assert cfg.acquire.db_path == acquire
     assert cfg.indexer.db_path == indexer
 
