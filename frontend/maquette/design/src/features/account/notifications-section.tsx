@@ -12,12 +12,18 @@
 // A ROW'S LABEL LEADS AND ITS LINE FOLLOWS, MUTED — the weight of « Votre session »'s rows, not
 // the key-value row's own, which mutes its first span.
 //
+// THE WRITES ASK `notifications.manage`: without it — the account's role, or the read-only
+// instance's ceiling — the switches still say each choice, since the choices hold, but none can
+// be pressed and « Activer » is not offered. The ceiling's notice, once on the page, says why.
+//
 // THE DEVICE'S LINE COMES FIRST because it says whether the switches below reach THIS device;
 // they are drawn whatever it says, since a choice holds on the account's other devices.
 import { useState, type ReactElement } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { read, send } from "../../lib/query-client";
+import { useRights } from "../../lib/account";
+import { toast } from "../../lib/shell-doors";
 import { Switch } from "../../ui/switch";
 import { actionButton, factsPanel, guidance, keyValueRow, qualityHint, sectionHeading, settingRow } from "../../ui/variants";
 import { chipTone } from "../../ui/fact-rows";
@@ -55,9 +61,10 @@ function typeKey(type: NotificationType): string {
 /**
  * This device's line: what it can do, and « Activer » where it can still be asked.
  *
+ * @param props.settable Whether the account may register this device.
  * @returns The line.
  */
-function DeviceLine(): ReactElement {
+function DeviceLine({ settable }: { settable: boolean }): ReactElement {
   const { t } = useTranslation();
   const [support, setSupport] = useState<DeviceSupport>(() => deviceSupport());
   const [pending, setPending] = useState(false);
@@ -87,7 +94,7 @@ function DeviceLine(): ReactElement {
         )}
         <div className={qualityHint()}>{t(failed ? `${words}.failed` : `${words}.${support}.line`)}</div>
       </div>
-      {support === "unasked" ? (
+      {settable && support === "unasked" ? (
         <button className={actionButton({ kind: "panelAction" })} data-part="profile/push-enable" disabled={pending}
           onClick={enable}>
           {t(pending ? `${words}.enabling` : `${words}.enable`)}
@@ -105,15 +112,19 @@ function DeviceLine(): ReactElement {
 export function NotificationsSection(): ReactElement | null {
   const { t } = useTranslation();
   const client = useQueryClient();
+  const settable = useRights().holds("notifications.manage");
   const { data } = usePreferences();
   if (!data || data.preferences.length === 0) return null;
 
   function toggle(type: NotificationType, enabled: boolean): void {
-    // OPTIMISTIC, and rolled back by a fresh read when the server refuses.
+    // OPTIMISTIC, and on a refusal SAID refused, then rolled back by a fresh read.
     client.setQueryData<Preferences>(PREFERENCES_KEY, (held) =>
       held && { preferences: held.preferences.map((one) => (one.type === type ? { ...one, enabled } : one)) });
     send("PUT", `/api/notifications/preferences/${encodeURIComponent(type)}`, { enabled })
-      .catch(() => client.invalidateQueries({ queryKey: PREFERENCES_KEY }));
+      .catch(() => {
+        toast?.show({ message: t("screens.accountPage.notifications.refused", { type: t(`${typeKey(type)}.label`) }) });
+        return client.invalidateQueries({ queryKey: PREFERENCES_KEY });
+      });
   }
 
   return (
@@ -123,7 +134,7 @@ export function NotificationsSection(): ReactElement | null {
         {t("screens.accountPage.notifications.intro")}
       </p>
       <div className={factsPanel()} data-part="panel">
-        <DeviceLine key={poseGeneration()} />
+        <DeviceLine key={poseGeneration()} settable={settable} />
         {data.preferences.map((one) => (
           <div key={one.type} className={`${keyValueRow()} ${settingRow()}`} data-part="key-value"
             data-notification-type={one.type}>
@@ -132,7 +143,7 @@ export function NotificationsSection(): ReactElement | null {
               <div className={qualityHint()}>{t(`${typeKey(one.type)}.description`)}</div>
             </div>
             <Switch checked={one.enabled} label={t(`${typeKey(one.type)}.label`)} data-part="switch"
-              onClick={() => toggle(one.type, !one.enabled)} />
+              disabled={!settable} onClick={settable ? () => toggle(one.type, !one.enabled) : undefined} />
           </div>
         ))}
       </div>

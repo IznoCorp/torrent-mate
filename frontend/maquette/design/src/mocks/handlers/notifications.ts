@@ -11,7 +11,8 @@
 // knows no table of its own.
 import { POST, PUT, GET, field, route, text } from "./shared";
 import { refused, type MockRoute } from "../router";
-import { signedInId, signedInRights } from "../identity";
+import { signedIn, signedInId } from "../identity";
+import { rightsOf } from "../../lib/rights";
 import { mockState } from "../state";
 import type { components } from "../../contract/types";
 import type { Right } from "../../lib/rights";
@@ -44,7 +45,10 @@ export const NOTIFICATION_RIGHTS: Readonly<Record<NotificationType, Right>> = {
  * @returns The types whose right it holds.
  */
 function receivable(): NotificationType[] {
-  const rights = signedInRights();
+  // BY THE ROLE, NOT THE INSTANCE'S CEILING: the ceiling forbids this instance's writes, and
+  // receiving a type is not one — the read-only instance still shows every choice the account
+  // holds, and refuses only changing them (`notifications.manage`, a write).
+  const rights = rightsOf({ ...signedIn(), forbiddenWrites: [] });
   return (Object.keys(NOTIFICATION_RIGHTS) as NotificationType[]).filter((one) =>
     rights.holds(NOTIFICATION_RIGHTS[one]),
   );
