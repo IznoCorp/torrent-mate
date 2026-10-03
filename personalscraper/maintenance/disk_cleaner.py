@@ -2,15 +2,15 @@
 
 Dry-run by default. Requires --apply to actually delete.
 Handles NTFS deletion failures gracefully (per-item error, continues).
-Performs ``rmtree``-based deletion (``_scandir_rmtree``) and tolerates
-NTFS ghost-dirents (macFUSE/NTFS known issue).
+Folder deletion goes through :func:`personalscraper.indexer.deletion.delete_media_folder`,
+which tolerates NTFS ghost-dirents (macFUSE/NTFS known issue).
 
 ``clean_library`` accepts a ``Config`` object and resolves folder names
 from ``config.category(id).folder_name``. Disk filter uses ``disk.id``;
 category filter uses ``category_id``.
 
 Write-through: every real deletion (not dry-run) publishes a best-effort
-outbox event via :func:`personalscraper.indexer.outbox.publish_event` so
+outbox event (folders: inside ``delete_media_folder``; junk files: here) so
 the indexer can reconcile removed files at the next drain cycle (DESIGN
 §10.2).  The event uses ``op='move'`` with an empty ``dst_rel_path`` to
 signal removal.  On any outbox error the deletion is still reported as
@@ -104,14 +104,13 @@ def _delete_dir(
     db_path: Path,
     permit: DeletePermit = AllowAllPermit(),
 ) -> None:
-    """Delete a directory, handling NTFS errors gracefully.
+    """Delete a directory through :func:`delete_media_folder` and fold its outcome into *result*.
 
-    On a successful real deletion (not dry-run) publishes a best-effort
-    outbox event so the indexer can reconcile removed content at drain time.
-
-    Consults *permit* before any deletion (VETO → hard-skip, counted as
-    ``skipped_by_obligation``). The consult runs in both dry-run and apply
-    modes so a dry-run preview correctly shows what would be skipped.
+    The primitive consults *permit*, removes the tree (tolerating NTFS ghost
+    dirents), journals the deletion and publishes the best-effort outbox event
+    so the indexer can reconcile removed content at drain time. A VETO is a
+    hard skip, counted as ``skipped_by_obligation``; the consult runs in both
+    dry-run and apply modes so a preview shows what would be skipped.
 
     Args:
         path: Directory to delete.
@@ -119,8 +118,11 @@ def _delete_dir(
         dry_run: If True, only count without deleting.
         label: Human label for logging (e.g. ".actors", "empty dir").
         db_path: Resolved ``Config.indexer.db_path`` forwarded to
-            :func:`_publish_deleted` (DESIGN §9.4).
+            :func:`delete_media_folder` for the journal and outbox (DESIGN §9.4).
         permit: Deletion authority (fail-open default: AllowAllPermit).
+
+    Returns:
+        None. *result* is updated in place.
     """
     outcome = delete_media_folder(
         path, db_path=db_path, actor="disk-clean", label=label, permit=permit, dry_run=dry_run

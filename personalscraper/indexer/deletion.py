@@ -201,7 +201,8 @@ def delete_media_folder(
         label: Human label for logs and the journal (e.g. ``".actors"``).
         permit: Deletion authority (fail-open default: ``AllowAllPermit``).
         run_uid: Optional correlating ``pipeline_run`` uid for the journal row.
-        dry_run: Only measure the folder; delete, journal and publish nothing.
+        dry_run: Consult the permit and measure the folder; delete, journal and
+            publish nothing.
 
     Returns:
         A :class:`DeleteResult`: ``VETOED`` when the permit refused, ``FAILED``
