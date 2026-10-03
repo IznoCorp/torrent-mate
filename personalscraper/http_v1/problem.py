@@ -32,9 +32,12 @@ REFUSAL_TITLES: Final[Mapping[RefusalCode, str]] = {
     RefusalCode.ROUTE_UNKNOWN: "No operation answers this method and path.",
     RefusalCode.INTERNAL: "The server failed.",
     RefusalCode.AUTH_REQUIRED: "A signed-in session is required.",
+    RefusalCode.AUTH_REFUSED: "The sign-in was refused.",
+    RefusalCode.AUTH_RATE_LIMITED: "Too many failed sign-ins; try again later.",
     RefusalCode.RIGHT_MISSING: "A right is missing.",
     RefusalCode.INSTANCE_READ_ONLY: "This instance is read-only.",
     RefusalCode.INSTANCE_FORBIDDEN_WRITE: "This instance forbids this write.",
+    RefusalCode.ACCOUNT_UNKNOWN: "No account answers this identity.",
     RefusalCode.MEDIA_NOT_FOUND: "No medium answers this provider identity.",
     RefusalCode.PROVIDER_UNAVAILABLE: "A metadata provider did not answer.",
 }

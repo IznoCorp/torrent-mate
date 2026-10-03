@@ -1,4 +1,4 @@
-"""The ``authentication`` tag's routes: the signed-in account and its session."""
+"""The ``authentication`` tag's routes: the password door, the signed-in account and its session."""
 
 from __future__ import annotations
 
@@ -7,14 +7,22 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, Response
 
 from personalscraper.app.accounts.actor import Actor
+from personalscraper.app.accounts.ratelimit import rate_limit_key
 from personalscraper.app.errors import AppUnauthenticated, RefusalCode
 from personalscraper.app.services import AppServices
 from personalscraper.http_v1.contract import PROBLEM_RESPONSES
 from personalscraper.http_v1.deps import actor, services
-from personalscraper.http_v1.models.authentication import AccountModel, SignedOut
-from personalscraper.http_v1.session_cookie import clear_session_cookie, session_token
+from personalscraper.http_v1.models.authentication import AccountModel, SignedOut, SignInBody
+from personalscraper.http_v1.session_cookie import clear_session_cookie, session_token, set_session_cookie
 
 router = APIRouter()
+
+#: ``signIn``'s refusals as the contract declares them: the limiter's 429, and no 403 — every
+#: unauthenticated failure is the one 401.
+_SIGN_IN_RESPONSES = {
+    **{status: answer for status, answer in PROBLEM_RESPONSES.items() if status != 403},
+    429: PROBLEM_RESPONSES[401],
+}
 
 
 def signed_in_token(request: Request) -> str:
@@ -34,6 +42,43 @@ def signed_in_token(request: Request) -> str:
     if token is None:
         raise AppUnauthenticated("This operation requires a signed-in session.", code=RefusalCode.AUTH_REQUIRED)
     return token
+
+
+@router.post(
+    "/auth/login",
+    operation_id="signIn",
+    response_model=AccountModel,
+    response_model_exclude_none=True,
+    status_code=200,
+    responses=_SIGN_IN_RESPONSES,
+)
+def sign_in(
+    body: SignInBody,
+    request: Request,
+    response: Response,
+    app_services: Annotated[AppServices, Depends(services)],
+) -> AccountModel:
+    """Open a session from an e-mail and a password, and hand its cookie.
+
+    A public operation: the perimeter resolves no session, so a ``tm_v1_session`` the
+    browser already carries is ignored: the browser's cookie is replaced by the new one,
+    while the server-side session it named stays valid until it expires or signs out.
+
+    Args:
+        body: The e-mail and the password.
+        request: The incoming request (the client's key, its user agent, the web configuration).
+        response: The answer the session cookie is set on.
+        app_services: The application services.
+
+    Returns:
+        The signed-in account.
+    """
+    client_key = rate_limit_key(request.client.host if request.client else None, request.headers.get("x-forwarded-for"))
+    result = app_services.accounts.sign_in_with_password(
+        body.email, body.password, client_key=client_key, user_agent=request.headers.get("user-agent")
+    )
+    set_session_cookie(response, result.session_token, request.app.state.config.web)
+    return AccountModel.from_view(result.account)
 
 
 @router.get(

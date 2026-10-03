@@ -1,0 +1,31 @@
+{
+  "request": {
+    "invalid": "The request is invalid.",
+    "cross_origin": "The request came from another origin and was refused."
+  },
+  "route": {
+    "unknown": "No operation answers this request."
+  },
+  "internal": "The command failed unexpectedly; see the log.",
+  "auth": {
+    "required": "This needs a signed-in session.",
+    "refused": "The sign-in was refused.",
+    "rate_limited": "Too many failed sign-ins; try again in a minute."
+  },
+  "right": {
+    "missing": "The account's role lacks the right this needs."
+  },
+  "instance": {
+    "read_only": "This instance is read-only: nothing was changed.",
+    "forbidden_write": "This instance forbids this change: nothing was changed."
+  },
+  "account": {
+    "unknown": "No account has the e-mail given as EMAIL."
+  },
+  "media": {
+    "not_found": "No media answers this provider id."
+  },
+  "provider": {
+    "unavailable": "A metadata provider did not answer; try again later."
+  }
+}

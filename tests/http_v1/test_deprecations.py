@@ -76,6 +76,23 @@ def test_the_answer_is_otherwise_unchanged(test_config: Config) -> None:
     assert (on.status_code, on.json()) == (off.status_code, off.json())
 
 
+def test_a_v0_sign_in_is_unchanged_but_for_its_twin_headers(test_config: Config) -> None:
+    """v0's login still answers 204 with ``tm_session``, or 401 ``Invalid credentials``; it names ``signIn``."""
+    client = _client(test_config, v1_enabled=True)
+    client.cookies.clear()
+
+    signed_in = client.post("/api/auth/login", json={"username": USERNAME, "password": PASSWORD})
+    refused = client.post("/api/auth/login", json={"username": USERNAME, "password": "wrong"})
+
+    assert signed_in.status_code == 204
+    assert signed_in.content == b""
+    assert "tm_session=" in signed_in.headers["set-cookie"]
+    assert "tm_v1_session" not in signed_in.headers["set-cookie"]
+    assert signed_in.headers["deprecation"] == "@1790985600"  # 2026-10-03 00:00 UTC
+    assert signed_in.headers["link"] == '</api/v1/auth/login>; rel="successor-version"'
+    assert (refused.status_code, refused.json()) == (401, {"detail": "Invalid credentials"})
+
+
 def test_a_route_without_a_twin_carries_neither(test_config: Config) -> None:
     """v1 mounted: ``GET /api/health`` has no twin, so no header."""
     response = _client(test_config, v1_enabled=True).get("/api/health")

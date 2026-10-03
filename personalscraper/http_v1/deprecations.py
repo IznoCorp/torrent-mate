@@ -36,6 +36,7 @@ V0_TWINS: Final[Mapping[tuple[str, str], V0Twin]] = {
     ("GET", "/api/version"): V0Twin("readVersion", "/api/v1/version", date(2026, 10, 3)),
     ("GET", "/api/auth/me"): V0Twin("readAccount", "/api/v1/auth/me", date(2026, 10, 3)),
     ("POST", "/api/auth/logout"): V0Twin("signOut", "/api/v1/auth/logout", date(2026, 10, 3)),
+    ("POST", "/api/auth/login"): V0Twin("signIn", "/api/v1/auth/login", date(2026, 10, 3)),
 }
 
 

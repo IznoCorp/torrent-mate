@@ -1,0 +1,31 @@
+{
+  "request": {
+    "invalid": "La requête est invalide.",
+    "cross_origin": "La requête venait d'une autre origine et a été refusée."
+  },
+  "route": {
+    "unknown": "Aucune opération ne répond à cette requête."
+  },
+  "internal": "La commande a échoué de façon inattendue ; voir le journal.",
+  "auth": {
+    "required": "Il faut une session connectée.",
+    "refused": "La connexion a été refusée.",
+    "rate_limited": "Trop de connexions échouées ; réessayez dans une minute."
+  },
+  "right": {
+    "missing": "Le rôle du compte n'a pas le droit nécessaire."
+  },
+  "instance": {
+    "read_only": "Cette instance est en lecture seule : rien n'a été modifié.",
+    "forbidden_write": "Cette instance interdit ce changement : rien n'a été modifié."
+  },
+  "account": {
+    "unknown": "Aucun compte n'a l'adresse donnée en EMAIL."
+  },
+  "media": {
+    "not_found": "Aucun média ne répond à cet identifiant de fournisseur."
+  },
+  "provider": {
+    "unavailable": "Un fournisseur de métadonnées n'a pas répondu ; réessayez plus tard."
+  }
+}
