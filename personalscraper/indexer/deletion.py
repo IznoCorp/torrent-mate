@@ -15,10 +15,16 @@ import os
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+from typing import TYPE_CHECKING
 
+from personalscraper.conf.environment import Environment, current_environment
+from personalscraper.conf.preprod_guard import PreprodGuardError, assert_within_preprod
 from personalscraper.core.delete_permit import ALLOW, AllowAllPermit, DeletePermit, PermitDecision
 from personalscraper.indexer.destructive_journal import OP_DELETE, record_destruction
 from personalscraper.logger import get_logger
+
+if TYPE_CHECKING:
+    from personalscraper.conf.models.config import Config
 
 log = get_logger("library.disk_cleaner")
 
@@ -186,6 +192,7 @@ def delete_media_folder(
     permit: DeletePermit = AllowAllPermit(),
     run_uid: str | None = None,
     dry_run: bool = False,
+    config: Config | None = None,
 ) -> DeleteResult:
     """Consult *permit*, delete the folder, journal it and publish the outbox event.
 
@@ -203,12 +210,22 @@ def delete_media_folder(
         run_uid: Optional correlating ``pipeline_run`` uid for the journal row.
         dry_run: Consult the permit and measure the folder; delete, journal and
             publish nothing.
+        config: The loaded configuration, naming preprod's roots. Only read under
+            ``staging``, where it is required (without it the roots are unknown).
 
     Returns:
         A :class:`DeleteResult`: ``VETOED`` when the permit refused, ``FAILED``
         when the removal raised an ``OSError`` (``ghosts`` and ``error`` filled),
         otherwise ``DELETED`` with the folder's size.
+
+    Raises:
+        PreprodGuardError: Under ``staging``, *path* is outside preprod's marked,
+            mounted roots, or no *config* was given. Nothing is deleted or journaled.
     """
+    if current_environment() is Environment.STAGING:
+        if config is None:
+            raise PreprodGuardError(f"cannot delete {path}: staging needs the config to know preprod's roots")
+        assert_within_preprod(config, path)
     try:
         decision: PermitDecision = permit.may_delete(path)
     except Exception as exc:

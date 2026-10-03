@@ -142,3 +142,54 @@ def test_failure_neither_journals_nor_publishes(tmp_path: Path, spies: _Spies) -
     assert spies.journal == []
     assert spies.published == []
     assert list_recent(db_path) == []
+
+
+def test_staging_refuses_a_folder_outside_the_preprod_roots(
+    tmp_path: Path, spies: _Spies, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Under staging a folder outside every preprod root is refused: nothing deleted, journaled or published."""
+    from personalscraper.conf import preprod_guard
+    from personalscraper.conf.preprod_guard import PreprodGuardError
+    from tests.conf.test_preprod_guard import _config, _root
+
+    disk, stage = _root(tmp_path, "disk"), _root(tmp_path, "stage")
+    config = _config(tmp_path, disk, stage)
+    monkeypatch.setattr(preprod_guard, "is_mounted", lambda path: True)
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
+    folder = _folder(tmp_path)
+    db_path = _journal_db(tmp_path)
+    with pytest.raises(PreprodGuardError):
+        delete_media_folder(folder, db_path=db_path, actor="t", label="l", config=config)
+    assert folder.exists()
+    assert list_recent(db_path) == []
+    assert spies.journal == []
+    assert spies.published == []
+
+
+def test_staging_deletes_a_folder_inside_a_preprod_root(
+    tmp_path: Path, spies: _Spies, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Under staging a folder inside a marked, mounted root is deleted as usual."""
+    from personalscraper.conf import preprod_guard
+    from tests.conf.test_preprod_guard import _config, _root
+
+    disk, stage = _root(tmp_path, "disk"), _root(tmp_path, "stage")
+    config = _config(tmp_path, disk, stage)
+    monkeypatch.setattr(preprod_guard, "is_mounted", lambda path: True)
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
+    folder = disk / "Movie (2024)"
+    folder.mkdir()
+    res = delete_media_folder(folder, db_path=_journal_db(tmp_path), actor="t", label="l", config=config)
+    assert res.outcome is DeleteOutcome.DELETED
+    assert not folder.exists()
+
+
+def test_staging_without_a_config_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Under staging the roots are unknown without a config: the deletion fails closed."""
+    from personalscraper.conf.preprod_guard import PreprodGuardError
+
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
+    folder = _folder(tmp_path)
+    with pytest.raises(PreprodGuardError):
+        delete_media_folder(folder, db_path=tmp_path / "x.db", actor="t", label="l")
+    assert folder.exists()

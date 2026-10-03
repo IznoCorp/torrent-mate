@@ -29,6 +29,8 @@ if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
 
 from personalscraper._fs_utils import is_apple_double
+from personalscraper.conf.environment import Environment, current_environment
+from personalscraper.conf.preprod_guard import PreprodGuardError, assert_within_preprod
 from personalscraper.core.delete_permit import ALLOW, AllowAllPermit, DeletePermit, PermitDecision
 from personalscraper.core.sqlite._fs_probe import is_mounted
 from personalscraper.indexer.deletion import DeleteOutcome, _publish_deleted, delete_media_folder
@@ -103,6 +105,7 @@ def _delete_dir(
     label: str,
     db_path: Path,
     permit: DeletePermit = AllowAllPermit(),
+    config: Config | None = None,
 ) -> None:
     """Delete a directory through :func:`delete_media_folder` and fold its outcome into *result*.
 
@@ -120,13 +123,21 @@ def _delete_dir(
         db_path: Resolved ``Config.indexer.db_path`` forwarded to
             :func:`delete_media_folder` for the journal and outbox (DESIGN §9.4).
         permit: Deletion authority (fail-open default: AllowAllPermit).
+        config: Loaded configuration forwarded to :func:`delete_media_folder`, whose
+            preprod guard needs it under ``staging``.
 
     Returns:
-        None. *result* is updated in place.
+        None. *result* is updated in place; a deletion the preprod guard refuses is
+        counted as an error.
     """
-    outcome = delete_media_folder(
-        path, db_path=db_path, actor="disk-clean", label=label, permit=permit, dry_run=dry_run
-    )
+    try:
+        outcome = delete_media_folder(
+            path, db_path=db_path, actor="disk-clean", label=label, permit=permit, dry_run=dry_run, config=config
+        )
+    except PreprodGuardError as exc:
+        result.error_count += 1
+        result.errors.append(f"Refused to delete {label}: {path} — {exc}")
+        return
     if outcome.outcome is DeleteOutcome.VETOED:
         result.skipped_by_obligation += 1
         return
@@ -157,6 +168,7 @@ def _delete_file(
     label: str,
     db_path: Path,
     permit: DeletePermit = AllowAllPermit(),
+    config: Config | None = None,
 ) -> None:
     """Delete a single file, handling errors gracefully.
 
@@ -175,7 +187,20 @@ def _delete_file(
         db_path: Resolved ``Config.indexer.db_path`` forwarded to
             :func:`_publish_deleted` (DESIGN §9.4).
         permit: Deletion authority (fail-open default: AllowAllPermit).
+        config: Loaded configuration naming preprod's roots. Only read under
+            ``staging``, where it is required: a file outside the marked, mounted
+            roots (or any file when no *config* is given) is refused and counted as
+            an error, before any consult, unlink, journal row or outbox event.
     """
+    if current_environment() is Environment.STAGING:
+        try:
+            if config is None:
+                raise PreprodGuardError(f"cannot delete {path}: staging needs the config to know preprod's roots")
+            assert_within_preprod(config, path)
+        except PreprodGuardError as exc:
+            result.error_count += 1
+            result.errors.append(f"Refused to delete {label}: {path} — {exc}")
+            return
     # F2: the consult itself is fail-open (DESIGN §7.3 / §9). A permit whose
     # may_delete raises must NOT abort cleanup — treat the error as ALLOW (the
     # deletion proceeds) and log it.
@@ -394,6 +419,7 @@ def clean_library(
                             "orphan release",
                             db_path,
                             permit=permit,
+                            config=config,
                         )
                     continue
                 db_path = config.indexer.db_path
@@ -408,6 +434,7 @@ def clean_library(
                     clean_release,
                     db_path,
                     permit=permit,
+                    config=config,
                 )
 
     return result
@@ -423,6 +450,7 @@ def _clean_media_dir(
     clean_release: bool,
     db_path: Path,
     permit: DeletePermit = AllowAllPermit(),
+    config: Config | None = None,
 ) -> None:
     """Clean a single media directory.
 
@@ -438,6 +466,7 @@ def _clean_media_dir(
             helpers for write-through outbox publish (DESIGN §9.4).
         permit: Deletion authority forwarded to ``_delete_dir`` / ``_delete_file``
             (fail-open default: AllowAllPermit).
+        config: Loaded configuration forwarded to ``_delete_dir`` / ``_delete_file`` for the preprod guard.
     """
     try:
         entries = list(media_dir.iterdir())
@@ -452,12 +481,12 @@ def _clean_media_dir(
 
         # .actors directory
         if clean_actors and name == ".actors" and item.is_dir():
-            _delete_dir(item, result, dry_run, ".actors", db_path, permit=permit)
+            _delete_dir(item, result, dry_run, ".actors", db_path, permit=permit, config=config)
             continue
 
         # Junk files (including macOS resource forks "._*")
         if clean_junk and (name in _JUNK_FILES or is_apple_double(name)) and item.is_file():
-            _delete_file(item, result, dry_run, "junk file", db_path, permit=permit)
+            _delete_file(item, result, dry_run, "junk file", db_path, permit=permit, config=config)
             continue
 
         # Empty directories and release-group artifacts
@@ -465,6 +494,6 @@ def _clean_media_dir(
             # Detect release-group style names (contain dots + group suffix)
             is_release = "." in name and any(c.isupper() for c in name.split(".")[-1] if c.isalpha())
             if clean_release and is_release:
-                _delete_dir(item, result, dry_run, "release artifact", db_path, permit=permit)
+                _delete_dir(item, result, dry_run, "release artifact", db_path, permit=permit, config=config)
             elif clean_empty:
-                _delete_dir(item, result, dry_run, "empty dir", db_path, permit=permit)
+                _delete_dir(item, result, dry_run, "empty dir", db_path, permit=permit, config=config)

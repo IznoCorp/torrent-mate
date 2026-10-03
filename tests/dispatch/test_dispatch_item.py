@@ -40,6 +40,7 @@ from typing import Any, Literal
 import pytest
 
 from personalscraper.conf import ids as CID
+from personalscraper.conf import preprod_guard
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.config import Settings
@@ -52,6 +53,7 @@ from personalscraper.dispatch._item import (
     _dispatch_item,
     canonical_name_from_destination,
 )
+from personalscraper.dispatch.disk_scanner import DiskStatus
 from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.events import ItemDispatched
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
@@ -567,6 +569,99 @@ def test_new_media_moves_via_move_new_and_never_journals(
     assert len(dispatched) == 1
     assert dispatched[0].action == "moved"
     assert dispatched[0].source == "dispatch.movie"
+
+
+# ---------------------------------------------------------------------------
+# Preprod guard wiring (``staging`` only)
+# ---------------------------------------------------------------------------
+
+
+def test_existing_copy_outside_every_preprod_root_is_refused_under_staging(
+    char_config: Config,
+    char_db_path: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    _rsync_available: None,
+) -> None:
+    """Under staging a supersede whose existing copy sits outside every root is refused.
+
+    The template must end the item as an error naming the preprod guard before
+    the transfer, leaving source and destination untouched.
+    """
+    name = "Dune (2021)"
+    existing = _make_media_dir(tmp_path / "prod-media" / "Films", name, {"old.mkv": b"x" * 16})
+    _seed_index(
+        char_db_path,
+        IndexEntry(name=name, disk="disk1", category=CID.MOVIES, path=str(existing), media_type="movie"),
+    )
+    source = _make_media_dir(tmp_path / "staging_src", name, {"new.mkv": b"y" * 4096})
+    transfer = _FakeTransfer(success=True, destroyed=True)
+    spec = _spec(existing_action="replaced", transfer_fn=transfer, bus_source="dispatch.movie")
+
+    index = MediaIndex(char_db_path, event_bus=EventBus())
+    dispatcher = Dispatcher(char_config, Settings(), index, event_bus=EventBus())
+    monkeypatch.setattr(preprod_guard, "is_mounted", lambda path: True)
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
+    try:
+        result = _dispatch_item(dispatcher, source, CID.MOVIES, spec)
+    finally:
+        index.close()
+
+    assert result.action == "error"
+    assert "Preprod guard" in result.reason
+    assert result.destination == existing
+    assert transfer.calls == []
+    assert [p.name for p in source.iterdir()] == ["new.mkv"]
+    assert [p.name for p in existing.iterdir()] == ["old.mkv"]
+    assert _overwrite_rows(char_db_path, existing) == []
+
+
+def test_new_media_on_an_unmarked_disk_is_refused_under_staging(
+    char_config: Config,
+    char_db_path: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    _rsync_available: None,
+) -> None:
+    """Under staging a new-media move onto a disk root with no marker is refused.
+
+    Nothing is moved: ``_move_new`` and the spec transfer are never called and
+    the source stays where it was.
+    """
+    name = "Oppenheimer (2023)"
+    source = _make_media_dir(tmp_path / "staging_src", name, {"movie.mkv": b"\x00" * 4096})
+    transfer = _FakeTransfer(success=True, destroyed=True)
+    spec = _spec(existing_action="replaced", transfer_fn=transfer, bus_source="dispatch.movie")
+
+    index = MediaIndex(char_db_path, event_bus=EventBus())
+    dispatcher = Dispatcher(char_config, Settings(), index, event_bus=EventBus())
+    move_calls: list[tuple[Path, Path]] = []
+
+    def _fake_move_new(src: Path, dst: Path, capability: object = None) -> bool:
+        move_calls.append((src, dst))
+        return True
+
+    monkeypatch.setattr(dispatcher, "_move_new", _fake_move_new)
+    monkeypatch.setattr(preprod_guard, "is_mounted", lambda path: True)
+    # The disk scanner's own marker check would hide the disks and end the item as
+    # "no disk"; report them usable so the template's destination guard is what judges.
+    monkeypatch.setattr(
+        "personalscraper.dispatch._item.get_disk_status",
+        lambda disk: DiskStatus(config=disk, free_space_gb=100.0, is_mounted=True),
+    )
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
+    try:
+        result = _dispatch_item(dispatcher, source, CID.MOVIES, spec)
+    finally:
+        index.close()
+
+    assert result.action == "error"
+    assert "Preprod guard" in result.reason
+    assert result.destination is not None
+    assert not result.destination.exists()
+    assert move_calls == []
+    assert transfer.calls == []
+    assert [p.name for p in source.iterdir()] == ["movie.mkv"]
 
 
 # ---------------------------------------------------------------------------
