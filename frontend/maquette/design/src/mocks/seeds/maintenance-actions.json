@@ -162,6 +162,15 @@
     "dryRun": true
   },
   {
+    "id": "library-rescrape-item",
+    "label": "Re-scraper un élément",
+    "description": "Re-scrape d'un seul élément par ID DB via TMDB/TVDB (NFO, artwork, épisodes), sans aperçu.",
+    "group": "analyze",
+    "risk": "write",
+    "long": true,
+    "dryRun": false
+  },
+  {
     "id": "library-report",
     "label": "Rapport de bibliothèque",
     "description": "Affiche les statistiques et l'état de santé global de la bibliothèque.",

@@ -17,12 +17,17 @@ import sqlite3
 import subprocess
 import sys
 import time
+import uuid
+from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 
 from personalscraper.app._runner_engine import reserve_run_row
-from personalscraper.app.errors import AppConflict, AppPreconditionRequired, AppValidationError
-from personalscraper.app.maintenance.registry import MaintenanceAction
+from personalscraper.app.errors import AppConflict, AppInternalError, AppPreconditionRequired, AppValidationError
+from personalscraper.app.maintenance.registry import MaintenanceAction, canonical_options_json
+from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
+from personalscraper.pipeline_history import PipelineRunWriter
 
 logger = get_logger(__name__)
 
@@ -266,3 +271,68 @@ def _spawn_runner(run_uid: str, action_id: str, options_json: str, dry_run: bool
         env=env,
     )
     return proc.pid
+
+
+@dataclass(frozen=True)
+class LaunchedRun:
+    """A maintenance run reserved and spawned.
+
+    Attributes:
+        run_uid: The reserved ``pipeline_run`` row's id.
+        queued: Whether ``pipeline.lock`` was held at launch: the runner waits in the
+            visible queue until it frees.
+    """
+
+    run_uid: str
+    queued: bool
+
+
+def launch_action(
+    action: MaintenanceAction,
+    options: Mapping[str, object],
+    *,
+    db_path: Path,
+    data_dir: Path,
+    dry_run: bool = False,
+) -> LaunchedRun:
+    """Launch a maintenance action from the application layer: validate, reserve, spawn.
+
+    The same steps as ``POST /api/maintenance/actions/{id}/run``: the options are
+    validated, the run row is reserved under the duplicate and dry-run-first guards,
+    the detached runner is spawned and claims the row with its pid. A held
+    ``pipeline.lock`` is never a refusal: the runner waits in the visible queue.
+
+    Args:
+        action: The registry action.
+        options: Its options, already typed.
+        db_path: Absolute path to ``library.db``.
+        data_dir: The pipeline data directory holding ``pipeline.lock``.
+        dry_run: ``True`` for a dry run.
+
+    Returns:
+        The reserved run and whether it waits on the lock.
+
+    Raises:
+        AppValidationError: 422 on options the action refuses, or a dry run of an
+            action that has none.
+        AppConflict: 409 when the same action with the same options is running.
+        AppPreconditionRequired: 428 when a destructive apply has no fresh dry run.
+        AppInternalError: 500 when the runner cannot be spawned (its row is finalised ``error``).
+    """
+    if action.dry_run == "unsupported" and dry_run:
+        raise AppValidationError(f"Action {action.id!r} does not support dry-run")
+    _validate_options(action, dict(options))
+    options_json = canonical_options_json(dict(options))
+    run_uid = uuid.uuid4().hex
+    _reserve_run_row(
+        db_path, run_uid=run_uid, action=action, command=action.id, options_json=options_json, dry_run=dry_run
+    )
+    try:
+        pid = _spawn_runner(run_uid, action.id, options_json, dry_run)
+    except (OSError, ValueError) as exc:
+        PipelineRunWriter(db_path).finalize(run_uid, "error", error=str(exc))
+        logger.error("maintenance_spawn_failed", run_uid=run_uid, action_id=action.id, error=str(exc))
+        raise AppInternalError("Failed to spawn maintenance runner") from exc
+    PipelineRunWriter(db_path).update_pid(run_uid, pid)
+    queued = action.risk in ("write", "destructive") and not dry_run and is_lock_held(data_dir / "pipeline.lock")
+    return LaunchedRun(run_uid=run_uid, queued=queued)

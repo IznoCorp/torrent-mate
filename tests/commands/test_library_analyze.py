@@ -1,12 +1,14 @@
 """Tests for the library-* analysis Typer commands.
 
 Covers ``library-analyze``, ``library-recommend``, ``library-rescrape``,
-and ``library-report``.
+``library-rescrape-item`` and ``library-report``.
 """
 
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
+from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
@@ -292,6 +294,34 @@ class TestLibraryRecommend:
 # ── library-rescrape ─────────────────────────────────────────────────────────
 
 
+@contextmanager
+def _recorded_run_row() -> Iterator[list[str]]:
+    """Run a rescrape command with its collaborators replaced, recording the run row's command name.
+
+    Yields:
+        The ``command`` every ``cli_run_row`` call received, in order.
+    """
+    commands: list[str] = []
+
+    @contextmanager
+    def fake_run_row(config: object, command: str) -> Iterator[MagicMock]:
+        """Record the command name and yield a recorder that accepts anything."""
+        commands.append(command)
+        yield MagicMock()
+
+    with (
+        patch("personalscraper.commands._cli_run_row.cli_run_row", fake_run_row),
+        patch(
+            "personalscraper.maintenance.rescraper.rescrape_library",
+            return_value=TestLibraryRescrapeItem._result(1),
+        ),
+        patch("personalscraper.io_utils.write_json"),
+        patch("personalscraper.cli_helpers.acquire_pipeline_lock", return_value=True),
+        patch("personalscraper.cli_helpers.release_lock"),
+    ):
+        yield commands
+
+
 class TestLibraryRescrape:
     """Tests for the library-rescrape Typer command."""
 
@@ -358,6 +388,139 @@ class TestLibraryRescrape:
             result = runner.invoke(app, ["library-rescrape"])
         assert result.exit_code == 3
         assert "Another instance" in result.output
+
+    def test_item_id_only_and_category_reach_the_rescraper(self, test_config) -> None:
+        """``--item-id``, ``--only`` and the resolved ``--category`` reach rescrape_library; the report is written."""
+        TestLibraryRescrapeItem._index(test_config)
+        with (
+            patch(
+                "personalscraper.maintenance.rescraper.rescrape_library",
+                return_value=TestLibraryRescrapeItem._result(1),
+            ) as mock_rescrape,
+            patch("personalscraper.io_utils.write_json") as mock_write,
+            patch("personalscraper.cli_helpers.acquire_pipeline_lock", return_value=True),
+            patch("personalscraper.cli_helpers.release_lock"),
+        ):
+            result = runner.invoke(app, ["library-rescrape", "--item-id", "7", "--only", "nfo", "--category", "movies"])
+        assert result.exit_code == 0, result.output
+        kwargs = mock_rescrape.call_args.kwargs
+        assert (kwargs["item_id"], kwargs["only"], kwargs["category_filter"]) == (7, "nfo", "movies")
+        mock_write.assert_called_once()
+
+    def test_the_run_row_is_recorded_under_library_rescrape(self, test_config) -> None:
+        """The run row carries the bulk command's own name."""
+        with _recorded_run_row() as commands:
+            result = runner.invoke(app, ["library-rescrape"])
+        assert result.exit_code == 0, result.output
+        assert commands == ["library-rescrape"]
+
+
+class TestLibraryRescrapeItem:
+    """Tests for the library-rescrape-item Typer command (one medium, live only)."""
+
+    @staticmethod
+    def _result(candidates: int) -> LibraryRescrapeResult:
+        """A live rescrape result over *candidates* resolved items."""
+        return LibraryRescrapeResult(
+            rescraped_at="2026",
+            disk_filter=None,
+            category_filter=None,
+            only_filter=None,
+            dry_run=False,
+            fixed_count=candidates,
+            skipped_count=0,
+            error_count=0,
+            candidate_count=candidates,
+        )
+
+    @staticmethod
+    def _index(test_config) -> None:
+        """Create the configured indexer DB, migrated."""
+        import sqlite3  # noqa: PLC0415
+        from pathlib import Path  # noqa: PLC0415
+
+        from personalscraper.indexer import migrations  # noqa: PLC0415
+        from personalscraper.indexer.db import apply_migrations  # noqa: PLC0415
+
+        db_path = test_config.indexer.db_path
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        with sqlite3.connect(db_path) as conn:
+            apply_migrations(conn, Path(migrations.__file__).parent)
+
+    def test_live_rescrape_of_one_item(self, test_config) -> None:
+        """The item id reaches rescrape_library as a live run, under the pipeline lock."""
+        self._index(test_config)
+        with (
+            patch(
+                "personalscraper.maintenance.rescraper.rescrape_library",
+                return_value=self._result(1),
+            ) as mock_rescrape,
+            patch("personalscraper.io_utils.write_json"),
+            patch("personalscraper.cli_helpers.acquire_pipeline_lock", return_value=True) as mock_acquire,
+            patch("personalscraper.cli_helpers.release_lock") as mock_release,
+        ):
+            result = runner.invoke(app, ["library-rescrape-item", "--", "42"])
+        assert result.exit_code == 0, result.output
+        kwargs = mock_rescrape.call_args.kwargs
+        assert (kwargs["item_id"], kwargs["dry_run"]) == (42, False)
+        assert (kwargs["disk_filter"], kwargs["category_filter"], kwargs["only"]) == (None, None, None)
+        mock_acquire.assert_called_once()
+        mock_release.assert_called_once()
+
+    def test_unresolved_item_exits_1(self, test_config) -> None:
+        """An item id that resolves no candidate is reported and exits 1."""
+        self._index(test_config)
+        with (
+            patch(
+                "personalscraper.maintenance.rescraper.rescrape_library",
+                return_value=self._result(0),
+            ),
+            patch("personalscraper.io_utils.write_json"),
+            patch("personalscraper.cli_helpers.acquire_pipeline_lock", return_value=True),
+            patch("personalscraper.cli_helpers.release_lock"),
+        ):
+            result = runner.invoke(app, ["library-rescrape-item", "42"])
+        assert result.exit_code == 1
+        assert "item 42 not found" in result.output
+
+    def test_lock_blocked_exits_3(self, test_config) -> None:
+        """A held lock exits 3, the code the maintenance runner re-queues on."""
+        self._index(test_config)
+        with patch("personalscraper.cli_helpers.acquire_pipeline_lock", return_value=False):
+            result = runner.invoke(app, ["library-rescrape-item", "42"])
+        assert result.exit_code == 3
+
+    def test_the_run_row_is_recorded_under_library_rescrape_item(self, test_config) -> None:
+        """The run row carries the per-medium command's own name."""
+        self._index(test_config)
+        with _recorded_run_row() as commands:
+            result = runner.invoke(app, ["library-rescrape-item", "42"])
+        assert result.exit_code == 0, result.output
+        assert commands == ["library-rescrape-item"]
+
+    def test_the_library_wide_report_is_left_untouched(self, test_config) -> None:
+        """A per-medium rescrape never replaces the last library-wide ``library_rescrape.json``."""
+        self._index(test_config)
+        report = test_config.paths.data_dir / "library_rescrape.json"
+        report.parent.mkdir(parents=True, exist_ok=True)
+        report.write_bytes(b'{"fixed_count": 120}')
+        with (
+            patch(
+                "personalscraper.maintenance.rescraper.rescrape_library",
+                return_value=self._result(1),
+            ),
+            patch("personalscraper.cli_helpers.acquire_pipeline_lock", return_value=True),
+            patch("personalscraper.cli_helpers.release_lock"),
+        ):
+            result = runner.invoke(app, ["library-rescrape-item", "42"])
+        assert result.exit_code == 0, result.output
+        assert report.read_bytes() == b'{"fixed_count": 120}'
+
+    def test_runner_lets_the_command_take_its_own_lock(self) -> None:
+        """The runner never holds the lock for it: the command acquires it itself."""
+        from personalscraper.app.maintenance.runner import _CLI_SELF_LOCKING  # noqa: PLC0415
+
+        assert "library-rescrape-item" in _CLI_SELF_LOCKING
 
 
 # ── library-report ───────────────────────────────────────────────────────────

@@ -1,9 +1,10 @@
 """``LibraryService``: the one service the v1 library and media routes call (K1 § C.3).
 
-Pure reads over the index (``library.db``), the aired catalogue (``acquire.db``) and
-the metadata providers. Every read is ``library.read``, a door the v1 perimeter holds:
-no read filters by right, so ``actor`` is carried for the signature the routes share
-and is not consulted.
+Reads over the index (``library.db``), the aired catalogue (``acquire.db``) and the
+metadata providers, and one write: a medium's rescrape, launched through the
+maintenance path. Every read is ``library.read`` and the rescrape ``library.rescrape``,
+doors the v1 perimeter holds: nothing filters by right, so ``actor`` is carried for the
+signature the routes share and is not consulted.
 
 Identity is the provider id (Q15): a medium is read by the id the wire names, never by
 its title. An id held by two rows, or by one row in two media folders, is a duplicate;
@@ -25,7 +26,7 @@ from typing import Final, Literal
 from personalscraper.acquire.catalogue import CatalogueEpisode, CatalogueStore, ProviderClients
 from personalscraper.api.metadata._base import MediaDetails
 from personalscraper.app.accounts.actor import Actor
-from personalscraper.app.errors import AppBadRequest, RefusalCode
+from personalscraper.app.errors import AppBadRequest, AppConflict, RefusalCode
 from personalscraper.app.library.catalogue import (
     Completeness,
     aired_of_season,
@@ -61,6 +62,8 @@ from personalscraper.app.library.listing import (
     read_holders,
     read_live_rows,
 )
+from personalscraper.app.maintenance.registry import REGISTRY
+from personalscraper.app.maintenance.service import LaunchedRun, launch_action
 from personalscraper.core.identity import MediaRef
 from personalscraper.indexer.ownership import IndexerOwnershipChecker
 from personalscraper.logger import get_logger
@@ -77,6 +80,7 @@ __all__ = [
     "LibraryService",
     "LibrarySort",
     "Membership",
+    "RescrapeAccepted",
     "SeasonFacts",
     "SeasonsFacts",
 ]
@@ -86,6 +90,9 @@ RECENT_LIMIT: Final[int] = 12
 
 # How long a read waits on a writer's checkpoint before failing (the canonical set's value).
 _BUSY_TIMEOUT_MS: Final[int] = 5000
+
+#: The maintenance action that rescrapes one index row.
+_RESCRAPE_ITEM_ACTION: Final[str] = "library-rescrape-item"
 
 
 @dataclass(frozen=True)
@@ -211,6 +218,23 @@ class SeasonsFacts:
     aired: Mapping[int, int | None]
 
 
+@dataclass(frozen=True)
+class RescrapeAccepted:
+    """A medium's rescrape, accepted and launched.
+
+    Attributes:
+        provider: The provider the medium was named at.
+        provider_id: Its id there, as the wire named it.
+        queued: Whether ``pipeline.lock`` was held: the run waits in the visible queue.
+        run_uid: The run of the lowest holding row (one run per row holding live files).
+    """
+
+    provider: Provider
+    provider_id: str
+    queued: bool
+    run_uid: str | None
+
+
 def _entry(row: IndexRow) -> LibraryEntry:
     """Serve an index row as a library entry.
 
@@ -289,6 +313,7 @@ class LibraryService:
         self,
         *,
         index_db: Path,
+        data_dir: Path,
         catalogue: CatalogueStore,
         ownership: IndexerOwnershipChecker,
         providers: ProviderClients,
@@ -297,13 +322,15 @@ class LibraryService:
         """Hold the stores and the clients; nothing is opened yet.
 
         Args:
-            index_db: Path of ``library.db``.
+            index_db: Path of ``library.db`` (it also holds the maintenance runs).
+            data_dir: The pipeline data directory holding ``pipeline.lock``.
             catalogue: The aired catalogue's store (owned: closed by :meth:`close`).
             ownership: The ownership checker over ``library.db`` (owned: closed by :meth:`close`).
             providers: The metadata provider clients; ``None`` for an unconfigured one.
             clock: Epoch seconds; « today » for the aired counts and the provider cache's clock.
         """
         self._index_db = index_db
+        self._data_dir = data_dir
         self._catalogue = catalogue
         self._ownership = ownership
         self._providers = providers
@@ -705,6 +732,57 @@ class LibraryService:
             poster_high_definition_url=provider_poster,
             hero_url=hero_of(details),
             metadata_refreshed_at=datetime.fromtimestamp(refreshed).astimezone() if refreshed is not None else None,
+        )
+
+    # ------------------------------------------------------------------ writes
+
+    def request_rescrape(self, actor: Actor, ref: MediaRef) -> RescrapeAccepted:
+        """Rescrape one medium: each row holding it with live files, through the maintenance path.
+
+        One ``library-rescrape-item`` run is reserved and spawned per holding row with live
+        files (a duplicate with files in both rows rescrapes both), no dry run first. A held
+        ``pipeline.lock`` is no refusal: the runs wait in the visible queue.
+
+        Args:
+            actor: Who asks (not consulted: the v1 perimeter holds ``library.rescrape``).
+            ref: The medium, by the one id the wire names.
+
+        Returns:
+            The acceptance, naming the lowest holding row's run.
+
+        Raises:
+            AppNotFound: ``media.not_found`` when no row holding the id has a live file.
+            AppConflict: When every holding row's rescrape is already running (a row
+                already running is skipped while another one launches).
+            AppInternalError: When a runner cannot be spawned; the runs spawned before it
+                stay live.
+        """
+        provider, provider_id = ref_key(ref)
+        with closing(self._connect()) as conn:
+            holders, folders = self._held(conn, ref)
+        live = [row.item_id for row in holders if row.item_id in folders]
+        if not live:
+            raise refuse_not_found(provider.value)
+        action = next(a for a in REGISTRY if a.id == _RESCRAPE_ITEM_ACTION)
+        launched: list[LaunchedRun] = []
+        conflict: AppConflict | None = None
+        for item_id in sorted(live):
+            try:
+                launched.append(
+                    launch_action(action, {"item_id": item_id}, db_path=self._index_db, data_dir=self._data_dir)
+                )
+            except AppConflict as exc:
+                # This row's rescrape is already running: the other holders still launch.
+                log.info("app.library.rescrape_already_running", provider=provider.value, item_id=item_id)
+                conflict = exc
+        if not launched and conflict is not None:
+            raise conflict
+        log.info("app.library.rescrape_launched", provider=provider.value, item_ids=sorted(live))
+        return RescrapeAccepted(
+            provider=provider,
+            provider_id=provider_id,
+            queued=any(run.queued for run in launched),
+            run_uid=launched[0].run_uid,
         )
 
     # ------------------------------------------------------------------ the sheet's parts

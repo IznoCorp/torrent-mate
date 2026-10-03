@@ -130,12 +130,13 @@ _DRY_RUN_STYLE: dict[str, str] = {
 # DESIGN (maint-dash §4): write/destructive actions hold ``pipeline.lock`` for
 # their whole subprocess lifetime — acquired by the CLI command itself where it
 # already does, by the runner otherwise. Ground truth (read from each CLI
-# source): exactly three commands self-acquire, and only in their live (apply)
-# mode:
+# source): exactly four library commands self-acquire, and only in their live
+# (apply) mode:
 #
-#   library-clean     — acquires when ``--apply``          (library/maintenance.py)
-#   library-validate  — acquires when ``--fix --apply``    (library/maintenance.py)
-#   library-rescrape  — acquires when NOT ``--dry-run``    (library/analyze.py)
+#   library-clean         — acquires when ``--apply``          (library/maintenance.py)
+#   library-validate      — acquires when ``--fix --apply``    (library/maintenance.py)
+#   library-rescrape      — acquires when NOT ``--dry-run``    (library/analyze.py)
+#   library-rescrape-item — always acquires (it has no dry run) (library/analyze.py)
 #
 # The runner must NOT acquire for these: the child's own ``acquire_lock`` would
 # observe the runner's live pid and exit 1 ("Another instance is running"). For
@@ -147,6 +148,7 @@ _CLI_SELF_LOCKING: frozenset[str] = frozenset(
         "library-clean",
         "library-validate",
         "library-rescrape",
+        "library-rescrape-item",
         "scrape-resolve",
     }
 )

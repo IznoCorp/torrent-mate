@@ -1,4 +1,4 @@
-"""Maintenance action registry — typed models for the 29 ``library-*`` CLI commands.
+"""Maintenance action registry — typed models for the 30 ``library-*`` CLI commands.
 
 Each :class:`MaintenanceAction` entry models a single Typer-registered
 ``library-*`` command with its risk classification, dry-run capability,
@@ -135,7 +135,7 @@ def canonical_options_json(options: dict[str, object]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Registry — 29 library-* commands registered on the Typer app.
+# Registry — 30 library-* commands registered on the Typer app.
 # Ground truth: @app.command decorators in personalscraper/commands/library/*.py
 # (NOT __all__, which is stale at 23 entries).
 # ---------------------------------------------------------------------------
@@ -571,6 +571,24 @@ REGISTRY: list[MaintenanceAction] = [
                 type="int",
                 label="ID de l'élément",
                 help="Re-scraper exactement cet élément par ID DB (ignore le prédicat needs-rescrape).",
+            ),
+        ],
+    ),
+    MaintenanceAction(
+        id="library-rescrape-item",
+        title="Re-scraper un élément",
+        description="Re-scrape d'un seul élément par ID DB via TMDB/TVDB (NFO, artwork, épisodes), sans aperçu.",
+        category="analyze",
+        risk="write",
+        long_running=True,
+        dry_run="unsupported",
+        options=[
+            ActionOption(
+                name="item_id",
+                type="int",
+                required=True,
+                label="ID de l'élément",
+                help="L'élément à re-scraper, par ID DB.",
             ),
         ],
     ),
