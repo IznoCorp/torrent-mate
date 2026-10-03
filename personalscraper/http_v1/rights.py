@@ -144,7 +144,7 @@ OPERATION_RIGHTS: Final[Mapping[str, Requirement]] = MappingProxyType(
 
 #: The operations acting on ONE acquisition whose target decides « own or any »: the
 #: perimeter checks ``acquisition.pilot.own`` or ``.any``, the service checks
-#: ``principal.is_requester(...)`` (DESIGN C.6, ownership).
+#: ``actor.is_requester(...)`` (DESIGN C.6, ownership).
 OWN_SCOPED: Final[frozenset[str]] = frozenset(
     {
         "searchForFollow",

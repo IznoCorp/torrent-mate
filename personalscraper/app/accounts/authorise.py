@@ -6,21 +6,21 @@ its terms, never a second check beside it.
 
 from __future__ import annotations
 
-from personalscraper.app.accounts.principal import Principal, RoleKind
+from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.rights import AnyOf, Public, Requirement, Right, SignedIn
 from personalscraper.app.errors import AppForbidden, AppUnauthenticated, RefusalCode
 
 
-def authorise(principal: Principal | None, requirement: Requirement) -> None:
-    """Refuse the principal what the requirement does not let it do.
+def authorise(actor: Actor | None, requirement: Requirement) -> None:
+    """Refuse the actor what the requirement does not let it do.
 
     Args:
-        principal: The signed-in principal, or ``None`` when the request carries no
+        actor: The signed-in actor, or ``None`` when the request carries no
             valid session.
         requirement: What the operation asks for.
 
     Raises:
-        AppUnauthenticated: ``auth.required`` — no principal on an operation that asks
+        AppUnauthenticated: ``auth.required`` — no actor on an operation that asks
             a session.
         AppForbidden: ``instance.read_only`` — a session write on a read-only instance;
             ``instance.forbidden_write`` — the role carries an asked right but the
@@ -29,32 +29,32 @@ def authorise(principal: Principal | None, requirement: Requirement) -> None:
     """
     if isinstance(requirement, Public):
         return
-    if principal is None:
+    if actor is None:
         raise AppUnauthenticated("This operation requires a signed-in session.", code=RefusalCode.AUTH_REQUIRED)
     if isinstance(requirement, SignedIn):
-        if requirement.write and principal.ceiling.read_only:
+        if requirement.write and actor.ceiling.read_only:
             raise AppForbidden("This instance is read-only.", code=RefusalCode.INSTANCE_READ_ONLY)
         return
-    _authorise_any_of(principal, requirement)
+    _authorise_any_of(actor, requirement)
 
 
-def _authorise_any_of(principal: Principal, requirement: AnyOf) -> None:
+def _authorise_any_of(actor: Actor, requirement: AnyOf) -> None:
     """Refuse a right-gated operation when none of its rights is held.
 
     Args:
-        principal: The signed-in principal.
+        actor: The signed-in actor.
         requirement: The rights any one of which opens the operation.
 
     Raises:
         AppForbidden: ``instance.forbidden_write`` or ``right.missing`` (see :func:`authorise`).
     """
-    if principal.holds_any(requirement.rights):
+    if actor.holds_any(requirement.rights):
         return
     asked = sorted(requirement.rights)
     # A right the role grants but the ceiling subtracts is the instance's refusal, not
     # the role's: the interface names the instance, not a missing right.
     for right in asked:
-        if right in principal.ceiling.forbidden and _role_grants(principal, right):
+        if right in actor.ceiling.forbidden and _role_grants(actor, right):
             raise AppForbidden(
                 f"This instance forbids {right.value}.",
                 code=RefusalCode.INSTANCE_FORBIDDEN_WRITE,
@@ -67,14 +67,14 @@ def _authorise_any_of(principal: Principal, requirement: AnyOf) -> None:
     )
 
 
-def _role_grants(principal: Principal, right: Right) -> bool:
-    """Whether the principal's role grants a right, before the ceiling subtracts.
+def _role_grants(actor: Actor, right: Right) -> bool:
+    """Whether the actor's role grants a right, before the ceiling subtracts.
 
     Args:
-        principal: The signed-in principal.
+        actor: The signed-in actor.
         right: The right asked about.
 
     Returns:
         True when the role is Admin or carries the right.
     """
-    return principal.role_kind is RoleKind.ADMIN or right in principal.role_rights
+    return actor.role_kind is RoleKind.ADMIN or right in actor.role_rights

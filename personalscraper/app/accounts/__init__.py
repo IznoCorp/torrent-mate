@@ -1,1 +1,1 @@
-"""Accounts and rights: the rights model, the principal, the instance ceiling, ``authorise``."""
+"""Accounts and rights: the rights model, the actor, the instance ceiling, ``authorise``."""

@@ -1,4 +1,4 @@
-"""The principal: who acts, through which role, under which ceiling.
+"""The actor: who acts, through which role, under which ceiling.
 
 ``holds`` is the maquette's ``rightsOf`` and ``is_requester`` its ``isOwn``
 (``frontend/maquette/design/src/lib/rights.ts``): one derivation, read by the
@@ -15,7 +15,7 @@ from typing import Final
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.rights import Right
 
-#: The role id the system principal carries: the indelible Admin role's key.
+#: The role id the system actor carries: the indelible Admin role's key.
 SYSTEM_ROLE_ID: Final[str] = "admin"
 
 
@@ -28,7 +28,7 @@ class RoleKind(StrEnum):
 
 
 @dataclass(frozen=True)
-class Principal:
+class Actor:
     """The account a request or an unattended job acts as.
 
     Attributes:
@@ -48,7 +48,7 @@ class Principal:
     ceiling: InstanceCeiling
 
     def holds(self, right: Right) -> bool:
-        """Whether the principal holds one right.
+        """Whether the actor holds one right.
 
         Args:
             right: The right asked about.
@@ -61,7 +61,7 @@ class Principal:
         return self.role_kind is RoleKind.ADMIN or right in self.role_rights
 
     def holds_any(self, rights: Iterable[Right]) -> bool:
-        """Whether the principal holds at least one of several rights.
+        """Whether the actor holds at least one of several rights.
 
         Args:
             rights: The rights asked about.
@@ -72,21 +72,21 @@ class Principal:
         return any(self.holds(right) for right in rights)
 
     def is_requester(self, requester_ids: Iterable[str]) -> bool:
-        """Whether an acquisition is the principal's own to act on (§ 17's own tunnel).
+        """Whether an acquisition is the actor's own to act on (§ 17's own tunnel).
 
         Args:
             requester_ids: The account keys of the acquisition's requesters.
 
         Returns:
-            True when the principal holds ``acquisition.pilot.any`` or is among the requesters.
+            True when the actor holds ``acquisition.pilot.any`` or is among the requesters.
         """
         if self.holds(Right.ACQUISITION_PILOT_ANY):
             return True
         return self.account_id in requester_ids
 
     @classmethod
-    def system(cls, ceiling: InstanceCeiling, *, account_id: str, name: str) -> Principal:
-        """The principal of an in-process client with no session: the CLI, the schedulers.
+    def system(cls, ceiling: InstanceCeiling, *, account_id: str, name: str) -> Actor:
+        """The actor of an in-process client with no session: the CLI, the schedulers.
 
         What the engine does unattended is attributed to an account (ruling 9: the
         Plex server's owner, else the first Admin); the caller names it.
@@ -97,7 +97,7 @@ class Principal:
             name: That account's display name.
 
         Returns:
-            An Admin principal, with no rights list, under ``ceiling``.
+            An Admin actor, with no rights list, under ``ceiling``.
         """
         return cls(
             account_id=account_id,

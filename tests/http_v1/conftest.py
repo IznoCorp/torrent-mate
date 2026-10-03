@@ -12,7 +12,7 @@ from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
 from personalscraper.http_v1.app import create_v1_app
-from personalscraper.http_v1.perimeter import PrincipalResolver
+from personalscraper.http_v1.perimeter import ActorResolver
 
 
 @pytest.fixture
@@ -26,7 +26,7 @@ def make_v1_app(test_config: Config) -> Callable[..., FastAPI]:
         A callable ``make(resolver=None)`` returning ``create_v1_app``'s application.
     """
 
-    def _make(resolver: PrincipalResolver | None = None) -> FastAPI:
+    def _make(resolver: ActorResolver | None = None) -> FastAPI:
         settings = Settings(_env_file=None)  # type: ignore[call-arg]
         return create_v1_app(test_config, settings, AppServices(event_bus=EventBus()), resolver=resolver)
 

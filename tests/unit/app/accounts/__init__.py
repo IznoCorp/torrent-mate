@@ -1,1 +1,1 @@
-"""Unit tests for ``personalscraper.app.accounts`` — rights, the principal, the ceiling, ``authorise``."""
+"""Unit tests for ``personalscraper.app.accounts`` — rights, the actor, the ceiling, ``authorise``."""

@@ -13,8 +13,8 @@ from urllib.parse import urlsplit
 
 from fastapi import Request
 
+from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.accounts.authorise import authorise
-from personalscraper.app.accounts.principal import Principal
 from personalscraper.app.accounts.rights import Public
 from personalscraper.app.errors import AppForbidden, AppInternalError, RefusalCode
 from personalscraper.http_v1.rights import OPERATION_RIGHTS
@@ -25,17 +25,17 @@ log = get_logger("http_v1.perimeter")
 _UNSAFE_METHODS: Final[frozenset[str]] = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
 
-class PrincipalResolver(Protocol):
-    """Resolves a request's session to the principal it signs in, or to nobody."""
+class ActorResolver(Protocol):
+    """Resolves a request's session to the actor it signs in, or to nobody."""
 
-    def resolve(self, request: Request) -> Principal | None:
+    def resolve(self, request: Request) -> Actor | None:
         """Resolve the request's session.
 
         Args:
             request: The incoming request.
 
         Returns:
-            The signed-in principal, or ``None`` when the request carries no valid session.
+            The signed-in actor, or ``None`` when the request carries no valid session.
         """
         ...
 
@@ -43,7 +43,7 @@ class PrincipalResolver(Protocol):
 class NoSessionResolver:
     """The resolver until sessions exist: nobody is ever signed in, so v1 is closed by default."""
 
-    def resolve(self, request: Request) -> Principal | None:
+    def resolve(self, request: Request) -> Actor | None:
         """Answer nobody.
 
         Args:
@@ -79,9 +79,9 @@ def v1_perimeter(request: Request) -> None:
     1. An unsafe method from another origin is refused.
     2. The route's ``operation_id`` is looked up in ``OPERATION_RIGHTS``; an operation
        the table does not name is a server defect, never an open door.
-    3. The session is resolved to a principal, unless the operation is public.
+    3. The session is resolved to an actor, unless the operation is public.
     4. ``authorise`` applies the requirement.
-    5. The principal is kept on ``request.state.principal`` for :func:`~personalscraper.http_v1.deps.principal`.
+    5. The actor is kept on ``request.state.actor`` for :func:`~personalscraper.http_v1.deps.actor`.
 
     Args:
         request: The incoming request, matched to a v1 route.
@@ -99,9 +99,9 @@ def v1_perimeter(request: Request) -> None:
     if requirement is None:
         log.error("v1_operation_without_right", operation_id=operation_id, path=request.url.path)
         raise AppInternalError("The operation has no entry in the rights table.", code=RefusalCode.INTERNAL)
-    principal = None
+    actor = None
     if not isinstance(requirement, Public):
-        resolver: PrincipalResolver = request.app.state.principal_resolver
-        principal = resolver.resolve(request)
-    authorise(principal, requirement)
-    request.state.principal = principal
+        resolver: ActorResolver = request.app.state.actor_resolver
+        actor = resolver.resolve(request)
+    authorise(actor, requirement)
+    request.state.actor = actor

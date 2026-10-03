@@ -8,13 +8,13 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.testclient import TestClient
 
+from personalscraper.app.accounts.actor import Actor, RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
-from personalscraper.app.accounts.principal import Principal, RoleKind
 from personalscraper.app.accounts.rights import Right
 from personalscraper.http_v1.app import include_v1_router
-from personalscraper.http_v1.deps import principal
+from personalscraper.http_v1.deps import actor
 
-_ADMIN = Principal(
+_ADMIN = Actor(
     account_id="a1",
     name="Alice",
     role_id="admin",
@@ -22,7 +22,7 @@ _ADMIN = Principal(
     role_rights=frozenset(),
     ceiling=InstanceCeiling(forbidden=frozenset(), read_only=False),
 )
-_READER = Principal(
+_READER = Actor(
     account_id="a2",
     name="Bob",
     role_id="r2",
@@ -33,24 +33,24 @@ _READER = Principal(
 
 
 class _StubResolver:
-    """A resolver that signs every request in as one principal."""
+    """A resolver that signs every request in as one actor."""
 
-    def __init__(self, signed_in: Principal) -> None:
-        """Keep the principal.
+    def __init__(self, signed_in: Actor) -> None:
+        """Keep the actor.
 
         Args:
-            signed_in: The principal every request resolves to.
+            signed_in: The actor every request resolves to.
         """
         self.signed_in = signed_in
 
-    def resolve(self, request: Request) -> Principal | None:
-        """Answer the principal.
+    def resolve(self, request: Request) -> Actor | None:
+        """Answer the actor.
 
         Args:
             request: The request (unused).
 
         Returns:
-            The kept principal.
+            The kept actor.
         """
         return self.signed_in
 
@@ -69,7 +69,7 @@ def _probe_router() -> APIRouter:
         return {"ok": "yes"}
 
     @router.get("/auth/me", operation_id="readAccount")
-    def _signed_in(who: Annotated[Principal, Depends(principal)]) -> dict[str, str]:
+    def _signed_in(who: Annotated[Actor, Depends(actor)]) -> dict[str, str]:
         """A signed-in operation answering who the perimeter resolved."""
         return {"accountId": who.account_id}
 
@@ -86,12 +86,12 @@ def _probe_router() -> APIRouter:
     return router
 
 
-def _client(make_v1_app: Callable[..., FastAPI], signed_in: Principal | None = None) -> TestClient:
+def _client(make_v1_app: Callable[..., FastAPI], signed_in: Actor | None = None) -> TestClient:
     """Build a client on the sub-application, the probe routes under the perimeter.
 
     Args:
         make_v1_app: The sub-application factory.
-        signed_in: The principal every request resolves to; ``None`` keeps the default resolver.
+        signed_in: The actor every request resolves to; ``None`` keeps the default resolver.
 
     Returns:
         The test client.
@@ -148,8 +148,8 @@ def test_signed_in_operation_is_closed_by_default(make_v1_app: Callable[..., Fas
     assert response.json()["code"] == "auth.required"
 
 
-def test_resolved_principal_reaches_the_route(make_v1_app: Callable[..., FastAPI]) -> None:
-    """The principal the resolver answers is what ``deps.principal`` hands the route."""
+def test_resolved_actor_reaches_the_route(make_v1_app: Callable[..., FastAPI]) -> None:
+    """The actor the resolver answers is what ``deps.actor`` hands the route."""
     response = _client(make_v1_app, _READER).get("/auth/me")
 
     assert response.status_code == 200

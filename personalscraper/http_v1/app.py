@@ -19,7 +19,7 @@ from personalscraper import __version__
 from personalscraper.app.services import AppServices
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
-from personalscraper.http_v1.perimeter import NoSessionResolver, PrincipalResolver, v1_perimeter
+from personalscraper.http_v1.perimeter import ActorResolver, NoSessionResolver, v1_perimeter
 from personalscraper.http_v1.problem import ProblemOnCrash, install_problem_handlers
 
 #: Where v0's application mounts v1; a v1 route's path is the contract's without its ``/api``.
@@ -41,7 +41,7 @@ def create_v1_app(
     settings: Settings,
     services: AppServices,
     *,
-    resolver: PrincipalResolver | None = None,
+    resolver: ActorResolver | None = None,
 ) -> FastAPI:
     """Build the v1 sub-application: its routes, its ``Problem`` handlers, its own OpenAPI document.
 
@@ -52,7 +52,7 @@ def create_v1_app(
         config: The typed configuration.
         settings: The env-var settings.
         services: The application services every route calls.
-        resolver: Resolves a request's session to a principal; ``None`` signs nobody
+        resolver: Resolves a request's session to an actor; ``None`` signs nobody
             in (:class:`NoSessionResolver`), so every non-public operation answers 401.
 
     Returns:
@@ -68,7 +68,7 @@ def create_v1_app(
     app.state.config = config
     app.state.settings = settings
     app.state.services = services
-    app.state.principal_resolver = resolver if resolver is not None else NoSessionResolver()
+    app.state.actor_resolver = resolver if resolver is not None else NoSessionResolver()
     install_problem_handlers(app)
     app.add_middleware(ProblemOnCrash)
     return app
