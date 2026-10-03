@@ -14,7 +14,9 @@
       "help": "Rescelle chaque jeton Plex conservé sous la première clé de PLEX_TOKEN_KEYS (la nouvelle clé d'abord, les anciennes ensuite) ; retirez ensuite les anciennes clés.",
       "needs_two": "La rotation exige au moins deux clés dans PLEX_TOKEN_KEYS : la nouvelle d'abord, puis les anciennes. Rien n'a été modifié.",
       "done_one": "{{count}} jeton conservé rescellé sous la première clé.",
-      "done_other": "{{count}} jetons conservés rescellés sous la première clé."
+      "done_other": "{{count}} jetons conservés rescellés sous la première clé.",
+      "skipped_one": "Attention : {{count}} jeton conservé a été ignoré, aucune clé ne l'ouvre ; il ne s'ouvrira plus une fois l'ancienne clé retirée.",
+      "skipped_other": "Attention : {{count}} jetons conservés ont été ignorés, aucune clé ne les ouvre ; ils ne s'ouvriront plus une fois l'ancienne clé retirée."
     }
   },
   "token": {

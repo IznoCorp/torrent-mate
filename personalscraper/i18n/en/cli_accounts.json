@@ -14,7 +14,9 @@
       "help": "Re-seal every kept Plex token under the first key of PLEX_TOKEN_KEYS (the new key first, the old ones after it); then drop the old keys.",
       "needs_two": "Rotation needs at least two keys in PLEX_TOKEN_KEYS: the new one first, then the old ones. Nothing was changed.",
       "done_one": "{{count}} kept token re-sealed under the first key.",
-      "done_other": "{{count}} kept tokens re-sealed under the first key."
+      "done_other": "{{count}} kept tokens re-sealed under the first key.",
+      "skipped_one": "Warning: {{count}} kept token was skipped, no key opens it; it will not open once the old key is dropped.",
+      "skipped_other": "Warning: {{count}} kept tokens were skipped, no key opens them; they will not open once the old key is dropped."
     }
   },
   "token": {

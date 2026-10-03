@@ -106,6 +106,9 @@ def _vault() -> TokenVault:
 def rotate_token_key(ctx: typer.Context) -> None:
     """Re-seal every kept Plex token under the first key of ``PLEX_TOKEN_KEYS``.
 
+    A row no key opens is left as it is and warned about: it will not open once the old key
+    is dropped.
+
     Args:
         ctx: Typer context carrying the loaded ``Config`` on ``ctx.obj``.
 
@@ -122,10 +125,12 @@ def rotate_token_key(ctx: typer.Context) -> None:
         raise typer.Exit(code=1)
     services = build_app_services(config, get_settings())
     try:
-        count = rotate_kept_tokens(services.app_store.accounts, vault, now=time.time())
+        result = rotate_kept_tokens(services.app_store.accounts, vault, now=time.time())
     finally:
         services.close()
-    typer.echo(t("cli_accounts.token_key.rotate.done", count=count))
+    typer.echo(t("cli_accounts.token_key.rotate.done", count=result.rotated))
+    if result.skipped:
+        typer.echo(t("cli_accounts.token_key.rotate.skipped", count=result.skipped), err=True)
 
 
 @token_app.command("forget", help=t("cli_accounts.token.forget.help"))

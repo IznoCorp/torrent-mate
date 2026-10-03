@@ -19,6 +19,7 @@ from cryptography.fernet import Fernet, InvalidToken
 from personalscraper.app.accounts.repository import AccountRepository, AccountRow, PlexLinkRow
 from personalscraper.app.accounts.token_vault import (
     NoKeptTokenOpens,
+    RotationResult,
     TokenVault,
     forget_kept_tokens,
     purge_undecryptable,
@@ -238,7 +239,7 @@ class TestRows:
         for account_id in (_ALICE, _BOB):
             repo.set_token_ciphertext(account_id, TokenVault([old]).seal(account_id, _TOKEN), now=1.0)
 
-        assert rotate_kept_tokens(repo, TokenVault([new, old]), now=_NOW) == 2
+        assert rotate_kept_tokens(repo, TokenVault([new, old]), now=_NOW) == RotationResult(rotated=2, skipped=0)
 
         for account_id in (_ALICE, _BOB):
             blob = _kept(repo, account_id)
@@ -256,8 +257,9 @@ class TestRows:
         lost_blob = TokenVault([lost]).seal(_BOB, _TOKEN)
         repo.set_token_ciphertext(_BOB, lost_blob, now=1.0)
 
-        assert rotate_kept_tokens(repo, TokenVault([new, old]), now=_NOW) == 1
+        result = rotate_kept_tokens(repo, TokenVault([new, old]), now=_NOW)
 
+        assert result == RotationResult(rotated=1, skipped=1)
         assert _kept(repo, _BOB) == lost_blob
         undecryptable = [
             entry["account_id"] for entry in _vault_events(caplog) if entry["event"] == "plex_token.undecryptable"
@@ -269,7 +271,7 @@ class TestRows:
         old, new = Fernet.generate_key(), Fernet.generate_key()
         repo.set_token_ciphertext(_BOB, TokenVault([old]).seal(_ALICE, _TOKEN), now=1.0)
 
-        assert rotate_kept_tokens(repo, TokenVault([new, old]), now=_NOW) == 0
+        assert rotate_kept_tokens(repo, TokenVault([new, old]), now=_NOW) == RotationResult(rotated=0, skipped=1)
         blob = _kept(repo, _BOB)
         assert blob is not None
         assert TokenVault([new, old]).open(_BOB, blob) is None

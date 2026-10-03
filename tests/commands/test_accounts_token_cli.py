@@ -184,6 +184,36 @@ class TestRotate:
             assert blob is not None and new.open(account_id, blob) == _TOKEN
         _assert_no_secret(result.output, keys)
 
+    @pytest.mark.parametrize("language", list(Language))
+    def test_a_skipped_row_is_warned_about(
+        self, cli_runner: CliRunner, test_config: Config, store: AppStore, keys: list[bytes], language: Language
+    ) -> None:
+        """Bob's row sealed under a removed key: re-sealed count printed, then a warning naming 1 row."""
+        store.accounts.set_token_ciphertext(_BOB, TokenVault([Fernet.generate_key()]).seal(_BOB, _TOKEN), now=2.0)
+        warning = _catalogue_line(language, "cli_accounts", "token_key", "rotate", "skipped_one").replace(
+            "{{count}}", "1"
+        )
+        with use_language(language):
+            result = _invoke(cli_runner, test_config, ["accounts", "token-key", "rotate"])
+
+        assert result.exit_code == 0, result.output
+        assert warning in result.stderr.splitlines()
+        assert (
+            _catalogue_line(language, "cli_accounts", "token_key", "rotate", "done_one").replace("{{count}}", "1")
+            == result.stdout.strip()
+        )
+        _assert_no_secret(result.output, keys)
+
+    def test_no_skip_no_warning(
+        self, cli_runner: CliRunner, test_config: Config, store: AppStore, keys: list[bytes]
+    ) -> None:
+        """Every row re-sealed: the count alone, no warning line."""
+        result = _invoke(cli_runner, test_config, ["accounts", "token-key", "rotate"])
+
+        assert result.exit_code == 0, result.output
+        assert result.stdout.strip() == "2 kept tokens re-sealed under the first key."
+        assert "skipped" not in result.output
+
     def test_one_key_is_refused(
         self, cli_runner: CliRunner, test_config: Config, store: AppStore, keys: list[bytes], monkeypatch
     ) -> None:

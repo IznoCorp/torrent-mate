@@ -19,6 +19,7 @@ from __future__ import annotations
 import binascii
 import json
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
@@ -51,6 +52,19 @@ class MalformedTokenKey(ValueError):
 
 class NoKeptTokenOpens(RuntimeError):
     """No kept token opens under the vault's keys: the keys are probably the wrong ones."""
+
+
+@dataclass(frozen=True, slots=True)
+class RotationResult:
+    """What a rotation did to the kept tokens.
+
+    Attributes:
+        rotated: How many rows were re-sealed under the first key.
+        skipped: How many rows no key opens for their own account, left as they were.
+    """
+
+    rotated: int
+    skipped: int
 
 
 class TokenVault:
@@ -165,11 +179,12 @@ class TokenVault:
         return f"TokenVault(keys={self._key_count})"
 
 
-def rotate_kept_tokens(repo: AccountRepository, vault: TokenVault, *, now: float) -> int:
+def rotate_kept_tokens(repo: AccountRepository, vault: TokenVault, *, now: float) -> RotationResult:
     """Re-seal every kept token under the vault's first key.
 
     A row the vault cannot open for its own account (a removed key, a ciphertext moved from
-    another row) is left as it is and logged; ``purge_undecryptable`` clears it.
+    another row) is left as it is, logged and counted as skipped: it will not open once the
+    old key is dropped, and ``purge_undecryptable`` clears it.
 
     Args:
         repo: The account rows.
@@ -177,19 +192,21 @@ def rotate_kept_tokens(repo: AccountRepository, vault: TokenVault, *, now: float
         now: The storage time written on every re-sealed row (epoch seconds).
 
     Returns:
-        How many rows were re-sealed.
+        How many rows were re-sealed and how many were skipped.
     """
     rotated = 0
+    skipped = 0
     with repo.immediate():
         for link in repo.plex_links_with_token():
             assert link.token_ciphertext is not None  # the query keeps only rows holding one
             # Opened first so the account binding is checked: a foreign ciphertext is not re-sealed.
             if vault.open(link.account_id, link.token_ciphertext) is None:
+                skipped += 1
                 continue
             repo.set_token_ciphertext(link.account_id, vault.rotate(link.token_ciphertext), now=now)
             rotated += 1
-    log.info("plex_token.rotated", count=rotated)
-    return rotated
+    log.info("plex_token.rotated", count=rotated, skipped=skipped)
+    return RotationResult(rotated=rotated, skipped=skipped)
 
 
 def forget_kept_tokens(repo: AccountRepository, *, account_id: str | None) -> int:
