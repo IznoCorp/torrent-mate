@@ -1,8 +1,8 @@
-"""``OPERATION_RIGHTS`` names every contract operation, and asks what the maquette's table asks.
+"""``OPERATION_RIGHTS`` names every contract operation, and asks what the contract's ``x-rights`` asks.
 
-The contract declares no per-operation right yet (gap G-2), so the source is the
-maquette's ``mocks/operation-rights.ts``; as soon as one contract operation carries
-``x-rights``, the contract is read instead. This table replaces v0's
+The source was the maquette's ``mocks/operation-rights.ts`` while the contract declared
+no per-operation right (gap G-2); once one contract operation carries ``x-rights``, the
+contract is read instead. This table replaces v0's
 ``tests/unit/web/routes/test_staging_write_policy.py`` as the policy table.
 """
 
@@ -23,12 +23,13 @@ _CONTRACT = _REPO_ROOT / "frontend" / "maquette" / "contract" / "openapi.json"
 _MAQUETTE_TABLE = _REPO_ROOT / "frontend" / "maquette" / "design" / "src" / "mocks" / "operation-rights.ts"
 _WRITE_METHODS = frozenset({"post", "put", "patch", "delete"})
 
-#: The ruled corrections to the maquette's ``null`` (DESIGN C.6): the sign-in
+#: The ruled corrections to the source's ``null`` (DESIGN C.6): the sign-in
 #: operations ask no session; the account's own notification writes are refused
 #: on a read-only instance (2026-10-03: no right, but a write).
 _OVERRIDES: dict[str, Requirement] = {
     "signIn": Public(),
     "signInWithPlex": Public(),
+    "startPlexSignIn": Public(),
     "updateNotificationPreference": SignedIn(write=True),
     "registerPushDevice": SignedIn(write=True),
 }
@@ -123,9 +124,9 @@ def test_entry_equals_the_source(operation_id: str) -> None:
     assert OPERATION_RIGHTS[operation_id] == _expected_table()[operation_id]
 
 
-def test_pending_sign_in_start_is_public() -> None:
-    """``startPlexSignIn`` (gap G-4) asks no session."""
-    assert PENDING_OPERATIONS == frozenset({"startPlexSignIn"})
+def test_sign_in_start_is_public() -> None:
+    """``startPlexSignIn`` asks no session, and no operation is pending since gap G-4 closed."""
+    assert PENDING_OPERATIONS == frozenset()
     assert OPERATION_RIGHTS["startPlexSignIn"] == Public()
 
 

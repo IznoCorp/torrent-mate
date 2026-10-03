@@ -1,11 +1,10 @@
 """The right every v1 operation asks for: one table, every contract operation, served or not.
 
-A lot never decides a right: it copies it from here. The source is the maquette's
-``frontend/maquette/design/src/mocks/operation-rights.ts`` until the contract
-carries ``x-rights`` on its operations (gap G-2); ``tests/http_v1/test_rights_table.py``
-compares the two. Two ruled corrections to the maquette's copy: the sign-in
-operations are :class:`Public`, and the account's own notification writes are
-``SignedIn(write=True)``.
+A lot never decides a right: it copies it from here. The source is the ``x-rights``
+the contract ``frontend/maquette/contract/openapi.json`` stamps on each operation;
+``tests/http_v1/test_rights_table.py`` compares the two. Two ruled corrections to the
+contract's session acts: the sign-in operations are :class:`Public`, and the account's
+own notification writes are ``SignedIn(write=True)``.
 
 A list is « any of »: a read opened by several rights. A write names exactly one
 right, so an instance ceiling subtracts it by name; piloting (own or any) is the
@@ -25,8 +24,8 @@ _ACQUISITION: Final[AnyOf] = AnyOf(frozenset({Right.ACQUISITION_REQUEST, Right.A
 # Piloting a tunnel: one's own, or any.
 _PILOT: Final[AnyOf] = AnyOf(frozenset({Right.ACQUISITION_PILOT_OWN, Right.ACQUISITION_PILOT_ANY}))
 
-#: The operations v1 serves before the contract names them: ``startPlexSignIn`` (gap G-4).
-PENDING_OPERATIONS: Final[frozenset[str]] = frozenset({"startPlexSignIn"})
+#: The operations v1 serves before the contract names them: none since gap G-4 closed.
+PENDING_OPERATIONS: Final[frozenset[str]] = frozenset()
 
 #: Every contract ``operationId`` and every pending one → what it asks for.
 OPERATION_RIGHTS: Final[Mapping[str, Requirement]] = MappingProxyType(
@@ -36,6 +35,8 @@ OPERATION_RIGHTS: Final[Mapping[str, Requirement]] = MappingProxyType(
         "signIn": Public(),
         "signOut": SignedIn(),
         "signInWithPlex": Public(),
+        # The server-run PIN's first step: before any session, like the two sign-ins.
+        "startPlexSignIn": Public(),
         "readVersion": SignedIn(),
         # One's own password, on one's own account: a session act like signOut, no right to name.
         "changeOwnPassword": SignedIn(),
@@ -140,8 +141,6 @@ OPERATION_RIGHTS: Final[Mapping[str, Requirement]] = MappingProxyType(
         "updateConfigurationFile": holds(Right.CONFIGURATION_WRITE),
         "restartWeb": holds(Right.CONFIGURATION_WRITE),
         "previewRanking": holds(Right.CONFIGURATION_WRITE),
-        # Pending (gap G-4): the server-run PIN's first step asks no session.
-        "startPlexSignIn": Public(),
     }
 )
 
