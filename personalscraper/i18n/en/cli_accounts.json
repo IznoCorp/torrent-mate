@@ -7,5 +7,32 @@
     "confirm": "Repeat the new password",
     "mismatch": "The two passwords differ; nothing was changed.",
     "done": "Password set for {{email}}."
+  },
+  "token_key": {
+    "help": "The keys sealing the kept Plex tokens, read from PLEX_TOKEN_KEYS in the environment.",
+    "rotate": {
+      "help": "Re-seal every kept Plex token under the first key of PLEX_TOKEN_KEYS (the new key first, the old ones after it); then drop the old keys.",
+      "needs_two": "Rotation needs at least two keys in PLEX_TOKEN_KEYS: the new one first, then the old ones. Nothing was changed.",
+      "done_one": "{{count}} kept token re-sealed under the first key.",
+      "done_other": "{{count}} kept tokens re-sealed under the first key."
+    }
+  },
+  "token": {
+    "help": "The Plex tokens kept by Plex sign-ins.",
+    "keys_missing": "PLEX_TOKEN_KEYS is empty: no key to open the kept tokens with. Nothing was changed.",
+    "keys_malformed": "PLEX_TOKEN_KEYS holds a malformed key at position {{position}}. Nothing was changed.",
+    "forget": {
+      "help": "Forget the kept Plex token of one account, or of every account with --all.",
+      "email_help": "The account's e-mail, whatever its case.",
+      "all_help": "Forget every kept token.",
+      "target_required": "Name one EMAIL or pass --all, not both.",
+      "done_one": "{{count}} kept token forgotten.",
+      "done_other": "{{count}} kept tokens forgotten."
+    },
+    "purge": {
+      "help": "Clear every kept Plex token no key of PLEX_TOKEN_KEYS opens (a removed key, a token moved from another account).",
+      "done_one": "{{count}} undecryptable kept token cleared.",
+      "done_other": "{{count}} undecryptable kept tokens cleared."
+    }
   }
 }
