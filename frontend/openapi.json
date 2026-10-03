@@ -1680,7 +1680,7 @@
         "type": "object"
       },
       "HealthResponse": {
-        "description": "Response model for the health-check endpoint.\n\nAttributes:\n    status: Always ``\"ok\"`` if the handler is reachable.\n    redis: ``True`` if the configured Redis instance responds to PING.\n    db: ``True`` if ``library.db`` exists at the configured data_dir path.",
+        "description": "Response model for the health-check endpoint.\n\nAttributes:\n    status: Always ``\"ok\"`` if the handler is reachable.\n    redis: ``True`` if the configured Redis instance responds to PING.\n    db: ``True`` if the environment's library store exists at the configured data_dir path.",
         "properties": {
           "db": {
             "title": "Db",
@@ -7067,7 +7067,7 @@
     },
     "/api/health": {
       "get": {
-        "description": "Health-check endpoint \u2014 reachable, Redis, and DB presence.\n\nBoth probes are **fail-soft**: they never raise and never block boot.\nA down Redis or missing DB returns ``false`` for that key, not a 5xx.\n\nReturns:\n    A dict with:\n    - **status**: Always ``\"ok\"`` if this handler is reachable.\n    - **redis**: ``True`` if the configured Redis instance responds to PING.\n    - **db**: ``True`` if ``library.db`` exists at the configured data_dir path.",
+        "description": "Health-check endpoint \u2014 reachable, Redis, and DB presence.\n\nBoth probes are **fail-soft**: they never raise and never block boot.\nA down Redis or missing DB returns ``false`` for that key, not a 5xx.\n\nReturns:\n    A dict with:\n    - **status**: Always ``\"ok\"`` if this handler is reachable.\n    - **redis**: ``True`` if the configured Redis instance responds to PING.\n    - **db**: ``True`` if the environment's library store exists at the configured data_dir path.",
         "operationId": "health_api_health_get",
         "responses": {
           "200": {
