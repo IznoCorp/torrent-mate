@@ -184,6 +184,7 @@ export function LibraryHead(): ReactElement {
               <button
                 className={viewSwitchButton()}
                 aria-pressed={state.libMode === "list"}
+                data-active={state.libMode === "list"}
                 data-lmode="list"
                 aria-label={t("screens.library.listLabel")}
               >
@@ -192,6 +193,7 @@ export function LibraryHead(): ReactElement {
               <button
                 className={viewSwitchButton()}
                 aria-pressed={state.libMode === "grid"}
+                data-active={state.libMode === "grid"}
                 data-lmode="grid"
                 aria-label={t("screens.library.gridLabel")}
               >

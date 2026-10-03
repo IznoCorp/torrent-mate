@@ -302,6 +302,7 @@ export function AddScreen() {
                   key={value}
                   className={viewSwitchButton({ size: "text" })}
                   aria-pressed={addKind === value}
+                  data-active={addKind === value}
                   onClick={() => writeUiState({ addKind: value })}
                 >
                   {t(`screens.add.${key}`)}
@@ -369,6 +370,7 @@ export function AddScreen() {
                   key={element}
                   className={viewSwitchButton({ size: "text" })}
                   aria-pressed={idProv === element}
+                  data-active={idProv === element}
                   onClick={() => {
                     setIdOutcome(null);
                     writeUiState({ idProv: element });

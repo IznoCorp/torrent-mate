@@ -131,6 +131,7 @@ export function DiscoverTab(): ReactElement {
                 className={viewSwitchButton()}
                 key={id}
                 aria-pressed={state.sugMode === id}
+                data-active={state.sugMode === id}
                 data-sugmode={id}
                 aria-label={label}
               >
