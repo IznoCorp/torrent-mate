@@ -45,7 +45,7 @@ class PushSubscription:
 
     Attributes:
         id: Row id.
-        account_id: K1's account key.
+        account_id: Foreign key to ``account.id``; deleting the account deletes the row.
         token: The FCM registration token — kept out of ``repr``.
         platform: ``android`` / ``ios`` / ``desktop`` / ``unknown``.
         user_agent: The browser's user agent, as the client sent it.
