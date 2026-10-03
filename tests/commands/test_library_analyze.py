@@ -498,6 +498,24 @@ class TestLibraryRescrapeItem:
         assert result.exit_code == 0, result.output
         assert commands == ["library-rescrape-item"]
 
+    def test_the_library_wide_report_is_left_untouched(self, test_config) -> None:
+        """A per-medium rescrape never replaces the last library-wide ``library_rescrape.json``."""
+        self._index(test_config)
+        report = test_config.paths.data_dir / "library_rescrape.json"
+        report.parent.mkdir(parents=True, exist_ok=True)
+        report.write_bytes(b'{"fixed_count": 120}')
+        with (
+            patch(
+                "personalscraper.maintenance.rescraper.rescrape_library",
+                return_value=self._result(1),
+            ),
+            patch("personalscraper.cli_helpers.acquire_pipeline_lock", return_value=True),
+            patch("personalscraper.cli_helpers.release_lock"),
+        ):
+            result = runner.invoke(app, ["library-rescrape-item", "42"])
+        assert result.exit_code == 0, result.output
+        assert report.read_bytes() == b'{"fixed_count": 120}'
+
     def test_runner_lets_the_command_take_its_own_lock(self) -> None:
         """The runner never holds the lock for it: the command acquires it itself."""
         from personalscraper.app.maintenance.runner import _CLI_SELF_LOCKING  # noqa: PLC0415

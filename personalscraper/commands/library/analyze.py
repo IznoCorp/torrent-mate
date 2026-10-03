@@ -291,6 +291,7 @@ def library_rescrape(
         dry_run=dry_run,
         max_items=max_items,
         item_id=item_id,
+        write_report=True,
     )
 
 
@@ -319,6 +320,7 @@ def library_rescrape_item(
         dry_run=False,
         max_items=None,
         item_id=item_id,
+        write_report=False,
     )
 
 
@@ -333,6 +335,7 @@ def _rescrape(
     dry_run: bool,
     max_items: int | None,
     item_id: int | None,
+    write_report: bool,
 ) -> None:
     """Run a library re-scrape under ``pipeline.lock`` and report it.
 
@@ -346,6 +349,8 @@ def _rescrape(
         dry_run: Preview without modifying files (no lock, no run row).
         max_items: Limit the number of items processed.
         item_id: Target exactly this indexer item, bypassing the needs-rescrape predicate.
+        write_report: Write ``library_rescrape.json``, the library-wide report
+            ``library-report`` and the insights read; a per-medium rescrape leaves it alone.
 
     Raises:
         typer.Exit: 1 on a bad option, an unreachable index or an unresolved item;
@@ -468,16 +473,18 @@ def _rescrape(
                     }
                 )
 
-        output_path = config.paths.data_dir / "library_rescrape.json"
-        write_json(result, output_path)
-
         total = result.fixed_count + result.skipped_count + result.error_count
-        console.print(
+        summary = (
             f"[green]Fixed:[/green] {result.fixed_count}  "
             f"[yellow]Skipped:[/yellow] {result.skipped_count}  "
             f"[red]Errors:[/red] {result.error_count}  "
-            f"(total: {total}) → {output_path}"
+            f"(total: {total})"
         )
+        if write_report:
+            output_path = config.paths.data_dir / "library_rescrape.json"
+            write_json(result, output_path)
+            summary += f" → {output_path}"
+        console.print(summary)
     finally:
         if not dry_run:
             cli_helpers.release_lock()
