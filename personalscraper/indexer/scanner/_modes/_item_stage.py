@@ -92,6 +92,9 @@ def build_item_row(
     artwork_json: str = "{}",
     ratings: list[dict[str, Any]] | None = None,
     scan_epoch: int | None = None,
+    overview: str | None = None,
+    poster_url: str | None = None,
+    date_provider_read: float | None = None,
 ) -> dict[str, Any]:
     """Build a ``media_item`` column dict from parsed NFO inputs.
 
@@ -125,6 +128,10 @@ def build_item_row(
             :func:`scan_and_stage_dir`. When *nfo_status* is ``"valid"``, this
             value is written to ``date_metadata_refreshed``; otherwise ``None``
             is written. Defaults to ``None`` (leaves the column ``NULL``).
+        overview: The NFO's ``<plot>``, or ``None``.
+        poster_url: The NFO's first poster thumb URL, or ``None``.
+        date_provider_read: The NFO file's mtime (epoch seconds), or ``None``
+            when no NFO was read.
 
     Returns:
         A dict keyed by the real post-migration-005 ``media_item`` columns,
@@ -178,6 +185,9 @@ def build_item_row(
         "date_metadata_refreshed": scan_epoch if nfo_status == "valid" else None,
         "is_locked": 0,
         "preferred_lang": "fr",
+        "overview": overview,
+        "poster_url": poster_url,
+        "date_provider_read": date_provider_read,
     }
 
 
@@ -656,6 +666,41 @@ def _ensure_disk_row(conn: sqlite3.Connection, disk_cfg: DiskConfig, now_s: int)
 # ---------------------------------------------------------------------------
 
 
+def _nfo_facts(nfo_path: Path) -> dict[str, Any]:
+    """Read the overview, the poster URL and the provider-read date of an NFO.
+
+    ``overview`` is the root ``<plot>`` (``None`` when absent or blank);
+    ``poster_url`` is the first root ``<thumb aspect="poster">`` that names no
+    season (a show NFO may list season posters among its own); and
+    ``date_provider_read`` is the file's mtime — the scraper writes the NFO
+    when it reads the providers, so its mtime says when that data was read,
+    unlike the scan clock.
+
+    Args:
+        nfo_path: Path to an NFO already checked complete.
+
+    Returns:
+        Dict with keys ``overview``, ``poster_url`` and ``date_provider_read``;
+        each ``None`` when unreadable.
+    """
+    facts: dict[str, Any] = {"overview": None, "poster_url": None, "date_provider_read": None}
+    try:
+        root = ET.parse(nfo_path).getroot()  # noqa: S314 — trusted NFO we wrote
+        # Read after the parse: an unreadable NFO carries no provider-read date.
+        mtime = nfo_path.stat().st_mtime
+    except (ET.ParseError, OSError) as exc:
+        log.debug("indexer.item_stage.nfo_facts_unreadable", nfo=str(nfo_path), error=str(exc))
+        return facts
+    facts["date_provider_read"] = mtime
+    facts["overview"] = (root.findtext("plot") or "").strip() or None
+    for thumb in root.findall("thumb"):
+        url = (thumb.text or "").strip()
+        if thumb.get("aspect") == "poster" and thumb.get("season") is None and url:
+            facts["poster_url"] = url
+            break
+    return facts
+
+
 def _nfo_metadata_for_dir(media_dir: Path, title: str, is_tvshow: bool) -> tuple[dict[str, Any], NfoStatus]:
     """Resolve the NFO for a media dir and return its metadata + DB status.
 
@@ -670,9 +715,13 @@ def _nfo_metadata_for_dir(media_dir: Path, title: str, is_tvshow: bool) -> tuple
         title: Folder-name title (used to resolve the movie NFO filename).
         is_tvshow: Whether the directory is a TV show.
 
+    A valid NFO also yields the three facts the index keeps (:func:`_nfo_facts`):
+    ``overview``, ``poster_url`` and ``date_provider_read``; they are ``None``
+    when the NFO is missing or invalid.
+
     Returns:
-        Tuple of (NFO metadata dict from :func:`extract_nfo_metadata`,
-        ``media_item.nfo_status`` value).
+        Tuple of (NFO metadata dict from :func:`extract_nfo_metadata` plus the
+        three fact keys, ``media_item.nfo_status`` value).
     """
     nfo_path = media_dir / "tvshow.nfo" if is_tvshow else media_dir / f"{title}.nfo"
     blank: dict[str, Any] = {
@@ -681,10 +730,13 @@ def _nfo_metadata_for_dir(media_dir: Path, title: str, is_tvshow: bool) -> tuple
         "tvdb_id": None,
         "canonical_provider": None,
         "ratings": [],
+        "overview": None,
+        "poster_url": None,
+        "date_provider_read": None,
     }
     present = nfo_path.exists()
     valid = is_nfo_complete(nfo_path)
-    meta = extract_nfo_metadata(nfo_path) if valid else blank
+    meta = {**extract_nfo_metadata(nfo_path), **_nfo_facts(nfo_path)} if valid else blank
 
     nfo_status: NfoStatus
     if not present:
@@ -770,6 +822,9 @@ def scan_and_stage_dir(
         artwork_json=artwork.model_dump_json(),
         ratings=meta["ratings"],
         scan_epoch=stamp,
+        overview=meta["overview"],
+        poster_url=meta["poster_url"],
+        date_provider_read=meta["date_provider_read"],
     )
 
     # Dispatch flex attributes. Normalization mirrors

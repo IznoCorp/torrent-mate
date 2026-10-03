@@ -579,8 +579,10 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow, *, dispatch_path: str | 
     via ``COALESCE(?, date_metadata_refreshed)`` — a non-None value (a scanner
     valid-NFO re-scan carrying the scan epoch) overwrites it, while a None value
     (e.g. the dispatch re-index path, which does not pass a scan epoch) PRESERVES
-    the existing timestamp rather than clobbering it. Otherwise a new row is
-    inserted with the canonicalised title.
+    the existing timestamp rather than clobbering it. ``overview``,
+    ``poster_url`` and ``date_provider_read`` follow the same COALESCE rule: a
+    re-scan that read no NFO keeps the facts already stored. Otherwise a new
+    row is inserted with the canonicalised title.
 
     Args:
         conn: Open SQLite connection.
@@ -667,7 +669,10 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow, *, dispatch_path: str | 
                 " artwork_json = COALESCE(?, artwork_json),"
                 " nfo_status = COALESCE(?, nfo_status),"
                 " external_ids_json = ?,"
-                " date_metadata_refreshed = COALESCE(?, date_metadata_refreshed) WHERE id = ?",
+                " date_metadata_refreshed = COALESCE(?, date_metadata_refreshed),"
+                " overview = COALESCE(?, overview),"
+                " poster_url = COALESCE(?, poster_url),"
+                " date_provider_read = COALESCE(?, date_provider_read) WHERE id = ?",
                 (
                     row.category_id,
                     row.date_modified,
@@ -676,6 +681,9 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow, *, dispatch_path: str | 
                     row.nfo_status,
                     _merge_external_ids(existing.external_ids_json, row.external_ids_json),
                     row.date_metadata_refreshed,
+                    row.overview,
+                    row.poster_url,
+                    row.date_provider_read,
                     existing.id,
                 ),
             )
@@ -685,7 +693,10 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow, *, dispatch_path: str | 
                 " artwork_json = COALESCE(?, artwork_json),"
                 " nfo_status = COALESCE(?, nfo_status),"
                 " external_ids_json = ?,"
-                " date_metadata_refreshed = COALESCE(?, date_metadata_refreshed) WHERE id = ?",
+                " date_metadata_refreshed = COALESCE(?, date_metadata_refreshed),"
+                " overview = COALESCE(?, overview),"
+                " poster_url = COALESCE(?, poster_url),"
+                " date_provider_read = COALESCE(?, date_provider_read) WHERE id = ?",
                 (
                     row.category_id,
                     row.date_modified,
@@ -693,6 +704,9 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow, *, dispatch_path: str | 
                     row.nfo_status,
                     _merge_external_ids(existing.external_ids_json, row.external_ids_json),
                     row.date_metadata_refreshed,
+                    row.overview,
+                    row.poster_url,
+                    row.date_provider_read,
                     existing.id,
                 ),
             )
@@ -711,8 +725,9 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow, *, dispatch_path: str | 
             external_ids_json, ratings_json, canonical_provider,
             nfo_status, artwork_json,
             date_created, date_modified, date_metadata_refreshed,
-            is_locked, preferred_lang
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            is_locked, preferred_lang,
+            overview, poster_url, date_provider_read
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             row.kind,
@@ -731,6 +746,9 @@ def upsert(conn: sqlite3.Connection, row: MediaItemRow, *, dispatch_path: str | 
             row.date_metadata_refreshed,
             row.is_locked,
             row.preferred_lang,
+            row.overview,
+            row.poster_url,
+            row.date_provider_read,
         ),
     )
     rowid: int = cursor.lastrowid  # type: ignore[assignment]

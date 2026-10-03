@@ -201,6 +201,11 @@ class MediaItemRow:
         date_metadata_refreshed: Unix epoch seconds of last TMDB/TVDB scrape; ``None`` = never.
         is_locked: 1 to skip auto-rescrape, 0 otherwise.
         preferred_lang: BCP-47 language code, default ``'fr'``.
+        overview: The NFO's ``<plot>``; ``None`` when absent or not read yet.
+        poster_url: The NFO's first ``<thumb aspect="poster">`` URL; ``None``
+            when absent or not read yet.
+        date_provider_read: The NFO file's mtime, epoch seconds — when the
+            provider data was last read; ``None`` when no NFO was read.
     """
 
     id: int
@@ -220,6 +225,9 @@ class MediaItemRow:
     date_metadata_refreshed: int | None
     is_locked: int
     preferred_lang: str
+    overview: str | None = None
+    poster_url: str | None = None
+    date_provider_read: float | None = None  # the NFO file's mtime, epoch seconds
 
 
 @dataclass(frozen=True, kw_only=True)

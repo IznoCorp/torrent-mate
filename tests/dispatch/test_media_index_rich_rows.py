@@ -492,3 +492,51 @@ def test_rebuild_tvshow_produces_seasons_episodes_and_tvdb_provider(tvshow_libra
         assert episode_count >= 1, f"rebuild must produce at least one episode row, got {episode_count} (L5)"
     finally:
         conn.close()
+
+
+# ---------------------------------------------------------------------------
+# add() writes the NFO facts it parses (overview, poster, provider-read date)
+# ---------------------------------------------------------------------------
+
+
+def test_add_real_movie_folder_writes_the_nfo_facts(godfather_library: Config) -> None:
+    """``add()`` of a dispatched movie stores its NFO's overview, poster and mtime.
+
+    The dispatch re-index reads the NFO through ``_nfo_metadata_for_dir``; the
+    facts it returns must reach ``media_item`` like the scanner's.
+
+    Args:
+        godfather_library: Real one-movie :class:`Config` fixture (reused for
+            its on-disk folder).
+    """
+    db_path = godfather_library.indexer.db_path
+    assert db_path is not None
+    movie_path = godfather_library.disks[0].path / "films" / "The Godfather (1972)"
+    nfo = movie_path / "The Godfather.nfo"
+    nfo.write_text(
+        '<?xml version="1.0"?><movie>'
+        '<uniqueid type="tmdb" default="true">238</uniqueid>'
+        "<title>The Godfather</title><year>1972</year>"
+        "<plot>The aging patriarch of a crime dynasty.</plot>"
+        '<thumb aspect="poster">https://img/godfather.jpg</thumb></movie>',
+        encoding="utf-8",
+    )
+    os.utime(nfo, (1_700_000_000.0, 1_700_000_000.0))
+
+    with MediaIndex(db_path, config=godfather_library, auto_rebuild=False, event_bus=EventBus()) as idx:
+        idx.add(
+            IndexEntry(
+                name="The Godfather (1972)",
+                disk="disk1",
+                category="movies",
+                path=str(movie_path),
+                media_type="movie",
+            )
+        )
+
+    conn = sqlite3.connect(db_path)
+    try:
+        rows = conn.execute("SELECT overview, poster_url, date_provider_read FROM media_item").fetchall()
+    finally:
+        conn.close()
+    assert rows == [("The aging patriarch of a crime dynasty.", "https://img/godfather.jpg", 1_700_000_000.0)]
