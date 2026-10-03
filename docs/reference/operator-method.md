@@ -153,6 +153,7 @@ d'audit en cours.
 - 10-01 · Rd 2 Q2 (son mot, suite) : le composant de filtre des trackers REMPLACE les filtres de la Médiathèque et de Suivis (Tout, Films, Séries) ; chacun reçoit aussi la pilule de tri, le même composant. Médiathèque : ses six tris existants.
 - 10-01 · Rd 3 Q1 = C : la pilule de tri de Suivis offre « Urgence » (l'ordre d'aujourd'hui, par défaut), « A → Z », « Z → A », « Suivi récemment » (date d'ajout du suivi), « Prochaine sortie » (date de la prochaine sortie) ; si le contrat ne sert pas ces deux dates, la maquette les porte et la demande va au back-end.
 - 10-01 · Rd 2 Q1 (B-475) = B : une saison qui tient des numéros d'épisode que le catalogue ne liste pas montre une ligne « hors catalogue (n) » sous la saison, sans jugement ; la fraction reste au plus ce qui est diffusé (B-380). Un geste de correction (une file « à vérifier » de Maintenance) pourra venir plus tard.
+- Identité : « On corrige en amont aucune entrée/ aucun média de la médiathèque ne devrait existé sans au moins 1 identifiant. Si c'est le cas, on répertorie et on répare » — chaque média porte au moins un identifiant fournisseur ; la suppression se fait par identifiant fournisseur, jamais par titre ; un identifiant porté par deux lignes est refusé tant que le doublon n'est pas réglé.
 
 ### Découvrir
 
@@ -221,19 +222,23 @@ d'audit en cours.
 ### Comptes, rôles, droits (L18)
 
 - 09-26 · Rd 4 Q5 (ruling 14) et 09-27 Rd 8 Q9 = B : « Comptes » est une page de premier niveau du menu (groupe configuration, à côté de Réglages), réservée à l'Opérateur par droit d'ACL ; Profil = le compte connecté et ses préférences.
-- 09-27 · Rd 8 Q10 : la connexion propose d'abord « Se connecter avec Plex » ; le mot de passe est derrière « Utiliser un mot de passe ».
+- Rd 8 Q10 : la connexion propose d'abord « Se connecter avec Plex » ; le mot de passe est derrière « Utiliser un mot de passe », pour les comptes qui n'ont pas de Plex.
 - 09-27 · Rd 8 Q11 : une page sans droit reste dans le menu, marquée ; ouverte, elle dit ce qu'elle est.
 - 09-27 · Rd 8 Q12 : tous les accès sont des droits d'ACL ; « réservé à l'Opérateur » n'est qu'un raccourci.
 - 09-27 · Rd 8 Q13 : « Réaffecter… » est un acte du panneau de la carte, au droit d'ACL de réaffecter.
 - 09-27 · Rd 8 Q14 : la demande d'un invité est le même geste que pour tous : « Suivre » une série (jusqu'au retrait), « Ajouter » un film (jusqu'à sa confirmation dans Plex) ; les droits font la différence.
 - 09-27 · Rd 9 Q12 (ruling 17) : les droits se donnent à des rôles, jamais à un utilisateur ; ruling 20 : un compte a un seul rôle.
 - 09-27 · Rd 9 Q14 : pas d'escalade — un compte n'attribue qu'un rôle dont les droits sont inclus dans les siens ; les droits et les rôles livrés sont définis en amont, modifiables par l'interface.
-- 09-27 · Rd 9 Q15 (ruling 22) : deux rôles système indélébiles — le rôle par défaut (tout nouveau compte, modifiable) et le rôle Admin (sans droits : un contournement des ACL, ni restreint ni modifiable) ; ruling 22, précision : un rôle qui ne donne aucune page envoie sur une page dédiée.
-- 10-01 · briques Rd 4 P-1 = A (« A surtout pas B ! ») : seuls le propriétaire du serveur Plex et les comptes avec qui il est partagé se connectent par Plex ; tout autre compte plex.tv est refusé (403).
+- Rd 9 Q15 (ruling 22) : cinq rôles livrés — Admin, Membre du foyer, Invité Plex, Demandeur, Invité ; Admin est le seul rôle système, indélébile (sans droits : un contournement des ACL, ni restreint ni modifiable), il n'y a plus de « rôle par défaut » ; un compte local démarre sur Invité, sauf si son rôle est choisi à la création ; un compte Plex démarre sur Membre du foyer (Plex Home) ou Invité Plex ; ruling 22, précision : un rôle qui ne donne aucune page envoie sur une page dédiée.
+- briques Rd 4 P-1 = A (« A surtout pas B ! ») : seuls le propriétaire du serveur Plex et les comptes avec qui il est partagé se connectent par Plex ; tout autre compte plex.tv est refusé par LE refus unique, indistinguable, que reçoit tout échec de connexion (jamais un 403 distinct : on ne doit pas pouvoir deviner quels e-mails correspondent au serveur).
 - 10-01 · briques Rd 4 P-2 = B : le PIN tourne sur le serveur — `startPlexSignIn` → `{pinId, signInUrl}`, puis `signInWithPlex {pinId}` ; le jeton Plex ne quitte jamais le serveur.
 - 10-01 · briques Rd 4 P-3 = B : le jeton Plex de l'utilisateur est GARDÉ, chiffré, pour une fonction future (lecture de la watchlist, partage Plex) ; K1 porte son stockage chiffré (clé, rotation, révocation), la brique reste sans état.
-- 10-01 · briques Rd 4 P-4 = A : rien à construire pour les profils gérés de Plex Home ; celui qui doit entrer reçoit un compte local avec `auth.password` dans Comptes.
+- briques Rd 4 P-4 = A : rien à construire pour les profils gérés de Plex Home ; celui qui doit entrer reçoit un compte local, avec le mot de passe provisoire que l'Admin pose dans Comptes.
 - 10-01 · briques Rd 4 F-3 (« A l'ouverture (installation ?) de la PWA », puis « proposition à l'ouverture et aussi via profil ») : LES DEUX — une proposition « Activer les notifications sur cet appareil » à l'ouverture de la PWA installée (le toucher est le geste qu'iOS exige) ET la ligne par appareil de Profil avec ses quatre états ; dessinées d'abord dans la maquette.
+- Connexion par genre de compte : tout identifiant est un e-mail ; une identité Plex qui a accès au serveur géré se connecte par le SSO Plex seulement (le propriétaire excepté : SSO, plus un mot de passe de secours posé par une commande CLI sur le serveur, jamais dans l'interface) ; sans accès, elle est refusée, « comme si le compte n'existait pas » ; un compte local dont l'e-mail n'est pas un utilisateur du serveur se connecte par mot de passe seulement, jamais rattaché, même si plex.tv connaît l'e-mail. La porte du mot de passe est le genre du compte (propriétaire | Plex | local), jamais un droit.
+- Mots de passe : l'utilisateur d'un compte à mot de passe change le sien dans Profil ; l'Admin pose le mot de passe provisoire à la création d'un compte local, et SEUL l'Admin réinitialise le mot de passe d'un compte à mot de passe, dans « Comptes » (un gestionnaire non Admin ne le fait jamais).
+- Rattachement : quand l'e-mail d'un compte local devient utilisateur du serveur Plex, le compte est rattaché, le SSO devient obligatoire et son rôle retombe au rôle de départ de son genre Plex (Membre du foyer ou Invité Plex) jusqu'à ce qu'un Admin le promeuve : aucun lien par e-mail ne porte jamais de droits d'Admin.
+- Notifications : les interrupteurs par type sont PAR COMPTE (« tout le monde à le droit de changer les notifications de son propre compte, ça n'a pas de sens de mettre ça sous un droit ») — section « Notifications » de Profil, sans droit d'ACL.
 
 ### Environnements et back-end
 

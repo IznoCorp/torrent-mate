@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from personalscraper.app.services import AppServices
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
@@ -187,6 +188,22 @@ def build_app_context(
         torrent_client=torrent_client,
         acquire=acquire,
     )
+
+
+def build_app_services(config: "Config", settings: "Settings") -> AppServices:
+    """Build the process's :class:`AppServices`.
+
+    Inert: it opens no store, no connection and no publisher — every later field
+    is lazy until first use, so building it at web boot costs nothing.
+
+    Args:
+        config: The typed JSON5 configuration.
+        settings: The Pydantic env-var settings.
+
+    Returns:
+        The application services, with a fresh in-process :class:`EventBus`.
+    """
+    return AppServices(event_bus=EventBus())
 
 
 def build_ownership_checker(config: "Config") -> "OwnershipChecker":
