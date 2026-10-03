@@ -109,3 +109,42 @@ class TestGetDiskStatus:
             status = get_disk_status(dc)
         assert status.is_mounted is False
         assert status.free_space_gb == 0.0
+
+
+# ---------------------------------------------------------------------------
+# preprod mount-point guard
+# ---------------------------------------------------------------------------
+
+
+class TestPreprodMarker:
+    """Under ``staging`` a disk root without the preprod marker reads as not mounted."""
+
+    def _dc(self, path: Path) -> DiskConfig:
+        return DiskConfig(id="disk_p", path=path, categories=["movies"])
+
+    def test_unmarked_root_is_not_mounted_under_staging(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A mounted but unmarked preprod root reports ``is_mounted`` False and no free space."""
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
+        with (
+            patch("personalscraper.dispatch.disk_scanner._volume_is_mounted", return_value=True),
+            patch("personalscraper.conf.preprod_guard.is_mounted", return_value=True),
+        ):
+            status = get_disk_status(self._dc(tmp_path))
+        assert status.is_mounted is False
+        assert status.free_space_gb == 0.0
+
+    def test_marked_root_is_mounted_under_staging(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The same root with its marker reads as mounted."""
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
+        (tmp_path / ".tm-preprod-root").write_text("", encoding="utf-8")
+        with (
+            patch("personalscraper.dispatch.disk_scanner._volume_is_mounted", return_value=True),
+            patch("personalscraper.conf.preprod_guard.is_mounted", return_value=True),
+        ):
+            assert get_disk_status(self._dc(tmp_path)).is_mounted is True
+
+    def test_unset_environment_ignores_the_marker(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Without ``PERSONALSCRAPER_ENV`` an unmarked mounted root is mounted, as before."""
+        monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+        with patch("personalscraper.dispatch.disk_scanner._volume_is_mounted", return_value=True):
+            assert get_disk_status(self._dc(tmp_path)).is_mounted is True
