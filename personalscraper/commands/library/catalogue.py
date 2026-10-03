@@ -23,6 +23,7 @@ from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.api.metadata.registry._errors import UnknownProviderError
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors, per_step_boundary
+from personalscraper.core.sqlite._pragmas import apply_pragmas
 
 _DEFAULT_MAX_SHOWS = 50
 
@@ -76,6 +77,10 @@ def library_catalogue_refresh(
         clients = ProviderClients(tvdb=_client_of(registry, "tvdb"), tmdb=_client_of(registry, "tmdb"))
         store = CatalogueStore(Path(config.acquire.db_path))
         index = sqlite3.connect(f"file:{config.indexer.db_path}?mode=ro", uri=True)
+        try:
+            apply_pragmas(index)
+        except sqlite3.Error:
+            pass  # Read-only connection — pragmas that require writes are harmless to skip.
         try:
             report = refresh_catalogue(store, index, clients, now=time.time(), max_shows=max_shows)
         finally:

@@ -641,6 +641,25 @@ REGISTRY: list[MaintenanceAction] = [
             ),
         ],
     ),
+    # ── catalogue.py (1 command) ──────────────────────────────────────────
+    MaintenanceAction(
+        id="library-catalogue-refresh",
+        title="Rafraîchir le catalogue diffusé",
+        description="Remplit le catalogue des épisodes diffusés des séries dues (TVDB / TMDB), au plus --max.",
+        category="fix",
+        risk="write",
+        long_running=True,
+        dry_run="unsupported",
+        options=[
+            ActionOption(
+                name="max",
+                type="int",
+                default=50,
+                label="Séries au plus",
+                help="Borne haute des séries tentées dans ce passage (défaut : 50).",
+            ),
+        ],
+    ),
     # ── fix_canonical_provider.py (1 command) ─────────────────────────────
     MaintenanceAction(
         id="library-fix-canonical-provider",
