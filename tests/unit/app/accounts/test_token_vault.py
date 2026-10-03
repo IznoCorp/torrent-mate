@@ -18,9 +18,9 @@ from cryptography.fernet import Fernet, InvalidToken
 
 from personalscraper.app.accounts.repository import AccountRepository, AccountRow, PlexLinkRow
 from personalscraper.app.accounts.token_vault import (
+    NoKeptTokenOpens,
     TokenVault,
     forget_kept_tokens,
-    NoKeptTokenOpens,
     purge_undecryptable,
     rotate_kept_tokens,
 )
