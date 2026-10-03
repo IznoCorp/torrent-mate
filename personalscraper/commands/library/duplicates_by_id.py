@@ -36,6 +36,7 @@ def library_duplicates_by_id(
     ``groups``, ``rows`` and ``empty_rows`` (rows holding no live file).
     """
     from personalscraper.conf.loader import load_config  # noqa: PLC0415
+    from personalscraper.indexer.db import _apply_pragmas  # noqa: PLC0415
     from personalscraper.indexer.duplicates import find_provider_id_duplicates  # noqa: PLC0415
 
     if db is not None:
@@ -52,6 +53,7 @@ def library_duplicates_by_id(
         raise typer.Exit(code=1)
 
     conn = _sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    _apply_pragmas(conn)
     try:
         groups = find_provider_id_duplicates(conn)
     finally:
