@@ -31,7 +31,7 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | served, different response shape | 0 |
 | served, path parameter spelled differently | 0 |
 | served, answered with a different status | 0 |
-| fields carried pre-formatted | 25 |
+| fields carried pre-formatted | 22 |
 | v1 serves and the interface does not declare | 0 |
 
 ---
@@ -42,7 +42,7 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | --- | --- | --- |
 | `DELETE /api/v1/acquisition/downloads/{infoHash}` | `removeDownload` | Remove one entry from the download client, its files deleted or kept |
 | `DELETE /api/v1/acquisition/followed/{followedId}` | `deleteFollow` | Stop following |
-| `DELETE /api/v1/library/items` | `deleteLibraryItems` | Delete titles from the library |
+| `DELETE /api/v1/library/items` | `deleteLibraryItems` | Delete media from the library, by provider identity |
 | `DELETE /api/v1/staging/media/{mediaId}` | `deleteStagedMedia` | Delete a staged folder from the disk |
 | `DELETE /api/v1/staging/media/{mediaId}/reclassify` | `restoreReclassifiedMedia` | Put a reclassified folder back in the staging area |
 | `DELETE /api/v1/torrents/{infoHash}/cross-seed/exclusions` | `undoCrossSeedExclusion` | Lift an exclusion, of one pair or of a whole title |
@@ -65,10 +65,10 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `GET /api/v1/config/secrets` | `readSecrets` | Which secrets are defined — never their values |
 | `GET /api/v1/config/status` | `readConfigurationStatus` | Whether a restart is owed |
 | `GET /api/v1/decisions/` | `readDecisions` | The decisions awaiting arbitration, and those already settled |
-| `GET /api/v1/library/categories` | `readLibraryCategories` | The categories and their counts |
+| `GET /api/v1/library/categories` | `readLibraryCategories` | The engine's leaf categories and their counts |
 | `GET /api/v1/library/incomplete` | `readLibraryIncomplete` | The series with holes, and how big each hole is |
 | `GET /api/v1/library/items` | `readLibraryItems` | The library listing, one page of it |
-| `GET /api/v1/library/membership` | `readLibraryMembership` | Whether the library holds one medium, asked by its exact title |
+| `GET /api/v1/library/membership` | `readLibraryMembership` | Whether the library holds one medium, asked by its provider identity |
 | `GET /api/v1/library/recent` | `readLibraryRecent` | The most recently added titles |
 | `GET /api/v1/maintenance/actions` | `readMaintenanceActions` | The maintenance actions, and how risky each is |
 | `GET /api/v1/maintenance/destructive-log` | `readDeletionJournal` | What has been deleted, and when |
@@ -169,9 +169,6 @@ interface format it.
 | `JournalRow` | `secondaryLine` |
 | `JournalRow` | `value` |
 | `JourneyStage` | `when` |
-| `LibraryItem` | `secondaryLine` |
-| `LibraryRow` | `secondaryLine` |
-| `MediaSheet` | `genres` |
 | `PendingDecision` | `when` |
 | `PipelineExecution` | `cause` |
 | `PipelineExecution` | `result` |
