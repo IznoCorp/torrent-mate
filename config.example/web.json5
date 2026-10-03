@@ -12,5 +12,6 @@
     session_ttl_hours: 720, // 30 days
     cookie_secure: true,
     dev_mode: false, // true = allow boot without a built SPA (Vite dev proxy)
+    v1_enabled: false, // true only on the preprod overlay until K9 (O-K1-1)
   },
 }

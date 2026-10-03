@@ -15,9 +15,11 @@ from typing import cast
 from fastapi import APIRouter, Depends, FastAPI
 from starlette.middleware.gzip import GZipMiddleware
 
+from personalscraper.app.composition import build_app_services
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.core.sqlite._pragmas import apply_pragmas
+from personalscraper.http_v1.app import V1_PREFIX, create_v1_app, v1_lifespan
 from personalscraper.indexer import migrations as _indexer_migrations
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.logger import get_logger
@@ -164,7 +166,9 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info("relay_disabled", reason="web.enabled is False")
 
     try:
-        yield
+        # Starlette never runs a mounted application's lifespan: v1's is entered here.
+        async with v1_lifespan(getattr(app.state, "v1_app", None)):
+            yield
     finally:
         if relay_task is not None:
             relay_task.cancel()
@@ -270,6 +274,14 @@ def create_app(config: Config, settings: Settings) -> FastAPI:
 
     guarded_api.include_router(media_router)
     app.include_router(guarded_api)
+
+    # ── v1 — a mounted sub-application, only where enabled (O-K1-1) ───
+    # Mounted BEFORE mount_spa: its GET catch-all would otherwise answer a v1 GET.
+    # A mount is outside this app's openapi(), so frontend/openapi.json cannot move.
+    if config.web.v1_enabled:
+        v1_app = create_v1_app(config, settings, build_app_services(config, settings))
+        app.state.v1_app = v1_app
+        app.mount(V1_PREFIX, v1_app)
 
     # Capture config file hashes at startup so /status detects
     # post-boot modifications without a lazy first-access race.
