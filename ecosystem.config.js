@@ -48,6 +48,9 @@ module.exports = {
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+        // The operator's Telegram is French and the engine defaults to English
+        // (i18n DEFAULT_LANGUAGE): pinned here rather than inherited from the PM2 daemon's LANG.
+        PERSONALSCRAPER_LANG: "fr",
       },
       // Log to PM2's default log dir; view with `pm2 logs personalscraper-watch`.
     },
@@ -168,6 +171,9 @@ module.exports = {
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+        // The operator's Telegram is French and the engine defaults to English
+        // (i18n DEFAULT_LANGUAGE): pinned here rather than inherited from the PM2 daemon's LANG.
+        PERSONALSCRAPER_LANG: "fr",
       },
     },
 
@@ -183,6 +189,9 @@ module.exports = {
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+        // The operator's Telegram is French and the engine defaults to English
+        // (i18n DEFAULT_LANGUAGE): pinned here rather than inherited from the PM2 daemon's LANG.
+        PERSONALSCRAPER_LANG: "fr",
       },
     },
 
@@ -198,6 +207,9 @@ module.exports = {
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+        // The operator's Telegram is French and the engine defaults to English
+        // (i18n DEFAULT_LANGUAGE): pinned here rather than inherited from the PM2 daemon's LANG.
+        PERSONALSCRAPER_LANG: "fr",
       },
     },
 
@@ -217,6 +229,9 @@ module.exports = {
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+        // The operator's Telegram is French and the engine defaults to English
+        // (i18n DEFAULT_LANGUAGE): pinned here rather than inherited from the PM2 daemon's LANG.
+        PERSONALSCRAPER_LANG: "fr",
       },
     },
 
@@ -234,6 +249,9 @@ module.exports = {
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+        // The operator's Telegram is French and the engine defaults to English
+        // (i18n DEFAULT_LANGUAGE): pinned here rather than inherited from the PM2 daemon's LANG.
+        PERSONALSCRAPER_LANG: "fr",
       },
     },
 
@@ -250,6 +268,9 @@ module.exports = {
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+        // The operator's Telegram is French and the engine defaults to English
+        // (i18n DEFAULT_LANGUAGE): pinned here rather than inherited from the PM2 daemon's LANG.
+        PERSONALSCRAPER_LANG: "fr",
       },
     },
 
@@ -268,6 +289,9 @@ module.exports = {
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+        // The operator's Telegram is French and the engine defaults to English
+        // (i18n DEFAULT_LANGUAGE): pinned here rather than inherited from the PM2 daemon's LANG.
+        PERSONALSCRAPER_LANG: "fr",
       },
     },
 
@@ -289,6 +313,9 @@ module.exports = {
       env: {
         PYTHONUNBUFFERED: "1",
         PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+        // The operator's Telegram is French and the engine defaults to English
+        // (i18n DEFAULT_LANGUAGE): pinned here rather than inherited from the PM2 daemon's LANG.
+        PERSONALSCRAPER_LANG: "fr",
       },
     },
   ],

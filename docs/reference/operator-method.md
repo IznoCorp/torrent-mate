@@ -4,8 +4,7 @@ Deux parties : (1) ses principes, (3) ses décisions par surface. L'opérateur s
 La méthode de développement est `docs/reference/method.md` ; l'ancien § 2 et le journal daté sont dans git :
 `docs/reference/operator-method.md@5a763b90a`.
 
-Heures lues sur l'horloge de la machine, sauf « ~ » (heure estimée par la session qui a reçu le mot). « Rd R Q q » = round
-de décision R, question q ; « ruling N » = ruling d'organisation N (numérotation : `docs/features/maquette-l22/DESIGN.md@232a908ca` § 0).
+Heures lues sur l'horloge de la machine, sauf « ~ » (heure estimée par la session qui a reçu le mot).
 
 ## 1. Les principes de l'opérateur
 
