@@ -26,3 +26,23 @@ describe("every refusal code has its words", () => {
     expect(CODES).not.toContain("plex.no_server_access");
   });
 });
+
+type Operation = { operationId?: string; description?: string; responses: Record<string, { $ref?: string }> };
+const SIGN_IN = Object.values((contract as unknown as { paths: Record<string, Record<string, Operation>> }).paths)
+  .flatMap((methods) => Object.values(methods))
+  .find((operation) => operation.operationId === "signIn") as Operation;
+
+describe("signIn's refusals", () => {
+  it("declares the cross-origin 403, whatever the credentials", () => {
+    expect(SIGN_IN).toBeDefined();
+    expect(SIGN_IN.responses["403"]).toEqual({ $ref: "#/components/responses/Problem" });
+    expect(SIGN_IN.description).toContain("request.cross_origin");
+  });
+
+  it("reads, in its description, no auth code but auth.refused and auth.rate_limited", () => {
+    expect(SIGN_IN).toBeDefined();
+    const named = new Set(SIGN_IN.description?.match(/auth\.[a-z_]+/g));
+    expect(named.has("auth.refused")).toBe(true);
+    expect([...named].filter((code) => !["auth.refused", "auth.rate_limited"].includes(code))).toEqual([]);
+  });
+});

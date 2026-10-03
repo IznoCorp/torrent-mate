@@ -81,7 +81,8 @@ operator ruled on 2026-09-27; the roles it names are seed VALUES, not a fixed se
   linked, given a PROVISIONAL password by an Admin in Comptes at creation and on a reset (`resetAccountPassword`),
   changed by the account itself in Profil (`changeOwnPassword`). A Plex identity without access to the server is
   refused, and every unauthenticated sign-in failure answers the one code `auth.refused` (O-K1-4,
-  anti-enumeration). When a local account's e-mail becomes a user of the server it is linked, SSO becomes
+  anti-enumeration). `signIn` declares one 403, `request.cross_origin`, for a POST from another origin — it depends
+  on the request's origin, never on the credentials, so no credential failure is a 403. When a local account's e-mail becomes a user of the server it is linked, SSO becomes
   mandatory and its role drops to its Plex kind's starting role (`Role.defaultFor`) until an Admin promotes it.
 - **The staging read-only role becomes a PER-INSTANCE LIST of forbidden writes, not a single boolean ceiling**
   (ruling 23, superseding the earlier reading): the current `:8711` instance's own list names every write; the

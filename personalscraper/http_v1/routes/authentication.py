@@ -17,12 +17,11 @@ from personalscraper.http_v1.session_cookie import clear_session_cookie, session
 
 router = APIRouter()
 
-#: ``signIn``'s refusals as the contract declares them: the limiter's 429, and no 403 — every
-#: unauthenticated failure is the one 401.
-_SIGN_IN_RESPONSES = {
-    **{status: answer for status, answer in PROBLEM_RESPONSES.items() if status != 403},
-    429: PROBLEM_RESPONSES[401],
-}
+#: ``signIn``'s refusals as the contract declares them: the Problem answers of every operation,
+#: the 403 included — a cross-origin POST is refused ``request.cross_origin`` whatever the
+#: credentials, before the door looks at them — and the limiter's 429. Every failure of the
+#: credentials themselves stays the one 401.
+_SIGN_IN_RESPONSES = {**PROBLEM_RESPONSES, 429: PROBLEM_RESPONSES[401]}
 
 
 def signed_in_token(request: Request) -> str:

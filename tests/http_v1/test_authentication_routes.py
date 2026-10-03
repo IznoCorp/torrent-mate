@@ -323,6 +323,20 @@ class TestSignIn:
             assert secret not in response.text
             assert secret not in str(logs)
 
+    def test_a_cross_origin_post_is_request_cross_origin(self, v1_client: Callable[..., TestClient]) -> None:
+        """A cross-origin POST is 403 ``request.cross_origin`` even with right credentials, and opens no session."""
+        client = v1_client(role=None)
+        email = "local@example.org"
+        _seed_password_account(client, email)
+
+        response = client.post(
+            "/auth/login", json={"email": email, "password": _PASSWORD}, headers={"Origin": "https://evil.example"}
+        )
+
+        assert response.status_code == 403
+        assert response.json()["code"] == "request.cross_origin"
+        assert "set-cookie" not in response.headers
+
     def test_a_plex_linked_account_is_auth_refused(self, v1_client: Callable[..., TestClient]) -> None:
         """A shared Plex account signs in by Plex only: the same 401 ``auth.refused``, even with its password."""
         client = v1_client(role=None)
