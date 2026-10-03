@@ -1,9 +1,11 @@
 """The environment a process runs in, and the store file names it derives.
 
 One setting, ``PERSONALSCRAPER_ENV``, names the environment (``dev``, ``staging`` or
-``prod``). Each store file (library, acquire, app) takes its name from it, so two
-environments sharing one ``data_dir`` never share a database. Absent means ``prod``:
-the historical file names, unchanged.
+``prod``). Each store file (library, acquire, app) takes its name from it. Absent means
+``prod``: the historical file names, unchanged. The names alone do not isolate: every
+environment but prod needs a ``data_dir`` of its own, marked with its name, and the
+isolation guard (``conf/isolation.py``) refuses one that is unmarked or marked for
+another environment.
 """
 
 from __future__ import annotations
