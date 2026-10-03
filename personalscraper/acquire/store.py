@@ -606,7 +606,7 @@ class _SeedSubStore:
             """
             SELECT id, info_hash, source_tracker, dispatched_path,
                    min_seed_time_s, min_ratio, added_at,
-                   satisfied_at, breached_at, released_at
+                   satisfied_at, breached_at, released_at, absent_since
             FROM seed_obligation
             WHERE info_hash = ? AND released_at IS NULL
             LIMIT 1
@@ -652,7 +652,7 @@ class _SeedSubStore:
             """
             SELECT id, info_hash, source_tracker, dispatched_path,
                    min_seed_time_s, min_ratio, added_at,
-                   satisfied_at, breached_at, released_at
+                   satisfied_at, breached_at, released_at, absent_since
             FROM seed_obligation
             WHERE dispatched_path = ?
               AND satisfied_at IS NULL
@@ -689,7 +689,7 @@ class _SeedSubStore:
             """
             SELECT id, info_hash, source_tracker, dispatched_path,
                    min_seed_time_s, min_ratio, added_at,
-                   satisfied_at, breached_at, released_at
+                   satisfied_at, breached_at, released_at, absent_since
             FROM seed_obligation
             WHERE (dispatched_path = ? OR dispatched_path LIKE ? ESCAPE '\\')
               AND released_at IS NULL
@@ -698,18 +698,95 @@ class _SeedSubStore:
         ).fetchall()
         return [_row_to_seed(r) for r in rows]
 
-    def mark_satisfied(self, obligation_id: int, satisfied_at: int) -> None:
-        """Set ``satisfied_at`` on a ``seed_obligation`` row.
+    def list_open(self) -> list[SeedObligation]:
+        """Return every obligation that is neither satisfied nor released.
+
+        Returns:
+            The open :class:`SeedObligation` rows, oldest id first.
+        """
+        self._conn.row_factory = sqlite3.Row
+        rows = self._conn.execute(
+            """
+            SELECT id, info_hash, source_tracker, dispatched_path,
+                   min_seed_time_s, min_ratio, added_at,
+                   satisfied_at, breached_at, released_at, absent_since
+            FROM seed_obligation
+            WHERE satisfied_at IS NULL AND released_at IS NULL
+            ORDER BY id
+            """
+        ).fetchall()
+        return [_row_to_seed(r) for r in rows]
+
+    def mark_satisfied(self, obligation_id: int, satisfied_at: int) -> int:
+        """Set ``satisfied_at`` on an open ``seed_obligation`` row.
+
+        Guarded so a satisfied or released row is never re-stamped.
 
         Args:
             obligation_id: Rowid of the obligation.
             satisfied_at: Unix epoch seconds.
+
+        Returns:
+            The number of rows updated (0 when the row was already closed).
         """
         with _write_tx(self._conn):
-            self._conn.execute(
-                "UPDATE seed_obligation SET satisfied_at = ? WHERE id = ?",
+            cur = self._conn.execute(
+                "UPDATE seed_obligation SET satisfied_at = ? "
+                "WHERE id = ? AND satisfied_at IS NULL AND released_at IS NULL",
                 (satisfied_at, obligation_id),
             )
+            return cur.rowcount
+
+    def mark_absent(self, obligation_id: int, seen_at: int) -> int:
+        """Record the first pass that did not find the torrent in the client.
+
+        Args:
+            obligation_id: Rowid of the obligation.
+            seen_at: Unix epoch seconds of that pass.
+
+        Returns:
+            The number of rows updated (0 when already marked absent or released).
+        """
+        with _write_tx(self._conn):
+            cur = self._conn.execute(
+                "UPDATE seed_obligation SET absent_since = ? "
+                "WHERE id = ? AND absent_since IS NULL AND released_at IS NULL",
+                (seen_at, obligation_id),
+            )
+            return cur.rowcount
+
+    def clear_absent(self, obligation_id: int) -> int:
+        """Forget an absence: the torrent was seen again.
+
+        Args:
+            obligation_id: Rowid of the obligation.
+
+        Returns:
+            The number of rows updated (0 when it was not marked absent).
+        """
+        with _write_tx(self._conn):
+            cur = self._conn.execute(
+                "UPDATE seed_obligation SET absent_since = NULL WHERE id = ? AND absent_since IS NOT NULL",
+                (obligation_id,),
+            )
+            return cur.rowcount
+
+    def mark_released(self, obligation_id: int, released_at: int) -> int:
+        """Set ``released_at``: the torrent is gone, nothing seeds any more.
+
+        Args:
+            obligation_id: Rowid of the obligation.
+            released_at: Unix epoch seconds.
+
+        Returns:
+            The number of rows updated (0 when already released).
+        """
+        with _write_tx(self._conn):
+            cur = self._conn.execute(
+                "UPDATE seed_obligation SET released_at = ? WHERE id = ? AND released_at IS NULL",
+                (released_at, obligation_id),
+            )
+            return cur.rowcount
 
     def mark_breached(self, obligation_id: int, breached_at: int) -> None:
         """Set ``breached_at`` on a ``seed_obligation`` row.

@@ -569,7 +569,13 @@ def _torrent_item(t: transmission_rpc.Torrent) -> TorrentItem:
     eta_seconds: int | None = int(eta_raw) if isinstance(eta_raw, (int, float)) and eta_raw >= 0 else None
 
     # secondsSeeding: seconds really seeded; absent or negative is an honest None.
-    seeding_raw = getattr(t, "seconds_seeding", None)
+    # transmission_rpc reads ``fields["secondsSeeding"]``: a reply that did not
+    # request the field raises KeyError (not AttributeError), so getattr's
+    # default would not catch it.
+    try:
+        seeding_raw = t.seconds_seeding
+    except (AttributeError, KeyError):
+        seeding_raw = None
     if isinstance(seeding_raw, timedelta):
         seeding_raw = int(seeding_raw.total_seconds())
     seeding_time_s: int | None = (
