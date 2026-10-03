@@ -30,7 +30,13 @@ from playwright.async_api import async_playwright
 SOURCE = pathlib.Path(__file__).resolve().parents[1] / "design/src"
 SEEDS = json.loads((SOURCE / "mocks/seeds/accounts.json").read_text(encoding="utf-8"))
 OWNER = json.loads((SOURCE / "mocks/seeds/account.json").read_text(encoding="utf-8"))["id"]
-SESSION = {"POST /api/auth/login", "POST /api/auth/logout", "POST /api/auth/plex"}
+# THE SESSION'S OWN ACTS, no right: signing in and out, and an account's own notification
+# settings (the operator, 2026-10-03: « tout le monde à le droit de changer les notifications de
+# son propre compte »).
+SESSION = {
+    "POST /api/auth/login", "POST /api/auth/logout", "POST /api/auth/plex",
+    "PUT /api/notifications/preferences/{type}", "POST /api/notifications/devices",
+}
 # The reads F30 gates: Système, Maintenance, the pipeline's record, Trackers, the
 # configuration's own files and secrets.
 GATED_READ = re.compile(r"^GET /api/(system|maintenance|pipeline|trackers|acquisition/(downloads|obligations)"

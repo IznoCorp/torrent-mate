@@ -4,8 +4,11 @@ import { describe, expect, it } from "vitest";
 import { routes } from "./handlers";
 import { OPERATION_RIGHTS } from "./operation-rights";
 
-// The session's own acts: every identity, under any ceiling (F28).
-const SESSION = new Set(["signIn", "signOut", "signInWithPlex"]);
+// The session's own acts: every identity, under any ceiling (F28). The two notification writes
+// join them (the operator, 2026-10-03): an account's own settings, not a delegable capability.
+const SESSION = new Set([
+  "signIn", "signOut", "signInWithPlex", "updateNotificationPreference", "registerPushDevice",
+]);
 
 describe("every operation names the right it asks for", () => {
   const table = routes();
