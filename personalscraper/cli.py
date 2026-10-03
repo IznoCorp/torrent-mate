@@ -129,6 +129,10 @@ from personalscraper.commands.web import web_app  # noqa: E402
 
 app.add_typer(web_app, name="web")
 
+from personalscraper.commands.accounts import accounts_app  # noqa: E402
+
+app.add_typer(accounts_app, name="accounts")
+
 __all__ = [
     "AppCtx",
     "State",

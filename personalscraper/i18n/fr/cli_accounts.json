@@ -1,0 +1,11 @@
+{
+  "help": "Comptes de l'app.db de cet environnement.",
+  "set_password": {
+    "help": "Définit le mot de passe d'un compte : saisi deux fois, masqué, jamais passé en argument.",
+    "email_help": "L'adresse e-mail du compte, quelle que soit sa casse.",
+    "prompt": "Nouveau mot de passe",
+    "confirm": "Répétez le nouveau mot de passe",
+    "mismatch": "Les deux mots de passe diffèrent ; rien n'a été modifié.",
+    "done": "Mot de passe défini pour {{email}}."
+  }
+}
