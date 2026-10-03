@@ -12,12 +12,14 @@ order is ``pipeline.lock > indexer_lock > acquire.db.lock > app.db.lock``.
 
 Lazy open: :func:`build_app_store` returns an inert handle (no directory, no connection,
 no lock, no migration); the file opens on the first access to :attr:`AppStore.push` or
-:attr:`AppStore.accounts`.
+:attr:`AppStore.accounts`. That first access may come from several threads of the web's
+threadpool at once: a thread lock makes exactly one of them open the connection.
 """
 
 from __future__ import annotations
 
 import sqlite3
+import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
@@ -54,6 +56,9 @@ class AppStore:
         self._push: SqlitePushSubscriptionStore | None = None
         self._accounts: AccountRepository | None = None
         self._closed = False
+        # ``db_lock`` serialises open + migrate across processes only; this one serialises
+        # the threads of one process, so concurrent first accesses open a single connection.
+        self._open_lock = threading.Lock()
 
     def _ensure_open(self) -> sqlite3.Connection:
         """Open the connection and migrate the schema on first access.
@@ -67,17 +72,23 @@ class AppStore:
         """
         if self._closed:
             raise RuntimeError("AppStore is closed")
-        if self._conn is not None:
-            return self._conn
+        conn = self._conn
+        if conn is not None:
+            return conn
+        with self._open_lock:
+            if self._closed:
+                raise RuntimeError("AppStore is closed")
+            if self._conn is not None:
+                return self._conn
 
-        self._db_path.parent.mkdir(parents=True, exist_ok=True)
-        with db_lock(self._db_path, timeout=_MIGRATION_LOCK_TIMEOUT_S):
-            conn = open_db(self._db_path)
-            apply_migrations(conn, _MIGRATIONS_DIR, error_factory=AppMigrationError)
+            self._db_path.parent.mkdir(parents=True, exist_ok=True)
+            with db_lock(self._db_path, timeout=_MIGRATION_LOCK_TIMEOUT_S):
+                conn = open_db(self._db_path)
+                apply_migrations(conn, _MIGRATIONS_DIR, error_factory=AppMigrationError)
 
-        self._conn = conn
-        log.info("app.store.opened", db_path=str(self._db_path))
-        return conn
+            self._conn = conn
+            log.info("app.store.opened", db_path=str(self._db_path))
+            return conn
 
     @property
     def push(self) -> SqlitePushSubscriptionStore:
@@ -105,17 +116,20 @@ class AppStore:
 
     def close(self) -> None:
         """Close the connection if it was opened; idempotent and fail-soft."""
-        self._closed = True
-        self._push = None
-        self._accounts = None
-        if self._conn is None:
-            return
-        try:
-            self._conn.close()
-        except Exception as exc:  # noqa: BLE001 — fail-soft close contract
-            log.warning("app.store.close_conn_failed", error=str(exc))
-        self._conn = None
-        log.info("app.store.closed", db_path=str(self._db_path))
+        # Under the open lock: a first access still opening finishes first, and its
+        # connection is the one closed here, never one left behind.
+        with self._open_lock:
+            self._closed = True
+            self._push = None
+            self._accounts = None
+            if self._conn is None:
+                return
+            try:
+                self._conn.close()
+            except Exception as exc:  # noqa: BLE001 — fail-soft close contract
+                log.warning("app.store.close_conn_failed", error=str(exc))
+            self._conn = None
+            log.info("app.store.closed", db_path=str(self._db_path))
 
 
 def build_app_store(config: Config) -> AppStore:

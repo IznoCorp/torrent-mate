@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import sqlite3
+import threading
 from pathlib import Path
 
 import pytest
 
 from personalscraper.app.accounts.repository import AccountRow
+from personalscraper.app.store import store as store_module
 from personalscraper.app.store.store import AppStore, build_app_store
 from personalscraper.conf.models.config import Config
 
@@ -113,3 +115,54 @@ def test_reopening_applies_nothing(test_config: Config, tmp_path: Path) -> None:
     finally:
         second.close()
     assert _user_version(tmp_path / "data" / "app.db") == 3
+
+
+def test_concurrent_first_accesses_open_one_connection(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Threads racing on a fresh store's first access open exactly one connection, closed by ``close``."""
+    threads_count = 12
+    opened: list[sqlite3.Connection] = []
+    real_open_db = store_module.open_db
+
+    def counting_open_db(db_path: Path) -> sqlite3.Connection:
+        """Open through the real ``open_db`` and record the connection.
+
+        Args:
+            db_path: The file to open.
+
+        Returns:
+            The open connection.
+        """
+        conn = real_open_db(db_path)
+        opened.append(conn)
+        return conn
+
+    monkeypatch.setattr(store_module, "open_db", counting_open_db)
+    store = AppStore(tmp_path / "app.db")
+    barrier = threading.Barrier(threads_count)
+    errors: list[BaseException] = []
+
+    def first_access() -> None:
+        """Wait for every thread, then touch the store; record what it raises."""
+        barrier.wait()
+        try:
+            store.accounts  # noqa: B018 — the accessor itself opens the store
+        except BaseException as exc:  # noqa: BLE001 — a thread's failure is asserted by the test
+            errors.append(exc)
+
+    workers = [threading.Thread(target=first_access) for _ in range(threads_count)]
+    for worker in workers:
+        worker.start()
+    for worker in workers:
+        worker.join()
+    store.close()
+
+    assert errors == []
+    assert len(opened) == 1
+    still_open = 0
+    for conn in opened:
+        try:
+            conn.execute("SELECT 1")
+        except sqlite3.ProgrammingError:
+            continue
+        still_open += 1
+    assert still_open == 0
