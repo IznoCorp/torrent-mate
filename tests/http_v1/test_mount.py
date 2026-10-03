@@ -7,6 +7,7 @@ OpenAPI document and v0's policy suites are unchanged.
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import inspect
 import json
 from collections.abc import Callable, Iterator
@@ -18,11 +19,10 @@ from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 from starlette.routing import Mount
 
-from personalscraper.app.build_info import BUILD_INFO
+from personalscraper.app.composition import build_app_services
 from personalscraper.app.services import AppServices
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
-from personalscraper.core.event_bus import EventBus
 from personalscraper.http_v1.app import V1_PREFIX, include_v1_router, v1_lifespan
 from personalscraper.web import app as web_app
 from personalscraper.web.app import create_app
@@ -202,9 +202,16 @@ def test_v1_paths_are_mount_relative(test_config: Config) -> None:
     assert v1_paths == {"/version"}
 
 
-def test_lifespan_closes_the_services() -> None:
-    """The parent's lifespan closes the sub-application's services; ``None`` is a no-op."""
-    closed: list[bool] = []
+def _recording(services: AppServices, closed: list[bool]) -> AppServices:
+    """The same services, recording their close instead of closing.
+
+    Args:
+        services: The services to copy.
+        closed: Where each close is recorded.
+
+    Returns:
+        The recording copy.
+    """
 
     class _Services(AppServices):
         """Services recording that they were closed."""
@@ -213,8 +220,14 @@ def test_lifespan_closes_the_services() -> None:
             """Record the close."""
             closed.append(True)
 
+    return _Services(**{field.name: getattr(services, field.name) for field in dataclasses.fields(services)})
+
+
+def test_lifespan_closes_the_services(test_config: Config) -> None:
+    """The parent's lifespan closes the sub-application's services; ``None`` is a no-op."""
+    closed: list[bool] = []
     v1_app = FastAPI()
-    v1_app.state.services = _Services(event_bus=EventBus(), build_info=BUILD_INFO, library=None)  # type: ignore[arg-type] — close() is overridden
+    v1_app.state.services = _recording(build_app_services(test_config, _settings()), closed)
 
     async def enter_both() -> None:
         """Enter the lifespan with no sub-application, then with one, checking nothing closes early."""
@@ -231,18 +244,10 @@ def test_lifespan_closes_the_services() -> None:
 def test_parent_lifespan_enters_the_v1_lifespan(test_config: Config) -> None:
     """Booting and stopping the parent closes v1's services once."""
     closed: list[bool] = []
-
-    class _Services(AppServices):
-        """Services recording that they were closed."""
-
-        def close(self) -> None:
-            """Record the close."""
-            closed.append(True)
-
     config = _with_v1(test_config, True)
     config = config.model_copy(update={"web": config.web.model_copy(update={"enabled": False})})
     app = create_app(config, _settings())
-    app.state.v1_app.state.services = _Services(event_bus=EventBus(), build_info=BUILD_INFO, library=None)  # type: ignore[arg-type] — close() is overridden
+    app.state.v1_app.state.services = _recording(app.state.v1_app.state.services, closed)
 
     with TestClient(app):
         assert closed == []

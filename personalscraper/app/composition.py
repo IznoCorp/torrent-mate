@@ -8,8 +8,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from personalscraper.app.accounts.service import AccountService
+from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.build_info import BUILD_INFO
 from personalscraper.app.services import AppServices
+from personalscraper.app.store.store import build_app_store
 from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
@@ -195,20 +198,28 @@ def build_app_context(
 def build_app_services(config: "Config", settings: "Settings") -> AppServices:
     """Build the process's :class:`AppServices`.
 
-    Inert: it opens no store, no connection and no publisher — every later field
-    is lazy until first use, so building it at web boot costs nothing.
+    Inert: it opens no store, no connection and no publisher — ``app.db`` opens on
+    the first session or account call, so building it at web boot costs nothing.
 
     Args:
         config: The typed JSON5 configuration.
         settings: The Pydantic env-var settings.
 
     Returns:
-        The application services, with a fresh in-process :class:`EventBus` and the
-        build read at boot.
+        The application services, with a fresh in-process :class:`EventBus`, the
+        build read at boot, and the account services over the environment's ``app.db``.
     """
     event_bus = EventBus()
+    app_store = build_app_store(config)
+    sessions = SessionService(lambda: app_store.accounts, ttl_hours=config.web.session_ttl_hours)
+    accounts = AccountService(lambda: app_store.accounts, sessions, event_bus)
     return AppServices(
-        event_bus=event_bus, build_info=BUILD_INFO, library=_build_library_service(config, settings, event_bus)
+        event_bus=event_bus,
+        build_info=BUILD_INFO,
+        library=_build_library_service(config, settings, event_bus),
+        app_store=app_store,
+        sessions=sessions,
+        accounts=accounts,
     )
 
 

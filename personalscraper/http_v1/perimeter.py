@@ -40,21 +40,6 @@ class ActorResolver(Protocol):
         ...
 
 
-class NoSessionResolver:
-    """The resolver until sessions exist: nobody is ever signed in, so v1 is closed by default."""
-
-    def resolve(self, request: Request) -> Actor | None:
-        """Answer nobody.
-
-        Args:
-            request: The incoming request (unused).
-
-        Returns:
-            Always ``None``.
-        """
-        return None
-
-
 def _is_cross_origin(request: Request) -> bool:
     """Whether a request's ``Origin`` header names another origin than the request's own.
 

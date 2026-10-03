@@ -73,7 +73,8 @@ def _probe_router() -> APIRouter:
         """A public operation."""
         return {"ok": "yes"}
 
-    @router.get("/auth/me", operation_id="readAccount")
+    # Its own path: the served ``GET /auth/me`` would otherwise answer first.
+    @router.get("/probe/me", operation_id="readAccount")
     def _signed_in(who: Annotated[Actor, Depends(actor)]) -> dict[str, str]:
         """A signed-in operation answering who the perimeter resolved."""
         return {"accountId": who.account_id}
@@ -185,7 +186,7 @@ def test_public_operation_answers_with_nobody_signed_in(make_v1_app: Callable[..
 
 def test_signed_in_operation_is_closed_by_default(make_v1_app: Callable[..., FastAPI]) -> None:
     """Nobody is signed in under the default resolver: 401."""
-    response = _client(make_v1_app).get("/auth/me")
+    response = _client(make_v1_app).get("/probe/me")
 
     assert response.status_code == 401
     assert response.json()["code"] == "auth.required"
@@ -193,7 +194,7 @@ def test_signed_in_operation_is_closed_by_default(make_v1_app: Callable[..., Fas
 
 def test_resolved_actor_reaches_the_route(make_v1_app: Callable[..., FastAPI]) -> None:
     """The actor the resolver answers is what ``deps.actor`` hands the route."""
-    response = _client(make_v1_app, _READER).get("/auth/me")
+    response = _client(make_v1_app, _READER).get("/probe/me")
 
     assert response.status_code == 200
     assert response.json() == {"accountId": "a2"}

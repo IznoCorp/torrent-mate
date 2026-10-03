@@ -18,9 +18,10 @@ from fastapi import APIRouter, Depends, FastAPI
 from personalscraper.app.services import AppServices
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
-from personalscraper.http_v1.perimeter import ActorResolver, NoSessionResolver, v1_perimeter
+from personalscraper.http_v1.perimeter import ActorResolver, v1_perimeter
 from personalscraper.http_v1.problem import ProblemOnCrash, install_problem_handlers
-from personalscraper.http_v1.routes import system
+from personalscraper.http_v1.routes import authentication, system
+from personalscraper.http_v1.session_cookie import SessionActorResolver
 
 #: Where v0's application mounts v1; a v1 route's path is the contract's without its ``/api``.
 V1_PREFIX: Final = "/api/v1"
@@ -93,8 +94,9 @@ def create_v1_app(
         config: The typed configuration.
         settings: The env-var settings.
         services: The application services every route calls.
-        resolver: Resolves a request's session to an actor; ``None`` signs nobody
-            in (:class:`NoSessionResolver`), so every non-public operation answers 401.
+        resolver: Resolves a request's session to an actor; ``None`` reads the
+            ``tm_v1_session`` cookie through ``services.sessions``
+            (:class:`SessionActorResolver`).
 
     Returns:
         The sub-application, ready to mount at :data:`V1_PREFIX`.
@@ -109,10 +111,11 @@ def create_v1_app(
     app.state.config = config
     app.state.settings = settings
     app.state.services = services
-    app.state.actor_resolver = resolver if resolver is not None else NoSessionResolver()
+    app.state.actor_resolver = resolver if resolver is not None else SessionActorResolver(services.sessions)
     app.openapi = _without_validation_answers(app.openapi)  # type: ignore[method-assign]
     install_problem_handlers(app)
     app.add_middleware(ProblemOnCrash)
+    include_v1_router(app, authentication.router)
     include_v1_router(app, system.router)
     return app
 
