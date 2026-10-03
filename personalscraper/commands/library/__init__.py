@@ -12,6 +12,7 @@ from personalscraper.commands.library.analyze import (
 from personalscraper.commands.library.audit import library_ghost_audit, library_reconcile, library_relink
 from personalscraper.commands.library.dedup_titles import library_dedup_titles
 from personalscraper.commands.library.doctor import library_doctor
+from personalscraper.commands.library.duplicates_by_id import library_duplicates_by_id
 from personalscraper.commands.library.fix_canonical_provider import library_fix_canonical_provider
 from personalscraper.commands.library.fix_nfo import library_fix_nfo
 from personalscraper.commands.library.fix_orphan_files import library_fix_orphan_files
@@ -30,6 +31,7 @@ __all__ = [
     "library_fix_orphan_files",
     "library_fix_season_counts",
     "library_doctor",
+    "library_duplicates_by_id",
     "library_gc",
     "library_ghost_audit",
     "library_index",
