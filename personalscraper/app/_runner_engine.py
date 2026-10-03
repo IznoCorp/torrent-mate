@@ -147,7 +147,7 @@ def redis_publish_line(
     """Publish a single output line to Redis as a ``maintenance.run_log`` event.
 
     The envelope shape matches ``event_to_envelope`` (``{"_type", "data"}``) so
-    the WebSocket relay in ``web/ws/relay`` forwards it verbatim
+    the WebSocket relay in ``app/relay`` forwards it verbatim
     without requiring an :class:`Event` subclass in the catalog. The ``_type`` is
     ``"maintenance.run_log"`` and the ``data`` payload carries
     ``{run_uid, line, seq}`` (byte-identical across all detached runners).
