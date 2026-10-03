@@ -250,5 +250,14 @@
     "risk": "write",
     "long": true,
     "dryRun": false
+  },
+  {
+    "id": "library-remove-phantom-rows",
+    "label": "Supprimer les lignes fantômes",
+    "description": "Retire de l'index les lignes sans fichier d'un identifiant porté par une ligne avec fichiers.",
+    "group": "fix",
+    "risk": "destructive",
+    "long": false,
+    "dryRun": true
   }
 ]
