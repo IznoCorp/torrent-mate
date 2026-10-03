@@ -22,6 +22,8 @@ class WebConfig(_StrictModel):
         cookie_secure: When True, the session cookie has the Secure flag
             (requires HTTPS).
         dev_mode: When True, allows boot without a built SPA (Vite dev proxy).
+        v1_enabled: When True, the v1 interface is mounted under ``/api/v1``; only the
+            preprod overlay sets it until the switchover (ruling O-K1-1).
     """
 
     enabled: bool = True
@@ -34,3 +36,4 @@ class WebConfig(_StrictModel):
     session_ttl_hours: int = 720
     cookie_secure: bool = True
     dev_mode: bool = False
+    v1_enabled: bool = False
