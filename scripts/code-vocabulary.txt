@@ -344,6 +344,7 @@ delivering
 delivery
 delsel
 delta
+denied
 dependency
 deps
 design
@@ -363,6 +364,7 @@ detail
 details
 dev
 device
+devices
 dial
 dialled
 dialog
@@ -431,6 +433,7 @@ emit
 emphasis
 emphasized
 empty
+enable
 end
 ended
 ending
@@ -441,6 +444,7 @@ enriched
 enrichment
 entries
 entry
+env
 envelope
 environment
 ep
@@ -870,6 +874,7 @@ nothing
 notice
 noticed
 notification
+notifications
 now
 nowhere
 number
@@ -954,6 +959,7 @@ pausers
 payload
 pct
 pending
+permission
 phase
 phrase
 pick
@@ -974,6 +980,7 @@ placeholder
 places
 plain
 platform
+platforms
 play
 plex
 plural
@@ -1022,6 +1029,7 @@ properties
 proposer
 props
 protocol
+prototype
 prov
 provider
 ptr
@@ -1070,6 +1078,7 @@ real
 reason
 reasons
 reassign
+receivable
 receive
 received
 recent
@@ -1488,6 +1497,7 @@ tried
 trim
 tunnel
 tuples
+turned
 twin
 two
 type
@@ -1496,6 +1506,7 @@ typing
 ua
 ui
 uid
+unasked
 unavailable
 unblock
 under
@@ -1516,6 +1527,7 @@ unregister
 unsearched
 unseen
 unset
+unsupported
 unwind
 unwinding
 upcoming

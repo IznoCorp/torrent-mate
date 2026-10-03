@@ -1124,7 +1124,38 @@
       "forbiddenHere": "interdit sur cette instance, pour tous les comptes",
       "addressPlexSub": "relie le compte Plex de même adresse",
       "held": "détenu",
-      "noRight": "Aucun droit : ce rôle n'ouvre rien ici."
+      "noRight": "Aucun droit : ce rôle n'ouvre rien ici.",
+      "notifications": {
+        "heading": "Notifications",
+        "intro": "Vos choix valent pour tous vos appareils. Seuls les types que votre rôle vous permet de suivre sont proposés.",
+        "device": {
+          "label": "Cet appareil",
+          "granted": {
+            "value": "Notifications activées",
+            "line": "Les types cochés ci-dessous arrivent sur cet appareil."
+          },
+          "unasked": {
+            "value": "Pas encore activées",
+            "line": "Ce navigateur n'a pas encore donné sa permission : les types cochés arrivent sur vos autres appareils, pas sur celui-ci."
+          },
+          "denied": {
+            "value": "Bloquées par le navigateur",
+            "line": "La permission a été refusée : rétablissez-la dans les réglages du site de ce navigateur pour recevoir les notifications ici."
+          },
+          "needs-install": {
+            "value": "Application à installer",
+            "line": "Sur iPhone et iPad, les notifications n'arrivent qu'à l'application ajoutée à l'écran d'accueil (Partager, puis « Sur l'écran d'accueil »)."
+          },
+          "unsupported": {
+            "value": "Non prises en charge",
+            "line": "Ce navigateur ne reçoit pas de notifications : vos choix valent pour vos autres appareils."
+          },
+          "enable": "Activer sur cet appareil",
+          "enabling": "Activation…",
+          "failed": "L'activation n'a pas abouti : réessayez dans un instant."
+        },
+        "refused": "« {{type}} » n'a pas été changé : le serveur a refusé la demande."
+      }
     },
     "notFound": {
       "title": "Cette adresse ne mène nulle part.",
@@ -2028,6 +2059,9 @@
       },
       "auth": {
         "password": "se connecter par mot de passe"
+      },
+      "notifications": {
+        "manage": "choisir ses notifications"
       }
     },
     "holders": {
@@ -2077,6 +2111,9 @@
       },
       "auth": {
         "password": "Par défaut, seul le rôle Admin le détient."
+      },
+      "notifications": {
+        "manage": "Par défaut : Admin, Membre du foyer et Invité Plex."
       }
     },
     "ceilingEvery": "Cette instance est en lecture seule : aucune écriture n'y est permise, pour aucun compte.",

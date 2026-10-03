@@ -16,6 +16,7 @@ import { decisionRoutes } from "./decisions";
 import { libraryRoutes } from "./library";
 import { maintenanceRoutes } from "./maintenance";
 import { membershipRoutes } from "./membership";
+import { notificationRoutes } from "./notifications";
 import { mediaRoutes } from "./media";
 import { pipelineRoutes } from "./pipeline";
 import { requesterRoutes } from "./requesters";
@@ -29,6 +30,7 @@ export function routes(): MockRoute[] {
   return [
     ...authenticationRoutes(),
     ...accountRoutes(),
+    ...notificationRoutes(),
     ...libraryRoutes(),
     ...membershipRoutes(),
     ...mediaRoutes(),

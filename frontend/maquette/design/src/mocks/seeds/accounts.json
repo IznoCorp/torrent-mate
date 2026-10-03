@@ -26,7 +26,8 @@
         "acquisition.todo.view",
         "acquisition.pilot.own",
         "acquisition.quality.own",
-        "acquisition.pause.own"
+        "acquisition.pause.own",
+        "notifications.manage"
       ]
     },
     {
@@ -41,7 +42,8 @@
         "acquisition.pilot.own",
         "acquisition.quality.own",
         "acquisition.pause.own",
-        "acquisition.see.others"
+        "acquisition.see.others",
+        "notifications.manage"
       ]
     },
     {
@@ -52,7 +54,8 @@
         "library.read",
         "acquisition.request",
         "acquisition.follow",
-        "acquisition.pilot.own"
+        "acquisition.pilot.own",
+        "notifications.manage"
       ]
     },
     {
@@ -65,7 +68,8 @@
         "acquisition.follow",
         "acquisition.pilot.own",
         "acquisition.quality.own",
-        "acquisition.pause.own"
+        "acquisition.pause.own",
+        "notifications.manage"
       ]
     },
     {

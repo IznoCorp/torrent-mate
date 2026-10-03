@@ -101,6 +101,14 @@ export type MockState = {
    */
   deletedTitles: string[];
   /**
+   * THE NOTIFICATION TYPES EACH ACCOUNT TURNED OFF, by account id — the
+   * account's own choice, on all its devices (ruling Q1 A, 2026-10-03). A type
+   * absent here is on: the seeded layer has every type on.
+   */
+  notificationsOff: Record<string, Schemas["NotificationType"][]>;
+  /** The push tokens devices registered (K5), in arrival order. */
+  pushDevices: Schemas["PushDevice"][];
+  /**
    * Whether the library database answers at all.
    *
    * The contract makes a media sheet's `ownership` nullable and says why: null
@@ -284,6 +292,8 @@ const seeded = (): MockState => ({
   pipeline: copyOf<Schemas["Pipeline"]>(PIPELINE),
   library: copyOf<Schemas["LibraryItem"][]>(LIBRARY_ITEMS),
   deletedTitles: [],
+  notificationsOff: {},
+  pushDevices: [],
   libraryDatabaseAvailable: true,
   stuck: copyOf<Schemas["QueueCard"][]>(STUCK),
   stuckLoaded: copyOf<Schemas["QueueCard"][]>(STUCK_LOADED),
