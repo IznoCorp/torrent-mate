@@ -89,6 +89,16 @@ def test_unmarked_root_is_refused(tmp_path: Path, mounted: None, staging: Callab
         assert_preprod_root(disk)
 
 
+def test_marker_that_is_a_symlink_is_refused(tmp_path: Path, mounted: None) -> None:
+    """A symlink named like the marker, even onto a real file, does not make a root preprod's."""
+    disk = _root(tmp_path, "disk", marked=False)
+    real_file = tmp_path / "elsewhere.txt"
+    real_file.write_text("", encoding="utf-8")
+    (disk / PREPROD_ROOT_MARKER).symlink_to(real_file)
+    with pytest.raises(PreprodGuardError, match=PREPROD_ROOT_MARKER):
+        assert_preprod_root(disk)
+
+
 def test_unmounted_root_is_refused(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, staging: Callable[[], None]
 ) -> None:
