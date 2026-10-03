@@ -341,3 +341,11 @@ class TestOpen:
     def test_the_lock_timeout_is_the_acquire_stores(self) -> None:
         """One migration-lock timeout for every opener of acquire.db."""
         assert catalogue_module._MIGRATION_LOCK_TIMEOUT_S == acquire_store._MIGRATION_LOCK_TIMEOUT_S
+
+    def test_a_show_without_client_does_not_consume_a_max_slot(self, store: CatalogueStore) -> None:
+        """An unconfigured provider makes no call, so it cannot starve the registered one under --max 1."""
+        tvdb = FakeClient({"1": ("Continuing", {1: [(1, "a", "2020-01-01")]})})
+        index = _index([("tmdb", {"tmdb": "20"}), ("tvdb", {"tvdb": "1"})])
+        report = refresh_catalogue(store, index, ProviderClients(tvdb=tvdb, tmdb=None), now=NOW, max_shows=1)
+        assert (report.skipped, report.refreshed, report.remaining) == (1, 1, 0)
+        assert store.episodes("tvdb", "1") is not None

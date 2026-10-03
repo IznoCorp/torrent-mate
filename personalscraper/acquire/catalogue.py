@@ -312,7 +312,8 @@ class CatalogueRefreshReport:
         refreshed: Shows whose rows were replaced.
         failed: Shows whose provider call failed (their previous rows are kept and
             the attempt is recorded: they are not due again for a week).
-        skipped: Due shows whose provider had no client.
+        skipped: Due shows whose provider had no client; they make no provider call
+            and take no ``max_shows`` slot.
         remaining: Due shows not attempted in this run because ``max_shows`` was
             reached; a show that failed here is in ``failed``, not in ``remaining``.
     """
@@ -378,12 +379,15 @@ def refresh_catalogue(
         The run's report.
     """
     due = store.due(now, known=library_shows(index_conn))
-    batch, remaining = due[:max_shows], max(0, len(due) - max_shows)
-    refreshed = failed = skipped = 0
-    for provider, provider_id in batch:
+    refreshed = failed = skipped = remaining = 0
+    for provider, provider_id in due:
         client = provider_clients.get(provider)
         if client is None:
+            # No provider call, so no ``--max`` slot: an unconfigured provider must not starve the others.
             skipped += 1
+            continue
+        if refreshed + failed >= max_shows:
+            remaining += 1
             continue
         try:
             status, episodes = _fetch_show(client, provider_id)
