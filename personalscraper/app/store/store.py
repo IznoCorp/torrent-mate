@@ -1,8 +1,9 @@
 """The environment's ``app`` store: ``app.db``, ``app-dev.db`` or ``app-staging.db``.
 
 One more SQLite file beside ``library`` and ``acquire`` (Q2/Q13: three stores by owner,
-one file per environment by suffix). It holds the application layer's own state; its
-baseline adopts ``push_subscription`` (K1 adds the accounts and the foreign key).
+one file per environment by suffix). It holds the application layer's own state: the
+push subscriptions, and the accounts with their roles, Plex links and sessions — a push
+subscription belongs to an account, and goes with it.
 
 Concurrency model: the same as ``acquire/store.py``. WAL plus ``busy_timeout`` in the
 canonical PRAGMA set; the core ``db_lock`` is taken only briefly around open + migrate
@@ -10,7 +11,8 @@ and released at once. It is a strict leaf, never held across another lock, so th
 order is ``pipeline.lock > indexer_lock > acquire.db.lock > app.db.lock``.
 
 Lazy open: :func:`build_app_store` returns an inert handle (no directory, no connection,
-no lock, no migration); the file opens on the first access to :attr:`AppStore.push`.
+no lock, no migration); the file opens on the first access to :attr:`AppStore.push` or
+:attr:`AppStore.accounts`.
 """
 
 from __future__ import annotations
@@ -19,6 +21,7 @@ import sqlite3
 from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
+from personalscraper.app.accounts.repository import AccountRepository
 from personalscraper.app.store.errors import AppMigrationError
 from personalscraper.conf.environment import StoreName, store_path
 from personalscraper.core.sqlite import apply_migrations, db_lock, open_db
@@ -49,6 +52,7 @@ class AppStore:
         self._db_path = db_path
         self._conn: sqlite3.Connection | None = None
         self._push: SqlitePushSubscriptionStore | None = None
+        self._accounts: AccountRepository | None = None
         self._closed = False
 
     def _ensure_open(self) -> sqlite3.Connection:
@@ -87,10 +91,23 @@ class AppStore:
             self._push = SqlitePushSubscriptionStore(conn)
         return self._push
 
+    @property
+    def accounts(self) -> AccountRepository:
+        """The accounts' rows (opens, and migrates, the store on first access).
+
+        Returns:
+            The account repository over this store's connection.
+        """
+        conn = self._ensure_open()
+        if self._accounts is None:
+            self._accounts = AccountRepository(conn)
+        return self._accounts
+
     def close(self) -> None:
         """Close the connection if it was opened; idempotent and fail-soft."""
         self._closed = True
         self._push = None
+        self._accounts = None
         if self._conn is None:
             return
         try:

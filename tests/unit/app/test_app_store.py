@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from personalscraper.app.accounts.repository import AccountRow
 from personalscraper.app.store.store import AppStore, build_app_store
 from personalscraper.conf.models.config import Config
 
@@ -51,7 +52,7 @@ def test_first_use_creates_app_db_at_baseline(test_config: Config, tmp_path: Pat
 
     db_path = data_dir / "app.db"
     assert db_path.is_file()
-    assert _user_version(db_path) == 1
+    assert _user_version(db_path) == 3
     conn = sqlite3.connect(db_path)
     try:
         tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
@@ -86,10 +87,22 @@ def test_building_the_store_creates_no_file(test_config: Config, tmp_path: Path)
 
 
 def test_reopening_applies_nothing(test_config: Config, tmp_path: Path) -> None:
-    """A second open of a migrated file leaves ``user_version`` at 1 and keeps its rows."""
+    """A second open of a migrated file leaves ``user_version`` at 3 and keeps its rows."""
     cfg = _config(test_config, tmp_path / "data")
     first = build_app_store(cfg)
     try:
+        first.accounts.insert_account(
+            AccountRow(
+                id="alice",
+                name="Alice",
+                email="alice@example.org",
+                avatar="",
+                role_id="local-guest",
+                password_hash=None,
+                created_at=0.0,
+                updated_at=0.0,
+            )
+        )
         first.push.upsert(account_id="alice", token="t1", platform="ios", user_agent=None, now=1.0)
     finally:
         first.close()
@@ -99,4 +112,4 @@ def test_reopening_applies_nothing(test_config: Config, tmp_path: Path) -> None:
         assert [s.token for s in second.push.live_for("alice")] == ["t1"]
     finally:
         second.close()
-    assert _user_version(tmp_path / "data" / "app.db") == 1
+    assert _user_version(tmp_path / "data" / "app.db") == 3
