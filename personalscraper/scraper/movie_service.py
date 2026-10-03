@@ -11,6 +11,7 @@ import requests
 from personalscraper.api.metadata._base import MediaDetails, Notations
 from personalscraper.api.metadata._contracts import MovieDetailsProvider
 from personalscraper.api.metadata.registry._errors import ProviderExhausted
+from personalscraper.conf.preprod_guard import assert_all_within_preprod
 from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_trailer_filename
 from personalscraper.logger import get_logger
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
@@ -664,8 +665,17 @@ class MovieServiceMixin:
         Returns:
             A :class:`ScrapeResult`; ``action="error"`` with ``result.error`` set
             when the provider fetch fails (fail-soft, never raises).
+
+        Raises:
+            PreprodGuardError: Under ``staging``, *movie_dir* is outside preprod's marked,
+                mounted roots. Nothing is written or renamed.
         """
         from personalscraper.scraper.confidence import MatchResult  # noqa: PLC0415
+
+        # Preprod guard (``staging`` only): the forced scrape bypasses ``run_scrape``, so the
+        # choke point judges the folder itself before the NFO, artwork and renames.
+        if self.config is not None:
+            assert_all_within_preprod(self.config, movie_dir)
 
         title, year = _parse_folder_name(movie_dir.name)
         result = ScrapeResult(media_path=movie_dir, media_type="movie")

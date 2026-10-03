@@ -64,7 +64,7 @@ def _sweep_dispatch_orphans(
         return 0
     roots = [SweepRoot(staging_dir, RootKind.MEDIA_TREE, DryRunPolicy.SKIP)]
     roots.extend(SweepRoot(disk.path, RootKind.MEDIA_TREE, DryRunPolicy.REPORT) for disk in get_disk_configs(config))
-    return sweep_orphans(roots, dry_run=dry_run)
+    return sweep_orphans(roots, dry_run=dry_run, config=config)
 
 
 def run_dispatch(

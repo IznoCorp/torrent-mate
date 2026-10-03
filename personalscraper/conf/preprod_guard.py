@@ -87,3 +87,22 @@ def assert_within_preprod(config: Config, path: Path, env: Environment | None = 
             assert_preprod_root(real_root)
             return
     raise PreprodGuardError(f"{path} is outside every preprod root")
+
+
+def assert_all_within_preprod(config: Config, *paths: Path, env: Environment | None = None) -> None:
+    """Raise unless every one of *paths* is under a marked, mounted preprod root (``staging`` only).
+
+    The step-level form of :func:`assert_within_preprod`: a pipeline step names the
+    directories it is about to write to or purge, once, before it touches any of them.
+
+    Args:
+        config: The loaded configuration, naming the roots.
+        *paths: The directories (or files) the caller is about to write to or purge.
+        env: The environment to judge for; the process's own when ``None``.
+
+    Raises:
+        PreprodGuardError: Under ``staging``, any of *paths* fails
+            :func:`assert_within_preprod`. A no-op in every other environment.
+    """
+    for path in paths:
+        assert_within_preprod(config, path, env)

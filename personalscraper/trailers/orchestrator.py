@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from personalscraper.api._contracts import CircuitOpenError, MediaType
+from personalscraper.conf.preprod_guard import PreprodGuardError, assert_within_preprod
 from personalscraper.indexer.db import open_db as _open_indexer_db
 from personalscraper.indexer.outbox._disk import disk_id_for_path
 from personalscraper.indexer.outbox._publish import publish_event
@@ -595,6 +596,14 @@ class TrailersOrchestrator:
             self._record_outcome(
                 item, key, TrailerOutcome("already_present", item_result=("already_present", "already_present")), counts
             )
+            return
+
+        # Preprod guard (``staging`` only): a trailer is written inside preprod's own roots.
+        try:
+            assert_within_preprod(self._config, expected_path)
+        except PreprodGuardError as exc:
+            log.error("preprod_trailer_refused", key=key, path=str(expected_path), error=str(exc))
+            counts["error"] += 1
             return
 
         tried: set[str] = {url}

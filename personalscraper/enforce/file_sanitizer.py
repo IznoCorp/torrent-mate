@@ -10,6 +10,7 @@ from pathlib import Path
 
 from personalscraper._fs_utils import is_apple_double
 from personalscraper.conf.models.config import Config
+from personalscraper.conf.preprod_guard import assert_all_within_preprod
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
@@ -71,6 +72,10 @@ def sanitize_files(
 
     Returns:
         List of SanitizeResult for each action taken.
+
+    Raises:
+        PreprodGuardError: Under ``staging``, a category directory is outside preprod's
+            marked, mounted roots.
     """
     results: list[SanitizeResult] = []
     staging = config.paths.staging_dir
@@ -82,6 +87,8 @@ def sanitize_files(
         cat_dir = staging / dir_name
         if not cat_dir.exists():
             continue
+        # Preprod guard (``staging`` only): the sanitizer deletes and renames under *cat_dir*.
+        assert_all_within_preprod(config, cat_dir)
         results.extend(_sanitize_directory(cat_dir, dry_run, bus))
 
     return results

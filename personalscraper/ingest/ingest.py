@@ -20,6 +20,7 @@ from personalscraper.api.torrent._errors import (
     TorrentUnreachableError,
 )
 from personalscraper.conf.models.config import Config
+from personalscraper.conf.preprod_guard import assert_all_within_preprod
 from personalscraper.conf.staging import find_by_file_type, find_ingest_dir, folder_name, staging_path
 from personalscraper.config import Settings
 from personalscraper.core.delete_permit import SeedObligationChecker
@@ -165,7 +166,9 @@ def _verify_transfer(source: Path, dest: Path) -> bool:
     return _get_dir_size(source) == _get_dir_size(dest)
 
 
-def _sweep_ingest_orphans(ingest_dir: Path, *, dry_run: bool, recover_orphans: bool) -> int:
+def _sweep_ingest_orphans(
+    ingest_dir: Path, *, dry_run: bool, recover_orphans: bool, config: Config | None = None
+) -> int:
     """Sweep ``.ingest_tmp_*`` orphans via the single-owner crash-recovery sweep.
 
     Standalone ``personalscraper ingest`` (``recover_orphans=True``) owns its
@@ -177,6 +180,8 @@ def _sweep_ingest_orphans(ingest_dir: Path, *, dry_run: bool, recover_orphans: b
         ingest_dir: The ingest directory to sweep.
         dry_run: Whether the ingest step is a preview (sweep is SKIP-in-dry-run).
         recover_orphans: When False, boot already swept — do nothing.
+        config: Loaded configuration, naming preprod's roots for the sweep's guard (required
+            under ``staging``).
 
     Returns:
         Number of orphaned temp directories removed.
@@ -186,7 +191,7 @@ def _sweep_ingest_orphans(ingest_dir: Path, *, dry_run: bool, recover_orphans: b
     # Imported lazily to avoid a dispatch↔ingest import cycle at module load.
     from personalscraper.dispatch.crash_recovery import RootKind, SweepRoot, sweep_orphans
 
-    return sweep_orphans([SweepRoot(ingest_dir, RootKind.INGEST_DIR)], dry_run=dry_run)
+    return sweep_orphans([SweepRoot(ingest_dir, RootKind.INGEST_DIR)], dry_run=dry_run, config=config)
 
 
 def _check_disk_space(staging_dir: Path, required_bytes: int, min_free_gb: int) -> bool:
@@ -328,13 +333,15 @@ def run_ingest(
     # Resolve ingest_dir + staging_dir up-front so both the orphan-tracker
     # probe and the per-torrent transfer path use the same paths.
     resolved_ingest_dir: Path = ingest_dir if ingest_dir is not None else staging_path(config, find_ingest_dir(config))
-    resolved_ingest_dir.mkdir(parents=True, exist_ok=True)
     resolved_staging_dir: Path = staging_dir if staging_dir is not None else config.paths.staging_dir
+    # Preprod guard (``staging`` only): nothing is created, swept or moved outside its roots.
+    assert_all_within_preprod(config, resolved_ingest_dir, resolved_staging_dir)
+    resolved_ingest_dir.mkdir(parents=True, exist_ok=True)
 
     # Crash-recovery orphan sweep (single owner). Standalone ingest owns its
     # own sweep; inside a full pipeline run boot already swept
     # (``recover_orphans=False`` ⇒ no double-execution).
-    _sweep_ingest_orphans(resolved_ingest_dir, dry_run=dry_run, recover_orphans=recover_orphans)
+    _sweep_ingest_orphans(resolved_ingest_dir, dry_run=dry_run, recover_orphans=recover_orphans, config=config)
 
     # Torrent client is boot-wired into AppContext (DESIGN D3) and read here
     # rather than built inline. None when no torrent client is configured
@@ -558,6 +565,8 @@ def run_ingest(
                     force_copy = getattr(config.ingest, "force_copy", False)
                     is_copy = force_copy or client.is_seeding(torrent) or owes_seed
                     action = "copied" if is_copy else "moved"
+                    # A move purges the client's download root: judge both ends (``staging`` only).
+                    assert_all_within_preprod(config, source, dest)
                     success = transfer_torrent(source, dest, copy=is_copy, dry_run=dry_run)
 
                     if success:

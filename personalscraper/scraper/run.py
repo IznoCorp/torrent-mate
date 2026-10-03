@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from personalscraper.conf.models.config import Config
+from personalscraper.conf.preprod_guard import assert_all_within_preprod
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus, current_run_uid
@@ -357,10 +358,16 @@ def run_scrape(
 
     Returns:
         StepReport with success/skip/error counts and details.
+
+    Raises:
+        PreprodGuardError: Under ``staging``, the staging tree is outside preprod's marked,
+            mounted roots. Nothing is touched.
     """
     staging = config.paths.staging_dir
     movies_dir_name = folder_name(find_by_file_type(config, FileType.MOVIE))
     tvshows_dir_name = folder_name(find_by_file_type(config, FileType.TVSHOW))
+    # Preprod guard (``staging`` only): no write or purge outside preprod's own roots.
+    assert_all_within_preprod(config, staging, staging / movies_dir_name, staging / tvshows_dir_name)
 
     # Fast-skip: nothing to scrape and no structural repairs needed
     try:

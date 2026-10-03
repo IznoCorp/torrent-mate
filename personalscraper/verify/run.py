@@ -6,7 +6,9 @@ converts VerifyResult lists to StepReport.
 
 from dataclasses import asdict
 
+from personalscraper.conf.environment import Environment, current_environment
 from personalscraper.conf.models.config import Config
+from personalscraper.conf.preprod_guard import assert_all_within_preprod
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
@@ -81,7 +83,22 @@ def run_verify(
 
     Returns:
         Tuple of (StepReport, dispatchable VerifyResult list).
+
+    Raises:
+        PreprodGuardError: Under ``staging``, the staging tree is outside preprod's marked,
+            mounted roots. Nothing is touched.
     """
+    # Preprod guard (``staging`` only): no write or purge outside preprod's own roots.
+    # The category folders are resolved only under ``staging``: outside it the guard must cost
+    # nothing and raise nothing (a production config may have no entry for a category).
+    staging = config.paths.staging_dir
+    if current_environment() is Environment.STAGING:
+        assert_all_within_preprod(
+            config,
+            staging,
+            staging / folder_name(find_by_file_type(config, FileType.MOVIE)),
+            staging / folder_name(find_by_file_type(config, FileType.TVSHOW)),
+        )
     # Fast-skip: no media folders to verify
     if not _has_items_to_verify(settings, config):
         log.info("verify_fast_skip")
@@ -97,7 +114,6 @@ def run_verify(
     )
 
     all_results: list[VerifyResult] = []
-    staging = config.paths.staging_dir
 
     if not tvshows_only:
         movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))

@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from personalscraper.conf.models.config import Config
+from personalscraper.conf.preprod_guard import assert_all_within_preprod
 from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.config import Settings
 from personalscraper.core.event_bus import EventBus
@@ -112,8 +113,14 @@ def run_sort(
 
     Returns:
         StepReport with counts and per-item details.
+
+    Raises:
+        PreprodGuardError: Under ``staging``, the staging tree is outside preprod's marked,
+            mounted roots. Nothing is touched.
     """
     ingest_dir = staging_path(config, find_ingest_dir(config))
+    # Preprod guard (``staging`` only): no write or purge outside preprod's own roots.
+    assert_all_within_preprod(config, staging_dir, ingest_dir)
 
     # Fast-skip: nothing to sort
     if not _has_unsorted_items(ingest_dir):
