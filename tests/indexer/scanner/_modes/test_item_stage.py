@@ -1,6 +1,7 @@
 """Tests for the scanner's item-stage mode."""
 
 import json
+import os
 import sqlite3
 from pathlib import Path
 
@@ -1349,3 +1350,106 @@ def test_stage_library_stale_season_with_release_survives(tmp_path: Path) -> Non
 
     numbers = [r[0] for r in conn.execute("SELECT number FROM season ORDER BY number")]
     assert numbers == [2, 9], f"release-backed seasons must survive, got {numbers}"
+
+
+# ---------------------------------------------------------------------------
+# The NFO facts the index keeps: overview, poster_url, date_provider_read.
+# ---------------------------------------------------------------------------
+
+_NFO_MTIME = 1_700_000_000.0
+_SCAN_STAMP = 1_800_000_000
+
+
+def _facts(conn: sqlite3.Connection, item_id: int) -> tuple[str | None, str | None, float | None]:
+    """Return ``(overview, poster_url, date_provider_read)`` of one media_item row."""
+    row = conn.execute(
+        "SELECT overview, poster_url, date_provider_read FROM media_item WHERE id = ?", (item_id,)
+    ).fetchone()
+    return tuple(row)
+
+
+def _movie_with_nfo(tmp_path: Path, body: str) -> Path:
+    """Create ``films/Arrival (2016)`` holding a movie NFO whose mtime is ``_NFO_MTIME``."""
+    movie = tmp_path / "films" / "Arrival (2016)"
+    movie.mkdir(parents=True)
+    (movie / "Arrival.mkv").write_bytes(b"\x00" * 1000)
+    nfo = movie / "Arrival.nfo"
+    nfo.write_text(f'<movie><uniqueid type="tmdb">329865</uniqueid>{body}</movie>')
+    os.utime(nfo, (_NFO_MTIME, _NFO_MTIME))
+    return movie
+
+
+def test_scan_fills_overview_and_poster_from_the_nfo(tmp_path: Path) -> None:
+    """``<plot>`` fills ``overview`` and the first poster thumb fills ``poster_url``."""
+    conn = _make_db()
+    movie = _movie_with_nfo(
+        tmp_path,
+        "<plot>A linguist meets the visitors.</plot>"
+        '<thumb aspect="landscape">https://img/landscape.jpg</thumb>'
+        '<thumb aspect="poster" preview="https://img/w342/p1.jpg">https://img/p1.jpg</thumb>'
+        '<thumb aspect="poster">https://img/p2.jpg</thumb>',
+    )
+
+    item_id = scan_and_stage_dir(conn, movie, _movie_cfg(tmp_path), CID.MOVIES, "movie", now_s=_SCAN_STAMP)
+
+    overview, poster_url, _ = _facts(conn, item_id)
+    assert overview == "A linguist meets the visitors."
+    assert poster_url == "https://img/p1.jpg"
+
+
+def test_scan_date_provider_read_is_the_nfo_mtime_not_the_scan_clock(tmp_path: Path) -> None:
+    """``date_provider_read`` is the NFO file's mtime, never the scan stamp."""
+    conn = _make_db()
+    movie = _movie_with_nfo(tmp_path, "<plot>x</plot>")
+
+    item_id = scan_and_stage_dir(conn, movie, _movie_cfg(tmp_path), CID.MOVIES, "movie", now_s=_SCAN_STAMP)
+
+    _, _, date_provider_read = _facts(conn, item_id)
+    assert date_provider_read != _SCAN_STAMP
+    assert date_provider_read == _NFO_MTIME
+
+
+def test_scan_nfo_without_plot_or_poster_leaves_them_null(tmp_path: Path) -> None:
+    """An NFO with no ``<plot>`` (or an empty one) and no poster thumb → both NULL."""
+    conn = _make_db()
+    movie = _movie_with_nfo(tmp_path, "<plot>  </plot>")
+
+    item_id = scan_and_stage_dir(conn, movie, _movie_cfg(tmp_path), CID.MOVIES, "movie", now_s=_SCAN_STAMP)
+
+    overview, poster_url, date_provider_read = _facts(conn, item_id)
+    assert overview is None
+    assert poster_url is None
+    assert date_provider_read == _NFO_MTIME
+
+
+def test_scan_show_poster_skips_season_thumbs(tmp_path: Path) -> None:
+    """A show's poster is its own first poster thumb, not a season's."""
+    conn = _make_db()
+    disk_cfg = DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=[CID.TV_SHOWS])
+    show = tmp_path / "series" / "Severance (2022)"
+    (show / "Saison 01").mkdir(parents=True)
+    (show / "tvshow.nfo").write_text(
+        '<tvshow><uniqueid type="tvdb">371980</uniqueid><plot>Work and life, split.</plot>'
+        '<thumb aspect="poster" type="season" season="1">https://img/s1.jpg</thumb>'
+        '<thumb aspect="poster">https://img/show.jpg</thumb></tvshow>'
+    )
+
+    item_id = scan_and_stage_dir(conn, show, disk_cfg, CID.TV_SHOWS, "show", now_s=_SCAN_STAMP)
+
+    overview, poster_url, _ = _facts(conn, item_id)
+    assert overview == "Work and life, split."
+    assert poster_url == "https://img/show.jpg"
+
+
+def test_rescan_without_an_nfo_keeps_the_previous_facts(tmp_path: Path) -> None:
+    """A re-scan that reads no NFO keeps the facts already stored (COALESCE)."""
+    conn = _make_db()
+    movie = _movie_with_nfo(tmp_path, '<plot>Kept.</plot><thumb aspect="poster">https://img/p.jpg</thumb>')
+    disk_cfg = _movie_cfg(tmp_path)
+    item_id = scan_and_stage_dir(conn, movie, disk_cfg, CID.MOVIES, "movie", now_s=_SCAN_STAMP)
+    (movie / "Arrival.nfo").unlink()
+
+    rescanned_id = scan_and_stage_dir(conn, movie, disk_cfg, CID.MOVIES, "movie", now_s=_SCAN_STAMP + 60)
+
+    assert rescanned_id == item_id
+    assert _facts(conn, item_id) == ("Kept.", "https://img/p.jpg", _NFO_MTIME)
