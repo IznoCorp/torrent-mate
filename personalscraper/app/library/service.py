@@ -495,6 +495,7 @@ class LibraryService:
         filtered = bool(wanted) or bool(query and query.strip())
 
         def missing_of(row: IndexRow) -> int | None:
+            """The aired episodes a row lacks, or ``None`` when nothing says."""
             counts = measured.get(row.item_id)
             return counts.missing if counts is not None else None
 
