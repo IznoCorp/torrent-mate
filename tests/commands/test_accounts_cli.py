@@ -8,7 +8,9 @@ CLI's own ``cli_refusals`` catalogue.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -24,6 +26,7 @@ from personalscraper.i18n import Language, use_language
 _PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"
 _PATCH_RESOLVE_PATH = "personalscraper.conf.loader.resolve_config_path"
 _EMAIL = "owner@example.org"
+_CATALOGUES = Path(__file__).resolve().parents[2] / "personalscraper" / "i18n"
 _PASSWORD = "a long fallback password"
 
 
@@ -165,30 +168,34 @@ class TestSetPassword:
         assert _stored_hash(store) is None
 
 
+def _catalogue_line(language: Language, namespace: str, *path: str) -> str:
+    """One line of a shipped catalogue file, read straight from the JSON (not through the lookup).
+
+    Args:
+        language: The catalogue's language.
+        namespace: The namespace file.
+        *path: The nested keys.
+
+    Returns:
+        The line, placeholders unfilled.
+    """
+    words = json.loads((_CATALOGUES / language.value / f"{namespace}.json").read_text(encoding="utf-8"))
+    for key in path:
+        words = words[key]
+    assert isinstance(words, str)
+    return words
+
+
 class TestLanguage:
     """The command speaks the process's language."""
 
-    @pytest.mark.parametrize(
-        ("language", "done", "unknown"),
-        [
-            (Language.EN, f"Password set for {_EMAIL}.", "No account has the e-mail given as EMAIL."),
-            (
-                Language.FR,
-                f"Mot de passe défini pour {_EMAIL}.",  # french-ok: asserts the French catalogue line
-                "Aucun compte n'a l'adresse donnée en EMAIL.",  # french-ok: asserts the French catalogue line
-            ),
-        ],
-    )
+    @pytest.mark.parametrize("language", list(Language))
     def test_one_line_in_each_language(
-        self,
-        cli_runner: CliRunner,
-        test_config: Config,
-        store: AppStore,
-        language: Language,
-        done: str,
-        unknown: str,
+        self, cli_runner: CliRunner, test_config: Config, store: AppStore, language: Language
     ) -> None:
-        """The success line and a refusal, in English and in French."""
+        """The success line and a refusal, each the catalogue's line of the language in use."""
+        done = _catalogue_line(language, "cli_accounts", "set_password", "done").replace("{{email}}", _EMAIL)
+        unknown = _catalogue_line(language, "cli_refusals", "account", "unknown")
         typed = f"{_PASSWORD}\n{_PASSWORD}\n"
         with use_language(language):
             set_result = _invoke(cli_runner, test_config, ["accounts", "set-password", _EMAIL], typed)
@@ -196,3 +203,8 @@ class TestLanguage:
 
         assert set_result.stdout.strip().endswith(done)
         assert unknown in unknown_result.stderr.splitlines()
+
+    def test_the_two_languages_differ(self) -> None:
+        """The French lines are not the English ones copied over."""
+        for namespace, path in (("cli_accounts", ("set_password", "done")), ("cli_refusals", ("account", "unknown"))):
+            assert _catalogue_line(Language.FR, namespace, *path) != _catalogue_line(Language.EN, namespace, *path)
