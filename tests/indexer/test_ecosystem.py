@@ -655,6 +655,32 @@ def test_web_apps_run_from_their_deploy_clones() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Tests — Telegram language of the engine processes
+# ---------------------------------------------------------------------------
+
+
+def test_engine_apps_that_can_write_telegram_speak_french_explicitly() -> None:
+    """Every ``personalscraper-*`` app (watch daemon + scheduled jobs) pins ``PERSONALSCRAPER_LANG: "fr"``.
+
+    The operator's Telegram is French, but the engine's default language is English
+    (``DEFAULT_LANGUAGE`` in ``personalscraper/i18n/__init__.py``). The processes used to
+    inherit ``LANG=fr_FR.UTF-8`` from the PM2 daemon; a PM2 started without ``LANG`` would
+    have switched his messages to English silently, so the language is set explicitly.
+
+    Out of scope on purpose: ``torrentmate-web`` / ``torrentmate-web-staging`` (the v1 web
+    language follows the signed-in account, a separate ruling) and ``torrentmate-autodeploy``
+    (a bash poller, no engine messages).
+    """
+    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
+    engine_apps = [a for a in apps if str(a["name"]).startswith("personalscraper-")]
+    assert engine_apps, "no personalscraper-* app parsed — the guard would pass vacuously"
+    offenders = {
+        str(a["name"]): a.get("PERSONALSCRAPER_LANG") for a in engine_apps if a.get("PERSONALSCRAPER_LANG") != "fr"
+    }
+    assert offenders == {}, f'apps without PERSONALSCRAPER_LANG: "fr" in env: {offenders}'
+
+
+# ---------------------------------------------------------------------------
 # Tests — cross-cutting invariants (daemon vs cron segregation)
 # ---------------------------------------------------------------------------
 
