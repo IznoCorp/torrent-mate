@@ -20,10 +20,9 @@ SYSTEM_ROLE_ID: Final[str] = "admin"
 
 
 class RoleKind(StrEnum):
-    """The contract's role kinds: two system roles and every configured one."""
+    """The contract's role kinds: the one Admin role and every other one."""
 
     ADMIN = "admin"
-    DEFAULT = "default"
     ORDINARY = "ordinary"
 
 

@@ -10,7 +10,8 @@ from typing import Any
 import pytest
 
 from personalscraper.api.notify.fcm import PushMessage, PushOutcome, PushResult, classify
-from personalscraper.app.store.store import build_app_store
+from personalscraper.app.accounts.repository import AccountRow
+from personalscraper.app.store.store import AppStore, build_app_store
 from personalscraper.conf.models.config import Config
 from personalscraper.push.dispatch import PushDispatcher
 from personalscraper.push.store import SqlitePushSubscriptionStore
@@ -46,6 +47,28 @@ class _Sender:
         return self.answers[token]
 
 
+def _seed_accounts(app_store: AppStore, *account_ids: str) -> None:
+    """Insert the accounts the subscriptions belong to (a subscription names an existing account).
+
+    Args:
+        app_store: The store.
+        account_ids: The accounts' keys, also their names and e-mail local parts.
+    """
+    for account_id in account_ids:
+        app_store.accounts.insert_account(
+            AccountRow(
+                id=account_id,
+                name=account_id,
+                email=f"{account_id}@example.org",
+                avatar="",
+                role_id="local-guest",
+                password_hash=None,
+                created_at=0.0,
+                updated_at=0.0,
+            )
+        )
+
+
 @pytest.fixture
 def store(test_config: Config, tmp_path: Path) -> Iterator[SqlitePushSubscriptionStore]:
     """A store holding four devices of alice and one of bob, from an ``AppStore`` on ``tmp_path``.
@@ -59,6 +82,7 @@ def store(test_config: Config, tmp_path: Path) -> Iterator[SqlitePushSubscriptio
     """
     cfg = test_config.model_copy(update={"paths": test_config.paths.model_copy(update={"data_dir": tmp_path})})
     app_store = build_app_store(cfg)
+    _seed_accounts(app_store, "alice", "bob")
     store = app_store.push
     for token in ("t1", "t2", "t3", "t4"):
         store.upsert(account_id="alice", token=token, platform="ios", user_agent=None, now=1.0)

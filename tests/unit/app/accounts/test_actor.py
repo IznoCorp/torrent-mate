@@ -63,7 +63,7 @@ class TestHolds:
 
     def test_holds_any_is_one_held_among_them(self) -> None:
         """``holds_any`` is true when one of the rights is held."""
-        actor = _actor(RoleKind.DEFAULT, frozenset({Right.SYSTEM_VIEW}))
+        actor = _actor(RoleKind.ORDINARY, frozenset({Right.SYSTEM_VIEW}))
 
         assert actor.holds_any([Right.CONFIGURATION_VIEW, Right.SYSTEM_VIEW])
         assert not actor.holds_any([Right.CONFIGURATION_VIEW, Right.TRACKERS_VIEW])

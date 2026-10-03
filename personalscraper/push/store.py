@@ -3,8 +3,9 @@
 The subscriptions live in the environment's ``app`` store (Q2, 2026-10-01: one file per
 environment — ``app-dev.db``, ``app-staging.db``, ``app.db``); the table is created by the
 ``app`` store's baseline migration (``app/store/migrations/001_baseline.sql``), and this
-module is an implementation over a connection it is GIVEN. Nothing here opens a file. The
-foreign key to the accounts table lands with K1; until then ``account_id`` is K1's account key as text.
+module is an implementation over a connection it is GIVEN. Nothing here opens a file.
+``account_id`` is a foreign key to the accounts table (``003_push_account_fk.sql``): deleting
+an account deletes its subscriptions.
 
 Rules the store keeps:
 
@@ -44,7 +45,7 @@ class PushSubscription:
 
     Attributes:
         id: Row id.
-        account_id: K1's account key.
+        account_id: Foreign key to ``account.id``; deleting the account deletes the row.
         token: The FCM registration token — kept out of ``repr``.
         platform: ``android`` / ``ios`` / ``desktop`` / ``unknown``.
         user_agent: The browser's user agent, as the client sent it.
