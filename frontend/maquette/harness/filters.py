@@ -5,6 +5,9 @@ contract's names: a category's label and count are read as `label` and `count`,
 a library row's title as `title`, where they were the engine's short keys. The
 holds and what they compare are unchanged.
 
+RE-AIMED when the engine served its leaf categories alone (K2-G5 = A): the lenses a pill
+offers are the interface's grouping of those leaves, read through `window.__lensesOf`.
+
 RE-AIMED OUT LOUD by maquette-blocked phase 6 (DESIGN § 1.9, DECIDED 1): the row
 of category pills became ONE filter pill whose panel lists the categories. A
 category is chosen the way a finger now chooses it — the pill, then the choice
@@ -40,7 +43,9 @@ async def main():
     await pg.evaluate("()=>window.__measure(true)")
     await pg.evaluate("()=>window.__go('lib-grid')"); await pg.wait_for_timeout(400)
 
-    cats = await pg.evaluate("()=>(window.__queries.getQueryCache().getAll().find(q=>q.queryKey[0]==='/api/v1/library/categories')?.state.data||[]).map(c=>({id:c.id,l:c.label,c:c.count}))")
+    # THE LENSES over the leaves the engine served (K2-G5 = A): a leaf no lens keeps would make
+    # the parts fall short of the whole.
+    cats = await pg.evaluate("()=>window.__lensesOf(window.__queries.getQueryCache().getAll().find(q=>q.queryKey[0]==='/api/v1/library/categories')?.state.data||[]).map(c=>({id:c.id,l:c.label,c:c.count}))")
     parts = sum(c["c"] for c in cats if c["id"] != "all")
     whole = next(c["c"] for c in cats if c["id"] == "all")
     print(f"category parts: {parts} · announced total: {whole}",

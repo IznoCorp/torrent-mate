@@ -66,6 +66,7 @@ function accountPanel(id: string, cache: PanelCache): PanelDescriptor | null {
   const translate = i18next.t.bind(i18next);
   const own = manager !== undefined && manager.id === account.id && !bypassesRights(manager.role);
   const demotedFrom = roster.roles.find((one) => one.id === account.demotedFrom);
+  const admin = manager !== undefined && bypassesRights(manager.role);
   return {
     address: "roster:" + id,
     title: account.name,
@@ -77,7 +78,9 @@ function accountPanel(id: string, cache: PanelCache): PanelDescriptor | null {
       // ITS PASSWORD, by its kind (the operator, 2026-10-03): a local account's
       // provisional one is set again here; the owner's fallback one only on the
       // server — said in the words its refusal already has.
-      account.signInKind === "local" ? { type: "accountPassword", account: account.id, name: account.name } : null,
+      // ADMIN ONLY (the operator, 2026-10-03): another manager is told so.
+      account.signInKind === "local" && admin ? { type: "accountPassword", account: account.id, name: account.name } : null,
+      account.signInKind === "local" && !admin ? { type: "note", text: translate("screens.accounts.reset.adminOnly") } : null,
       account.signInKind === "owner" ? { type: "note", text: translate("refusals.password.held_by_cli") } : null,
       { type: "note", text: translate("screens.accounts.oneRole") },
       own ? { type: "note", text: translate("screens.accounts.notOwnRole") } : null,

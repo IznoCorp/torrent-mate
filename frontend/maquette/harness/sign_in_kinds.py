@@ -17,6 +17,11 @@ local account a PROVISIONAL password at creation in « Comptes » and may reset 
 5. THE PROVISIONAL PASSWORD: a local account is created with one, and refused without it; a local
    account's panel resets it and says it is set, or refused short; the owner's panel says his is
    changed on the server only, and neither his nor a Plex-linked account's offers a reset.
+6. ADMIN ONLY (the operator, 2026-10-03: « Admin pour n'importe quel compte à mot de passe via
+   "comptes", l'utilisateur d'un compte à mot de passe peut changer son mot de passe via son
+   profil »): a manager who is not Admin is offered no reset, even of an account whose role its
+   own covers, and is told why; forced, the reset answers 403 `password.reset_admin_only`, its own
+   account's too.
 """
 import asyncio
 import json
@@ -52,6 +57,10 @@ ROSTER = """() => ({
     detail: row.querySelector('[data-part="flux/detail"]')?.textContent || '' })),
   roles: [...document.querySelectorAll('[data-part="accounts/role"] [data-part="flux/name"]')].map((one) => one.textContent),
   refusal: document.querySelector('[data-part="accounts/refusal"]')?.textContent || null })"""
+
+FORCE = """async ([account]) => {
+  const answer = await fetch(`/api/v1/accounts/${account}/password`, { method: 'POST', body: JSON.stringify({ password: 'correct horse battery' }) });
+  return [answer.status, (await answer.json()).code ?? null]; }"""
 
 PANEL = """() => ({
   text: document.querySelector('#sheet')?.textContent || '',
@@ -163,6 +172,15 @@ async def main():
         plex = await at("accounts-plex-no-password", PANEL, PANEL_IN + SETTLED)
         journal.check("a Plex-linked account's panel offers no reset", not plex["reset"] and plex["text"],
                       plex["text"][:120])
+
+        # 6. Admin only.
+        manager = await at("accounts-reset-not-admin", PANEL, PANEL_IN + SETTLED)
+        journal.check("Admin only: a manager who is not Admin is offered no reset, even within its role's reach, and is told why",
+                      not manager["reset"] and await say("screens.accounts.reset.adminOnly") in manager["text"],
+                      manager["text"][:160])
+        forced = [await page.evaluate(FORCE, [one]) for one in ("local-guest", "local-account")]
+        journal.check("Admin only: forced, a reset answers 403 password.reset_admin_only, its own account's too",
+                      forced == [[403, "password.reset_admin_only"]] * 2, str(forced))
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()

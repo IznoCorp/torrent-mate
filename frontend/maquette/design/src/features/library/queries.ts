@@ -12,9 +12,13 @@
 // remembered whether the simulated failure had already fired. All four lived in
 // the interface's own store; the cache owns every one of them now.
 import { useInfiniteQuery, useQuery, type QueryClient } from "@tanstack/react-query";
-import { HELD, read, send } from "../../lib/query-client";
+import { HELD, isRequestFailure, read, send } from "../../lib/query-client";
+import { refusalWords } from "../../lib/refusal";
+import { toast } from "../../lib/shell-doors";
+import type { MediaRef } from "../../lib/membership";
 import type { IncompleteShow, LibraryCategory, LibraryRow } from "./types";
 import { SORT_KEYS } from "./sorting";
+import { leavesOf, lensesOf, type LeafCategory } from "./lenses";
 
 /** The order the listing answers when none is named. */
 const RECENT = SORT_KEYS[0];
@@ -55,7 +59,9 @@ export function useLibraryListing(
     queryFn: async ({ pageParam }) => {
       const parameters = new URLSearchParams({ page: String(pageParam) });
       if (query) parameters.set("query", query);
-      if (category) parameters.set("category", category);
+      // THE LENS' LEAVES, never the lens: the engine knows its leaf categories
+      // and nothing of how the interface groups them (K2-G5).
+      for (const leaf of leavesOf(category) ?? []) parameters.append("category", leaf);
       // THE DEFAULT ORDER IS SAID BY SAYING NOTHING: the contract's `sort` names
       // the two other orders, and an absent one is the most recent first.
       if (sort && sort !== RECENT) parameters.set("sort", sort);
@@ -84,13 +90,15 @@ export function useLibraryListing(
   });
 }
 
-/** The category pills, with the count each claims. */
+/** The engine's leaf categories with their counts, as a query a surface and a panel share. */
+export const libraryCategoriesQuery = {
+  queryKey: ["/api/v1/library/categories"],
+  queryFn: async () => read<LeafCategory[]>("/api/v1/library/categories"),
+};
+
+/** The category pills — the interface's lenses, each counted from the leaves it groups. */
 export function useLibraryCategories() {
-  return useQuery({
-    queryKey: ["/api/v1/library/categories"],
-    queryFn: async () =>
-      read<LibraryCategory[]>("/api/v1/library/categories"),
-  });
+  return useQuery({ ...libraryCategoriesQuery, select: (leaves): LibraryCategory[] => lensesOf(leaves) });
 }
 
 
@@ -188,13 +196,16 @@ export let libraryNextPage: Window["__libraryNextPage"];
  * @param queryClient The cache the surfaces read.
  */
 export function installLibraryDelete(queryClient: QueryClient): void {
-  deleteLibraryItems = (titles) => {
+  deleteLibraryItems = (doomed) => {
     const listings = queryClient
       .getQueryCache()
       .getAll()
       .filter((query) => query.queryKey[0] === "/api/v1/library/items");
     const before = listings.map((listing) => [listing.queryKey, listing.state.data] as const);
-    const gone = new Set(titles);
+    // THE ROWS THAT GO ARE THE ONES CARRYING A DOOMED IDENTITY — every row of
+    // it, which is one row: a duplicate never reaches here (O-5 B).
+    const carries = (row: LibraryRow, ref: MediaRef) =>
+      String((row.ids as Record<string, string | number> | null)?.[ref.provider] ?? "") === ref.providerId;
     for (const [key, data] of before) {
       const held = data as { pages: LibraryPage[] } | undefined;
       if (held === undefined) continue;
@@ -202,13 +213,18 @@ export function installLibraryDelete(queryClient: QueryClient): void {
         ...held,
         pages: held.pages.map((page) => ({
           ...page,
-          items: page.items.filter((row) => !gone.has(String(row.title))),
+          items: page.items.filter((row) => !doomed.some((one) => carries(row, one.ref))),
         })),
       });
     }
-    void send("DELETE", "/api/v1/library/items", { titles })
+    void send("DELETE", "/api/v1/library/items", { media: doomed.map((one) => one.ref) })
       .catch((refusal) => {
         for (const [key, data] of before) queryClient.setQueryData(key, data);
+        // THE REFUSAL IS SAID, in the interface's words for its code — the rows
+        // came back, and the toast that said they went is replaced.
+        toast?.show({
+          message: refusalWords(isRequestFailure(refusal) ? refusal : null, "verbs.library.deleteRefused"),
+        });
         throw refusal;
       })
       .then((outcome) => {
@@ -241,10 +257,10 @@ export function installLibraryDelete(queryClient: QueryClient): void {
 
 declare global {
   interface Window {
-    /** Removes titles from the library. Called by the dying engine's delegation. */
-    __deleteLibraryItems?: (titles: string[]) => void;
+    /** Removes media from the library, each by the identity its title was drawn with. */
+    __deleteLibraryItems?: (doomed: { title: string; ref: MediaRef }[]) => void;
   }
 }
 
-/** Removes titles from the library — filled at install. */
+/** Removes media from the library — filled at install. */
 export let deleteLibraryItems: Window["__deleteLibraryItems"];

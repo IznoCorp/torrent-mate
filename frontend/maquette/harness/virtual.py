@@ -530,7 +530,7 @@ async def hold_a_deleted_row_leaves_the_screen(journal, browser):
     await page.evaluate("()=>window.__mocks.setOffline(true)")
     await page.evaluate(
         """(title)=>new Promise((done) => {
-             window.__deleteLibraryItems([title]);
+             window.__deleteLibraryItems([...window.__librarySelection([title]).values()]);
              setTimeout(done, 0);
            })""", drawn["title"])
     after = await page.evaluate("""(row) => {
@@ -580,7 +580,7 @@ async def hold_the_selection_state_draws_its_ticks(journal, browser):
             '[data-part="tile/title"], [data-part="card/title"]') || node).textContent.trim();
           return { pressed: pressed.map(name),
                    listed: [...document.querySelectorAll('#libitems [aria-pressed]')].map(name),
-                   selected: [...(window.__store.read().state.selected || [])] };
+                   selected: [...(window.__store.read().state.selected?.values() || [])].map((one) => one.title) };
         }""")
 
     await page.evaluate("()=>window.__go('lib-selection')")

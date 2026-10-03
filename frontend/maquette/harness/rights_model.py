@@ -66,6 +66,14 @@ FORCE = """async (identity) => {
   return out;
 }"""
 
+# THE OWN PASSWORD, forced once more for its CODE: an account's kind refuses it, never a right.
+OWN_PASSWORD = "PUT /auth/password"
+OWN_PASSWORD_CODE = """async (identity) => {
+  window.__mocks.setIdentity(identity);
+  const answer = await fetch('/api/v1/auth/password', { method: 'PUT', body: '{}' });
+  return [answer.status, (await answer.json()).code ?? null];
+}"""
+
 REST = """async () => {
   window.__go('profile');
   const account = await (await fetch('/api/v1/auth/me')).json();
@@ -117,10 +125,13 @@ async def main():
 
         owner = await page.evaluate(FORCE, OWNER)
         # THE OWNER'S FALLBACK PASSWORD IS REFUSED BY HIS KIND (replaced on the server only, the
-        # operator, 2026-10-03), not by a right: its 403 is not this check's question.
-        refused = [k for k, v in owner.items() if v == 403 and k != "PUT /auth/password"]
+        # operator, 2026-10-03), not by a right: its refusal is read by its code, below.
+        refused = [k for k, v in owner.items() if v == 403 and k != OWN_PASSWORD]
         journal.check("R-L18-c: the owner is refused nothing", not refused,
                       f"{len(owner)} operations forced, refused {refused[:4]}")
+        held = await page.evaluate(OWN_PASSWORD_CODE, OWNER)
+        journal.check("R-L18-c: the owner's own password is refused by his kind, password.held_by_cli",
+                      held == [403, "password.held_by_cli"], str(held))
 
         bare = await page.evaluate(FORCE, default_account)
         writes = [k for k in bare if not k.startswith("GET ") and k not in SESSION]
@@ -128,9 +139,12 @@ async def main():
         journal.check(f"R-L18-c: a library-only role ({default_account}) is refused every write", writes and not through,
                       f"{len(writes)} writes, answered {[(k, bare[k]) for k in through][:4]}")
         # A PLEX-LINKED ACCOUNT'S OWN PASSWORD IS REFUSED BY ITS KIND (it holds none), not
-        # by a right: its 403 is not this check's question.
-        session = [k for k in SESSION if bare.get(k) == 403 and k != "PUT /auth/password"]
+        # by a right: its refusal is read by its code, below.
+        session = [k for k in SESSION if bare.get(k) == 403 and k != OWN_PASSWORD]
         journal.check("R-L18-c: signing in and out answer every identity", not session, str(session))
+        plex_only = await page.evaluate(OWN_PASSWORD_CODE, default_account)
+        journal.check(f"R-L18-c: a Plex-linked account's ({default_account}) own password is refused by its kind, auth.plex_only",
+                      plex_only == [403, "auth.plex_only"], str(plex_only))
 
         member = await page.evaluate(FORCE, household)
         reads = [k for k in member if GATED_READ.match(k)]

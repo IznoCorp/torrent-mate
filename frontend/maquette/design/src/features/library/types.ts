@@ -8,9 +8,10 @@ import type { Schemas } from "../../lib/contract-schemas";
 // that tells two shows of the same name apart.
 export type IncompleteShow = Schemas["IncompleteShow"];
 
-// A library CATEGORY pill: its id, its name, the count it claims, and the
-// engine's own category ids it stands for (`null` for « Tout »).
-export type LibraryCategory = Schemas["LibraryCategory"];
+// A library CATEGORY pill — a LENS the interface groups the engine's leaf
+// categories into: its id, its name, the count its leaves sum to, and the
+// leaves it stands for (`null` for « Tout »).
+export type { LibraryLens as LibraryCategory } from "./lenses";
 
 // A library ROW as the recent list holds one: a title and the line under it.
 export type LibraryRow = Schemas["LibraryItem"];

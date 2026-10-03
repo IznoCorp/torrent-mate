@@ -33,6 +33,7 @@ import { searchResults } from "../features/acquisition/search-queries";
 import { isAdded } from "../features/acquisition/add-visit";
 import { deleteLibraryItems, libraryNextPage } from "../features/library/queries";
 import { sortWays } from "../features/library/sorting";
+import { lensesOf } from "../features/library/lenses";
 import { releases } from "../features/releases/queries";
 import { cadenceSentence, followStatusLabel, nextSearchTime } from "../features/acquisition/follow-vocabulary";
 import { settingIdentifier } from "../features/settings/catalog";
@@ -57,9 +58,14 @@ import { baseTitle } from "../lib/titles";
 import { dateLabel } from "../features/media/format";
 import { watchNow } from "../features/system/watch-run";
 import { verbNames } from "../lib/verbs";
+import { librarySelection } from "./library-selection";
 
 declare global {
   interface Window {
+    /** The Médiathèque's lenses over served leaves — the grouping a rule compares the pills against. */
+    __lensesOf: typeof lensesOf;
+    /** The library selection ticking some seeded titles, keyed by identity — how a rule ticks or removes by title. */
+    __librarySelection: typeof librarySelection;
     /** The interface's store — the domain hooks and the probes read its state. */
     __store: Store;
     /** The frame's popover door — how a rule closes a popover it opened. */
@@ -205,7 +211,9 @@ export function publishSeams(): void {
     (searchResults?.().results ?? []).flatMap((result, position) => (isAdded(result) ? [position] : [])));
   publish("__libraryNextPage", () => libraryNextPage);
   publish("__deleteLibraryItems", () => deleteLibraryItems);
+  publish("__librarySelection", () => librarySelection);
   publish("__sortWays", () => sortWays);
+  publish("__lensesOf", () => lensesOf);
   publish("__releases", () => releases);
   publish("__settingLabels", () => settingLabels);
   publish("__queue", () => queueLists);

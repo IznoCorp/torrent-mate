@@ -64,7 +64,7 @@ const INITIAL_STATE = {
      unset, the device's memory of them is in force (maquette-blocked § 1.9). */
   notes: false,
   selMode: false,
-  selected: new Set(),
+  selected: new Map(),
   sugCount: 30,
   sugGone: new Set(),
   sugMode: "list",

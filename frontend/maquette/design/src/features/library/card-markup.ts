@@ -55,3 +55,15 @@ export function libraryCardMarkup(medium: LibraryCard): string {
     chip: medium.chip ? { tone: medium.chip.tone, label: medium.chip.text } : null,
   });
 }
+
+/**
+ * The line under a library row's title, composed from its facts in the
+ * interface's words (X4/X5): « 2014 · Film », or the kind alone when no year is known.
+ *
+ * @param row The row's year and kind.
+ * @returns The line.
+ */
+export function libraryLine(row: { year: number | null; kind: string }): string {
+  const kind = i18next.t(row.kind === "movie" ? "common.film" : "common.series");
+  return row.year === null ? kind : i18next.t("screens.library.rowLine", { year: row.year, kind });
+}

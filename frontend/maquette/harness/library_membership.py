@@ -80,6 +80,8 @@ async def main():
             """async (title)=>{
               const tap = document.createElement('button');
               tap.dataset.del = title;
+              // THE ROW'S IDENTITY, as every drawn removal carries it: a title alone removes nothing.
+              tap.dataset.delRef = [...window.__librarySelection([title]).keys()][0];
               document.querySelector('#view').append(tap);
               tap.click();
               tap.remove();

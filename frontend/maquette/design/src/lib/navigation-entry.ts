@@ -35,6 +35,8 @@ export type CarriedIdentity = {
   title: string;
   poster: string | null;
   ids: Record<string, number | string>;
+  /** The medium's kind, when the read it was found in says it — what orders its providers. */
+  kind?: string | null;
 };
 
 /**

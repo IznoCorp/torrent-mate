@@ -1,19 +1,21 @@
 // THE LIBRARY'S DELETE DIALOG — what a removal says before anything is removed.
 //
-// THE DELETE ACTS BY TITLE, the only key the contract offers, so one title can
-// name two library rows (« Doctor Who », 2005 and 2023) and every figure the
-// dialog prints counts MEDIA, not titles: a manifest whose whole purpose is to
-// say exactly what would go cannot name half of it. The interface cannot delete
-// one of the two — that needs an identifier the backend does not serve — but it
-// can say the truth about what it is about to do.
+// THE DELETE ACTS BY PROVIDER IDENTITY (operator ruling Q5 A): each row the
+// reader swiped or ticked hands over the identity it was drawn with, and that is
+// what the layer is asked to delete. A title is never taken back to an identity
+// here: two media may share one (« RoboCop » 1987 and 2014), and the medium a
+// title finds first is not the row's. An identity two library rows hold — a
+// DUPLICATE, « Doctor Who » twice under one TVDB id — is not deleted until it is
+// settled (O-5 B): the dialog says so before anything is offered, and the server
+// refuses it `media.ambiguous` all the same. Every figure counts MEDIA, not titles.
 //
-// EVERY FIGURE IS A SERVED ANSWER: how many rows a title names is the exact
-// membership read, and an incomplete show's owned episodes are the incomplete
-// shows' read. The dialog asks for both before it opens, so it never counts
+// EVERY FIGURE IS A SERVED ANSWER: how many rows an identity names is the exact
+// membership read by that identity, and an incomplete show's owned episodes are
+// the incomplete shows' read. The dialog asks for both before it opens, so it never counts
 // from a page of the listing. The removal itself is still the engine's. Whether a title is FOLLOWED is asked of
 // the `followedTitles` door, because the library never imports acquisition.
 import i18next from "i18next";
-import { membershipQuery, type Membership } from "../../lib/membership";
+import { membershipByRefQuery, type MediaRef, type Membership } from "../../lib/membership";
 import { quietWhenCancelled, sharedQueryClient } from "../../lib/query-client";
 import { dialog, followedTitles, stopFollow, toast, redraw } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
@@ -22,19 +24,23 @@ import type { DialogDescriptor } from "../../ui/dialog/contract";
 import type { IncompleteShow } from "./types";
 import { followedAs } from "../../lib/titles";
 
+/** A medium the reader asked to remove: the title its row reads, and the identity it was drawn with. */
+export type Doomed = { title: string; ref: MediaRef };
+
 /**
- * Removes titles from the library: the layer deletes, the selection ends, the
+ * Removes media from the library: the layer deletes, the selection ends, the
  * page redraws, and the removal is said.
  *
  * The confirmation that calls it says what was done in its own words right
  * after, and that message replaces this one — so this one is what a caller
  * with nothing more precise to say is left with.
  *
- * @param titles The titles removed.
+ * @param doomed The media removed, each by its identity.
  */
-function removeTitles(titles: string[]): void {
-  deleteLibraryItems?.(titles);
-  store.write({ selMode: false, selected: new Set() });
+function removeMedia(doomed: Doomed[]): void {
+  const titles = doomed.map((one) => one.title);
+  deleteLibraryItems?.(doomed);
+  store.write({ selMode: false, selected: new Map() });
   redraw();
   toast?.show({
     message: i18next.t(titles.length > 1 ? "verbs.library.deletedMany" : "verbs.library.deletedOne", {
@@ -72,72 +78,98 @@ function counted(count: number, one: string, many: string): string {
   return say(count > 1 ? many : one, { count });
 }
 
+/** What the library answers about one identity, once it has been read. */
+function membershipOf(ref: MediaRef): Membership | undefined {
+  return sharedQueryClient?.getQueryData<Membership>(membershipByRefQuery(ref).queryKey);
+}
+
 /**
- * How many library rows one title names.
+ * How many library rows one identity names — the served membership, never a
+ * count of rows that share a title.
  *
  * Args:
- *     title: The title a removal names.
+ *     ref: The identity a removal names.
  *
  * Returns:
  *     The rows it names, never fewer than one.
  */
-export function mediaNamedBy(title: string): number {
-  const held = sharedQueryClient?.getQueryData<Membership>(membershipQuery(title).queryKey);
-  return Math.max(1, held?.rows ?? 1);
+export function mediaNamedBy(ref: MediaRef): number {
+  return Math.max(1, membershipOf(ref)?.rows ?? 1);
 }
 
-/** The incomplete show a title names, if the index knows one. */
-function incompleteShow(title: string): IncompleteShow | undefined {
+/** The incomplete show an identity names, if the index knows one. */
+function incompleteShow(ref: MediaRef): IncompleteShow | undefined {
   return sharedQueryClient
     ?.getQueryData<IncompleteShow[]>(libraryIncompleteQuery.queryKey)
-    ?.find((show) => show.title === title);
+    ?.find((show) => String((show.ids as Record<string, string | number> | null)?.[ref.provider] ?? "") === ref.providerId);
 }
 
-/** The video files a title stands for: an incomplete show's owned episodes, otherwise its media. */
-function filesOf(title: string): number {
-  const show = incompleteShow(title);
-  return show ? show.owned : mediaNamedBy(title);
+/** The video files a medium stands for: an incomplete show's owned episodes, otherwise its media. */
+function filesOf(one: Doomed): number {
+  const show = incompleteShow(one.ref);
+  return show ? show.owned : mediaNamedBy(one.ref);
 }
 
-/** The total of one figure over several titles. */
-function totalOf(titles: string[], figure: (title: string) => number): number {
-  return titles.reduce((total, title) => total + figure(title), 0);
+/** How many media a removal names. */
+function mediaOf(one: Doomed): number {
+  return mediaNamedBy(one.ref);
+}
+
+/** The total of one figure over several media. */
+function totalOf(doomed: Doomed[], figure: (one: Doomed) => number): number {
+  return doomed.reduce((total, one) => total + figure(one), 0);
 }
 
 /**
- * Opens the delete dialog for one title or for a selection.
+ * Opens the delete dialog for one medium or for a selection.
  *
  * Args:
- *     title: The one title removed, or null when a selection is.
- *     many: The selection's titles, when there is one.
+ *     doomed: The media removed, each with the title its row reads and the
+ *         identity it was drawn with — one for a swipe, several for a selection.
  */
-export async function openDeleteDialog(title: string | null, many?: string[]): Promise<void> {
-  const titles = many && many.length > 0 ? many : [title ?? ""];
+export async function openDeleteDialog(doomed: Doomed[]): Promise<void> {
+  if (doomed.length === 0) return;
+  const titles = doomed.map((one) => one.title);
   // THE ANSWERS FIRST: a dialog whose whole purpose is to say exactly what
   // would go does not open on figures it has not read — nor at all when the
   // cache's reset cancels a read.
   try {
     await Promise.all([
       sharedQueryClient?.ensureQueryData(libraryIncompleteQuery),
-      ...titles.map((one) => sharedQueryClient?.ensureQueryData(membershipQuery(one))),
+      ...doomed.map((one) => sharedQueryClient?.ensureQueryData(membershipByRefQuery(one.ref))),
     ]);
   } catch (failure) {
     quietWhenCancelled(failure);
+    return;
+  }
+  // EVERY LIBRARY ENTRY IS IDENTIFIED (the operator, 2026-10-03): an identity
+  // the library answers it does not hold is one it no longer holds — said as
+  // the layer would refuse it, and nothing is offered.
+  if (doomed.some((one) => membershipOf(one.ref)?.inLibrary === false)) {
+    toast?.show({ message: i18next.t("refusals.media.not_found") });
+    return;
+  }
+  // AN IDENTITY TWO LIBRARY ROWS HOLD IS SAID BEFORE ANYTHING IS OFFERED (O-5 B).
+  const blocked = doomed.map((one) => ({ ...one, rows: mediaOf(one) })).filter((one) => one.rows > 1);
+  if (blocked.length > 0) {
+    openRefusedDialog(blocked);
     return;
   }
   const followingNow = followedTitles?.() ?? [];
   // THE ONE READING of « is it followed » (`followedAs`, B-676), the sheet's own.
   // An incomplete show is NOT followed: counting it as one made the dialog say
   // « est suivi » and offer « garder le suivi » of a follow that never existed.
-  const followed = titles.filter((one) => followedAs(followingNow, one) !== undefined);
-  const files = totalOf(titles, filesOf);
-  const media = totalOf(titles, mediaNamedBy);
+  // The follow is the acquisition's, named by title — it is stopped, never deleted.
+  const followedDoomed = doomed.filter((one) => followedAs(followingNow, one.title) !== undefined);
+  const followed = followedDoomed.map((one) => one.title);
+  const files = totalOf(doomed, filesOf);
+  const media = totalOf(doomed, mediaOf);
   // What the four rows above the fold account for, so « et N autres » names
   // media like every other figure in this dialog.
-  const shown = totalOf(titles.slice(0, 4), mediaNamedBy);
-  // A followed title that names two rows is two media coming back at the next
+  const shown = totalOf(doomed.slice(0, 4), mediaOf);
+  // A followed medium that names two rows is two media coming back at the next
   // search.
-  const followedMedia = totalOf(followed, mediaNamedBy);
+  const followedMedia = totalOf(followedDoomed, mediaOf);
   const size = say("size", { size: (files * 0.41).toFixed(1).replace(".", ",") });
   const heading =
     titles.length > 1
@@ -148,8 +180,8 @@ export async function openDeleteDialog(title: string | null, many?: string[]): P
 
   const body: DialogDescriptor["body"] = [];
   if (titles.length > 1) {
-    const entries = titles.slice(0, 4).map((one) => ({
-      text: one,
+    const entries = doomed.slice(0, 4).map((one) => ({
+      text: one.title,
       value: counted(filesOf(one), "fileOne", "fileMany"),
     }));
     if (titles.length > 4)
@@ -182,7 +214,7 @@ export async function openDeleteDialog(title: string | null, many?: string[]): P
      removal it confirms never ran. */
   const removed = titles.length > 1 ? say("doneMany", { count: titles.length }) : say("done", { title: titles[0] });
   const removeSaying = (follow?: string, stop = false) => () => {
-    removeTitles(titles);
+    removeMedia(doomed);
     // THE FOLLOW IS STOPPED, NOT ONLY SAID STOPPED (B-689): both confirmations
     // removed the same titles and differed only in their sentence, so the
     // follow lived on everywhere. It is stopped under ITS title (« Silo »), the
@@ -206,4 +238,30 @@ export async function openDeleteDialog(title: string | null, many?: string[]): P
   }
   actions.push({ text: say("cancel"), tone: "ghost", dismiss: true });
   dialog?.open({ heading, body, actions });
+}
+
+/**
+ * The dialog a removal that cannot go draws — the ambiguous identity named, and
+ * nothing offered but to close (operator ruling O-5 B, 2026-10-03).
+ *
+ * Args:
+ *     blocked: The titles that cannot go, each with its identity and how many
+ *         library rows hold it.
+ */
+function openRefusedDialog(blocked: { title: string; ref: MediaRef; rows: number }[]): void {
+  dialog?.open({
+    heading:
+      blocked.length > 1 ? say("blockedHeadingMany", { count: blocked.length }) : say("blockedHeadingOne", { title: blocked[0].title }),
+    body: [
+      {
+        type: "manifest",
+        entries: blocked.map((one) => ({
+          text: one.title,
+          value: say("heldByRows", { count: one.rows }),
+        })),
+      },
+      { type: "paragraph", runs: [{ text: say("ambiguousText") }] },
+    ],
+    actions: [{ text: say("close"), tone: "ghost", dismiss: true }],
+  });
 }

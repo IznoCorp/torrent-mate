@@ -1,7 +1,8 @@
 [
   {
     "title": "On l'appelait Robin des Bois",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1284465",
@@ -11,7 +12,8 @@
   },
   {
     "title": "Ninja Turtles",
-    "secondaryLine": "2014 · Film",
+    "year": 2014,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "98566",
@@ -21,7 +23,8 @@
   },
   {
     "title": "Big Chicken Le complot de la malbouffe",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies_documentary",
     "ids": {
       "tmdb": "1728056",
@@ -31,7 +34,8 @@
   },
   {
     "title": "The Bombing of Pan Am 103",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tvdb": "456595",
@@ -42,7 +46,8 @@
   },
   {
     "title": "Batman Caped Crusader (2024)",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tvdb": "403170",
@@ -53,7 +58,8 @@
   },
   {
     "title": "Marjorie Prime",
-    "secondaryLine": "2017 · Film",
+    "year": 2017,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "426254",
@@ -63,7 +69,8 @@
   },
   {
     "title": "Alison Wheeler La Promesse d'un soir",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1657407"
@@ -72,7 +79,8 @@
   },
   {
     "title": "Alexandre Kominek Bâtard sensible",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1688550"
@@ -81,7 +89,8 @@
   },
   {
     "title": "President Curtis (2026)",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tvdb": "466198",
@@ -92,7 +101,8 @@
   },
   {
     "title": "Supergirl",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1081003",
@@ -102,7 +112,8 @@
   },
   {
     "title": "Margin Call",
-    "secondaryLine": "2011 · Film",
+    "year": 2011,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "50839",
@@ -112,7 +123,8 @@
   },
   {
     "title": "Furious (2026)",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tvdb": "468000",
@@ -123,7 +135,8 @@
   },
   {
     "title": "The Hawk",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "254528",
@@ -134,7 +147,8 @@
   },
   {
     "title": "Disclosure Day",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1275779",
@@ -144,7 +158,8 @@
   },
   {
     "title": "The Mandalorian and Grogu",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1228710",
@@ -154,7 +169,8 @@
   },
   {
     "title": "Scary Movie",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "4247",
@@ -164,7 +180,8 @@
   },
   {
     "title": "Rick and Morty (2013)",
-    "secondaryLine": "2013 · Série",
+    "year": 2013,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "60625",
@@ -175,7 +192,8 @@
   },
   {
     "title": "Le Premier Jour du reste de ta vie",
-    "secondaryLine": "2008 · Film",
+    "year": 2008,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "12169",
@@ -185,7 +203,8 @@
   },
   {
     "title": "Gone Girls The Long Island Serial Killer",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "285084",
@@ -196,7 +215,8 @@
   },
   {
     "title": "The Alabama Solution dans l’enfer de la prison",
-    "secondaryLine": "2025 · Film",
+    "year": 2025,
+    "kind": "movie",
     "category": "movies_documentary",
     "ids": {
       "tmdb": "1413805",
@@ -206,7 +226,8 @@
   },
   {
     "title": "Lucky",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "278624",
@@ -217,7 +238,8 @@
   },
   {
     "title": "Backrooms",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1083381",
@@ -227,7 +249,8 @@
   },
   {
     "title": "Aymeric Lompret & Pierre-Emmanuel Barré Woke me up !",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1629753",
@@ -237,7 +260,8 @@
   },
   {
     "title": "Obsession",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1339713",
@@ -247,7 +271,8 @@
   },
   {
     "title": "Le Réveil de la Momie",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1304313",
@@ -257,7 +282,8 @@
   },
   {
     "title": "Inès Reg On est toujours ensemble",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1721422"
@@ -266,7 +292,8 @@
   },
   {
     "title": "Guillermo Guiz - La formidable ascension sociale temporaire de Guy Verstraeten",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1613630",
@@ -276,7 +303,8 @@
   },
   {
     "title": "Benjamin Tranié - Félicitations et tout et tout",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1717577",
@@ -286,7 +314,8 @@
   },
   {
     "title": "Smiling Friends",
-    "secondaryLine": "2020 · Série",
+    "year": 2020,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "126506",
@@ -297,7 +326,8 @@
   },
   {
     "title": "Simpsley",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies_animation",
     "ids": {
       "tmdb": "1725116",
@@ -307,7 +337,8 @@
   },
   {
     "title": "Chouette, un jeu d'enfants",
-    "secondaryLine": "2024 · Film",
+    "year": 2024,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1368010"
@@ -316,7 +347,8 @@
   },
   {
     "title": "La Liste de Schindler",
-    "secondaryLine": "1993 · Film",
+    "year": 1993,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "424",
@@ -326,7 +358,8 @@
   },
   {
     "title": "This City Is Ours",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "255570",
@@ -337,7 +370,8 @@
   },
   {
     "title": "Les Groos",
-    "secondaryLine": "2022 · Série",
+    "year": 2022,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "324143",
@@ -348,7 +382,8 @@
   },
   {
     "title": "I Will Find You",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "278178",
@@ -359,7 +394,8 @@
   },
   {
     "title": "Dead Landes",
-    "secondaryLine": "2016 · Série",
+    "year": 2016,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "68958",
@@ -370,7 +406,8 @@
   },
   {
     "title": "Les Moutons détectives",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1301421",
@@ -380,7 +417,8 @@
   },
   {
     "title": "The Hack",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "287167",
@@ -391,7 +429,8 @@
   },
   {
     "title": "Star City",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "252107",
@@ -402,7 +441,8 @@
   },
   {
     "title": "PONIES",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "262793",
@@ -413,7 +453,8 @@
   },
   {
     "title": "Michael Jackson The Verdict",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "323111",
@@ -424,7 +465,8 @@
   },
   {
     "title": "Lucky Luke",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "65392",
@@ -435,7 +477,8 @@
   },
   {
     "title": "Due spicci",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "304597",
@@ -446,7 +489,8 @@
   },
   {
     "title": "Dear Killer Nannies Criado por sicarios",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "313721",
@@ -457,7 +501,8 @@
   },
   {
     "title": "Among Us",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "229544",
@@ -468,7 +513,8 @@
   },
   {
     "title": "War Machine",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1265609",
@@ -478,7 +524,8 @@
   },
   {
     "title": "Une famille de bâtards",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1501018",
@@ -488,7 +535,8 @@
   },
   {
     "title": "Super Mario Galaxy, le film",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies_animation",
     "ids": {
       "tmdb": "1226863",
@@ -498,7 +546,8 @@
   },
   {
     "title": "Over Your Dead Body",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1390300",
@@ -508,7 +557,8 @@
   },
   {
     "title": "Mortal Kombat II",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "931285",
@@ -518,7 +568,8 @@
   },
   {
     "title": "Michael",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "936075",
@@ -528,7 +579,8 @@
   },
   {
     "title": "Marty Supreme",
-    "secondaryLine": "2025 · Film",
+    "year": 2025,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1317288",
@@ -538,7 +590,8 @@
   },
   {
     "title": "Marsupilami",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1145899",
@@ -548,7 +601,8 @@
   },
   {
     "title": "L'éléphant",
-    "secondaryLine": "2025 · Film",
+    "year": 2025,
+    "kind": "movie",
     "category": "movies_animation",
     "ids": {
       "tmdb": "1497017",
@@ -558,7 +612,8 @@
   },
   {
     "title": "Jumpers",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies_animation",
     "ids": {
       "tmdb": "1327819",
@@ -568,7 +623,8 @@
   },
   {
     "title": "Jack Ryan de Tom Clancy Guerre Fantôme",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1380291",
@@ -578,7 +634,8 @@
   },
   {
     "title": "Fantômes contre fantômes",
-    "secondaryLine": "1996 · Film",
+    "year": 1996,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "10779",
@@ -588,7 +645,8 @@
   },
   {
     "title": "La Cité des Anges",
-    "secondaryLine": "1998 · Film",
+    "year": 1998,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "795",
@@ -598,7 +656,8 @@
   },
   {
     "title": "Les Griffes de la Nuit",
-    "secondaryLine": "1984 · Film",
+    "year": 1984,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "377",
@@ -608,7 +667,8 @@
   },
   {
     "title": "Les Légendaires",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies_animation",
     "ids": {
       "tmdb": "677561",
@@ -618,7 +678,8 @@
   },
   {
     "title": "Top Chef",
-    "secondaryLine": "2010 · Série",
+    "year": 2010,
+    "kind": "show",
     "category": "tv_programs",
     "ids": {
       "tmdb": "54493",
@@ -629,7 +690,8 @@
   },
   {
     "title": "The Boys",
-    "secondaryLine": "2019 · Série",
+    "year": 2019,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "76479",
@@ -640,7 +702,8 @@
   },
   {
     "title": "From",
-    "secondaryLine": "2022 · Série",
+    "year": 2022,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "124364",
@@ -651,7 +714,8 @@
   },
   {
     "title": "Widow's Bay (2026)",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "270476",
@@ -662,7 +726,8 @@
   },
   {
     "title": "Spider-Noir",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "220102",
@@ -673,7 +738,8 @@
   },
   {
     "title": "Rafa",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "279884",
@@ -684,7 +750,8 @@
   },
   {
     "title": "Prescott",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "323153",
@@ -695,7 +762,8 @@
   },
   {
     "title": "Lord of the Flies",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "270572",
@@ -706,7 +774,8 @@
   },
   {
     "title": "Achtsam Morden",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "252372",
@@ -717,7 +786,8 @@
   },
   {
     "title": "Gourou",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1259983",
@@ -727,7 +797,8 @@
   },
   {
     "title": "Les Griffes de la nuit",
-    "secondaryLine": "2010 · Film",
+    "year": 2010,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "23437",
@@ -737,7 +808,8 @@
   },
   {
     "title": "RoboCop",
-    "secondaryLine": "2014 · Film",
+    "year": 1987,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "5548",
@@ -746,8 +818,20 @@
     "poster": "assets/posters/a56f60d1.webp"
   },
   {
+    "title": "RoboCop",
+    "year": 2014,
+    "kind": "movie",
+    "category": "movies",
+    "ids": {
+      "tmdb": "97020",
+      "imdb": "tt1234721"
+    },
+    "poster": null
+  },
+  {
     "title": "Superman",
-    "secondaryLine": "2025 · Film",
+    "year": 2025,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1924",
@@ -757,7 +841,8 @@
   },
   {
     "title": "Astérix Le Domaine des dieux",
-    "secondaryLine": "2014 · Film",
+    "year": 2014,
+    "kind": "movie",
     "category": "movies_animation",
     "ids": {
       "tmdb": "170522",
@@ -767,7 +852,8 @@
   },
   {
     "title": "Bob l'éponge - Le film Un héros sort de l'eau",
-    "secondaryLine": "2015 · Film",
+    "year": 2015,
+    "kind": "movie",
     "category": "movies_animation",
     "ids": {
       "tmdb": "228165",
@@ -777,7 +863,8 @@
   },
   {
     "title": "L'Âge de glace 4 La dérive des continents",
-    "secondaryLine": "2012 · Film",
+    "year": 2012,
+    "kind": "movie",
     "category": "movies_animation",
     "ids": {
       "tmdb": "57800",
@@ -787,7 +874,8 @@
   },
   {
     "title": "La Petite Sirène",
-    "secondaryLine": "2023 · Film",
+    "year": 2023,
+    "kind": "movie",
     "category": "movies_animation",
     "ids": {
       "tmdb": "10144",
@@ -797,7 +885,8 @@
   },
   {
     "title": "Le Livre de la jungle",
-    "secondaryLine": "2016 · Film",
+    "year": 2016,
+    "kind": "movie",
     "category": "movies_animation",
     "ids": {
       "tmdb": "9325",
@@ -807,7 +896,8 @@
   },
   {
     "title": "Le Temple du Soleil",
-    "secondaryLine": "1992 · Film",
+    "year": 1992,
+    "kind": "movie",
     "category": "movies_animation",
     "ids": {
       "tmdb": "241001",
@@ -817,7 +907,8 @@
   },
   {
     "title": "Les Schtroumpfs",
-    "secondaryLine": "2025 · Film",
+    "year": 2025,
+    "kind": "movie",
     "category": "movies_animation",
     "ids": {
       "tmdb": "41513",
@@ -827,7 +918,8 @@
   },
   {
     "title": "Lilo & Stitch",
-    "secondaryLine": "2025 · Film",
+    "year": 2025,
+    "kind": "movie",
     "category": "movies_animation",
     "ids": {
       "tmdb": "11544",
@@ -837,7 +929,8 @@
   },
   {
     "title": "Scrubs",
-    "secondaryLine": "2001 · Série",
+    "year": 2001,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "295778",
@@ -848,7 +941,8 @@
   },
   {
     "title": "Mulan",
-    "secondaryLine": "2020 · Film",
+    "year": 2020,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "10674",
@@ -858,7 +952,8 @@
   },
   {
     "title": "Le Grinch",
-    "secondaryLine": "2018 · Film",
+    "year": 2018,
+    "kind": "movie",
     "category": "movies_animation",
     "ids": {
       "tmdb": "8871",
@@ -868,7 +963,8 @@
   },
   {
     "title": "Pinocchio",
-    "secondaryLine": "2022 · Film",
+    "year": 2022,
+    "kind": "movie",
     "category": "movies_animation",
     "ids": {
       "tmdb": "10895",
@@ -878,7 +974,8 @@
   },
   {
     "title": "The Staircase",
-    "secondaryLine": "2022 · Série",
+    "year": 2022,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "21421",
@@ -889,7 +986,8 @@
   },
   {
     "title": "De si remarquables créatures",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1330021",
@@ -899,7 +997,8 @@
   },
   {
     "title": "Projet Dernière Chance",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "687163",
@@ -909,7 +1008,8 @@
   },
   {
     "title": "Le Bus Les Bleus en grève",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies_documentary",
     "ids": {
       "tmdb": "1678844",
@@ -919,7 +1019,8 @@
   },
   {
     "title": "Qui a poussé Mélodie",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": 281321
@@ -928,7 +1029,8 @@
   },
   {
     "title": "The Killing",
-    "secondaryLine": "2010 · Série",
+    "year": 2010,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "34415",
@@ -939,7 +1041,8 @@
   },
   {
     "title": "The Boroughs",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "224941",
@@ -950,7 +1053,8 @@
   },
   {
     "title": "Stranger Things Tales from '85",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "224263",
@@ -961,7 +1065,8 @@
   },
   {
     "title": "Maximum Pleasure Guaranteed",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "285404",
@@ -972,7 +1077,8 @@
   },
   {
     "title": "Imperfect Women",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "108181",
@@ -983,7 +1089,8 @@
   },
   {
     "title": "Dexter New Blood",
-    "secondaryLine": "2021 · Série",
+    "year": 2021,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "131927",
@@ -994,7 +1101,8 @@
   },
   {
     "title": "I Origins",
-    "secondaryLine": "2014 · Film",
+    "year": 2014,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "244267",
@@ -1004,7 +1112,8 @@
   },
   {
     "title": "Dossier 137",
-    "secondaryLine": "2025 · Film",
+    "year": 2025,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1294698",
@@ -1014,7 +1123,8 @@
   },
   {
     "title": "Monk",
-    "secondaryLine": "2002 · Série",
+    "year": 2002,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "1695",
@@ -1025,7 +1135,8 @@
   },
   {
     "title": "Squid Game",
-    "secondaryLine": "2021 · Série",
+    "year": 2021,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "93405",
@@ -1036,7 +1147,8 @@
   },
   {
     "title": "Andrew The Problem Prince",
-    "secondaryLine": "2023 · Série",
+    "year": 2023,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "225658",
@@ -1047,7 +1159,8 @@
   },
   {
     "title": "Good Luck, Have Fun, Don't Die",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1119449",
@@ -1057,7 +1170,8 @@
   },
   {
     "title": "Une affaire d'honneur",
-    "secondaryLine": "2023 · Film",
+    "year": 2023,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "960044",
@@ -1067,7 +1181,8 @@
   },
   {
     "title": "Une vie",
-    "secondaryLine": "2023 · Film",
+    "year": 2023,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "760774",
@@ -1077,7 +1192,8 @@
   },
   {
     "title": "Vermines",
-    "secondaryLine": "2023 · Film",
+    "year": 2023,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1063879",
@@ -1087,7 +1203,8 @@
   },
   {
     "title": "Chérie, j'ai agrandi le bébé",
-    "secondaryLine": "1992 · Film",
+    "year": 1992,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "11158",
@@ -1097,7 +1214,8 @@
   },
   {
     "title": "Chérie, j'ai rétréci les gosses",
-    "secondaryLine": "1989 · Film",
+    "year": 1989,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "9354",
@@ -1107,7 +1225,8 @@
   },
   {
     "title": "Comme un prince",
-    "secondaryLine": "2024 · Film",
+    "year": 2024,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1019864",
@@ -1117,7 +1236,8 @@
   },
   {
     "title": "Daaaaaalí !",
-    "secondaryLine": "2024 · Film",
+    "year": 2024,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "1045770",
@@ -1127,7 +1247,8 @@
   },
   {
     "title": "Die Hart Die Harter",
-    "secondaryLine": "2024 · Film",
+    "year": 2024,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": 99072,
@@ -1138,7 +1259,8 @@
   },
   {
     "title": "Dune Deuxième Partie",
-    "secondaryLine": "2024 · Film",
+    "year": 2024,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "693134",
@@ -1148,7 +1270,8 @@
   },
   {
     "title": "Breathe",
-    "secondaryLine": "2024 · Film",
+    "year": 2024,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "720321",
@@ -1158,7 +1281,8 @@
   },
   {
     "title": "Mothers' Instinct",
-    "secondaryLine": "2024 · Film",
+    "year": 2024,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "758679",
@@ -1168,7 +1292,8 @@
   },
   {
     "title": "Sentinel",
-    "secondaryLine": "2023 · Film",
+    "year": 2023,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "516806",
@@ -1178,7 +1303,8 @@
   },
   {
     "title": "Ultraman Rising",
-    "secondaryLine": "2024 · Film",
+    "year": 2024,
+    "kind": "movie",
     "category": "movies_animation",
     "ids": {
       "tmdb": "829402",
@@ -1188,7 +1314,8 @@
   },
   {
     "title": "22.11.63",
-    "secondaryLine": "2016 · Série",
+    "year": 2016,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "64464",
@@ -1199,7 +1326,8 @@
   },
   {
     "title": "3%",
-    "secondaryLine": "2016 · Série",
+    "year": 2016,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "68467",
@@ -1210,7 +1338,8 @@
   },
   {
     "title": "Anger Management",
-    "secondaryLine": "2012 · Série",
+    "year": 2012,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "42878",
@@ -1221,7 +1350,8 @@
   },
   {
     "title": "Band of Brothers",
-    "secondaryLine": "2001 · Série",
+    "year": 2001,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "4613",
@@ -1232,7 +1362,8 @@
   },
   {
     "title": "Battlestar Galactica",
-    "secondaryLine": "2004 · Série",
+    "year": 2004,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "1972",
@@ -1243,7 +1374,8 @@
   },
   {
     "title": "Beacon 23",
-    "secondaryLine": "2023 · Série",
+    "year": 2023,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "112388",
@@ -1254,7 +1386,8 @@
   },
   {
     "title": "Better Call Saul",
-    "secondaryLine": "2014 · Série",
+    "year": 2014,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "60059",
@@ -1265,7 +1398,8 @@
   },
   {
     "title": "Bodkin",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "241257",
@@ -1276,7 +1410,8 @@
   },
   {
     "title": "Broadchurch",
-    "secondaryLine": "2013 · Série",
+    "year": 2013,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "1427",
@@ -1287,7 +1422,8 @@
   },
   {
     "title": "Broute 24.",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "253005",
@@ -1298,7 +1434,8 @@
   },
   {
     "title": "Fiasco",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "221120",
@@ -1309,7 +1446,8 @@
   },
   {
     "title": "Furies",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "212588",
@@ -1320,7 +1458,8 @@
   },
   {
     "title": "Game of Thrones",
-    "secondaryLine": "2011 · Série",
+    "year": 2011,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "1399",
@@ -1331,7 +1470,8 @@
   },
   {
     "title": "Go On",
-    "secondaryLine": "2012 · Série",
+    "year": 2012,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "44987",
@@ -1342,7 +1482,8 @@
   },
   {
     "title": "Heeramandi Les diamants de la cour",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "156716",
@@ -1353,7 +1494,8 @@
   },
   {
     "title": "Hero Corp",
-    "secondaryLine": "2008 · Série",
+    "year": 2008,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "21766",
@@ -1364,7 +1506,8 @@
   },
   {
     "title": "Joey",
-    "secondaryLine": "2004 · Série",
+    "year": 2004,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "1466",
@@ -1375,7 +1518,8 @@
   },
   {
     "title": "Kaboul Kitchen",
-    "secondaryLine": "2012 · Série",
+    "year": 2012,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "43257",
@@ -1386,7 +1530,8 @@
   },
   {
     "title": "Kevin Can Wait",
-    "secondaryLine": "2016 · Série",
+    "year": 2016,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "67132",
@@ -1397,7 +1542,8 @@
   },
   {
     "title": "La Brea",
-    "secondaryLine": "2021 · Série",
+    "year": 2021,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "128839",
@@ -1408,7 +1554,8 @@
   },
   {
     "title": "La cape et l'épée",
-    "secondaryLine": "2000 · Série",
+    "year": 2000,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "105116",
@@ -1419,7 +1566,8 @@
   },
   {
     "title": "La quatrième dimension",
-    "secondaryLine": "1959 · Série",
+    "year": 1959,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "6357",
@@ -1430,7 +1578,8 @@
   },
   {
     "title": "La Vie de famille",
-    "secondaryLine": "1989 · Série",
+    "year": 1989,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "2685",
@@ -1441,7 +1590,8 @@
   },
   {
     "title": "Le Caméléon",
-    "secondaryLine": "1996 · Série",
+    "year": 1996,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "1706",
@@ -1452,7 +1602,8 @@
   },
   {
     "title": "Le Régime",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "206829",
@@ -1463,7 +1614,8 @@
   },
   {
     "title": "Le Visiteur du Futur",
-    "secondaryLine": "2009 · Série",
+    "year": 2009,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "60013",
@@ -1474,7 +1626,8 @@
   },
   {
     "title": "Les Papillons noirs",
-    "secondaryLine": "2022 · Série",
+    "year": 2022,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "208691",
@@ -1485,7 +1638,8 @@
   },
   {
     "title": "MacGyver",
-    "secondaryLine": "1985 · Série",
+    "year": 1985,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "2875",
@@ -1496,7 +1650,8 @@
   },
   {
     "title": "Man With A Plan",
-    "secondaryLine": "2016 · Série",
+    "year": 2016,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "67156",
@@ -1507,7 +1662,8 @@
   },
   {
     "title": "Manhunt",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "155533",
@@ -1518,7 +1674,8 @@
   },
   {
     "title": "Misfits",
-    "secondaryLine": "2009 · Série",
+    "year": 2009,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "31295",
@@ -1529,7 +1686,8 @@
   },
   {
     "title": "Mon petit renne",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "241259",
@@ -1540,7 +1698,8 @@
   },
   {
     "title": "Mr. & Mrs. Smith",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "118642",
@@ -1551,7 +1710,8 @@
   },
   {
     "title": "Mr. Bean",
-    "secondaryLine": "1990 · Série",
+    "year": 1990,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "4327",
@@ -1562,7 +1722,8 @@
   },
   {
     "title": "Only Murders in the Building",
-    "secondaryLine": "2021 · Série",
+    "year": 2021,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "107113",
@@ -1573,7 +1734,8 @@
   },
   {
     "title": "Rapa",
-    "secondaryLine": "2022 · Série",
+    "year": 2022,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "195946",
@@ -1584,7 +1746,8 @@
   },
   {
     "title": "Reine rouge",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "203667",
@@ -1595,7 +1758,8 @@
   },
   {
     "title": "Ripley",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "94028",
@@ -1606,7 +1770,8 @@
   },
   {
     "title": "Shameless",
-    "secondaryLine": "2004 · Série",
+    "year": 2004,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "1906",
@@ -1617,7 +1782,8 @@
   },
   {
     "title": "Six Feet Under",
-    "secondaryLine": "2001 · Série",
+    "year": 2001,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "1274",
@@ -1628,7 +1794,8 @@
   },
   {
     "title": "Stargate Atlantis",
-    "secondaryLine": "2004 · Série",
+    "year": 2004,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "2290",
@@ -1639,7 +1806,8 @@
   },
   {
     "title": "Stargate SG-1",
-    "secondaryLine": "1997 · Série",
+    "year": 1997,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "4629",
@@ -1650,7 +1818,8 @@
   },
   {
     "title": "Stargate Universe",
-    "secondaryLine": "2009 · Série",
+    "year": 2009,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "5148",
@@ -1661,7 +1830,8 @@
   },
   {
     "title": "Sugar",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "203744",
@@ -1672,7 +1842,8 @@
   },
   {
     "title": "Terminal",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "237630",
@@ -1683,7 +1854,8 @@
   },
   {
     "title": "The Acolyte",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "114479",
@@ -1694,7 +1866,8 @@
   },
   {
     "title": "The Big Cigar",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "197124",
@@ -1705,7 +1878,8 @@
   },
   {
     "title": "The Drew Carey Show",
-    "secondaryLine": "1995 · Série",
+    "year": 1995,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "97",
@@ -1716,7 +1890,8 @@
   },
   {
     "title": "The King of Queens",
-    "secondaryLine": "1998 · Série",
+    "year": 1998,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "4238",
@@ -1727,7 +1902,8 @@
   },
   {
     "title": "The Last Man on Earth",
-    "secondaryLine": "2015 · Série",
+    "year": 2015,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "61888",
@@ -1738,7 +1914,8 @@
   },
   {
     "title": "The Lost Room",
-    "secondaryLine": "2006 · Série",
+    "year": 2006,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "3868",
@@ -1749,7 +1926,8 @@
   },
   {
     "title": "The Michael J. Fox Show",
-    "secondaryLine": "2013 · Série",
+    "year": 2013,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "58942",
@@ -1760,7 +1938,8 @@
   },
   {
     "title": "The OA",
-    "secondaryLine": "2016 · Série",
+    "year": 2016,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "69061",
@@ -1771,7 +1950,8 @@
   },
   {
     "title": "The Odd Couple",
-    "secondaryLine": "2015 · Série",
+    "year": 2015,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "61725",
@@ -1782,7 +1962,8 @@
   },
   {
     "title": "The Wrong Mans",
-    "secondaryLine": "2013 · Série",
+    "year": 2013,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "60182",
@@ -1793,7 +1974,8 @@
   },
   {
     "title": "Time Traveling Bong",
-    "secondaryLine": "2016 · Série",
+    "year": 2016,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "66259",
@@ -1804,7 +1986,8 @@
   },
   {
     "title": "Twin Peaks",
-    "secondaryLine": "1990 · Série",
+    "year": 1990,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "1920",
@@ -1815,7 +1998,8 @@
   },
   {
     "title": "Un meurtre est-il facile",
-    "secondaryLine": "2023 · Série",
+    "year": 2023,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "230364",
@@ -1826,7 +2010,8 @@
   },
   {
     "title": "Unbelievable",
-    "secondaryLine": "2019 · Série",
+    "year": 2019,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "91275",
@@ -1837,7 +2022,8 @@
   },
   {
     "title": "United States of Tara",
-    "secondaryLine": "2009 · Série",
+    "year": 2009,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "7097",
@@ -1848,7 +2034,8 @@
   },
   {
     "title": "Voilà",
-    "secondaryLine": "1997 · Série",
+    "year": 1997,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "4576",
@@ -1859,7 +2046,8 @@
   },
   {
     "title": "X-Files  Aux frontières du réel",
-    "secondaryLine": "1993 · Série",
+    "year": 1993,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "4087",
@@ -1870,7 +2058,8 @@
   },
   {
     "title": "Caïn",
-    "secondaryLine": "2012 · Série",
+    "year": 2012,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "61794",
@@ -1881,7 +2070,8 @@
   },
   {
     "title": "Chernobyl",
-    "secondaryLine": "2019 · Série",
+    "year": 2019,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "87108",
@@ -1892,7 +2082,8 @@
   },
   {
     "title": "Childhood's End",
-    "secondaryLine": "2015 · Série",
+    "year": 2015,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "63647",
@@ -1903,7 +2094,8 @@
   },
   {
     "title": "Coupling - Six Sexy",
-    "secondaryLine": "2000 · Série",
+    "year": 2000,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "2719",
@@ -1914,7 +2106,8 @@
   },
   {
     "title": "Dark Matter",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "62425",
@@ -1925,7 +2118,8 @@
   },
   {
     "title": "Des gens bien ordinaires",
-    "secondaryLine": "2022 · Série",
+    "year": 2022,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "202277",
@@ -1936,7 +2130,8 @@
   },
   {
     "title": "Doctor Who",
-    "secondaryLine": "2005 · Série",
+    "year": 2005,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "57243",
@@ -1947,7 +2142,8 @@
   },
   {
     "title": "Doctor Who",
-    "secondaryLine": "2023 · Série",
+    "year": 2023,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "57243",
@@ -1958,7 +2154,8 @@
   },
   {
     "title": "Eric",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "217667",
@@ -1969,7 +2166,8 @@
   },
   {
     "title": "Eux",
-    "secondaryLine": "2021 · Série",
+    "year": 2021,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "120462",
@@ -1980,7 +2178,8 @@
   },
   {
     "title": "Fallout",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "106379",
@@ -1991,7 +2190,8 @@
   },
   {
     "title": "Family Business",
-    "secondaryLine": "2019 · Série",
+    "year": 2019,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "89785",
@@ -2002,7 +2202,8 @@
   },
   {
     "title": "Caméra Café",
-    "secondaryLine": "2001 · Série",
+    "year": 2001,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "1533",
@@ -2013,7 +2214,8 @@
   },
   {
     "title": "Farscape",
-    "secondaryLine": "1999 · Série",
+    "year": 1999,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "4271",
@@ -2024,7 +2226,8 @@
   },
   {
     "title": "That '70s Show",
-    "secondaryLine": "1998 · Série",
+    "year": 1998,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "52",
@@ -2035,7 +2238,8 @@
   },
   {
     "title": "L'Odyssée interstellaire",
-    "secondaryLine": "2018 · Série",
+    "year": 2018,
+    "kind": "show",
     "category": "tv_shows_documentary",
     "ids": {
       "tmdb": "92166",
@@ -2046,7 +2250,8 @@
   },
   {
     "title": "Zero Day",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "216082",
@@ -2057,7 +2262,8 @@
   },
   {
     "title": "Ça Bienvenue à Derry",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "200875",
@@ -2068,7 +2274,8 @@
   },
   {
     "title": "The Big Bang Theory",
-    "secondaryLine": "2007 · Série",
+    "year": 2007,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "1418",
@@ -2079,7 +2286,8 @@
   },
   {
     "title": "The Big Door Prize",
-    "secondaryLine": "2023 · Série",
+    "year": 2023,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "194704",
@@ -2090,7 +2298,8 @@
   },
   {
     "title": "The Bridge",
-    "secondaryLine": "2011 · Série",
+    "year": 2011,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "45016",
@@ -2101,7 +2310,8 @@
   },
   {
     "title": "The Crowded Room",
-    "secondaryLine": "2023 · Série",
+    "year": 2023,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "123192",
@@ -2112,7 +2322,8 @@
   },
   {
     "title": "The Deal",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "286648",
@@ -2123,7 +2334,8 @@
   },
   {
     "title": "The Fall",
-    "secondaryLine": "2013 · Série",
+    "year": 2013,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "49010",
@@ -2134,7 +2346,8 @@
   },
   {
     "title": "The Flight Attendant",
-    "secondaryLine": "2020 · Série",
+    "year": 2020,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "93287",
@@ -2145,7 +2358,8 @@
   },
   {
     "title": "The Inbetweeners",
-    "secondaryLine": "2008 · Série",
+    "year": 2008,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "7317",
@@ -2156,7 +2370,8 @@
   },
   {
     "title": "The Island",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "279138",
@@ -2167,7 +2382,8 @@
   },
   {
     "title": "The Keepers",
-    "secondaryLine": "2017 · Série",
+    "year": 2017,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "26101",
@@ -2178,7 +2394,8 @@
   },
   {
     "title": "Derrière la façade",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "241112",
@@ -2189,7 +2406,8 @@
   },
   {
     "title": "Des gens bien",
-    "secondaryLine": "2022 · Série",
+    "year": 2022,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "213073",
@@ -2200,7 +2418,8 @@
   },
   {
     "title": "Des vivants",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "258002",
@@ -2211,7 +2430,8 @@
   },
   {
     "title": "Dexter",
-    "secondaryLine": "2006 · Série",
+    "year": 2006,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "1405",
@@ -2222,7 +2442,8 @@
   },
   {
     "title": "Dexter Les Origines",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "219937",
@@ -2233,7 +2454,8 @@
   },
   {
     "title": "Dexter Resurrection",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "259909",
@@ -2244,7 +2466,8 @@
   },
   {
     "title": "Dope Girls",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "239615",
@@ -2255,7 +2478,8 @@
   },
   {
     "title": "Dope Thief",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "209876",
@@ -2266,7 +2490,8 @@
   },
   {
     "title": "Douglas Is Cancelled",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "240457",
@@ -2277,7 +2502,8 @@
   },
   {
     "title": "Down Cemetery Road",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "252000",
@@ -2288,7 +2514,8 @@
   },
   {
     "title": "Dune Prophecy",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "90228",
@@ -2299,7 +2526,8 @@
   },
   {
     "title": "Défendre Jacob",
-    "secondaryLine": "2020 · Série",
+    "year": 2020,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "87784",
@@ -2310,7 +2538,8 @@
   },
   {
     "title": "Désenchantées",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "285049",
@@ -2321,7 +2550,8 @@
   },
   {
     "title": "Earl",
-    "secondaryLine": "2005 · Série",
+    "year": 2005,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "2317",
@@ -2332,7 +2562,8 @@
   },
   {
     "title": "Empathie",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "284656",
@@ -2343,7 +2574,8 @@
   },
   {
     "title": "Engrenages",
-    "secondaryLine": "2005 · Série",
+    "year": 2005,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "11726",
@@ -2354,7 +2586,8 @@
   },
   {
     "title": "Enterrement de vie de garçon",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "244434",
@@ -2365,7 +2598,8 @@
   },
   {
     "title": "Espion à l'ancienne",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "245312",
@@ -2376,7 +2610,8 @@
   },
   {
     "title": "Esterno Notte",
-    "secondaryLine": "2022 · Série",
+    "year": 2022,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "222108",
@@ -2387,7 +2622,8 @@
   },
   {
     "title": "Extra-Lucide",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "305892",
@@ -2398,7 +2634,8 @@
   },
   {
     "title": "Extrapolations",
-    "secondaryLine": "2023 · Série",
+    "year": 2023,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "138169",
@@ -2409,7 +2646,8 @@
   },
   {
     "title": "Flashback",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "237979",
@@ -2420,7 +2658,8 @@
   },
   {
     "title": "Florida Man",
-    "secondaryLine": "2023 · Série",
+    "year": 2023,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "123856",
@@ -2431,7 +2670,8 @@
   },
   {
     "title": "Fonction Juré présente Le Séminaire d'Entreprise",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "312697"
@@ -2440,7 +2680,8 @@
   },
   {
     "title": "For All Mankind",
-    "secondaryLine": "2019 · Série",
+    "year": 2019,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "87917",
@@ -2451,7 +2692,8 @@
   },
   {
     "title": "Foundation",
-    "secondaryLine": "2021 · Série",
+    "year": 2021,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "93740",
@@ -2462,7 +2704,8 @@
   },
   {
     "title": "La Meilleure Version de moi-même",
-    "secondaryLine": "2021 · Série",
+    "year": 2021,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "138753",
@@ -2473,7 +2716,8 @@
   },
   {
     "title": "La mer de la Tranquillité",
-    "secondaryLine": "2021 · Série",
+    "year": 2021,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "96777",
@@ -2484,7 +2728,8 @@
   },
   {
     "title": "La nuit où Laurier Gaudreault s’est réveillé",
-    "secondaryLine": "2022 · Série",
+    "year": 2022,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "113732",
@@ -2495,7 +2740,8 @@
   },
   {
     "title": "La Réalité en face",
-    "secondaryLine": "2021 · Série",
+    "year": 2021,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "134029",
@@ -2506,7 +2752,8 @@
   },
   {
     "title": "La Résidence",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "242054",
@@ -2517,7 +2764,8 @@
   },
   {
     "title": "La Voisine danoise",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "287740",
@@ -2528,7 +2776,8 @@
   },
   {
     "title": "Landman",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "157741",
@@ -2539,7 +2788,8 @@
   },
   {
     "title": "Le Crime à la racine",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "279283",
@@ -2550,7 +2800,8 @@
   },
   {
     "title": "Le Garçon et l'Univers",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "209332",
@@ -2561,7 +2812,8 @@
   },
   {
     "title": "Le Livre de Boba Fett",
-    "secondaryLine": "2021 · Série",
+    "year": 2021,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "115036",
@@ -2572,7 +2824,8 @@
   },
   {
     "title": "Le Maître du Haut Château",
-    "secondaryLine": "2015 · Série",
+    "year": 2015,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "62017",
@@ -2583,7 +2836,8 @@
   },
   {
     "title": "Le Problème à 3 corps",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "108545",
@@ -2594,7 +2848,8 @@
   },
   {
     "title": "Le Président foudroyé",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "245219",
@@ -2605,7 +2860,8 @@
   },
   {
     "title": "Blue Lights",
-    "secondaryLine": "2023 · Série",
+    "year": 2023,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "218344",
@@ -2616,7 +2872,8 @@
   },
   {
     "title": "Bodies",
-    "secondaryLine": "2023 · Série",
+    "year": 2023,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "233629",
@@ -2627,7 +2884,8 @@
   },
   {
     "title": "Boglands, enquête en terre noire",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "276466",
@@ -2638,7 +2896,8 @@
   },
   {
     "title": "Boots",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "225647",
@@ -2649,7 +2908,8 @@
   },
   {
     "title": "bref.",
-    "secondaryLine": "2011 · Série",
+    "year": 2011,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "60715",
@@ -2660,7 +2920,8 @@
   },
   {
     "title": "Cassandra",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "248982",
@@ -2671,7 +2932,8 @@
   },
   {
     "title": "Casting(s)",
-    "secondaryLine": "2013 · Série",
+    "year": 2013,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "94379",
@@ -2682,7 +2944,8 @@
   },
   {
     "title": "Cent ans de solitude",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "207333",
@@ -2693,7 +2956,8 @@
   },
   {
     "title": "Chacal",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "222766",
@@ -2704,7 +2968,8 @@
   },
   {
     "title": "Channel Zero",
-    "secondaryLine": "2016 · Série",
+    "year": 2016,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "67752",
@@ -2715,7 +2980,8 @@
   },
   {
     "title": "Chief of War",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "196890",
@@ -2726,7 +2992,8 @@
   },
   {
     "title": "Chère petite",
-    "secondaryLine": "2023 · Série",
+    "year": 2023,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "229221",
@@ -2737,7 +3004,8 @@
   },
   {
     "title": "Citoyens clandestins",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "212613",
@@ -2748,7 +3016,8 @@
   },
   {
     "title": "City on Fire",
-    "secondaryLine": "2023 · Série",
+    "year": 2023,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "155534",
@@ -2759,7 +3028,8 @@
   },
   {
     "title": "Arcane",
-    "secondaryLine": "2021 · Série",
+    "year": 2021,
+    "kind": "show",
     "category": "tv_shows_animation",
     "ids": {
       "tmdb": "94605",
@@ -2770,7 +3040,8 @@
   },
   {
     "title": "Archer",
-    "secondaryLine": "2009 · Série",
+    "year": 2009,
+    "kind": "show",
     "category": "tv_shows_animation",
     "ids": {
       "tmdb": "10283",
@@ -2781,35 +3052,56 @@
   },
   {
     "title": "Famille Pirate",
-    "secondaryLine": "1999 · Série",
+    "year": 1999,
+    "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "143721",
+      "tmdb": "74540",
+      "imdb": "tt2170216"
+    },
     "poster": "assets/posters/8cee6a43.webp"
   },
   {
     "title": "Hé, oua-oua",
-    "secondaryLine": "2014 · Série",
+    "year": 2014,
+    "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "289541",
+      "tmdb": "74280",
+      "imdb": "tt4291050"
+    },
     "poster": "assets/posters/d161d8e4.webp"
   },
   {
     "title": "Animal Crackers",
-    "secondaryLine": "1997 · Série",
+    "year": 1997,
+    "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "70920",
+      "tmdb": "11335",
+      "imdb": "tt0283703"
+    },
     "poster": "assets/posters/552a015f.webp"
   },
   {
     "title": "Batman, la série animée",
-    "secondaryLine": "1992 · Série",
+    "year": 1992,
+    "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "76168",
+      "tmdb": "2098",
+      "imdb": "tt0103359"
+    },
     "poster": "assets/posters/bfbd9c8c.webp"
   },
   {
     "title": "Bob l'éponge",
-    "secondaryLine": "1999 · Série",
+    "year": 1999,
+    "kind": "show",
     "category": "anime",
     "ids": {
       "tmdb": "228165",
@@ -2819,35 +3111,54 @@
   },
   {
     "title": "BoJack Horseman",
-    "secondaryLine": "2014 · Série",
+    "year": 2014,
+    "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "282254",
+      "tmdb": "61222",
+      "imdb": "tt3398228"
+    },
     "poster": "assets/posters/a90da881.webp"
   },
   {
     "title": "City Hunter",
-    "secondaryLine": "1985 · Série",
+    "year": 1985,
+    "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "249053",
+      "tmdb": "39346",
+      "imdb": "tt1982229"
+    },
     "poster": "assets/posters/79ffe390.webp"
   },
   {
     "title": "Death Note",
-    "secondaryLine": "2006 · Série",
+    "year": 2006,
+    "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "79481",
+      "tmdb": "13916",
+      "imdb": "tt0877057"
+    },
     "poster": "assets/posters/e805f0a7.webp"
   },
   {
     "title": "Disney, les courts-métrages d'animation",
-    "secondaryLine": "1921 · Série",
+    "year": 1921,
+    "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "78988"
+    },
     "poster": null
   },
   {
     "title": "Les aventures de Tintin",
-    "secondaryLine": "1991 · Série",
+    "year": 1991,
+    "kind": "show",
     "category": "anime",
     "ids": {
       "tvdb": "72668",
@@ -2858,532 +3169,858 @@
   },
   {
     "title": "Les castors allumés",
-    "secondaryLine": "1997 · Série",
+    "year": 1997,
+    "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "76386",
+      "tmdb": "3579",
+      "imdb": "tt0131664"
+    },
     "poster": "assets/posters/2eff686e.webp"
   },
   {
     "title": "Les Contes de la rue Broca",
-    "secondaryLine": "1969 · Série",
+    "year": 1969,
+    "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "265994",
+      "tmdb": "73488",
+      "imdb": "tt1397118"
+    },
     "poster": "assets/posters/63d53396.webp"
   },
   {
     "title": "Les Entrechats",
-    "secondaryLine": "1985 · Série",
+    "year": 1985,
+    "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "78514",
+      "tmdb": "13781",
+      "imdb": "tt0285371"
+    },
     "poster": "assets/posters/2a9a2d22.webp"
   },
   {
     "title": "Les histoires du Père Castor",
-    "secondaryLine": "1993 · Série",
+    "year": 1993,
+    "kind": "show",
     "category": "anime",
-    "ids": null,
+    "ids": {
+      "tvdb": "83310",
+      "tmdb": "6162",
+      "imdb": "tt0828274"
+    },
     "poster": "assets/posters/835f5bde.webp"
   },
   {
     "title": "Hamas, la fabrique d'un monstre",
-    "secondaryLine": "2024 · Film",
+    "year": 2024,
+    "kind": "movie",
     "category": "movies_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "1239043"
+    },
     "poster": null
   },
   {
     "title": "La Citadelle assiégée",
-    "secondaryLine": "2006 · Film",
+    "year": 2006,
+    "kind": "movie",
     "category": "movies_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "53497",
+      "imdb": "tt0474427"
+    },
     "poster": "assets/posters/dfa637af.webp"
   },
   {
     "title": "La Famille Suricate",
-    "secondaryLine": "2008 · Film",
+    "year": 2008,
+    "kind": "movie",
     "category": "movies_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "16971",
+      "imdb": "tt0892391"
+    },
     "poster": "assets/posters/6b0aff8d.webp"
   },
   {
     "title": "La Marche de l'empereur",
-    "secondaryLine": "2005 · Film",
+    "year": 2005,
+    "kind": "movie",
     "category": "movies_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "1667",
+      "imdb": "tt0428803"
+    },
     "poster": "assets/posters/919e40cb.webp"
   },
   {
     "title": "Le Jeu de la mort",
-    "secondaryLine": "2010 · Film",
+    "year": 2010,
+    "kind": "movie",
     "category": "movies_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "113258",
+      "imdb": "tt1719498"
+    },
     "poster": "assets/posters/4647f853.webp"
   },
   {
     "title": "Matthew Perry Not just Friends",
-    "secondaryLine": "2023 · Film",
+    "year": 2023,
+    "kind": "movie",
     "category": "movies_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "1337345",
+      "imdb": "tt30023483"
+    },
     "poster": "assets/posters/091e7403.webp"
   },
   {
     "title": "Poulet Frites",
-    "secondaryLine": "2022 · Film",
+    "year": 2022,
+    "kind": "movie",
     "category": "movies_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "873097",
+      "imdb": "tt15473248"
+    },
     "poster": "assets/posters/d771ef54.webp"
   },
   {
     "title": "STILL la vie de Michael J. Fox",
-    "secondaryLine": "2023 · Film",
+    "year": 2023,
+    "kind": "movie",
     "category": "movies_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "1058699",
+      "imdb": "tt19853258"
+    },
     "poster": "assets/posters/e07b65a1.webp"
   },
   {
     "title": "Un Jour Au Haram",
-    "secondaryLine": "2017 · Film",
+    "year": 2017,
+    "kind": "movie",
     "category": "movies_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "600657",
+      "imdb": "tt7253332"
+    },
     "poster": "assets/posters/d542c928.webp"
   },
   {
     "title": "Un pays qui se tient sage",
-    "secondaryLine": "2020 · Film",
+    "year": 2020,
+    "kind": "movie",
     "category": "movies_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "723124",
+      "imdb": "tt12313458"
+    },
     "poster": "assets/posters/f8dda597.webp"
   },
   {
     "title": "À la recherche de Harry L'art derrière la magie",
-    "secondaryLine": "2026 · Film",
+    "year": 2026,
+    "kind": "movie",
     "category": "movies_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "1662432",
+      "imdb": "tt41368989"
+    },
     "poster": "assets/posters/7d79e17e.webp"
   },
   {
     "title": "Ahmed Sylla - Origami",
-    "secondaryLine": "2025 · Film",
+    "year": 2025,
+    "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "1433820",
+      "imdb": "tt42898925"
+    },
     "poster": "assets/posters/26181685.webp"
   },
   {
     "title": "Arnaud Tsamere 2 mariages & 1 enterrement",
-    "secondaryLine": "2024 · Film",
+    "year": 2024,
+    "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "1251705"
+    },
     "poster": null
   },
   {
     "title": "Arnaud Tsamère - Chose Promise",
-    "secondaryLine": "2013 · Film",
+    "year": 2013,
+    "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "175799",
+      "imdb": "tt38127591"
+    },
     "poster": "assets/posters/b6878d90.webp"
   },
   {
     "title": "Arnaud Tsamère - Confidences sur pas mal de trucs plus ou moins confidentiels",
-    "secondaryLine": "2016 · Film",
+    "year": 2016,
+    "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "428903",
+      "imdb": "tt38608111"
+    },
     "poster": "assets/posters/17aa8166.webp"
   },
   {
     "title": "Artus - Saignant à point",
-    "secondaryLine": "2015 · Film",
+    "year": 2015,
+    "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "372253"
+    },
     "poster": null
   },
   {
     "title": "Aymeric Lompret Tant Pis",
-    "secondaryLine": "2023 · Film",
+    "year": 2023,
+    "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "1125138",
+      "imdb": "tt37391335"
+    },
     "poster": "assets/posters/451ea9df.webp"
   },
   {
     "title": "Jérémy Ferrari - Anesthésie Générale",
-    "secondaryLine": "2024 · Film",
+    "year": 2024,
+    "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "1449491"
+    },
     "poster": null
   },
   {
     "title": "Jérémy Ferrari - Hallelujah Bordel !",
-    "secondaryLine": "2013 · Film",
+    "year": 2013,
+    "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "233151",
+      "imdb": "tt32280572"
+    },
     "poster": "assets/posters/58e593e2.webp"
   },
   {
     "title": "Jérémy Ferrari - Vends 2 pièces à Beyrouth",
-    "secondaryLine": "2018 · Film",
+    "year": 2018,
+    "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "441883",
+      "imdb": "tt39281560"
+    },
     "poster": "assets/posters/22285183.webp"
   },
   {
     "title": "Jérémy Ferrari Emporté par la Fougue",
-    "secondaryLine": "2018 · Film",
+    "year": 2018,
+    "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "565050"
+    },
     "poster": null
   },
   {
     "title": "Jérôme Commandeur - Toujours en douceur",
-    "secondaryLine": "2022 · Film",
+    "year": 2022,
+    "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "968627"
+    },
     "poster": null
   },
   {
     "title": "Kyan Khojandi Pulsions",
-    "secondaryLine": "2019 · Film",
+    "year": 2019,
+    "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "586247",
+      "imdb": "tt9884204"
+    },
     "poster": "assets/posters/3c1549ac.webp"
   },
   {
     "title": "Kyan Khojandi Une bonne soirée",
-    "secondaryLine": "2023 · Film",
+    "year": 2023,
+    "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "1206577",
+      "imdb": "tt30143066"
+    },
     "poster": "assets/posters/5f2f2c3f.webp"
   },
   {
     "title": "L'Exoconference",
-    "secondaryLine": "2014 · Film",
+    "year": 2014,
+    "kind": "movie",
     "category": "standup",
-    "ids": null,
+    "ids": {
+      "tmdb": "362476",
+      "imdb": "tt6464748"
+    },
     "poster": "assets/posters/e53c0559.webp"
   },
   {
     "title": "Le Discours",
-    "secondaryLine": "2025 · Film",
+    "year": 2025,
+    "kind": "movie",
     "category": "theater",
-    "ids": null,
+    "ids": {
+      "tmdb": "1561523"
+    },
     "poster": null
   },
   {
     "title": "Les Bonobos",
-    "secondaryLine": "2012 · Film",
+    "year": 2012,
+    "kind": "movie",
     "category": "theater",
-    "ids": null,
+    "ids": {
+      "tmdb": "172016",
+      "imdb": "tt8413510"
+    },
     "poster": "assets/posters/abbb7dda.webp"
   },
   {
     "title": "L’effet miroir",
-    "secondaryLine": "2024 · Film",
+    "year": 2024,
+    "kind": "movie",
     "category": "theater",
-    "ids": null,
+    "ids": {
+      "tmdb": "1277397",
+      "imdb": "tt40446231"
+    },
     "poster": null
   },
   {
     "title": "Sans filtre",
-    "secondaryLine": "2015 · Film",
+    "year": 2015,
+    "kind": "movie",
     "category": "theater",
-    "ids": null,
+    "ids": {
+      "tmdb": "373785"
+    },
     "poster": null
   },
   {
     "title": "Sexe, magouilles et culture générale",
-    "secondaryLine": "2001 · Film",
+    "year": 2001,
+    "kind": "movie",
     "category": "theater",
-    "ids": null,
+    "ids": {
+      "tmdb": "200828",
+      "imdb": "tt0891344"
+    },
     "poster": "assets/posters/f15ca769.webp"
   },
   {
     "title": "TOC TOC",
-    "secondaryLine": "2005 · Film",
+    "year": 2005,
+    "kind": "movie",
     "category": "theater",
-    "ids": null,
+    "ids": {
+      "tmdb": "113533",
+      "imdb": "tt1294717"
+    },
     "poster": "assets/posters/00ab10cf.webp"
   },
   {
     "title": "Un point c'est tout !",
-    "secondaryLine": "2009 · Film",
+    "year": 2009,
+    "kind": "movie",
     "category": "theater",
-    "ids": null,
+    "ids": {
+      "tmdb": "220232",
+      "imdb": "tt1517494"
+    },
     "poster": "assets/posters/c754f11a.webp"
   },
   {
     "title": "Mon voisin nu",
-    "secondaryLine": "2024 · Film",
+    "year": 2024,
+    "kind": "movie",
     "category": "theater",
-    "ids": null,
+    "ids": {
+      "tmdb": "1298774"
+    },
     "poster": null
   },
   {
     "title": "Harry Potter, les secrets enfin révélés",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tmdb": "260229",
+      "imdb": "tt27238904"
+    },
     "poster": "assets/posters/ceb90a11.webp"
   },
   {
     "title": "Loups-garous",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "454234",
+      "tmdb": "270963",
+      "imdb": "tt34186841"
+    },
     "poster": "assets/posters/2e96320d.webp"
   },
   {
     "title": "Nus et culottés",
-    "secondaryLine": "2012 · Série",
+    "year": 2012,
+    "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "261541",
+      "tmdb": "62939",
+      "imdb": "tt5994686"
+    },
     "poster": null
   },
   {
     "title": "Les Minikeums",
-    "secondaryLine": "1993 · Série",
+    "year": 1993,
+    "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "398328",
+      "imdb": "tt0483457"
+    },
     "poster": null
   },
   {
     "title": "Aller simple la téléréalité",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "460650",
+      "tmdb": "289754",
+      "imdb": "tt36222307"
+    },
     "poster": "assets/posters/b2f8c044.webp"
   },
   {
     "title": "Au bout c'est la mer",
-    "secondaryLine": "2018 · Série",
+    "year": 2018,
+    "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "408883",
+      "tmdb": "91989-au-bout-c-est-la-mer"
+    },
     "poster": null
   },
   {
     "title": "Burger Quiz",
-    "secondaryLine": "2001 · Série",
+    "year": 2001,
+    "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "255097",
+      "tmdb": "53007",
+      "imdb": "tt0295072"
+    },
     "poster": "assets/posters/892b3171.webp"
   },
   {
     "title": "Cash Investigation",
-    "secondaryLine": "2012 · Série",
+    "year": 2012,
+    "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "260208",
+      "tmdb": "68686",
+      "imdb": "tt2229330"
+    },
     "poster": "assets/posters/af87037b.webp"
   },
   {
     "title": "Cauchemar en cuisine",
-    "secondaryLine": "2011 · Série",
+    "year": 2011,
+    "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "248208",
+      "tmdb": "69021",
+      "imdb": "tt12581336"
+    },
     "poster": "assets/posters/01ebc550.webp"
   },
   {
     "title": "Club Dorothée",
-    "secondaryLine": "1987 · Série",
+    "year": 1987,
+    "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "338153",
+      "imdb": "tt0367307"
+    },
     "poster": null
   },
   {
     "title": "Comedy Class",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "442583",
+      "tmdb": "250443",
+      "imdb": "tt32241756"
+    },
     "poster": "assets/posters/72f1bf8a.webp"
   },
   {
     "title": "Des trains pas comme les autres",
-    "secondaryLine": "2011 · Série",
+    "year": 2011,
+    "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "252110",
+      "tmdb": "64629",
+      "imdb": "tt2446456"
+    },
     "poster": "assets/posters/2cce2f8d.webp"
   },
   {
     "title": "J'irai dormir chez les Gaulois",
-    "secondaryLine": "2023 · Série",
+    "year": 2023,
+    "kind": "show",
     "category": "tv_programs",
-    "ids": null,
+    "ids": {
+      "tvdb": "442328",
+      "tmdb": "254251"
+    },
     "poster": null
   },
   {
     "title": "Astérix & Obélix Le Combat des chefs",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "400716",
+      "tmdb": "122781",
+      "imdb": "tt14164922"
+    },
     "poster": "assets/posters/ca636249.webp"
   },
   {
     "title": "Babar",
-    "secondaryLine": "1968 · Série",
+    "year": 1968,
+    "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "77278",
+      "tmdb": "1232",
+      "imdb": "tt0156200"
+    },
     "poster": "assets/posters/1985a530.webp"
   },
   {
     "title": "Bluey",
-    "secondaryLine": "2016 · Série",
+    "year": 2016,
+    "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "353546",
+      "tmdb": "82728",
+      "imdb": "tt7678620"
+    },
     "poster": "assets/posters/00301ea6.webp"
   },
   {
     "title": "Caillou",
-    "secondaryLine": "1998 · Série",
+    "year": 1998,
+    "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "77953",
+      "tmdb": "3218",
+      "imdb": "tt0262153"
+    },
     "poster": "assets/posters/dda9eafb.webp"
   },
   {
     "title": "Captain Fall",
-    "secondaryLine": "2023 · Série",
+    "year": 2023,
+    "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "436419",
+      "tmdb": "229153",
+      "imdb": "tt12923792"
+    },
     "poster": "assets/posters/a1c469a2.webp"
   },
   {
     "title": "Ce monde ne m'aura pas",
-    "secondaryLine": "2023 · Série",
+    "year": 2023,
+    "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "427339",
+      "tmdb": "214603",
+      "imdb": "tt27440006"
+    },
     "poster": "assets/posters/7bab3bf6.webp"
   },
   {
     "title": "Close Enough",
-    "secondaryLine": "2020 · Série",
+    "year": 2020,
+    "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "332335",
+      "tmdb": "84503",
+      "imdb": "tt6994156"
+    },
     "poster": "assets/posters/526e39a7.webp"
   },
   {
     "title": "Common Side Effects",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "436198",
+      "tmdb": "228878",
+      "imdb": "tt28093628"
+    },
     "poster": "assets/posters/c8faad0e.webp"
   },
   {
     "title": "Couacs en vrac",
-    "secondaryLine": "1996 · Série",
+    "year": 1996,
+    "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "76599",
+      "tmdb": "1863",
+      "imdb": "tt0136658"
+    },
     "poster": "assets/posters/2a0e7b54.webp"
   },
   {
     "title": "Cédric",
-    "secondaryLine": "2001 · Série",
+    "year": 2001,
+    "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "171061",
+      "tmdb": "74125",
+      "imdb": "tt0414729"
+    },
     "poster": "assets/posters/9fa43583.webp"
   },
   {
     "title": "Didou",
-    "secondaryLine": "2006 · Série",
+    "year": 2006,
+    "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "80732",
+      "tmdb": "41421",
+      "imdb": "tt2080835"
+    },
     "poster": "assets/posters/12017913.webp"
   },
   {
     "title": "Dora l'exploratrice",
-    "secondaryLine": "2000 · Série",
+    "year": 2000,
+    "kind": "show",
     "category": "tv_shows_animation",
-    "ids": null,
+    "ids": {
+      "tvdb": "74697",
+      "tmdb": "79",
+      "imdb": "tt0235917"
+    },
     "poster": "assets/posters/4a4322b7.webp"
   },
   {
     "title": "John Lennon Murder Without a Trial",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tvdb": "441373",
+      "tmdb": "238126",
+      "imdb": "tt29627149"
+    },
     "poster": "assets/posters/0f6620ad.webp"
   },
   {
     "title": "Parole de tueur",
-    "secondaryLine": "2019 · Série",
+    "year": 2019,
+    "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tvdb": "372481",
+      "tmdb": "95986",
+      "imdb": "tt11307176"
+    },
     "poster": "assets/posters/e85a92a5.webp"
   },
   {
     "title": "Antigang",
-    "secondaryLine": "2023 · Série",
+    "year": 2023,
+    "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tvdb": "441729",
+      "tmdb": "238240",
+      "imdb": "tt30106329"
+    },
     "poster": null
   },
   {
     "title": "C'était la guerre d'Algérie",
-    "secondaryLine": "2022 · Série",
+    "year": 2022,
+    "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tvdb": "417703",
+      "tmdb": "195054",
+      "imdb": "tt18602688"
+    },
     "poster": "assets/posters/b06466c5.webp"
   },
   {
     "title": "Cold Case Les meurtres au Tylenol",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tvdb": "462818",
+      "tmdb": "289486",
+      "imdb": "tt36614653"
+    },
     "poster": "assets/posters/e8a78434.webp"
   },
   {
     "title": "De rockstar à tueur Le cas Cantat",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tvdb": "461727",
+      "tmdb": "287131",
+      "imdb": "tt36241713"
+    },
     "poster": "assets/posters/80430cf2.webp"
   },
   {
     "title": "Don't Fk with Cats Un tueur trop viral",
-    "secondaryLine": "2019 · Série",
+    "year": 2019,
+    "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tvdb": "372566",
+      "tmdb": "96129",
+      "imdb": "tt11318602"
+    },
     "poster": "assets/posters/30785bce.webp"
   },
   {
     "title": "FAKE YOU! Une vraie histoire de faux",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "317464",
+      "imdb": "tt41136307"
+    },
     "poster": "assets/posters/d4cedf5f.webp"
   },
   {
     "title": "Hantises",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tvdb": "468524",
+      "tmdb": "300999",
+      "imdb": "tt38362312"
+    },
     "poster": "assets/posters/3b783e4e.webp"
   },
   {
     "title": "High School Radical",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tvdb": "470120",
+      "tmdb": "305129",
+      "imdb": "tt39254998"
+    },
     "poster": null
   },
   {
     "title": "Jinx la vie et les morts de Robert Durst",
-    "secondaryLine": "2015 · Série",
+    "year": 2015,
+    "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tvdb": "289946",
+      "tmdb": "61929",
+      "imdb": "tt4299972"
+    },
     "poster": "assets/posters/c201bc10.webp"
   },
   {
     "title": "Kerviel Un trader, 50 milliards",
-    "secondaryLine": "2024 · Série",
+    "year": 2024,
+    "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tvdb": "457243",
+      "tmdb": "277028",
+      "imdb": "tt34745910"
+    },
     "poster": "assets/posters/80cbca76.webp"
   },
   {
     "title": "L'affaire du juge Delisle",
-    "secondaryLine": "2025 · Série",
+    "year": 2025,
+    "kind": "show",
     "category": "tv_shows_documentary",
-    "ids": null,
+    "ids": {
+      "tmdb": "304388"
+    },
     "poster": null
   },
   {
     "title": "Silo (2023)",
-    "secondaryLine": "2023 · Série",
+    "year": 2023,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tvdb": "403245",
@@ -3394,7 +4031,8 @@
   },
   {
     "title": "American Dad!",
-    "secondaryLine": "2005 · Série",
+    "year": 2005,
+    "kind": "show",
     "category": "tv_shows_animation",
     "ids": {
       "tvdb": "73141",
@@ -3405,7 +4043,8 @@
   },
   {
     "title": "La Guerre des étoiles",
-    "secondaryLine": "1977 · Film",
+    "year": 1977,
+    "kind": "movie",
     "category": "movies",
     "ids": {
       "tmdb": "11",
@@ -3415,7 +4054,8 @@
   },
   {
     "title": "Jim Gaffigan: Mr. Universe",
-    "secondaryLine": "2012 · Film",
+    "year": 2012,
+    "kind": "movie",
     "category": "standup",
     "ids": {
       "tmdb": 101449,
@@ -3425,7 +4065,8 @@
   },
   {
     "title": "Lanterns",
-    "secondaryLine": "2026 · Série",
+    "year": 2026,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tvdb": 376098,
@@ -3436,7 +4077,8 @@
   },
   {
     "title": "SAV des émissions",
-    "secondaryLine": "2005 · Série",
+    "year": 2005,
+    "kind": "show",
     "category": "tv_programs",
     "ids": {
       "tmdb": "39945",
@@ -3447,7 +4089,8 @@
   },
   {
     "title": "Friends",
-    "secondaryLine": "1994 · Série",
+    "year": 1994,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "1668",
@@ -3458,7 +4101,8 @@
   },
   {
     "title": "Regular Show",
-    "secondaryLine": "2010 · Série",
+    "year": 2010,
+    "kind": "show",
     "category": "tv_shows_animation",
     "ids": {
       "tmdb": "31132",
@@ -3469,7 +4113,8 @@
   },
   {
     "title": "Les Animaniacs",
-    "secondaryLine": "1993 · Série",
+    "year": 1993,
+    "kind": "show",
     "category": "tv_shows_animation",
     "ids": {
       "tmdb": "82",
@@ -3480,7 +4125,8 @@
   },
   {
     "title": "Parks and Recreation",
-    "secondaryLine": "2009 · Série",
+    "year": 2009,
+    "kind": "show",
     "category": "tv_shows",
     "ids": {
       "tmdb": "8592",

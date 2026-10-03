@@ -82,7 +82,10 @@ CHOICES = """() => { const sheet = document.querySelector('#sheet');
     text: choice.querySelector('.lb')?.firstChild?.textContent.trim() ?? '',
     hint: choice.querySelector('small')?.textContent.trim() ?? '',
     checked: choice.getAttribute('aria-checked') === 'true'})); }"""
-CATEGORIES = """() => window.__queries.getQueryData(['/api/v1/library/categories']) ?? null"""
+# THE LENSES, from the leaves the engine served (K2-G5 = A): the grouping and the names are the
+# interface's, so the pills are compared with its own lenses over what was served.
+CATEGORIES = """() => { const leaves = window.__queries.getQueryData(['/api/v1/library/categories']);
+  return leaves ? window.__lensesOf(leaves) : null; }"""
 LIBRARY_TITLES = """() => [...document.querySelectorAll('#libitems [data-part="card/title"], #libitems [data-part="tile"] [data-part="tile/title"]')]
   .map((element) => element.textContent.trim())"""
 LIBRARY_ROWS = """() => (window.__queries.getQueryCache().getAll().filter(q => q.queryKey[0] === '/api/v1/library/items')

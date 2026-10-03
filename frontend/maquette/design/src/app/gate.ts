@@ -99,7 +99,9 @@ function plexBlock(): HTMLElement | null {
   block.append(disclosure, doors);
   gate.insertBefore(block, form);
   plex.addEventListener("click", () => void signInWithPlex());
-  disclosure.addEventListener("click", () => setPasswordOpen(form.hidden !== false));
+  disclosure.addEventListener("click", () =>
+    setPasswordOpen(form.hidden !== false),
+  );
   loginByEmail(form);
   return block;
 }
@@ -215,7 +217,8 @@ async function land(): Promise<void> {
   try {
     account = await client.fetchQuery({
       queryKey: ["/api/v1/auth/me"],
-      queryFn: async () => (await fetch("/api/v1/auth/me")).json() as Promise<Schemas["Account"]>,
+      queryFn: async () =>
+        (await fetch("/api/v1/auth/me")).json() as Promise<Schemas["Account"]>,
     });
   } catch (failure) {
     if (failure instanceof CancelledError) return;
@@ -261,14 +264,20 @@ async function signInWithPlex(): Promise<void> {
   showPart("plex-unreachable", false);
   showPart("plex-refusal", false);
   plexPage = window.open("", "_blank");
-  const started = await fetch("/api/v1/auth/plex/start", { method: "POST" }).catch(() => null);
+  const started = await fetch("/api/v1/auth/plex/start", {
+    method: "POST",
+  }).catch(() => null);
   if (generation !== plexGeneration) return;
-  if (started === null || started.status === UNREACHABLE) return (stopPlex(), plexDown());
+  if (started === null || started.status === UNREACHABLE)
+    return (stopPlex(), plexDown());
   const body = await bodyOf(started);
   if (!started.ok) return (stopPlex(), plexRefused(body));
   const { pinId, signInUrl } = body as Schemas["StartedPlexSignIn"];
   if (plexPage) plexPage.location.href = signInUrl;
-  node<HTMLAnchorElement>('[data-part="login/plex-reopen"]')?.setAttribute("href", signInUrl);
+  node<HTMLAnchorElement>('[data-part="login/plex-reopen"]')?.setAttribute(
+    "href",
+    signInUrl,
+  );
   await awaitPlex(pinId, generation);
 }
 
@@ -306,7 +315,10 @@ async function awaitPlex(pinId: number, generation: number): Promise<void> {
  * @param email The account's e-mail, as typed.
  * @param password The password typed.
  */
-async function signInWithPassword(email: string, password: string): Promise<void> {
+async function signInWithPassword(
+  email: string,
+  password: string,
+): Promise<void> {
   const refusal = node("#loginerr");
   const answer = await fetch("/api/v1/auth/login", {
     method: "POST",
@@ -314,7 +326,10 @@ async function signInWithPassword(email: string, password: string): Promise<void
   }).catch(() => null);
   if (answer?.ok) return land();
   if (refusal) {
-    refusal.textContent = refusalWords(answer ? await bodyOf(answer) : undefined, "screens.gate.invalid");
+    refusal.textContent = refusalWords(
+      answer ? await bodyOf(answer) : undefined,
+      "screens.gate.invalid",
+    );
     refusal.hidden = false;
   }
 }

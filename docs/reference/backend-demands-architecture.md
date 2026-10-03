@@ -247,8 +247,9 @@ ownership index, a richer hello). This file adds the decisions those registers c
   and `knownMedium` — engine-held fixture state a title string indexes loosely. L13's b·10-bis
   phase replaces that with an EXACT-TITLE (+ year) membership read against the served library, the
   same identity the media sheet already resolves by (rulings 41, 53). The backend brief inherits the
-  demand this exposes once the fixture is gone: a membership query keyed by the medium's identity
-  (provider + id, or exact title and year when no identity is held yet), not by a fuzzy title match.
+  demand this exposes once the fixture is gone: a membership query keyed by the medium's provider
+  identity (provider + id, TVDB first for a show — Q15), not by a title, exact or fuzzy; the
+  contract carries it (`readLibraryMembership`).
 
 ## 12. The global levers and the history's four gaps — §20, DOIT-6, L20
 

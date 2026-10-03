@@ -300,9 +300,11 @@ async def main():
           for (const id of ['readDownloads', 'readObligations', 'readLibraryIncomplete', 'readLibraryMembership'])
             window.__mocks.setOperationOutcome(id, { latencyMilliseconds: 1500 });
           window.__queries.removeQueries();
-          for (const [verb, value] of acts) {
+          for (const [verb, value, ref] of acts) {
             const act = document.createElement('button');
             act.setAttribute(`data-${verb}`, value);
+            // A removal names its row's identity too: a title alone removes nothing.
+            if (ref) act.setAttribute(`data-${verb}-ref`, ref);
             document.body.append(act);
             act.click();
             act.remove();
@@ -311,7 +313,7 @@ async def main():
           return window.__queries.isFetching();
         }""", [["torrent-remove", "held:held"], ["cross-seed-cut", "held:held"],
                ["cross-seed-exclude-title", "held"], ["cross-seed-upload", "held:held"],
-               ["del", "Les Animaniacs"]])
+               ["del", "Les Animaniacs", "tvdb:72879"]])
         await page.evaluate("()=>window.__go('lib-list')")
         await page.wait_for_timeout(2000)
         cancelled = [error for error in errors[held_since:] if "CancelledError" in error]
@@ -605,7 +607,7 @@ async def main():
         await page.wait_for_timeout(250)
         if moved.get("above"):
             await page.evaluate(
-                "(title)=>window.__deleteLibraryItems([title])", moved["above"])
+                "(title)=>window.__deleteLibraryItems([...window.__librarySelection([title]).values()])", moved["above"])
             await page.wait_for_timeout(300)
             settled = await page.evaluate(
                 "()=>Math.round(document.querySelector('#port').scrollTop)")

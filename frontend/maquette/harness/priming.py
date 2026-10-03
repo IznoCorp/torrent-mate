@@ -978,7 +978,7 @@ async def main():
         await page.evaluate("()=>window.__mocks.quiet()")
         await page.wait_for_timeout(300)
         before_delete = await page.evaluate(READ)
-        await page.evaluate("(title)=>window.__deleteLibraryItems([title])", TITLE)
+        await page.evaluate("(title)=>window.__deleteLibraryItems([...window.__librarySelection([title]).values()])", TITLE)
         # TWO ROUND TRIPS THROUGH THE LAYER, and the layer's default latency
         # applies to both: the mutation answers, and only THEN is the read the
         # invalidation causes issued. One `quiet()` waits for the first and

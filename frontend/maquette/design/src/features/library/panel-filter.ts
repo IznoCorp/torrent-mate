@@ -13,10 +13,9 @@ import { store } from "../../lib/store-access";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 import { choicesDescriptor } from "../../ui/pill-select";
 import { categoryCount } from "./category-filter";
-import { libraryIncompleteQuery, type LibraryPage } from "./queries";
-import type { IncompleteShow, LibraryCategory } from "./types";
-
-const CATEGORIES_KEY = ["/api/v1/library/categories"];
+import { libraryCategoriesQuery, libraryIncompleteQuery, type LibraryPage } from "./queries";
+import { lensesOf, type LeafCategory } from "./lenses";
+import type { IncompleteShow } from "./types";
 
 /**
  * Builds the filter panel's descriptor.
@@ -26,8 +25,9 @@ const CATEGORIES_KEY = ["/api/v1/library/categories"];
  * @returns The descriptor, or null while the categories have not landed.
  */
 function filterPanel(_subject: string, cache: PanelCache): PanelDescriptor | null {
-  const categories = cache.held<LibraryCategory[]>(CATEGORIES_KEY);
-  if (categories === undefined) return null;
+  const leaves = cache.held<LeafCategory[]>(libraryCategoriesQuery.queryKey);
+  if (leaves === undefined) return null;
+  const categories = lensesOf(leaves);
   const { libLens, libCat, q, sortKey, sortReversed } = store.read().state;
   const incomplete = cache.held<IncompleteShow[]>(libraryIncompleteQuery.queryKey) ?? [];
   // « Récents »' rows: the listing that lens draws, under the key it reads.
@@ -51,7 +51,7 @@ function filterPanel(_subject: string, cache: PanelCache): PanelDescriptor | nul
 registerProducer("library-filter", {
   produce: filterPanel,
   needs: [
-    { queryKey: CATEGORIES_KEY, queryFn: async () => read<LibraryCategory[]>(CATEGORIES_KEY[0]) },
+    libraryCategoriesQuery,
     libraryIncompleteQuery,
   ],
 });

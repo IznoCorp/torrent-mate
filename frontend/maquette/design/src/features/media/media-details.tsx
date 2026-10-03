@@ -10,6 +10,7 @@ import { SkeletonLine } from "../../ui/state-surfaces";
 import { actionButton, factKey, factsPanel, keyValueRow, sectionHeading, sheetActions } from "../../ui/variants";
 import { dateLabel } from "./format";
 import { useRights } from "../../lib/account";
+import { mediaRefOf, refKey } from "../../lib/membership";
 
 export function MediaDetails({
   title,
@@ -46,6 +47,9 @@ export function MediaDetails({
   const rights = useRights();
   const rescrape = rights.holds("library.rescrape");
   const remove = rights.holds("library.delete");
+  // THE REMOVAL IS HANDED THE SHEET'S OWN IDENTITY — the one its address names,
+  // TMDB first for a film — never the title, which two media may share.
+  const removalRef = mediaRefOf(prov, isFilm ? "movie" : "show");
   const request = rights.holds("acquisition.request");
   return (
     <>
@@ -125,8 +129,8 @@ export function MediaDetails({
               {t("screens.media.rescrape")}
             </button>
             ) : null}{" "}
-            {remove ? (
-            <button className={actionButton({ kind: "panelAction", tone: "danger" })} data-part="sheet/action" data-tone="danger" data-del={title}>
+            {remove && removalRef !== null ? (
+            <button className={actionButton({ kind: "panelAction", tone: "danger" })} data-part="sheet/action" data-tone="danger" data-del={title} data-del-ref={refKey(removalRef)}>
               <Icon paths={icons.trash} />
               {t("screens.media.delete")}
             </button>

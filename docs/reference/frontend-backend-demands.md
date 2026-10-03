@@ -30,7 +30,7 @@ than a blank page.
 | declared by both, different response shape | 53 |
 | declared by both, path parameter spelled differently | 17 |
 | declared by both, answered with a different status | 11 |
-| fields carried pre-formatted | 25 |
+| fields carried pre-formatted | 22 |
 | the backend has and the interface does not use | 12 |
 
 ---
@@ -40,7 +40,7 @@ than a blank page.
 | operation | operationId | what it is for |
 | --- | --- | --- |
 | `DELETE /api/v1/acquisition/downloads/{infoHash}` | `removeDownload` | Remove one entry from the download client, its files deleted or kept |
-| `DELETE /api/v1/library/items` | `deleteLibraryItems` | Delete titles from the library |
+| `DELETE /api/v1/library/items` | `deleteLibraryItems` | Delete media from the library, by provider identity |
 | `DELETE /api/v1/staging/media/{mediaId}` | `deleteStagedMedia` | Delete a staged folder from the disk |
 | `DELETE /api/v1/staging/media/{mediaId}/reclassify` | `restoreReclassifiedMedia` | Put a reclassified folder back in the staging area |
 | `DELETE /api/v1/torrents/{infoHash}/cross-seed/exclusions` | `undoCrossSeedExclusion` | Lift an exclusion, of one pair or of a whole title |
@@ -49,10 +49,10 @@ than a blank page.
 | `GET /api/v1/acquisition/releases` | `readReleases` | The release candidates for one wanted item |
 | `GET /api/v1/acquisition/search/by-id` | `searchProviderById` | Find the one medium a source knows under an identifier |
 | `GET /api/v1/acquisition/suggestions` | `readSuggestions` | Titles worth following, and why |
-| `GET /api/v1/library/categories` | `readLibraryCategories` | The categories and their counts |
+| `GET /api/v1/library/categories` | `readLibraryCategories` | The engine's leaf categories and their counts |
 | `GET /api/v1/library/incomplete` | `readLibraryIncomplete` | The series with holes, and how big each hole is |
 | `GET /api/v1/library/items` | `readLibraryItems` | The library listing, one page of it |
-| `GET /api/v1/library/membership` | `readLibraryMembership` | Whether the library holds one medium, asked by its exact title |
+| `GET /api/v1/library/membership` | `readLibraryMembership` | Whether the library holds one medium, asked by its provider identity |
 | `GET /api/v1/library/recent` | `readLibraryRecent` | The most recently added titles |
 | `GET /api/v1/media/{provider}/{providerId}/cross-seed` | `readMediaCrossSeed` | The medium's cross-seed, tracker by tracker |
 | `GET /api/v1/media/{provider}/{providerId}/seasons` | `readMediaSeasons` | The seasons of a show, and what the library holds of each |
@@ -223,9 +223,6 @@ yet.
 | `JournalRow` | `secondaryLine` |
 | `JournalRow` | `value` |
 | `JourneyStage` | `when` |
-| `LibraryItem` | `secondaryLine` |
-| `LibraryRow` | `secondaryLine` |
-| `MediaSheet` | `genres` |
 | `PendingDecision` | `when` |
 | `PipelineExecution` | `cause` |
 | `PipelineExecution` | `result` |

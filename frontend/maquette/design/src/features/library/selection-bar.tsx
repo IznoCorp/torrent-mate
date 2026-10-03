@@ -38,7 +38,7 @@ export function SelectionBar(): ReactElement | null {
   // flow still counting something else. The engine publishes the count with the
   // set; the set's own size stands in until it has.
   const ticked = useStoreContent(
-    (content) => (content.state.selected as Set<string> | undefined)?.size ?? 0,
+    (content) => (content.state.selected as Map<string, unknown> | undefined)?.size ?? 0,
   );
   const counted = useStoreContent(
     (content) => content.state.selectedMedia as number | undefined,

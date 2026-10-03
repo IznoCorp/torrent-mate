@@ -74,7 +74,8 @@ DRAWER_PAGES = """()=>[...document.querySelectorAll('a[data-navgo]')]
 
 # WHAT IS SELECTED, read where the selection lives rather than off the caption:
 # a caption is a sentence about the selection and can be right about nothing.
-SELECTED = """()=>[...(window.__store?.read().state.selected || [])]"""
+# The selection is keyed by identity; what it ticked is read as the titles its rows read.
+SELECTED = """()=>[...(window.__store?.read().state.selected?.values() || [])].map((one) => one.title)"""
 
 # WHAT IS DRAWN AND WHAT A FINGER REACHES, and the caller says which question it
 # is asking. With `lift`, inertness comes off and back on and the answer is what
