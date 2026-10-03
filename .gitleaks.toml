@@ -14,4 +14,6 @@ regexes = [
     '''abcdef1234567890abcdef1234567890''',
     # The tracker-capture redaction tests plant fake keys that all start with PLANTED.
     '''^PLANTED[a-z0-9]+$''',
+    # The token vault tests plant fake tokens and malformed keys: tok-PLANTED-<hex>, not-a-key-PLANTED-<hex>.
+    '''^(tok|not-a-key|not-a-fernet-key)-PLANTED-[a-z0-9]+$''',
 ]
