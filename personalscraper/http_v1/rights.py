@@ -37,6 +37,8 @@ OPERATION_RIGHTS: Final[Mapping[str, Requirement]] = MappingProxyType(
         "signOut": SignedIn(),
         "signInWithPlex": Public(),
         "readVersion": SignedIn(),
+        # One's own password, on one's own account: a session act like signOut, no right to name.
+        "changeOwnPassword": SignedIn(),
         # The account's own notification choices and devices: a session act, no right; the
         # writes are refused on a read-only instance (ruling of 2026-10-03).
         "readNotificationPreferences": SignedIn(),
@@ -46,6 +48,7 @@ OPERATION_RIGHTS: Final[Mapping[str, Requirement]] = MappingProxyType(
         "readAccounts": AnyOf(frozenset({Right.ACCOUNTS_MANAGE, Right.ACQUISITION_REASSIGN})),
         "createAccount": holds(Right.ACCOUNTS_MANAGE),
         "updateAccount": holds(Right.ACCOUNTS_MANAGE),
+        "resetAccountPassword": holds(Right.ACCOUNTS_MANAGE),
         "createRole": holds(Right.ACCOUNTS_MANAGE),
         "updateRole": holds(Right.ACCOUNTS_MANAGE),
         "readLibraryItems": holds(Right.LIBRARY_READ),
