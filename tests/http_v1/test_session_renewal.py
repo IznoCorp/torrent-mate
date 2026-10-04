@@ -193,7 +193,7 @@ class TestRenewalOnTheWire:
         assert wire.send("GET", "/auth/me", _renewed(response)).status_code == 200
 
     def test_the_old_cookie_is_refused_after_the_grace(self, wire: _Wire) -> None:
-        """The new value used, the old one signs in for the grace, then answers 401 ``auth.required``."""
+        """The new value used, the old one signs in for the grace, then answers 401 ``auth.required``, no cookie set."""
         wire.clock.now += SESSION_RENEWAL_INTERVAL_S
         new = _renewed(wire.send("GET", "/auth/me", wire.token))
         assert wire.send("GET", "/auth/me", new).status_code == 200
@@ -204,14 +204,16 @@ class TestRenewalOnTheWire:
         refused = wire.send("GET", "/auth/me", wire.token)
         assert refused.status_code == 401
         assert refused.json()["code"] == "auth.required"
+        assert _session_cookies(refused) == []
         assert wire.send("GET", "/auth/me", new).status_code == 200
 
     def test_idle_past_the_lifetime_is_auth_required(self, wire: _Wire, test_config: Config) -> None:
-        """Unused for the idle lifetime: 401 ``auth.required``."""
+        """Unused for the idle lifetime: 401 ``auth.required``, and no session cookie set."""
         wire.clock.now += session_idle_s(test_config.web.session_idle_days)
         refused = wire.send("GET", "/auth/me", wire.token)
         assert refused.status_code == 401
         assert refused.json()["code"] == "auth.required"
+        assert _session_cookies(refused) == []
 
     def test_used_daily_the_session_outlives_its_lifetime(self, wire: _Wire, test_config: Config) -> None:
         """Used once a day for twice the idle lifetime, the browser keeping each cookie, it still signs in."""
