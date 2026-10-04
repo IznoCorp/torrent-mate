@@ -277,7 +277,12 @@ V1_SIGN_IN = """
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: form.username.value.trim(), password: form.password.value })
     }).then(function (answer) {
-      if (answer.ok) return location.replace(RETURN_TO);
+      if (answer.ok) {
+        // The application boots from scratch after this page: the mark is how its first boot
+        // knows a person has just signed in, and proposes the install (`app/install-state.ts`).
+        try { sessionStorage.setItem('tm-signed-in', '1'); } catch (e) {}
+        return location.replace(RETURN_TO);
+      }
       return answer.json().catch(function () { return {}; })
         .then(function (problem) { location.replace(refused(problem && problem.code)); });
     }).catch(function () { location.replace(refused()); });

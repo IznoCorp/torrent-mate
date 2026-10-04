@@ -519,9 +519,9 @@ def test_the_sign_in_page_carries_the_address_that_was_asked_and_never_a_foreign
 SUBMIT_DRIVER = """
 const script = process.argv[1];
 const answered = { status: Number(process.argv[2]), code: process.argv[3] };
-const seen = { replaced: [] };
+const seen = { replaced: [], stored: {} };
 let submit = null;
-globalThis.sessionStorage = { getItem: () => String(Date.now()), setItem: () => {} };
+globalThis.sessionStorage = { getItem: () => String(Date.now()), setItem: (key, value) => { seen.stored[key] = value; } };
 globalThis.location = { pathname: '/', search: '', replace: (to) => { seen.replaced.push(to); } };
 const form = {
   username: { value: ' a@b.c ' }, password: { value: 'pw' },
@@ -547,7 +547,7 @@ globalThis.fetch = (path) => {
 """
 
 
-def submit(return_to: str, status: int, code: str = "") -> list[str]:
+def submit(return_to: str, status: int, code: str = "") -> dict[str, object]:
     """Submit the sign-in page's form under node.
 
     Args:
@@ -556,7 +556,7 @@ def submit(return_to: str, status: int, code: str = "") -> list[str]:
         code: The refusal code in its body, if any.
 
     Returns:
-        The addresses the page navigated to, in order.
+        `replaced`: the addresses the page navigated to, in order; `stored`: what it wrote to session storage.
     """
     node = shutil.which("node")
     if node is None:
@@ -574,16 +574,24 @@ def submit(return_to: str, status: int, code: str = "") -> list[str]:
         timeout=30,
         check=True,
     )
-    return list(json.loads(run.stdout)["replaced"])
+    return dict(json.loads(run.stdout))
 
 
 def test_a_signed_in_page_returns_to_the_address_that_was_asked() -> None:
     """After v1 opens the session, the page goes to its return place, not `/`."""
-    assert submit("/mediasheet/12?tab=files", 200) == ["/mediasheet/12?tab=files"]
+    assert submit("/mediasheet/12?tab=files", 200)["replaced"] == ["/mediasheet/12?tab=files"]
 
 
 def test_a_refused_page_keeps_the_address_and_says_why_when_it_is_known() -> None:
     """A refusal comes back to the sign-in page with the place kept, and the code only when it is a reason."""
     kept = "next=%2Fmediasheet%2F12"
-    assert submit("/mediasheet/12", 401, "auth.refused") == [f"/?refus=1&{kept}"]
-    assert submit("/mediasheet/12", 403, "auth.access_disabled") == [f"/?refus=1&why=auth.access_disabled&{kept}"]
+    assert submit("/mediasheet/12", 401, "auth.refused")["replaced"] == [f"/?refus=1&{kept}"]
+    assert submit("/mediasheet/12", 403, "auth.access_disabled")["replaced"] == [
+        f"/?refus=1&why=auth.access_disabled&{kept}"
+    ]
+
+
+def test_the_page_leaves_the_mark_the_first_boot_reads_only_for_a_sign_in_that_worked() -> None:
+    """The install proposal comes right after a sign-in: the page leaves its mark on success, never on a refusal."""
+    assert submit("/", 200)["stored"] == {"tm-signed-in": "1"}
+    assert submit("/", 401, "auth.refused")["stored"] == {}
