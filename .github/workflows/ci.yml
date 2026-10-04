@@ -65,24 +65,36 @@ jobs:
       github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     # On a push to develop nothing is filtered: every scope is read.
+    # On a pull request every output is a filter verdict, combined here — the
+    # changed-file lists never reach a step's environment: a PR renaming a
+    # directory lists thousands of paths (a rename counts its old path AND its
+    # new one) and overflows the runner's argument limit.
     outputs:
-      python: ${{ github.event_name == 'push' && 'true' || steps.raffine.outputs.python }}
+      python: >-
+        ${{ github.event_name == 'push' && 'true' ||
+        (steps.filtre.outputs.python == 'true' || steps.refine.outputs.package == 'true') && 'true' || 'false' }}
       deps: ${{ github.event_name == 'push' && 'true' || steps.filtre.outputs.deps }}
-      frontend_app: ${{ github.event_name == 'push' && 'true' || steps.raffine.outputs.frontend_app }}
+      frontend_app: >-
+        ${{ github.event_name == 'push' && 'true' ||
+        (steps.filtre.outputs.frontend_app == 'true' || steps.refine.outputs.package == 'true') && 'true' || 'false' }}
       maquette: ${{ github.event_name == 'push' && 'true' || steps.filtre.outputs.maquette }}
       docs: ${{ github.event_name == 'push' && 'true' || steps.filtre.outputs.docs }}
-      docs_only: ${{ github.event_name == 'push' && 'false' || steps.raffine.outputs.docs_only }}
+      # Fails safe: a missing `not_docs` verdict reads as "not docs-only".
+      docs_only: >-
+        ${{ github.event_name == 'push' && 'false' ||
+        steps.refine.outputs.not_docs == 'false' && 'true' || 'false' }}
     steps:
       # No checkout: on pull_request events the filter reads the PR file list
       # from the API.
+      # `personalscraper/**` is not in the `python` and `frontend_app` filters
+      # below: it is read by the `package` filter of the next step, and joined
+      # to both in the job outputs.
       - uses: dorny/paths-filter@v3
         id: filtre
         if: github.event_name == 'pull_request'
         with:
-          list-files: json
           filters: |
             python:
-              - 'personalscraper/**'
               - 'tests/**'
               - 'scripts/**'
               - 'config.example/**'
@@ -95,7 +107,6 @@ jobs:
             frontend_app:
               - 'frontend/**'
               - 'contract/openapi.generated.json'
-              - 'personalscraper/**'
               - 'pyproject.toml'
               - '.github/workflows/ci.yml'
             maquette:
@@ -105,38 +116,37 @@ jobs:
             docs:
               - 'docs/**'
               - 'IMPLEMENTATION.md'
-            everything:
-              - '**'
-      # Refinements the filter's glob language cannot express (negation only
-      # works with the global 'every' quantifier, which would break the plain
-      # filters above):
-      # - `personalscraper/__init__.py` alone is NOT a python change: the
-      #   release bump (scripts/promote.sh release) changes only the version
-      #   there, and counting it as python code would re-run the full suite on
-      #   a one-line PR. A substantive edit to that file virtually always
-      #   accompanies other python changes.
+      # Refinements that need negation, which only the 'every' quantifier
+      # honours — and 'every' would break the plain filters above, hence a
+      # second filter step. 'every' is per FILE: a file matches a filter when
+      # it matches all of its patterns; the filter is 'true' when at least one
+      # changed file matches.
+      # - `package`: `personalscraper/__init__.py` alone is NOT a python change:
+      #   the release bump (scripts/promote.sh release) changes only the
+      #   version there, and counting it as python code would re-run the full
+      #   suite on a one-line PR. A substantive edit to that file virtually
+      #   always accompanies other python changes.
+      # - `not_docs`: some changed file is neither under `docs/` nor a `.md`.
+      #   Docs-only is its negation — the pre-push hook's own definition
+      #   (`hooks/pre-push`): every changed path is under `docs/` or ends in
+      #   `.md` — `BUGS.md` and every root `*.md` included, a nested
+      #   `webui/README.md` too, on purpose: one definition of "docs-only",
+      #   not a second one that can drift from it.
       # `webui/**` is NOT a frontend-app change, and no `frontend_app` pattern
       # matches it: the maquette has its own steps, gated by the `maquette` output.
-      - id: raffine
+      - uses: dorny/paths-filter@v3
+        id: refine
         if: github.event_name == 'pull_request'
-        env:
-          PYTHON_FILES: ${{ steps.filtre.outputs.python_files }}
-          FRONTEND_FILES: ${{ steps.filtre.outputs.frontend_app_files }}
-          ALL_FILES: ${{ steps.filtre.outputs.everything_files }}
-        run: |
-          set -euo pipefail
-          python=$(jq -r 'map(select(. != "personalscraper/__init__.py")) | length > 0' <<< "${PYTHON_FILES}")
-          frontend_app=$(jq -r 'map(select(. != "personalscraper/__init__.py")) | length > 0' <<< "${FRONTEND_FILES}")
-          # The pre-push hook's own definition (`hooks/pre-push`): every changed
-          # path is under `docs/` or ends in `.md` — `BUGS.md` and every root
-          # `*.md` included, a nested `webui/README.md` too, on purpose:
-          # one definition of "docs-only", not a second one that can drift from it.
-          docs_only=$(jq -r 'all(.[]; startswith("docs/") or endswith(".md"))' <<< "${ALL_FILES}")
-          echo "python=${python}" >> "$GITHUB_OUTPUT"
-          echo "frontend_app=${frontend_app}" >> "$GITHUB_OUTPUT"
-          echo "docs_only=${docs_only}" >> "$GITHUB_OUTPUT"
-          echo "docs_only=${docs_only}"
-          echo "python=${python} frontend_app=${frontend_app}"
+        with:
+          predicate-quantifier: 'every'
+          filters: |
+            package:
+              - 'personalscraper/**'
+              - '!personalscraper/__init__.py'
+            not_docs:
+              - '**'
+              - '!docs/**'
+              - '!**/*.md'
 
   # ── Stage 1: Fast checks (parallel) ───────────────────
   lint:
