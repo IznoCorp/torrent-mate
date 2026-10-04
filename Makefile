@@ -85,7 +85,7 @@ check: lint
 	python3 scripts/compare-contracts.py --check --have v1
 	@echo "Checking OpenAPI drift..."
 	@if [ -d frontend/node_modules ]; then $(MAKE) openapi && git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts frontend/openapi-v1.json; else echo "openapi-drift: skipped (frontend/node_modules absent)"; fi
-	@if [ -d frontend/node_modules ]; then $(MAKE) check-contract-types; else echo "contract-types: skipped (frontend/node_modules absent)"; fi
+	@if [ -d frontend/maquette/design/node_modules ]; then $(MAKE) check-contract-types; else echo "contract-types: skipped (frontend/maquette/design/node_modules absent)"; fi
 	@if [ -d frontend/node_modules ]; then $(MAKE) check-frontend; else echo "check-frontend: skipped (frontend/node_modules absent)"; fi
 
 format:

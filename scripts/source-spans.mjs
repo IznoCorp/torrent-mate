@@ -11,7 +11,7 @@
  *
  * No heuristic separates them reliably — prose between `}` and `{` also
  * describes `} export function Name(): Thing {`. The compiler's parser does,
- * and it is already a dependency of this frontend.
+ * and it is already a dependency of the maquette's design app.
  *
  * Usage: node scripts/source-spans.mjs <file>
  * Output: one `kind start end` triple per line — `protected` or `comment`.
@@ -20,7 +20,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 
 const require_ = createRequire(import.meta.url);
-const ts = require_("../frontend/node_modules/typescript");
+const ts = require_("../frontend/maquette/design/node_modules/typescript");
 
 const file = process.argv[2];
 const text = readFileSync(file, "utf8");
