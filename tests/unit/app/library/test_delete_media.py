@@ -621,3 +621,41 @@ def test_a_disk_the_index_knows_unmounted_keeps_the_plex_trash(shelf: Shelf) -> 
     assert one.deleted
     assert one.plex is PlexOutcome.TRASH_KEPT
     assert one.plex_steps is not None and one.plex_steps.trash_kept is TrashKept.DISK_UNMOUNTED
+
+
+def test_one_folder_deleted_and_one_failed_keeps_the_rows_and_tells_plex_of_the_deleted_one(
+    shelf: Shelf, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A medium in two folders, one removal failing: the rows kept, Plex told where the deleted one stood only."""
+    from personalscraper.app.library import service as service_module
+    from personalscraper.app.library.service import _DeletionPlan
+    from personalscraper.indexer.deletion import DeleteOutcome, DeleteResult
+
+    item, kept = shelf.movie("Movie (2020)", "11", folder="docs/Movie (2020)")
+    gone = shelf.root / "films" / "Movie (2020)"
+    gone.mkdir(parents=True)
+    real = service_module.delete_media_folder
+
+    def failing_on_kept(path: Path, **kwargs: object) -> DeleteResult:
+        if path == kept.resolve():
+            return DeleteResult(DeleteOutcome.FAILED, error="busy")
+        return real(path, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(service_module, "delete_media_folder", failing_on_kept)
+    plan = _DeletionPlan(
+        ref=MediaRef(tmdb_id=11),
+        item_id=item,
+        targets=((shelf.root.resolve(), gone.resolve()), (shelf.root.resolve(), kept.resolve())),
+        unresolved=0,
+        unreachable=0,
+    )
+
+    report = shelf.service._told_plex([shelf.service._delete_one(shelf.actor, plan, shelf.permit)])
+
+    assert not gone.exists()
+    assert (kept / "movie.mkv").is_file()
+    assert shelf.rows() == [item]
+    assert [call for call in shelf.plex.calls if call[0] == "refresh"] == [("refresh", str(shelf.root.resolve()))]
+    [one] = report.media
+    assert (one.folders_deleted, one.folders_failed, one.rows_removed, one.deleted) == (1, 1, 0, False)
+    assert one.plex is PlexOutcome.REFRESHED
