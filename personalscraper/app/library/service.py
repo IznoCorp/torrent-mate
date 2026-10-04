@@ -65,7 +65,7 @@ from personalscraper.app.library.listing import (
     read_live_rows,
 )
 from personalscraper.app.maintenance.registry import REGISTRY
-from personalscraper.app.maintenance.service import LaunchedRun, launch_action
+from personalscraper.app.maintenance.service import LaunchedRun, launch_action, running_run_uid
 from personalscraper.core.identity import MediaRef
 from personalscraper.indexer.ownership import IndexerOwnershipChecker
 from personalscraper.logger import get_logger
@@ -222,13 +222,15 @@ class SeasonsFacts:
 
 @dataclass(frozen=True)
 class RescrapeAccepted:
-    """A medium's rescrape, accepted and launched.
+    """A medium's rescrape, accepted: launched, or already under way.
 
     Attributes:
         provider: The provider the medium was named at.
         provider_id: Its id there, as the wire named it.
         queued: Whether ``pipeline.lock`` was held: the run waits in the visible queue.
-        run_uid: The run of the lowest holding row (one run per row holding live files).
+        run_uid: The run of the lowest holding row launched now (one run per row holding
+            live files), else the lowest holding row's run already under way; ``None``
+            when that run ended before it could be read.
     """
 
     provider: Provider
@@ -745,19 +747,20 @@ class LibraryService:
 
         One ``library-rescrape-item`` run is reserved and spawned per holding row with live
         files (a duplicate with files in both rows rescrapes both), no dry run first. A held
-        ``pipeline.lock`` is no refusal: the runs wait in the visible queue.
+        ``pipeline.lock`` is no refusal: the runs wait in the visible queue. A row whose
+        rescrape already runs is no refusal either: the ask is accepted on that run (the
+        contract's ``rescrapeMedia`` declares no 409).
 
         Args:
             actor: Who asks (not consulted: the v1 perimeter holds ``library.rescrape``).
             ref: The medium, by the one id the wire names.
 
         Returns:
-            The acceptance, naming the lowest holding row's run.
+            The acceptance, naming the lowest holding row's launched run, else the lowest
+            holding row's run already under way (``None`` when it ended in between).
 
         Raises:
             AppNotFound: ``media.not_found`` when no row holding the id has a live file.
-            AppConflict: When every holding row's rescrape is already running (a row
-                already running is skipped while another one launches).
             AppInternalError: When a runner cannot be spawned; the runs spawned before it
                 stay live.
         """
@@ -769,24 +772,21 @@ class LibraryService:
             raise refuse_not_found(provider.value)
         action = next(a for a in REGISTRY if a.id == _RESCRAPE_ITEM_ACTION)
         launched: list[LaunchedRun] = []
-        conflict: AppConflict | None = None
+        running: list[str | None] = []
         for item_id in sorted(live):
+            options = {"item_id": item_id}
             try:
-                launched.append(
-                    launch_action(action, {"item_id": item_id}, db_path=self._index_db, data_dir=self._data_dir)
-                )
-            except AppConflict as exc:
-                # This row's rescrape is already running: the other holders still launch.
+                launched.append(launch_action(action, options, db_path=self._index_db, data_dir=self._data_dir))
+            except AppConflict:
+                # This row's rescrape is already running: the ask is accepted on that run.
                 log.info("app.library.rescrape_already_running", provider=provider.value, item_id=item_id)
-                conflict = exc
-        if not launched and conflict is not None:
-            raise conflict
+                running.append(running_run_uid(action, options, db_path=self._index_db))
         log.info("app.library.rescrape_launched", provider=provider.value, item_ids=sorted(live))
         return RescrapeAccepted(
             provider=provider,
             provider_id=provider_id,
             queued=any(run.queued for run in launched),
-            run_uid=launched[0].run_uid,
+            run_uid=launched[0].run_uid if launched else running[0],
         )
 
     # ------------------------------------------------------------------ the sheet's parts

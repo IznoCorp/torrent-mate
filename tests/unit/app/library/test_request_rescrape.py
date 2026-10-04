@@ -10,13 +10,13 @@ from pathlib import Path
 import pytest
 
 from personalscraper.app.errors import (
-    AppConflict,
     AppInternalError,
     AppNotFound,
     AppPreconditionRequired,
     RefusalCode,
 )
 from personalscraper.app.library.identity import Provider
+from personalscraper.app.library.service import RescrapeAccepted
 from personalscraper.app.maintenance import service as maintenance_service
 from personalscraper.app.maintenance.registry import REGISTRY, canonical_options_json
 from personalscraper.core.identity import MediaRef
@@ -244,17 +244,19 @@ def _seed_running(index_path: Path, item_id: int) -> None:
     )
 
 
-def test_a_rescrape_already_running_is_a_conflict_and_nothing_spawns(
+def test_a_rescrape_already_running_is_accepted_with_its_run_and_nothing_spawns(
     world: World, spawned: list[tuple[str, str, str, bool]]
 ) -> None:
-    """The one holder's rescrape is already running: 409, no spawn, no second row."""
+    """The one holder's rescrape is already running: accepted on that run, no spawn, no second row."""
     movie = world.index.item("Heat", tmdb="949")
     world.index.movie_file(movie, "films/Heat")
     _seed_running(world.index.path, movie)
 
-    with pytest.raises(AppConflict):
-        world.service.request_rescrape(world.actor, MediaRef(tmdb_id=949))
+    accepted = world.service.request_rescrape(world.actor, MediaRef(tmdb_id=949))
 
+    assert accepted == RescrapeAccepted(
+        provider=Provider.TMDB, provider_id="949", queued=False, run_uid=f"{movie:032d}"
+    )
     assert spawned == []
     assert len(_runs(world.index.path)) == 1
 
@@ -275,8 +277,10 @@ def test_a_running_holder_is_skipped_and_the_other_launched(
     assert accepted.run_uid == spawned[0][0]
 
 
-def test_every_holder_already_running_is_a_conflict(world: World, spawned: list[tuple[str, str, str, bool]]) -> None:
-    """Both live holders are already running: 409 and nothing spawns."""
+def test_every_holder_already_running_is_accepted_on_the_lowest_run(
+    world: World, spawned: list[tuple[str, str, str, bool]]
+) -> None:
+    """Both live holders are already running: accepted on the lowest row's run, nothing spawns."""
     first = world.index.item("Friends", kind="show", tvdb="79168", year=1994)
     world.index.episodes(first, 1, [1], folder="series/Friends/Saison 01")
     second = world.index.item("Friends [UNCUT]", kind="show", tvdb="79168", year=1994)
@@ -284,9 +288,10 @@ def test_every_holder_already_running_is_a_conflict(world: World, spawned: list[
     _seed_running(world.index.path, first)
     _seed_running(world.index.path, second)
 
-    with pytest.raises(AppConflict):
-        world.service.request_rescrape(world.actor, MediaRef(tvdb_id=79168))
+    accepted = world.service.request_rescrape(world.actor, MediaRef(tvdb_id=79168))
 
+    assert accepted.queued is False
+    assert accepted.run_uid == f"{min(first, second):032d}"
     assert spawned == []
 
 
