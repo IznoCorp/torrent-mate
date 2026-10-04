@@ -1,9 +1,9 @@
-"""Unit tests for the accounts migrations of ``app.db`` — ``002_accounts.sql`` to ``004_account_sign_in_allowed.sql``.
+"""Unit tests for the accounts migrations of ``app.db`` — ``002_accounts.sql`` to ``005_account_demoted_from.sql``.
 
-A fresh file reaches version 4 with the five seeded roles; an existing file keeps its push
+A fresh file reaches version 5 with the five seeded roles; an existing file keeps its push
 subscriptions through ``003``'s rebuild, and a subscription naming no account makes the
 migration fail loud, the runner restoring the file as it stood before ``003``. ``004`` gives
-every account, existing or new, ``sign_in_allowed = 1``.
+every account, existing or new, ``sign_in_allowed = 1``; ``005`` leaves every account not demoted.
 """
 
 from __future__ import annotations
@@ -105,9 +105,9 @@ def fresh(tmp_path: Path) -> Iterator[sqlite3.Connection]:
 class TestFreshFile:
     """A file created today holds the whole schema and the five seeded roles."""
 
-    def test_reaches_version_four(self, fresh: sqlite3.Connection) -> None:
+    def test_reaches_version_five(self, fresh: sqlite3.Connection) -> None:
         """Every migration applied."""
-        assert fresh.execute("PRAGMA user_version").fetchone()[0] == 4
+        assert fresh.execute("PRAGMA user_version").fetchone()[0] == 5
 
     def test_seeds_the_five_roles_with_their_kinds_and_no_name(self, fresh: sqlite3.Connection) -> None:
         """The maquette's five roles; a seeded role carries no name (its id is translated by the interface)."""
@@ -259,7 +259,7 @@ class TestExistingFile:
         finally:
             store.close()
 
-        assert _user_version(db_path) == 4
+        assert _user_version(db_path) == 5
         conn = _connect(db_path)
         try:
             rows = conn.execute(f"SELECT {_PUSH_COLUMNS} FROM push_subscription").fetchall()  # noqa: S608 — fixed names
@@ -324,7 +324,7 @@ class TestAccountAccessMigration:
         finally:
             store.close()
 
-        assert _user_version(db_path) == 4
+        assert _user_version(db_path) == 5
         assert account is not None
         assert account.sign_in_allowed is True
         assert (account.name, account.email, account.role_id, account.password_hash) == (
@@ -333,3 +333,30 @@ class TestAccountAccessMigration:
             "household",
             "h",
         )
+
+
+class TestAccountDemotionMigration:
+    """``005`` on a file that already holds accounts."""
+
+    def test_an_existing_account_is_not_demoted(self, tmp_path: Path) -> None:
+        """A version-4 file's account comes out of ``005`` with no demotion, every other column unchanged."""
+        db_path = _file_at(tmp_path, 4)
+        conn = _connect(db_path)
+        try:
+            conn.execute(
+                "INSERT INTO account (id, name, email, role_id, password_hash, created_at, updated_at, sign_in_allowed)"
+                " VALUES ('account-alice', 'Alice', 'alice@x', 'household', 'h', 1, 2, 0)"
+            )
+        finally:
+            conn.close()
+
+        store = AppStore(db_path)
+        try:
+            account = store.accounts.account("account-alice")
+        finally:
+            store.close()
+
+        assert _user_version(db_path) == 5
+        assert account is not None
+        assert account.demoted_from is None
+        assert (account.role_id, account.password_hash, account.sign_in_allowed) == ("household", "h", False)

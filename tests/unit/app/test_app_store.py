@@ -55,7 +55,7 @@ def test_first_use_creates_app_db_at_baseline(test_config: Config, tmp_path: Pat
 
     db_path = data_dir / "app.db"
     assert db_path.is_file()
-    assert _user_version(db_path) == 4
+    assert _user_version(db_path) == 5
     conn = sqlite3.connect(db_path)
     try:
         tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
@@ -90,7 +90,7 @@ def test_building_the_store_creates_no_file(test_config: Config, tmp_path: Path)
 
 
 def test_reopening_applies_nothing(test_config: Config, tmp_path: Path) -> None:
-    """A second open of a migrated file leaves ``user_version`` at 4 and keeps its rows."""
+    """A second open of a migrated file leaves ``user_version`` at 5 and keeps its rows."""
     cfg = _config(test_config, tmp_path / "data")
     first = build_app_store(cfg)
     try:
@@ -115,7 +115,7 @@ def test_reopening_applies_nothing(test_config: Config, tmp_path: Path) -> None:
         assert [s.token for s in second.push.live_for("alice")] == ["t1"]
     finally:
         second.close()
-    assert _user_version(tmp_path / "data" / "app.db") == 4
+    assert _user_version(tmp_path / "data" / "app.db") == 5
 
 
 def test_concurrent_first_accesses_open_one_connection(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

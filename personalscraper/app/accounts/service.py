@@ -43,7 +43,7 @@ _DUMMY_HASH: Final[str] = hash_password(secrets.token_urlsafe(32))
 
 @dataclass(frozen=True)
 class SignInResult:
-    """A password sign-in that succeeded.
+    """A sign-in that succeeded, by password or by Plex.
 
     Attributes:
         account: The signed-in account.
@@ -237,34 +237,31 @@ class AccountService:
             self._limiter.record_failure(client_key)
             log.info("v1_sign_in_refused", client_key=client_key)
             raise AppUnauthenticated("The sign-in was refused.", code=RefusalCode.AUTH_REFUSED)
-        token = self._open_session_if_allowed(repo, account.id, user_agent=user_agent)
-        actor = self._sessions.resolve(token)
-        if actor is None:
-            raise AppUnauthenticated("The session's account no longer exists.", code=RefusalCode.AUTH_REQUIRED)
-        log.info("v1_signed_in", account_id=account.id)
-        return SignInResult(account=self._account_view(repo, account, actor), session_token=token)
+        return self.open_proven_session(account.id, user_agent=user_agent)
 
-    def _open_session_if_allowed(self, repo: AccountRepository, account_id: str, *, user_agent: str | None) -> str:
+    def open_proven_session(self, account_id: str, *, user_agent: str | None) -> SignInResult:
         """Open a session for an account whose identity is proven, unless an Admin cut its access.
 
         Every sign-in door ends here once the credentials are proven, so the cut account's
-        refusal never tells anything to someone who does not hold them; the Plex door
-        calls it once the PIN is claimed and the identity proven to hold the account. The
-        access is read and the session opened in one ``BEGIN IMMEDIATE`` transaction: a cut
-        that commits while scrypt runs is seen here, and can never leave a session live.
+        refusal never tells anything to someone who does not hold them: the password door
+        once the password matches, the Plex door once the PIN is claimed and the identity
+        proven to hold the account. The access is read and the session opened in one
+        ``BEGIN IMMEDIATE`` transaction: a cut that commits while scrypt or plex.tv runs is
+        seen here, and can never leave a session live.
 
         Args:
-            repo: The account repository.
             account_id: The account signed in.
             user_agent: The browser's user agent, kept on the session.
 
         Returns:
-            The new session's value.
+            The signed-in account and its new session's value.
 
         Raises:
-            AppUnauthenticated: ``auth.refused`` — the account was deleted since it was read.
+            AppUnauthenticated: ``auth.refused`` — the account was deleted since it was read;
+                ``auth.required`` — its session no longer resolves.
             AppForbidden: ``auth.access_disabled`` — the account's access is cut.
         """
+        repo = self._repo_factory()
         with repo.immediate():
             account = repo.account(account_id)
             if account is None:
@@ -272,7 +269,12 @@ class AccountService:
             if not account.sign_in_allowed:
                 log.info("v1_sign_in_access_disabled", account_id=account_id)
                 raise AppForbidden("This account's access is cut.", code=RefusalCode.AUTH_ACCESS_DISABLED)
-            return self._sessions.open(account_id, user_agent=user_agent)
+            token = self._sessions.open(account_id, user_agent=user_agent)
+        actor = self._sessions.resolve(token)
+        if actor is None:
+            raise AppUnauthenticated("The session's account no longer exists.", code=RefusalCode.AUTH_REQUIRED)
+        log.info("v1_signed_in", account_id=account.id)
+        return SignInResult(account=self._account_view(repo, account, actor), session_token=token)
 
     def set_password(self, email: str, password: str) -> None:
         """Give an account a password — the server's door of last resort (the CLI's only).
@@ -544,8 +546,7 @@ class AccountService:
             role: Its role.
 
         Returns:
-            The view; ``demoted_from`` stays ``None`` (nothing demotes an account before
-            the Plex link).
+            The view, with the role a Plex link demoted it from when it was.
         """
         return AccountSummaryView(
             id=account.id,
@@ -554,6 +555,7 @@ class AccountService:
             role=role_view(role),
             sign_in_kind=sign_in_kind(repo.plex_link(account.id)),
             sign_in_allowed=account.sign_in_allowed,
+            demoted_from=account.demoted_from,
         )
 
     def read_roster(self, actor: Actor) -> RosterView:
@@ -666,7 +668,7 @@ class AccountService:
             role_id: The role it is put on.
 
         Returns:
-            The account on its new role.
+            The account on its new role, its Plex link's demotion cleared.
 
         Raises:
             AppNotFound: ``account.unknown``, ``role.unknown``.
@@ -704,9 +706,11 @@ class AccountService:
             if leaves_admin and repo.count_on_role_kind(RoleKind.ADMIN) <= 1:
                 raise AppConflict("No account would be left on the Admin role.", code=RefusalCode.ACCOUNT_LAST_ADMIN)
             moved = account.role_id != target.id
-            if moved:
+            # A role given is an Admin's decision: it clears the demotion a Plex link
+            # recorded, even when it confirms the role the link dropped the account to.
+            if moved or account.demoted_from is not None:
                 repo.set_role(account.id, target.id, now=self._clock())
-            summary = self._summary(repo, account, target)
+            summary = self._summary(repo, replace(account, demoted_from=None), target)
         if moved:
             log.info("account_role_assigned", account_id=account.id, role_id=target.id, by=actor.account_id)
             self._bus.emit(AccountRightsChanged(account_ids=(account.id,), cause=RightsChangeCause.ROLE_ASSIGNED))

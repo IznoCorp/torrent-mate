@@ -7,6 +7,8 @@ with ``response_model_exclude_none``.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import Field
 
 from personalscraper.app.accounts.actor import RoleKind
@@ -105,6 +107,38 @@ class SignInBody(ContractModel):
 
     email: str
     password: str = Field(repr=False)
+
+
+class StartedPlexSignInModel(ContractModel):
+    """The contract's ``StartedPlexSignIn``: the PIN, and plex.tv's page where the person confirms it.
+
+    Attributes:
+        pin_id: The PIN's key, the one ``signInWithPlex`` takes.
+        sign_in_url: plex.tv's page; it carries the PIN code, so it is kept out of the ``repr``.
+    """
+
+    pin_id: int
+    sign_in_url: str = Field(repr=False)
+
+
+class PlexSignInBody(ContractModel):
+    """``signInWithPlex``'s body.
+
+    Attributes:
+        pin_id: The PIN ``startPlexSignIn`` answered.
+    """
+
+    pin_id: int
+
+
+class PlexPendingModel(ContractModel):
+    """``signInWithPlex``'s 202: the PIN is not claimed yet.
+
+    Attributes:
+        pending: Always true.
+    """
+
+    pending: Literal[True]
 
 
 class ChangeOwnPasswordBody(ContractModel):
