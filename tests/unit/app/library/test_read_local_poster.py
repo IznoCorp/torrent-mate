@@ -136,3 +136,25 @@ def test_a_folder_escaping_its_disk_is_never_read(world: World, tmp_path: Path) 
     world.index.movie_file(movie, "../outside/Heat")
 
     _refused(world, MediaRef(tmdb_id=949))
+
+
+
+def test_a_media_folder_in_a_symlink_loop_is_not_found(world: World, tmp_path: Path) -> None:
+    """A media folder that is a symlink to itself: ``media.not_found``, never an internal error."""
+    world.index.mount(1, tmp_path / "disk1")
+    (tmp_path / "disk1" / "films").mkdir(parents=True)
+    (tmp_path / "disk1" / "films" / "Heat").symlink_to(tmp_path / "disk1" / "films" / "Heat")
+    movie = world.index.item("Heat", tmdb="949", poster_file=True)
+    world.index.movie_file(movie, "films/Heat")
+
+    _refused(world, MediaRef(tmdb_id=949))
+
+
+def test_a_mount_point_in_a_symlink_loop_is_not_found(world: World, tmp_path: Path) -> None:
+    """The disk's mount point is a symlink to itself: ``media.not_found``, never an internal error."""
+    (tmp_path / "disk1").symlink_to(tmp_path / "disk1")
+    world.index.mount(1, tmp_path / "disk1")
+    movie = world.index.item("Heat", tmdb="949", poster_file=True)
+    world.index.movie_file(movie, "films/Heat")
+
+    _refused(world, MediaRef(tmdb_id=949))

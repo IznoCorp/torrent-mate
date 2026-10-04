@@ -268,8 +268,8 @@ def _folder_poster(mount_path: str, folder: str) -> LocalPoster | None:
         folder: The media folder below it, as the index names it.
 
     Returns:
-        The poster, or ``None`` when the disk, the folder or the poster is not there, or
-        when a path escapes.
+        The poster, or ``None`` when the disk, the folder or the poster is not there, when
+        a path escapes, or when a symlink loops.
     """
     try:
         root = Path(mount_path).resolve(strict=True)
@@ -283,7 +283,8 @@ def _folder_poster(mount_path: str, folder: str) -> LocalPoster | None:
         if poster.parent != directory or not poster.is_file():
             return None
         content = poster.read_bytes()
-    except OSError:
+    except (OSError, RuntimeError):
+        # Python 3.12's strict resolve raises RuntimeError, not OSError, on a symlink loop.
         return None
     media_type, _ = mimetypes.guess_type(poster.name)
     return LocalPoster(content=content, media_type=media_type or "application/octet-stream")
