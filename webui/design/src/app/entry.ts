@@ -179,17 +179,18 @@ export function hideSignIn(silent = false): void {
 /**
  * Ends the session and lands on the entry screen.
  *
- * The session is the cookie and the cookie is the server's, so the server is
- * asked to drop it FIRST and the screen only reflects what has already
- * happened. Showing the entry form over a session that is still valid would be
- * a lie the next reload exposes. A failure is swallowed on purpose: served from
- * a plain static server there is no such route, and a design reference that
- * dead-ends on a 404 teaches nothing about the design.
+ * The session is v1's cookie and v1's to end, so v1 is asked to drop it FIRST
+ * (`signOut`) and the screen only reflects what has already happened. Showing
+ * the entry form over a session that is still valid would be a lie the next
+ * reload exposes. A failure is swallowed on purpose: with v1 unreachable — a
+ * static server, a design reference with no server behind it — the gate must
+ * still come up, and a reference that dead-ends on a refused sign-out teaches
+ * nothing about the design.
  */
 export async function signOut(): Promise<void> {
   panel.close();
   try {
-    await fetch("/logout", { redirect: "manual" });
+    await fetch("/api/v1/auth/logout", { method: "POST" });
   } catch (error) {
     void error;
   }

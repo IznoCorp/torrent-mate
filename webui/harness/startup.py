@@ -245,7 +245,9 @@ async def main():
                 JSON.stringify({
                   splash: getComputedStyle(document.querySelector('#splash')).display,
                   login: getComputedStyle(document.querySelector('#login')).display})))""")
-            await page3.fill('input[name="username"]', "quelqu-un")
+            # AN E-MAIL: the host's form asks one (v1's door), and a browser holds back the
+            # submit of anything else before the screen can show.
+            await page3.fill('input[name="username"]', "quelqu-un@example.invalid")
             await page3.fill('input[name="password"]', "quelque-chose")
             await page3.click('[data-part="login/submit"]')
             await page3.wait_for_timeout(500)
