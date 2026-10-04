@@ -106,6 +106,28 @@ class SignInBody(ContractModel):
     password: str = Field(repr=False)
 
 
+class ChangeOwnPasswordBody(ContractModel):
+    """``changeOwnPassword``'s body.
+
+    Attributes:
+        current_password: The password the account holds now.
+        new_password: The password that replaces it.
+    """
+
+    current_password: str = Field(repr=False)
+    new_password: str = Field(repr=False)
+
+
+class PasswordSet(ContractModel):
+    """The acknowledgement of a password write (``changeOwnPassword``, ``resetAccountPassword``).
+
+    Attributes:
+        ok: Always true: the password is set.
+    """
+
+    ok: bool
+
+
 class SignedOut(ContractModel):
     """``signOut``'s acknowledgement.
 

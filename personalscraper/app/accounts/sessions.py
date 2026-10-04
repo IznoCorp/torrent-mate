@@ -158,6 +158,18 @@ class SessionService:
             ceiling=self._ceiling(),
         )
 
+    def live_session_id(self, token: str) -> int | None:
+        """The key of the live session a cookie value names.
+
+        Args:
+            token: The cookie value.
+
+        Returns:
+            The session's key, or ``None`` when unknown, revoked or expired.
+        """
+        session = self._live_session(self._repo_factory(), token, self._clock())
+        return session.id if session is not None else None
+
     def close(self, token: str) -> None:
         """Revoke the session a cookie value names; idempotent.
 

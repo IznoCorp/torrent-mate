@@ -10,6 +10,7 @@
   "auth": {
     "required": "Il faut une session connectée.",
     "refused": "La connexion a été refusée.",
+    "plex_only": "Ce compte se connecte avec Plex : il n'a pas de mot de passe ici.",
     "rate_limited": "Trop de connexions échouées ; réessayez dans une minute."
   },
   "right": {
@@ -41,6 +42,9 @@
   },
   "password": {
     "required": "Un compte local demande un mot de passe.",
-    "too_short": "Le mot de passe doit compter au moins {minimum} caractères."
+    "too_short": "Le mot de passe doit compter au moins {minimum} caractères.",
+    "current_wrong": "Le mot de passe actuel est faux : rien n'a été changé.",
+    "held_by_cli": "Le mot de passe de secours du propriétaire du serveur ne se change qu'avec « accounts set-password » sur le serveur.",
+    "reset_admin_only": "Seul un Admin réinitialise un mot de passe ; changez le vôtre depuis votre profil."
   }
 }

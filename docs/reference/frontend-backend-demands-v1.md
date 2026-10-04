@@ -26,8 +26,8 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | | |
 | --- | ---: |
 | operations the interface requires | 101 |
-| operations v1 serves | 9 |
-| required and not served | 92 |
+| operations v1 serves | 11 |
+| required and not served | 90 |
 | served, different response shape | 0 |
 | served, path parameter spelled differently | 0 |
 | served, answered with a different status | 0 |
@@ -89,7 +89,6 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `GET /api/v1/system/services` | `readServices` | The services, and whether each answers |
 | `GET /api/v1/trackers` | `readTrackers` | Every configured tracker, its ratio, volumes, trend, alert threshold and health |
 | `PATCH /api/v1/acquisition/followed/{followedId}` | `updateFollow` | Pause or resume a follow |
-| `POST /api/v1/accounts/{accountId}/password` | `resetAccountPassword` | Reset a local account's password to a provisional one |
 | `POST /api/v1/acquisition/detect` | `runDetection` | Look now for everything that could be taken |
 | `POST /api/v1/acquisition/followed` | `createFollow` | Follow a title |
 | `POST /api/v1/acquisition/followed/{followedId}/grab` | `grabForFollow` | Claim now what the last search found for one follow |
@@ -127,7 +126,6 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `POST /api/v1/trackers/{tracker}/broken-obligations/{infoHash}/seen` | `markBrokenObligationSeen` | Mark one broken obligation of a tracker seen |
 | `PUT /api/v1/acquisition/followed/{followedId}/pause` | `setAcquisitionPause` | Set the caller's pause on one acquisition |
 | `PUT /api/v1/acquisition/followed/{followedId}/quality` | `setAcquisitionQuality` | Set the caller's quality profile on one acquisition |
-| `PUT /api/v1/auth/password` | `changeOwnPassword` | Change the signed-in account's password |
 | `PUT /api/v1/config/files/{name}` | `updateConfigurationFile` | Write one configuration file |
 | `PUT /api/v1/config/secrets` | `updateSecrets` | Set secret values |
 | `PUT /api/v1/notifications/preferences/{type}` | `updateNotificationPreference` | Switch one notification type on or off for the signed-in account |

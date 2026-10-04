@@ -33,6 +33,7 @@ REFUSAL_TITLES: Final[Mapping[RefusalCode, str]] = {
     RefusalCode.INTERNAL: "The server failed.",
     RefusalCode.AUTH_REQUIRED: "A signed-in session is required.",
     RefusalCode.AUTH_REFUSED: "The sign-in was refused.",
+    RefusalCode.AUTH_PLEX_ONLY: "This account signs in with Plex and holds no password here.",
     RefusalCode.AUTH_RATE_LIMITED: "Too many failed sign-ins; try again later.",
     RefusalCode.RIGHT_MISSING: "A right is missing.",
     RefusalCode.INSTANCE_READ_ONLY: "This instance is read-only.",
@@ -49,6 +50,9 @@ REFUSAL_TITLES: Final[Mapping[RefusalCode, str]] = {
     RefusalCode.RIGHT_UNKNOWN: "No right answers this name.",
     RefusalCode.PASSWORD_REQUIRED: "A local account starts with a password.",
     RefusalCode.PASSWORD_TOO_SHORT: "The password is shorter than the minimum.",
+    RefusalCode.PASSWORD_CURRENT_WRONG: "The current password does not match.",
+    RefusalCode.PASSWORD_HELD_BY_CLI: "The server owner's fallback password is changed on the server only.",
+    RefusalCode.PASSWORD_RESET_ADMIN_ONLY: "Only an Admin resets a password.",
     RefusalCode.MEDIA_NOT_FOUND: "No medium answers this provider identity.",
     RefusalCode.PROVIDER_UNAVAILABLE: "A metadata provider did not answer.",
 }

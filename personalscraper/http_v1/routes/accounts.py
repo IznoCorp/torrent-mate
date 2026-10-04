@@ -1,4 +1,4 @@
-"""The accounts screen's routes: the roster, an account's creation and role, a role's creation and change.
+"""The accounts screen's routes: the roster, an account's creation, role and password, a role's creation and change.
 
 The contract files them under its ``authentication`` tag; they live apart from the
 session routes because they are another screen's, and every one calls ``AccountService``.
@@ -18,16 +18,20 @@ from personalscraper.http_v1.models.accounts import (
     AccountSummaryModel,
     CreateAccountBody,
     CreateRoleBody,
+    ResetAccountPasswordBody,
     RosterModel,
     UpdateAccountBody,
     UpdateRoleBody,
 )
-from personalscraper.http_v1.models.authentication import RoleModel
+from personalscraper.http_v1.models.authentication import PasswordSet, RoleModel
 
 router = APIRouter()
 
 #: The refusals of an operation that names an account or a role: the contract declares 404 there.
 _NAMED_RESPONSES = {**PROBLEM_RESPONSES, 404: PROBLEM_RESPONSES[400]}
+
+#: ``resetAccountPassword``'s refusals: it names an account (404) and conflicts with no state (no 409).
+_RESET_PASSWORD_RESPONSES = {status: answer for status, answer in _NAMED_RESPONSES.items() if status != 409}
 
 
 @router.get(
@@ -110,6 +114,34 @@ def update_account(
         The account, on its new role.
     """
     return AccountSummaryModel.from_view(app_services.accounts.update_account(signed_in, account_id, role_id=body.role))
+
+
+@router.post(
+    "/accounts/{accountId}/password",
+    operation_id="resetAccountPassword",
+    response_model=PasswordSet,
+    status_code=200,
+    responses=_RESET_PASSWORD_RESPONSES,
+)
+def reset_account_password(
+    account_id: Annotated[str, Path(alias="accountId", description="the account")],
+    body: ResetAccountPasswordBody,
+    signed_in: Annotated[Actor, Depends(actor)],
+    app_services: Annotated[AppServices, Depends(services)],
+) -> PasswordSet:
+    """Give a local account a provisional password; its sessions keep running.
+
+    Args:
+        account_id: The account.
+        body: The provisional password.
+        signed_in: The signed-in actor.
+        app_services: The application services.
+
+    Returns:
+        ``{"ok": true}``.
+    """
+    app_services.accounts.reset_account_password(signed_in, account_id, password=body.password)
+    return PasswordSet(ok=True)
 
 
 @router.post(

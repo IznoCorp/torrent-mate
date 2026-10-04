@@ -1,4 +1,4 @@
-"""The ``authentication`` tag's routes: the password door, the signed-in account and its session."""
+"""The ``authentication`` tag's routes: the password door, the signed-in account, its session and its password."""
 
 from __future__ import annotations
 
@@ -12,7 +12,13 @@ from personalscraper.app.errors import AppUnauthenticated, RefusalCode
 from personalscraper.app.services import AppServices
 from personalscraper.http_v1.contract import PROBLEM_RESPONSES
 from personalscraper.http_v1.deps import actor, services
-from personalscraper.http_v1.models.authentication import AccountModel, SignedOut, SignInBody
+from personalscraper.http_v1.models.authentication import (
+    AccountModel,
+    ChangeOwnPasswordBody,
+    PasswordSet,
+    SignedOut,
+    SignInBody,
+)
 from personalscraper.http_v1.session_cookie import clear_session_cookie, session_token, set_session_cookie
 
 router = APIRouter()
@@ -22,6 +28,10 @@ router = APIRouter()
 #: credentials, before the door looks at them — and the limiter's 429. Every failure of the
 #: credentials themselves stays the one 401.
 _SIGN_IN_RESPONSES = {**PROBLEM_RESPONSES, 429: PROBLEM_RESPONSES[401]}
+
+#: ``changeOwnPassword``'s refusals: the Problem answers of every operation and the 429 of
+#: its limiter on wrong current passwords.
+_CHANGE_OWN_PASSWORD_RESPONSES = {**PROBLEM_RESPONSES, 429: PROBLEM_RESPONSES[401]}
 
 
 def signed_in_token(request: Request) -> str:
@@ -133,3 +143,33 @@ def sign_out(
     app_services.accounts.sign_out(signed_in, token)
     clear_session_cookie(response, request.app.state.config.web)
     return SignedOut(ok=True)
+
+
+@router.put(
+    "/auth/password",
+    operation_id="changeOwnPassword",
+    response_model=PasswordSet,
+    status_code=200,
+    responses=_CHANGE_OWN_PASSWORD_RESPONSES,
+)
+def change_own_password(
+    body: ChangeOwnPasswordBody,
+    signed_in: Annotated[Actor, Depends(actor)],
+    app_services: Annotated[AppServices, Depends(services)],
+    token: Annotated[str, Depends(signed_in_token)],
+) -> PasswordSet:
+    """Replace the signed-in local account's password; its other sessions end, this one stays.
+
+    Args:
+        body: The current password and the new one.
+        signed_in: The signed-in actor.
+        app_services: The application services.
+        token: The caller's session value, the one kept.
+
+    Returns:
+        ``{"ok": true}``.
+    """
+    app_services.accounts.change_own_password(
+        signed_in, token, current_password=body.current_password, new_password=body.new_password
+    )
+    return PasswordSet(ok=True)

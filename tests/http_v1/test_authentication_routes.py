@@ -1,9 +1,10 @@
-"""The ``authentication`` tag's routes served so far: ``readAccount``, ``signOut`` and ``signIn``.
+"""The ``authentication`` tag's session routes: ``readAccount``, ``signOut``, ``signIn``, ``changeOwnPassword``.
 
 The session is v1's own (``tm_v1_session``); v0's ``tm_session`` never signs a v1 request
 in. ``readAccount`` answers the contract's ``Account``, its ``forbiddenWrites`` being the
 instance's ceiling; ``signOut`` revokes the session and clears its cookie; ``signIn`` opens
-a new session from an e-mail and a password, refusing every failure as ``auth.refused``.
+a new session from an e-mail and a password, refusing every failure as ``auth.refused``;
+``changeOwnPassword`` replaces a local account's password and ends its other sessions.
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ import structlog
 from fastapi import Response
 from fastapi.testclient import TestClient
 
-from personalscraper.app.accounts.passwords import hash_password
+from personalscraper.app.accounts.passwords import PASSWORD_MINIMUM, hash_password
 from personalscraper.app.accounts.ratelimit import MAX_FAILED_ATTEMPTS
 from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.rights import WRITE_RIGHTS, Right
@@ -27,6 +28,8 @@ from personalscraper.app.services import AppServices
 from personalscraper.app.store.store import AppStore
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.web import WebConfig
+from personalscraper.http_v1.models.accounts import ResetAccountPasswordBody
+from personalscraper.http_v1.models.authentication import ChangeOwnPasswordBody
 from personalscraper.http_v1.session_cookie import SESSION_COOKIE, clear_session_cookie, set_session_cookie
 
 #: The password the seeded local account holds.
@@ -420,6 +423,157 @@ class TestSignIn:
         monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
         response = client.post("/auth/login", json={"email": "local@example.org", "password": _PASSWORD})
         assert response.status_code == 200
+
+
+def _with_password(client: TestClient) -> str:
+    """Give the client's signed-in account :data:`_PASSWORD`.
+
+    Args:
+        client: A signed-in test client.
+
+    Returns:
+        The account's key.
+    """
+    services = _services(client)
+    actor = services.sessions.resolve(client.cookies.get(SESSION_COOKIE) or "")
+    assert actor is not None
+    services.app_store.accounts.set_password_hash(actor.account_id, hash_password(_PASSWORD), now=1.0)
+    return actor.account_id
+
+
+class TestChangeOwnPassword:
+    """``PUT /auth/password`` — ``changeOwnPassword``, a local account's own password."""
+
+    _NEW = "a brand new passphrase"
+
+    def test_changes_it_and_ends_the_other_sessions(self, v1_client: Callable[..., TestClient]) -> None:
+        """200 ``{"ok": true}``; the new password signs in, the old does not; the caller's session stays, others end."""
+        client = v1_client(role="local-guest")
+        account_id = _with_password(client)
+        elsewhere = _services(client).sessions.open(account_id, user_agent="another browser")
+
+        response = client.put("/auth/password", json={"currentPassword": _PASSWORD, "newPassword": self._NEW})
+
+        assert response.status_code == 200
+        assert response.json() == {"ok": True}
+        assert client.get("/auth/me").status_code == 200
+        assert _services(client).sessions.resolve(elsewhere) is None
+        email = f"{account_id}@example.org"
+        login = client.post("/auth/login", json={"email": email, "password": self._NEW})
+        assert login.status_code == 200
+        old = client.post("/auth/login", json={"email": email, "password": _PASSWORD})
+        assert old.status_code == 401
+
+    def test_the_other_session_is_refused_on_the_wire(self, v1_client: Callable[..., TestClient]) -> None:
+        """A request carrying the other session's value is 401 ``auth.required`` after the change."""
+        client = v1_client(role="local-guest")
+        account_id = _with_password(client)
+        mine = client.cookies.get(SESSION_COOKIE)
+        elsewhere = _services(client).sessions.open(account_id, user_agent="another browser")
+
+        client.put("/auth/password", json={"currentPassword": _PASSWORD, "newPassword": self._NEW})
+
+        client.cookies.set(SESSION_COOKIE, elsewhere)
+        refused = client.get("/auth/me")
+        assert refused.status_code == 401
+        assert refused.json()["code"] == "auth.required"
+        client.cookies.set(SESSION_COOKIE, mine)
+        assert client.get("/auth/me").status_code == 200
+
+    @pytest.mark.parametrize(
+        ("server_access", "code"),
+        [("owner", "password.held_by_cli"), ("shared", "auth.plex_only")],
+        ids=["owner", "plex-linked"],
+    )
+    def test_a_password_held_elsewhere_is_403(
+        self, v1_client: Callable[..., TestClient], server_access: str, code: str
+    ) -> None:
+        """The owner's fallback is the CLI's; a Plex-linked account holds none."""
+        client = v1_client(role="household", server_access=server_access)
+        _with_password(client)
+        response = client.put("/auth/password", json={"currentPassword": _PASSWORD, "newPassword": self._NEW})
+        assert response.status_code == 403
+        assert response.json()["code"] == code
+
+    def test_a_wrong_current_password_is_400(self, v1_client: Callable[..., TestClient]) -> None:
+        """400 ``password.current_wrong``; no password in the answer or the log."""
+        client = v1_client(role="local-guest")
+        _with_password(client)
+        with structlog.testing.capture_logs() as logs:
+            response = client.put("/auth/password", json={"currentPassword": "wrong one", "newPassword": self._NEW})
+        assert response.status_code == 400
+        assert response.json()["code"] == "password.current_wrong"
+        for secret in ("wrong one", self._NEW, _PASSWORD):
+            assert secret not in response.text
+            assert secret not in str(logs)
+
+    def test_a_short_new_password_names_the_minimum(self, v1_client: Callable[..., TestClient]) -> None:
+        """400 ``password.too_short`` with ``params.minimum``."""
+        client = v1_client(role="local-guest")
+        _with_password(client)
+        short = "x" * (PASSWORD_MINIMUM - 1)
+        response = client.put("/auth/password", json={"currentPassword": _PASSWORD, "newPassword": short})
+        assert response.status_code == 400
+        assert response.json()["code"] == "password.too_short"
+        assert response.json()["params"] == {"minimum": PASSWORD_MINIMUM}
+
+    def test_the_sixth_wrong_current_password_is_rate_limited(self, v1_client: Callable[..., TestClient]) -> None:
+        """Five wrong current passwords: the sixth attempt is 429 ``auth.rate_limited``, the right one included."""
+        client = v1_client(role="local-guest")
+        _with_password(client)
+        for _ in range(MAX_FAILED_ATTEMPTS):
+            client.put("/auth/password", json={"currentPassword": "wrong one", "newPassword": self._NEW})
+        response = client.put("/auth/password", json={"currentPassword": _PASSWORD, "newPassword": self._NEW})
+        assert response.status_code == 429
+        assert response.json()["code"] == "auth.rate_limited"
+
+    def test_without_a_session_is_auth_required(self, v1_client: Callable[..., TestClient]) -> None:
+        """401 ``auth.required``."""
+        response = v1_client(role=None).put(
+            "/auth/password", json={"currentPassword": _PASSWORD, "newPassword": self._NEW}
+        )
+        assert response.status_code == 401
+        assert response.json()["code"] == "auth.required"
+
+    def test_refused_on_the_read_only_instance(
+        self, v1_client: Callable[..., TestClient], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A write on one's own account: 403 ``instance.read_only`` under ``WEB_ROLE=staging``."""
+        client = v1_client(role="local-guest")
+        _with_password(client)
+        monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
+        response = client.put("/auth/password", json={"currentPassword": _PASSWORD, "newPassword": self._NEW})
+        assert response.status_code == 403
+        assert response.json()["code"] == "instance.read_only"
+
+    def test_a_cross_origin_put_is_request_cross_origin(self, v1_client: Callable[..., TestClient]) -> None:
+        """403 ``request.cross_origin``; the password is not changed."""
+        client = v1_client(role="local-guest")
+        _with_password(client)
+        response = client.put(
+            "/auth/password",
+            json={"currentPassword": _PASSWORD, "newPassword": self._NEW},
+            headers={"Origin": "https://evil.example"},
+        )
+        assert response.status_code == 403
+        assert response.json()["code"] == "request.cross_origin"
+        again = client.put("/auth/password", json={"currentPassword": _PASSWORD, "newPassword": self._NEW})
+        assert again.status_code == 200
+
+    def test_the_bodies_never_show_a_password(self) -> None:
+        """Neither password body's ``repr`` nor ``str`` holds the passwords it carries."""
+        change = ChangeOwnPasswordBody(current_password=_PASSWORD, new_password=self._NEW)
+        reset = ResetAccountPasswordBody(password=self._NEW)
+        for text in (repr(change), str(change), repr(reset), str(reset)):
+            assert _PASSWORD not in text
+            assert self._NEW not in text
+
+    def test_a_missing_field_is_request_invalid(self, v1_client: Callable[..., TestClient]) -> None:
+        """400 ``request.invalid``, the password typed not echoed."""
+        response = v1_client(role="local-guest").put("/auth/password", json={"newPassword": self._NEW})
+        assert response.status_code == 400
+        assert response.json()["code"] == "request.invalid"
+        assert self._NEW not in response.text
 
 
 class TestCookie:

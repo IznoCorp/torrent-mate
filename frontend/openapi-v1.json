@@ -97,6 +97,26 @@
         "title": "AccountSummaryModel",
         "type": "object"
       },
+      "ChangeOwnPasswordBody": {
+        "additionalProperties": false,
+        "description": "``changeOwnPassword``'s body.\n\nAttributes:\n    current_password: The password the account holds now.\n    new_password: The password that replaces it.",
+        "properties": {
+          "currentPassword": {
+            "title": "Currentpassword",
+            "type": "string"
+          },
+          "newPassword": {
+            "title": "Newpassword",
+            "type": "string"
+          }
+        },
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ],
+        "title": "ChangeOwnPasswordBody",
+        "type": "object"
+      },
       "CreateAccountBody": {
         "additionalProperties": false,
         "description": "``createAccount``'s body.\n\nAttributes:\n    name: The display name.\n    email: The e-mail, every account's login.\n    role: The role it starts on; absent for the role local accounts start on.\n    password: The provisional password; only its hash is kept.",
@@ -162,6 +182,21 @@
         "title": "CreateRoleBody",
         "type": "object"
       },
+      "PasswordSet": {
+        "additionalProperties": false,
+        "description": "The acknowledgement of a password write (``changeOwnPassword``, ``resetAccountPassword``).\n\nAttributes:\n    ok: Always true: the password is set.",
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "PasswordSet",
+        "type": "object"
+      },
       "Problem": {
         "additionalProperties": false,
         "description": "The contract's ``Problem`` (``#/components/schemas/Problem``).\n\nAttributes:\n    status: The HTTP status, repeated in the body.\n    title: What went wrong, in one English line \u2014 the code's title.\n    detail: The real reason, an English developer line; never shown as is.\n    code: The refusal's code; the interface renders it through ``fr.json``.\n    params: The typed facts the interface composes its sentence from.",
@@ -211,6 +246,7 @@
           "internal",
           "auth.required",
           "auth.refused",
+          "auth.plex_only",
           "auth.rate_limited",
           "right.missing",
           "instance.read_only",
@@ -227,11 +263,29 @@
           "right.unknown",
           "password.required",
           "password.too_short",
+          "password.current_wrong",
+          "password.held_by_cli",
+          "password.reset_admin_only",
           "media.not_found",
           "provider.unavailable"
         ],
         "title": "RefusalCode",
         "type": "string"
+      },
+      "ResetAccountPasswordBody": {
+        "additionalProperties": false,
+        "description": "``resetAccountPassword``'s body.\n\nAttributes:\n    password: The provisional password an Admin gives the account.",
+        "properties": {
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "title": "ResetAccountPasswordBody",
+        "type": "object"
       },
       "Right": {
         "description": "One right of the ACL, in the contract's own names (``#/components/schemas/Right``).",
@@ -761,6 +815,108 @@
         "summary": "Update Account"
       }
     },
+    "/accounts/{accountId}/password": {
+      "post": {
+        "description": "Give a local account a provisional password; its sessions keep running.\n\nArgs:\n    account_id: The account.\n    body: The provisional password.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    ``{\"ok\": true}``.",
+        "operationId": "resetAccountPassword",
+        "parameters": [
+          {
+            "description": "the account",
+            "in": "path",
+            "name": "accountId",
+            "required": true,
+            "schema": {
+              "description": "the account",
+              "title": "Accountid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetAccountPasswordBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordSet"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Reset Account Password"
+      }
+    },
     "/auth/login": {
       "post": {
         "description": "Open a session from an e-mail and a password, and hand its cookie.\n\nA public operation: the perimeter resolves no session, so a ``tm_v1_session`` the\nbrowser already carries is ignored: the browser's cookie is replaced by the new one,\nwhile the server-side session it named stays valid until it expires or signs out.\n\nArgs:\n    body: The e-mail and the password.\n    request: The incoming request (the client's key, its user agent, the web configuration).\n    response: The answer the session cookie is set on.\n    app_services: The application services.\n\nReturns:\n    The signed-in account.",
@@ -1016,6 +1172,105 @@
           }
         },
         "summary": "Read Account"
+      }
+    },
+    "/auth/password": {
+      "put": {
+        "description": "Replace the signed-in local account's password; its other sessions end, this one stays.\n\nArgs:\n    body: The current password and the new one.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n    token: The caller's session value, the one kept.\n\nReturns:\n    ``{\"ok\": true}``.",
+        "operationId": "changeOwnPassword",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeOwnPasswordBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordSet"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Change Own Password"
       }
     },
     "/roles": {

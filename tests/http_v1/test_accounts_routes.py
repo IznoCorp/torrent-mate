@@ -1,9 +1,11 @@
-"""The accounts screen's routes: ``readAccounts``, ``createAccount``, ``updateAccount``, ``createRole``, ``updateRole``.
+"""The accounts screen's routes: the roster, an account's creation, role and password, a role's creation and change.
 
 Each route calls the account service; these tests hold the wire: the statuses and the
 ``Problem`` codes the contract declares, the rights each operation asks (``readAccounts``
-opens to ``acquisition.reassign`` too), and the read-only clone refusing every write.
-The guards themselves are proved in ``tests/unit/app/accounts/test_account_service.py``.
+opens to ``acquisition.reassign`` too; ``resetAccountPassword`` is an Admin's only), and the
+read-only clone refusing every write.
+The guards themselves are proved in ``tests/unit/app/accounts/test_account_service.py`` and
+``test_password_change.py``.
 """
 
 from __future__ import annotations
@@ -11,11 +13,12 @@ from __future__ import annotations
 from collections.abc import Callable
 
 import pytest
+import structlog
 from fastapi.testclient import TestClient
 
 from personalscraper.app.accounts.events import AccountRightsChanged
 from personalscraper.app.accounts.passwords import PASSWORD_MINIMUM
-from personalscraper.app.accounts.repository import AccountRow
+from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.rights import Right
 from personalscraper.app.services import AppServices
 
@@ -285,6 +288,118 @@ class TestUpdateRole:
         assert response.json()["code"] == "role.unknown"
 
 
+def _link(client: TestClient, account_id: str, server_access: str) -> None:
+    """Link an account of the client's base to Plex.
+
+    Args:
+        client: The test client.
+        account_id: The account.
+        server_access: ``owner`` or ``shared``.
+    """
+    _services(client).app_store.accounts.upsert_plex_link(
+        PlexLinkRow(
+            account_id=account_id,
+            plex_id=900,
+            plex_uuid="uuid-900",
+            plex_username="plex-900",
+            server_access=server_access,  # type: ignore[arg-type]
+            token_ciphertext=None,
+            token_stored_at=None,
+            linked_at=9.0,
+            last_sign_in_at=None,
+        )
+    )
+
+
+class TestResetAccountPassword:
+    """``POST /accounts/{accountId}/password`` — ``resetAccountPassword``, an Admin's act."""
+
+    def test_an_admin_resets_and_the_sessions_stay(self, v1_client: Callable[..., TestClient]) -> None:
+        """200 ``{"ok": true}``; the provisional password signs in; the account's session keeps running."""
+        client = v1_client(role="admin")
+        _add_account(client, "account-guest", "local-guest")
+        running = _services(client).sessions.open("account-guest", user_agent="pytest")
+
+        response = client.post("/accounts/account-guest/password", json={"password": _PASSWORD})
+
+        assert response.status_code == 200
+        assert response.json() == {"ok": True}
+        assert _services(client).sessions.resolve(running) is not None
+        login = client.post("/auth/login", json={"email": "account-guest@example.org", "password": _PASSWORD})
+        assert login.status_code == 200
+
+    @pytest.mark.parametrize("account_id", ["account-guest", "account-1", "nope"], ids=["other", "own", "unknown"])
+    def test_a_manager_who_is_not_admin_is_403_before_anything(
+        self, v1_client: Callable[..., TestClient], account_id: str
+    ) -> None:
+        """403 ``password.reset_admin_only`` — its own account, and an id that names nobody (never 404)."""
+        client = v1_client(rights=frozenset({Right.ACCOUNTS_MANAGE}))
+        _add_account(client, "account-guest", "local-guest")
+        response = client.post(f"/accounts/{account_id}/password", json={"password": _PASSWORD})
+        assert response.status_code == 403
+        assert response.json()["code"] == "password.reset_admin_only"
+
+    def test_without_accounts_manage_is_right_missing(self, v1_client: Callable[..., TestClient]) -> None:
+        """403 ``right.missing``."""
+        response = v1_client(role="household").post("/accounts/account-1/password", json={"password": _PASSWORD})
+        assert response.status_code == 403
+        assert response.json()["code"] == "right.missing"
+
+    def test_an_unknown_account_is_404(self, v1_client: Callable[..., TestClient]) -> None:
+        """For an Admin: 404 ``account.unknown``."""
+        response = v1_client(role="admin").post("/accounts/nope/password", json={"password": _PASSWORD})
+        assert response.status_code == 404
+        assert response.json()["code"] == "account.unknown"
+
+    @pytest.mark.parametrize(
+        ("server_access", "code"),
+        [("owner", "password.held_by_cli"), ("shared", "auth.plex_only")],
+        ids=["owner", "plex-linked"],
+    )
+    def test_a_password_held_elsewhere_is_403(
+        self, v1_client: Callable[..., TestClient], server_access: str, code: str
+    ) -> None:
+        """The owner's fallback is the CLI's; a Plex-linked account holds none."""
+        client = v1_client(role="admin")
+        _add_account(client, "account-linked", "household")
+        _link(client, "account-linked", server_access)
+        response = client.post("/accounts/account-linked/password", json={"password": _PASSWORD})
+        assert response.status_code == 403
+        assert response.json()["code"] == code
+
+    @pytest.mark.parametrize(
+        ("password", "code", "params"),
+        [
+            ("", "password.required", {}),
+            ("x" * (PASSWORD_MINIMUM - 1), "password.too_short", {"minimum": PASSWORD_MINIMUM}),
+        ],
+        ids=["empty", "one-short"],
+    )
+    def test_a_refused_password_is_400(
+        self, v1_client: Callable[..., TestClient], password: str, code: str, params: dict[str, int]
+    ) -> None:
+        """400 ``password.required`` / ``password.too_short`` with ``params.minimum``."""
+        client = v1_client(role="admin")
+        _add_account(client, "account-guest", "local-guest")
+        response = client.post("/accounts/account-guest/password", json={"password": password})
+        assert response.status_code == 400
+        assert response.json()["code"] == code
+        assert response.json()["params"] == params
+
+    def test_the_password_is_never_echoed_nor_logged(self, v1_client: Callable[..., TestClient]) -> None:
+        """Neither a refused nor a kept password reaches the answer or the log."""
+        client = v1_client(role="admin")
+        _add_account(client, "account-guest", "local-guest")
+        short = "tiny-secret"
+        with structlog.testing.capture_logs() as logs:
+            refused = client.post("/accounts/account-guest/password", json={"password": short})
+            kept = client.post("/accounts/account-guest/password", json={"password": _PASSWORD})
+        assert refused.status_code == 400 and kept.status_code == 200
+        for secret in (short, _PASSWORD):
+            assert secret not in refused.text + kept.text
+            assert secret not in str(logs)
+
+
 @pytest.mark.parametrize(
     ("method", "path", "body"),
     [
@@ -292,6 +407,7 @@ class TestUpdateRole:
         ("PATCH", "/accounts/account-1", {"role": "local-guest"}),
         ("POST", "/roles", {"name": "X", "rights": ["library.read"]}),
         ("PATCH", "/roles/local-guest", {"name": "X"}),
+        ("POST", "/accounts/account-1/password", {"password": _PASSWORD}),
     ],
 )
 def test_every_write_on_the_read_only_clone_is_forbidden(
