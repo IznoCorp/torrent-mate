@@ -1,0 +1,292 @@
+{
+  "body": [
+    {
+      "accessToken": "REDACTED-token-1",
+      "clientIdentifier": "REDACTED-machine-1",
+      "connections": [
+        {
+          "IPv6": false,
+          "address": "REDACTED-address-2",
+          "local": true,
+          "port": 32400,
+          "protocol": "https",
+          "relay": false,
+          "uri": "https://redacted.invalid/url-2"
+        },
+        {
+          "IPv6": false,
+          "address": "REDACTED-address-3",
+          "local": false,
+          "port": 31400,
+          "protocol": "https",
+          "relay": false,
+          "uri": "https://redacted.invalid/url-3"
+        },
+        {
+          "IPv6": false,
+          "address": "REDACTED-address-4",
+          "local": false,
+          "port": 31400,
+          "protocol": "https",
+          "relay": false,
+          "uri": "https://redacted.invalid/url-4"
+        }
+      ],
+      "createdAt": "2023-11-14T22:13:20Z",
+      "device": "REDACTED",
+      "dnsRebindingProtection": "REDACTED",
+      "home": true,
+      "httpsRequired": false,
+      "lastSeenAt": "2023-11-14T22:13:20Z",
+      "name": "REDACTED-name-3",
+      "natLoopbackSupported": "REDACTED",
+      "owned": false,
+      "ownerId": 900005,
+      "platform": "MacOSX",
+      "platformVersion": "REDACTED",
+      "presence": true,
+      "product": "Plex Media Server",
+      "productVersion": "1.43.4.10903-e5521bd8c",
+      "provides": "server",
+      "publicAddress": "REDACTED-address-1",
+      "publicAddressMatches": "REDACTED",
+      "relay": "REDACTED",
+      "searchEnabled": "REDACTED",
+      "sourceTitle": null,
+      "synced": "REDACTED"
+    },
+    {
+      "accessToken": "REDACTED-token-2",
+      "clientIdentifier": "REDACTED-machine-3",
+      "connections": [
+        {
+          "IPv6": false,
+          "address": "REDACTED-address-6",
+          "local": true,
+          "port": 32400,
+          "protocol": "https",
+          "relay": false,
+          "uri": "https://redacted.invalid/url-5"
+        },
+        {
+          "IPv6": false,
+          "address": "REDACTED-address-7",
+          "local": true,
+          "port": 32400,
+          "protocol": "https",
+          "relay": false,
+          "uri": "https://redacted.invalid/url-6"
+        },
+        {
+          "IPv6": false,
+          "address": "REDACTED-address-5",
+          "local": false,
+          "port": 16382,
+          "protocol": "https",
+          "relay": false,
+          "uri": "https://redacted.invalid/url-7"
+        }
+      ],
+      "createdAt": "2023-11-14T22:13:20Z",
+      "device": "REDACTED",
+      "dnsRebindingProtection": "REDACTED",
+      "home": false,
+      "httpsRequired": false,
+      "lastSeenAt": "2023-11-14T22:13:20Z",
+      "name": "REDACTED-name-4",
+      "natLoopbackSupported": "REDACTED",
+      "owned": false,
+      "ownerId": 900003,
+      "platform": "Linux",
+      "platformVersion": "REDACTED",
+      "presence": true,
+      "product": "Plex Media Server",
+      "productVersion": "1.43.1.10611-1e34174b1",
+      "provides": "server",
+      "publicAddress": "REDACTED-address-5",
+      "publicAddressMatches": "REDACTED",
+      "relay": "REDACTED",
+      "searchEnabled": "REDACTED",
+      "sourceTitle": "REDACTED-name-5",
+      "synced": "REDACTED"
+    },
+    {
+      "accessToken": "REDACTED-token-3",
+      "clientIdentifier": "REDACTED-machine-4",
+      "connections": [
+        {
+          "IPv6": false,
+          "address": "REDACTED-address-9",
+          "local": true,
+          "port": 32400,
+          "protocol": "https",
+          "relay": false,
+          "uri": "https://redacted.invalid/url-8"
+        },
+        {
+          "IPv6": false,
+          "address": "REDACTED-address-10",
+          "local": true,
+          "port": 32400,
+          "protocol": "https",
+          "relay": false,
+          "uri": "https://redacted.invalid/url-9"
+        },
+        {
+          "IPv6": false,
+          "address": "REDACTED-address-11",
+          "local": true,
+          "port": 32400,
+          "protocol": "https",
+          "relay": false,
+          "uri": "https://redacted.invalid/url-10"
+        },
+        {
+          "IPv6": false,
+          "address": "REDACTED-address-12",
+          "local": true,
+          "port": 32400,
+          "protocol": "https",
+          "relay": false,
+          "uri": "https://redacted.invalid/url-11"
+        },
+        {
+          "IPv6": false,
+          "address": "REDACTED-address-13",
+          "local": true,
+          "port": 32400,
+          "protocol": "https",
+          "relay": false,
+          "uri": "https://redacted.invalid/url-12"
+        },
+        {
+          "IPv6": false,
+          "address": "REDACTED-address-14",
+          "local": true,
+          "port": 32400,
+          "protocol": "https",
+          "relay": false,
+          "uri": "https://redacted.invalid/url-13"
+        },
+        {
+          "IPv6": false,
+          "address": "REDACTED-address-15",
+          "local": true,
+          "port": 32400,
+          "protocol": "https",
+          "relay": false,
+          "uri": "https://redacted.invalid/url-14"
+        },
+        {
+          "IPv6": false,
+          "address": "REDACTED-address-16",
+          "local": true,
+          "port": 32400,
+          "protocol": "https",
+          "relay": false,
+          "uri": "https://redacted.invalid/url-15"
+        },
+        {
+          "IPv6": false,
+          "address": "REDACTED-address-6",
+          "local": true,
+          "port": 32400,
+          "protocol": "https",
+          "relay": false,
+          "uri": "https://redacted.invalid/url-16"
+        },
+        {
+          "IPv6": false,
+          "address": "REDACTED-address-17",
+          "local": true,
+          "port": 32400,
+          "protocol": "https",
+          "relay": false,
+          "uri": "https://redacted.invalid/url-17"
+        },
+        {
+          "IPv6": false,
+          "address": "REDACTED-address-18",
+          "local": true,
+          "port": 32400,
+          "protocol": "https",
+          "relay": false,
+          "uri": "https://redacted.invalid/url-18"
+        },
+        {
+          "IPv6": false,
+          "address": "REDACTED-address-19",
+          "local": true,
+          "port": 32400,
+          "protocol": "https",
+          "relay": false,
+          "uri": "https://redacted.invalid/url-19"
+        },
+        {
+          "IPv6": false,
+          "address": "REDACTED-address-20",
+          "local": true,
+          "port": 32400,
+          "protocol": "https",
+          "relay": false,
+          "uri": "https://redacted.invalid/url-20"
+        },
+        {
+          "IPv6": false,
+          "address": "REDACTED-address-21",
+          "local": true,
+          "port": 32400,
+          "protocol": "https",
+          "relay": false,
+          "uri": "https://redacted.invalid/url-21"
+        },
+        {
+          "IPv6": false,
+          "address": "REDACTED-address-22",
+          "local": true,
+          "port": 32400,
+          "protocol": "https",
+          "relay": false,
+          "uri": "https://redacted.invalid/url-22"
+        },
+        {
+          "IPv6": false,
+          "address": "REDACTED-address-23",
+          "local": false,
+          "port": 12786,
+          "protocol": "https",
+          "relay": false,
+          "uri": "https://redacted.invalid/url-23"
+        }
+      ],
+      "createdAt": "2023-11-14T22:13:20Z",
+      "device": "REDACTED",
+      "dnsRebindingProtection": "REDACTED",
+      "home": false,
+      "httpsRequired": false,
+      "lastSeenAt": "2023-11-14T22:13:20Z",
+      "name": "REDACTED-name-6",
+      "natLoopbackSupported": "REDACTED",
+      "owned": false,
+      "ownerId": 900004,
+      "platform": "Linux",
+      "platformVersion": "REDACTED",
+      "presence": true,
+      "product": "Plex Media Server",
+      "productVersion": "1.43.4.10903-e5521bd8c",
+      "provides": "server",
+      "publicAddress": "REDACTED-address-8",
+      "publicAddressMatches": "REDACTED",
+      "relay": "REDACTED",
+      "searchEnabled": "REDACTED",
+      "sourceTitle": "REDACTED-name-7",
+      "synced": "REDACTED"
+    }
+  ],
+  "derived": "DERIVED from resources-owner.json, NOT recorded: this server's resource (REDACTED-machine-1) set to owned=false, home=true, ownerId=900005, as a Plex Home member's account would see it. Reading `home` as Plex Home membership is INFERRED; replace with a real Home member's capture (scripts/plex-signin-probe.py --record).",
+  "request": {
+    "method": "GET",
+    "path": "/api/v2/resources?includeHttps=1"
+  },
+  "status": 200
+}
