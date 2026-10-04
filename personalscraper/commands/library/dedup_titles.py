@@ -9,12 +9,16 @@ This command:
 
 1. Groups all ``media_item`` rows by ``(NFC(canonical_title).lower(), kind, year)``.
 2. For each group with > 1 row **and** identical ``dispatch_path`` values, selects
-   a survivor (live row = newest ``date_metadata_refreshed``, tie-break: highest
-   ``id``), NFC-normalizes its ``title``, and deletes the others (``ON DELETE
-   CASCADE`` removes child seasons/releases/files/attributes).
+   a survivor, NFC-normalizes its ``title``, and deletes the others (``ON DELETE
+   CASCADE`` removes child seasons/releases/files/attributes). The survivor is
+   the row holding live files; among rows holding none, the newest
+   ``date_metadata_refreshed`` (tie-break: highest ``id``). A group where two
+   rows both hold files is reported and skipped, never merged.
 3. NFC-normalizes the ``title`` of any non-duplicate row still stored as NFD.
 4. ``--dry-run`` (default) prints the plan and mutates nothing.
-   ``--apply`` executes all writes in one transaction then checkpoints WAL.
+   ``--apply`` executes all writes in one transaction then checkpoints WAL; each
+   deleted row leaves a ``deleted_item`` tombstone and a ``destructive_op`` journal
+   row, like ``library-remove-phantom-rows``.
 
 Examples:
     personalscraper library-dedup-titles
@@ -24,11 +28,15 @@ Examples:
 
 from __future__ import annotations
 
+import os
 import re as _re
 import sqlite3 as _sqlite3
+import time
 import unicodedata as _unicodedata
-from dataclasses import dataclass
+import uuid
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import typer
 
@@ -36,9 +44,18 @@ from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
 from personalscraper.cli_helpers.output import emit
 from personalscraper.commands.library._fix_stats_base import CliFixStatsMixin
+from personalscraper.indexer.phantom_rows import item_holds_live_files, journal_item_removal, tombstone_item
 from personalscraper.logger import get_logger
 
 log = get_logger("cli")
+
+#: ``deleted_item.reason`` of a row this command removes.
+_TOMBSTONE_REASON = "dedup_titles_removed"
+
+#: Why a survivor was kept (``plan[].reason``) and why a group was skipped.
+REASON_HOLDS_FILES = "holds_files"
+REASON_NEWEST_REFRESH = "newest_refresh"
+REASON_BOTH_HOLD_FILES = "both_hold_files"
 
 # Mirrors _CANONICAL_RE in item_repo.py — strips trailing " (YYYY)".
 _CANONICAL_RE = _re.compile(r"\s*\(\d{4}\)$")
@@ -100,48 +117,75 @@ def _get_dispatch_path(conn: _sqlite3.Connection, item_id: int) -> str | None:
     return value or None
 
 
-def _select_survivor(rows: list[dict[str, object]]) -> dict[str, object]:
+def _select_survivor(rows: list[dict[str, object]]) -> tuple[dict[str, object], str]:
     """Select the survivor from a duplicate group.
 
-    Survivor = live row (non-NULL ``date_metadata_refreshed``) with the most
-    recent timestamp; tie-break by highest ``id``. When no live row exists,
-    the highest ``id`` wins (fail-safe).
+    A row holding live files (``holds_files``) always wins over a row holding none.
+    Among the candidates, the live row (non-NULL ``date_metadata_refreshed``) with
+    the most recent timestamp wins; tie-break by highest ``id``. When no live row
+    exists, the highest ``id`` wins (fail-safe). The caller guarantees at most one
+    row of the group holds files.
 
     Args:
-        rows: List of row dicts with keys ``id`` and ``date_metadata_refreshed``.
+        rows: Row dicts with keys ``id``, ``date_metadata_refreshed`` and ``holds_files``.
 
     Returns:
-        The row dict chosen as survivor.
+        ``(survivor, reason)`` — the row dict kept and :data:`REASON_HOLDS_FILES` or
+        :data:`REASON_NEWEST_REFRESH`.
     """
+    holders = [r for r in rows if r["holds_files"]]
+    if holders:
+        return holders[0], REASON_HOLDS_FILES
     live = [r for r in rows if r["date_metadata_refreshed"] is not None]
     pool = live if live else rows
-    return max(pool, key=lambda r: (r["date_metadata_refreshed"] or 0, r["id"]))
+    return max(pool, key=lambda r: (r["date_metadata_refreshed"] or 0, r["id"])), REASON_NEWEST_REFRESH
 
 
 @dataclass
 class DedupTitlesStats(CliFixStatsMixin):
-    """Counters for ``library_dedup_titles``.
+    """Counters and plan of ``library_dedup_titles``.
 
     Attributes:
-        duplicate_groups: Groups with > 1 row sharing the same ``dispatch_path``.
+        duplicate_groups: Groups with > 1 row sharing the same ``dispatch_path`` that are merged.
         deleted: Orphan rows removed (``would_delete`` in dry-run).
         normalized: NFD titles NFC-normalized (``would_normalize`` in dry-run).
         skipped: Groups skipped because rows lack a common ``dispatch_path``.
+        skipped_both_hold_files: Groups skipped because two rows both hold live files.
+        plan: Per merged group, ``{"survivor", "reason", "deleted"}``.
+        skipped_groups: Per group skipped for holding files twice, ``{"ids", "reason"}``.
     """
 
     duplicate_groups: int = 0
     deleted: int = 0
     normalized: int = 0
     skipped: int = 0
+    skipped_both_hold_files: int = 0
+    plan: list[dict[str, Any]] = field(default_factory=list)
+    skipped_groups: list[dict[str, Any]] = field(default_factory=list)
 
-    def to_cli_json(self, *, apply: bool) -> dict[str, int | bool]:
+    def to_log_dict(self) -> dict[str, int]:
+        """Project the counters (not the plan lists) to a ``dict[str, int]`` for structlog.
+
+        Returns:
+            The integer fields by name.
+        """
+        return {
+            "duplicate_groups": self.duplicate_groups,
+            "deleted": self.deleted,
+            "normalized": self.normalized,
+            "skipped": self.skipped,
+            "skipped_both_hold_files": self.skipped_both_hold_files,
+        }
+
+    def to_cli_json(self, *, apply: bool) -> dict[str, Any]:
         """Project to the CLI JSON output shape.
 
         Args:
             apply: Whether ``--apply`` was passed (controls key names).
 
         Returns:
-            Dict with ``apply`` flag and the relevant counter keys.
+            Dict with ``apply`` flag, the counter keys, the per-group ``plan`` and the
+            ``skipped_groups``.
         """
         return {
             "apply": apply,
@@ -149,6 +193,9 @@ class DedupTitlesStats(CliFixStatsMixin):
             "deleted" if apply else "would_delete": self.deleted,
             "normalized" if apply else "would_normalize": self.normalized,
             "skipped": self.skipped,
+            "skipped_both_hold_files": self.skipped_both_hold_files,
+            "plan": self.plan,
+            "skipped_groups": self.skipped_groups,
         }
 
 
@@ -163,10 +210,12 @@ def library_dedup_titles(
     """De-duplicate ``media_item`` rows that differ only by NFD/NFC normalization.
 
     Groups rows by ``(NFC(canonical_title).lower(), kind, year)``. For each
-    group with > 1 row sharing the same ``dispatch_path``, keeps the live
-    survivor (newest ``date_metadata_refreshed``, tie-break: highest ``id``)
-    and deletes the rest via ``ON DELETE CASCADE``. Also NFC-normalizes the
-    ``title`` of any non-duplicate row stored as NFD. Dry-run by default.
+    group with > 1 row sharing the same ``dispatch_path``, keeps the row holding
+    live files (else the newest ``date_metadata_refreshed``, tie-break: highest
+    ``id``) and deletes the rest via ``ON DELETE CASCADE``, journaling each
+    deletion. A group where two rows both hold files is reported and skipped.
+    Also NFC-normalizes the ``title`` of any non-duplicate row stored as NFD.
+    Dry-run by default.
     """
     from personalscraper.conf.loader import load_config  # noqa: PLC0415
     from personalscraper.indexer.db import _apply_pragmas  # noqa: PLC0415
@@ -220,22 +269,35 @@ def library_dedup_titles(
                 stats.skipped += 1
                 continue
 
+            for m in members:
+                m["holds_files"] = item_holds_live_files(conn, int(m["id"]))  # type: ignore[call-overload]
+            if sum(1 for m in members if m["holds_files"]) > 1:
+                ids = sorted(int(m["id"]) for m in members)  # type: ignore[call-overload]
+                log.warning("dedup_titles.both_hold_files", ids=ids)
+                stats.skipped_both_hold_files += 1
+                stats.skipped_groups.append({"ids": ids, "reason": REASON_BOTH_HOLD_FILES})
+                continue
+
             stats.duplicate_groups += 1
-            survivor = _select_survivor(members)
+            survivor, reason = _select_survivor(members)
             survivor_id = int(survivor["id"])  # type: ignore[call-overload]
             survivor_title = str(survivor["title"])
             if _is_nfd(survivor_title):
                 to_normalize.append((_unicodedata.normalize("NFC", survivor_title), survivor_id))
-            to_delete.extend(int(m["id"]) for m in members if int(m["id"]) != survivor_id)  # type: ignore[call-overload]
+            doomed = [int(m["id"]) for m in members if int(m["id"]) != survivor_id]  # type: ignore[call-overload]
+            to_delete.extend(doomed)
+            stats.plan.append({"survivor": survivor_id, "reason": reason, "deleted": doomed})
 
         stats.deleted = len(to_delete)
         stats.normalized = len(to_normalize)
         log.info("dedup_titles.plan", apply=apply, **stats.to_log_dict())
 
         if apply:
+            now = int(time.time())
             conn.execute("BEGIN IMMEDIATE")
             try:
                 for item_id in to_delete:
+                    tombstone_item(conn, item_id, now, reason=_TOMBSTONE_REASON)
                     conn.execute("DELETE FROM media_item WHERE id = ?", (item_id,))
                 for nfc_title, item_id in to_normalize:
                     conn.execute("UPDATE media_item SET title = ? WHERE id = ?", (nfc_title, item_id))
@@ -243,6 +305,9 @@ def library_dedup_titles(
             except Exception:
                 conn.rollback()
                 raise
+            run_uid = os.environ.get("PERSONALSCRAPER_RUN_UID") or uuid.uuid4().hex
+            for item_id in to_delete:
+                journal_item_removal(db_path, item_id, run_uid=run_uid)
             conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
             log.info("dedup_titles.done", deleted=stats.deleted, normalized=stats.normalized)
 

@@ -6,7 +6,7 @@ answer is cached for five minutes (v0's sheet semantics, moved here); the index'
 facts are read fresh on every call by the service.
 
 What the providers' clients do not return is ``None`` (« unknown »), never an empty
-« none »: the cast and its portraits are dropped by the provider parsers today.
+« none »; what they return empty (a cast no provider lists) stays empty.
 """
 
 from __future__ import annotations
@@ -233,9 +233,13 @@ class MediaSheetFacts:
         overview: The synopsis the library's NFO holds, else the provider's; ``None`` when none.
         director: The director's name, or ``None``.
         creator: A show's creator, or ``None``.
-        cast: ``None``: the provider clients do not return the cast.
-        cast_portraits: ``None``: the provider clients do not return the cast's portraits.
+        cast: The provider's cast in its order (TMDB ``order``, TVDB ``sort``); empty when
+            it lists none.
+        cast_portraits: Each cast member's portrait URL keyed by name, only for members
+            the provider gives one; a name listed twice keeps its first portrait.
         trailer_key: The YouTube key of the provider's first trailer, or ``None``.
+        trailer_name: That trailer's title, or ``None``.
+        trailer_language: That trailer's language code as the provider gives it, or ``None``.
         ids: Every provider id known (the library's row merged with the provider's answer).
         status: Where the medium stands at its provider, or ``None`` when it says nothing.
         owned: Whether some live library row holds it.
@@ -260,9 +264,11 @@ class MediaSheetFacts:
     overview: str | None
     director: str | None
     creator: str | None
-    cast: tuple[CastFact, ...] | None
-    cast_portraits: Mapping[str, str] | None
+    cast: tuple[CastFact, ...]
+    cast_portraits: Mapping[str, str]
     trailer_key: str | None
+    trailer_name: str | None
+    trailer_language: str | None
     ids: Mapping[str, int | str]
     status: MediaStatus | None
     owned: bool
@@ -336,6 +342,35 @@ def trailer_key_of(details: MediaDetails) -> str | None:
         return None
     found = _YOUTUBE_KEY.search(details.trailer_url)
     return found.group(1) if found else None
+
+
+def cast_of(details: MediaDetails) -> tuple[CastFact, ...]:
+    """The provider's cast as the sheet lists it, in the provider's order.
+
+    Args:
+        details: The provider's details.
+
+    Returns:
+        One fact per cast member, a person listed twice (two roles) included twice.
+    """
+    return tuple(CastFact(name=member.name, role=member.role) for member in details.cast)
+
+
+def cast_portraits_of(details: MediaDetails) -> dict[str, str]:
+    """The cast's portrait URLs keyed by name.
+
+    Args:
+        details: The provider's details.
+
+    Returns:
+        Only the members the provider gives a portrait; a name listed twice keeps its
+        first portrait.
+    """
+    portraits: dict[str, str] = {}
+    for member in details.cast:
+        if member.portrait_url:
+            portraits.setdefault(member.name, member.portrait_url)
+    return portraits
 
 
 def poster_of(details: MediaDetails) -> str | None:

@@ -124,6 +124,22 @@ class SeasonInfo:
 
 
 @dataclass(frozen=True)
+class CastMember:
+    """One member of a media item's cast, as the provider lists it.
+
+    Attributes:
+        name: The person's name.
+        role: The character played; empty when the provider names none.
+        portrait_url: Full URL of the person's portrait, or ``None`` when the
+            provider has none — never an empty string.
+    """
+
+    name: str
+    role: str = ""
+    portrait_url: str | None = None
+
+
+@dataclass(frozen=True)
 class MediaDetails:
     """Full details for a media item.
 
@@ -170,6 +186,12 @@ class MediaDetails:
             ``None`` for movies, when the provider does not supply it, or
             when the cross-provider lookup fails — never an empty string
             (operator arbitration 2026-08-04: cross TMDB for TVDB series).
+        cast: The cast in the provider's order (TMDB ``order``, TVDB ``sort``).
+            Empty when the provider lists none. The NFO writer does not read it.
+        trailer_name: The title of the trailer ``trailer_url`` points to, or
+            ``None`` when there is no trailer or the provider names it not.
+        trailer_language: That trailer's language code as the provider gives it
+            (TMDB ISO 639-1), or ``None``.
     """
 
     provider: str
@@ -193,6 +215,9 @@ class MediaDetails:
     episode_count: int | None = None
     trailer_url: str | None = None
     creator: str | None = None
+    cast: list[CastMember] = field(default_factory=list)
+    trailer_name: str | None = None
+    trailer_language: str | None = None
 
 
 @dataclass(frozen=True)

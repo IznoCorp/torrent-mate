@@ -102,18 +102,54 @@ def _removable(conn: sqlite3.Connection, item_id: int) -> bool:
     """
     if conn.execute("SELECT 1 FROM media_item WHERE id = ?", (item_id,)).fetchone() is None:
         return False
-    if conn.execute(_HOLDS_LIVE_FILES_SQL, {"item_id": item_id}).fetchone()[0]:
+    if item_holds_live_files(conn, item_id):
         return False
     return bool(conn.execute(_SIBLING_HOLDS_LIVE_FILES_SQL, {"item_id": item_id}).fetchone()[0])
 
 
+def item_holds_live_files(conn: sqlite3.Connection, item_id: int) -> bool:
+    """Return whether *item_id* holds a live file, through a movie release or an episode release.
+
+    Args:
+        conn: Open connection on the indexer database.
+        item_id: ``media_item.id`` to check.
+
+    Returns:
+        ``True`` when at least one ``media_file`` of the item has no ``deleted_at``.
+    """
+    return bool(conn.execute(_HOLDS_LIVE_FILES_SQL, {"item_id": item_id}).fetchone()[0])
+
+
+def journal_item_removal(db_path: Path, item_id: int, *, run_uid: str) -> None:
+    """Write the ``destructive_op`` journal row of a removed ``media_item`` (best-effort).
+
+    Args:
+        db_path: Path of the indexer database, for the journal's own connection.
+        item_id: The row that was deleted.
+        run_uid: The run correlating the journal rows.
+    """
+    record_destruction(db_path, op=OP_DELETE, path=f"index:media_item/{item_id}", actor=_JOURNAL_ACTOR, run_uid=run_uid)
+
+
 def _tombstone(conn: sqlite3.Connection, item_id: int, now: int) -> None:
+    """Write the phantom-row tombstone of *item_id* (see :func:`tombstone_item`).
+
+    Args:
+        conn: Open connection inside the removal's transaction.
+        item_id: The row about to be deleted.
+        now: Epoch seconds of the removal.
+    """
+    tombstone_item(conn, item_id, now, reason=_TOMBSTONE_REASON)
+
+
+def tombstone_item(conn: sqlite3.Connection, item_id: int, now: int, *, reason: str) -> None:
     """Write the ``deleted_item`` tombstone of *item_id* with a snapshot of its columns.
 
     Args:
         conn: Open connection inside the removal's transaction.
         item_id: The row about to be deleted.
         now: Epoch seconds of the removal.
+        reason: ``deleted_item.reason`` of the removal.
     """
     cursor = conn.execute("SELECT * FROM media_item WHERE id = ?", (item_id,))
     columns = [d[0] for d in cursor.description]
@@ -125,7 +161,7 @@ def _tombstone(conn: sqlite3.Connection, item_id: int, now: int) -> None:
             kind="item",
             original_id=item_id,
             deleted_at=now,
-            reason=_TOMBSTONE_REASON,
+            reason=reason,
             payload_json=json.dumps({"kind": "item", "snapshot": snapshot}),
         ),
     )
@@ -180,8 +216,6 @@ def remove_phantom_rows(
         raise
 
     for item_id in doomed:
-        record_destruction(
-            db_path, op=OP_DELETE, path=f"index:media_item/{item_id}", actor=_JOURNAL_ACTOR, run_uid=run_uid
-        )
+        journal_item_removal(db_path, item_id, run_uid=run_uid)
         log.info("indexer.phantom_rows.removed", item_id=item_id, run_uid=run_uid)
     return len(doomed)
