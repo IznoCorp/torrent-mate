@@ -65,6 +65,9 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   setAccountAccess: "accounts.manage",
   createRole: "accounts.manage",
   updateRole: "accounts.manage",
+  // A role nobody holds and nobody starts on (the operator, 2026-10-04; ruling A);
+  // what it may not be is the handler's check, as the other role writes'.
+  deleteRole: "accounts.manage",
 
   readLibraryItems: "library.read",
   readLibraryCategories: "library.read",

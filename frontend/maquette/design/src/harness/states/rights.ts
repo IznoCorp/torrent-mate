@@ -9,7 +9,6 @@
 import { applyState, onLeave, type NamedState } from "../drive";
 import { openDrawer } from "../../app/frame-verbs";
 import { WRITE_RIGHTS, type Right } from "../../lib/rights";
-import { owed } from "../owed";
 
 /**
  * Signs one invented account in, until the next state resets the layer.
@@ -69,9 +68,6 @@ function tap(selector: string): void {
 
 // A manager who is not Admin: the spectator's role, given accounts.manage.
 const MANAGER_RIGHTS: Right[] = ["library.read", "acquisition.see.others", "accounts.manage", "acquisition.request"];
-
-// How long the creation form waits for the roster before it is submitted empty.
-const CREATE_AFTER = 400;
 
 // A title the library holds, whose sheet offers the library's writes.
 const OWNED = "American Dad!";
@@ -373,18 +369,6 @@ export function rightsStates(): NamedState[] {
         as("see-only");
         applyState({ page: "accounts", phase: "ready" });
         window.__panel.produce("roster", "household-member");
-      },
-    ],
-    [
-      "accounts-create-refused",
-      "Comptes — un nouveau compte sans adresse e-mail, refusé",
-      () => {
-        applyState({ page: "accounts", phase: "ready" });
-        owed(() => {
-          const form = document.querySelector<HTMLFormElement>('[data-part="accounts/create"]');
-          (form?.elements.namedItem("name") as HTMLInputElement | null)?.setAttribute("value", "Maya");
-          form?.requestSubmit();
-        }, CREATE_AFTER);
       },
     ],
     [

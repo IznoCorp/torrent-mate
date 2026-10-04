@@ -1557,7 +1557,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create an ordinary role */
+        /**
+         * Create an ordinary role
+         * @description A ROLE IS CREATED FROM ITS OWN PAGE, under the name the manager TYPED — never a name made up for it (the operator, 2026-10-04: « Pas de nom par défaut, saisie avec champs obligatoires »): a blank name is refused 400 `role.name_required`, and a name another role already carries — compared trimmed and regardless of case — 409 `role.name_taken`.
+         */
         post: operations["createRole"];
         delete?: never;
         options?: never;
@@ -1575,7 +1578,11 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete a role nobody holds
+         * @description A ROLE IS DELETED ONLY WHEN NOTHING DEPENDS ON IT (the operator, 2026-10-04: « possibilité de supprimer un rôle mais seulement s'il est attribué à aucun compte »). Refused, in this order: an unknown role 404 `role.unknown`; the Admin role 409 `role.system_immutable`; a role a newcomer starts on (`Role.defaultFor`) 409 `role.default`, EVEN WHEN NO ACCOUNT HOLDS IT (his ruling A); a role an account holds 409 `role.in_use`; and, to a manager who is not Admin, a role whose rights are not included in its own role's 403 `role.escalation` (round 9 Q14 = A). « Comptes » offers the act only on a role none of these refuses.
+         */
+        delete: operations["deleteRole"];
         options?: never;
         head?: never;
         /** Rename a role or set its rights */
@@ -2993,7 +3000,7 @@ export interface components {
          * @description WHY A REQUEST WAS REFUSED, as a closed code (X4: no sentence on the wire). The interface says it in its own words, read from fr.json by this code; `params` carries the values those words name. The set grows per lot: an operation whose lot has not landed its codes yet may refuse without one. ANTI-ENUMERATION (O-K1-4): the two doors refuse with ONE code, `auth.refused`, whatever the cause — an unknown e-mail, a wrong password, a Plex-linked account's password, a Plex identity without access to the server — so no attempt tells which e-mails the server knows. ONE CODE IS ANSWERED PAST THAT CHECK, `auth.access_disabled`: an account an Admin cut (`setAccountAccess`) is refused it only once its credentials — or its Plex identity — are PROVEN, so it tells nothing to someone who does not hold them.
          * @enum {string}
          */
-        RefusalCode: "request.invalid" | "request.cross_origin" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "auth.access_disabled" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "account.access_admin_only" | "account.owner_access" | "account.own_access" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "password.current_wrong" | "password.required" | "password.too_short" | "password.held_by_cli" | "password.reset_admin_only" | "media.not_found" | "media.ambiguous" | "provider.unavailable" | "library.locked";
+        RefusalCode: "request.invalid" | "request.cross_origin" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "auth.access_disabled" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "account.access_admin_only" | "account.owner_access" | "account.own_access" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "role.name_required" | "role.name_taken" | "role.in_use" | "role.default" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "password.current_wrong" | "password.required" | "password.too_short" | "password.held_by_cli" | "password.reset_admin_only" | "media.not_found" | "media.ambiguous" | "provider.unavailable" | "library.locked";
         /** @description A PLEX SIGN-IN STARTED on the server: its PIN, and Plex's page where the person confirms it (round 4 P-2 = B). */
         StartedPlexSignIn: {
             /** @description the PIN's key, the one `signInWithPlex` takes */
@@ -6054,6 +6061,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
+                    /** @description MANDATORY and typed: refused `role.name_required` when blank, `role.name_taken` when another role carries it */
                     name: string;
                     rights: components["schemas"]["Right"][];
                 };
@@ -6077,6 +6085,38 @@ export interface operations {
             503: components["responses"]["Problem"];
         };
     };
+    deleteRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the role */
+                roleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description it is gone */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
     updateRole: {
         parameters: {
             query?: never;
@@ -6090,7 +6130,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** @description refused on a system role */
+                    /** @description refused on a system role; a name another role already carries — compared trimmed and regardless of case, the role's own excepted — refused 409 `role.name_taken`, as at creation */
                     name?: string;
                     /** @description refused on the Admin role, which holds no list */
                     rights?: components["schemas"]["Right"][];

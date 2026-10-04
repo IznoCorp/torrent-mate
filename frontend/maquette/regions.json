@@ -230,6 +230,14 @@
       "selector": "[data-region=\"screen-ranking/body\"]",
       "note": "the ranking editor's content — its criteria and weights, the save, and the live preview"
     },
+    "screen-role-create/body": {
+      "selector": "[data-region=\"screen-role-create/body\"]",
+      "note": "a role's creation page — its typed name, its rights, and Create once the form is valid"
+    },
+    "screen-account-create/body": {
+      "selector": "[data-region=\"screen-account-create/body\"]",
+      "note": "an account's creation page — its name, e-mail, role and provisional password, and Create once the form is valid"
+    },
     "system/locks": {
       "selector": "[data-region=\"system/locks\"]",
       "note": "the pipeline's lock, the two sentinels and the sweep"

@@ -75,6 +75,9 @@ type Screens = {
   run: (runUid: string) => void;
   // The ranking editor, under the settings page.
   ranking: () => void;
+  // A role's and an account's creation pages, under « Comptes ».
+  newRole: () => void;
+  newAccount: () => void;
 };
 
 declare global {
@@ -349,5 +352,7 @@ fillScreensDoor({
   },
   run: (runUid: string) => go({ to: "/run/$runUid", params: { runUid } }),
   ranking: () => go({ to: "/settings/ranking" }),
+  newRole: () => go({ to: "/accounts/roles/new" }),
+  newAccount: () => go({ to: "/accounts/new" }),
 });
 }

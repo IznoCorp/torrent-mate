@@ -16,24 +16,26 @@
 // Admin ONLY — « si on n'a pas le droit l'interface ne devrait pas permettre de
 // le faire » — and greyed with its reason on the owner's row and the Admin's
 // own (Q5 = A). A cut account is marked on its row, for whoever reads the roster.
-import { useState } from "react";
-import type { FormEvent, ReactElement } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+//
+// A CREATION OPENS ITS OWN PAGE (the operator, 2026-10-04: « dès qu'on a des
+// créations dans ce genre il faut préférer une page et un formulaire avec
+// validation plutôt que tout mettre en vrac sur une page »): « Nouveau compte »
+// and « Nouveau rôle » are links to their pages, and create nothing here.
+import type { ReactElement } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import { accountsQuery, roleLabel, useAccount } from "../../lib/account";
-import { refusalWords } from "../../lib/refusal";
 import { bypassesRights } from "../../lib/rights";
 import { FactRows } from "../../ui/fact-rows";
 import { Chip } from "../../ui/chip";
 import { Switch } from "../../ui/switch";
 import {
-  actionButton, chip, factDetail, factList, factName, factRow, factRowBody, factValue, guidance, sectionHeading, surfaceError,
+  actionButton, chip, factDetail, factList, factName, factRow, factRowBody, factValue, sectionHeading,
 } from "../../ui/variants";
 import type { Schemas } from "../../lib/contract-schemas";
-import { sendNow } from "./send-now";
-import { accountBody, accountField, accountForm } from "./variants";
-import { PART, withinReach } from "./roster-panels";
+import { accountBody } from "./variants";
+import { PART } from "./roster-panels";
 
 export function AccountsPage(): ReactElement | null {
   const { t } = useTranslation();
@@ -46,6 +48,9 @@ export function AccountsPage(): ReactElement | null {
       <ol className={factList()} data-part="flux">
         {roster.accounts.map((account) => <AccountRow key={account.id} account={account} viewer={viewer} />)}
       </ol>
+      <button className={actionButton({ kind: "cardFoot" })} data-part="accounts/account-create" data-account-create="">
+        {t("screens.accounts.newAccount")}
+      </button>
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.accounts.roles")}</h2>
       <ol className={factList()} data-part="flux">
@@ -59,8 +64,6 @@ export function AccountsPage(): ReactElement | null {
       <button className={actionButton({ kind: "cardFoot" })} data-part="accounts/role-create" data-role-create="">
         {t("screens.accounts.newRole")}
       </button>
-
-      <NewAccount roles={roster.roles.filter((role) => !bypassesRights(role))} />
     </>
   );
 }
@@ -121,79 +124,5 @@ function AccountRow({ account, viewer }: {
           data-account-access={[account.id, String(cut)].join(PART)} />
       ) : null}
     </li>
-  );
-}
-
-/**
- * The creation form: a name, a MANDATORY e-mail, an initial role (demand G),
- * and a local account's PROVISIONAL password (the operator, 2026-10-03: « A ») —
- * sent now or not at all (`send-now.ts`), ignored by the server for an e-mail
- * it links to Plex.
- *
- * @param roles The roles an account may be created on — never Admin here.
- */
-function NewAccount({ roles }: { roles: Schemas["Role"][] }): ReactElement {
-  const { t } = useTranslation();
-  const client = useQueryClient();
-  const { data: manager } = useAccount();
-  const [refusal, setRefusal] = useState<string | null>(null);
-
-  async function create(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const fields = new FormData(form);
-    const email = String(fields.get("email") ?? "").trim();
-    // THE E-MAIL IS MANDATORY: said before anything is asked.
-    if (!email.includes("@")) {
-      setRefusal(t("screens.accounts.emailRequired"));
-      return;
-    }
-    const problem = await sendNow("POST", "/api/v1/accounts", {
-      name: String(fields.get("name") ?? "").trim(),
-      email,
-      role: String(fields.get("role") ?? ""),
-      password: String(fields.get("password") ?? ""),
-    });
-    if (problem !== null) {
-      // A REFUSAL SAYS WHY, in `fr.json`'s words for its code (gap G-1).
-      setRefusal(refusalWords(problem, "screens.accounts.createRefused"));
-      return;
-    }
-    setRefusal(null);
-    form.reset();
-    await client.refetchQueries({ queryKey: accountsQuery.queryKey });
-  }
-
-  return (
-    <form className={accountForm()} data-part="accounts/create" onSubmit={(event) => void create(event)} noValidate>
-      <h2 className={sectionHeading()} data-part="heading">{t("screens.accounts.newAccount")}</h2>
-      <label>
-        {t("screens.accounts.name")}
-        <input className={accountField()} name="name" autoComplete="off" required />
-      </label>
-      <label>
-        {t("screens.accounts.email")}
-        <input className={accountField()} name="email" type="email" autoComplete="off" required />
-      </label>
-      <label>
-        {t("screens.accounts.initialRole")}
-        <select className={accountField()} name="role" defaultValue={roles.find((role) => role.defaultFor?.includes("local"))?.id}>
-          {/* GREYED, NEVER HIDDEN, where the manager may not give it — the
-              account sheet's own rule for the same choice (round 9 Q14 = A). */}
-          {roles.map((role) => (
-            <option key={role.id} value={role.id} disabled={!withinReach(role.rights, manager)}>{roleLabel(role)}</option>
-          ))}
-        </select>
-      </label>
-      <label>
-        {t("screens.accounts.provisionalPassword")}
-        <input className={accountField()} name="password" type="password" autoComplete="new-password" />
-      </label>
-      <p className={guidance()}>{t("screens.accounts.plexHint")}</p>
-      {refusal ? <p className={surfaceError({ tone: "danger" })} role="status" data-part="accounts/refusal">{refusal}</p> : null}
-      <button className={actionButton({ kind: "cardFoot", tone: "solid" })} type="submit" data-part="accounts/create-submit">
-        {t("screens.accounts.create")}
-      </button>
-    </form>
   );
 }

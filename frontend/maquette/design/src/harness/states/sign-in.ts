@@ -8,6 +8,7 @@
 import { applyState, type NamedState } from "../drive";
 import { owed } from "../owed";
 import { as } from "./rights";
+import { fillCreation } from "./creation";
 
 // How long a form waits for its surface to be drawn before it is filled.
 const FILL_AFTER = 400;
@@ -49,21 +50,13 @@ function changePassword(fields: [string, string, string]): void {
 }
 
 /**
- * Opens « Comptes » and submits its creation form for a local account.
+ * Opens « Comptes »' account creation page and creates a local account.
  *
  * @param password The provisional password typed, empty for none.
  */
 function createLocal(password: string): void {
-  applyState({ page: "accounts", phase: "ready" });
-  owed(() => {
-    const form = document.querySelector<HTMLFormElement>('[data-part="accounts/create"]');
-    if (!form) return;
-    const fields: Record<string, string> = { name: "Nina", email: "nina@example.invalid", password };
-    Object.entries(fields).forEach(([name, value]) => {
-      (form.elements.namedItem(name) as HTMLInputElement).value = value;
-    });
-    form.requestSubmit();
-  }, FILL_AFTER);
+  fillCreation("account", [
+    ["name", "Nina"], ["email", "nina@example.invalid"], ["role", "local-guest"], ["password", password]], undefined, true);
 }
 
 /**

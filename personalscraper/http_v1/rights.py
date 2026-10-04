@@ -54,6 +54,7 @@ OPERATION_RIGHTS: Final[Mapping[str, Requirement]] = MappingProxyType(
         "setAccountAccess": holds(Right.ACCOUNTS_MANAGE),
         "createRole": holds(Right.ACCOUNTS_MANAGE),
         "updateRole": holds(Right.ACCOUNTS_MANAGE),
+        "deleteRole": holds(Right.ACCOUNTS_MANAGE),
         "readLibraryItems": holds(Right.LIBRARY_READ),
         "readLibraryCategories": holds(Right.LIBRARY_READ),
         "readLibraryRecent": holds(Right.LIBRARY_READ),

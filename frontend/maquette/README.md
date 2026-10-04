@@ -19,7 +19,7 @@ switchover.
 | Path | What |
 | --- | --- |
 | `design/` | the served root and a Vite project — `index.html`, `src/`, `assets/`, `sw.js` |
-| `design/src/routes/` | one file per address: `/`, `/acquisition`, `/media`, `/discover`, `/trackers`, `/system`, `/maintenance`, `/settings`, `/settings/ranking`, `/account`, `/add`, `/media/$provider/$id`, `/quality/$name`, `/releases/$title`, `/resolution/$folder`, `/run/$runUid` |
+| `design/src/routes/` | one file per address: `/`, `/acquisition`, `/media`, `/discover`, `/trackers`, `/system`, `/maintenance`, `/settings`, `/settings/ranking`, `/account`, `/accounts`, `/accounts/new`, `/accounts/roles/new`, `/add`, `/media/$provider/$id`, `/quality/$name`, `/releases/$title`, `/resolution/$folder`, `/run/$runUid` |
 | `design/src/app/` | the shell: frame, drawer, tab bar, layers, history bridge, page host, store, outbox, live relay |
 | `design/src/features/` | one directory per surface (acquisition, library, media, releases, trackers, system, maintenance, settings, account) |
 | `design/src/ui/` | the shared components and their `variants.ts` (card, chip, dialog, panel, popover, fact rows…) |
@@ -518,6 +518,30 @@ to the real disks — so what the interface owes is the look BEFORE, not a net a
 
 `harness/machine.py` states it, counting both PM2 lists and checking the 26 commands against the
 engine's own registry in both directions.
+
+## A creation opens its own page, with a validated form
+
+The operator, 2026-10-04: « dès qu'on a des créations dans ce genre il faut préférer une page et un
+formulaire avec validation plutôt que tout mettre en vrac sur une page. » It is the rule for every
+creation the interface offers, and it is written here so it is not re-decided per surface:
+
+- **A creation opens its own page** — a screen over the page it belongs to, at its own address
+  (`/accounts/new`, `/accounts/roles/new`), declared in `SCREEN_PARENTS` and reached through
+  `window.__screens`. The control on the list is a link to it: **never a create-at-once on a list
+  page, never a form piled onto the list.**
+- **Required fields are marked**, beside their label.
+- **No default values**: no generated name, no choice made for the reader — a field starts empty and
+  the reader fills it.
+- **Errors are said at the field**, under it, in `fr.json`'s words, once the field was typed into (never
+  on a mere blur, which moves nothing);
+  a refusal the server still answers lands at the field its code belongs to, and only a refusal no
+  field owns is said for the form as a whole.
+- **The create action is enabled only when the form is valid.** Pressed, it creates, then returns to
+  the page the creation belongs to, which draws what was made.
+
+`ui/creation-form.tsx` draws it once — the screen, each field with its mark and its error, the act —
+and a feature hands it its words and its controls. `harness/creation_pages.py` (R525) holds it on
+« Comptes »' two creations.
 
 ## A layer is not a route, and closing one leaves the page alone
 

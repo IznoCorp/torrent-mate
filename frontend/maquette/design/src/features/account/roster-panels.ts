@@ -10,6 +10,11 @@
 // A CHANGE REACHES THE ACCOUNT IT CONCERNS through the answer (demand M, F37):
 // the roster and the signed-in account are read again, and every surface that
 // draws by rights recomposes from what comes back — no poll.
+//
+// A ROLE IS DELETED ONLY WHEN NOTHING DEPENDS ON IT (the operator, 2026-10-04:
+// « seulement s'il est attribué à aucun compte »; ruling A: nor when a newcomer
+// starts on it), and Delete is OFFERED only there — never an act the server
+// would refuse. It asks first (NE-DOIT-PAS-6).
 import i18next from "i18next";
 import type { QueryClient } from "@tanstack/react-query";
 
@@ -17,7 +22,7 @@ import { accountQuery, accountsQuery, roleLabel } from "../../lib/account";
 import { RIGHTS, bypassesRights, rightsOf, sameRole, type Right } from "../../lib/rights";
 import { HELD, send } from "../../lib/query-client";
 import { refusalWords } from "../../lib/refusal";
-import { panel, toast } from "../../lib/shell-doors";
+import { dialog, panel, screens, toast } from "../../lib/shell-doors";
 import { registerVerb } from "../../lib/verbs";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 import type { Schemas } from "../../lib/contract-schemas";
@@ -103,6 +108,22 @@ function accountPanel(id: string, cache: PanelCache): PanelDescriptor | null {
 }
 
 /**
+ * Whether a role may be deleted by this manager: no account holds it, no
+ * newcomer starts on it (ruling A), it is not Admin's, and its rights are
+ * within the manager's reach (round 9 Q14 = A).
+ *
+ * @param role The role.
+ * @param roster The roster, its accounts each on its role.
+ * @param manager The signed-in manager.
+ * @returns True when Delete is offered.
+ */
+export function deletable(role: Role, roster: Roster, manager: Schemas["Account"] | undefined): boolean {
+  if (bypassesRights(role) || (role.defaultFor ?? []).length > 0) return false;
+  if (roster.accounts.some((account) => sameRole(account.role, role))) return false;
+  return withinReach(role.rights, manager);
+}
+
+/**
  * One role's panel: what it is, and each right of § 1.2 it holds or does not.
  *
  * @param id The role.
@@ -151,8 +172,48 @@ function rolePanel(id: string, cache: PanelCache): PanelDescriptor | null {
           };
         }),
       },
+      deletable(role, roster, manager)
+        ? { type: "actions", actions: [{ text: translate("screens.accounts.roleDelete.act"), ton: "danger",
+          target: { "role-delete": role.id } }] }
+        : null,
     ],
   };
+}
+
+/**
+ * Asks before a role is deleted, naming it (NE-DOIT-PAS-6).
+ *
+ * @param id The role.
+ * @param name Its name, as the interface says it.
+ */
+function askToDelete(id: string, name: string): void {
+  const translate = i18next.t.bind(i18next);
+  dialog?.open({
+    heading: translate("screens.accounts.roleDelete.heading", { name }),
+    body: [{ type: "paragraph", runs: [{ text: translate("screens.accounts.roleDelete.body") }] }],
+    actions: [
+      { text: translate("screens.accounts.roleDelete.confirm"), tone: "danger", target: { "data-confirm-role-delete": id } },
+      { text: translate("screens.accounts.roleDelete.cancel"), tone: "ghost", dismiss: true },
+    ],
+  });
+}
+
+/**
+ * Deletes one role, then reads the roster again; a refusal is said in its code's words.
+ *
+ * @param client The cache.
+ * @param id The role.
+ */
+async function deleteRole(client: QueryClient, id: string): Promise<void> {
+  try {
+    const answer = await send("DELETE", `/api/v1/roles/${encodeURIComponent(id)}`);
+    panel?.close();
+    if (answer === HELD) return;
+    await client.refetchQueries({ queryKey: accountsQuery.queryKey });
+    toast?.show({ message: i18next.t("screens.accounts.roleDelete.done") });
+  } catch (failure) {
+    toast?.show({ message: refusalWords(failure, "screens.accounts.roleDelete.refused") });
+  }
 }
 
 registerProducer("roster", { produce: accountPanel, needs: [accountsQuery, accountQuery] });
@@ -227,12 +288,16 @@ export function installRosterVerbs(client: QueryClient): void {
     }
     void change(client, () => send("PATCH", `/api/v1/roles/${encodeURIComponent(id)}`, { name }));
   });
-  registerVerb("role-create", () => {
-    // A NEW ROLE STARTS WITH THE RIGHTS A LOCAL ACCOUNT STARTS ON (O-K1-4) —
-    // nothing handed out that the manager did not choose.
-    const roster = client.getQueryData<Roster>(accountsQuery.queryKey);
-    const rights = roster?.roles.find((role) => role.defaultFor?.includes("local"))?.rights ?? [];
-    const name = i18next.t("screens.accounts.newRoleName", { count: (roster?.roles.length ?? 0) + 1 });
-    void change(client, () => send("POST", "/api/v1/roles", { name, rights }));
+  // A CREATION OPENS ITS OWN PAGE (the operator, 2026-10-04): the tap creates
+  // nothing, and nothing is made up for it.
+  registerVerb("role-create", () => screens?.newRole());
+  registerVerb("account-create", () => screens?.newAccount());
+  registerVerb("role-delete", (id) => {
+    const role = client.getQueryData<Roster>(accountsQuery.queryKey)?.roles.find((one) => one.id === id);
+    askToDelete(id, role === undefined ? id : roleLabel(role));
+  });
+  registerVerb("confirm-role-delete", (id) => {
+    dialog?.close();
+    void deleteRole(client, id);
   });
 }
