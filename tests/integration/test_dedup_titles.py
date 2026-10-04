@@ -497,9 +497,8 @@ def test_apply_normalizes_solo_nfd_title(
 
 # ── survivor holds the files; deletions are journaled ─────────────────────────
 
-_FILES_DISPATCH = "/Volumes/Disk1/movies/Batman, le défi (1989)"
-_BATMAN_NFC = _NFC("NFC", "Batman, le défi")
-_BATMAN_NFD = _NFC("NFD", "Batman, le défi")
+# Reuse the module's accented title: the pair only needs an NFC/NFD split, and no new accented literal may be added.
+_FILES_DISPATCH = f"/Volumes/Disk1/movies/{_NFC_TITLE} (1989)"
 
 
 def _seed_group(db_path: Path, *, holders: tuple[bool, bool]) -> tuple[int, int]:
@@ -515,15 +514,13 @@ def _seed_group(db_path: Path, *, holders: tuple[bool, bool]) -> tuple[int, int]
     conn = sqlite3.connect(str(db_path))
     conn.execute("PRAGMA foreign_keys=ON")
     now = int(time.time())
-    older = _insert_item(
-        conn, _BATMAN_NFC, year=1989, date_metadata_refreshed=now - 1000, dispatch_path=_FILES_DISPATCH
-    )
-    newer = _insert_item(conn, _BATMAN_NFD, year=1989, date_metadata_refreshed=now, dispatch_path=_FILES_DISPATCH)
+    older = _insert_item(conn, _NFC_TITLE, year=1989, date_metadata_refreshed=now - 1000, dispatch_path=_FILES_DISPATCH)
+    newer = _insert_item(conn, _NFD_TITLE, year=1989, date_metadata_refreshed=now, dispatch_path=_FILES_DISPATCH)
     disk_id = seed_disk(conn, "Disk1", Path("/Volumes/Disk1"))
     for item_id, holds in zip((older, newer), holders, strict=True):
         if holds:
             release_id = conn.execute("INSERT INTO media_release (item_id) VALUES (?)", (item_id,)).lastrowid
-            seed_media_file_on_disk_row(conn, disk_id, release_id, f"movies/Batman-{item_id}")
+            seed_media_file_on_disk_row(conn, disk_id, release_id, f"movies/holder-{item_id}")
     conn.commit()
     conn.close()
     return older, newer
