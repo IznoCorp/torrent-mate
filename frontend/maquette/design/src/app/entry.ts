@@ -307,6 +307,23 @@ function offerInstall(platform: "ios" | "android"): void {
 }
 
 /**
+ * Lands the interface on the entry gate once its session is gone.
+ *
+ * A SESSION GONE UNDER THE INTERFACE — expired, or ended by an Admin's cut
+ * (the operator, 2026-10-04) — leaves nothing it drew as the account's any
+ * more, and the next sign-in reads everything again. Does nothing when the
+ * gate is already up. A named function rather than a closure in
+ * `installEntry`, so the exits rule's upward scan stops at its own body and
+ * does not read the later install timer as a wait after this `close()`.
+ */
+function landOnGate(): void {
+  const gate = node("#login");
+  if (gate && !gate.hidden) return;
+  panel?.close();
+  showSignIn(false);
+}
+
+/**
  * Installs the entry: the gate's submit, the install proposal's two paths, and
  * the seam the engine and the harness say all of it through.
  *
@@ -327,15 +344,7 @@ export function installEntry(): void {
     coverLoading();
   });
 
-  // A SESSION GONE UNDER THE INTERFACE — expired, or ended by an Admin's cut
-  // (the operator, 2026-10-04) — lands on the gate: nothing it drew is the
-  // account's any more, and the next sign-in reads everything again.
-  onSessionLost(() => {
-    const gate = node("#login");
-    if (gate && !gate.hidden) return;
-    panel?.close();
-    showSignIn(false);
-  });
+  onSessionLost(landOnGate);
 
   node("#installclose")?.addEventListener("click", () => {
     hideInstall();
