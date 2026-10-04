@@ -15,6 +15,7 @@ import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 
+import json5
 import pytest
 from pydantic import ValidationError
 
@@ -281,7 +282,10 @@ class TestIdleLifetime:
             WebConfig(session_idle_days=days)
 
     def test_the_example_configuration_names_it(self) -> None:
-        """``config.example/`` sets it, to the default."""
+        """``config.example/web.json5`` sets it, to the default — read raw, not through the model's default."""
+        with (_EXAMPLE_DIR / "web.json5").open(encoding="utf-8") as fh:
+            web = json5.load(fh)
+        assert web["web"]["session_idle_days"] == 30
         assert load_config_dir(_EXAMPLE_DIR).web.session_idle_days == 30
 
 
