@@ -19,6 +19,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from _repo_paths import DESIGN
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from nofrench_lexicon import (  # noqa: E402
@@ -125,7 +126,7 @@ def check_app_interface_text(violations: list[str]) -> None:
 
 # The shell's markup: text nodes and the labels a reader hears, once the
 # comments, scripts and styles are taken out.
-SHELL_MARKUP = ROOT / "frontend" / "maquette" / "design" / "index.html"
+SHELL_MARKUP = DESIGN / "index.html"
 MARKUP_NOISE = re.compile(r"<!--.*?-->|<(script|style)\b.*?</\1>", re.S | re.I)
 MARKUP_TEXT = re.compile(r">([^<>]*[^\s<>][^<>]*)<")
 MARKUP_LABEL = re.compile(r'\s(?:aria-label|alt|title|placeholder)="([^"]+)"')

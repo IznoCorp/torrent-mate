@@ -28,9 +28,10 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from _repo_paths import DESIGN, HARNESS, MAQUETTE
 
 ROOT = Path(__file__).resolve().parents[2]
-MODULE = ROOT / "frontend" / "maquette" / "design" / "build-identity.mjs"
+MODULE = DESIGN / "build-identity.mjs"
 
 ROOT_FILES = ("index.html", "sw.js", "package.json")
 
@@ -169,14 +170,12 @@ def test_the_root_files_are_part_of_the_identity(tmp_path: Path) -> None:
 # way: switchover.py and serve.py were named here, and `dense_boot.py` and the
 # fresh-build test, which assemble a tree too, were not — the harness went red
 # on the dense build. Every assembler is named, not two.
-HARNESS = ROOT / "frontend" / "maquette" / "harness"
 ASSEMBLERS = {
     "switchover.py's scratch tree": HARNESS / "switchover.py",
     "dense_boot.py's scratch tree": HARNESS / "dense_boot.py",
     "test_design_fresh_build.py's BUILD_FILES": ROOT / "tests" / "scripts" / "test_design_fresh_build.py",
-    "serve.py's BUILD_INPUTS": ROOT / "frontend" / "maquette" / "serve.py",
+    "serve.py's BUILD_INPUTS": MAQUETTE / "serve.py",
 }
-DESIGN = ROOT / "frontend" / "maquette" / "design"
 
 
 def test_every_build_input_at_the_design_root_is_known_to_every_assembler() -> None:

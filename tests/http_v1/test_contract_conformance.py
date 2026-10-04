@@ -43,6 +43,7 @@ from pathlib import Path
 from typing import Any, Final, Literal
 
 import pytest
+from _repo_paths import CONTRACT
 from fastapi import APIRouter, FastAPI
 from pydantic import Field
 
@@ -54,7 +55,7 @@ from personalscraper.http_v1.rights import OPERATION_RIGHTS
 from tests.http_v1.test_rights_table import _OVERRIDES, _requirement
 
 _REPO_ROOT: Final = Path(__file__).resolve().parents[2]
-_CONTRACT: Final = _REPO_ROOT / "frontend" / "maquette" / "contract" / "openapi.json"
+_CONTRACT: Final = CONTRACT
 _SERVED: Final = _REPO_ROOT / "frontend" / "openapi-v1.json"
 _METHODS: Final = ("get", "post", "put", "patch", "delete")
 _NULL: Final = {"type": "null"}

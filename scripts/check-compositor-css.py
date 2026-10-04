@@ -48,10 +48,10 @@ import json
 import pathlib
 import re
 import sys
+from _repo_paths import DESIGN, MAQUETTE
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-MANIFEST = ROOT / "frontend" / "maquette" / "compositor-css.json"
-DESIGN = ROOT / "frontend" / "maquette" / "design"
+MANIFEST = MAQUETTE / "compositor-css.json"
 
 # The seven properties the compositor reads. `overscroll-behavior` is matched
 # with its axis suffixes because `-y` is the spelling actually used, and

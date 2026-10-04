@@ -54,9 +54,10 @@ from __future__ import annotations
 import re
 import sys
 from pathlib import Path
+from _repo_paths import DESIGN_SRC
 
 ROOT = Path(__file__).resolve().parent.parent
-DESIGN_ROOT = ROOT / "frontend" / "maquette" / "design" / "src"
+DESIGN_ROOT = DESIGN_SRC
 # The dying engine is only ever subtracted from; the mock layer's doubles may
 # shadow the names they stand in for.
 EXCLUDED_DIRECTORIES = ("engine", "mocks")

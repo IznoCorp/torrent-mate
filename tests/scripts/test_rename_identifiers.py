@@ -18,6 +18,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from _repo_paths import DESIGN
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "rename-identifiers.py"
@@ -29,7 +30,7 @@ SCRIPT = ROOT / "scripts" / "rename-identifiers.py"
 # tests below carry no such guard and run everywhere, on purpose: the parser
 # they exercise is Python's own tokeniser.
 needs_typescript = pytest.mark.skipif(
-    not (ROOT / "frontend" / "maquette" / "design" / "node_modules" / "typescript").is_dir(),
+    not (DESIGN / "node_modules" / "typescript").is_dir(),
     reason="frontend/maquette/design/node_modules/typescript absent",
 )
 

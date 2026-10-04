@@ -26,15 +26,15 @@ import re
 import tokenize
 from collections.abc import Iterable
 from pathlib import Path
+from _repo_paths import DESIGN_SRC, HARNESS
 
 ROOT = Path(__file__).resolve().parent.parent
-SOURCES = ROOT / "frontend" / "maquette" / "design" / "src"
+SOURCES = DESIGN_SRC
 
 # The anchor arm's corpus: the harness rules, the same `*.py` set
 # `classify-rule-anchors.py` reads. The two readers must share the corpus,
 # or « both find zero class anchors » is two answers to two questions. The
 # part arm reads the same set, from the other end.
-HARNESS = ROOT / "frontend" / "maquette" / "harness"
 
 # Comments are stripped before anything is read. `library.tsx` carries a comment
 # describing a REJECTED first version — « gated it on `phase === "prete"` » —

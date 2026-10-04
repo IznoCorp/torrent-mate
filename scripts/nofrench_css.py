@@ -18,6 +18,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from _repo_paths import DESIGN, DESIGN_SRC
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from nofrench_lexicon import (  # noqa: E402
@@ -150,11 +151,11 @@ def check_custom_properties(violations: list[str]) -> None:
     # document outside — narrower than arm 7, which already walks all of
     # `frontend/src`. A scope that is narrower than its sibling's is a hole
     # nobody chose.
-    sheets = [p for p in (ROOT / "frontend" / "maquette" / "design" / "index.html",)
+    sheets = [p for p in (DESIGN / "index.html",)
               if p.exists()]
     sheets += sorted(walk((ROOT / "frontend" / "src"), "*.css"))
     sheets += sorted(walk((ROOT / "frontend" / "src"), "*.tsx"))
-    sheets += [p for p in walk((ROOT / "frontend" / "maquette" / "design" / "src"), "*.tsx")]
+    sheets += [p for p in walk(DESIGN_SRC, "*.tsx")]
     for path in sheets:
         source = read(path)
         french = french_only({w.lower() for m in CUSTOM_PROPERTY.finditer(source)

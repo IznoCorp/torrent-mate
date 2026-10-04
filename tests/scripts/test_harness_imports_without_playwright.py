@@ -14,11 +14,9 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
-
-HARNESS = Path(__file__).resolve().parents[2] / "frontend" / "maquette" / "harness"
+from _repo_paths import HARNESS
 
 # The modules the suite loads (`test_harness_scratch`, `test_harness_settle`,
 # `test_harness_entry_points`); a rule script that drives a browser is not one.

@@ -27,10 +27,13 @@ import sys
 from pathlib import Path
 
 import pytest
+from _repo_paths import DESIGN_SRC, ROOT
 
-ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "check-component-once.py"
-DESIGN_SOURCE = ROOT / "frontend" / "maquette" / "design" / "src"
+# The guard reads its paths from this module, so a scratch copy of the guard
+# needs it beside it, where it resolves the scratch root instead of this one.
+PATHS = ROOT / "scripts" / "_repo_paths.py"
+DESIGN_SOURCE = DESIGN_SRC
 
 # A NAME `ui/` ALREADY HOLDS, so a second declaration anywhere else is the
 # defect this guard exists for. Read from the tree rather than typed, so a
@@ -55,17 +58,18 @@ def run(tree: Path) -> subprocess.CompletedProcess[str]:
 @pytest.fixture
 def tree(tmp_path: Path) -> Path:
     """A scratch copy of the sources the guard reads, and of the guard itself."""
-    copy = tmp_path / "frontend" / "maquette" / "design" / "src"
+    copy = tmp_path / DESIGN_SRC.relative_to(ROOT)
     copy.parent.mkdir(parents=True)
     shutil.copytree(DESIGN_SOURCE, copy, ignore=shutil.ignore_patterns("*.css", "*.json", "*.html"))
     (tmp_path / "scripts").mkdir()
     shutil.copy2(SCRIPT, tmp_path / "scripts" / SCRIPT.name)
+    shutil.copy2(PATHS, tmp_path / "scripts" / PATHS.name)
     return tmp_path
 
 
 def second(tree: Path, declaration: str, where: str = "features/releases/second.tsx") -> None:
     """Writes a second declaration of the shared name into the scratch tree."""
-    target = tree / "frontend" / "maquette" / "design" / "src" / where
+    target = tree / DESIGN_SRC.relative_to(ROOT) / where
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(declaration, encoding="utf-8")
 
@@ -134,9 +138,10 @@ def test_a_camel_case_name_is_not_a_component(tree: Path) -> None:
 
 def test_an_empty_corpus_is_refused_rather_than_called_clean(tmp_path: Path) -> None:
     """« No duplicate » over nothing read is the reading this guard refuses."""
-    (tmp_path / "frontend" / "maquette" / "design" / "src").mkdir(parents=True)
+    (tmp_path / DESIGN_SRC.relative_to(ROOT)).mkdir(parents=True)
     (tmp_path / "scripts").mkdir()
     shutil.copy2(SCRIPT, tmp_path / "scripts" / SCRIPT.name)
+    shutil.copy2(PATHS, tmp_path / "scripts" / PATHS.name)
     finished = run(tmp_path)
     assert finished.returncode != 0
     assert "under its floor" in finished.stderr

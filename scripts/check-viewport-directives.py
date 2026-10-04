@@ -37,6 +37,7 @@ from __future__ import annotations
 import re
 import sys
 from pathlib import Path
+from _repo_paths import MAQUETTE
 
 ROOT = Path(__file__).resolve().parent.parent
 # THE WHOLE MAQUETTE, NOT ONLY THE PROTOTYPE'S TREE. The first version read
@@ -45,7 +46,6 @@ ROOT = Path(__file__).resolve().parent.parent
 # `frontend/maquette/serve.py` emits four viewport metas and
 # `frontend/maquette/installable.py` a fifth, and every one of them was outside
 # this guard while its docstring told the story of a host.
-MAQUETTE = ROOT / "frontend" / "maquette"
 
 # The two directives, in the spellings a browser accepts: whitespace around the
 # separator is legal and `USER-SCALABLE` is case-insensitive, so neither is

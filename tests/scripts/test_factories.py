@@ -23,9 +23,8 @@ from __future__ import annotations
 
 import importlib.util
 import sys
-from pathlib import Path
 
-HARNESS = Path(__file__).resolve().parents[2] / "frontend" / "maquette" / "harness"
+from _repo_paths import HARNESS
 
 
 def load():

@@ -35,9 +35,9 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
+from _repo_paths import MAQUETTE
 
 ROOT = Path(__file__).resolve().parents[2]
-MAQUETTE = ROOT / "frontend" / "maquette"
 DESIGN = MAQUETTE / "design"
 SERVE = MAQUETTE / "serve.py"
 
