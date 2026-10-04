@@ -31,6 +31,7 @@ from tests.unit.app.accounts.test_plex_sign_in import (
     CODE,
     EMAIL,
     SERVER_TOKEN,
+    SHARED_MACHINE,
     USER_TOKEN,
     _Clock,
     _local,
@@ -220,6 +221,27 @@ class TestSignInWithPlex:
         assert cleared.value == "" and cleared["path"] == "/api/v1/auth/plex"
         for secret in (USER_TOKEN, SERVER_TOKEN, CODE):
             assert secret not in response.text
+
+    def test_a_link_ends_the_session_the_dropped_password_opened(self, v1_client: Callable[..., TestClient]) -> None:
+        """A shared user's local account linked by e-mail: its old cookie answers 401, the new one 200."""
+        client = v1_client(role=None)
+        _, clock = _door(client, server=_Server(SHARED_MACHINE))
+        services = _services(client)
+        services.app_store.accounts.insert_account(_local("account-local", EMAIL, "requester"))
+        running = services.sessions.open("account-local", user_agent="old browser")
+        old = TestClient(client.app, raise_server_exceptions=False)
+        old.cookies.set(SESSION_COOKIE, running)
+        assert old.get("/auth/me").status_code == 200
+        pin_id, _ = _start(client)
+        clock.now += 2.0
+
+        response = client.post("/auth/plex", json={"pinId": pin_id})
+
+        assert response.status_code == 200
+        assert old.get("/auth/me").status_code == 401
+        fresh = TestClient(client.app, raise_server_exceptions=False)
+        fresh.cookies.set(SESSION_COOKIE, _cookies(response)[SESSION_COOKIE].value)
+        assert fresh.get("/auth/me").status_code == 200
 
     def test_without_the_pin_cookie_is_pin_unknown(self, v1_client: Callable[..., TestClient]) -> None:
         """Another browser's PIN: 400 ``plex.pin_unknown``; plex.tv not asked."""
