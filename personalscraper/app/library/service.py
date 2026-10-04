@@ -329,7 +329,7 @@ class _DeletionPlan:
         item_id: The one index row holding it.
         targets: Its media folders, resolved inside their disks: ``(mount point, folder)``.
         unresolved: Its mounted media folders that do not resolve inside their disk, resolve
-            through a symlink, or sit on a disk root that is no mount point: never deleted,
+            through a symlink, or sit on a disk root on no mounted volume: never deleted,
             counted failed.
         unreachable: Its media folders on a disk the index says is not mounted.
     """
@@ -373,18 +373,39 @@ def _deletable_folder(mounted: tuple[str, str]) -> tuple[Path, Path] | None:
     Returns:
         ``(mount point, folder)`` resolved, or ``None`` when the folder does not resolve
         inside its disk, when its own path or its category's is a symlink (deleting through
-        a link would reach whatever it points to), or when the disk's root is no mount
-        point (the index's ``is_mounted`` flag can lag: an unmounted disk leaves a plain
-        folder behind, never the disk itself).
+        a link would reach whatever it points to), or when the disk's root is on no mounted
+        volume (:func:`_on_a_mounted_volume`; the index's ``is_mounted`` flag can lag: an
+        unmounted disk leaves a plain folder behind, never the disk itself).
     """
     mount_path, folder = mounted
     literal = Path(mount_path) / folder
     if literal.is_symlink() or literal.parent.is_symlink():
         return None
     resolved = resolve_media_folder(mount_path, folder)
-    if resolved is None or not os.path.ismount(resolved[0]):
+    if resolved is None or not _on_a_mounted_volume(resolved[0]):
         return None
     return resolved
+
+
+def _on_a_mounted_volume(root: Path) -> bool:
+    """Whether a disk root the index names sits on a mounted volume, not on the system root.
+
+    The index's root is a folder BELOW the mount point (``/Volumes/Disk1/medias``, mounted
+    at ``/Volumes/Disk1``), so it is never a mount point itself: the walk climbs to the
+    nearest mount point at or above it. A disk that dropped off leaves a plain
+    ``/Volumes/DiskN`` directory on the system root's device, and the walk then reaches
+    ``/``.
+
+    Args:
+        root: The disk root, resolved.
+
+    Returns:
+        ``True`` when the nearest mount point at or above *root* is not ``/``.
+    """
+    for candidate in (root, *root.parents):
+        if os.path.ismount(candidate):
+            return candidate != Path("/")
+    return False
 
 
 def _folder_identity(folder: Path) -> tuple[int, int] | None:
@@ -1162,7 +1183,8 @@ class LibraryService:
             permit: The deletion authority each folder's deletion consults.
 
         Returns:
-            What was done, and the surviving parent of each deleted folder (for Plex).
+            What was done, its deleted folders and the parents their deletion removed (for
+            Plex).
         """
         who = f"web:{actor.account_id}"
         provider, provider_id = ref_key(plan.ref)

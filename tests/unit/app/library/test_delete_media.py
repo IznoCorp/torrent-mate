@@ -90,8 +90,9 @@ class Shelf:
 def shelf(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Shelf]:
     """A service over a temporary index whose disk 1 is a temporary folder, with a fake Plex.
 
-    The disk's temporary folder stands in for a mount point: ``os.path.ismount`` answers
-    true for the folders of ``Shelf.mounts`` alone.
+    Shaped as on prod: the index's disk root is ``<tmp>/Disk1/medias``, a folder below the
+    mount point ``<tmp>/Disk1``; ``os.path.ismount`` answers true for the folders of
+    ``Shelf.mounts`` alone (that mount point and the system root).
 
     Args:
         tmp_path: Pytest's temporary directory.
@@ -100,9 +101,9 @@ def shelf(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Shelf]:
     Yields:
         The shelf; its stores are closed after the test.
     """
-    root = tmp_path / "disk1"
-    root.mkdir()
-    mounts = {root.resolve()}
+    root = tmp_path / "Disk1" / "medias"
+    root.mkdir(parents=True)
+    mounts = {root.parent.resolve(), Path("/")}
     monkeypatch.setattr(os.path, "ismount", lambda path: Path(path) in mounts)
     index = FixtureIndex(tmp_path / "library.db")
     index.conn.execute("UPDATE disk SET mount_path = ? WHERE id = 1", (str(root),))
@@ -447,8 +448,8 @@ def test_two_unicode_spellings_of_one_folder_delete_it_once(shelf: Shelf) -> Non
 
 
 def test_a_disk_root_that_is_no_mount_point_is_never_deleted_from(shelf: Shelf, tmp_path: Path) -> None:
-    """The index says disk 2 is mounted, its root is a plain folder: the folder kept and failed, the rows kept."""
-    plain = tmp_path / "disk2"
+    """The index says disk 2 is mounted, its root a leftover folder on the system root: kept, failed, rows kept."""
+    plain = tmp_path / "Disk2" / "medias"
     folder = plain / "films" / "Away"
     folder.mkdir(parents=True)
     (folder / "movie.mkv").write_bytes(b"x")
