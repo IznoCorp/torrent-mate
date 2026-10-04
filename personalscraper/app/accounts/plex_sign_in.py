@@ -452,6 +452,7 @@ class PlexSignInService:
         owner = access is PlexServerAccess.OWNER
         now = self._clock()
         moved = False
+        revoked: int | None = None  # sessions ended with a dropped password; None when none was dropped
         with repo.immediate():
             link = repo.plex_link_by_plex_id(plex.plex_id)
             if link is not None:
@@ -475,7 +476,7 @@ class PlexSignInService:
                         raise AppUnauthenticated("The sign-in was refused.", code=RefusalCode.AUTH_REFUSED)
                     _refuse_cut(found)
                     account = found
-                    moved = self._link_by_email(repo, found, _first_role(repo, access), owner=owner, now=now)
+                    moved, revoked = self._link_by_email(repo, found, _first_role(repo, access), owner=owner, now=now)
             if not repo.consume_pin(pin_id, now=now):
                 raise AppBadRequest(
                     "No Plex sign-in started in this browser answers this PIN.", code=RefusalCode.PLEX_PIN_UNKNOWN
@@ -498,6 +499,9 @@ class PlexSignInService:
             # No key set is the operator's choice; keys set but malformed are a fault to see.
             not_kept = log.warning if self._vault_keys_malformed else log.info
             not_kept("plex_token.not_kept", account_id=account.id)
+        if revoked is not None:
+            # Logged here, past the COMMIT: a rollback above must not leave a revocation on record.
+            log.info("plex_sign_in.password_dropped", account_id=account.id, sessions_revoked=revoked)
         log.info("plex_sign_in.admitted", account_id=account.id, access=access.value, linked=link is None)
         return account.id, moved
 
@@ -528,7 +532,9 @@ class PlexSignInService:
         return account
 
     @staticmethod
-    def _link_by_email(repo: AccountRepository, account: AccountRow, role: RoleRow, *, owner: bool, now: float) -> bool:
+    def _link_by_email(
+        repo: AccountRepository, account: AccountRow, role: RoleRow, *, owner: bool, now: float
+    ) -> tuple[bool, int | None]:
         """Link a local account whose e-mail is the identity's: its role and password as the rulings say.
 
         The owner is put on, or kept on, Admin and keeps his password (the fallback when Plex is
@@ -544,18 +550,19 @@ class PlexSignInService:
             now: The change time.
 
         Returns:
-            Whether its role moved.
+            Whether its role moved, and how many sessions the dropped password's revocation
+            ended (``None`` when no password was dropped); the caller logs it once committed.
         """
         moved = account.role_id != role.id
         if moved:
             repo.set_role(account.id, role.id, now=now, demoted_from=None if owner else account.role_id)
+        revoked: int | None = None
         if not owner and account.password_hash is not None:
             repo.set_password_hash(account.id, None, now=now)
             # The password is gone: no session it opened outlives it (as a password change ends
             # the others). The Plex session is opened after this transaction, so none is spared.
             revoked = repo.revoke_sessions_of(account.id, except_id=None, now=now)
-            log.info("plex_link_password_dropped", account_id=account.id, sessions_revoked=revoked)
-        return moved
+        return moved, revoked
 
 
 def _first_role(repo: AccountRepository, access: PlexServerAccess) -> RoleRow:

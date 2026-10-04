@@ -997,7 +997,7 @@ class TestLinkByEmail:
     def test_a_refused_link_leaves_the_sessions_untouched(
         self, store: AppStore, plextv: _PlexTv, clock: _Clock, bus: EventBus, setup: str
     ) -> None:
-        """An unconfirmed e-mail, or an Admin's cut: refused, the transaction rolled back, no session revoked."""
+        """An unconfirmed e-mail, or an Admin's cut: refused before the link, so no session is revoked."""
         store.accounts.insert_account(_local("account-local", EMAIL, "requester"))
         old = _open_sessions(store, "account-local")
         if setup == "unconfirmed":
@@ -1012,6 +1012,48 @@ class TestLinkByEmail:
 
         assert isinstance(refusal, (AppUnauthenticated, AppForbidden))
         assert _revoked(store, old) == [False, False]
+
+    def test_a_link_rolled_back_after_the_revocation_keeps_everything_and_logs_nothing(
+        self, store: AppStore, plextv: _PlexTv, clock: _Clock, bus: EventBus, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A valid non-owner link whose PIN was used meanwhile: ``plex.pin_unknown``, the revocation rolled back."""
+        store.accounts.insert_account(_local("account-local", EMAIL, "requester"))
+        before = store.accounts.account("account-local")
+        old = _open_sessions(store, "account-local")
+        door = _build(store, plextv, _Server(SHARED_MACHINE), clock, bus, None)
+        started = door.start()
+        clock.now += 2.0
+        monkeypatch.setattr(store.accounts, "consume_pin", lambda pin_id, *, now: False)
+
+        with structlog.testing.capture_logs() as logs:
+            refusal = _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
+
+        assert isinstance(refusal, AppBadRequest) and refusal.code is RefusalCode.PLEX_PIN_UNKNOWN
+        assert _revoked(store, old) == [False, False]
+        assert store.accounts.account("account-local") == before
+        assert store.accounts.plex_link("account-local") is None
+        assert [log["event"] for log in logs if "password_dropped" in log["event"]] == []
+
+    def test_a_dropped_password_is_logged_once_the_link_is_committed(
+        self, store: AppStore, plextv: _PlexTv, clock: _Clock, bus: EventBus
+    ) -> None:
+        """The event carries the account and the count of revoked sessions, and nothing else."""
+        store.accounts.insert_account(_local("account-local", EMAIL, "requester"))
+        _open_sessions(store, "account-local")
+        door = _build(store, plextv, _Server(SHARED_MACHINE), clock, bus, None)
+
+        with structlog.testing.capture_logs() as logs:
+            _sign_in(door, clock)
+
+        dropped = [log for log in logs if "password_dropped" in log["event"]]
+        assert dropped == [
+            {
+                "event": "plex_sign_in.password_dropped",
+                "log_level": "info",
+                "account_id": "account-local",
+                "sessions_revoked": 2,
+            }
+        ]
 
 
 class TestRefusals:

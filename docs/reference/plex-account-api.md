@@ -192,7 +192,8 @@ First role, applied at creation or link only: Admin for the owner, `Role.default
 Home member, `plexGuest` for any other user. `plex_link.server_access` stores `shared` for a Home
 member (the column allows `owner` and `shared`). A local account linked by e-mail drops its password
 and its role to its kind's (`account.demoted_from` keeps the role left, until an Admin gives one);
-the owner keeps Admin and his password.
+the owner keeps Admin and his password. A non-owner link also ends every session the dropped
+password had opened (`plex_sign_in.password_dropped`, logged once the link is committed).
 
 | Refusal | Code |
 | --- | --- |
