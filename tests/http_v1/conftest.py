@@ -28,21 +28,6 @@ from personalscraper.http_v1.session_cookie import SESSION_COOKIE
 LISTED_ROLE_ID = "role-listed"
 
 
-@pytest.fixture(autouse=True)
-def _no_plex_server(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Leave the composed Plex door without a server, so no v1 test can reach plex.tv.
-
-    ``tests/conftest.py`` loads the repository's ``.env``: its ``PLEX_TOKEN`` would give the
-    door built by ``build_app_services`` a real server and a real plex.tv client. Emptied, the
-    door refuses ``plex.server_unreachable`` before asking plex.tv; a test of the door swaps in
-    one over fakes.
-
-    Args:
-        monkeypatch: pytest's monkeypatch.
-    """
-    monkeypatch.setenv("PLEX_TOKEN", "")
-
-
 @pytest.fixture
 def make_v1_services(test_config: Config) -> Iterator[Callable[[], AppServices]]:
     """Return a factory building the process's services over the synthetic config, closed at teardown.

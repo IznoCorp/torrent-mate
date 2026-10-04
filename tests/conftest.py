@@ -209,6 +209,25 @@ def _neutralize_external_notify_creds(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(_var, "")
 
 
+@pytest.fixture(autouse=True)
+def _no_plex_server(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Leave every test without a Plex server, a Plex token or a token vault key.
+
+    This module loads the repository's ``.env``: its ``PLEX_TOKEN`` would give the Plex door
+    ``build_app_services`` composes — in any suite — a real server and a real plex.tv client,
+    and its ``PLEX_TOKEN_KEYS`` a real vault. Emptied, the door refuses
+    ``plex.server_unreachable`` before asking plex.tv; a test of the door swaps in one over
+    fakes. ``PLEX_URL`` is pinned to the setting's default rather than emptied, so a test of
+    that default still reads it.
+
+    Args:
+        monkeypatch: pytest's monkeypatch.
+    """
+    monkeypatch.setenv("PLEX_TOKEN", "")
+    monkeypatch.setenv("PLEX_TOKEN_KEYS", "")
+    monkeypatch.setenv("PLEX_URL", Settings.model_fields["plex_url"].default)
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _hermetic_config_dir(tmp_path_factory: pytest.TempPathFactory) -> None:
     """Point config resolution at a throwaway COPY of config.example (config-home #326).

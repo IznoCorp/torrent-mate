@@ -123,3 +123,16 @@ def test_malformed_token_keys_leave_the_door_without_a_vault_and_say_so(
         assert services.plex_sign_in._vault_keys_malformed is malformed
     finally:
         services.close()
+
+
+def test_every_suite_runs_with_no_plex_server_configured() -> None:
+    """Whatever the shell or ``.env`` holds, a test's settings name no Plex token, no vault key, the default address.
+
+    The root ``conftest.py`` empties them for every suite, so no composed door outside
+    ``tests/http_v1`` can build a real server or plex.tv client.
+    """
+    settings = Settings()
+
+    assert settings.plex_token == ""
+    assert settings.plex_token_keys == ""
+    assert settings.plex_url == Settings.model_fields["plex_url"].default
