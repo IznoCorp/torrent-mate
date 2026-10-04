@@ -2268,7 +2268,7 @@ export interface components {
         };
         Episode: {
             number: number;
-            title: string;
+            title: string | null;
             airDate?: string | null;
             /** @description minutes, where known */
             duration?: number | null;

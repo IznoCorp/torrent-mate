@@ -8678,7 +8678,10 @@
             "type": "integer"
           },
           "title": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "airDate": {
             "type": [
