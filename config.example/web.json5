@@ -14,5 +14,6 @@
     cookie_secure: true,
     dev_mode: false, // true = allow boot without a built SPA (Vite dev proxy)
     v1_enabled: false, // true only on the preprod overlay until K9 (O-K1-1)
+    plex_forward_url: null, // the interface's public address: plex.tv sends the Plex sign-in window there
   },
 }

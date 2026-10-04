@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from personalscraper.app.accounts.plex_sign_in import PlexSignInService
 from personalscraper.app.accounts.service import AccountService
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.build_info import BuildInfo
@@ -32,6 +33,7 @@ class AppServices:
         app_store: The environment's ``app.db``, opened on first use.
         sessions: v1's sessions.
         accounts: The account operations.
+        plex_sign_in: The Plex door.
     """
 
     event_bus: EventBus
@@ -40,6 +42,7 @@ class AppServices:
     app_store: AppStore
     sessions: SessionService
     accounts: AccountService
+    plex_sign_in: PlexSignInService
 
     def close(self) -> None:
         """Release what the services hold: the library's readers and the ``app.db`` connection, if opened.

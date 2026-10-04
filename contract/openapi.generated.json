@@ -196,6 +196,37 @@
         "title": "PasswordSet",
         "type": "object"
       },
+      "PlexPendingModel": {
+        "additionalProperties": false,
+        "description": "``signInWithPlex``'s 202: the PIN is not claimed yet.\n\nAttributes:\n    pending: Always true.",
+        "properties": {
+          "pending": {
+            "const": true,
+            "title": "Pending",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "pending"
+        ],
+        "title": "PlexPendingModel",
+        "type": "object"
+      },
+      "PlexSignInBody": {
+        "additionalProperties": false,
+        "description": "``signInWithPlex``'s body.\n\nAttributes:\n    pin_id: The PIN ``startPlexSignIn`` answered.",
+        "properties": {
+          "pinId": {
+            "title": "Pinid",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pinId"
+        ],
+        "title": "PlexSignInBody",
+        "type": "object"
+      },
       "Problem": {
         "additionalProperties": false,
         "description": "The contract's ``Problem`` (``#/components/schemas/Problem``).\n\nAttributes:\n    status: The HTTP status, repeated in the body.\n    title: What went wrong, in one English line \u2014 the code's title.\n    detail: The real reason, an English developer line; never shown as is.\n    code: The refusal's code; the interface renders it through ``fr.json``.\n    params: The typed facts the interface composes its sentence from.",
@@ -277,6 +308,11 @@
           "password.held_by_cli",
           "password.reset_admin_only",
           "password.reset_own",
+          "plex.unreachable",
+          "plex.server_unreachable",
+          "plex.token_refused",
+          "plex.pin_unknown",
+          "plex.pin_expired",
           "media.not_found",
           "provider.unavailable"
         ],
@@ -489,6 +525,26 @@
           "ok"
         ],
         "title": "SignedOut",
+        "type": "object"
+      },
+      "StartedPlexSignInModel": {
+        "additionalProperties": false,
+        "description": "The contract's ``StartedPlexSignIn``: the PIN, and plex.tv's page where the person confirms it.\n\nAttributes:\n    pin_id: The PIN's key, the one ``signInWithPlex`` takes.\n    sign_in_url: plex.tv's page; it carries the PIN code, so it is kept out of the ``repr``.",
+        "properties": {
+          "pinId": {
+            "title": "Pinid",
+            "type": "integer"
+          },
+          "signInUrl": {
+            "title": "Signinurl",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pinId",
+          "signInUrl"
+        ],
+        "title": "StartedPlexSignInModel",
         "type": "object"
       },
       "UpdateAccountBody": {
@@ -1413,6 +1469,184 @@
           }
         },
         "summary": "Change Own Password"
+      }
+    },
+    "/auth/plex": {
+      "post": {
+        "description": "Ask whether the PIN is claimed; once it is, open a session and hand its cookie.\n\nArgs:\n    body: The PIN ``startPlexSignIn`` answered.\n    request: The incoming request (the pin cookie, the user agent, the web configuration).\n    response: The answer the session cookie is set and the pin cookie cleared on.\n    app_services: The application services.\n\nReturns:\n    The signed-in account; or 202 ``{\"pending\": true}`` while the PIN is unclaimed.",
+        "operationId": "signInWithPlex",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlexSignInBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlexPendingModel"
+                }
+              }
+            },
+            "description": "The PIN is not claimed yet."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Sign In With Plex"
+      }
+    },
+    "/auth/plex/start": {
+      "post": {
+        "description": "Create a Plex PIN, bind it to this browser by the pin cookie, and answer plex.tv's page.\n\nArgs:\n    request: The incoming request (the web configuration).\n    response: The answer the pin cookie is set on.\n    app_services: The application services.\n\nReturns:\n    The PIN and plex.tv's page where the person confirms it.",
+        "operationId": "startPlexSignIn",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartedPlexSignInModel"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Start Plex Sign In"
       }
     },
     "/roles": {

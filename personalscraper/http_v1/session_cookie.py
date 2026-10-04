@@ -24,6 +24,12 @@ from personalscraper.conf.models.web import WebConfig
 #: The cookie v1's session travels in.
 SESSION_COOKIE: Final = "tm_v1_session"
 
+#: The cookie a Plex sign-in's nonce travels in: it binds a PIN to the browser that started it.
+PLEX_PIN_COOKIE: Final = "tm_v1_plex_pin"
+
+#: The only path the pin cookie is sent to: the Plex door's two operations.
+PLEX_PIN_COOKIE_PATH: Final = "/api/v1/auth/plex"
+
 #: The request-state key a renewed session's new value waits under for the response.
 _RENEWED_STATE_KEY: Final = "renewed_session_token"
 
@@ -59,6 +65,52 @@ def clear_session_cookie(response: Response, web: WebConfig) -> None:
         web: The web configuration (``cookie_secure``).
     """
     response.delete_cookie(SESSION_COOKIE, path="/", secure=web.cookie_secure, httponly=True, samesite="lax")
+
+
+def set_plex_pin_cookie(response: Response, nonce: str, *, max_age: int, web: WebConfig) -> None:
+    """Hand the browser the nonce of the Plex sign-in it started.
+
+    Args:
+        response: The answer to set the cookie on.
+        nonce: The nonce; the server keeps only its hash.
+        max_age: Its lifetime in seconds: until the PIN expires.
+        web: The web configuration (``cookie_secure``).
+    """
+    response.set_cookie(
+        PLEX_PIN_COOKIE,
+        nonce,
+        max_age=max_age,
+        path=PLEX_PIN_COOKIE_PATH,
+        secure=web.cookie_secure,
+        httponly=True,
+        # Strict: the nonce is only ever sent by the interface's own polling, never on a
+        # navigation from another site.
+        samesite="strict",
+    )
+
+
+def clear_plex_pin_cookie(response: Response, web: WebConfig) -> None:
+    """Tell the browser to drop the pin cookie, with the attributes it was set with.
+
+    Args:
+        response: The answer to clear the cookie on.
+        web: The web configuration (``cookie_secure``).
+    """
+    response.delete_cookie(
+        PLEX_PIN_COOKIE, path=PLEX_PIN_COOKIE_PATH, secure=web.cookie_secure, httponly=True, samesite="strict"
+    )
+
+
+def plex_pin_nonce(request: Request) -> str | None:
+    """The Plex sign-in nonce a request carries.
+
+    Args:
+        request: The incoming request.
+
+    Returns:
+        The ``tm_v1_plex_pin`` value, or ``None`` when absent or empty.
+    """
+    return request.cookies.get(PLEX_PIN_COOKIE) or None
 
 
 def session_token(request: Request) -> str | None:

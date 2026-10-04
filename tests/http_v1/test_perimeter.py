@@ -68,7 +68,7 @@ def _probe_router() -> APIRouter:
     """
     router = APIRouter()
 
-    @router.post("/auth/plex/start", operation_id="startPlexSignIn")
+    @router.post("/planted/public", operation_id="startPlexSignIn")
     def _public() -> dict[str, str]:
         """A public operation."""
         return {"ok": "yes"}
@@ -178,7 +178,7 @@ def test_write_with_no_origin_reaches_the_requirement(make_v1_app: Callable[...,
 
 def test_public_operation_answers_with_nobody_signed_in(make_v1_app: Callable[..., FastAPI]) -> None:
     """A public operation answers under the default resolver."""
-    response = _client(make_v1_app).post("/auth/plex/start")
+    response = _client(make_v1_app).post("/planted/public")
 
     assert response.status_code == 200
     assert response.json() == {"ok": "yes"}
