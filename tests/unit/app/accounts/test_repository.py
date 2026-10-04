@@ -284,6 +284,26 @@ class TestAccounts:
         account = repo.account("account-alice")
         assert account is not None and (account.sign_in_allowed, account.updated_at) == (True, 15.0)
 
+    def test_set_role_records_then_clears_the_demotion(self, repo: AccountRepository) -> None:
+        """A Plex link's demotion keeps the role left; a later role given clears it."""
+        repo.insert_account(_account(role_id="requester"))
+        assert repo.account("account-alice").demoted_from is None  # type: ignore[union-attr]
+        repo.set_role("account-alice", "household", now=11.0, demoted_from="requester")
+        account = repo.account("account-alice")
+        assert account is not None and (account.role_id, account.demoted_from) == ("household", "requester")
+        repo.set_role("account-alice", "requester", now=12.0)
+        account = repo.account("account-alice")
+        assert account is not None and (account.role_id, account.demoted_from) == ("requester", None)
+
+    def test_a_deleted_role_leaves_no_dangling_demotion(self, repo: AccountRepository) -> None:
+        """``demoted_from`` names a role by foreign key: deleting that role clears it."""
+        repo.insert_role(RoleRow(id="role-gone", name="Gone", kind=RoleKind.ORDINARY, rights=frozenset()), now=1.0)
+        repo.insert_account(_account())
+        repo.set_role("account-alice", "household", now=11.0, demoted_from="role-gone")
+        repo.delete_role("role-gone")
+        account = repo.account("account-alice")
+        assert account is not None and account.demoted_from is None
+
     def test_count_on_role_kind_and_accounts_on_role(self, repo: AccountRepository) -> None:
         """Counted by the role's kind; listed by the role."""
         repo.insert_account(_account(role_id="admin"))
@@ -330,6 +350,22 @@ class TestPlexLinks:
         repo.set_token_ciphertext("account-alice", None, now=None)
         link = repo.plex_link("account-alice")
         assert link is not None and (link.token_ciphertext, link.token_stored_at) == (None, None)
+
+    def test_an_upsert_without_a_token_keeps_the_sealed_one(self, repo: AccountRepository) -> None:
+        """A link written with no ciphertext (no vault) keeps the token sealed before; a new one replaces it."""
+        repo.insert_account(_account())
+        repo.upsert_plex_link(
+            PlexLinkRow(**{**_link().__dict__, "token_ciphertext": b"cipher", "token_stored_at": 21.0})
+        )
+
+        repo.upsert_plex_link(PlexLinkRow(**{**_link().__dict__, "last_sign_in_at": 30.0}))
+
+        link = repo.plex_link("account-alice")
+        assert link is not None
+        assert (link.token_ciphertext, link.token_stored_at, link.last_sign_in_at) == (b"cipher", 21.0, 30.0)
+        repo.upsert_plex_link(PlexLinkRow(**{**_link().__dict__, "token_ciphertext": b"new", "token_stored_at": 31.0}))
+        link = repo.plex_link("account-alice")
+        assert link is not None and (link.token_ciphertext, link.token_stored_at) == (b"new", 31.0)
 
 
 class TestSessions:
@@ -421,6 +457,44 @@ class TestPinsAndSettings:
         assert repo.pin(9) == PlexPinRow(**{**pin.__dict__, "last_checked_at": 1.5, "consumed_at": 1.7})
         assert repo.pin(10) is None
 
+    def test_claim_pin_check_lets_one_check_through_per_interval(self, repo: AccountRepository) -> None:
+        """The first claim wins; a second inside the interval loses; one past it wins again."""
+        repo.insert_pin(PlexPinRow(9, "ABCD", "n", 1.0, None, None, None))
+        assert repo.claim_pin_check(9, now=5.0, min_interval=1.0) is True
+        assert repo.claim_pin_check(9, now=5.5, min_interval=1.0) is False
+        assert repo.pin(9).last_checked_at == 5.0  # type: ignore[union-attr]
+        assert repo.claim_pin_check(9, now=6.0, min_interval=1.0) is True
+        assert repo.claim_pin_check(10, now=7.0, min_interval=1.0) is False
+
+    def test_a_consumed_pin_is_neither_claimed_nor_consumed_again(self, repo: AccountRepository) -> None:
+        """``consume_pin`` answers whether this call consumed it; a consumed PIN is never checked again."""
+        repo.insert_pin(PlexPinRow(9, "ABCD", "n", 1.0, None, None, None))
+        assert repo.consume_pin(9, now=2.0) is True
+        assert repo.consume_pin(9, now=3.0) is False
+        assert repo.pin(9).consumed_at == 2.0  # type: ignore[union-attr]
+        assert repo.claim_pin_check(9, now=9.0, min_interval=1.0) is False
+
+    def test_purge_pins_deletes_the_expired_and_the_consumed_only(self, repo: AccountRepository) -> None:
+        """Past its expiry, consumed, or with no expiry and older than the lifetime: deleted; the live kept."""
+        repo.insert_pin(PlexPinRow(1, "A", "n", 1.0, 50.0, None, None))  # expired
+        repo.insert_pin(PlexPinRow(2, "B", "n", 90.0, 200.0, None, 95.0))  # consumed, not yet expired
+        repo.insert_pin(PlexPinRow(3, "C", "n", 10.0, None, None, None))  # no expiry, past the lifetime
+        repo.insert_pin(PlexPinRow(4, "D", "n", 90.0, 200.0, 95.0, None))  # alive
+        repo.insert_pin(PlexPinRow(5, "E", "n", 90.0, None, None, None))  # no expiry, within the lifetime
+
+        assert repo.purge_pins(now=100.0, lifetime=30.0, limit=10) == 3
+
+        assert [pin_id for pin_id in range(1, 6) if repo.pin(pin_id) is not None] == [4, 5]
+
+    def test_purge_pins_is_bounded(self, repo: AccountRepository) -> None:
+        """One call deletes at most ``limit`` rows; the next takes the rest."""
+        for pin_id in range(1, 6):
+            repo.insert_pin(PlexPinRow(pin_id, "A", "n", 1.0, 2.0, None, None))
+
+        assert repo.purge_pins(now=100.0, lifetime=30.0, limit=2) == 2
+        assert repo.purge_pins(now=100.0, lifetime=30.0, limit=10) == 3
+        assert repo.purge_pins(now=100.0, lifetime=30.0, limit=10) == 0
+
     def test_setting_set_read_and_replaced(self, repo: AccountRepository) -> None:
         """Absent, set, replaced."""
         assert repo.setting("plex.client_identifier") is None
@@ -470,12 +544,12 @@ class TestSecretsStayOutOfRepr:
     """A row's secret never prints through ``repr`` or ``str``."""
 
     def test_sentinels_do_not_print(self) -> None:
-        """Hash, ciphertext, token hash and nonce hash are absent from both renderings."""
+        """Hash, ciphertext, token hash, PIN code and nonce hash are absent from both renderings."""
         rows = [
             AccountRow("a", "n", "e@x.org", "", "r", "SENTINEL-PASSWORD-HASH", 1.0, 1.0),
             PlexLinkRow("a", 1, "u", "p", "owner", b"SENTINEL-CIPHERTEXT", 1.0, 1.0, None),
             SessionRow(1, "a", "SENTINEL-TOKEN-HASH", 1.0, 2.0, 1.0, None, None),
-            PlexPinRow(1, "c", "SENTINEL-NONCE-HASH", 1.0, None, None, None),
+            PlexPinRow(1, "SENTINEL-PIN-CODE", "SENTINEL-NONCE-HASH", 1.0, None, None, None),
         ]
         for row in rows:
             for text in (repr(row), str(row)):

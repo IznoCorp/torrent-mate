@@ -1,12 +1,14 @@
-"""The ``authentication`` tag's routes: the password door, the signed-in account, its session and its password."""
+"""The ``authentication`` tag's routes: the password and Plex doors, the signed-in account, its session and password."""
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request, Response
+from fastapi.responses import JSONResponse
 
 from personalscraper.app.accounts.actor import Actor
+from personalscraper.app.accounts.plex_sign_in import PlexPending
 from personalscraper.app.accounts.ratelimit import rate_limit_key
 from personalscraper.app.errors import AppUnauthenticated, RefusalCode
 from personalscraper.app.services import AppServices
@@ -16,10 +18,20 @@ from personalscraper.http_v1.models.authentication import (
     AccountModel,
     ChangeOwnPasswordBody,
     PasswordSet,
+    PlexPendingModel,
+    PlexSignInBody,
     SignedOut,
     SignInBody,
+    StartedPlexSignInModel,
 )
-from personalscraper.http_v1.session_cookie import clear_session_cookie, session_token, set_session_cookie
+from personalscraper.http_v1.session_cookie import (
+    clear_plex_pin_cookie,
+    clear_session_cookie,
+    plex_pin_nonce,
+    session_token,
+    set_plex_pin_cookie,
+    set_session_cookie,
+)
 
 router = APIRouter()
 
@@ -32,6 +44,14 @@ _SIGN_IN_RESPONSES = {**PROBLEM_RESPONSES, 429: PROBLEM_RESPONSES[401]}
 #: ``changeOwnPassword``'s refusals: the Problem answers of every operation and the 429 of
 #: its limiter on wrong current passwords.
 _CHANGE_OWN_PASSWORD_RESPONSES = {**PROBLEM_RESPONSES, 429: PROBLEM_RESPONSES[401]}
+
+
+#: ``signInWithPlex``'s answers besides its 200: the 202 while the PIN is unclaimed, and the
+#: Problem answers of every operation.
+_SIGN_IN_WITH_PLEX_RESPONSES: dict[int | str, dict[str, Any]] = {
+    202: {"model": PlexPendingModel, "description": "The PIN is not claimed yet."},
+    **PROBLEM_RESPONSES,
+}
 
 
 def signed_in_token(request: Request) -> str:
@@ -87,6 +107,69 @@ def sign_in(
         body.email, body.password, client_key=client_key, user_agent=request.headers.get("user-agent")
     )
     set_session_cookie(response, result.session_token, request.app.state.config.web)
+    return AccountModel.from_view(result.account)
+
+
+@router.post(
+    "/auth/plex/start",
+    operation_id="startPlexSignIn",
+    response_model=StartedPlexSignInModel,
+    status_code=200,
+    responses=PROBLEM_RESPONSES,
+)
+def start_plex_sign_in(
+    request: Request,
+    response: Response,
+    app_services: Annotated[AppServices, Depends(services)],
+) -> StartedPlexSignInModel:
+    """Create a Plex PIN, bind it to this browser by the pin cookie, and answer plex.tv's page.
+
+    Args:
+        request: The incoming request (the web configuration).
+        response: The answer the pin cookie is set on.
+        app_services: The application services.
+
+    Returns:
+        The PIN and plex.tv's page where the person confirms it.
+    """
+    started = app_services.plex_sign_in.start()
+    set_plex_pin_cookie(response, started.nonce, max_age=started.max_age_s, web=request.app.state.config.web)
+    return StartedPlexSignInModel(pin_id=started.pin_id, sign_in_url=started.sign_in_url)
+
+
+@router.post(
+    "/auth/plex",
+    operation_id="signInWithPlex",
+    response_model=AccountModel,
+    response_model_exclude_none=True,
+    status_code=200,
+    responses=_SIGN_IN_WITH_PLEX_RESPONSES,
+)
+def sign_in_with_plex(
+    body: PlexSignInBody,
+    request: Request,
+    response: Response,
+    app_services: Annotated[AppServices, Depends(services)],
+) -> AccountModel | JSONResponse:
+    """Ask whether the PIN is claimed; once it is, open a session and hand its cookie.
+
+    Args:
+        body: The PIN ``startPlexSignIn`` answered.
+        request: The incoming request (the pin cookie, the user agent, the web configuration).
+        response: The answer the session cookie is set and the pin cookie cleared on.
+        app_services: The application services.
+
+    Returns:
+        The signed-in account; or 202 ``{"pending": true}`` while the PIN is unclaimed.
+    """
+    web = request.app.state.config.web
+    result = app_services.plex_sign_in.finish(
+        body.pin_id, nonce=plex_pin_nonce(request), user_agent=request.headers.get("user-agent")
+    )
+    if isinstance(result, PlexPending):
+        return JSONResponse(status_code=202, content=PlexPendingModel(pending=True).model_dump(by_alias=True))
+    set_session_cookie(response, result.session_token, web)
+    clear_plex_pin_cookie(response, web)
     return AccountModel.from_view(result.account)
 
 

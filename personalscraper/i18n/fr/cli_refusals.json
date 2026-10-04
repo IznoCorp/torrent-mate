@@ -58,5 +58,12 @@
     "reset_admin_only": "Seul un Admin réinitialise un mot de passe ; changez le vôtre depuis votre profil.",
     "too_weak": "Le mot de passe doit compter au moins {{minimum}} caractères, dont une majuscule, un chiffre et un caractère spécial : l'un d'eux manque.",
     "reset_own": "Un Admin change son propre mot de passe depuis son profil, avec l'actuel."
+  },
+  "plex": {
+    "unreachable": "plex.tv n'a pas répondu ; réessayez plus tard.",
+    "server_unreachable": "Le serveur Plex n'a pas répondu ; réessayez plus tard.",
+    "token_refused": "plex.tv a refusé la connexion ; recommencez-la.",
+    "pin_unknown": "Aucune connexion Plex commencée dans ce navigateur ne répond à cette demande ; recommencez-la.",
+    "pin_expired": "La connexion Plex a expiré ; recommencez-la."
   }
 }

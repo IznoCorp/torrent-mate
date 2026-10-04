@@ -98,6 +98,8 @@ class PlexAccount:
         email: The account's e-mail, as plex.tv holds it — what links a local account (§ 17);
             kept out of the ``repr``.
         thumb: The avatar URL, None when the answer carries none.
+        confirmed: Whether plex.tv confirmed the e-mail is the person's (``confirmed``); only
+            a confirmed e-mail may link a local account. ``False`` unless plex.tv answers ``true``.
     """
 
     plex_id: int
@@ -106,6 +108,7 @@ class PlexAccount:
     title: str
     email: str = field(repr=False)
     thumb: str | None
+    confirmed: bool = False
 
 
 class PlexAccountError(Exception):
@@ -306,6 +309,7 @@ class PlexAccountClient:
             title=str(body.get("title") or body.get("username") or ""),
             email=email,
             thumb=thumb if isinstance(thumb, str) and thumb else None,
+            confirmed=body.get("confirmed") is True,
         )
 
     def server_access(self, token: str, machine_identifier: str) -> PlexServerAccess:

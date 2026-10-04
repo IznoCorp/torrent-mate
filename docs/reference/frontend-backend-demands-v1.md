@@ -26,8 +26,8 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | | |
 | --- | ---: |
 | operations the interface requires | 103 |
-| operations v1 serves | 16 |
-| required and not served | 87 |
+| operations v1 serves | 18 |
+| required and not served | 85 |
 | served, different response shape | 0 |
 | served, path parameter spelled differently | 0 |
 | served, answered with a different status | 0 |
@@ -99,8 +99,6 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `POST /api/v1/acquisition/journeys/{infoHash}/rescrape` | `rescrapeJourney` | Re-scrape one journey's tracked item |
 | `POST /api/v1/acquisition/ranking/preview` | `previewRanking` | Score the preview's fixed sample set under a candidate ranking |
 | `POST /api/v1/acquisition/requesters/reassign` | `reassignRequester` | Move one requester of an acquisition to another account |
-| `POST /api/v1/auth/plex` | `signInWithPlex` | Open a session through Plex |
-| `POST /api/v1/auth/plex/start` | `startPlexSignIn` | Start a Plex sign-in |
 | `POST /api/v1/config/restart-web` | `restartWeb` | Restart the web process so a change takes |
 | `POST /api/v1/decisions/{decisionId}/dismiss` | `dismissDecision` | Leave the folder as it is |
 | `POST /api/v1/decisions/{decisionId}/reopen` | `reopenDecision` | Re-open a settled decision for arbitration, with the candidates a provider search finds |

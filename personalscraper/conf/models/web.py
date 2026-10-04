@@ -3,7 +3,9 @@
 See docs/features/tm-shell/DESIGN.md §4.3.
 """
 
-from pydantic import Field
+from urllib.parse import urlsplit
+
+from pydantic import Field, field_validator
 
 from personalscraper.conf.models._base import _StrictModel
 
@@ -28,6 +30,10 @@ class WebConfig(_StrictModel):
         dev_mode: When True, allows boot without a built SPA (Vite dev proxy).
         v1_enabled: When True, the v1 interface is mounted under ``/api/v1``; only the
             preprod overlay sets it until the switchover (ruling O-K1-1).
+        plex_forward_url: Where plex.tv sends the Plex sign-in window once the person
+            confirms it — the interface's public address; ``None`` leaves the window on
+            Plex. Configuration only, never derived from a request: a ``Host`` header is the
+            caller's to forge.
     """
 
     enabled: bool = True
@@ -42,3 +48,25 @@ class WebConfig(_StrictModel):
     cookie_secure: bool = True
     dev_mode: bool = False
     v1_enabled: bool = False
+    plex_forward_url: str | None = None
+
+    @field_validator("plex_forward_url")
+    @classmethod
+    def _absolute_web_address(cls, value: str | None) -> str | None:
+        """Accept only an absolute ``http``/``https`` address.
+
+        Args:
+            value: The configured address, or ``None``.
+
+        Returns:
+            The address unchanged.
+
+        Raises:
+            ValueError: A relative address, a bare host or another scheme.
+        """
+        if value is None:
+            return None
+        parts = urlsplit(value)
+        if parts.scheme not in ("http", "https") or not parts.netloc:
+            raise ValueError("plex_forward_url must be an absolute http(s) address")
+        return value

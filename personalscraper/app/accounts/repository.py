@@ -67,6 +67,8 @@ class AccountRow:
         created_at: Creation (epoch seconds).
         updated_at: Last change (epoch seconds).
         sign_in_allowed: Whether it may sign in; ``True`` until an Admin cuts it.
+        demoted_from: The role it held before its Plex link dropped it to its Plex kind's
+            starting role; ``None`` when not demoted, or once an Admin gave it a role.
     """
 
     id: str
@@ -78,6 +80,7 @@ class AccountRow:
     created_at: float
     updated_at: float
     sign_in_allowed: bool = True
+    demoted_from: str | None = None
 
 
 @dataclass(frozen=True)
@@ -138,7 +141,7 @@ class PlexPinRow:
 
     Attributes:
         pin_id: plex.tv's PIN id.
-        code: plex.tv's PIN code.
+        code: plex.tv's PIN code — what the sign-in page carries; kept out of the ``repr``.
         nonce_hash: The hash of the nonce binding the PIN to the browser that started it.
         created_at: Creation (epoch seconds).
         expires_at: plex.tv's expiry, when known.
@@ -147,7 +150,7 @@ class PlexPinRow:
     """
 
     pin_id: int
-    code: str
+    code: str = field(repr=False)
     nonce_hash: str = field(repr=False)
     created_at: float
     expires_at: float | None
@@ -155,7 +158,9 @@ class PlexPinRow:
     consumed_at: float | None
 
 
-_ACCOUNT_COLUMNS = "id, name, email, avatar, role_id, password_hash, created_at, updated_at, sign_in_allowed"
+_ACCOUNT_COLUMNS = (
+    "id, name, email, avatar, role_id, password_hash, created_at, updated_at, sign_in_allowed, demoted_from"
+)
 _LINK_COLUMNS = (
     "account_id, plex_id, plex_uuid, plex_username, server_access,"
     " token_ciphertext, token_stored_at, linked_at, last_sign_in_at"
@@ -449,7 +454,7 @@ class AccountRepository:
             sqlite3.IntegrityError: On a taken key, a taken e-mail (any case) or an unknown role.
         """
         self._conn.execute(
-            f"INSERT INTO account ({_ACCOUNT_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",  # noqa: S608
+            f"INSERT INTO account ({_ACCOUNT_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",  # noqa: S608
             (
                 account.id,
                 account.name,
@@ -460,22 +465,28 @@ class AccountRepository:
                 account.created_at,
                 account.updated_at,
                 account.sign_in_allowed,
+                account.demoted_from,
             ),
         )
 
     @serialised
-    def set_role(self, account_id: str, role_id: str, *, now: float) -> None:
-        """Put an account on a role.
+    def set_role(self, account_id: str, role_id: str, *, now: float, demoted_from: str | None = None) -> None:
+        """Put an account on a role, recording or clearing the role a Plex link demoted it from.
 
         Args:
             account_id: The account.
             role_id: The role.
             now: The change time (epoch seconds).
+            demoted_from: The role a Plex link drops it from; ``None`` — every other
+                change — clears any demotion recorded.
 
         Raises:
             sqlite3.IntegrityError: On an unknown role.
         """
-        self._conn.execute("UPDATE account SET role_id = ?, updated_at = ? WHERE id = ?", (role_id, now, account_id))
+        self._conn.execute(
+            "UPDATE account SET role_id = ?, demoted_from = ?, updated_at = ? WHERE id = ?",
+            (role_id, demoted_from, now, account_id),
+        )
 
     @serialised
     def set_password_hash(self, account_id: str, password_hash: str | None, *, now: float) -> None:
@@ -578,7 +589,11 @@ class AccountRepository:
 
     @serialised
     def upsert_plex_link(self, link: PlexLinkRow) -> None:
-        """Insert an account's Plex link, or replace every field of the existing one.
+        """Insert an account's Plex link, or replace the fields of the existing one.
+
+        A link written with no ciphertext keeps the token sealed before, and its date: a
+        sign-in with no vault never erases a token kept by one. ``set_token_ciphertext``
+        clears it.
 
         Args:
             link: The link.
@@ -590,7 +605,8 @@ class AccountRepository:
             f"INSERT INTO plex_link ({_LINK_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"  # noqa: S608
             " ON CONFLICT (account_id) DO UPDATE SET plex_id = excluded.plex_id, plex_uuid = excluded.plex_uuid,"
             " plex_username = excluded.plex_username, server_access = excluded.server_access,"
-            " token_ciphertext = excluded.token_ciphertext, token_stored_at = excluded.token_stored_at,"
+            " token_ciphertext = COALESCE(excluded.token_ciphertext, plex_link.token_ciphertext),"
+            " token_stored_at = COALESCE(excluded.token_stored_at, plex_link.token_stored_at),"
             " linked_at = excluded.linked_at, last_sign_in_at = excluded.last_sign_in_at",
             (
                 link.account_id,
@@ -796,14 +812,65 @@ class AccountRepository:
         self._conn.execute("UPDATE plex_pin SET last_checked_at = ? WHERE pin_id = ?", (now, pin_id))
 
     @serialised
-    def consume_pin(self, pin_id: int, *, now: float) -> None:
-        """Mark a PIN used by a sign-in.
+    def claim_pin_check(self, pin_id: int, *, now: float, min_interval: float) -> bool:
+        """Claim the right to ask plex.tv about a PIN now, if no check was claimed within the interval.
+
+        One conditional write: of two calls inside the interval, one claims and the other
+        learns it lost, so plex.tv is asked at most once per interval whatever the callers.
+        A consumed PIN is never claimed.
+
+        Args:
+            pin_id: The PIN.
+            now: The check time (epoch seconds), recorded as ``last_checked_at`` on a claim.
+            min_interval: The seconds that must separate two checks.
+
+        Returns:
+            Whether this call claimed the check; ``False`` for an unknown or consumed PIN.
+        """
+        cursor = self._conn.execute(
+            "UPDATE plex_pin SET last_checked_at = ? WHERE pin_id = ? AND consumed_at IS NULL"
+            " AND (last_checked_at IS NULL OR last_checked_at <= ?)",
+            (now, pin_id, now - min_interval),
+        )
+        return cursor.rowcount == 1
+
+    @serialised
+    def consume_pin(self, pin_id: int, *, now: float) -> bool:
+        """Mark a PIN used by a sign-in, unless another sign-in already used it.
 
         Args:
             pin_id: The PIN.
             now: The use time (epoch seconds).
+
+        Returns:
+            Whether this call consumed it.
         """
-        self._conn.execute("UPDATE plex_pin SET consumed_at = ? WHERE pin_id = ?", (now, pin_id))
+        cursor = self._conn.execute(
+            "UPDATE plex_pin SET consumed_at = ? WHERE pin_id = ? AND consumed_at IS NULL", (now, pin_id)
+        )
+        return cursor.rowcount == 1
+
+    @serialised
+    def purge_pins(self, *, now: float, lifetime: float, limit: int) -> int:
+        """Delete the PINs no sign-in can use any more: consumed, or past their expiry.
+
+        A PIN plex.tv gave no expiry is past it once ``lifetime`` seconds old. One statement,
+        at most ``limit`` rows, so a start never pays for a backlog at once.
+
+        Args:
+            now: The current time (epoch seconds).
+            lifetime: The lifetime of a PIN stored with no expiry, in seconds.
+            limit: The most rows one call deletes.
+
+        Returns:
+            The number of PINs deleted.
+        """
+        cursor = self._conn.execute(
+            "DELETE FROM plex_pin WHERE pin_id IN (SELECT pin_id FROM plex_pin WHERE consumed_at IS NOT NULL"
+            " OR expires_at <= ? OR (expires_at IS NULL AND created_at <= ?) LIMIT ?)",
+            (now, now - lifetime, limit),
+        )
+        return cursor.rowcount
 
     @serialised
     def setting(self, key: str) -> str | None:

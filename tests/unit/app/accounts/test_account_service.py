@@ -522,6 +522,31 @@ class TestUpdateAccount:
         assert updated.role.id == "local-guest"
         assert published == []
 
+    def test_a_role_given_clears_the_demotion_and_the_roster_shows_it_until_then(
+        self, store: AppStore, accounts: AccountService, admin: Actor
+    ) -> None:
+        """``demotedFrom`` reads in the roster after a Plex link's demotion, and is gone once an Admin gives a role."""
+        store.accounts.set_role("account-guest", "local-guest", now=5.0, demoted_from="requester")
+        by_id = {one.id: one for one in accounts.read_roster(admin).accounts}
+        assert by_id["account-guest"].demoted_from == "requester"
+
+        updated = accounts.update_account(admin, "account-guest", role_id="household")
+
+        assert (updated.role.id, updated.demoted_from) == ("household", None)
+        assert store.accounts.account("account-guest").demoted_from is None  # type: ignore[union-attr]
+
+    def test_the_same_role_given_still_clears_the_demotion_and_publishes_nothing(
+        self, store: AppStore, accounts: AccountService, admin: Actor, published: list[AccountRightsChanged]
+    ) -> None:
+        """An Admin confirming the demoted role decides it: the demotion is cleared, no rights moved, no E8."""
+        store.accounts.set_role("account-guest", "local-guest", now=5.0, demoted_from="requester")
+
+        updated = accounts.update_account(admin, "account-guest", role_id="local-guest")
+
+        assert (updated.role.id, updated.demoted_from) == ("local-guest", None)
+        assert store.accounts.account("account-guest").demoted_from is None  # type: ignore[union-attr]
+        assert published == []
+
     def test_an_unknown_account_is_not_found(self, accounts: AccountService, admin: Actor) -> None:
         """404 ``account.unknown``."""
         refusal = _refusal(lambda: accounts.update_account(admin, "nope", role_id="requester"))

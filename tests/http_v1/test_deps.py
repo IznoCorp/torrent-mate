@@ -17,7 +17,7 @@ def test_actor_without_a_resolved_actor_is_internal(make_v1_app: Callable[..., F
     """A public operation asking for an actor gets none from the perimeter: a server defect, 500 ``internal``."""
     router = APIRouter()
 
-    @router.post("/auth/plex/start", operation_id="startPlexSignIn")
+    @router.post("/planted/public", operation_id="startPlexSignIn")
     def _public(_: Annotated[object, Depends(actor)]) -> dict[str, str]:
         """A public operation wrongly asking for the actor."""
         return {"ok": "yes"}
@@ -25,7 +25,7 @@ def test_actor_without_a_resolved_actor_is_internal(make_v1_app: Callable[..., F
     app = make_v1_app()
     include_v1_router(app, router)
 
-    response = TestClient(app, raise_server_exceptions=False).post("/auth/plex/start")
+    response = TestClient(app, raise_server_exceptions=False).post("/planted/public")
 
     assert response.status_code == 500
     assert response.json()["code"] == "internal"
@@ -36,7 +36,7 @@ def test_services_are_the_ones_the_sub_application_was_given(make_v1_app: Callab
     router = APIRouter()
     seen: list[AppServices] = []
 
-    @router.post("/auth/plex/start", operation_id="startPlexSignIn")
+    @router.post("/planted/public", operation_id="startPlexSignIn")
     def _public(given: Annotated[AppServices, Depends(services)]) -> dict[str, str]:
         """A public operation recording the services it received."""
         seen.append(given)
@@ -45,7 +45,7 @@ def test_services_are_the_ones_the_sub_application_was_given(make_v1_app: Callab
     app = make_v1_app()
     include_v1_router(app, router)
 
-    response = TestClient(app).post("/auth/plex/start")
+    response = TestClient(app).post("/planted/public")
 
     assert response.status_code == 200
     assert seen == [app.state.services]

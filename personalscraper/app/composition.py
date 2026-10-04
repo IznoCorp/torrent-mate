@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from personalscraper.app.accounts.plex_sign_in import PlexSignInService
 from personalscraper.app.accounts.service import AccountService
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.build_info import BUILD_INFO
@@ -22,6 +23,7 @@ log = get_logger("app.composition")
 if TYPE_CHECKING:
     from personalscraper.api.transport._policy import RetryPolicy
     from personalscraper.app.library.service import LibraryService
+    from personalscraper.app.store.store import AppStore
     from personalscraper.conf.models.config import Config
     from personalscraper.config import Settings
     from personalscraper.core.ownership import OwnershipChecker
@@ -220,6 +222,52 @@ def build_app_services(config: "Config", settings: "Settings") -> AppServices:
         app_store=app_store,
         sessions=sessions,
         accounts=accounts,
+        plex_sign_in=_build_plex_sign_in(config, settings, app_store, accounts, event_bus),
+    )
+
+
+def _build_plex_sign_in(
+    config: "Config", settings: "Settings", app_store: "AppStore", accounts: AccountService, event_bus: EventBus
+) -> PlexSignInService:
+    """Build the Plex door: the vault, the managed server and plex.tv's account client.
+
+    Inert: plex.tv and the server are asked on the first sign-in only. A malformed
+    ``PLEX_TOKEN_KEYS`` does not stop the process — the CLI and the password door must still
+    run — it is logged by key position and the door keeps no token, as without a key.
+
+    Args:
+        config: The typed configuration (``web.plex_forward_url``).
+        settings: The env-var settings (``PLEX_URL``, ``PLEX_TOKEN``, ``PLEX_TOKEN_KEYS``).
+        app_store: The environment's ``app.db``.
+        accounts: The account service, which opens the session.
+        event_bus: The bus E8 is published on.
+
+    Returns:
+        The door; with no ``PLEX_TOKEN`` it has no server and admits nobody.
+    """
+    from personalscraper.api.plex import PlexClient  # noqa: PLC0415
+    from personalscraper.api.plex_account import PlexAccountClient  # noqa: PLC0415
+    from personalscraper.app.accounts.token_vault import MalformedTokenKey, TokenVault  # noqa: PLC0415
+    from personalscraper.conf.environment import current_environment  # noqa: PLC0415
+
+    keys_malformed = False
+    try:
+        vault = TokenVault.from_settings(settings)
+    except MalformedTokenKey as exc:
+        log.error("plex_token.keys_malformed", error=str(exc))
+        vault, keys_malformed = None, True
+    server = PlexClient(settings.plex_url, settings.plex_token) if settings.plex_token else None
+    return PlexSignInService(
+        lambda: app_store.accounts,
+        accounts,
+        vault=vault,
+        client_factory=lambda product, client_id: PlexAccountClient(product=product, client_identifier=client_id),
+        server=server,
+        server_token=settings.plex_token,
+        environment=current_environment(),
+        forward_url=config.web.plex_forward_url,
+        bus=event_bus,
+        vault_keys_malformed=keys_malformed,
     )
 
 
