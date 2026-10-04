@@ -85,7 +85,7 @@ describe("showAvatar", () => {
   });
 
   it("falls back to the initial when the picture fails to load", () => {
-    showAvatar("https://www.gravatar.com/avatar/0?d=404&s=128", "léa");
+    showAvatar("https://www.gravatar.com/avatar/0?d=404&s=128", "lea");
     image.onerror?.();
     expect(image.style.display).toBe("none");
     expect(image.src).toBeUndefined();
@@ -93,7 +93,7 @@ describe("showAvatar", () => {
   });
 
   it("leaves a newer picture alone when an older one fails late", () => {
-    showAvatar("https://www.gravatar.com/avatar/0?d=404&s=128", "léa");
+    showAvatar("https://www.gravatar.com/avatar/0?d=404&s=128", "lea");
     const stale = image.onerror;
     showAvatar("https://plex.tv/users/abc/avatar", "izno");
     stale?.();
