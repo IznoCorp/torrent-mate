@@ -37,6 +37,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from common import Journal, open_page, browser_channel, chrome_launch_args
 
+from playwright.async_api import TimeoutError as PlaywrightTimeout
 from playwright.async_api import async_playwright
 
 # What a finger reaches at a point, named by the nearest layer it belongs to.
@@ -243,7 +244,23 @@ async def main():
         # layer is open, and `inert` takes an element out of hit-testing, so a
         # plain reading answers the sheet at 47 exactly as at 52.
         await page.evaluate("()=>window.__go('sheet-user')")
-        await page.wait_for_timeout(500)
+        # WAIT ON THE CONDITION THE READ BELOW MEASURES, not on a fixed delay:
+        # the sheet rises, and until it has landed its bottom is not the
+        # screen's bottom edge — a loaded runner reads it mid-rise. The wait is
+        # bounded and its timeout is not swallowed into a pass: the read still
+        # happens, and the check fails with its own figures if the sheet never
+        # settles.
+        try:
+            await page.wait_for_function(
+                """()=>{
+                  const sheet = document.querySelector('#sheet');
+                  const bar = document.querySelector('#nav');
+                  return !!sheet && !!bar && Math.round(
+                    sheet.getBoundingClientRect().bottom) === Math.round(
+                    bar.getBoundingClientRect().bottom);}""",
+                timeout=5000)
+        except PlaywrightTimeout:
+            pass
         over_bar = await page.evaluate("""()=>{
           const sheet = document.querySelector('#sheet');
           const bar = document.querySelector('#nav');
