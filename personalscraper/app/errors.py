@@ -62,6 +62,11 @@ class RefusalCode(StrEnum):
     PASSWORD_HELD_BY_CLI = "password.held_by_cli"
     PASSWORD_RESET_ADMIN_ONLY = "password.reset_admin_only"
     PASSWORD_RESET_OWN = "password.reset_own"
+    PLEX_UNREACHABLE = "plex.unreachable"
+    PLEX_SERVER_UNREACHABLE = "plex.server_unreachable"
+    PLEX_TOKEN_REFUSED = "plex.token_refused"
+    PLEX_PIN_UNKNOWN = "plex.pin_unknown"
+    PLEX_PIN_EXPIRED = "plex.pin_expired"
     MEDIA_NOT_FOUND = "media.not_found"
     PROVIDER_UNAVAILABLE = "provider.unavailable"
 

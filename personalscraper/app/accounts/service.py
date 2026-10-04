@@ -43,7 +43,7 @@ _DUMMY_HASH: Final[str] = hash_password(secrets.token_urlsafe(32))
 
 @dataclass(frozen=True)
 class SignInResult:
-    """A password sign-in that succeeded.
+    """A sign-in that succeeded, by password or by Plex.
 
     Attributes:
         account: The signed-in account.
@@ -237,34 +237,31 @@ class AccountService:
             self._limiter.record_failure(client_key)
             log.info("v1_sign_in_refused", client_key=client_key)
             raise AppUnauthenticated("The sign-in was refused.", code=RefusalCode.AUTH_REFUSED)
-        token = self._open_session_if_allowed(repo, account.id, user_agent=user_agent)
-        actor = self._sessions.resolve(token)
-        if actor is None:
-            raise AppUnauthenticated("The session's account no longer exists.", code=RefusalCode.AUTH_REQUIRED)
-        log.info("v1_signed_in", account_id=account.id)
-        return SignInResult(account=self._account_view(repo, account, actor), session_token=token)
+        return self.open_proven_session(account.id, user_agent=user_agent)
 
-    def _open_session_if_allowed(self, repo: AccountRepository, account_id: str, *, user_agent: str | None) -> str:
+    def open_proven_session(self, account_id: str, *, user_agent: str | None) -> SignInResult:
         """Open a session for an account whose identity is proven, unless an Admin cut its access.
 
         Every sign-in door ends here once the credentials are proven, so the cut account's
-        refusal never tells anything to someone who does not hold them; the Plex door
-        calls it once the PIN is claimed and the identity proven to hold the account. The
-        access is read and the session opened in one ``BEGIN IMMEDIATE`` transaction: a cut
-        that commits while scrypt runs is seen here, and can never leave a session live.
+        refusal never tells anything to someone who does not hold them: the password door
+        once the password matches, the Plex door once the PIN is claimed and the identity
+        proven to hold the account. The access is read and the session opened in one
+        ``BEGIN IMMEDIATE`` transaction: a cut that commits while scrypt or plex.tv runs is
+        seen here, and can never leave a session live.
 
         Args:
-            repo: The account repository.
             account_id: The account signed in.
             user_agent: The browser's user agent, kept on the session.
 
         Returns:
-            The new session's value.
+            The signed-in account and its new session's value.
 
         Raises:
-            AppUnauthenticated: ``auth.refused`` — the account was deleted since it was read.
+            AppUnauthenticated: ``auth.refused`` — the account was deleted since it was read;
+                ``auth.required`` — its session no longer resolves.
             AppForbidden: ``auth.access_disabled`` — the account's access is cut.
         """
+        repo = self._repo_factory()
         with repo.immediate():
             account = repo.account(account_id)
             if account is None:
@@ -272,7 +269,12 @@ class AccountService:
             if not account.sign_in_allowed:
                 log.info("v1_sign_in_access_disabled", account_id=account_id)
                 raise AppForbidden("This account's access is cut.", code=RefusalCode.AUTH_ACCESS_DISABLED)
-            return self._sessions.open(account_id, user_agent=user_agent)
+            token = self._sessions.open(account_id, user_agent=user_agent)
+        actor = self._sessions.resolve(token)
+        if actor is None:
+            raise AppUnauthenticated("The session's account no longer exists.", code=RefusalCode.AUTH_REQUIRED)
+        log.info("v1_signed_in", account_id=account.id)
+        return SignInResult(account=self._account_view(repo, account, actor), session_token=token)
 
     def set_password(self, email: str, password: str) -> None:
         """Give an account a password — the server's door of last resort (the CLI's only).
