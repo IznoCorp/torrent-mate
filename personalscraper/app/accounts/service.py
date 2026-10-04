@@ -544,8 +544,7 @@ class AccountService:
             role: Its role.
 
         Returns:
-            The view; ``demoted_from`` stays ``None`` (nothing demotes an account before
-            the Plex link).
+            The view, with the role a Plex link demoted it from when it was.
         """
         return AccountSummaryView(
             id=account.id,
@@ -554,6 +553,7 @@ class AccountService:
             role=role_view(role),
             sign_in_kind=sign_in_kind(repo.plex_link(account.id)),
             sign_in_allowed=account.sign_in_allowed,
+            demoted_from=account.demoted_from,
         )
 
     def read_roster(self, actor: Actor) -> RosterView:
@@ -666,7 +666,7 @@ class AccountService:
             role_id: The role it is put on.
 
         Returns:
-            The account on its new role.
+            The account on its new role, its Plex link's demotion cleared.
 
         Raises:
             AppNotFound: ``account.unknown``, ``role.unknown``.
@@ -704,9 +704,11 @@ class AccountService:
             if leaves_admin and repo.count_on_role_kind(RoleKind.ADMIN) <= 1:
                 raise AppConflict("No account would be left on the Admin role.", code=RefusalCode.ACCOUNT_LAST_ADMIN)
             moved = account.role_id != target.id
-            if moved:
+            # A role given is an Admin's decision: it clears the demotion a Plex link
+            # recorded, even when it confirms the role the link dropped the account to.
+            if moved or account.demoted_from is not None:
                 repo.set_role(account.id, target.id, now=self._clock())
-            summary = self._summary(repo, account, target)
+            summary = self._summary(repo, replace(account, demoted_from=None), target)
         if moved:
             log.info("account_role_assigned", account_id=account.id, role_id=target.id, by=actor.account_id)
             self._bus.emit(AccountRightsChanged(account_ids=(account.id,), cause=RightsChangeCause.ROLE_ASSIGNED))
