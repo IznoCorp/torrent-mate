@@ -94,7 +94,8 @@ export function installSharedQueryClient(client: QueryClient): void {
 // A REQUEST ANSWERED 401 MEANS THE SESSION IS GONE — expired, or ended by an
 // Admin's cut (the operator, 2026-10-04; Q4 = A) — and the interface lands on
 // the sign-in gate. The entry installs what landing is; the doors themselves
-// ask through `fetch`, never through here, so a refused sign-in is not this.
+// ask through `postJson` or `fetch`, which never report here, so a refused
+// sign-in is not this.
 const NO_SESSION = 401;
 let sessionLost: () => void = () => {};
 
@@ -306,6 +307,26 @@ export async function readByPost<Result>(path: ContractPath | (string & {}), que
   const body = await answer.json();
   if (!answer.ok) throw body as RequestFailure;
   return body as Result;
+}
+
+/**
+ * Posts a body as declared JSON and hands back the answer as it came.
+ *
+ * FOR THE DOORS IN, and for nothing that must survive an outage. A sign-in
+ * carries a password, and `send()` would hold a failed one in the outbox —
+ * persisted, then replayed on the next `online` edge: the password stored, and
+ * a sign-in nobody is waiting for any more. So this carries no idempotency key,
+ * holds nothing back, and lets a network that does not answer reject as it
+ * does. It does not read a 401 as a lost session either: at a door, a 401 is
+ * the refusal the door shows, not the end of a session.
+ *
+ * @param path The contract address.
+ * @param body What to send, written as JSON.
+ * @returns The raw answer, for the caller to read its status and its body.
+ */
+export async function postJson(path: ContractPath | (string & {}), body: unknown): Promise<Response> {
+  return globalThis.fetch(path, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 }
 
 /**

@@ -33,7 +33,7 @@ import i18next from "i18next";
 
 import { entryPageFor } from "./navigation";
 import { rightsOf } from "../lib/rights";
-import { sharedQueryClient } from "../lib/query-client";
+import { postJson, sharedQueryClient } from "../lib/query-client";
 import { landSignedIn } from "./frame-verbs";
 import type { Schemas } from "../lib/contract-schemas";
 import { refusalWords } from "../lib/refusal";
@@ -289,10 +289,7 @@ async function signInWithPlex(): Promise<void> {
  */
 async function awaitPlex(pinId: number, generation: number): Promise<void> {
   while (generation === plexGeneration) {
-    const answer = await fetch("/api/v1/auth/plex", {
-      method: "POST",
-      body: JSON.stringify({ pinId }),
-    }).catch(() => null);
+    const answer = await postJson("/api/v1/auth/plex", { pinId }).catch(() => null);
     if (generation !== plexGeneration) return;
     if (answer?.status === PENDING) {
       showPart("plex-pending", true);
@@ -320,10 +317,7 @@ async function signInWithPassword(
   password: string,
 ): Promise<void> {
   const refusal = node("#loginerr");
-  const answer = await fetch("/api/v1/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
-  }).catch(() => null);
+  const answer = await postJson("/api/v1/auth/login", { email, password }).catch(() => null);
   if (answer?.ok) return land();
   if (refusal) {
     refusal.textContent = refusalWords(
