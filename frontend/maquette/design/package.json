@@ -8,7 +8,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
-    "generate-contract-types": "openapi-typescript ../contract/openapi.json -o src/contract/types.d.ts",
+    "generate-contract-types": "openapi-typescript ../../../contract/openapi.json -o src/contract/types.d.ts",
     "stamp-operation-rights": "node --experimental-strip-types --no-warnings scripts/stamp-operation-rights.ts"
   },
   "devDependencies": {

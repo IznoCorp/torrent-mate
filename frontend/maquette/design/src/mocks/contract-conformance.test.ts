@@ -17,7 +17,7 @@
 // extra properties — a full validator here would be a second implementation of
 // the contract, and the value is in the one question no reader was asking.
 import { describe, expect, it } from "vitest";
-import contract from "../../../contract/openapi.json";
+import contract from "../../../../../contract/openapi.json";
 import { routes } from "./handlers";
 import { resetMockState } from "./state";
 import type { MockRequest } from "./router";

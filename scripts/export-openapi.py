@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export the FastAPI OpenAPI schemas to ``frontend/openapi.json`` (v0) and ``frontend/openapi-v1.json`` (v1).
+"""Export the FastAPI OpenAPI schemas to ``frontend/openapi.json`` (v0) and ``contract/openapi.generated.json`` (v1).
 
 Boots the TorrentMate web application via :func:`create_app` with a minimal
 in-memory configuration (no real config/ directory, no network, no Redis) and
@@ -8,7 +8,7 @@ writes ``app.openapi()`` to disk.
 Usage::
 
     python scripts/export-openapi.py        # v0, to frontend/openapi.json
-    python scripts/export-openapi.py --v1   # v1, to frontend/openapi-v1.json
+    python scripts/export-openapi.py --v1   # v1, to contract/openapi.generated.json
 
 ``--v1`` writes the v1 sub-application's own document (``create_v1_app``), built
 from the same minimal configuration whatever ``web.v1_enabled`` says: v1 is checked
@@ -19,7 +19,7 @@ JSON (``sort_keys=True``, ``indent=2``).
 
 This script exists so that the frontend can generate typed API bindings from
 the committed schema without a running server.  CI verifies freshness via
-``git diff --exit-code frontend/openapi.json frontend/openapi-v1.json``.
+``git diff --exit-code frontend/openapi.json contract/openapi.generated.json``.
 """
 
 from __future__ import annotations
@@ -28,6 +28,8 @@ import argparse
 import json
 import tempfile
 from pathlib import Path
+
+from _repo_paths import SERVED_CONTRACT
 
 from personalscraper.app.composition import build_app_services
 from personalscraper.conf import ids as CID
@@ -145,10 +147,12 @@ def _build_minimal_config(tmpdir: Path) -> Config:
 def main() -> None:
     """Export v0's OpenAPI schema, or v1's with ``--v1``."""
     parser = argparse.ArgumentParser(description="Export an OpenAPI schema for the frontend.")
-    parser.add_argument("--v1", action="store_true", help="export the v1 sub-application to frontend/openapi-v1.json")
+    parser.add_argument(
+        "--v1", action="store_true", help="export the v1 sub-application to contract/openapi.generated.json"
+    )
     arguments = parser.parse_args()
     repo_root = Path(__file__).resolve().parent.parent
-    output_path = repo_root / "frontend" / ("openapi-v1.json" if arguments.v1 else "openapi.json")
+    output_path = SERVED_CONTRACT if arguments.v1 else repo_root / "frontend" / "openapi.json"
 
     with tempfile.TemporaryDirectory(prefix="openapi_export_") as tmpdir:
         config = _build_minimal_config(Path(tmpdir))

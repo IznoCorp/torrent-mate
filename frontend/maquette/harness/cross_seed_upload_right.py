@@ -32,7 +32,7 @@ from common import ACTED, SETTLED, Journal, browser_channel, chrome_launch_args,
 from playwright.async_api import async_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-CONTRACT = json.loads((ROOT / "contract/openapi.json").read_text(encoding="utf-8"))
+CONTRACT = json.loads((ROOT.parents[1] / "contract/openapi.json").read_text(encoding="utf-8"))
 SEEDS = json.loads((ROOT / "design/src/mocks/seeds/accounts.json").read_text(encoding="utf-8"))
 WORDS = json.loads((ROOT / "design/src/i18n/fr.json").read_text(encoding="utf-8"))["access"]
 RIGHT = "trackers.upload"

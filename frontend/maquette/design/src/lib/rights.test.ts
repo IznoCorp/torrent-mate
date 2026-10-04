@@ -2,7 +2,7 @@
 // bypass, and the instance's forbidden writes subtracted from every role.
 import { describe, expect, it } from "vitest";
 import ACCOUNTS from "../mocks/seeds/accounts.json";
-import contract from "../../../contract/openapi.json";
+import contract from "../../../../../contract/openapi.json";
 import { NO_RIGHTS, RIGHTS, rightsOf, type Right } from "./rights";
 import type { Schemas } from "./contract-schemas";
 

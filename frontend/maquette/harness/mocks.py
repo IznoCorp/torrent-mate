@@ -66,7 +66,7 @@ import time
 from common import Journal, open_page, browser_channel, chrome_launch_args
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-CONTRACT = ROOT / "contract" / "openapi.json"
+CONTRACT = ROOT.parents[1] / "contract" / "openapi.json"
 
 METHODS = ("get", "post", "put", "patch", "delete")
 

@@ -4,7 +4,7 @@
 // account's switches and its pushes; the layer answers the read through `NOTIFICATION_RIGHTS`.
 // Two tables that may drift are one table read twice: this holds them equal.
 import { describe, expect, it } from "vitest";
-import contract from "../../../../contract/openapi.json";
+import contract from "../../../../../../contract/openapi.json";
 import { NOTIFICATION_RIGHTS } from "./notifications";
 
 type TypeSchema = { enum: string[]; "x-rights": Record<string, string> };

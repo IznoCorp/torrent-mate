@@ -34,7 +34,7 @@ is read or written; this reads two JSON documents and writes one Markdown file.
 TWO BACKENDS, TWO REGISTERS. `--have v0` (the default) compares the contract
 against today's backend (`frontend/openapi.json`) and writes
 `frontend-backend-demands.md`; `--have v1` compares it against the v1
-application (`frontend/openapi-v1.json`) and writes
+application (`contract/openapi.generated.json`) and writes
 `frontend-backend-demands-v1.md`, whose row count is the measure of the
 backend's end. Either mode ends on one summary line,
 `compare-contracts: <have> missing=<n> shape=<n> spelling=<n> status=<n> unused=<n>`.
@@ -53,7 +53,7 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from _repo_paths import CONTRACT
+from _repo_paths import CONTRACT, SERVED_CONTRACT
 
 ROOT = Path(__file__).resolve().parents[1]
 WANTED = CONTRACT
@@ -102,7 +102,7 @@ class Backend:
 
 BACKENDS = {
     "v0": Backend("v0", HAVE, "", V0_ROOT, REGISTER, ""),
-    "v1": Backend("v1", ROOT / "frontend" / "openapi-v1.json", V1_ROOT, V1_ROOT,
+    "v1": Backend("v1", SERVED_CONTRACT, V1_ROOT, V1_ROOT,
                   ROOT / "docs" / "reference" / "frontend-backend-demands-v1.md", " --have v1"),
 }
 
@@ -374,7 +374,7 @@ def compute(backend: Backend = BACKENDS["v0"], wanted_path: Path = WANTED) -> tu
         "# What the interface asks of the backend",
         "",
         "**COMPUTED, NEVER WRITTEN.** `python3 scripts/compare-contracts.py --write` builds this",
-        "file by diffing `frontend/maquette/contract/openapi.json` — the contract the maquette's",
+        "file by diffing `contract/openapi.json` — the contract the maquette's",
         "interface REQUIRES — against `frontend/openapi.json`, which is generated FROM the running",
         "backend. `--check` refuses a committed register that differs from the computed one, so the",
         "two cannot separate. Edit the contract, not this file.",
@@ -561,8 +561,8 @@ def render_v1(root: str, required: int, served: int, missing: list, ours: dict, 
         "# What the interface asks of v1",
         "",
         "**COMPUTED, NEVER WRITTEN.** `python3 scripts/compare-contracts.py --write --have v1`",
-        "builds this file by diffing `frontend/maquette/contract/openapi.json` — the contract the",
-        "interface REQUIRES — against `frontend/openapi-v1.json`, which",
+        "builds this file by diffing `contract/openapi.json` — the contract the",
+        "interface REQUIRES — against `contract/openapi.generated.json`, which",
         "`python scripts/export-openapi.py --v1` generates FROM the v1 application.",
         "`--check --have v1` refuses a committed register that differs from the computed one, so",
         "the two cannot separate. Edit the contract or v1, not this file.",

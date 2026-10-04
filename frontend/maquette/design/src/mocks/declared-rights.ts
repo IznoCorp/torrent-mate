@@ -10,7 +10,7 @@
 //
 // BUILT ONCE, at module evaluation, as `declared-status.ts` builds its map, and
 // for the same reason: the contract cannot change while the page is open.
-import contract from "../../../contract/openapi.json";
+import contract from "../../../../../contract/openapi.json";
 import type { Asked } from "./operation-rights";
 
 type Operation = { operationId?: string; "x-rights"?: Asked };

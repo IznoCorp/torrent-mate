@@ -1,7 +1,7 @@
 // R-L17-a's enumerations half: the six words, and no bare code (NE-DOIT-PAS-4).
 import { describe, expect, it } from "vitest";
 import i18next from "../../lib/unit-words";
-import contract from "../../../../contract/openapi.json";
+import contract from "../../../../../../contract/openapi.json";
 import { isFailure as layerCounts } from "../../mocks/cross-seed-state";
 import {
   CROSS_SEED_TONE, REASON_FAMILY, familyWord, isFailure, isSearchable, isSwitchedOff, isTrackerOff, isUploadRefused,

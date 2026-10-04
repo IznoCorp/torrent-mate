@@ -13,7 +13,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { OPERATION_RIGHTS } from "../src/mocks/operation-rights.ts";
 
-const CONTRACT = new URL("../../contract/openapi.json", import.meta.url);
+const CONTRACT = new URL("../../../../contract/openapi.json", import.meta.url);
 
 /**
  * Renders one value as the contract's layout does, at an indentation.

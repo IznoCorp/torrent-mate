@@ -51,6 +51,7 @@ jobs:
           filters: |
             maquette:
               - 'frontend/maquette/**'
+              - 'contract/**'
               - '.github/workflows/harness-full.yml'
               # machine.py (R67) reads the ecosystem's processes (B-686).
               - 'ecosystem.config.js'

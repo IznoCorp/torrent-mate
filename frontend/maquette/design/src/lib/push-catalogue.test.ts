@@ -7,7 +7,7 @@
 // belongs to a type, and every type has the label and the line the settings surface draws.
 import { describe, expect, it } from "vitest";
 import catalogue from "../i18n/fr.json";
-import contract from "../../../contract/openapi.json";
+import contract from "../../../../../contract/openapi.json";
 import workerSource from "../../sw.js?raw";
 import { pushTexts, substituteWorker } from "../../worker-source.mjs";
 

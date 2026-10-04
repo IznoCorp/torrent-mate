@@ -140,7 +140,8 @@ document; French inside an English one only quotes UI copy, media titles or the 
   staging `~/staging/torrentmate` (tracks `staging`, 8711, read-only role → 403 on writes).
   Canonical config: `~/.torrentmate/config`. Topology and deploy: `docs/production/web-ui.md`.
 - **Web invariants (tests enforce)** — every mutating endpoint is `require_not_staging` and typed
-  (Pydantic `response_model`; a route change ⇒ `make openapi` and commit the generated files); the
+  (Pydantic `response_model`; a route change ⇒ `make openapi` and commit the generated
+  `frontend/openapi.json` and `contract/openapi.generated.json`); the
   auth perimeter is the single `guarded_api` dependency (never a per-route `Depends(require_session)`);
   maintenance write actions hold `pipeline.lock` for their runner's lifetime; `pipeline_run`
   timestamps are epoch `time.time()`; `GET /api/version` serves the boot-cached BUILD_COMMIT.

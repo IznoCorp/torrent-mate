@@ -27,7 +27,7 @@ switchover.
 | `design/src/mocks/` | the mock layer that answers the contract in process (below) |
 | `design/src/harness/` | the harness-only modules: named states (`states/`), `drive.ts` (`window.__go`), `publish.ts` |
 | `design/src/i18n/fr.json` | every interface string (below) |
-| `contract/openapi.json` | the maquette's own data contract |
+| `contract/openapi.json` (repository root, not this directory) | the maquette's own data contract, beside `openapi.generated.json`, what v1 serves |
 | `harness/` | the rule suite, its host and `run.sh` — never served |
 | `serve.py`, `host_identity.py`, `installable.py` | the design host (`tm-design.iznogoudatall.xyz`) — never served |
 | `regions.json` | `$vocabulary` (the frozen CSS-name exceptions, read by the no-French guard), `$reportedDefects`, `$adversarialReview` (the rule set R1… with what each rule is for) |
@@ -224,7 +224,7 @@ when the copy should catch up, as data, in a commit of its own.
 maquette's own contract, in process. The wiring belongs to the switchover.
 
 **What it is.** `design/src/mocks/` — one module replaces `fetch` with a table of routes, one per
-operation `frontend/maquette/contract/openapi.json` declares, counted by
+operation `contract/openapi.json` declares, counted by
 `window.__mocks.routes().length`. No service worker: a worker's registration is asynchronous and
 the first paint must already be answered. It is installed synchronously in the boot, behind the
 build-time constant `__MOCKS_BUILT_IN__`.

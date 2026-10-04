@@ -48,7 +48,7 @@ from playwright.async_api import async_playwright
 
 HERE = pathlib.Path(__file__).resolve().parent
 SOURCE = HERE.parent / "design/src"
-CONTRACT = json.loads((HERE.parent / "contract/openapi.json").read_text(encoding="utf-8"))
+CONTRACT = json.loads((HERE.parents[2] / "contract/openapi.json").read_text(encoding="utf-8"))
 TYPE_SCHEMA = CONTRACT["components"]["schemas"].get("NotificationType", {})
 TYPES = TYPE_SCHEMA.get("enum", [])
 # THE RIGHT EACH TYPE ASKS TO RECEIVE IT — absent on the contract before the change: every type then reads as

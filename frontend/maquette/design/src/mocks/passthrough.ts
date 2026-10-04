@@ -3,14 +3,14 @@
 // tm-design is where the interface is developed against the real server: an
 // operation v1 serves is sent to it, and every other one stays answered by this
 // layer until v1 serves it too. WHICH OPERATIONS is read off the served
-// document, `frontend/openapi-v1.json`, by operation id — its paths carry no
+// document, `contract/openapi.generated.json`, by operation id — its paths carry no
 // server URL, and the id is what the maquette's routes are keyed by.
 //
 // THE DESIGN HOST ONLY. `__DESIGN_HOST__` is true in the `--mode design-host`
 // build alone; the harness, the unit suite and continuous integration build
 // without it, so the branch that calls this is dead there and the bundler drops
 // this module and the document with it — nothing they read can reach a network.
-import V1 from "../../../../openapi-v1.json";
+import V1 from "../../../../../contract/openapi.generated.json";
 import { recordAnswered } from "./answered";
 import { adoptAccount } from "./identity";
 
@@ -32,7 +32,7 @@ export function servedOperations(document: ServedDocument): ReadonlySet<string> 
       if (operation.operationId) served.add(operation.operationId);
     }
   }
-  if (served.size === 0) throw new Error("the design host's passthrough: openapi-v1.json declares no operation");
+  if (served.size === 0) throw new Error("the design host's passthrough: openapi.generated.json declares no operation");
   return served;
 }
 

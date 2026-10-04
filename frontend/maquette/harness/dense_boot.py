@@ -43,7 +43,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 # served operation — so what is measured is the boot tm-design really makes.
 SEEDS = ROOT / "design" / "src" / "mocks" / "seeds"
 SCRATCH_HOME = SERVED / "_dense_boot"
-SCRATCH = SCRATCH_HOME / "design"
+SCRATCH = SCRATCH_HOME / "frontend" / "maquette" / "design"
 
 
 def prepare_scratch() -> None:
@@ -62,7 +62,7 @@ def prepare_scratch() -> None:
     (SCRATCH / "node_modules").symlink_to(design / "node_modules")
     (SCRATCH / "assets").symlink_to(design / "assets")
     # What the tree reaches for OUTSIDE itself — `mocks/declared-status.ts`
-    # imports the contract from `frontend/maquette/`, one level above the
+    # imports the contract from the repository's `contract/`, outside the
     # design root. Found by reading the sources, never by naming one file
     # here: a name typed into this rule is a second copy of R73's own guard,
     # and it would rot the day a second reach is allowed.

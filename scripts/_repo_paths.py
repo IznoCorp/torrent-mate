@@ -1,4 +1,4 @@
-"""Where the repository keeps the maquette, named once.
+"""Where the repository keeps the maquette and the contract, named once.
 
 The guards under ``scripts/`` and the tests that read the maquette each used to
 spell ``ROOT / "frontend" / "maquette"`` themselves, so moving the maquette meant
@@ -19,4 +19,6 @@ MAQUETTE = ROOT / "frontend" / "maquette"
 DESIGN = MAQUETTE / "design"
 DESIGN_SRC = DESIGN / "src"
 HARNESS = MAQUETTE / "harness"
-CONTRACT = MAQUETTE / "contract" / "openapi.json"
+CONTRACT_DIR = ROOT / "contract"
+CONTRACT = CONTRACT_DIR / "openapi.json"
+SERVED_CONTRACT = CONTRACT_DIR / "openapi.generated.json"

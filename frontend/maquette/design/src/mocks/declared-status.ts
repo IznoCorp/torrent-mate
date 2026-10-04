@@ -20,7 +20,7 @@
 // It is 144 KB beside the 2.1 MB of seeds this layer already carries, and the
 // whole module is dropped with the layer when `__MOCKS_BUILT_IN__` is false —
 // so it weighs nothing at all in a build that ships.
-import contract from "../../../contract/openapi.json";
+import contract from "../../../../../contract/openapi.json";
 
 /** The status an operation answers when the contract declares none. */
 const PLAIN_SUCCESS = 200;

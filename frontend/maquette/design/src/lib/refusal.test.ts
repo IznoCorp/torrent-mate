@@ -1,7 +1,7 @@
 // Every refusal code the contract declares is said in the interface's own words (gap G-1):
 // a code without words would fall back to a sentence that says less than the server knew.
 import { describe, expect, it } from "vitest";
-import contract from "../../../contract/openapi.json";
+import contract from "../../../../../contract/openapi.json";
 import FR from "../i18n/fr.json";
 
 const CODES = (contract as unknown as { components: { schemas: { RefusalCode: { enum: string[] } } } })

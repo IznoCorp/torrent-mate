@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { routes } from "./handlers";
 import { OPERATION_RIGHTS } from "./operation-rights";
-import CONTRACT from "../../../contract/openapi.json";
+import CONTRACT from "../../../../../contract/openapi.json";
 
 // The session's own acts: every identity, under any ceiling (F28). The account's own state
 // joins them (the operator, 2026-10-03) — its notification writes, its « × » seen-marks, a local

@@ -94,11 +94,13 @@ jobs:
               - '.github/workflows/ci.yml'
             frontend_app:
               - 'frontend/**'
+              - 'contract/openapi.generated.json'
               - 'personalscraper/**'
               - 'pyproject.toml'
               - '.github/workflows/ci.yml'
             maquette:
               - 'frontend/maquette/**'
+              - 'contract/**'
               - '.github/workflows/ci.yml'
             docs:
               - 'docs/**'
@@ -454,10 +456,10 @@ jobs:
         if: needs.changes.outputs.frontend_app == 'true'
         env:
           PERSONALSCRAPER_CONFIG: ${{ github.workspace }}/config.example
-      - run: git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts frontend/openapi-v1.json
+      - run: git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts contract/openapi.generated.json
         if: needs.changes.outputs.frontend_app == 'true'
       # The v1 register is computed from two committed documents (the contract and
-      # frontend/openapi-v1.json, fresh by the step above) with the standard library
+      # contract/openapi.generated.json, fresh by the step above) with the standard library
       # alone: a contract-only PR moves it too, so the maquette's changes run it.
       - run: python3 scripts/compare-contracts.py --check --have v1
         if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'

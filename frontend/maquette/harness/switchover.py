@@ -27,11 +27,12 @@ from served_copy import SERVED
 PORT = 8918
 # The scratch design root is NESTED, because the tree it copies is not
 # self-contained and says so: `mocks/declared-status.ts` imports the contract
-# from `frontend/maquette/`, one level above the design root, and the
+# from the repository's `contract/`, outside the design root, and the
 # boundaries guard names that reach as a decision. A flat scratch made the copy unbuildable — every hold here answered 503
-# and the rule read a broken host where there was only an incomplete copy.
+# and the rule read a broken host where there was only an incomplete copy. The
+# scratch home stands for the repository root, so every reach lands inside it.
 SCRATCH_HOME = SERVED / "_r73"
-SCRATCH = SCRATCH_HOME / "design"
+SCRATCH = SCRATCH_HOME / "frontend" / "maquette" / "design"
 PASSWORD = "epreuve"
 
 

@@ -10,8 +10,8 @@
 // one, and every operation of any other build, is answered by the mocks and
 // reaches nothing.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import V1 from "../../../../openapi-v1.json";
-import CONTRACT from "../../../contract/openapi.json";
+import V1 from "../../../../../contract/openapi.generated.json";
+import CONTRACT from "../../../../../contract/openapi.json";
 import { passesThrough, servedOperations } from "./passthrough";
 
 type Document = { paths: Record<string, Record<string, { operationId?: string }>> };

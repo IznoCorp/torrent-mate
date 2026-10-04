@@ -1,6 +1,6 @@
 // The client addresses the server where the contract says it is served.
 import { describe, expect, it } from "vitest";
-import contract from "../../../contract/openapi.json";
+import contract from "../../../../../contract/openapi.json";
 import { SERVER_BASE } from "./server-base";
 
 describe("the client's base", () => {

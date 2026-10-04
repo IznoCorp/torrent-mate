@@ -68,7 +68,7 @@ from playwright.async_api import async_playwright
 # A state that re-seeds the layer; every surface is raised over it.
 START_STATE = "acq-follows-list"
 
-CONTRACT = json.loads((ROOT / "contract" / "openapi.json").read_text(encoding="utf-8"))
+CONTRACT = json.loads((ROOT.parents[1] / "contract" / "openapi.json").read_text(encoding="utf-8"))
 WORDS = json.loads((ROOT / "design" / "src" / "i18n" / "fr.json").read_text(encoding="utf-8"))
 SEASON_WORD = WORDS["common"]["season"]
 UPCOMING_WORD = WORDS["screens"]["media"]["seasonUpcoming"]
