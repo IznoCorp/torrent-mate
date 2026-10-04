@@ -11,10 +11,15 @@ configuration, whatever ``Host`` the request carries.
 from __future__ import annotations
 
 import dataclasses
+import io
+import json
+import logging
 from collections.abc import Callable
 from http.cookies import SimpleCookie
+from typing import Any
 
 import pytest
+import structlog
 from fastapi.testclient import TestClient
 
 from personalscraper.api.plex_account import PlexAccountClient
@@ -28,8 +33,11 @@ from tests.unit.app.accounts.test_plex_sign_in import (
     SERVER_TOKEN,
     USER_TOKEN,
     _Clock,
+    _local,
     _PlexTv,
+    _Response,
     _Server,
+    _user,
 )
 
 
@@ -251,3 +259,238 @@ class TestSignInWithPlex:
         response = client.post("/auth/plex", json=body)
         assert response.status_code == 400
         assert response.json()["code"] == "request.invalid"
+
+
+#: A nonce no browser was given: a forged pin cookie.
+FOREIGN_NONCE = "PLANTED-foreign-nonce-77c1"
+
+
+def _no_access(client: TestClient, plextv: _PlexTv, clock: _Clock, server: _Server) -> None:
+    """The identity reaches another server only.
+
+    Args:
+        client: The client.
+        plextv: plex.tv.
+        clock: The door's clock.
+        server: The door's server.
+    """
+    server.identifier = "REDACTED-machine-9"
+
+
+def _owner_mismatch(client: TestClient, plextv: _PlexTv, clock: _Clock, server: _Server) -> None:
+    """The resource is owned, the server's token is another account's.
+
+    Args:
+        client: The client.
+        plextv: plex.tv.
+        clock: The door's clock.
+        server: The door's server.
+    """
+    plextv.users[SERVER_TOKEN] = _user(plex_id=900099)
+
+
+def _unconfirmed(client: TestClient, plextv: _PlexTv, clock: _Clock, server: _Server) -> None:
+    """A local account holds the e-mail, which plex.tv has not confirmed.
+
+    Args:
+        client: The client.
+        plextv: plex.tv.
+        clock: The door's clock.
+        server: The door's server.
+    """
+    _services(client).app_store.accounts.insert_account(_local("account-local", EMAIL, "requester"))
+    plextv.users[USER_TOKEN] = _user(confirmed=False)
+
+
+def _token_refused(client: TestClient, plextv: _PlexTv, clock: _Clock, server: _Server) -> None:
+    """plex.tv refuses the token the PIN yielded.
+
+    Args:
+        client: The client.
+        plextv: plex.tv.
+        clock: The door's clock.
+        server: The door's server.
+    """
+    del plextv.users[USER_TOKEN]
+
+
+def _server_token_refused(client: TestClient, plextv: _PlexTv, clock: _Clock, server: _Server) -> None:
+    """plex.tv refuses the server's own token.
+
+    Args:
+        client: The client.
+        plextv: plex.tv.
+        clock: The door's clock.
+        server: The door's server.
+    """
+    del plextv.users[SERVER_TOKEN]
+
+
+def _foreign_nonce(client: TestClient, plextv: _PlexTv, clock: _Clock, server: _Server) -> None:
+    """The pin cookie carries a nonce this PIN was not bound to.
+
+    Args:
+        client: The client.
+        plextv: plex.tv.
+        clock: The door's clock.
+        server: The door's server.
+    """
+    client.cookies.set(PLEX_PIN_COOKIE, FOREIGN_NONCE)
+
+
+def _no_cookie(client: TestClient, plextv: _PlexTv, clock: _Clock, server: _Server) -> None:
+    """The browser sends no pin cookie.
+
+    Args:
+        client: The client.
+        plextv: plex.tv.
+        clock: The door's clock.
+        server: The door's server.
+    """
+    client.cookies.delete(PLEX_PIN_COOKIE)
+
+
+def _expired(client: TestClient, plextv: _PlexTv, clock: _Clock, server: _Server) -> None:
+    """The PIN is past its expiry.
+
+    Args:
+        client: The client.
+        plextv: plex.tv.
+        clock: The door's clock.
+        server: The door's server.
+    """
+    clock.now += 3600.0
+
+
+def _forgotten(client: TestClient, plextv: _PlexTv, clock: _Clock, server: _Server) -> None:
+    """plex.tv answers 404 to the PIN check.
+
+    Args:
+        client: The client.
+        plextv: plex.tv.
+        clock: The door's clock.
+        server: The door's server.
+    """
+    plextv.pin = [_Response(404, None)]
+
+
+def _pending(client: TestClient, plextv: _PlexTv, clock: _Clock, server: _Server) -> None:
+    """The PIN is not claimed yet.
+
+    Args:
+        client: The client.
+        plextv: plex.tv.
+        clock: The door's clock.
+        server: The door's server.
+    """
+    plextv.pending_then_claimed()
+
+
+def _plex_tv_down(client: TestClient, plextv: _PlexTv, clock: _Clock, server: _Server) -> None:
+    """plex.tv fails at the transport, with the token in its error.
+
+    Args:
+        client: The client.
+        plextv: plex.tv.
+        clock: The door's clock.
+        server: The door's server.
+    """
+    plextv.down = True
+
+
+def _server_down(client: TestClient, plextv: _PlexTv, clock: _Clock, server: _Server) -> None:
+    """The Plex server does not answer its identifier.
+
+    Args:
+        client: The client.
+        plextv: plex.tv.
+        clock: The door's clock.
+        server: The door's server.
+    """
+    server.identifier = None
+
+
+class TestNoLeak:
+    """No planted secret — a token, the PIN code, the e-mail, a nonce — reaches a log or a Problem."""
+
+    @pytest.mark.parametrize(
+        ("arrange", "status", "code"),
+        [
+            (_no_access, 401, "auth.refused"),
+            (_owner_mismatch, 401, "auth.refused"),
+            (_unconfirmed, 401, "auth.refused"),
+            (_token_refused, 401, "plex.token_refused"),
+            (_server_token_refused, 503, "plex.server_unreachable"),
+            (_foreign_nonce, 400, "plex.pin_unknown"),
+            (_no_cookie, 400, "plex.pin_unknown"),
+            (_expired, 409, "plex.pin_expired"),
+            (_forgotten, 409, "plex.pin_expired"),
+            (_pending, 202, None),
+            (_plex_tv_down, 503, "plex.unreachable"),
+            (_server_down, 503, "plex.server_unreachable"),
+        ],
+        ids=[
+            "no-access",
+            "owner-mismatch",
+            "unconfirmed",
+            "token-refused",
+            "server-token-refused",
+            "foreign-nonce",
+            "no-cookie",
+            "expired",
+            "forgotten",
+            "pending",
+            "plex-tv-down",
+            "server-down",
+        ],
+    )
+    def test_no_secret_reaches_a_log_or_an_answer(
+        self, v1_client: Callable[..., TestClient], arrange: Any, status: int, code: str | None
+    ) -> None:
+        """Start, arrange the path, poll: every answer body and every log record is free of the planted values."""
+        client = v1_client(role=None)
+        server = _Server()
+        plextv, clock = _door(client, server=server)
+        captured = io.StringIO()
+        handler = logging.StreamHandler(captured)
+        logging.getLogger().addHandler(handler)
+        try:
+            with structlog.testing.capture_logs() as logs:
+                started = client.post("/auth/plex/start")
+                nonce = _cookies(started)[PLEX_PIN_COOKIE].value
+                client.cookies.set(PLEX_PIN_COOKIE, nonce)
+                clock.now += 2.0
+                arrange(client, plextv, clock, server)
+                response = client.post("/auth/plex", json={"pinId": started.json()["pinId"]})
+        finally:
+            logging.getLogger().removeHandler(handler)
+
+        assert response.status_code == status
+        if code is not None:
+            assert response.json()["code"] == code
+        # The start's sign-in page carries the PIN code by design: it is read for everything else.
+        start_body = started.text.lower()
+        for secret in (USER_TOKEN, SERVER_TOKEN, EMAIL, nonce):
+            assert secret.lower() not in start_body, secret
+        everything = "\n".join([response.text, captured.getvalue(), json.dumps(logs, default=str)]).lower()
+        for secret in (USER_TOKEN, SERVER_TOKEN, CODE, EMAIL, nonce, FOREIGN_NONCE):
+            assert secret.lower() not in everything, secret
+
+    def test_plex_tv_down_at_the_start_leaks_nothing(self, v1_client: Callable[..., TestClient]) -> None:
+        """plex.tv fails at the start with the token in its error: the 503 and the logs carry no planted value."""
+        client = v1_client(role=None)
+        plextv, _ = _door(client)
+        plextv.down = True
+        captured = io.StringIO()
+        handler = logging.StreamHandler(captured)
+        logging.getLogger().addHandler(handler)
+        try:
+            with structlog.testing.capture_logs() as logs:
+                response = client.post("/auth/plex/start")
+        finally:
+            logging.getLogger().removeHandler(handler)
+
+        assert response.status_code == 503
+        everything = "\n".join([response.text, captured.getvalue(), json.dumps(logs, default=str)]).lower()
+        for secret in (USER_TOKEN, SERVER_TOKEN, CODE, EMAIL):
+            assert secret.lower() not in everything, secret
