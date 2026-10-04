@@ -1008,8 +1008,8 @@ class LibraryService:
 
         Args:
             actor: Who deletes (an Admin: the v1 perimeter holds ``library.delete``).
-            refs: The media, each by the one id the wire names; a medium named twice is
-                deleted once.
+            refs: The media, each by the one id the wire names; a medium named twice (by
+                one id twice, or by two of its ids) is deleted once.
 
         Returns:
             The report: how many media went entirely, and what each deletion did.
@@ -1045,7 +1045,8 @@ class LibraryService:
             refs: The media asked.
 
         Returns:
-            One plan per distinct medium, in request order.
+            One plan per distinct medium (one index row, whichever of its ids named it), in
+            request order.
 
         Raises:
             AppNotFound: ``media.not_found`` when no row holds an id.
@@ -1053,6 +1054,7 @@ class LibraryService:
         """
         plans: list[_DeletionPlan] = []
         seen: set[tuple[Provider, str]] = set()
+        planned: set[int] = set()
         with closing(self._connect()) as conn:
             for ref in refs:
                 key = ref_key(ref)
@@ -1070,6 +1072,11 @@ class LibraryService:
                         "Several library rows or folders hold this id.", code=RefusalCode.MEDIA_AMBIGUOUS, params=params
                     )
                 [row] = holders
+                if row.item_id in planned:
+                    # One row named by two of its ids (its TVDB and its TMDB id): deleted once,
+                    # under the first ref that named it.
+                    continue
+                planned.add(row.item_id)
                 mounted = mounted_media_folders(conn, row.item_id)
                 resolved = [_deletable_folder(one) for one in mounted]
                 # Keyed by the resolved folder: two spellings of one folder (NFC / NFD) delete it once.

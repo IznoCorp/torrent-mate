@@ -381,3 +381,18 @@ def test_no_deletion_authority_refuses_and_touches_nothing(shelf: Shelf) -> None
     assert shelf.journal() == []
     assert shelf.plex.calls == []
     assert not (shelf.data_dir / "pipeline.lock").exists()
+
+
+def test_one_row_named_by_two_ids_is_deleted_once(shelf: Shelf) -> None:
+    """One show row named by its TVDB id and its TMDB id: one deletion, one report, the medium deleted."""
+    item = shelf.index.item("Show", kind="show", tvdb="77", tmdb="11")
+    shelf.index.episodes(item, 1, [1], folder="series/Show/Saison 01")
+    folder = shelf.root / "series" / "Show"
+    (folder / "Saison 01").mkdir(parents=True)
+
+    report = shelf.service.delete_media(shelf.actor, [MediaRef(tvdb_id=77), MediaRef(tmdb_id=11)])
+
+    assert not folder.exists()
+    assert shelf.rows() == []
+    assert (report.deleted, len(report.media)) == (1, 1)
+    assert report.media[0].ref == MediaRef(tvdb_id=77)
