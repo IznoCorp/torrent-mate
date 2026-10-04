@@ -376,7 +376,7 @@ def test_redaction_is_consistent_across_files(tmp_path: Path) -> None:
     machine = files["server-identity.json"]["body"]["MediaContainer"]["machineIdentifier"]
     resources = files["resources-owner.json"]["body"]
     assert machine != MACHINE
-    assert probe.access_to(resources, machine) == "owner"
+    assert [r["owned"] for r in resources if r["clientIdentifier"] == machine] == [1]
     pin_ids = {files[n]["body"]["id"] for n in ("pin-created.json", "pin-pending.json", "pin-claimed.json")}
     assert len(pin_ids) == 1 and isinstance(next(iter(pin_ids)), int)
     assert isinstance(files["user-200.json"]["body"]["id"], int)
@@ -459,25 +459,27 @@ def test_missing_server_settings_stop_before_any_call(tmp_path: Path) -> None:
     assert fake.calls == []
 
 
-@pytest.mark.parametrize(
-    ("resources", "expected"),
-    [
-        ([{"clientIdentifier": "m", "owned": 1}], "owner"),
-        ([{"clientIdentifier": "m", "owned": True}], "owner"),
-        ([{"clientIdentifier": "m", "owned": 0}], "shared"),
-        ([{"clientIdentifier": "other", "owned": 1}], "none"),
-        ([], "none"),
-        ({"not": "a list"}, "none"),
-    ],
-)
-def test_access_to(resources: Any, expected: str) -> None:
-    """OWNER / SHARED / NONE from a resource list, NONE when the list is empty or malformed."""
-    assert probe.access_to(resources, "m") == expected
+def test_plex_tv_is_reached_through_the_account_client(tmp_path: Path) -> None:
+    """Every plex.tv request carries the client's headers: the probe no longer speaks raw ``requests`` to it."""
+    fake = _FakePlex()
+    said = _run(tmp_path, fake, record=False)
+    plex_tv = [call for call in fake.calls if call["url"].startswith("https://plex.tv/")]
+    assert plex_tv
+    for call in plex_tv:
+        assert call["headers"]["X-Plex-Product"] == probe.PRODUCT
+    assert any(line.startswith("https://app.plex.tv/auth#?") for line in said)
 
 
-def test_sign_in_url_carries_the_three_parameters() -> None:
-    """The URL Plex's article documents, URL-encoded."""
-    url = probe.sign_in_url("cid", "abc")
-    assert url.startswith("https://app.plex.tv/auth#?")
-    assert "clientID=cid" in url and "code=abc" in url
-    assert "context%5Bdevice%5D%5Bproduct%5D=TorrentMate+%28probe%29" in url
+def test_a_plex_tv_failure_is_a_probe_error_without_a_secret(tmp_path: Path) -> None:
+    """The client's error becomes the probe's, its text free of any planted value."""
+
+    class _DownAfterIdentity(_FakePlex):
+        def request(self, method: str, url: str, **kwargs: Any) -> _Response:
+            if url.startswith("https://plex.tv/"):
+                raise requests.ConnectionError(f"boom {kwargs['headers'].get('X-Plex-Token')} {CODE}")
+            return super().request(method, url, **kwargs)
+
+    with pytest.raises(probe.ProbeError) as caught:
+        _run(tmp_path, _DownAfterIdentity())
+    assert "ConnectionError" in str(caught.value)
+    assert all(secret not in str(caught.value) for secret in PLANTED_STRINGS)
