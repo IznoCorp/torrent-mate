@@ -27,11 +27,15 @@
 // wire's English.
 //
 // THE GATE READS NO RIGHT ITSELF: after a sign-in the frame reads the account,
-// and the account's entry page is where it lands (round 10 Q7).
+// and the account's entry page is where it lands (round 10 Q7) — unless the
+// gate came up over a place the account opens, which is where it returns (the
+// operator, 2026-10-04: the deep link is kept after sign-in).
 import { CancelledError } from "@tanstack/react-query";
 import i18next from "i18next";
 
-import { entryPageFor } from "./navigation";
+import { entryPageFor, opensFor, rowFor } from "./navigation";
+import { addressSeam, NOT_FOUND_PAGE } from "../lib/addresses";
+import type { Rights } from "../lib/rights";
 import { rightsOf } from "../lib/rights";
 import { postJson, sharedQueryClient } from "../lib/query-client";
 import { landSignedIn } from "./frame-verbs";
@@ -49,6 +53,50 @@ const POLL_EVERY = 1000;
 type Ending = () => void;
 
 let ending: Ending = () => {};
+
+// THE PLACE THE GATE CAME UP OVER, kept until the next sign-in takes it.
+let keptPlace: string | null = null;
+
+/**
+ * Keeps the address the gate is about to replace, so a sign-in returns there.
+ *
+ * @param address The same-origin path and query the person was at.
+ */
+export function keepPlace(address: string): void {
+  keptPlace = address;
+}
+
+/** Forgets the place kept: a sign-out is a leave, and the next person starts at their own entry. */
+export function forgetPlace(): void {
+  keptPlace = null;
+}
+
+/**
+ * Takes the place kept, if a signed-in account may return to it.
+ *
+ * ONLY A SAME-ORIGIN PATH, though the entry keeps nothing else: a scheme, a
+ * `//host` or a backslash would make the landing a redirect somewhere else.
+ * The sign-in screen, an address nobody serves and a page the account does not
+ * open are no place to return to.
+ *
+ * @param rights What the account just signed in may do.
+ * @returns The page and its dials, or null to land on the entry page.
+ */
+function takePlace(rights: Rights): { page: string; dials: Record<string, string> } | null {
+  const place = keptPlace;
+  keptPlace = null;
+  if (place === null || !/^\/(?![/\\])[^\\\u0000-\u001f]*$/.test(place)) return null;
+  const queryAt = place.indexOf("?");
+  const destination =
+    queryAt < 0
+      ? addressSeam.parse(place, "")
+      : addressSeam.parse(place.slice(0, queryAt), place.slice(queryAt));
+  if (destination.signIn || destination.notFound !== undefined) return null;
+  if (destination.page === NOT_FOUND_PAGE) return null;
+  const row = rowFor(destination.page);
+  if (row === undefined || !opensFor(row, rights)) return null;
+  return { page: destination.page, dials: destination.dials };
+}
 
 /** An element of the gate, by its selector. */
 function node<Element extends HTMLElement>(selector: string): Element | null {
@@ -243,7 +291,8 @@ function stopPlex(): void {
 }
 
 /**
- * Lands the signed-in account on its entry page once its rights are read.
+ * Lands the signed-in account where the gate came up, or on its entry page,
+ * once its rights are read.
  *
  * A read CANCELLED — the cache cleared under it, by a sign-out or a driven
  * state — lands nowhere and says nothing: whatever cleared it has moved the
@@ -264,7 +313,10 @@ async function land(): Promise<void> {
     if (failure instanceof CancelledError) return;
     throw failure;
   }
-  landSignedIn(entryPageFor(rightsOf(account)));
+  const rights = rightsOf(account);
+  const place = takePlace(rights);
+  if (place) landSignedIn(place.page, place.dials);
+  else landSignedIn(entryPageFor(rights));
   ending();
 }
 

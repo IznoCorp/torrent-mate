@@ -28,6 +28,7 @@ beforeEach(async () => {
   doors.fillPanelDoor({ close: () => {} } as never);
   vi.stubGlobal("document", { querySelector: () => null });
   vi.stubGlobal("window", { addEventListener: () => {}, matchMedia: () => ({ matches: false }) });
+  vi.stubGlobal("location", { pathname: "/media", search: "" });
   vi.stubGlobal("fetch", async (path: string, options: RequestInit = {}) => {
     sent.push({ path, method: options.method ?? "GET" });
     return new Response("{}", { status: 200 });

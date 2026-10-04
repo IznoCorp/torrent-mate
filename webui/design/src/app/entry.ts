@@ -25,7 +25,7 @@
 // is the one that can move at any time, and moving it is forty lines of copy
 // into `fr.json` for no property this lot owes. WHO IS PROPOSED IT, AND WHEN, is
 // `install-state.ts`'s: once, right after the first sign-in.
-import { installGate, restGate, sayReason } from "./gate";
+import { forgetPlace, installGate, keepPlace, restGate, sayReason } from "./gate";
 import i18next from "../i18n";
 import { forgetOutbox } from "./outbox";
 import { store } from "../lib/store-access";
@@ -161,6 +161,11 @@ export function showSignIn(withError: boolean, silent = false, reason?: string):
   if (withError)
     (document.querySelector("#loginform") as HTMLFormElement | null)?.reset();
   if (silent) return;
+  // THE PLACE IS KEPT BEFORE THE ADDRESS BECOMES THE GATE'S, so the sign-in
+  // returns to it (the deep link is kept). Not the gate's own address: a gate
+  // raised over itself would forget where the person was.
+  if (location.pathname !== addressSeam.signInPath)
+    keepPlace(location.pathname + location.search);
   try {
     bridge.replace(
       navigationState(),
@@ -230,6 +235,9 @@ export async function signOut(): Promise<void> {
   // would otherwise depart under the next one's session.
   await forgetOutbox();
   showSignIn(false);
+  // A SIGN-OUT IS A LEAVE, not a lost session: whoever signs in next starts at
+  // their own entry page, not at the place the previous person left.
+  forgetPlace();
 }
 
 /**
