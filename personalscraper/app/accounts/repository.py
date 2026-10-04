@@ -60,7 +60,8 @@ class AccountRow:
         id: Its key, ``account-<uuid4 hex>``.
         name: Its display name.
         email: Its e-mail, as given; unique whatever its case.
-        avatar: Its avatar, ``""`` when none.
+        avatar: A stored picture address, ``""`` when none; never read — the picture is
+            resolved from the Plex link and the e-mail (``accounts.avatar``).
         role_id: The role it holds.
         password_hash: ``scrypt$N$r$p$salt$hash``; ``None`` when it holds no password.
         created_at: Creation (epoch seconds).

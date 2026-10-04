@@ -9,6 +9,7 @@ a new session from an e-mail and a password, refusing every failure as ``auth.re
 
 from __future__ import annotations
 
+import hashlib
 import sqlite3
 from collections.abc import Callable
 from http.cookies import SimpleCookie
@@ -19,6 +20,7 @@ import structlog
 from fastapi import Response
 from fastapi.testclient import TestClient
 
+from personalscraper.app.accounts.avatar import GRAVATAR_SIZE
 from personalscraper.app.accounts.passwords import PASSWORD_MINIMUM, hash_password
 from personalscraper.app.accounts.ratelimit import MAX_FAILED_ATTEMPTS
 from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow
@@ -31,6 +33,9 @@ from personalscraper.conf.models.web import WebConfig
 from personalscraper.http_v1.models.accounts import ResetAccountPasswordBody
 from personalscraper.http_v1.models.authentication import ChangeOwnPasswordBody
 from personalscraper.http_v1.session_cookie import SESSION_COOKIE, clear_session_cookie, set_session_cookie
+
+#: The Gravatar key of the seeded account's e-mail, ``account-1@example.org``.
+_GRAVATAR_DIGEST = hashlib.sha256(b"account-1@example.org").hexdigest()
 
 #: The password the seeded local account holds.
 _PASSWORD = "correct horse battery staple"
@@ -100,7 +105,7 @@ class TestReadAccount:
         assert client.get("/auth/me").status_code == 401
 
     def test_answers_the_signed_in_account(self, v1_client: Callable[..., TestClient]) -> None:
-        """The account, its seeded role (no name, its start kinds), signs in locally, no avatar."""
+        """The account, its seeded role (no name, its start kinds), signs in locally, its Gravatar."""
         client = v1_client(role="household")
         role = _services(client).app_store.accounts.role("household")
         assert role is not None
@@ -112,6 +117,7 @@ class TestReadAccount:
             "id": "account-1",
             "name": "Account 1",
             "email": "account-1@example.org",
+            "avatar": f"https://www.gravatar.com/avatar/{_GRAVATAR_DIGEST}?d=404&s={GRAVATAR_SIZE}",
             "role": {
                 "id": "household",
                 "kind": "ordinary",
@@ -170,12 +176,27 @@ class TestReadAccount:
         response = v1_client(server_access=server_access).get("/auth/me")
         assert response.json()["signInKind"] == kind
 
-    def test_the_avatar_is_answered_when_present(self, v1_client: Callable[..., TestClient]) -> None:
-        """An account with a picture carries its address."""
+    @pytest.mark.parametrize("server_access", ["owner", "shared"])
+    def test_a_plex_linked_account_shows_its_plex_picture(
+        self, v1_client: Callable[..., TestClient], server_access: str
+    ) -> None:
+        """B-695: a linked account is shown its plex.tv picture, over its Gravatar, with no token kept."""
+        response = v1_client(server_access=server_access).get("/auth/me")
+        assert response.json()["avatar"] == "https://plex.tv/users/uuid-1/avatar"
+
+    def test_an_account_with_no_email_and_no_link_has_no_avatar(self, v1_client: Callable[..., TestClient]) -> None:
+        """Neither source: the property is absent, and the interface draws the initial."""
         client = v1_client()
-        conn = _services(client).app_store.accounts._conn  # noqa: SLF001 — no repository method sets an avatar yet
-        conn.execute("UPDATE account SET avatar = 'https://plex.tv/users/1/avatar'")
-        assert client.get("/auth/me").json()["avatar"] == "https://plex.tv/users/1/avatar"
+        conn = _services(client).app_store.accounts._conn  # noqa: SLF001 — no repository method blanks an e-mail
+        conn.execute("UPDATE account SET email = ''")
+        assert "avatar" not in client.get("/auth/me").json()
+
+    def test_the_stored_avatar_column_is_not_the_source(self, v1_client: Callable[..., TestClient]) -> None:
+        """One place decides: a value left in ``account.avatar`` never outranks the resolution."""
+        client = v1_client(server_access="owner")
+        conn = _services(client).app_store.accounts._conn  # noqa: SLF001 — no repository method sets an avatar
+        conn.execute("UPDATE account SET avatar = 'https://example.invalid/stale.png'")
+        assert client.get("/auth/me").json()["avatar"] == "https://plex.tv/users/uuid-1/avatar"
 
     def test_forbidden_writes_on_the_preprod(
         self, v1_client: Callable[..., TestClient], monkeypatch: pytest.MonkeyPatch
