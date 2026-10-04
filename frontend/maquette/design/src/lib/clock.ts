@@ -25,6 +25,21 @@ export function freezeClock(date: string): void {
 }
 
 /**
+ * Sets the page's clock at boot: frozen on the layer's day, or left real.
+ *
+ * THE DESIGN HOST READS THE REAL CLOCK (the operator, 2026-10-04; Q6 = B): it
+ * is where the interface is developed against the real server, whose dates are
+ * today's. Every other build freezes it, so a recorded reference stays
+ * comparable — the harness and the unit suite among them.
+ *
+ * @param designHost Whether this is the design host's build.
+ * @param frozenDay The layer's frozen day, as `YYYY-MM-DD`.
+ */
+export function bootClock(designHost: boolean, frozenDay: string): void {
+  if (!designHost) freezeClock(frozenDay);
+}
+
+/**
  * Today's date.
  *
  * @returns The frozen day when the boot froze one, else the real date — both as
