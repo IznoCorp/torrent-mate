@@ -21,6 +21,10 @@ from personalscraper.app.accounts.passwords import PASSWORD_MINIMUM
 from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.rights import Right
 from personalscraper.app.services import AppServices
+from personalscraper.app.store.store import _MIGRATIONS_DIR
+from personalscraper.conf.environment import StoreName, store_path
+from personalscraper.conf.models.config import Config
+from personalscraper.core.sqlite import open_db
 
 _PASSWORD = "a provisional one"
 
@@ -91,6 +95,7 @@ class TestReadAccounts:
             "email": "account-guest@example.org",
             "role": {"id": "local-guest", "kind": "ordinary", "rights": ["library.read"], "defaultFor": ["local"]},
             "signInKind": "local",
+            "signInAllowed": True,
         }
         assert [role["id"] for role in body["roles"]] == [
             "admin",
@@ -99,6 +104,31 @@ class TestReadAccounts:
             "requester",
             "local-guest",
         ]
+
+    def test_an_account_from_before_the_access_column_may_sign_in(
+        self, v1_client: Callable[..., TestClient], test_config: Config
+    ) -> None:
+        """An ``app.db`` left at version 3 holding an account: migrated, it serves ``signInAllowed: true``."""
+        db_path = store_path(test_config.paths.data_dir, StoreName.APP)
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        conn = open_db(db_path)
+        try:
+            for script in sorted(_MIGRATIONS_DIR.glob("*.sql")):
+                if int(script.stem.split("_")[0]) <= 3:
+                    conn.executescript(script.read_text(encoding="utf-8"))
+            conn.execute(
+                "INSERT INTO account (id, name, email, role_id, created_at, updated_at)"
+                " VALUES ('account-old', 'Old', 'old@example.org', 'local-guest', 1, 1)"
+            )
+            assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
+        finally:
+            conn.close()
+
+        response = v1_client(role="admin").get("/accounts")
+
+        assert response.status_code == 200
+        old = next(one for one in response.json()["accounts"] if one["id"] == "account-old")
+        assert old["signInAllowed"] is True
 
     def test_reassign_alone_opens_it_without_the_admin_accounts(self, v1_client: Callable[..., TestClient]) -> None:
         """200 under ``acquisition.reassign`` only; the Admin's account is left out (M7)."""

@@ -75,6 +75,7 @@ class AccountSummaryView:
         email: Its e-mail.
         role: Its one role.
         sign_in_kind: How it signs in.
+        sign_in_allowed: Whether it may sign in.
         demoted_from: The role it held before its Plex link demoted it; ``None`` when
             not demoted (nothing demotes an account before the Plex link exists).
     """
@@ -84,6 +85,7 @@ class AccountSummaryView:
     email: str
     role: RoleView
     sign_in_kind: SignInKind
+    sign_in_allowed: bool
     demoted_from: str | None = None
 
 

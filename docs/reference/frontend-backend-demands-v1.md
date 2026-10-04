@@ -28,7 +28,7 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | operations the interface requires | 102 |
 | operations v1 serves | 11 |
 | required and not served | 91 |
-| served, different response shape | 3 |
+| served, different response shape | 0 |
 | served, path parameter spelled differently | 0 |
 | served, answered with a different status | 0 |
 | fields carried pre-formatted | 22 |
@@ -134,11 +134,7 @@ the contract field by field — enums, required sets, request bodies, refusals a
 
 ## 2. Operations both declare, whose response carries different property names
 
-| operation | the interface adds | v1 has and the interface does not use |
-| --- | --- | --- |
-| `GET /api/v1/accounts` (`readAccounts`) | `signInAllowed` | — |
-| `PATCH /api/v1/accounts/{accountId}` (`updateAccount`) | `signInAllowed` | — |
-| `POST /api/v1/accounts` (`createAccount`) | `signInAllowed` | — |
+None.
 
 ## 2b. Operations both declare, whose path parameter is spelled differently
 

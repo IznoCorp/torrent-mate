@@ -55,7 +55,7 @@
       },
       "AccountSummaryModel": {
         "additionalProperties": false,
-        "description": "The contract's ``AccountSummary``: one account of the roster.\n\nAttributes:\n    id: The account's key.\n    name: Its display name.\n    email: Its e-mail.\n    role: Its one role.\n    sign_in_kind: How it signs in.\n    demoted_from: The role it held before its Plex link demoted it; absent otherwise.",
+        "description": "The contract's ``AccountSummary``: one account of the roster.\n\nAttributes:\n    id: The account's key.\n    name: Its display name.\n    email: Its e-mail.\n    role: Its one role.\n    sign_in_kind: How it signs in.\n    sign_in_allowed: Whether it may sign in.\n    demoted_from: The role it held before its Plex link demoted it; absent otherwise.",
         "properties": {
           "demotedFrom": {
             "anyOf": [
@@ -83,6 +83,10 @@
           "role": {
             "$ref": "#/components/schemas/RoleModel"
           },
+          "signInAllowed": {
+            "title": "Signinallowed",
+            "type": "boolean"
+          },
           "signInKind": {
             "$ref": "#/components/schemas/SignInKind"
           }
@@ -92,7 +96,8 @@
           "name",
           "email",
           "role",
-          "signInKind"
+          "signInKind",
+          "signInAllowed"
         ],
         "title": "AccountSummaryModel",
         "type": "object"

@@ -24,6 +24,7 @@ class AccountSummaryModel(ContractModel):
         email: Its e-mail.
         role: Its one role.
         sign_in_kind: How it signs in.
+        sign_in_allowed: Whether it may sign in.
         demoted_from: The role it held before its Plex link demoted it; absent otherwise.
     """
 
@@ -32,6 +33,7 @@ class AccountSummaryModel(ContractModel):
     email: str
     role: RoleModel
     sign_in_kind: SignInKind
+    sign_in_allowed: bool
     demoted_from: str | None = None
 
     @classmethod
@@ -50,6 +52,7 @@ class AccountSummaryModel(ContractModel):
             email=view.email,
             role=RoleModel.from_view(view.role),
             sign_in_kind=view.sign_in_kind,
+            sign_in_allowed=view.sign_in_allowed,
             demoted_from=view.demoted_from,
         )
 

@@ -104,6 +104,13 @@ describe("a cut account", () => {
     expect([answer.status, answer.coded?.code]).toEqual([401, "auth.refused"]);
   });
 
+  it("tells nothing to an unknown e-mail while the account dialled is cut", () => {
+    ask("PUT", `/accounts/${LOCAL.id}/access`, CUT);
+    identityDials.setIdentity(LOCAL.id);
+    const answer = ask("POST", "/auth/login", { email: "nobody@example.invalid", password: "a password" });
+    expect([answer.status, answer.coded?.code]).toEqual([401, "auth.refused"]);
+  });
+
   it("is refused its Plex sign-in", () => {
     ask("PUT", `/accounts/${LINKED}/access`, CUT);
     identityDials.setIdentity(LINKED);

@@ -13,6 +13,7 @@ import {
   plexReachable,
   signedIn,
   signedInId,
+  signInAllowed,
   passwordAccepted,
 } from "../identity";
 
@@ -44,12 +45,16 @@ export function authenticationRoutes(): MockRoute[] {
       // account is refused with THE ONE refusal every failed attempt gets, so
       // no attempt tells which e-mails the server knows (O-K1-4). Any other
       // e-mail walks through as the account dialled, because the screen, not
-      // the check, is what this surface shows.
+      // the check, is what this surface shows — save while that account is
+      // cut: an unknown e-mail proves no credentials, so it gets the one
+      // refusal, never the cut account's.
       const asked = text(request.body, "email").toLowerCase();
       const account = heldAccounts().find(
         (one) => one.email.toLowerCase() === asked,
       );
       if (account?.signInKind === "plex")
+        return refused(UNAUTHORIZED, "refused", "auth.refused");
+      if (account === undefined && !signInAllowed(signedInId()))
         return refused(UNAUTHORIZED, "refused", "auth.refused");
       if (!openSession(account?.id ?? signedInId())) return DISABLED();
       return signedIn();

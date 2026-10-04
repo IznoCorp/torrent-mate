@@ -19,7 +19,7 @@ import sqlite3
 import threading
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Literal
 
 from personalscraper.app.accounts.actor import RoleKind
@@ -64,6 +64,7 @@ class AccountRow:
         password_hash: ``scrypt$N$r$p$salt$hash``; ``None`` when it holds no password.
         created_at: Creation (epoch seconds).
         updated_at: Last change (epoch seconds).
+        sign_in_allowed: Whether it may sign in; ``True`` until an Admin cuts it.
     """
 
     id: str
@@ -74,6 +75,7 @@ class AccountRow:
     password_hash: str | None = field(repr=False)
     created_at: float
     updated_at: float
+    sign_in_allowed: bool = True
 
 
 @dataclass(frozen=True)
@@ -151,13 +153,28 @@ class PlexPinRow:
     consumed_at: float | None
 
 
-_ACCOUNT_COLUMNS = "id, name, email, avatar, role_id, password_hash, created_at, updated_at"
+_ACCOUNT_COLUMNS = "id, name, email, avatar, role_id, password_hash, created_at, updated_at, sign_in_allowed"
 _LINK_COLUMNS = (
     "account_id, plex_id, plex_uuid, plex_username, server_access,"
     " token_ciphertext, token_stored_at, linked_at, last_sign_in_at"
 )
 _SESSION_COLUMNS = "id, account_id, token_hash, created_at, expires_at, last_seen_at, revoked_at, user_agent"
 _PIN_COLUMNS = "pin_id, code, nonce_hash, created_at, expires_at, last_checked_at, consumed_at"
+
+
+def _account(row: tuple[object, ...]) -> AccountRow:
+    """Build an :class:`AccountRow` from a row in ``_ACCOUNT_COLUMNS`` order.
+
+    SQLite stores ``sign_in_allowed`` as an integer: it is read back as a bool.
+
+    Args:
+        row: The row.
+
+    Returns:
+        The dataclass.
+    """
+    account = AccountRow(*row)  # type: ignore[arg-type]
+    return replace(account, sign_in_allowed=bool(account.sign_in_allowed))
 
 
 def _link(row: tuple[object, ...]) -> PlexLinkRow:
@@ -376,7 +393,7 @@ class AccountRepository:
             The accounts.
         """
         rows = self._conn.execute(f"SELECT {_ACCOUNT_COLUMNS} FROM account ORDER BY created_at, rowid")  # noqa: S608
-        return [AccountRow(*row) for row in rows]
+        return [_account(row) for row in rows]
 
     @serialised
     def account(self, account_id: str) -> AccountRow | None:
@@ -389,7 +406,7 @@ class AccountRepository:
             The account, or ``None``.
         """
         row = self._conn.execute(f"SELECT {_ACCOUNT_COLUMNS} FROM account WHERE id = ?", (account_id,)).fetchone()  # noqa: S608
-        return AccountRow(*row) if row else None
+        return _account(row) if row else None
 
     @serialised
     def account_by_email(self, email: str) -> AccountRow | None:
@@ -405,7 +422,7 @@ class AccountRepository:
             f"SELECT {_ACCOUNT_COLUMNS} FROM account WHERE lower(email) = lower(?)",  # noqa: S608
             (email,),
         ).fetchone()
-        return AccountRow(*row) if row else None
+        return _account(row) if row else None
 
     @serialised
     def insert_account(self, account: AccountRow) -> None:
@@ -418,7 +435,7 @@ class AccountRepository:
             sqlite3.IntegrityError: On a taken key, a taken e-mail (any case) or an unknown role.
         """
         self._conn.execute(
-            f"INSERT INTO account ({_ACCOUNT_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",  # noqa: S608
+            f"INSERT INTO account ({_ACCOUNT_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",  # noqa: S608
             (
                 account.id,
                 account.name,
@@ -428,6 +445,7 @@ class AccountRepository:
                 account.password_hash,
                 account.created_at,
                 account.updated_at,
+                account.sign_in_allowed,
             ),
         )
 

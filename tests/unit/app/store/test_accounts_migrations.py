@@ -1,8 +1,9 @@
-"""Unit tests for the accounts migrations of ``app.db`` — ``002_accounts.sql`` and ``003_push_account_fk.sql``.
+"""Unit tests for the accounts migrations of ``app.db`` — ``002_accounts.sql`` to ``004_account_sign_in_allowed.sql``.
 
-A fresh file reaches version 3 with the five seeded roles; an existing file keeps its push
+A fresh file reaches version 4 with the five seeded roles; an existing file keeps its push
 subscriptions through ``003``'s rebuild, and a subscription naming no account makes the
-migration fail loud, the runner restoring the file as it stood before ``003``.
+migration fail loud, the runner restoring the file as it stood before ``003``. ``004`` gives
+every account, existing or new, ``sign_in_allowed = 1``.
 """
 
 from __future__ import annotations
@@ -104,9 +105,9 @@ def fresh(tmp_path: Path) -> Iterator[sqlite3.Connection]:
 class TestFreshFile:
     """A file created today holds the whole schema and the five seeded roles."""
 
-    def test_reaches_version_three(self, fresh: sqlite3.Connection) -> None:
+    def test_reaches_version_four(self, fresh: sqlite3.Connection) -> None:
         """Every migration applied."""
-        assert fresh.execute("PRAGMA user_version").fetchone()[0] == 3
+        assert fresh.execute("PRAGMA user_version").fetchone()[0] == 4
 
     def test_seeds_the_five_roles_with_their_kinds_and_no_name(self, fresh: sqlite3.Connection) -> None:
         """The maquette's five roles; a seeded role carries no name (its id is translated by the interface)."""
@@ -186,6 +187,22 @@ class TestFreshFile:
                 " VALUES ('a2', 'B', 'a@X', 'local-guest', 1, 1)"
             )
 
+    def test_a_new_account_may_sign_in(self, fresh: sqlite3.Connection) -> None:
+        """``004``: an account inserted without the column is allowed to sign in."""
+        fresh.execute(
+            "INSERT INTO account (id, name, email, role_id, created_at, updated_at)"
+            " VALUES ('a1', 'A', 'a@x', 'local-guest', 1, 1)"
+        )
+        assert fresh.execute("SELECT sign_in_allowed FROM account WHERE id = 'a1'").fetchone()[0] == 1
+
+    def test_sign_in_allowed_is_zero_or_one(self, fresh: sqlite3.Connection) -> None:
+        """``004``: any other value is refused."""
+        with pytest.raises(sqlite3.IntegrityError):
+            fresh.execute(
+                "INSERT INTO account (id, name, email, role_id, created_at, updated_at, sign_in_allowed)"
+                " VALUES ('a1', 'A', 'a@x', 'local-guest', 1, 1, 2)"
+            )
+
     def test_a_push_subscription_must_name_an_account(self, fresh: sqlite3.Connection) -> None:
         """``003``: the subscription's account is a foreign key."""
         with pytest.raises(sqlite3.IntegrityError):
@@ -237,7 +254,7 @@ class TestExistingFile:
         finally:
             store.close()
 
-        assert _user_version(db_path) == 3
+        assert _user_version(db_path) == 4
         conn = _connect(db_path)
         try:
             rows = conn.execute(f"SELECT {_PUSH_COLUMNS} FROM push_subscription").fetchall()  # noqa: S608 — fixed names
@@ -279,3 +296,35 @@ class TestExistingFile:
             conn.close()
         assert rows == [_PUSH_ROW]
         assert foreign_keys == []
+
+
+class TestAccountAccessMigration:
+    """``004`` on a file that already holds accounts."""
+
+    def test_an_existing_account_may_sign_in(self, tmp_path: Path) -> None:
+        """A version-3 file's account comes out of ``004`` allowed to sign in, every other column unchanged."""
+        db_path = _file_at(tmp_path, 3)
+        conn = _connect(db_path)
+        try:
+            conn.execute(
+                "INSERT INTO account (id, name, email, role_id, password_hash, created_at, updated_at)"
+                " VALUES ('account-alice', 'Alice', 'alice@x', 'household', 'h', 1, 2)"
+            )
+        finally:
+            conn.close()
+
+        store = AppStore(db_path)
+        try:
+            account = store.accounts.account("account-alice")
+        finally:
+            store.close()
+
+        assert _user_version(db_path) == 4
+        assert account is not None
+        assert account.sign_in_allowed is True
+        assert (account.name, account.email, account.role_id, account.password_hash) == (
+            "Alice",
+            "alice@x",
+            "household",
+            "h",
+        )
