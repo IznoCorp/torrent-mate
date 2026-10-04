@@ -3,7 +3,7 @@
     "schemas": {
       "AccountModel": {
         "additionalProperties": false,
-        "description": "The contract's ``Account``: who is signed in, and what the instance forbids.\n\nAttributes:\n    name: The display name.\n    email: The e-mail.\n    avatar: The picture's address; absent for an account that has none.\n    id: The account's key.\n    role: Its one role.\n    sign_in_kind: How it signs in.\n    forbidden_writes: The instance's forbidden writes.",
+        "description": "The contract's ``Account``: who is signed in, and what the instance forbids.\n\nAttributes:\n    name: The display name.\n    email: The e-mail.\n    avatar: The picture's address \u2014 its Plex avatar, else its Gravatar; absent for an\n        account that has neither.\n    id: The account's key.\n    role: Its one role.\n    sign_in_kind: How it signs in.\n    forbidden_writes: The instance's forbidden writes.",
         "properties": {
           "avatar": {
             "anyOf": [

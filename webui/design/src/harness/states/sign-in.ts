@@ -5,17 +5,32 @@
 //
 // Each entry is `[id, label, run]`: the id is what `window.__go(id)` takes and what the oracle's
 // reference names, the label says the state in words, and `run` builds the state.
-import { applyState, type NamedState } from "../drive";
-import { owed } from "../owed";
+import { applyState, onLeave, type NamedState } from "../drive";
+import { forgetOwed, owed } from "../owed";
 import { as } from "./rights";
 import { fillCreation } from "./creation";
 
 // How long a form waits for its surface to be drawn before it is filled.
 const FILL_AFTER = 400;
 
-/** Raises the gate without writing history, as a driven state does. */
-function showGate(): void {
-  window.__entry?.showSignIn(false, true);
+/**
+ * Raises the gate without writing history, as a driven state does.
+ *
+ * @param reason The refusal code the gate says the session ended for, if any.
+ */
+function showGate(reason?: string): void {
+  window.__entry?.showSignIn(false, true, reason);
+}
+
+/**
+ * Opens Profil with the install button dialled to one face — the browser that really offers it, the
+ * iPhone's Safari and the installed app with an update waiting are not reachable from a headless run.
+ *
+ * @param face The face the button is drawn in.
+ */
+function profileInstall(face: "install" | "ios" | "update"): void {
+  applyState({ page: "profile", phase: "ready" });
+  window.__entry?.dialInstall(face);
 }
 
 /** Taps one control of the gate. */
@@ -38,7 +53,9 @@ function plexWith(claim: "pending" | "no-access" | "expired"): void {
 function changePassword(fields: [string, string, string]): void {
   as("local-account");
   applyState({ page: "profile", phase: "ready" });
-  owed(() => {
+  // THE SUBMIT IS FORGOTTEN WHEN THE NEXT STATE IS DRIVEN: landing after it, it would submit a form
+  // on the next state's page that nobody asked for (the pattern is `creation.ts`'s).
+  const submitting = owed(() => {
     const form = document.querySelector<HTMLFormElement>('[data-part="profile/password"]');
     if (!form) return;
     const names = ["currentPassword", "newPassword", "confirmPassword"];
@@ -47,6 +64,7 @@ function changePassword(fields: [string, string, string]): void {
     });
     form.requestSubmit();
   }, FILL_AFTER);
+  onLeave(() => forgetOwed(submitting));
 }
 
 /**
@@ -76,12 +94,14 @@ function accountPanel(account: string): void {
  */
 function resetLocal(password: string): void {
   accountPanel("local-account");
-  owed(() => {
+  // Forgotten when the next state is driven, as the password change's.
+  const submitting = owed(() => {
     const form = document.querySelector<HTMLFormElement>('[data-part="accounts/password-reset"]');
     if (!form) return;
     (form.elements.namedItem("provisionalPassword") as HTMLInputElement).value = password;
     form.requestSubmit();
   }, FILL_AFTER);
+  onLeave(() => forgetOwed(submitting));
 }
 
 // Demandeur's rights, given accounts.manage: a manager who is not Admin, on a local account.
@@ -109,6 +129,31 @@ const WEAK = "correcthorsebattery";
 
 export function signInStates(): NamedState[] {
   return [
+    [
+      "signin-expired",
+      "Connexion — la session a expiré : la raison est dite sous le titre, dans les mots de l'interface",
+      () => showGate("auth.required"),
+    ],
+    [
+      "signin-access-disabled",
+      "Connexion — l'accès a été désactivé par un administrateur : la raison est dite sous le titre",
+      () => showGate("auth.access_disabled"),
+    ],
+    [
+      "profile-install",
+      "Profil — « Installer l'app », sur un navigateur qui propose l'installation",
+      () => profileInstall("install"),
+    ],
+    [
+      "profile-install-ios",
+      "Profil — « Installer l'app » sur Safari iOS : montre comment, Partager puis Sur l'écran d'accueil",
+      () => profileInstall("ios"),
+    ],
+    [
+      "profile-update",
+      "Profil — l'app est installée et une version plus récente attend : « Mettre à jour »",
+      () => profileInstall("update"),
+    ],
     [
       "signin-plex-pending",
       "Connexion — Plex ouvert, en attente de confirmation : rouvrir la page, ou annuler",

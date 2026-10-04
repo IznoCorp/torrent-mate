@@ -50,7 +50,8 @@ class AccountView:
         id: Its key.
         name: Its display name.
         email: Its e-mail.
-        avatar: Its picture's address; ``None`` when it has none.
+        avatar: Its picture's address — its Plex avatar, else its Gravatar
+            (``accounts.avatar``); ``None`` when it has neither.
         role: Its one role.
         sign_in_kind: How it signs in.
         forbidden_writes: The instance's forbidden writes, sorted (the ceiling, Admin included).

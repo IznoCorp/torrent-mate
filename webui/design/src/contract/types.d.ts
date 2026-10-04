@@ -2082,7 +2082,7 @@ export interface components {
         Account: {
             name: string;
             email: string;
-            /** @description the address of the account's picture; ABSENT for an account that has none — a local account — and the interface then draws its initial */
+            /** @description the address of the account's picture: its Plex avatar when it is linked to Plex, else the Gravatar of its e-mail (which answers 404 when there is none); ABSENT for an account that has neither, and the interface then draws its initial, as it does when the picture fails to load */
             avatar?: string;
             /** @description the account's key */
             id: string;

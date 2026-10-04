@@ -58,7 +58,8 @@ class AccountModel(ContractModel):
     Attributes:
         name: The display name.
         email: The e-mail.
-        avatar: The picture's address; absent for an account that has none.
+        avatar: The picture's address — its Plex avatar, else its Gravatar; absent for an
+            account that has neither.
         id: The account's key.
         role: Its one role.
         sign_in_kind: How it signs in.

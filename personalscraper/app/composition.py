@@ -211,7 +211,7 @@ def build_app_services(config: "Config", settings: "Settings") -> AppServices:
     """
     event_bus = EventBus()
     app_store = build_app_store(config)
-    sessions = SessionService(lambda: app_store.accounts, ttl_hours=config.web.session_ttl_hours)
+    sessions = SessionService(lambda: app_store.accounts, idle_days=config.web.session_idle_days)
     accounts = AccountService(lambda: app_store.accounts, sessions, event_bus)
     return AppServices(
         event_bus=event_bus,

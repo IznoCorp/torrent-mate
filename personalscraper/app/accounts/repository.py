@@ -60,7 +60,8 @@ class AccountRow:
         id: Its key, ``account-<uuid4 hex>``.
         name: Its display name.
         email: Its e-mail, as given; unique whatever its case.
-        avatar: Its avatar, ``""`` when none.
+        avatar: A stored picture address, ``""`` when none; never read — the picture is
+            resolved from the Plex link and the e-mail (``accounts.avatar``).
         role_id: The role it holds.
         password_hash: ``scrypt$N$r$p$salt$hash``; ``None`` when it holds no password.
         created_at: Creation (epoch seconds).
@@ -115,8 +116,8 @@ class SessionRow:
         account_id: The account it signs in.
         token_hash: The sha256 hex of the cookie value; the value is never stored.
         created_at: Creation (epoch seconds).
-        expires_at: Its hard expiry.
-        last_seen_at: Its last use.
+        expires_at: Its expiry, moved forward at each renewal.
+        last_seen_at: Its last renewal (a use is written at most once per renewal interval).
         revoked_at: When it was signed out; ``None`` while live.
         user_agent: The browser's user agent.
     """
@@ -678,14 +679,44 @@ class AccountRepository:
         return SessionRow(*row) if row else None
 
     @serialised
-    def touch_session(self, session_id: int, *, now: float) -> None:
-        """Record a session's use.
+    def session(self, session_id: int) -> SessionRow | None:
+        """A session by its key, revoked or not.
 
         Args:
             session_id: The session.
-            now: The use time (epoch seconds).
+
+        Returns:
+            The session, or ``None``.
         """
-        self._conn.execute("UPDATE session SET last_seen_at = ? WHERE id = ?", (now, session_id))
+        row = self._conn.execute(
+            f"SELECT {_SESSION_COLUMNS} FROM session WHERE id = ?",  # noqa: S608
+            (session_id,),
+        ).fetchone()
+        return SessionRow(*row) if row else None
+
+    @serialised
+    def renew_session(self, session_id: int, *, seen_at: float, token_hash: str, expires_at: float, now: float) -> bool:
+        """Renew a live session under a new value, if no other renewal came first.
+
+        The write is conditional on ``last_seen_at`` still being the one read: of two
+        requests renewing the same session at once, one writes and the other learns it lost.
+
+        Args:
+            session_id: The session.
+            seen_at: The ``last_seen_at`` the caller read.
+            token_hash: The new value's hash.
+            expires_at: The new expiry.
+            now: The renewal time (epoch seconds), the new ``last_seen_at``.
+
+        Returns:
+            Whether the session was renewed; ``False`` when it is revoked or was renewed meanwhile.
+        """
+        cursor = self._conn.execute(
+            "UPDATE session SET token_hash = ?, expires_at = ?, last_seen_at = ?"
+            " WHERE id = ? AND last_seen_at = ? AND revoked_at IS NULL",
+            (token_hash, expires_at, now, session_id, seen_at),
+        )
+        return cursor.rowcount == 1
 
     @serialised
     def revoke_session(self, session_id: int, *, now: float) -> None:

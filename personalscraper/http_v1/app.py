@@ -21,7 +21,7 @@ from personalscraper.config import Settings
 from personalscraper.http_v1.perimeter import ActorResolver, v1_perimeter
 from personalscraper.http_v1.problem import ProblemOnCrash, install_problem_handlers
 from personalscraper.http_v1.routes import accounts, authentication, media, system
-from personalscraper.http_v1.session_cookie import SessionActorResolver
+from personalscraper.http_v1.session_cookie import SessionActorResolver, SessionRenewalCookie
 
 #: Where v0's application mounts v1; a v1 route's path is the contract's without its ``/api``.
 V1_PREFIX: Final = "/api/v1"
@@ -115,6 +115,8 @@ def create_v1_app(
     app.openapi = _without_validation_answers(app.openapi)  # type: ignore[method-assign]
     install_problem_handlers(app)
     app.add_middleware(ProblemOnCrash)
+    # Outermost: a renewed session's cookie rides even on the 500 ``ProblemOnCrash`` answers.
+    app.add_middleware(SessionRenewalCookie, web=config.web)
     include_v1_router(app, authentication.router)
     include_v1_router(app, accounts.router)
     include_v1_router(app, system.router)

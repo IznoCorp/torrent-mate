@@ -62,14 +62,23 @@ export function fillCreation(
   if (page === "role") window.__screens.newRole();
   else window.__screens.newAccount();
   if (!fields.length && !extra && !press) return;
-  owed(() => {
+  // BOTH DEFERRED ACTS ARE STOPPED WHEN THE NEXT STATE IS DRIVEN: a field typed or a Create pressed
+  // after it lands on the next state's own page — a form it never asked to fill, a submit it never
+  // asked to press (`cards.py` R44, driven right after; the pattern is `tunnel.ts`'s). The press is
+  // armed by the typing, so it is not known yet: it is forgotten through the variable it will fill.
+  let pressing: number | undefined;
+  const typing = owed(() => {
     for (const [name, value] of fields) typeInto(name, value);
     extra?.();
     if (press)
-      owed(() => {
+      pressing = owed(() => {
         document.querySelector<HTMLElement>('[data-part="screen"][data-open] [data-part="creation/submit"]')?.click();
       }, PRESS_AFTER);
   }, TYPE_AFTER);
+  onLeave(() => {
+    forgetOwed(typing);
+    if (pressing !== undefined) forgetOwed(pressing);
+  });
 }
 
 /** Turns one right of the role's page on, as a finger would. */

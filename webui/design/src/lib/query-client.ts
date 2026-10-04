@@ -22,6 +22,7 @@ import { CancelledError, QueryClient, useQueryClient } from "@tanstack/react-que
 import { useSyncExternalStore } from "react";
 import { holdBack, setDeparture } from "../app/outbox";
 import type { components, paths } from "../contract/types";
+import { refusalCode } from "./refusal";
 import { SERVER_BASE } from "./server-base";
 
 /**
@@ -108,13 +109,29 @@ export function onSessionLost(land: () => void): void {
   sessionLost = land;
 }
 
+let sessionLostBecause: (code: string | undefined) => void = () => {};
+
+/**
+ * Says what follows once the server's reason for a lost session is known.
+ *
+ * @param say What the entry does with the refusal code: words on the sign-in gate. Called with undefined
+ *     when the answer carried no code.
+ */
+export function onSessionLostBecause(say: (code: string | undefined) => void): void {
+  sessionLostBecause = say;
+}
+
 /**
  * Hands a 401 to the entry before the failure goes on to its caller.
  *
  * @param answer What the layer answered.
  */
 function noticeSession(answer: Response): void {
-  if (answer.status === NO_SESSION) sessionLost();
+  if (answer.status !== NO_SESSION) return;
+  // THE GATE COMES UP AT ONCE; the reason follows once the body is read. The body is read from a CLONE,
+  // so the caller still reads its own — and a body that is no problem says no reason rather than failing.
+  sessionLost();
+  void answer.clone().json().then(refusalCode, () => undefined).then((code) => sessionLostBecause(code));
 }
 
 /** Every address the maquette's own contract declares, under its base. */

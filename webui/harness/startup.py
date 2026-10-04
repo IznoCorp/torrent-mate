@@ -27,6 +27,7 @@ SCREEN needs a load slow enough to paint during, that is a throttled-network
 profile in the driver: a separate rule, and an open decision for the operator.
 """
 import asyncio
+import os
 import pathlib
 import re
 import subprocess
@@ -36,10 +37,11 @@ import urllib.error
 import urllib.request
 
 from common import Journal, browser_channel, chrome_launch_args
+from server import fake_v1
 from playwright.async_api import async_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-PORT = 8713  # never 8710 / 8711: the reverse proxy routes production and staging there
+PORT = 8714  # never 8710 / 8711 (the reverse proxy) nor 8713, which is v1's: the door asks a stand-in v1
 
 _journal = None
 
@@ -195,70 +197,76 @@ async def main():
 
         # 5. The gate the server builds shows the SAME screen, and reveals it on
         #    submit — the wait the browser spends fetching the document.
-        server = subprocess.Popen(
-            [sys.executable, str(ROOT / "serve.py"), str(PORT)],
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        try:
-            gate = ""
-            for _ in range(50):
-                try:
-                    with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/", timeout=2) as r:
-                        gate = r.read().decode()
-                    break
-                except urllib.error.HTTPError as err:  # 401 carries the gate
-                    gate = err.read().decode()
-                    break
-                except OSError:
-                    time.sleep(0.1)
-            check("the gate answers", bool(gate))
-            check("the gate carries the startup screen", 'id="splash"' in gate)
-            check("it arrives there hidden", 'id="splash" hidden' in gate)
-            expected = normalize(prototype_excerpt("splash").replace(
-                ' id="splash"', ' id="splash" hidden', 1))
-            check("extracted from the prototype, never retyped", expected and expected in normalize(gate))
-            # The STYLESHEET, not the document. This reads the CSS the gate
-            # inlines, so what proves the block landed is the RULE OPENER —
-            # a source substring, never a selection, which is why it keeps
-            # the class name the stylesheet is still written in.
-            check("the gate carries the screen's style", ".splashbar {" in gate)
+        #    HERMETIC: its door asks a stand-in v1 holding no session, never the
+        #    live one on this machine — a rule must not depend on, nor knock at, v1.
+        with fake_v1() as v1:
+            server = subprocess.Popen(
+                [sys.executable, str(ROOT / "serve.py"), str(PORT)],
+                env={**os.environ, "TM_DESIGN_V1_URL": v1.url},
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            try:
+                gate = ""
+                for _ in range(50):
+                    try:
+                        with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/", timeout=2) as r:
+                            gate = r.read().decode()
+                        break
+                    except urllib.error.HTTPError as err:  # 401 carries the gate
+                        gate = err.read().decode()
+                        break
+                    except OSError:
+                        time.sleep(0.1)
+                check("the gate answers", bool(gate))
+                check("the gate carries the startup screen", 'id="splash"' in gate)
+                check("it arrives there hidden", 'id="splash" hidden' in gate)
+                expected = normalize(prototype_excerpt("splash").replace(
+                    ' id="splash"', ' id="splash" hidden', 1))
+                check("extracted from the prototype, never retyped", expected and expected in normalize(gate))
+                # The STYLESHEET, not the document. This reads the CSS the gate
+                # inlines, so what proves the block landed is the RULE OPENER —
+                # a source substring, never a selection, which is why it keeps
+                # the class name the stylesheet is still written in.
+                check("the gate carries the screen's style", ".splashbar {" in gate)
 
-            page3 = await ctx.new_page()
-            await page3.goto(f"http://127.0.0.1:{PORT}/", wait_until="load")
-            # Without the screen there is nothing to measure, and measuring
-            # anyway raises instead of naming the defect. A crash is a failure
-            # nobody can read.
-            if not await page3.evaluate("()=>!!document.querySelector('#splash')"):
-                check("hidden until the form is submitted", False, "no screen in the gate")
-                check("appears on submit", False, "no screen in the gate")
-                check("and replaces the form", False, "no screen in the gate")
+                page3 = await ctx.new_page()
+                await page3.goto(f"http://127.0.0.1:{PORT}/", wait_until="load")
+                # Without the screen there is nothing to measure, and measuring
+                # anyway raises instead of naming the defect. A crash is a failure
+                # nobody can read.
+                if not await page3.evaluate("()=>!!document.querySelector('#splash')"):
+                    check("hidden until the form is submitted", False, "no screen in the gate")
+                    check("appears on submit", False, "no screen in the gate")
+                    check("and replaces the form", False, "no screen in the gate")
+                    await page3.close()
+                    raise EarlyExit
+                before = await page3.evaluate(
+                    "()=>getComputedStyle(document.querySelector('#splash')).display")
+                check("hidden until the form is submitted", before == "none", before)
+                # Submitting navigates away, so the state to measure is the one at
+                # the instant of the submit, not afterwards. A second listener
+                # registered after the gate's own runs after it, and sessionStorage
+                # carries what it saw across the navigation.
+                await page3.evaluate("""()=>document.querySelector('#loginform')
+                  .addEventListener('submit', () => sessionStorage.setItem('__startup',
+                    JSON.stringify({
+                      splash: getComputedStyle(document.querySelector('#splash')).display,
+                      login: getComputedStyle(document.querySelector('#login')).display})))""")
+                # AN E-MAIL: the host's form asks one (v1's door), and a browser holds back the
+                # submit of anything else before the screen can show.
+                await page3.fill('input[name="username"]', "quelqu-un@example.invalid")
+                await page3.fill('input[name="password"]', "quelque-chose")
+                await page3.click('[data-part="login/submit"]')
+                await page3.wait_for_timeout(500)
+                after = await page3.evaluate(
+                    "()=>JSON.parse(sessionStorage.getItem('__startup') || 'null')") or {}
+                check("appears on submit", after.get("splash", "none") != "none", str(after))
+                check("and replaces the form", after.get("login") == "none", str(after))
                 await page3.close()
-                raise EarlyExit
-            before = await page3.evaluate(
-                "()=>getComputedStyle(document.querySelector('#splash')).display")
-            check("hidden until the form is submitted", before == "none", before)
-            # Submitting navigates away, so the state to measure is the one at
-            # the instant of the submit, not afterwards. A second listener
-            # registered after the gate's own runs after it, and sessionStorage
-            # carries what it saw across the navigation.
-            await page3.evaluate("""()=>document.querySelector('#loginform')
-              .addEventListener('submit', () => sessionStorage.setItem('__startup',
-                JSON.stringify({
-                  splash: getComputedStyle(document.querySelector('#splash')).display,
-                  login: getComputedStyle(document.querySelector('#login')).display})))""")
-            await page3.fill('input[name="username"]', "quelqu-un")
-            await page3.fill('input[name="password"]', "quelque-chose")
-            await page3.click('[data-part="login/submit"]')
-            await page3.wait_for_timeout(500)
-            after = await page3.evaluate(
-                "()=>JSON.parse(sessionStorage.getItem('__startup') || 'null')") or {}
-            check("appears on submit", after.get("splash", "none") != "none", str(after))
-            check("and replaces the form", after.get("login") == "none", str(after))
-            await page3.close()
-        except EarlyExit:
-            pass
-        finally:
-            server.terminate()
-            server.wait(timeout=5)
+            except EarlyExit:
+                pass
+            finally:
+                server.terminate()
+                server.wait(timeout=5)
 
         # ── THE COLD LOAD, the only one an operator ever sees ──────────────
         # The screen covers ONE wait: the gap between asking for the application
