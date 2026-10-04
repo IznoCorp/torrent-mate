@@ -344,8 +344,8 @@ variants typés. La référence visuelle est désormais **les tokens et le catal
 | Le résidu, daté | `frontend/maquette/design/src/styles/legacy.css` — le CSS dont le moteur mourant a encore besoin ; il meurt avec lui à L13 et une garde refuse qu'il grossisse |
 | L'échafaudage | `frontend/maquette/design/src/styles/harness.css` — le cadre de téléphone, importé une seule fois, et **la seule feuille qui ne sera pas livrée** |
 
-**Ce que cela ne change pas** : la maquette reste le produit, et une évolution de dessin se décide
-toujours dans la maquette avant le code. Ce qui change est **où l'on regarde** — un variant nommé
+**Ce que cela ne change pas** : la maquette reste le produit, et une évolution de dessin se montre
+sur tm-design avant de partir en production. Ce qui change est **où l'on regarde** — un variant nommé
 plutôt qu'un sélecteur à chercher dans quatre mille lignes.
 
 **Élargi par l'opérateur le 2026-08-19 — TOUS les écrans sont à redessiner. Tous.** La maquette
@@ -395,7 +395,7 @@ laissé en place « au cas où ».
   dessinés ne l'est plus.
 - **Ce que la maquette porte déjà est VALIDÉ** par l'opérateur. On ne le rejuge pas.
 - **Ce qui reste n'est pas que des pages** : l'UX, le langage d'interaction et **l'architecture**
-  de la maquette doivent être terminés et consolidés avant le gel.
+  de la maquette doivent être terminés et consolidés.
 
 Ce que cela impose :
 
@@ -403,9 +403,9 @@ Ce que cela impose :
   encore. Une surface que la production a et que la maquette n'a pas est un trou dans la v1,
   pas une étape ultérieure.
 
-Elle se lit aussi dans `frontend/maquette/README.md`, qui porte la méthode, les états nommés,
-le jeu de règles vérifiées et les pièges déjà payés. L'inventaire de ce que la v1 doit encore
-est dans `IMPLEMENTATION.md`, lu du routeur livré.
+**La méthode, les états nommés, le jeu de règles vérifiées et les pièges déjà payés se lisent
+dans `frontend/maquette/README.md`.** L'inventaire de ce que la v1 doit encore est dans
+`IMPLEMENTATION.md`, lu du routeur livré.
 
 **Langue des sources.** Tout commentaire de la maquette et de son harnais est écrit **en
 anglais** et ne fait référence ni à une session de travail, ni à une phase, ni à une décision
