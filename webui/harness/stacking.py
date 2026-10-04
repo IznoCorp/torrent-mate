@@ -370,8 +370,11 @@ async def main():
         placements = []
         for edge in ("left", "right"):
             # ONE popover node serves both edges, so the first edge's would
-            # satisfy the second's « visible »: close it and wait it gone first.
-            await page.evaluate("()=>window.__closeLayers?.()")
+            # satisfy the second's « visible »: close it the way the product
+            # does (the next pointerdown — it is not on the layer ladder, so
+            # `__closeLayers` leaves it up) and wait it gone first.
+            await page.evaluate(
+                "()=>document.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}))")
             await settle(page, """()=>{
               const layer = document.querySelector('[data-part="episode/popover"]');
               return !layer || getComputedStyle(layer).visibility === 'hidden';}""")
