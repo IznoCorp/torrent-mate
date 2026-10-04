@@ -195,6 +195,22 @@ export function openSession(id: string): boolean {
   return true;
 }
 
+// THE REAL ACCOUNT, ON THE DESIGN HOST (the operator, 2026-10-04; Q5 = A).
+// There a sign-in reaches the real server (`passthrough.ts`), and the account
+// it answers is who the operations still mocked are asked by: the rights guard
+// judges it, `readAccount`'s shape is its own. A fact of the real session, not
+// a dial — so the layer's reset leaves it, and only a sign-out or a 401 ends it.
+let adopted: Schemas["Account"] | null = null;
+
+/**
+ * Makes the mocks answer as the real signed-in account, or as the seed again.
+ *
+ * @param account The account the real server answered; null to release it.
+ */
+export function adoptAccount(account: Schemas["Account"] | null): void {
+  adopted = account;
+}
+
 /** The account dialled in, in the roster's shape. */
 function dialledAccount(): HeldAccount {
   const id = dials().identity;
@@ -209,6 +225,7 @@ function dialledAccount(): HeldAccount {
  * @returns The account, its role, its Plex link and the instance's forbidden writes.
  */
 export function signedIn(): Schemas["Account"] {
+  if (adopted !== null) return adopted;
   const held = dialledAccount();
   return {
     id: held.id,
@@ -231,7 +248,7 @@ export function signedInRights(): Rights {
 
 /** The id of the account signed in. */
 export function signedInId(): string {
-  return dials().identity;
+  return adopted?.id ?? dials().identity;
 }
 
 /**
@@ -371,6 +388,7 @@ export type IdentityDials = {
 /** Those dials, over the layer's own state. */
 export const identityDials: IdentityDials = {
   setIdentity: (id) => {
+    if (adopted !== null) throw new Error("identity follows the signed-in account");
     // A TEST ACCOUNT BRINGS THE TEST ROSTER WITH IT: a state that signs one in
     // is a state that needs it, and a tester's default world never does.
     if ((ACCOUNTS.testAccounts as HeldAccount[]).some((one) => one.id === id)) dials().testRoster = true;

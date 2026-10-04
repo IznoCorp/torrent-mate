@@ -12,6 +12,7 @@
 // this module and the document with it — nothing they read can reach a network.
 import V1 from "../../../../openapi-v1.json";
 import { recordAnswered } from "./answered";
+import { adoptAccount } from "./identity";
 
 /** The part of an OpenAPI document this reads: its operations, by path then method. */
 type ServedDocument = { paths: Record<string, Record<string, { operationId?: string }>> };
@@ -51,9 +52,17 @@ export function passesThrough(operationId: string, designHost: boolean = __DESIG
   return served.has(operationId);
 }
 
+// The answers that say who the real session is: an account read, or none.
+const ACCOUNT_READS: ReadonlySet<string> = new Set(["signIn", "readAccount"]);
+const NO_SESSION = 401;
+
 /**
  * Sends one request to the real server, and records it as the layer records
  * every call it answers — with the status the server gave.
+ *
+ * THE MOCKS FOLLOW WHO THE SERVER SAYS IS SIGNED IN (Q5 = A): an account read
+ * is adopted, and a sign-out or any 401 releases it, so the operations still
+ * mocked are asked by the real account and by nobody once it is gone.
  *
  * @param network The browser's own `fetch`, as it was before the layer replaced it.
  * @param call The operation, its method and its path.
@@ -69,6 +78,12 @@ export async function throughNetwork(
 ): Promise<Response> {
   const answer = await network(input, options);
   recordAnswered({ ...call, status: answer.status });
+  if (answer.ok && ACCOUNT_READS.has(call.operationId)) {
+    // A body that does not read is left to the caller, which reads the same one
+    // and says so; the adoption stays as it was.
+    const account = await answer.clone().json().catch(() => undefined);
+    if (account !== undefined) adoptAccount(account);
+  } else if (answer.status === NO_SESSION || (answer.ok && call.operationId === "signOut")) adoptAccount(null);
   return answer;
 }
 
