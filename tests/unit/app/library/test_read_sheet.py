@@ -6,9 +6,9 @@ from datetime import date, datetime
 
 import pytest
 
-from personalscraper.api.metadata._base import ArtworkItem, MediaDetails, SeasonInfo
+from personalscraper.api.metadata._base import ArtworkItem, CastMember, MediaDetails, SeasonInfo
 from personalscraper.app.errors import AppNotFound, AppUnavailable, RefusalCode
-from personalscraper.app.library.facts import GenreId, MediaStatus
+from personalscraper.app.library.facts import CastFact, GenreId, MediaStatus
 from personalscraper.core.identity import MediaRef
 from tests.unit.app.library.world import World, catalogued
 
@@ -32,6 +32,15 @@ def _movie_details() -> MediaDetails:
         external_ids={"imdb": "tt0113277"},
         director="Michael Mann",
         trailer_url="https://www.youtube.com/watch?v=0xbBLJ1WGwQ",
+        trailer_name="Heat - Bande-annonce VF",
+        trailer_language="fr",
+        cast=[
+            CastMember(name="Al Pacino", role="Vincent Hanna", portrait_url="https://image.tmdb.org/t/p/w185/al.jpg"),
+            CastMember(
+                name="Robert De Niro", role="Neil McCauley", portrait_url="https://image.tmdb.org/t/p/w185/bob.jpg"
+            ),
+            CastMember(name="Val Kilmer", role="Chris Shiherlis"),
+        ],
     )
 
 
@@ -74,8 +83,17 @@ def test_a_held_movie(world: World) -> None:
     assert sheet.poster_url == "https://image.tmdb.org/poster.jpg"
     assert sheet.hero_url == "https://image.tmdb.org/backdrop.jpg"
     assert sheet.local_poster is False
-    assert sheet.cast is None
-    assert sheet.cast_portraits is None
+    assert sheet.trailer_name == "Heat - Bande-annonce VF"
+    assert sheet.trailer_language == "fr"
+    assert sheet.cast == (
+        CastFact(name="Al Pacino", role="Vincent Hanna"),
+        CastFact(name="Robert De Niro", role="Neil McCauley"),
+        CastFact(name="Val Kilmer", role="Chris Shiherlis"),
+    )
+    assert dict(sheet.cast_portraits) == {
+        "Al Pacino": "https://image.tmdb.org/t/p/w185/al.jpg",
+        "Robert De Niro": "https://image.tmdb.org/t/p/w185/bob.jpg",
+    }
     assert world.tmdb.calls == [("movie", "949")]
 
 
@@ -117,6 +135,27 @@ def test_a_held_show(world: World) -> None:
     ]
     assert (sheet.poster_url, sheet.local_poster) == (None, True)
     assert sheet.metadata_refreshed_at is None
+    assert (sheet.cast, dict(sheet.cast_portraits)) == ((), {})
+    assert (sheet.trailer_key, sheet.trailer_name, sheet.trailer_language) == (None, None, None)
+
+
+def test_a_person_listed_twice_keeps_both_roles_and_the_first_portrait(world: World) -> None:
+    """One actor in two roles is two cast entries; the portraits map keeps the first one listed."""
+    details = MediaDetails(
+        provider="tmdb",
+        provider_id="77",
+        title="Twins",
+        cast=[
+            CastMember(name="Jane Doe", role="Anna", portrait_url="https://image.tmdb.org/t/p/w185/a.jpg"),
+            CastMember(name="Jane Doe", role="Bella", portrait_url="https://image.tmdb.org/t/p/w185/b.jpg"),
+        ],
+    )
+    world.tmdb.movies["77"] = details
+
+    sheet = world.service.read_sheet(world.actor, MediaRef(tmdb_id=77))
+
+    assert [(member.name, member.role) for member in sheet.cast] == [("Jane Doe", "Anna"), ("Jane Doe", "Bella")]
+    assert dict(sheet.cast_portraits) == {"Jane Doe": "https://image.tmdb.org/t/p/w185/a.jpg"}
 
 
 def test_a_medium_the_library_does_not_hold(world: World) -> None:
