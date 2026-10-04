@@ -459,3 +459,24 @@ def test_a_disk_root_that_is_no_mount_point_is_never_deleted_from(shelf: Shelf, 
     assert shelf.journal() == []
     assert shelf.plex.calls == []
     assert (report.deleted, report.media[0].folders_failed) == (0, 1)
+
+
+@pytest.mark.parametrize("linked", ["media-folder", "category"])
+def test_a_folder_reached_through_a_symlink_on_its_disk_is_never_deleted(shelf: Shelf, linked: str) -> None:
+    """The folder, or its category, links to a sibling on the same disk: the sibling intact, failed, rows kept."""
+    _, sibling = shelf.movie("Good (2020)", "12")
+    if linked == "media-folder":
+        (shelf.root / "films" / "Evil").symlink_to(sibling, target_is_directory=True)
+        rel = "films/Evil"
+    else:
+        (shelf.root / "linked").symlink_to(shelf.root / "films", target_is_directory=True)
+        rel = "linked/Good (2020)"
+    item = shelf.index.item("Evil", tmdb="66")
+    shelf.index.movie_file(item, rel)
+
+    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=66)])
+
+    assert (sibling / "movie.mkv").is_file()
+    assert item in shelf.rows()
+    assert shelf.journal() == []
+    assert (report.deleted, report.media[0].folders_failed) == (0, 1)
