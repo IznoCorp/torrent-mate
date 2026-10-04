@@ -358,7 +358,7 @@ class TestRenewal:
         assert second is not None and second.renewed_token is None
 
     def test_a_lost_renewal_keeps_the_old_value(self, sessions: SessionService, store: AppStore, clock: _Clock) -> None:
-        """A new value the browser never received: the old one keeps signing in, and renews again."""
+        """A new value the browser never received: the old one signs in and renews again, the lost one kept."""
         old = sessions.open(_ACCOUNT_ID, user_agent=None)
         clock.now += SESSION_RENEWAL_INTERVAL_S
         lost = sessions.use(old)
@@ -368,7 +368,7 @@ class TestRenewal:
         clock.now += 1
         again = sessions.use(old)
         assert again is not None and again.renewed_token is not None
-        assert sessions.use(lost.renewed_token) is None
+        assert sessions.use(lost.renewed_token) is not None
         assert sessions.use(again.renewed_token) is not None
         assert len(_rows(store)) == 1
 
@@ -382,7 +382,7 @@ class TestRenewal:
         first = sessions.use(token)
         assert first is not None and first.renewed_token is not None
         assert stale is not None
-        assert sessions._renew(store.accounts, stale, token, clock.now) is None  # noqa: SLF001 — the race's loser
+        assert sessions._renew(store.accounts, stale, clock.now) is None  # noqa: SLF001 — the race's loser
         assert _rows(store)[0][0] == hashlib.sha256(first.renewed_token.encode()).hexdigest()
 
     def test_a_revoked_session_never_renews(self, sessions: SessionService, store: AppStore, clock: _Clock) -> None:
@@ -405,6 +405,57 @@ class TestRenewal:
         store.accounts.revoke_sessions_of(_ACCOUNT_ID, except_id=None, now=clock.now)
         assert sessions.use(old) is None
         assert sessions.use(use.renewed_token) is None
+
+    def test_a_value_in_its_grace_never_takes_the_session_over(
+        self, sessions: SessionService, store: AppStore, clock: _Clock
+    ) -> None:
+        """A replaced value presented in its grace, the session due: it signs in, renews nothing, writes nothing.
+
+        A renews to B at t0; B is presented at t0 + 3570 (not due), starting A's grace;
+        A is presented at t0 + 3601, in its grace and due: B keeps the session, A dies
+        with its grace.
+        """
+        old = sessions.open(_ACCOUNT_ID, user_agent=None)
+        clock.now += SESSION_RENEWAL_INTERVAL_S
+        renewal = sessions.use(old)
+        assert renewal is not None and renewal.renewed_token is not None
+        new = renewal.renewed_token
+        renewed_at = clock.now
+        clock.now = renewed_at + SESSION_RENEWAL_INTERVAL_S - 30
+        assert sessions.use(new) is not None
+        clock.now = renewed_at + SESSION_RENEWAL_INTERVAL_S + 1
+        before = _rows(store)
+        late = sessions.use(old)
+        assert late is not None and late.renewed_token is None
+        assert _rows(store) == before
+        assert sessions.resolve(new) is not None
+        clock.now = renewed_at + SESSION_RENEWAL_INTERVAL_S + SESSION_ROTATION_GRACE_S
+        assert sessions.use(old) is None
+        assert sessions.use(new) is not None
+
+    def test_a_renewal_from_a_value_awaiting_its_successor_keeps_the_newest_holder(
+        self, sessions: SessionService, store: AppStore, clock: _Clock
+    ) -> None:
+        """A renews to B, B never presented, A presented ten hours later: C is issued and B is not orphaned.
+
+        The value the renewal overwrites (B) is the one recorded as replaced; once C is
+        presented, A and B both have the grace left, then only C signs in.
+        """
+        old = sessions.open(_ACCOUNT_ID, user_agent=None)
+        clock.now += SESSION_RENEWAL_INTERVAL_S
+        lost = sessions.use(old)
+        assert lost is not None and lost.renewed_token is not None
+        clock.now += 10 * SESSION_RENEWAL_INTERVAL_S
+        again = sessions.use(old)
+        assert again is not None and again.renewed_token is not None
+        newest = again.renewed_token
+        assert sessions.use(lost.renewed_token) is not None
+        assert sessions.use(newest) is not None
+        clock.now += SESSION_ROTATION_GRACE_S
+        assert sessions.use(old) is None
+        assert sessions.use(lost.renewed_token) is None
+        assert sessions.use(newest) is not None
+        assert _rows(store)[0][0] == hashlib.sha256(newest.encode()).hexdigest()
 
     def test_the_old_value_names_the_same_session(self, sessions: SessionService, clock: _Clock) -> None:
         """In its grace the replaced value names the renewed session: its key, and closing it closes both."""

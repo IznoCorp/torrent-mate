@@ -7,6 +7,11 @@ in again while the app is used ». Each use renews it — at most once per
 stops working; the value it replaces keeps signing in until the new one comes back, then
 for :data:`SESSION_ROTATION_GRACE_S`. No absolute upper bound caps a session in use.
 
+A replaced value never takes its session over: in its grace it signs in but never renews.
+Awaiting its successor — the browser never got the new value — it may renew, and the value
+that renewal overwrites joins the replaced ones awaiting the newest, so whoever holds any of
+them keeps the session until the newest comes back.
+
 A session never carries the account's role or rights: :meth:`SessionService.use` and
 :meth:`SessionService.resolve` read them on every call, so a role change bites at the
 next request. v0's ``tm_session`` JWT is another mechanism entirely; neither ever reads
@@ -128,8 +133,8 @@ class SessionService:
         # them, which costs at most the requests in flight with a value replaced within
         # the restart's minute, or a session whose renewal never reached its browser.
         self._replaced: dict[str, _Replaced] = {}
-        # Per session key, the replaced value still awaiting its successor's first use.
-        self._awaiting: dict[int, str] = {}
+        # Per session key, the replaced values still awaiting the current value's first use.
+        self._awaiting: dict[int, list[str]] = {}
         # Held across a renewal's write and its record here, and across a lookup of a
         # replaced value: a request that missed the new hash in the base finds the old
         # one recorded.
@@ -164,11 +169,11 @@ class SessionService:
         )
         return token
 
-    def _live_session(self, repo: AccountRepository, token: str, now: float) -> SessionRow | None:
+    def _live_session(self, repo: AccountRepository, token: str, now: float) -> tuple[SessionRow, bool] | None:
         """The live session a cookie value names, by its current value or a replaced one.
 
-        Presenting a session's current value proves its browser holds it: the value it
-        replaced then has :data:`SESSION_ROTATION_GRACE_S` left.
+        Presenting a session's current value proves its browser holds it: the values it
+        replaced then have :data:`SESSION_ROTATION_GRACE_S` left.
 
         Args:
             repo: The account repository.
@@ -176,8 +181,9 @@ class SessionService:
             now: The current time.
 
         Returns:
-            The session, or ``None`` when unknown, revoked or expired, or a replaced value
-            past its grace.
+            The session and whether this value may renew it — the current one, or a
+            replaced one still awaiting its successor; never one in its grace. ``None``
+            when unknown, revoked or expired, or a replaced value past its grace.
         """
         token_hash = _token_hash(token)
         row = repo.session_by_hash(token_hash)
@@ -185,26 +191,27 @@ class SessionService:
         # the acceptance itself free of a timing difference.
         if row is not None and hmac.compare_digest(row.token_hash, token_hash):
             self._confirm(row.id, now)
+            found: tuple[SessionRow, bool] | None = (row, True)
         else:
-            row = self._replaced_session(repo, token_hash, now)
-        if row is None or row.revoked_at is not None or now >= row.expires_at:
+            found = self._replaced_session(repo, token_hash, now)
+        if found is None or found[0].revoked_at is not None or now >= found[0].expires_at:
             return None
-        return row
+        return found
 
     def _confirm(self, session_id: int, now: float) -> None:
-        """Start the grace of the value a session's current one replaced, if it awaits it.
+        """Start the grace of the values a session's current one replaced, if they await it.
 
         Args:
             session_id: The session whose current value was presented.
             now: The current time.
         """
         with self._lock:
-            replaced_hash = self._awaiting.pop(session_id, None)
-            replaced = self._replaced.get(replaced_hash) if replaced_hash is not None else None
-            if replaced is not None:
-                replaced.until = now + SESSION_ROTATION_GRACE_S
+            for replaced_hash in self._awaiting.pop(session_id, []):
+                replaced = self._replaced.get(replaced_hash)
+                if replaced is not None and replaced.until is None:
+                    replaced.until = now + SESSION_ROTATION_GRACE_S
 
-    def _replaced_session(self, repo: AccountRepository, token_hash: str, now: float) -> SessionRow | None:
+    def _replaced_session(self, repo: AccountRepository, token_hash: str, now: float) -> tuple[SessionRow, bool] | None:
         """The session a replaced value still names.
 
         Args:
@@ -213,7 +220,9 @@ class SessionService:
             now: The current time.
 
         Returns:
-            The session, or ``None`` when the value was never replaced or its grace is over.
+            The session and whether the value may renew it — only while it awaits its
+            successor, never in its grace; ``None`` when the value was never replaced, its
+            grace is over or its session is gone.
         """
         with self._lock:
             replaced = self._replaced.get(token_hash)
@@ -222,7 +231,8 @@ class SessionService:
             if replaced.until is not None and now >= replaced.until:
                 del self._replaced[token_hash]
                 return None
-            return repo.session(replaced.session_id)
+            row = repo.session(replaced.session_id)
+            return (row, replaced.until is None) if row is not None else None
 
     def _actor(self, repo: AccountRepository, session: SessionRow) -> Actor | None:
         """The actor a live session signs in, its role and rights read now.
@@ -258,8 +268,8 @@ class SessionService:
             when the session is unknown, expired or revoked, or its account or role is gone.
         """
         repo = self._repo_factory()
-        session = self._live_session(repo, token, self._clock())
-        return self._actor(repo, session) if session is not None else None
+        found = self._live_session(repo, token, self._clock())
+        return self._actor(repo, found[0]) if found is not None else None
 
     def use(self, token: str) -> SessionUse | None:
         """A request's use of a session: the actor it signs in, the session renewed when due.
@@ -273,28 +283,32 @@ class SessionService:
         """
         repo = self._repo_factory()
         now = self._clock()
-        session = self._live_session(repo, token, now)
-        if session is None:
+        found = self._live_session(repo, token, now)
+        if found is None:
             return None
+        session, renewable = found
         actor = self._actor(repo, session)
         if actor is None:
             return None
         renewed = None
-        if now - session.last_seen_at >= SESSION_RENEWAL_INTERVAL_S:
-            renewed = self._renew(repo, session, token, now)
+        if renewable and now - session.last_seen_at >= SESSION_RENEWAL_INTERVAL_S:
+            renewed = self._renew(repo, session, now)
         return SessionUse(actor=actor, renewed_token=renewed)
 
-    def _renew(self, repo: AccountRepository, session: SessionRow, token: str, now: float) -> str | None:
+    def _renew(self, repo: AccountRepository, session: SessionRow, now: float) -> str | None:
         """Move a session's expiry to now plus its idle lifetime, under a new value.
 
-        The presented value is recorded as replaced: it keeps signing in until the new
-        one comes back — a renewal whose answer never reached the browser loses nothing,
-        the next renewal hands another value — then for the grace.
+        The value the renewal overwrites — the row's, whichever value was presented — is
+        recorded as replaced, awaiting the new one: it keeps signing in until the new one
+        comes back, then for the grace. A renewal whose answer never reached the browser
+        loses nothing: the old value renews again, and the value it never received stays
+        valid beside it, so neither holder is orphaned. A replaced value already recorded
+        keeps its entry, its grace never reset.
 
         Args:
             repo: The account repository.
-            session: The session as this request read it.
-            token: The value the request presented, current or itself replaced.
+            session: The session as this request read it; its ``token_hash`` is the value
+                the conditional write overwrites.
             now: The current time.
 
         Returns:
@@ -313,9 +327,9 @@ class SessionService:
             if not renewed:
                 return None
             self._forget_stale(now)
-            presented_hash = _token_hash(token)
-            self._replaced[presented_hash] = _Replaced(session_id=session.id, replaced_at=now, until=None)
-            self._awaiting[session.id] = presented_hash
+            if session.token_hash not in self._replaced:
+                self._replaced[session.token_hash] = _Replaced(session_id=session.id, replaced_at=now, until=None)
+                self._awaiting.setdefault(session.id, []).append(session.token_hash)
         return new_token
 
     def _forget_stale(self, now: float) -> None:
@@ -334,8 +348,11 @@ class SessionService:
         ]
         for token_hash in stale:
             session_id = self._replaced.pop(token_hash).session_id
-            if self._awaiting.get(session_id) == token_hash:
-                del self._awaiting[session_id]
+            awaiting = self._awaiting.get(session_id)
+            if awaiting is not None and token_hash in awaiting:
+                awaiting.remove(token_hash)
+                if not awaiting:
+                    del self._awaiting[session_id]
 
     def live_session_id(self, token: str) -> int | None:
         """The key of the live session a cookie value names, by its current value or a replaced one.
@@ -346,8 +363,8 @@ class SessionService:
         Returns:
             The session's key, or ``None`` when unknown, revoked or expired.
         """
-        session = self._live_session(self._repo_factory(), token, self._clock())
-        return session.id if session is not None else None
+        found = self._live_session(self._repo_factory(), token, self._clock())
+        return found[0].id if found is not None else None
 
     def close(self, token: str) -> None:
         """Revoke the session a cookie value names; idempotent.
@@ -358,6 +375,6 @@ class SessionService:
         """
         repo = self._repo_factory()
         now = self._clock()
-        session = self._live_session(repo, token, now)
-        if session is not None:
-            repo.revoke_session(session.id, now=now)
+        found = self._live_session(repo, token, now)
+        if found is not None:
+            repo.revoke_session(found[0].id, now=now)
