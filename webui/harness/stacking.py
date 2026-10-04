@@ -57,6 +57,16 @@ AT = """([selector, fraction]) => {
   };
 }"""
 
+# The dialog host is always rendered and keeps the last descriptor's geometry
+# after it closes, so a rectangle alone proves nothing: it is open when it says
+# so (`data-open`) and its open transform (scale 1) has been reached.
+DIALOG_OPEN = """()=>{
+  const opened = () => {
+    const dialog = document.querySelector('#dlg');
+    return !!dialog && dialog.hasAttribute('data-open')
+      && getComputedStyle(dialog).visibility === 'visible'
+      && Math.abs(new DOMMatrix(getComputedStyle(dialog).transform).a - 1) < 0.001;};"""
+
 
 async def settle(page, condition, arg=None, timeout=5000):
     """Wait, bounded, until a page condition holds; a timeout is not a pass.
@@ -89,7 +99,16 @@ async def main():
         # THE BAR IS REALLY THERE AND REALLY ON TOP OF THE PAGE, so the holds
         # below are not passing over an element that is simply absent.
         await page.evaluate("()=>window.__go('lib-list')")
-        await settle(page, "()=>!!document.querySelector('#nav')?.getBoundingClientRect().height")
+        # `#nav` has a height from boot, so the wait is on what the reading
+        # below measures: the nav owns the point, on the `lib` page that
+        # `lib-list` raises (the bar marks its current tab `aria-current`).
+        await settle(page, """()=>{
+          const nav = document.querySelector('#nav');
+          if (!nav || !nav.querySelector('[data-page="lib"][aria-current="page"]'))
+            return false;
+          const box = nav.getBoundingClientRect();
+          const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+          return !!hit && !!hit.closest('#nav');}""")
         bar = await page.evaluate(AT, ['#nav', 0.5])
         journal.check(
             "the tab bar is on screen and answers a finger — the subject exists",
@@ -115,11 +134,10 @@ async def main():
           body: [{type: 'manifest', entries: Array.from({length: 40},
             (_, n) => ({text: 'ligne ' + n, value: String(n)}))}],
           actions: [{text: 'Annuler', dismiss: true}]})""")
-        await settle(page, """()=>{
-          const dialog = document.querySelector('#dlg');
+        await settle(page, DIALOG_OPEN + """
           const bar = document.querySelector('#nav');
-          return !!dialog && !!bar && dialog.getBoundingClientRect().bottom
-            > bar.getBoundingClientRect().top;}""")
+          return opened() && !!bar && document.querySelector('#dlg')
+            .getBoundingClientRect().bottom > bar.getBoundingClientRect().top;}""")
         overlapping = await page.evaluate("""()=>{
           const dialog = document.querySelector('#dlg').getBoundingClientRect();
           const bar = document.querySelector('#nav').getBoundingClientRect();
@@ -201,11 +219,10 @@ async def main():
           body: [{type: 'manifest', entries: Array.from({length: 40},
             (_, n) => ({text: 'ligne ' + n, value: String(n)}))}],
           actions: [{text: 'Annuler', dismiss: true}]})""")
-        await settle(page, """()=>{
-          const dialog = document.querySelector('#dlg');
+        await settle(page, DIALOG_OPEN + """
           const bar = document.querySelector('[data-part="selection/bar"]');
-          return !!dialog && !!bar && dialog.getBoundingClientRect().bottom
-            > bar.getBoundingClientRect().top;}""")
+          return opened() && !!bar && document.querySelector('#dlg')
+            .getBoundingClientRect().bottom > bar.getBoundingClientRect().top;}""")
         over_selection = await page.evaluate("""()=>{
           const bar = document.querySelector('[data-part="selection/bar"]');
           if (!bar) return {absent: true};
@@ -245,7 +262,14 @@ async def main():
         # off the bar, and this hold is what says it still does.
         await page.evaluate("()=>window.__go('lib-list')")
         await page.evaluate("()=>window.__toast.show({message: 'probe'})")
-        await settle(page, "()=>!!document.querySelector('#toast')?.getBoundingClientRect().height")
+        # `#toast` is always rendered and keeps its height while closed, so the
+        # wait is on `data-shown` and on its entry slide (translateY) being done.
+        await settle(page, """()=>{
+          const toast = document.querySelector('#toast');
+          if (!toast || !toast.hasAttribute('data-shown')) return false;
+          const style = getComputedStyle(toast);
+          const at = new DOMMatrix(style.transform);
+          return style.visibility === 'visible' && at.e === 0 && at.f === 0;}""")
         # THE RELATION, NOT THE MESSAGE'S OWN CENTRE. The first version of this
         # hold hit-tested inside the toast and asserted the toast answered —
         # which is true by construction, because nothing paints over it there.
@@ -277,23 +301,14 @@ async def main():
         # layer is open, and `inert` takes an element out of hit-testing, so a
         # plain reading answers the sheet at 47 exactly as at 52.
         await page.evaluate("()=>window.__go('sheet-user')")
-        # WAIT ON THE CONDITION THE READ BELOW MEASURES, not on a fixed delay:
-        # the sheet rises, and until it has landed its bottom is not the
-        # screen's bottom edge — a loaded runner reads it mid-rise. The wait is
-        # bounded and its timeout is not swallowed into a pass: the read still
-        # happens, and the check fails with its own figures if the sheet never
-        # settles.
-        try:
-            await page.wait_for_function(
-                """()=>{
-                  const sheet = document.querySelector('#sheet');
-                  const bar = document.querySelector('#nav');
-                  return !!sheet && !!bar && Math.round(
-                    sheet.getBoundingClientRect().bottom) === Math.round(
-                    bar.getBoundingClientRect().bottom);}""",
-                timeout=5000)
-        except PlaywrightTimeout:
-            pass
+        # The sheet rises: until it has landed its bottom is not the screen's
+        # bottom edge, and a loaded runner reads it mid-rise.
+        await settle(page, """()=>{
+          const sheet = document.querySelector('#sheet');
+          const bar = document.querySelector('#nav');
+          return !!sheet && !!bar && Math.round(
+            sheet.getBoundingClientRect().bottom) === Math.round(
+            bar.getBoundingClientRect().bottom);}""")
         over_bar = await page.evaluate("""()=>{
           const sheet = document.querySelector('#sheet');
           const bar = document.querySelector('#nav');
@@ -354,6 +369,12 @@ async def main():
         # reported the same placement twice.
         placements = []
         for edge in ("left", "right"):
+            # ONE popover node serves both edges, so the first edge's would
+            # satisfy the second's « visible »: close it and wait it gone first.
+            await page.evaluate("()=>window.__closeLayers?.()")
+            await settle(page, """()=>{
+              const layer = document.querySelector('[data-part="episode/popover"]');
+              return !layer || getComputedStyle(layer).visibility === 'hidden';}""")
             await page.evaluate(
                 """(edge)=>{const cells=[...document.querySelectorAll('[data-part="episode"]')];
                    const sorted = cells.slice().sort((a, b) =>
