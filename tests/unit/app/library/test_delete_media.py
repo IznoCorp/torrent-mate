@@ -19,7 +19,7 @@ from personalscraper.acquire.catalogue import CatalogueStore, ProviderClients
 from personalscraper.app.accounts.actor import Actor
 from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.errors import AppConflict, AppInternalError, AppNotFound, RefusalCode
-from personalscraper.app.library.deletion import PlexOutcome
+from personalscraper.app.library.deletion import PlexOutcome, TrashKept
 from personalscraper.app.library.service import LibraryService
 from personalscraper.core.delete_permit import ALLOW, PermitDecision, veto
 from personalscraper.core.identity import MediaRef
@@ -106,7 +106,7 @@ def shelf(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Shelf]:
     monkeypatch.setattr(os.path, "ismount", lambda path: Path(path) in mounts)
     index = FixtureIndex(tmp_path / "library.db")
     index.conn.execute("UPDATE disk SET mount_path = ? WHERE id = 1", (str(root),))
-    index.conn.execute("UPDATE disk SET mount_path = NULL, is_mounted = 0 WHERE id = 2")
+    index.conn.execute("DELETE FROM disk WHERE id = 2")
     store = CatalogueStore(tmp_path / "acquire.db")
     ownership = IndexerOwnershipChecker(index.path)
     plex = FakePlex({str(root): "1"})
@@ -301,6 +301,9 @@ def test_two_media_in_one_section_ask_plex_once(shelf: Shelf) -> None:
 
 def test_a_folder_on_an_unmounted_disk_is_kept_and_counted(shelf: Shelf) -> None:
     """The index says the disk is not mounted: no refusal, the folder counted unreachable, the rows kept."""
+    shelf.index.conn.execute(
+        "INSERT INTO disk(id, uuid, label, mount_path, is_mounted) VALUES (2, 'u2', 'Disk2', NULL, 0)"
+    )
     item = shelf.index.item("Away", tmdb="21")
     shelf.index.movie_file(item, "films/Away", disk=2)
 
@@ -449,7 +452,9 @@ def test_a_disk_root_that_is_no_mount_point_is_never_deleted_from(shelf: Shelf, 
     folder = plain / "films" / "Away"
     folder.mkdir(parents=True)
     (folder / "movie.mkv").write_bytes(b"x")
-    shelf.index.mount(2, plain)
+    shelf.index.conn.execute(
+        "INSERT INTO disk(id, uuid, label, mount_path, is_mounted) VALUES (2, 'u2', 'Disk2', ?, 1)", (str(plain),)
+    )
     item = shelf.index.item("Away", tmdb="21")
     shelf.index.movie_file(item, "films/Away", disk=2)
 
@@ -552,3 +557,67 @@ def test_under_staging_plex_is_never_told(shelf: Shelf, monkeypatch: pytest.Monk
     assert shelf.plex.calls == []
     assert report.deleted == 1
     assert (report.media[0].plex, report.media[0].plex_steps) == (PlexOutcome.SKIPPED_PREPROD, None)
+
+
+def _category_sections(shelf: Shelf) -> FakePlex:
+    """Point the service at a Plex whose one section indexes the ``films`` category, as on prod.
+
+    Args:
+        shelf: The shelf whose service is re-pointed.
+
+    Returns:
+        The fake Plex.
+    """
+    plex = FakePlex({str(shelf.root / "films"): "1"})
+    shelf.plex = plex
+    shelf.service._plex = plex  # type: ignore[assignment]
+    return plex
+
+
+def test_the_last_medium_of_a_category_section_tells_plex_its_location(shelf: Shelf) -> None:
+    """The section indexes the category the deletion emptied and removed: its location rescanned, trash, bundles."""
+    plex = _category_sections(shelf)
+    _, folder = shelf.movie("Movie (2020)", "11")
+
+    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+
+    assert not folder.parent.exists()
+    assert plex.calls == [
+        ("refresh", str(shelf.root / "films")),
+        ("scan_state", "1"),
+        ("empty_trash", "1"),
+        ("clean_bundles", ""),
+    ]
+    [one] = report.media
+    assert one.parents_removed == 1
+    assert one.plex is PlexOutcome.REFRESHED
+
+
+def test_a_parent_a_later_deletion_removes_is_never_rescanned(shelf: Shelf) -> None:
+    """A then B empty one category: the refresh is computed once both are gone, never on the removed category."""
+    shelf.movie("A (2020)", "11")
+    shelf.movie("B (2021)", "12")
+
+    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11), MediaRef(tmdb_id=12)])
+
+    assert not (shelf.root / "films").exists()
+    assert [call for call in shelf.plex.calls if call[0] == "refresh"] == [("refresh", str(shelf.root))]
+    assert [one.plex for one in report.media] == [PlexOutcome.REFRESHED, PlexOutcome.REFRESHED]
+
+
+def test_a_disk_the_index_knows_unmounted_keeps_the_plex_trash(shelf: Shelf) -> None:
+    """Another disk is unmounted: the medium goes, Plex rescans, its trash is kept for that reason."""
+    shelf.index.conn.execute(
+        "INSERT INTO disk(id, uuid, label, mount_path, is_mounted) VALUES (2, 'u2', 'Disk2', NULL, 0)"
+    )
+    _, folder = shelf.movie("Movie (2020)", "11")
+
+    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+
+    assert not folder.exists()
+    assert ("empty_trash", "1") not in shelf.plex.calls
+    assert ("clean_bundles", "") in shelf.plex.calls
+    [one] = report.media
+    assert one.deleted
+    assert one.plex is PlexOutcome.TRASH_KEPT
+    assert one.plex_steps is not None and one.plex_steps.trash_kept is TrashKept.DISK_UNMOUNTED

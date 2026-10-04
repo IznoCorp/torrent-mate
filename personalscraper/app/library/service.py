@@ -347,11 +347,21 @@ class _Deleted:
 
     Attributes:
         deletion: What was done, Plex not yet asked.
-        survivors: The nearest surviving ancestor of each deleted folder.
+        folders: Its deleted folders.
+        removed: The parent folders its deletion left empty and removed.
     """
 
     deletion: MediaDeletion
-    survivors: tuple[Path, ...]
+    folders: tuple[Path, ...]
+    removed: tuple[Path, ...]
+
+
+#: The Plex outcomes of a medium's sections, the worst first: the worst speaks for it.
+_PLEX_SEVERITY: Final[tuple[PlexOutcome, ...]] = (
+    PlexOutcome.FAILED,
+    PlexOutcome.TRASH_KEPT,
+    PlexOutcome.REFRESHED,
+)
 
 
 def _deletable_folder(mounted: tuple[str, str]) -> tuple[Path, Path] | None:
@@ -1159,7 +1169,8 @@ class LibraryService:
         failed = plan.unresolved
         if plan.unresolved:
             log.warning("app.library.delete_folder_unresolved", provider=provider.value, item_id=plan.item_id)
-        survivors: list[Path] = []
+        folders: list[Path] = []
+        removed: list[Path] = []
         for root, directory in plan.targets:
             try:
                 result = delete_media_folder(
@@ -1180,9 +1191,10 @@ class LibraryService:
                 failed += 1
             else:
                 deleted += 1
-                removed, survivor = remove_empty_parents(directory, root)
-                parents_removed += removed
-                survivors.append(survivor)
+                emptied = remove_empty_parents(directory, root)
+                parents_removed += len(emptied)
+                removed.extend(emptied)
+                folders.append(directory)
         unreachable = plan.unreachable
         rows = 0
         if vetoed + failed + unreachable == 0:
@@ -1220,8 +1232,22 @@ class LibraryService:
                 rows_removed=rows,
                 plex=PlexOutcome.NOT_NEEDED,
             ),
-            tuple(survivors),
+            tuple(folders),
+            tuple(removed),
         )
+
+    def _disk_unmounted(self) -> bool:
+        """Whether a disk the index knows is not mounted (``disk.is_mounted = 0``).
+
+        Returns:
+            ``True`` when one is; the index unreadable counts as one (the trash kept).
+        """
+        try:
+            with closing(self._connect()) as conn:
+                return conn.execute("SELECT 1 FROM disk WHERE is_mounted = 0 LIMIT 1").fetchone() is not None
+        except sqlite3.Error as exc:
+            log.warning("app.library.delete_disks_unreadable", error=type(exc).__name__)
+            return True
 
     def _told_plex(self, done: Sequence[_Deleted]) -> DeletionReport:
         """Tell Plex of every deleted folder at once, and fold its steps into each medium's report.
@@ -1229,30 +1255,41 @@ class LibraryService:
         Under ``staging`` (preprod) Plex is never told (``PlexOutcome.SKIPPED_PREPROD``):
         the bundle clean purges the whole server, outside the preprod guard's roots.
 
+        Called once every deletion of the request is done, so a refresh path is never a
+        parent a later deletion removed.
+
         Args:
-            done: Each medium's deletion and the surviving parents of its deleted folders.
+            done: Each medium's deletion, its deleted folders and the parents it removed.
 
         Returns:
             The request's report.
         """
-        parents = [parent for one in done for parent in one.survivors]
+        deleted = [folder for one in done for folder in one.folders]
+        removed = {parent for one in done for parent in one.removed}
         preprod = current_environment() is Environment.STAGING
         steps = (
-            follow_up_plex(self._plex, parents, sleep=self._sleep, clock=self._monotonic)
-            if self._plex is not None and parents and not preprod
+            follow_up_plex(
+                self._plex,
+                deleted,
+                removed=removed,
+                disk_unmounted=self._disk_unmounted(),
+                sleep=self._sleep,
+                clock=self._monotonic,
+            )
+            if self._plex is not None and deleted and not preprod
             else {}
         )
         media: list[MediaDeletion] = []
         for one in done:
             report = one.deletion
-            if one.survivors and preprod:
+            if one.folders and preprod:
                 report = replace(report, plex=PlexOutcome.SKIPPED_PREPROD)
-            elif one.survivors and self._plex is None:
+            elif one.folders and self._plex is None:
                 report = replace(report, plex=PlexOutcome.NOT_CONFIGURED)
-            elif one.survivors:
-                mine = [steps[parent] for parent in one.survivors]
-                failed = next((step for step in mine if step.outcome is PlexOutcome.FAILED), None)
-                chosen = failed if failed is not None else mine[0]
+            elif one.folders:
+                # The worst of its folders' sections speaks for the medium.
+                mine = [steps[folder] for folder in one.folders]
+                chosen = min(mine, key=lambda step: _PLEX_SEVERITY.index(step.outcome))
                 report = replace(report, plex=chosen.outcome, plex_steps=chosen)
             media.append(report)
         return DeletionReport(deleted=sum(1 for one in media if one.deleted), media=tuple(media))

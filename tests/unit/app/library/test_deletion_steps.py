@@ -10,6 +10,7 @@ import pytest
 from personalscraper.app.library.deletion import (
     PLEX_SCAN_WAIT_S,
     PlexOutcome,
+    TrashKept,
     follow_up_plex,
     remove_empty_parents,
     remove_item_rows,
@@ -28,21 +29,17 @@ class TestRemoveEmptyParents:
         folder.mkdir(parents=True)
         folder.rmdir()
 
-        removed, survivor = remove_empty_parents(folder, root)
-
-        assert (removed, survivor) == (1, root)
+        assert remove_empty_parents(folder, root) == (root / "films",)
         assert not (root / "films").exists()
         assert root.is_dir()
 
     def test_a_parent_holding_something_else_stays(self, tmp_path: Path) -> None:
-        """A parent still holding another medium is the survivor, untouched."""
+        """A parent still holding another medium stays, untouched."""
         root = tmp_path / "disk"
         (root / "films" / "Other (2019)").mkdir(parents=True)
         folder = root / "films" / "Movie (2020)"
 
-        removed, survivor = remove_empty_parents(folder, root)
-
-        assert (removed, survivor) == (0, root / "films")
+        assert remove_empty_parents(folder, root) == ()
         assert (root / "films" / "Other (2019)").is_dir()
 
     def test_every_emptied_level_goes_up_to_the_root(self, tmp_path: Path) -> None:
@@ -51,9 +48,7 @@ class TestRemoveEmptyParents:
         folder = root / "a" / "b" / "Movie"
         (root / "a" / "b").mkdir(parents=True)
 
-        removed, survivor = remove_empty_parents(folder, root)
-
-        assert (removed, survivor) == (2, root)
+        assert remove_empty_parents(folder, root) == (root / "a" / "b", root / "a")
         assert root.is_dir()
         assert list(root.iterdir()) == []
 
@@ -63,9 +58,7 @@ class TestRemoveEmptyParents:
         root.mkdir()
         (tmp_path / "elsewhere").mkdir()
 
-        removed, _ = remove_empty_parents(tmp_path / "elsewhere" / "Movie", root)
-
-        assert removed == 0
+        assert remove_empty_parents(tmp_path / "elsewhere" / "Movie", root) == ()
         assert (tmp_path / "elsewhere").is_dir()
 
 
@@ -102,86 +95,160 @@ class TestRemoveItemRows:
 
 
 class TestFollowUpPlex:
-    """Per section: rescan each parent, wait once, empty the trash; then one bundle clean."""
+    """Per section: rescan where each deleted folder stood, wait once, empty the trash; then one bundle clean."""
 
-    def test_one_wait_and_one_trash_per_section_then_one_bundle_clean(self) -> None:
-        """Two parents in one section and one in another: two rescans then one wait and one trash per section."""
-        plex = FakePlex({"/d1/films": "1", "/d2/series": "2"})
+    @staticmethod
+    def _disk(tmp_path: Path) -> tuple[Path, Path, Path]:
+        """Two section locations on a disk, each still holding a medium.
+
+        Returns:
+            ``(films location, series location, the disk)``.
+        """
+        disk = tmp_path / "d1"
+        (disk / "films" / "Kept").mkdir(parents=True)
+        (disk / "series" / "Kept").mkdir(parents=True)
+        return disk / "films", disk / "series", disk
+
+    def test_one_wait_and_one_trash_per_section_then_one_bundle_clean(self, tmp_path: Path) -> None:
+        """Two folders of one section and one of another: one rescan per refresh path, one wait and trash each."""
+        films, series, _ = self._disk(tmp_path)
+        (films / "Sub" / "Kept").mkdir(parents=True)
+        plex = FakePlex({str(films): "1", str(series): "2"})
         t = FakeTime()
-        parents = [Path("/d1/films"), Path("/d1/films/Sub"), Path("/d2/series")]
+        deleted = [films / "A", films / "Sub" / "B", series / "C"]
 
-        steps = follow_up_plex(plex, parents, sleep=t.sleep, clock=t.clock)  # type: ignore[arg-type]
+        steps = follow_up_plex(plex, deleted, sleep=t.sleep, clock=t.clock)  # type: ignore[arg-type]
 
         assert plex.calls == [
-            ("refresh", "/d1/films"),
-            ("refresh", "/d1/films/Sub"),
+            ("refresh", str(films)),
+            ("refresh", str(films / "Sub")),
             ("scan_state", "1"),
             ("empty_trash", "1"),
-            ("refresh", "/d2/series"),
+            ("refresh", str(series)),
             ("scan_state", "2"),
             ("empty_trash", "2"),
             ("clean_bundles", ""),
         ]
-        assert {p: s.outcome for p, s in steps.items()} == dict.fromkeys(parents, PlexOutcome.REFRESHED)
-        assert steps[Path("/d1/films")].section == "1"
+        assert {p: s.outcome for p, s in steps.items()} == dict.fromkeys(deleted, PlexOutcome.REFRESHED)
+        assert steps[films / "A"].section == "1"
 
-    def test_the_wait_polls_until_the_scan_ends(self) -> None:
+    def test_the_wait_polls_until_the_scan_ends(self, tmp_path: Path) -> None:
         """A section still scanning is read again until idle, then its trash is emptied."""
-        plex = FakePlex({"/d1/films": "1"}, scans={"1": [True, True, False]})
+        films, _, _ = self._disk(tmp_path)
+        plex = FakePlex({str(films): "1"}, scans={"1": [True, True, False]})
         t = FakeTime()
 
-        steps = follow_up_plex(plex, [Path("/d1/films")], sleep=t.sleep, clock=t.clock)  # type: ignore[arg-type]
+        steps = follow_up_plex(plex, [films / "A"], sleep=t.sleep, clock=t.clock)  # type: ignore[arg-type]
 
         assert [c for c in plex.calls if c[0] == "scan_state"] == [("scan_state", "1")] * 3
         assert plex.calls[-2:] == [("empty_trash", "1"), ("clean_bundles", "")]
-        assert steps[Path("/d1/films")].scan_ended is True
+        assert steps[films / "A"].scan_ended is True
 
-    def test_the_wait_is_bounded(self) -> None:
+    def test_the_wait_is_bounded(self, tmp_path: Path) -> None:
         """A scan that never ends stops the wait at the cap; the trash is still emptied, the outcome failed."""
-        plex = FakePlex({"/d1/films": "1"}, scans={"1": [True] * 1000})
+        films, _, _ = self._disk(tmp_path)
+        plex = FakePlex({str(films): "1"}, scans={"1": [True] * 1000})
         t = FakeTime()
 
-        steps = follow_up_plex(plex, [Path("/d1/films")], sleep=t.sleep, clock=t.clock)  # type: ignore[arg-type]
+        steps = follow_up_plex(plex, [films / "A"], sleep=t.sleep, clock=t.clock)  # type: ignore[arg-type]
 
         assert t.now <= PLEX_SCAN_WAIT_S
         assert ("empty_trash", "1") in plex.calls
-        step = steps[Path("/d1/films")]
+        step = steps[films / "A"]
         assert (step.scan_ended, step.trash_emptied, step.outcome) == (False, True, PlexOutcome.FAILED)
 
-    def test_an_unreadable_scan_state_ends_the_wait_as_failed(self) -> None:
+    def test_an_unreadable_scan_state_ends_the_wait_as_failed(self, tmp_path: Path) -> None:
         """Plex not answering the scan state: no endless wait, the step reported failed."""
-        plex = FakePlex({"/d1/films": "1"}, scans={"1": [None]})
+        films, _, _ = self._disk(tmp_path)
+        plex = FakePlex({str(films): "1"}, scans={"1": [None]})
         t = FakeTime()
 
-        steps = follow_up_plex(plex, [Path("/d1/films")], sleep=t.sleep, clock=t.clock)  # type: ignore[arg-type]
+        steps = follow_up_plex(plex, [films / "A"], sleep=t.sleep, clock=t.clock)  # type: ignore[arg-type]
 
-        assert steps[Path("/d1/films")].scan_ended is False
-        assert steps[Path("/d1/films")].outcome is PlexOutcome.FAILED
+        assert steps[films / "A"].scan_ended is False
+        assert steps[films / "A"].outcome is PlexOutcome.FAILED
 
     @pytest.mark.parametrize(
         ("failing", "field"),
         [("refresh_ok", "refreshed"), ("trash_ok", "trash_emptied"), ("bundles_ok", "bundles_cleaned")],
     )
-    def test_each_failed_step_is_reported(self, failing: str, field: str) -> None:
+    def test_each_failed_step_is_reported(self, tmp_path: Path, failing: str, field: str) -> None:
         """A refused rescan, trash or bundle clean shows on its own step, and the outcome is failed."""
-        plex = FakePlex({"/d1/films": "1"}, **{failing: False})  # type: ignore[arg-type]
+        films, _, _ = self._disk(tmp_path)
+        plex = FakePlex({str(films): "1"}, **{failing: False})  # type: ignore[arg-type]
         t = FakeTime()
 
-        step = follow_up_plex(plex, [Path("/d1/films")], sleep=t.sleep, clock=t.clock)[Path("/d1/films")]  # type: ignore[arg-type]
+        step = follow_up_plex(plex, [films / "A"], sleep=t.sleep, clock=t.clock)[films / "A"]  # type: ignore[arg-type]
 
         assert getattr(step, field) is False
         assert step.outcome is PlexOutcome.FAILED
 
-    def test_a_folder_no_section_indexes_asks_nothing(self) -> None:
-        """No section indexes the parent: no call at all, the step reported failed with no section."""
-        plex = FakePlex({"/d1/films": "1"})
+    def test_a_folder_no_section_indexes_asks_nothing(self, tmp_path: Path) -> None:
+        """No section indexes the deleted folder: no call at all, the step reported failed with no section."""
+        films, _, disk = self._disk(tmp_path)
+        plex = FakePlex({str(films): "1"})
         t = FakeTime()
 
-        step = follow_up_plex(plex, [Path("/elsewhere")], sleep=t.sleep, clock=t.clock)[Path("/elsewhere")]  # type: ignore[arg-type]
+        step = follow_up_plex(plex, [disk / "elsewhere" / "A"], sleep=t.sleep, clock=t.clock)[disk / "elsewhere" / "A"]  # type: ignore[arg-type]
 
         assert plex.calls == []
         assert step.section is None
         assert step.outcome is PlexOutcome.FAILED
+
+    def test_a_location_the_request_removed_is_rescanned_and_its_trash_emptied(self, tmp_path: Path) -> None:
+        """The deletion emptied and removed the section's location: the location rescanned, the trash emptied."""
+        films, _, _ = self._disk(tmp_path)
+        (films / "Kept").rmdir()
+        films.rmdir()
+        plex = FakePlex({str(films): "1"})
+        t = FakeTime()
+
+        step = follow_up_plex(plex, [films / "A"], removed={films}, sleep=t.sleep, clock=t.clock)[films / "A"]  # type: ignore[arg-type]
+
+        assert plex.calls == [("refresh", str(films)), ("scan_state", "1"), ("empty_trash", "1"), ("clean_bundles", "")]
+        assert (step.trash_kept, step.outcome) == (None, PlexOutcome.REFRESHED)
+
+
+class TestTrashKept:
+    """A section's trash is kept while a disk it may index is not there: emptying it would purge that disk's items."""
+
+    def test_a_location_missing_before_the_request_keeps_the_trash(self, tmp_path: Path) -> None:
+        """One of the section's locations is no directory (its disk is gone): no emptyTrash, the reason named."""
+        films, _, disk = TestFollowUpPlex._disk(tmp_path)
+        plex = FakePlex({str(films): "1"})
+        plex.extra_locations["1"] = [str(disk.parent / "d2" / "films")]
+        t = FakeTime()
+
+        step = follow_up_plex(plex, [films / "A"], sleep=t.sleep, clock=t.clock)[films / "A"]  # type: ignore[arg-type]
+
+        assert ("empty_trash", "1") not in plex.calls
+        assert plex.calls == [("refresh", str(films)), ("scan_state", "1"), ("clean_bundles", "")]
+        assert (step.trash_emptied, step.trash_kept) == (False, TrashKept.LOCATION_MISSING)
+        assert step.outcome is PlexOutcome.TRASH_KEPT
+
+    def test_every_location_present_empties_the_trash(self, tmp_path: Path) -> None:
+        """Every location of the section stands: the trash is emptied as before."""
+        films, _, disk = TestFollowUpPlex._disk(tmp_path)
+        (disk.parent / "d2" / "films").mkdir(parents=True)
+        plex = FakePlex({str(films): "1"})
+        plex.extra_locations["1"] = [str(disk.parent / "d2" / "films")]
+        t = FakeTime()
+
+        step = follow_up_plex(plex, [films / "A"], sleep=t.sleep, clock=t.clock)[films / "A"]  # type: ignore[arg-type]
+
+        assert ("empty_trash", "1") in plex.calls
+        assert (step.trash_emptied, step.trash_kept, step.outcome) == (True, None, PlexOutcome.REFRESHED)
+
+    def test_a_disk_the_index_knows_unmounted_keeps_the_trash(self, tmp_path: Path) -> None:
+        """Every location stands but a disk is unmounted: no emptyTrash, the reason named."""
+        films, _, _ = TestFollowUpPlex._disk(tmp_path)
+        plex = FakePlex({str(films): "1"})
+        t = FakeTime()
+
+        step = follow_up_plex(plex, [films / "A"], disk_unmounted=True, sleep=t.sleep, clock=t.clock)[films / "A"]  # type: ignore[arg-type]
+
+        assert ("empty_trash", "1") not in plex.calls
+        assert step.trash_kept is TrashKept.DISK_UNMOUNTED
 
 
 def test_tombstone_snapshot_is_readable(tmp_path: Path) -> None:

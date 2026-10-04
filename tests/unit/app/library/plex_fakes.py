@@ -34,12 +34,13 @@ class FakePlex:
         self._trash_ok = trash_ok
         self._bundles_ok = bundles_ok
         self.calls: list[tuple[str, str]] = []
+        self.extra_locations: dict[str, list[str]] = {}
 
     def section_for(self, target: Path) -> PlexSection | None:
-        """The section whose root prefixes *target*."""
+        """The section whose root prefixes *target*, with its root and its extra locations."""
         for root, key in self._sections.items():
             if str(target) == root or str(target).startswith(f"{root}/"):
-                return PlexSection(key, key, [root])
+                return PlexSection(key, key, [root, *self.extra_locations.get(key, [])])
         return None
 
     def refresh(self, target: Path) -> bool:
