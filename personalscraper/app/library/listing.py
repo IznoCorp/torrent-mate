@@ -284,6 +284,29 @@ def live_folders(conn: sqlite3.Connection, item_ids: Sequence[int]) -> dict[int,
     return folders
 
 
+def mounted_media_folders(conn: sqlite3.Connection, item_id: int) -> list[tuple[str, str]]:
+    """Name the media folders holding one item's live files on the disks the index says are mounted.
+
+    Args:
+        conn: An open connection to ``library.db``.
+        item_id: The ``media_item`` id asked about.
+
+    Returns:
+        ``[(mount path, "<category>/<media folder>"), …]``, distinct and sorted; the folder is
+        the index's own spelling, to be joined to the mount path as it stands.
+    """
+    query = (
+        "SELECT DISTINCT d.mount_path, p.rel_path FROM (" + _LIVE_FOLDERS_SQL.format(ids="?") + ") x"
+        " JOIN path p ON p.id = x.path_id JOIN disk d ON d.id = p.disk_id"
+        " WHERE d.is_mounted = 1 AND d.mount_path IS NOT NULL"
+    )
+    folders = {
+        (mount_path, "/".join(rel_path.strip("/").split("/")[:_MEDIA_FOLDER_DEPTH]))
+        for mount_path, rel_path in conn.execute(query, (item_id, item_id))
+    }
+    return sorted(folders)
+
+
 def live_episode_pairs(conn: sqlite3.Connection) -> dict[int, set[tuple[int, int]]]:
     """Read the held ``(season, episode)`` pairs of every show row at once.
 
