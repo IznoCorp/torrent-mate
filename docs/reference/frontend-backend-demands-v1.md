@@ -25,10 +25,10 @@ the contract field by field — enums, required sets, request bodies, refusals a
 
 | | |
 | --- | ---: |
-| operations the interface requires | 101 |
+| operations the interface requires | 102 |
 | operations v1 serves | 9 |
-| required and not served | 92 |
-| served, different response shape | 0 |
+| required and not served | 93 |
+| served, different response shape | 3 |
 | served, path parameter spelled differently | 0 |
 | served, answered with a different status | 0 |
 | fields carried pre-formatted | 22 |
@@ -125,6 +125,7 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `POST /api/v1/torrents/{infoHash}/cross-seed/{tracker}/cut` | `cutCrossSeed` | Cut one torrent's cross-seed on one tracker |
 | `POST /api/v1/torrents/{infoHash}/cross-seed/{tracker}/upload` | `uploadCrossSeed` | Create a torrent from one origin's files and publish it on one tracker |
 | `POST /api/v1/trackers/{tracker}/broken-obligations/{infoHash}/seen` | `markBrokenObligationSeen` | Mark one broken obligation of a tracker seen |
+| `PUT /api/v1/accounts/{accountId}/access` | `setAccountAccess` | Allow or cut an account's sign-in |
 | `PUT /api/v1/acquisition/followed/{followedId}/pause` | `setAcquisitionPause` | Set the caller's pause on one acquisition |
 | `PUT /api/v1/acquisition/followed/{followedId}/quality` | `setAcquisitionQuality` | Set the caller's quality profile on one acquisition |
 | `PUT /api/v1/auth/password` | `changeOwnPassword` | Change the signed-in account's password |
@@ -135,7 +136,11 @@ the contract field by field — enums, required sets, request bodies, refusals a
 
 ## 2. Operations both declare, whose response carries different property names
 
-None.
+| operation | the interface adds | v1 has and the interface does not use |
+| --- | --- | --- |
+| `GET /api/v1/accounts` (`readAccounts`) | `signInAllowed` | — |
+| `PATCH /api/v1/accounts/{accountId}` (`updateAccount`) | `signInAllowed` | — |
+| `POST /api/v1/accounts` (`createAccount`) | `signInAllowed` | — |
 
 ## 2b. Operations both declare, whose path parameter is spelled differently
 

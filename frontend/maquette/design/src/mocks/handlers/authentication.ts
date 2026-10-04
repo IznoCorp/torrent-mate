@@ -8,7 +8,7 @@ import { GET, POST, PUT, field, route, text } from "./shared";
 import { answeredWith, refused, type MockRoute } from "../router";
 import {
   heldAccounts,
-  identityDials,
+  openSession,
   plexClaim,
   plexReachable,
   signedIn,
@@ -21,6 +21,10 @@ const INVALID = 400;
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;
 const CONFLICT = 409;
+// A CUT ACCOUNT'S REFUSAL (the operator, 2026-10-04), answered only once its
+// credentials or its Plex identity are proven: it tells nothing to whoever
+// does not hold them, so it sits after the one anti-enumeration refusal.
+const DISABLED = () => refused(FORBIDDEN, "this account's access is cut", "auth.access_disabled");
 // The answer of a PIN nobody has claimed yet: ask again.
 const PENDING = 202;
 
@@ -45,10 +49,9 @@ export function authenticationRoutes(): MockRoute[] {
       const account = heldAccounts().find(
         (one) => one.email.toLowerCase() === asked,
       );
-      if (account === undefined) return signedIn();
-      if (account.signInKind === "plex")
+      if (account?.signInKind === "plex")
         return refused(UNAUTHORIZED, "refused", "auth.refused");
-      identityDials.setIdentity(account.id);
+      if (!openSession(account?.id ?? signedInId())) return DISABLED();
       return signedIn();
     }),
     route("signOut", POST, "/auth/logout", () => ({ ok: true })),
@@ -88,6 +91,7 @@ export function authenticationRoutes(): MockRoute[] {
           "the PIN expired unclaimed",
           "plex.pin_expired",
         );
+      if (!openSession(signedInId())) return DISABLED();
       return signedIn();
     }),
     route("changeOwnPassword", PUT, "/auth/password", (request) => {

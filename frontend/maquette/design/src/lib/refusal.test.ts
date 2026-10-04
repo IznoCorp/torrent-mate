@@ -39,10 +39,15 @@ describe("signIn's refusals", () => {
     expect(SIGN_IN.description).toContain("request.cross_origin");
   });
 
-  it("reads, in its description, no auth code but auth.refused and auth.rate_limited", () => {
+  it("reads, in its description, no auth code but auth.refused, auth.rate_limited and auth.access_disabled", () => {
     expect(SIGN_IN).toBeDefined();
     const named = new Set(SIGN_IN.description?.match(/auth\.[a-z_]+/g));
     expect(named.has("auth.refused")).toBe(true);
-    expect([...named].filter((code) => !["auth.refused", "auth.rate_limited"].includes(code))).toEqual([]);
+    const others = ["auth.refused", "auth.rate_limited", "auth.access_disabled"];
+    expect([...named].filter((code) => !others.includes(code))).toEqual([]);
+  });
+
+  it("answers a cut account's refusal only once its credentials are proven (the operator, 2026-10-04)", () => {
+    expect(SIGN_IN.description).toMatch(/auth\.access_disabled` — ONLY once its e-mail and password are proven/);
   });
 });

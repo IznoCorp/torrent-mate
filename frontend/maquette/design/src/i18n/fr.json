@@ -1384,6 +1384,15 @@
         "done": "Mot de passe provisoire enregistré : communiquez-le à {{name}}, qui le changera dans son Profil.",
         "refused": "La réinitialisation a été refusée.",
         "adminOnly": "Seul un Admin réinitialise un mot de passe. Chacun change le sien dans son Profil."
+      },
+      "access": {
+        "switch": "Connexion autorisée pour {{name}}",
+        "cut": "accès coupé",
+        "lockedOwner": "Propriétaire du serveur Plex : son accès ne se coupe pas.",
+        "lockedOwn": "Votre propre compte : son accès ne se coupe pas d'ici.",
+        "cutDone": "Accès de {{name}} coupé : ses sessions sont fermées.",
+        "restored": "Accès de {{name}} rétabli : il peut se connecter de nouveau.",
+        "refused": "Le changement d'accès a été refusé."
       }
     },
     "crossSeed": {
@@ -2226,7 +2235,8 @@
       "required": "Votre session a pris fin : reconnectez-vous.",
       "refused": "Connexion refusée : vérifiez votre adresse e-mail et votre mot de passe, ou entrez par la porte de votre compte.",
       "plex_only": "Ce compte se connecte avec Plex : il n'a pas de mot de passe ici.",
-      "rate_limited": "Trop de tentatives : réessayez dans quelques minutes."
+      "rate_limited": "Trop de tentatives : réessayez dans quelques minutes.",
+      "access_disabled": "Accès coupé : un Admin a désactivé la connexion de ce compte."
     },
     "right": {
       "missing": "Votre rôle ne tient pas le droit de faire cela.",
@@ -2242,7 +2252,10 @@
       "email_invalid": "L'adresse e-mail est invalide.",
       "email_taken": "Un compte porte déjà cette adresse e-mail.",
       "admin_untouchable": "Un compte Admin ne se change que par un Admin.",
-      "last_admin": "Refusé : le serveur resterait sans Admin."
+      "last_admin": "Refusé : le serveur resterait sans Admin.",
+      "access_admin_only": "Seul un Admin coupe ou rétablit l'accès d'un compte.",
+      "owner_access": "L'accès du propriétaire du serveur Plex ne se coupe jamais.",
+      "own_access": "Votre propre accès ne se coupe pas d'ici."
     },
     "role": {
       "unknown": "Ce rôle n'existe plus.",

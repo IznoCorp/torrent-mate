@@ -31,6 +31,7 @@ import { store } from "../lib/store-access";
 import { bridge, panel, toast } from "../lib/shell-doors";
 import { addressSeam } from "../lib/addresses";
 import { navigationState } from "../lib/navigation-entry";
+import { onSessionLost } from "../lib/query-client";
 
 /** How long a full load is BUDGETED for — the bar's pace, never a floor. */
 const STARTUP_MS = 5000;
@@ -324,6 +325,16 @@ export function installEntry(): void {
   installGate(() => {
     hideSignIn();
     coverLoading();
+  });
+
+  // A SESSION GONE UNDER THE INTERFACE — expired, or ended by an Admin's cut
+  // (the operator, 2026-10-04) — lands on the gate: nothing it drew is the
+  // account's any more, and the next sign-in reads everything again.
+  onSessionLost(() => {
+    const gate = node("#login");
+    if (gate && !gate.hidden) return;
+    panel?.close();
+    showSignIn(false);
   });
 
   node("#installclose")?.addEventListener("click", () => {

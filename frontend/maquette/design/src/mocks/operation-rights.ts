@@ -60,6 +60,9 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   // operator, 2026-10-03: « A »); the owner's and a Plex-linked account's are
   // refused by their kind.
   resetAccountPassword: "accounts.manage",
+  // An account's access, cut or given back by an Admin (the operator,
+  // 2026-10-04); the caller's role kind is the handler's check, as the reset's.
+  setAccountAccess: "accounts.manage",
   createRole: "accounts.manage",
   updateRole: "accounts.manage",
 

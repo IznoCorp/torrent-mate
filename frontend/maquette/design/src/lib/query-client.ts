@@ -91,6 +91,31 @@ export function installSharedQueryClient(client: QueryClient): void {
   sharedQueryClient = client;
 }
 
+// A REQUEST ANSWERED 401 MEANS THE SESSION IS GONE — expired, or ended by an
+// Admin's cut (the operator, 2026-10-04; Q4 = A) — and the interface lands on
+// the sign-in gate. The entry installs what landing is; the doors themselves
+// ask through `fetch`, never through here, so a refused sign-in is not this.
+const NO_SESSION = 401;
+let sessionLost: () => void = () => {};
+
+/**
+ * Says what follows a request answered with no session.
+ *
+ * @param land What the entry does then: the sign-in gate.
+ */
+export function onSessionLost(land: () => void): void {
+  sessionLost = land;
+}
+
+/**
+ * Hands a 401 to the entry before the failure goes on to its caller.
+ *
+ * @param answer What the layer answered.
+ */
+function noticeSession(answer: Response): void {
+  if (answer.status === NO_SESSION) sessionLost();
+}
+
 /** Every address the maquette's own contract declares, under its base. */
 type ContractPath = `${typeof SERVER_BASE}${keyof paths}`;
 
@@ -256,6 +281,7 @@ export async function read<Result>(
 ): Promise<Result> {
   const address = query && [...query.keys()].length ? `${path}?${query}` : path;
   const answer = await globalThis.fetch(address);
+  noticeSession(answer);
   const body = await answer.json();
   if (!answer.ok) throw body as RequestFailure;
   return body as Result;
@@ -276,6 +302,7 @@ export async function read<Result>(
 export async function readByPost<Result>(path: ContractPath | (string & {}), question: unknown): Promise<Result> {
   const answer = await globalThis.fetch(path, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(question) });
+  noticeSession(answer);
   const body = await answer.json();
   if (!answer.ok) throw body as RequestFailure;
   return body as Result;
@@ -364,6 +391,7 @@ async function dispatch<Result>(
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
+  noticeSession(answer);
   // 204, 205 and 304 carry no body at all, and asking one for JSON throws —
   // which would turn a mutation that SUCCEEDED into a rollback.
   if (answer.status === 204 || answer.status === 205 || answer.status === 304) {

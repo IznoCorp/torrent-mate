@@ -45,6 +45,10 @@ type Dialled = {
   createdAccounts: HeldAccount[];
   /** Accounts assigned another role since the seed, by account id. */
   assigned: Record<string, string>;
+  /** Accounts an Admin cut: their sign-ins are refused until the switch is back on. */
+  accessCut: string[];
+  /** Accounts whose sessions were ended by a cut, until their next sign-in opens one. */
+  sessionsEnded: string[];
 };
 
 /**
@@ -79,6 +83,8 @@ function dials(): Dialled {
       createdRoles: [],
       createdAccounts: [],
       assigned: {},
+      accessCut: [],
+      sessionsEnded: [],
     };
     dialled.set(held, found);
   }
@@ -139,7 +145,55 @@ export const roster = {
   setRoleRights: (id: string, rights: Right[]) => { dials().roleRights[id] = [...rights]; },
   addAccount: (account: HeldAccount) => { dials().createdAccounts.push(account); },
   assign: (id: string, role: string) => { dials().assigned[id] = role; },
+  /**
+   * Cuts one account's access or gives it back (the operator, 2026-10-04). A
+   * CUT ENDS EVERY SESSION OF THE ACCOUNT AT ONCE (Q4 = A); giving it back opens
+   * none — only a sign-in does.
+   */
+  setAccess: (id: string, allowed: boolean) => {
+    const state = dials();
+    state.accessCut = state.accessCut.filter((one) => one !== id);
+    if (allowed) return;
+    state.accessCut.push(id);
+    if (!state.sessionsEnded.includes(id)) state.sessionsEnded.push(id);
+  },
 };
+
+/**
+ * Whether one account may sign in.
+ *
+ * @param id The account.
+ * @returns False once an Admin cut it, until the switch is back on.
+ */
+export function signInAllowed(id: string): boolean {
+  return !dials().accessCut.includes(id);
+}
+
+/**
+ * Whether the session in force is one a cut ended — the maquette holds ONE
+ * session, the identity dialled, so its next request answers 401.
+ *
+ * @returns True while the account dialled has not signed in again since its cut.
+ */
+export function sessionEnded(): boolean {
+  const state = dials();
+  return state.sessionsEnded.includes(state.identity);
+}
+
+/**
+ * Opens a session for one account whose credentials were proven — refused
+ * while its access is cut.
+ *
+ * @param id The account.
+ * @returns True once signed in; false when its access is cut.
+ */
+export function openSession(id: string): boolean {
+  if (!signInAllowed(id)) return false;
+  const state = dials();
+  state.sessionsEnded = state.sessionsEnded.filter((one) => one !== id);
+  state.identity = id;
+  return true;
+}
 
 /** The account dialled in, in the roster's shape. */
 function dialledAccount(): HeldAccount {
@@ -308,6 +362,10 @@ export type IdentityDials = {
   setTestRoster: (on: boolean) => void;
   /** Sets one role's rights, as « Comptes » would, until the layer is next reset. */
   setRoleRights: (roleId: string, rights: Right[]) => void;
+  /** Gives one account a role, as « Comptes » would — a second Admin, for a state that needs one. */
+  setAccountRole: (id: string, roleId: string) => void;
+  /** Cuts one account's access or gives it back, as « Comptes »' switch would. */
+  setAccountAccess: (id: string, allowed: boolean) => void;
 };
 
 /** Those dials, over the layer's own state. */
@@ -334,4 +392,9 @@ export const identityDials: IdentityDials = {
     roleFor(roleId);
     roster.setRoleRights(roleId, rights);
   },
+  setAccountRole: (id, roleId) => {
+    roleFor(roleId);
+    roster.assign(id, roleId);
+  },
+  setAccountAccess: (id, allowed) => roster.setAccess(id, allowed),
 };
