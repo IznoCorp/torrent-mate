@@ -93,6 +93,22 @@ def test_a_v0_sign_in_is_unchanged_but_for_its_twin_headers(test_config: Config)
     assert (refused.status_code, refused.json()) == (401, {"detail": "Invalid credentials"})
 
 
+def test_a_templated_successor_names_the_same_resource() -> None:
+    """A ``{name}`` of the successor is filled with the v0 path parameter (camelCase read as snake_case), encoded."""
+    twin = V0_TWINS[("GET", "/api/media/{provider}/{provider_id}")]
+
+    assert deprecations._successor_uri(twin, {"provider": "imdb", "provider_id": "tt 1/2"}) == (
+        "/api/v1/media/imdb/tt%201%2F2"
+    )
+
+
+def test_a_static_successor_is_emitted_unchanged() -> None:
+    """A successor without a ``{…}`` is the registered path as is, whatever the request's parameters."""
+    twin = V0_TWINS[("GET", "/api/version")]
+
+    assert deprecations._successor_uri(twin, {"provider": "tmdb"}) == "/api/v1/version"
+
+
 def test_a_route_without_a_twin_carries_neither(test_config: Config) -> None:
     """v1 mounted: ``GET /api/health`` has no twin, so no header."""
     response = _client(test_config, v1_enabled=True).get("/api/health")

@@ -20,7 +20,7 @@ from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.http_v1.perimeter import ActorResolver, v1_perimeter
 from personalscraper.http_v1.problem import ProblemOnCrash, install_problem_handlers
-from personalscraper.http_v1.routes import accounts, authentication, system
+from personalscraper.http_v1.routes import accounts, authentication, media, system
 from personalscraper.http_v1.session_cookie import SessionActorResolver
 
 #: Where v0's application mounts v1; a v1 route's path is the contract's without its ``/api``.
@@ -118,6 +118,7 @@ def create_v1_app(
     include_v1_router(app, authentication.router)
     include_v1_router(app, accounts.router)
     include_v1_router(app, system.router)
+    include_v1_router(app, media.router)
     return app
 
 
