@@ -3,7 +3,7 @@
 The source was the maquette's ``mocks/operation-rights.ts`` while the contract declared
 no per-operation right (gap G-2); once one contract operation carries ``x-rights``, the
 contract is read instead. This table replaces v0's
-``tests/unit/web/routes/test_staging_write_policy.py`` as the policy table.
+``tests/web/unit/routes/test_staging_write_policy.py`` as the policy table.
 """
 
 from __future__ import annotations

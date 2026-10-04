@@ -16,8 +16,8 @@ from personalscraper.config import Settings
 from personalscraper.core.identity import MediaRef
 from personalscraper.web.auth.tokens import create_session_token
 from personalscraper.web.routes.acquisition_overview import router as overview_router
-from tests.unit.web.routes.test_journeys import build_acquire_store_config
 from tests.web._web_harness import guarded_client
+from tests.web.unit.routes.test_journeys import build_acquire_store_config
 
 SOUNDTRACK = (
     "Michael Giacchino Spider-Man_ Brand New Day (Original Motion Picture "

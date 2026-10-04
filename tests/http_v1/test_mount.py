@@ -27,7 +27,7 @@ from personalscraper.http_v1.app import V1_PREFIX, include_v1_router, v1_lifespa
 from personalscraper.web import app as web_app
 from personalscraper.web.app import create_app
 from personalscraper.web.static import mount_spa
-from tests.unit.web.routes import test_staging_write_policy, test_web_perimeter_policy
+from tests.web.unit.routes import test_staging_write_policy, test_web_perimeter_policy
 
 
 def _settings() -> Settings:
