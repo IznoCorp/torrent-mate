@@ -67,7 +67,7 @@ test-cov:
 
 lint:
 	@echo "Running linter..."
-	python -m ruff check personalscraper/ tests/ scripts/ frontend/maquette/ frontend/scripts/
+	python -m ruff check personalscraper/ tests/ scripts/ webui/ frontend/scripts/
 	python -m ruff format --check personalscraper/ tests/
 	python -m mypy personalscraper/
 
@@ -84,8 +84,8 @@ check: lint
 	python3 scripts/check-poster-box.py
 	python3 scripts/compare-contracts.py --check --have v1
 	@echo "Checking OpenAPI drift..."
-	@if [ -d frontend/node_modules ]; then $(MAKE) openapi && git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts frontend/openapi-v1.json; else echo "openapi-drift: skipped (frontend/node_modules absent)"; fi
-	@if [ -d frontend/maquette/design/node_modules ]; then $(MAKE) check-contract-types; else echo "contract-types: skipped (frontend/maquette/design/node_modules absent)"; fi
+	@if [ -d frontend/node_modules ]; then $(MAKE) openapi && git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts contract/openapi.generated.json; else echo "openapi-drift: skipped (frontend/node_modules absent)"; fi
+	@if [ -d webui/design/node_modules ]; then $(MAKE) check-contract-types; else echo "contract-types: skipped (webui/design/node_modules absent)"; fi
 	@if [ -d frontend/node_modules ]; then $(MAKE) check-frontend; else echo "check-frontend: skipped (frontend/node_modules absent)"; fi
 
 format:
@@ -115,7 +115,7 @@ perf-rebaseline:
 fixture:
 	@echo "Refreshing the maquette fixture from acquire.db..."
 	python3 scripts/refresh-maquette-fixture.py --apply
-	@echo "Then: frontend/maquette/harness/run.sh (the script rebuilds and re-copies itself)"
+	@echo "Then: webui/harness/run.sh (the script rebuilds and re-copies itself)"
 
 openapi:
 	@echo "Exporting OpenAPI schema..."
@@ -133,23 +133,23 @@ check-contract-types:
 	@# file is regenerated from the contract and any difference is refused, so a
 	@# file carrying a line a human typed fails here. Both guards name this
 	@# target as the proof behind their exemption.
-	cd frontend/maquette/design && npm run generate-contract-types
-	git diff --exit-code frontend/maquette/design/src/contract/types.d.ts
+	cd webui/design && npm run generate-contract-types
+	git diff --exit-code webui/design/src/contract/types.d.ts
 
 check-frontend:
 	@echo "Running frontend typecheck..."
 	cd frontend && npm run typecheck
 	@echo "Running maquette shell typecheck..."
-	@if [ -d frontend/maquette/design/node_modules ]; then cd frontend/maquette/design && npm run typecheck; else echo "maquette-typecheck: skipped (frontend/maquette/design/node_modules absent)"; fi
+	@if [ -d webui/design/node_modules ]; then cd webui/design && npm run typecheck; else echo "maquette-typecheck: skipped (webui/design/node_modules absent)"; fi
 	@echo "Running frontend lint..."
 	cd frontend && npm run lint
 	cd frontend && npm run lint:ds
 	@echo "Running frontend tests..."
 	cd frontend && npm run test -- --run
-	@if [ -d frontend/maquette/design/node_modules ]; then cd frontend/maquette/design && npm test; else echo "maquette-tests: skipped (frontend/maquette/design/node_modules absent)"; fi
+	@if [ -d webui/design/node_modules ]; then cd webui/design && npm test; else echo "maquette-tests: skipped (webui/design/node_modules absent)"; fi
 	@echo "Running frontend build..."
 	cd frontend && npm run build
 
 harness:
 	@echo "Running every maquette rule (CI runs it on a lot's pull request)..."
-	frontend/maquette/harness/run.sh
+	webui/harness/run.sh

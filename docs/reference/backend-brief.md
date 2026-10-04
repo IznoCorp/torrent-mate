@@ -14,7 +14,7 @@ operator's principles (`operator-method.md` § 1) and his « Environnements et b
 architecture decisions (`backend-demands-architecture.md`, cited « arch § n »); the computed register
 (`frontend-backend-demands.md`, cited « reg § n », in sync with the contract at `27b304157`:
 `compare-contracts.py --check` green); the stream register (`frontend-backend-demands-stream.md`, cited « stream
-§ n »); the maquette's contract (`frontend/maquette/contract/openapi.json`, 93 operations); the lots' DESIGNs for
+§ n »); the maquette's contract (`contract/openapi.json`, 93 operations); the lots' DESIGNs for
 their lettered demands (L16-bis T1–T3, L17 A–K, L18 C–P, L23 Q–S, L24 A–D, season recovery SR1–SR6);
 `IMPLEMENTATION.md` § « Carried to the backend mission ».
 

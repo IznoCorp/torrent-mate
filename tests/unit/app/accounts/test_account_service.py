@@ -1,6 +1,6 @@
 """Unit tests for the accounts screen in ``AccountService``: the roster, accounts and roles, their guards and E8.
 
-The guards are the maquette's (``frontend/maquette/design/src/mocks/handlers/accounts.ts``):
+The guards are the maquette's (``webui/design/src/mocks/handlers/accounts.ts``):
 a manager who is not Admin gives only rights its own role holds, never touches its own
 role, never touches an account on the Admin role nor gives that role; the "last resort" guard keeps
 one account on the Admin role, checked and written in one ``BEGIN IMMEDIATE``. E8

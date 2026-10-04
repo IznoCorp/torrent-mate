@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
+from _repo_paths import CONTRACT
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -72,7 +72,6 @@ def test_v0_answer_unchanged() -> None:
 
 def test_every_code_is_a_contract_code() -> None:
     """Every refusal code the layer raises is one the contract's ``RefusalCode`` lists, spelt the same."""
-    contract = Path(__file__).resolve().parents[3] / "frontend/maquette/contract/openapi.json"
-    listed = set(json.loads(contract.read_text(encoding="utf-8"))["components"]["schemas"]["RefusalCode"]["enum"])
+    listed = set(json.loads(CONTRACT.read_text(encoding="utf-8"))["components"]["schemas"]["RefusalCode"]["enum"])
 
     assert {code.value for code in errors.RefusalCode} <= listed

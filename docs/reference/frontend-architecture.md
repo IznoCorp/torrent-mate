@@ -5,7 +5,7 @@ stands** — that is `IMPLEMENTATION.md` § « Where the frontend work stands »
 file that says it.
 
 The maquette is the v1 frontend, developed together with its backend, and it REPLACES the shipped
-one: at v1's production release every v0 file goes at once and `frontend/maquette/` takes its place
+one: at v1's production release every v0 file goes at once and `webui/` takes its place
 (`product-intent.md` §15). So every page and every MECHANISM the shipped app has must eventually exist here. The pages
 are the part that is finished. What remains is most of what makes an application, and this file
 is the plan for it.
@@ -30,7 +30,7 @@ The method is `docs/reference/method.md`.
 | **this file** | what the frontend must BECOME technically, and in what order |
 | `IMPLEMENTATION.md` | where the work stands — the only state, with its commands |
 | `docs/features/<codename>/DESIGN.md` · `plan/` | the scope and the steps of ONE wave — deleted at merge, cited by commit |
-| `frontend/maquette/README.md` | how the prototype runs, its named states, the traps already paid for |
+| `webui/README.md` | how the prototype runs, its named states, the traps already paid for |
 
 This file covers items 2, 3 and 4 of `IMPLEMENTATION.md` § THE OBJECTIVE → REMAINS — the visual
 language, the application itself, and the legacy engine — plus the safety net they all need and
@@ -140,7 +140,7 @@ considered and rejected — see rule 4 below.
    on the trail moves to its top, never stacked twice** (the operator's ruling of 2026-09-30). § 16 as
    amended on 2026-09-29 (#635, #643); delivered by the navigation lot: every entry carries its trail
    (`lib/navigation-entry.ts`, `app/trail.ts`), and the verb says how a tap lands
-   (`app/frame-verbs.ts`). Held by R-navigation-a and R-navigation-b (`frontend/maquette/harness/journey.py`).
+   (`app/frame-verbs.ts`). Held by R-navigation-a and R-navigation-b (`webui/harness/journey.py`).
 3. **Where no stack exists, synthesise it from the hierarchy.** A cold link poses the real parent
    under the screen — read off the emitter of the screen's own opener, not guessed — and that
    parent is **rendered**, not merely recorded (`SCREEN_PARENTS` in `lib/addresses.ts`).
@@ -305,7 +305,7 @@ into other lots.
 0 `tabindex`, 13 `role=`. **L03 landed and closed it**: 4 `<main>`, 7 `tabindex`, 32 `role=`, and
 744 axe violations over 7 rules taken to a hard zero across the 83 named states, held by
 `a11y.py` on its own `--a11y` tier.
-<sub>`grep -rho 'tabindex' frontend/maquette/design/src frontend/maquette/design/*.html | wc -l`</sub>
+<sub>`grep -rho 'tabindex' webui/design/src webui/design/*.html | wc -l`</sub>
 It serves the native-feel objective directly (focus management, assistive technology, keyboard
 paths), and — this is what makes it schedulable anywhere — `role`, `aria-*` and `tabindex` are
 **invisible to the oracle**: they change neither a rectangle nor a computed style. Only element
@@ -314,7 +314,7 @@ substitutions and focus rings are visible, and those are handled as such.
 ### D7 — The data contract is the reference between front and back
 
 **Decision.** The maquette declares the contract its interface REQUIRES, as its own artefact
-inside `frontend/maquette/`. It starts from the contract that already exists
+inside `webui/`. It starts from the contract that already exists
 (`frontend/openapi.json`, generated FROM the backend) and diverges deliberately where the new
 experience needs more. **Every divergence is recorded as a demand on the backend.**
 
@@ -344,7 +344,7 @@ descendant that carries a function is covered by a named rule instead** — the 
 widened, and a surface relying on one without such a rule is the defect, not the oracle.
 
 **A RULE may read pixels; the ORACLE never does — amended by the steward's L12 audit, 2026-09-01.**
-L12's R118 (`frontend/maquette/harness/chrome_pixels.py`) compares one region with itself at two
+L12's R118 (`webui/harness/chrome_pixels.py`) compares one region with itself at two
 moments of one run (mid-transition against settled, with a control) — a different comparison from
 the oracle's two-runs-of-an-unmodified-page measurement, so it does not widen the oracle. A rule
 that needs a pixel says why in its own file and carries a control. Story:
@@ -657,7 +657,7 @@ scope (cross-seed) and small enough by § 0's own selection rule to take nobody'
 inside its plan. **Named states (proposed, not built): `settings-save-bar-frame`** (the bar drawn by the frame
 itself, replacing L16's `lib/save-bar-door.tsx` door — C2's own compromise, superseded) **and `settings-leave-confirm`**
 (the three-choice confirmation). **One rule**, holding both. **The existing pending-edits signal is REUSED** — the
-door's `onEditsWritten` / `editsWritten` pair (`frontend/maquette/design/src/lib/save-bar-door.tsx`) already knows
+door's `onEditsWritten` / `editsWritten` pair (`webui/design/src/lib/save-bar-door.tsx`) already knows
 whether a change waits; the leave confirmation reads THAT, never a second dirty-tracker. **Delivered 2026-09-30** on
 `feat/maquette-c1`: the bar is drawn by the frame's bottom slot over the pages whose row says `holdsEdits`
 (`app/navigation.ts`: Réglages, Trackers); the door became `lib/pending-edits-door.ts`, the one table of pending
@@ -1130,8 +1130,8 @@ temps et en heure quand la maquette sera prête ». It follows every drawn lot, 
 ## 6. The traps that cross lots
 
 Every one of these has already gone off in this repository. They are recorded in full in
-`frontend/maquette/regions.json` → `$adversarialReview.$methodLessons` and in
-`frontend/maquette/README.md`; what is added here is **which lot each one threatens**, so it is
+`webui/regions.json` → `$adversarialReview.$methodLessons` and in
+`webui/README.md`; what is added here is **which lot each one threatens**, so it is
 met before it fires rather than after.
 
 | Trap | Threatens | The short version |

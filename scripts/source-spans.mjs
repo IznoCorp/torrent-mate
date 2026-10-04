@@ -20,7 +20,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 
 const require_ = createRequire(import.meta.url);
-const ts = require_("../frontend/maquette/design/node_modules/typescript");
+const ts = require_("../webui/design/node_modules/typescript");
 
 const file = process.argv[2];
 const text = readFileSync(file, "utf8");

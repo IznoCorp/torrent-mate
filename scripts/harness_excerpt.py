@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""What `frontend/maquette/harness/run.sh` prints of a failed rule's log.
+"""What `webui/harness/run.sh` prints of a failed rule's log.
 
 A rule's log can run to hundreds of lines; the summary shows the lines that say
 why it failed. It used to be a `grep` for twelve lines matching `FAIL`, `Error`,

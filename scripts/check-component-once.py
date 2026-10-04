@@ -2,7 +2,7 @@
 """A component is written once — no PascalCase function is declared in two files.
 
 THE DEFECT THIS ENDS. `Icon` — one `<svg>` with six attributes — was written
-out FOUR times under `frontend/maquette/design/src`: once in `ui/icon.tsx`,
+out FOUR times under `webui/design/src`: once in `ui/icon.tsx`,
 where it belonged, and once privately in each of three screens, each copy
 carrying a comment saying the extraction « is a follow-up of its own ». The
 follow-up never came, because nothing counted the copies: a component copied

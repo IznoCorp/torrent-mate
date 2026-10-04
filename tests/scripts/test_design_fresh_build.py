@@ -6,11 +6,11 @@ well: on a copy with no `dist/`, the failure was reported as `ENOENT scandir
 dist/vite`, the hook's own crash, and the build's real error — a module it could
 not resolve — was never printed. B-318 read that mask as a race against the
 output; measured on `main` `27b304157`, a complete tree builds first time, and a
-tree missing `../contract` answers `ENOENT` alone. `writeBundle` runs only once
+tree missing the contract answers `ENOENT` alone. `writeBundle` runs only once
 the bundles are written.
 
 The build is driven on a copy in `tmp_path`, outside any repository, so nothing
-here writes into `frontend/maquette/design/`. It needs the design project's
+here writes into the design project. It needs the design project's
 installed `node_modules`; where there are none it skips and says why.
 """
 
@@ -22,10 +22,8 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from _repo_paths import MAQUETTE
+from _repo_paths import CONTRACT_DIR, DESIGN, ROOT
 
-ROOT = Path(__file__).resolve().parents[2]
-DESIGN = MAQUETTE / "design"
 VITE = DESIGN / "node_modules" / "vite" / "bin" / "vite.js"
 
 # What the build reads beside `src/`; `dist/` and `node_modules/` are never copied.
@@ -48,15 +46,15 @@ def fresh_design_copy(tmp_path: Path) -> Path:
 
     Returns:
         The copy's root, its `node_modules` a link to the installed one. The
-        contract it imports sits beside it, as `../contract` does in the tree,
-        and the document v1 serves two levels up, as `frontend/openapi-v1.json`
-        does: the design host's passthrough imports it, and every build resolves
-        the import before dropping it.
+        copy sits at the design project's own place under `tmp_path`, and the
+        contract directory at its own, so the imports that climb out of the
+        design project resolve as they do in the tree: the contract it requires
+        and the document v1 serves, which the design host's passthrough imports
+        and every build resolves before dropping it.
     """
-    copy = tmp_path / "maquette" / "design"
+    copy = tmp_path / DESIGN.relative_to(ROOT)
     copy.mkdir(parents=True)
-    shutil.copytree(MAQUETTE / "contract", tmp_path / "maquette" / "contract")
-    shutil.copy2(MAQUETTE.parent / "openapi-v1.json", tmp_path / "openapi-v1.json")
+    shutil.copytree(CONTRACT_DIR, tmp_path / CONTRACT_DIR.relative_to(ROOT))
     shutil.copytree(DESIGN / "src", copy / "src", ignore=shutil.ignore_patterns(".claude"))
     for name in BUILD_FILES:
         shutil.copy2(DESIGN / name, copy / name)
@@ -88,7 +86,7 @@ def build(copy: Path) -> subprocess.CompletedProcess[str]:
 def test_a_failed_build_reports_its_own_error(tmp_path: Path) -> None:
     """A build that cannot resolve a module names that module, never `dist/vite`."""
     copy = fresh_design_copy(tmp_path)
-    shutil.rmtree(tmp_path / "maquette" / "contract")
+    shutil.rmtree(tmp_path / CONTRACT_DIR.relative_to(ROOT))
 
     built = build(copy)
 

@@ -231,7 +231,7 @@ def main() -> int:
                 f"  {prop}: {count} site(s), floor is {floor}. "
                 "A declaration the compositor reads has gone missing — if that "
                 "is deliberate, lower the floor in "
-                "frontend/maquette/compositor-css.json and say why."
+                "webui/compositor-css.json and say why."
             )
 
     # Hold 2 — the named block, the one that has already gone off.

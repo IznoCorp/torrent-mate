@@ -29,7 +29,7 @@ never a failure here; an operation v1 serves is held to the contract strictly:
 Nullability is not compared: a hand-written contract writes ``["string", "null"]`` where a
 generated document writes an ``anyOf`` with ``null``, and neither is judged on it.
 
-The served document is the committed ``frontend/openapi-v1.json``; one test proves it
+The served document is the committed ``contract/openapi.generated.json``; one test proves it
 equals what ``create_v1_app`` serves, so the parametrisation covers every served operation.
 """
 
@@ -39,11 +39,10 @@ import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
-from pathlib import Path
 from typing import Any, Final, Literal
 
 import pytest
-from _repo_paths import CONTRACT
+from _repo_paths import CONTRACT, SERVED_CONTRACT
 from fastapi import APIRouter, FastAPI
 from pydantic import Field
 
@@ -54,9 +53,8 @@ from personalscraper.http_v1.contract import PROBLEM_RESPONSES, ContractModel
 from personalscraper.http_v1.rights import OPERATION_RIGHTS
 from tests.http_v1.test_rights_table import _OVERRIDES, _requirement
 
-_REPO_ROOT: Final = Path(__file__).resolve().parents[2]
 _CONTRACT: Final = CONTRACT
-_SERVED: Final = _REPO_ROOT / "frontend" / "openapi-v1.json"
+_SERVED: Final = SERVED_CONTRACT
 _METHODS: Final = ("get", "post", "put", "patch", "delete")
 _NULL: Final = {"type": "null"}
 
@@ -516,14 +514,14 @@ def _served() -> dict[str, Any]:
     """Read the committed served document.
 
     Returns:
-        ``frontend/openapi-v1.json``.
+        ``contract/openapi.generated.json``.
     """
     document: dict[str, Any] = json.loads(_SERVED.read_text(encoding="utf-8"))
     return document
 
 
 def test_committed_document_is_the_served_one(make_v1_app: Callable[..., FastAPI]) -> None:
-    """``frontend/openapi-v1.json`` is what ``create_v1_app`` serves: the cases below cover every served operation."""
+    """``contract/openapi.generated.json`` is what ``create_v1_app`` serves; the cases below cover every served one."""
     assert json.loads(json.dumps(make_v1_app().openapi())) == _served()
 
 

@@ -27,7 +27,7 @@ from personalscraper.http_v1.session_cookie import SessionActorResolver
 V1_PREFIX: Final = "/api/v1"
 
 #: The OpenAPI document's ``info.version``, fixed as v0's is: the package version would
-#: move the committed ``frontend/openapi-v1.json`` with every release. ``readVersion``
+#: move the committed ``contract/openapi.generated.json`` with every release. ``readVersion``
 #: serves the running version.
 _DOCUMENT_VERSION: Final = "0.1.0"
 

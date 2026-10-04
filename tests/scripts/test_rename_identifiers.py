@@ -24,14 +24,14 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "rename-identifiers.py"
 
 # Anything the tool parses as JavaScript goes through `scripts/source-spans.mjs`,
-# which requires `frontend/maquette/design/node_modules/typescript`. Without
+# which requires `webui/design/node_modules/typescript`. Without
 # that install these skip rather than fail, the same way the Makefile guards
-# the maquette targets with `if [ -d frontend/maquette/design/node_modules ]`. The Python-language
+# the maquette targets with `if [ -d webui/design/node_modules ]`. The Python-language
 # tests below carry no such guard and run everywhere, on purpose: the parser
 # they exercise is Python's own tokeniser.
 needs_typescript = pytest.mark.skipif(
     not (DESIGN / "node_modules" / "typescript").is_dir(),
-    reason="frontend/maquette/design/node_modules/typescript absent",
+    reason="webui/design/node_modules/typescript absent",
 )
 
 

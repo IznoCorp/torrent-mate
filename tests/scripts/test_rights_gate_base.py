@@ -31,7 +31,9 @@ except ImportError:
 
 import rights_gate  # noqa: E402
 
-INDEX = "frontend/maquette/design/index.html"
+INDEX = "webui/design/index.html"
+# Where a base cut before the prototype left `frontend/maquette/` holds it.
+OLD_INDEX = "frontend/maquette/design/index.html"
 
 
 def _env(root: Path) -> dict[str, str]:
@@ -78,12 +80,13 @@ def _region(word: str) -> str:
     return f"<!-- login:markup:start -->{word}<!-- login:markup:end -->"
 
 
-def _origin(root: Path, *, develop: bool) -> Path:
+def _origin(root: Path, *, develop: bool, index: str = INDEX) -> Path:
     """A bare origin whose `main` says « main », and whose `develop`, when made, says « develop ».
 
     Args:
         root: The test's scratch directory.
         develop: Whether origin has a `develop` branch.
+        index: Where the origin keeps the envelope.
 
     Returns:
         The bare repository.
@@ -92,7 +95,7 @@ def _origin(root: Path, *, develop: bool) -> Path:
     _git(root, root, "init", "-q", "--bare", str(origin))
     seed = root / "seed"
     _git(root, root, "init", "-q", "-b", "main", str(seed))
-    page = seed / INDEX
+    page = seed / index
     page.parent.mkdir(parents=True)
     page.write_text(_region("main"), encoding="utf-8")
     _git(seed, root, "add", "-A")
@@ -106,7 +109,7 @@ def _origin(root: Path, *, develop: bool) -> Path:
 
 
 def _checkout(root: Path, origin: Path, *, fetched: bool) -> Path:
-    """A checkout whose `frontend/maquette` is the harness's root.
+    """A checkout whose `webui` is the harness's root.
 
     Args:
         root: The test's scratch directory.
@@ -114,7 +117,7 @@ def _checkout(root: Path, origin: Path, *, fetched: bool) -> Path:
         fetched: Whether the checkout knows origin's branches (a full clone) or none (a CI checkout).
 
     Returns:
-        The `frontend/maquette` directory of the checkout.
+        The `webui` directory of the checkout.
     """
     work = root / "work"
     if fetched:
@@ -122,8 +125,8 @@ def _checkout(root: Path, origin: Path, *, fetched: bool) -> Path:
     else:
         _git(root, root, "init", "-q", str(work))
         _git(work, root, "remote", "add", "origin", str(origin))
-    (work / "frontend" / "maquette").mkdir(parents=True, exist_ok=True)
-    return work / "frontend" / "maquette"
+    (work / "webui").mkdir(parents=True, exist_ok=True)
+    return work / "webui"
 
 
 def _isolate(monkeypatch: pytest.MonkeyPatch, root: Path) -> None:
@@ -153,3 +156,10 @@ def test_reads_main_before_develop_exists(tmp_path: Path, monkeypatch: pytest.Mo
     maquette = _checkout(tmp_path, _origin(tmp_path, develop=False), fetched=fetched)
     _isolate(monkeypatch, tmp_path)
     assert rights_gate.base_region(maquette) == _region("main")
+
+
+def test_reads_a_base_cut_before_the_move(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A base whose envelope is still under `frontend/maquette/` is read there."""
+    maquette = _checkout(tmp_path, _origin(tmp_path, develop=True, index=OLD_INDEX), fetched=True)
+    _isolate(monkeypatch, tmp_path)
+    assert rights_gate.base_region(maquette) == _region("develop")

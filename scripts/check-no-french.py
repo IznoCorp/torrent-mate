@@ -97,7 +97,7 @@ matching — otherwise announces « no violation » with perfect confidence whil
 measuring nothing.
 
 Every exception CITES its reason. The CSS-class exceptions are read from
-`frontend/maquette/regions.json`'s `$vocabulary` — the maquette's own record, so
+`webui/regions.json`'s `$vocabulary` — the maquette's own record, so
 there is no second copy of those reasons to drift — and this script refuses to run
 if an entry there carries no reason. The other exceptions are the dictionaries
 below, each entry a token mapped to why it stays.

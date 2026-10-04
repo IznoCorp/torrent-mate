@@ -45,7 +45,7 @@ def run(tree: Path) -> subprocess.CompletedProcess[str]:
     """Runs the guard against a scratch copy of the maquette's sources.
 
     Args:
-        tree: A directory holding `frontend/maquette/design/src` and the guard.
+        tree: A directory holding `webui/design/src` and the guard.
 
     Returns:
         The completed process, with its output captured.

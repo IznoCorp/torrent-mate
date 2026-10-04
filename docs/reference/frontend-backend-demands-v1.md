@@ -1,8 +1,8 @@
 # What the interface asks of v1
 
 **COMPUTED, NEVER WRITTEN.** `python3 scripts/compare-contracts.py --write --have v1`
-builds this file by diffing `frontend/maquette/contract/openapi.json` — the contract the
-interface REQUIRES — against `frontend/openapi-v1.json`, which
+builds this file by diffing `contract/openapi.json` — the contract the
+interface REQUIRES — against `contract/openapi.generated.json`, which
 `python scripts/export-openapi.py --v1` generates FROM the v1 application.
 `--check --have v1` refuses a committed register that differs from the computed one, so
 the two cannot separate. Edit the contract or v1, not this file.

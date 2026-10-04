@@ -59,7 +59,7 @@
 # The design prototype's extracted artwork is versioned deliberately: these
 # are the reference images the maquette renders, not pipeline media. The
 # media-extension block above must not swallow them.
-!frontend/maquette/design/assets/**
+!webui/design/assets/**
 
 # ===========================================
 # Sorting folders and scripts - fully ignored
@@ -170,8 +170,8 @@ tests/e2e/perf/.fixture/
 
 # Maquette rule-harness scratch output: harness/audit.py dumps its violation
 # map here (a relative open(), so it lands in the directory the script is run
-# from — frontend/maquette by convention). It is a run artefact, never a source.
-frontend/maquette/violations.json
+# from — webui by convention). It is a run artefact, never a source.
+webui/violations.json
 
 # TorrentMate web UI — built SPA output (gitignored; Vite build fills this dir at deploy time)
 personalscraper/web/static/*
@@ -185,4 +185,4 @@ violations.json
 # Every screenshot the harness rules take (`common.shot`) — reading aids, never
 # an oracle, rewritten on each run. The global ~/.gitignore ignores `__*__/`,
 # but a fresh clone on another machine has no such file: the rule lives here.
-frontend/maquette/harness/__screenshots__/
+webui/harness/__screenshots__/

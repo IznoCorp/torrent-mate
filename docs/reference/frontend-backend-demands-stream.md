@@ -26,7 +26,7 @@ the backend serves it at `/ws/events`.
 
 ## 1. An event should say WHICH title it is about
 
-**Asked for by** `frontend/maquette/design/src/features/media/live.ts`.
+**Asked for by** `webui/design/src/features/media/live.ts`.
 
 `ItemDispatched`, `SeasonAbsorbedEpisodes` and `FilmAcquired` each change whether we own a
 title, or how much of it — which is half of what a media sheet shows (§11). Their payloads
@@ -52,7 +52,7 @@ was given, and the widening goes.
 
 ## 2. A progress event needs somewhere to go that is not a list
 
-**Asked for by** `frontend/maquette/design/src/features/acquisition/live.ts`.
+**Asked for by** `webui/design/src/features/acquisition/live.ts`.
 
 **THIS DEMAND'S PREMISE WAS FALSE AND THE EVENTS ARE MAPPED NOW.** It said `DownloadProgressed`
 "fires per torrent per tick". Its own docstring says the opposite: only the HIGHEST threshold
@@ -89,7 +89,7 @@ name them » reads as a consequence of a known gap rather than as an omission.
 
 ## 4. Nothing says a SERVICE stopped answering
 
-**Asked for by** `frontend/maquette/design/src/features/system/live.ts`, as its exemption —
+**Asked for by** `webui/design/src/features/system/live.ts`, as its exemption —
 and it is the exemption nobody should be happy with.
 
 **HALF OF THIS DEMAND WAS ALREADY BUILT, and an adversarial review is what found that out.**
@@ -139,7 +139,7 @@ an explicit ordering guarantee that `LibraryScanCompleted` always follows a disp
 
 ## 6. A hello that says more than the commit
 
-**Asked for by** `frontend/maquette/design/src/lib/relay.ts`.
+**Asked for by** `webui/design/src/lib/relay.ts`.
 
 `ws.hello` carries `build_commit`, and the relay keeps it. B-079 and B-080 both want it —
 the design host cannot say which commit it serves, and the drawer shows a hard-coded version

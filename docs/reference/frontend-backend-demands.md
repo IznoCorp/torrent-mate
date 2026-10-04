@@ -1,7 +1,7 @@
 # What the interface asks of the backend
 
 **COMPUTED, NEVER WRITTEN.** `python3 scripts/compare-contracts.py --write` builds this
-file by diffing `frontend/maquette/contract/openapi.json` — the contract the maquette's
+file by diffing `contract/openapi.json` — the contract the maquette's
 interface REQUIRES — against `frontend/openapi.json`, which is generated FROM the running
 backend. `--check` refuses a committed register that differs from the computed one, so the
 two cannot separate. Edit the contract, not this file.

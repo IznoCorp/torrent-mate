@@ -399,11 +399,11 @@ def scope_of(path: Path) -> str:
         itself rather than hidden inside a large total.
     """
     where = relative(path)
-    if where.startswith("frontend/maquette/design/src"):
+    if where.startswith("webui/design/src"):
         return "shell"
-    if where.startswith("frontend/maquette/harness"):
+    if where.startswith("webui/harness"):
         return "harness tools" if path.suffix == ".mjs" else "harness"
-    if where.startswith("frontend/maquette/"):
+    if where.startswith("webui/"):
         return "servers"
     if where.startswith("frontend/src"):
         return "app"

@@ -18,7 +18,7 @@ served from, and the tier that exists to catch exactly this violation could not
 see it. A landmine is not a defect: it is a defect waiting for a different
 reader.
 
-WHAT IT READS. Every source under `frontend/maquette/design` — markup, script
+WHAT IT READS. Every source under `webui/design` — markup, script
 and stylesheet alike — because the defect was a STRING built in JavaScript, and
 a reader that only opened the HTML would have found nothing. Comments are read
 too, and deliberately: this file's own subject is a directive nobody reads, and
@@ -43,8 +43,8 @@ ROOT = Path(__file__).resolve().parent.parent
 # THE WHOLE MAQUETTE, NOT ONLY THE PROTOTYPE'S TREE. The first version read
 # `design/` alone — and B-230's own story is a directive added to a host that
 # had no viewport meta, so the HOSTS are where the next one lands.
-# `frontend/maquette/serve.py` emits four viewport metas and
-# `frontend/maquette/installable.py` a fifth, and every one of them was outside
+# `webui/serve.py` emits four viewport metas and
+# `webui/installable.py` a fifth, and every one of them was outside
 # this guard while its docstring told the story of a host.
 
 # The two directives, in the spellings a browser accepts: whitespace around the

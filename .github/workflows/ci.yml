@@ -65,24 +65,36 @@ jobs:
       github.event_name == 'push' || github.event.pull_request.draft == false ||
       contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     # On a push to develop nothing is filtered: every scope is read.
+    # On a pull request every output is a filter verdict, combined here — the
+    # changed-file lists never reach a step's environment: a PR renaming a
+    # directory lists thousands of paths (a rename counts its old path AND its
+    # new one) and overflows the runner's argument limit.
     outputs:
-      python: ${{ github.event_name == 'push' && 'true' || steps.raffine.outputs.python }}
+      python: >-
+        ${{ github.event_name == 'push' && 'true' ||
+        (steps.filtre.outputs.python == 'true' || steps.refine.outputs.package == 'true') && 'true' || 'false' }}
       deps: ${{ github.event_name == 'push' && 'true' || steps.filtre.outputs.deps }}
-      frontend_app: ${{ github.event_name == 'push' && 'true' || steps.raffine.outputs.frontend_app }}
+      frontend_app: >-
+        ${{ github.event_name == 'push' && 'true' ||
+        (steps.filtre.outputs.frontend_app == 'true' || steps.refine.outputs.package == 'true') && 'true' || 'false' }}
       maquette: ${{ github.event_name == 'push' && 'true' || steps.filtre.outputs.maquette }}
       docs: ${{ github.event_name == 'push' && 'true' || steps.filtre.outputs.docs }}
-      docs_only: ${{ github.event_name == 'push' && 'false' || steps.raffine.outputs.docs_only }}
+      # Fails safe: a missing `not_docs` verdict reads as "not docs-only".
+      docs_only: >-
+        ${{ github.event_name == 'push' && 'false' ||
+        steps.refine.outputs.not_docs == 'false' && 'true' || 'false' }}
     steps:
       # No checkout: on pull_request events the filter reads the PR file list
       # from the API.
+      # `personalscraper/**` is not in the `python` and `frontend_app` filters
+      # below: it is read by the `package` filter of the next step, and joined
+      # to both in the job outputs.
       - uses: dorny/paths-filter@v3
         id: filtre
         if: github.event_name == 'pull_request'
         with:
-          list-files: json
           filters: |
             python:
-              - 'personalscraper/**'
               - 'tests/**'
               - 'scripts/**'
               - 'config.example/**'
@@ -94,47 +106,47 @@ jobs:
               - '.github/workflows/ci.yml'
             frontend_app:
               - 'frontend/**'
-              - 'personalscraper/**'
+              - 'contract/openapi.generated.json'
               - 'pyproject.toml'
               - '.github/workflows/ci.yml'
             maquette:
-              - 'frontend/maquette/**'
+              - 'webui/**'
+              - 'contract/**'
               - '.github/workflows/ci.yml'
             docs:
               - 'docs/**'
               - 'IMPLEMENTATION.md'
-            everything:
-              - '**'
-      # Refinements the filter's glob language cannot express (negation only
-      # works with the global 'every' quantifier, which would break the plain
-      # filters above):
-      # - `personalscraper/__init__.py` alone is NOT a python change: the
-      #   release bump (scripts/promote.sh release) changes only the version
-      #   there, and counting it as python code would re-run the full suite on
-      #   a one-line PR. A substantive edit to that file virtually always
-      #   accompanies other python changes.
-      # - `frontend/maquette/**` is NOT a frontend-app change: the maquette
-      #   has its own steps, gated by the `maquette` output.
-      - id: raffine
+      # Refinements that need negation, which only the 'every' quantifier
+      # honours — and 'every' would break the plain filters above, hence a
+      # second filter step. 'every' is per FILE: a file matches a filter when
+      # it matches all of its patterns; the filter is 'true' when at least one
+      # changed file matches.
+      # - `package`: `personalscraper/__init__.py` alone is NOT a python change:
+      #   the release bump (scripts/promote.sh release) changes only the
+      #   version there, and counting it as python code would re-run the full
+      #   suite on a one-line PR. A substantive edit to that file virtually
+      #   always accompanies other python changes.
+      # - `not_docs`: some changed file is neither under `docs/` nor a `.md`.
+      #   Docs-only is its negation — the pre-push hook's own definition
+      #   (`hooks/pre-push`): every changed path is under `docs/` or ends in
+      #   `.md` — `BUGS.md` and every root `*.md` included, a nested
+      #   `webui/README.md` too, on purpose: one definition of "docs-only",
+      #   not a second one that can drift from it.
+      # `webui/**` is NOT a frontend-app change, and no `frontend_app` pattern
+      # matches it: the maquette has its own steps, gated by the `maquette` output.
+      - uses: dorny/paths-filter@v3
+        id: refine
         if: github.event_name == 'pull_request'
-        env:
-          PYTHON_FILES: ${{ steps.filtre.outputs.python_files }}
-          FRONTEND_FILES: ${{ steps.filtre.outputs.frontend_app_files }}
-          ALL_FILES: ${{ steps.filtre.outputs.everything_files }}
-        run: |
-          set -euo pipefail
-          python=$(jq -r 'map(select(. != "personalscraper/__init__.py")) | length > 0' <<< "${PYTHON_FILES}")
-          frontend_app=$(jq -r 'map(select(. != "personalscraper/__init__.py" and (startswith("frontend/maquette/") | not))) | length > 0' <<< "${FRONTEND_FILES}")
-          # The pre-push hook's own definition (`hooks/pre-push`): every changed
-          # path is under `docs/` or ends in `.md` — `BUGS.md` and every root
-          # `*.md` included, a nested `frontend/maquette/README.md` too, on purpose:
-          # one definition of "docs-only", not a second one that can drift from it.
-          docs_only=$(jq -r 'all(.[]; startswith("docs/") or endswith(".md"))' <<< "${ALL_FILES}")
-          echo "python=${python}" >> "$GITHUB_OUTPUT"
-          echo "frontend_app=${frontend_app}" >> "$GITHUB_OUTPUT"
-          echo "docs_only=${docs_only}" >> "$GITHUB_OUTPUT"
-          echo "docs_only=${docs_only}"
-          echo "python=${python} frontend_app=${frontend_app}"
+        with:
+          predicate-quantifier: 'every'
+          filters: |
+            package:
+              - 'personalscraper/**'
+              - '!personalscraper/__init__.py'
+            not_docs:
+              - '**'
+              - '!docs/**'
+              - '!**/*.md'
 
   # ── Stage 1: Fast checks (parallel) ───────────────────
   lint:
@@ -159,7 +171,7 @@ jobs:
           restore-keys: pip-${{ runner.os }}-3.12-
       - run: pip install ruff
         if: needs.changes.outputs.python == 'true'
-      - run: ruff check personalscraper/ tests/ scripts/ frontend/maquette/harness/ frontend/scripts/
+      - run: ruff check personalscraper/ tests/ scripts/ webui/harness/ frontend/scripts/
         if: needs.changes.outputs.python == 'true'
       - run: ruff format --check personalscraper/ tests/
         if: needs.changes.outputs.python == 'true'
@@ -191,7 +203,7 @@ jobs:
       - run: python3 scripts/check-component-once.py
       - run: python3 scripts/check-viewport-directives.py
       - run: python3 scripts/check-poster-box.py
-      - run: cd frontend/maquette/design && npm ci && npm run build
+      - run: cd webui/design && npm ci && npm run build
       - run: python3 scripts/check-tailwind-confinement.py
 
   typecheck:
@@ -310,7 +322,7 @@ jobs:
       - run: pip install -e ".[dev]"
         if: needs.changes.outputs.python == 'true'
       # The renaming tool reads JS/TS through `scripts/source-spans.mjs`, which
-      # requires `frontend/maquette/design/node_modules/typescript`. Without it, 13 of the 16
+      # requires `webui/design/node_modules/typescript`. Without it, 13 of the 16
       # tests in `tests/scripts/test_rename_identifiers.py` SKIP here — and that
       # tool is the one about to be pointed at 35 000 lines of `legacy.js`, so
       # its proof has to be exercised where the gate is, not only on a developer
@@ -324,11 +336,11 @@ jobs:
       - name: Install the TypeScript compiler the renaming tool parses through
         if: needs.changes.outputs.python == 'true'
         run: |
-          mkdir -p /tmp/tsonly frontend/maquette/design/node_modules
+          mkdir -p /tmp/tsonly webui/design/node_modules
           cd /tmp/tsonly
           npm install --no-save --no-fund --no-audit typescript@6.0.3
-          cp -R /tmp/tsonly/node_modules/typescript "$GITHUB_WORKSPACE/frontend/maquette/design/node_modules/"
-          node -e "console.log('typescript', require('$GITHUB_WORKSPACE/frontend/maquette/design/node_modules/typescript/package.json').version)"
+          cp -R /tmp/tsonly/node_modules/typescript "$GITHUB_WORKSPACE/webui/design/node_modules/"
+          node -e "console.log('typescript', require('$GITHUB_WORKSPACE/webui/design/node_modules/typescript/package.json').version)"
       # Run the full test suite (tests/) — the previous split into
       # tests/unit/ + tests/integration/ only covered 883 of 5521 tests
       # (~16%), yielding 44% combined coverage (well below fail_under=90).
@@ -407,7 +419,7 @@ jobs:
           # stale (slow install, never wrong).
           cache-dependency-path: |
             frontend/package-lock.json
-            frontend/maquette/design/package-lock.json
+            webui/design/package-lock.json
       # lint:tokens greps with ripgrep; without it the guard used to silently
       # no-op (`rg: command not found` swallowed by `|| true`, 2026-07-15).
       - run: sudo apt-get update && sudo apt-get install -y ripgrep
@@ -420,13 +432,13 @@ jobs:
         working-directory: frontend
       - run: npm ci
         if: needs.changes.outputs.maquette == 'true'
-        working-directory: frontend/maquette/design
+        working-directory: webui/design
       - run: npm run typecheck
         if: needs.changes.outputs.maquette == 'true'
-        working-directory: frontend/maquette/design
+        working-directory: webui/design
       - run: npm test -- --run
         if: needs.changes.outputs.maquette == 'true'
-        working-directory: frontend/maquette/design
+        working-directory: webui/design
       - run: npm run lint
         if: needs.changes.outputs.frontend_app == 'true'
         working-directory: frontend
@@ -454,10 +466,10 @@ jobs:
         if: needs.changes.outputs.frontend_app == 'true'
         env:
           PERSONALSCRAPER_CONFIG: ${{ github.workspace }}/config.example
-      - run: git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts frontend/openapi-v1.json
+      - run: git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts contract/openapi.generated.json
         if: needs.changes.outputs.frontend_app == 'true'
       # The v1 register is computed from two committed documents (the contract and
-      # frontend/openapi-v1.json, fresh by the step above) with the standard library
+      # contract/openapi.generated.json, fresh by the step above) with the standard library
       # alone: a contract-only PR moves it too, so the maquette's changes run it.
       - run: python3 scripts/compare-contracts.py --check --have v1
         if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'

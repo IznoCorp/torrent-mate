@@ -1,7 +1,7 @@
 """The right every v1 operation asks for: one table, every contract operation, served or not.
 
 A lot never decides a right: it copies it from here. The source is the ``x-rights``
-the contract ``frontend/maquette/contract/openapi.json`` stamps on each operation;
+the contract ``contract/openapi.json`` stamps on each operation;
 ``tests/http_v1/test_rights_table.py`` compares the two. Two ruled corrections to the
 contract's session acts: the sign-in operations are :class:`Public`, and the account's
 own writes are ``SignedIn(write=True)``.
