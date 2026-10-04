@@ -67,6 +67,25 @@ def v1_door_admitted_for():
     return v1_door.ADMITTED_FOR
 
 
+def sign_out_at_v1(v1_url, cookie):
+    """Ends a session the way the interface does: v1's `POST /api/v1/auth/logout` with its cookie.
+
+    Args:
+        v1_url: The stand-in v1's base address.
+        cookie: The raw Cookie header value carrying the session.
+
+    Returns:
+        The status v1 answered.
+    """
+    asked = urllib.request.Request(f"{v1_url}/api/v1/auth/logout", data=b"",
+                                   method="POST", headers={"Cookie": cookie})
+    try:
+        with urllib.request.urlopen(asked, timeout=5) as answer:
+            return answer.status
+    except urllib.error.HTTPError as err:
+        return err.code
+
+
 def request_path(path, cookie=None):
     """Performs one GET without following redirects.
 
@@ -171,10 +190,19 @@ async def main():
             # is the cheapest gated answer, and it asks v1 without building the document.
             held, _ = request_path("/assets/x.webp", cookie=cookie)
             check("a session v1 holds is admitted past the gate", held == 404, str(held))
-            v1.sessions.discard(SESSION)
-            time.sleep(v1_door_admitted_for() + 0.5)
+            # ENDED THE WAY THE INTERFACE ENDS IT — v1's sign-out, with the cookie — and not by
+            # reaching into the stand-in: a sign-out that did nothing must leave this red.
+            signed_out = sign_out_at_v1(v1.url, cookie)
+            check("v1's sign-out answers for the session", signed_out == 200, str(signed_out))
+            # THE DOOR REMEMBERS AN ADMISSION FOR A WINDOW (`v1_door.ADMITTED_FOR`), so the
+            # refusal is owed once that window has passed, and the window itself is held short:
+            # a long one would leave a signed-out session open for as long.
+            window = v1_door_admitted_for()
+            check(f"the door's admission window is short ({window} s)", 0 < window <= 10, str(window))
+            time.sleep(window + 0.5)
             ended, _ = request_path("/assets/x.webp", cookie=cookie)
-            check("a session v1 has ended reopens nothing", ended == 401, str(ended))
+            check(f"a session v1 has ended is refused once the {window} s window has passed",
+                  ended == 401, str(ended))
             status_after, _ = request_path("/", cookie="tm_v1_session=")
             check("and neither does an empty one, which is what a cleared cookie leaves",
                   status_after == 401, str(status_after))
