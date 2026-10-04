@@ -55,6 +55,7 @@ from personalscraper.app.library.facts import (
 from personalscraper.app.library.identity import Provider, ref_key
 from personalscraper.app.library.listing import (
     LIBRARY_PAGE_SIZE,
+    MEDIA_FOLDER_DEPTH,
     IndexRow,
     LibrarySort,
     live_episode_pairs,
@@ -259,9 +260,10 @@ class LocalPoster:
 def _folder_poster(mount_path: str, folder: str) -> LocalPoster | None:
     """Read the item-level poster of one media folder, never anything outside it.
 
-    The folder must resolve inside its disk's mount point and the poster file (the name
-    the artwork inventory recognises) must resolve directly inside the folder: a symlink
-    or a ``..`` leading elsewhere is refused, whatever it reaches.
+    The folder must resolve inside its disk's mount point, exactly ``MEDIA_FOLDER_DEPTH``
+    segments below it (a media folder, never a category nor the disk itself), and the
+    poster file (the name the artwork inventory recognises) must resolve directly inside
+    the folder: a symlink or a ``..`` leading elsewhere is refused, whatever it reaches.
 
     Args:
         mount_path: The disk's mount point, as the index names it.
@@ -275,6 +277,8 @@ def _folder_poster(mount_path: str, folder: str) -> LocalPoster | None:
         root = Path(mount_path).resolve(strict=True)
         directory = (root / folder).resolve(strict=True)
         if not directory.is_relative_to(root) or not directory.is_dir():
+            return None
+        if len(directory.relative_to(root).parts) != MEDIA_FOLDER_DEPTH:
             return None
         name = artwork_inventory(directory)["poster"]
         if name is None:

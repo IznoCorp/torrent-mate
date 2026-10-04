@@ -7,6 +7,8 @@ from pathlib import Path
 import pytest
 
 from personalscraper.app.errors import AppNotFound, RefusalCode
+from personalscraper.app.library.listing import mounted_media_folders
+from personalscraper.app.library.service import _folder_poster
 from personalscraper.core.identity import MediaRef
 from tests.unit.app.library.world import World
 
@@ -158,3 +160,40 @@ def test_a_mount_point_in_a_symlink_loop_is_not_found(world: World, tmp_path: Pa
     world.index.movie_file(movie, "films/Heat")
 
     _refused(world, MediaRef(tmdb_id=949))
+
+
+@pytest.mark.parametrize("rel_path", ["films", "", "a/../x"], ids=["category", "empty", "dot-dot"])
+def test_a_folder_that_is_not_a_media_folder_is_never_read(world: World, tmp_path: Path, rel_path: str) -> None:
+    """An index path naming the category or the disk's root, not a media folder: its posters are never served."""
+    root = tmp_path / "disk1"
+    world.index.mount(1, root)
+    for directory in (root / "a" / "x", root / "films"):
+        directory.mkdir(parents=True)
+    for directory in (root, root / "films", root / "a", root / "a" / "x"):
+        (directory / "poster.jpg").write_bytes(_JPEG)
+    movie = world.index.item("Heat", tmdb="949", poster_file=True)
+    world.index.movie_file(movie, rel_path)
+
+    _refused(world, MediaRef(tmdb_id=949))
+
+
+@pytest.mark.parametrize("folder", ["films", "a/..", "a/../films"], ids=["shallow", "root", "category"])
+def test_a_folder_resolving_above_media_depth_is_never_read(tmp_path: Path, folder: str) -> None:
+    """Whatever the index spells, a folder resolving to the disk or a category is never read from."""
+    root = tmp_path / "disk1"
+    for directory in (root / "a", root / "films"):
+        directory.mkdir(parents=True)
+    for directory in (root, root / "films", root / "a"):
+        (directory / "poster.jpg").write_bytes(_JPEG)
+
+    assert _folder_poster(str(root), folder) is None
+
+
+def test_only_paths_naming_a_media_folder_are_media_folders(world: World, tmp_path: Path) -> None:
+    """The index's paths are cut to their media folder; a shallow or dotted one names none."""
+    world.index.mount(1, tmp_path / "disk1")
+    movie = world.index.item("Heat", tmdb="949", poster_file=True)
+    for rel_path in ("films/Heat/Extras", "films", "", "a/../x", "./films/Heat", "films//Heat"):
+        world.index.movie_file(movie, rel_path)
+
+    assert mounted_media_folders(world.index.conn, movie) == [(str(tmp_path / "disk1"), "films/Heat")]
