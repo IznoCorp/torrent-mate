@@ -951,6 +951,137 @@ class TestRefusals:
         _nothing_stored(store)
 
 
+def _no_access(store: AppStore, plextv: _PlexTv) -> str:
+    """No access to this server.
+
+    Args:
+        store: The store.
+        plextv: plex.tv.
+
+    Returns:
+        The machine the door's server answers.
+    """
+    return "REDACTED-machine-9"
+
+
+def _lost_access(store: AppStore, plextv: _PlexTv) -> str:
+    """A linked account whose identity no longer reaches this server.
+
+    Args:
+        store: The store.
+        plextv: plex.tv.
+
+    Returns:
+        The machine the door's server answers.
+    """
+    store.accounts.insert_account(_local("account-gone", "gone@example.org", "household", password=None))
+    store.accounts.upsert_plex_link(_link("account-gone", PLEX_ID, "shared"))
+    return "REDACTED-machine-9"
+
+
+def _owner_mismatch(store: AppStore, plextv: _PlexTv) -> str:
+    """An owned resource under another account than the server's own.
+
+    Args:
+        store: The store.
+        plextv: plex.tv.
+
+    Returns:
+        The machine the door's server answers.
+    """
+    plextv.users[SERVER_TOKEN] = _user(plex_id=900099)
+    return MACHINE
+
+
+def _linked_elsewhere(store: AppStore, plextv: _PlexTv) -> str:
+    """The e-mail's account is another plex.tv identity's.
+
+    Args:
+        store: The store.
+        plextv: plex.tv.
+
+    Returns:
+        The machine the door's server answers.
+    """
+    store.accounts.insert_account(_local("account-taken", EMAIL, "household"))
+    store.accounts.upsert_plex_link(_link("account-taken", 777, "shared"))
+    return SHARED_MACHINE
+
+
+def _cut(store: AppStore, plextv: _PlexTv) -> str:
+    """The identity's account was cut by an Admin.
+
+    Args:
+        store: The store.
+        plextv: plex.tv.
+
+    Returns:
+        The machine the door's server answers.
+    """
+    store.accounts.insert_account(_local("account-cut", "cut@example.org", "household", password=None))
+    store.accounts.upsert_plex_link(_link("account-cut", PLEX_ID, "shared"))
+    store.accounts.set_sign_in_allowed("account-cut", allowed=False, now=2.0)
+    return SHARED_MACHINE
+
+
+def _unconfirmed(store: AppStore, plextv: _PlexTv) -> str:
+    """A local account on an e-mail plex.tv has not confirmed.
+
+    Args:
+        store: The store.
+        plextv: plex.tv.
+
+    Returns:
+        The machine the door's server answers.
+    """
+    store.accounts.insert_account(_local("account-local", EMAIL, "requester"))
+    plextv.users[USER_TOKEN] = _user(confirmed=False)
+    return SHARED_MACHINE
+
+
+class TestDefinitiveRefusal:
+    """A refusal of a proven identity uses the PIN: polling it again asks plex.tv nothing."""
+
+    @pytest.mark.parametrize(
+        "arrange",
+        [_no_access, _lost_access, _owner_mismatch, _linked_elsewhere, _cut, _unconfirmed],
+        ids=["no-access", "lost-access", "owner-mismatch", "linked-elsewhere", "cut", "unconfirmed"],
+    )
+    def test_a_second_poll_after_a_refusal_is_pin_unknown_without_plex_tv(
+        self, store: AppStore, plextv: _PlexTv, clock: _Clock, bus: EventBus, arrange: Any
+    ) -> None:
+        """The first poll refuses and uses the PIN; the next is 400 ``plex.pin_unknown``, plex.tv not asked."""
+        door = _build(store, plextv, _Server(arrange(store, plextv)), clock, bus, None)
+        started = door.start()
+        clock.now += 2.0
+        first = _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
+        assert isinstance(first, (AppUnauthenticated, AppForbidden))
+        assert first.code in (RefusalCode.AUTH_REFUSED, RefusalCode.AUTH_ACCESS_DISABLED)
+        asked = len(plextv.calls)
+        clock.now += 2.0
+
+        second = _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
+
+        assert isinstance(second, AppBadRequest) and second.code is RefusalCode.PLEX_PIN_UNKNOWN
+        assert len(plextv.calls) == asked
+
+    def test_an_unavailable_answer_leaves_the_pin_open(
+        self, door: PlexSignInService, server: _Server, store: AppStore
+    ) -> None:
+        """A 503 is no verdict on the identity: the PIN stays usable."""
+        server.identifier = None
+        clock = _clock_of(door)
+        started = door.start()
+        clock.now += 2.0
+        refusal = _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
+        assert isinstance(refusal, AppUnavailable)
+        row = store.accounts.pin(started.pin_id)
+        assert row is not None and row.consumed_at is None
+        server.identifier = MACHINE
+        clock.now += 2.0
+        assert isinstance(door.finish(started.pin_id, nonce=started.nonce, user_agent=None), SignInResult)
+
+
 class TestPin:
     """The PIN: bound to its browser, checked once a second, used once."""
 

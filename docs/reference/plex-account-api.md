@@ -202,5 +202,8 @@ the owner keeps Admin and his password.
 | plex.tv silent | 503 `plex.unreachable` |
 | no `PLEX_TOKEN`, the server silent, its identifier empty, or plex.tv refusing the server's token | 503 `plex.server_unreachable` |
 
+A refusal `auth.refused` or `auth.access_disabled` uses the PIN: polling it again answers
+`plex.pin_unknown` without asking plex.tv. A 503 leaves the PIN open.
+
 `web.plex_forward_url` (configuration, absolute `http(s)` address, default none) is where plex.tv
 sends the sign-in window once confirmed; it is never derived from a request.

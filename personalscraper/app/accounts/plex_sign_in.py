@@ -285,7 +285,8 @@ class PlexSignInService:
         answers pending without asking plex.tv); the PIN checked; the identity read; the
         server's identifier; the identity's access to it; the owner cross-checked; then the
         account found, linked or created — refused if an Admin cut it —, the PIN used, the
-        token sealed, in one transaction; then the session.
+        token sealed, in one transaction; then the session. A refusal of the proven identity
+        (``auth.refused``, ``auth.access_disabled``) uses the PIN too; a 503 leaves it open.
 
         Args:
             pin_id: The PIN ``start`` answered.
@@ -340,10 +341,18 @@ class PlexSignInService:
             ) from None
         except PlexAccountUnreachable:
             raise AppUnavailable("plex.tv did not answer.", code=RefusalCode.PLEX_UNREACHABLE) from None
+        # A refusal of a proven identity is definitive: the PIN is used, so polling it again
+        # asks plex.tv nothing. An unavailable answer is no verdict and leaves it open.
         if access is PlexServerAccess.NONE:
+            repo.consume_pin(pin_id, now=now)
             log.info("plex_sign_in.refused", reason="no_access", plex_id=plex.plex_id)
             raise AppUnauthenticated("The sign-in was refused.", code=RefusalCode.AUTH_REFUSED)
-        account_id, moved = self._admit(repo, pin_id, plex, access, token)
+        try:
+            account_id, moved = self._admit(repo, pin_id, plex, access, token)
+        except (AppUnauthenticated, AppForbidden):
+            # _admit's transaction rolled back; the PIN is used outside it.
+            repo.consume_pin(pin_id, now=now)
+            raise
         if moved:
             self._bus.emit(AccountRightsChanged(account_ids=(account_id,), cause=RightsChangeCause.PLEX_LINKED))
         return self._accounts.open_proven_session(account_id, user_agent=user_agent)
