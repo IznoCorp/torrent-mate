@@ -589,6 +589,42 @@ class TestServerAccess:
             client.server_access(TOKEN, MACHINE)
 
 
+#: Each call, fed one status, and the error type DESIGN § 3.2 maps it to: only a 401 to a TOKEN
+#: (``account``, ``server_access``) is a refusal; a PIN check carries no token, so its 401 proves
+#: nothing and is « unreachable »; a redirect is never followed, so a 3xx is « unreachable » too.
+_STATUS_TO_ERROR: list[tuple[str, int, type[PlexAccountError]]] = [
+    ("create_pin", 302, PlexAccountUnreachable),
+    ("check_pin", 401, PlexAccountUnreachable),
+    ("check_pin", 403, PlexAccountUnreachable),
+    ("check_pin", 302, PlexAccountUnreachable),
+    ("account", 401, PlexTokenRefused),
+    ("account", 404, PlexAccountUnreachable),
+    ("account", 429, PlexAccountUnreachable),
+    ("account", 302, PlexAccountUnreachable),
+    ("server_access", 401, PlexTokenRefused),
+    ("server_access", 403, PlexAccountUnreachable),
+    ("server_access", 404, PlexAccountUnreachable),
+    ("server_access", 429, PlexAccountUnreachable),
+    ("server_access", 302, PlexAccountUnreachable),
+]
+
+
+class TestStatusSeparation:
+    """DESIGN § 3.2 by type: each status raises exactly the error the gate decides on."""
+
+    @pytest.mark.parametrize(
+        ("name", "status", "expected"), _STATUS_TO_ERROR, ids=[f"{n}-{s}" for n, s, _ in _STATUS_TO_ERROR]
+    )
+    def test_each_status_raises_its_error_type(self, name: str, status: int, expected: type[PlexAccountError]) -> None:
+        """Each status raises its error type, not merely a subclass of the base."""
+        answer = _Response(status, {"errors": [{"code": 1001, "message": "x"}]})
+        client, _ = _client(answer)
+        call = dict(_calls())[name]
+        with pytest.raises(PlexAccountError) as caught:
+            call(client)
+        assert type(caught.value) is expected
+
+
 # ---------------------------------------------------------------------------
 # The token, the PIN code and the e-mail never leak
 # ---------------------------------------------------------------------------
