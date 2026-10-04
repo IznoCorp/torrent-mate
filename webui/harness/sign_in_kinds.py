@@ -66,7 +66,7 @@ ROSTER = """() => ({
   refusal: document.querySelector('[data-field-error]')?.textContent || null })"""
 
 FORCE = """async ([account]) => {
-  const answer = await fetch(`/api/v1/accounts/${account}/password`, { method: 'POST', body: JSON.stringify({ password: 'Correct horse battery 9' }) });
+  const answer = await fetch(`/api/v1/accounts/${account}/password`, { method: 'POST', body: JSON.stringify({ password: 'Correct-horse battery 9' }) });
   return [answer.status, (await answer.json()).code ?? null]; }"""
 
 PANEL = """() => ({
