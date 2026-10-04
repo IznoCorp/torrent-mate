@@ -13,10 +13,11 @@ is worded from ``cli_refusals``.
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NoReturn
 
 import typer
 
+from personalscraper.app.accounts.service import OwnerAlreadySeeded, OwnerPlexIdentity
 from personalscraper.app.accounts.token_vault import (
     MalformedTokenKey,
     NoKeptTokenOpens,
@@ -28,6 +29,7 @@ from personalscraper.app.accounts.token_vault import (
 from personalscraper.app.composition import build_app_services
 from personalscraper.app.errors import AppRefusal, RefusalCode
 from personalscraper.cli_helpers import handle_cli_errors
+from personalscraper.conf.environment import Environment, StoreName, current_environment, store_path
 from personalscraper.config import get_settings
 from personalscraper.i18n import t, t_code
 
@@ -69,16 +71,85 @@ def set_password(
     try:
         services.accounts.set_password(email, password)
     except AppRefusal as exc:
-        code = exc.code if exc.code is not None else RefusalCode.INTERNAL
-        # A list fact (``right.missing``'s rights) is never a placeholder: only scalars are passed.
-        params: dict[str, Any] = {
-            name: value for name, value in exc.params.items() if isinstance(value, (str, int, float))
-        }
-        typer.echo(t_code("cli_refusals", code, **params), err=True)
-        raise typer.Exit(code=1) from None
+        _refuse(exc)
     finally:
         services.close()
     typer.echo(t("cli_accounts.set_password.done", email=email))
+
+
+@accounts_app.command("create-owner", help=t("cli_accounts.create_owner.help"))
+@handle_cli_errors
+def create_owner(
+    ctx: typer.Context,
+    email: str = typer.Argument(..., metavar="EMAIL", help=t("cli_accounts.create_owner.email_help")),
+    name: str = typer.Option(..., "--name", help=t("cli_accounts.create_owner.name_help")),
+    plex_id: int = typer.Option(..., "--plex-id", help=t("cli_accounts.create_owner.plex_id_help")),
+    plex_uuid: str = typer.Option(..., "--plex-uuid", help=t("cli_accounts.create_owner.plex_uuid_help")),
+    plex_username: str = typer.Option(..., "--plex-username", help=t("cli_accounts.create_owner.plex_username_help")),
+) -> None:
+    """Seed the Plex server's owner: an Admin account with a fallback password, linked as the owner.
+
+    Refused under production. The environment and the store it writes come first, so the
+    operator sees where the account lands before typing the password, twice, hidden.
+
+    Args:
+        ctx: Typer context carrying the loaded ``Config`` on ``ctx.obj``.
+        email: The owner's e-mail.
+        name: The display name.
+        plex_id: The owner's plex.tv id.
+        plex_uuid: The owner's plex.tv uuid.
+        plex_username: The owner's plex.tv username.
+
+    Raises:
+        typer.Exit: Code 1 under production, when the two entries differ, when the owner
+            is already an account, or when the account service refuses.
+    """
+    config: Config = ctx.obj.config
+    assert config is not None
+
+    environment = current_environment()
+    if environment is Environment.PROD:
+        typer.echo(t("cli_accounts.create_owner.refused_prod"), err=True)
+        raise typer.Exit(code=1)
+    typer.echo(t("cli_accounts.create_owner.environment", environment=environment.value))
+    typer.echo(
+        t("cli_accounts.create_owner.store", path=str(store_path(config.paths.data_dir, StoreName.APP, environment)))
+    )
+
+    password = typer.prompt(t("cli_accounts.create_owner.prompt"), hide_input=True)
+    repeated = typer.prompt(t("cli_accounts.create_owner.confirm"), hide_input=True)
+    if password != repeated:
+        typer.echo(t("cli_accounts.set_password.mismatch"), err=True)
+        raise typer.Exit(code=1)
+
+    plex = OwnerPlexIdentity(plex_id=plex_id, plex_uuid=plex_uuid, plex_username=plex_username)
+    services = build_app_services(config, get_settings())
+    try:
+        services.accounts.create_owner(email=email, name=name, password=password, plex=plex)
+    except OwnerAlreadySeeded:
+        typer.echo(t("cli_accounts.create_owner.owner_exists"), err=True)
+        raise typer.Exit(code=1) from None
+    except AppRefusal as exc:
+        _refuse(exc)
+    finally:
+        services.close()
+    typer.echo(t("cli_accounts.create_owner.done", email=email))
+
+
+def _refuse(exc: AppRefusal) -> NoReturn:
+    """Word an account service refusal from ``cli_refusals`` and exit.
+
+    Args:
+        exc: The refusal.
+
+    Raises:
+        typer.Exit: Code 1, always.
+    """
+    code = exc.code if exc.code is not None else RefusalCode.INTERNAL
+    # A list fact (``right.missing``'s rights) is never a placeholder: only scalars are passed.
+    params: dict[str, Any] = {name: value for name, value in exc.params.items() if isinstance(value, (str, int, float))}
+    typer.echo(t_code("cli_refusals", code, **params), err=True)
+    raise typer.Exit(code=1) from None
 
 
 def _vault() -> TokenVault:

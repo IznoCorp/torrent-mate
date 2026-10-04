@@ -20,6 +20,7 @@ from personalscraper.app.accounts.passwords import verify_password
 from personalscraper.app.accounts.repository import AccountRow
 from personalscraper.app.store.store import AppStore, build_app_store
 from personalscraper.cli import app as cli_app
+from personalscraper.conf.isolation import ENVIRONMENT_MARKER
 from personalscraper.conf.models.config import Config
 from personalscraper.i18n import Language, use_language
 
@@ -208,3 +209,158 @@ class TestLanguage:
         """The French lines are not the English ones copied over."""
         for namespace, path in (("cli_accounts", ("set_password", "done")), ("cli_refusals", ("account", "unknown"))):
             assert _catalogue_line(Language.FR, namespace, *path) != _catalogue_line(Language.EN, namespace, *path)
+
+
+_OWNER_ARGS = [
+    "accounts",
+    "create-owner",
+    _EMAIL,
+    "--name",
+    "Owner",
+    "--plex-id",
+    "4242",
+    "--plex-uuid",
+    "0f1e2d3c4b5a6978",
+    "--plex-username",
+    "owner",
+]
+
+
+@pytest.fixture
+def dev_data_dir(test_config: Config, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Run as ``dev`` on the synthetic config's ``data_dir``, marked for ``dev``.
+
+    Args:
+        test_config: The synthetic configuration.
+        monkeypatch: Pytest monkeypatch fixture.
+
+    Returns:
+        The data directory, where ``app-dev.db`` lives.
+    """
+    data_dir = test_config.paths.data_dir
+    data_dir.mkdir(parents=True, exist_ok=True)
+    (data_dir / ENVIRONMENT_MARKER).write_text("dev\n", encoding="utf-8")
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "dev")
+    return data_dir
+
+
+def _accounts_in(db: Path) -> list[AccountRow]:
+    """The accounts a store file holds.
+
+    Args:
+        db: The store file.
+
+    Returns:
+        Its accounts.
+    """
+    app_store = AppStore(db)
+    try:
+        return app_store.accounts.accounts()
+    finally:
+        app_store.close()
+
+
+class TestCreateOwner:
+    """``accounts create-owner`` — the server's owner seeded on an environment's empty ``app.db``."""
+
+    def test_seeds_the_owner_in_the_environments_store(
+        self, cli_runner: CliRunner, test_config: Config, dev_data_dir: Path
+    ) -> None:
+        """The environment and the store path come first; two hidden prompts; ``app-dev.db`` holds the owner."""
+        typed = f"{_PASSWORD}\n{_PASSWORD}\n"
+        result = _invoke(cli_runner, test_config, _OWNER_ARGS, typed)
+
+        assert result.exit_code == 0, result.output
+        store_file = dev_data_dir / "app-dev.db"
+        lines = result.stdout.splitlines()
+        assert lines[0] == "Environment: dev"
+        assert lines[1] == f"App store: {store_file}"
+        assert result.stdout.count("Owner's password") == 1
+        assert result.stdout.count("Repeat the owner's password") == 1
+        assert _PASSWORD not in result.output
+        assert lines[-1].startswith(f"Owner {_EMAIL} created")
+        assert not (dev_data_dir / "app.db").exists()
+        (account,) = _accounts_in(store_file)
+        assert account.email == _EMAIL and account.role_id == "admin"
+        assert account.password_hash is not None and verify_password(_PASSWORD, account.password_hash)
+
+    def test_two_different_entries_create_nothing(
+        self, cli_runner: CliRunner, test_config: Config, dev_data_dir: Path
+    ) -> None:
+        """A confirmation that differs: exit 1, the mismatch line, no store opened."""
+        result = _invoke(cli_runner, test_config, _OWNER_ARGS, "one password\nanother\n")
+
+        assert result.exit_code == 1
+        assert "The two passwords differ; nothing was changed." in result.stderr
+        assert not (dev_data_dir / "app-dev.db").exists()
+
+    @pytest.mark.parametrize("value", ["", "prod"])
+    def test_production_is_refused(
+        self, cli_runner: CliRunner, test_config: Config, monkeypatch: pytest.MonkeyPatch, value: str
+    ) -> None:
+        """Under production: exit 1 before any prompt, no store created.
+
+        Args:
+            cli_runner: The runner.
+            test_config: The synthetic configuration.
+            monkeypatch: Pytest monkeypatch fixture.
+            value: ``PERSONALSCRAPER_ENV``, empty or ``prod``.
+        """
+        monkeypatch.setenv("PERSONALSCRAPER_ENV", value)
+
+        result = _invoke(cli_runner, test_config, _OWNER_ARGS, f"{_PASSWORD}\n{_PASSWORD}\n")
+
+        assert result.exit_code == 1
+        assert _catalogue_line(Language.EN, "cli_accounts", "create_owner", "refused_prod") in result.stderr
+        assert "Owner's password" not in result.output
+        assert not (test_config.paths.data_dir / "app.db").exists()
+
+    @pytest.mark.parametrize("language", list(Language))
+    def test_a_second_owner_is_refused_and_the_store_untouched(
+        self, cli_runner: CliRunner, test_config: Config, dev_data_dir: Path, language: Language
+    ) -> None:
+        """The owner already seeded: exit 1, the command's own line in the language in use, the store as it was.
+
+        Args:
+            cli_runner: The runner.
+            test_config: The synthetic configuration.
+            dev_data_dir: The marked ``dev`` data directory.
+            language: The process's language.
+        """
+        typed = f"{_PASSWORD}\n{_PASSWORD}\n"
+        _invoke(cli_runner, test_config, _OWNER_ARGS, typed)
+        store_file = dev_data_dir / "app-dev.db"
+        before = _accounts_in(store_file)
+        other = [*_OWNER_ARGS[:2], "other@example.org", *_OWNER_ARGS[3:]]
+
+        with use_language(language):
+            result = _invoke(cli_runner, test_config, other, typed)
+
+        assert result.exit_code == 1
+        refusal = _catalogue_line(language, "cli_accounts", "create_owner", "owner_exists")
+        assert refusal in result.stderr.splitlines()
+        assert _PASSWORD not in result.output
+        assert _accounts_in(store_file) == before
+
+    def test_the_password_is_never_an_argument(
+        self, cli_runner: CliRunner, test_config: Config, dev_data_dir: Path
+    ) -> None:
+        """``--help`` names no password option; ``--password`` and an extra argument are refused before any prompt."""
+        help_result = _invoke(cli_runner, test_config, ["accounts", "create-owner", "--help"])
+        option = _invoke(cli_runner, test_config, [*_OWNER_ARGS, "--password", _PASSWORD])
+        extra = _invoke(cli_runner, test_config, [*_OWNER_ARGS, _PASSWORD])
+
+        assert help_result.exit_code == 0
+        assert "password" not in help_result.stdout.split("Options")[1].lower()
+        for refused in (option, extra):
+            assert refused.exit_code == 2
+            assert "Owner's password" not in refused.output
+        assert not (dev_data_dir / "app-dev.db").exists()
+
+    def test_the_lines_exist_in_both_languages(self) -> None:
+        """Every line of the command is worded in French and English, and they differ."""
+        catalogue = json.loads((_CATALOGUES / "en" / "cli_accounts.json").read_text(encoding="utf-8"))
+        for key in catalogue["create_owner"]:
+            assert _catalogue_line(Language.FR, "cli_accounts", "create_owner", key) != _catalogue_line(
+                Language.EN, "cli_accounts", "create_owner", key
+            ), key

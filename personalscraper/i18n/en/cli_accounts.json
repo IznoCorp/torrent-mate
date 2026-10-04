@@ -8,6 +8,21 @@
     "mismatch": "The two passwords differ; nothing was changed.",
     "done": "Password set for {{email}}."
   },
+  "create_owner": {
+    "help": "Seed the Plex server's owner on this environment's empty app.db: an Admin account with a fallback password (typed twice at a hidden prompt, never given as an argument), linked as the Plex owner. Refused under production.",
+    "email_help": "The owner's e-mail.",
+    "name_help": "The owner's display name.",
+    "plex_id_help": "The owner's plex.tv id.",
+    "plex_uuid_help": "The owner's plex.tv uuid.",
+    "plex_username_help": "The owner's plex.tv username.",
+    "refused_prod": "The owner is never seeded on production stores: set PERSONALSCRAPER_ENV to dev or staging, with a data directory marked for it. Nothing was changed.",
+    "owner_exists": "The server's owner is already an account (an Admin, or an account linked to the owner's Plex identity): nothing was changed.",
+    "environment": "Environment: {{environment}}",
+    "store": "App store: {{path}}",
+    "prompt": "Owner's password",
+    "confirm": "Repeat the owner's password",
+    "done": "Owner {{email}} created: Admin, signing in by password until Plex sign-in is served."
+  },
   "token_key": {
     "help": "The keys sealing the kept Plex tokens, read from PLEX_TOKEN_KEYS in the environment.",
     "rotate": {

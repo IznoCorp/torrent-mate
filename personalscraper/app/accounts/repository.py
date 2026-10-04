@@ -538,6 +538,18 @@ class AccountRepository:
         return _link(row) if row else None
 
     @serialised
+    def owner_link(self) -> PlexLinkRow | None:
+        """The link of the managed server's owner, whichever account holds it.
+
+        Returns:
+            The first link whose ``server_access`` is ``owner``, or ``None``.
+        """
+        row = self._conn.execute(
+            f"SELECT {_LINK_COLUMNS} FROM plex_link WHERE server_access = 'owner' ORDER BY linked_at, rowid LIMIT 1"  # noqa: S608
+        ).fetchone()
+        return _link(row) if row else None
+
+    @serialised
     def upsert_plex_link(self, link: PlexLinkRow) -> None:
         """Insert an account's Plex link, or replace every field of the existing one.
 
