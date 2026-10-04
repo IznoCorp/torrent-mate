@@ -1,4 +1,4 @@
-"""The media routes: one medium's sheet, its seasons and its rescrape, by provider identity.
+"""The media routes: one medium's sheet, its poster, its seasons and its rescrape, by provider identity.
 
 The contract files them under its ``media`` tag. Each route parses the wire identity
 with :func:`~personalscraper.app.library.identity.parse_media_ref` and makes ONE
@@ -110,6 +110,12 @@ def read_media_poster(
 
     Returns:
         The image, under its media type.
+
+    Raises:
+        AppBadRequest: ``request.invalid`` naming the field at fault (``provider`` or
+            ``providerId``), before any disk is read.
+        AppNotFound: ``media.not_found`` when no row holding the id has a live file, or
+            when none of its folders holds a poster that can be read inside it.
     """
     ref = parse_media_ref(provider.value, provider_id)
     poster = app_services.library.read_local_poster(signed_in, ref)
