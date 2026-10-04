@@ -328,7 +328,7 @@
       },
       "MediaSheet": {
         "additionalProperties": false,
-        "description": "The contract's ``MediaSheet``: one medium's sheet, film or show.\n\nAttributes:\n    title: The title the sheet is filed under.\n    kind: ``movie`` or ``show``.\n    year: The year, or ``None``.\n    rating: The provider's average, or ``None``.\n    genres: The genre tokens, in the provider's order.\n    runtime: Minutes, or ``None``.\n    overview: The synopsis, or ``None``.\n    director: The director, or ``None``.\n    creator: A show's creator, or ``None``.\n    cast: The cast, in the provider's order.\n    cast_portraits: The cast's portrait URLs, keyed by name.\n    trailer: The trailer's title (the provider's first trailer), or ``None``.\n    trailer_video: The trailer's key and name, or ``None`` unless all three are known.\n    ids: Every provider id known.\n    status: Where the medium stands at its provider, or ``None``.\n    owned: Whether the library holds it.\n    episodes: A show's catalogue by season number; unassigned on a film.\n    seasons: A show's seasons as the provider knows them; unassigned on a film.\n    tmdb_television_id: A show's TMDB id; unassigned on a film and on a show without one.\n    poster: The poster's provider URL, or ``None``.\n    poster_high_definition: The poster at gallery definition, or ``None``.\n    hero: The wide visual's URL, or ``None``.\n    metadata_refreshed_at: When the library last read the provider data, or ``None``.",
+        "description": "The contract's ``MediaSheet``: one medium's sheet, film or show.\n\nAttributes:\n    title: The title the sheet is filed under.\n    kind: ``movie`` or ``show``.\n    year: The year, or ``None``.\n    rating: The provider's average, or ``None``.\n    genres: The genre tokens, in the provider's order.\n    runtime: Minutes, or ``None``.\n    overview: The synopsis, or ``None``.\n    director: The director, or ``None``.\n    creator: A show's creator, or ``None``.\n    cast: The cast, in the provider's order.\n    cast_portraits: The cast's portrait URLs, keyed by name.\n    trailer: The trailer's title (the provider's first trailer), or ``None``.\n    trailer_video: The trailer's key and name, or ``None`` unless all three are known.\n    ids: Every provider id known.\n    status: Where the medium stands at its provider, or ``None``.\n    owned: Whether the library holds it.\n    episodes: A show's catalogue by season number; unassigned on a film.\n    seasons: A show's seasons as the provider knows them; unassigned on a film.\n    tmdb_television_id: A show's TMDB id; unassigned on a film and on a show without one.\n    poster: The poster's provider URL, or ``None``.\n    poster_high_definition: The poster at gallery definition, or ``None``.\n    hero: The wide visual's URL, or ``None``.\n    metadata_refreshed_at: The date the library last read the provider data, or ``None``.",
         "properties": {
           "cast": {
             "items": {
@@ -422,7 +422,7 @@
           "metadataRefreshedAt": {
             "anyOf": [
               {
-                "format": "date-time",
+                "format": "date",
                 "type": "string"
               },
               {

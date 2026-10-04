@@ -98,14 +98,14 @@ def test_a_held_movie(world: World) -> None:
 
 
 def test_metadata_refreshed_at_is_the_provider_read_date(world: World) -> None:
-    """« Metadata refreshed » is when the provider data was read (the NFO), never the scan's clock."""
+    """« Metadata refreshed » is the local date the provider data was read (the NFO), never the scan's clock."""
     movie = world.index.item("Heat", tmdb="949", provider_read=1_700_000_000.0)
     world.index.movie_file(movie, "films/Heat")
     world.tmdb.movies["949"] = _movie_details()
 
     sheet = world.service.read_sheet(world.actor, MediaRef(tmdb_id=949))
 
-    assert sheet.metadata_refreshed_at == datetime.fromtimestamp(1_700_000_000.0).astimezone()
+    assert sheet.metadata_refreshed_at == datetime.fromtimestamp(1_700_000_000.0).date()
 
 
 def test_a_held_show(world: World) -> None:

@@ -737,7 +737,7 @@ class LibraryService:
             local_poster=poster_url is None and held is not None and held.has_local_poster,
             poster_high_definition_url=provider_poster,
             hero_url=hero_of(details),
-            metadata_refreshed_at=datetime.fromtimestamp(refreshed).astimezone() if refreshed is not None else None,
+            metadata_refreshed_at=datetime.fromtimestamp(refreshed).date() if refreshed is not None else None,
         )
 
     # ------------------------------------------------------------------ writes

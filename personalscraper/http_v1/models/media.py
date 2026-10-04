@@ -9,7 +9,7 @@ while every required property, null included, is always assigned.
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date
 from typing import Annotated
 
 from pydantic import Field, WithJsonSchema
@@ -148,7 +148,7 @@ class MediaSheet(ContractModel):
         poster: The poster's provider URL, or ``None``.
         poster_high_definition: The poster at gallery definition, or ``None``.
         hero: The wide visual's URL, or ``None``.
-        metadata_refreshed_at: When the library last read the provider data, or ``None``.
+        metadata_refreshed_at: The date the library last read the provider data, or ``None``.
     """
 
     title: str
@@ -173,7 +173,7 @@ class MediaSheet(ContractModel):
     poster: str | None = None
     poster_high_definition: str | None = None
     hero: str | None = None
-    metadata_refreshed_at: datetime | None = None
+    metadata_refreshed_at: date | None = None
 
     @classmethod
     def from_facts(cls, facts: MediaSheetFacts) -> MediaSheet:

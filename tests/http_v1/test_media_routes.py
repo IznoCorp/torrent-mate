@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import dataclasses
 from collections.abc import Callable
-from datetime import UTC, date, datetime
+from datetime import date
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -60,7 +60,7 @@ _FILM = MediaSheetFacts(
     local_poster=False,
     poster_high_definition_url="https://image.tmdb.org/t/p/original/heat.jpg",
     hero_url="https://image.tmdb.org/t/p/original/heat-wide.jpg",
-    metadata_refreshed_at=datetime(2026, 10, 1, 8, 30, tzinfo=UTC),
+    metadata_refreshed_at=date(2026, 10, 1),
 )
 
 _SHOW = MediaSheetFacts(
@@ -198,7 +198,7 @@ class TestReadMediaSheet:
             "poster": "https://image.tmdb.org/t/p/w342/heat.jpg",
             "posterHighDefinition": "https://image.tmdb.org/t/p/original/heat.jpg",
             "hero": "https://image.tmdb.org/t/p/original/heat-wide.jpg",
-            "metadataRefreshedAt": "2026-10-01T08:30:00Z",
+            "metadataRefreshedAt": "2026-10-01",
         }
         assert asked == [("read_sheet", MediaRef(tmdb_id=949))]
 
