@@ -29,6 +29,7 @@ import pathlib
 import re
 import sys
 
+from playwright.async_api import TimeoutError as PlaywrightTimeout
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -521,18 +522,28 @@ async def hold_a_deleted_row_leaves_the_screen(journal, browser):
     if not drawn["title"]:
         await context.close()
         return
-    # ONE TASK, and no network. `setOffline` makes the mutation HELD — the
-    # layer keeps it and invalidates nothing — so nothing but the optimistic
-    # write can take the row off the screen; and the read is a macrotask after
-    # it, which is what « at once, not when the network answers » means. The
-    # store bump the engine's own delete makes is deliberately NOT sent: what is
-    # measured is the query notification alone.
+    # NO NETWORK, and a short bounded wait. `setOffline` makes the mutation
+    # HELD — the layer keeps it and invalidates nothing — so nothing but the
+    # optimistic write can take the row off the screen: waiting up to a second
+    # for the row to go still proves « at once, not when the network answers »,
+    # because the network cannot answer. The bound absorbs a loaded runner
+    # painting the optimistic render a frame late, which a single macrotask
+    # read mistook for « still drawn ». The store bump the engine's own delete
+    # makes is deliberately NOT sent: what is measured is the query
+    # notification alone.
     await page.evaluate("()=>window.__mocks.setOffline(true)")
     await page.evaluate(
-        """(title)=>new Promise((done) => {
+        """(title)=>{
              window.__deleteLibraryItems([...window.__librarySelection([title]).values()]);
-             setTimeout(done, 0);
-           })""", drawn["title"])
+           }""", drawn["title"])
+    try:
+        await page.wait_for_function(
+            """({ row, title }) => ![...document.querySelectorAll(
+                 row + ' [data-part="card/title"]')]
+               .some((node) => node.textContent.trim() === title)""",
+            arg={"row": ROW, "title": drawn["title"]}, timeout=1000)
+    except PlaywrightTimeout:
+        pass
     after = await page.evaluate("""(row) => {
       const inside = row + ' [data-part="card/title"]';
       const titles = [...document.querySelectorAll(inside)]
