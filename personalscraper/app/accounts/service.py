@@ -975,8 +975,10 @@ def _refuse_admin_given_by_another(repo: AccountRepository, actor: Actor) -> Non
 def _refuse_name_taken(repo: AccountRepository, name: str, *, except_id: str | None) -> None:
     """Refuse a role name another role carries, compared trimmed and regardless of case.
 
-    A seeded role never renamed carries no name (its words are the interface's), so it
-    takes none.
+    Case is folded by ``str.lower`` — Unicode's default lowercase mapping, the very one
+    the maquette's ``toLowerCase`` applies — never ``casefold``, which would make
+    « STRASSE » and « straße » one name here and two there. A seeded role never renamed
+    carries no name (its words are the interface's), so it takes none.
 
     Args:
         repo: The account repository.
@@ -986,7 +988,7 @@ def _refuse_name_taken(repo: AccountRepository, name: str, *, except_id: str | N
     Raises:
         AppConflict: ``role.name_taken``.
     """
-    wanted = name.casefold()
+    wanted = name.lower()
     for role in repo.roles():
-        if role.id != except_id and role.name is not None and role.name.strip().casefold() == wanted:
+        if role.id != except_id and role.name is not None and role.name.strip().lower() == wanted:
             raise AppConflict("Another role already carries this name.", code=RefusalCode.ROLE_NAME_TAKEN)

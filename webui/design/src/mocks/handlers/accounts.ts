@@ -148,7 +148,9 @@ function nextRoleId(): string {
 /**
  * Whether another role already carries a name — the contract's rule: the
  * `name` a role carries, trimmed, regardless of case (a seeded role carries
- * none; its words are the interface's).
+ * none; its words are the interface's). Case is folded by `toLowerCase`,
+ * Unicode's default lowercase mapping — the server's `str.lower`, never a
+ * `casefold` the layer could only approximate.
  *
  * @param name The name asked for, trimmed.
  * @param except The role being renamed, which may keep its own name.

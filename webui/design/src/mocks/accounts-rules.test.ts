@@ -123,3 +123,14 @@ describe("the Admin role", () => {
     expect(ask("PATCH", "/accounts/local-account", { role: "admin" }).role?.kind).toBe("admin");
   });
 });
+
+describe("a role's name", () => {
+  beforeEach(() => resetMockState());
+
+  it("compares by Unicode lowercase, as the server does: « STRASSE » and « straße » are two names", () => {
+    expect(ask("POST", "/roles", { name: "STRASSE", rights: [] }).status).toBeUndefined();
+    expect(ask("POST", "/roles", { name: "straße", rights: [] }).status).toBeUndefined();
+    const taken = ask("POST", "/roles", { name: "strasse", rights: [] });
+    expect([taken.status, taken.coded?.code]).toEqual([409, "role.name_taken"]);
+  });
+});

@@ -781,6 +781,15 @@ class TestCreateRole:
         assert refusal.code is RefusalCode.ROLE_NAME_TAKEN
         assert len(store.accounts.roles()) == before
 
+    def test_names_compare_by_unicode_lowercase_as_the_maquette_does(
+        self, accounts: AccountService, admin: Actor
+    ) -> None:
+        """« STRASSE » and « straße » are two names, as ``toLowerCase`` reads them; « strasse » is « STRASSE »."""
+        accounts.create_role(admin, name="STRASSE", rights=[])
+        assert accounts.create_role(admin, name="straße", rights=[]).name == "straße"
+        refusal = _refusal(lambda: accounts.create_role(admin, name="strasse", rights=[]))
+        assert refusal.code is RefusalCode.ROLE_NAME_TAKEN
+
     def test_a_seeded_roles_interface_words_are_free(self, accounts: AccountService, admin: Actor) -> None:
         """A seeded role carries no name (its words are the interface's): « Household » is free."""
         assert accounts.create_role(admin, name="Household", rights=[]).name == "Household"
