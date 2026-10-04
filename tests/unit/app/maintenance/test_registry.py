@@ -243,7 +243,7 @@ def test_destructive_actions_support_dry_run() -> None:
 # ---------------------------------------------------------------------------
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
-_MAQUETTE_SEED = _REPO_ROOT / "frontend/maquette/design/src/mocks/seeds/maintenance-actions.json"
+_MAQUETTE_SEED = _REPO_ROOT / "webui/design/src/mocks/seeds/maintenance-actions.json"
 
 
 def test_maquette_seed_matches_registry() -> None:

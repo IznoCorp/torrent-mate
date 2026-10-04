@@ -36,7 +36,7 @@ backend eventually builds. See D-L08-5.
 ## How to change it
 
 1. Edit `openapi.json`.
-2. Regenerate the types: `npm run generate-contract-types` in `frontend/maquette/design/`.
+2. Regenerate the types: `npm run generate-contract-types` in `webui/design/`.
 3. Recompute the demands: `python3 scripts/compare-contracts.py --write`.
 4. Commit all three together. `--check` refuses a register that does not match the contract, so
    they cannot separate.
@@ -48,4 +48,4 @@ backend eventually builds. See D-L08-5.
 | the seeds match the fixtures they were taken from | `scripts/check-mock-seeds.py --arm correspondence` |
 | every fixture family is classified                | `scripts/check-mock-seeds.py --arm classification` |
 | the register equals the computed diff             | `scripts/compare-contracts.py --check`             |
-| the layer answers the contract, deterministically | `frontend/maquette/harness/mocks.py` (R85)         |
+| the layer answers the contract, deterministically | `webui/harness/mocks.py` (R85)         |

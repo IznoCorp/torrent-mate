@@ -1,7 +1,7 @@
 /**
  * R57 in the app — what a decision IS, checked where the prototype cannot run.
  *
- * `frontend/maquette/harness/decision.py` states the rule against the drawing;
+ * `webui/harness/decision.py` states the rule against the drawing;
  * this states the same rule against the code, so the two cannot drift apart
  * silently. Every check here mirrors one of its checks:
  *

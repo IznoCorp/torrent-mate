@@ -50,7 +50,7 @@ jobs:
         with:
           filters: |
             maquette:
-              - 'frontend/maquette/**'
+              - 'webui/**'
               - 'contract/**'
               - '.github/workflows/harness-full.yml'
               # machine.py (R67) reads the ecosystem's processes (B-686).
@@ -78,8 +78,8 @@ jobs:
       - run: pip install playwright && python -m playwright install --with-deps chromium webkit
       - run: pip install jsonschema
       - run: pip install -e .
-      - run: npm ci --prefix frontend/maquette/design
-      - run: frontend/maquette/harness/run.sh --ci --shard ${{ matrix.shard }}/4
+      - run: npm ci --prefix webui/design
+      - run: webui/harness/run.sh --ci --shard ${{ matrix.shard }}/4
         env:
           TM_HARNESS_LOG_DIR: harness-logs
           # responsive.py's nine passes side by side: its cost is an idle wait per

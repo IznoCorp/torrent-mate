@@ -10,14 +10,14 @@ oracle's served-copy stamp reads — followed shell commands rather than code.
 
 WHERE THIS TEST LIVES, AND WHY IT IS PYTHON. The maquette's own vitest suite
 runs nowhere in continuous integration: the `frontend` job runs `npm run test`
-for `frontend/` and only `npm run typecheck` for `frontend/maquette/design`. A
+for `frontend/` and only `npm run typecheck` for `webui/design`. A
 hold added there would never be read. The `test` job, on the other hand, sets up
 Node 22 — so a Python test driving `node` runs exactly where the gate is, and
 `build-identity.mjs` imports nothing but Node's standard library so it needs no
 `node_modules` at all.
 
 Every test builds a synthetic design tree in a `tmp_path` repository: nothing
-here writes into `frontend/maquette/design/`.
+here writes into `webui/design/`.
 """
 
 from __future__ import annotations

@@ -1,6 +1,6 @@
 """Tests for B-256's lock and stamp — the half that needs no suite running.
 
-`frontend/maquette/harness/served_copy.py` answers two questions about
+`webui/harness/served_copy.py` answers two questions about
 `/tmp/tm-refonte`: who is allowed to rebuild it, and which build is in it. Both
 answers are decided by pure logic over a directory and a JSON file, and both
 have a failure mode that is SILENT by nature — a lock handed to the wrong

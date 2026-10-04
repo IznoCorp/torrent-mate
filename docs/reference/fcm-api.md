@@ -132,14 +132,14 @@ Source: `https://firebase.google.com/docs/cloud-messaging/js/client`.
   worker registration instead (`serviceWorkerRegistration`) — one worker, no second one.
 - The permission is asked from a direct user gesture only.
 - **The token API, settled against the pinned SDK** (`firebase` 12.19.0, exact pin in
-  `frontend/maquette/design/package.json`): `getToken` is marked deprecated there in favour of
+  `webui/design/package.json`): `getToken` is marked deprecated there in favour of
   `register` + `onRegistered`, which deliver a Firebase Installation id (FID), the SDK noting that
   « the backend send API supports FID as a target ». The HTTP v1 reference documents `message.token`
   as an FCM REGISTRATION TOKEN, and that is what `getToken` returns — so the client uses `getToken`.
   The switch to the FID, once Firebase documents it as a v1 target, is confined to
   `src/lib/push-registration.ts`. The SDK is imported lazily, on the device that turns
   notifications on.
-- `frontend/maquette/design/src/lib/push-registration.ts`: `pushSupport()` (`unsupported`,
+- `webui/design/src/lib/push-registration.ts`: `pushSupport()` (`unsupported`,
   `needs-install` — told BEFORE the API check, since a Safari tab on iOS defines no push API —,
   `available` with the permission), `registerPush(config, submit)` (asks first, before any await),
   `refreshPush(config, submit)` (every start, never asks; it re-sends the token only while this
@@ -158,7 +158,7 @@ Source: `https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/`
 `https://firebase.blog/posts/2023/08/fcm-for-safari/`.
 
 - iOS / iPadOS ≥ 16.4, ONLY for a web app added to the home screen with `display: standalone`
-  (the manifest of `frontend/maquette/installable.py` declares it); no Apple developer account.
+  (the manifest of `webui/installable.py` declares it); no Apple developer account.
 - The permission from a direct user gesture — the opening offer's tap (F-3).
 - Every push must SHOW a notification: the worker never stays silent (an unknown code shows the
   catalogue's generic line).
@@ -168,7 +168,7 @@ Source: `https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/`
 
 ## The worker
 
-`frontend/maquette/design/sw.js` — `push` composes the notification from the `push` namespace of
+`webui/design/sw.js` — `push` composes the notification from the `push` namespace of
 `fr.json` (written into the worker at build time at `__PUSH_TEXTS__`; the build refuses a catalogue
 without `push.generic` and a worker where a placeholder survived — `worker-source.mjs`): the code
 looked up as a dotted path, `{{param}}` filled from the JSON-encoded `params`, the generic line for

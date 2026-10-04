@@ -27,7 +27,7 @@ run_check() {
   rm -f "$output"
 }
 
-run_check "ruff check"          python -m ruff check personalscraper/ tests/ scripts/ frontend/maquette/harness/ frontend/scripts/
+run_check "ruff check"          python -m ruff check personalscraper/ tests/ scripts/ webui/harness/ frontend/scripts/
 run_check "ruff format --check" python -m ruff format --check personalscraper/ tests/
 run_check "mypy"                python -m mypy personalscraper/
 

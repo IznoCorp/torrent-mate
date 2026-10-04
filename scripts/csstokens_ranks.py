@@ -51,7 +51,7 @@ import pathlib
 import re
 import sys
 
-DESIGN = pathlib.Path(__file__).resolve().parents[1] / "frontend/maquette/design/src"
+DESIGN = pathlib.Path(__file__).resolve().parents[1] / "webui/design/src"
 LIST_FILE = DESIGN / "ui/variants/frame.ts"
 
 # THE SHELL'S OWN MARKUP. `index.html` carries the phone frame, the topbar, the

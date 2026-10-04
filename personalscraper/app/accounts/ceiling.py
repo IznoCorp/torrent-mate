@@ -2,7 +2,7 @@
 
 Production forbids nothing; the preprod forbids ``library.delete``; the read-only
 clone forbids every write, the session's own included. The ceiling subtracts
-before the role adds (``frontend/maquette/design/src/lib/rights.ts``).
+before the role adds (``webui/design/src/lib/rights.ts``).
 """
 
 from __future__ import annotations

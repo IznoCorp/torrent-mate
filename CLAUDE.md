@@ -31,7 +31,7 @@ One page: `docs/reference/method.md`. The generic lifecycle lives in the skills 
 
 The implement skills read these two lines.
 
-- **Phase gate**: `make lint`; `cd frontend/maquette/design && npm run typecheck && npm test`; pytest of
+- **Phase gate**: `make lint`; `cd webui/design && npm run typecheck && npm test`; pytest of
   the touched modules.
 - **Lot-close gate**: `make check`.
 
@@ -43,7 +43,7 @@ pull request touching the maquette), not on this machine. `make harness` runs th
 - `docs/reference/product-intent.md` is the product constitution: an implementation that conflicts
   with it is wrong. A web PR cites the §§ it serves; a pure conversion (nothing observable changes)
   cites none.
-- The maquette `frontend/maquette/design/` is the next version of the app and REPLACES it; it is not
+- The maquette `webui/design/` is the next version of the app and REPLACES it; it is not
   transposed into the app surface by surface. Its reference is the tokens and the component
   catalogue: `design/src/styles/theme.css`, `design/src/styles/base.css`, and the `variants.ts` of
   `design/src/ui/` and of each surface. It is changed FIRST, a surface is drawn (named states, a
@@ -55,7 +55,7 @@ pull request touching the maquette), not on this machine. `make harness` runs th
   when that is done. (4) The backend follows the interface, after the freeze: a backend limitation
   is recorded, never a reason to draw less.
 - What the maquette must become technically, and the lot order: `docs/reference/frontend-architecture.md`
-  (BINDING). Developer reference of the prototype: `frontend/maquette/README.md`.
+  (BINDING). Developer reference of the prototype: `webui/README.md`.
 
 ## The machine (IznoServer)
 
@@ -120,7 +120,7 @@ document; French inside an English one only quotes UI copy, media titles or the 
 
 - The code has no French and no interface text. Names are English everywhere (identifiers, CSS
   classes, file names, `data-*` attribute names, route paths, named-state ids, tool messages).
-- Every UI string lives in `frontend/maquette/design/src/i18n/fr.json` (the `server` namespace for
+- Every UI string lives in `webui/design/src/i18n/fr.json` (the `server` namespace for
   `serve.py`'s pages). Extract strings, never retype them.
 - A literal that must stay French (rendered output a harness asserts, i18n placeholders, form field
   names, settings config keys) carries `# french-ok: <reason>` / `// french-ok: <reason>`; a pragma
@@ -175,7 +175,7 @@ git: a path cited `path@sha` is read with `git show sha:path`.
 | Post-merge operator checklist | `docs/production/runbook-post-merge.md` |
 | Web UI in production | `docs/production/web-ui.md` |
 | Constitution and its surface map | `docs/reference/product-intent.md`, `docs/reference/product-intent-map.md` |
-| Maquette (prototype reference) | `frontend/maquette/README.md` |
+| Maquette (prototype reference) | `webui/README.md` |
 | Frontend target and lots | `docs/reference/frontend-architecture.md` |
 | Frame model and survey | `docs/reference/frame-model.md`, `docs/reference/frame-survey.md` |
 | Backend demands, and the backend brief (draft) | `docs/reference/backend-demands-architecture.md`, `docs/reference/frontend-backend-demands.md`, `docs/reference/backend-brief.md` |

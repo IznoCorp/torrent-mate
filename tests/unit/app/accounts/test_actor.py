@@ -1,6 +1,6 @@
 """Unit tests for ``personalscraper.app.accounts.actor`` — the maquette's ``rightsOf`` and ``isOwn``.
 
-The model is ``frontend/maquette/design/src/lib/rights.ts``: the ceiling subtracts
+The model is ``webui/design/src/lib/rights.ts``: the ceiling subtracts
 before the role adds, Admin bypasses the list, « own » is membership among the
 requesters or ``acquisition.pilot.any``.
 """

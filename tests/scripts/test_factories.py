@@ -1,6 +1,6 @@
 """Tests for the `cva()` factory reader — pure functions over text, no browser.
 
-`frontend/maquette/harness/factories.py` reads every typed variant's anchor,
+`webui/harness/factories.py` reads every typed variant's anchor,
 base and branches; `resolution_card.py` reads a factory's declaration through
 it. It was R80's reading half, and every defect that rule had lived here.
 

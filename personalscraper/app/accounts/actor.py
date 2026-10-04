@@ -1,7 +1,7 @@
 """The actor: who acts, through which role, under which ceiling.
 
 ``holds`` is the maquette's ``rightsOf`` and ``is_requester`` its ``isOwn``
-(``frontend/maquette/design/src/lib/rights.ts``): one derivation, read by the
+(``webui/design/src/lib/rights.ts``): one derivation, read by the
 perimeter and by every service that filters by right or by membership.
 """
 

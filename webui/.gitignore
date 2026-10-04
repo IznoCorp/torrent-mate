@@ -1,0 +1,35 @@
+# Harness output, regenerated on every run.
+#
+# These screenshots are what the scripts produce while measuring, not what they
+# measure. Tracking them made every test run dirty the worktree with binary
+# diffs — and a worktree that is always dirty is a worktree whose real changes
+# nobody notices.
+harness/*.png
+_probe.html
+
+# What `frontend/.gitignore` gave this tree while it lived under `frontend/`.
+# The repo-root .gitignore ignores `*.ts` (transport streams, for the Python
+# engine): without the negation every TypeScript source here is ignored, and
+# Tailwind, which honours ignore files, stops scanning them.
+!*.ts
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Dependencies, build output, coverage
+node_modules/
+dist/
+dist-ssr/
+coverage/
+*.tsbuildinfo
+
+# Local / editor
+*.local
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store

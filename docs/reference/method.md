@@ -12,7 +12,7 @@ chercher l'efficacité. »
 
 - `docs/reference/product-intent.md` (constitution), `operator-method.md` § 1 (principles) and
   § 3 (decisions), the lots' `DESIGN.md`: his, amended by him alone. A web PR cites the §§ it serves.
-- The maquette (`frontend/maquette/design/`) is the next version of the app and is changed FIRST;
+- The maquette (`webui/design/`) is the next version of the app and is changed FIRST;
   what is in it is validated, the existing is the reference, new work conforms to it.
 - He decides the functional; everything else goes on without him: decide, merge, promote to `main`.
   Deploying `staging` and `prod` is his (operator-method § 3, 10-01): they move on his word only. His
@@ -74,7 +74,7 @@ comes only from a defect that reached him or the product; rigour comes back when
 ## Code
 
 - Durable text in English; only his two documents are French. UI copy in
-  `frontend/maquette/design/src/i18n/fr.json`, never in code; names in English (checked in CI).
+  `webui/design/src/i18n/fr.json`, never in code; names in English (checked in CI).
 - No backward compatibility (09-29). A route change ⇒ `make openapi`, commit the generated files.
 - Conventional Commits, no version prefix, no AI attribution (`hooks/commit-msg`). A PR leaves
   `__version__` alone; the version rises once per release (`scripts/promote.sh release`).
