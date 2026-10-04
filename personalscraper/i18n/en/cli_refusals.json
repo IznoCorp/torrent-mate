@@ -58,5 +58,12 @@
     "reset_admin_only": "Only an Admin resets a password; change your own from your profile.",
     "too_weak": "The password needs at least {{minimum}} characters, including an uppercase letter, a digit and a special character: one of them is missing.",
     "reset_own": "An Admin changes their own password from their profile, with the current one."
+  },
+  "plex": {
+    "unreachable": "plex.tv did not answer; try again later.",
+    "server_unreachable": "The Plex server did not answer; try again later.",
+    "token_refused": "plex.tv refused the sign-in; start it again.",
+    "pin_unknown": "No Plex sign-in started in this browser answers this request; start it again.",
+    "pin_expired": "The Plex sign-in expired; start it again."
   }
 }
