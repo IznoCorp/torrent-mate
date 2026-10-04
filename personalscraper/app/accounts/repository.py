@@ -641,6 +641,25 @@ class AccountRepository:
         """
         self._conn.execute("UPDATE session SET revoked_at = ? WHERE id = ?", (now, session_id))
 
+    @serialised
+    def revoke_sessions_of(self, account_id: str, *, except_id: int | None, now: float) -> int:
+        """Mark every live session of an account revoked, but one.
+
+        Args:
+            account_id: The account.
+            except_id: The session kept live; ``None`` revokes them all.
+            now: The revocation time (epoch seconds).
+
+        Returns:
+            How many sessions were revoked.
+        """
+        # ``id IS NOT NULL`` holds for every row, so ``except_id=None`` spares none.
+        cursor = self._conn.execute(
+            "UPDATE session SET revoked_at = ? WHERE account_id = ? AND revoked_at IS NULL AND id IS NOT ?",
+            (now, account_id, except_id),
+        )
+        return cursor.rowcount
+
     # ── pins, settings ───────────────────────────────────────────────────────
 
     @serialised
