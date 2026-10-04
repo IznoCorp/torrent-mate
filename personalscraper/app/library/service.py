@@ -369,6 +369,22 @@ def _deletable_folder(mounted: tuple[str, str]) -> tuple[Path, Path] | None:
     return resolve_media_folder(mount_path, folder)
 
 
+def _folder_identity(folder: Path) -> tuple[int, int] | None:
+    """Name a folder by its device and inode, whatever spelling reached it.
+
+    Args:
+        folder: A resolved folder.
+
+    Returns:
+        ``(st_dev, st_ino)``, or ``None`` when the folder can no longer be read.
+    """
+    try:
+        stat = folder.stat()
+    except OSError:
+        return None
+    return stat.st_dev, stat.st_ino
+
+
 def _entry(row: IndexRow) -> LibraryEntry:
     """Serve an index row as a library entry.
 
@@ -1090,10 +1106,17 @@ class LibraryService:
                         params=params,
                     )
                 mounted = mounted_media_folders(conn, row.item_id)
-                resolved = [_deletable_folder(one) for one in mounted]
-                # Keyed by the resolved folder: two spellings of one folder (NFC / NFD) delete it once.
-                targets = {found[1]: found for found in resolved if found is not None}
-                unresolved = resolved.count(None)
+                # Keyed by the folder's (device, inode): two spellings of one folder (NFC / NFD,
+                # unequal as paths, one directory on APFS) delete it once.
+                targets: dict[tuple[int, int], tuple[Path, Path]] = {}
+                unresolved = 0
+                for one in mounted:
+                    found = _deletable_folder(one)
+                    identity = _folder_identity(found[1]) if found is not None else None
+                    if found is None or identity is None:
+                        unresolved += 1
+                        continue
+                    targets.setdefault(identity, found)
                 plans.append(
                     _DeletionPlan(
                         ref=ref,

@@ -6,6 +6,7 @@ Temporary folders, a temporary index, a fake Plex and a fake deletion authority 
 from __future__ import annotations
 
 import os
+import unicodedata
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -414,3 +415,21 @@ def test_another_rows_files_in_the_folder_refuse_and_touch_nothing(shelf: Shelf)
     assert shelf.journal() == []
     assert shelf.plex.calls == []
     assert not (shelf.data_dir / "pipeline.lock").exists()
+
+
+def test_two_unicode_spellings_of_one_folder_delete_it_once(shelf: Shelf) -> None:
+    """The index spells the folder NFC and NFD, the disk holds it once: deleted once, rows gone, medium deleted."""
+    nfc = unicodedata.normalize("NFC", "Amélie (2001)")
+    nfd = unicodedata.normalize("NFD", nfc)
+    item, folder = shelf.movie(nfc, "11")
+    if not (shelf.root / "films" / nfd).is_dir():
+        pytest.skip("this filesystem tells NFC and NFD names apart: the two spellings are two folders")
+    shelf.index.movie_file(item, f"films/{nfd}")
+
+    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+
+    assert not folder.exists()
+    assert shelf.rows() == []
+    assert report.deleted == 1
+    [one] = report.media
+    assert (one.folders_deleted, one.folders_failed, one.rows_removed) == (1, 0, 1)
