@@ -12,8 +12,9 @@ chercher l'efficacité. »
 
 - `docs/reference/product-intent.md` (constitution), `operator-method.md` § 1 (principles) and
   § 3 (decisions), the lots' `DESIGN.md`: his, amended by him alone. A web PR cites the §§ it serves.
-- The maquette (`webui/design/`) is the next version of the app and is changed FIRST;
-  what is in it is validated, the existing is the reference, new work conforms to it.
+- The maquette (`webui/design/`) is the v1 frontend, developed together with its backend
+  (product-intent § 15); what is in it is validated, the existing is the reference, new work conforms
+  to it.
 - He decides the functional; everything else goes on without him: decide, merge, promote to `main`.
   Deploying `staging` and `prod` is his (operator-method § 3, 10-01): they move on his word only. His
   feedback corrects what was expected; it enters the lot in flight, whichever lot caused it.

@@ -1,9 +1,10 @@
 # The prototype — this directory IS the product
 
-`design/` is the next version of the TorrentMate web UI, and it REPLACES the shipped app: on
-switchover day `frontend/src` is archived and this directory takes its place. Why, and what is in
-scope, is not restated here: the constitution is `docs/reference/product-intent.md` (§ 15), the
-mission of 2026-08-19 and the authority of this prototype are in `CLAUDE.md` § Authority, the
+`design/` is the v1 TorrentMate web UI, developed together with its backend, and it REPLACES the
+shipped app: at v1's production release every v0 file goes at once and this directory takes its
+place. Why, and what is in scope, is not restated here: the constitution is
+`docs/reference/product-intent.md` (§ 15), the mission and the authority of this prototype are in
+`CLAUDE.md` § Authority, the
 target architecture and the lot order are `docs/reference/frontend-architecture.md`, and where
 the work stands is `IMPLEMENTATION.md`. This file is the developer reference of the prototype.
 
@@ -72,22 +73,12 @@ real files. `npm run typecheck` and `npm test` (vitest) are the fast checks.
 
 ---
 
-## The rule, and it is binding
+## Where a design change lives
 
-> **The prototype is the reference. It is changed FIRST, and the code follows.**
-
-This applies to every future evolution of the interface, not only to the initial rebuild:
-
-1. **A design change starts in the surface's own `variants.ts`, or in `src/styles/theme.css`
-   when it is the vocabulary that moves.** Adjust it there, check it against the harness, then
-   derive the code.
-2. **If a region cannot be built as drawn, amend the prototype and record why.** The code
-   never diverges "temporarily" — a temporary divergence is how an interface turns into a
-   patchwork.
-3. **A divergence found between the app and the prototype is a bug in the app**, unless the
-   prototype is explicitly amended first.
-4. **Nothing ships that the prototype does not show.** A new surface is drawn here before it
-   is coded.
+**The prototype is the v1 frontend, developed together with its backend; the harness is its quality
+control.** A design change starts in the surface's own `variants.ts`, or in `src/styles/theme.css`
+when it is the vocabulary that moves, and is checked against the harness. An interface change shows
+on tm-design, the development environment, before it goes to production.
 
 ## The scale — a design constant is a STEP, and it is declared once
 
@@ -518,30 +509,6 @@ to the real disks — so what the interface owes is the look BEFORE, not a net a
 
 `harness/machine.py` states it, counting both PM2 lists and checking the 26 commands against the
 engine's own registry in both directions.
-
-## A creation opens its own page, with a validated form
-
-The operator, 2026-10-04: « dès qu'on a des créations dans ce genre il faut préférer une page et un
-formulaire avec validation plutôt que tout mettre en vrac sur une page. » It is the rule for every
-creation the interface offers, and it is written here so it is not re-decided per surface:
-
-- **A creation opens its own page** — a screen over the page it belongs to, at its own address
-  (`/accounts/new`, `/accounts/roles/new`), declared in `SCREEN_PARENTS` and reached through
-  `window.__screens`. The control on the list is a link to it: **never a create-at-once on a list
-  page, never a form piled onto the list.**
-- **Required fields are marked**, beside their label.
-- **No default values**: no generated name, no choice made for the reader — a field starts empty and
-  the reader fills it.
-- **Errors are said at the field**, under it, in `fr.json`'s words, once the field was typed into (never
-  on a mere blur, which moves nothing);
-  a refusal the server still answers lands at the field its code belongs to, and only a refusal no
-  field owns is said for the form as a whole.
-- **The create action is enabled only when the form is valid.** Pressed, it creates, then returns to
-  the page the creation belongs to, which draws what was made.
-
-`ui/creation-form.tsx` draws it once — the screen, each field with its mark and its error, the act —
-and a feature hands it its words and its controls. `harness/creation_pages.py` (R525) holds it on
-« Comptes »' two creations.
 
 ## A layer is not a route, and closing one leaves the page alone
 

@@ -4,9 +4,9 @@
 stands** — that is `IMPLEMENTATION.md` § « Where the frontend work stands », and it is the only
 file that says it.
 
-The maquette is the next version of the frontend and it REPLACES the shipped one: on switchover
-day `frontend/src` is archived and `webui/` takes its place (`product-intent.md`
-§15). So every page and every MECHANISM the shipped app has must eventually exist here. The pages
+The maquette is the v1 frontend, developed together with its backend, and it REPLACES the shipped
+one: at v1's production release every v0 file goes at once and `webui/` takes its place
+(`product-intent.md` §15). So every page and every MECHANISM the shipped app has must eventually exist here. The pages
 are the part that is finished. What remains is most of what makes an application, and this file
 is the plan for it.
 
@@ -56,7 +56,7 @@ the day it was taken:
 | Section | What exists today | What it is asked for |
 | --- | --- | --- |
 | **§18 — the ratio is a resource, and it is steered** | `min_ratio` and `min_seed_time` per tracker, read at the grab and at the cross-seed; `obligations`, `stalled-grabs` and `downloads` all answering | **wire them** — nothing calls any of the three — plus one write, since setting a tracker's policy from the surface that shows its ratio exists in neither contract |
-| **§19 — cross-seed is seen and decided** | 797 lines of engine injecting at third parties, emitting `CrossSeedInjected` and `CrossSeedRejected` | **everything**: zero routes in either contract, no event relayed to the stream. D7's case — the interface declares what it requires and the backend follows (§15) |
+| **§19 — cross-seed is seen and decided** | 797 lines of engine injecting at third parties, emitting `CrossSeedInjected` and `CrossSeedRejected` | **everything**: zero routes in either contract, no event relayed to the stream. D7's case — the contract declares what the interface requires and the backend serves it (§15) |
 | **§17 — accounts, rights and Plex identity** | one role, one account, `GET /api/auth/me` saying nothing of rights | **a model, then surfaces.** None of the 53 declared operations concerns another user, a role or a permission. And one requirement on existing code: the read-only role must be ABSORBED by the rights model, never sit beside it — two authorisation paths is NE-DOIT-PAS-7 |
 
 **Its mapping is written and its instrument is placed** (2026-08-29): `docs/reference/product-intent-map.md`,
@@ -76,7 +76,7 @@ stays two objects: the bar, and the index that appears when it serves.
 **Item 1 is a lot since 2026-08-29 — L20, the control station.** `/control` (8 panels) and
 `/pipeline` (10 panels), kept outside this file as pageless, could not stay there once the clause
 map found DOIT-1, DOIT-3, DOIT-5 and DOIT-6 each owed a half only those pages serve. They follow the
-existing method (drawn in the maquette first); where their panels land is the operator's open UX
+existing method; where their panels land is the operator's open UX
 question (`IMPLEMENTATION.md`). L20 depends on L15 and L19 — drawn before the producer template,
 they would be drawn twice.
 
@@ -145,7 +145,7 @@ considered and rejected — see rule 4 below.
    under the screen — read off the emitter of the screen's own opener, not guessed — and that
    parent is **rendered**, not merely recorded (`SCREEN_PARENTS` in `lib/addresses.ts`).
 4. **Up is a separate gesture, and it is drawn.** Back pops; Up climbs one level whatever the
-   path. **NOT delivered** — no lot carries it yet; a surface to be drawn in the maquette first.
+   path. **NOT delivered** — no lot carries it yet; a surface still to be drawn.
 
 **Replaces** the reading under which every screen resolved to the home page (D-8.1) — the
 mechanism behind a reviewed defect where a cold screen address composed a panel's entry over the
@@ -311,19 +311,19 @@ paths), and — this is what makes it schedulable anywhere — `role`, `aria-*` 
 **invisible to the oracle**: they change neither a rectangle nor a computed style. Only element
 substitutions and focus rings are visible, and those are handled as such.
 
-### D7 — The data contract is the maquette's, and it touches no backend
+### D7 — The data contract is the reference between front and back
 
 **Decision.** The maquette declares the contract its interface REQUIRES, as its own artefact
 inside `webui/`. It starts from the contract that already exists
 (`frontend/openapi.json`, generated FROM the backend) and diverges deliberately where the new
 experience needs more. **Every divergence is recorded as a demand on the backend.**
 
-**No backend work happens until the interface is frozen and validated.** The backend follows the
-interface; starting it earlier means rebuilding against a specification that is still moving.
-The recorded divergences ARE that future specification, delivered as a diff rather than a blank
-page.
+**Front and back are developed together against it.** An operation exists when the contract
+describes it; the v1 server serves it, and until it does the mock layer simulates it. On
+tm-design, the development environment, each served operation reaches the real v1 and each
+unserved one stays mocked; a mock goes when v1 serves its operation.
 
-**What must not happen**: transposing production's 11 API modules. Production is archived, not
+**What must not happen**: transposing production's 11 API modules. Production is removed, not
 harvested. Its data layer is a reference for what the replacement must be able to do — never a
 model to copy.
 
@@ -516,8 +516,7 @@ switches follow in Réglages.
 13. **Motion is declared, not scripted** (D9). The single exception is a pointer-driven
     interruptible spring, and it is named where it is used.
 14. **Reduced motion is a designed state, not a fallback.** Every transition and every gesture
-    has a defined appearance under `prefers-reduced-motion`, drawn like any other state — the
-    interface being frozen includes it.
+    has a defined appearance under `prefers-reduced-motion`, drawn like any other state.
 15. **No French in the code and no interface text in the code.** Unchanged
     (`scripts/check-no-french.py`), and it applies to everything written here. **It carried the
     number 10 until 2026-08-29**, alongside the invariant about the frame naming the domain, and
@@ -616,8 +615,8 @@ none of the others: no surface is wired to any of it, which is L09's.
 
 Declared by L10-ter on 2026-08-29, ordered by the operator's answers of 2026-08-30. L14 first
 (pulled forward, Q3); then D5 applied to the sheets — the pass « surface by surface » never made;
-then the global levers; then the constitution's three, each drawn in the maquette first like every
-surface — L16 and L17 still blocked on a dictated answer, L18 no longer.
+then the global levers; then the constitution's three —
+L16 and L17 still blocked on a dictated answer, L18 no longer.
 
 **Re-cut on 2026-09-02, on the steward's inventory of every production surface against the
 maquette.** Nine surfaces had no owner — production draws them, the maquette does not, and no lot
