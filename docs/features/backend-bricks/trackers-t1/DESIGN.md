@@ -59,9 +59,9 @@ each site's public landing page fetched once (no sign-in). CONFIRMED = read in o
 | Grab | the `download` URL the API returns (shape UNKNOWN) | the `enclosure` URL `/torznab/download/{sqid}?apikey=…` (carries the key; 2026-10-04 capture) | `GET /api/v1/torrents/download/{id}` with the `X-API-KEY` header (CONFIRMED) |
 | Categories | 2000 Films, 5000 Séries (no anime, no documentary class) | 2000 Films (2030 SD, 2040 HD, 2045 UHD); 5000 Séries (5030/5040/5045, 5060 Sport, 5070 Animation) | Movies 1, 2, 3, 4, 5, 6, 7, 38; TV 8, 9, 10, 11, 12, 13, 14, 15 (no anime, no documentary) |
 | Rate | Jackett `requestDelay: 2` | **120 requests / minute / key** (definition comment) | UNKNOWN |
-| Site rules in the definition | Jackett's `minimumratio 0.8`, superseded by the members' wiki (read 2026-10-04): aim ≥ 1, floor 0.5 (warning 0.7), HIT AND RUN 48 h in 14 d (§ 5) | members' wiki (read 2026-10-04): ratio floor 0.4 beyond 5 GB downloaded when enforcement is on; HIT AND RUN 48 h cumulated, marked after 7 days absent, no automatic sanction today; `minimumseedtime` 172 800 s per item in the capture (`draupnirr-api.md`) | ratio 1.0, seed 5 days; an account idle 90 days is disabled |
+| Site rules in the definition | Jackett's `minimumratio 0.8`, superseded by the members' wiki (read 2026-10-04): aim ≥ 1, floor 0.5 (warning 0.7), HIT AND RUN 48 h in 14 d (§ 5) | members' wiki (read 2026-10-04): ratio floor 0.4 beyond 5 GB downloaded when enforcement is on; HIT AND RUN 48 h cumulated, marked after 7 days absent, no automatic sanction today; `minimumseedtime` 172 800 s per item in the capture (`draupnirr-api.md`) | members' rules and FAQ (read 2026-10-04): required ratio 0.5 with a 5-day watch; HIT AND RUN 5 days or 1:1 after ≥ 10 % downloaded, freeleech not exempt, 10 days to fix, 5 ⇒ warning, more ⇒ download ban (`digitalcore-api.md`); the Jackett definition's « ratio 1.0, seed 5 days » is superseded; an account idle 90 days is disabled |
 | The secret | an API key, « Réglages → Intégrations », **scoped** (« needs the torznab scope ») | the API key IS the personal announce key (« Profil → Paramètres ») | an API key, « Settings → Security → Generate a new API Key »; a separate passkey (IRC / RSS) |
-| Account statistics (ratio, volumes) | `GET https://api.v3x.club/api/me`, any key scope, Bearer (T-1, § 5) | `GET https://draupnirr.xyz/api/me`, `?apikey=` or `X-Api-Key`, bytes, ratio includes `bonus_upload` (T-1, § 5) | UNKNOWN |
+| Account statistics (ratio, volumes) | `GET https://api.v3x.club/api/me`, any key scope, Bearer (T-1, § 5) | `GET https://draupnirr.xyz/api/me`, `?apikey=` or `X-Api-Key`, bytes, ratio includes `bonus_upload` (T-1, § 5) | **none for a normal key** — profile data is blocked (FAQ, read 2026-10-04) ⇒ ratio UNKNOWN (T-1 = A, § 5) |
 | Upload API | UNKNOWN | UNKNOWN | UNKNOWN |
 | Cross-seed (cross-seed.org) | through a Torznab proxy (Jackett / Prowlarr) | its own Torznab URL; **the site's bot rewrites published film / series names**, so a search by release name can miss an identical release (`draupnirr-api.md`) | through a Torznab proxy |
 
@@ -336,7 +336,7 @@ unless he orders it for a named tracker (§ 18 point 4: never mistreat a tracker
 `Authorization: Bearer <key>`; volumes in **bytes**; fields `{username, uploaded, downloaded, ratio, buffer,
 bonusPoints, freeleechTokens, invitesLeft, seeding, leeching, hitAndRun}` — the ratio the tracker recognises. v3x's
 client therefore composes `AccountStatsReadable` in phase 5. No capture of `/api/me` exists yet (owed at phase 3, in
-`scripts/capture-tracker-sample.py`); `docs/reference/v3x-api.md` carries the detail. digitalcore stays open.
+`scripts/capture-tracker-sample.py`); `docs/reference/v3x-api.md` carries the detail.
 
 **T-1 answered for draupnirr (members' wiki, read 2026-10-04):** `GET https://draupnirr.xyz/api/me`, the passkey as
 `?apikey=` **or** header `X-Api-Key`; volumes in **bytes**; fields `{name, class, credits, invites, freeleech_until,
@@ -344,6 +344,13 @@ uploaded, downloaded, bonus_upload, ratio, seedtime_seconds, uploads_count, hnr_
 `(uploaded + bonus_upload) / downloaded` — the one the tracker recognises, not `uploaded / downloaded` — and `null`
 means infinite, not unknown. draupnirr's client therefore composes `AccountStatsReadable` in phase 5. No capture of
 `/api/me` exists yet (owed at that phase); `docs/reference/draupnirr-api.md` carries the detail.
+
+**T-1 answered for digitalcore (members' rules and FAQ, read 2026-10-04): no endpoint.** A normal API key is
+explicitly blocked from torrent detail, comments, peers, the snatch log, **profile data**, the mailbox, admin and
+edits, so no account-statistics endpoint exists for it. The ratio, the volumes and the HIT AND RUN count are
+**UNKNOWN** in TorrentMate (T-1 = A): `DigitalCoreClient` does NOT claim `AccountStatsReadable`, and phase 5 skips
+it. Reading the site's profile page would be T-1 = B, only if he orders it for this tracker.
+`docs/reference/digitalcore-api.md` carries the detail.
 
 **T-2 — The accounts and the keys he must provide — stays his hand** (none is assumed):
 
@@ -363,10 +370,12 @@ context; the script is reused for any later tracker.
 
 **T-4 = A — the example config ships the three LAST in `priority`, their `economy` commented.** The `economy` block's
 `min_ratio` / `min_seed_time` are the site's rules, which only he reads signed in; he fills each from the site and
-moves ranks in Réglages. Public hints, for him: digitalcore ratio 1.0 and 5 days (its definition), v3x ratio ≥ 1 aimed, floor 0.5 (warning 0.7), HIT AND RUN 48 h
+moves ranks in Réglages. Public hints, for him: digitalcore required ratio 0.5 and HIT AND RUN 5 days or 1:1 after ≥ 10 % downloaded, 10 days to fix (members' rules and FAQ, 2026-10-04), v3x ratio ≥ 1 aimed, floor 0.5 (warning 0.7), HIT AND RUN 48 h
 within 14 days (members' wiki, 2026-10-04), draupnirr ratio floor 0.4 beyond 5 GB downloaded (while enforcement is on) and HIT AND RUN 48 h cumulated (members' wiki, 2026-10-04; `minimumseedtime` 172 800 s per item in the capture);
 digitalcore is an English scene tracker with no French class — its value for a French library is MULTI / VO releases
-and cross-seed.
+and cross-seed. The operator's word: « digitalcore n'est pas un tracker français » — its releases rarely carry French
+audio, so grab and ranking never assume French audio from this tracker; the language is read from the release-name
+tags or its mediainfo, as for any tracker.
 
 ---
 
