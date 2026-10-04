@@ -18,6 +18,10 @@
 // network, never a silent empty object, and never a rejected promise: a mock
 // that answers something to everything hides a missing handler, and one that
 // throws hides the reason.
+//
+// ONE PASS-THROUGH, ON THE DESIGN HOST ALONE (Q1 = A): there, an operation the
+// real v1 serves goes to it (`passthrough.ts`). In every other build the
+// sentence above holds whole.
 import { resolve, settled, type MockRoute } from "./router";
 import { outcomeFor, resetScenario, scenario, setDefaultLatency, setOperationOutcome } from "./scenario";
 import { mockSeeds, type MockSeeds } from "./mock-seeds";
@@ -31,6 +35,7 @@ import { SERVER_BASE } from "../lib/server-base";
 import { identityDials, requestersOf, sessionEnded, signedInRights, type IdentityDials } from "./identity";
 import { OWN_SCOPED, allowed, subjectOf } from "./operation-rights";
 import { declaredRights } from "./declared-rights";
+import { passesThrough, throughNetwork } from "./passthrough";
 
 /** The signature this module replaces. */
 type NetworkCall = typeof globalThis.fetch;
@@ -39,6 +44,9 @@ type NetworkCall = typeof globalThis.fetch;
 // Whether the seam is already in place. NOT the previous implementation: there
 // is no uninstall, so keeping one would be a claim nothing honours.
 let installed = false;
+// The browser's own `fetch`, kept when the seam replaces it: the design host's
+// pass-through is the one caller.
+let network: NetworkCall = (...call) => globalThis.fetch(...call);
 let inFlight = 0;
 // Deliveries dispatched whose fan-out has not been issued yet. A SECOND
 // COUNTER and not a second signal: `quiet()` is the one thing the oracle's
@@ -155,6 +163,11 @@ async function answer(input: RequestInfo | URL, options?: RequestInit): Promise<
       "no mock route",
       `${method} ${address.pathname} is not an operation the maquette's contract declares`,
     );
+  }
+  // THE REAL SERVER FIRST, for what it serves — before a replay, a cut session,
+  // the rights guard or a scenario: the server judges its own operations.
+  if (__DESIGN_HOST__ && passesThrough(found.route.operationId)) {
+    return throughNetwork(network, { operationId: found.route.operationId, method, path: address.pathname }, input, options);
   }
 
   // ALREADY APPLIED — BEFORE the scenario's injected failure is consulted. A key
@@ -308,6 +321,7 @@ function releaseWaiters(): void {
 export function installMockNetwork(): void {
   if (installed) return;
   installed = true;
+  network = globalThis.fetch.bind(globalThis);
   globalThis.fetch = ((input: RequestInfo | URL, options?: RequestInit) => {
     const issued = generation;
     inFlight += 1;

@@ -51,7 +51,7 @@ import { installKeys } from "./keys";
 import { installFocusSpacer } from "./focus-spacer";
 import { installMockNetwork } from "../mocks";
 import { scenario } from "../mocks/scenario";
-import { freezeClock } from "../lib/clock";
+import { bootClock } from "../lib/clock";
 import { installSignedInAvatar } from "../features/account/avatar";
 import { router } from "./router-tree";
 import {
@@ -169,8 +169,9 @@ installPanelHost(store, queryClient);
 if (__MOCKS_BUILT_IN__) {
   installMockNetwork();
   // The page's today is the layer's frozen instant, so the dates the layer
-  // answers and the day they are compared with are one day (`lib/clock.ts`).
-  freezeClock(scenario().now);
+  // answers and the day they are compared with are one day (`lib/clock.ts`) —
+  // everywhere but the design host, which reads the real clock (Q6 = B).
+  bootClock(__DESIGN_HOST__, scenario().now);
 }
 
 // THE NAVIGATION TABLE, PUBLISHED BEFORE THE ENGINE STARTS. The engine's own
