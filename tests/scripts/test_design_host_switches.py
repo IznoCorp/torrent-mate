@@ -452,6 +452,34 @@ def test_the_sign_in_page_says_the_access_was_cut_when_v1_says_so(tmp_path: Path
     assert reason_of(after_sign_in) == words("reasonDisabled")
 
 
+def bad_credentials_shown(body: bytes) -> bool:
+    """Whether the sign-in page shows its « bad credentials » line.
+
+    Args:
+        body: The sign-in page.
+
+    Returns:
+        True when `#loginerr` is drawn without `hidden`.
+    """
+    found = re.search(rb'<[^>]*\bid="loginerr"[^>]*>', body)
+    assert found, "the sign-in page has no #loginerr"
+    return re.search(rb"\shidden\b", found.group(0)) is None
+
+
+def test_a_known_reason_replaces_the_bad_credentials_line(tmp_path: Path) -> None:
+    """A refusal v1 explained says only why; a bare refusal still says the credentials were wrong."""
+    with (
+        stub_v1() as (v1, _),
+        serving(scratch_root(tmp_path, stale=False), TM_DESIGN_V1_URL=v1) as port,
+    ):
+        explained = ask(port, "/?refus=1&why=auth.access_disabled")[2]
+        bare = ask(port, "/?refus=1")[2]
+    assert reason_of(explained) == words("reasonDisabled")
+    assert not bad_credentials_shown(explained)
+    assert bad_credentials_shown(bare)
+    assert reason_of(bare) is None
+
+
 def test_a_plain_first_visit_shows_no_reason_and_a_forged_one_is_never_echoed(tmp_path: Path) -> None:
     """No cookie, an unknown code or markup in `why`: no reason line, and nothing echoed."""
     with (

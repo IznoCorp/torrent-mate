@@ -371,7 +371,8 @@ def login_page(refused: bool, reason: str | None = None, return_to: str = "/") -
     """Builds the login page out of the prototype's own login screen.
 
     Args:
-        refused: True to show the rejection state.
+        refused: True to show the rejection state — the « bad credentials »
+            line, unless `reason` says why instead.
         reason: The key under `server.login` of the words that say why the
             session ended, or None for a plain visit.
         return_to: The same-origin path the page returns to once v1 opens the
@@ -414,7 +415,9 @@ def login_page(refused: bool, reason: str | None = None, return_to: str = "/") -
     markup = v1_door.as_v1_form(markup, v1_door.email_label(TEXTS.read_text(encoding="utf-8")))
     if reason is not None:
         markup = v1_door.with_reason(markup, served_texts()["login"][reason])
-    if refused:
+    # A refusal v1 explained (`auth.access_disabled`) was not a typing mistake:
+    # the reason line says why, and « bad credentials » under it would contradict it.
+    if refused and reason is None:
         markup = markup.replace('id="loginerr" hidden', 'id="loginerr"', 1)
     # Inside the prototype the startup screen is what the document opens on;
     # here it waits for the submit that makes it true.
