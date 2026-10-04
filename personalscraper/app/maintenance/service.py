@@ -12,6 +12,7 @@ guards and the missing-DB rule; it never re-implements ``BEGIN IMMEDIATE``.
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 import subprocess
@@ -25,6 +26,8 @@ from pathlib import Path
 from personalscraper.app._runner_engine import reserve_run_row
 from personalscraper.app.errors import AppConflict, AppInternalError, AppPreconditionRequired, AppValidationError
 from personalscraper.app.maintenance.registry import MaintenanceAction, canonical_options_json
+from personalscraper.app.run_queue import QUEUE_STEP_NAME, QUEUE_WAITING_STATUS
+from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
@@ -90,25 +93,20 @@ def _validate_options(action: MaintenanceAction, body_options: dict[str, object]
                 )
 
 
-def _guard_no_duplicate_action(conn: sqlite3.Connection, command: str, options_json: str, dry_run: bool) -> None:
-    """Raise 409 when the SAME action (same options, same mode) is live.
+def _live_duplicate(conn: sqlite3.Connection, command: str, options_json: str, dry_run: bool) -> str | None:
+    """Find the live run of the SAME action (same options, same mode), if one runs.
 
-    §6 (constitution v2): a busy system is never a reason to refuse — a
-    DIFFERENT action reserves its row and waits in the runner's visible queue
-    (``app/run_queue.py``). The only refusal left is the strict duplicate:
-    same ``command`` AND byte-identical ``options_json`` AND same ``dry_run``
-    mode with a live pid (a dry-run preview during a live apply is NOT the
-    same action). Rows with a dead or NULL pid are stale (crashed runner /
-    pre-pid migration) and are ignored — we never mutate them here.
+    Rows with a dead or NULL pid are stale (crashed runner / pre-pid migration)
+    and are ignored — never mutated here. A pid owned by another user is alive.
 
     Args:
-        conn: An open connection (inside the reserve transaction).
-        command: The action id being launched.
+        conn: An open connection whose ``row_factory`` is ``sqlite3.Row``.
+        command: The action id.
         options_json: Canonical options JSON (byte-compared).
         dry_run: The launch mode, part of the duplicate identity.
 
-    Raises:
-        AppConflict: 409 when the same action with the same options is live.
+    Returns:
+        The live run's ``run_uid``, or ``None`` when none runs.
     """
     rows = conn.execute(
         "SELECT run_uid, pid FROM pipeline_run "
@@ -131,9 +129,127 @@ def _guard_no_duplicate_action(conn: sqlite3.Connection, command: str, options_j
             continue
         except PermissionError:
             # Process exists but owned by another user → treat as alive.
-            raise AppConflict(_DUPLICATE_ACTION_DETAIL)
-        else:
-            raise AppConflict(_DUPLICATE_ACTION_DETAIL)
+            return str(run_uid_db)
+        return str(run_uid_db)
+    return None
+
+
+def _guard_no_duplicate_action(conn: sqlite3.Connection, command: str, options_json: str, dry_run: bool) -> None:
+    """Raise 409 when the SAME action (same options, same mode) is live.
+
+    §6 (constitution v2): a busy system is never a reason to refuse — a
+    DIFFERENT action reserves its row and waits in the runner's visible queue
+    (``app/run_queue.py``). The only refusal left is the strict duplicate:
+    same ``command`` AND byte-identical ``options_json`` AND same ``dry_run``
+    mode with a live pid (a dry-run preview during a live apply is NOT the
+    same action).
+
+    Args:
+        conn: An open connection (inside the reserve transaction).
+        command: The action id being launched.
+        options_json: Canonical options JSON (byte-compared).
+        dry_run: The launch mode, part of the duplicate identity.
+
+    Raises:
+        AppConflict: 409 when the same action with the same options is live.
+    """
+    if _live_duplicate(conn, command, options_json, dry_run) is not None:
+        raise AppConflict(_DUPLICATE_ACTION_DETAIL)
+
+
+def running_run_uid(
+    action: MaintenanceAction, options: Mapping[str, object], *, db_path: Path, dry_run: bool = False
+) -> str | None:
+    """Name the live run of an action with these options, as the duplicate guard sees it.
+
+    The reader behind a caller that answers a duplicate launch with the run already
+    under way instead of a refusal.
+
+    Args:
+        action: The maintenance action.
+        options: Its options, canonicalised as a launch canonicalises them.
+        db_path: Absolute path to ``library.db``.
+        dry_run: The mode the duplicate is sought in.
+
+    Returns:
+        The live run's ``run_uid``, or ``None`` when none runs (or ``library.db`` is absent).
+    """
+    if not db_path.exists():
+        return None
+    conn = sqlite3.connect(str(db_path))
+    try:
+        apply_pragmas(conn)
+        conn.row_factory = sqlite3.Row
+        return _live_duplicate(conn, action.id, canonical_options_json(dict(options)), dry_run)
+    finally:
+        conn.close()
+
+
+def running_run(
+    action: MaintenanceAction, options: Mapping[str, object], *, db_path: Path, data_dir: Path
+) -> LaunchedRun | None:
+    """Name the live run of an action with these options, and whether it waits on the pipeline.
+
+    The joining counterpart of :func:`launch_action`: the same answer for a run already
+    under way as for one just launched.
+
+    Args:
+        action: The maintenance action (a live apply, never a dry run).
+        options: Its options, canonicalised as a launch canonicalises them.
+        db_path: Absolute path to ``library.db``.
+        data_dir: The pipeline data directory holding ``pipeline.lock``.
+
+    Returns:
+        The live run and whether it waits in the visible queue, or ``None`` when none runs.
+    """
+    run_uid = running_run_uid(action, options, db_path=db_path)
+    if run_uid is None:
+        return None
+    queued = action.risk in ("write", "destructive") and _waits_on_pipeline(
+        run_uid, db_path=db_path, lock_file=data_dir / "pipeline.lock"
+    )
+    return LaunchedRun(run_uid=run_uid, queued=queued)
+
+
+def _waits_on_pipeline(run_uid: str, *, db_path: Path, lock_file: Path) -> bool:
+    """Say whether a live run waits for ``pipeline.lock`` rather than runs.
+
+    The run's own ``queue`` step answers once its runner wrote one. Before that, the run
+    waits when another live process holds the lock: a live write holds the lock itself
+    while it runs, so a lock held under the run's own pid is no wait.
+
+    Args:
+        run_uid: The live run.
+        db_path: Absolute path to ``library.db``.
+        lock_file: ``pipeline.lock``.
+
+    Returns:
+        ``True`` when the run waits in the visible queue.
+    """
+    conn = sqlite3.connect(str(db_path))
+    try:
+        apply_pragmas(conn)
+        row = conn.execute("SELECT pid, steps_json FROM pipeline_run WHERE run_uid=?", (run_uid,)).fetchone()
+    finally:
+        conn.close()
+    if row is None:
+        return False
+    pid: int | None = row[0]
+    steps_json: str | None = row[1]
+    try:
+        steps = json.loads(steps_json) if steps_json else []
+    except (json.JSONDecodeError, TypeError):
+        steps = []
+    queue_steps = [step for step in steps if isinstance(step, dict) and step.get("name") == QUEUE_STEP_NAME]
+    if queue_steps:
+        return queue_steps[-1].get("status") == QUEUE_WAITING_STATUS
+    if not is_lock_held(lock_file):
+        return False
+    try:
+        holder = int(lock_file.read_text().strip())
+    except (OSError, ValueError):
+        return False
+    return holder != pid
 
 
 def _guard_recent_dry_run(conn: sqlite3.Connection, action_id: str, options_json: str) -> None:
