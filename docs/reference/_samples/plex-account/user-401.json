@@ -1,0 +1,16 @@
+{
+  "body": {
+    "errors": [
+      {
+        "code": 1001,
+        "message": "User could not be authenticated",
+        "status": 401
+      }
+    ]
+  },
+  "request": {
+    "method": "GET",
+    "path": "/api/v2/user"
+  },
+  "status": 401
+}
