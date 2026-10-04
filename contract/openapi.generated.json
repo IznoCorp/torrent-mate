@@ -2099,7 +2099,7 @@
     },
     "/media/{provider}/{providerId}/poster": {
       "get": {
-        "description": "The poster file the medium's library folder holds, resolved on its disk now.\n\nArgs:\n    provider: The provider the id belongs to.\n    provider_id: The id at that provider.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The image, under its media type.",
+        "description": "The poster file the medium's library folder holds, resolved on its disk now.\n\nArgs:\n    provider: The provider the id belongs to.\n    provider_id: The id at that provider.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The image, under its media type.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming the field at fault (``provider`` or\n        ``providerId``), before any disk is read.\n    AppNotFound: ``media.not_found`` when no row holding the id has a live file, or\n        when none of its folders holds a poster that can be read inside it.",
         "operationId": "readMediaPoster",
         "parameters": [
           {
