@@ -67,6 +67,7 @@ from personalscraper.app.library.listing import (
     LIBRARY_PAGE_SIZE,
     IndexRow,
     LibrarySort,
+    folder_holders,
     live_episode_pairs,
     live_folders,
     matches,
@@ -1020,7 +1021,8 @@ class LibraryService:
             AppConflict: ``library.locked`` while a run holds ``pipeline.lock``;
                 ``media.ambiguous`` (``params.provider`` / ``params.providerId``) when two
                 or more rows, or one row's live files in two or more media folders, hold an
-                id (operator ruling O-5 B). Nothing is deleted.
+                id (operator ruling O-5 B), or when another row holds live files in the
+                medium's media folder. Nothing is deleted.
             AppNotFound: ``media.not_found`` (``params.provider`` / ``params.providerId``)
                 when no index row holds an id. Nothing is deleted.
         """
@@ -1050,7 +1052,8 @@ class LibraryService:
 
         Raises:
             AppNotFound: ``media.not_found`` when no row holds an id.
-            AppConflict: ``media.ambiguous`` when an id is held more than once.
+            AppConflict: ``media.ambiguous`` when an id is held more than once, or when
+                another row holds live files in the medium's media folder.
         """
         plans: list[_DeletionPlan] = []
         seen: set[tuple[Provider, str]] = set()
@@ -1077,6 +1080,15 @@ class LibraryService:
                     # under the first ref that named it.
                     continue
                 planned.add(row.item_id)
+                own = folders.get(row.item_id, set())
+                if any(holders_of - {row.item_id} for holders_of in folder_holders(conn, own).values()):
+                    # Another row's live files sit in this medium's folder: deleting it would
+                    # take them while that row stays live.
+                    raise AppConflict(
+                        "Another library row holds files in this media folder.",
+                        code=RefusalCode.MEDIA_AMBIGUOUS,
+                        params=params,
+                    )
                 mounted = mounted_media_folders(conn, row.item_id)
                 resolved = [_deletable_folder(one) for one in mounted]
                 # Keyed by the resolved folder: two spellings of one folder (NFC / NFD) delete it once.

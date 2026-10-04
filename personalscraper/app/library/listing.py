@@ -61,6 +61,17 @@ _LIVE_FOLDERS_SQL: Final[str] = (
     " WHERE f.deleted_at IS NULL AND s.item_id IN ({ids})"
 )
 
+# Every item's live files, whatever the item: the rule of ``_LIVE_FOLDERS_SQL`` over the
+# whole index (a release of an episode holds no ``item_id`` of its own).
+_ALL_LIVE_FOLDERS_SQL: Final[str] = (
+    "SELECT r.item_id AS item_id, f.path_id AS path_id FROM media_file f"
+    " JOIN media_release r ON r.id = f.release_id WHERE f.deleted_at IS NULL AND r.item_id IS NOT NULL"
+    " UNION ALL"
+    " SELECT s.item_id, f.path_id FROM media_file f JOIN media_release r ON r.id = f.release_id"
+    " JOIN episode e ON e.id = r.episode_id JOIN season s ON s.id = e.season_id"
+    " WHERE f.deleted_at IS NULL"
+)
+
 # A disk holds ``<category folder>/<media folder>[/<sub folder>]``: the media folder
 # is the directory's first two segments (as ``indexer/duplicates.py`` reads it).
 MEDIA_FOLDER_DEPTH: Final[int] = 2
@@ -287,6 +298,37 @@ def live_folders(conn: sqlite3.Connection, item_ids: Sequence[int]) -> dict[int,
         parts = unicodedata.normalize("NFC", rel_path).strip("/").split("/")
         folders.setdefault(item_id, set()).add(f"{disk_id}:{'/'.join(parts[:MEDIA_FOLDER_DEPTH])}")
     return folders
+
+
+def folder_holders(conn: sqlite3.Connection, folders: Iterable[str]) -> dict[str, set[int]]:
+    """Name every item holding live files in some media folders, on the disks the index says are mounted.
+
+    Args:
+        conn: An open connection to ``library.db``.
+        folders: Media folders as :func:`live_folders` names them
+            (``"<disk id>:<category>/<media folder>"``, NFC).
+
+    Returns:
+        ``{folder: {item_id, …}}`` for the folders some item holds live files in (a file in
+        a sub folder counts for its media folder); a folder on an unmounted disk holds none.
+    """
+    wanted = set(folders)
+    disks = sorted({int(folder.split(":", 1)[0]) for folder in wanted})
+    if not disks:
+        return {}
+    marks = ", ".join("?" for _ in disks)
+    query = (
+        "SELECT DISTINCT x.item_id, p.disk_id, p.rel_path FROM (" + _ALL_LIVE_FOLDERS_SQL + ") x"
+        " JOIN path p ON p.id = x.path_id JOIN disk d ON d.id = p.disk_id"
+        f" WHERE d.is_mounted = 1 AND p.disk_id IN ({marks})"
+    )
+    holders: dict[str, set[int]] = {}
+    for item_id, disk_id, rel_path in conn.execute(query, disks):
+        parts = unicodedata.normalize("NFC", rel_path).strip("/").split("/")
+        folder = f"{disk_id}:{'/'.join(parts[:MEDIA_FOLDER_DEPTH])}"
+        if folder in wanted:
+            holders.setdefault(folder, set()).add(item_id)
+    return holders
 
 
 def mounted_media_folders(conn: sqlite3.Connection, item_id: int) -> list[tuple[str, str]]:

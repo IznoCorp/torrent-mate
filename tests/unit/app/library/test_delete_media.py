@@ -396,3 +396,21 @@ def test_one_row_named_by_two_ids_is_deleted_once(shelf: Shelf) -> None:
     assert shelf.rows() == []
     assert (report.deleted, len(report.media)) == (1, 1)
     assert report.media[0].ref == MediaRef(tvdb_id=77)
+
+
+def test_another_rows_files_in_the_folder_refuse_and_touch_nothing(shelf: Shelf) -> None:
+    """Another row holds live files in the medium's folder: 409 ``media.ambiguous``, nothing deleted."""
+    item, folder = shelf.movie("Movie (2020)", "11")
+    other = shelf.index.item("Movie (2020) [Extended]", tmdb="12")
+    shelf.index.movie_file(other, "films/Movie (2020)/extended")
+
+    with pytest.raises(AppConflict) as refused:
+        shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+
+    assert refused.value.code is RefusalCode.MEDIA_AMBIGUOUS
+    assert refused.value.params == {"provider": "tmdb", "providerId": "11"}
+    assert (folder / "movie.mkv").is_file()
+    assert shelf.rows() == [item, other]
+    assert shelf.journal() == []
+    assert shelf.plex.calls == []
+    assert not (shelf.data_dir / "pipeline.lock").exists()
