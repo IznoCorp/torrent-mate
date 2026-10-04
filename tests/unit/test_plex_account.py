@@ -705,8 +705,68 @@ def _calls() -> list[tuple[str, Any]]:
     ]
 
 
+def _planted_success(name: str) -> _Response:
+    """A recorded success answer carrying the planted secrets where plex.tv puts the real ones.
+
+    Args:
+        name: ``pin-claimed``, ``user-200`` or ``resources-owner``.
+
+    Returns:
+        The capture, its PIN code and token, e-mail or resource tokens replaced by the planted values.
+    """
+    sample = _sample(name)
+    body = copy.deepcopy(sample["body"])
+    if name == "pin-claimed":
+        body.update(authToken=TOKEN, code=CODE)
+    elif name == "user-200":
+        body.update(authToken=TOKEN, email=EMAIL)
+    else:
+        for resource in body:
+            resource["accessToken"] = TOKEN
+    return _Response(sample["status"], body)
+
+
+def _successes() -> list[tuple[str, str, Any]]:
+    """Every success path of the client that handles a secret, with the capture it is fed.
+
+    Returns:
+        ``(name, capture, call)`` triples.
+    """
+    return [
+        ("check_pin", "pin-claimed", lambda c: c.check_pin(900001, CODE)),
+        ("account", "user-200", lambda c: c.account(TOKEN)),
+        ("server_access", "resources-owner", lambda c: c.server_access(TOKEN, MACHINE)),
+    ]
+
+
+def _assert_no_secret(name: str, texts: list[str], caplog: pytest.LogCaptureFixture) -> None:
+    """Scan every captured record and text for the planted secrets.
+
+    Args:
+        name: The call under test, for the failure message.
+        texts: The rendered console output, reprs and exception texts already gathered.
+        caplog: The record-level capture.
+    """
+    texts = [caplog.text, *texts]
+    for record in caplog.records:
+        texts += [record.getMessage(), str(record.args), str(record.msg)]
+        assert record.exc_info is None, "a traceback renders frame locals, the headers among them"
+    for text in texts:
+        for secret in _SECRETS:
+            assert secret not in text, f"{name}: a secret reached {text[:80]!r}"
+
+
 class TestNoLeak:
-    """Over every failure path: no log record, rendered line, exception text or repr carries a secret."""
+    """Over every failure and success path: no log record, rendered line, exception text or repr carries a secret.
+
+    The suite bites only on a leak under an INNOCUOUS key. The logger masks a key named
+    ``token`` (``personalscraper/logger.py``, ``_SECRET_KEY_EXACT_RE``), so a
+    ``log.info(..., token=token)`` never reaches a record whatever the client does; the leak it
+    must catch is the one under a name the logger does not know (``detail=token``,
+    ``pin=code``). That is the shape its proof plants: a scratch ``log.info`` carrying the
+    token and the PIN code after the claim, and one carrying the e-mail in ``account()``, each
+    of which fails this suite.
+    """
 
     @pytest.mark.parametrize(
         "failure",
@@ -733,17 +793,27 @@ class TestNoLeak:
             else:
                 raised = None
         rendered = re.sub(r"\x1b\[[0-9;]*m", "", buf.getvalue())
-        texts = [caplog.text, rendered, repr(client)]
+        texts = [rendered, repr(client)]
         if raised is not None:
             texts += [str(raised), repr(raised)]
             assert raised.__cause__ is None, "a token-bearing cause escaped"
             assert raised.__context__ is None, "a token-bearing context escaped"
-        for record in caplog.records:
-            texts += [record.getMessage(), str(record.args), str(record.msg)]
-            assert record.exc_info is None, "a traceback renders frame locals, the headers among them"
-        for text in texts:
-            for secret in _SECRETS:
-                assert secret not in text, f"{name}: a secret reached {text[:80]!r}"
+        _assert_no_secret(name, texts, caplog)
+
+    @pytest.mark.parametrize(("name", "capture", "call"), _successes(), ids=[n for n, _, _ in _successes()])
+    def test_no_secret_on_a_success(self, name: str, capture: str, call: Any, caplog: pytest.LogCaptureFixture) -> None:
+        """A claimed PIN, an identity and a resource list carrying the planted secrets leak none of them."""
+        client, _ = _client(_planted_success(capture))
+        with caplog.at_level(logging.DEBUG), _rendered_console(_logger_name()) as buf:
+            result = call(client)
+        rendered = re.sub(r"\x1b\[[0-9;]*m", "", buf.getvalue())
+        texts = [rendered, repr(client)]
+        # ``check_pin`` returns the token itself, by contract; every other result is scanned too.
+        if name != "check_pin":
+            texts += [repr(result), str(result)]
+        else:
+            assert result == TOKEN
+        _assert_no_secret(name, texts, caplog)
 
     def test_a_transport_failure_is_logged(self, caplog: pytest.LogCaptureFixture) -> None:
         """A transport failure is logged."""
