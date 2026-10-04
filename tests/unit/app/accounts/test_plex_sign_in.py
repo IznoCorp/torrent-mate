@@ -17,6 +17,7 @@ that started it, checked at most once a second, and used by one sign-in only.
 from __future__ import annotations
 
 import copy
+import dataclasses
 import io
 import json
 import logging
@@ -964,17 +965,36 @@ class TestRefusals:
         assert store.accounts.plex_link("account-local") is None
 
     def test_an_account_that_lost_access_is_refused(
-        self, store: AppStore, plextv: _PlexTv, clock: _Clock, bus: EventBus
+        self, store: AppStore, plextv: _PlexTv, clock: _Clock, bus: EventBus, vault: TokenVault
     ) -> None:
-        """A linked account whose identity no longer reaches the server: 401 ``auth.refused``, no session."""
+        """A linked account whose identity no longer reaches the server: 401 ``auth.refused``, no session.
+
+        The link is left as it was: its sealed token, its last sign-in and its access unchanged.
+        """
         store.accounts.insert_account(_local("account-gone", "gone@example.org", "household", password=None))
-        store.accounts.upsert_plex_link(_link("account-gone", PLEX_ID, "shared"))
-        door = _build(store, plextv, _Server("REDACTED-machine-9"), clock, bus, None)
+        store.accounts.upsert_plex_link(
+            dataclasses.replace(
+                _link("account-gone", PLEX_ID, "shared"),
+                token_ciphertext=vault.seal("account-gone", "a token kept before"),
+                token_stored_at=5.0,
+                last_sign_in_at=6.0,
+            )
+        )
+        before = store.accounts.plex_link("account-gone")
+        door = _build(store, plextv, _Server("REDACTED-machine-9"), clock, bus, vault)
 
         refusal = self._finish(door, clock)
 
         assert isinstance(refusal, AppUnauthenticated) and refusal.code is RefusalCode.AUTH_REFUSED
         assert store.accounts._conn.execute("SELECT count(*) FROM session").fetchone()[0] == 0
+        after = store.accounts.plex_link("account-gone")
+        assert before is not None and after is not None
+        assert (after.token_ciphertext, after.token_stored_at, after.last_sign_in_at, after.server_access) == (
+            before.token_ciphertext,
+            5.0,
+            6.0,
+            "shared",
+        )
 
     def test_an_account_an_admin_cut_is_access_disabled_and_nothing_written(
         self, store: AppStore, plextv: _PlexTv, clock: _Clock, bus: EventBus, vault: TokenVault
