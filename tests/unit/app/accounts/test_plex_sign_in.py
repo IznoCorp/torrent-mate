@@ -518,6 +518,18 @@ class TestStart:
         for started in (first, second):
             assert parse_qs(urlsplit(started.sign_in_url).fragment.lstrip("?"))["clientID"] == [identifier]
 
+    def test_the_client_identifier_survives_a_restart(
+        self, store: AppStore, plextv: _PlexTv, server: _Server, clock: _Clock, bus: EventBus
+    ) -> None:
+        """A second door over the same store — the process restarted — answers the same identifier."""
+        first = _build(store, plextv, server, clock, bus, None).start()
+        second = _build(store, plextv, server, clock, bus, None).start()
+
+        identifiers = [
+            parse_qs(urlsplit(started.sign_in_url).fragment.lstrip("?"))["clientID"] for started in (first, second)
+        ]
+        assert identifiers[0] == identifiers[1] == [store.accounts.setting(CLIENT_IDENTIFIER_SETTING)]
+
     def test_the_forward_address_is_the_configured_one(
         self, store: AppStore, plextv: _PlexTv, server: _Server, clock: _Clock, bus: EventBus
     ) -> None:
