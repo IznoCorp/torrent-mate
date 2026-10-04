@@ -247,7 +247,7 @@ def fake_v1(*sessions: str) -> Iterator[_FakeV1]:
         The stand-in: its `url`, its live `sessions` set, and `asked` — the
         cookie of every `auth/me` it answered.
     """
-    state = _FakeV1(set(sessions))
+    stand_in = _FakeV1(set(sessions))
 
     class Handler(http.server.BaseHTTPRequestHandler):
         """Answers v1's two session routes from the stand-in's sessions."""
@@ -266,14 +266,14 @@ def fake_v1(*sessions: str) -> Iterator[_FakeV1]:
         def do_GET(self) -> None:  # noqa: N802 — name imposed by BaseHTTPRequestHandler
             """Answers `auth/me`: 200 for a held session, 401 otherwise."""
             session = self._session()
-            state.asked.append(session)
-            held = self.path == "/api/v1/auth/me" and session in state.sessions
+            stand_in.asked.append(session)
+            held = self.path == "/api/v1/auth/me" and session in stand_in.sessions
             self._answer(200 if held else 401)
 
         def do_POST(self) -> None:  # noqa: N802 — name imposed by BaseHTTPRequestHandler
             """Answers `auth/logout`: ends the session its cookie carries."""
             if self.path == "/api/v1/auth/logout":
-                state.sessions.discard(self._session())
+                stand_in.sessions.discard(self._session())
                 self._answer(200)
                 return
             self._answer(404)
@@ -282,11 +282,11 @@ def fake_v1(*sessions: str) -> Iterator[_FakeV1]:
             """Stays quiet."""
 
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    state.url = f"http://127.0.0.1:{server.server_address[1]}"
+    stand_in.url = f"http://127.0.0.1:{server.server_address[1]}"
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
-        yield state
+        yield stand_in
     finally:
         server.shutdown()
         server.server_close()
