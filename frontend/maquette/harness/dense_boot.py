@@ -16,6 +16,7 @@ which always runs the plain `npm run build` and would silently measure the
 real world twice.
 """
 import asyncio
+import json
 import os
 import pathlib
 import re
@@ -35,6 +36,12 @@ from server import start_server
 COLD_PATH = "acquisition?tab=now"
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+# THE DESIGN HOST'S BUILD ASKS v1 FOR WHAT v1 SERVES (`mocks/passthrough.ts`),
+# and this rule serves it with no v1 behind. On tm-design the real v1 answers:
+# the owner signed in, the version read. The dense leg stands that v1 in at the
+# browser — the seed's owner, a version, and a 404 problem for every other
+# served operation — so what is measured is the boot tm-design really makes.
+SEEDS = ROOT / "design" / "src" / "mocks" / "seeds"
 SCRATCH_HOME = SERVED / "_dense_boot"
 SCRATCH = SCRATCH_HOME / "design"
 
@@ -87,17 +94,50 @@ def build_dense() -> pathlib.Path:
     return dist
 
 
-async def boot_cold(browser, base_url: str) -> dict:
+def v1_owner() -> dict:
+    """The seed's owner, as v1 answers an account.
+
+    Returns:
+        The account, its role the seed's Admin.
+    """
+    seed = json.loads((SEEDS / "account.json").read_text(encoding="utf-8"))
+    roles = json.loads((SEEDS / "accounts.json").read_text(encoding="utf-8"))["roles"]
+    role = next(one for one in roles if one["id"] == seed["role"])
+    return {"id": seed["id"], "name": seed["name"], "email": seed["email"], "role": role,
+            "signInKind": seed["signInKind"], "forbiddenWrites": []}
+
+
+async def stand_in_for_v1(route) -> None:
+    """Answers one request the design host's build sends to v1.
+
+    Args:
+        route: The intercepted request.
+    """
+    path = route.request.url.split("?", 1)[0]
+    if path.endswith("/api/v1/auth/me") or path.endswith("/api/v1/auth/login"):
+        await route.fulfill(status=200, content_type="application/json", body=json.dumps(v1_owner()))
+    elif path.endswith("/api/v1/version"):
+        await route.fulfill(status=200, content_type="application/json",
+                            body=json.dumps({"version": "dense-boot", "commit": "dense-boot"}))
+    else:
+        await route.fulfill(status=404, content_type="application/json", body=json.dumps(
+            {"status": 404, "title": "not stood in", "detail": f"{path} is not answered by this rule's v1"}))
+
+
+async def boot_cold(browser, base_url: str, v1: bool = False) -> dict:
     """Opens `<base_url>acquisition?tab=now` fresh, with no `__go` anywhere in it.
 
     Args:
         browser: A launched Playwright browser.
         base_url: The host's root address, trailing slash included.
+        v1: Whether v1 is stood in for, as the design host's build needs.
 
     Returns:
         What the cold load drew, and the JS errors it raised.
     """
     context = await browser.new_context(**PHONE)
+    if v1:
+        await context.route("**/api/v1/**", stand_in_for_v1)
     page = await context.new_page()
     errors: list[str] = []
     page.on("pageerror", lambda e: errors.append(str(e)))
@@ -145,7 +185,7 @@ async def main() -> None:
             # own build will be, never through `serve.py`.
             dist = build_dense()
             with start_server(dist) as port:
-                dense = await boot_cold(browser, f"http://127.0.0.1:{port}/")
+                dense = await boot_cold(browser, f"http://127.0.0.1:{port}/", v1=True)
                 journal.check(
                     "a cold tm-design boot (`--mode design-host`) opens dense, "
                     "with no __go, no JS error",

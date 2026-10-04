@@ -48,11 +48,15 @@ def fresh_design_copy(tmp_path: Path) -> Path:
 
     Returns:
         The copy's root, its `node_modules` a link to the installed one. The
-        contract it imports sits beside it, as `../contract` does in the tree.
+        contract it imports sits beside it, as `../contract` does in the tree,
+        and the document v1 serves two levels up, as `frontend/openapi-v1.json`
+        does: the design host's passthrough imports it, and every build resolves
+        the import before dropping it.
     """
     copy = tmp_path / "maquette" / "design"
     copy.mkdir(parents=True)
     shutil.copytree(MAQUETTE / "contract", tmp_path / "maquette" / "contract")
+    shutil.copy2(MAQUETTE.parent / "openapi-v1.json", tmp_path / "openapi-v1.json")
     shutil.copytree(DESIGN / "src", copy / "src", ignore=shutil.ignore_patterns(".claude"))
     for name in BUILD_FILES:
         shutil.copy2(DESIGN / name, copy / name)

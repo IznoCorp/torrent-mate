@@ -143,6 +143,13 @@ export default defineConfig(({ mode }) => ({
     // `run.sh` (`npm run build`, no mode), the unit suite — keeps Vite's default
     // mode and therefore the real world, unchanged.
     __DESIGN_HOST_START_DENSE__: JSON.stringify(mode === "design-host"),
+    // WHETHER THIS IS THE DESIGN HOST'S OWN BUILD (the operator, 2026-10-04;
+    // Q1 = A, Q6 = B). On tm-design the operations v1 serves go to the real
+    // server (`mocks/passthrough.ts`) and the page reads the real clock. Every
+    // other build — the harness's, the unit suite's, continuous integration's —
+    // is false: full mocks, frozen clock, and the passthrough dropped from the
+    // bundle with its document.
+    __DESIGN_HOST__: JSON.stringify(mode === "design-host"),
   },
   // The prototype references `assets/...` itself; nothing else is public.
   publicDir: false,
