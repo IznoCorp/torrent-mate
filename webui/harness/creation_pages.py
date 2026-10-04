@@ -221,7 +221,7 @@ async def main():
         journal.check("6: a role a newcomer starts on, held by nobody, offers no Delete (ruling A)",
                       not await offered("accounts-role-default-unheld"))
         held = await page.evaluate(CALL, ["DELETE", "/api/v1/roles/requester", None])
-        default = await page.evaluate(CALL, ["DELETE", "/api/v1/roles/local-guest", None])
+        default = await page.evaluate(CALL, ["DELETE", "/api/v1/roles/plex-guest", None])
         journal.check("6: forced, they answer 409 role.in_use and 409 role.default",
                       (held, default) == ({"status": 409, "code": "role.in_use"}, {"status": 409, "code": "role.default"}),
                       str((held, default)))

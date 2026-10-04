@@ -991,7 +991,7 @@ class TestDeleteRole:
             ("nobody", 404, RefusalCode.ROLE_UNKNOWN),
             ("admin", 409, RefusalCode.ROLE_SYSTEM_IMMUTABLE),
             ("plex-guest", 409, RefusalCode.ROLE_DEFAULT),
-            ("local-guest", 409, RefusalCode.ROLE_DEFAULT),
+            ("household", 409, RefusalCode.ROLE_DEFAULT),
             ("manager", 409, RefusalCode.ROLE_IN_USE),
         ],
         ids=["unknown", "admin", "default-unheld", "default-held", "held"],

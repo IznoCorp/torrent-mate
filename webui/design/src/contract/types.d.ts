@@ -2816,8 +2816,8 @@ export interface components {
             kind: "admin" | "ordinary";
             /** @description the rights it carries — empty for `admin`, which bypasses the list */
             rights: components["schemas"]["Right"][];
-            /** @description WHO STARTS ON THIS ROLE (O-K1-4), applied at creation or link only, never recomputed: `plexHome` — a Plex Home user of the managed server at its first sign-in or link (Membre du foyer); `plexGuest` — any other user of the server (Invité Plex); `local` — a local account created without a role (Invité). Absent for a role nobody starts on. */
-            defaultFor?: ("plexHome" | "plexGuest" | "local")[];
+            /** @description WHO STARTS ON THIS ROLE (O-K1-4), applied at creation or link only, never recomputed: `plexHome` — a Plex Home user of the managed server at its first sign-in or link (Membre du foyer); `plexGuest` — any other user of the server (Invité Plex). A local account has no start kind: its role is chosen at its creation (the operator, 2026-10-04). Absent for a role nobody starts on. */
+            defaultFor?: ("plexHome" | "plexGuest")[];
         };
         /** @description An account named by another answer — a requester, a chooser's row. */
         AccountRef: {

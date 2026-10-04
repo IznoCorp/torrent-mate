@@ -145,10 +145,10 @@ export function creationStates(): NamedState[] {
     ],
     [
       "accounts-role-default-unheld",
-      "Comptes — le rôle de départ des comptes locaux, tenu par personne : Supprimer absent",
+      "Comptes — le rôle de départ des invités Plex, tenu par personne : Supprimer absent",
       () => {
-        window.__mocks?.setAccountRole("local-guest", "requester");
-        rolePanel("local-guest");
+        window.__mocks?.setAccountRole("plex-without-rights", "requester");
+        rolePanel("plex-guest");
       },
     ],
     [

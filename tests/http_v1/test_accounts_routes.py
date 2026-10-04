@@ -95,7 +95,7 @@ class TestReadAccounts:
             "id": "account-guest",
             "name": "account-guest",
             "email": "account-guest@example.org",
-            "role": {"id": "local-guest", "kind": "ordinary", "rights": ["library.read"], "defaultFor": ["local"]},
+            "role": {"id": "local-guest", "kind": "ordinary", "rights": ["library.read"]},
             "signInKind": "local",
             "signInAllowed": True,
         }
@@ -394,7 +394,6 @@ class TestUpdateRole:
             "name": "Visitors",
             "kind": "ordinary",
             "rights": ["library.read", "trackers.view"],
-            "defaultFor": ["local"],
         }
 
     def test_the_admin_role_is_409(self, v1_client: Callable[..., TestClient]) -> None:
@@ -431,6 +430,11 @@ class TestDeleteRole:
         assert response.status_code == 200
         assert response.json() == {"ok": True}
         assert created["id"] not in [role["id"] for role in client.get("/accounts").json()["roles"]]
+
+    def test_the_seeded_local_guest_role_held_by_nobody_is_deleted(self, v1_client: Callable[..., TestClient]) -> None:
+        """No newcomer starts on « local-guest » any more: an ordinary role, deleted when nobody holds it."""
+        response = v1_client(role="admin").delete("/roles/local-guest")
+        assert response.status_code == 200
 
     @pytest.mark.parametrize(
         ("role_id", "status", "code"),

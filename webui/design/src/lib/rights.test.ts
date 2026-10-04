@@ -43,7 +43,7 @@ describe("the rights of an account are its role's", () => {
       ["household", "ordinary", ["plexHome"]],
       ["plex-guest", "ordinary", ["plexGuest"]],
       ["requester", "ordinary", []],
-      ["local-guest", "ordinary", ["local"]],
+      ["local-guest", "ordinary", []],
     ]);
     const rightsOfRole = (id: string) => ACCOUNTS.roles.find((role) => role.id === id)!.rights;
     // Demandeur carries Membre du foyer's rights, Invité Invité Plex's: the library alone.

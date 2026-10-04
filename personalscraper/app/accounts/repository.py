@@ -27,8 +27,9 @@ from personalscraper.app.accounts.rights import Right
 from personalscraper.core.sqlite import serialised
 from personalscraper.core.sqlite._migrate import safe_rollback
 
-#: What a new account starts as: a Plex Home member, a Plex guest, a local account.
-StartKind = Literal["plexHome", "plexGuest", "local"]
+#: Who starts on a role at a first sign-in or a link: a Plex Home member, a Plex guest. A local
+#: account has none — its role is chosen at its creation.
+StartKind = Literal["plexHome", "plexGuest"]
 
 
 @dataclass(frozen=True)

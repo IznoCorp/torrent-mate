@@ -102,10 +102,10 @@ function keepsAnAdmin(accounts: HeldAccount[]): boolean {
 /**
  * The role a newcomer of one kind starts on (O-K1-4).
  *
- * @param kind Who starts: a Plex Home user, another user of the server, a local account.
+ * @param kind Who starts: a Plex Home user, another user of the server.
  * @returns The role, or undefined when none is marked for it.
  */
-function startingRole(kind: "plexHome" | "plexGuest" | "local"): Role | undefined {
+function startingRole(kind: "plexHome" | "plexGuest"): Role | undefined {
   return roles().find((one) => one.defaultFor?.includes(kind));
 }
 

@@ -359,8 +359,7 @@
                 "items": {
                   "enum": [
                     "plexHome",
-                    "plexGuest",
-                    "local"
+                    "plexGuest"
                   ],
                   "type": "string"
                 },

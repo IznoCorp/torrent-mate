@@ -1371,8 +1371,7 @@
       "demotedShort": "rôle de départ depuis sa liaison Plex",
       "defaultFor": {
         "plexHome": "Rôle de départ des utilisateurs Plex Home du serveur Plex, à leur première connexion ou à leur liaison.",
-        "plexGuest": "Rôle de départ des autres utilisateurs du serveur Plex, à leur première connexion ou à leur liaison.",
-        "local": "Rôle de départ d'un compte local créé sans rôle choisi."
+        "plexGuest": "Rôle de départ des autres utilisateurs du serveur Plex, à leur première connexion ou à leur liaison."
       },
       "provisionalPassword": "Mot de passe provisoire (compte local)",
       "reset": {

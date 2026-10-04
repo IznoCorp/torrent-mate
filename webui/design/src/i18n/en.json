@@ -1371,8 +1371,7 @@
       "demotedShort": "starting role since its Plex link",
       "defaultFor": {
         "plexHome": "Starting role of the Plex Home users of the Plex server, at their first sign-in or when they are linked.",
-        "plexGuest": "Starting role of the other users of the Plex server, at their first sign-in or when they are linked.",
-        "local": "Starting role of a local account created with no role chosen."
+        "plexGuest": "Starting role of the other users of the Plex server, at their first sign-in or when they are linked."
       },
       "provisionalPassword": "Temporary password (local account)",
       "reset": {
