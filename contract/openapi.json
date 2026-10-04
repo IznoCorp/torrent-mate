@@ -1067,6 +1067,76 @@
         "description": "Refused 404 `media.not_found` when the provider does not know the id, 503 `provider.unavailable` when the provider does not answer."
       }
     },
+    "/media/{provider}/{providerId}/poster": {
+      "get": {
+        "operationId": "readMediaPoster",
+        "x-rights": "library.read",
+        "summary": "The poster file a medium's library folder holds",
+        "description": "The image the library folder of the medium the identity names holds, read at request time on its disk: what `MediaSheet.poster` points at when the provider names no poster and the folder has one. Refused 404 `media.not_found` when the library holds no such medium, its disk is not mounted, or its folder holds no poster.",
+        "tags": [
+          "media"
+        ],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "tvdb",
+                "tmdb",
+                "imdb"
+              ]
+            },
+            "description": "the provider the identifier belongs to"
+          },
+          {
+            "name": "providerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the identifier at that provider"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the poster image",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/media/{provider}/{providerId}/cross-seed": {
       "get": {
         "operationId": "readMediaCrossSeed",
@@ -8420,7 +8490,7 @@
               "string",
               "null"
             ],
-            "description": "the poster's address: the provider's image URL (TMDB or TVDB artwork), or null when it has none. The maquette's mock layer answers its own build-local copies of the same pictures in their place."
+            "description": "the poster's address: the provider's image URL (TMDB or TVDB artwork); else, when the library folder holds the poster, the address of `readMediaPoster` for this medium (`/api/v1/media/{provider}/{providerId}/poster`); else null. The maquette's mock layer answers its own build-local copies of the same pictures in their place."
           },
           "posterHighDefinition": {
             "type": [

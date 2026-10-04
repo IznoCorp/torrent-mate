@@ -4,7 +4,8 @@ Each route parses the identity and makes ONE ``LibraryService`` call; these test
 the wire: the bodies' shapes (the film sheet without its show-only block), the statuses
 and ``Problem`` codes the contract declares, the rights each operation asks, and the
 read-only clone refusing the rescrape. The facts themselves are proved in
-``tests/unit/app/library``; here the service answers fixed facts.
+``tests/unit/app/library``; here the service answers fixed facts, save one poster read
+served end to end by the real service over a fixture index.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Callable
 from datetime import date
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -30,10 +32,17 @@ from personalscraper.app.library.facts import (
     refuse_not_found,
 )
 from personalscraper.app.library.identity import Provider
-from personalscraper.app.library.service import LibraryService, RescrapeAccepted, SeasonFacts, SeasonsFacts
+from personalscraper.app.library.service import (
+    LibraryService,
+    LocalPoster,
+    RescrapeAccepted,
+    SeasonFacts,
+    SeasonsFacts,
+)
 from personalscraper.conf.models.config import Config
 from personalscraper.core.identity import MediaRef
 from tests.http_v1.test_deprecations import _client as v0_client
+from tests.unit.app.library.world import FixtureIndex
 
 _FILM = MediaSheetFacts(
     title="Heat",
@@ -291,6 +300,117 @@ class TestReadMediaSheet:
         assert response.status_code == 403
         assert (response.json()["code"], response.json()["params"]) == ("right.missing", {"rights": ["library.read"]})
         assert asked == []
+
+    def test_a_folder_poster_is_served_by_the_poster_route(
+        self, v1_client: Callable[..., TestClient], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """No provider poster, one in the library folder: ``poster`` is the v1 poster route of that identity."""
+        local = dataclasses.replace(_SHOW, owned=True, local_poster=True)
+        monkeypatch.setattr(LibraryService, "read_sheet", lambda self, actor, ref: local)
+
+        body = v1_client(rights=_READ).get("/media/tvdb/79168").json()
+
+        assert body["poster"] == "/api/v1/media/tvdb/79168/poster"
+        assert body["posterHighDefinition"] is None
+
+    def test_no_poster_anywhere_is_null(
+        self, v1_client: Callable[..., TestClient], asked: list[tuple[str, MediaRef]]
+    ) -> None:
+        """No provider poster and none in the folder: ``poster`` stays null."""
+        assert v1_client(rights=_READ).get("/media/tvdb/79168").json()["poster"] is None
+
+
+class TestReadMediaPoster:
+    """``GET /media/{provider}/{providerId}/poster``."""
+
+    @pytest.fixture
+    def posters(self, monkeypatch: pytest.MonkeyPatch) -> list[MediaRef]:
+        """Answer the service's poster read: a PNG for ``tvdb/79168``, ``media.not_found`` otherwise.
+
+        Args:
+            monkeypatch: Pytest's monkeypatch fixture.
+
+        Returns:
+            The ref of every call, in order.
+        """
+        calls: list[MediaRef] = []
+
+        def read_local_poster(self: LibraryService, actor: object, ref: MediaRef) -> LocalPoster:
+            """The folder's PNG for the held show, a refusal for anything else."""
+            calls.append(ref)
+            if ref.tvdb_id != 79168:
+                raise refuse_not_found("tvdb")
+            return LocalPoster(content=b"\x89PNG\r\n\x1a\nposter", media_type="image/png")
+
+        monkeypatch.setattr(LibraryService, "read_local_poster", read_local_poster)
+        return calls
+
+    def test_the_folder_poster_is_answered_with_its_media_type(
+        self, v1_client: Callable[..., TestClient], posters: list[MediaRef]
+    ) -> None:
+        """200: the file's bytes, under its media type."""
+        response = v1_client(rights=_READ).get("/media/tvdb/79168/poster")
+
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "image/png"
+        assert response.content == b"\x89PNG\r\n\x1a\nposter"
+        assert posters == [MediaRef(tvdb_id=79168)]
+
+    def test_the_library_folder_poster_is_served_end_to_end(
+        self, v1_client: Callable[..., TestClient], test_config: Config, tmp_path: Path
+    ) -> None:
+        """The real service over a fixture index: the folder's ``poster.png``, its bytes under ``image/png``."""
+        library_db = Path(test_config.indexer.db_path)
+        library_db.parent.mkdir(parents=True, exist_ok=True)
+        index = FixtureIndex(library_db)
+        index.mount(1, tmp_path / "disk1")
+        movie = index.item("Heat", tmdb="949", poster_url=None, poster_file=True)
+        index.movie_file(movie, "films/Heat (1995)")
+        folder = tmp_path / "disk1" / "films" / "Heat (1995)"
+        folder.mkdir(parents=True)
+        (folder / "poster.png").write_bytes(b"\x89PNG\r\n\x1a\nposter")
+        index.conn.close()
+
+        response = v1_client(rights=_READ).get("/media/tmdb/949/poster")
+
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "image/png"
+        assert response.content == b"\x89PNG\r\n\x1a\nposter"
+
+    def test_no_poster_is_not_found(self, v1_client: Callable[..., TestClient], posters: list[MediaRef]) -> None:
+        """No medium, no mounted folder or no poster in it: 404 ``media.not_found``."""
+        response = v1_client(rights=_READ).get("/media/tvdb/1/poster")
+
+        assert response.status_code == 404
+        assert response.json()["code"] == "media.not_found"
+
+    def test_a_malformed_id_is_a_bad_request(
+        self, v1_client: Callable[..., TestClient], posters: list[MediaRef]
+    ) -> None:
+        """A TVDB id that is not a positive integer: 400 ``request.invalid``, no disk read."""
+        response = v1_client(rights=_READ).get("/media/tvdb/abc/poster")
+
+        assert response.status_code == 400
+        assert response.json()["code"] == "request.invalid"
+        assert posters == []
+
+    def test_no_session_is_unauthenticated(self, v1_client: Callable[..., TestClient], posters: list[MediaRef]) -> None:
+        """No session: the perimeter's 401, no disk read."""
+        response = v1_client(role=None).get("/media/tvdb/79168/poster")
+
+        assert response.status_code == 401
+        assert response.json()["code"] == "auth.required"
+        assert posters == []
+
+    def test_without_library_read_it_is_forbidden(
+        self, v1_client: Callable[..., TestClient], posters: list[MediaRef]
+    ) -> None:
+        """A role without ``library.read``: 403 ``right.missing`` naming it, no disk read."""
+        response = v1_client(rights=_RESCRAPE).get("/media/tvdb/79168/poster")
+
+        assert response.status_code == 403
+        assert (response.json()["code"], response.json()["params"]) == ("right.missing", {"rights": ["library.read"]})
+        assert posters == []
 
 
 class TestReadMediaSeasons:

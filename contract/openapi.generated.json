@@ -2331,6 +2331,105 @@
         "summary": "Read Media Sheet"
       }
     },
+    "/media/{provider}/{providerId}/poster": {
+      "get": {
+        "description": "The poster file the medium's library folder holds, resolved on its disk now.\n\nArgs:\n    provider: The provider the id belongs to.\n    provider_id: The id at that provider.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The image, under its media type.\n\nRaises:\n    AppBadRequest: ``request.invalid`` naming the field at fault (``provider`` or\n        ``providerId``), before any disk is read.\n    AppNotFound: ``media.not_found`` when no row holding the id has a live file, or\n        when none of its folders holds a poster that can be read inside it.",
+        "operationId": "readMediaPoster",
+        "parameters": [
+          {
+            "description": "the provider the identifier belongs to",
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Provider",
+              "description": "the provider the identifier belongs to"
+            }
+          },
+          {
+            "description": "the identifier at that provider",
+            "in": "path",
+            "name": "providerId",
+            "required": true,
+            "schema": {
+              "description": "the identifier at that provider",
+              "title": "Providerid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "the poster image"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Read Media Poster"
+      }
+    },
     "/media/{provider}/{providerId}/rescrape": {
       "post": {
         "description": "Ask the providers for one medium's metadata again.\n\nArgs:\n    provider: The provider the id belongs to.\n    provider_id: The id at that provider.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The acceptance: running now, or visibly in file.",

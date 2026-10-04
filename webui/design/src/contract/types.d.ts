@@ -261,6 +261,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/media/{provider}/{providerId}/poster": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The poster file a medium's library folder holds
+         * @description The image the library folder of the medium the identity names holds, read at request time on its disk: what `MediaSheet.poster` points at when the provider names no poster and the folder has one. Refused 404 `media.not_found` when the library holds no such medium, its disk is not mounted, or its folder holds no poster.
+         */
+        get: operations["readMediaPoster"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/media/{provider}/{providerId}/cross-seed": {
         parameters: {
             query?: never;
@@ -2189,7 +2209,7 @@ export interface components {
             seasons?: components["schemas"]["SeasonSummary"][];
             /** @description the TMDB television identifier, on the eleven sheets that carry one — a string, as the fixture holds it */
             tmdbTelevisionId?: string;
-            /** @description the poster's address: the provider's image URL (TMDB or TVDB artwork), or null when it has none. The maquette's mock layer answers its own build-local copies of the same pictures in their place. */
+            /** @description the poster's address: the provider's image URL (TMDB or TVDB artwork); else, when the library folder holds the poster, the address of `readMediaPoster` for this medium (`/api/v1/media/{provider}/{providerId}/poster`); else null. The maquette's mock layer answers its own build-local copies of the same pictures in their place. */
             poster?: string | null;
             /** @description the poster at gallery definition: the provider's image URL, or null — the same as `poster` */
             posterHighDefinition?: string | null;
@@ -3529,6 +3549,37 @@ export interface operations {
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
+        };
+    };
+    readMediaPoster: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the provider the identifier belongs to */
+                provider: "tvdb" | "tmdb" | "imdb";
+                /** @description the identifier at that provider */
+                providerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the poster image */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
         };
     };
     readMediaCrossSeed: {

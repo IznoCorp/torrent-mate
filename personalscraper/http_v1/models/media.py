@@ -176,14 +176,16 @@ class MediaSheet(ContractModel):
     metadata_refreshed_at: date | None = None
 
     @classmethod
-    def from_facts(cls, facts: MediaSheetFacts) -> MediaSheet:
+    def from_facts(cls, facts: MediaSheetFacts, local_poster_url: str) -> MediaSheet:
         """Map a sheet's facts; a film's sheet leaves the show-only properties unassigned.
 
-        A poster the library folder alone holds (``local_poster``) has no URL to serve yet:
-        ``poster`` is ``None`` until an image route answers it.
+        A poster the library folder alone holds (``local_poster``) is served by
+        ``readMediaPoster``: ``poster`` is that route's URL. ``posterHighDefinition`` stays
+        the provider's alone.
 
         Args:
             facts: The service's facts.
+            local_poster_url: ``readMediaPoster``'s URL for the medium the sheet was asked by.
 
         Returns:
             The body.
@@ -222,7 +224,7 @@ class MediaSheet(ContractModel):
             ids=dict(facts.ids),
             status=facts.status,
             owned=facts.owned,
-            poster=facts.poster_url,
+            poster=local_poster_url if facts.local_poster else facts.poster_url,
             poster_high_definition=facts.poster_high_definition_url,
             hero=facts.hero_url,
             metadata_refreshed_at=facts.metadata_refreshed_at,
