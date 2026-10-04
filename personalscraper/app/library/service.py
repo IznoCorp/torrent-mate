@@ -81,6 +81,7 @@ from personalscraper.app.library.listing import (
 )
 from personalscraper.app.maintenance.registry import REGISTRY, MaintenanceAction
 from personalscraper.app.maintenance.service import LaunchedRun, launch_action, running_run
+from personalscraper.conf.environment import Environment, current_environment
 from personalscraper.conf.preprod_guard import PreprodGuardError
 from personalscraper.core.artwork_naming import artwork_inventory
 from personalscraper.core.delete_permit import DeletePermit
@@ -1225,6 +1226,9 @@ class LibraryService:
     def _told_plex(self, done: Sequence[_Deleted]) -> DeletionReport:
         """Tell Plex of every deleted folder at once, and fold its steps into each medium's report.
 
+        Under ``staging`` (preprod) Plex is never told (``PlexOutcome.SKIPPED_PREPROD``):
+        the bundle clean purges the whole server, outside the preprod guard's roots.
+
         Args:
             done: Each medium's deletion and the surviving parents of its deleted folders.
 
@@ -1232,15 +1236,18 @@ class LibraryService:
             The request's report.
         """
         parents = [parent for one in done for parent in one.survivors]
+        preprod = current_environment() is Environment.STAGING
         steps = (
             follow_up_plex(self._plex, parents, sleep=self._sleep, clock=self._monotonic)
-            if self._plex is not None and parents
+            if self._plex is not None and parents and not preprod
             else {}
         )
         media: list[MediaDeletion] = []
         for one in done:
             report = one.deletion
-            if one.survivors and self._plex is None:
+            if one.survivors and preprod:
+                report = replace(report, plex=PlexOutcome.SKIPPED_PREPROD)
+            elif one.survivors and self._plex is None:
                 report = replace(report, plex=PlexOutcome.NOT_CONFIGURED)
             elif one.survivors:
                 mine = [steps[parent] for parent in one.survivors]

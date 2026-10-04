@@ -529,3 +529,26 @@ def test_an_index_write_failure_is_reported_and_the_request_goes_on(
     assert (two.folders_deleted, two.rows_removed, two.deleted) == (1, 1, True)
     assert one.plex is PlexOutcome.REFRESHED and two.plex is PlexOutcome.REFRESHED
     assert ("refresh", str(shelf.root / "films")) in shelf.plex.calls
+
+
+def test_under_staging_plex_is_never_told(shelf: Shelf, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Preprod deletes inside its roots, and never asks Plex (its bundle clean is server-wide): reported skipped."""
+    from personalscraper.conf import preprod_guard
+
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "staging")
+    monkeypatch.setattr(preprod_guard, "is_mounted", lambda path: True)
+    (shelf.root / preprod_guard.PREPROD_ROOT_MARKER).write_bytes(b"")
+    shelf.service._config = SimpleNamespace(  # type: ignore[assignment]
+        disks=[SimpleNamespace(path=shelf.root)],
+        paths=SimpleNamespace(staging_dir=shelf.root),
+        torrent=SimpleNamespace(clients={}),
+    )
+    _, folder = shelf.movie("Movie (2020)", "11")
+
+    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11)])
+
+    assert not folder.exists()
+    assert shelf.rows() == []
+    assert shelf.plex.calls == []
+    assert report.deleted == 1
+    assert (report.media[0].plex, report.media[0].plex_steps) == (PlexOutcome.SKIPPED_PREPROD, None)

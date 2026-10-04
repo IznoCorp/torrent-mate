@@ -80,6 +80,9 @@ class PlexOutcome(StrEnum):
     """No Plex server is configured: nothing was asked."""
     NOT_NEEDED = "not_needed"
     """No folder of the medium was deleted: Plex was left alone."""
+    SKIPPED_PREPROD = "skipped_preprod"
+    """Under ``staging`` (preprod), Plex is never told: its bundle clean is a server-wide
+    purge no preprod guard bounds (operator ruling Q7 A)."""
 
 
 @dataclass(frozen=True)
