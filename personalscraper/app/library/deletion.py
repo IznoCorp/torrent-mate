@@ -1,7 +1,7 @@
 """Deletion by medium: what a deletion reports, and the steps after its folders go (K2-10).
 
 :meth:`LibraryService.delete_media <personalscraper.app.library.service.LibraryService.delete_media>`
-validates every reference, then deletes each medium's folder through the one folder-deletion
+validates every reference, then deletes each medium's folders through the one folder-deletion
 primitive (``indexer/deletion.py``). This module holds what follows a folder's deletion, each
 step reported, none rolled back:
 
@@ -150,8 +150,10 @@ class MediaDeletion:
         ref: The medium, as the request named it.
         folders_deleted: Its media folders deleted.
         folders_vetoed: Its media folders the deletion authority kept (a seed obligation).
-        folders_failed: Its media folders whose removal failed, or that resolve outside
-            their disk.
+        folders_failed: Its media folders whose removal failed, that the preprod guard
+            refused (under ``staging``, a folder outside preprod's roots), that do not
+            resolve inside their disk (absent, or reached through a symlink), or whose disk
+            root is no mount point though the index says it is mounted.
         folders_unreachable: Its media folders on a disk the index says is not mounted.
         parents_removed: The parent folders its deletion left empty, removed.
         rows_removed: Its index rows removed (none unless every folder was deleted).

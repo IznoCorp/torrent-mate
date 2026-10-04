@@ -1033,12 +1033,13 @@ class LibraryService:
         """Delete media everywhere: their folders on the disks, their index rows, their Plex entries.
 
         All or nothing at the refusal: ``pipeline.lock`` is taken for the whole request, and
-        every reference is validated before any folder is touched. Then, per medium, its
-        one media folder is deleted through the folder-deletion primitive (the deletion
-        authority consulted, the deletion journaled with ``web:<account id>``, the indexer
-        told), the parent folders it left empty are removed up to the library root, and
-        its index rows are removed with their tombstones — only when no folder of it was
-        kept. Plex is told last, per section touched (:func:`follow_up_plex`). Nothing is
+        every reference is validated before any folder is touched. Then, per medium, each
+        of its media folders (one per distinct directory on its disks) is deleted through
+        the folder-deletion primitive (the deletion authority consulted, the deletion
+        journaled with ``web:<account id>``, the indexer told), the parent folders each left
+        empty are removed up to the library root, and its index rows are removed with their
+        tombstones — only when no folder of it was kept. Plex is told last, once every
+        deletion is done, per section touched (:func:`follow_up_plex`). Nothing is
         rolled back: a kept folder, a failed removal, a failed index write (the medium
         reported not deleted, its rows live, the request going on to the next) or a Plex
         failure is reported.
