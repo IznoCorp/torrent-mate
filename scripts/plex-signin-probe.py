@@ -53,6 +53,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
 import requests
 
 from personalscraper.api.plex_account import (
@@ -79,6 +80,14 @@ _INVALID_TOKEN = "invalid-token-for-the-401-capture"
 
 #: What replaces every leaf outside the kept keys — a constant, so it says nothing about the value.
 DROPPED = "REDACTED"
+
+#: What every recorded timestamp becomes, whichever form plex.tv sent: a fixed epoch, or the same
+#: instant as an ISO-8601 string — a constant, so it says nothing about when the account acted.
+TIME_EPOCH = 1_700_000_000
+TIME_ISO = "2023-11-14T22:13:20Z"
+
+#: The smallest id whose digits the final scan looks for (five digits).
+_MIN_SECRET_INT = 10_000
 
 #: A key path: the dict keys from the body's root, list levels skipped (``("connections", "uri")``).
 KeyPath = tuple[str, ...]
@@ -230,6 +239,10 @@ class Redactor:
         self.mapping[key] = placeholder
         if isinstance(value, str) and len(value) >= 4:
             self.secrets.add(value)
+        elif isinstance(value, int) and value >= _MIN_SECRET_INT:
+            # An account or PIN id may resurface as text — in a URL, a message — so the final
+            # scan looks for its digits too; a shorter int is too common to refuse a file over.
+            self.secrets.add(str(value))
         return placeholder
 
     def redact(self, node: Any, kept: Mapping[KeyPath, str | None], path: KeyPath = ()) -> Any:
@@ -256,7 +269,9 @@ class Redactor:
         if family is None:
             return node
         if family == "time":
-            return 1_700_000_000 if isinstance(node, (int, float)) and not isinstance(node, bool) else node
+            if isinstance(node, str):
+                return TIME_ISO
+            return TIME_EPOCH if isinstance(node, (int, float)) and not isinstance(node, bool) else node
         return self._placeholder(family, node)
 
     def scrub_tree(self, node: Any) -> Any:

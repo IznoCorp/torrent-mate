@@ -17,10 +17,12 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import http.client
 import io
 import json
 import logging
 import re
+import types
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -28,6 +30,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 import requests
+import requests.adapters
 import structlog
 
 import personalscraper.api.plex_account as _plex_account
@@ -151,6 +154,40 @@ class _Session:
         return self.request("GET", url, **kwargs)
 
 
+class _CookieSettingAdapter(requests.adapters.BaseAdapter):
+    """A transport for a REAL session: answers ``user-200`` with a ``Set-Cookie``, records what it was sent."""
+
+    def __init__(self) -> None:
+        """Start with nothing sent."""
+        super().__init__()
+        self.sent: list[requests.PreparedRequest] = []
+
+    def send(self, request: requests.PreparedRequest, **kwargs: Any) -> requests.Response:  # type: ignore[override]
+        """Record the request and answer it, setting a session cookie the way plex.tv could.
+
+        Args:
+            request: The prepared request.
+            **kwargs: The transport's options (unused).
+
+        Returns:
+            A 200 carrying the recorded identity and a ``Set-Cookie`` header.
+        """
+        self.sent.append(request)
+        response = requests.Response()
+        response.status_code = 200
+        response._content = json.dumps(_sample("user-200")["body"]).encode()
+        response.headers["Content-Type"] = "application/json"
+        response.request = request
+        response.url = request.url or ""
+        # ``Session.send`` feeds the jar from the raw response's header message.
+        msg = http.client.parse_headers(io.BytesIO(b"Set-Cookie: plex_session=abc123; Path=/\r\n\r\n"))
+        response.raw = types.SimpleNamespace(_original_response=types.SimpleNamespace(msg=msg))
+        return response
+
+    def close(self) -> None:
+        """Nothing to release."""
+
+
 def _client(*answers: Any) -> tuple[PlexAccountClient, _Session]:
     """Build an account client over a fake session.
 
@@ -227,6 +264,19 @@ class TestRequests:
         assert (call["method"], call["url"]) == ("GET", "https://plex.tv/api/v2/resources")
         assert call["params"] == {"includeHttps": "1"}
         assert call["headers"]["X-Plex-Token"] == TOKEN
+
+    def test_the_own_session_ignores_the_environment_and_keeps_no_cookie(self) -> None:
+        """The client's own session: ``trust_env`` off, and a cookie plex.tv sets never rides the next call."""
+        client = PlexAccountClient(product=PRODUCT, client_identifier=CLIENT_ID)
+        session = client._session
+        assert session.trust_env is False
+        adapter = _CookieSettingAdapter()
+        session.mount("https://", adapter)
+        client.account(TOKEN)
+        client.account(TOKEN)
+        assert len(adapter.sent) == 2
+        assert "Cookie" not in adapter.sent[1].headers
+        assert len(session.cookies) == 0
 
     def test_no_token_in_a_url_or_the_params_and_no_redirect_followed(self) -> None:
         """No token in a url or the params and no redirect followed."""
@@ -431,6 +481,23 @@ def _derived_home_resources() -> Any:
     return sample["body"]
 
 
+def _resources_with(match: Any, **flags: Any) -> Any:
+    """The owner's recorded resources with the matching ones' flags set — a DERIVED variant.
+
+    Args:
+        match: A predicate on one resource.
+        **flags: The keys to set on every matching resource (``owned``, ``home``).
+
+    Returns:
+        A deep copy of ``resources-owner.json``'s body, edited.
+    """
+    body = copy.deepcopy(_sample("resources-owner")["body"])
+    for resource in body:
+        if match(resource):
+            resource.update(flags)
+    return body
+
+
 class TestServerAccess:
     """``server_access`` — OWNER / HOME / SHARED / NONE."""
 
@@ -467,6 +534,43 @@ class TestServerAccess:
         client, _ = _client(_Response(200, []))
         assert client.server_access(TOKEN, MACHINE) is PlexServerAccess.NONE
 
+    def test_owned_wins_over_home(self) -> None:
+        """A resource both owned and flagged home is OWNER (DERIVED from the owner's capture)."""
+        body = _resources_with(lambda r: r["clientIdentifier"] == MACHINE, owned=True, home=True)
+        client, _ = _client(_Response(200, body))
+        assert client.server_access(TOKEN, MACHINE) is PlexServerAccess.OWNER
+
+    def test_a_not_owned_duplicate_listed_first_does_not_demote_the_owner(self) -> None:
+        """A not-owned duplicate before the owned resource is still OWNER (DERIVED from the owner's capture)."""
+        body = copy.deepcopy(_sample("resources-owner")["body"])
+        owned = next(r for r in body if r["clientIdentifier"] == MACHINE)
+        duplicate = {**copy.deepcopy(owned), "owned": False, "home": False}
+        body.insert(0, duplicate)
+        client, _ = _client(_Response(200, body))
+        assert client.server_access(TOKEN, MACHINE) is PlexServerAccess.OWNER
+
+    def test_a_not_owned_resource_without_a_home_key_is_shared(self) -> None:
+        """A not-owned matching resource whose ``home`` key is absent is SHARED (DERIVED from the owner's capture)."""
+        body = _resources_with(lambda r: r["clientIdentifier"] == MACHINE, owned=False)
+        for resource in body:
+            if resource["clientIdentifier"] == MACHINE:
+                del resource["home"]
+        client, _ = _client(_Response(200, body))
+        assert client.server_access(TOKEN, MACHINE) is PlexServerAccess.SHARED
+
+    def test_an_empty_machine_identifier_is_refused_before_any_request(self) -> None:
+        """An empty identifier matches nothing: a resource listed without one would otherwise answer."""
+        body = [{"clientIdentifier": "", "owned": True}, {"owned": True}]
+        client, session = _client(_Response(200, body))
+        with pytest.raises(ValueError):
+            client.server_access(TOKEN, "")
+        assert session.calls == []
+
+    def test_a_resource_without_a_client_identifier_matches_nothing(self) -> None:
+        """A resource lacking ``clientIdentifier`` is never this server."""
+        client, _ = _client(_Response(200, [{"owned": True, "home": False}]))
+        assert client.server_access(TOKEN, MACHINE) is PlexServerAccess.NONE
+
     def test_a_401_is_a_refusal(self) -> None:
         """A 401 is a refusal."""
         client, _ = _client(_answer("user-401"))
@@ -483,6 +587,42 @@ class TestServerAccess:
         client, _ = _client(answer)
         with pytest.raises(PlexAccountUnreachable):
             client.server_access(TOKEN, MACHINE)
+
+
+#: Each call, fed one status, and the error type DESIGN § 3.2 maps it to: only a 401 to a TOKEN
+#: (``account``, ``server_access``) is a refusal; a PIN check carries no token, so its 401 proves
+#: nothing and is « unreachable »; a redirect is never followed, so a 3xx is « unreachable » too.
+_STATUS_TO_ERROR: list[tuple[str, int, type[PlexAccountError]]] = [
+    ("create_pin", 302, PlexAccountUnreachable),
+    ("check_pin", 401, PlexAccountUnreachable),
+    ("check_pin", 403, PlexAccountUnreachable),
+    ("check_pin", 302, PlexAccountUnreachable),
+    ("account", 401, PlexTokenRefused),
+    ("account", 404, PlexAccountUnreachable),
+    ("account", 429, PlexAccountUnreachable),
+    ("account", 302, PlexAccountUnreachable),
+    ("server_access", 401, PlexTokenRefused),
+    ("server_access", 403, PlexAccountUnreachable),
+    ("server_access", 404, PlexAccountUnreachable),
+    ("server_access", 429, PlexAccountUnreachable),
+    ("server_access", 302, PlexAccountUnreachable),
+]
+
+
+class TestStatusSeparation:
+    """DESIGN § 3.2 by type: each status raises exactly the error the gate decides on."""
+
+    @pytest.mark.parametrize(
+        ("name", "status", "expected"), _STATUS_TO_ERROR, ids=[f"{n}-{s}" for n, s, _ in _STATUS_TO_ERROR]
+    )
+    def test_each_status_raises_its_error_type(self, name: str, status: int, expected: type[PlexAccountError]) -> None:
+        """Each status raises its error type, not merely a subclass of the base."""
+        answer = _Response(status, {"errors": [{"code": 1001, "message": "x"}]})
+        client, _ = _client(answer)
+        call = dict(_calls())[name]
+        with pytest.raises(PlexAccountError) as caught:
+            call(client)
+        assert type(caught.value) is expected
 
 
 # ---------------------------------------------------------------------------
@@ -565,8 +705,68 @@ def _calls() -> list[tuple[str, Any]]:
     ]
 
 
+def _planted_success(name: str) -> _Response:
+    """A recorded success answer carrying the planted secrets where plex.tv puts the real ones.
+
+    Args:
+        name: ``pin-claimed``, ``user-200`` or ``resources-owner``.
+
+    Returns:
+        The capture, its PIN code and token, e-mail or resource tokens replaced by the planted values.
+    """
+    sample = _sample(name)
+    body = copy.deepcopy(sample["body"])
+    if name == "pin-claimed":
+        body.update(authToken=TOKEN, code=CODE)
+    elif name == "user-200":
+        body.update(authToken=TOKEN, email=EMAIL)
+    else:
+        for resource in body:
+            resource["accessToken"] = TOKEN
+    return _Response(sample["status"], body)
+
+
+def _successes() -> list[tuple[str, str, Any]]:
+    """Every success path of the client that handles a secret, with the capture it is fed.
+
+    Returns:
+        ``(name, capture, call)`` triples.
+    """
+    return [
+        ("check_pin", "pin-claimed", lambda c: c.check_pin(900001, CODE)),
+        ("account", "user-200", lambda c: c.account(TOKEN)),
+        ("server_access", "resources-owner", lambda c: c.server_access(TOKEN, MACHINE)),
+    ]
+
+
+def _assert_no_secret(name: str, texts: list[str], caplog: pytest.LogCaptureFixture) -> None:
+    """Scan every captured record and text for the planted secrets.
+
+    Args:
+        name: The call under test, for the failure message.
+        texts: The rendered console output, reprs and exception texts already gathered.
+        caplog: The record-level capture.
+    """
+    texts = [caplog.text, *texts]
+    for record in caplog.records:
+        texts += [record.getMessage(), str(record.args), str(record.msg)]
+        assert record.exc_info is None, "a traceback renders frame locals, the headers among them"
+    for text in texts:
+        for secret in _SECRETS:
+            assert secret not in text, f"{name}: a secret reached {text[:80]!r}"
+
+
 class TestNoLeak:
-    """Over every failure path: no log record, rendered line, exception text or repr carries a secret."""
+    """Over every failure and success path: no log record, rendered line, exception text or repr carries a secret.
+
+    The suite bites only on a leak under an INNOCUOUS key. The logger masks a key named
+    ``token`` (``personalscraper/logger.py``, ``_SECRET_KEY_EXACT_RE``), so a
+    ``log.info(..., token=token)`` never reaches a record whatever the client does; the leak it
+    must catch is the one under a name the logger does not know (``detail=token``,
+    ``pin=code``). That is the shape its proof plants: a scratch ``log.info`` carrying the
+    token and the PIN code after the claim, and one carrying the e-mail in ``account()``, each
+    of which fails this suite.
+    """
 
     @pytest.mark.parametrize(
         "failure",
@@ -593,17 +793,27 @@ class TestNoLeak:
             else:
                 raised = None
         rendered = re.sub(r"\x1b\[[0-9;]*m", "", buf.getvalue())
-        texts = [caplog.text, rendered, repr(client)]
+        texts = [rendered, repr(client)]
         if raised is not None:
             texts += [str(raised), repr(raised)]
             assert raised.__cause__ is None, "a token-bearing cause escaped"
             assert raised.__context__ is None, "a token-bearing context escaped"
-        for record in caplog.records:
-            texts += [record.getMessage(), str(record.args), str(record.msg)]
-            assert record.exc_info is None, "a traceback renders frame locals, the headers among them"
-        for text in texts:
-            for secret in _SECRETS:
-                assert secret not in text, f"{name}: a secret reached {text[:80]!r}"
+        _assert_no_secret(name, texts, caplog)
+
+    @pytest.mark.parametrize(("name", "capture", "call"), _successes(), ids=[n for n, _, _ in _successes()])
+    def test_no_secret_on_a_success(self, name: str, capture: str, call: Any, caplog: pytest.LogCaptureFixture) -> None:
+        """A claimed PIN, an identity and a resource list carrying the planted secrets leak none of them."""
+        client, _ = _client(_planted_success(capture))
+        with caplog.at_level(logging.DEBUG), _rendered_console(_logger_name()) as buf:
+            result = call(client)
+        rendered = re.sub(r"\x1b\[[0-9;]*m", "", buf.getvalue())
+        texts = [rendered, repr(client)]
+        # ``check_pin`` returns the token itself, by contract; every other result is scanned too.
+        if name != "check_pin":
+            texts += [repr(result), str(result)]
+        else:
+            assert result == TOKEN
+        _assert_no_secret(name, texts, caplog)
 
     def test_a_transport_failure_is_logged(self, caplog: pytest.LogCaptureFixture) -> None:
         """A transport failure is logged."""

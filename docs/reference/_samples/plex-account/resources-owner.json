@@ -32,12 +32,12 @@
           "uri": "https://redacted.invalid/url-4"
         }
       ],
-      "createdAt": "2024-06-22T13:23:39Z",
+      "createdAt": "2023-11-14T22:13:20Z",
       "device": "REDACTED",
       "dnsRebindingProtection": "REDACTED",
       "home": false,
       "httpsRequired": false,
-      "lastSeenAt": "2026-10-04T02:05:14Z",
+      "lastSeenAt": "2023-11-14T22:13:20Z",
       "name": "REDACTED-name-3",
       "natLoopbackSupported": "REDACTED",
       "owned": true,
@@ -87,12 +87,12 @@
           "uri": "https://redacted.invalid/url-7"
         }
       ],
-      "createdAt": "2025-11-19T20:28:05Z",
+      "createdAt": "2023-11-14T22:13:20Z",
       "device": "REDACTED",
       "dnsRebindingProtection": "REDACTED",
       "home": false,
       "httpsRequired": false,
-      "lastSeenAt": "2026-10-03T21:35:47Z",
+      "lastSeenAt": "2023-11-14T22:13:20Z",
       "name": "REDACTED-name-4",
       "natLoopbackSupported": "REDACTED",
       "owned": false,
@@ -259,12 +259,12 @@
           "uri": "https://redacted.invalid/url-23"
         }
       ],
-      "createdAt": "2026-03-08T17:56:43Z",
+      "createdAt": "2023-11-14T22:13:20Z",
       "device": "REDACTED",
       "dnsRebindingProtection": "REDACTED",
       "home": false,
       "httpsRequired": false,
-      "lastSeenAt": "2026-10-03T17:12:10Z",
+      "lastSeenAt": "2023-11-14T22:13:20Z",
       "name": "REDACTED-name-6",
       "natLoopbackSupported": "REDACTED",
       "owned": false,

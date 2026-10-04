@@ -32,6 +32,7 @@ rules (``api/plex.py``), applied to a token that is not ours:
 
 from __future__ import annotations
 
+import http.cookiejar
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -134,11 +135,11 @@ class PlexAccountClient:
                 lists under « Authorized Devices » (one per environment).
             client_identifier: ``X-Plex-Client-Identifier`` — generated ONCE per environment and
                 re-used (Plex's article); persisted by the caller, passed in here.
-            session: Injected in tests; production lets the client own one.
+            session: Injected in tests; production lets the client own one that keeps no state.
         """
         self._product = product
         self._client_identifier = client_identifier
-        self._session = session if session is not None else requests.Session()
+        self._session = session if session is not None else _stateless_session()
 
     def __repr__(self) -> str:
         """Return a repr without the client identifier or any token."""
@@ -318,25 +319,47 @@ class PlexAccountClient:
             machine_identifier: This server's ``machineIdentifier`` (``PlexClient.machine_identifier``).
 
         Returns:
-            OWNER when the account owns this server's resource, HOME when the resource is not
-            owned and flagged ``home``, SHARED when it is neither, NONE when it is absent.
+            OWNER when ANY resource carrying this server's identifier is ``owned`` — owned by
+            the token's account; else HOME when the first such resource is flagged ``home``,
+            SHARED when it is not, NONE when no resource carries the identifier.
 
         Raises:
+            ValueError: ``machine_identifier`` is empty — it would match a resource listed with an empty one.
             PlexTokenRefused: plex.tv answered 401.
             PlexAccountUnreachable: Any other failure.
         """
+        if not machine_identifier:
+            # An empty identifier would match a resource listed with an empty one — never this server.
+            raise ValueError("server_access needs this server's machine identifier")
         label = "/api/v2/resources"
         status, body = self._call("GET", label, label=label, token=token, params={"includeHttps": "1"})
         if status == 401:
             raise PlexTokenRefused("plex.tv refused the token")
         if status != 200 or not isinstance(body, list):
             raise self._unreachable("GET", label, status)
-        for resource in body:
-            if isinstance(resource, dict) and resource.get("clientIdentifier") == machine_identifier:
-                if _flag(resource.get("owned")):
-                    return PlexServerAccess.OWNER
-                return PlexServerAccess.HOME if _flag(resource.get("home")) else PlexServerAccess.SHARED
-        return PlexServerAccess.NONE
+        matches = [r for r in body if isinstance(r, dict) and r.get("clientIdentifier") == machine_identifier]
+        if not matches:
+            return PlexServerAccess.NONE
+        # Owned wins wherever it is listed: a not-owned duplicate before it must not demote the owner.
+        if any(_flag(r.get("owned")) for r in matches):
+            return PlexServerAccess.OWNER
+        return PlexServerAccess.HOME if _flag(matches[0].get("home")) else PlexServerAccess.SHARED
+
+
+def _stateless_session() -> requests.Session:
+    """Build the client's own session: it carries nothing from one user's call to the next.
+
+    The client serves every person who signs in, so a cookie plex.tv sets for one must never
+    ride along on the next one's request, and the process environment (a proxy, ``.netrc``
+    credentials) has no say in where a user's token is sent.
+
+    Returns:
+        A session that ignores the environment and keeps no cookie.
+    """
+    session = requests.Session()
+    session.trust_env = False
+    session.cookies.set_policy(http.cookiejar.DefaultCookiePolicy(allowed_domains=[]))
+    return session
 
 
 def _flag(value: object) -> bool:
