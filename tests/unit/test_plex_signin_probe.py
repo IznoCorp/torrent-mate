@@ -507,3 +507,32 @@ def test_an_unreachable_check_while_waiting_a_pin_out_is_not_recorded_as_expired
     with pytest.raises(probe.ProbeError):
         _run(tmp_path, _ServerErrorExpiry())
     assert not (tmp_path / "plex-account").exists()
+
+
+def test_a_string_timestamp_becomes_the_fixed_placeholder() -> None:
+    """plex.tv's ISO-8601 ``createdAt`` / ``lastSeenAt`` say when the account acted: both become one constant."""
+    redactor = probe.Redactor()
+    kept = probe.kept_keys("resources-owner")
+    body = [
+        {"createdAt": "2024-06-22T13:23:39Z", "lastSeenAt": "2026-10-04T02:05:14Z"},
+        {"createdAt": 1712345678, "lastSeenAt": None},
+    ]
+    redacted = redactor.redact(body, kept)
+    assert redacted[0] == {"createdAt": probe.TIME_ISO, "lastSeenAt": probe.TIME_ISO}
+    assert redacted[1] == {"createdAt": probe.TIME_EPOCH, "lastSeenAt": None}
+    text = json.dumps(redacted)
+    assert "2024-06-22" not in text and "2026-10-04" not in text and "1712345678" not in text
+
+
+def test_an_id_of_five_digits_or_more_is_scanned_for_as_text() -> None:
+    """An int id joins the secrets as its digits, so the final scan refuses a file where it resurfaces."""
+    redactor = probe.Redactor()
+    kept = probe.kept_keys("resources-owner")
+    assert redactor.redact({"ownerId": USER_ID}, kept)["ownerId"] != USER_ID
+    assert str(USER_ID) in redactor.secrets
+    with pytest.raises(probe.RedactionLeak):
+        redactor.check(json.dumps({"note": f"https://plex.tv/users/{USER_ID}"}))
+    redactor.redact({"ownerId": 12345}, kept)
+    redactor.redact({"ownerId": 9999}, kept)
+    assert "12345" in redactor.secrets
+    assert "9999" not in redactor.secrets
