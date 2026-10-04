@@ -434,8 +434,8 @@ export const countLineAction = cva(
 
 // A CREATION'S OWN PAGE AND ITS VALIDATED FORM (the operator, 2026-10-04: « dès
 // qu'on a des créations dans ce genre il faut préférer une page et un formulaire
-// avec validation plutôt que tout mettre en vrac sur une page »). The README's
-// « A creation opens its own page » says the rule; `ui/creation-form.tsx` draws it.
+// avec validation plutôt que tout mettre en vrac sur une page »). `ui/creation-form.tsx`
+// draws it.
 
 /** A creation form: its fields stacked, its act last. */
 export const creationForm = cva("creation-form flex flex-col gap-6");

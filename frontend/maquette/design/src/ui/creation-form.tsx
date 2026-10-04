@@ -5,8 +5,8 @@
 // ONE DRAWING FOR EVERY CREATION, so the next one is not re-decided: the screen
 // over the page the creation belongs to, its back, its heading; each field with
 // its label, its REQUIRED mark, and what is wrong said UNDER IT; the act last,
-// closed until the form is valid. The README's « A creation opens its own page »
-// is the rule; what a field holds and when it is wrong is the feature's.
+// closed until the form is valid. What a field holds and when it is wrong is the
+// feature's.
 //
 // IT KNOWS NO DOMAIN: no field, no word, no operation — the caller hands its
 // words and its controls in.
