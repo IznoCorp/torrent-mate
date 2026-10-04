@@ -5,8 +5,8 @@
 //
 // Each entry is `[id, label, run]`: the id is what `window.__go(id)` takes and what the oracle's
 // reference names, the label says the state in words, and `run` builds the state.
-import { applyState, type NamedState } from "../drive";
-import { owed } from "../owed";
+import { applyState, onLeave, type NamedState } from "../drive";
+import { forgetOwed, owed } from "../owed";
 import { as } from "./rights";
 import { fillCreation } from "./creation";
 
@@ -53,7 +53,9 @@ function plexWith(claim: "pending" | "no-access" | "expired"): void {
 function changePassword(fields: [string, string, string]): void {
   as("local-account");
   applyState({ page: "profile", phase: "ready" });
-  owed(() => {
+  // THE SUBMIT IS FORGOTTEN WHEN THE NEXT STATE IS DRIVEN: landing after it, it would submit a form
+  // on the next state's page that nobody asked for (the pattern is `creation.ts`'s).
+  const submitting = owed(() => {
     const form = document.querySelector<HTMLFormElement>('[data-part="profile/password"]');
     if (!form) return;
     const names = ["currentPassword", "newPassword", "confirmPassword"];
@@ -62,6 +64,7 @@ function changePassword(fields: [string, string, string]): void {
     });
     form.requestSubmit();
   }, FILL_AFTER);
+  onLeave(() => forgetOwed(submitting));
 }
 
 /**
@@ -91,12 +94,14 @@ function accountPanel(account: string): void {
  */
 function resetLocal(password: string): void {
   accountPanel("local-account");
-  owed(() => {
+  // Forgotten when the next state is driven, as the password change's.
+  const submitting = owed(() => {
     const form = document.querySelector<HTMLFormElement>('[data-part="accounts/password-reset"]');
     if (!form) return;
     (form.elements.namedItem("provisionalPassword") as HTMLInputElement).value = password;
     form.requestSubmit();
   }, FILL_AFTER);
+  onLeave(() => forgetOwed(submitting));
 }
 
 // Demandeur's rights, given accounts.manage: a manager who is not Admin, on a local account.
