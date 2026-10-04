@@ -480,3 +480,19 @@ def test_a_folder_reached_through_a_symlink_on_its_disk_is_never_deleted(shelf: 
     assert item in shelf.rows()
     assert shelf.journal() == []
     assert (report.deleted, report.media[0].folders_failed) == (0, 1)
+
+
+def test_a_folder_live_in_the_index_but_absent_from_the_disk_is_failed(shelf: Shelf) -> None:
+    """The index holds a live file in a folder the disk lacks: failed, rows kept, nothing journaled, Plex not asked."""
+    item = shelf.index.item("Gone (2020)", tmdb="41")
+    shelf.index.movie_file(item, "films/Gone (2020)")
+    (shelf.root / "films").mkdir()
+
+    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=41)])
+
+    assert shelf.rows() == [item]
+    assert shelf.journal() == []
+    assert shelf.plex.calls == []
+    assert report.deleted == 0
+    [one] = report.media
+    assert (one.folders_deleted, one.folders_failed, one.rows_removed, one.plex) == (0, 1, 0, PlexOutcome.NOT_NEEDED)
