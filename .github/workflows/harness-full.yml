@@ -55,6 +55,11 @@ jobs:
               - '.github/workflows/harness-full.yml'
               # machine.py (R67) reads the ecosystem's processes (B-686).
               - 'ecosystem.config.js'
+              # machine.py (« no engine command is forgotten ») imports the
+              # maintenance REGISTRY and compares it with the commands drawn.
+              - 'personalscraper/app/maintenance/registry.py'
+              # pwa.py (R52) compares the icons the host serves with the app's own.
+              - 'frontend/public/**'
 
   shards:
     name: harness-full (shard ${{ matrix.shard }}/4)
