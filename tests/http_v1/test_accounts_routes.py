@@ -681,10 +681,15 @@ class TestSetAccountAccess:
 @pytest.mark.parametrize(
     ("method", "path", "body"),
     [
-        ("POST", "/accounts", {"name": "New", "email": "new@example.org", "password": _PASSWORD}),
+        (
+            "POST",
+            "/accounts",
+            {"name": "New", "email": "new@example.org", "role": "local-guest", "password": _PASSWORD},
+        ),
         ("PATCH", "/accounts/account-1", {"role": "local-guest"}),
         ("POST", "/roles", {"name": "X", "rights": ["library.read"]}),
         ("PATCH", "/roles/local-guest", {"name": "X"}),
+        ("DELETE", "/roles/requester", None),
         ("POST", "/accounts/account-1/password", {"password": _PASSWORD}),
         ("PUT", "/accounts/account-1/access", {"signInAllowed": False}),
     ],
@@ -694,7 +699,7 @@ def test_every_write_on_the_read_only_clone_is_forbidden(
     monkeypatch: pytest.MonkeyPatch,
     method: str,
     path: str,
-    body: dict[str, object],
+    body: dict[str, object] | None,
 ) -> None:
     """``PERSONALSCRAPER_WEB_ROLE=staging``: 403 ``instance.forbidden_write``, the Admin included.
 
@@ -703,7 +708,7 @@ def test_every_write_on_the_read_only_clone_is_forbidden(
         monkeypatch: Pytest's monkeypatch fixture.
         method: The write's method.
         path: Its path.
-        body: Its body.
+        body: Its body; ``None`` for a write that sends none.
     """
     monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
     response = v1_client(role="admin").request(method, path, json=body)
