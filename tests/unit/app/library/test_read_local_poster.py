@@ -140,7 +140,6 @@ def test_a_folder_escaping_its_disk_is_never_read(world: World, tmp_path: Path) 
     _refused(world, MediaRef(tmdb_id=949))
 
 
-
 def test_a_media_folder_in_a_symlink_loop_is_not_found(world: World, tmp_path: Path) -> None:
     """A media folder that is a symlink to itself: ``media.not_found``, never an internal error."""
     world.index.mount(1, tmp_path / "disk1")
