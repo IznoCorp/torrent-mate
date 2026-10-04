@@ -95,6 +95,15 @@ describe("who is offered the install, and when", () => {
     expect(show).toHaveBeenCalledTimes(1);
   });
 
+  it("does not count a proposal it could not draw: nothing is marked, and it is made when it can", () => {
+    install.captureInstallEvent(promptEvent());
+    const gateUp = vi.fn(() => false);
+    install.proposeAfterSignIn(gateUp);
+    expect(gateUp).toHaveBeenCalledTimes(1);
+    expect(install.wasOffered()).toBe(false);
+    expect(install.proposalFor()).toBe("android");
+  });
+
   it("proposes nothing more once refused — the mark is the browser's, and survives a new page", async () => {
     install.captureInstallEvent(promptEvent());
     install.proposeAfterSignIn(vi.fn());

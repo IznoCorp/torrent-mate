@@ -35,7 +35,7 @@ let captured: InstallPrompt | null = null;
 // The face a NAMED STATE dials, so the harness can draw each face without a browser that really is one.
 let dialled: InstallFace | null = null;
 let applier: (() => void) | null = null;
-let pending: ((platform: InstallPlatform) => void) | null = null;
+let pending: ((platform: InstallPlatform) => boolean | void) | null = null;
 // Shown during this page's life — the memory of a mark storage refused to keep.
 let offeredHere = false;
 const listeners = new Set<() => void>();
@@ -147,10 +147,11 @@ function proposeNow(): void {
   if (!pending) return;
   const platform = proposalFor();
   if (!platform) return;
-  const show = pending;
+  // A proposal that DECLINES to be drawn — the gate is up over where it would stand — is not made: it
+  // keeps waiting, and nothing is marked, so the person is not refused an offer they never saw.
+  if (pending(platform) === false) return;
   pending = null;
   markOffered();
-  show(platform);
 }
 
 /**
@@ -159,9 +160,9 @@ function proposeNow(): void {
  * A browser may fire its prompt only after the sign-in (Chrome waits for the worker and the manifest), so
  * a proposal with nothing to show yet WAITS for it, and is made then.
  *
- * @param show Draws the proposal for a platform.
+ * @param show Draws the proposal for a platform, and answers false when it could not be drawn now.
  */
-export function proposeAfterSignIn(show: (platform: InstallPlatform) => void): void {
+export function proposeAfterSignIn(show: (platform: InstallPlatform) => boolean | void): void {
   pending = show;
   proposeNow();
 }

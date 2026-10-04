@@ -300,8 +300,9 @@ export { alreadyInstalled };
 function proposeInstall(): void {
   proposeAfterSignIn((platform) => {
     const gate = node("#login");
-    if (gate && !gate.hidden) return;
+    if (gate && !gate.hidden) return false;
     showInstall(platform);
+    return true;
   });
 }
 

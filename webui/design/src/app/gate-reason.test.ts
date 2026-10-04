@@ -13,15 +13,20 @@ vi.mock("./navigation", () => ({ entryPageFor: () => "" }));
 type Line = { dataset: Record<string, string>; className: string; textContent: string; hidden: boolean; [key: string]: unknown };
 
 let lines: Line[];
-let subtitle: { after: (line: Line) => void };
+let placedBefore: unknown[];
 
 beforeEach(async () => {
   lines = [];
-  subtitle = { after: (line) => void lines.push(line) };
-  const form = { querySelector: (selector: string) => (selector === ".loginsub" ? subtitle : null), prepend: (line: Line) => void lines.push(line) };
+  placedBefore = [];
+  const gate = { insertBefore: (line: Line, anchor: unknown) => { lines.push(line); placedBefore.push(anchor); } };
+  const plex = { name: "the Plex block" };
+  const form = { name: "the password form" };
   vi.stubGlobal("document", {
     querySelector: (selector: string) =>
-      selector === "#loginform" ? form : selector === '[data-part="login/reason"]' ? (lines[0] ?? null) : null,
+      selector === "#login" ? gate
+        : selector === '[data-part="login/plex"]' ? plex
+        : selector === "#loginform" ? form
+        : selector === '[data-part="login/reason"]' ? (lines[0] ?? null) : null,
     createElement: () => ({ dataset: {}, className: "", textContent: "", hidden: true, setAttribute: () => {}, remove: () => {} }),
   });
   await i18next.init({ lng: "fr", resources: { fr: { translation: FR } } });
@@ -35,6 +40,12 @@ describe("the reason line", () => {
     expect(lines[0].dataset.part).toBe("login/reason");
     expect(lines[0].textContent).toBe(FR.screens.gate.reasonExpired);
     expect(lines[0].hidden).toBe(false);
+  });
+
+  it("says it before the gate's first door, never inside the password form that rests closed", async () => {
+    const { sayReason } = await import("./gate");
+    sayReason("auth.required");
+    expect(placedBefore).toEqual([{ name: "the Plex block" }]);
   });
 
   it("says the access was disabled for auth.access_disabled", async () => {

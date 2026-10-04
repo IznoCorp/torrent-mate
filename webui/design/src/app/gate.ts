@@ -178,7 +178,7 @@ const REASONS: Readonly<Record<string, string>> = {
 /**
  * Says why the session ended, or takes the line down.
  *
- * AT RUN TIME, NOT IN THE MARKUP, for the reason `loginByEmail` gives: the form is the region the design
+ * AT RUN TIME, NOT IN THE MARKUP, for the reason `loginByEmail` gives: the gate is the region the design
  * host extracts byte for byte, and the host's own page says its reason server-side.
  *
  * @param code The refusal code the server gave, if any. A plain visit, or a code that is no reason,
@@ -192,15 +192,16 @@ export function sayReason(code: string | undefined): void {
     return;
   }
   if (!line) {
-    const form = node("#loginform");
-    if (!form) return;
+    // IN THE GATE, BEFORE ITS FIRST DOOR — and not in the password form, which rests CLOSED behind its
+    // disclosure while Plex is the way in: a reason said inside it would be said to no one.
+    const gate = node("#login");
+    const anchor = node('[data-part="login/plex"]') ?? node("#loginform");
+    if (!gate || !anchor) return;
     line = document.createElement("p");
     line.className = "loginerr";
     line.dataset.part = "login/reason";
     line.setAttribute("role", "status");
-    const subtitle = form.querySelector(".loginsub");
-    if (subtitle) subtitle.after(line);
-    else form.prepend(line);
+    gate.insertBefore(line, anchor);
   }
   line.textContent = i18next.t(`screens.gate.${key}`);
   line.hidden = false;

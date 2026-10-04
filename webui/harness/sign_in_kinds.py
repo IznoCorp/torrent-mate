@@ -22,6 +22,12 @@ local account a PROVISIONAL password at creation in « Comptes » and may reset 
    profil »): a manager who is not Admin is offered no reset, even of an account whose role its
    own covers, and is told why; forced, the reset answers 403 `password.reset_admin_only`, its own
    account's too.
+7. WHY THE SESSION ENDED (the operator, 2026-10-04): the gate says it, from the server's code, in the
+   interface's words — « session expirée » for `auth.required`, « accès désactivé par un
+   administrateur » for `auth.access_disabled` — and says nothing on a plain visit.
+8. THE PROFIL BUTTON, one button in three faces: « Installer l'app » (a browser that offers the
+   install), the way to do it by hand on iOS Safari, and « Mettre à jour » for an installed app with a
+   newer version waiting — and none at all when there is nothing to do.
 """
 import asyncio
 import json
@@ -61,6 +67,21 @@ ROSTER = """() => ({
 FORCE = """async ([account]) => {
   const answer = await fetch(`/api/v1/accounts/${account}/password`, { method: 'POST', body: JSON.stringify({ password: 'correct horse battery' }) });
   return [answer.status, (await answer.json()).code ?? null]; }"""
+
+REASON = """() => {
+  const line = document.querySelector('[data-part="login/reason"]');
+  return { reason: line?.checkVisibility() ? line.textContent : null };
+}"""
+
+INSTALL = """() => {
+  const section = document.querySelector('[data-part="profile/install"]');
+  const action = section?.querySelector('[data-part="profile/install-action"]');
+  return {
+    face: section?.getAttribute('data-face') || null,
+    action: action?.textContent || null,
+    steps: [...(section?.querySelectorAll('[data-part="profile/install-steps"] li') || [])].map((one) => one.textContent),
+  };
+}"""
 
 PANEL = """() => ({
   text: document.querySelector('#sheet')?.textContent || '',
@@ -184,6 +205,43 @@ async def main():
         forced = [await page.evaluate(FORCE, [one]) for one in ("local-guest", "local-account")]
         journal.check("Admin only: forced, a reset answers 403 password.reset_admin_only, its own account's too",
                       forced == [[403, "password.reset_admin_only"]] * 2, str(forced))
+
+        # 7. Why the session ended.
+        expired = await at("signin-expired", REASON, ACTED + SETTLED)
+        journal.check("the gate says the session expired, in the interface's words",
+                      expired["reason"] == await say("screens.gate.reasonExpired"), str(expired))
+        cut = await at("signin-access-disabled", REASON, ACTED + SETTLED)
+        journal.check("and that an administrator disabled the access, for the other code",
+                      cut["reason"] == await say("screens.gate.reasonDisabled")
+                      and cut["reason"] != expired["reason"], str(cut))
+        plain = await at("signin", REASON, ACTED + SETTLED)
+        journal.check("a plain visit says nothing", plain["reason"] is None, str(plain))
+        again = await at("signin-expired", REASON, ACTED + SETTLED)
+        left = await at("signin", REASON, ACTED + SETTLED)
+        journal.check("a reason does not outlive the state that showed it",
+                      again["reason"] is not None and left["reason"] is None, f"{again} / {left}")
+
+        # 8. The Profil button.
+        offer = await at("profile-install", INSTALL, SETTLED)
+        journal.check("Profil: a browser that offers the install gets « Installer l'app »",
+                      offer["face"] == "install"
+                      and offer["action"] == await say("screens.accountPage.install.install.action"), str(offer))
+        by_hand = await at("profile-install-ios", INSTALL, SETTLED)
+        journal.check("Profil: on iOS Safari it is the same words, and the way is not shown until asked",
+                      by_hand["face"] == "ios" and by_hand["steps"] == [], str(by_hand))
+        await page.click('[data-part="profile/install-action"]')
+        await page.wait_for_timeout(ACTED)
+        shown = await page.evaluate(INSTALL)
+        journal.check("and pressing it shows the way: Partager, then Sur l'écran d'accueil, then Ajouter",
+                      shown["steps"] == [await say(f"screens.accountPage.install.steps.{step}")
+                                         for step in ("share", "addToHome", "confirm")], str(shown))
+        update = await at("profile-update", INSTALL, SETTLED)
+        journal.check("Profil: an installed app with a newer version waiting is offered « Mettre à jour »",
+                      update["face"] == "update"
+                      and update["action"] == await say("screens.accountPage.install.update.action"), str(update))
+        quiet = await at("profile-local", INSTALL, SETTLED)
+        journal.check("Profil: where there is nothing to install or update, there is no button",
+                      quiet["face"] is None, str(quiet))
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()
