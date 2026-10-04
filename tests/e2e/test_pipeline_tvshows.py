@@ -51,7 +51,7 @@ class TestTVShowFullPipeline:
         # Filter TV show torrents (heuristic: contains "S01" or similar)
         tvshow_torrents = [f for f in e2e_torrent_files if any(f"S{s:02d}" in f.name for s in range(1, 30))]
         if not tvshow_torrents:
-            pytest.skip("No TV show .torrent files in assets/torrents/")
+            pytest.skip("No TV show .torrent files in tests/e2e/golden/torrents/")
 
         from personalscraper.conf.loader import load_config, resolve_config_path
 
