@@ -20,7 +20,7 @@ from unittest.mock import patch
 
 import pytest
 
-from tests.commands._e2e_helpers import make_synthetic_db, run_cli
+from tests.commands._e2e_helpers import make_synthetic_db, run_cli, seed_disk
 
 _NFC = unicodedata.normalize
 _NFD_TITLE = _NFC("NFD", "Fantômes contre fantômes")
@@ -30,10 +30,14 @@ _NFC_TITLE = _NFC("NFC", "Fantômes contre fantômes")
 def _json_from(result: Any) -> dict[str, Any]:
     """Extract the last JSON object from CLI output (strips ANSI codes)."""
     raw = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
-    start = raw.rfind("{")
-    if start == -1:
-        raise ValueError(f"No JSON in output: {result.output!r}")
-    return json.loads(raw[start:])
+    for match in re.finditer(r"\{", raw):
+        try:
+            data, end = json.JSONDecoder().raw_decode(raw[match.start() :])
+        except json.JSONDecodeError:
+            continue
+        if not raw[match.start() + end :].strip():
+            return data  # type: ignore[no-any-return]
+    raise ValueError(f"No JSON in output: {result.output!r}")
 
 
 def _insert_item(
@@ -489,3 +493,153 @@ def test_apply_normalizes_solo_nfd_title(
     assert row is not None, f"Row id={item_id} must still exist"
     assert row[0] == nfc_title, f"Title must be NFC: {row[0]!r} != {nfc_title!r}"
     conn.close()
+
+
+# ── survivor holds the files; deletions are journaled ─────────────────────────
+
+_FILES_DISPATCH = "/Volumes/Disk1/movies/Batman, le défi (1989)"
+_BATMAN_NFC = _NFC("NFC", "Batman, le défi")
+_BATMAN_NFD = _NFC("NFD", "Batman, le défi")
+
+
+def _seed_group(db_path: Path, *, holders: tuple[bool, bool]) -> tuple[int, int]:
+    """Seed an NFC/NFD duplicate pair: the older row first, then the newer-refreshed one.
+
+    Args:
+        db_path: Migrated database.
+        holders: Whether ``(older, newer)`` holds a live ``media_file``.
+
+    Returns:
+        ``(older_id, newer_id)``.
+    """
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("PRAGMA foreign_keys=ON")
+    now = int(time.time())
+    older = _insert_item(
+        conn, _BATMAN_NFC, year=1989, date_metadata_refreshed=now - 1000, dispatch_path=_FILES_DISPATCH
+    )
+    newer = _insert_item(conn, _BATMAN_NFD, year=1989, date_metadata_refreshed=now, dispatch_path=_FILES_DISPATCH)
+    disk_id = seed_disk(conn, "Disk1", Path("/Volumes/Disk1"))
+    for item_id, holds in zip((older, newer), holders, strict=True):
+        if holds:
+            release_id = conn.execute("INSERT INTO media_release (item_id) VALUES (?)", (item_id,)).lastrowid
+            seed_media_file_on_disk_row(conn, disk_id, release_id, f"movies/Batman-{item_id}")
+    conn.commit()
+    conn.close()
+    return older, newer
+
+
+def seed_media_file_on_disk_row(conn: sqlite3.Connection, disk_id: int, release_id: int | None, rel_path: str) -> None:
+    """Insert a live ``path`` + ``media_file`` row (no file on disk is needed).
+
+    Args:
+        conn: Open connection.
+        disk_id: ``disk.id``.
+        release_id: ``media_release.id`` the file belongs to.
+        rel_path: Folder path under the disk.
+    """
+    path_id = conn.execute("INSERT INTO path (disk_id, rel_path) VALUES (?, ?)", (disk_id, rel_path)).lastrowid
+    conn.execute(
+        "INSERT INTO media_file (release_id, path_id, filename, size_bytes, mtime_ns, oshash,"
+        " scan_generation, last_verified_at, deleted_at) VALUES (?, ?, 'movie.mkv', 1, 1, '0', 1, 1, NULL)",
+        (release_id, path_id),
+    )
+
+
+def _ids(db_path: Path) -> set[int]:
+    """Return the ``media_item`` ids still in the database."""
+    conn = sqlite3.connect(str(db_path))
+    try:
+        return {r[0] for r in conn.execute("SELECT id FROM media_item")}
+    finally:
+        conn.close()
+
+
+def _count(db_path: Path, table: str) -> int:
+    """Return the row count of *table*."""
+    conn = sqlite3.connect(str(db_path))
+    try:
+        return int(conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
+    finally:
+        conn.close()
+
+
+def _dedup(db_path: Path, test_config: Any, *flags: str) -> dict[str, Any]:
+    """Run ``library-dedup-titles`` on *db_path* and return its JSON output."""
+    with patch("personalscraper.conf.loader.load_config", return_value=test_config):
+        result = run_cli(["--format", "json", "library-dedup-titles", "--db", str(db_path), *flags])
+    assert result.exit_code == 0, f"CLI exited {result.exit_code}: {result.output}"
+    return _json_from(result)
+
+
+def test_apply_keeps_the_older_row_that_holds_the_files_over_a_newer_phantom(tmp_path: Path, test_config: Any) -> None:
+    """A newer-refreshed 0-file phantom must not outrank the older row holding the files."""
+    db_path = make_synthetic_db(tmp_path)
+    older, newer = _seed_group(db_path, holders=(True, False))
+
+    data = _dedup(db_path, test_config, "--apply")
+
+    assert data["deleted"] == 1
+    assert _ids(db_path) == {older}, "the row holding the files survives, the phantom goes"
+    assert _count(db_path, "media_file") == 1, "the files are still there"
+    assert newer not in _ids(db_path)
+
+
+def test_a_group_where_both_rows_hold_files_is_skipped_and_reported(tmp_path: Path, test_config: Any) -> None:
+    """Two rows holding files: nothing is merged, the output and stats say so, dry run and apply alike."""
+    db_path = make_synthetic_db(tmp_path)
+    older, newer = _seed_group(db_path, holders=(True, True))
+
+    for flags in ((), ("--apply",)):
+        data = _dedup(db_path, test_config, *flags)
+        assert data["deleted" if flags else "would_delete"] == 0
+        assert data["skipped_both_hold_files"] == 1
+        assert data["skipped_groups"] == [{"ids": [older, newer], "reason": "both_hold_files"}]
+    assert _ids(db_path) == {older, newer}
+    assert _count(db_path, "media_file") == 2
+
+
+def test_apply_journals_every_deletion(tmp_path: Path, test_config: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Each deleted row leaves a ``deleted_item`` tombstone and a ``destructive_op`` row with the runner's uid."""
+    monkeypatch.setenv("PERSONALSCRAPER_RUN_UID", "run-abc")
+    db_path = make_synthetic_db(tmp_path)
+    older, newer = _seed_group(db_path, holders=(True, False))
+
+    _dedup(db_path, test_config, "--apply")
+
+    conn = sqlite3.connect(str(db_path))
+    try:
+        assert conn.execute("SELECT op, path, actor, run_uid FROM destructive_op").fetchall() == [
+            ("delete", f"index:media_item/{newer}", "maintenance", "run-abc")
+        ]
+        assert conn.execute("SELECT kind, original_id, reason FROM deleted_item").fetchall() == [
+            ("item", newer, "dedup_titles_removed")
+        ]
+    finally:
+        conn.close()
+
+
+def test_dry_run_plan_names_the_survivor_and_why_and_mutates_nothing(tmp_path: Path, test_config: Any) -> None:
+    """The dry run lists, per group, the survivor and the reason; nothing is written or journaled."""
+    db_path = make_synthetic_db(tmp_path)
+    older, newer = _seed_group(db_path, holders=(True, False))
+
+    data = _dedup(db_path, test_config)
+
+    assert data["plan"] == [{"survivor": older, "reason": "holds_files", "deleted": [newer]}]
+    assert _ids(db_path) == {older, newer}
+    assert _count(db_path, "destructive_op") == 0
+    assert _count(db_path, "deleted_item") == 0
+
+
+def test_among_rows_holding_no_file_the_newest_refresh_survives_and_is_reported(
+    tmp_path: Path, test_config: Any
+) -> None:
+    """With no file anywhere the old order stays: newest refresh wins, reason ``newest_refresh``."""
+    db_path = make_synthetic_db(tmp_path)
+    older, newer = _seed_group(db_path, holders=(False, False))
+
+    data = _dedup(db_path, test_config, "--apply")
+
+    assert data["plan"] == [{"survivor": newer, "reason": "newest_refresh", "deleted": [older]}]
+    assert _ids(db_path) == {newer}
