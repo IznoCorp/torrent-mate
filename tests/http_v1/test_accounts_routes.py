@@ -28,7 +28,7 @@ from personalscraper.conf.models.config import Config
 from personalscraper.core.sqlite import open_db
 from personalscraper.http_v1.session_cookie import SESSION_COOKIE
 
-_PASSWORD = "A provisional one 1"
+_PASSWORD = "A provisional one 1!"
 
 
 @pytest.fixture(autouse=True)

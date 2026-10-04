@@ -108,10 +108,25 @@ class TestPolicyRefusal:
         assert refusal.params == {"minimum": PASSWORD_MINIMUM}
 
     def test_the_classes_are_unicode_categories(self) -> None:
-        """A Greek capital counts as uppercase and a space as special."""
-        refusal = policy_refusal("Ωmega heights 9")
+        """A Greek capital counts as uppercase, and a dash — punctuation — as special."""
+        assert policy_refusal("Ωmega heights-9") is None
 
-        assert refusal is None
+    @pytest.mark.parametrize(
+        ("password", "code"),
+        [
+            ("Abcdefghijk1 ", RefusalCode.PASSWORD_TOO_WEAK),
+            ("Abcdefghijk1\x00", RefusalCode.PASSWORD_TOO_WEAK),
+            ("Abcdefghijk1\u0301", RefusalCode.PASSWORD_TOO_WEAK),
+            ("Abcdefghijk1!", None),
+            ("Abcdefghijk1€", None),
+        ],
+        ids=["space", "control", "combining-mark", "punctuation", "symbol"],
+    )
+    def test_special_is_a_punctuation_or_a_symbol(self, password: str, code: RefusalCode | None) -> None:
+        """A special character is Unicode category P* or S*: a space, a control or a combining mark is not one."""
+        refusal = policy_refusal(password)
+
+        assert (refusal.code if refusal is not None else None) is code
 
     def test_the_refusal_never_carries_the_password(self) -> None:
         """Neither the detail nor the params name the password typed."""

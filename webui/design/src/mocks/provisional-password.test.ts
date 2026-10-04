@@ -29,7 +29,7 @@ function post(path: string, body: Record<string, unknown>): Answer {
   return found.route.handle({ path, parameters: found.parameters, query: new URLSearchParams(), body }) as Answer;
 }
 
-const LONG = "A provisional one 1";
+const LONG = "A provisional one 1!";
 
 describe("a local account's provisional password", () => {
   beforeEach(() => resetMockState());

@@ -103,7 +103,7 @@ function managerPanel(account: string): void {
 
 // A password meeting the policy (the operator, 2026-10-04), one too short, and
 // one long enough that lacks an uppercase letter, a digit and a special character.
-const LONG = "Correct horse battery 9";
+const LONG = "Correct-horse battery 9";
 const SHORT = "court";
 const WEAK = "correcthorsebattery";
 

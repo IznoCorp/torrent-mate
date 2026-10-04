@@ -28,7 +28,7 @@ _PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"
 _PATCH_RESOLVE_PATH = "personalscraper.conf.loader.resolve_config_path"
 _EMAIL = "owner@example.org"
 _CATALOGUES = Path(__file__).resolve().parents[2] / "personalscraper" / "i18n"
-_PASSWORD = "A long fallback password 1"
+_PASSWORD = "A long fallback password 1!"
 
 
 @pytest.fixture

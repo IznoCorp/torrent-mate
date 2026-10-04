@@ -107,8 +107,9 @@ def policy_refusal(password: str) -> AppBadRequest | None:
 
     The policy (the operator, 2026-10-04): at least :data:`PASSWORD_MINIMUM` characters,
     one uppercase letter, one digit and one special character. The classes are Unicode
-    categories — uppercase ``Lu``, digit ``Nd``, special anything that is neither a
-    letter nor a number — so the maquette's check (``lib/password-policy.ts``) answers
+    categories — uppercase ``Lu``, digit ``Nd``, special a punctuation (``P*``) or a
+    symbol (``S*``); a space, a control character or a combining mark is none — so the
+    maquette's check (``lib/password-policy.ts``) answers
     exactly the same. The doors are the CLI's ``create-owner`` and ``set-password``,
     ``changeOwnPassword``, ``resetAccountPassword`` and ``createAccount``. Neither the
     refusal's text nor its params carry the password.
@@ -127,7 +128,7 @@ def policy_refusal(password: str) -> AppBadRequest | None:
     categories = {unicodedata.category(char) for char in password}
     has_upper = "Lu" in categories
     has_digit = "Nd" in categories
-    has_special = any(category[0] not in "LN" for category in categories)
+    has_special = any(category[0] in "PS" for category in categories)
     if not (has_upper and has_digit and has_special):
         return AppBadRequest(
             "The password lacks an uppercase letter, a digit or a special character.",

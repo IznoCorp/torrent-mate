@@ -27,7 +27,7 @@ function ask(method: string, path: string, body: Record<string, unknown>): Answe
   return found.route.handle({ path, parameters: found.parameters, query: new URLSearchParams(), body }) as Answer;
 }
 
-const STRONG = "A provisional one 1";
+const STRONG = "A provisional one 1!";
 const WEAK = "a provisional one";
 
 /**

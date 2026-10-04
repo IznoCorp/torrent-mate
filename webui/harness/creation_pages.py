@@ -202,7 +202,7 @@ async def main():
                                                                     minimum=SEEDS["passwordMinimum"])
                       and weak["submit"] is True and await page.evaluate(CALLS, "createAccount") == [400], str(weak))
         if refused is not None:
-            await page.fill(f'{ACCOUNT_SCREEN} [name="password"]', "Correct horse battery 9")
+            await page.fill(f'{ACCOUNT_SCREEN} [name="password"]', "Correct-horse battery 9")
             await page.wait_for_timeout(SETTLED)
             await page.click(f'{ACCOUNT_SCREEN} [data-part="creation/submit"]')
             await page.wait_for_timeout(ACTED + SETTLED)

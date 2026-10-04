@@ -24,8 +24,18 @@ describe("the password policy", () => {
       expect(passwordShortfall(password)).toBe("password.too_weak");
   });
 
-  it("reads the classes as Unicode categories: a Greek capital, a space", () => {
-    expect(passwordShortfall("Ωmega heights 9")).toBeUndefined();
+  it("reads the classes as Unicode categories: a Greek capital, a dash", () => {
+    expect(passwordShortfall("Ωmega heights-9")).toBeUndefined();
+  });
+
+  it.each([
+    ["space", "Abcdefghijk1 ", "password.too_weak"],
+    ["control", "Abcdefghijk1\x00", "password.too_weak"],
+    ["combining-mark", "Abcdefghijk1\u0301", "password.too_weak"],
+    ["punctuation", "Abcdefghijk1!", undefined],
+    ["symbol", "Abcdefghijk1€", undefined],
+  ])("counts as special a punctuation or a symbol only, as the server does (%s)", (_case, password, code) => {
+    expect(passwordShortfall(password)).toBe(code);
   });
 
   it("counts characters, not UTF-16 units, as the server does", () => {

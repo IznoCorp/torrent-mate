@@ -4,8 +4,8 @@
 //
 // THE SERVER'S RULE, READ THE SAME WAY (`personalscraper/app/accounts/passwords.py`
 // `policy_refusal`): characters are code points, and the classes are Unicode
-// categories — uppercase `Lu`, digit `Nd`, special anything that is neither a
-// letter nor a number. The layer refuses by this check, and the forms say the
+// categories — uppercase `Lu`, digit `Nd`, special a punctuation (`P*`) or a
+// symbol (`S*`); a space, a control character or a combining mark is none. The layer refuses by this check, and the forms say the
 // rule — and a password that breaks it — before anything is asked.
 
 /** The shortest password a local door accepts, in characters. */
@@ -25,6 +25,6 @@ export function passwordShortfall(password: string): PasswordShortfall | undefin
   if ([...password].length < PASSWORD_MINIMUM) return "password.too_short";
   const upper = /\p{Lu}/u.test(password);
   const digit = /\p{Nd}/u.test(password);
-  const special = /[^\p{L}\p{N}]/u.test(password);
+  const special = /[\p{P}\p{S}]/u.test(password);
   return upper && digit && special ? undefined : "password.too_weak";
 }

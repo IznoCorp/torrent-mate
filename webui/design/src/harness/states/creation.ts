@@ -25,7 +25,7 @@ const PRESS_AFTER = 150;
 export const UNUSED_ROLE = { id: "friends", name: "Amis", kind: "ordinary" as const, rights: ["library.read" as const] };
 
 // A provisional password meeting the policy (the operator, 2026-10-04).
-export const LONG_PASSWORD = "Correct horse battery 9";
+export const LONG_PASSWORD = "Correct-horse battery 9";
 
 /**
  * Types into one field of the open creation page as a finger would: through the

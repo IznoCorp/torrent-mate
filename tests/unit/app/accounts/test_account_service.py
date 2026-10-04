@@ -32,7 +32,7 @@ from personalscraper.app.store.store import AppStore
 from personalscraper.core.event_bus import EventBus
 
 _NO_CEILING = InstanceCeiling(forbidden=frozenset(), read_only=False)
-_PASSWORD = "A provisional one 1"
+_PASSWORD = "A provisional one 1!"
 #: The manager's role: it manages accounts but is not Admin.
 _MANAGER_RIGHTS = frozenset({Right.ACCOUNTS_MANAGE, Right.LIBRARY_READ, Right.ACQUISITION_REQUEST})
 
