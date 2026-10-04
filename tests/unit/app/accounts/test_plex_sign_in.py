@@ -904,11 +904,12 @@ class TestRefusals:
         assert isinstance(refusal, AppUnavailable) and refusal.code is RefusalCode.PLEX_UNREACHABLE
         _nothing_stored(store)
 
+    @pytest.mark.parametrize("identifier", [None, ""])
     def test_the_server_down_admits_nobody(
-        self, door: PlexSignInService, server: _Server, store: AppStore
+        self, door: PlexSignInService, server: _Server, store: AppStore, identifier: str | None
     ) -> None:
-        """The server's identifier unread: 503 ``plex.server_unreachable``, nobody admitted."""
-        server.identifier = None
+        """The server's identifier unread, or read empty: 503 ``plex.server_unreachable``, nobody admitted."""
+        server.identifier = identifier
         refusal = self._finish(door, _clock_of(door))
         assert isinstance(refusal, AppUnavailable) and refusal.code is RefusalCode.PLEX_SERVER_UNREACHABLE
         _nothing_stored(store)

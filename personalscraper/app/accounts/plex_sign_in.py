@@ -191,8 +191,10 @@ class PlexSignInService:
         self._forward_url = forward_url
         self._bus = bus
         self._clock = clock
+        self._client_lock = threading.Lock()
         self._owner_lock = threading.Lock()
         self._owner_plex_id: int | None = None
+        self._account_client: PlexAccountClient | None = None
 
     def __repr__(self) -> str:
         """Name the door by its environment alone — no token, no identifier.
@@ -249,18 +251,21 @@ class PlexSignInService:
         """The plex.tv account client, under this environment's product and client identifier.
 
         The identifier is created once, in the same transaction that reads it, so two first
-        starts never store two.
+        starts never store two; it never changes after, so the client is built once.
 
         Returns:
             The client.
         """
-        repo = self._repo_factory()
-        with repo.immediate():
-            identifier = repo.setting(CLIENT_IDENTIFIER_SETTING)
-            if identifier is None:
-                identifier = uuid.uuid4().hex
-                repo.set_setting(CLIENT_IDENTIFIER_SETTING, identifier)
-        return self._client_factory(PRODUCTS[self._environment], identifier)
+        with self._client_lock:
+            if self._account_client is None:
+                repo = self._repo_factory()
+                with repo.immediate():
+                    identifier = repo.setting(CLIENT_IDENTIFIER_SETTING)
+                    if identifier is None:
+                        identifier = uuid.uuid4().hex
+                        repo.set_setting(CLIENT_IDENTIFIER_SETTING, identifier)
+                self._account_client = self._client_factory(PRODUCTS[self._environment], identifier)
+            return self._account_client
 
     # -- finish ---------------------------------------------------------------
 
@@ -355,7 +360,8 @@ class PlexSignInService:
         """
         assert self._server is not None  # finish refused a door with no server first
         machine = self._server.machine_identifier()
-        if machine is None:
+        # An empty identifier names no server: it would match a resource listed with an empty one.
+        if not machine:
             log.warning("plex_sign_in.server_unreachable")
             raise AppUnavailable("The Plex server did not answer.", code=RefusalCode.PLEX_SERVER_UNREACHABLE)
         access = client.server_access(token, machine)
