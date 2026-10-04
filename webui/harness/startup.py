@@ -229,7 +229,14 @@ async def main():
                 check("the gate carries the screen's style", ".splashbar {" in gate)
 
                 page3 = await ctx.new_page()
+                # The cookie is `SameSite=Lax`: a session held reaches the door with
+                # the request itself, so the gate never asks v1 about it, nor reloads.
+                asked_v1 = []
+                page3.on("request", lambda request: asked_v1.append(request.url)
+                         if "/api/v1/auth/me" in request.url else None)
                 await page3.goto(f"http://127.0.0.1:{PORT}/", wait_until="load")
+                await page3.wait_for_timeout(500)
+                check("the gate asks v1 nothing about the session on load", not asked_v1, str(asked_v1))
                 # Without the screen there is nothing to measure, and measuring
                 # anyway raises instead of naming the defect. A crash is a failure
                 # nobody can read.

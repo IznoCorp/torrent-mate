@@ -327,9 +327,9 @@ def test_the_rebuild_on_spawns_npm_over_a_stale_build(tmp_path: Path) -> None:
 
 
 # Drives the v1 sign-in page's script under node, over a stand-in document: the
-# page is loaded `loads` times, sharing one session storage and one clock, and
-# `/api/v1/auth/me` answers `status` each time it is asked.
-PROBE_DRIVER = """
+# page is loaded `loads` times, sharing one session storage, and every request
+# it makes is counted — `/api/v1/auth/me` answers `status` if it is asked.
+LOAD_DRIVER = """
 const script = process.argv[1];
 const status = Number(process.argv[2]);
 const loads = Number(process.argv[3]);
@@ -341,8 +341,8 @@ globalThis.sessionStorage = {
 };
 globalThis.location = { pathname: '/', search: '', replace: () => { seen.replaced += 1; } };
 globalThis.document = { querySelector: () => ({ addEventListener: () => {} }) };
-globalThis.fetch = (path) => {
-  if (path === '/api/v1/auth/me') seen.asked += 1;
+globalThis.fetch = () => {
+  seen.asked += 1;
   return Promise.resolve({ ok: status === 200, status });
 };
 (async () => {
@@ -355,15 +355,15 @@ globalThis.fetch = (path) => {
 """
 
 
-def probe(status: int, loads: int) -> dict[str, int]:
+def load(status: int, loads: int) -> dict[str, int]:
     """Run the v1 sign-in page's script, as `loads` page loads in a row.
 
     Args:
         status: What `/api/v1/auth/me` answers.
-        loads: How many times the page loads within the ten seconds.
+        loads: How many times the page loads in a row.
 
     Returns:
-        How many times v1 was asked, and how many times the page reloaded.
+        How many requests the page made, and how many times it navigated.
     """
     node = shutil.which("node")
     if node is None:
@@ -375,7 +375,7 @@ def probe(status: int, loads: int) -> dict[str, int]:
         sys.path.remove(str(MAQUETTE))
     script = v1_door.sign_in_script("/").strip().removeprefix("<script>").removesuffix("</script>")
     run = subprocess.run(
-        [node, "-e", PROBE_DRIVER, script, str(status), str(loads)],
+        [node, "-e", LOAD_DRIVER, script, str(status), str(loads)],
         capture_output=True,
         text=True,
         timeout=30,
@@ -384,14 +384,10 @@ def probe(status: int, loads: int) -> dict[str, int]:
     return json.loads(run.stdout)
 
 
-def test_the_sign_in_page_reloads_once_for_a_session_v1_holds() -> None:
-    """A session held but not sent on arrival reloads the page once, and never again within ten seconds."""
-    assert probe(200, loads=3) == {"asked": 1, "replaced": 1}
-
-
-def test_the_sign_in_page_never_reloads_when_v1_refuses() -> None:
-    """With no session v1 holds, the page asks once and stays: no reload, no loop."""
-    assert probe(401, loads=3) == {"asked": 1, "replaced": 0}
+def test_the_sign_in_page_asks_nothing_and_never_reloads_on_load() -> None:
+    """The cookie is `SameSite=Lax`: a session held reaches the door on arrival, so the page never probes for it."""
+    assert load(200, loads=3) == {"asked": 0, "replaced": 0}
+    assert load(401, loads=3) == {"asked": 0, "replaced": 0}
 
 
 def reason_of(body: bytes) -> str | None:
@@ -561,7 +557,7 @@ const answered = { status: Number(process.argv[2]), code: process.argv[3] };
 const seen = { replaced: [], stored: {} };
 let submit = null;
 globalThis.sessionStorage = {
-  getItem: () => String(Date.now()),
+  getItem: () => null,
   setItem: (key, value) => { seen.stored[key] = value; },
 };
 globalThis.location = { pathname: '/', search: '', replace: (to) => { seen.replaced.push(to); } };
