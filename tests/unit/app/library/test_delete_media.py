@@ -398,9 +398,9 @@ def test_no_deletion_authority_refuses_and_touches_nothing(shelf: Shelf) -> None
 def test_one_row_named_by_two_ids_is_deleted_once(shelf: Shelf) -> None:
     """One show row named by its TVDB id and its TMDB id: one deletion, one report, the medium deleted."""
     item = shelf.index.item("Show", kind="show", tvdb="77", tmdb="11")
-    shelf.index.episodes(item, 1, [1], folder="series/Show/Saison 01")
+    shelf.index.episodes(item, 1, [1], folder="series/Show/Season 01")
     folder = shelf.root / "series" / "Show"
-    (folder / "Saison 01").mkdir(parents=True)
+    (folder / "Season 01").mkdir(parents=True)
 
     report = shelf.service.delete_media(shelf.actor, [MediaRef(tvdb_id=77), MediaRef(tmdb_id=11)])
 
@@ -430,7 +430,7 @@ def test_another_rows_files_in_the_folder_refuse_and_touch_nothing(shelf: Shelf)
 
 def test_two_unicode_spellings_of_one_folder_delete_it_once(shelf: Shelf) -> None:
     """The index spells the folder NFC and NFD, the disk holds it once: deleted once, rows gone, medium deleted."""
-    nfc = unicodedata.normalize("NFC", "Amélie (2001)")
+    nfc = unicodedata.normalize("NFC", "Am\u00e9lie (2001)")
     nfd = unicodedata.normalize("NFD", nfc)
     item, folder = shelf.movie(nfc, "11")
     if not (shelf.root / "films" / nfd).is_dir():
