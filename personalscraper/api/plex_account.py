@@ -32,6 +32,7 @@ rules (``api/plex.py``), applied to a token that is not ours:
 
 from __future__ import annotations
 
+import http.cookiejar
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -134,11 +135,11 @@ class PlexAccountClient:
                 lists under « Authorized Devices » (one per environment).
             client_identifier: ``X-Plex-Client-Identifier`` — generated ONCE per environment and
                 re-used (Plex's article); persisted by the caller, passed in here.
-            session: Injected in tests; production lets the client own one.
+            session: Injected in tests; production lets the client own one that keeps no state.
         """
         self._product = product
         self._client_identifier = client_identifier
-        self._session = session if session is not None else requests.Session()
+        self._session = session if session is not None else _stateless_session()
 
     def __repr__(self) -> str:
         """Return a repr without the client identifier or any token."""
@@ -343,6 +344,22 @@ class PlexAccountClient:
         if any(_flag(r.get("owned")) for r in matches):
             return PlexServerAccess.OWNER
         return PlexServerAccess.HOME if _flag(matches[0].get("home")) else PlexServerAccess.SHARED
+
+
+def _stateless_session() -> requests.Session:
+    """Build the client's own session: it carries nothing from one user's call to the next.
+
+    The client serves every person who signs in, so a cookie plex.tv sets for one must never
+    ride along on the next one's request, and the process environment (a proxy, ``.netrc``
+    credentials) has no say in where a user's token is sent.
+
+    Returns:
+        A session that ignores the environment and keeps no cookie.
+    """
+    session = requests.Session()
+    session.trust_env = False
+    session.cookies.set_policy(http.cookiejar.DefaultCookiePolicy(allowed_domains=[]))
+    return session
 
 
 def _flag(value: object) -> bool:

@@ -17,10 +17,12 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import http.client
 import io
 import json
 import logging
 import re
+import types
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -28,6 +30,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 import requests
+import requests.adapters
 import structlog
 
 import personalscraper.api.plex_account as _plex_account
@@ -151,6 +154,40 @@ class _Session:
         return self.request("GET", url, **kwargs)
 
 
+class _CookieSettingAdapter(requests.adapters.BaseAdapter):
+    """A transport for a REAL session: answers ``user-200`` with a ``Set-Cookie``, records what it was sent."""
+
+    def __init__(self) -> None:
+        """Start with nothing sent."""
+        super().__init__()
+        self.sent: list[requests.PreparedRequest] = []
+
+    def send(self, request: requests.PreparedRequest, **kwargs: Any) -> requests.Response:  # type: ignore[override]
+        """Record the request and answer it, setting a session cookie the way plex.tv could.
+
+        Args:
+            request: The prepared request.
+            **kwargs: The transport's options (unused).
+
+        Returns:
+            A 200 carrying the recorded identity and a ``Set-Cookie`` header.
+        """
+        self.sent.append(request)
+        response = requests.Response()
+        response.status_code = 200
+        response._content = json.dumps(_sample("user-200")["body"]).encode()
+        response.headers["Content-Type"] = "application/json"
+        response.request = request
+        response.url = request.url or ""
+        # ``Session.send`` feeds the jar from the raw response's header message.
+        msg = http.client.parse_headers(io.BytesIO(b"Set-Cookie: plex_session=abc123; Path=/\r\n\r\n"))
+        response.raw = types.SimpleNamespace(_original_response=types.SimpleNamespace(msg=msg))
+        return response
+
+    def close(self) -> None:
+        """Nothing to release."""
+
+
 def _client(*answers: Any) -> tuple[PlexAccountClient, _Session]:
     """Build an account client over a fake session.
 
@@ -227,6 +264,19 @@ class TestRequests:
         assert (call["method"], call["url"]) == ("GET", "https://plex.tv/api/v2/resources")
         assert call["params"] == {"includeHttps": "1"}
         assert call["headers"]["X-Plex-Token"] == TOKEN
+
+    def test_the_own_session_ignores_the_environment_and_keeps_no_cookie(self) -> None:
+        """The client's own session: ``trust_env`` off, and a cookie plex.tv sets never rides the next call."""
+        client = PlexAccountClient(product=PRODUCT, client_identifier=CLIENT_ID)
+        session = client._session
+        assert session.trust_env is False
+        adapter = _CookieSettingAdapter()
+        session.mount("https://", adapter)
+        client.account(TOKEN)
+        client.account(TOKEN)
+        assert len(adapter.sent) == 2
+        assert "Cookie" not in adapter.sent[1].headers
+        assert len(session.cookies) == 0
 
     def test_no_token_in_a_url_or_the_params_and_no_redirect_followed(self) -> None:
         """No token in a url or the params and no redirect followed."""
