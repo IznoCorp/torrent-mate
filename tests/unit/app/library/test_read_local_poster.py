@@ -8,7 +8,7 @@ import pytest
 
 from personalscraper.app.errors import AppNotFound, RefusalCode
 from personalscraper.app.library.listing import mounted_media_folders
-from personalscraper.app.library.service import _folder_poster
+from personalscraper.app.library.service import POSTER_MAX_BYTES, _folder_poster
 from personalscraper.core.identity import MediaRef
 from tests.unit.app.library.world import World
 
@@ -197,3 +197,12 @@ def test_only_paths_naming_a_media_folder_are_media_folders(world: World, tmp_pa
         world.index.movie_file(movie, rel_path)
 
     assert mounted_media_folders(world.index.conn, movie) == [(str(tmp_path / "disk1"), "films/Heat")]
+
+
+def test_a_poster_over_the_size_cap_is_never_read(world: World, tmp_path: Path) -> None:
+    """A poster file larger than the cap is refused before it is read (a sparse file, nothing written)."""
+    folder = _held_show(world, tmp_path / "disk1")
+    with (folder / "poster.jpg").open("wb") as poster:
+        poster.truncate(POSTER_MAX_BYTES + 1)
+
+    _refused(world, MediaRef(tvdb_id=391101))

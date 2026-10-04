@@ -78,6 +78,7 @@ log = get_logger("app.library.service")
 
 __all__ = [
     "LIBRARY_PAGE_SIZE",
+    "POSTER_MAX_BYTES",
     "RECENT_LIMIT",
     "CategoryCount",
     "IncompleteEntry",
@@ -100,6 +101,10 @@ _BUSY_TIMEOUT_MS: Final[int] = 5000
 
 #: The maintenance action that rescrapes one index row.
 _RESCRAPE_ITEM_ACTION: Final[str] = "library-rescrape-item"
+
+#: The largest poster file served, in bytes: a request reads it whole into memory, so a
+#: file above this (no real poster is) is refused before it is read.
+POSTER_MAX_BYTES: Final[int] = 20 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -271,7 +276,8 @@ def _folder_poster(mount_path: str, folder: str) -> LocalPoster | None:
 
     Returns:
         The poster, or ``None`` when the disk, the folder or the poster is not there, when
-        a path escapes, or when a symlink loops.
+        a path escapes, when a symlink loops, or when the poster exceeds
+        ``POSTER_MAX_BYTES``.
     """
     try:
         root = Path(mount_path).resolve(strict=True)
@@ -285,6 +291,8 @@ def _folder_poster(mount_path: str, folder: str) -> LocalPoster | None:
             return None
         poster = (directory / name).resolve(strict=True)
         if poster.parent != directory or not poster.is_file():
+            return None
+        if poster.stat().st_size > POSTER_MAX_BYTES:
             return None
         content = poster.read_bytes()
     except (OSError, RuntimeError):
