@@ -222,3 +222,63 @@ def test_the_provider_answer_is_cached_five_minutes(world: World) -> None:
     world.service.read_sheet(world.actor, MediaRef(tmdb_id=949))
 
     assert world.tmdb.calls == [("movie", "949"), ("movie", "949")]
+
+
+def _tmdb_show_details() -> MediaDetails:
+    """TMDB's answer for « Outer Range »: the trailer and the rating TVDB does not give."""
+    return MediaDetails(
+        provider="tmdb",
+        provider_id="113985",
+        title="Outer Range",
+        rating=7.2,
+        trailer_url="https://www.youtube.com/watch?v=4G1gEQsc0Cc",
+        trailer_name="Outer Range - Official Trailer",
+        trailer_language="en",
+        creator="Someone Else",
+    )
+
+
+def test_a_show_read_at_tvdb_takes_its_trailer_and_rating_from_tmdb(world: World) -> None:
+    """TVDB gives no trailer nor rating: both are read at TMDB through the show's TMDB id."""
+    show = world.index.item("Outer Range", kind="show", tvdb="391101", tmdb="113985")
+    world.index.episodes(show, 1, [1])
+    world.tvdb.shows["391101"] = _show_details()
+    world.tmdb.shows["113985"] = _tmdb_show_details()
+
+    sheet = world.service.read_sheet(world.actor, MediaRef(tvdb_id=391101))
+
+    assert (sheet.trailer_key, sheet.trailer_name, sheet.trailer_language) == (
+        "4G1gEQsc0Cc",
+        "Outer Range - Official Trailer",
+        "en",
+    )
+    assert sheet.rating == 7.2
+    assert sheet.creator == "Brian Watkins"
+    assert world.tmdb.calls == [("tv", "113985")]
+
+
+def test_a_show_read_at_tvdb_answers_without_trailer_and_rating_when_tmdb_fails(world: World) -> None:
+    """TMDB down: the sheet still answers from TVDB, its trailer and rating unknown."""
+    show = world.index.item("Outer Range", kind="show", tvdb="391101", tmdb="113985")
+    world.index.episodes(show, 1, [1])
+    world.tvdb.shows["391101"] = _show_details()
+    world.tmdb.down = True
+
+    sheet = world.service.read_sheet(world.actor, MediaRef(tvdb_id=391101))
+
+    assert sheet.title == "Outer Range"
+    assert (sheet.trailer_key, sheet.trailer_name, sheet.trailer_language, sheet.rating) == (None, None, None, None)
+    assert world.tmdb.calls == [("tv", "113985")]
+
+
+def test_a_show_read_at_tvdb_without_a_tmdb_id_asks_tmdb_nothing(world: World) -> None:
+    """No TMDB id known: the sheet is TVDB's alone, as before."""
+    details = _show_details()
+    show = world.index.item("Outer Range", kind="show", tvdb="391101")
+    world.index.episodes(show, 1, [1])
+    world.tvdb.shows["391101"] = MediaDetails(**{**details.__dict__, "external_ids": {"imdb": "tt11685912"}})
+
+    sheet = world.service.read_sheet(world.actor, MediaRef(tvdb_id=391101))
+
+    assert (sheet.trailer_key, sheet.rating) == (None, None)
+    assert world.tmdb.calls == []

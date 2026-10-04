@@ -18,7 +18,7 @@ import threading
 import time
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import closing
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime
 from pathlib import Path
 from typing import Final, Literal
@@ -820,8 +820,10 @@ class LibraryService:
     def _provider_sheet(self, provider: str, provider_id: str, kind: Literal["movie", "show"] | None) -> ProviderSheet:
         """Read a provider's answer, through the five-minute cache.
 
-        A TVDB show naming no creator is crossed with TMDB (operator ruling 2026-08-04),
-        fail-soft: a failed cross leaves the creator unknown.
+        A TVDB show is crossed with TMDB through its TMDB id for what TVDB does not give:
+        the creator when it names none (operator ruling 2026-08-04), the trailer and the
+        rating (TVDB has neither, and the interface opens a show at TVDB first). Fail-soft:
+        a failed cross leaves those facts unknown and the sheet answers from TVDB alone.
 
         Args:
             provider: ``"tvdb"`` or ``"tmdb"``.
@@ -838,12 +840,16 @@ class LibraryService:
         creator = details.creator
         tmdb_id = details.external_ids.get("tmdb", "").strip()
         tmdb = self._providers.tmdb
-        if answered == "show" and not creator and provider == "tvdb" and tmdb_id not in ("", "0"):
+        lacking = not creator or not details.trailer_url or details.rating is None
+        if answered == "show" and lacking and provider == "tvdb" and tmdb_id not in ("", "0"):
             if isinstance(tmdb, SheetClient):
                 try:
-                    creator = tmdb.get_tv(tmdb_id).creator
-                except Exception as exc:  # noqa: BLE001 — fail-soft: the creator stays unknown
+                    crossed = tmdb.get_tv(tmdb_id)
+                except Exception as exc:  # noqa: BLE001 — fail-soft: the crossed facts stay unknown
                     log.debug("app.library.creator_cross_failed", tmdb_id=tmdb_id, error=str(exc))
+                else:
+                    creator = creator or crossed.creator
+                    details = _crossed_trailer_and_rating(details, crossed)
         answer = ProviderSheet(details=details, kind=answered, creator=creator)
         self._sheets.put((provider, provider_id), answer)
         return answer
@@ -890,3 +896,29 @@ class LibraryService:
             )
             for season in sorted(details.seasons, key=lambda s: s.season_number)
         )
+
+
+def _crossed_trailer_and_rating(details: MediaDetails, crossed: MediaDetails) -> MediaDetails:
+    """Fill a TVDB answer's missing trailer and rating from the TMDB answer for the same show.
+
+    The trailer travels whole (URL, name, language) so its parts never mix two providers.
+
+    Args:
+        details: TVDB's answer.
+        crossed: TMDB's answer for the same show.
+
+    Returns:
+        TVDB's answer with TMDB's trailer when TVDB has none, and TMDB's rating when TVDB
+        has none.
+    """
+    trailer = (
+        {}
+        if details.trailer_url
+        else {
+            "trailer_url": crossed.trailer_url,
+            "trailer_name": crossed.trailer_name,
+            "trailer_language": crossed.trailer_language,
+        }
+    )
+    rating = {} if details.rating is not None else {"rating": crossed.rating}
+    return replace(details, **trailer, **rating)
