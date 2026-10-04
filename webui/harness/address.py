@@ -64,7 +64,14 @@ READ = """() => ({
 
 
 def web_config():
-    """What `web.json5` really holds, or None when it is not on this machine."""
+    """Read the two account values this rule compares out of `web.json5`.
+
+    Returns:
+        None when `web.json5` is not on this machine; otherwise a dict with
+        `username` (the configured name, or None if unset) and `idle_days`
+        (`session_idle_days` as configured, falling back to the model's default
+        when `web.json5` does not set it).
+    """
     if not WEB.is_file():
         return None
     raw = WEB.read_text()

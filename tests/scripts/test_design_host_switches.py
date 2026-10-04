@@ -327,18 +327,13 @@ def test_the_rebuild_on_spawns_npm_over_a_stale_build(tmp_path: Path) -> None:
 
 
 # Drives the v1 sign-in page's script under node, over a stand-in document: the
-# page is loaded `loads` times, sharing one session storage, and every request
-# it makes is counted — `/api/v1/auth/me` answers `status` if it is asked.
+# page is loaded `loads` times and every request it makes is counted —
+# `/api/v1/auth/me` answers `status` if it is asked (whatever v1 would answer).
 LOAD_DRIVER = """
 const script = process.argv[1];
 const status = Number(process.argv[2]);
 const loads = Number(process.argv[3]);
-const stored = {};
 const seen = { asked: 0, replaced: 0 };
-globalThis.sessionStorage = {
-  getItem: (key) => (key in stored ? stored[key] : null),
-  setItem: (key, value) => { stored[key] = String(value); },
-};
 globalThis.location = { pathname: '/', search: '', replace: () => { seen.replaced += 1; } };
 globalThis.document = { querySelector: () => ({ addEventListener: () => {} }) };
 globalThis.fetch = () => {
@@ -359,7 +354,8 @@ def load(status: int, loads: int) -> dict[str, int]:
     """Run the v1 sign-in page's script, as `loads` page loads in a row.
 
     Args:
-        status: What `/api/v1/auth/me` answers.
+        status: What `/api/v1/auth/me` answers, were it asked (whatever v1 would
+            answer: the page is expected not to ask).
         loads: How many times the page loads in a row.
 
     Returns:
@@ -557,7 +553,6 @@ const answered = { status: Number(process.argv[2]), code: process.argv[3] };
 const seen = { replaced: [], stored: {} };
 let submit = null;
 globalThis.sessionStorage = {
-  getItem: () => null,
   setItem: (key, value) => { seen.stored[key] = value; },
 };
 globalThis.location = { pathname: '/', search: '', replace: (to) => { seen.replaced.push(to); } };
