@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import cast
 
 import pytest
+from _repo_paths import DESIGN_SRC, ROOT
 
 # Import the library commands package to register all @app.command callbacks.
 import personalscraper.commands.library  # noqa: F401 — triggers @app.command registration
@@ -242,8 +243,7 @@ def test_destructive_actions_support_dry_run() -> None:
 # Test 5 — Maquette seed parity
 # ---------------------------------------------------------------------------
 
-_REPO_ROOT = Path(__file__).resolve().parents[4]
-_MAQUETTE_SEED = _REPO_ROOT / "webui/design/src/mocks/seeds/maintenance-actions.json"
+_MAQUETTE_SEED = DESIGN_SRC / "mocks/seeds/maintenance-actions.json"
 
 
 def test_maquette_seed_matches_registry() -> None:
@@ -262,5 +262,5 @@ def test_maquette_seed_matches_registry() -> None:
     extra = sorted(seed_ids - registry_ids)
     assert not missing and not extra, (
         f"maquette seed out of step with the registry — missing from the seed: {missing}; "
-        f"extra in the seed: {extra}. Edit {_MAQUETTE_SEED.relative_to(_REPO_ROOT)}"
+        f"extra in the seed: {extra}. Edit {_MAQUETTE_SEED.relative_to(ROOT)}"
     )
