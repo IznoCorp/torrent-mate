@@ -108,8 +108,8 @@ class TestPolicyRefusal:
         assert refusal.params == {"minimum": PASSWORD_MINIMUM}
 
     def test_the_classes_are_unicode_categories(self) -> None:
-        """An accented capital counts as uppercase, a space as special, and nothing is ever echoed."""
-        refusal = policy_refusal("Évidemment 2026")
+        """A Greek capital counts as uppercase and a space as special."""
+        refusal = policy_refusal("Ωmega heights 9")
 
         assert refusal is None
 

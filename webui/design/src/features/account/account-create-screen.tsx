@@ -9,7 +9,9 @@
 // PROVISIONAL password (the operator, 2026-10-03: « A ») is a local account's:
 // whether the e-mail is a user of the managed Plex server — linked, signing in
 // by Plex, its password ignored — is the server's to know, so its rules are the
-// server's refusals, said under the password field in `fr.json`'s words.
+// server's refusals, said under the password field in `fr.json`'s words. THE
+// PASSWORD POLICY (the operator, 2026-10-04) is said under the field before
+// anything is typed, and a typed password breaking it is said there at once.
 //
 // SENT NOW OR NOT AT ALL (`send-now.ts`): the body carries a password.
 import { useState, type ReactElement } from "react";
@@ -19,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import { accountsQuery, roleLabel } from "../../lib/account";
 import { refusalCode, refusalWords } from "../../lib/refusal";
 import { bypassesRights } from "../../lib/rights";
+import { PASSWORD_MINIMUM, passwordShortfall } from "../../lib/password-policy";
 import { bridge } from "../../lib/shell-doors";
 import { CreationForm, CreationScreen, Field } from "../../ui/creation-form";
 import { emptyNote, formControl, surfaceError } from "../../ui/variants";
@@ -38,6 +41,8 @@ const FIELD_OF: Readonly<Record<string, FieldName>> = {
   "account.email_taken": "email",
   "password.required": "password",
   "password.too_short": "password",
+  "password.too_weak": "password",
+  "account.admin_owner_only": "role",
   "role.unknown": "role",
   "role.escalation": "role",
 };
@@ -83,16 +88,18 @@ export function AccountCreateScreen(): ReactElement {
   // NEVER ADMIN HERE: an account is promoted from its panel, by an Admin.
   const roles = (roster?.roles ?? []).filter((role) => !bypassesRights(role));
   const typed = { name: values.name.trim(), email: values.email.trim(), role: values.role };
+  const shortfall = values.password ? passwordShortfall(values.password) : undefined;
   // WHAT THE CLIENT KNOWS IS SAID BEFORE ANYTHING IS ASKED, once the field was touched.
   const own: Record<FieldName, string | null> = {
     name: typed.name ? null : t("screens.accounts.accountCreate.nameRequired"),
     email: !typed.email ? t("screens.accounts.emailRequired") : readsAsEmail(typed.email) ? null : t("refusals.account.email_invalid"),
     role: typed.role ? null : t("screens.accounts.accountCreate.roleRequired"),
-    password: null,
+    password: shortfall === undefined ? null : t(`refusals.${shortfall}`, { minimum: PASSWORD_MINIMUM }),
   };
   const errorOf = (field: FieldName): string | null =>
     (touched.has(field) ? own[field] : null) ?? (refusal?.field === field ? refusal.words : null);
-  const valid = own.name === null && own.email === null && own.role === null && roster !== undefined;
+  const valid = own.name === null && own.email === null && own.role === null && own.password === null
+    && roster !== undefined;
 
   /** Writes what was typed into one field, and forgets the refusal that field carried. */
   function type(field: FieldName, value: string): void {
@@ -151,7 +158,8 @@ export function AccountCreateScreen(): ReactElement {
         </select>
       </Field>
       <Field name="password" label={t("screens.accounts.provisionalPassword")} required={false} requiredWords={required}
-        error={errorOf("password")} hint={t("screens.accounts.plexHint")}>
+        error={errorOf("password")}
+        hint={`${t("common.passwordRule", { minimum: PASSWORD_MINIMUM })} ${t("screens.accounts.plexHint")}`}>
         <input {...control("password", false)} type="password" autoComplete="new-password"
           onChange={(event) => type("password", event.currentTarget.value)} />
       </Field>
