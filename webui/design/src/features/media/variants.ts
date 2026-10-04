@@ -279,8 +279,14 @@ export const episodeNumber = cva(
  */
 export const episodeTitle = cva("et min-w-[0] flex-1 [overflow-wrap:anywhere]");
 
-/** The row's air date and state. */
-export const episodeDate = cva("ed flex-[0_0_auto] text-2 text-muted-foreground [font-variant-numeric:tabular-nums]");
+/**
+ * The row's air date and state. `untitled` is a row with no title: the title's
+ * `flex-1` is what pushes the date to the right edge, so without it the date
+ * takes the edge itself and stays aligned with the titled rows of the season.
+ */
+export const episodeDate = cva("ed flex-[0_0_auto] text-2 text-muted-foreground [font-variant-numeric:tabular-nums]", {
+  variants: { untitled: { true: "ml-auto" } },
+});
 
 /** The matrix of cells, when a season has numbers and no titles. */
 export const episodeSet = cva("eps flex flex-wrap gap-2 mt-4");

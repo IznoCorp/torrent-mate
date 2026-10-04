@@ -18,7 +18,7 @@ import { dateLabel, episodeStateLabel } from "./format";
 import { today } from "../../lib/clock";
 
 /** One episode of a season's catalogue, as the served sheet answers it. */
-type Episode = { number: number; title?: string; airDate?: string | null };
+type Episode = { number: number; title?: string | null; airDate?: string | null };
 
 /**
  * The episode catalogue of the medium drawn under one title, from the cache.
