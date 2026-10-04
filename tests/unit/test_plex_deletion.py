@@ -17,7 +17,7 @@ import requests
 
 from personalscraper.api.plex import PlexClient
 
-_TOKEN = "PLEX-T0KEN-DELETION-7c1e"
+_TOKEN = "token"
 _BASE = "http://localhost:32400"
 
 
