@@ -77,7 +77,8 @@ describe("a provisional password reset", () => {
 
   it("never touches the owner's fallback password, nor a Plex-linked account", () => {
     // ASKED BY A SECOND ADMIN: the owner naming its own account is refused
-    // earlier, `password.reset_own` (`accounts-rules.test.ts`).
+    // earlier, `password.reset_own` — the owner's leg in `accounts-rules.test.ts`
+    // (« an Admin's own password »).
     identityDials.setAccountRole("local-account", "admin");
     identityDials.setIdentity("local-account");
     const owner = post("/accounts/izno/password", { password: LONG });

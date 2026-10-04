@@ -530,6 +530,14 @@ class TestResetAccountPassword:
         assert response.status_code == 403
         assert response.json()["code"] == "password.reset_own"
 
+    def test_the_owner_resetting_its_own_password_is_reset_own(self, v1_client: Callable[..., TestClient]) -> None:
+        """403 ``password.reset_own``, not ``password.held_by_cli``: the caller's own account is checked first."""
+        response = v1_client(role="admin", server_access="owner").post(
+            "/accounts/account-1/password", json={"password": _PASSWORD}
+        )
+        assert response.status_code == 403
+        assert response.json()["code"] == "password.reset_own"
+
     def test_an_unknown_account_is_404(self, v1_client: Callable[..., TestClient]) -> None:
         """For an Admin: 404 ``account.unknown``."""
         response = v1_client(role="admin").post("/accounts/nope/password", json={"password": _PASSWORD})

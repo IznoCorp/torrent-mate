@@ -86,6 +86,11 @@ describe("an Admin's own password", () => {
     expect([answer.status, answer.coded?.code]).toEqual([403, "password.reset_own"]);
   });
 
+  it("is never reset by the owner either: its own account answers reset_own, before its kind's held_by_cli", () => {
+    const answer = ask("POST", "/accounts/izno/password", { password: STRONG });
+    expect([answer.status, answer.coded?.code]).toEqual([403, "password.reset_own"]);
+  });
+
   it("is checked after the Admin check: a manager still reads reset_admin_only", () => {
     identityDials.setIdentity("household-member");
     expect(ask("POST", "/accounts/household-member/password", { password: STRONG }).coded?.code).toBe("password.reset_admin_only");
