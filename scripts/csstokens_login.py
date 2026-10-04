@@ -23,13 +23,13 @@ from pathlib import Path
 # pattern is a second thing to keep in step, and this module is only ever
 # imported by it.
 from csstokens_patterns import COMMENT, DECLARATION, HTML_COMMENT, RUNTIME_PREFIX, USE
+from _repo_paths import DESIGN, MAQUETTE
 
 ROOT = Path(__file__).resolve().parent.parent
 
 # The files `serve.py` binds, resolved here rather than imported from the
 # main script: this module is the one that follows those bindings, and a
 # constant defined where it is READ cannot drift from a copy elsewhere.
-DESIGN = ROOT / "frontend" / "maquette" / "design"
 MARKUP = DESIGN / "index.html"
 BASE_LAYER = DESIGN / "src" / "styles" / "base.css"
 THEME_LAYER = DESIGN / "src" / "styles" / "theme.css"
@@ -38,7 +38,7 @@ THEME_LAYER = DESIGN / "src" / "styles" / "theme.css"
 # The composer itself. The sign-in page is whatever IT extracts — a chunk the
 # files offer and `serve.py` never asks for is not on the page, so the arm reads
 # the composition rather than the markers.
-COMPOSER = ROOT / "frontend" / "maquette" / "serve.py"
+COMPOSER = MAQUETTE / "serve.py"
 
 # `styles_source = BASE_STYLESHEET.read_text()`: the local name an `extract()` call
 # passes, bound to the constant that names the file it was read from.

@@ -1,6 +1,6 @@
 """Golden file loader and matcher for E2E test validation.
 
-Loads expected results from JSON golden files in assets/torrents/expected/
+Loads expected results from JSON golden files in tests/e2e/golden/torrents/expected/
 and matches torrent names to their golden files using fuzzy matching.
 Golden files provide exact validation (NFO invariants, artwork, structure,
 dispatch) on top of the existing smoke-test assertions.
@@ -18,7 +18,7 @@ from personalscraper.text_utils import media_processor
 
 logger = logging.getLogger(__name__)
 
-EXPECTED_DIR = Path(__file__).parents[2] / "assets" / "torrents" / "expected"
+EXPECTED_DIR = Path(__file__).parent / "golden" / "torrents" / "expected"
 
 # Regex to strip release group tags and technical info from torrent names
 _STRIP_PATTERNS = [
@@ -179,7 +179,7 @@ def match_torrent_to_golden(torrent_name: str) -> GoldenFile | None:
 
 
 def discover_golden_files() -> list[GoldenFile]:
-    """Discover all golden files in assets/torrents/expected/.
+    """Discover all golden files in tests/e2e/golden/torrents/expected/.
 
     Returns:
         List of all available GoldenFile objects.

@@ -3,7 +3,7 @@
 The source was the maquette's ``mocks/operation-rights.ts`` while the contract declared
 no per-operation right (gap G-2); once one contract operation carries ``x-rights``, the
 contract is read instead. This table replaces v0's
-``tests/unit/web/routes/test_staging_write_policy.py`` as the policy table.
+``tests/web/unit/routes/test_staging_write_policy.py`` as the policy table.
 """
 
 from __future__ import annotations
@@ -14,13 +14,14 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from _repo_paths import CONTRACT, DESIGN_SRC
 
 from personalscraper.app.accounts.rights import AnyOf, Public, Requirement, Right, SignedIn, holds
 from personalscraper.http_v1.rights import OPERATION_RIGHTS, OWN_SCOPED, PENDING_OPERATIONS
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_CONTRACT = _REPO_ROOT / "frontend" / "maquette" / "contract" / "openapi.json"
-_MAQUETTE_TABLE = _REPO_ROOT / "frontend" / "maquette" / "design" / "src" / "mocks" / "operation-rights.ts"
+_CONTRACT = CONTRACT
+_MAQUETTE_TABLE = DESIGN_SRC / "mocks" / "operation-rights.ts"
 _WRITE_METHODS = frozenset({"post", "put", "patch", "delete"})
 
 #: The ruled corrections to the source's ``null`` (DESIGN C.6): the sign-in

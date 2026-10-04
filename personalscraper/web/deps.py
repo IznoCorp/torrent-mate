@@ -123,7 +123,7 @@ def require_not_staging() -> None:
     impossible to validate on staging before merge.
 
     The policy is asserted as a table in
-    ``tests/unit/web/routes/test_staging_write_policy.py`` — change it there, not
+    ``tests/web/unit/routes/test_staging_write_policy.py`` — change it there, not
     by editing routes one at a time.
 
     Raises:

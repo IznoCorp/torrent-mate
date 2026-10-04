@@ -21,8 +21,8 @@ assert on:
 * ``mount_guarded`` — the shared guard-perimeter helper (previously copy-pasted
   verbatim into 7 modules).
 
-These are plain functions (not fixtures) so both the ``tests/web`` and
-``tests/unit/web`` trees can import them regardless of conftest scope.
+These are plain functions (not fixtures) so any test tree can import them
+regardless of conftest scope.
 """
 
 from __future__ import annotations

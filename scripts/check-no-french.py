@@ -123,6 +123,7 @@ import token as token_kinds
 import tokenize
 import unicodedata
 from pathlib import Path
+from _repo_paths import DESIGN_SRC
 
 # The lexicon and the helpers that read it live beside this file: the arms are
 # the questions, and those are the words the questions are asked in.
@@ -424,7 +425,7 @@ def check_class_names(violations: list[str]) -> None:
     # last rule left, and refused itself: « its scope is empty, so its `no
     # violation` means nothing » is this guard working, not failing.
     maquette_styles = sorted(
-        walk((ROOT / "frontend" / "maquette" / "design" / "src" / "styles"), "*.css", recursive=False))
+        walk((DESIGN_SRC / "styles"), "*.css", recursive=False))
     sheets = (maquette_styles
               + sorted(walk((ROOT / "frontend" / "src"), "*.css")))
     for path in sheets:

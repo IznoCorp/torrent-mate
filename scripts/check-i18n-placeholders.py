@@ -26,9 +26,10 @@ import json
 import pathlib
 import re
 import sys
+from _repo_paths import DESIGN_SRC
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SHELL = ROOT / "frontend" / "maquette" / "design" / "src"
+SHELL = DESIGN_SRC
 RESOURCE = SHELL / "i18n" / "fr.json"
 
 # `t("key", { … })` — the argument object, comments and nesting included.

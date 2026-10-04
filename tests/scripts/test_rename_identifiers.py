@@ -18,20 +18,20 @@ import sys
 from pathlib import Path
 
 import pytest
+from _repo_paths import DESIGN
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "rename-identifiers.py"
 
 # Anything the tool parses as JavaScript goes through `scripts/source-spans.mjs`,
-# which requires `frontend/node_modules/typescript`. The `test` CI job installs
-# Python only — the frontend deps live in the `frontend` job — so these skip
-# there rather than failing, the same way the Makefile guards `check-frontend`
-# and `openapi` with `if [ -d frontend/node_modules ]`. The Python-language
+# which requires `frontend/maquette/design/node_modules/typescript`. Without
+# that install these skip rather than fail, the same way the Makefile guards
+# the maquette targets with `if [ -d frontend/maquette/design/node_modules ]`. The Python-language
 # tests below carry no such guard and run everywhere, on purpose: the parser
 # they exercise is Python's own tokeniser.
 needs_typescript = pytest.mark.skipif(
-    not (ROOT / "frontend" / "node_modules" / "typescript").is_dir(),
-    reason="frontend/node_modules/typescript absent (installed by the frontend CI job)",
+    not (DESIGN / "node_modules" / "typescript").is_dir(),
+    reason="frontend/maquette/design/node_modules/typescript absent",
 )
 
 

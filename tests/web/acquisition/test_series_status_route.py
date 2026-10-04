@@ -1,6 +1,6 @@
 """The two facts « Terminé » rests on must survive the trip to the API.
 
-The rule itself is pinned in ``tests/unit/web/acquisition/test_termine_state.py``.
+The rule itself is pinned in ``tests/web/unit/acquisition/test_termine_state.py``.
 What this file guards is the plumbing between it and the operator: a route that
 forgets to pass ``series_status`` or ``announced_count`` would never fail a
 derivation test — it would simply serve ``None`` for both, and « Terminé » would

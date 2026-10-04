@@ -18,7 +18,7 @@ over a seeded store (cached catalog + mixed wanted rows). The movie card path
 is also covered (a ``kind='movie'`` follow with a movie wanted row).
 
 Plan drift: the plan places this test under ``tests/integration/``. It lives
-in ``tests/unit/web/`` instead because the integration conftest carries heavy
+in ``tests/web/unit/`` instead because the integration conftest carries heavy
 fixtures (staging tree, fake disks, rsync) that are not needed for a pure
 TestClient read test. The test uses the same ``client`` fixture pattern as
 ``test_acquisition_read.py``.

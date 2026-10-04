@@ -21,9 +21,9 @@ import re
 import subprocess
 import unicodedata
 from pathlib import Path
+from _repo_paths import MAQUETTE
 
 ROOT = Path(__file__).resolve().parent.parent
-MAQUETTE = ROOT / "frontend" / "maquette"
 
 
 def maquette_servers():

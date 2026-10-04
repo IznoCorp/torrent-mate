@@ -22,9 +22,9 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from _repo_paths import MAQUETTE
 
 ROOT = Path(__file__).resolve().parents[2]
-MAQUETTE = ROOT / "frontend" / "maquette"
 DESIGN = MAQUETTE / "design"
 VITE = DESIGN / "node_modules" / "vite" / "bin" / "vite.js"
 

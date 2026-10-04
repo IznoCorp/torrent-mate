@@ -330,7 +330,7 @@ def test_historical_ratio_state_row_stays_readable(store: ConcreteAcquireStore, 
 
 
 # ---------------------------------------------------------------------------
-# Web read model (mirrors tests/unit/web/routes/test_acquisition_read.py)
+# Web read model (mirrors tests/web/unit/routes/test_acquisition_read.py)
 # ---------------------------------------------------------------------------
 
 #: Minimal acquire.db schema for the obligations endpoint (seed_obligation

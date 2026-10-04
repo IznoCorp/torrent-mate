@@ -15,8 +15,8 @@ import types
 from pathlib import Path
 
 import pytest
+from _repo_paths import HARNESS
 
-HARNESS = Path(__file__).resolve().parents[2] / "frontend" / "maquette" / "harness"
 sys.path.insert(0, str(HARNESS))
 
 # The CI `test` job installs no Playwright (only the harness jobs do); the rule's

@@ -8,6 +8,7 @@ logged (``staging_game_hidden``) — never a silent disappearance (§méthode).
 
 from pathlib import Path
 
+import pytest
 import structlog
 
 from personalscraper.conf.models.categories import CategoryConfig
@@ -15,6 +16,7 @@ from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.models.paths import PathConfig
 from personalscraper.conf.staging import staging_path
+from personalscraper.web.staging import read_model
 from personalscraper.web.staging.read_model import scan_staging_media
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
@@ -72,7 +74,7 @@ class TestReadModelGameFilter:
         assert "Marvels.Spider-Man.2.v1.526.0.FRENCH-Mephisto" not in folders
         assert "Some Unknown Release (2024)" in folders
 
-    def test_game_skip_is_logged(self, tmp_path: Path):
+    def test_game_skip_is_logged(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         """The skip emits ``staging_game_hidden`` — no silent disappearance."""
         config = make_config(tmp_path)
         other = _other_dir(config)
@@ -83,6 +85,10 @@ class TestReadModelGameFilter:
         )
 
         with structlog.testing.capture_logs() as logs:
+            # The module logger, once cached by an earlier test in this process
+            # (``cache_logger_on_first_use``), bypasses the capture; one bound
+            # inside it does not.
+            monkeypatch.setattr(read_model, "logger", structlog.get_logger(read_model.__name__))
             scan_staging_media(config, tmp_path / "absent.db")
 
         events = [entry.get("event") for entry in logs]

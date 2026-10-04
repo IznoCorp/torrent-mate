@@ -8,12 +8,14 @@ from enum import StrEnum
 from importlib import resources
 from pathlib import Path
 
+from _repo_paths import DESIGN_SRC
+
 from personalscraper.app.errors import RefusalCode
 from personalscraper.i18n import Language, _catalogue
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _PACKAGE_ROOT = _REPO_ROOT / "personalscraper"
-_FRONTEND_FR = _REPO_ROOT / "frontend" / "maquette" / "design" / "src" / "i18n" / "fr.json"
+_FRONTEND_FR = DESIGN_SRC / "i18n" / "fr.json"
 
 # Namespace -> the closed StrEnum whose members are looked up with ``t_code``. A phase that adds
 # a coded namespace declares the pair here and ships a key per member.

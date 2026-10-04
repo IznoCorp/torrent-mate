@@ -28,11 +28,9 @@ import importlib.util
 import json
 import os
 import sys
-from pathlib import Path
 
 import pytest
-
-HARNESS = Path(__file__).resolve().parents[2] / "frontend" / "maquette" / "harness"
+from _repo_paths import HARNESS
 
 
 def load():

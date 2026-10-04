@@ -124,7 +124,7 @@ The files are **generated, never hand-edited**: the pre-commit hook runs
 ## Golden Files
 
 Each golden file lives in its own per-torrent subdirectory under
-`assets/torrents/expected/<slug>/` (e.g. `jumanji_1995/`,
+`tests/e2e/golden/torrents/expected/<slug>/` (e.g. `jumanji_1995/`,
 `malcolm_in_the_middle_s01/`). A subdirectory holds up to four JSON documents,
 each adding exact validation on top of the smoke-test assertions:
 

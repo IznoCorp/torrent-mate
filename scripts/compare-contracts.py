@@ -53,9 +53,10 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from _repo_paths import CONTRACT
 
 ROOT = Path(__file__).resolve().parents[1]
-WANTED = ROOT / "frontend" / "maquette" / "contract" / "openapi.json"
+WANTED = CONTRACT
 HAVE = ROOT / "frontend" / "openapi.json"
 REGISTER = ROOT / "docs" / "reference" / "frontend-backend-demands.md"
 

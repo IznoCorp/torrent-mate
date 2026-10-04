@@ -251,7 +251,7 @@ Paths are under `personalscraper/`. The verdict is his four words: **adapt** (sa
 | Exists | Verdict | What changes |
 | --- | --- | --- |
 | `web/auth/routes.py` (login :83, logout :165, me :182), `web/auth/tokens.py`, `passwords.py` (scrypt), `ratelimit.py` | transform | the session's subject becomes an account id; the password path open to the `owner` and `local` sign-in kinds only (`auth.password` retired, the operator 2026-10-03); the single `config.web.username` (`conf/models/web.py:30`) retired |
-| `web/deps.py` `require_session` :137, `require_not_staging` :106 (about 15 uses), `tests/unit/web/routes/test_staging_write_policy.py` | transform | one `authorise(right)` reading the role and the instance's forbidden writes; `require_not_staging` absorbed (NE-DOIT-PAS-7); the policy table becomes the rights table's test |
+| `web/deps.py` `require_session` :137, `require_not_staging` :106 (about 15 uses), `tests/web/unit/routes/test_staging_write_policy.py` | transform | one `authorise(right)` reading the role and the instance's forbidden writes; `require_not_staging` absorbed (NE-DOIT-PAS-7); the policy table becomes the rights table's test |
 | — accounts, roles, rights, Plex SSO | rebuild | no users table exists; `api/plex.py` speaks to the SERVER, the Plex account sign-in (PIN / OAuth) is new |
 
 ### 2.5 Système, Maintenance, Réglages
