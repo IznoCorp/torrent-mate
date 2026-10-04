@@ -43,6 +43,9 @@ export function showAvatar(source: string, name: string): void {
   }
   // `style.display` rather than `hidden`: the image's own `block` class would
   // outrank the attribute's user-agent rule.
+  // NO REFERER TO THIRD PARTIES: plex.tv and gravatar.com serve the picture
+  // and have no business learning the address of this app.
+  image.referrerPolicy = "no-referrer";
   image.style.display = source ? "" : "none";
   if (source) image.src = source;
   else image.removeAttribute("src");

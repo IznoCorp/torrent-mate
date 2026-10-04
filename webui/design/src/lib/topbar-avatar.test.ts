@@ -111,6 +111,11 @@ describe("showAvatar", () => {
     expect(shownInitial()).toBeNull();
   });
 
+  it("sends no Referer to the picture's host", () => {
+    showAvatar("https://plex.tv/users/abc/avatar", "izno");
+    expect(image.referrerPolicy).toBe("no-referrer");
+  });
+
   it("draws the initial when there is no picture", () => {
     showAvatar("", "jules");
     expect(image.style.display).toBe("none");

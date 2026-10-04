@@ -233,7 +233,7 @@ export function PanelContent({
     </span>
   ) : avatar ? (
     <span className={`avatar ${sheetAvatar()}`} data-part="avatar" aria-hidden="true">
-      <img className={avatarImage()} src={avatar} alt="" onError={() => setFailedAvatar(avatar)} />
+      <img className={avatarImage()} src={avatar} alt="" referrerPolicy="no-referrer" onError={() => setFailedAvatar(avatar)} />
     </span>
   ) : null;
 

@@ -179,7 +179,12 @@ async def hold_fallback(journal, page):
     ``d=404``), never a promise that an image is there. The state signs in an
     account whose address does not decode; the bar must then draw the
     account's initial in place of the image, and the panel must draw no
-    picture at all — what it draws for an account that has none.
+    picture at all — what it draws for an account that has none. Neither image
+    may send a Referer to the picture's host.
+
+    Args:
+        journal: The rule's journal, which records each check.
+        page: The harness page, already at the design host.
     """
     await page.evaluate("(state)=>window.__go(state)", FAILING_STATE)
     await page.wait_for_timeout(1200)
@@ -193,6 +198,7 @@ async def hold_fallback(journal, page):
                initial: initial && getComputedStyle(initial).display !== "none"
                  ? initial.textContent : null,
                panelPicture: Boolean(document.querySelector('#sheetin [data-part="avatar"] img')),
+               barReferrer: image ? image.referrerPolicy : null,
                panelOpen: Boolean(document.querySelector("#sheetin [data-part='sheet/title']")),
              };
            }""")
@@ -205,6 +211,10 @@ async def hold_fallback(journal, page):
         not reading["imageShown"] and bool(reading["initial"]),
         f"image shown: {reading['imageShown']}, initial: {reading['initial']!r} — "
         "a broken image in the bar shows the browser's broken-image box")
+    journal.check(
+        "the bar's account image sends no Referer to the picture's host",
+        reading["barReferrer"] == "no-referrer",
+        f"referrerPolicy is {reading['barReferrer']!r}")
     journal.check(
         "the panel draws no picture when the picture fails to load",
         not reading["panelPicture"],
