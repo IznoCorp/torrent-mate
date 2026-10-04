@@ -234,6 +234,8 @@ class PlexClient:
         self._session = session if session is not None else requests.Session()
         #: Lazily fetched once, then reused for the process lifetime.
         self._sections: list[PlexSection] | None = None
+        #: The server's ``machineIdentifier``, read once on success (``machine_identifier``).
+        self._machine_identifier: str | None = None
 
     def __repr__(self) -> str:
         """Return a repr that CANNOT leak the token (it is simply not included)."""
@@ -310,6 +312,45 @@ class PlexClient:
             timeout=_GUARD_TIMEOUT,
             allow_redirects=False,
         )
+
+    # -- Identity -----------------------------------------------------------
+
+    def machine_identifier(self) -> str | None:
+        """Return the server's ``machineIdentifier`` (``GET /identity``), cached for the process lifetime.
+
+        It names this server among the resources of a plex.tv account, which is how the Plex
+        sign-in tells the server's owner, its Home and the users it is shared with from
+        everyone else (``api/plex_account.py``). The identifier never changes for a server, so
+        it is read once; like ``sections()``, a lost race costs one extra request.
+
+        Fail-soft like every method here: None when the server does not answer, refuses the
+        token or answers something unparseable — the sign-in then answers that the server is
+        unreachable (503), it never admits without the check. A failure is not cached: the next
+        call asks again, so a server that comes back up is picked up without a restart.
+
+        Returns:
+            The identifier, or None.
+        """
+        if self._machine_identifier is not None:
+            return self._machine_identifier
+        try:
+            response = self._get("/identity")
+        except Exception as exc:  # noqa: BLE001 — fail-soft, and no token-bearing frame escapes
+            log.warning("plex.identity_unreachable", base_url=self.base_url, error=type(exc).__name__)
+            return None
+        if response.status_code != 200:
+            log.warning("plex.identity_http_error", base_url=self.base_url, status=response.status_code)
+            return None
+        try:
+            identifier = response.json()["MediaContainer"]["machineIdentifier"]
+        except Exception as exc:  # noqa: BLE001 — a surprising shape degrades like an unreadable body
+            log.warning("plex.identity_unparseable", base_url=self.base_url, error=type(exc).__name__)
+            return None
+        if not isinstance(identifier, str) or not identifier:
+            log.warning("plex.identity_unparseable", base_url=self.base_url, error="NoMachineIdentifier")
+            return None
+        self._machine_identifier = identifier
+        return identifier
 
     # -- Sections -----------------------------------------------------------
 

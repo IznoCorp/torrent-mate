@@ -62,7 +62,7 @@ const WITH_PRECISION = new Set([
 
 describe("settingInWords", () => {
   it("has a corpus to compare", () => {
-    expect(FIELDS.length).toBe(174);
+    expect(FIELDS.length).toBe(175);
   });
 
   it("says every field exactly as the engine did", () => {

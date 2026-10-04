@@ -57,6 +57,36 @@ AT = """([selector, fraction]) => {
   };
 }"""
 
+# The dialog host is always rendered and keeps the last descriptor's geometry
+# after it closes, so a rectangle alone proves nothing: it is open when it says
+# so (`data-open`) and its open transform (scale 1) has been reached.
+DIALOG_OPEN = """()=>{
+  const opened = () => {
+    const dialog = document.querySelector('#dlg');
+    return !!dialog && dialog.hasAttribute('data-open')
+      && getComputedStyle(dialog).visibility === 'visible'
+      && Math.abs(new DOMMatrix(getComputedStyle(dialog).transform).a - 1) < 0.001;};"""
+
+
+async def settle(page, condition, arg=None, timeout=5000):
+    """Wait, bounded, until a page condition holds; a timeout is not a pass.
+
+    The read that follows the wait still happens and its check fails with its
+    own figures when the condition is unreachable, so a real absence is
+    reported by the rule and not swallowed by the wait.
+
+    Args:
+        page: The Playwright page.
+        condition: A JS function expression returning truthy once what the
+            next reading measures has been drawn.
+        arg: Optional argument handed to the function.
+        timeout: Upper bound in milliseconds.
+    """
+    try:
+        await page.wait_for_function(condition, arg=arg, timeout=timeout)
+    except PlaywrightTimeout:
+        pass
+
 
 async def main():
     journal = Journal("R101 — one ranked order, and the top layer answers the finger")
@@ -69,7 +99,16 @@ async def main():
         # THE BAR IS REALLY THERE AND REALLY ON TOP OF THE PAGE, so the holds
         # below are not passing over an element that is simply absent.
         await page.evaluate("()=>window.__go('lib-list')")
-        await page.wait_for_timeout(300)
+        # `#nav` has a height from boot, so the wait is on what the reading
+        # below measures: the nav owns the point, on the `lib` page that
+        # `lib-list` raises (the bar marks its current tab `aria-current`).
+        await settle(page, """()=>{
+          const nav = document.querySelector('#nav');
+          if (!nav || !nav.querySelector('[data-page="lib"][aria-current="page"]'))
+            return false;
+          const box = nav.getBoundingClientRect();
+          const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+          return !!hit && !!hit.closest('#nav');}""")
         bar = await page.evaluate(AT, ['#nav', 0.5])
         journal.check(
             "the tab bar is on screen and answers a finger — the subject exists",
@@ -95,7 +134,10 @@ async def main():
           body: [{type: 'manifest', entries: Array.from({length: 40},
             (_, n) => ({text: 'ligne ' + n, value: String(n)}))}],
           actions: [{text: 'Annuler', dismiss: true}]})""")
-        await page.wait_for_timeout(400)
+        await settle(page, DIALOG_OPEN + """
+          const bar = document.querySelector('#nav');
+          return opened() && !!bar && document.querySelector('#dlg')
+            .getBoundingClientRect().bottom > bar.getBoundingClientRect().top;}""")
         overlapping = await page.evaluate("""()=>{
           const dialog = document.querySelector('#dlg').getBoundingClientRect();
           const bar = document.querySelector('#nav').getBoundingClientRect();
@@ -170,13 +212,17 @@ async def main():
         # so the bar this hold is about is not on screen in it. Measured, after
         # the hold reported « absent » — a premise nobody had checked.
         await page.evaluate("()=>window.__go('lib-selection')")
-        await page.wait_for_timeout(350)
+        await settle(page, """()=>!!document.querySelector(
+          '[data-part="selection/bar"]')?.getBoundingClientRect().height""")
         await page.evaluate("""()=>window.__dialog.open({
           heading: 'probe',
           body: [{type: 'manifest', entries: Array.from({length: 40},
             (_, n) => ({text: 'ligne ' + n, value: String(n)}))}],
           actions: [{text: 'Annuler', dismiss: true}]})""")
-        await page.wait_for_timeout(450)
+        await settle(page, DIALOG_OPEN + """
+          const bar = document.querySelector('[data-part="selection/bar"]');
+          return opened() && !!bar && document.querySelector('#dlg')
+            .getBoundingClientRect().bottom > bar.getBoundingClientRect().top;}""")
         over_selection = await page.evaluate("""()=>{
           const bar = document.querySelector('[data-part="selection/bar"]');
           if (!bar) return {absent: true};
@@ -197,7 +243,11 @@ async def main():
 
         # (c) THE DRAWER, which was already above the bar and must stay there.
         await page.evaluate("()=>window.__go('drawer-navigation')")
-        await page.wait_for_timeout(400)
+        await settle(page, """()=>{
+          const drawer = document.querySelector('#drawer');
+          const frame = document.querySelector('#device');
+          return !!drawer && !!frame && Math.round(drawer.getBoundingClientRect().left)
+            >= Math.round(frame.getBoundingClientRect().left);}""")
         drawer_hit = await page.evaluate(AT, ['#drawer', 0.95])
         journal.check(
             "the drawer answers the finger at its lower edge too",
@@ -212,7 +262,14 @@ async def main():
         # off the bar, and this hold is what says it still does.
         await page.evaluate("()=>window.__go('lib-list')")
         await page.evaluate("()=>window.__toast.show({message: 'probe'})")
-        await page.wait_for_timeout(350)
+        # `#toast` is always rendered and keeps its height while closed, so the
+        # wait is on `data-shown` and on its entry slide (translateY) being done.
+        await settle(page, """()=>{
+          const toast = document.querySelector('#toast');
+          if (!toast || !toast.hasAttribute('data-shown')) return false;
+          const style = getComputedStyle(toast);
+          const at = new DOMMatrix(style.transform);
+          return style.visibility === 'visible' && at.e === 0 && at.f === 0;}""")
         # THE RELATION, NOT THE MESSAGE'S OWN CENTRE. The first version of this
         # hold hit-tested inside the toast and asserted the toast answered —
         # which is true by construction, because nothing paints over it there.
@@ -244,23 +301,14 @@ async def main():
         # layer is open, and `inert` takes an element out of hit-testing, so a
         # plain reading answers the sheet at 47 exactly as at 52.
         await page.evaluate("()=>window.__go('sheet-user')")
-        # WAIT ON THE CONDITION THE READ BELOW MEASURES, not on a fixed delay:
-        # the sheet rises, and until it has landed its bottom is not the
-        # screen's bottom edge — a loaded runner reads it mid-rise. The wait is
-        # bounded and its timeout is not swallowed into a pass: the read still
-        # happens, and the check fails with its own figures if the sheet never
-        # settles.
-        try:
-            await page.wait_for_function(
-                """()=>{
-                  const sheet = document.querySelector('#sheet');
-                  const bar = document.querySelector('#nav');
-                  return !!sheet && !!bar && Math.round(
-                    sheet.getBoundingClientRect().bottom) === Math.round(
-                    bar.getBoundingClientRect().bottom);}""",
-                timeout=5000)
-        except PlaywrightTimeout:
-            pass
+        # The sheet rises: until it has landed its bottom is not the screen's
+        # bottom edge, and a loaded runner reads it mid-rise.
+        await settle(page, """()=>{
+          const sheet = document.querySelector('#sheet');
+          const bar = document.querySelector('#nav');
+          return !!sheet && !!bar && Math.round(
+            sheet.getBoundingClientRect().bottom) === Math.round(
+            bar.getBoundingClientRect().bottom);}""")
         over_bar = await page.evaluate("""()=>{
           const sheet = document.querySelector('#sheet');
           const bar = document.querySelector('#nav');
@@ -307,7 +355,8 @@ async def main():
         # frame on a desktop is CENTRED, so a clamp written against the viewport
         # would let the popover leave the device on the left and still pass.
         await page.evaluate("()=>window.__go('followsheet-gaps')")
-        await page.wait_for_timeout(500)
+        await settle(page, """()=>document.querySelectorAll(
+          '[data-part="episode"]').length > 2""")
         cells = await page.evaluate(
             """()=>document.querySelectorAll('[data-part="episode"]').length""")
         journal.check(
@@ -320,13 +369,24 @@ async def main():
         # reported the same placement twice.
         placements = []
         for edge in ("left", "right"):
+            # ONE popover node serves both edges, so the first edge's would
+            # satisfy the second's « visible »: close it the way the product
+            # does (the next pointerdown — it is not on the layer ladder, so
+            # `__closeLayers` leaves it up) and wait it gone first.
+            await page.evaluate(
+                "()=>document.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}))")
+            await settle(page, """()=>{
+              const layer = document.querySelector('[data-part="episode/popover"]');
+              return !layer || getComputedStyle(layer).visibility === 'hidden';}""")
             await page.evaluate(
                 """(edge)=>{const cells=[...document.querySelectorAll('[data-part="episode"]')];
                    const sorted = cells.slice().sort((a, b) =>
                      a.getBoundingClientRect().left - b.getBoundingClientRect().left);
                    (edge === 'left' ? sorted[0] : sorted[sorted.length - 1]).click();}""",
                 edge)
-            await page.wait_for_timeout(300)
+            await settle(page, """()=>{
+              const layer = document.querySelector('[data-part="episode/popover"]');
+              return !!layer && getComputedStyle(layer).visibility === 'visible';}""")
             placements.append(await page.evaluate("""()=>{
               const layer = document.querySelector('[data-part="episode/popover"]');
               if (!layer) return {absent: true};

@@ -3,6 +3,8 @@
 > Plex Media Server HTTP API — reference for `api/plex.py` (`PlexClient`) and
 > `subscribers/plex.py` (`PlexSubscriber`).
 > Scope: the post-dispatch library refresh, nothing else.
+> The plex.tv ACCOUNT side (the Plex sign-in: PIN, identity, access to this server) and
+> `PlexClient.machine_identifier()` are in [`plex-account-api.md`](plex-account-api.md).
 > Last updated: 2026-07-28
 
 ---

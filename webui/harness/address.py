@@ -42,6 +42,8 @@ from common import Journal, open_page, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 WEB = pathlib.Path(os.path.expanduser("~/.torrentmate/config/web.json5"))
+# Where `web.session_idle_days` takes its default when `web.json5` does not set it.
+WEB_MODEL = pathlib.Path(__file__).resolve().parents[2] / "personalscraper/conf/models/web.py"
 
 READ = """() => ({
   overflow: document.querySelector('#port').scrollWidth - document.querySelector('#port').clientWidth,
@@ -62,7 +64,14 @@ READ = """() => ({
 
 
 def web_config():
-    """What `web.json5` really holds, or None when it is not on this machine."""
+    """Read the two account values this rule compares out of `web.json5`.
+
+    Returns:
+        None when `web.json5` is not on this machine; otherwise a dict with
+        `username` (the configured name, or None if unset) and `idle_days`
+        (`session_idle_days` as configured, falling back to the model's default
+        when `web.json5` does not set it).
+    """
     if not WEB.is_file():
         return None
     raw = WEB.read_text()
@@ -71,7 +80,11 @@ def web_config():
     def field(name):
         m = re.search(rf'\b{name}\s*:\s*"?([^",\n]+)"?', raw)
         return m.group(1).strip() if m else None
-    return {"username": field("username"), "ttl": field("session_ttl_hours")}
+    # A v1 session ends after `session_idle_days` unused; a file that does not
+    # set it takes the model's default, read from the model rather than retyped.
+    default = re.search(r"session_idle_days: int = Field\(default=(\d+)", WEB_MODEL.read_text())
+    return {"username": field("username"),
+            "idle_days": field("session_idle_days") or (default and default.group(1))}
 
 
 async def main():
@@ -156,12 +169,15 @@ async def main():
             journal.check("the username shown is the one in the configuration",
                           usernames == [real["username"]],
                           f"{usernames} vs {real['username']}")
-            durations = [f for f in account["facts"] if f["k"] == "web.session_ttl_hours"]
-            journal.check("the session duration shown is the one in the configuration",
-                          durations and real["ttl"] in " ".join(
-                              f"{d['v']} {d.get('s', '')}" for d in durations)
-                          or (durations and real["ttl"] == "720" and "30 jours" in durations[0]["v"]),
-                          f"{[d['v'] for d in durations]} vs {real['ttl']} hours")
+            # v1's session lasts while it is used: its lifetime is the idle one,
+            # never v0's fixed `session_ttl_hours`.
+            durations = [f for f in account["facts"] if f["k"] == "web.session_idle_days"]
+            journal.check("the session duration shown is v1's idle lifetime in the configuration",
+                          bool(durations) and bool(real["idle_days"])
+                          and re.match(rf"{real['idle_days']}\b", durations[0]["v"]) is not None,
+                          f"{[d['v'] for d in durations]} vs {real['idle_days']} idle days")
+            journal.check("the account states nothing of v0's session lifetime",
+                          not [f for f in account["facts"] if f["k"] == "web.session_ttl_hours"])
 
         # No colleague is invented. What identifies an account here is an
         # address, so every address on the surface must be the real one — a
