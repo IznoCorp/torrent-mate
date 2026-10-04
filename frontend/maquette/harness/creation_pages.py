@@ -10,10 +10,12 @@ the viewer cannot perform, the API refusal is for direct calls.
 
 1. « NOUVEAU RÔLE » OPENS A PAGE AND CREATES NOTHING: the tap lands on `/accounts/roles/new`, no
    `createRole` leaves, the name field is EMPTY (no generated name) and Create is closed.
-2. THE ROLE FORM VALIDATES AT THE FIELD: an emptied name and a name another role carries are said at the
-   name field, Create closed; forcing `createRole` nameless answers 400 `role.name_required`.
+2. THE ROLE FORM VALIDATES AT THE FIELD: an emptied name is said at the name field, Create closed;
+   forcing `createRole` nameless answers 400 `role.name_required`. A seeded role's words are NOT a taken
+   name — a seeded role carries no `name`, and the server cannot know the interface's translation.
 3. A VALID ROLE IS CREATED AND THE PAGE RETURNS: a name and a right open Create; one `createRole` 201,
-   back on `/accounts`, and the roster draws the role.
+   back on `/accounts`, and the roster draws the role. Reopened, the page says that name — typed in
+   another case between spaces, the contract's rule — taken at the name field, Create closed.
 4. « NOUVEAU COMPTE » OPENS A PAGE LIKEWISE: `/accounts/new`, nothing created, every field empty, Create
    closed; an invalid e-mail is said at its field; the roster page carries no creation form.
 5. A VALID ACCOUNT IS CREATED AND THE PAGE RETURNS; a refusal lands at its field — a local account
@@ -101,14 +103,13 @@ async def main():
         journal.check("2: an emptied name is said at its field, Create closed",
                       emptied is not None and emptied["errors"]["name"] == await words("refusals.role.name_required")
                       and emptied["submit"] is True, str(emptied))
-        taken_name = await page.evaluate("()=>window.__i18n.t('roles.seed.household')")
+        seeded_words = await page.evaluate("()=>window.__i18n.t('roles.seed.household')")
         if opened is not None:
-            await page.fill(f'{ROLE_SCREEN} [name="name"]', taken_name)
+            await page.fill(f'{ROLE_SCREEN} [name="name"]', seeded_words)
             await page.wait_for_timeout(SETTLED)
-        taken = await form(ROLE_SCREEN, ROLE_FIELDS)
-        journal.check(f"2: a name another role carries (« {taken_name} ») is said at its field, Create closed",
-                      taken is not None and taken["errors"]["name"] == await words("refusals.role.name_taken")
-                      and taken["submit"] is True, str(taken))
+        seeded = await form(ROLE_SCREEN, ROLE_FIELDS)
+        journal.check(f"2: a seeded role's words (« {seeded_words} ») are no taken name — it carries no `name`",
+                      seeded is not None and seeded["errors"]["name"] is None and seeded["submit"] is False, str(seeded))
         forced = await page.evaluate(CALL, ["POST", "/api/v1/roles", {"name": "  ", "rights": []}])
         journal.check("2: forced nameless, createRole answers 400 role.name_required",
                       forced == {"status": 400, "code": "role.name_required"}, str(forced))
@@ -134,6 +135,16 @@ async def main():
         journal.check("3: the page returns to the roster, which draws the new role",
                       path.endswith("/accounts") and await page.query_selector(ROLE_SCREEN) is None and "Amis" in roles,
                       f"{path} / {roles}")
+        await page.click('#view [data-part="accounts/role-create"]')
+        await page.wait_for_timeout(ACTED + SETTLED)
+        if await page.query_selector(ROLE_SCREEN) is not None:
+            await page.fill(f'{ROLE_SCREEN} [name="name"]', "  AMIS ")
+            await page.wait_for_timeout(SETTLED)
+        taken = await form(ROLE_SCREEN, ROLE_FIELDS)
+        journal.check("3: reopened, the name a role now carries (« Amis », typed «  AMIS  ») is said taken at its field, "
+                      "Create closed",
+                      taken is not None and taken["errors"]["name"] == await words("refusals.role.name_taken")
+                      and taken["submit"] is True, str(taken))
 
         # 4. « Nouveau compte » opens a page likewise.
         await to_accounts()

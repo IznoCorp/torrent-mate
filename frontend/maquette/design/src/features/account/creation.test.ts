@@ -13,6 +13,7 @@ import type { Schemas } from "../../lib/contract-schemas";
 import { deletable } from "./roster-panels";
 import { nameTaken } from "./role-create-screen";
 import { readsAsEmail } from "./account-create-screen";
+import FRENCH from "../../i18n/fr.json";
 
 type Role = Schemas["Role"];
 type Roster = Schemas["Roster"];
@@ -65,6 +66,17 @@ describe("nameTaken", () => {
   it("finds a name another role carries, regardless of case and spaces", () => {
     expect(nameTaken("  amis ", [UNUSED])).toBe(true);
     expect(nameTaken("Crew", [UNUSED])).toBe(false);
+  });
+
+  it("judges the name a role carries, never a seeded role's translated words — the server cannot know them", () => {
+    const household = role("household");
+    expect(household.name ?? null).toBeNull();
+    expect(nameTaken(FRENCH.roles.seed.household, ROLES)).toBe(false);
+    expect(nameTaken(household.id, ROLES)).toBe(false);
+  });
+
+  it("finds an existing name typed in another case between spaces, as the contract's rule", () => {
+    expect(nameTaken("\t AMIS  ", [...ROLES, UNUSED])).toBe(true);
   });
 
   it("never calls an empty name taken — that is the required field's to say", () => {

@@ -52,6 +52,11 @@ export function readsAsEmail(typed: string): boolean {
   return /^[^\s@]+@[^\s@]+$/.test(typed.trim());
 }
 
+/**
+ * « Nouveau compte »' screen: an account's creation form, every field empty.
+ *
+ * @returns The form, or the reserved note when the viewer lacks `accounts.manage`.
+ */
 export function AccountCreateScreen(): ReactElement {
   const { t } = useTranslation();
   const client = useQueryClient();

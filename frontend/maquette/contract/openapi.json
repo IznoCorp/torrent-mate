@@ -6186,7 +6186,7 @@
                 "properties": {
                   "name": {
                     "type": "string",
-                    "description": "refused on a system role"
+                    "description": "refused on a system role; a name another role already carries — compared trimmed and regardless of case, the role's own excepted — refused 409 `role.name_taken`, as at creation"
                   },
                   "rights": {
                     "type": "array",

@@ -15,7 +15,8 @@ import { useState, type ReactElement } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { accountsQuery, roleLabel } from "../../lib/account";
+import { accountsQuery } from "../../lib/account";
+import type { Schemas } from "../../lib/contract-schemas";
 import { HELD, isRequestFailure, send } from "../../lib/query-client";
 import { refusalCode, refusalWords } from "../../lib/refusal";
 import { RIGHTS, type Right } from "../../lib/rights";
@@ -35,18 +36,26 @@ const KEY = "role-create";
 const NAME_CODES: ReadonlySet<string> = new Set(["role.name_required", "role.name_taken"]);
 
 /**
- * Whether a typed name is one another role already carries, as the interface
- * says that role's name — the seeded ones by their words, not by an id.
+ * Whether a typed name is one another role already carries in its `name` —
+ * the contract's rule, the server's: trimmed, regardless of case. A seeded
+ * role carries no name (its words are the interface's translation, which
+ * change with the language and which the server cannot know), so its words
+ * are never taken.
  *
  * @param typed The name typed.
  * @param roles The roles the roster holds.
- * @returns True when one carries it, regardless of case.
+ * @returns True when one carries it.
  */
-export function nameTaken(typed: string, roles: readonly Parameters<typeof roleLabel>[0][]): boolean {
+export function nameTaken(typed: string, roles: readonly Pick<Schemas["Role"], "name">[]): boolean {
   const wanted = typed.trim().toLowerCase();
-  return wanted !== "" && roles.some((role) => roleLabel(role).trim().toLowerCase() === wanted);
+  return wanted !== "" && roles.some((role) => role.name?.trim().toLowerCase() === wanted);
 }
 
+/**
+ * « Nouveau rôle »' screen: a role's creation form, its name empty, no right chosen.
+ *
+ * @returns The form, or the reserved note when the viewer lacks `accounts.manage`.
+ */
 export function RoleCreateScreen(): ReactElement {
   const { t } = useTranslation();
   const client = useQueryClient();

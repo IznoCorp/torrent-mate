@@ -66,6 +66,23 @@ describe("createRole", () => {
   });
 });
 
+describe("updateRole", () => {
+  beforeEach(() => resetMockState());
+
+  it("refuses a rename onto a name another role carries, whatever its case and spaces", () => {
+    ask("POST", "/roles", { name: "Amis", rights: [] });
+    const other = ask("POST", "/roles", { name: "Voisins", rights: [] });
+    const answer = ask("PATCH", `/roles/${other.id}`, { name: "  AMIS " });
+    expect([answer.status, answer.coded?.code]).toEqual([409, "role.name_taken"]);
+    expect(ask("GET", "/accounts").roles?.find((one) => one.id === other.id)).toMatchObject({ name: "Voisins" });
+  });
+
+  it("lets a role keep its own name, in another case", () => {
+    const created = ask("POST", "/roles", { name: "Amis", rights: [] });
+    expect(ask("PATCH", `/roles/${created.id}`, { name: "AMIS" }).name).toBe("AMIS");
+  });
+});
+
 describe("deleteRole", () => {
   beforeEach(() => resetMockState());
 

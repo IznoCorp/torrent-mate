@@ -123,6 +123,20 @@ function nextRoleId(): string {
   return `role-${index}`;
 }
 
+/**
+ * Whether another role already carries a name — the contract's rule: the
+ * `name` a role carries, trimmed, regardless of case (a seeded role carries
+ * none; its words are the interface's).
+ *
+ * @param name The name asked for, trimmed.
+ * @param except The role being renamed, which may keep its own name.
+ * @returns True when another role carries it.
+ */
+function nameCarried(name: string, except?: string): boolean {
+  const wanted = name.toLowerCase();
+  return roles().some((one) => one.id !== except && one.name?.trim().toLowerCase() === wanted);
+}
+
 /** Every route this subject answers. */
 export function accountRoutes(): MockRoute[] {
   return [
@@ -214,7 +228,7 @@ export function accountRoutes(): MockRoute[] {
       // roles carry the same one.
       const name = text(request.body, "name").trim();
       if (!name) return refused(INVALID, "a role carries the name the manager typed", "role.name_required");
-      if (roles().some((one) => one.name?.trim().toLowerCase() === name.toLowerCase()))
+      if (nameCarried(name))
         return refused(CONFLICT, "another role already carries that name", "role.name_taken");
       if (!within(rights))
         return refused(FORBIDDEN, "the role would hold rights the caller's does not", "role.escalation");
@@ -251,6 +265,10 @@ export function accountRoutes(): MockRoute[] {
         if (typeof name === "string" && !within(role.rights))
           return refused(FORBIDDEN, "a manager renames only a role within its own rights", "role.escalation");
       }
+      // A RENAME KEEPS NAMES UNIQUE, by the same rule as a creation; a role may
+      // keep its own name, in another case.
+      if (typeof name === "string" && name.trim() && nameCarried(name.trim(), role.id))
+        return refused(CONFLICT, "another role already carries that name", "role.name_taken");
       if (rights) roster.setRoleRights(role.id, rights);
       if (typeof name === "string" && name.trim()) roster.renameRole(role.id, name.trim());
       return roleFor(role.id);
