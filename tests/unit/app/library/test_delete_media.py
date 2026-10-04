@@ -6,6 +6,7 @@ Temporary folders, a temporary index, a fake Plex and a fake deletion authority 
 from __future__ import annotations
 
 import os
+import sqlite3
 import unicodedata
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -496,3 +497,35 @@ def test_a_folder_live_in_the_index_but_absent_from_the_disk_is_failed(shelf: Sh
     assert report.deleted == 0
     [one] = report.media
     assert (one.folders_deleted, one.folders_failed, one.rows_removed, one.plex) == (0, 1, 0, PlexOutcome.NOT_NEEDED)
+
+
+def test_an_index_write_failure_is_reported_and_the_request_goes_on(
+    shelf: Shelf, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The first medium's rows fail to go: it is reported not deleted, the second still goes, Plex told of both."""
+    from personalscraper.app.library import service as service_module
+
+    real = service_module.remove_item_rows
+    calls: list[int] = []
+
+    def failing_once(db_path: Path, item_ids: list[int], *, actor: str) -> int:
+        calls.append(item_ids[0])
+        if len(calls) == 1:
+            raise sqlite3.OperationalError("database is locked")
+        return real(db_path, item_ids, actor=actor)
+
+    monkeypatch.setattr(service_module, "remove_item_rows", failing_once)
+    first, a = shelf.movie("A (2020)", "11")
+    second, b = shelf.movie("B (2021)", "12")
+    shelf.movie("C (2022)", "13")
+
+    report = shelf.service.delete_media(shelf.actor, [MediaRef(tmdb_id=11), MediaRef(tmdb_id=12)])
+
+    assert not a.exists() and not b.exists()
+    assert first in shelf.rows() and second not in shelf.rows()
+    assert report.deleted == 1
+    one, two = report.media
+    assert (one.folders_deleted, one.rows_removed, one.deleted) == (1, 0, False)
+    assert (two.folders_deleted, two.rows_removed, two.deleted) == (1, 1, True)
+    assert one.plex is PlexOutcome.REFRESHED and two.plex is PlexOutcome.REFRESHED
+    assert ("refresh", str(shelf.root / "films")) in shelf.plex.calls

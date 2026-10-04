@@ -1028,7 +1028,9 @@ class LibraryService:
         told), the parent folders it left empty are removed up to the library root, and
         its index rows are removed with their tombstones — only when no folder of it was
         kept. Plex is told last, per section touched (:func:`follow_up_plex`). Nothing is
-        rolled back: a kept folder, a failed removal or a Plex failure is reported.
+        rolled back: a kept folder, a failed removal, a failed index write (the medium
+        reported not deleted, its rows live, the request going on to the next) or a Plex
+        failure is reported.
 
         Args:
             actor: Who deletes (an Admin: the v1 perimeter holds ``library.delete``).
@@ -1136,7 +1138,11 @@ class LibraryService:
         return plans
 
     def _delete_one(self, actor: Actor, plan: _DeletionPlan, permit: DeletePermit) -> _Deleted:
-        """Delete one validated medium's folder, its emptied parents and, when nothing was kept, its rows.
+        """Delete one validated medium's folders, its emptied parents and, when nothing was kept, its rows.
+
+        An index write failure (``sqlite3.Error`` from :func:`remove_item_rows`) is logged
+        and never raised: the medium is reported with ``rows_removed = 0``, so not deleted,
+        and its deleted folders are still told to Plex.
 
         Args:
             actor: Who deletes.
@@ -1179,7 +1185,19 @@ class LibraryService:
         unreachable = plan.unreachable
         rows = 0
         if vetoed + failed + unreachable == 0:
-            rows = remove_item_rows(self._index_db, [plan.item_id], actor=who)
+            try:
+                rows = remove_item_rows(self._index_db, [plan.item_id], actor=who)
+            except sqlite3.Error as exc:
+                # The folders are gone already: the request goes on, the rows stay live
+                # (the indexer's next scan sees the files gone) and the medium is reported
+                # not deleted.
+                log.error(
+                    "app.library.delete_rows_failed",
+                    provider=provider.value,
+                    item_id=plan.item_id,
+                    error=type(exc).__name__,
+                    detail=str(exc),
+                )
         log.info(
             "app.library.media_deleted",
             provider=provider.value,
