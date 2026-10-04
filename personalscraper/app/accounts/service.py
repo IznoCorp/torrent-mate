@@ -11,7 +11,7 @@ from typing import Final, get_args
 
 from personalscraper.app.accounts.actor import SYSTEM_ROLE_ID, Actor, RoleKind
 from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
-from personalscraper.app.accounts.passwords import PASSWORD_MINIMUM, hash_password, verify_password
+from personalscraper.app.accounts.passwords import hash_password, policy_refusal, verify_password
 from personalscraper.app.accounts.ratelimit import SlidingWindowRateLimiter
 from personalscraper.app.accounts.repository import AccountRepository, AccountRow, PlexLinkRow, RoleRow, StartKind
 from personalscraper.app.accounts.rights import Right
@@ -280,8 +280,13 @@ class AccountService:
             password: The new password; only its scrypt hash is kept.
 
         Raises:
+            AppBadRequest: ``password.too_short`` / ``password.too_weak`` (``params.minimum``) —
+                the policy every local door applies, checked before the store is read.
             AppNotFound: ``account.unknown`` — no account has that e-mail.
         """
+        refusal = policy_refusal(password)
+        if refusal is not None:
+            raise refusal
         repo = self._repo_factory()
         account = repo.account_by_email(email)
         if account is None:
@@ -309,7 +314,8 @@ class AccountService:
 
         Raises:
             AppBadRequest: ``account.email_invalid`` — a blank name or an e-mail without
-                both sides of one ``@``; ``password.required`` — an empty password.
+                both sides of one ``@``; ``password.required`` — an empty password;
+                ``password.too_short`` / ``password.too_weak`` (``params.minimum``) — the policy.
             OwnerAlreadySeeded: An account already holds the Admin role, an owner link, or
                 the owner's plex.tv id.
             AppConflict: ``account.email_taken``.
@@ -320,6 +326,9 @@ class AccountService:
             raise AppBadRequest("The owner carries a name and an e-mail.", code=RefusalCode.ACCOUNT_EMAIL_INVALID)
         if not password:
             raise AppBadRequest("The owner needs a password.", code=RefusalCode.PASSWORD_REQUIRED)
+        refusal = policy_refusal(password)
+        if refusal is not None:
+            raise refusal
         # scrypt runs before the writer lock is taken.
         password_hash = hash_password(password)
         repo = self._repo_factory()
@@ -372,7 +381,7 @@ class AccountService:
         Order: the account (deleted since the perimeter resolved it); who holds its
         password (the owner's is the CLI's, a Plex-linked account holds none); the limiter,
         keyed by the account; scrypt against the stored hash, or a dummy one when none is
-        held, so every refusal costs a real check; the new password's length. The new hash
+        held, so every refusal costs a real check; the new password's policy. The new hash
         is computed before the writer lock is taken; inside it the checks are read again —
         a hash moved meanwhile means the password typed is no longer the current one —
         then the hash is set and every other session of the account revoked, in one
@@ -391,8 +400,8 @@ class AccountService:
             AppTooManyRequests: ``auth.rate_limited`` — the account typed a wrong current
                 password too often in the window; checked before scrypt, so the right one
                 is refused too.
-            AppBadRequest: ``password.current_wrong``; ``password.too_short``
-                (``params.minimum``).
+            AppBadRequest: ``password.current_wrong``; ``password.too_short`` /
+                ``password.too_weak`` (``params.minimum``).
         """
         repo = self._repo_factory()
         account = repo.account(actor.account_id)
@@ -412,12 +421,9 @@ class AccountService:
             self._password_limiter.record_failure(account.id)
             log.info("password_change_refused", account_id=account.id)
             raise AppBadRequest("The current password does not match.", code=RefusalCode.PASSWORD_CURRENT_WRONG)
-        if len(new_password) < PASSWORD_MINIMUM:
-            raise AppBadRequest(
-                "The new password is too short.",
-                code=RefusalCode.PASSWORD_TOO_SHORT,
-                params={"minimum": PASSWORD_MINIMUM},
-            )
+        refusal = policy_refusal(new_password)
+        if refusal is not None:
+            raise refusal
         new_hash = hash_password(new_password)
         kept = self._sessions.live_session_id(token)
         with repo.immediate():
@@ -438,8 +444,9 @@ class AccountService:
         """Give a local account a provisional password — an Admin's act; its sessions keep running.
 
         The Admin check comes first: a caller who is not Admin never learns whether an
-        account exists. Then the account; who holds its password; the provisional
-        password's own refusals. scrypt runs before the writer lock is taken, and only for
+        account exists. Then the caller's own account, which an Admin changes in Profil with
+        its current password (the operator, 2026-10-04); the account; who holds its
+        password; the provisional password's own refusals. scrypt runs before the writer lock is taken, and only for
         a password that will be kept.
 
         Args:
@@ -449,13 +456,18 @@ class AccountService:
 
         Raises:
             AppForbidden: ``password.reset_admin_only`` — the caller's role is not Admin,
-                whatever the account, its own included; ``password.held_by_cli``,
-                ``auth.plex_only``.
+                whatever the account, its own included; ``password.reset_own`` — an Admin's
+                own account; ``password.held_by_cli``, ``auth.plex_only``.
             AppNotFound: ``account.unknown``.
-            AppBadRequest: ``password.required`` / ``password.too_short`` (``params.minimum``).
+            AppBadRequest: ``password.required`` / ``password.too_short`` /
+                ``password.too_weak`` (``params.minimum``).
         """
         if actor.role_kind is not RoleKind.ADMIN:
             raise AppForbidden("Only an Admin resets a password.", code=RefusalCode.PASSWORD_RESET_ADMIN_ONLY)
+        if account_id == actor.account_id:
+            raise AppForbidden(
+                "An Admin changes its own password with its current one.", code=RefusalCode.PASSWORD_RESET_OWN
+            )
         password_refusal = _provisional_refusal(password)
         password_hash = hash_password(password) if password_refusal is None else None
         repo = self._repo_factory()
@@ -568,12 +580,13 @@ class AccountService:
         )
 
     def create_account(
-        self, actor: Actor, *, name: str, email: str, role_id: str | None = None, password: str | None = None
+        self, actor: Actor, *, name: str, email: str, role_id: str, password: str | None = None
     ) -> AccountSummaryView:
         """Create a local account, with the provisional password an Admin gives it.
 
         Order of the refusals (the maquette's): the name and e-mail; the role; the
-        escalation; the e-mail taken; the password. Linking an e-mail the managed Plex
+        escalation; the Admin role given by anyone but the server's owner; the e-mail
+        taken; the password. Linking an e-mail the managed Plex
         server knows is the Plex sign-in's: every account created here is local. Nothing
         is published: no existing account's rights move.
 
@@ -581,8 +594,8 @@ class AccountService:
             actor: The signed-in actor (``accounts.manage``).
             name: The display name.
             email: The e-mail, unique whatever its case.
-            role_id: The role it starts on; ``None`` or empty for the role local accounts
-                start on (``Role.defaultFor`` ``local``).
+            role_id: The role it starts on — required (the operator, 2026-10-04): nothing
+                is chosen for the manager.
             password: The provisional password; only its scrypt hash is kept.
 
         Returns:
@@ -590,11 +603,12 @@ class AccountService:
 
         Raises:
             AppBadRequest: ``account.email_invalid`` — a blank name or an e-mail without
-                both sides of one ``@``; ``password.required`` / ``password.too_short``
-                (``params.minimum``).
+                both sides of one ``@``; ``password.required`` / ``password.too_short`` /
+                ``password.too_weak`` (``params.minimum``).
             AppNotFound: ``role.unknown``.
             AppForbidden: ``role.escalation`` — a caller who is not Admin gives Admin, or
-                a role holding rights its own does not.
+                a role holding rights its own does not; ``account.admin_owner_only`` — an
+                Admin who is not the server's owner gives Admin.
             AppConflict: ``account.email_taken``.
         """
         name, email = name.strip(), email.strip()
@@ -607,10 +621,12 @@ class AccountService:
         now = self._clock()
         account_id = f"account-{uuid.uuid4().hex}"
         with repo.immediate():
-            role = repo.role(role_id) if role_id else repo.role_for_start("local")
+            role = repo.role(role_id)
             if role is None:
                 raise AppNotFound("No role answers this identity.", code=RefusalCode.ROLE_UNKNOWN)
             _refuse_escalation(actor, role)
+            if role.kind is RoleKind.ADMIN:
+                _refuse_admin_given_by_another(repo, actor)
             if repo.account_by_email(email) is not None:
                 raise AppConflict("An account already carries this e-mail.", code=RefusalCode.ACCOUNT_EMAIL_TAKEN)
             if password_refusal is not None:
@@ -634,8 +650,9 @@ class AccountService:
         """Put an account on a role; E8 names it once the change commits.
 
         A caller who is not Admin never touches its own account, an account on the Admin
-        role or the Admin role, nor gives rights its own role does not hold. Whoever the
-        caller, one account stays on the Admin role. The checks and the write are one
+        role or the Admin role, nor gives rights its own role does not hold. Only the
+        server's owner puts an account on the Admin role (the operator, 2026-10-04). Whoever
+        the caller, one account stays on the Admin role. The checks and the write are one
         ``BEGIN IMMEDIATE`` transaction, so two managers cannot each demote "the other"
         last Admin.
 
@@ -649,7 +666,8 @@ class AccountService:
 
         Raises:
             AppNotFound: ``account.unknown``, ``role.unknown``.
-            AppForbidden: ``role.own_role``, ``account.admin_untouchable``, ``role.escalation``.
+            AppForbidden: ``role.own_role``, ``account.admin_untouchable``, ``role.escalation``,
+                ``account.admin_owner_only``.
             AppConflict: ``account.last_admin``.
         """
         repo = self._repo_factory()
@@ -671,6 +689,8 @@ class AccountService:
                         "A manager who is not Admin never touches Admin.", code=RefusalCode.ACCOUNT_ADMIN_UNTOUCHABLE
                     )
                 _refuse_escalation(actor, target)
+            if target.kind is RoleKind.ADMIN and current.kind is not RoleKind.ADMIN:
+                _refuse_admin_given_by_another(repo, actor)
             leaves_admin = current.kind is RoleKind.ADMIN and target.kind is not RoleKind.ADMIN
             if leaves_admin and repo.count_on_role_kind(RoleKind.ADMIN) <= 1:
                 raise AppConflict("No account would be left on the Admin role.", code=RefusalCode.ACCOUNT_LAST_ADMIN)
@@ -684,27 +704,41 @@ class AccountService:
         return summary
 
     def create_role(self, actor: Actor, *, name: str, rights: Sequence[str]) -> RoleView:
-        """Create an ordinary role; nothing is published (no account holds it yet).
+        """Create an ordinary role under the name typed; nothing is published (no account holds it yet).
+
+        Order of the refusals (the maquette's): the rights named; the name, required and
+        free; the escalation. The name check and the insert are one ``BEGIN IMMEDIATE``
+        transaction, so two creations cannot both take one name.
 
         Args:
             actor: The signed-in actor (``accounts.manage``).
-            name: Its name; blank stores none, and the interface shows its id.
+            name: Its name, trimmed; none is ever made up for it (the operator, 2026-10-04).
             rights: The rights it carries.
 
         Returns:
             The new role.
 
         Raises:
-            AppBadRequest: ``right.unknown`` — a name that is no right.
+            AppBadRequest: ``right.unknown`` — a name that is no right; ``role.name_required``
+                — a blank name.
+            AppConflict: ``role.name_taken`` — another role carries the name, compared
+                trimmed and regardless of case.
             AppForbidden: ``role.escalation`` — a caller who is not Admin gives rights its
                 own role does not hold.
         """
         held = _rights(rights)
-        if not _within(actor, held):
-            raise AppForbidden("The role would hold rights the caller's does not.", code=RefusalCode.ROLE_ESCALATION)
-        role = RoleRow(id=f"role-{uuid.uuid4().hex}", name=name.strip() or None, kind=RoleKind.ORDINARY, rights=held)
+        typed = name.strip()
+        if not typed:
+            raise AppBadRequest("A role carries the name the manager typed.", code=RefusalCode.ROLE_NAME_REQUIRED)
+        role = RoleRow(id=f"role-{uuid.uuid4().hex}", name=typed, kind=RoleKind.ORDINARY, rights=held)
         repo = self._repo_factory()
-        repo.insert_role(role, now=self._clock())
+        with repo.immediate():
+            _refuse_name_taken(repo, typed, except_id=None)
+            if not _within(actor, held):
+                raise AppForbidden(
+                    "The role would hold rights the caller's does not.", code=RefusalCode.ROLE_ESCALATION
+                )
+            repo.insert_role(role, now=self._clock())
         log.info("role_created", role_id=role.id, by=actor.account_id)
         return role_view(role)
 
@@ -715,7 +749,8 @@ class AccountService:
 
         The Admin role is never modified. A caller who is not Admin never touches its own
         role, never gives rights its own does not hold, and renames only a role whose
-        rights its own holds. A blank name is ignored. A change that moves nothing
+        rights its own holds. A blank name is ignored; a name another role carries is refused,
+        the role's own kept in any case. A change that moves nothing
         publishes nothing; a role nobody holds publishes nothing.
 
         Args:
@@ -730,7 +765,8 @@ class AccountService:
         Raises:
             AppBadRequest: ``right.unknown``.
             AppNotFound: ``role.unknown``.
-            AppConflict: ``role.system_immutable`` — the Admin role.
+            AppConflict: ``role.system_immutable`` — the Admin role; ``role.name_taken`` —
+                another role carries the new name, compared trimmed and regardless of case.
             AppForbidden: ``role.own_role``, ``role.escalation``.
         """
         held = _rights(rights) if rights is not None else None
@@ -753,6 +789,8 @@ class AccountService:
                     raise AppForbidden(
                         "A manager renames only a role within its own rights.", code=RefusalCode.ROLE_ESCALATION
                     )
+            if new_name is not None:
+                _refuse_name_taken(repo, new_name, except_id=role.id)
             rights_moved = held is not None and held != role.rights
             renamed = new_name is not None and new_name != role.name
             if rights_moved or renamed:
@@ -771,6 +809,41 @@ class AccountService:
             cause = RightsChangeCause.ROLE_RIGHTS_CHANGED if rights_moved else RightsChangeCause.ROLE_RENAMED
             self._bus.emit(AccountRightsChanged(account_ids=holders, cause=cause))
         return role_view(updated)
+
+    def delete_role(self, actor: Actor, role_id: str) -> None:
+        """Delete a role nothing depends on; nothing is published (no account held it).
+
+        Order of the refusals (the contract's): the role; the Admin role; a role a
+        newcomer starts on, even held by nobody (ruling A); a role an account holds; to a
+        caller who is not Admin, a role whose rights its own does not include. The checks
+        and the delete are one ``BEGIN IMMEDIATE`` transaction, so an account put on the
+        role meanwhile is seen.
+
+        Args:
+            actor: The signed-in actor (``accounts.manage``).
+            role_id: The role.
+
+        Raises:
+            AppNotFound: ``role.unknown``.
+            AppConflict: ``role.system_immutable`` — the Admin role; ``role.default`` — a
+                newcomer starts on it; ``role.in_use`` — an account holds it.
+            AppForbidden: ``role.escalation``.
+        """
+        repo = self._repo_factory()
+        with repo.immediate():
+            role = repo.role(role_id)
+            if role is None:
+                raise AppNotFound("No role answers this identity.", code=RefusalCode.ROLE_UNKNOWN)
+            if role.kind is RoleKind.ADMIN:
+                raise AppConflict("The Admin role is never deleted.", code=RefusalCode.ROLE_SYSTEM_IMMUTABLE)
+            if role.default_for:
+                raise AppConflict("A newcomer starts on this role.", code=RefusalCode.ROLE_DEFAULT)
+            if repo.accounts_on_role(role.id):
+                raise AppConflict("An account holds this role.", code=RefusalCode.ROLE_IN_USE)
+            if not _within(actor, role.rights):
+                raise AppForbidden("The role holds rights the caller's does not.", code=RefusalCode.ROLE_ESCALATION)
+            repo.delete_role(role.id)
+        log.info("role_deleted", role_id=role_id, by=actor.account_id)
 
     def sign_out(self, actor: Actor, token: str) -> None:
         """Close the session the actor signed in with.
@@ -802,18 +875,12 @@ def _provisional_refusal(password: str | None) -> AppBadRequest | None:
         password: The password the Admin typed; ``None`` when absent.
 
     Returns:
-        ``password.required`` (absent or empty), ``password.too_short`` with its
-        ``minimum``, or ``None`` when it is long enough.
+        ``password.required`` (absent or empty), the policy's ``password.too_short`` /
+        ``password.too_weak`` with its ``minimum``, or ``None`` when it meets the policy.
     """
     if not password:
         return AppBadRequest("A local account starts with a provisional password.", code=RefusalCode.PASSWORD_REQUIRED)
-    if len(password) < PASSWORD_MINIMUM:
-        return AppBadRequest(
-            "The provisional password is too short.",
-            code=RefusalCode.PASSWORD_TOO_SHORT,
-            params={"minimum": PASSWORD_MINIMUM},
-        )
-    return None
+    return policy_refusal(password)
 
 
 def _refuse_password_held_elsewhere(kind: SignInKind) -> None:
@@ -882,3 +949,37 @@ def _refuse_escalation(actor: Actor, role: RoleRow) -> None:
         return
     if role.kind is RoleKind.ADMIN or not _within(actor, role.rights):
         raise AppForbidden("The role holds rights the caller's does not.", code=RefusalCode.ROLE_ESCALATION)
+
+
+def _refuse_admin_given_by_another(repo: AccountRepository, actor: Actor) -> None:
+    """Refuse the Admin role given by anyone but the managed Plex server's owner (the operator, 2026-10-04).
+
+    Args:
+        repo: The account repository.
+        actor: The caller.
+
+    Raises:
+        AppForbidden: ``account.admin_owner_only``.
+    """
+    if sign_in_kind(repo.plex_link(actor.account_id)) is not SignInKind.OWNER:
+        raise AppForbidden("Only the server's owner gives the Admin role.", code=RefusalCode.ACCOUNT_ADMIN_OWNER_ONLY)
+
+
+def _refuse_name_taken(repo: AccountRepository, name: str, *, except_id: str | None) -> None:
+    """Refuse a role name another role carries, compared trimmed and regardless of case.
+
+    A seeded role never renamed carries no name (its words are the interface's), so it
+    takes none.
+
+    Args:
+        repo: The account repository.
+        name: The name asked for, trimmed.
+        except_id: The role being renamed, which may keep its own name; ``None`` at creation.
+
+    Raises:
+        AppConflict: ``role.name_taken``.
+    """
+    wanted = name.casefold()
+    for role in repo.roles():
+        if role.id != except_id and role.name is not None and role.name.strip().casefold() == wanted:
+            raise AppConflict("Another role already carries this name.", code=RefusalCode.ROLE_NAME_TAKEN)

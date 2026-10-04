@@ -30,7 +30,8 @@
     "last_admin": "No account would be left on the Admin role: nothing was changed.",
     "access_admin_only": "Only an Admin cuts or gives back an account's access.",
     "owner_access": "The server owner's access is never cut.",
-    "own_access": "An Admin cannot cut their own access."
+    "own_access": "An Admin cannot cut their own access.",
+    "admin_owner_only": "Only the server's owner gives the Admin role."
   },
   "media": {
     "not_found": "No media answers this provider id."
@@ -42,13 +43,19 @@
     "unknown": "No role has this id.",
     "system_immutable": "The Admin role cannot be changed.",
     "own_role": "A manager who is not Admin cannot change their own role.",
-    "escalation": "The role would give rights your own role lacks."
+    "escalation": "The role would give rights your own role lacks.",
+    "name_required": "A role needs a name.",
+    "name_taken": "Another role already has this name.",
+    "in_use": "An account holds this role: it cannot be deleted.",
+    "default": "New accounts start on this role: it cannot be deleted."
   },
   "password": {
     "required": "A local account needs a password.",
-    "too_short": "The password needs at least {minimum} characters.",
+    "too_short": "The password needs at least {{minimum}} characters, including an uppercase letter, a digit and a special character.",
     "current_wrong": "The current password is wrong: nothing was changed.",
     "held_by_cli": "The server owner's fallback password is changed with \"accounts set-password\" on the server only.",
-    "reset_admin_only": "Only an Admin resets a password; change your own from your profile."
+    "reset_admin_only": "Only an Admin resets a password; change your own from your profile.",
+    "too_weak": "The password needs at least {{minimum}} characters, including an uppercase letter, a digit and a special character: one of them is missing.",
+    "reset_own": "An Admin changes their own password from their profile, with the current one."
   }
 }

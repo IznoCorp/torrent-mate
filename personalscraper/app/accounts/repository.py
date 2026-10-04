@@ -354,6 +354,18 @@ class AccountRepository:
             self._conn.execute("UPDATE role SET updated_at = ? WHERE id = ?", (now, role_id))
 
     @serialised
+    def delete_role(self, role_id: str) -> None:
+        """Delete a role; its rights go with it (``ON DELETE CASCADE``).
+
+        Args:
+            role_id: Its key.
+
+        Raises:
+            sqlite3.IntegrityError: When an account holds it or a start kind names it.
+        """
+        self._conn.execute("DELETE FROM role WHERE id = ?", (role_id,))
+
+    @serialised
     def role_for_start(self, start: StartKind) -> RoleRow | None:
         """The role a new account of one start kind begins on.
 

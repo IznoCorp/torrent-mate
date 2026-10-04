@@ -90,13 +90,13 @@ class CreateAccountBody(ContractModel):
     Attributes:
         name: The display name.
         email: The e-mail, every account's login.
-        role: The role it starts on; absent for the role local accounts start on.
+        role: The role it starts on — required: nothing is chosen for the manager.
         password: The provisional password; only its hash is kept.
     """
 
     name: str
     email: str
-    role: str | None = None
+    role: str
     password: str | None = Field(default=None, repr=False)
 
 
@@ -132,6 +132,16 @@ class UpdateRoleBody(ContractModel):
 
     name: str | None = None
     rights: list[Right] | None = None
+
+
+class RoleDeleted(ContractModel):
+    """``deleteRole``'s acknowledgement.
+
+    Attributes:
+        ok: Always true: the role is gone.
+    """
+
+    ok: bool
 
 
 class ResetAccountPasswordBody(ContractModel):
