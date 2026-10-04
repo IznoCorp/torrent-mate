@@ -303,6 +303,33 @@ opérateur du 2026-08-13 : ce n'est plus un habillage de l'app livrée, c'est un
 **v1 aboutie**, une version à part entière. L'app sera rebâtie dessus, et non amenée vers elle
 surface par surface.
 
+### Un seul développement : le front et le back avancent ensemble
+
+**La maquette n'est plus une maquette figée qu'on dessine avant tout le reste : c'est le frontend
+de la v1, et il se développe AVEC son backend.** Il n'y a qu'un développement, front et back
+ensemble, la séparation client-serveur conservée.
+
+- **tm-design est l'environnement de développement.** Il sert la branche `develop` : l'interface,
+  et derrière elle le vrai serveur v1 pour chaque opération que la v1 sert déjà. Ce qu'elle ne
+  sert pas encore reste simulé (les mocks), et chaque mock disparaît quand la v1 sert
+  l'opération. On y accède par la connexion v1 : aucun code de l'app n'est servi à un visiteur
+  non connecté.
+- **Trois environnements** : `develop` → tm-design (automatique) · `staging` → préprod (à la
+  main) · `prod` → prod (à la main).
+- **Le harnais est le contrôle qualité du frontend de développement.** Ses états nommés et ses
+  règles vérifient l'interface ; ils ne gèlent plus un dessin en attente du backend.
+- **Le contrat (`contract/`) est la référence** entre le front et le back : une opération existe
+  quand le contrat la décrit, le mock la simule tant que le serveur ne la sert pas.
+- **Le frontend v1 vit dans son propre dossier, `webui/`**, hors des fichiers de la v0. La v1 ne
+  travaille jamais dans les dossiers de la v0 ; elle duplique ce dont elle a besoin.
+- **La v0 n'est pas touchée.** Le seul travail sur elle est l'inventaire de ce qui disparaîtra,
+  qui prouve que rien ne part sans que la v1 l'ait repris. À la mise en production de la v1, tous
+  les fichiers de la v0 partent d'un coup.
+
+**Ce qui reste vrai** : tous les écrans sont à redessiner, aucune surface n'est hors périmètre, ce
+que la maquette porte déjà est validé, et une évolution de l'interface se montre sur tm-design
+avant de partir en production.
+
 ### La référence visuelle a changé de forme (L07, 2026-08-25)
 
 **Ce paragraphe nommait `frontend/maquette/design/refonte.html`, et ce fichier ne porte plus une
@@ -323,14 +350,7 @@ plutôt qu'un sélecteur à chercher dans quatre mille lignes.
 
 **Élargi par l'opérateur le 2026-08-19 — TOUS les écrans sont à redessiner. Tous.** La maquette
 est une **nouvelle version de l'app**, pas un habillage : son objet est une expérience
-utilisateur **cohérente**, et le premier objectif est de **figer cette interface**.
-
-### La maquette n'est PAS connectée au backend tant qu'elle est une maquette (2026-08-20)
-
-**Directive opérateur.** Les fixtures ne sont pas un retard, elles sont la condition : c'est ce
-qui rend 82 états nommés atteignables et 51 règles déterministes. Une maquette câblée sur des
-données vivantes mesure les données, pas le dessin. Le raccordement appartient à la **bascule**,
-avec le backend adapté à ce dont l'interface figée a besoin — jamais l'inverse.
+utilisateur **cohérente**, et le premier objectif est une interface cohérente sur tous les écrans.
 
 ### Aucune vague ne s'ouvre sans son design et son plan (2026-08-20)
 
@@ -376,33 +396,13 @@ laissé en place « au cas où ».
 - **Ce que la maquette porte déjà est VALIDÉ** par l'opérateur. On ne le rejuge pas.
 - **Ce qui reste n'est pas que des pages** : l'UX, le langage d'interaction et **l'architecture**
   de la maquette doivent être terminés et consolidés avant le gel.
-- **Le backend suit l'interface, jamais l'inverse.** Le moteur sera adapté aux besoins de la
-  nouvelle interface, et ce travail vient **après** le gel. Une limite du backend n'est donc
-  jamais une raison de dessiner moins : on la note, et on dessine ce que l'expérience exige.
 
 Ce que cela impose :
 
 - **La maquette doit TOUTES les pages que la production sert**, y compris celles qu'elle ignore
   encore. Une surface que la production a et que la maquette n'a pas est un trou dans la v1,
   pas une étape ultérieure.
-- **L'attachement au backend est une mission séparée**, ouverte quand l'opérateur juge le design
-  ET l'architecture front assez solides. Ce jugement lui appartient ; aucune quantité de règles
-  vertes ne s'y substitue.
-- Tant que ce jugement n'est pas passé, **on ne dérive aucun code d'app** depuis la maquette.
 
-**Toute évolution du design part de la maquette, jamais du code.**
-
-- **On modifie la maquette D'ABORD**, on la vérifie avec son harnais, puis on en dérive le
-  code. Jamais l'inverse.
-- **Une divergence entre l'app et la maquette est un défaut de l'app**, sauf si la maquette a
-  été amendée explicitement au préalable, avec la raison écrite.
-- **Si une région ne peut pas être construite telle que dessinée**, on amende la maquette et
-  on note pourquoi. Le code ne diverge jamais « provisoirement » : c'est ainsi qu'une
-  interface devient un patchwork.
-- **Rien ne part en production que la maquette ne montre.** Une surface nouvelle s'y dessine
-  avant d'être codée.
-
-Cette règle vaut pour toutes les évolutions futures, pas seulement pour la refonte initiale.
 Elle se lit aussi dans `frontend/maquette/README.md`, qui porte la méthode, les états nommés,
 le jeu de règles vérifiées et les pièges déjà payés. L'inventaire de ce que la v1 doit encore
 est dans `IMPLEMENTATION.md`, lu du routeur livré.
