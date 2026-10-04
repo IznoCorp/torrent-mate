@@ -185,7 +185,7 @@ def test_concurrent_queries_share_the_one_connection_safely(tmp_path: Path) -> N
             updated_at=0.0,
         )
     )
-    sessions = SessionService(lambda: store.accounts, ttl_hours=1)
+    sessions = SessionService(lambda: store.accounts, idle_days=1)
     barrier = threading.Barrier(threads_count)
     errors: list[BaseException] = []
     results: list[bool] = []

@@ -152,7 +152,7 @@ def accounts(store: AppStore, limiter_clock: _Clock) -> AccountService:
     Returns:
         The service.
     """
-    sessions = SessionService(lambda: store.accounts, ttl_hours=2, ceiling=lambda: _NO_CEILING)
+    sessions = SessionService(lambda: store.accounts, idle_days=1, ceiling=lambda: _NO_CEILING)
     return AccountService(
         lambda: store.accounts,
         sessions,
@@ -333,7 +333,7 @@ class TestRateLimit:
 
     def test_each_service_has_its_own_limiter(self, store: AppStore) -> None:
         """Without an injected limiter, each service builds its own (v0's is never shared)."""
-        sessions = SessionService(lambda: store.accounts, ttl_hours=2)
+        sessions = SessionService(lambda: store.accounts, idle_days=1)
         first = AccountService(lambda: store.accounts, sessions, EventBus())
         second = AccountService(lambda: store.accounts, sessions, EventBus())
         self._exhaust(first)

@@ -342,14 +342,44 @@ class TestSessions:
         assert repo.session_by_hash("hash-1") == SessionRow(**{**_session().__dict__, "id": session_id})
         assert repo.session_by_hash("hash-missing") is None
 
-    def test_touch_and_revoke(self, repo: AccountRepository) -> None:
-        """``last_seen_at`` moves; ``revoked_at`` is set."""
+    def test_a_session_reads_back_by_its_key(self, repo: AccountRepository) -> None:
+        """``session`` finds the row by its id; an unknown id is ``None``."""
         repo.insert_account(_account())
         session_id = repo.insert_session(_session())
-        repo.touch_session(session_id, now=40.0)
+        assert repo.session(session_id) == repo.session_by_hash("hash-1")
+        assert repo.session(session_id + 1) is None
+
+    def test_renew_replaces_the_hash_and_moves_the_expiry(self, repo: AccountRepository) -> None:
+        """A renewal from the ``last_seen_at`` read writes the new hash, expiry and use time."""
+        repo.insert_account(_account())
+        session_id = repo.insert_session(_session())
+        seen = repo.session(session_id)
+        assert seen is not None
+        assert repo.renew_session(
+            session_id, seen_at=seen.last_seen_at, token_hash="hash-2", expires_at=900.0, now=40.0
+        )
+        row = repo.session(session_id)
+        assert row is not None and (row.token_hash, row.expires_at, row.last_seen_at) == ("hash-2", 900.0, 40.0)
+        assert repo.session_by_hash("hash-1") is None
+
+    def test_renew_from_a_stale_read_or_a_revoked_row_writes_nothing(self, repo: AccountRepository) -> None:
+        """Another renewal moved ``last_seen_at``, or the session is revoked: ``False``, nothing written."""
+        repo.insert_account(_account())
+        session_id = repo.insert_session(_session())
+        seen = repo.session(session_id)
+        assert seen is not None
+        assert repo.renew_session(
+            session_id, seen_at=seen.last_seen_at, token_hash="hash-2", expires_at=900.0, now=40.0
+        )
+        stale = repo.renew_session(
+            session_id, seen_at=seen.last_seen_at, token_hash="hash-3", expires_at=990.0, now=41.0
+        )
+        assert stale is False
         repo.revoke_session(session_id, now=50.0)
-        row = repo.session_by_hash("hash-1")
-        assert row is not None and (row.last_seen_at, row.revoked_at) == (40.0, 50.0)
+        revoked = repo.renew_session(session_id, seen_at=40.0, token_hash="hash-4", expires_at=999.0, now=60.0)
+        assert revoked is False
+        row = repo.session(session_id)
+        assert row is not None and (row.token_hash, row.expires_at, row.revoked_at) == ("hash-2", 900.0, 50.0)
 
     def test_revoke_sessions_of_with_no_exception_revokes_every_live_one(self, repo: AccountRepository) -> None:
         """``except_id=None`` revokes every live session of the account and no other account's."""

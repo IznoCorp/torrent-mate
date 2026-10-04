@@ -609,8 +609,8 @@ class TestCookie:
 
     @pytest.mark.parametrize("secure", [True, False])
     def test_set_carries_the_attributes(self, secure: bool) -> None:
-        """``HttpOnly``, ``SameSite=Lax``, ``Path=/``, ``Max-Age`` = the TTL, ``Secure`` per ``cookie_secure``."""
-        web = WebConfig(cookie_secure=secure, session_ttl_hours=3)
+        """``HttpOnly``, ``SameSite=Lax``, ``Path=/``, ``Max-Age`` = idle lifetime, ``Secure`` per ``cookie_secure``."""
+        web = WebConfig(cookie_secure=secure, session_idle_days=3)
         response = Response()
         set_session_cookie(response, "value", web)
         header = response.headers["set-cookie"]
@@ -619,12 +619,12 @@ class TestCookie:
         assert cookie["httponly"] is True
         assert cookie["samesite"] == "lax"
         assert cookie["path"] == "/"
-        assert cookie["max-age"] == str(3 * 3600)
+        assert cookie["max-age"] == str(3 * 86_400)
         assert bool(cookie["secure"]) is secure
 
     def test_max_age_is_the_sessions_lifetime(self, test_config: Config, tmp_path: Path) -> None:
-        """For one configured ``session_ttl_hours``, ``Max-Age`` == the session's ``expires_at - created_at``."""
-        web = test_config.web.model_copy(update={"session_ttl_hours": 5})
+        """For one configured ``session_idle_days``, ``Max-Age`` == the session's ``expires_at - created_at``."""
+        web = test_config.web.model_copy(update={"session_idle_days": 5})
         store = AppStore(tmp_path / "app.db")
         try:
             store.accounts.insert_account(
@@ -639,7 +639,7 @@ class TestCookie:
                     updated_at=1.0,
                 )
             )
-            sessions = SessionService(lambda: store.accounts, ttl_hours=web.session_ttl_hours, clock=lambda: 1_000.0)
+            sessions = SessionService(lambda: store.accounts, idle_days=web.session_idle_days, clock=lambda: 1_000.0)
             sessions.open("account-ttl", user_agent=None)
             conn = sqlite3.connect(tmp_path / "app.db")
             try:

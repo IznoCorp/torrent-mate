@@ -84,19 +84,19 @@ def make_v1_app(test_config: Config, make_v1_services: Callable[[], AppServices]
     return _make
 
 
-def _with_ceiling(services: AppServices, ceiling: InstanceCeiling, ttl_hours: int) -> AppServices:
+def _with_ceiling(services: AppServices, ceiling: InstanceCeiling, idle_days: int) -> AppServices:
     """Rebuild the session and account services under a fixed ceiling.
 
     Args:
         services: The services to derive from.
         ceiling: The ceiling every resolution reads.
-        ttl_hours: The sessions' lifetime.
+        idle_days: The sessions' idle lifetime.
 
     Returns:
         The same services, but for ``sessions`` and ``accounts``.
     """
     store = services.app_store
-    sessions = SessionService(lambda: store.accounts, ttl_hours=ttl_hours, ceiling=lambda: ceiling)
+    sessions = SessionService(lambda: store.accounts, idle_days=idle_days, ceiling=lambda: ceiling)
     accounts = AccountService(lambda: store.accounts, sessions, services.event_bus)
     return dataclasses.replace(services, sessions=sessions, accounts=accounts)
 
@@ -137,7 +137,7 @@ def v1_client(test_config: Config, make_v1_services: Callable[[], AppServices]) 
         """
         services = make_v1_services()
         if ceiling is not None:
-            services = _with_ceiling(services, ceiling, test_config.web.session_ttl_hours)
+            services = _with_ceiling(services, ceiling, test_config.web.session_idle_days)
         settings = Settings(_env_file=None)  # type: ignore[call-arg]
         client = TestClient(create_v1_app(test_config, settings, services), raise_server_exceptions=False)
         if role is None:

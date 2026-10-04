@@ -2,8 +2,10 @@
 
 The cookie value is never stored (only its sha256 hex); an expired, revoked or unknown
 value resolves to nobody; the role and its rights are read on every resolution, so a
-role change bites at the next call; ``last_seen_at`` is written at most every
-:data:`SESSION_TOUCH_INTERVAL_S`.
+role change bites at the next call. A session ends after :data:`_IDLE_DAYS` unused: each
+use renews it, at most every :data:`SESSION_RENEWAL_INTERVAL_S`, under a new value; the
+replaced value keeps signing in until the new one is presented, then for
+:data:`SESSION_ROTATION_GRACE_S`.
 """
 
 from __future__ import annotations
@@ -20,13 +22,21 @@ from personalscraper.app.accounts.ceiling import InstanceCeiling
 from personalscraper.app.accounts.repository import AccountRow
 from personalscraper.app.accounts.rights import Right
 from personalscraper.app.accounts.service import AccountService
-from personalscraper.app.accounts.sessions import SESSION_TOUCH_INTERVAL_S, SessionService
+from personalscraper.app.accounts.sessions import (
+    SESSION_RENEWAL_INTERVAL_S,
+    SESSION_ROTATION_GRACE_S,
+    SessionService,
+)
 from personalscraper.app.errors import AppUnauthenticated, RefusalCode
 from personalscraper.app.store.store import AppStore
+from personalscraper.conf.loader import load_config_dir
+from personalscraper.conf.models.web import WebConfig
 from personalscraper.core.event_bus import EventBus
 
 _ACCOUNT_ID = "account-alice"
-_TTL_HOURS = 2
+_IDLE_DAYS = 2
+_IDLE_S = _IDLE_DAYS * 86_400
+_EXAMPLE_DIR = Path(__file__).resolve().parents[4] / "config.example"
 _NO_CEILING = InstanceCeiling(forbidden=frozenset(), read_only=False)
 
 
@@ -104,7 +114,7 @@ def sessions(store: AppStore, clock: _Clock) -> SessionService:
     Returns:
         The service.
     """
-    return SessionService(lambda: store.accounts, ttl_hours=_TTL_HOURS, ceiling=lambda: _NO_CEILING, clock=clock)
+    return SessionService(lambda: store.accounts, idle_days=_IDLE_DAYS, ceiling=lambda: _NO_CEILING, clock=clock)
 
 
 def _rows(store: AppStore) -> list[tuple[object, ...]]:
@@ -163,10 +173,12 @@ class TestOpen:
         assert first != second
         assert len(first) >= 43
 
-    def test_expiry_is_absolute_at_the_ttl(self, sessions: SessionService, store: AppStore, clock: _Clock) -> None:
-        """``expires_at`` = creation + ``ttl_hours``."""
+    def test_expiry_is_the_idle_lifetime_from_now(
+        self, sessions: SessionService, store: AppStore, clock: _Clock
+    ) -> None:
+        """``expires_at`` = creation + ``idle_days``."""
         sessions.open(_ACCOUNT_ID, user_agent=None)
-        assert _rows(store)[0][1] == clock.now + _TTL_HOURS * 3600
+        assert _rows(store)[0][1] == clock.now + _IDLE_S
 
 
 class TestResolve:
@@ -189,10 +201,18 @@ class TestResolve:
         assert sessions.resolve("not-a-session") is None
 
     def test_an_expired_session_is_nobody(self, sessions: SessionService, clock: _Clock) -> None:
-        """At its ``expires_at`` the session no longer resolves, however recently used."""
+        """At its ``expires_at`` the session no longer resolves."""
         token = sessions.open(_ACCOUNT_ID, user_agent=None)
-        clock.now += _TTL_HOURS * 3600
+        clock.now += _IDLE_S
         assert sessions.resolve(token) is None
+
+    def test_resolve_writes_nothing(self, sessions: SessionService, store: AppStore, clock: _Clock) -> None:
+        """``resolve`` reads: past the renewal interval it still leaves the row as it was."""
+        token = sessions.open(_ACCOUNT_ID, user_agent=None)
+        before = _rows(store)
+        clock.now += SESSION_RENEWAL_INTERVAL_S * 2
+        assert sessions.resolve(token) is not None
+        assert _rows(store) == before
 
     def test_a_revoked_session_is_nobody(self, sessions: SessionService) -> None:
         """``close`` ends the session."""
@@ -238,7 +258,7 @@ class TestResolve:
     def test_the_ceiling_is_read_at_each_call(self, store: AppStore, clock: _Clock) -> None:
         """The instance ceiling is the one current at resolution."""
         ceilings = [_NO_CEILING, InstanceCeiling(forbidden=frozenset({Right.LIBRARY_DELETE}), read_only=False)]
-        service = SessionService(lambda: store.accounts, ttl_hours=_TTL_HOURS, ceiling=lambda: ceilings[0], clock=clock)
+        service = SessionService(lambda: store.accounts, idle_days=_IDLE_DAYS, ceiling=lambda: ceilings[0], clock=clock)
         token = service.open(_ACCOUNT_ID, user_agent=None)
         ceilings.reverse()
         actor = service.resolve(token)
@@ -246,25 +266,156 @@ class TestResolve:
         assert actor.ceiling.forbidden == frozenset({Right.LIBRARY_DELETE})
 
 
-class TestTouch:
-    """``last_seen_at`` is written at most every :data:`SESSION_TOUCH_INTERVAL_S`."""
+class TestIdleLifetime:
+    """``web.session_idle_days``: v1's idle lifetime, 30 days unless configured."""
 
-    def test_the_interval_is_five_minutes(self) -> None:
-        """300 s, as DESIGN § 3.4 sets it."""
-        assert SESSION_TOUCH_INTERVAL_S == 300.0
+    def test_the_default_is_thirty_days(self) -> None:
+        """The model's default."""
+        assert WebConfig().session_idle_days == 30
 
-    def test_unchanged_within_the_interval_then_updated(
+    def test_the_example_configuration_names_it(self) -> None:
+        """``config.example/`` sets it, to the default."""
+        assert load_config_dir(_EXAMPLE_DIR).web.session_idle_days == 30
+
+
+class TestRenewal:
+    """``SessionService.use``: a request's use renews the session, at most once per interval, under a new value."""
+
+    def test_the_interval_is_one_hour(self) -> None:
+        """A burst of requests writes once an hour at most; the grace is one minute."""
+        assert SESSION_RENEWAL_INTERVAL_S == 3600.0
+        assert SESSION_ROTATION_GRACE_S == 60.0
+
+    def test_no_write_within_the_interval(self, sessions: SessionService, store: AppStore, clock: _Clock) -> None:
+        """A use within the interval of the last renewal resolves, renews nothing and writes nothing."""
+        token = sessions.open(_ACCOUNT_ID, user_agent=None)
+        before = _rows(store)
+        for _ in range(5):
+            clock.now += (SESSION_RENEWAL_INTERVAL_S - 1) / 5
+            use = sessions.use(token)
+            assert use is not None and use.renewed_token is None
+        assert _rows(store) == before
+
+    def test_renewal_moves_the_expiry_and_rotates_the_value(
         self, sessions: SessionService, store: AppStore, clock: _Clock
     ) -> None:
-        """A use within 300 s of the last write leaves it; a use after rewrites it."""
-        opened_at = clock.now
+        """Past the interval: ``expires_at`` = now + the idle lifetime, under a new value's hash."""
         token = sessions.open(_ACCOUNT_ID, user_agent=None)
-        clock.now = opened_at + SESSION_TOUCH_INTERVAL_S - 1
-        assert sessions.resolve(token) is not None
-        assert _rows(store)[0][2] == opened_at
-        clock.now = opened_at + SESSION_TOUCH_INTERVAL_S
-        assert sessions.resolve(token) is not None
-        assert _rows(store)[0][2] == clock.now
+        clock.now += SESSION_RENEWAL_INTERVAL_S
+        use = sessions.use(token)
+        assert use is not None and use.actor.account_id == _ACCOUNT_ID
+        assert use.renewed_token is not None and use.renewed_token != token
+        token_hash, expires_at, last_seen_at, revoked_at, _ = _rows(store)[0]
+        assert token_hash == hashlib.sha256(use.renewed_token.encode()).hexdigest()
+        assert (expires_at, last_seen_at, revoked_at) == (clock.now + _IDLE_S, clock.now, None)
+
+    def test_a_session_used_never_expires(self, sessions: SessionService, clock: _Clock) -> None:
+        """Used every day for a year, a session with a two-day idle lifetime still signs in."""
+        token = sessions.open(_ACCOUNT_ID, user_agent=None)
+        for _ in range(365):
+            clock.now += 86_400
+            use = sessions.use(token)
+            assert use is not None
+            if use.renewed_token is not None:
+                token = use.renewed_token
+        assert sessions.use(token) is not None
+
+    def test_idle_past_the_lifetime_ends_the_session(self, sessions: SessionService, clock: _Clock) -> None:
+        """Renewed once, then unused for the idle lifetime: nobody."""
+        token = sessions.open(_ACCOUNT_ID, user_agent=None)
+        clock.now += SESSION_RENEWAL_INTERVAL_S
+        use = sessions.use(token)
+        assert use is not None and use.renewed_token is not None
+        clock.now += _IDLE_S
+        assert sessions.use(use.renewed_token) is None
+
+    def test_the_old_value_is_refused_after_the_grace_once_the_new_one_is_used(
+        self, sessions: SessionService, clock: _Clock
+    ) -> None:
+        """The new value presented, the old one signs in for the grace, then never again."""
+        old = sessions.open(_ACCOUNT_ID, user_agent=None)
+        clock.now += SESSION_RENEWAL_INTERVAL_S
+        use = sessions.use(old)
+        assert use is not None and use.renewed_token is not None
+        assert sessions.use(use.renewed_token) is not None
+        clock.now += SESSION_ROTATION_GRACE_S - 1
+        assert sessions.use(old) is not None
+        clock.now += 1
+        assert sessions.use(old) is None
+        assert sessions.resolve(old) is None
+        assert sessions.use(use.renewed_token) is not None
+
+    def test_a_request_in_flight_with_the_old_value_still_signs_in(
+        self, sessions: SessionService, clock: _Clock
+    ) -> None:
+        """Two concurrent requests carry the same value: the second, after the first renewed, signs in unrenewed."""
+        old = sessions.open(_ACCOUNT_ID, user_agent=None)
+        clock.now += SESSION_RENEWAL_INTERVAL_S
+        first = sessions.use(old)
+        assert first is not None and first.renewed_token is not None
+        assert sessions.use(first.renewed_token) is not None
+        second = sessions.use(old)
+        assert second is not None and second.renewed_token is None
+
+    def test_a_lost_renewal_keeps_the_old_value(self, sessions: SessionService, store: AppStore, clock: _Clock) -> None:
+        """A new value the browser never received: the old one keeps signing in, and renews again."""
+        old = sessions.open(_ACCOUNT_ID, user_agent=None)
+        clock.now += SESSION_RENEWAL_INTERVAL_S
+        lost = sessions.use(old)
+        assert lost is not None and lost.renewed_token is not None
+        clock.now += SESSION_RENEWAL_INTERVAL_S - 1
+        assert sessions.use(old) is not None
+        clock.now += 1
+        again = sessions.use(old)
+        assert again is not None and again.renewed_token is not None
+        assert sessions.use(lost.renewed_token) is None
+        assert sessions.use(again.renewed_token) is not None
+        assert len(_rows(store)) == 1
+
+    def test_one_renewal_for_two_simultaneous_uses(
+        self, sessions: SessionService, store: AppStore, clock: _Clock
+    ) -> None:
+        """A second use whose row was read before the first renewed loses the race: one rotation."""
+        token = sessions.open(_ACCOUNT_ID, user_agent=None)
+        clock.now += SESSION_RENEWAL_INTERVAL_S
+        stale = store.accounts.session_by_hash(hashlib.sha256(token.encode()).hexdigest())
+        first = sessions.use(token)
+        assert first is not None and first.renewed_token is not None
+        assert stale is not None
+        assert sessions._renew(store.accounts, stale, token, clock.now) is None  # noqa: SLF001 — the race's loser
+        assert _rows(store)[0][0] == hashlib.sha256(first.renewed_token.encode()).hexdigest()
+
+    def test_a_revoked_session_never_renews(self, sessions: SessionService, store: AppStore, clock: _Clock) -> None:
+        """Closed, then used past the interval: nobody, and the row keeps its value and expiry."""
+        token = sessions.open(_ACCOUNT_ID, user_agent=None)
+        sessions.close(token)
+        before = _rows(store)
+        clock.now += SESSION_RENEWAL_INTERVAL_S
+        assert sessions.use(token) is None
+        assert _rows(store) == before
+
+    def test_revocation_ends_the_old_value_in_its_grace(
+        self, sessions: SessionService, store: AppStore, clock: _Clock
+    ) -> None:
+        """Every session of the account revoked: neither the new value nor the replaced one signs in."""
+        old = sessions.open(_ACCOUNT_ID, user_agent=None)
+        clock.now += SESSION_RENEWAL_INTERVAL_S
+        use = sessions.use(old)
+        assert use is not None and use.renewed_token is not None
+        store.accounts.revoke_sessions_of(_ACCOUNT_ID, except_id=None, now=clock.now)
+        assert sessions.use(old) is None
+        assert sessions.use(use.renewed_token) is None
+
+    def test_the_old_value_names_the_same_session(self, sessions: SessionService, clock: _Clock) -> None:
+        """In its grace the replaced value names the renewed session: its key, and closing it closes both."""
+        old = sessions.open(_ACCOUNT_ID, user_agent=None)
+        key = sessions.live_session_id(old)
+        clock.now += SESSION_RENEWAL_INTERVAL_S
+        use = sessions.use(old)
+        assert use is not None and use.renewed_token is not None
+        assert sessions.live_session_id(old) == key == sessions.live_session_id(use.renewed_token)
+        sessions.close(old)
+        assert sessions.use(use.renewed_token) is None
 
 
 class TestClose:

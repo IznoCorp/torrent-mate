@@ -18,7 +18,9 @@ class WebConfig(_StrictModel):
         redis_url: Redis connection URL for the event stream relay.
         stream_key: Redis Stream key for event publishing.
         stream_maxlen: Maximum number of entries retained in the Redis Stream.
-        session_ttl_hours: JWT session cookie lifetime in hours.
+        session_ttl_hours: v0's JWT session cookie lifetime in hours; goes with v0.
+        session_idle_days: v1: a session ends after this many days unused; each use
+            renews it.
         cookie_secure: When True, the session cookie has the Secure flag
             (requires HTTPS).
         dev_mode: When True, allows boot without a built SPA (Vite dev proxy).
@@ -34,6 +36,7 @@ class WebConfig(_StrictModel):
     stream_key: str = "personalscraper:events"
     stream_maxlen: int = 10000
     session_ttl_hours: int = 720
+    session_idle_days: int = 30
     cookie_secure: bool = True
     dev_mode: bool = False
     v1_enabled: bool = False

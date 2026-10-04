@@ -158,7 +158,7 @@ def sessions(store: AppStore) -> SessionService:
     Returns:
         The service.
     """
-    return SessionService(lambda: store.accounts, ttl_hours=2, ceiling=lambda: _NO_CEILING)
+    return SessionService(lambda: store.accounts, idle_days=1, ceiling=lambda: _NO_CEILING)
 
 
 @pytest.fixture
