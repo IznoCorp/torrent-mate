@@ -97,6 +97,7 @@ class AccountService:
         *,
         clock: Callable[[], float] = time.time,
         limiter: SlidingWindowRateLimiter | None = None,
+        password_limiter: SlidingWindowRateLimiter | None = None,
     ) -> None:
         """Build the service; nothing is opened until the first call.
 
@@ -107,12 +108,16 @@ class AccountService:
             clock: The epoch clock.
             limiter: The password door's failed-attempt limiter; ``None`` builds this
                 service's own (one per process, never shared with v0's).
+            password_limiter: The limiter of wrong current passwords on a password
+                change, keyed by account; ``None`` builds this service's own, apart from
+                the door's so neither spends the other's budget.
         """
         self._repo_factory = repo_factory
         self._sessions = sessions
         self._bus = bus
         self._clock = clock
         self._limiter = limiter if limiter is not None else SlidingWindowRateLimiter()
+        self._password_limiter = password_limiter if password_limiter is not None else SlidingWindowRateLimiter()
 
     def _account_view(self, repo: AccountRepository, account: AccountRow, actor: Actor) -> AccountView:
         """Map an account and its actor to the account's view.
@@ -225,6 +230,109 @@ class AccountService:
             raise AppNotFound("No account has this e-mail.", code=RefusalCode.ACCOUNT_UNKNOWN)
         repo.set_password_hash(account.id, hash_password(password), now=self._clock())
         log.info("account_password_set", account_id=account.id)
+
+    def change_own_password(self, actor: Actor, token: str, *, current_password: str, new_password: str) -> None:
+        """Replace the signed-in local account's password, and end its other sessions.
+
+        Order: the account (deleted since the perimeter resolved it); who holds its
+        password (the owner's is the CLI's, a Plex-linked account holds none); the limiter,
+        keyed by the account; scrypt against the stored hash, or a dummy one when none is
+        held, so every refusal costs a real check; the new password's length. The new hash
+        is computed before the writer lock is taken; inside it the checks are read again —
+        a hash moved meanwhile means the password typed is no longer the current one —
+        then the hash is set and every other session of the account revoked, in one
+        transaction. A success does not give the failure budget back.
+
+        Args:
+            actor: The signed-in actor.
+            token: The caller's session value: the one session kept.
+            current_password: The password the account holds now.
+            new_password: The password that replaces it; only its scrypt hash is kept.
+
+        Raises:
+            AppUnauthenticated: ``auth.required`` — the account was deleted.
+            AppForbidden: ``password.held_by_cli`` (the server's owner),
+                ``auth.plex_only`` (a Plex-linked account).
+            AppTooManyRequests: ``auth.rate_limited`` — the account typed a wrong current
+                password too often in the window; checked before scrypt, so the right one
+                is refused too.
+            AppBadRequest: ``password.current_wrong``; ``password.too_short``
+                (``params.minimum``).
+        """
+        repo = self._repo_factory()
+        account = repo.account(actor.account_id)
+        if account is None:
+            raise AppUnauthenticated("The session's account no longer exists.", code=RefusalCode.AUTH_REQUIRED)
+        _refuse_password_held_elsewhere(sign_in_kind(repo.plex_link(account.id)))
+        if not self._password_limiter.allow(account.id):
+            log.warning("password_change_rate_limited", account_id=account.id)
+            raise AppTooManyRequests(
+                "Too many wrong current passwords for this account.", code=RefusalCode.AUTH_RATE_LIMITED
+            )
+        stored = account.password_hash
+        matches = (
+            verify_password(current_password, stored if stored is not None else _DUMMY_HASH) and stored is not None
+        )
+        if not matches:
+            self._password_limiter.record_failure(account.id)
+            log.info("password_change_refused", account_id=account.id)
+            raise AppBadRequest("The current password does not match.", code=RefusalCode.PASSWORD_CURRENT_WRONG)
+        if len(new_password) < PASSWORD_MINIMUM:
+            raise AppBadRequest(
+                "The new password is too short.",
+                code=RefusalCode.PASSWORD_TOO_SHORT,
+                params={"minimum": PASSWORD_MINIMUM},
+            )
+        new_hash = hash_password(new_password)
+        kept = self._sessions.live_session_id(token)
+        with repo.immediate():
+            current = repo.account(account.id)
+            if current is None:
+                raise AppUnauthenticated("The session's account no longer exists.", code=RefusalCode.AUTH_REQUIRED)
+            _refuse_password_held_elsewhere(sign_in_kind(repo.plex_link(current.id)))
+            if current.password_hash != stored:
+                raise AppBadRequest(
+                    "The password changed since it was checked.", code=RefusalCode.PASSWORD_CURRENT_WRONG
+                )
+            now = self._clock()
+            repo.set_password_hash(current.id, new_hash, now=now)
+            revoked = repo.revoke_sessions_of(current.id, except_id=kept, now=now)
+        log.info("account_password_changed", account_id=account.id, sessions_revoked=revoked)
+
+    def reset_account_password(self, actor: Actor, account_id: str, *, password: str) -> None:
+        """Give a local account a provisional password — an Admin's act; its sessions keep running.
+
+        The Admin check comes first: a caller who is not Admin never learns whether an
+        account exists. Then the account; who holds its password; the provisional
+        password's own refusals. scrypt runs before the writer lock is taken, and only for
+        a password that will be kept.
+
+        Args:
+            actor: The signed-in actor (``accounts.manage``).
+            account_id: The account.
+            password: The provisional password; only its scrypt hash is kept.
+
+        Raises:
+            AppForbidden: ``password.reset_admin_only`` — the caller's role is not Admin,
+                whatever the account, its own included; ``password.held_by_cli``,
+                ``auth.plex_only``.
+            AppNotFound: ``account.unknown``.
+            AppBadRequest: ``password.required`` / ``password.too_short`` (``params.minimum``).
+        """
+        if actor.role_kind is not RoleKind.ADMIN:
+            raise AppForbidden("Only an Admin resets a password.", code=RefusalCode.PASSWORD_RESET_ADMIN_ONLY)
+        password_refusal = _provisional_refusal(password)
+        password_hash = hash_password(password) if password_refusal is None else None
+        repo = self._repo_factory()
+        with repo.immediate():
+            account = repo.account(account_id)
+            if account is None:
+                raise AppNotFound("No account answers this identity.", code=RefusalCode.ACCOUNT_UNKNOWN)
+            _refuse_password_held_elsewhere(sign_in_kind(repo.plex_link(account.id)))
+            if password_refusal is not None:
+                raise password_refusal
+            repo.set_password_hash(account.id, password_hash, now=self._clock())
+        log.info("account_password_reset", account_id=account.id, by=actor.account_id)
 
     def _summary(self, repo: AccountRepository, account: AccountRow, role: RoleRow) -> AccountSummaryView:
         """Map an account and its role to the roster's view.
@@ -518,6 +626,25 @@ def _provisional_refusal(password: str | None) -> AppBadRequest | None:
             params={"minimum": PASSWORD_MINIMUM},
         )
     return None
+
+
+def _refuse_password_held_elsewhere(kind: SignInKind) -> None:
+    """Refuse a password write on an account whose password the web does not hold.
+
+    Args:
+        kind: How the account signs in.
+
+    Raises:
+        AppForbidden: ``password.held_by_cli`` — the server owner's fallback, replaced
+            by the CLI only; ``auth.plex_only`` — a Plex-linked account holds none.
+    """
+    if kind is SignInKind.OWNER:
+        raise AppForbidden(
+            "The server owner's fallback password is changed on the server only.",
+            code=RefusalCode.PASSWORD_HELD_BY_CLI,
+        )
+    if kind is SignInKind.PLEX:
+        raise AppForbidden("This account signs in with Plex.", code=RefusalCode.AUTH_PLEX_ONLY)
 
 
 def _rights(names: Sequence[str]) -> frozenset[Right]:

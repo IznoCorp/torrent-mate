@@ -10,6 +10,7 @@
   "auth": {
     "required": "This needs a signed-in session.",
     "refused": "The sign-in was refused.",
+    "plex_only": "This account signs in with Plex: it has no password here.",
     "rate_limited": "Too many failed sign-ins; try again in a minute."
   },
   "right": {
@@ -41,6 +42,9 @@
   },
   "password": {
     "required": "A local account needs a password.",
-    "too_short": "The password needs at least {minimum} characters."
+    "too_short": "The password needs at least {minimum} characters.",
+    "current_wrong": "The current password is wrong: nothing was changed.",
+    "held_by_cli": "The server owner's fallback password is changed with \"accounts set-password\" on the server only.",
+    "reset_admin_only": "Only an Admin resets a password; change your own from your profile."
   }
 }

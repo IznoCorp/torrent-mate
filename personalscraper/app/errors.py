@@ -30,6 +30,7 @@ class RefusalCode(StrEnum):
     INTERNAL = "internal"
     AUTH_REQUIRED = "auth.required"
     AUTH_REFUSED = "auth.refused"
+    AUTH_PLEX_ONLY = "auth.plex_only"
     AUTH_RATE_LIMITED = "auth.rate_limited"
     RIGHT_MISSING = "right.missing"
     INSTANCE_READ_ONLY = "instance.read_only"
@@ -46,6 +47,9 @@ class RefusalCode(StrEnum):
     RIGHT_UNKNOWN = "right.unknown"
     PASSWORD_REQUIRED = "password.required"
     PASSWORD_TOO_SHORT = "password.too_short"
+    PASSWORD_CURRENT_WRONG = "password.current_wrong"
+    PASSWORD_HELD_BY_CLI = "password.held_by_cli"
+    PASSWORD_RESET_ADMIN_ONLY = "password.reset_admin_only"
     MEDIA_NOT_FOUND = "media.not_found"
     PROVIDER_UNAVAILABLE = "provider.unavailable"
 
