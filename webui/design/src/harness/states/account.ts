@@ -129,7 +129,8 @@ export function accountStates(): NamedState[] {
       label,
       () => {
         as(account);
-        applyState({ page: "acq", phase: "ready" });
+        // PROFIL, which every account sees — a guest's role may not see Acquisition.
+        applyState({ page: "profile", phase: "ready" });
         window.__panel.produce("account");
       },
     ]),
