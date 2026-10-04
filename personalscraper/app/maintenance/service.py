@@ -25,6 +25,7 @@ from pathlib import Path
 from personalscraper.app._runner_engine import reserve_run_row
 from personalscraper.app.errors import AppConflict, AppInternalError, AppPreconditionRequired, AppValidationError
 from personalscraper.app.maintenance.registry import MaintenanceAction, canonical_options_json
+from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
@@ -173,8 +174,9 @@ def running_run_uid(
     """
     if not db_path.exists():
         return None
-    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    conn = sqlite3.connect(str(db_path))
     try:
+        apply_pragmas(conn)
         conn.row_factory = sqlite3.Row
         return _live_duplicate(conn, action.id, canonical_options_json(dict(options)), dry_run)
     finally:
