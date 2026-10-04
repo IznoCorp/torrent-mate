@@ -167,6 +167,45 @@ export function setPasswordOpen(open: boolean): void {
   disclosure?.setAttribute("aria-expanded", String(open));
 }
 
+// WHY THE SESSION ENDED, said under the form's subtitle: the closed codes v1 answers a refused session or
+// sign-in with, and where each one's words live in `fr.json` (`screens.gate.<key>`). Any other code — an
+// unknown e-mail, a wrong password — says nothing here: it must tell nothing (O-K1-4).
+const REASONS: Readonly<Record<string, string>> = {
+  "auth.required": "reasonExpired",
+  "auth.access_disabled": "reasonDisabled",
+};
+
+/**
+ * Says why the session ended, or takes the line down.
+ *
+ * AT RUN TIME, NOT IN THE MARKUP, for the reason `loginByEmail` gives: the form is the region the design
+ * host extracts byte for byte, and the host's own page says its reason server-side.
+ *
+ * @param code The refusal code the server gave, if any. A plain visit, or a code that is no reason,
+ *     shows no line.
+ */
+export function sayReason(code: string | undefined): void {
+  const key = code === undefined ? undefined : REASONS[code];
+  let line = node<HTMLElement>('[data-part="login/reason"]');
+  if (key === undefined) {
+    if (line) line.hidden = true;
+    return;
+  }
+  if (!line) {
+    const form = node("#loginform");
+    if (!form) return;
+    line = document.createElement("p");
+    line.className = "loginerr";
+    line.dataset.part = "login/reason";
+    line.setAttribute("role", "status");
+    const subtitle = form.querySelector(".loginsub");
+    if (subtitle) subtitle.after(line);
+    else form.prepend(line);
+  }
+  line.textContent = i18next.t(`screens.gate.${key}`);
+  line.hidden = false;
+}
+
 /**
  * Puts the gate in its resting shape: Plex offered, the password closed —
  * or open, when the gate is shown for a refusal the form carries.

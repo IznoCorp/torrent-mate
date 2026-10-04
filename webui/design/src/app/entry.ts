@@ -23,18 +23,33 @@
 // The install proposal's markup could move and does not in this wave: it is the
 // one piece of the entry that neither a server nor the first paint pins, so it
 // is the one that can move at any time, and moving it is forty lines of copy
-// into `fr.json` for no property this lot owes.
-import { installGate, restGate } from "./gate";
+// into `fr.json` for no property this lot owes. WHO IS PROPOSED IT, AND WHEN, is
+// `install-state.ts`'s: once, right after the first sign-in.
+import { installGate, restGate, sayReason } from "./gate";
 import i18next from "../i18n";
 import { forgetOutbox } from "./outbox";
 import { store } from "../lib/store-access";
 import { bridge, panel, toast } from "../lib/shell-doors";
 import { addressSeam } from "../lib/addresses";
 import { navigationState } from "../lib/navigation-entry";
-import { onSessionLost } from "../lib/query-client";
+import { onSessionLost, onSessionLostBecause } from "../lib/query-client";
+import {
+  alreadyInstalled,
+  captureInstallEvent,
+  dialInstallFace,
+  forgetInstallEvent,
+  promptInstall,
+  proposeAfterSignIn,
+  takeSignedIn,
+  type InstallFace,
+  type InstallPlatform,
+  type InstallPrompt,
+} from "./install-state";
 
 /** How long a full load is BUDGETED for — the bar's pace, never a floor. */
 const STARTUP_MS = 5000;
+/** How long after a sign-in the install proposal waits: after the startup screen, never over it. */
+const PROPOSE_AFTER_MS = 1200;
 
 let finish: (() => void) | null = null;
 
@@ -94,15 +109,16 @@ declare global {
     __loadingDone?: () => void;
     /** The entry's verbs, as the dying engine and the harness say them. */
     __entry?: {
-      showSignIn: (withError: boolean, silent?: boolean) => void;
+      showSignIn: (withError: boolean, silent?: boolean, reason?: string) => void;
       hideSignIn: (silent?: boolean) => void;
       signOut: () => Promise<void>;
       coverLoading: (duration?: number) => void;
       showStartup: () => void;
       hideStartup: () => void;
-      showInstall: (platform: "ios" | "android") => void;
+      showInstall: (platform: InstallPlatform) => void;
       hideInstall: () => void;
       alreadyInstalled: () => boolean;
+      dialInstall: (face: InstallFace | null) => void;
     };
   }
 }
@@ -134,11 +150,13 @@ export let entry: Window["__entry"];
  *         inside this function; it crosses as an ARGUMENT now, because the flag
  *         is the engine's and the function is not.
  */
-export function showSignIn(withError: boolean, silent = false): void {
+export function showSignIn(withError: boolean, silent = false, reason?: string): void {
   const gate = node("#login");
   const refusal = node("#loginerr");
   if (gate) gate.hidden = false;
   restGate(withError);
+  // WHY THE GATE IS UP — and no line at all for a plain visit, which also takes a previous reason down.
+  sayReason(reason);
   if (refusal) refusal.hidden = !withError;
   if (withError)
     (document.querySelector("#loginform") as HTMLFormElement | null)?.reset();
@@ -162,6 +180,7 @@ export function hideSignIn(silent = false): void {
   if (gate) gate.hidden = true;
   const refusal = node("#loginerr");
   if (refusal) refusal.hidden = true;
+  sayReason(undefined);
   // The address follows the screen off, so the gate does not stay in the bar
   // over the application it has just let through.
   if (!wasShown || silent) return;
@@ -249,13 +268,11 @@ async function forgetTheCachedShell(): Promise<void> {
    replay on a gesture. iOS Safari fires NOTHING: there is no event to wait for
    and no API to call, so the only honest thing a page can do is explain the
    manual route. A single banner saying « installez-moi » on both would be a
-   dead end on one of them. */
+   dead end on one of them. It is PROPOSED once, right after the first sign-in
+   (`install-state.ts` holds when and to whom); the same two paths live on in
+   Profil for whoever dismissed it. */
 
-let installEvent: (Event & { prompt: () => void; userChoice: Promise<{ outcome: string }> }) | null =
-  null;
-let installRefused = false;
-
-export function showInstall(platform: "ios" | "android"): void {
+export function showInstall(platform: InstallPlatform): void {
   const bar = node("#installbar");
   const onIOS = platform === "ios";
   if (bar) bar.hidden = false;
@@ -272,39 +289,20 @@ export function hideInstall(): void {
   if (bar) bar.hidden = true;
 }
 
+export { alreadyInstalled };
+
 /**
- * Whether browser chrome exists around this application.
+ * Proposes the install once the interface is there after a sign-in.
  *
- * THE ONE PLACE THAT KNOWS (Part 9). Nobody is asked to install while already
- * installed: `display-mode: standalone` means the icon is on the home screen,
- * and a banner there is noise about something already done. L11's P27 reads
- * this same question for the surfaces that exist only because a browser is
- * around them.
+ * Never over the entry screen: there is nothing to install yet, and the banner would cover the only field
+ * on it — so a proposal that finds the gate up is not made, and nothing is marked.
  */
-export function alreadyInstalled(): boolean {
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    (window.navigator as { standalone?: boolean }).standalone === true
-  );
-}
-
-function onIOSSafari(): boolean {
-  const userAgent = navigator.userAgent;
-  const ios =
-    /iPad|iPhone|iPod/.test(userAgent) ||
-    // iPadOS 13+ reports itself as a Mac; the touch points give it away.
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  // Every browser on iOS is Safari underneath, but only Safari can install.
-  return ios && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(userAgent);
-}
-
-function offerInstall(platform: "ios" | "android"): void {
-  if (installRefused || alreadyInstalled()) return;
-  // Never over the entry screen: there is nothing to install yet, and the
-  // banner would cover the only field on it.
-  const gate = node("#login");
-  if (gate && !gate.hidden) return;
-  showInstall(platform);
+function proposeInstall(): void {
+  proposeAfterSignIn((platform) => {
+    const gate = node("#login");
+    if (gate && !gate.hidden) return;
+    showInstall(platform);
+  });
 }
 
 /**
@@ -343,56 +341,48 @@ export function installEntry(): void {
   installGate(() => {
     hideSignIn();
     coverLoading();
+    window.setTimeout(proposeInstall, PROPOSE_AFTER_MS);
   });
 
   onSessionLost(landOnGate);
+  onSessionLostBecause(sayReason);
 
   node("#installclose")?.addEventListener("click", () => {
     hideInstall();
-    // Refused: not asked again this session. The next visit may ask again — a
-    // banner that never returns after one dismissal is a feature nobody finds
-    // twice.
-    installRefused = true;
   });
 
   node("#installgo")?.addEventListener("click", async () => {
     hideInstall();
-    if (!installEvent) {
+    // The captured event is REPLAYED here, on a gesture, which is the only
+    // moment a browser accepts it. It can be used exactly once.
+    const choice = await promptInstall();
+    if (choice === "unavailable") {
       toast?.show({
         message: i18next.t("message.installRequested"),
       });
       return;
     }
-    // The captured event is REPLAYED here, on a gesture, which is the only
-    // moment a browser accepts it. It can be used exactly once.
-    installEvent.prompt();
-    const choice = await installEvent.userChoice.catch(() => null);
-    installEvent = null;
     toast?.show({
       message: i18next.t(
-        choice && choice.outcome === "accepted"
-          ? "message.installing"
-          : "message.installRefused",
+        choice === "accepted" ? "message.installing" : "message.installRefused",
       ),
     });
   });
 
   window.addEventListener("beforeinstallprompt", (event) => {
-    // Without this the browser posts its own proposal and ours never runs.
-    event.preventDefault();
-    installEvent = event as typeof installEvent;
-    offerInstall("android");
+    // Kept, and the browser's own proposal taken out of the way.
+    captureInstallEvent(event as InstallPrompt);
   });
 
   window.addEventListener("appinstalled", () => {
-    installEvent = null;
+    forgetInstallEvent();
     hideInstall();
     toast?.show({ message: i18next.t("message.installed") });
   });
 
-  // iOS has no event to wait for, so the offer is made once the interface is
-  // there — after the startup screen, not over it.
-  if (onIOSSafari()) window.setTimeout(() => offerInstall("ios"), 1200);
+  // THE SIGN-IN PAGE IS A DOCUMENT OF ITS OWN: after it the application boots from scratch, and the mark
+  // it leaves is how this boot knows a person has just signed in.
+  if (takeSignedIn()) window.setTimeout(proposeInstall, PROPOSE_AFTER_MS);
 
   entry = {
     showSignIn,
@@ -404,5 +394,6 @@ export function installEntry(): void {
     showInstall,
     hideInstall,
     alreadyInstalled,
+    dialInstall: dialInstallFace,
   };
 }

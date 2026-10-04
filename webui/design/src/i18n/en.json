@@ -1144,6 +1144,29 @@
       "todoFilterCount_other": "{{count}} cards"
     },
     "accountPage": {
+      "install": {
+        "heading": "Application",
+        "install": {
+          "label": "Install the app",
+          "line": "Adds it to your home screen: it opens like an app, without the browser's bar.",
+          "action": "Install the app"
+        },
+        "ios": {
+          "label": "Install the app",
+          "line": "Safari has no install button: adding it to the home screen is done by hand.",
+          "action": "Install the app"
+        },
+        "update": {
+          "label": "A new version is ready",
+          "line": "It replaces this one and reloads the app.",
+          "action": "Update"
+        },
+        "steps": {
+          "share": "Tap Share, in Safari's bar.",
+          "addToHome": "Choose Add to Home Screen.",
+          "confirm": "Tap Add."
+        }
+      },
       "noteLead": "This account, its role and what it can do.",
       "noteRest": " Rights belong to the role, never to the account: what is missing here is granted by changing role, in “Accounts”.",
       "you": "You",
@@ -1327,6 +1350,8 @@
       "body": " Its role gives it no right here: the administrator can assign it another one in “Accounts”."
     },
     "gate": {
+      "reasonExpired": "Session expired: sign in again.",
+      "reasonDisabled": "Access disabled by an administrator.",
       "plex": "Sign in with Plex",
       "plexUnreachable": "Plex is not answering: sign in with a password.",
       "usePassword": "Use a password",
