@@ -9,12 +9,12 @@ after the same scrypt work. Nothing is published, and no password reaches a log 
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-import structlog
 
 from personalscraper.app.accounts import service as service_module
 from personalscraper.app.accounts.actor import Actor, RoleKind
@@ -32,6 +32,27 @@ from personalscraper.core.event_bus import Event, EventBus
 _PASSWORD = "correct horse battery staple"
 _WRONG = "not the password at all"
 _NO_CEILING = InstanceCeiling(forbidden=frozenset(), read_only=False)
+
+
+#: The logger the service writes its structlog events through.
+_SERVICE_LOGGER = "app.accounts.service"
+
+
+def _service_events(caplog: pytest.LogCaptureFixture) -> list[dict[str, object]]:
+    """The service's structlog events, read from the stdlib records they are rendered through.
+
+    ``structlog.testing.capture_logs`` misses a logger cached before it (``cache_logger_on_first_use``,
+    as after a CLI run in the same process); the stdlib records see every event.
+
+    Args:
+        caplog: pytest's log capture.
+
+    Returns:
+        The event dicts of ``app.accounts.service``, in order.
+    """
+    return [
+        dict(record.msg) for record in caplog.records if record.name == _SERVICE_LOGGER and isinstance(record.msg, dict)
+    ]
 
 
 def _account(account_id: str, role_id: str) -> AccountRow:
@@ -327,19 +348,19 @@ class TestSetAccountAccess:
         assert sessions.resolve(running) is not None
 
     def test_publishes_nothing_and_logs_who_acted(
-        self, accounts: AccountService, sessions: SessionService, bus: EventBus
+        self, accounts: AccountService, sessions: SessionService, bus: EventBus, caplog: pytest.LogCaptureFixture
     ) -> None:
         """No event; one log line per change, naming the Admin; none for a no-op."""
         seen: list[object] = []
         bus.subscribe(Event, seen.append)
         admin, _ = _signed_in(sessions, "admin")
         _signed_in(sessions, "local")
-        with structlog.testing.capture_logs() as logs:
-            accounts.set_account_access(admin, "local", allowed=False)
-            accounts.set_account_access(admin, "local", allowed=False)
-            accounts.set_account_access(admin, "local", allowed=True)
+        caplog.set_level(logging.DEBUG)
+        accounts.set_account_access(admin, "local", allowed=False)
+        accounts.set_account_access(admin, "local", allowed=False)
+        accounts.set_account_access(admin, "local", allowed=True)
         assert seen == []
-        changes = [line for line in logs if line["event"].startswith("account_access_")]
+        changes = [line for line in _service_events(caplog) if line["event"].startswith("account_access_")]
         assert [(line["event"], line["account_id"], line["by"]) for line in changes] == [
             ("account_access_cut", "local", "admin"),
             ("account_access_given_back", "local", "admin"),
@@ -435,15 +456,18 @@ class TestCutSignIn:
         assert opened.call_count == 0
 
 
-def test_no_password_reaches_a_refusal_or_a_log(accounts: AccountService, sessions: SessionService) -> None:
+def test_no_password_reaches_a_refusal_or_a_log(
+    accounts: AccountService, sessions: SessionService, caplog: pytest.LogCaptureFixture
+) -> None:
     """Neither the right nor a wrong password is in the access refusal or any log line."""
     admin, _ = _signed_in(sessions, "admin")
-    with structlog.testing.capture_logs() as logs:
-        accounts.set_account_access(admin, "local", allowed=False)
-        with pytest.raises(AppForbidden) as caught:
-            _sign_in(accounts, "local")
-        with pytest.raises(AppUnauthenticated):
-            _sign_in(accounts, "local", _WRONG)
+    caplog.set_level(logging.DEBUG)
+    accounts.set_account_access(admin, "local", allowed=False)
+    with pytest.raises(AppForbidden) as caught:
+        _sign_in(accounts, "local")
+    with pytest.raises(AppUnauthenticated):
+        _sign_in(accounts, "local", _WRONG)
+    logs = [record.msg for record in caplog.records]
     text = f"{logs} {caught.value} {caught.value.detail} {caught.value.params}"
     for secret in (_PASSWORD, _WRONG):
         assert secret not in text
