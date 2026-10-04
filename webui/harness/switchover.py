@@ -9,8 +9,7 @@ boots the real `serve.py` on a scratch COPY of the design root — a
 measurement must never write into the operator's source — and holds all
 three over plain HTTP.
 """
-import base64
-import hashlib
+import contextlib
 import http.client
 import os
 import pathlib
@@ -23,6 +22,7 @@ import time
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from common import ROOT, Journal
 from served_copy import SERVED
+from server import fake_v1
 
 PORT = 8918
 # The scratch design root is NESTED, because the tree it copies is not
@@ -33,15 +33,9 @@ PORT = 8918
 # scratch home stands for the repository root, so every reach lands inside it.
 SCRATCH_HOME = SERVED / "_r73"
 SCRATCH = SCRATCH_HOME / "webui" / "design"
-PASSWORD = "epreuve"
-
-
-def fingerprint() -> str:
-    salt = os.urandom(16)
-    computed = hashlib.scrypt(PASSWORD.encode(), salt=salt,
-                             n=16384, r=8, p=1, dklen=32)
-    return (base64.b64encode(salt).decode() + ":"
-            + base64.b64encode(computed).decode())
+# The session the stand-in v1 holds: the door is v1's, and this is the cookie that signs in.
+SESSION = "epreuve"
+SESSION_COOKIE = f"tm_v1_session={SESSION}"
 
 
 def prepare_scratch() -> None:
@@ -110,12 +104,14 @@ def request_(path_, cookie=None, method="GET", body=None):
 def main():
     journal = Journal("R73 — the host serves the build")
     server = None
+    stack = contextlib.ExitStack()
+    v1 = stack.enter_context(fake_v1(SESSION))
     try:
         prepare_scratch()
         server = subprocess.Popen(
             [sys.executable, str(ROOT / "serve.py"), str(PORT)],
             env={**os.environ, "TM_DESIGN_ROOT": str(SCRATCH),
-                 "TM_DESIGN_PASSWORD_HASH": fingerprint()},
+                 "TM_DESIGN_V1_URL": v1.url},
             stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
         # Boot wait: poll until the port answers (up to 50 × 0.1 s). When it
@@ -146,12 +142,7 @@ def main():
                     raise
                 time.sleep(0.1)
 
-        response, _ = request_(
-            "/login", method="POST",
-            body=f"username=izno&password={PASSWORD}")
-        cookie = (response.getheader("Set-Cookie") or "").split(";")[0]
-        journal.check("the session opens", response.status == 303 and cookie,
-                         f"{response.status}")
+        cookie = SESSION_COOKIE
 
         # (a) The served document IS the build, to the byte.
         response, served = request_("/", cookie)
@@ -170,10 +161,24 @@ def main():
         # it runs; a 404 would dead-end a reload or a shared link.
         response_without, without_session = request_("/media/tvdb/403245")
         response_root, login_page = request_("/")
+        # THE ONE DIFFERENCE IS THE PLACE THE PAGE RETURNS TO: the sign-in screen
+        # of a deep address carries that address, so a visitor lands where they
+        # were going once v1 opens the session. Everything else is the same page.
+        def without_return(page: bytes) -> bytes:
+            """Blanks the sign-in page's return address, the one part that names the address asked.
+
+            Args:
+                page: A sign-in page.
+
+            Returns:
+                The page with its `RETURN_TO` value removed.
+            """
+            return re.sub(rb"var RETURN_TO = [^;]*;", b"var RETURN_TO;", page)
         journal.check(
             "an unknown address with no session answers the sign-in screen, like «/»",
             response_without.status == 401 and response_root.status == 401
-            and without_session == login_page,
+            and without_return(without_session) == without_return(login_page)
+            and b'var RETURN_TO = "/media/tvdb/403245";' in without_session,
             f"{response_without.status} vs {response_root.status}")
 
         response_with, with_session = request_("/media/tvdb/403245", cookie)
@@ -285,6 +290,7 @@ def main():
                 server.kill()
                 server.wait()
         shutil.rmtree(SCRATCH, ignore_errors=True)
+        stack.close()
     journal.summary()
 
 

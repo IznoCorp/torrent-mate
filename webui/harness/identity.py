@@ -26,8 +26,9 @@ changes and that the drawer shows what the host published; it never re-derives
 the branch or the commit itself, because a rule that computed the same value
 the same way would agree with a wrong implementation.
 
-It does not read the design host's real password, which is nowhere in this
-repository. It starts its own server with a hash it sets, on its own port.
+It does not read v1. The design host's door is a v1 session; this rule starts
+its own server on its own port, pointed at a stand-in v1 (`server.fake_v1`) that
+holds one session value, and signs in by sending it.
 
 It does not read production. `GET /api/v1/version` and R27 are the other side of
 this question and belong to the shipped application; nothing here touches them.
@@ -40,9 +41,6 @@ instead of the global, and the drawer's published cases are driven by WRITING
 it, as the host does. The holds and their count are unchanged.
 """
 import asyncio
-import base64
-import hashlib
-import http.cookies
 import json
 import os
 import pathlib
@@ -55,11 +53,14 @@ import urllib.parse
 import urllib.request
 
 from common import Journal, open_page, browser_channel, chrome_launch_args
+from server import fake_v1
 from playwright.async_api import async_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 PORT = 8716  # never 8710 / 8711 (the reverse proxy) and never 8712 (the design host)
-PASSWORD = "harness-only-password"
+# The session the stand-in v1 holds, and the cookie that carries it.
+SESSION = "harness-session"
+SESSION_COOKIE = f"tm_v1_session={SESSION}"
 # A LEGAL git ref that ends a script element. `git check-ref-format --branch`
 # accepts it; only a space would be refused, and the payload needs none.
 HOSTILE_BRANCH = "</script><img/src=x/onerror=alert(1)>"
@@ -87,13 +88,6 @@ def check(name, condition, detail=""):
     return _journal.check(name, condition, detail)
 
 
-def password_hash() -> str:
-    """Returns a scrypt hash of this rule's own password, in the host's format."""
-    salt = b"harness-salt-16b"
-    derived = hashlib.scrypt(PASSWORD.encode(), salt=salt, n=16384, r=8, p=1, dklen=32)
-    return base64.b64encode(salt).decode() + ":" + base64.b64encode(derived).decode()
-
-
 def wait_for_gate() -> bool:
     """Waits for the design server to answer at all."""
     for _ in range(100):
@@ -105,29 +99,6 @@ def wait_for_gate() -> bool:
         except OSError:
             time.sleep(0.1)
     return False
-
-
-def sign_in() -> str | None:
-    """Signs in and returns the raw session cookie, or None."""
-    class NoRedirect(urllib.request.HTTPRedirectHandler):
-        def redirect_request(self, *args, **kwargs):
-            return None
-
-    body = urllib.parse.urlencode({"username": os.environ.get("TM_DESIGN_USER", "izno"),
-                                   "password": PASSWORD}).encode()
-    request = urllib.request.Request(f"http://127.0.0.1:{PORT}/login", data=body)
-    opener = urllib.request.build_opener(NoRedirect)
-    try:
-        with opener.open(request, timeout=5) as answer:
-            headers = answer.headers
-    except urllib.error.HTTPError as refused:
-        headers = refused.headers
-    jar = http.cookies.SimpleCookie()
-    jar.load(headers.get("Set-Cookie", ""))
-    crumb = jar.get("tm_design")
-    if crumb is None or not crumb.value:
-        return None
-    return f"tm_design={crumb.value}"
 
 
 def document(cookie: str) -> str:
@@ -267,25 +238,23 @@ def main() -> None:
           str(missing))
 
     # 3. THE SERVER HALF: the served document really carries it.
-    environment = {**os.environ, "TM_DESIGN_PASSWORD_HASH": password_hash()}
-    server = subprocess.Popen([sys.executable, str(ROOT / "serve.py"), str(PORT)],
-                              env=environment, stdout=subprocess.PIPE,
-                              stderr=subprocess.STDOUT)
-    try:
-        check("the design host answers", wait_for_gate())
-        cookie = sign_in()
-        check("and a session can be opened on it", cookie is not None)
-        if cookie:
-            payload = published(document(cookie))
+    with fake_v1(SESSION) as v1:
+        environment = {**os.environ, "TM_DESIGN_V1_URL": v1.url}
+        server = subprocess.Popen([sys.executable, str(ROOT / "serve.py"), str(PORT)],
+                                  env=environment, stdout=subprocess.PIPE,
+                                  stderr=subprocess.STDOUT)
+        try:
+            check("the design host answers", wait_for_gate())
+            payload = published(document(SESSION_COOKIE))
             check("the served document publishes an identity", payload is not None,
                   str(payload))
             check("and it names a branch, a commit and the tree's state",
                   payload is not None and all(field in payload
                                               for field in ('"branch"', '"commit"', '"dirty"')),
                   str(payload))
-    finally:
-        server.terminate()
-        server.wait(timeout=10)
+        finally:
+            server.terminate()
+            server.wait(timeout=10)
 
     # 4. PER CALL, NOT PER BOOT — and this is where that is really proved.
     #

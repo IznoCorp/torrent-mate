@@ -1,4 +1,10 @@
-"""R51 — the install offer, and WHO gets asked.
+"""R51 — the install offer, WHO gets asked, and WHEN.
+
+THE OFFER COMES ONCE, RIGHT AFTER THE FIRST SIGN-IN (the operator, 2026-10-04), on every
+platform, and a person who was offered it is never offered it again. The host's sign-in page
+leaves a mark in session storage on success (`tm-signed-in`); the application's first boot
+after it takes the mark and proposes. Every context below that is to be proposed the install
+carries the mark, set the way the page sets it; the ones that are not, do not.
 
 The banner existed and nothing ever showed it: it was reachable only by driving
 to its named state, so on a real phone it never appeared at all. Two platforms,
@@ -59,11 +65,22 @@ BANNER = """() => {
 }"""
 
 
-async def open_proto(p, **kwargs):
-    """Opens the prototype in a fresh context, past the startup screen."""
+SIGNED_IN = "()=>sessionStorage.setItem('tm-signed-in', '1')"
+
+
+async def open_proto(p, signed_in=True, **kwargs):
+    """Opens the prototype in a fresh context, past the startup screen.
+
+    Args:
+        p: A launched Playwright browser.
+        signed_in: Whether the context arrives from the sign-in page, which leaves its mark.
+        **kwargs: What else the context is given.
+    """
     ctx = await p.new_context(viewport={"width": 390, "height": 844},
                               device_scale_factor=2, is_mobile=True, has_touch=True,
                               **kwargs)
+    if signed_in:
+        await ctx.add_init_script(f"({SIGNED_IN})()")
     pg = await ctx.new_page()
     await pg.goto("http://127.0.0.1:8899/", wait_until="load")
     # The startup screen covers the frame for as long as the load it stands
@@ -85,6 +102,7 @@ async def main():
         ctx, pg = await open_proto(b)
         errors = []
         pg.on("pageerror", lambda e: errors.append(str(e)))
+        await pg.wait_for_timeout(1600)
         before = await pg.evaluate(BANNER)
         check("nothing is offered unless the browser announces it",
                  not before["visible"], str(before["visible"]))
@@ -92,7 +110,7 @@ async def main():
         await pg.evaluate(FIRE)
         await pg.wait_for_timeout(200)
         after = await pg.evaluate(BANNER)
-        check("the browser's announcement raises the banner", after["visible"])
+        check("the browser's announcement, after the sign-in, raises the banner", after["visible"])
         check("its default is prevented, or the browser keeps the hand",
                  await pg.evaluate("()=>window.__prevented"))
         check("it offers a BUTTON, not a set of steps",
@@ -105,27 +123,57 @@ async def main():
                  str(await pg.evaluate("()=>window.__prompt")))
         check("and the banner withdraws", not (await pg.evaluate(BANNER))["visible"])
 
-        # Refused once, not asked again in the same session.
-        await pg.evaluate(FIRE)
-        await pg.wait_for_timeout(150)
-        await pg.click("#installclose")
+        # Offered once, not again: not by a second announcement in the same page…
         await pg.evaluate(FIRE)
         await pg.wait_for_timeout(200)
-        check("a refusal is not asked again in the same session",
+        check("an offer made is not made again by a second announcement",
+                 not (await pg.evaluate(BANNER))["visible"])
+        # …and not by the next sign-in either: the mark is the browser's own.
+        await pg.reload(wait_until="load")
+        await pg.evaluate("()=>window.__loadingDone?.()")
+        await pg.evaluate(FIRE)
+        await pg.wait_for_timeout(1600)
+        check("nor after the next sign-in — whoever was offered it is never offered it again",
                  not (await pg.evaluate(BANNER))["visible"])
         check("no JS error", not errors, str(errors))
+        await ctx.close()
+
+        # Refused: closing the banner is the refusal, and it is the same mark.
+        ctx, pg = await open_proto(b)
+        await pg.evaluate(FIRE)
+        await pg.wait_for_timeout(1600)
+        await pg.click("#installclose")
+        await pg.reload(wait_until="load")
+        await pg.evaluate("()=>window.__loadingDone?.()")
+        await pg.evaluate(FIRE)
+        await pg.wait_for_timeout(1600)
+        check("a refusal is not asked again",
+                 not (await pg.evaluate(BANNER))["visible"])
+        await ctx.close()
+
+        # Nobody has just signed in: nothing is offered, whatever the browser announces.
+        ctx, pg = await open_proto(b, signed_in=False)
+        await pg.evaluate(FIRE)
+        await pg.wait_for_timeout(1600)
+        check("nothing is offered to someone who did not just sign in",
+                 not (await pg.evaluate(BANNER))["visible"])
         await ctx.close()
 
         # ── iOS Safari: no event exists, so the banner IS the guide ─────────
         ctx, pg = await open_proto(b, user_agent=IPHONE)
         await pg.wait_for_timeout(1600)
         ios = await pg.evaluate(BANNER)
-        check("on iOS the banner appears on its own", ios["visible"], str(ios))
+        check("on iOS the banner appears on its own, right after the sign-in", ios["visible"], str(ios))
         check("it gives the STEPS TO FOLLOW, with no install button",
                  ios["steps"] and not ios["button"], str(ios))
         check("and it names the three real gestures",
                  all(word in ios["text"] for word in ("Partager", "écran d'accueil", "Ajouter")),
                  ios["text"][:110])
+        await ctx.close()
+        ctx, pg = await open_proto(b, signed_in=False, user_agent=IPHONE)
+        await pg.wait_for_timeout(1600)
+        check("and not on any other visit — it is the sign-in that proposes",
+                 not (await pg.evaluate(BANNER))["visible"])
         await ctx.close()
 
         # ── Already installed: nothing is proposed at all ───────────────────
@@ -133,7 +181,9 @@ async def main():
                                   device_scale_factor=2, is_mobile=True, has_touch=True,
                                   user_agent=IPHONE)
         pg = await ctx.new_page()
-        # A standalone launch, declared the way a launcher declares it.
+        # A standalone launch, declared the way a launcher declares it — and arriving from the sign-in,
+        # so that the one thing standing between this context and the banner is being installed.
+        await ctx.add_init_script(f"({SIGNED_IN})()")
         await pg.add_init_script(
             "Object.defineProperty(navigator, 'standalone', { get: () => true });")
         await pg.goto("http://127.0.0.1:8899/", wait_until="load")

@@ -24,6 +24,12 @@
 //       is really waiting, and `controllerchange` is when it has really taken
 //       over. The reload follows the swap; it does not race it.
 //
+// AN INSTALLED APPLICATION IS UPDATED ON DEMAND (the operator, 2026-10-04). A tab swaps and reloads by
+// itself, as above; an application on the home screen, where a reload under the person's hands is a
+// screen that changes by itself, only SAYS a newer version waits — a waiting worker, or a served
+// build other than the running one — and Profil's « Mettre à jour » applies it: the waiting worker
+// is asked to take over and `controllerchange` reloads, or the page reloads into the newer build.
+//
 // WHY THIS FILE EXISTS AT ALL, GIVEN `index.html` ALREADY REGISTERS. The
 // envelope's inline script registers the worker and does nothing else, and it
 // has to stay there: the sign-in gate borrows that whole block and is the only
@@ -38,6 +44,7 @@
 // the new build lands is not what any of it is about — MODEL Part 13 names this
 // the single most likely misplacement of the whole plan.
 import { askTheHost } from "../lib/platform-network";
+import { alreadyInstalled, setUpdateWaiting } from "./install-state";
 
 /** What the running bundle was built from. The build injects it. */
 declare const __BUILD_ID__: string;
@@ -56,6 +63,11 @@ const SERVED_BUILD = "/build.json";
 const EVERY = 15 * 60 * 1000;
 
 let reloading = false;
+
+// WHETHER THE PERSON ASKED FOR THE UPDATE. An installed application swaps and
+// reloads on their word only: a swap another client asked for must not reload
+// the page under their hands.
+let updateAsked = false;
 
 // WHETHER THIS DOCUMENT HAS EVER HAD A CONTROLLER. Read SYNCHRONOUSLY at module
 // evaluation, and UPDATED on the first claim — a constant would say « no » for
@@ -216,6 +228,47 @@ function reloadOnce(
 }
 
 /**
+ * Reloads into the served build because the person pressed « Mettre à jour ».
+ *
+ * NOT `reloadOnce`: its latch is there to stop a loop nobody asked for, and a
+ * press is the person's word. Latched on the remembered build, a press after
+ * a reload that did not converge would return silently — a button that does
+ * nothing. The build is still remembered, so the boot after this reload does
+ * not reload again by itself.
+ *
+ * @param served The build the host serves.
+ */
+function reloadAsked(served: string): void {
+  rememberReload(served);
+  reloading = true;
+  globalThis.location.reload();
+}
+
+/**
+ * Says an installed application has a newer version waiting, and how to apply it — or that none waits.
+ *
+ * @param registration The worker's registration, or null.
+ * @param served The build the host serves, or null when it cannot be reached.
+ */
+function reportWaitingUpdate(
+  registration: ServiceWorkerRegistration | null,
+  served: string | null,
+): void {
+  const waiting = registration?.waiting;
+  if (waiting) {
+    // ASKED, ON THE PERSON'S WORD: the swap reloads on `controllerchange`, once it has HAPPENED.
+    setUpdateWaiting(() => {
+      updateAsked = true;
+      waiting.postMessage("skip-waiting");
+    });
+  } else if (served !== null && served !== __BUILD_ID__) {
+    setUpdateWaiting(() => reloadAsked(served));
+  } else {
+    setUpdateWaiting(null);
+  }
+}
+
+/**
  * Compares what is running against what is served, and acts once.
  *
  * @param registration The worker's registration, or null.
@@ -230,11 +283,17 @@ async function checkForUpdate(
   // is ALREADY waiting is asked to take over here — `updatefound` fired while
   // this page was in the background, or before the listener was installed.
   await registration?.update().catch(() => undefined);
-  // ASKED, AND THE COMPARISON STILL RUNS. Returning here would mean that a
-  // waiting worker which never activates — a broken `message` handler, storage
-  // refusing `skipWaiting` — makes every later check return at this same line,
-  // and the build comparison never runs again for the page. That is the « never
-  // converges for the session » failure this file was repaired for, relocated.
+  if (alreadyInstalled()) {
+    // INSTALLED: said, never done by itself — the person applies it from Profil.
+    reportWaitingUpdate(registration, await servedBuild());
+    return;
+  }
+  // A TAB: ASKED, AND THE COMPARISON STILL RUNS. Returning once the waiting
+  // worker is asked would mean that one which never activates — a broken
+  // `message` handler, storage refusing `skipWaiting` — makes every later check
+  // return at that same line, and the build comparison never runs again for
+  // the page. That is the « never converges for the session » failure this
+  // file was repaired for, relocated.
   askTheWaitingWorkerToTakeOver(registration);
   const served = await servedBuild();
   // Unreachable, or serving what is already running: nothing to do. The first
@@ -291,6 +350,7 @@ export function installUpdateDiscipline(): void {
         // No controller means this is the FIRST worker, not a replacement:
         // nothing to swap, and `clients.claim()` will take it from here.
         if (!globalThis.navigator.serviceWorker.controller) return;
+        if (alreadyInstalled()) return reportWaitingUpdate(registration, null);
         askTheWaitingWorkerToTakeOver(registration);
       });
     });
@@ -316,6 +376,10 @@ export function installUpdateDiscipline(): void {
         hasEverHadController = true;
         return;
       }
+      // AN INSTALLED APPLICATION RELOADS ON THE PERSON'S WORD ONLY. A swap
+      // another client asked for leaves this page as it is; the next check
+      // says whether a newer build waits, and Profil offers it.
+      if (alreadyInstalled() && !updateAsked) return check();
       // No served build to latch on: a swap under a live page is a one-off
       // event and not a state that could repeat on the next boot.
       reloadOnce(registration, null);

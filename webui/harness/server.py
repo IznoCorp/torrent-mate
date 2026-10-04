@@ -220,6 +220,99 @@ def start_server(root: pathlib.Path) -> Iterator[int]:
         thread.join(timeout=5)
 
 
+class _FakeV1:
+    """The sessions a stand-in v1 holds, and what it was asked."""
+
+    def __init__(self, sessions: set[str]) -> None:
+        """Holds the sessions v1 accepts, to begin with.
+
+        Args:
+            sessions: The session values v1 accepts.
+        """
+        self.sessions = set(sessions)
+        self.asked: list[str] = []
+        self.url = ""
+
+
+@contextlib.contextmanager
+def fake_v1(*sessions: str) -> Iterator[_FakeV1]:
+    """Raises a stand-in for v1 on a port the kernel picks, for the design host's door.
+
+    The design host asks v1 `GET /api/v1/auth/me` with the session cookie and
+    admits the request on a 200 (`webui/v1_door.py`); nothing else of v1 is
+    needed to sign a rule in. A rule points the host at it with
+    `TM_DESIGN_V1_URL` and signs in by sending `tm_v1_session=<a session>`.
+    `POST /api/v1/auth/logout` ends the session its cookie carries, as v1's
+    does.
+
+    Args:
+        *sessions: The session values v1 accepts, to begin with.
+
+    Yields:
+        The stand-in: its `url`, its live `sessions` set, and `asked` — the
+        cookie of every `auth/me` it answered.
+    """
+    stand_in = _FakeV1(set(sessions))
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        """Answers v1's two session routes from the stand-in's sessions."""
+
+        def _session(self) -> str:
+            """Reads the session the request's cookie carries.
+
+            Returns:
+                The `tm_v1_session` value, or an empty string when there is none.
+            """
+            cookie = self.headers.get("Cookie") or ""
+            match = re.search(r"tm_v1_session=([^;]*)", cookie)
+            return match.group(1) if match else ""
+
+        def _answer(self, status: int) -> None:
+            """Answers an empty JSON object with a status.
+
+            Args:
+                status: The HTTP status.
+            """
+            self.send_response(status)
+            self.send_header("Content-Length", "2")
+            self.end_headers()
+            self.wfile.write(b"{}")
+
+        def do_GET(self) -> None:  # noqa: N802 — name imposed by BaseHTTPRequestHandler
+            """Answers `auth/me`: 200 for a held session, 401 otherwise."""
+            session = self._session()
+            stand_in.asked.append(session)
+            held = self.path == "/api/v1/auth/me" and session in stand_in.sessions
+            self._answer(200 if held else 401)
+
+        def do_POST(self) -> None:  # noqa: N802 — name imposed by BaseHTTPRequestHandler
+            """Answers `auth/logout`: ends the session its cookie carries."""
+            if self.path == "/api/v1/auth/logout":
+                stand_in.sessions.discard(self._session())
+                self._answer(200)
+                return
+            self._answer(404)
+
+        def log_message(self, fmt: str, *args: object) -> None:
+            """Stays quiet: a rule's output is its verdicts, not the stand-in's requests.
+
+            Args:
+                fmt: The log line's format, ignored.
+                *args: Its values, ignored.
+            """
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    stand_in.url = f"http://127.0.0.1:{server.server_address[1]}"
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield stand_in
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
 def serve_forever(port: int, root: pathlib.Path) -> None:
     """Serves `root` on `port` in the FOREGROUND, until the process is killed.
 

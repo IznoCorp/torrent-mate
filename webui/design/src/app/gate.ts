@@ -27,11 +27,15 @@
 // wire's English.
 //
 // THE GATE READS NO RIGHT ITSELF: after a sign-in the frame reads the account,
-// and the account's entry page is where it lands (round 10 Q7).
+// and the account's entry page is where it lands (round 10 Q7) — unless the
+// gate came up over a place the account opens, which is where it returns (the
+// operator, 2026-10-04: the deep link is kept after sign-in).
 import { CancelledError } from "@tanstack/react-query";
 import i18next from "i18next";
 
-import { entryPageFor } from "./navigation";
+import { entryPageFor, opensFor, rowFor } from "./navigation";
+import { addressSeam, NOT_FOUND_PAGE } from "../lib/addresses";
+import type { Rights } from "../lib/rights";
 import { rightsOf } from "../lib/rights";
 import { postJson, sharedQueryClient } from "../lib/query-client";
 import { landSignedIn } from "./frame-verbs";
@@ -49,6 +53,50 @@ const POLL_EVERY = 1000;
 type Ending = () => void;
 
 let ending: Ending = () => {};
+
+// THE PLACE THE GATE CAME UP OVER, kept until the next sign-in takes it.
+let keptPlace: string | null = null;
+
+/**
+ * Keeps the address the gate is about to replace, so a sign-in returns there.
+ *
+ * @param address The same-origin path and query the person was at.
+ */
+export function keepPlace(address: string): void {
+  keptPlace = address;
+}
+
+/** Forgets the place kept: a sign-out is a leave, and the next person starts at their own entry. */
+export function forgetPlace(): void {
+  keptPlace = null;
+}
+
+/**
+ * Takes the place kept, if a signed-in account may return to it.
+ *
+ * ONLY A SAME-ORIGIN PATH, though the entry keeps nothing else: a scheme, a
+ * `//host` or a backslash would make the landing a redirect somewhere else.
+ * The sign-in screen, an address nobody serves and a page the account does not
+ * open are no place to return to.
+ *
+ * @param rights What the account just signed in may do.
+ * @returns The page and its dials, or null to land on the entry page.
+ */
+function takePlace(rights: Rights): { page: string; dials: Record<string, string> } | null {
+  const place = keptPlace;
+  keptPlace = null;
+  if (place === null || !/^\/(?![/\\])[^\\\u0000-\u001f]*$/.test(place)) return null;
+  const queryAt = place.indexOf("?");
+  const destination =
+    queryAt < 0
+      ? addressSeam.parse(place, "")
+      : addressSeam.parse(place.slice(0, queryAt), place.slice(queryAt));
+  if (destination.signIn || destination.notFound !== undefined) return null;
+  if (destination.page === NOT_FOUND_PAGE) return null;
+  const row = rowFor(destination.page);
+  if (row === undefined || !opensFor(row, rights)) return null;
+  return { page: destination.page, dials: destination.dials };
+}
 
 /** An element of the gate, by its selector. */
 function node<Element extends HTMLElement>(selector: string): Element | null {
@@ -167,6 +215,46 @@ export function setPasswordOpen(open: boolean): void {
   disclosure?.setAttribute("aria-expanded", String(open));
 }
 
+// WHY THE SESSION ENDED, said under the form's subtitle: the closed codes v1 answers a refused session or
+// sign-in with, and where each one's words live in `fr.json` (`screens.gate.<key>`). Any other code — an
+// unknown e-mail, a wrong password — says nothing here: it must tell nothing (O-K1-4).
+const REASONS: Readonly<Record<string, string>> = {
+  "auth.required": "reasonExpired",
+  "auth.access_disabled": "reasonDisabled",
+};
+
+/**
+ * Says why the session ended, or takes the line down.
+ *
+ * AT RUN TIME, NOT IN THE MARKUP, for the reason `loginByEmail` gives: the gate is the region the design
+ * host extracts byte for byte, and the host's own page says its reason server-side.
+ *
+ * @param code The refusal code the server gave, if any. A plain visit, or a code that is no reason,
+ *     shows no line.
+ */
+export function sayReason(code: string | undefined): void {
+  const key = code === undefined ? undefined : REASONS[code];
+  let line = node<HTMLElement>('[data-part="login/reason"]');
+  if (key === undefined) {
+    if (line) line.hidden = true;
+    return;
+  }
+  if (!line) {
+    // IN THE GATE, BEFORE ITS FIRST DOOR — and not in the password form, which rests CLOSED behind its
+    // disclosure while Plex is the way in: a reason said inside it would be said to no one.
+    const gate = node("#login");
+    const anchor = node('[data-part="login/plex"]') ?? node("#loginform");
+    if (!gate || !anchor) return;
+    line = document.createElement("p");
+    line.className = "loginerr";
+    line.dataset.part = "login/reason";
+    line.setAttribute("role", "status");
+    gate.insertBefore(line, anchor);
+  }
+  line.textContent = i18next.t(`screens.gate.${key}`);
+  line.hidden = false;
+}
+
 /**
  * Puts the gate in its resting shape: Plex offered, the password closed —
  * or open, when the gate is shown for a refusal the form carries.
@@ -203,7 +291,8 @@ function stopPlex(): void {
 }
 
 /**
- * Lands the signed-in account on its entry page once its rights are read.
+ * Lands the signed-in account where the gate came up, or on its entry page,
+ * once its rights are read.
  *
  * A read CANCELLED — the cache cleared under it, by a sign-out or a driven
  * state — lands nowhere and says nothing: whatever cleared it has moved the
@@ -224,7 +313,10 @@ async function land(): Promise<void> {
     if (failure instanceof CancelledError) return;
     throw failure;
   }
-  landSignedIn(entryPageFor(rightsOf(account)));
+  const rights = rightsOf(account);
+  const place = takePlace(rights);
+  if (place) landSignedIn(place.page, place.dials);
+  else landSignedIn(entryPageFor(rights));
   ending();
 }
 

@@ -222,14 +222,17 @@ function menuLanding(page: string): void {
 }
 
 /**
- * Puts the account just signed in on its entry page (round 10 Q7) — the gate's
- * landing, kept with the three verbs because only this file switches a page.
+ * Puts the account just signed in where it returns, or on its entry page
+ * (round 10 Q7) — the gate's landing, kept with the three verbs because only
+ * this file switches a page.
  * NO HISTORY ENTRY: signing in is not a step Retour walks back through.
  *
- * @param page The account's entry page.
+ * @param page The page to land on: the place the gate came up over, or the
+ *     account's entry page.
+ * @param dials The page's dial fields at that place, keyed by store field.
  */
-export function landSignedIn(page: string): void {
-  store.write({ page });
+export function landSignedIn(page: string, dials: Record<string, string> = {}): void {
+  store.write({ ...dials, page });
 }
 
 /* THE DRAWER. Its entry is pushed so a back closes it, and a refusal of the

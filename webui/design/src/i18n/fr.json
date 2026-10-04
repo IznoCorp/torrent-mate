@@ -16,7 +16,9 @@
   },
   "server": {
     "login": {
-      "title": "TorrentMate Design — connexion"
+      "title": "TorrentMate Design — connexion",
+      "reasonExpired": "Session expirée : reconnectez-vous.",
+      "reasonDisabled": "Accès désactivé par un administrateur."
     },
     "offline": {
       "title": "TorrentMate Design — hors ligne",
@@ -27,6 +29,11 @@
       "title": "Build en échec",
       "heading": "Le build de la maquette a échoué",
       "body": "Le serveur reconstruit le document à chaque source modifiée ; cette reconstruction vient d'échouer, et servir l'ancienne version serait mentir sur la date de ce que vous jugez."
+    },
+    "v1Unreachable": {
+      "title": "Serveur injoignable",
+      "heading": "Impossible de vérifier votre session",
+      "body": "La connexion passe par le serveur de TorrentMate, qui n'a pas répondu. Réessayez dans un instant."
     },
     "manifest": {
       "description": "Prototype de référence de l'interface TorrentMate."
@@ -1143,6 +1150,29 @@
       "todoFilterCount_other": "{{count}} cartes"
     },
     "accountPage": {
+      "install": {
+        "heading": "Application",
+        "install": {
+          "label": "Installer l'app",
+          "line": "L'ajoute à votre écran d'accueil : elle s'ouvre comme une application, sans la barre du navigateur.",
+          "action": "Installer l'app"
+        },
+        "ios": {
+          "label": "Installer l'app",
+          "line": "Safari n'a pas de bouton d'installation : l'ajout à l'écran d'accueil se fait à la main.",
+          "action": "Installer l'app"
+        },
+        "update": {
+          "label": "Une nouvelle version est prête",
+          "line": "Elle remplace celle-ci et recharge l'application.",
+          "action": "Mettre à jour"
+        },
+        "steps": {
+          "share": "Touchez Partager, dans la barre de Safari.",
+          "addToHome": "Choisissez Sur l'écran d'accueil.",
+          "confirm": "Touchez Ajouter."
+        }
+      },
       "noteLead": "Ce compte, son rôle et ce qu'il peut faire.",
       "noteRest": " Les droits appartiennent au rôle, jamais au compte : ce qui manque ici se donne en changeant de rôle, dans « Comptes ».",
       "you": "Vous",
@@ -1326,6 +1356,8 @@
       "body": " Son rôle ne lui donne aucun droit ici : l'administrateur peut lui en attribuer un autre dans « Comptes »."
     },
     "gate": {
+      "reasonExpired": "Session expirée : reconnectez-vous.",
+      "reasonDisabled": "Accès désactivé par un administrateur.",
       "plex": "Se connecter avec Plex",
       "plexUnreachable": "Plex ne répond pas : connectez-vous avec un mot de passe.",
       "usePassword": "Utiliser un mot de passe",

@@ -197,6 +197,8 @@ function go(stateId: string, options?: { keep?: boolean }): string {
   if (!stateId.startsWith("signin")) window.__entry?.hideSignIn(true);
   if (stateId !== "startup") window.__entry?.hideStartup();
   if (!stateId.startsWith("pwa-")) window.__entry?.hideInstall();
+  // The Profil button's face is dialled by its own states, and by nothing else.
+  if (!stateId.startsWith("profile-install") && stateId !== "profile-update") window.__entry?.dialInstall(null);
   // Reset to seed by DEFAULT: a measurement must never inherit the mutations
   // of a previous one.
   if (!options?.keep) reset();

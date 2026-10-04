@@ -44,7 +44,7 @@ PHONE = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 2,
          "is_mobile": True, "has_touch": True}
 
 
-# The one platform that offers the banner with no event at all. Android needs a
+# The one platform that offers the banner with no event at all (right after a sign-in). Android needs a
 # `beforeinstallprompt`, which no headless run ever fires — which is why the
 # control below is an iPhone and not a desktop.
 IPHONE = ("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
@@ -73,6 +73,9 @@ async def one_reading(browser, journal, errors, *, standalone):
         standalone: Whether the application is to believe it is installed.
     """
     context = await browser.new_context(**PHONE, user_agent=IPHONE)
+    # ARRIVING FROM THE SIGN-IN, which is when the proposal is made: without the mark the banner is
+    # never offered, standalone or not, and the pair below would measure nothing.
+    await context.add_init_script("sessionStorage.setItem('tm-signed-in', '1')")
     page = await context.new_page()
     page.on("pageerror", lambda error: errors.append(str(error)))
     if standalone:
