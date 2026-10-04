@@ -26,7 +26,7 @@ from typing import Final, Literal
 from personalscraper.acquire.catalogue import CatalogueEpisode, CatalogueStore, ProviderClients
 from personalscraper.api.metadata._base import MediaDetails
 from personalscraper.app.accounts.actor import Actor
-from personalscraper.app.errors import AppBadRequest, AppConflict, RefusalCode
+from personalscraper.app.errors import AppBadRequest, AppConflict, AppInternalError, RefusalCode
 from personalscraper.app.library.catalogue import (
     Completeness,
     aired_of_season,
@@ -64,8 +64,8 @@ from personalscraper.app.library.listing import (
     read_holders,
     read_live_rows,
 )
-from personalscraper.app.maintenance.registry import REGISTRY
-from personalscraper.app.maintenance.service import LaunchedRun, launch_action, running_run_uid
+from personalscraper.app.maintenance.registry import REGISTRY, MaintenanceAction
+from personalscraper.app.maintenance.service import LaunchedRun, launch_action, running_run
 from personalscraper.core.identity import MediaRef
 from personalscraper.indexer.ownership import IndexerOwnershipChecker
 from personalscraper.logger import get_logger
@@ -757,7 +757,8 @@ class LibraryService:
 
         Returns:
             The acceptance, naming the lowest holding row's launched run, else the lowest
-            holding row's run already under way (``None`` when it ended in between).
+            holding row's run already under way; queued when any of them waits on the
+            pipeline.
 
         Raises:
             AppNotFound: ``media.not_found`` when no row holding the id has a live file.
@@ -772,22 +773,50 @@ class LibraryService:
             raise refuse_not_found(provider.value)
         action = next(a for a in REGISTRY if a.id == _RESCRAPE_ITEM_ACTION)
         launched: list[LaunchedRun] = []
-        running: list[str | None] = []
+        running: list[LaunchedRun] = []
         for item_id in sorted(live):
-            options = {"item_id": item_id}
-            try:
-                launched.append(launch_action(action, options, db_path=self._index_db, data_dir=self._data_dir))
-            except AppConflict:
-                # This row's rescrape is already running: the ask is accepted on that run.
-                log.info("app.library.rescrape_already_running", provider=provider.value, item_id=item_id)
-                running.append(running_run_uid(action, options, db_path=self._index_db))
+            run, joined = self._launch_or_join(action, item_id, provider)
+            (running if joined else launched).append(run)
         log.info("app.library.rescrape_launched", provider=provider.value, item_ids=sorted(live))
+        answered = launched[0] if launched else running[0]
         return RescrapeAccepted(
             provider=provider,
             provider_id=provider_id,
-            queued=any(run.queued for run in launched),
-            run_uid=launched[0].run_uid if launched else running[0],
+            queued=any(run.queued for run in (*launched, *running)),
+            run_uid=answered.run_uid,
         )
+
+    def _launch_or_join(self, action: MaintenanceAction, item_id: int, provider: Provider) -> tuple[LaunchedRun, bool]:
+        """Launch one row's rescrape, or join the one already running.
+
+        The duplicate guard refuses while the row's rescrape runs; that run may end
+        between the refusal and the read that names it, and the launch is then retried
+        once.
+
+        Args:
+            action: The per-medium rescrape.
+            item_id: The holding row.
+            provider: The provider the medium is asked by, for the logs.
+
+        Returns:
+            The run, and whether it was joined rather than launched.
+
+        Raises:
+            AppInternalError: When a runner cannot be spawned, or when the row's rescrape is
+                refused as running twice yet never found running.
+        """
+        options = {"item_id": item_id}
+        for _attempt in range(2):
+            try:
+                return launch_action(action, options, db_path=self._index_db, data_dir=self._data_dir), False
+            except AppConflict:
+                run = running_run(action, options, db_path=self._index_db, data_dir=self._data_dir)
+            if run is not None:
+                # This row's rescrape is already running: the ask is accepted on that run.
+                log.info("app.library.rescrape_already_running", provider=provider.value, item_id=item_id)
+                return run, True
+            log.info("app.library.rescrape_ended_before_read", provider=provider.value, item_id=item_id)
+        raise AppInternalError("the rescrape was refused as running but no run was found")
 
     # ------------------------------------------------------------------ the sheet's parts
 

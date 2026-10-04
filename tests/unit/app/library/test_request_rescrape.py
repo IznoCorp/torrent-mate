@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from personalscraper.app.errors import (
+    AppConflict,
     AppInternalError,
     AppNotFound,
     AppPreconditionRequired,
@@ -323,3 +324,58 @@ def test_a_second_spawn_failing_is_internal_and_the_first_run_stays(
         (canonical_options_json({"item_id": first}), "running", _RUNNER_PID),
         (canonical_options_json({"item_id": second}), "error", rows[1][2]),
     ]
+
+
+def test_a_rescrape_already_running_behind_the_pipeline_is_answered_queued(
+    world: World, spawned: list[tuple[str, str, str, bool]]
+) -> None:
+    """The joined run has not started: another live process holds ``pipeline.lock``, so it waits."""
+    movie = world.index.item("Heat", tmdb="949")
+    world.index.movie_file(movie, "films/Heat")
+    _seed_running(world.index.path, movie)
+    (world.data_dir / "pipeline.lock").write_text(str(os.getppid()))
+
+    accepted = world.service.request_rescrape(world.actor, MediaRef(tmdb_id=949))
+
+    assert (accepted.run_uid, accepted.queued) == (f"{movie:032d}", True)
+    assert spawned == []
+
+
+def test_a_rescrape_already_running_that_holds_the_lock_is_not_queued(
+    world: World, spawned: list[tuple[str, str, str, bool]]
+) -> None:
+    """The joined run holds ``pipeline.lock`` itself: it runs, it does not wait."""
+    movie = world.index.item("Heat", tmdb="949")
+    world.index.movie_file(movie, "films/Heat")
+    _seed_running(world.index.path, movie)
+    (world.data_dir / "pipeline.lock").write_text(str(os.getpid()))
+
+    accepted = world.service.request_rescrape(world.actor, MediaRef(tmdb_id=949))
+
+    assert (accepted.run_uid, accepted.queued) == (f"{movie:032d}", False)
+
+
+def test_a_run_that_ends_between_the_refusal_and_the_read_is_launched_again(
+    world: World, spawned: list[tuple[str, str, str, bool]], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The running rescrape ends after the duplicate guard refused: the launch is retried once, and answered."""
+    movie = world.index.item("Heat", tmdb="949")
+    world.index.movie_file(movie, "films/Heat")
+    _seed_running(world.index.path, movie)
+    reserve = maintenance_service._reserve_run_row
+
+    def refuse_then_end(db_path: Path, **kwargs: object) -> None:
+        """Refuse as the guard does while the run is live, then end that run before anything reads it."""
+        try:
+            reserve(db_path, **kwargs)  # type: ignore[arg-type]
+        except AppConflict:
+            with sqlite3.connect(db_path) as conn:
+                conn.execute("UPDATE pipeline_run SET outcome='success' WHERE run_uid=?", (f"{movie:032d}",))
+            raise
+
+    monkeypatch.setattr(maintenance_service, "_reserve_run_row", refuse_then_end)
+
+    accepted = world.service.request_rescrape(world.actor, MediaRef(tmdb_id=949))
+
+    assert len(spawned) == 1
+    assert (accepted.run_uid, accepted.queued) == (spawned[0][0], False)

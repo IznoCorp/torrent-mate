@@ -12,6 +12,7 @@ guards and the missing-DB rule; it never re-implements ``BEGIN IMMEDIATE``.
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 import subprocess
@@ -25,6 +26,7 @@ from pathlib import Path
 from personalscraper.app._runner_engine import reserve_run_row
 from personalscraper.app.errors import AppConflict, AppInternalError, AppPreconditionRequired, AppValidationError
 from personalscraper.app.maintenance.registry import MaintenanceAction, canonical_options_json
+from personalscraper.app.run_queue import QUEUE_STEP_NAME, QUEUE_WAITING_STATUS
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.lock import is_lock_held
 from personalscraper.logger import get_logger
@@ -181,6 +183,72 @@ def running_run_uid(
         return _live_duplicate(conn, action.id, canonical_options_json(dict(options)), dry_run)
     finally:
         conn.close()
+
+
+def running_run(
+    action: MaintenanceAction, options: Mapping[str, object], *, db_path: Path, data_dir: Path
+) -> LaunchedRun | None:
+    """Name the live run of an action with these options, and whether it waits on the pipeline.
+
+    The joining counterpart of :func:`launch_action`: the same answer for a run already
+    under way as for one just launched.
+
+    Args:
+        action: The maintenance action (a live apply, never a dry run).
+        options: Its options, canonicalised as a launch canonicalises them.
+        db_path: Absolute path to ``library.db``.
+        data_dir: The pipeline data directory holding ``pipeline.lock``.
+
+    Returns:
+        The live run and whether it waits in the visible queue, or ``None`` when none runs.
+    """
+    run_uid = running_run_uid(action, options, db_path=db_path)
+    if run_uid is None:
+        return None
+    queued = action.risk in ("write", "destructive") and _waits_on_pipeline(
+        run_uid, db_path=db_path, lock_file=data_dir / "pipeline.lock"
+    )
+    return LaunchedRun(run_uid=run_uid, queued=queued)
+
+
+def _waits_on_pipeline(run_uid: str, *, db_path: Path, lock_file: Path) -> bool:
+    """Say whether a live run waits for ``pipeline.lock`` rather than runs.
+
+    The run's own ``queue`` step answers once its runner wrote one. Before that, the run
+    waits when another live process holds the lock: a live write holds the lock itself
+    while it runs, so a lock held under the run's own pid is no wait.
+
+    Args:
+        run_uid: The live run.
+        db_path: Absolute path to ``library.db``.
+        lock_file: ``pipeline.lock``.
+
+    Returns:
+        ``True`` when the run waits in the visible queue.
+    """
+    conn = sqlite3.connect(str(db_path))
+    try:
+        apply_pragmas(conn)
+        row = conn.execute("SELECT pid, steps_json FROM pipeline_run WHERE run_uid=?", (run_uid,)).fetchone()
+    finally:
+        conn.close()
+    if row is None:
+        return False
+    pid, steps_json = row
+    try:
+        steps = json.loads(steps_json) if steps_json else []
+    except (json.JSONDecodeError, TypeError):
+        steps = []
+    queue_steps = [step for step in steps if isinstance(step, dict) and step.get("name") == QUEUE_STEP_NAME]
+    if queue_steps:
+        return queue_steps[-1].get("status") == QUEUE_WAITING_STATUS
+    if not is_lock_held(lock_file):
+        return False
+    try:
+        holder = int(lock_file.read_text().strip())
+    except (OSError, ValueError):
+        return False
+    return holder != pid
 
 
 def _guard_recent_dry_run(conn: sqlite3.Connection, action_id: str, options_json: str) -> None:
