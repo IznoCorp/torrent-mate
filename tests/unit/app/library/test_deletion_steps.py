@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.api.plex import PlexSection
 from personalscraper.app.library.deletion import (
     PLEX_SCAN_WAIT_S,
     PlexOutcome,
@@ -15,6 +14,7 @@ from personalscraper.app.library.deletion import (
     remove_empty_parents,
     remove_item_rows,
 )
+from tests.unit.app.library.plex_fakes import FakePlex, FakeTime
 from tests.unit.app.library.world import FixtureIndex
 
 
@@ -101,78 +101,13 @@ class TestRemoveItemRows:
         index.conn.close()
 
 
-class _FakePlex:
-    """Records every Plex call; scan states are replayed per section."""
-
-    def __init__(
-        self,
-        sections: dict[str, str],
-        *,
-        scans: dict[str, list[bool | None]] | None = None,
-        refresh_ok: bool = True,
-        trash_ok: bool = True,
-        bundles_ok: bool = True,
-    ) -> None:
-        self._sections = sections
-        self._scans = scans or {}
-        self._refresh_ok = refresh_ok
-        self._trash_ok = trash_ok
-        self._bundles_ok = bundles_ok
-        self.calls: list[tuple[str, str]] = []
-
-    def section_for(self, target: Path) -> PlexSection | None:
-        """The section whose root prefixes *target*."""
-        for root, key in self._sections.items():
-            if str(target) == root or str(target).startswith(f"{root}/"):
-                return PlexSection(key, key, [root])
-        return None
-
-    def refresh(self, target: Path) -> bool:
-        """Record the partial scan."""
-        self.calls.append(("refresh", str(target)))
-        return self._refresh_ok
-
-    def section_refreshing(self, section_key: str) -> bool | None:
-        """Replay the next scan state (idle once exhausted)."""
-        self.calls.append(("scan_state", section_key))
-        states = self._scans.get(section_key, [])
-        return states.pop(0) if states else False
-
-    def empty_trash(self, section_key: str) -> bool:
-        """Record the trash emptying."""
-        self.calls.append(("empty_trash", section_key))
-        return self._trash_ok
-
-    def clean_bundles(self) -> bool:
-        """Record the bundle clean."""
-        self.calls.append(("clean_bundles", ""))
-        return self._bundles_ok
-
-
-class _Time:
-    """A fake monotonic clock that sleeping advances."""
-
-    def __init__(self) -> None:
-        self.now = 0.0
-        self.slept: list[float] = []
-
-    def sleep(self, seconds: float) -> None:
-        """Advance the clock."""
-        self.slept.append(seconds)
-        self.now += seconds
-
-    def clock(self) -> float:
-        """Read the clock."""
-        return self.now
-
-
 class TestFollowUpPlex:
     """Per section: rescan each parent, wait once, empty the trash; then one bundle clean."""
 
     def test_one_wait_and_one_trash_per_section_then_one_bundle_clean(self) -> None:
         """Two parents in one section and one in another: two rescans then one wait and one trash per section."""
-        plex = _FakePlex({"/d1/films": "1", "/d2/series": "2"})
-        t = _Time()
+        plex = FakePlex({"/d1/films": "1", "/d2/series": "2"})
+        t = FakeTime()
         parents = [Path("/d1/films"), Path("/d1/films/Sub"), Path("/d2/series")]
 
         steps = follow_up_plex(plex, parents, sleep=t.sleep, clock=t.clock)  # type: ignore[arg-type]
@@ -192,8 +127,8 @@ class TestFollowUpPlex:
 
     def test_the_wait_polls_until_the_scan_ends(self) -> None:
         """A section still scanning is read again until idle, then its trash is emptied."""
-        plex = _FakePlex({"/d1/films": "1"}, scans={"1": [True, True, False]})
-        t = _Time()
+        plex = FakePlex({"/d1/films": "1"}, scans={"1": [True, True, False]})
+        t = FakeTime()
 
         steps = follow_up_plex(plex, [Path("/d1/films")], sleep=t.sleep, clock=t.clock)  # type: ignore[arg-type]
 
@@ -203,8 +138,8 @@ class TestFollowUpPlex:
 
     def test_the_wait_is_bounded(self) -> None:
         """A scan that never ends stops the wait at the cap; the trash is still emptied, the outcome failed."""
-        plex = _FakePlex({"/d1/films": "1"}, scans={"1": [True] * 1000})
-        t = _Time()
+        plex = FakePlex({"/d1/films": "1"}, scans={"1": [True] * 1000})
+        t = FakeTime()
 
         steps = follow_up_plex(plex, [Path("/d1/films")], sleep=t.sleep, clock=t.clock)  # type: ignore[arg-type]
 
@@ -215,8 +150,8 @@ class TestFollowUpPlex:
 
     def test_an_unreadable_scan_state_ends_the_wait_as_failed(self) -> None:
         """Plex not answering the scan state: no endless wait, the step reported failed."""
-        plex = _FakePlex({"/d1/films": "1"}, scans={"1": [None]})
-        t = _Time()
+        plex = FakePlex({"/d1/films": "1"}, scans={"1": [None]})
+        t = FakeTime()
 
         steps = follow_up_plex(plex, [Path("/d1/films")], sleep=t.sleep, clock=t.clock)  # type: ignore[arg-type]
 
@@ -229,8 +164,8 @@ class TestFollowUpPlex:
     )
     def test_each_failed_step_is_reported(self, failing: str, field: str) -> None:
         """A refused rescan, trash or bundle clean shows on its own step, and the outcome is failed."""
-        plex = _FakePlex({"/d1/films": "1"}, **{failing: False})  # type: ignore[arg-type]
-        t = _Time()
+        plex = FakePlex({"/d1/films": "1"}, **{failing: False})  # type: ignore[arg-type]
+        t = FakeTime()
 
         step = follow_up_plex(plex, [Path("/d1/films")], sleep=t.sleep, clock=t.clock)[Path("/d1/films")]  # type: ignore[arg-type]
 
@@ -239,8 +174,8 @@ class TestFollowUpPlex:
 
     def test_a_folder_no_section_indexes_asks_nothing(self) -> None:
         """No section indexes the parent: no call at all, the step reported failed with no section."""
-        plex = _FakePlex({"/d1/films": "1"})
-        t = _Time()
+        plex = FakePlex({"/d1/films": "1"})
+        t = FakeTime()
 
         step = follow_up_plex(plex, [Path("/elsewhere")], sleep=t.sleep, clock=t.clock)[Path("/elsewhere")]  # type: ignore[arg-type]
 
