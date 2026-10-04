@@ -151,6 +151,11 @@ class PlexAccount:
     thumb: str | None
 ```
 
+**Amended at phase 2 (2026-10-04, the orchestrator's approval):** the contract starts a Plex Home member and a guest
+on different roles (`plexHome` / `plexGuest`), so `PlexServerAccess` gained `HOME = "home"` — the resource present,
+not owned, flagged `home`. Reading `home` as Home membership is INFERRED, to confirm with a real Home member's
+capture (`docs/reference/plex-account-api.md`).
+
 ### 3.2 The errors — told apart because the gate is
 
 ```python
