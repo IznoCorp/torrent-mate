@@ -234,7 +234,8 @@ def _waits_on_pipeline(run_uid: str, *, db_path: Path, lock_file: Path) -> bool:
         conn.close()
     if row is None:
         return False
-    pid, steps_json = row
+    pid: int | None = row[0]
+    steps_json: str | None = row[1]
     try:
         steps = json.loads(steps_json) if steps_json else []
     except (json.JSONDecodeError, TypeError):

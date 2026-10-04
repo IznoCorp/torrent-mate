@@ -940,14 +940,11 @@ def _crossed_trailer_and_rating(details: MediaDetails, crossed: MediaDetails) ->
         TVDB's answer with TMDB's trailer when TVDB has none, and TMDB's rating when TVDB
         has none.
     """
-    trailer = (
-        {}
-        if details.trailer_url
-        else {
-            "trailer_url": crossed.trailer_url,
-            "trailer_name": crossed.trailer_name,
-            "trailer_language": crossed.trailer_language,
-        }
+    trailer = details if details.trailer_url else crossed
+    return replace(
+        details,
+        trailer_url=trailer.trailer_url,
+        trailer_name=trailer.trailer_name,
+        trailer_language=trailer.trailer_language,
+        rating=details.rating if details.rating is not None else crossed.rating,
     )
-    rating = {} if details.rating is not None else {"rating": crossed.rating}
-    return replace(details, **trailer, **rating)
