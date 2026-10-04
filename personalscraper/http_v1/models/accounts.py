@@ -129,3 +129,13 @@ class UpdateRoleBody(ContractModel):
 
     name: str | None = None
     rights: list[Right] | None = None
+
+
+class ResetAccountPasswordBody(ContractModel):
+    """``resetAccountPassword``'s body.
+
+    Attributes:
+        password: The provisional password an Admin gives the account.
+    """
+
+    password: str = Field(repr=False)

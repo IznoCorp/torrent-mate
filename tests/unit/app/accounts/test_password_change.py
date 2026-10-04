@@ -216,9 +216,7 @@ def _signed_in(sessions: SessionService, account_id: str) -> tuple[Actor, str]:
     return actor, token
 
 
-def _change(
-    accounts: AccountService, sessions: SessionService, account_id: str, current: str, new: str = _NEW
-) -> str:
+def _change(accounts: AccountService, sessions: SessionService, account_id: str, current: str, new: str = _NEW) -> str:
     """Sign an account in and change its password.
 
     Args:
@@ -254,7 +252,9 @@ def _stored_hash(store: AppStore, account_id: str) -> str | None:
 class TestChangeOwnPassword:
     """``change_own_password`` — a local account replaces its own password."""
 
-    def test_the_new_password_replaces_the_old(self, accounts: AccountService, sessions: SessionService, store: AppStore) -> None:
+    def test_the_new_password_replaces_the_old(
+        self, accounts: AccountService, sessions: SessionService, store: AppStore
+    ) -> None:
         """The new password is kept as a scrypt hash; the old one no longer matches."""
         _change(accounts, sessions, "local", _PASSWORD)
         stored = _stored_hash(store, "local")
@@ -274,7 +274,9 @@ class TestChangeOwnPassword:
         assert sessions.resolve(elsewhere) is None
         assert sessions.resolve(someone_else) is not None
 
-    def test_the_owner_is_held_by_cli(self, accounts: AccountService, sessions: SessionService, store: AppStore) -> None:
+    def test_the_owner_is_held_by_cli(
+        self, accounts: AccountService, sessions: SessionService, store: AppStore
+    ) -> None:
         """The server owner's fallback is replaced on the server only: 403 ``password.held_by_cli``."""
         before = _stored_hash(store, "owner")
         with pytest.raises(AppForbidden) as caught:
@@ -413,9 +415,7 @@ class TestChangeRateLimit:
         """Wrong current passwords never spend the sign-in door's budget, nor the reverse."""
         accounts = AccountService(lambda: store.accounts, sessions, EventBus())
         self._exhaust(accounts, sessions)
-        result = accounts.sign_in_with_password(
-            "local@example.org", _PASSWORD, client_key="local", user_agent="pytest"
-        )
+        result = accounts.sign_in_with_password("local@example.org", _PASSWORD, client_key="local", user_agent="pytest")
         assert result.account.id == "local"
 
 

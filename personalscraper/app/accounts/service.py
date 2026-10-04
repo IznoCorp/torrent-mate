@@ -270,7 +270,9 @@ class AccountService:
                 "Too many wrong current passwords for this account.", code=RefusalCode.AUTH_RATE_LIMITED
             )
         stored = account.password_hash
-        matches = verify_password(current_password, stored if stored is not None else _DUMMY_HASH) and stored is not None
+        matches = (
+            verify_password(current_password, stored if stored is not None else _DUMMY_HASH) and stored is not None
+        )
         if not matches:
             self._password_limiter.record_failure(account.id)
             log.info("password_change_refused", account_id=account.id)
