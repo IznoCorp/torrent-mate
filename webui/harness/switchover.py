@@ -161,10 +161,16 @@ def main():
         # it runs; a 404 would dead-end a reload or a shared link.
         response_without, without_session = request_("/media/tvdb/403245")
         response_root, login_page = request_("/")
+        # THE ONE DIFFERENCE IS THE PLACE THE PAGE RETURNS TO: the sign-in screen
+        # of a deep address carries that address, so a visitor lands where they
+        # were going once v1 opens the session. Everything else is the same page.
+        def without_return(page: bytes) -> bytes:
+            return re.sub(rb"var RETURN_TO = [^;]*;", b"var RETURN_TO;", page)
         journal.check(
             "an unknown address with no session answers the sign-in screen, like «/»",
             response_without.status == 401 and response_root.status == 401
-            and without_session == login_page,
+            and without_return(without_session) == without_return(login_page)
+            and b'var RETURN_TO = "/media/tvdb/403245";' in without_session,
             f"{response_without.status} vs {response_root.status}")
 
         response_with, with_session = request_("/media/tvdb/403245", cookie)

@@ -39,7 +39,7 @@ from common import Journal, browser_channel, chrome_launch_args
 from playwright.async_api import async_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-PORT = 8713  # never 8710 / 8711: the reverse proxy routes production and staging there
+PORT = 8714  # never 8710 / 8711 (the reverse proxy) nor 8713, which is v1's: the host's own door asks v1 there
 
 _journal = None
 
