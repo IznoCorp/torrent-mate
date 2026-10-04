@@ -1,10 +1,10 @@
 """The design host's v1 door: a request is admitted when v1 accepts its session.
 
-With `TM_DESIGN_GATE=v1` (the operator, 2026-10-04; round 2 Q1 = A) the real v1
-sign-in is tm-design's door, and the application's code never reaches a visitor
-v1 has not signed in. This host keeps its two-step shape — a public sign-in
-page, then the document — but the second step asks v1 itself, with the
-request's own session, rather than checking a password of its own.
+The real v1 sign-in is tm-design's only door (the operator, 2026-10-04; round 2
+Q1 = A), and the application's code never reaches a visitor v1 has not signed
+in. This host keeps its two-step shape — a public sign-in page, then the
+document — but the second step asks v1 itself, with the request's own session,
+rather than checking a password of its own.
 
 THE COOKIE REACHES THIS HOST because v1 sets it host-only with `Path=/`
 (`personalscraper/http_v1/session_cookie.py`), and Caddy serves v1 and this host
@@ -383,24 +383,28 @@ def email_label(resource: str) -> str:
     return str(json.loads(resource)["screens"]["gate"]["email"])
 
 
-def unreachable_page(error: str) -> bytes:
+def unreachable_page(error: str, texts: dict[str, str]) -> bytes:
     """Returns the 503 served when the v1 door cannot ask v1.
+
+    A visitor signing in meets it, so its words are the interface's
+    (`server.v1Unreachable`); what v1 did, or did not, answer follows for
+    whoever looks into it.
 
     Args:
         error: What v1 did, or did not, answer.
+        texts: The `server.v1Unreachable` words: `title`, `heading`, `body`.
 
     Returns:
-        A complete HTML document, in English like the host's other diagnostic:
-        it names the server that did not answer, never the sign-in.
+        A complete HTML document that names the server that did not answer,
+        never the sign-in.
     """
     return (
-        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">'
-        "<title>Design host: v1 unreachable</title></head><body "
+        f"<title>{html.escape(texts['title'], quote=False)}</title></head><body "
         'style="font:16px system-ui;max-width:44em;margin:12vh auto;padding:0 1.5em">'
-        "<h1>The design host cannot ask v1 who is signed in</h1><p>Its door is the "
-        "v1 session (<code>TM_DESIGN_GATE=v1</code>), and v1 did not answer whether "
-        "this one holds.</p><pre style=\"white-space:pre-wrap;background:#f6f6f6;"
+        f"<h1>{html.escape(texts['heading'], quote=False)}</h1><p>{html.escape(texts['body'], quote=False)}"
+        "</p><pre style=\"white-space:pre-wrap;background:#f6f6f6;"
         'padding:12px;border-radius:8px">'
         f"{html.escape(error)}"
         "</pre></body></html>"

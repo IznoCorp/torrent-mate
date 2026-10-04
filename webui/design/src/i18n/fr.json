@@ -30,6 +30,11 @@
       "heading": "Le build de la maquette a échoué",
       "body": "Le serveur reconstruit le document à chaque source modifiée ; cette reconstruction vient d'échouer, et servir l'ancienne version serait mentir sur la date de ce que vous jugez."
     },
+    "v1Unreachable": {
+      "title": "Serveur injoignable",
+      "heading": "Impossible de vérifier votre session",
+      "body": "La connexion passe par le serveur de TorrentMate, qui n'a pas répondu. Réessayez dans un instant."
+    },
     "manifest": {
       "description": "Prototype de référence de l'interface TorrentMate."
     }

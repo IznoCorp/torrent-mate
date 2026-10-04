@@ -277,6 +277,17 @@ def test_the_v1_door_names_v1_when_it_does_not_answer(tmp_path: Path) -> None:
     assert b"loginform" not in body
 
 
+def test_the_v1_unreachable_page_speaks_the_interface_words_and_names_no_dead_setting(tmp_path: Path) -> None:
+    """The 503 a visitor meets when v1 is down is worded from `server.v1Unreachable`; no retired variable is named."""
+    silent = f"http://127.0.0.1:{free_port()}"
+    with serving(scratch_root(tmp_path, stale=False), TM_DESIGN_V1_URL=silent) as port:
+        _, _, body = ask(port, "/", cookie=f"tm_v1_session={ACCEPTED}")
+    texts = json.loads((DESIGN / "src" / "i18n" / "fr.json").read_text(encoding="utf-8"))["server"]["v1Unreachable"]
+    for key in ("title", "heading", "body"):
+        assert texts[key].encode() in body
+    assert b"TM_DESIGN_GATE" not in body
+
+
 def test_the_v1_door_answers_no_form_post_and_issues_no_cookie(tmp_path: Path) -> None:
     """Under the v1 door, the host's own form post is no door: 303 home, no cookie."""
     with (

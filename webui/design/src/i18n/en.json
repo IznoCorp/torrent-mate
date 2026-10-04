@@ -30,6 +30,11 @@
       "heading": "The mockup build failed",
       "body": "The server rebuilds the document whenever a source changes; this rebuild has just failed, and serving the old version would misrepresent the date of what you are judging."
     },
+    "v1Unreachable": {
+      "title": "Server unreachable",
+      "heading": "Your session cannot be checked",
+      "body": "Signing in goes through the TorrentMate server, which did not answer. Try again in a moment."
+    },
     "manifest": {
       "description": "Reference prototype of the TorrentMate interface."
     }
