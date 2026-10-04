@@ -9,7 +9,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Final, get_args
 
-from personalscraper.app.accounts.actor import Actor, RoleKind
+from personalscraper.app.accounts.actor import SYSTEM_ROLE_ID, Actor, RoleKind
 from personalscraper.app.accounts.events import AccountRightsChanged, RightsChangeCause
 from personalscraper.app.accounts.passwords import PASSWORD_MINIMUM, hash_password, verify_password
 from personalscraper.app.accounts.ratelimit import SlidingWindowRateLimiter
@@ -51,6 +51,32 @@ class SignInResult:
 
     account: AccountView
     session_token: str = field(repr=False)
+
+
+class OwnerAlreadySeeded(Exception):
+    """The server's owner is already an account: an Admin, an owner link, or the owner's plex.tv id linked.
+
+    Raised by :meth:`AccountService.create_owner` alone, which only the CLI calls: no route
+    raises it, so it carries no refusal code and the CLI words it itself.
+    """
+
+
+@dataclass(frozen=True)
+class OwnerPlexIdentity:
+    """The managed Plex server owner's plex.tv identity, as plex.tv answers it.
+
+    The owner's account is linked to it so that a later Plex sign-in finds the same link
+    (keyed by ``plex_id``) instead of creating a second account.
+
+    Attributes:
+        plex_id: plex.tv's stable id.
+        plex_uuid: plex.tv's uuid.
+        plex_username: plex.tv's username.
+    """
+
+    plex_id: int
+    plex_uuid: str
+    plex_username: str
 
 
 def role_view(role: RoleRow) -> RoleView:
@@ -262,6 +288,83 @@ class AccountService:
             raise AppNotFound("No account has this e-mail.", code=RefusalCode.ACCOUNT_UNKNOWN)
         repo.set_password_hash(account.id, hash_password(password), now=self._clock())
         log.info("account_password_set", account_id=account.id)
+
+    def create_owner(self, *, email: str, name: str, password: str, plex: OwnerPlexIdentity) -> str:
+        """Seed the managed server's owner: an Admin account linked to its plex.tv identity as ``owner``.
+
+        The server's door of last resort, the CLI's only, on an environment with no owner
+        yet: the account signs in by its fallback password (``signInKind`` ``owner``) until a
+        Plex sign-in finds the same link. No Plex token is kept. The checks and both writes
+        are one ``BEGIN IMMEDIATE`` transaction; nothing is published, no existing account's
+        rights move.
+
+        Args:
+            email: The owner's e-mail, unique whatever its case.
+            name: The display name.
+            password: The fallback password; only its scrypt hash is kept.
+            plex: The owner's plex.tv identity.
+
+        Returns:
+            The new account's key.
+
+        Raises:
+            AppBadRequest: ``account.email_invalid`` — a blank name or an e-mail without
+                both sides of one ``@``; ``password.required`` — an empty password.
+            OwnerAlreadySeeded: An account already holds the Admin role, an owner link, or
+                the owner's plex.tv id.
+            AppConflict: ``account.email_taken``.
+            AppNotFound: ``role.unknown`` — the store has no Admin role.
+        """
+        name, email = name.strip(), email.strip()
+        if not name or not _is_email(email):
+            raise AppBadRequest("The owner carries a name and an e-mail.", code=RefusalCode.ACCOUNT_EMAIL_INVALID)
+        if not password:
+            raise AppBadRequest("The owner needs a password.", code=RefusalCode.PASSWORD_REQUIRED)
+        # scrypt runs before the writer lock is taken.
+        password_hash = hash_password(password)
+        repo = self._repo_factory()
+        now = self._clock()
+        account_id = f"account-{uuid.uuid4().hex}"
+        with repo.immediate():
+            owner_taken = (
+                repo.count_on_role_kind(RoleKind.ADMIN) > 0
+                or repo.owner_link() is not None
+                or repo.plex_link_by_plex_id(plex.plex_id) is not None
+            )
+            if owner_taken:
+                raise OwnerAlreadySeeded("The server's owner is already an account.")
+            if repo.account_by_email(email) is not None:
+                raise AppConflict("An account already carries this e-mail.", code=RefusalCode.ACCOUNT_EMAIL_TAKEN)
+            role = repo.role(SYSTEM_ROLE_ID)
+            if role is None or role.kind is not RoleKind.ADMIN:
+                raise AppNotFound("No role answers this identity.", code=RefusalCode.ROLE_UNKNOWN)
+            repo.insert_account(
+                AccountRow(
+                    id=account_id,
+                    name=name,
+                    email=email,
+                    avatar="",
+                    role_id=role.id,
+                    password_hash=password_hash,
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
+            repo.upsert_plex_link(
+                PlexLinkRow(
+                    account_id=account_id,
+                    plex_id=plex.plex_id,
+                    plex_uuid=plex.plex_uuid,
+                    plex_username=plex.plex_username,
+                    server_access="owner",
+                    token_ciphertext=None,
+                    token_stored_at=None,
+                    linked_at=now,
+                    last_sign_in_at=None,
+                )
+            )
+        log.info("account_owner_created", account_id=account_id, plex_id=plex.plex_id)
+        return account_id
 
     def change_own_password(self, actor: Actor, token: str, *, current_password: str, new_password: str) -> None:
         """Replace the signed-in local account's password, and end its other sessions.

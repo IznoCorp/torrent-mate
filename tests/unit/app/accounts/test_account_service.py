@@ -24,7 +24,7 @@ from personalscraper.app.accounts.events import AccountRightsChanged, RightsChan
 from personalscraper.app.accounts.passwords import PASSWORD_MINIMUM, verify_password
 from personalscraper.app.accounts.repository import AccountRepository, AccountRow, PlexLinkRow, RoleRow
 from personalscraper.app.accounts.rights import Right
-from personalscraper.app.accounts.service import AccountService
+from personalscraper.app.accounts.service import AccountService, OwnerAlreadySeeded, OwnerPlexIdentity
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.accounts.views import SignInKind
 from personalscraper.app.errors import AppBadRequest, AppConflict, AppForbidden, AppNotFound, AppRefusal, RefusalCode
@@ -749,3 +749,187 @@ class TestUpdateRole:
             manager, "plex-guest", name="Friends", rights=["library.read", "acquisition.request"]
         )
         assert (updated.name, updated.rights) == ("Friends", (Right.ACQUISITION_REQUEST, Right.LIBRARY_READ))
+
+
+_OWNER_EMAIL = "owner@example.org"
+_OWNER_PASSWORD = "the owner's fallback password"
+_OWNER_PLEX = OwnerPlexIdentity(plex_id=4242, plex_uuid="0f1e2d3c4b5a6978", plex_username="owner")
+
+
+@pytest.fixture
+def empty_store(tmp_path: Path) -> Iterator[AppStore]:
+    """A fresh ``app.db`` with its system roles and no account.
+
+    Args:
+        tmp_path: The test's temporary directory.
+
+    Yields:
+        The store.
+    """
+    app_store = AppStore(tmp_path / "app.db")
+    try:
+        yield app_store
+    finally:
+        app_store.close()
+
+
+def _create_owner(service: AccountService, **overrides: object) -> str:
+    """Seed the owner with the test's identity, some fields overridden.
+
+    Args:
+        service: The account service.
+        **overrides: Keyword arguments replacing the defaults.
+
+    Returns:
+        The new account's key.
+    """
+    arguments: dict[str, object] = {
+        "email": _OWNER_EMAIL,
+        "name": "Owner",
+        "password": _OWNER_PASSWORD,
+        "plex": _OWNER_PLEX,
+    }
+    arguments.update(overrides)
+    return service.create_owner(**arguments)  # type: ignore[arg-type]
+
+
+class TestCreateOwner:
+    """The server's owner seeded on an empty ``app.db``: an Admin account linked as the Plex owner."""
+
+    def test_the_owner_signs_in_by_password_as_the_admin_owner(self, empty_store: AppStore, bus: EventBus) -> None:
+        """The seeded password opens a session; the account reads ``owner``, on the Admin role."""
+        service = _service(empty_store, bus)
+
+        account_id = _create_owner(service)
+        signed_in = service.sign_in_with_password(
+            _OWNER_EMAIL.upper(), _OWNER_PASSWORD, client_key="test", user_agent=None
+        )
+        read = service.read_account(_actor_of(empty_store.accounts, account_id))
+
+        assert signed_in.account.id == account_id
+        assert read.sign_in_kind is SignInKind.OWNER
+        assert read.role.kind is RoleKind.ADMIN
+        assert (read.name, read.email) == ("Owner", _OWNER_EMAIL)
+
+    def test_one_account_and_one_owner_link_without_a_token(self, empty_store: AppStore, bus: EventBus) -> None:
+        """The account holds only a hash; the link is the owner's plex.tv identity, no token kept."""
+        account_id = _create_owner(_service(empty_store, bus))
+
+        repo = empty_store.accounts
+        (account,) = repo.accounts()
+        assert account.id == account_id and account.role_id == "admin"
+        assert account.password_hash is not None and account.password_hash != _OWNER_PASSWORD
+        assert verify_password(_OWNER_PASSWORD, account.password_hash)
+        link = repo.plex_link(account_id)
+        assert link is not None
+        assert (link.plex_id, link.plex_uuid, link.plex_username, link.server_access) == (
+            4242,
+            "0f1e2d3c4b5a6978",
+            "owner",
+            "owner",
+        )
+        assert (link.token_ciphertext, link.token_stored_at, link.last_sign_in_at) == (None, None, None)
+
+    def test_a_second_owner_is_refused(self, empty_store: AppStore, bus: EventBus) -> None:
+        """``OwnerAlreadySeeded``; still one account."""
+        service = _service(empty_store, bus)
+        _create_owner(service)
+
+        with pytest.raises(OwnerAlreadySeeded):
+            _create_owner(service, email="other@example.org", plex=OwnerPlexIdentity(1, "u", "x"))
+
+        assert len(empty_store.accounts.accounts()) == 1
+
+    def test_an_existing_admin_refuses_the_seed(self, store: AppStore, bus: EventBus) -> None:
+        """An account on the Admin role already: ``OwnerAlreadySeeded``, nothing written."""
+        before = store.accounts.accounts()
+
+        with pytest.raises(OwnerAlreadySeeded):
+            _create_owner(_service(store, bus))
+
+        assert store.accounts.accounts() == before
+
+    def test_an_existing_owner_link_refuses_the_seed(self, empty_store: AppStore, bus: EventBus) -> None:
+        """An owner link on an account that is not Admin: ``OwnerAlreadySeeded``."""
+        repo = empty_store.accounts
+        repo.insert_account(_account("account-member", "household", 1.0))
+        repo.upsert_plex_link(
+            PlexLinkRow(
+                account_id="account-member",
+                plex_id=7,
+                plex_uuid="u7",
+                plex_username="member",
+                server_access="owner",
+                token_ciphertext=None,
+                token_stored_at=None,
+                linked_at=1.0,
+                last_sign_in_at=None,
+            )
+        )
+
+        with pytest.raises(OwnerAlreadySeeded):
+            _create_owner(_service(empty_store, bus))
+
+        assert len(repo.accounts()) == 1
+
+    def test_the_owners_plex_identity_already_linked_refuses_the_seed(
+        self, empty_store: AppStore, bus: EventBus
+    ) -> None:
+        """The owner's plex.tv id already signs a shared account in: ``OwnerAlreadySeeded``."""
+        repo = empty_store.accounts
+        repo.insert_account(_account("account-member", "household", 1.0))
+        repo.upsert_plex_link(
+            PlexLinkRow(
+                account_id="account-member",
+                plex_id=_OWNER_PLEX.plex_id,
+                plex_uuid="u",
+                plex_username="member",
+                server_access="shared",
+                token_ciphertext=None,
+                token_stored_at=None,
+                linked_at=1.0,
+                last_sign_in_at=None,
+            )
+        )
+
+        with pytest.raises(OwnerAlreadySeeded):
+            _create_owner(_service(empty_store, bus))
+
+        assert len(repo.accounts()) == 1
+
+    def test_an_email_taken_is_refused(self, empty_store: AppStore, bus: EventBus) -> None:
+        """An ordinary account carries the e-mail: 409 ``account.email_taken``, nothing written."""
+        empty_store.accounts.insert_account(_account("owner", "household", 1.0))
+
+        refusal = _refusal(lambda: _create_owner(_service(empty_store, bus)))
+
+        assert refusal.code is RefusalCode.ACCOUNT_EMAIL_TAKEN
+        assert len(empty_store.accounts.accounts()) == 1
+
+    @pytest.mark.parametrize(
+        ("name", "email"),
+        [("", _OWNER_EMAIL), ("  ", _OWNER_EMAIL), ("Owner", "no-at-sign"), ("Owner", "a b@example.org")],
+    )
+    def test_an_invalid_name_or_email_is_refused(
+        self, empty_store: AppStore, bus: EventBus, name: str, email: str
+    ) -> None:
+        """400 ``account.email_invalid``, nothing written.
+
+        Args:
+            empty_store: The store.
+            bus: The bus.
+            name: The display name.
+            email: The e-mail.
+        """
+        refusal = _refusal(lambda: _create_owner(_service(empty_store, bus), name=name, email=email))
+
+        assert isinstance(refusal, AppBadRequest)
+        assert refusal.code is RefusalCode.ACCOUNT_EMAIL_INVALID
+        assert empty_store.accounts.accounts() == []
+
+    def test_an_empty_password_is_refused(self, empty_store: AppStore, bus: EventBus) -> None:
+        """400 ``password.required``, nothing written."""
+        refusal = _refusal(lambda: _create_owner(_service(empty_store, bus), password=""))
+
+        assert refusal.code is RefusalCode.PASSWORD_REQUIRED
+        assert empty_store.accounts.accounts() == []

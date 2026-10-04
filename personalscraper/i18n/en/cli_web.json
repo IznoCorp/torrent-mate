@@ -1,0 +1,8 @@
+{
+  "serve_v1": {
+    "help": "Serve the v1 application alone at /api/v1, for a reverse proxy on this machine. Refused under production.",
+    "host_help": "The bind address (loopback by default).",
+    "port_help": "The bind port.",
+    "refused_prod": "The standalone v1 server never runs on production stores: set PERSONALSCRAPER_ENV to dev or staging, with a data directory marked for it. Nothing was started."
+  }
+}
