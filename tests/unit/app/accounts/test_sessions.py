@@ -476,6 +476,43 @@ class TestRenewal:
         assert sessions.use(use.renewed_token) is None
 
 
+class TestEviction:
+    """``SessionService._forget_stale``: the replaced values held in memory are dropped once they cannot sign in."""
+
+    def test_a_value_past_its_grace_is_forgotten_at_the_next_renewal(
+        self, sessions: SessionService, clock: _Clock
+    ) -> None:
+        """Renewed, the new value presented, the grace passed, renewed again: the first value's entry is gone."""
+        old = sessions.open(_ACCOUNT_ID, user_agent=None)
+        clock.now += SESSION_RENEWAL_INTERVAL_S
+        first = sessions.use(old)
+        assert first is not None and first.renewed_token is not None
+        assert sessions.use(first.renewed_token) is not None
+        old_hash = hashlib.sha256(old.encode()).hexdigest()
+        assert old_hash in sessions._replaced  # noqa: SLF001 — the memory bound is the subject
+        clock.now += SESSION_RENEWAL_INTERVAL_S
+        second = sessions.use(first.renewed_token)
+        assert second is not None and second.renewed_token is not None
+        assert old_hash not in sessions._replaced  # noqa: SLF001 — the memory bound is the subject
+
+    def test_a_value_awaiting_for_an_idle_lifetime_is_forgotten(self, sessions: SessionService, clock: _Clock) -> None:
+        """Renewed, the new value never presented, an idle lifetime passed: another session's renewal evicts it."""
+        old = sessions.open(_ACCOUNT_ID, user_agent=None)
+        key = sessions.live_session_id(old)
+        clock.now += SESSION_RENEWAL_INTERVAL_S
+        lost = sessions.use(old)
+        assert lost is not None and lost.renewed_token is not None
+        old_hash = hashlib.sha256(old.encode()).hexdigest()
+        assert sessions._awaiting == {key: [old_hash]}  # noqa: SLF001 — the memory bound is the subject
+        clock.now += _IDLE_S
+        other = sessions.open(_ACCOUNT_ID, user_agent=None)
+        clock.now += SESSION_RENEWAL_INTERVAL_S
+        renewal = sessions.use(other)
+        assert renewal is not None and renewal.renewed_token is not None
+        assert old_hash not in sessions._replaced  # noqa: SLF001 — the memory bound is the subject
+        assert key not in sessions._awaiting  # noqa: SLF001 — the memory bound is the subject
+
+
 class TestClose:
     """``SessionService.close``."""
 
