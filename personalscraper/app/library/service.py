@@ -1064,10 +1064,10 @@ class LibraryService:
                     )
                 [row] = holders
                 mounted = mounted_media_folders(conn, row.item_id)
-                targets = {
-                    resolved[1]: resolved for resolved in map(_deletable_folder, mounted) if resolved is not None
-                }
-                unresolved = sum(1 for resolved in map(_deletable_folder, mounted) if resolved is None)
+                resolved = [_deletable_folder(one) for one in mounted]
+                # Keyed by the resolved folder: two spellings of one folder (NFC / NFD) delete it once.
+                targets = {found[1]: found for found in resolved if found is not None}
+                unresolved = resolved.count(None)
                 plans.append(
                     _DeletionPlan(
                         ref=ref,
