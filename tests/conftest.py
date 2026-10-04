@@ -33,6 +33,14 @@ _os.environ["NO_COLOR"] = "1"
 _os.environ.setdefault("PERSONALSCRAPER_I18N_STRICT", "1")
 _os.environ.setdefault("PERSONALSCRAPER_LANG", "en")
 
+# The environment: production, whatever the shell exports or the checkout's `.env` says. A dev
+# checkout carries `PERSONALSCRAPER_ENV=dev`, and the suite's config is hermetic and unmarked, which
+# the isolation guard refuses to anything but prod. Pinned here, at import time, because fixtures
+# that build a Config can run before `_no_environment_setting`, and set to the empty string (prod)
+# rather than removed so that `load_dotenv` (override=False) — below, and in every child process
+# that imports the package — cannot put `dev` back.
+_os.environ["PERSONALSCRAPER_ENV"] = ""
+
 # E402 for the whole file, declared once with its reason rather than eleven
 # times: the block above MUST precede every import, because Rich reads the
 # environment when a Console is constructed and `personalscraper.cli_state`
@@ -164,13 +172,16 @@ def _clean_structlog_contextvars() -> Iterator[None]:
 
 @pytest.fixture(autouse=True)
 def _no_environment_setting(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Start every test with ``PERSONALSCRAPER_ENV`` unset, i.e. the production store names.
+    """Start every test with ``PERSONALSCRAPER_ENV`` empty, i.e. the production store names.
 
     The real ``.env`` is loaded into ``os.environ`` by this module, and a developer shell
     may export the variable; either would rename every derived store file under the tests.
-    A test about the setting sets it itself.
+    The variable is set to the empty string rather than deleted: the package calls
+    ``load_dotenv()`` (``override=False``) in every process it is imported in, so a deleted
+    variable would let a dev checkout's ``.env`` turn a child process into ``dev`` on the
+    hermetic, unmarked test config. A test about the setting sets it itself.
     """
-    monkeypatch.delenv("PERSONALSCRAPER_ENV", raising=False)
+    monkeypatch.setenv("PERSONALSCRAPER_ENV", "")
 
 
 @pytest.fixture(autouse=True)
