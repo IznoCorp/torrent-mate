@@ -285,8 +285,11 @@ class TestReadMediaSheet:
     def test_without_library_read_it_is_forbidden(
         self, v1_client: Callable[..., TestClient], asked: list[tuple[str, MediaRef]]
     ) -> None:
-        """A role without ``library.read``: 403, the service never asked."""
-        assert v1_client(rights=_RESCRAPE).get("/media/tmdb/949").status_code == 403
+        """A role without ``library.read``: 403 ``right.missing`` naming it, the service never asked."""
+        response = v1_client(rights=_RESCRAPE).get("/media/tmdb/949")
+
+        assert response.status_code == 403
+        assert (response.json()["code"], response.json()["params"]) == ("right.missing", {"rights": ["library.read"]})
         assert asked == []
 
 
@@ -337,8 +340,11 @@ class TestReadMediaSeasons:
     def test_without_library_read_it_is_forbidden(
         self, v1_client: Callable[..., TestClient], asked: list[tuple[str, MediaRef]]
     ) -> None:
-        """A role without ``library.read``: 403, the service never asked."""
-        assert v1_client(rights=_RESCRAPE).get("/media/tvdb/79168/seasons").status_code == 403
+        """A role without ``library.read``: 403 ``right.missing`` naming it, the service never asked."""
+        response = v1_client(rights=_RESCRAPE).get("/media/tvdb/79168/seasons")
+
+        assert response.status_code == 403
+        assert (response.json()["code"], response.json()["params"]) == ("right.missing", {"rights": ["library.read"]})
         assert asked == []
 
 
@@ -374,17 +380,27 @@ class TestRescrapeMedia:
     def test_without_library_rescrape_it_is_forbidden(
         self, v1_client: Callable[..., TestClient], asked: list[tuple[str, MediaRef]]
     ) -> None:
-        """A role with ``library.read`` alone: 403, nothing launched."""
-        assert v1_client(rights=_READ).post("/media/tmdb/949/rescrape").status_code == 403
+        """A role with ``library.read`` alone: 403 ``right.missing`` naming ``library.rescrape``, nothing launched."""
+        response = v1_client(rights=_READ).post("/media/tmdb/949/rescrape")
+
+        assert response.status_code == 403
+        assert (response.json()["code"], response.json()["params"]) == (
+            "right.missing",
+            {"rights": ["library.rescrape"]},
+        )
         assert asked == []
 
     def test_the_read_only_clone_refuses_it_even_to_an_admin(
         self, v1_client: Callable[..., TestClient], asked: list[tuple[str, MediaRef]]
     ) -> None:
-        """Under the read-only ceiling every write is refused, the Admin's included: 403, nothing launched."""
+        """Under the read-only ceiling every write is refused, the Admin's too: 403 ``instance.forbidden_write``."""
         ceiling = InstanceCeiling(forbidden=WRITE_RIGHTS, read_only=True)
 
-        assert v1_client(role="admin", ceiling=ceiling).post("/media/tmdb/949/rescrape").status_code == 403
+        response = v1_client(role="admin", ceiling=ceiling).post("/media/tmdb/949/rescrape")
+
+        assert response.status_code == 403
+        assert response.json()["code"] == "instance.forbidden_write"
+        assert response.json()["params"]["right"] == "library.rescrape"
         assert asked == []
 
 
