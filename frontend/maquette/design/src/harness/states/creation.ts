@@ -12,8 +12,8 @@
 // says the state in words, and `run` builds the state.
 import i18next from "i18next";
 
-import { applyState, type NamedState } from "../drive";
-import { owed } from "../owed";
+import { applyState, onLeave, type NamedState } from "../drive";
+import { forgetOwed, owed } from "../owed";
 import { as } from "./rights";
 
 // How long a page waits for its roster before a field is typed into.
@@ -150,7 +150,11 @@ export function creationStates(): NamedState[] {
       "Comptes — supprimer un rôle inutilisé : la confirmation, avant toute écriture",
       () => {
         rolePanel(UNUSED_ROLE.id);
-        owed(() => document.querySelector<HTMLElement>("#sheet [data-role-delete]")?.click(), TYPE_AFTER);
+        // STOPPED WHEN THE NEXT STATE IS DRIVEN: a press that fires after it opens
+        // this role's confirmation over the next state, whose own taps then land on
+        // the dialog instead of its page (`cards.py` R44, driven right after).
+        const press = owed(() => document.querySelector<HTMLElement>("#sheet [data-role-delete]")?.click(), TYPE_AFTER);
+        onLeave(() => forgetOwed(press));
       },
     ],
     [
