@@ -250,11 +250,12 @@ def _build_plex_sign_in(
     from personalscraper.app.accounts.token_vault import MalformedTokenKey, TokenVault  # noqa: PLC0415
     from personalscraper.conf.environment import current_environment  # noqa: PLC0415
 
+    keys_malformed = False
     try:
         vault = TokenVault.from_settings(settings)
     except MalformedTokenKey as exc:
         log.error("plex_token.keys_malformed", error=str(exc))
-        vault = None
+        vault, keys_malformed = None, True
     server = PlexClient(settings.plex_url, settings.plex_token) if settings.plex_token else None
     return PlexSignInService(
         lambda: app_store.accounts,
@@ -266,6 +267,7 @@ def _build_plex_sign_in(
         environment=current_environment(),
         forward_url=config.web.plex_forward_url,
         bus=event_bus,
+        vault_keys_malformed=keys_malformed,
     )
 
 

@@ -386,6 +386,7 @@ def _build(
     *,
     server_token: str = SERVER_TOKEN,
     forward_url: str | None = None,
+    vault_keys_malformed: bool = False,
 ) -> PlexSignInService:
     """The Plex door over the store, plex.tv and the server.
 
@@ -398,6 +399,7 @@ def _build(
         vault: The token vault, or None.
         server_token: The server's own Plex token.
         forward_url: Where plex.tv sends the window once confirmed.
+        vault_keys_malformed: Whether keys were configured but malformed.
 
     Returns:
         The service.
@@ -419,6 +421,7 @@ def _build(
         forward_url=forward_url,
         bus=bus,
         clock=clock,
+        vault_keys_malformed=vault_keys_malformed,
     )
 
 
@@ -655,6 +658,41 @@ class TestFirstSignIn:
         link = store.accounts.plex_link(result.account.id)
         assert link is not None and link.token_ciphertext is None
         assert [entry["event"] for entry in logs].count("plex_token.not_kept") == 1
+
+    def test_a_sign_in_without_a_vault_never_erases_a_sealed_token(
+        self, store: AppStore, plextv: _PlexTv, server: _Server, clock: _Clock, bus: EventBus, vault: TokenVault
+    ) -> None:
+        """Sealed once with a vault, then signed in with none: the ciphertext and its date are kept."""
+        first = _sign_in(_build(store, plextv, server, clock, bus, vault), clock)
+        sealed = store.accounts.plex_link(first.account.id)
+        assert sealed is not None and sealed.token_ciphertext is not None
+        clock.now += 10.0
+
+        _sign_in(_build(store, plextv, server, clock, bus, None), clock)
+
+        link = store.accounts.plex_link(first.account.id)
+        assert link is not None
+        assert (link.token_ciphertext, link.token_stored_at) == (sealed.token_ciphertext, sealed.token_stored_at)
+        assert link.last_sign_in_at == clock.now
+        assert vault.open(first.account.id, link.token_ciphertext) == USER_TOKEN
+
+    @pytest.mark.parametrize(("malformed", "level"), [(False, "info"), (True, "warning")])
+    def test_a_token_not_kept_is_a_warning_when_keys_were_malformed(
+        self,
+        store: AppStore,
+        plextv: _PlexTv,
+        server: _Server,
+        clock: _Clock,
+        bus: EventBus,
+        malformed: bool,
+        level: str,
+    ) -> None:
+        """No key set is a choice (info); keys set but malformed are a fault the operator must see (warning)."""
+        door = _build(store, plextv, server, clock, bus, None, vault_keys_malformed=malformed)
+        with structlog.testing.capture_logs() as logs:
+            _sign_in(door, clock)
+
+        assert [entry["log_level"] for entry in logs if entry["event"] == "plex_token.not_kept"] == [level]
 
 
 def _clock_of(door: PlexSignInService) -> _Clock:

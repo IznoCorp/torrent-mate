@@ -351,6 +351,22 @@ class TestPlexLinks:
         link = repo.plex_link("account-alice")
         assert link is not None and (link.token_ciphertext, link.token_stored_at) == (None, None)
 
+    def test_an_upsert_without_a_token_keeps_the_sealed_one(self, repo: AccountRepository) -> None:
+        """A link written with no ciphertext (no vault) keeps the token sealed before; a new one replaces it."""
+        repo.insert_account(_account())
+        repo.upsert_plex_link(
+            PlexLinkRow(**{**_link().__dict__, "token_ciphertext": b"cipher", "token_stored_at": 21.0})
+        )
+
+        repo.upsert_plex_link(PlexLinkRow(**{**_link().__dict__, "last_sign_in_at": 30.0}))
+
+        link = repo.plex_link("account-alice")
+        assert link is not None
+        assert (link.token_ciphertext, link.token_stored_at, link.last_sign_in_at) == (b"cipher", 21.0, 30.0)
+        repo.upsert_plex_link(PlexLinkRow(**{**_link().__dict__, "token_ciphertext": b"new", "token_stored_at": 31.0}))
+        link = repo.plex_link("account-alice")
+        assert link is not None and (link.token_ciphertext, link.token_stored_at) == (b"new", 31.0)
+
 
 class TestSessions:
     """Sessions."""

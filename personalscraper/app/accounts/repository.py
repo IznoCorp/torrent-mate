@@ -589,7 +589,11 @@ class AccountRepository:
 
     @serialised
     def upsert_plex_link(self, link: PlexLinkRow) -> None:
-        """Insert an account's Plex link, or replace every field of the existing one.
+        """Insert an account's Plex link, or replace the fields of the existing one.
+
+        A link written with no ciphertext keeps the token sealed before, and its date: a
+        sign-in with no vault never erases a token kept by one. ``set_token_ciphertext``
+        clears it.
 
         Args:
             link: The link.
@@ -601,7 +605,8 @@ class AccountRepository:
             f"INSERT INTO plex_link ({_LINK_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"  # noqa: S608
             " ON CONFLICT (account_id) DO UPDATE SET plex_id = excluded.plex_id, plex_uuid = excluded.plex_uuid,"
             " plex_username = excluded.plex_username, server_access = excluded.server_access,"
-            " token_ciphertext = excluded.token_ciphertext, token_stored_at = excluded.token_stored_at,"
+            " token_ciphertext = COALESCE(excluded.token_ciphertext, plex_link.token_ciphertext),"
+            " token_stored_at = COALESCE(excluded.token_stored_at, plex_link.token_stored_at),"
             " linked_at = excluded.linked_at, last_sign_in_at = excluded.last_sign_in_at",
             (
                 link.account_id,

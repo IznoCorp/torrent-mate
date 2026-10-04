@@ -167,6 +167,7 @@ class PlexSignInService:
         forward_url: str | None,
         bus: EventBus,
         clock: Callable[[], float] = time.time,
+        vault_keys_malformed: bool = False,
     ) -> None:
         """Build the door; nothing is opened and plex.tv is not asked until the first call.
 
@@ -184,6 +185,8 @@ class PlexSignInService:
                 configuration — never from the request; ``None`` leaves it on Plex.
             bus: The bus E8 is published on after a link moves an account's role.
             clock: The epoch clock.
+            vault_keys_malformed: Whether ``PLEX_TOKEN_KEYS`` was set but malformed, which left
+                the door with no vault: a token not kept is then a warning, not a choice.
         """
         self._repo_factory = repo_factory
         self._accounts = accounts
@@ -195,6 +198,7 @@ class PlexSignInService:
         self._forward_url = forward_url
         self._bus = bus
         self._clock = clock
+        self._vault_keys_malformed = vault_keys_malformed
         self._client_lock = threading.Lock()
         self._owner_lock = threading.Lock()
         self._owner_plex_id: int | None = None
@@ -486,7 +490,9 @@ class PlexSignInService:
                 )
             )
         if sealed is None:
-            log.info("plex_token.not_kept", account_id=account.id)
+            # No key set is the operator's choice; keys set but malformed are a fault to see.
+            not_kept = log.warning if self._vault_keys_malformed else log.info
+            not_kept("plex_token.not_kept", account_id=account.id)
         log.info("plex_sign_in.admitted", account_id=account.id, access=access.value, linked=link is None)
         return account.id, moved
 

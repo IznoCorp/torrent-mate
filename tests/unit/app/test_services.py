@@ -109,3 +109,17 @@ def test_the_plex_door_has_no_server_without_a_token(test_config: Config) -> Non
         assert services.plex_sign_in._forward_url is None
     finally:
         services.close()
+
+
+@pytest.mark.parametrize(("keys", "malformed"), [("", False), ("not-a-fernet-key", True)])
+def test_malformed_token_keys_leave_the_door_without_a_vault_and_say_so(
+    test_config: Config, keys: str, malformed: bool
+) -> None:
+    """A malformed ``PLEX_TOKEN_KEYS`` does not stop the build: no vault, and the door knows the keys were bad."""
+    settings = Settings(_env_file=None, plex_token_keys=keys)  # type: ignore[call-arg]
+    services = build_app_services(test_config, settings)
+    try:
+        assert services.plex_sign_in._vault is None
+        assert services.plex_sign_in._vault_keys_malformed is malformed
+    finally:
+        services.close()
