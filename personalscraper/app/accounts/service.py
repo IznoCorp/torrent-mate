@@ -352,6 +352,7 @@ class AccountService:
             email=account.email,
             role=role_view(role),
             sign_in_kind=sign_in_kind(repo.plex_link(account.id)),
+            sign_in_allowed=account.sign_in_allowed,
         )
 
     def read_roster(self, actor: Actor) -> RosterView:

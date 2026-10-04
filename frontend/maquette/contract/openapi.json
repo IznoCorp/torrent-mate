@@ -170,7 +170,7 @@
           }
         },
         "x-unseeded": "an acknowledgement. The prototype holds no credentials — a password written into a page is readable by everyone the page reaches — so there is nothing to seed and nothing to invent.",
-        "description": "The password door: the Plex owner's fallback, or a local account's only way in. Every other case — an unknown e-mail, a wrong password, a Plex-linked account — is refused `auth.refused`, one indistinguishable answer (O-K1-4 anti-enumeration). The one 403 is `request.cross_origin`, a POST from another origin: it depends on the request's origin, never on the credentials typed, so no credential failure is ever a 403."
+        "description": "The password door: the Plex owner's fallback, or a local account's only way in. Every other case — an unknown e-mail, a wrong password, a Plex-linked account — is refused `auth.refused`, one indistinguishable answer (O-K1-4 anti-enumeration). An account an Admin cut (`setAccountAccess`) is refused 403 `auth.access_disabled` — ONLY once its e-mail and password are proven, after every check above, so it reveals nothing to someone who does not hold them. The other 403 is `request.cross_origin`, a POST from another origin: it depends on the request's origin, never on the credentials typed, so no credential failure is ever a 403."
       }
     },
     "/auth/logout": {
@@ -5579,7 +5579,7 @@
           }
         },
         "x-unseeded": "invented: the Plex SSO does not exist yet (demand E); the layer answers the identity a named state dials, after the pending answers it dials",
-        "description": "Asks whether the PIN `startPlexSignIn` created has been claimed. 202 while it is not; 200 once it is, the session open. A Plex identity WITH access to the managed server signs in by Plex only — the server's owner keeps a fallback password besides; one WITHOUT access is refused `auth.refused`, as if it did not exist (round 4 P-1 = A; the operator, 2026-10-03). An identity whose e-mail is a local account's links them: the account then signs in by Plex only and drops to the role its kind starts on (`Role.defaultFor`: `plexHome` or `plexGuest`) until an Admin promotes it again.",
+        "description": "Asks whether the PIN `startPlexSignIn` created has been claimed. 202 while it is not; 200 once it is, the session open. A Plex identity WITH access to the managed server signs in by Plex only — the server's owner keeps a fallback password besides; one WITHOUT access is refused `auth.refused`, as if it did not exist (round 4 P-1 = A; the operator, 2026-10-03). An identity whose e-mail is a local account's links them: the account then signs in by Plex only and drops to the role its kind starts on (`Role.defaultFor`: `plexHome` or `plexGuest`) until an Admin promotes it again. A Plex identity whose account an Admin cut (`setAccountAccess`) is refused 403 `auth.access_disabled`, once the PIN is claimed and the identity proven to hold that account.",
         "requestBody": {
           "required": true,
           "content": {
@@ -6683,7 +6683,7 @@
         "operationId": "resetAccountPassword",
         "x-rights": "accounts.manage",
         "summary": "Reset a local account's password to a provisional one",
-        "description": "An Admin in « Comptes » gives a LOCAL account a new PROVISIONAL password — a forgotten one replaced (the operator, 2026-10-03: « A »); the account then changes it in Profil (`changeOwnPassword`). LOCAL ACCOUNTS ONLY: the Plex server owner's fallback password is replaced by a command on the server, never here (refused `password.held_by_cli`); a Plex-linked account holds no password (refused `auth.plex_only`). ADMIN ONLY (the operator, 2026-10-03: « Admin pour n'importe quel compte à mot de passe via \"comptes\", l'utilisateur d'un compte à mot de passe peut changer son mot de passe via son profil »): a caller whose role is not Admin is refused `password.reset_admin_only`, whatever the account — its own included, which it changes in Profil. The account's open sessions are not ended by this act.",
+        "description": "An Admin in « Comptes » gives a LOCAL account a new PROVISIONAL password — a forgotten one replaced (the operator, 2026-10-03: « A »); the account then changes it in Profil (`changeOwnPassword`). LOCAL ACCOUNTS ONLY: the Plex server owner's fallback password is replaced by a command on the server, never here (refused `password.held_by_cli`); a Plex-linked account holds no password (refused `auth.plex_only`). ADMIN ONLY (the operator, 2026-10-03: « Admin pour n'importe quel compte à mot de passe via \"comptes\", l'utilisateur d'un compte à mot de passe peut changer son mot de passe via son profil »): a caller whose role is not Admin is refused `password.reset_admin_only`, whatever the account — its own included, which it changes in Profil. That check comes FIRST, before `account.unknown` (404), so a manager never learns which accounts exist (the operator, 2026-10-04, OPEN-3 B). The account's open sessions are not ended by this act.",
         "tags": [
           "authentication"
         ],
@@ -6756,6 +6756,78 @@
           }
         },
         "x-unseeded": "an acknowledgement. The prototype holds no credentials, so the layer judges the account's kind and the password's length, never stores it"
+      }
+    },
+    "/accounts/{accountId}/access": {
+      "put": {
+        "operationId": "setAccountAccess",
+        "x-rights": "accounts.manage",
+        "summary": "Allow or cut an account's sign-in",
+        "description": "An Admin in « Comptes » cuts an account's access with its switch, or gives it back (the operator, 2026-10-04: « couper l'accès à des utilisateurs, même si c'est des utilisateurs Plex qui se connecte par SSO. Via un toggle qui par défaut est actif »). CUTTING ENDS EVERY SESSION OF THE ACCOUNT AT ONCE (Q4 = A): its next request answers 401 `auth.required` and lands on the sign-in gate, and every later sign-in — by password or by Plex — is refused 403 `auth.access_disabled`, answered only AFTER the credentials or the Plex identity are proven: an unknown e-mail, a wrong password, a Plex-linked account's password and a Plex identity without access to the server are still the one 401 `auth.refused`, so the refusal tells nothing to someone who does not hold the account. Giving it back opens no session: the account signs in again. ANY ACCOUNT BUT TWO (Q5 = A): the Plex server's owner — the fallback door, refused `account.owner_access` — and the caller's own account, refused `account.own_access`. ADMIN ONLY, as `resetAccountPassword`: a caller whose role is not Admin is refused `account.access_admin_only` even holding `accounts.manage`, and that check comes FIRST, before `account.unknown` (404), so it tells a manager nothing about which accounts exist. Setting the value an account already holds changes nothing and answers 200.",
+        "tags": [
+          "authentication"
+        ],
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the account"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "signInAllowed": {
+                    "type": "boolean",
+                    "description": "true to allow the account's sign-in, false to cut it; refused `request.invalid` when absent"
+                  }
+                },
+                "required": [
+                  "signInAllowed"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "the account, with its access as set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountSummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "invented: no account but the Plex owner exists yet (§ 17, demand D). The layer records the cut, ends the account's sessions — the maquette's one session is the identity dialled, whose next request then answers 401 — and refuses the account's sign-ins until the switch is back on"
       }
     }
   },
@@ -10332,7 +10404,7 @@
       },
       "AccountSummary": {
         "type": "object",
-        "description": "ONE ACCOUNT OF THE ROSTER, as « Comptes » and the reassign chooser read it: its name, its mandatory e-mail, its ONE role (ruling 20), how it signs in, and — after its link demoted it — the role it held before.",
+        "description": "ONE ACCOUNT OF THE ROSTER, as « Comptes » and the reassign chooser read it: its name, its mandatory e-mail, its ONE role (ruling 20), how it signs in, whether it may sign in at all, and — after its link demoted it — the role it held before.",
         "properties": {
           "id": {
             "type": "string"
@@ -10352,6 +10424,10 @@
           "demotedFrom": {
             "type": "string",
             "description": "THE ROLE IT HELD BEFORE ITS LINK, by id: present on an account whose e-mail became a user of the managed Plex server, which dropped it to its Plex kind's starting role (`Role.defaultFor`: Membre du foyer for a Plex Home user, Invité Plex otherwise — O-K1-4) until an Admin promotes it again (the operator, 2026-10-03); absent once it is given a role"
+          },
+          "signInAllowed": {
+            "type": "boolean",
+            "description": "WHETHER THE ACCOUNT MAY SIGN IN — true for every account until an Admin cuts it in « Comptes » (`setAccountAccess`; the operator, 2026-10-04: « un toggle qui par défaut est actif (connexion autorisée) »). A new account, created or met at its first Plex sign-in, starts true. False: its sessions were all ended when it was cut, and every sign-in it attempts is refused `auth.access_disabled` until it is true again. The owner's is always true."
           }
         },
         "required": [
@@ -10359,6 +10435,7 @@
           "id",
           "name",
           "role",
+          "signInAllowed",
           "signInKind"
         ]
       },
@@ -10877,6 +10954,7 @@
           "auth.refused",
           "auth.plex_only",
           "auth.rate_limited",
+          "auth.access_disabled",
           "right.missing",
           "right.not_own",
           "instance.read_only",
@@ -10886,6 +10964,9 @@
           "account.email_taken",
           "account.admin_untouchable",
           "account.last_admin",
+          "account.access_admin_only",
+          "account.owner_access",
+          "account.own_access",
           "role.unknown",
           "role.system_immutable",
           "role.own_role",
@@ -10906,7 +10987,7 @@
           "provider.unavailable",
           "library.locked"
         ],
-        "description": "WHY A REQUEST WAS REFUSED, as a closed code (X4: no sentence on the wire). The interface says it in its own words, read from fr.json by this code; `params` carries the values those words name. The set grows per lot: an operation whose lot has not landed its codes yet may refuse without one. ANTI-ENUMERATION (O-K1-4): the two doors refuse with ONE code, `auth.refused`, whatever the cause — an unknown e-mail, a wrong password, a Plex-linked account's password, a Plex identity without access to the server — so no attempt tells which e-mails the server knows."
+        "description": "WHY A REQUEST WAS REFUSED, as a closed code (X4: no sentence on the wire). The interface says it in its own words, read from fr.json by this code; `params` carries the values those words name. The set grows per lot: an operation whose lot has not landed its codes yet may refuse without one. ANTI-ENUMERATION (O-K1-4): the two doors refuse with ONE code, `auth.refused`, whatever the cause — an unknown e-mail, a wrong password, a Plex-linked account's password, a Plex identity without access to the server — so no attempt tells which e-mails the server knows. ONE CODE IS ANSWERED PAST THAT CHECK, `auth.access_disabled`: an account an Admin cut (`setAccountAccess`) is refused it only once its credentials — or its Plex identity — are PROVEN, so it tells nothing to someone who does not hold them."
       },
       "StartedPlexSignIn": {
         "type": "object",

@@ -12,6 +12,7 @@ import ACCOUNTS from "./seeds/accounts.json";
 import { routes } from "./handlers";
 import { resolve } from "./router";
 import { resetMockState } from "./state";
+import { identityDials } from "./identity";
 
 type Answer = { status?: number; coded?: { code: string; params?: Record<string, unknown> }; signInKind?: string; ok?: boolean };
 
@@ -66,6 +67,12 @@ describe("a provisional password reset", () => {
     expect(post("/accounts/local-account/password", { password: "court" }).coded?.code).toBe("password.too_short"); // french-ok: a typed password
     expect(post("/accounts/local-account/password", { password: "" }).coded?.code).toBe("password.required");
     expect(post("/accounts/nobody/password", { password: LONG }).status).toBe(404);
+  });
+
+  it("refuses a caller who is not Admin first, before the account is looked up (OPEN-3 B)", () => {
+    identityDials.setIdentity("household-member");
+    const unknown = post("/accounts/nobody/password", { password: LONG });
+    expect([unknown.status, unknown.coded?.code]).toEqual([403, "password.reset_admin_only"]);
   });
 
   it("never touches the owner's fallback password, nor a Plex-linked account", () => {

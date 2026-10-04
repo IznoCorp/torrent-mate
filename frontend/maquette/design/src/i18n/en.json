@@ -1384,6 +1384,15 @@
         "done": "Temporary password saved: pass it on to {{name}}, who will change it in their Profile.",
         "refused": "The reset was refused.",
         "adminOnly": "Only an Admin resets a password. Everyone changes their own in their Profile."
+      },
+      "access": {
+        "switch": "Sign-in allowed for {{name}}",
+        "cut": "access cut",
+        "lockedOwner": "Plex server owner: their access is never cut.",
+        "lockedOwn": "Your own account: its access is not cut from here.",
+        "cutDone": "{{name}}'s access cut: their sessions are closed.",
+        "restored": "{{name}}'s access restored: they can sign in again.",
+        "refused": "The access change was refused."
       }
     },
     "crossSeed": {
@@ -2226,7 +2235,8 @@
       "required": "Your session has ended: sign in again.",
       "refused": "Sign-in refused: check your e-mail address and password, or come in through your account's own door.",
       "plex_only": "This account signs in with Plex: it has no password here.",
-      "rate_limited": "Too many attempts: try again in a few minutes."
+      "rate_limited": "Too many attempts: try again in a few minutes.",
+      "access_disabled": "Access cut: an Admin turned off this account's sign-in."
     },
     "right": {
       "missing": "Your role does not hold the right to do this.",
@@ -2242,7 +2252,10 @@
       "email_invalid": "The e-mail address is invalid.",
       "email_taken": "An account already uses this e-mail address.",
       "admin_untouchable": "An Admin account can only be changed by an Admin.",
-      "last_admin": "Refused: the server would be left without an Admin."
+      "last_admin": "Refused: the server would be left without an Admin.",
+      "access_admin_only": "Only an Admin cuts or restores an account's access.",
+      "owner_access": "The Plex server owner's access is never cut.",
+      "own_access": "Your own access is not cut from here."
     },
     "role": {
       "unknown": "This role no longer exists.",

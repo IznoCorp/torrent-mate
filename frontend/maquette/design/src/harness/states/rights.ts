@@ -348,6 +348,24 @@ export function rightsStates(): NamedState[] {
       },
     ],
     [
+      "accounts-access-cut",
+      "Comptes — un compte dont l'Admin a coupé l'accès : son interrupteur éteint, sa ligne marquée",
+      () => {
+        window.__mocks?.setAccountAccess("household-member", false);
+        reread();
+        applyState({ page: "accounts", phase: "ready" });
+      },
+    ],
+    [
+      "accounts-access-own",
+      "Comptes — un second Admin : son propre interrupteur grisé, comme celui du propriétaire",
+      () => {
+        window.__mocks?.setAccountRole("local-account", "admin");
+        as("local-account");
+        applyState({ page: "accounts", phase: "ready" });
+      },
+    ],
+    [
       "accounts-escalation-greyed",
       "Comptes — un gestionnaire qui n'est pas Admin : ce qui dépasse ses droits est grisé, l'Admin absent",
       () => {

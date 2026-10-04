@@ -15,7 +15,8 @@ import type { QueryClient } from "@tanstack/react-query";
 
 import { accountQuery, accountsQuery, roleLabel } from "../../lib/account";
 import { RIGHTS, bypassesRights, rightsOf, sameRole, type Right } from "../../lib/rights";
-import { send } from "../../lib/query-client";
+import { HELD, send } from "../../lib/query-client";
+import { refusalWords } from "../../lib/refusal";
 import { panel, toast } from "../../lib/shell-doors";
 import { registerVerb } from "../../lib/verbs";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
@@ -26,7 +27,7 @@ type Roster = Schemas["Roster"];
 type Role = Schemas["Role"];
 
 // What separates the parts a verb carries: an id never carries it.
-const PART = "|";
+export const PART = "|";
 
 /**
  * Whether the signed-in manager may hand out a set of rights: Admin any, any
@@ -176,6 +177,27 @@ async function change(client: QueryClient, ask: () => Promise<unknown>): Promise
 }
 
 /**
+ * Cuts one account's access or gives it back, then reads the roster again
+ * (the operator, 2026-10-04). A refusal is said in its code's words.
+ *
+ * @param client The cache.
+ * @param id The account.
+ * @param allowed Whether it may sign in from now on.
+ */
+async function setAccess(client: QueryClient, id: string, allowed: boolean): Promise<void> {
+  const name = client.getQueryData<Roster>(accountsQuery.queryKey)?.accounts.find((one) => one.id === id)?.name ?? id;
+  try {
+    const answer = await send("PUT", `/api/v1/accounts/${encodeURIComponent(id)}/access`, { signInAllowed: allowed });
+    // HELD offline: nothing new to show until it departs.
+    if (answer === HELD) return;
+    await client.refetchQueries({ queryKey: accountsQuery.queryKey });
+    toast?.show({ message: i18next.t(allowed ? "screens.accounts.access.restored" : "screens.accounts.access.cutDone", { name }) });
+  } catch (failure) {
+    toast?.show({ message: refusalWords(failure, "screens.accounts.access.refused") });
+  }
+}
+
+/**
  * Declares « Comptes »' acts to the tap registry.
  *
  * @param client The cache the roster and the account are read from again.
@@ -184,6 +206,10 @@ export function installRosterVerbs(client: QueryClient): void {
   registerVerb("account-role", (value) => {
     const [id, role] = value.split(PART);
     void change(client, () => send("PATCH", `/api/v1/accounts/${encodeURIComponent(id)}`, { role }));
+  });
+  registerVerb("account-access", (value) => {
+    const [id, allowed] = value.split(PART);
+    void setAccess(client, id, allowed === "true");
   });
   registerVerb("role-right", (value) => {
     const [id, right, on] = value.split(PART);

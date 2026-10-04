@@ -28,7 +28,7 @@ import { crossSeedDials, type CrossSeedDials } from "./cross-seed-state";
 import { installMockStream, resetStream, type StreamDriver } from "./stream";
 import { routes } from "./handlers";
 import { SERVER_BASE } from "../lib/server-base";
-import { identityDials, requestersOf, signedInRights, type IdentityDials } from "./identity";
+import { identityDials, requestersOf, sessionEnded, signedInRights, type IdentityDials } from "./identity";
 import { OWN_SCOPED, allowed, subjectOf } from "./operation-rights";
 import { declaredRights } from "./declared-rights";
 
@@ -60,6 +60,9 @@ let becameQuiet: (() => void)[] = [];
 // DELETE — would make the request reject instead of answering.
 // The status of a call the account's rights refuse.
 const FORBIDDEN = 403;
+const UNAUTHORIZED = 401;
+// The operations a session that has ended may still ask: the doors in and out.
+const DOORS: ReadonlySet<string> = new Set(["signIn", "startPlexSignIn", "signInWithPlex", "signOut", "readVersion"]);
 
 const BODILESS_STATUSES = new Set([204, 205, 304]);
 
@@ -162,6 +165,18 @@ async function answer(input: RequestInfo | URL, options?: RequestInit): Promise<
   if (seenBefore) {
     seenBefore.arrivals += 1;
     return json(seenBefore.status, seenBefore.payload);
+  }
+  // A SESSION A CUT ENDED IS NO SESSION (the operator, 2026-10-04; Q4 = A):
+  // every operation but the doors in answers 401 `auth.required`, and the
+  // frame lands on the sign-in gate.
+  if (sessionEnded() && !DOORS.has(found.route.operationId)) {
+    recordAnswered({ operationId: found.route.operationId, method, path: address.pathname, status: UNAUTHORIZED });
+    return json(UNAUTHORIZED, {
+      status: UNAUTHORIZED,
+      title: "no session",
+      detail: "this account's sessions were ended when its access was cut",
+      code: "auth.required",
+    });
   }
   // THE ONE GUARD OF § 17's REFUSAL SIDE: the operation's right — the
   // contract's `x-rights` — against the signed-in account's, through the SAME

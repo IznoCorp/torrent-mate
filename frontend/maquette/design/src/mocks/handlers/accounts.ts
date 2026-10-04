@@ -12,14 +12,17 @@
 //     the Admin role;
 //   · 400 — a new account without an e-mail; a local account without its
 //     provisional password, or with one shorter than the minimum.
+// AN ACCOUNT'S ACCESS IS AN ADMIN'S TO CUT (the operator, 2026-10-04; Q4 = A,
+// Q5 = A): any account but the owner and the Admin's own, every session of it
+// ended at once (`../identity`), its sign-ins refused until it is given back.
 // A PROVISIONAL PASSWORD IS A LOCAL ACCOUNT'S ONLY (the operator, 2026-10-03:
 // « A »): the Admin gives it at creation and may reset it; the owner's fallback
 // password is replaced on the server only, and a Plex-linked account holds none.
 // The layer judges the kind and the length, and stores no password.
 import ACCOUNTS from "../seeds/accounts.json";
-import { GET, PATCH, POST, field, route, text } from "./shared";
+import { GET, PATCH, POST, PUT, field, route, text } from "./shared";
 import { refused, type MockRoute, type Refusal } from "../router";
-import { heldAccounts, roleFor, roles, roster, signedInId, type HeldAccount } from "../identity";
+import { heldAccounts, roleFor, roles, roster, signInAllowed, signedInId, type HeldAccount } from "../identity";
 import type { components } from "../../contract/types";
 import type { Right } from "../../lib/rights";
 
@@ -53,6 +56,7 @@ function summary(one: HeldAccount, every: Role[] = roles()) {
     email: one.email,
     role: every.find((role) => role.id === one.role)!,
     signInKind: one.signInKind,
+    signInAllowed: signInAllowed(one.id),
     ...(one.demotedFrom ? { demotedFrom: one.demotedFrom } : {}),
   };
 }
@@ -158,17 +162,35 @@ export function accountRoutes(): MockRoute[] {
       return summary(heldAccounts().find((one) => one.id === account.id)!);
     }),
     route("resetAccountPassword", POST, "/accounts/{accountId}/password", (request) => {
-      const account = heldAccounts().find((one) => one.id === request.parameters.accountId);
-      if (account === undefined) return refused(MISSING, "no account carries that id", "account.unknown");
       // ADMIN ONLY (the operator, 2026-10-03): any password account, from
-      // « Comptes »; everyone changes their own in Profil.
+      // « Comptes »; everyone changes their own in Profil. CHECKED FIRST (the
+      // operator, 2026-10-04, OPEN-3 B): a manager never learns which ids exist.
       if (callerRole().kind !== ADMIN)
         return refused(FORBIDDEN, "only an Admin resets a password", "password.reset_admin_only");
+      const account = heldAccounts().find((one) => one.id === request.parameters.accountId);
+      if (account === undefined) return refused(MISSING, "no account carries that id", "account.unknown");
       if (account.signInKind === "owner")
         return refused(FORBIDDEN, "the owner's fallback password is replaced on the server only", "password.held_by_cli");
       if (account.signInKind === "plex")
         return refused(FORBIDDEN, "this account signs in with Plex", "auth.plex_only");
       return provisionalRefusal(text(request.body, "password")) ?? { ok: true };
+    }),
+    route("setAccountAccess", PUT, "/accounts/{accountId}/access", (request) => {
+      // ADMIN ONLY, CHECKED FIRST, as the reset: a manager never learns which ids exist.
+      if (callerRole().kind !== ADMIN)
+        return refused(FORBIDDEN, "only an Admin cuts or gives back an account's access", "account.access_admin_only");
+      const account = heldAccounts().find((one) => one.id === request.parameters.accountId);
+      if (account === undefined) return refused(MISSING, "no account carries that id", "account.unknown");
+      const allowed = field(request.body, "signInAllowed");
+      if (typeof allowed !== "boolean")
+        return refused(INVALID, "the body says whether the account may sign in", "request.invalid");
+      // THE OWNER IS THE FALLBACK DOOR, and an Admin never locks itself out (Q5 = A).
+      if (account.signInKind === "owner")
+        return refused(FORBIDDEN, "the owner's access is never cut", "account.owner_access");
+      if (account.id === signedInId())
+        return refused(FORBIDDEN, "an Admin never cuts its own access", "account.own_access");
+      roster.setAccess(account.id, allowed);
+      return summary(account);
     }),
     route("createRole", POST, "/roles", (request) => {
       const rights = (field(request.body, "rights") as Right[] | undefined) ?? [];
