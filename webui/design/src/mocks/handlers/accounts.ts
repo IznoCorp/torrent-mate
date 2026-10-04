@@ -9,10 +9,14 @@
 //     (F2; ruling 22), an e-mail already taken;
 //   · 403 — escalation (round 9 Q14 = A, M7): a manager who is not Admin sets
 //     only rights its own role holds, never its own role, never an account on
-//     the Admin role;
-//   · 400 — a new account without an e-mail; a local account without its
-//     provisional password, or with one shorter than the minimum; a new role
-//     without a name — none is ever made up for it (the operator, 2026-10-04);
+//     the Admin role; and ONLY THE SERVER'S OWNER GIVES THE ADMIN ROLE (the
+//     operator, 2026-10-04: « seul le compte propriétaire peut promouvoir
+//     Admin ; un autre Admin ne le peut pas »);
+//   · 400 — a new account without an e-mail or without its role — none is
+//     chosen for the manager (the operator, 2026-10-04); a local account
+//     without its provisional password, or with one breaking the password
+//     policy (`lib/password-policy.ts`); a new role without a name — none is
+//     ever made up for it (the operator, 2026-10-04);
 //   · 409 — a new role under a name another role carries; deleting a role an
 //     account holds, a role a newcomer starts on (ruling A) or the Admin role.
 // AN ACCOUNT'S ACCESS IS AN ADMIN'S TO CUT (the operator, 2026-10-04; Q4 = A,
@@ -21,13 +25,16 @@
 // A PROVISIONAL PASSWORD IS A LOCAL ACCOUNT'S ONLY (the operator, 2026-10-03:
 // « A »): the Admin gives it at creation and may reset it; the owner's fallback
 // password is replaced on the server only, and a Plex-linked account holds none.
-// The layer judges the kind and the length, and stores no password.
+// AN ADMIN NEVER RESETS ITS OWN (the operator, 2026-10-04): it changes it in
+// Profil, the current one required. The layer judges the kind and the policy,
+// and stores no password.
 import ACCOUNTS from "../seeds/accounts.json";
 import { DELETE, GET, PATCH, POST, PUT, field, route, text } from "./shared";
 import { refused, type MockRoute, type Refusal } from "../router";
 import { heldAccounts, roleFor, roles, roster, signInAllowed, signedInId, type HeldAccount } from "../identity";
 import type { components } from "../../contract/types";
 import type { Right } from "../../lib/rights";
+import { PASSWORD_MINIMUM, passwordShortfall } from "../../lib/password-policy";
 
 type Role = components["schemas"]["Role"];
 
@@ -70,6 +77,11 @@ function callerRole(): Role {
   return roleFor(caller.role);
 }
 
+/** Whether the caller is the managed Plex server's owner — the one who gives the Admin role. */
+function callerIsOwner(): boolean {
+  return heldAccounts().find((one) => one.id === signedInId())?.signInKind === "owner";
+}
+
 /** Whether rights are included in the caller's own role's (Admin includes every right). */
 function within(rights: readonly string[]): boolean {
   const own = callerRole();
@@ -97,17 +109,26 @@ function startingRole(kind: "plexHome" | "plexGuest" | "local"): Role | undefine
 }
 
 /**
+ * Why a password breaks the policy every local door applies, if it does.
+ *
+ * @param password The password typed.
+ * @returns The refusal, naming the minimum, or undefined when it meets the policy.
+ */
+export function policyRefusal(password: string): Refusal | undefined {
+  const shortfall = passwordShortfall(password);
+  if (shortfall === undefined) return undefined;
+  return refused(INVALID, "the password breaks the password policy", shortfall, { minimum: PASSWORD_MINIMUM });
+}
+
+/**
  * Why a provisional password is refused, if it is (the operator, 2026-10-03: « A »).
  *
  * @param password The password the Admin typed.
- * @returns The refusal, or undefined when it is long enough.
+ * @returns The refusal, or undefined when it meets the policy.
  */
 function provisionalRefusal(password: string): Refusal | undefined {
   if (!password) return refused(INVALID, "a local account starts with a provisional password", "password.required");
-  const minimum = ACCOUNTS.passwordMinimum;
-  if (password.length < minimum)
-    return refused(INVALID, "the provisional password is too short", "password.too_short", { minimum });
-  return undefined;
+  return policyRefusal(password);
 }
 
 /**
@@ -149,12 +170,17 @@ export function accountRoutes(): MockRoute[] {
       // signs in by Plex only, and starts on its Plex kind's role; any other is a
       // local account, on the role asked, else the one local accounts start on
       // (O-K1-4).
+      // THE ROLE IS REQUIRED (the operator, 2026-10-04): nothing is chosen for
+      // the manager — absent, the body is not the contract's.
+      const asked = field(request.body, "role");
+      if (typeof asked !== "string") return refused(INVALID, "a new account names its role", "request.invalid");
       const linked = ACCOUNTS.plexUsers.includes(email.toLowerCase());
-      const asked = text(request.body, "role");
-      const target = linked ? startingRole("plexGuest") : asked ? roles().find((one) => one.id === asked) : startingRole("local");
+      const target = linked ? startingRole("plexGuest") : roles().find((one) => one.id === asked);
       if (target === undefined) return refused(MISSING, "no role carries that id", "role.unknown");
       if (target.kind === ADMIN && callerRole().kind !== ADMIN)
         return refused(FORBIDDEN, "only Admin gives Admin", "role.escalation");
+      if (target.kind === ADMIN && !callerIsOwner())
+        return refused(FORBIDDEN, "only the server's owner gives the Admin role", "account.admin_owner_only");
       if (!within(target.rights))
         return refused(FORBIDDEN, "the role holds rights the caller's does not", "role.escalation");
       if (heldAccounts().some((one) => one.email.toLowerCase() === email.toLowerCase()))
@@ -185,6 +211,9 @@ export function accountRoutes(): MockRoute[] {
         if (!within(target.rights))
           return refused(FORBIDDEN, "the role holds rights the caller's does not", "role.escalation");
       }
+      // ONLY THE OWNER PUTS AN ACCOUNT ON ADMIN; one already there, kept there, is given nothing.
+      if (target.kind === ADMIN && roleFor(account.role).kind !== ADMIN && !callerIsOwner())
+        return refused(FORBIDDEN, "only the server's owner gives the Admin role", "account.admin_owner_only");
       const after = heldAccounts().map((one) => (one.id === account.id ? { ...one, role: target.id } : one));
       if (!keepsAnAdmin(after))
         return refused(CONFLICT, "no account would be left on the Admin role", "account.last_admin");
@@ -197,6 +226,9 @@ export function accountRoutes(): MockRoute[] {
       // operator, 2026-10-04, OPEN-3 B): a manager never learns which ids exist.
       if (callerRole().kind !== ADMIN)
         return refused(FORBIDDEN, "only an Admin resets a password", "password.reset_admin_only");
+      // NEVER ITS OWN (the operator, 2026-10-04): an Admin changes its own in Profil, the current one required.
+      if (request.parameters.accountId === signedInId())
+        return refused(FORBIDDEN, "an Admin changes its own password with its current one", "password.reset_own");
       const account = heldAccounts().find((one) => one.id === request.parameters.accountId);
       if (account === undefined) return refused(MISSING, "no account carries that id", "account.unknown");
       if (account.signInKind === "owner")
