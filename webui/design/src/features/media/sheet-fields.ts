@@ -5,7 +5,7 @@
 // what a sheet always has.
 import type { Schemas } from "../../lib/contract-schemas";
 
-export type SheetEpisode = { number: number; title: string; airDate?: string | null };
+export type SheetEpisode = { number: number; title: string | null; airDate?: string | null };
 export type CatalogSeason = Schemas["SeasonSummary"];
 export type MediaSheetFields = {
   kind?: string;

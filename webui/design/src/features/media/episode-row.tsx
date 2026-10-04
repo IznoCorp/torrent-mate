@@ -35,7 +35,9 @@ export function EpisodeRow({ episode, state }: { episode: SheetEpisode; state: E
       <span className={episodeNumber({ state })} data-part="episode/number">
         E{String(episode.number).padStart(2, "0")}
       </span>{" "}
-      <span className={episodeTitle()}>{episode.title}</span>{" "}
+      {/* An episode the catalogue gives no title draws none, and the blank
+          that would follow it with it: no placeholder, no dangling gap. */}
+      {episode.title ? <><span className={episodeTitle()}>{episode.title}</span>{" "}</> : null}
       <span className={episodeDate()}>
         {episode.airDate ? dateLabel(episode.airDate) : t("screens.media.dateUnknown")}
         {state === "in_library" ? "" : ` · ${episodeStateLabel(state).toLowerCase()}`}
