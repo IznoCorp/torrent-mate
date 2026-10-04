@@ -326,6 +326,23 @@ class TestSignIn:
             assert secret not in response.text
             assert secret not in str(logs)
 
+    def test_a_cut_account_is_access_disabled_once_its_password_is_proven(
+        self, v1_client: Callable[..., TestClient]
+    ) -> None:
+        """The right password: 403 ``auth.access_disabled``, no cookie; a wrong one stays 401 ``auth.refused``."""
+        client = v1_client(role=None)
+        account_id = _seed_password_account(client)
+        _services(client).app_store.accounts.set_sign_in_allowed(account_id, allowed=False, now=2.0)
+
+        cut = client.post("/auth/login", json={"email": "local@example.org", "password": _PASSWORD})
+        wrong = client.post("/auth/login", json={"email": "local@example.org", "password": "wrong password"})
+
+        assert cut.status_code == 403
+        assert cut.json()["code"] == "auth.access_disabled"
+        assert "set-cookie" not in cut.headers
+        assert wrong.status_code == 401
+        assert wrong.json()["code"] == "auth.refused"
+
     def test_a_cross_origin_post_is_request_cross_origin(self, v1_client: Callable[..., TestClient]) -> None:
         """A cross-origin POST is 403 ``request.cross_origin`` even with right credentials, and opens no session."""
         client = v1_client(role=None)
