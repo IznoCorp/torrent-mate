@@ -22,6 +22,12 @@ local account a PROVISIONAL password at creation in « Comptes » and may reset 
    profil »): a manager who is not Admin is offered no reset, even of an account whose role its
    own covers, and is told why; forced, the reset answers 403 `password.reset_admin_only`, its own
    account's too.
+7. THE PASSWORD POLICY (the operator, 2026-10-04: twelve characters, an uppercase letter, a digit,
+   a special character): Profil and a local account's reset say the rule under the field, and a
+   password breaking it is said before anything is asked.
+8. AN ADMIN NEVER RESETS ITS OWN (the operator, 2026-10-04: « un Admin change son propre mot de
+   passe seulement via changeOwnPassword, mot de passe actuel requis »): a second Admin's own panel
+   offers no reset and says why; forced, it answers 403 `password.reset_own`.
 """
 import asyncio
 import json
@@ -47,6 +53,7 @@ GATE = """() => {
 
 PROFILE = """() => ({
   form: !!document.querySelector('[data-part="profile/password"]'),
+  rule: document.querySelector('[data-part="profile/password-rule"]')?.textContent || null,
   refusal: document.querySelector('[data-part="profile/password-refusal"]')?.textContent || null,
   changed: document.querySelector('[data-part="profile/password-changed"]')?.textContent || null })"""
 
@@ -59,11 +66,12 @@ ROSTER = """() => ({
   refusal: document.querySelector('[data-field-error]')?.textContent || null })"""
 
 FORCE = """async ([account]) => {
-  const answer = await fetch(`/api/v1/accounts/${account}/password`, { method: 'POST', body: JSON.stringify({ password: 'correct horse battery' }) });
+  const answer = await fetch(`/api/v1/accounts/${account}/password`, { method: 'POST', body: JSON.stringify({ password: 'Correct-horse battery 9' }) });
   return [answer.status, (await answer.json()).code ?? null]; }"""
 
 PANEL = """() => ({
   text: document.querySelector('#sheet')?.textContent || '',
+  rule: document.querySelector('#sheet [data-part="accounts/password-rule"]')?.textContent || null,
   reset: !!document.querySelector('#sheet [data-part="accounts/password-reset"]'),
   done: document.querySelector('#sheet [data-part="accounts/password-reset-done"]')?.textContent || null,
   refusal: document.querySelector('#sheet [data-part="accounts/password-reset-refusal"]')?.textContent || null })"""
@@ -184,6 +192,28 @@ async def main():
         forced = [await page.evaluate(FORCE, [one]) for one in ("local-guest", "local-account")]
         journal.check("Admin only: forced, a reset answers 403 password.reset_admin_only, its own account's too",
                       forced == [[403, "password.reset_admin_only"]] * 2, str(forced))
+
+        # 7. The password policy.
+        rule = await say("common.passwordRule", minimum=SEEDS["passwordMinimum"])
+        weak_words = await say("refusals.password.too_weak", minimum=SEEDS["passwordMinimum"])
+        journal.check("policy: Profil says the rule under the new password", local["rule"] == rule, str(local["rule"]))
+        journal.check("policy: a local account's reset says the rule under the field", offered["rule"] == rule,
+                      str(offered["rule"]))
+        weak = await at("profile-password-too-weak", PROFILE, ACTED + SETTLED)
+        journal.check("policy: Profil says a new password breaking the rule before anything is asked",
+                      weak["refusal"] == weak_words and not await answered("changeOwnPassword"), str(weak["refusal"]))
+        weak_reset = await at("accounts-reset-too-weak", PANEL, PANEL_IN + ACTED + SETTLED)
+        journal.check("policy: a provisional password breaking the rule is said before anything is asked",
+                      weak_reset["refusal"] == weak_words and not await answered("resetAccountPassword"),
+                      str(weak_reset["refusal"]))
+
+        # 8. An Admin's own password.
+        own = await at("accounts-reset-own", PANEL, PANEL_IN + SETTLED)
+        journal.check("own: a second Admin's own panel offers no reset, and says it changes in Profil",
+                      not own["reset"] and await say("screens.accounts.reset.own") in own["text"], own["text"][:160])
+        forced = await page.evaluate(FORCE, ["local-account"])
+        journal.check("own: forced, its own reset answers 403 password.reset_own",
+                      forced == [403, "password.reset_own"], str(forced))
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()

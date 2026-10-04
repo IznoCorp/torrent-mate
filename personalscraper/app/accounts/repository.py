@@ -27,8 +27,9 @@ from personalscraper.app.accounts.rights import Right
 from personalscraper.core.sqlite import serialised
 from personalscraper.core.sqlite._migrate import safe_rollback
 
-#: What a new account starts as: a Plex Home member, a Plex guest, a local account.
-StartKind = Literal["plexHome", "plexGuest", "local"]
+#: Who starts on a role at a first sign-in or a link: a Plex Home member, a Plex guest. A local
+#: account has none — its role is chosen at its creation.
+StartKind = Literal["plexHome", "plexGuest"]
 
 
 @dataclass(frozen=True)
@@ -352,6 +353,18 @@ class AccountRepository:
                     [(role_id, right.value) for right in sorted(rights)],
                 )
             self._conn.execute("UPDATE role SET updated_at = ? WHERE id = ?", (now, role_id))
+
+    @serialised
+    def delete_role(self, role_id: str) -> None:
+        """Delete a role; its rights go with it (``ON DELETE CASCADE``).
+
+        Args:
+            role_id: Its key.
+
+        Raises:
+            sqlite3.IntegrityError: When an account holds it or a start kind names it.
+        """
+        self._conn.execute("DELETE FROM role WHERE id = ?", (role_id,))
 
     @serialised
     def role_for_start(self, start: StartKind) -> RoleRow | None:

@@ -362,6 +362,16 @@ export function rightsStates(): NamedState[] {
       },
     ],
     [
+      "accounts-admin-owner-only",
+      "Comptes — un second Admin : le rôle Admin grisé, réservé au propriétaire du serveur, et dit pourquoi",
+      () => {
+        window.__mocks?.setAccountRole("local-account", "admin");
+        as("local-account");
+        applyState({ page: "accounts", phase: "ready" });
+        window.__panel.produce("roster", "local-guest");
+      },
+    ],
+    [
       "accounts-escalation-greyed",
       "Comptes — un gestionnaire qui n'est pas Admin : ce qui dépasse ses droits est grisé, l'Admin absent",
       () => {

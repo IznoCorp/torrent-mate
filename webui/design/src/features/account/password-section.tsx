@@ -10,10 +10,13 @@
 //
 // A REFUSAL IS SAID FROM `fr.json` BY ITS CODE (gap G-1): the current password
 // wrong, the new one too short — its minimum the server's, carried in the
-// refusal's parameters.
+// refusal's parameters. THE PASSWORD POLICY (the operator, 2026-10-04) is said
+// under the new password before anything is typed, and a new password breaking
+// it is said before anything is asked.
 import { useState, type FormEvent, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
+import { PASSWORD_MINIMUM, passwordShortfall } from "../../lib/password-policy";
 import { refusalWords } from "../../lib/refusal";
 import { actionButton, guidance, sectionHeading, surfaceError } from "../../ui/variants";
 import { sendNow } from "./send-now";
@@ -37,6 +40,9 @@ export function PasswordSection(): ReactElement {
     // that differ — the one mistake that would lock a local account out.
     if (!current || !next || !again) return setOutcome({ kind: "refused", words: t("screens.accountPage.password.missing") });
     if (next !== again) return setOutcome({ kind: "refused", words: t("screens.accountPage.password.mismatch") });
+    const shortfall = passwordShortfall(next);
+    if (shortfall !== undefined)
+      return setOutcome({ kind: "refused", words: t(`refusals.${shortfall}`, { minimum: PASSWORD_MINIMUM }) });
     setOutcome({ kind: "sending" });
     const problem = await sendNow("PUT", "/api/v1/auth/password", { currentPassword: current, newPassword: next });
     if (problem === null) {
@@ -55,8 +61,12 @@ export function PasswordSection(): ReactElement {
       </label>
       <label>
         {t("screens.accountPage.password.new")}
-        <input className={accountField()} name="newPassword" type="password" autoComplete="new-password" required />
+        <input className={accountField()} name="newPassword" type="password" autoComplete="new-password" required
+          aria-describedby="profile-password-rule" />
       </label>
+      <p className={guidance()} id="profile-password-rule" data-part="profile/password-rule">
+        {t("common.passwordRule", { minimum: PASSWORD_MINIMUM })}
+      </p>
       <label>
         {t("screens.accountPage.password.confirm")}
         <input className={accountField()} name="confirmPassword" type="password" autoComplete="new-password" required />

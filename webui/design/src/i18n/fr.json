@@ -58,7 +58,8 @@
       "detached": "HEAD détaché — aucune branche",
       "unavailable": "identité indisponible",
       "unavailableReason": "cette copie n'est pas servie par l'hôte de design"
-    }
+    },
+    "passwordRule": "Au moins {{minimum}} caractères, dont une majuscule, un chiffre et un caractère spécial."
   },
   "settings": {
     "labels": {
@@ -1370,8 +1371,7 @@
       "demotedShort": "rôle de départ depuis sa liaison Plex",
       "defaultFor": {
         "plexHome": "Rôle de départ des utilisateurs Plex Home du serveur Plex, à leur première connexion ou à leur liaison.",
-        "plexGuest": "Rôle de départ des autres utilisateurs du serveur Plex, à leur première connexion ou à leur liaison.",
-        "local": "Rôle de départ d'un compte local créé sans rôle choisi."
+        "plexGuest": "Rôle de départ des autres utilisateurs du serveur Plex, à leur première connexion ou à leur liaison."
       },
       "provisionalPassword": "Mot de passe provisoire (compte local)",
       "reset": {
@@ -1381,7 +1381,8 @@
         "sending": "Envoi…",
         "done": "Mot de passe provisoire enregistré : communiquez-le à {{name}}, qui le changera dans son Profil.",
         "refused": "La réinitialisation a été refusée.",
-        "adminOnly": "Seul un Admin réinitialise un mot de passe. Chacun change le sien dans son Profil."
+        "adminOnly": "Seul un Admin réinitialise un mot de passe. Chacun change le sien dans son Profil.",
+        "own": "Votre propre mot de passe se change dans votre Profil, avec l'actuel."
       },
       "access": {
         "switch": "Connexion autorisée pour {{name}}",
@@ -1417,7 +1418,11 @@
         "cancel": "Annuler",
         "done": "Rôle supprimé.",
         "refused": "La suppression du rôle a été refusée."
-      }
+      },
+      "adminOwnerOnly": "Seul le propriétaire du serveur Plex promeut un compte Admin.",
+      "ownerOnly": "réservé au propriétaire",
+      "ownerStaysAdmin": "Le compte du propriétaire du serveur Plex reste Admin : sinon, plus personne ne pourrait redonner le rôle Admin.",
+      "ownerStays": "le propriétaire reste Admin"
     },
     "crossSeed": {
       "states": {
@@ -2279,7 +2284,9 @@
       "last_admin": "Refusé : le serveur resterait sans Admin.",
       "access_admin_only": "Seul un Admin coupe ou rétablit l'accès d'un compte.",
       "owner_access": "L'accès du propriétaire du serveur Plex ne se coupe jamais.",
-      "own_access": "Votre propre accès ne se coupe pas d'ici."
+      "own_access": "Votre propre accès ne se coupe pas d'ici.",
+      "admin_owner_only": "Seul le propriétaire du serveur Plex donne le rôle Admin.",
+      "owner_admin": "Le compte du propriétaire du serveur Plex ne quitte jamais le rôle Admin."
     },
     "role": {
       "unknown": "Ce rôle n'existe plus.",
@@ -2301,9 +2308,11 @@
     "password": {
       "current_wrong": "Le mot de passe actuel est incorrect : rien n'a été changé.",
       "required": "Un compte local reçoit un mot de passe provisoire : il est obligatoire.",
-      "too_short": "Le nouveau mot de passe doit compter au moins {{minimum}} caractères.",
+      "too_short": "Le mot de passe doit compter au moins {{minimum}} caractères, dont une majuscule, un chiffre et un caractère spécial.",
+      "too_weak": "Le mot de passe doit compter au moins {{minimum}} caractères, dont une majuscule, un chiffre et un caractère spécial : l'un d'eux manque.",
       "held_by_cli": "Ce mot de passe de secours ne se change que par une commande sur le serveur, jamais ici.",
-      "reset_admin_only": "Seul un Admin réinitialise un mot de passe : le vôtre se change dans votre Profil."
+      "reset_admin_only": "Seul un Admin réinitialise un mot de passe : le vôtre se change dans votre Profil.",
+      "reset_own": "Votre propre mot de passe se change dans votre Profil, avec l'actuel."
     },
     "media": {
       "not_found": "Ce média est inconnu : la médiathèque ne le tient plus, ou son fournisseur ne le connaît pas.",

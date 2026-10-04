@@ -101,9 +101,11 @@ function managerPanel(account: string): void {
   accountPanel(account);
 }
 
-// A password long enough for the layer's minimum, and one that is not.
-const LONG = "correct horse battery";
+// A password meeting the policy (the operator, 2026-10-04), one too short, and
+// one long enough that lacks an uppercase letter, a digit and a special character.
+const LONG = "Correct-horse battery 9";
 const SHORT = "court";
+const WEAK = "correcthorsebattery";
 
 export function signInStates(): NamedState[] {
   return [
@@ -142,6 +144,11 @@ export function signInStates(): NamedState[] {
       "profile-password-too-short",
       "Profil — compte local : le nouveau mot de passe est trop court, le minimum dit par le serveur",
       () => changePassword([LONG, SHORT, SHORT]),
+    ],
+    [
+      "profile-password-too-weak",
+      "Profil — compte local : le nouveau mot de passe enfreint la règle (majuscule, chiffre, caractère spécial), dit sans rien demander",
+      () => changePassword([LONG, WEAK, WEAK]),
     ],
     [
       "profile-password-mismatch",
@@ -193,6 +200,20 @@ export function signInStates(): NamedState[] {
       "accounts-reset-too-short",
       "Comptes — compte local : le mot de passe provisoire est trop court, le minimum dit par le serveur",
       () => resetLocal(SHORT),
+    ],
+    [
+      "accounts-reset-too-weak",
+      "Comptes — compte local : le mot de passe provisoire enfreint la règle, dit sans rien demander",
+      () => resetLocal(WEAK),
+    ],
+    [
+      "accounts-reset-own",
+      "Comptes — un second Admin sur son propre compte : son mot de passe se change dans son Profil, pas ici",
+      () => {
+        window.__mocks?.setAccountRole("local-account", "admin");
+        as("local-account");
+        accountPanel("local-account");
+      },
     ],
     [
       "accounts-owner-password",

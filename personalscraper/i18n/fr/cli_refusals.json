@@ -30,7 +30,9 @@
     "last_admin": "Plus aucun compte ne serait sur le rôle Admin : rien n'a été modifié.",
     "access_admin_only": "Seul un Admin coupe ou rétablit l'accès d'un compte.",
     "owner_access": "L'accès du propriétaire du serveur ne se coupe jamais.",
-    "own_access": "Un Admin ne peut pas couper son propre accès."
+    "own_access": "Un Admin ne peut pas couper son propre accès.",
+    "admin_owner_only": "Seul le propriétaire du serveur donne le rôle Admin.",
+    "owner_admin": "Le compte du propriétaire du serveur ne quitte jamais le rôle Admin."
   },
   "media": {
     "not_found": "Aucun média ne répond à cet identifiant de fournisseur."
@@ -42,13 +44,19 @@
     "unknown": "Aucun rôle n'a cet identifiant.",
     "system_immutable": "Le rôle Admin ne se modifie pas.",
     "own_role": "Un gestionnaire qui n'est pas Admin ne modifie pas son propre rôle.",
-    "escalation": "Le rôle donnerait des droits que votre propre rôle n'a pas."
+    "escalation": "Le rôle donnerait des droits que votre propre rôle n'a pas.",
+    "name_required": "Un rôle demande un nom.",
+    "name_taken": "Un autre rôle porte déjà ce nom.",
+    "in_use": "Un compte tient ce rôle : il ne se supprime pas.",
+    "default": "Les nouveaux comptes démarrent sur ce rôle : il ne se supprime pas."
   },
   "password": {
     "required": "Un compte local demande un mot de passe.",
-    "too_short": "Le mot de passe doit compter au moins {minimum} caractères.",
+    "too_short": "Le mot de passe doit compter au moins {{minimum}} caractères, dont une majuscule, un chiffre et un caractère spécial.",
     "current_wrong": "Le mot de passe actuel est faux : rien n'a été changé.",
     "held_by_cli": "Le mot de passe de secours du propriétaire du serveur ne se change qu'avec « accounts set-password » sur le serveur.",
-    "reset_admin_only": "Seul un Admin réinitialise un mot de passe ; changez le vôtre depuis votre profil."
+    "reset_admin_only": "Seul un Admin réinitialise un mot de passe ; changez le vôtre depuis votre profil.",
+    "too_weak": "Le mot de passe doit compter au moins {{minimum}} caractères, dont une majuscule, un chiffre et un caractère spécial : l'un d'eux manque.",
+    "reset_own": "Un Admin change son propre mot de passe depuis son profil, avec l'actuel."
   }
 }

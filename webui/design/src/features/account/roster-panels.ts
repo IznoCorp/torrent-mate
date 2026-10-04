@@ -11,6 +11,14 @@
 // the roster and the signed-in account are read again, and every surface that
 // draws by rights recomposes from what comes back — no poll.
 //
+// ONLY THE SERVER'S OWNER GIVES THE ADMIN ROLE (the operator, 2026-10-04: « seul
+// le compte propriétaire peut promouvoir Admin ; un autre Admin ne le peut pas »):
+// to another Admin the Admin choice is GREYED WITH ITS REASON, as an escalation is
+// — never an act the server would refuse; and THE OWNER'S ACCOUNT NEVER LEAVES
+// ADMIN, so on its panel every other role is greyed with that reason, to the
+// owner itself too. AN ADMIN NEVER RESETS ITS OWN PASSWORD
+// here (the operator, 2026-10-04): its panel says it changes in Profil.
+//
 // A ROLE IS DELETED ONLY WHEN NOTHING DEPENDS ON IT (the operator, 2026-10-04:
 // « seulement s'il est attribué à aucun compte »; ruling A: nor when a newcomer
 // starts on it), and Delete is OFFERED only there — never an act the server
@@ -73,6 +81,11 @@ function accountPanel(id: string, cache: PanelCache): PanelDescriptor | null {
   const own = manager !== undefined && manager.id === account.id && !bypassesRights(manager.role);
   const demotedFrom = roster.roles.find((one) => one.id === account.demotedFrom);
   const admin = manager !== undefined && bypassesRights(manager.role);
+  const self = manager !== undefined && manager.id === account.id;
+  // AN ADMIN WHO IS NOT THE OWNER may keep an Admin on Admin, never put one there.
+  const ownerOnly = admin && manager.signInKind !== "owner" && !bypassesRights(account.role);
+  // THE OWNER'S ACCOUNT NEVER LEAVES ADMIN, whoever looks at it — the owner too.
+  const ownerStays = account.signInKind === "owner";
   return {
     address: "roster:" + id,
     title: account.name,
@@ -85,20 +98,28 @@ function accountPanel(id: string, cache: PanelCache): PanelDescriptor | null {
       // provisional one is set again here; the owner's fallback one only on the
       // server — said in the words its refusal already has.
       // ADMIN ONLY (the operator, 2026-10-03): another manager is told so.
-      account.signInKind === "local" && admin ? { type: "accountPassword", account: account.id, name: account.name } : null,
+      account.signInKind === "local" && admin && !self
+        ? { type: "accountPassword", account: account.id, name: account.name } : null,
+      account.signInKind === "local" && admin && self ? { type: "note", text: translate("screens.accounts.reset.own") } : null,
       account.signInKind === "local" && !admin ? { type: "note", text: translate("screens.accounts.reset.adminOnly") } : null,
       account.signInKind === "owner" ? { type: "note", text: translate("refusals.password.held_by_cli") } : null,
       { type: "note", text: translate("screens.accounts.oneRole") },
       own ? { type: "note", text: translate("screens.accounts.notOwnRole") } : null,
+      ownerOnly ? { type: "note", text: translate("screens.accounts.adminOwnerOnly") } : null,
+      ownerStays ? { type: "note", text: translate("screens.accounts.ownerStaysAdmin") } : null,
       {
         type: "actions",
         actions: roster.roles.map((role) => ({
           text: roleLabel(role),
-          mention: sameRole(role, account.role) ? translate("screens.accounts.current") : said(role),
+          mention: sameRole(role, account.role) ? translate("screens.accounts.current")
+            : ownerOnly && bypassesRights(role) ? translate("screens.accounts.ownerOnly")
+            : ownerStays && !bypassesRights(role) ? translate("screens.accounts.ownerStays") : said(role),
           // GREYED, NEVER HIDDEN, where the manager may not give it: the
           // escalation is drawn so it is not a surprise (round 9 Q14 = A).
           desactive: own || sameRole(role, account.role)
             || (bypassesRights(role) && !(manager !== undefined && bypassesRights(manager.role)))
+            || (bypassesRights(role) && ownerOnly)
+            || (ownerStays && !bypassesRights(role))
             || !withinReach(role.rights, manager),
           target: { "account-role": [account.id, role.id].join(PART) },
         })),

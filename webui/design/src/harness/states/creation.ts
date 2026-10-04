@@ -24,8 +24,8 @@ const PRESS_AFTER = 150;
 // A role nobody holds and nobody starts on, created as « Comptes » would.
 export const UNUSED_ROLE = { id: "friends", name: "Amis", kind: "ordinary" as const, rights: ["library.read" as const] };
 
-// A provisional password long enough for the layer's minimum.
-export const LONG_PASSWORD = "correct horse battery";
+// A provisional password meeting the policy (the operator, 2026-10-04).
+export const LONG_PASSWORD = "Correct-horse battery 9";
 
 /**
  * Types into one field of the open creation page as a finger would: through the
@@ -128,6 +128,12 @@ export function creationStates(): NamedState[] {
         ["name", "Nina"], ["email", "nina@example.invalid"], ["role", "local-guest"], ["password", LONG_PASSWORD]]),
     ],
     [
+      "accounts-account-create-weak-password",
+      "Comptes — nouveau compte : un mot de passe provisoire qui enfreint la règle, dit sous le champ, Créer fermé",
+      () => fillCreation("account", [
+        ["name", "Nina"], ["email", "nina@example.invalid"], ["role", "local-guest"], ["password", "correcthorsebattery"]]),
+    ],
+    [
       "accounts-create-refused",
       "Comptes — nouveau compte sans adresse e-mail : dit sous le champ, rien n'est demandé",
       () => fillCreation("account", [["name", "Maya"], ["email", "x"], ["email", ""]]),
@@ -139,10 +145,10 @@ export function creationStates(): NamedState[] {
     ],
     [
       "accounts-role-default-unheld",
-      "Comptes — le rôle de départ des comptes locaux, tenu par personne : Supprimer absent",
+      "Comptes — le rôle de départ des invités Plex, tenu par personne : Supprimer absent",
       () => {
-        window.__mocks?.setAccountRole("local-guest", "requester");
-        rolePanel("local-guest");
+        window.__mocks?.setAccountRole("plex-without-rights", "requester");
+        rolePanel("plex-guest");
       },
     ],
     [

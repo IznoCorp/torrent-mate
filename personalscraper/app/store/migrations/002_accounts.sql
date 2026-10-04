@@ -3,7 +3,8 @@
 --
 -- Two role kinds: ``admin`` (the one system role, holding every right without a rights list) and
 -- ``ordinary``. ``role_start`` names, per start kind, the role a new account starts on: a Plex
--- Home member, a Plex guest, a local account. A role named there cannot be deleted (its foreign
+-- Home member, a Plex guest. A local account starts on the role chosen at its creation, so it has
+-- no start kind. A role named there cannot be deleted (its foreign
 -- key has no ON DELETE, and every connection runs with ``foreign_keys=ON``).
 --
 -- The seeds are the five roles of the maquette's ``mocks/seeds/accounts.json`` (ids, kinds, rights,
@@ -28,7 +29,7 @@ CREATE TABLE role_right (
 );
 
 CREATE TABLE role_start (
-    start       TEXT PRIMARY KEY CHECK (start IN ('plexHome', 'plexGuest', 'local')),
+    start       TEXT PRIMARY KEY CHECK (start IN ('plexHome', 'plexGuest')),
     role_id     TEXT NOT NULL REFERENCES role(id)
 );
 
@@ -108,8 +109,7 @@ INSERT INTO role_right (role_id, right_name) VALUES
 
 INSERT INTO role_start (start, role_id) VALUES
     ('plexHome', 'household'),
-    ('plexGuest', 'plex-guest'),
-    ('local', 'local-guest');
+    ('plexGuest', 'plex-guest');
 
 PRAGMA user_version = 2;
 

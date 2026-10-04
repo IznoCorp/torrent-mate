@@ -141,9 +141,9 @@ class TestFreshFile:
         }
 
     def test_seeds_one_role_per_start_kind(self, fresh: sqlite3.Connection) -> None:
-        """Plex Home → household, Plex guest → plex-guest, local → local-guest."""
+        """Plex Home → household, Plex guest → plex-guest; a local account's role is chosen at its creation."""
         starts = dict(fresh.execute("SELECT start, role_id FROM role_start").fetchall())
-        assert starts == {"plexHome": "household", "plexGuest": "plex-guest", "local": "local-guest"}
+        assert starts == {"plexHome": "household", "plexGuest": "plex-guest"}
 
     def test_a_second_admin_role_is_refused(self, fresh: sqlite3.Connection) -> None:
         """One role of kind ``admin``, enforced by the base."""
@@ -158,17 +158,22 @@ class TestFreshFile:
     def test_a_second_role_for_one_start_is_refused(self, fresh: sqlite3.Connection) -> None:
         """One role per start kind."""
         with pytest.raises(sqlite3.IntegrityError):
-            fresh.execute("INSERT INTO role_start VALUES ('local', 'requester')")
+            fresh.execute("INSERT INTO role_start VALUES ('plexGuest', 'requester')")
 
-    def test_an_unknown_start_kind_is_refused(self, fresh: sqlite3.Connection) -> None:
-        """Three start kinds only."""
+    @pytest.mark.parametrize("start", ["plexFriend", "local"])
+    def test_an_unknown_start_kind_is_refused(self, fresh: sqlite3.Connection, start: str) -> None:
+        """Two start kinds only: a local account starts on the role chosen at its creation.
+
+        Any row of that kind is removed first, so only the CHECK can refuse it.
+        """
+        fresh.execute("DELETE FROM role_start WHERE start = ?", (start,))
         with pytest.raises(sqlite3.IntegrityError):
-            fresh.execute("INSERT INTO role_start VALUES ('plexFriend', 'requester')")
+            fresh.execute("INSERT INTO role_start VALUES (?, 'requester')", (start,))
 
     def test_a_role_named_as_a_start_cannot_be_deleted(self, fresh: sqlite3.Connection) -> None:
         """``role_start``'s foreign key holds the role."""
         with pytest.raises(sqlite3.IntegrityError):
-            fresh.execute("DELETE FROM role WHERE id = 'local-guest'")
+            fresh.execute("DELETE FROM role WHERE id = 'plex-guest'")
 
     def test_a_role_no_start_names_can_be_deleted(self, fresh: sqlite3.Connection) -> None:
         """``requester`` is no start's role: it goes, and its rights with it."""

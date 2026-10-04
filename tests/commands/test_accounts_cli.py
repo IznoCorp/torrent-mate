@@ -28,7 +28,7 @@ _PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"
 _PATCH_RESOLVE_PATH = "personalscraper.conf.loader.resolve_config_path"
 _EMAIL = "owner@example.org"
 _CATALOGUES = Path(__file__).resolve().parents[2] / "personalscraper" / "i18n"
-_PASSWORD = "a long fallback password"
+_PASSWORD = "A long fallback password 1!"
 
 
 @pytest.fixture
@@ -364,3 +364,51 @@ class TestCreateOwner:
             assert _catalogue_line(Language.FR, "cli_accounts", "create_owner", key) != _catalogue_line(
                 Language.EN, "cli_accounts", "create_owner", key
             ), key
+
+
+class TestPasswordPolicy:
+    """Both CLI doors hold a password to the policy every local door applies (the operator, 2026-10-04)."""
+
+    @pytest.mark.parametrize("language", list(Language))
+    @pytest.mark.parametrize(
+        ("weak", "code"),
+        [("Short 1!", "too_short"), ("a long fallback password", "too_weak")],
+        ids=["too-short", "too-weak"],
+    )
+    def test_set_password_refuses_a_password_breaking_the_policy(
+        self, cli_runner: CliRunner, test_config: Config, store: AppStore, language: Language, weak: str, code: str
+    ) -> None:
+        """Exit 1, the ``cli_refusals`` line naming the minimum in the language in use, nothing stored."""
+        line = _catalogue_line(language, "cli_refusals", "password", code).replace("{{minimum}}", "12")
+        with use_language(language):
+            result = _invoke(cli_runner, test_config, ["accounts", "set-password", _EMAIL], f"{weak}\n{weak}\n")
+
+        assert result.exit_code == 1
+        assert line in result.stderr.splitlines()
+        assert weak not in result.output
+        assert _stored_hash(store) is None
+
+    @pytest.mark.parametrize(
+        ("weak", "code"),
+        [("Short 1!", "too_short"), ("a long fallback password", "too_weak")],
+        ids=["too-short", "too-weak"],
+    )
+    def test_create_owner_refuses_a_password_breaking_the_policy(
+        self, cli_runner: CliRunner, test_config: Config, dev_data_dir: Path, weak: str, code: str
+    ) -> None:
+        """Exit 1, the ``cli_refusals`` line, and no owner created."""
+        line = _catalogue_line(Language.EN, "cli_refusals", "password", code).replace("{{minimum}}", "12")
+        with use_language(Language.EN):
+            result = _invoke(cli_runner, test_config, _OWNER_ARGS, f"{weak}\n{weak}\n")
+
+        assert result.exit_code == 1
+        assert line in result.stderr.splitlines()
+        assert weak not in result.output
+        store_file = dev_data_dir / "app-dev.db"
+        assert not store_file.exists() or _accounts_in(store_file) == []
+
+    def test_the_policy_lines_differ_between_the_languages(self) -> None:
+        """The French policy line is not the English one copied over."""
+        assert _catalogue_line(Language.FR, "cli_refusals", "password", "too_weak") != _catalogue_line(
+            Language.EN, "cli_refusals", "password", "too_weak"
+        )

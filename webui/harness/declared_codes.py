@@ -113,10 +113,11 @@ ASKED_FOR = {
     "uploadCrossSeed": (
         "POST", "/api/v1/torrents/e5c6f4e9bc5d619c15aa476ec0e278f2267bf0bb/cross-seed/v3x.club/upload"),
     # « Comptes »' two creations answer 201 with what they made (L18). A creation
-    # carries its body, or the handler's refusal answers before the outcome.
+    # carries its body, or the handler's refusal answers before the outcome: the
+    # account a role and a password meeting the policy (lib/password-policy.ts).
     "createAccount": ("POST", "/api/v1/accounts",
                       {"name": "Witness", "email": "witness@example.org", "role": "household",
-                       "password": "a provisional one"}),
+                       "password": "A provisional one 1!"}),
     "createRole": ("POST", "/api/v1/roles", {"name": "Witness", "rights": []}),
     # The 200 family's witness. A read, because the plain success is what every
     # read answers and a rule holding only mutations would say nothing about

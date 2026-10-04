@@ -1684,7 +1684,7 @@ export interface paths {
         put?: never;
         /**
          * Reset a local account's password to a provisional one
-         * @description An Admin in « Comptes » gives a LOCAL account a new PROVISIONAL password — a forgotten one replaced (the operator, 2026-10-03: « A »); the account then changes it in Profil (`changeOwnPassword`). LOCAL ACCOUNTS ONLY: the Plex server owner's fallback password is replaced by a command on the server, never here (refused `password.held_by_cli`); a Plex-linked account holds no password (refused `auth.plex_only`). ADMIN ONLY (the operator, 2026-10-03: « Admin pour n'importe quel compte à mot de passe via "comptes", l'utilisateur d'un compte à mot de passe peut changer son mot de passe via son profil »): a caller whose role is not Admin is refused `password.reset_admin_only`, whatever the account — its own included, which it changes in Profil. That check comes FIRST, before `account.unknown` (404), so a manager never learns which accounts exist (the operator, 2026-10-04, OPEN-3 B). The account's open sessions are not ended by this act.
+         * @description An Admin in « Comptes » gives a LOCAL account a new PROVISIONAL password — a forgotten one replaced (the operator, 2026-10-03: « A »); the account then changes it in Profil (`changeOwnPassword`). LOCAL ACCOUNTS ONLY: the Plex server owner's fallback password is replaced by a command on the server, never here (refused `password.held_by_cli`); a Plex-linked account holds no password (refused `auth.plex_only`). ADMIN ONLY (the operator, 2026-10-03: « Admin pour n'importe quel compte à mot de passe via "comptes", l'utilisateur d'un compte à mot de passe peut changer son mot de passe via son profil »): a caller whose role is not Admin is refused `password.reset_admin_only`, whatever the account — its own included, which it changes in Profil. That check comes FIRST, before `account.unknown` (404), so a manager never learns which accounts exist (the operator, 2026-10-04, OPEN-3 B). NEVER THE CALLER'S OWN ACCOUNT (the operator, 2026-10-04: « un Admin change son propre mot de passe seulement via changeOwnPassword, mot de passe actuel requis »): an Admin naming its own account is refused 403 `password.reset_own`, checked right after the Admin check. The account's open sessions are not ended by this act.
          */
         post: operations["resetAccountPassword"];
         delete?: never;
@@ -2816,8 +2816,8 @@ export interface components {
             kind: "admin" | "ordinary";
             /** @description the rights it carries — empty for `admin`, which bypasses the list */
             rights: components["schemas"]["Right"][];
-            /** @description WHO STARTS ON THIS ROLE (O-K1-4), applied at creation or link only, never recomputed: `plexHome` — a Plex Home user of the managed server at its first sign-in or link (Membre du foyer); `plexGuest` — any other user of the server (Invité Plex); `local` — a local account created without a role (Invité). Absent for a role nobody starts on. */
-            defaultFor?: ("plexHome" | "plexGuest" | "local")[];
+            /** @description WHO STARTS ON THIS ROLE (O-K1-4), applied at creation or link only, never recomputed: `plexHome` — a Plex Home user of the managed server at its first sign-in or link (Membre du foyer); `plexGuest` — any other user of the server (Invité Plex). A local account has no start kind: its role is chosen at its creation (the operator, 2026-10-04). Absent for a role nobody starts on. */
+            defaultFor?: ("plexHome" | "plexGuest")[];
         };
         /** @description An account named by another answer — a requester, a chooser's row. */
         AccountRef: {
@@ -3000,7 +3000,7 @@ export interface components {
          * @description WHY A REQUEST WAS REFUSED, as a closed code (X4: no sentence on the wire). The interface says it in its own words, read from fr.json by this code; `params` carries the values those words name. The set grows per lot: an operation whose lot has not landed its codes yet may refuse without one. ANTI-ENUMERATION (O-K1-4): the two doors refuse with ONE code, `auth.refused`, whatever the cause — an unknown e-mail, a wrong password, a Plex-linked account's password, a Plex identity without access to the server — so no attempt tells which e-mails the server knows. ONE CODE IS ANSWERED PAST THAT CHECK, `auth.access_disabled`: an account an Admin cut (`setAccountAccess`) is refused it only once its credentials — or its Plex identity — are PROVEN, so it tells nothing to someone who does not hold them.
          * @enum {string}
          */
-        RefusalCode: "request.invalid" | "request.cross_origin" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "auth.access_disabled" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "account.access_admin_only" | "account.owner_access" | "account.own_access" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "role.name_required" | "role.name_taken" | "role.in_use" | "role.default" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "password.current_wrong" | "password.required" | "password.too_short" | "password.held_by_cli" | "password.reset_admin_only" | "media.not_found" | "media.ambiguous" | "provider.unavailable" | "library.locked";
+        RefusalCode: "request.invalid" | "request.cross_origin" | "route.unknown" | "internal" | "auth.required" | "auth.refused" | "auth.plex_only" | "auth.rate_limited" | "auth.access_disabled" | "right.missing" | "right.not_own" | "instance.read_only" | "instance.forbidden_write" | "account.unknown" | "account.email_invalid" | "account.email_taken" | "account.admin_untouchable" | "account.last_admin" | "account.access_admin_only" | "account.owner_access" | "account.own_access" | "account.admin_owner_only" | "account.owner_admin" | "role.unknown" | "role.system_immutable" | "role.own_role" | "role.escalation" | "role.name_required" | "role.name_taken" | "role.in_use" | "role.default" | "right.unknown" | "plex.unreachable" | "plex.server_unreachable" | "plex.token_refused" | "plex.pin_unknown" | "plex.pin_expired" | "password.current_wrong" | "password.required" | "password.too_short" | "password.too_weak" | "password.held_by_cli" | "password.reset_admin_only" | "password.reset_own" | "media.not_found" | "media.ambiguous" | "provider.unavailable" | "library.locked";
         /** @description A PLEX SIGN-IN STARTED on the server: its PIN, and Plex's page where the person confirms it (round 4 P-2 = B). */
         StartedPlexSignIn: {
             /** @description the PIN's key, the one `signInWithPlex` takes */
@@ -3148,6 +3148,7 @@ export interface operations {
             content: {
                 "application/json": {
                     currentPassword: string;
+                    /** @description held to the password policy once the current password is proven: `password.too_short` / `password.too_weak`, each with its `minimum`. THE PASSWORD POLICY, on every local door (the operator, 2026-10-04): at least `minimum` characters, one uppercase letter, one digit and one special character (anything neither a letter nor a number). Shorter is refused `password.too_short`, a missing class `password.too_weak`; both carry `minimum`. */
                     newPassword: string;
                 };
             };
@@ -5989,9 +5990,9 @@ export interface operations {
                     name: string;
                     /** @description MANDATORY: a local account carries an e-mail, and a Plex identity with the same e-mail is linked to it */
                     email: string;
-                    /** @description the initial role's id; absent, the role local accounts start on (`Role.defaultFor` `local`: Invité — O-K1-4). An e-mail that is a user of the managed server is linked instead, and starts on its Plex kind's role */
-                    role?: string;
-                    /** @description THE PROVISIONAL PASSWORD a local account starts with, set by the Admin who creates it (the operator, 2026-10-03: « A »): required for a local account (refused `password.required`, or `password.too_short` with its `minimum`); IGNORED and never stored for an e-mail that is a user of the managed server, which is linked and signs in by Plex only. The account changes it in Profil (`changeOwnPassword`). */
+                    /** @description MANDATORY (the operator, 2026-10-04): the initial role's id — nothing is chosen for the manager; absent, the request is refused 400 `request.invalid`. THE ADMIN ROLE IS GIVEN BY THE SERVER'S OWNER ONLY (the operator, 2026-10-04: « seul le compte propriétaire peut promouvoir Admin ; un autre Admin ne le peut pas »): from any other caller it is refused — 403 `account.admin_owner_only` to an Admin, `role.escalation` to a manager who is not Admin. An e-mail that is a user of the managed server is linked instead, and starts on its Plex kind's role */
+                    role: string;
+                    /** @description THE PROVISIONAL PASSWORD a local account starts with, set by the Admin who creates it (the operator, 2026-10-03: « A »): required for a local account (refused `password.required`), and held to the password policy (`password.too_short` / `password.too_weak`, each with its `minimum`); IGNORED and never stored for an e-mail that is a user of the managed server, which is linked and signs in by Plex only. The account changes it in Profil (`changeOwnPassword`). THE PASSWORD POLICY, on every local door (the operator, 2026-10-04): at least `minimum` characters, one uppercase letter, one digit and one special character (anything neither a letter nor a number). Shorter is refused `password.too_short`, a missing class `password.too_weak`; both carry `minimum`. */
                     password?: string;
                 };
             };
@@ -6028,6 +6029,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
+                    /** @description the role the account is put on. THE ADMIN ROLE IS GIVEN BY THE SERVER'S OWNER ONLY (the operator, 2026-10-04: « seul le compte propriétaire peut promouvoir Admin ; un autre Admin ne le peut pas »): an account put on it by any other Admin is refused 403 `account.admin_owner_only` (a manager who is not Admin is refused `account.admin_untouchable`); an account already on it, kept there, gives nothing and is not refused. THE OWNER'S ACCOUNT NEVER LEAVES THE ADMIN ROLE (§ 17: only the owner gives Admin, so the owner demoted would leave nobody to give it back): putting the server owner's account on any other role is refused 403 `account.owner_admin` whoever the caller, the owner included, checked before the last-Admin guard */
                     role: string;
                 };
             };
@@ -6375,7 +6377,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** @description the new provisional password; refused `password.required` when empty, `password.too_short` (`minimum`) when shorter than the server's minimum */
+                    /** @description the new provisional password; refused `password.required` when empty, then held to the password policy: `password.too_short` / `password.too_weak`, each with its `minimum`. THE PASSWORD POLICY, on every local door (the operator, 2026-10-04): at least `minimum` characters, one uppercase letter, one digit and one special character (anything neither a letter nor a number). Shorter is refused `password.too_short`, a missing class `password.too_weak`; both carry `minimum`. */
                     password: string;
                 };
             };

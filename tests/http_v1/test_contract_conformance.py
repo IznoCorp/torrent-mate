@@ -572,7 +572,7 @@ class _Role(ContractModel):
     name: str
     kind: _RoleKind
     rights: list[Right]
-    default_for: list[Literal["plexHome", "plexGuest", "local"]] | None = None
+    default_for: list[Literal["plexHome", "plexGuest"]] | None = None
 
 
 class _RoleDraft(ContractModel):

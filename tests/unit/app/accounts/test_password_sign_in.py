@@ -23,7 +23,7 @@ from personalscraper.app.accounts.ratelimit import MAX_FAILED_ATTEMPTS, WINDOW_S
 from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow
 from personalscraper.app.accounts.service import AccountService, SignInResult
 from personalscraper.app.accounts.sessions import SessionService
-from personalscraper.app.errors import AppNotFound, AppTooManyRequests, AppUnauthenticated, RefusalCode
+from personalscraper.app.errors import AppBadRequest, AppNotFound, AppTooManyRequests, AppUnauthenticated, RefusalCode
 from personalscraper.app.store.store import AppStore
 from personalscraper.core.event_bus import EventBus
 
@@ -345,22 +345,37 @@ class TestSetPassword:
 
     def test_sets_a_password_that_signs_in(self, accounts: AccountService, store: AppStore) -> None:
         """The account without a password gets one; the door opens with it; only a hash is kept."""
-        accounts.set_password("NOPASS@example.org", "a new password")
+        accounts.set_password("NOPASS@example.org", "A new password 1!")
         row = store.accounts.account("account-nopass")
         assert row is not None and row.password_hash is not None
-        assert "a new password" not in row.password_hash
-        assert _sign_in(accounts, "nopass@example.org", "a new password").account.id == "account-nopass"
+        assert "A new password 1!" not in row.password_hash
+        assert _sign_in(accounts, "nopass@example.org", "A new password 1!").account.id == "account-nopass"
 
     def test_replaces_the_previous_password(self, accounts: AccountService) -> None:
         """The old password no longer opens the door."""
-        accounts.set_password("local@example.org", "the replacement")
+        accounts.set_password("local@example.org", "The replacement 2!")
         _refused(accounts, "local@example.org", _PASSWORD)
-        assert _sign_in(accounts, "local@example.org", "the replacement").account.id == "account-local"
+        assert _sign_in(accounts, "local@example.org", "The replacement 2!").account.id == "account-local"
+
+    @pytest.mark.parametrize(
+        ("password", "code"),
+        [("Short 1!", RefusalCode.PASSWORD_TOO_SHORT), ("no class at all", RefusalCode.PASSWORD_TOO_WEAK)],
+        ids=["too-short", "too-weak"],
+    )
+    def test_a_password_breaking_the_policy_is_refused(
+        self, accounts: AccountService, store: AppStore, password: str, code: RefusalCode
+    ) -> None:
+        """400 by the policy every local door applies; the stored hash untouched."""
+        before = store.accounts.account("account-local")
+        with pytest.raises(AppBadRequest) as caught:
+            accounts.set_password("local@example.org", password)
+        assert caught.value.code == code
+        assert store.accounts.account("account-local") == before
 
     def test_an_unknown_email_is_account_unknown(self, accounts: AccountService) -> None:
         """No account: ``account.unknown``, with neither the e-mail nor the password in the refusal."""
         with pytest.raises(AppNotFound) as caught:
-            accounts.set_password("nobody@example.org", "whatever secret")
+            accounts.set_password("nobody@example.org", "Whatever secret 3!")
         assert caught.value.code == RefusalCode.ACCOUNT_UNKNOWN
         assert "nobody@example.org" not in str(caught.value)
-        assert "whatever secret" not in str(caught.value)
+        assert "Whatever secret 3!" not in str(caught.value)

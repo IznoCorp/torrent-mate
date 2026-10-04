@@ -48,9 +48,6 @@
       "kind": "ordinary",
       "rights": [
         "library.read"
-      ],
-      "defaultFor": [
-        "local"
       ]
     }
   ],
