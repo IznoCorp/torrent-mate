@@ -19,6 +19,12 @@ from the prototype — markup, styles and typeface, between explicit markers —
 so the screen a visitor meets is the screen the design defines, never a copy of
 it that drifts.
 
+Two switches. `TM_DESIGN_GATE` names the door: `shared` (the default) is this
+host's own password; `v1` is the real v1 session — the sign-in page stays public
+and posts to v1, and the document is served only to a request whose v1 session
+v1 itself accepts. `TM_DESIGN_REBUILD=off` (`on` by default) stops the host
+rebuilding a tree another process builds.
+
 Only a scrypt hash of the password is stored. Set `TM_DESIGN_PASSWORD_HASH` to
 rotate it without touching this file:
 
@@ -58,6 +64,9 @@ from pathlib import Path
 # earns its place. The directory is this file's own, resolved, never the
 # caller's working directory.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+# The v1 door — its own subject, its own file.
+import v1_door  # noqa: E402 — the path line above must run first
 
 # The identity of the tree this host serves — its own subject, its own file.
 from host_identity import with_served_identity  # noqa: E402 — the path line above must run first
@@ -196,6 +205,42 @@ NPM = _OPERATOR_NPM if os.path.exists(_OPERATOR_NPM) else (shutil.which("npm") o
 # TM_DESIGN_ROOT lets a rule serve a scratch root.
 BUILD_TIMEOUT = float(
     renamed_env("TM_DESIGN_BUILD_TIMEOUT", "TM_DESIGN_DELAI_BUILD") or 120)
+
+
+
+def setting(name: str, choices: tuple[str, ...]) -> str:
+    """Reads one of this host's closed settings, its first choice when unset.
+
+    Args:
+        name: The environment variable.
+        choices: The values it takes, the default first.
+
+    Returns:
+        The value set.
+
+    Raises:
+        SystemExit: For any other value — a setting misspelt into its default
+            would leave the wrong door in place, or a rebuild running, saying
+            nothing.
+    """
+    value = os.environ.get(name, choices[0])
+    if value not in choices:
+        raise SystemExit(f"{name} is {value!r}: it takes {' or '.join(choices)}")
+    return value
+
+
+# WHICH DOOR (the operator, 2026-10-04; Q4 = B, amended round 2 Q1 = A). The
+# application's code never reaches a visitor nobody signed in. `shared` is this
+# host's own password, as it has always been — and what every harness rule
+# reads. `v1` makes the real v1 session the door: the sign-in page is public and
+# posts to v1, and the document and its bundle answer only a request carrying a
+# session v1 accepts.
+GATE = setting("TM_DESIGN_GATE", ("shared", "v1"))
+# THE HOST'S OWN REBUILD, switchable off: a host serving a tree another process
+# builds with `--mode design-host` must never rebuild it with plain
+# `npm run build`, which would serve a full-mock, frozen-clock build saying
+# nothing. Off, a missing or stale build is the named 503.
+REBUILD = setting("TM_DESIGN_REBUILD", ("on", "off")) == "on"
 
 USERNAME = os.environ.get("TM_DESIGN_USER", "izno")
 
@@ -392,8 +437,13 @@ def login_page(refused: bool) -> bytes:
                     count=1)
     # BY PATTERN ON THE ID, for the reason just above: the form's classes are
     # styling and may change; `id="loginform"` is the anchor its script reads.
-    markup = re.sub(r'(<form\b[^>]*?\bid="loginform")', r'\1 method="post" action="/login"',
-                    markup, count=1)
+    # The v1 door posts by script (`v1_door.V1_SIGN_IN`), to v1 itself; the
+    # shared door posts the form here.
+    if GATE == "v1":
+        markup = v1_door.as_v1_form(markup, v1_door.email_label(TEXTS.read_text(encoding="utf-8")))
+    else:
+        markup = re.sub(r'(<form\b[^>]*?\bid="loginform")', r'\1 method="post" action="/login"',
+                        markup, count=1)
     if refused:
         markup = markup.replace('id="loginerr" hidden', 'id="loginerr"', 1)
     # Inside the prototype the startup screen is what the document opens on;
@@ -444,7 +494,7 @@ def login_page(refused: bool) -> bytes:
         f"{pwa_head(DESIGN_ROOT)}"
         "<style>"
         f"{styles}{adjustments}</style></head><body>{markup}"
-        f"{STARTUP_SWITCH}</body></html>"
+        f"{STARTUP_SWITCH}{v1_door.V1_SIGN_IN if GATE == 'v1' else ''}</body></html>"
     ).encode()
 
 
@@ -509,6 +559,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 built = DIST.stat().st_mtime_ns
             except FileNotFoundError:
                 built = -1
+            if built < sources and not REBUILD:
+                raise RuntimeError(
+                    "the build is missing or older than its sources, and this host "
+                    "does not rebuild (TM_DESIGN_REBUILD=off)")
             if built < sources:
                 try:
                     run = subprocess.run(
@@ -531,7 +585,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return Handler._cache[1]  # type: ignore[index]
 
     def _authenticated(self) -> bool:
-        """Returns True when the request carries a valid session cookie."""
+        """Returns True when the request carries a session the door accepts.
+
+        Raises:
+            v1_door.V1Unreachable: Under the v1 door, when v1 does not say.
+        """
+        if GATE == "v1":
+            return v1_door.admitted(self.headers.get("Cookie"))
         raw = self.headers.get("Cookie")
         if not raw:
             return False
@@ -602,6 +662,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self._send(status, body, content_type=content_type)
 
     def do_GET(self) -> None:  # noqa: N802 — name imposed by BaseHTTPRequestHandler
+        """Answers a GET, or names v1 when the v1 door cannot ask it."""
+        try:
+            self._get()
+        except v1_door.V1Unreachable as down:
+            # Never the sign-in page: it would send a signed-in person to a
+            # door that cannot open, saying nothing about why.
+            self._send(503, v1_door.unreachable_page(str(down)))
+
+    def _get(self) -> None:
         """Answers a GET: the prototype to a session, the login screen otherwise."""
         path_ = self.path.split("?", 1)[0]
         if path_ == "/manifest.webmanifest":
@@ -726,7 +795,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802 — name imposed by BaseHTTPRequestHandler
         """Answers the login form: a session cookie, or the rejection state."""
-        if self.path.split("?", 1)[0] != "/login":
+        # Under the v1 door the form posts to v1: there is nothing to answer
+        # here, and no cookie of this host's to issue.
+        if self.path.split("?", 1)[0] != "/login" or GATE == "v1":
             self._send(303, b"", [("Location", "/")])
             return
         size = min(int(self.headers.get("Content-Length") or 0), 4096)
