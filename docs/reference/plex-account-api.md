@@ -74,7 +74,7 @@ Host `https://plex.tv`. Timeouts `(3.0, 10.0)`, one attempt (a person waits at t
 | `create_pin()` | `POST /api/v2/pins?strong=true` | no token | 200/201 `{id, code, expiresAt, …}` → `PlexPin(id, code, expires_at)` (epoch from `expiresAt`, else `None`) |
 | `sign_in_url(pin, forward_url=None)` | — (pure) | — | `https://app.plex.tv/auth#?clientID=…&code=…&context%5Bdevice%5D%5Bproduct%5D=…[&forwardUrl=…]` |
 | `check_pin(pin_id, code)` | `GET /api/v2/pins/{id}?code=…` | no token | 200 with `authToken` → the token; 200 with `authToken: null` → `None` (pending); 404/410 → `PlexPinExpired` |
-| `account(token)` | `GET /api/v2/user` | `X-Plex-Token` | 200 → `PlexAccount(plex_id, uuid, username, title, email, thumb)`; 401 → `PlexTokenRefused` |
+| `account(token)` | `GET /api/v2/user` | `X-Plex-Token` | 200 → `PlexAccount(plex_id, uuid, username, title, email, thumb, confirmed)`; 401 → `PlexTokenRefused` |
 | `server_access(token, machine_identifier)` | `GET /api/v2/resources?includeHttps=1` | `X-Plex-Token` (the USER's) | 200 list → `PlexServerAccess`; 401 → `PlexTokenRefused` |
 
 `check_pin` makes ONE call; the caller owns the cadence (at most once a second, Plex's own
@@ -82,6 +82,8 @@ figure — NE-DOIT-PAS-8).
 
 An identity answer without an integer `id` or a non-empty `email` is « outside the protocol »
 (`PlexAccountUnreachable`): the e-mail is what links a local account, the id is the key.
+`confirmed` is true only when plex.tv answers the boolean `true` (the capture redacts it): an
+e-mail plex.tv has not confirmed links nothing.
 
 ---
 
@@ -184,7 +186,7 @@ the application, behind `startPlexSignIn` (`POST /api/v1/auth/plex/start`) and `
 | start | the client identifier read from `app_setting` `plex.client_identifier` (created once); `create_pin`; the PIN stored with the sha256 of a nonce; the nonce handed in the cookie `tm_v1_plex_pin` (HttpOnly, SameSite=Strict, Path=`/api/v1/auth/plex`, until the PIN expires) |
 | finish | the PIN bound to the cookie's nonce, else `plex.pin_unknown`; past its expiry `plex.pin_expired`; a check claimed at most once a second (an atomic `UPDATE`), else 202 pending; `check_pin` → `account` → the server's identifier → `server_access` |
 | owner | OWNER only when the identity's `plex_id` is the account behind `PLEX_TOKEN` (read once, cached); otherwise refused as no access |
-| admit | one transaction: the account by `plex_id`, else a local account by e-mail (linked), else a new one; the PIN used; the token sealed in the vault (no vault: not kept, `plex_token.not_kept`); then the session |
+| admit | one transaction: the account by `plex_id`, else a local account by e-mail (linked, only when plex.tv confirmed the e-mail), else a new one; the PIN used; the token sealed in the vault (no vault: not kept, `plex_token.not_kept`); then the session |
 
 First role, applied at creation or link only: Admin for the owner, `Role.defaultFor` `plexHome` for a
 Home member, `plexGuest` for any other user. `plex_link.server_access` stores `shared` for a Home
@@ -194,7 +196,7 @@ the owner keeps Admin and his password.
 
 | Refusal | Code |
 | --- | --- |
-| no access, lost access, an owned resource under another account, an e-mail another identity holds | 401 `auth.refused` |
+| no access, lost access, an owned resource under another account, an e-mail another identity holds, an e-mail plex.tv has not confirmed | 401 `auth.refused` |
 | plex.tv refused the token the PIN yielded | 401 `plex.token_refused` |
 | an account an Admin cut | 403 `auth.access_disabled` |
 | plex.tv silent | 503 `plex.unreachable` |

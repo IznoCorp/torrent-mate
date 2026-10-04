@@ -22,7 +22,8 @@ The operator's rulings, as coded here (K1 P1-7; the contract's ``signInWithPlex`
   only, its password dropped, and it drops to its Plex kind's role (``demoted_from`` recorded,
   E8 ``plex_linked``) until an Admin promotes it again — no e-mail link ever carries Admin. The
   owner is the exception: put on (or kept on) Admin, and his password kept as the fallback for
-  when Plex is down. An e-mail whose account is another plex.tv identity's is refused.
+  when Plex is down. An e-mail plex.tv has not confirmed, or whose account is another plex.tv
+  identity's, is refused.
 - **plex.tv down, the server down and a token refused are told apart**: ``plex.unreachable``,
   ``plex.server_unreachable``, ``plex.token_refused`` — none tells whether an identity matches.
 
@@ -417,7 +418,8 @@ class PlexSignInService:
             The account's key, and whether a link moved its role (E8 to publish).
 
         Raises:
-            AppUnauthenticated: ``auth.refused`` — the e-mail's account is another identity's.
+            AppUnauthenticated: ``auth.refused`` — the e-mail's account is another identity's,
+                or plex.tv has not confirmed the e-mail; nothing is written.
             AppForbidden: ``auth.access_disabled`` — the account is cut; nothing is written.
             AppBadRequest: ``plex.pin_unknown`` — another sign-in used the PIN meanwhile.
             AppInternalError: ``internal`` — no role answers the identity's Plex kind.
@@ -438,6 +440,11 @@ class PlexSignInService:
                 if found is None:
                     account = self._create(repo, plex, _first_role(repo, access), now)
                 else:
+                    # An e-mail plex.tv has not confirmed proves nothing: whoever typed it
+                    # would take the local account that holds it.
+                    if not plex.confirmed:
+                        log.info("plex_sign_in.refused", reason="email_unconfirmed", plex_id=plex.plex_id)
+                        raise AppUnauthenticated("The sign-in was refused.", code=RefusalCode.AUTH_REFUSED)
                     if repo.plex_link(found.id) is not None:
                         log.info("plex_sign_in.refused", reason="email_linked_elsewhere", plex_id=plex.plex_id)
                         raise AppUnauthenticated("The sign-in was refused.", code=RefusalCode.AUTH_REFUSED)

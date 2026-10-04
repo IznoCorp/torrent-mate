@@ -430,6 +430,7 @@ class TestAccount:
             title="REDACTED-name-2",
             email="redacted-1@example.invalid",
             thumb="https://redacted.invalid/url-1",
+            confirmed=False,  # the capture redacts it: only a boolean true confirms
         )
 
     def test_the_recorded_401_is_a_refusal(self) -> None:
@@ -444,6 +445,25 @@ class TestAccount:
         del body["thumb"]
         client, _ = _client(_Response(200, body))
         assert client.account(TOKEN).thumb is None
+
+    @pytest.mark.parametrize(
+        ("confirmed", "expected"),
+        [(True, True), (False, False), ("REDACTED", False), ("true", False), (1, False), (None, False)],
+        ids=["true", "false", "redacted", "string", "one", "null"],
+    )
+    def test_the_email_is_confirmed_only_by_a_boolean_true(self, confirmed: Any, expected: bool) -> None:
+        """``confirmed`` is plex.tv's own word that the e-mail is the person's: anything but ``true`` is not."""
+        body = copy.deepcopy(_sample("user-200")["body"])
+        body["confirmed"] = confirmed
+        client, _ = _client(_Response(200, body))
+        assert client.account(TOKEN).confirmed is expected
+
+    def test_a_missing_confirmed_is_unconfirmed(self) -> None:
+        """No ``confirmed`` in the answer: the e-mail is not confirmed."""
+        body = copy.deepcopy(_sample("user-200")["body"])
+        del body["confirmed"]
+        client, _ = _client(_Response(200, body))
+        assert client.account(TOKEN).confirmed is False
 
     @pytest.mark.parametrize(
         "answer",

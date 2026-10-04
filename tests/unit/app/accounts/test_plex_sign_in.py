@@ -110,18 +110,19 @@ class _Response:
         return self._body
 
 
-def _user(plex_id: int = PLEX_ID, email: str = EMAIL) -> dict[str, Any]:
-    """The captured identity, its id and e-mail set.
+def _user(plex_id: int = PLEX_ID, email: str = EMAIL, *, confirmed: bool = True) -> dict[str, Any]:
+    """The captured identity, its id, e-mail and e-mail confirmation set.
 
     Args:
         plex_id: Its plex.tv id.
         email: Its e-mail.
+        confirmed: Whether plex.tv confirmed the e-mail (the capture redacts it).
 
     Returns:
         ``user-200.json``'s body.
     """
     body: dict[str, Any] = _sample("user-200")
-    body.update(id=plex_id, email=email, authToken=None)
+    body.update(id=plex_id, email=email, authToken=None, confirmed=confirmed)
     return body
 
 
@@ -799,6 +800,27 @@ class TestLinkByEmail:
         assert len(store.accounts.accounts()) == 1
         link = store.accounts.plex_link("account-taken")
         assert link is not None and link.plex_id == 777
+
+    @pytest.mark.parametrize("machine", [MACHINE, SHARED_MACHINE], ids=["owner", "shared"])
+    def test_an_unconfirmed_email_links_nothing_and_is_refused(
+        self, store: AppStore, plextv: _PlexTv, clock: _Clock, bus: EventBus, vault: TokenVault, machine: str
+    ) -> None:
+        """plex.tv has not confirmed the e-mail: 401 ``auth.refused``; the local account untouched, nothing stored."""
+        store.accounts.insert_account(_local("account-local", EMAIL, "requester"))
+        before = store.accounts.account("account-local")
+        plextv.users[USER_TOKEN] = _user(confirmed=False)
+        door = _build(store, plextv, _Server(machine), clock, bus, vault)
+        started = door.start()
+        clock.now += 2.0
+
+        refusal = _refusal(lambda: door.finish(started.pin_id, nonce=started.nonce, user_agent=None))
+
+        assert isinstance(refusal, AppUnauthenticated) and refusal.code is RefusalCode.AUTH_REFUSED
+        assert store.accounts.account("account-local") == before
+        assert store.accounts.accounts() == [before]
+        conn = store.accounts._conn
+        for table in ("plex_link", "session"):
+            assert conn.execute(f"SELECT count(*) FROM {table}").fetchone()[0] == 0  # noqa: S608 — fixed names
 
     def test_a_linked_account_no_longer_signs_in_by_password(
         self, store: AppStore, plextv: _PlexTv, clock: _Clock, bus: EventBus
