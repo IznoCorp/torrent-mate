@@ -30,11 +30,19 @@ function ask(method: string, path: string, body: Record<string, unknown>): Answe
 const STRONG = "A provisional one 1";
 const WEAK = "a provisional one";
 
-/** Puts a second account on the Admin role and signs it in: an Admin who is not the owner. */
-function asSecondAdmin(): void {
-  identityDials.setAccountRole("local-account", "admin");
-  identityDials.setIdentity("local-account");
+/**
+ * Puts a second account on the Admin role and signs it in: an Admin who is not the owner.
+ *
+ * @param id The account — local by default; a Plex-linked one proves the owner is told by
+ *   its kind, never by having a Plex link at all.
+ */
+function asSecondAdmin(id = "local-account"): void {
+  identityDials.setAccountRole(id, "admin");
+  identityDials.setIdentity(id);
 }
+
+/** The two Admins who are not the owner: a local account, and a Plex-linked one (a shared user). */
+const SECOND_ADMINS = [["local", "local-account"], ["plex-linked", "household-member"]] as const;
 
 describe("a new account's role", () => {
   beforeEach(() => resetMockState());
@@ -93,8 +101,8 @@ describe("the Admin role", () => {
     expect(created.role?.kind).toBe("admin");
   });
 
-  it("is refused to an Admin who is not the owner, on an account's role and at creation", () => {
-    asSecondAdmin();
+  it.each(SECOND_ADMINS)("is refused to an Admin who is not the owner (%s), on an account's role and at creation", (_kind, id) => {
+    asSecondAdmin(id);
     const promoted = ask("PATCH", "/accounts/local-guest", { role: "admin" });
     expect([promoted.status, promoted.coded?.code]).toEqual([403, "account.admin_owner_only"]);
     const created = ask("POST", "/accounts", { name: "Nina", email: "nina@example.invalid", role: "admin", password: STRONG });

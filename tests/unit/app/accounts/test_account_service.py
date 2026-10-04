@@ -222,6 +222,36 @@ def owner(store: AppStore) -> Actor:
     return _actor_of(store.accounts, "account-admin")
 
 
+@pytest.fixture(params=["local", "plex-shared"])
+def non_owner_admin(request: pytest.FixtureRequest, store: AppStore) -> Actor:
+    """An Admin who is not the server's owner: a local account, or one linked to Plex as a shared user.
+
+    The owner is told by its Plex link's ``server_access``, never by having a link at all.
+
+    Args:
+        request: Pytest's request, its ``param`` the Admin's kind.
+        store: The store.
+
+    Returns:
+        The actor.
+    """
+    if request.param == "plex-shared":
+        store.accounts.upsert_plex_link(
+            PlexLinkRow(
+                account_id="account-admin",
+                plex_id=4343,
+                plex_uuid="uuid-shared",
+                plex_username="shared",
+                server_access="shared",
+                token_ciphertext=None,
+                token_stored_at=None,
+                linked_at=1.0,
+                last_sign_in_at=None,
+            )
+        )
+    return _actor_of(store.accounts, "account-admin")
+
+
 def _refusal(call: Callable[[], object]) -> AppRefusal:
     """Run a call expected to be refused.
 
@@ -328,12 +358,12 @@ class TestCreateAccount:
         assert created.role.kind is RoleKind.ADMIN
 
     def test_an_admin_who_is_not_the_owner_never_creates_an_admin(
-        self, store: AppStore, accounts: AccountService, admin: Actor
+        self, store: AppStore, accounts: AccountService, non_owner_admin: Actor
     ) -> None:
         """403 ``account.admin_owner_only``: only the owner promotes to Admin; nothing is created."""
         refusal = _refusal(
             lambda: accounts.create_account(
-                admin, name="New", email="new@example.org", role_id="admin", password=_PASSWORD
+                non_owner_admin, name="New", email="new@example.org", role_id="admin", password=_PASSWORD
             )
         )
         assert isinstance(refusal, AppForbidden)
@@ -536,10 +566,14 @@ class TestUpdateAccount:
         assert [event.account_ids for event in published] == [("account-guest",)]
 
     def test_an_admin_who_is_not_the_owner_never_promotes_to_admin(
-        self, store: AppStore, accounts: AccountService, admin: Actor, published: list[AccountRightsChanged]
+        self,
+        store: AppStore,
+        accounts: AccountService,
+        non_owner_admin: Actor,
+        published: list[AccountRightsChanged],
     ) -> None:
         """403 ``account.admin_owner_only``; the account keeps its role, nothing is published."""
-        refusal = _refusal(lambda: accounts.update_account(admin, "account-guest", role_id="admin"))
+        refusal = _refusal(lambda: accounts.update_account(non_owner_admin, "account-guest", role_id="admin"))
         assert isinstance(refusal, AppForbidden)
         assert refusal.code is RefusalCode.ACCOUNT_ADMIN_OWNER_ONLY
         guest = store.accounts.account("account-guest")

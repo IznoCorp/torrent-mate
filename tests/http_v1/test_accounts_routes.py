@@ -216,10 +216,13 @@ class TestCreateAccount:
         assert response.json()["code"] == "password.too_weak"
         assert response.json()["params"] == {"minimum": PASSWORD_MINIMUM}
 
-    def test_an_admin_who_is_not_the_owner_giving_admin_is_403(self, v1_client: Callable[..., TestClient]) -> None:
-        """403 ``account.admin_owner_only``; the owner gives it (201)."""
+    @pytest.mark.parametrize("server_access", [None, "shared"], ids=["local", "plex-shared"])
+    def test_an_admin_who_is_not_the_owner_giving_admin_is_403(
+        self, v1_client: Callable[..., TestClient], server_access: str | None
+    ) -> None:
+        """403 ``account.admin_owner_only`` to a local or a Plex-shared Admin; the owner gives it (201)."""
         body = {"name": "New", "email": "new@example.org", "role": "admin", "password": _PASSWORD}
-        refused = v1_client(role="admin").post("/accounts", json=body)
+        refused = v1_client(role="admin", server_access=server_access).post("/accounts", json=body)
         assert refused.status_code == 403
         assert refused.json()["code"] == "account.admin_owner_only"
         created = v1_client(role="admin", server_access="owner").post("/accounts", json=body)
@@ -288,11 +291,12 @@ class TestUpdateAccount:
         assert response.status_code == 409
         assert response.json()["code"] == "account.last_admin"
 
+    @pytest.mark.parametrize("server_access", [None, "shared"], ids=["local", "plex-shared"])
     def test_an_admin_who_is_not_the_owner_promoting_to_admin_is_403(
-        self, v1_client: Callable[..., TestClient]
+        self, v1_client: Callable[..., TestClient], server_access: str | None
     ) -> None:
-        """403 ``account.admin_owner_only``; the owner promotes (200)."""
-        client = v1_client(role="admin")
+        """403 ``account.admin_owner_only`` to a local or a Plex-shared Admin; the owner promotes (200)."""
+        client = v1_client(role="admin", server_access=server_access)
         _add_account(client, "account-guest", "local-guest")
         refused = client.patch("/accounts/account-guest", json={"role": "admin"})
         assert refused.status_code == 403
