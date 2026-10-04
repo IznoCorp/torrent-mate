@@ -8,7 +8,8 @@
 
 /**
  * Shows the signed-in account in the top bar's avatar: its picture, or — for
- * an account that has none — its initial, never another account's picture.
+ * an account that has none, or whose picture fails to load — its initial,
+ * never another account's picture.
  *
  * A document without the top bar (a page with no frame drawn) is left as it is
  * rather than throwing.
@@ -34,6 +35,15 @@ export function showAvatar(source: string, name: string): void {
   image.style.display = source ? "" : "none";
   if (source) image.src = source;
   else image.removeAttribute("src");
+  // A PICTURE THAT DOES NOT LOAD IS NO PICTURE: the server answers an address,
+  // and a Gravatar asked with `d=404` answers no image for an e-mail that has
+  // none, or plex.tv is down. The initial takes its place — unless the image
+  // has been given another address since, whose own load decides.
+  image.onerror = source
+    ? () => {
+        if (image.getAttribute("src") === source) showAvatar("", name);
+      }
+    : null;
   if (!initial) return;
   initial.style.display = source ? "none" : "";
   initial.textContent = source ? "" : name.trim().slice(0, 1).toLocaleUpperCase();

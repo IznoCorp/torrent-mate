@@ -114,5 +114,24 @@ export function accountStates(): NamedState[] {
         profileOn({ environment: ANDROID, answer: "granted" });
       },
     ],
+    // B-695: THE ACCOUNT MENU OF EACH PICTURE THE SERVER RESOLVES — a Plex
+    // picture, a Gravatar, neither, and one whose picture fails to load, which
+    // must read as neither: the initial in the bar, no picture in the panel.
+    ...(
+      [
+        ["sheet-user-plex-picture", "Menu utilisateur d'un compte lié à Plex : sa photo Plex", "just-linked"],
+        ["sheet-user-gravatar", "Menu utilisateur d'un compte local : son Gravatar", "local-guest"],
+        ["sheet-user-initials", "Menu utilisateur d'un compte sans photo Plex ni Gravatar : son initiale", "local-account"],
+        ["sheet-user-picture-fails", "Menu utilisateur d'un compte dont la photo ne se charge pas : son initiale", "guest-with-quality"],
+      ] as const
+    ).map(([id, label, account]): NamedState => [
+      id,
+      label,
+      () => {
+        as(account);
+        applyState({ page: "acq", phase: "ready" });
+        window.__panel.produce("account");
+      },
+    ]),
   ];
 }

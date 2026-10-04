@@ -20,7 +20,7 @@
 //
 // Prose — anything a reader reads as a sentence — goes through `t()`, so this
 // component re-renders when the language changes.
-import { Fragment, type JSX } from "react";
+import { Fragment, useState, type JSX } from "react";
 import { useTranslation } from "react-i18next";
 import { posterArtwork, useEngineDrawing } from "../../lib/engine-drawing";
 import { Chip } from "../chip";
@@ -207,6 +207,12 @@ export function PanelContent({
 }: {
   descriptor: PanelDescriptor;
 }): JSX.Element {
+  // A PICTURE THAT DOES NOT LOAD IS NO PICTURE: the server answers an address,
+  // and a Gravatar asked with `d=404` answers no image for an e-mail that has
+  // none. The panel then reads as one with no avatar — keyed by the address, so
+  // a descriptor carrying another one is given its own chance.
+  const [failedAvatar, setFailedAvatar] = useState<string | null>(null);
+  const avatar = descriptor.avatar && descriptor.avatar !== failedAvatar ? descriptor.avatar : null;
   const identity = (
     <>
       <h2 className={sheetTitle()} data-part="sheet/title">{descriptor.title}</h2>
@@ -225,9 +231,9 @@ export function PanelContent({
     <span className={sheetPoster()} data-part="sheet/poster">
       <Poster poster={descriptor.poster} />
     </span>
-  ) : descriptor.avatar ? (
+  ) : avatar ? (
     <span className={`avatar ${sheetAvatar()}`} data-part="avatar" aria-hidden="true">
-      <img className={avatarImage()} src={descriptor.avatar} alt="" />
+      <img className={avatarImage()} src={avatar} alt="" onError={() => setFailedAvatar(avatar)} />
     </span>
   ) : null;
 

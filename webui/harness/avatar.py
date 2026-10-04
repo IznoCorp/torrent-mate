@@ -57,6 +57,9 @@ from common import Journal, open_page, browser_channel, chrome_launch_args
 # one scenario rather than two spellings of it.
 STATE = "sheet-user"
 
+# The state whose account's picture fails to load (B-695).
+FAILING_STATE = "sheet-user-picture-fails"
+
 # The two avatars, by the anchor both already emit. Named rather than swept:
 # each is held for its own reason, and a sweep would report « 2 of 2 agree »
 # without saying which two.
@@ -162,14 +165,56 @@ async def hold(journal):
                 "default, which gives it a baseline gap and makes a percentage "
                 "height resolve against a line box rather than against the host")
 
+        await hold_fallback(journal, page)
+
         await context.close()
         await browser.close()
     journal.summary(errors)
 
 
+async def hold_fallback(journal, page):
+    """B-695: a picture that fails to load reads as none — in the bar and in the panel.
+
+    The server answers an ADDRESS (a Plex picture, a Gravatar asked with
+    ``d=404``), never a promise that an image is there. The state signs in an
+    account whose address does not decode; the bar must then draw the
+    account's initial in place of the image, and the panel must draw no
+    picture at all — what it draws for an account that has none.
+    """
+    await page.evaluate("(state)=>window.__go(state)", FAILING_STATE)
+    await page.wait_for_timeout(1200)
+    reading = await page.evaluate(
+        """() => {
+             const bar = document.querySelector('header [data-part="avatar"]');
+             const image = bar?.querySelector("img");
+             const initial = bar?.querySelector('[data-part="avatar/initial"]');
+             return {
+               imageShown: Boolean(image && getComputedStyle(image).display !== "none"),
+               initial: initial && getComputedStyle(initial).display !== "none"
+                 ? initial.textContent : null,
+               panelPicture: Boolean(document.querySelector('#sheetin [data-part="avatar"] img')),
+               panelOpen: Boolean(document.querySelector("#sheetin [data-part='sheet/title']")),
+             };
+           }""")
+    journal.check(
+        "the failing picture's panel is open to be read",
+        reading["panelOpen"],
+        f"state {FAILING_STATE} opened no account panel")
+    journal.check(
+        "the bar draws the initial when the picture fails to load",
+        not reading["imageShown"] and bool(reading["initial"]),
+        f"image shown: {reading['imageShown']}, initial: {reading['initial']!r} — "
+        "a broken image in the bar shows the browser's broken-image box")
+    journal.check(
+        "the panel draws no picture when the picture fails to load",
+        not reading["panelPicture"],
+        "the panel still holds an `img` whose address did not load")
+
+
 def main():
     journal = Journal(
-        "R97 — an avatar's image fills its host, in the shell and in a panel")
+        "R97 — an avatar's image fills its host, in the shell and in a panel, "
+        "and a picture that fails reads as none")
     asyncio.run(hold(journal))
 
 

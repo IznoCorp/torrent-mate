@@ -122,6 +122,8 @@ export type HeldAccount = {
   signInKind: Schemas["SignInKind"];
   /** The role it held before its link dropped it to its Plex kind's starting role, by id. */
   demotedFrom?: string;
+  /** Its picture's address, as the server resolves it; absent when it has neither a Plex picture nor a Gravatar. */
+  avatar?: string;
 };
 
 /** Every account: the owner first, then the invented ones. */
@@ -129,7 +131,7 @@ export function heldAccounts(): HeldAccount[] {
   const { assigned, createdAccounts, testRoster } = dials();
   return [
     { id: ACCOUNT.id, name: accountName(), email: ACCOUNT.email, role: ACCOUNT.role,
-      signInKind: ACCOUNT.signInKind as Schemas["SignInKind"] },
+      signInKind: ACCOUNT.signInKind as Schemas["SignInKind"], avatar: ACCOUNT.avatar },
     ...(ACCOUNTS.accounts as HeldAccount[]),
     ...(testRoster ? (ACCOUNTS.testAccounts as HeldAccount[]) : []),
     ...createdAccounts,
@@ -235,10 +237,10 @@ export function signedIn(): Schemas["Account"] {
     id: held.id,
     name: held.name,
     email: held.email,
-    // THE OWNER'S PICTURE IS HIS: an invented account carries none — the field
-    // is absent, as a local account's is — and the header draws its initial
-    // (the reader's L18 round, izno's face on Tom).
-    ...(held.id === ACCOUNT.id ? { avatar: ACCOUNT.avatar } : {}),
+    // EACH ACCOUNT CARRIES ITS OWN PICTURE, never the owner's (the reader's L18
+    // round, izno's face on Tom): an account seeded without one has the field
+    // absent, and the header draws its initial.
+    ...(held.avatar ? { avatar: held.avatar } : {}),
     role: roleFor(held.role),
     signInKind: held.signInKind,
     forbiddenWrites: [...dials().forbiddenWrites],
