@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<caps>
+    <server title="Draupnirr"/>
+    <limits max="100" default="50"/>
+    <searching>
+        <search available="yes" supportedParams="q,cat"/>
+        <tv-search available="yes" supportedParams="q,season,ep,imdbid,tmdbid"/>
+        <movie-search available="yes" supportedParams="q,imdbid,tmdbid"/>
+        <music-search available="yes" supportedParams="q"/>
+        <book-search available="yes" supportedParams="q"/>
+    </searching>
+    <categories>
+        <category id="2000" name="Films">
+            <subcat id="2030" name="Films SD"/>
+            <subcat id="2040" name="Films HD"/>
+            <subcat id="2045" name="Films UHD"/>
+            <subcat id="100002" name="Film"/>
+            <subcat id="100003" name="Documentaire"/>
+            <subcat id="100004" name="Animation"/>
+            <subcat id="100005" name="Concert / Spectacle"/>
+            <subcat id="100012" name="Film VO"/>
+            <subcat id="100043" name="Disques complets"/>
+        </category>
+        <category id="5000" name="Séries">
+            <subcat id="5030" name="Séries SD"/>
+            <subcat id="5040" name="Séries HD"/>
+            <subcat id="5045" name="Séries UHD"/>
+            <subcat id="5060" name="Sport"/>
+            <subcat id="5070" name="Animation"/>
+            <subcat id="100007" name="Série TV"/>
+            <subcat id="100008" name="Série animée"/>
+            <subcat id="100009" name="Émission"/>
+            <subcat id="100010" name="Séries › Sport"/>
+            <subcat id="100013" name="Série VO"/>
+            <subcat id="100044" name="Disques complets"/>
+        </category>
+        <category id="3000" name="Musique">
+            <subcat id="3040" name="Musique lossless"/>
+            <subcat id="100015" name="Album"/>
+            <subcat id="100016" name="FLAC"/>
+            <subcat id="100017" name="Bande originale (OST)"/>
+            <subcat id="100018" name="Podcast"/>
+        </category>
+        <category id="4000" name="Logiciels">
+            <subcat id="4030" name="Logiciels macOS"/>
+            <subcat id="4040" name="Logiciels mobiles"/>
+            <subcat id="100020" name="Windows"/>
+            <subcat id="100021" name="macOS"/>
+            <subcat id="100022" name="Linux"/>
+            <subcat id="100023" name="Mobile"/>
+        </category>
+        <category id="4050" name="Jeux">
+            <subcat id="1000" name="Consoles"/>
+            <subcat id="100025" name="PC"/>
+            <subcat id="100026" name="PlayStation"/>
+            <subcat id="100027" name="Xbox"/>
+            <subcat id="100028" name="Nintendo"/>
+            <subcat id="100029" name="Émulation"/>
+        </category>
+        <category id="7000" name="Livres">
+            <subcat id="3030" name="Livres audio"/>
+            <subcat id="7010" name="Presse"/>
+            <subcat id="7020" name="eBooks"/>
+            <subcat id="7030" name="BD / Comics"/>
+            <subcat id="100031" name="Livre / eBook"/>
+            <subcat id="100032" name="Livres › BD / Comics"/>
+            <subcat id="100033" name="Manga"/>
+            <subcat id="100034" name="Livres › Presse"/>
+            <subcat id="100035" name="Livre audio"/>
+        </category>
+        <category id="8000" name="Autres">
+            <subcat id="100037" name="Développement"/>
+            <subcat id="100038" name="Design"/>
+            <subcat id="100039" name="Bureautique"/>
+            <subcat id="100040" name="Formations › Autres"/>
+            <subcat id="100041" name="Impression 3D"/>
+            <subcat id="100042" name="Autres"/>
+        </category>
+    </categories>
+</caps>

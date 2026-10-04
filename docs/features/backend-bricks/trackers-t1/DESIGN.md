@@ -55,15 +55,15 @@ each site's public landing page fetched once (no sign-in). CONFIRMED = read in o
 | Protocol | JSON: `GET https://api.v3x.club/indexer/search` | **native Torznab**: `GET https://draupnirr.xyz/torznab/api?t=search\|tvsearch\|movie` (+ `t=caps`) | JSON: `GET https://digitalcore.club/api/v1/torrents` |
 | Auth | `apikey=` query parameter; a bad key → 401 | `apikey=` query parameter; a bad key → **HTTP 200** with Torznab `<error code="100"/>` | **header** `X-API-KEY` |
 | Search parameters | `q`, `cat` (`2000,5000`), `tmdbid`, `season`, `ep`, `freeleech=0\|1`, `limit=100` | `q`, `cat`, `imdbid`, `tmdbid`, `limit` (no `tvdbid`) | `searchText` (an IMDb id is prefixed into it), `categories[]=…`, `limit`, `index`, `page=search`, `section=all`, `sort`, `order`, `dead`, … |
-| Result fields | JSON `results[]`: `category`, `title`, `details`, `download`, **`infohash`**, `tmdbid`, `pubdate` (ISO 8601 UTC, per the 2026-10-04 capture), `size`, `seeders`, `leechers`, `grabs`, `downloadvolumefactor`, `uploadvolumefactor` | Torznab item: `title`, `comments`, `enclosure@url`, `pubDate`, `size`, `files`, `grabs`; attrs `category`, `imdb`, `tmdbid`, `seeders`, `leechers`, `downloadvolumefactor`, `uploadvolumefactor`, `minimumseedtime`, `minimumratio`; **`infohash` UNKNOWN** (Jackett maps none) | JSON array: `id`, `category`, `name`, `size`, `added` (`yyyy-MM-dd HH:mm:ss`, zone assumed +02:00), `seeders`, `leechers`, `times_completed`, `frileech` (1 = freeleech), `imdbid2`, `year`, `pack`, …; **no infohash** |
-| Grab | the `download` URL the API returns (shape UNKNOWN) | the `enclosure` URL (carries the key; shape UNKNOWN) | `GET /api/v1/torrents/download/{id}` with the `X-API-KEY` header (CONFIRMED) |
+| Result fields | JSON `results[]`: `category`, `title`, `details`, `download`, **`infohash`**, `tmdbid`, `pubdate` (ISO 8601 UTC, per the 2026-10-04 capture), `size`, `seeders`, `leechers`, `grabs`, `downloadvolumefactor`, `uploadvolumefactor` | Torznab item: `title`, `comments`, `enclosure@url`, `pubDate`, `size`, `files`, `grabs`; attrs `category`, `imdb`, `tmdbid`, `seeders`, `leechers`, `downloadvolumefactor`, `uploadvolumefactor`, `minimumseedtime`, `minimumratio`; **`infohash` published** as a `torznab:attr` (2026-10-04 capture; `minimumratio` not seen in it) | JSON array: `id`, `category`, `name`, `size`, `added` (`yyyy-MM-dd HH:mm:ss`, zone assumed +02:00), `seeders`, `leechers`, `times_completed`, `frileech` (1 = freeleech), `imdbid2`, `year`, `pack`, …; **no infohash** |
+| Grab | the `download` URL the API returns (shape UNKNOWN) | the `enclosure` URL `/torznab/download/{sqid}?apikey=…` (carries the key; 2026-10-04 capture) | `GET /api/v1/torrents/download/{id}` with the `X-API-KEY` header (CONFIRMED) |
 | Categories | 2000 Films, 5000 Séries (no anime, no documentary class) | 2000 Films (2030 SD, 2040 HD, 2045 UHD); 5000 Séries (5030/5040/5045, 5060 Sport, 5070 Animation) | Movies 1, 2, 3, 4, 5, 6, 7, 38; TV 8, 9, 10, 11, 12, 13, 14, 15 (no anime, no documentary) |
 | Rate | Jackett `requestDelay: 2` | **120 requests / minute / key** (definition comment) | UNKNOWN |
-| Site rules in the definition | Jackett's `minimumratio 0.8`, superseded by the members' wiki (read 2026-10-04): aim ≥ 1, floor 0.5 (warning 0.7), HIT AND RUN 48 h in 14 d (§ 5) | per-item `minimumratio` / `minimumseedtime`, present only while enforcement is on | ratio 1.0, seed 5 days; an account idle 90 days is disabled |
+| Site rules in the definition | Jackett's `minimumratio 0.8`, superseded by the members' wiki (read 2026-10-04): aim ≥ 1, floor 0.5 (warning 0.7), HIT AND RUN 48 h in 14 d (§ 5) | members' wiki (read 2026-10-04): ratio floor 0.4 beyond 5 GB downloaded when enforcement is on; HIT AND RUN 48 h cumulated, marked after 7 days absent, no automatic sanction today; `minimumseedtime` 172 800 s per item in the capture (`draupnirr-api.md`) | ratio 1.0, seed 5 days; an account idle 90 days is disabled |
 | The secret | an API key, « Réglages → Intégrations », **scoped** (« needs the torznab scope ») | the API key IS the personal announce key (« Profil → Paramètres ») | an API key, « Settings → Security → Generate a new API Key »; a separate passkey (IRC / RSS) |
-| Account statistics (ratio, volumes) | `GET https://api.v3x.club/api/me`, any key scope, Bearer (T-1, § 5) | UNKNOWN | UNKNOWN |
+| Account statistics (ratio, volumes) | `GET https://api.v3x.club/api/me`, any key scope, Bearer (T-1, § 5) | `GET https://draupnirr.xyz/api/me`, `?apikey=` or `X-Api-Key`, bytes, ratio includes `bonus_upload` (T-1, § 5) | UNKNOWN |
 | Upload API | UNKNOWN | UNKNOWN | UNKNOWN |
-| Cross-seed (cross-seed.org) | through a Torznab proxy (Jackett / Prowlarr) | its own Torznab URL | through a Torznab proxy |
+| Cross-seed (cross-seed.org) | through a Torznab proxy (Jackett / Prowlarr) | its own Torznab URL; **the site's bot rewrites published film / series names**, so a search by release name can miss an identical release (`draupnirr-api.md`) | through a Torznab proxy |
 
 ---
 
@@ -336,8 +336,14 @@ unless he orders it for a named tracker (§ 18 point 4: never mistreat a tracker
 `Authorization: Bearer <key>`; volumes in **bytes**; fields `{username, uploaded, downloaded, ratio, buffer,
 bonusPoints, freeleechTokens, invitesLeft, seeding, leeching, hitAndRun}` — the ratio the tracker recognises. v3x's
 client therefore composes `AccountStatsReadable` in phase 5. No capture of `/api/me` exists yet (owed at phase 3, in
-`scripts/capture-tracker-sample.py`); `docs/reference/v3x-api.md` carries the detail. draupnirr and digitalcore
-stay open.
+`scripts/capture-tracker-sample.py`); `docs/reference/v3x-api.md` carries the detail. digitalcore stays open.
+
+**T-1 answered for draupnirr (members' wiki, read 2026-10-04):** `GET https://draupnirr.xyz/api/me`, the passkey as
+`?apikey=` **or** header `X-Api-Key`; volumes in **bytes**; fields `{name, class, credits, invites, freeleech_until,
+uploaded, downloaded, bonus_upload, ratio, seedtime_seconds, uploads_count, hnr_count, badges[]}`. The `ratio` is
+`(uploaded + bonus_upload) / downloaded` — the one the tracker recognises, not `uploaded / downloaded` — and `null`
+means infinite, not unknown. draupnirr's client therefore composes `AccountStatsReadable` in phase 5. No capture of
+`/api/me` exists yet (owed at that phase); `docs/reference/draupnirr-api.md` carries the detail.
 
 **T-2 — The accounts and the keys he must provide — stays his hand** (none is assumed):
 
@@ -358,7 +364,7 @@ context; the script is reused for any later tracker.
 **T-4 = A — the example config ships the three LAST in `priority`, their `economy` commented.** The `economy` block's
 `min_ratio` / `min_seed_time` are the site's rules, which only he reads signed in; he fills each from the site and
 moves ranks in Réglages. Public hints, for him: digitalcore ratio 1.0 and 5 days (its definition), v3x ratio ≥ 1 aimed, floor 0.5 (warning 0.7), HIT AND RUN 48 h
-within 14 days (members' wiki, 2026-10-04), draupnirr per torrent (`minimumratio` / `minimumseedtime` attrs, while enforcement is on);
+within 14 days (members' wiki, 2026-10-04), draupnirr ratio floor 0.4 beyond 5 GB downloaded (while enforcement is on) and HIT AND RUN 48 h cumulated (members' wiki, 2026-10-04; `minimumseedtime` 172 800 s per item in the capture);
 digitalcore is an English scene tracker with no French class — its value for a French library is MULTI / VO releases
 and cross-seed.
 

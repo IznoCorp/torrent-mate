@@ -1,0 +1,26 @@
+{
+  "caps.xml": {
+    "auth": "query apikey",
+    "content_type": "application/xml; charset=utf-8",
+    "request": "GET /torznab/api?t=caps",
+    "status": 200
+  },
+  "error-auth.xml": {
+    "auth": "query apikey",
+    "content_type": "application/xml; charset=utf-8",
+    "request": "GET /torznab/api?t=tvsearch&q=The Office",
+    "status": 200
+  },
+  "search-movie.xml": {
+    "auth": "query apikey",
+    "content_type": "application/xml; charset=utf-8",
+    "request": "GET /torznab/api?t=movie&q=Inception",
+    "status": 200
+  },
+  "search-tv.xml": {
+    "auth": "query apikey",
+    "content_type": "application/xml; charset=utf-8",
+    "request": "GET /torznab/api?t=tvsearch&q=The Office",
+    "status": 200
+  }
+}
