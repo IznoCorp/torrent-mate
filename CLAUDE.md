@@ -43,19 +43,29 @@ pull request touching the maquette), not on this machine. `make harness` runs th
 - `docs/reference/product-intent.md` is the product constitution: an implementation that conflicts
   with it is wrong. A web PR cites the §§ it serves; a pure conversion (nothing observable changes)
   cites none.
-- The maquette `frontend/maquette/design/` is the next version of the app and REPLACES it; it is not
-  transposed into the app surface by surface. Its reference is the tokens and the component
+- The maquette `frontend/maquette/design/` is the v1 frontend and REPLACES the shipped app; it is not
+  transposed into the app surface by surface. Its design reference is the tokens and the component
   catalogue: `design/src/styles/theme.css`, `design/src/styles/base.css`, and the `variants.ts` of
-  `design/src/ui/` and of each surface. It is changed FIRST, a surface is drawn (named states, a
-  rule that bites) before it is coded, and nothing ships that it does not show.
-- **The mission, dictated 2026-08-19**: EVERY screen is redrawn. (1) No surface is out of scope — a
-  production screen with no maquette page is a page still to draw; `/control` and `/pipeline` are
-  owed. (2) What the maquette already holds is VALIDATED; do not relitigate it. (3) What remains is
-  also the UX, the interaction language and the prototype's architecture — the interface is frozen
-  when that is done. (4) The backend follows the interface, after the freeze: a backend limitation
-  is recorded, never a reason to draw less.
-- What the maquette must become technically, and the lot order: `docs/reference/frontend-architecture.md`
-  (BINDING). Developer reference of the prototype: `frontend/maquette/README.md`.
+  `design/src/ui/` and of each surface.
+- **One development, front and back together**, the client-server separation kept:
+  - **tm-design is the development environment.** It serves `develop`: the interface, with the real
+    v1 server behind it for every operation v1 already serves, and the mocks for the rest until v1
+    serves them. `staging` (preprod) and `prod` move by hand.
+  - **The harness is the frontend's quality control**: its named states and rules check the
+    interface; they freeze nothing.
+  - **The contract (`frontend/maquette/contract/openapi.json`) is the reference between front and
+    back**: an operation exists when the contract describes it, and the mock simulates it until the
+    server serves it.
+  - **v0 is untouched** (`frontend/src`, `personalscraper/web/` and their tests): v1 never works in
+    its folders and duplicates what it needs; the only work on v0 is the inventory of what will go.
+    Every v0 file goes at once at v1's production release.
+- **Every screen is redrawn.** No surface is out of scope — a production screen with no maquette page
+  is a page still to draw; `/control` and `/pipeline` are owed. What the maquette already holds is
+  VALIDATED; do not relitigate it. An interface change shows on tm-design before it goes to
+  production.
+- What the v1 frontend must become technically, and the lot order:
+  `docs/reference/frontend-architecture.md` (BINDING). Developer reference of the prototype:
+  `frontend/maquette/README.md`.
 
 ## The machine (IznoServer)
 

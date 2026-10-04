@@ -232,7 +232,3 @@ Les disques de stockage sont montés en **NTFS via macFUSE + ntfs-3g** (Homebrew
 - **tenacity** — Retry avec backoff pour les appels API
 - **json5** — Fichiers de configuration avec commentaires
 - **xxhash** — Hashing rapide pour la détection de doublons
-
-## Licence
-
-MIT
