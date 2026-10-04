@@ -92,11 +92,21 @@ describe("showAvatar", () => {
     expect(shownInitial()).toBe("L");
   });
 
-  it("leaves a newer picture alone when an older one fails late", () => {
+  it("does not reload an address that already failed", () => {
+    const failed = "https://www.gravatar.com/avatar/0?d=404&s=128";
+    showAvatar(failed, "lea");
+    image.onerror?.();
+    // An account refresh answers the same address again: no new load.
+    showAvatar(failed, "lea");
+    expect(image.src).toBeUndefined();
+    expect(image.style.display).toBe("none");
+    expect(shownInitial()).toBe("L");
+  });
+
+  it("gives a new address its own chance after one failed", () => {
     showAvatar("https://www.gravatar.com/avatar/0?d=404&s=128", "lea");
-    const stale = image.onerror;
+    image.onerror?.();
     showAvatar("https://plex.tv/users/abc/avatar", "izno");
-    stale?.();
     expect(image.src).toBe("https://plex.tv/users/abc/avatar");
     expect(shownInitial()).toBeNull();
   });
