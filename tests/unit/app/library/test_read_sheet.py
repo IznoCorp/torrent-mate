@@ -36,7 +36,9 @@ def _movie_details() -> MediaDetails:
         trailer_language="fr",
         cast=[
             CastMember(name="Al Pacino", role="Vincent Hanna", portrait_url="https://image.tmdb.org/t/p/w185/al.jpg"),
-            CastMember(name="Robert De Niro", role="Neil McCauley", portrait_url="https://image.tmdb.org/t/p/w185/bob.jpg"),
+            CastMember(
+                name="Robert De Niro", role="Neil McCauley", portrait_url="https://image.tmdb.org/t/p/w185/bob.jpg"
+            ),
             CastMember(name="Val Kilmer", role="Chris Shiherlis"),
         ],
     )

@@ -265,7 +265,9 @@ class TestTMDBTrailerNameAndLanguage:
             {
                 "id": 8,
                 "title": "Bare",
-                "videos": {"results": [{"type": "Trailer", "site": "YouTube", "key": "k", "name": "", "iso_639_1": None}]},
+                "videos": {
+                    "results": [{"type": "Trailer", "site": "YouTube", "key": "k", "name": "", "iso_639_1": None}]
+                },
             },
             "tmdb",
         )

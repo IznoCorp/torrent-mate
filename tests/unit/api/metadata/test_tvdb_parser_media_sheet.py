@@ -197,7 +197,8 @@ class TestTVDBCast:
 
     def test_series_cast_sorted_by_sort(self) -> None:
         """The series' actors, ordered by ``sort``, portrait from ``image``."""
-        md = parse_media_details(_load_unwrapped("series_extended_with_episodes.json"), "tvdb")
+        data = _load_unwrapped("series_extended_with_episodes.json")
+        md = parse_media_details(data, "tvdb")
         assert len(md.cast) == 14
         assert [member.name for member in md.cast[:4]] == [
             "Christian Constant",
@@ -205,12 +206,15 @@ class TestTVDBCast:
             "Dominique Crenn",
             "Ghislaine Arabian",
         ]
-        assert md.cast[3].role == "Jurée (saisons 1 à 5)"
+        # The role is the record's own ``name``, read from the capture rather than retyped.
+        record = next(char for char in data["characters"] if char["personName"] == "Ghislaine Arabian")
+        assert md.cast[3].role == record["name"]
         assert md.cast[3].portrait_url == "https://artworks.thetvdb.com/banners/actors/295200.jpg"
 
     def test_movie_cast_actors_only_portrait_falls_back_to_person_image(self) -> None:
         """Directors and writers are not cast; an empty ``image`` falls back to ``personImgURL``."""
-        md = parse_media_details(_load_unwrapped("movie_extended.json"), "tvdb")
+        data = _load_unwrapped("movie_extended.json")
+        md = parse_media_details(data, "tvdb")
         assert [member.name for member in md.cast] == [
             "Elias Holmen Sørensen",
             "Allan Hyde",
@@ -219,7 +223,8 @@ class TestTVDBCast:
             "Synnøve Macody Lund",
             "Robert Skjærstad",
         ]
-        assert md.cast[0].role == "Pål"
+        assert md.cast[0].role == data["characters"][0]["name"]
+        assert md.cast[1].role == "Prince Fredrik"
         assert md.cast[0].portrait_url is None
         assert md.cast[1].portrait_url == "https://artworks.thetvdb.com/banners/v4/actor/465388/photo/64d918c2b4d0b.jpg"
 
