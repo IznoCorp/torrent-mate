@@ -62,6 +62,7 @@ OPERATION_RIGHTS: Final[Mapping[str, Requirement]] = MappingProxyType(
         "readLibraryMembership": holds(Right.LIBRARY_READ),
         "readMediaSheet": holds(Right.LIBRARY_READ),
         "readMediaSeasons": holds(Right.LIBRARY_READ),
+        "readMediaPoster": holds(Right.LIBRARY_READ),
         "deleteLibraryItems": holds(Right.LIBRARY_DELETE),
         "rescrapeMedia": holds(Right.LIBRARY_RESCRAPE),
         # The acquisition reads are scopes, never doors: the service filters by right.

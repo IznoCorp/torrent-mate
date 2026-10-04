@@ -62,7 +62,11 @@ _LIVE_FOLDERS_SQL: Final[str] = (
 
 # A disk holds ``<category folder>/<media folder>[/<sub folder>]``: the media folder
 # is the directory's first two segments (as ``indexer/duplicates.py`` reads it).
-_MEDIA_FOLDER_DEPTH: Final[int] = 2
+MEDIA_FOLDER_DEPTH: Final[int] = 2
+
+# Path segments that name no folder of their own: a media folder spelt with one of them is
+# not one.
+_NOT_A_NAME: Final[frozenset[str]] = frozenset({"", ".", ".."})
 
 
 # Every live (season, episode) pair of every show row, a multi-episode file owning its
@@ -280,8 +284,35 @@ def live_folders(conn: sqlite3.Connection, item_ids: Sequence[int]) -> dict[int,
     folders: dict[int, set[str]] = {}
     for item_id, disk_id, rel_path in conn.execute(query, [*item_ids, *item_ids]):
         parts = unicodedata.normalize("NFC", rel_path).strip("/").split("/")
-        folders.setdefault(item_id, set()).add(f"{disk_id}:{'/'.join(parts[:_MEDIA_FOLDER_DEPTH])}")
+        folders.setdefault(item_id, set()).add(f"{disk_id}:{'/'.join(parts[:MEDIA_FOLDER_DEPTH])}")
     return folders
+
+
+def mounted_media_folders(conn: sqlite3.Connection, item_id: int) -> list[tuple[str, str]]:
+    """Name the media folders holding one item's live files on the disks the index says are mounted.
+
+    Args:
+        conn: An open connection to ``library.db``.
+        item_id: The ``media_item`` id asked about.
+
+    Returns:
+        ``[(mount path, "<category>/<media folder>"), …]``, distinct and sorted; the folder is
+        the index's own spelling, to be joined to the mount path as it stands. A path that
+        does not name a media folder (fewer segments than ``MEDIA_FOLDER_DEPTH``, or an
+        empty, ``.`` or ``..`` one among them) holds none: it would name a category or the
+        disk itself.
+    """
+    query = (
+        "SELECT DISTINCT d.mount_path, p.rel_path FROM (" + _LIVE_FOLDERS_SQL.format(ids="?") + ") x"
+        " JOIN path p ON p.id = x.path_id JOIN disk d ON d.id = p.disk_id"
+        " WHERE d.is_mounted = 1 AND d.mount_path IS NOT NULL"
+    )
+    folders: set[tuple[str, str]] = set()
+    for mount_path, rel_path in conn.execute(query, (item_id, item_id)):
+        segments = rel_path.strip("/").split("/")[:MEDIA_FOLDER_DEPTH]
+        if len(segments) == MEDIA_FOLDER_DEPTH and not any(part in _NOT_A_NAME for part in segments):
+            folders.add((mount_path, "/".join(segments)))
+    return sorted(folders)
 
 
 def live_episode_pairs(conn: sqlite3.Connection) -> dict[int, set[tuple[int, int]]]:

@@ -1,4 +1,4 @@
-"""The base of every v1 model, the contract's ``Problem``, and the refusal statuses every operation declares.
+"""The contract's root, the base of every v1 model, its ``Problem``, and the refusal statuses every operation declares.
 
 ``Problem`` lives here beside ``ContractModel`` because ``PROBLEM_RESPONSES``
 names it: ``problem.py`` answers it, this module only describes it.
@@ -12,6 +12,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
 from personalscraper.app.errors import RefusalCode
+
+#: The contract's server root, where v0's application mounts v1: a v1 route's path is the
+#: contract's without its ``/api``, and a link v1 serves is formed under it.
+V1_PREFIX: Final = "/api/v1"
 
 
 class ContractModel(BaseModel):

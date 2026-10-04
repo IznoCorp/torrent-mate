@@ -76,6 +76,7 @@ export const OPERATION_RIGHTS: Readonly<Record<string, Asked>> = {
   readLibraryMembership: "library.read",
   readMediaSheet: "library.read",
   readMediaSeasons: "library.read",
+  readMediaPoster: "library.read",
   deleteLibraryItems: "library.delete",
   rescrapeMedia: "library.rescrape",
 

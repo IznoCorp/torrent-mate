@@ -113,6 +113,18 @@ class FixtureIndex:
         assert cur.lastrowid is not None
         return cur.lastrowid
 
+    def mount(self, disk: int, root: Path | None) -> None:
+        """Point a disk at a real directory, or mark it unmounted.
+
+        Args:
+            disk: The disk id.
+            root: Its mount point, or ``None`` for an unmounted disk.
+        """
+        self.conn.execute(
+            "UPDATE disk SET mount_path = ?, is_mounted = ? WHERE id = ?",
+            (str(root) if root is not None else None, int(root is not None), disk),
+        )
+
     def _path(self, rel_path: str, disk: int) -> int:
         """Return the ``path`` id of a directory, inserting it when new."""
         self.conn.execute("INSERT OR IGNORE INTO path(disk_id, rel_path) VALUES (?, ?)", (disk, rel_path))

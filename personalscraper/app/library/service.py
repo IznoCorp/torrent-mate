@@ -13,6 +13,7 @@ the reads never merge one, they count it.
 
 from __future__ import annotations
 
+import mimetypes
 import sqlite3
 import threading
 import time
@@ -54,11 +55,13 @@ from personalscraper.app.library.facts import (
 from personalscraper.app.library.identity import Provider, ref_key
 from personalscraper.app.library.listing import (
     LIBRARY_PAGE_SIZE,
+    MEDIA_FOLDER_DEPTH,
     IndexRow,
     LibrarySort,
     live_episode_pairs,
     live_folders,
     matches,
+    mounted_media_folders,
     ordered,
     page_of,
     read_holders,
@@ -66,6 +69,7 @@ from personalscraper.app.library.listing import (
 )
 from personalscraper.app.maintenance.registry import REGISTRY, MaintenanceAction
 from personalscraper.app.maintenance.service import LaunchedRun, launch_action, running_run
+from personalscraper.core.artwork_naming import artwork_inventory
 from personalscraper.core.identity import MediaRef
 from personalscraper.indexer.ownership import IndexerOwnershipChecker
 from personalscraper.logger import get_logger
@@ -74,6 +78,7 @@ log = get_logger("app.library.service")
 
 __all__ = [
     "LIBRARY_PAGE_SIZE",
+    "POSTER_MAX_BYTES",
     "RECENT_LIMIT",
     "CategoryCount",
     "IncompleteEntry",
@@ -81,6 +86,7 @@ __all__ = [
     "LibraryPage",
     "LibraryService",
     "LibrarySort",
+    "LocalPoster",
     "Membership",
     "RescrapeAccepted",
     "SeasonFacts",
@@ -95,6 +101,10 @@ _BUSY_TIMEOUT_MS: Final[int] = 5000
 
 #: The maintenance action that rescrapes one index row.
 _RESCRAPE_ITEM_ACTION: Final[str] = "library-rescrape-item"
+
+#: The largest poster file served, in bytes: a request reads it whole into memory, so a
+#: file above this (no real poster is) is refused before it is read.
+POSTER_MAX_BYTES: Final[int] = 20 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -237,6 +247,59 @@ class RescrapeAccepted:
     provider_id: str
     queued: bool
     run_uid: str | None
+
+
+@dataclass(frozen=True)
+class LocalPoster:
+    """The poster file a medium's library folder holds, read at request time.
+
+    Attributes:
+        content: The file's bytes.
+        media_type: Its media type, from its extension (``image/jpeg``, ``image/png``).
+    """
+
+    content: bytes
+    media_type: str
+
+
+def _folder_poster(mount_path: str, folder: str) -> LocalPoster | None:
+    """Read the item-level poster of one media folder, never anything outside it.
+
+    The folder must resolve inside its disk's mount point, exactly ``MEDIA_FOLDER_DEPTH``
+    segments below it (a media folder, never a category nor the disk itself), and the
+    poster file (the name the artwork inventory recognises) must resolve directly inside
+    the folder: a symlink or a ``..`` leading elsewhere is refused, whatever it reaches.
+
+    Args:
+        mount_path: The disk's mount point, as the index names it.
+        folder: The media folder below it, as the index names it.
+
+    Returns:
+        The poster, or ``None`` when the disk, the folder or the poster is not there, when
+        a path escapes, when a symlink loops, or when the poster exceeds
+        ``POSTER_MAX_BYTES``.
+    """
+    try:
+        root = Path(mount_path).resolve(strict=True)
+        directory = (root / folder).resolve(strict=True)
+        if not directory.is_relative_to(root) or not directory.is_dir():
+            return None
+        if len(directory.relative_to(root).parts) != MEDIA_FOLDER_DEPTH:
+            return None
+        name = artwork_inventory(directory)["poster"]
+        if name is None:
+            return None
+        poster = (directory / name).resolve(strict=True)
+        if poster.parent != directory or not poster.is_file():
+            return None
+        if poster.stat().st_size > POSTER_MAX_BYTES:
+            return None
+        content = poster.read_bytes()
+    except (OSError, RuntimeError):
+        # Python 3.12's strict resolve raises RuntimeError, not OSError, on a symlink loop.
+        return None
+    media_type, _ = mimetypes.guess_type(poster.name)
+    return LocalPoster(content=content, media_type=media_type or "application/octet-stream")
 
 
 def _entry(row: IndexRow) -> LibraryEntry:
@@ -739,6 +802,35 @@ class LibraryService:
             hero_url=hero_of(details),
             metadata_refreshed_at=datetime.fromtimestamp(refreshed).date() if refreshed is not None else None,
         )
+
+    def read_local_poster(self, actor: Actor, ref: MediaRef) -> LocalPoster:
+        """Read the poster file of the library folder holding a medium.
+
+        The folder is the index's (the row the sheet reads: the lowest holding row with
+        live files), on a disk the index says is mounted; the file is resolved now, never
+        named by the request.
+
+        Args:
+            actor: Who reads (not consulted).
+            ref: The medium.
+
+        Returns:
+            The poster's bytes and media type.
+
+        Raises:
+            AppNotFound: ``media.not_found`` when no row holding the id has a live file, or
+                when none of its folders holds a poster that can be read inside it.
+        """
+        provider, _ = ref_key(ref)
+        with closing(self._connect()) as conn:
+            holders, folders = self._held(conn, ref)
+            live = [row for row in holders if row.item_id in folders]
+            mounted = mounted_media_folders(conn, live[0].item_id) if live else []
+        for mount_path, folder in mounted:
+            poster = _folder_poster(mount_path, folder)
+            if poster is not None:
+                return poster
+        raise refuse_not_found(provider.value)
 
     # ------------------------------------------------------------------ writes
 

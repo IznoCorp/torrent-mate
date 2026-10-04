@@ -11,7 +11,7 @@ import TRAILERS from "../seeds/trailers.json";
 import { mockState } from "../state";
 import { scenario } from "../scenario";
 import { GET, POST, route } from "./shared";
-import type { MockRequest, MockRoute } from "../router";
+import { refused, type MockRequest, type MockRoute } from "../router";
 
 // The pipeline is BUSY unless it is idle, and an ask that arrives then is
 // queued VISIBLY rather than refused (DOIT-4). It is the contract's own
@@ -346,6 +346,11 @@ function offCatalogue(season: { number: number; episodes: number | null }, owned
 const FIRST_PROVIDER = "tvdb";
 const FALLBACK_PROVIDER = "tmdb";
 
+/* The layer holds no library folder: every sheet it seeds names its poster by
+   URL, so no medium has a folder poster to answer. */
+const NOT_FOUND = 404;
+const NO_FOLDER_POSTER = "the layer holds no library folder poster";
+
 /**
  * The seasons read's answer for one title, resolved through its identity as the route resolves it.
  *
@@ -382,6 +387,12 @@ export function mediaRoutes(): MockRoute[] {
         // keyed the same way are not the same answer.
         return seasonsAnswer(titles);
       },
+    ),
+    route(
+      "readMediaPoster",
+      GET,
+      "/media/{provider}/{providerId}/poster",
+      () => refused(NOT_FOUND, NO_FOLDER_POSTER, "media.not_found"),
     ),
     route(
       "rescrapeMedia",

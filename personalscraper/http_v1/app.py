@@ -18,13 +18,11 @@ from fastapi import APIRouter, Depends, FastAPI
 from personalscraper.app.services import AppServices
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
+from personalscraper.http_v1.contract import V1_PREFIX as V1_PREFIX  # re-exported: v0 mounts v1 there
 from personalscraper.http_v1.perimeter import ActorResolver, v1_perimeter
 from personalscraper.http_v1.problem import ProblemOnCrash, install_problem_handlers
 from personalscraper.http_v1.routes import accounts, authentication, media, system
 from personalscraper.http_v1.session_cookie import SessionActorResolver, SessionRenewalCookie
-
-#: Where v0's application mounts v1; a v1 route's path is the contract's without its ``/api``.
-V1_PREFIX: Final = "/api/v1"
 
 #: The OpenAPI document's ``info.version``, fixed as v0's is: the package version would
 #: move the committed ``contract/openapi.generated.json`` with every release. ``readVersion``
