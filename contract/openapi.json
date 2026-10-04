@@ -242,7 +242,8 @@
                     "type": "string"
                   },
                   "newPassword": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "held to the password policy once the current password is proven: `password.too_short` / `password.too_weak`, each with its `minimum`. THE PASSWORD POLICY, on every local door (the operator, 2026-10-04): at least `minimum` characters, one uppercase letter, one digit and one special character (anything neither a letter nor a number). Shorter is refused `password.too_short`, a missing class `password.too_weak`; both carry `minimum`."
                   }
                 },
                 "required": [
@@ -5977,16 +5978,17 @@
                   },
                   "role": {
                     "type": "string",
-                    "description": "the initial role's id; absent, the role local accounts start on (`Role.defaultFor` `local`: Invité — O-K1-4). An e-mail that is a user of the managed server is linked instead, and starts on its Plex kind's role"
+                    "description": "MANDATORY (the operator, 2026-10-04): the initial role's id — nothing is chosen for the manager; absent, the request is refused 400 `request.invalid`. THE ADMIN ROLE IS GIVEN BY THE SERVER'S OWNER ONLY (the operator, 2026-10-04: « seul le compte propriétaire peut promouvoir Admin ; un autre Admin ne le peut pas »): from any other caller it is refused — 403 `account.admin_owner_only` to an Admin, `role.escalation` to a manager who is not Admin. An e-mail that is a user of the managed server is linked instead, and starts on its Plex kind's role"
                   },
                   "password": {
                     "type": "string",
-                    "description": "THE PROVISIONAL PASSWORD a local account starts with, set by the Admin who creates it (the operator, 2026-10-03: « A »): required for a local account (refused `password.required`, or `password.too_short` with its `minimum`); IGNORED and never stored for an e-mail that is a user of the managed server, which is linked and signs in by Plex only. The account changes it in Profil (`changeOwnPassword`)."
+                    "description": "THE PROVISIONAL PASSWORD a local account starts with, set by the Admin who creates it (the operator, 2026-10-03: « A »): required for a local account (refused `password.required`), and held to the password policy (`password.too_short` / `password.too_weak`, each with its `minimum`); IGNORED and never stored for an e-mail that is a user of the managed server, which is linked and signs in by Plex only. The account changes it in Profil (`changeOwnPassword`). THE PASSWORD POLICY, on every local door (the operator, 2026-10-04): at least `minimum` characters, one uppercase letter, one digit and one special character (anything neither a letter nor a number). Shorter is refused `password.too_short`, a missing class `password.too_weak`; both carry `minimum`."
                   }
                 },
                 "required": [
                   "email",
-                  "name"
+                  "name",
+                  "role"
                 ]
               }
             }
@@ -6044,7 +6046,8 @@
                 "type": "object",
                 "properties": {
                   "role": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "the role the account is put on. THE ADMIN ROLE IS GIVEN BY THE SERVER'S OWNER ONLY (the operator, 2026-10-04: « seul le compte propriétaire peut promouvoir Admin ; un autre Admin ne le peut pas »): an account put on it by any other Admin is refused 403 `account.admin_owner_only` (a manager who is not Admin is refused `account.admin_untouchable`); an account already on it, kept there, gives nothing and is not refused"
                   }
                 },
                 "required": [
@@ -6747,7 +6750,7 @@
         "operationId": "resetAccountPassword",
         "x-rights": "accounts.manage",
         "summary": "Reset a local account's password to a provisional one",
-        "description": "An Admin in « Comptes » gives a LOCAL account a new PROVISIONAL password — a forgotten one replaced (the operator, 2026-10-03: « A »); the account then changes it in Profil (`changeOwnPassword`). LOCAL ACCOUNTS ONLY: the Plex server owner's fallback password is replaced by a command on the server, never here (refused `password.held_by_cli`); a Plex-linked account holds no password (refused `auth.plex_only`). ADMIN ONLY (the operator, 2026-10-03: « Admin pour n'importe quel compte à mot de passe via \"comptes\", l'utilisateur d'un compte à mot de passe peut changer son mot de passe via son profil »): a caller whose role is not Admin is refused `password.reset_admin_only`, whatever the account — its own included, which it changes in Profil. That check comes FIRST, before `account.unknown` (404), so a manager never learns which accounts exist (the operator, 2026-10-04, OPEN-3 B). The account's open sessions are not ended by this act.",
+        "description": "An Admin in « Comptes » gives a LOCAL account a new PROVISIONAL password — a forgotten one replaced (the operator, 2026-10-03: « A »); the account then changes it in Profil (`changeOwnPassword`). LOCAL ACCOUNTS ONLY: the Plex server owner's fallback password is replaced by a command on the server, never here (refused `password.held_by_cli`); a Plex-linked account holds no password (refused `auth.plex_only`). ADMIN ONLY (the operator, 2026-10-03: « Admin pour n'importe quel compte à mot de passe via \"comptes\", l'utilisateur d'un compte à mot de passe peut changer son mot de passe via son profil »): a caller whose role is not Admin is refused `password.reset_admin_only`, whatever the account — its own included, which it changes in Profil. That check comes FIRST, before `account.unknown` (404), so a manager never learns which accounts exist (the operator, 2026-10-04, OPEN-3 B). NEVER THE CALLER'S OWN ACCOUNT (the operator, 2026-10-04: « un Admin change son propre mot de passe seulement via changeOwnPassword, mot de passe actuel requis »): an Admin naming its own account is refused 403 `password.reset_own`, checked right after the Admin check. The account's open sessions are not ended by this act.",
         "tags": [
           "authentication"
         ],
@@ -6771,7 +6774,7 @@
                 "properties": {
                   "password": {
                     "type": "string",
-                    "description": "the new provisional password; refused `password.required` when empty, `password.too_short` (`minimum`) when shorter than the server's minimum"
+                    "description": "the new provisional password; refused `password.required` when empty, then held to the password policy: `password.too_short` / `password.too_weak`, each with its `minimum`. THE PASSWORD POLICY, on every local door (the operator, 2026-10-04): at least `minimum` characters, one uppercase letter, one digit and one special character (anything neither a letter nor a number). Shorter is refused `password.too_short`, a missing class `password.too_weak`; both carry `minimum`."
                   }
                 },
                 "required": [
@@ -11031,6 +11034,7 @@
           "account.access_admin_only",
           "account.owner_access",
           "account.own_access",
+          "account.admin_owner_only",
           "role.unknown",
           "role.system_immutable",
           "role.own_role",
@@ -11048,8 +11052,10 @@
           "password.current_wrong",
           "password.required",
           "password.too_short",
+          "password.too_weak",
           "password.held_by_cli",
           "password.reset_admin_only",
+          "password.reset_own",
           "media.not_found",
           "media.ambiguous",
           "provider.unavailable",
