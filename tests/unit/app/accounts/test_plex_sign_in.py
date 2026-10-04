@@ -575,6 +575,26 @@ class TestStart:
         assert refusal.code is RefusalCode.PLEX_SERVER_UNREACHABLE
         assert plextv.calls == []
 
+    def test_no_server_is_logged_once_however_many_starts(
+        self, store: AppStore, plextv: _PlexTv, clock: _Clock, bus: EventBus
+    ) -> None:
+        """Anyone may call the start: with no server, its warning is written once, not once a call."""
+        door = _build(store, plextv, None, clock, bus, None)
+        with structlog.testing.capture_logs() as logs:
+            for _ in range(3):
+                _refusal(door.start)
+
+        assert [entry["event"] for entry in logs].count("plex_sign_in.no_server") == 1
+
+    def test_a_forged_pin_is_not_logged_at_info(self, door: PlexSignInService) -> None:
+        """Forged or stale PIN ids are anyone's to send: none writes an info record."""
+        with structlog.testing.capture_logs() as logs:
+            for pin_id in (123, 124, 125):
+                _refusal(lambda pin_id=pin_id: door.finish(pin_id, nonce="anything", user_agent=None))
+
+        door_records = [entry for entry in logs if entry["event"].startswith("plex_sign_in.")]
+        assert [entry["log_level"] for entry in door_records if entry["log_level"] != "debug"] == []
+
 
 class TestFirstSignIn:
     """A Plex identity met for the first time: its account is created on its Plex kind's role."""

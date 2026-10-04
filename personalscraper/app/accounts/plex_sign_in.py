@@ -199,6 +199,7 @@ class PlexSignInService:
         self._bus = bus
         self._clock = clock
         self._vault_keys_malformed = vault_keys_malformed
+        self._no_server_logged = False
         self._client_lock = threading.Lock()
         self._owner_lock = threading.Lock()
         self._owner_plex_id: int | None = None
@@ -228,7 +229,10 @@ class PlexSignInService:
                 plex.tv did not answer.
         """
         if self._server is None:
-            log.warning("plex_sign_in.no_server")
+            # Anyone may call the start: the missing server is said once, not once a call.
+            if not self._no_server_logged:
+                self._no_server_logged = True
+                log.warning("plex_sign_in.no_server")
             raise AppUnavailable("No Plex server is configured.", code=RefusalCode.PLEX_SERVER_UNREACHABLE)
         client = self._client()
         try:
@@ -319,7 +323,8 @@ class PlexSignInService:
             and hmac.compare_digest(row.nonce_hash, _nonce_hash(nonce))
         )
         if row is None or not bound:
-            log.info("plex_sign_in.pin_unknown", pin_id=pin_id)
+            # Anyone may send a forged or stale PIN id: debug only, so they cannot flood the log.
+            log.debug("plex_sign_in.pin_unknown", pin_id=pin_id)
             raise AppBadRequest(
                 "No Plex sign-in started in this browser answers this PIN.", code=RefusalCode.PLEX_PIN_UNKNOWN
             )
