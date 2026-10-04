@@ -54,6 +54,10 @@ forces.
 `.1`, a PR into `prod` (squash, auto-merge), then `tag` and `backport <c>`. Until the backport merges,
 `promote.sh prod` refuses (not a fast-forward) — by design.
 
+Before arming a PR: `git merge-tree --write-tree origin/develop <branch>`. Clean ⇒ arm the verified
+head as it is, no rebase; a conflict ⇒ merge `develop` in. A stacked branch whose base was
+squash-merged keeps its `rebase --onto`.
+
 ## Gates
 
 | Gate | What | Time |
@@ -79,6 +83,9 @@ comes only from a defect that reached him or the product; rigour comes back when
 - No backward compatibility (09-29). A route change ⇒ `make openapi`, commit the generated files.
 - Conventional Commits, no version prefix, no AI attribution (`hooks/commit-msg`). A PR leaves
   `__version__` alone; the version rises once per release (`scripts/promote.sh release`).
+- No date or hour is written from memory: briefs and memories are named by their subject,
+  state-journal lines carry no hour, a dispatch record's `opened` is left to its script; git and
+  file times give the rest.
 
 ## The machine (IznoServer)
 
