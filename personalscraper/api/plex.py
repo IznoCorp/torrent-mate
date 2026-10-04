@@ -5,7 +5,7 @@ filesystem events to Plex. A film could therefore land on disk, fully scraped
 and indexed, and stay invisible in Plex until somebody triggered a scan by hand
 (the Margin Call incident, 2026-07-28). This client is that trigger.
 
-It is deliberately NOT a general Plex API wrapper. It serves two purposes, and
+It is deliberately NOT a general Plex API wrapper. It serves three purposes, and
 nothing else is added here without one.
 
 **The post-dispatch refresh trigger:**
@@ -34,6 +34,15 @@ API instead:
   listing does not carry.
 - ``matches(rating_key, hint)`` / ``match(rating_key, candidate)`` — resolve a
   provider id to Plex's own guid, then apply it.
+
+**The deletion follow-up** (``app.library.deletion``), because a medium deleted
+from the disks stays listed in Plex until a scan notices and its trash is emptied:
+
+- ``section_refreshing(key)`` — whether that section's scan still runs, read
+  fresh (the deletion waits for the rescan of the deleted folder's parent);
+- ``empty_trash(key)`` — ``PUT /library/sections/{key}/emptyTrash``;
+- ``clean_bundles()`` — ``PUT /library/clean/bundles``, the orphan artwork and
+  metadata bundles the emptied trash leaves.
 
 Fail-soft is the whole contract (NE-DOIT-PAS-5 applies to the CALLER, which
 logs): every method returns a value instead of raising, because a dispatch that
@@ -663,6 +672,95 @@ class PlexClient:
             log.warning("plex.match_http_error", rating_key=rating_key, status=response.status_code)
             return False
         log.info("plex.match_applied", rating_key=rating_key, guid=candidate.guid, name=candidate.name)
+        return True
+
+    # -- Deletion -----------------------------------------------------------
+
+    def section_refreshing(self, section_key: str) -> bool | None:
+        """Say whether a section's scan still runs, read fresh from ``GET /library/sections``.
+
+        Never from the sections cache: the scan state moves between two calls.
+
+        Args:
+            section_key: The section's key.
+
+        Returns:
+            ``True`` while the section scans, ``False`` when it is idle (a section listed
+            without the flag is idle), ``None`` when the server does not answer, refuses
+            the token, answers something unparseable or does not list that section.
+        """
+        try:
+            response = self._get("/library/sections")
+        except Exception as exc:  # noqa: BLE001 — fail-soft, and no token-bearing frame escapes
+            log.warning("plex.scan_state_unreachable", section=section_key, error=type(exc).__name__)
+            return None
+        if response.status_code != 200:
+            log.warning("plex.scan_state_http_error", section=section_key, status=response.status_code)
+            return None
+        try:
+            directories = response.json()["MediaContainer"]["Directory"]
+            entry = next(d for d in directories if isinstance(d, dict) and d.get("key") == section_key)
+        except StopIteration:
+            log.warning("plex.scan_state_no_section", section=section_key)
+            return None
+        except Exception as exc:  # noqa: BLE001 — a surprising shape degrades like an unreadable body
+            log.warning("plex.scan_state_unparseable", section=section_key, error=type(exc).__name__)
+            return None
+        return entry.get("refreshing") in (True, 1, "1", "true")
+
+    def empty_trash(self, section_key: str) -> bool:
+        """Empty a section's trash (``PUT /library/sections/{key}/emptyTrash``).
+
+        Plex keeps an item whose files went missing as « unavailable » until its section's
+        trash is emptied; this is what removes it from the library.
+
+        Args:
+            section_key: The section's key.
+
+        Returns:
+            ``True`` when Plex accepted the request, ``False`` on any failure (logged).
+        """
+        return self._put_action(
+            f"/library/sections/{section_key}/emptyTrash",
+            ("plex.empty_trash_unreachable", "plex.empty_trash_http_error", "plex.empty_trash_requested"),
+            section=section_key,
+        )
+
+    def clean_bundles(self) -> bool:
+        """Clean the server's orphan bundles (``PUT /library/clean/bundles``).
+
+        An emptied trash leaves the removed items' artwork and metadata bundles on the
+        server's disk; this removes them.
+
+        Returns:
+            ``True`` when Plex accepted the request, ``False`` on any failure (logged).
+        """
+        return self._put_action(
+            "/library/clean/bundles",
+            ("plex.clean_bundles_unreachable", "plex.clean_bundles_http_error", "plex.clean_bundles_requested"),
+        )
+
+    def _put_action(self, path: str, events: tuple[str, str, str], **context: str) -> bool:
+        """Issue one fire-and-forget PUT and fold every failure into ``False``.
+
+        Args:
+            path: Server-absolute path.
+            events: The log events of an unreachable server, a refused request and an accepted one.
+            **context: Fields added to every log record (never the token).
+
+        Returns:
+            ``True`` on a status below 400, ``False`` otherwise or when the transport raised.
+        """
+        unreachable, http_error, requested = events
+        try:
+            response = self._put(path)
+        except Exception as exc:  # noqa: BLE001 — fail-soft, and no token-bearing frame escapes
+            log.warning(unreachable, error=type(exc).__name__, **context)
+            return False
+        if response.status_code >= 400:
+            log.warning(http_error, status=response.status_code, **context)
+            return False
+        log.info(requested, **context)
         return True
 
 
