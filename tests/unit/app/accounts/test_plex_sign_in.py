@@ -41,7 +41,7 @@ from personalscraper.app.accounts.plex_sign_in import (
     PlexPinStarted,
     PlexSignInService,
 )
-from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow
+from personalscraper.app.accounts.repository import AccountRow, PlexLinkRow, PlexPinRow
 from personalscraper.app.accounts.service import AccountService, SignInResult
 from personalscraper.app.accounts.sessions import SessionService
 from personalscraper.app.accounts.token_vault import TokenVault
@@ -525,6 +525,20 @@ class TestStart:
         door = _build(store, plextv, server, clock, bus, None, forward_url="https://tm.example.org/")
         query = parse_qs(urlsplit(door.start().sign_in_url).fragment.lstrip("?"))
         assert query["forwardUrl"] == ["https://tm.example.org/"]
+
+    def test_a_start_purges_the_expired_and_the_consumed_pins(
+        self, door: PlexSignInService, store: AppStore, clock: _Clock
+    ) -> None:
+        """Every start deletes the PINs past their expiry or used; a live one stays."""
+        now = clock.now
+        store.accounts.insert_pin(PlexPinRow(11, "A", "n", now - 4000.0, now - 2200.0, None, None))
+        store.accounts.insert_pin(PlexPinRow(12, "B", "n", now - 60.0, now + 1740.0, None, now - 30.0))
+        store.accounts.insert_pin(PlexPinRow(13, "C", "n", now - 60.0, now + 1740.0, None, None))
+
+        started = door.start()
+
+        assert store.accounts.pin(11) is None and store.accounts.pin(12) is None
+        assert store.accounts.pin(13) is not None and store.accounts.pin(started.pin_id) is not None
 
     def test_plex_tv_down_is_unavailable_plex_unreachable(
         self, door: PlexSignInService, plextv: _PlexTv, store: AppStore

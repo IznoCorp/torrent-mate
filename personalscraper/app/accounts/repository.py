@@ -846,6 +846,28 @@ class AccountRepository:
         return cursor.rowcount == 1
 
     @serialised
+    def purge_pins(self, *, now: float, lifetime: float, limit: int) -> int:
+        """Delete the PINs no sign-in can use any more: consumed, or past their expiry.
+
+        A PIN plex.tv gave no expiry is past it once ``lifetime`` seconds old. One statement,
+        at most ``limit`` rows, so a start never pays for a backlog at once.
+
+        Args:
+            now: The current time (epoch seconds).
+            lifetime: The lifetime of a PIN stored with no expiry, in seconds.
+            limit: The most rows one call deletes.
+
+        Returns:
+            The number of PINs deleted.
+        """
+        cursor = self._conn.execute(
+            "DELETE FROM plex_pin WHERE pin_id IN (SELECT pin_id FROM plex_pin WHERE consumed_at IS NOT NULL"
+            " OR expires_at <= ? OR (expires_at IS NULL AND created_at <= ?) LIMIT ?)",
+            (now, now - lifetime, limit),
+        )
+        return cursor.rowcount
+
+    @serialised
     def setting(self, key: str) -> str | None:
         """One application setting.
 

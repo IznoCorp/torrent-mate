@@ -94,6 +94,9 @@ PRODUCTS: Final[Mapping[Environment, str]] = {
 #: A PIN's lifetime when plex.tv answers no expiry: the thirty minutes the captures show.
 _PIN_LIFETIME_FALLBACK_S: Final[int] = 1800
 
+#: The most dead PINs one start deletes.
+_PIN_PURGE_LIMIT: Final[int] = 100
+
 #: The Plex kind each non-owner access starts as (``Role.defaultFor``).
 _START_KIND: Final[Mapping[PlexServerAccess, StartKind]] = {
     PlexServerAccess.HOME: "plexHome",
@@ -210,6 +213,8 @@ class PlexSignInService:
     def start(self) -> PlexPinStarted:
         """Create a PIN on plex.tv, keep it bound to a fresh nonce, and answer plex.tv's page.
 
+        The PINs no sign-in can use any more — consumed, or past their expiry — are deleted first.
+
         Returns:
             The PIN's id, plex.tv's page, the nonce for the pin cookie and the cookie's lifetime.
 
@@ -228,7 +233,9 @@ class PlexSignInService:
             raise AppUnavailable("plex.tv did not answer.", code=RefusalCode.PLEX_UNREACHABLE) from None
         now = self._clock()
         nonce = secrets.token_urlsafe(32)
-        self._repo_factory().insert_pin(
+        repo = self._repo_factory()
+        repo.purge_pins(now=now, lifetime=_PIN_LIFETIME_FALLBACK_S, limit=_PIN_PURGE_LIMIT)
+        repo.insert_pin(
             PlexPinRow(
                 pin_id=pin.id,
                 code=pin.code,

@@ -183,7 +183,7 @@ the application, behind `startPlexSignIn` (`POST /api/v1/auth/plex/start`) and `
 
 | Step | What happens |
 | --- | --- |
-| start | the client identifier read from `app_setting` `plex.client_identifier` (created once); `create_pin`; the PIN stored with the sha256 of a nonce; the nonce handed in the cookie `tm_v1_plex_pin` (HttpOnly, SameSite=Strict, Path=`/api/v1/auth/plex`, until the PIN expires) |
+| start | the client identifier read from `app_setting` `plex.client_identifier` (created once); `create_pin`; the PINs consumed or expired deleted (at most 100 a start); the PIN stored with the sha256 of a nonce; the nonce handed in the cookie `tm_v1_plex_pin` (HttpOnly, SameSite=Strict, Path=`/api/v1/auth/plex`, until the PIN expires) |
 | finish | the PIN bound to the cookie's nonce, else `plex.pin_unknown`; past its expiry `plex.pin_expired`; a check claimed at most once a second (an atomic `UPDATE`), else 202 pending; `check_pin` → `account` → the server's identifier → `server_access` |
 | owner | OWNER only when the identity's `plex_id` is the account behind `PLEX_TOKEN` (read once, cached); otherwise refused as no access |
 | admit | one transaction: the account by `plex_id`, else a local account by e-mail (linked, only when plex.tv confirmed the e-mail), else a new one; the PIN used; the token sealed in the vault (no vault: not kept, `plex_token.not_kept`); then the session |

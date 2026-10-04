@@ -458,6 +458,27 @@ class TestPinsAndSettings:
         assert repo.pin(9).consumed_at == 2.0  # type: ignore[union-attr]
         assert repo.claim_pin_check(9, now=9.0, min_interval=1.0) is False
 
+    def test_purge_pins_deletes_the_expired_and_the_consumed_only(self, repo: AccountRepository) -> None:
+        """Past its expiry, consumed, or with no expiry and older than the lifetime: deleted; the live kept."""
+        repo.insert_pin(PlexPinRow(1, "A", "n", 1.0, 50.0, None, None))  # expired
+        repo.insert_pin(PlexPinRow(2, "B", "n", 90.0, 200.0, None, 95.0))  # consumed, not yet expired
+        repo.insert_pin(PlexPinRow(3, "C", "n", 10.0, None, None, None))  # no expiry, past the lifetime
+        repo.insert_pin(PlexPinRow(4, "D", "n", 90.0, 200.0, 95.0, None))  # alive
+        repo.insert_pin(PlexPinRow(5, "E", "n", 90.0, None, None, None))  # no expiry, within the lifetime
+
+        assert repo.purge_pins(now=100.0, lifetime=30.0, limit=10) == 3
+
+        assert [pin_id for pin_id in range(1, 6) if repo.pin(pin_id) is not None] == [4, 5]
+
+    def test_purge_pins_is_bounded(self, repo: AccountRepository) -> None:
+        """One call deletes at most ``limit`` rows; the next takes the rest."""
+        for pin_id in range(1, 6):
+            repo.insert_pin(PlexPinRow(pin_id, "A", "n", 1.0, 2.0, None, None))
+
+        assert repo.purge_pins(now=100.0, lifetime=30.0, limit=2) == 2
+        assert repo.purge_pins(now=100.0, lifetime=30.0, limit=10) == 3
+        assert repo.purge_pins(now=100.0, lifetime=30.0, limit=10) == 0
+
     def test_setting_set_read_and_replaced(self, repo: AccountRepository) -> None:
         """Absent, set, replaced."""
         assert repo.setting("plex.client_identifier") is None
