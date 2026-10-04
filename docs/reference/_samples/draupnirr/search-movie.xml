@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/" xmlns:torznab="http://torznab.com/schemas/2015/feed">
+    <channel>
+        <title>Draupnirr</title>
+        <newznab:response offset="0" total="3"/>
+        <item>
+            <title>Inception.2010.HYBRID.VOSTFR.1080p.Bluray.10bits.DV.HDR10.EAC3.5.1.x265-HiDt</title>
+            <guid isPermaLink="false">ygrasil-b9e291bf94e4e76572cb99a938b0ab7dc45cd76a</guid>
+            <link>https://draupnirr.xyz/torznab/download/afFcAL5twO?apikey=REDACTED</link>
+            <comments>https://draupnirr.xyz/torrents/afFcAL5twO</comments>
+            <pubDate>Sat, 19 Sep 2026 18:32:05 +0000</pubDate>
+            <size>17048151843</size>
+            <files>1</files>
+            <grabs>0</grabs>
+            <enclosure url="https://draupnirr.xyz/torznab/download/afFcAL5twO?apikey=REDACTED" length="17048151843" type="application/x-bittorrent"/>
+            <torznab:attr name="category" value="2040"/>
+            <torznab:attr name="category" value="2000"/>
+            <torznab:attr name="category" value="100002"/>
+            <torznab:attr name="seeders" value="1"/>
+            <torznab:attr name="leechers" value="0"/>
+            <torznab:attr name="peers" value="1"/>
+            <torznab:attr name="grabs" value="0"/>
+            <torznab:attr name="files" value="1"/>
+            <torznab:attr name="infohash" value="b9e291bf94e4e76572cb99a938b0ab7dc45cd76a"/>
+            <torznab:attr name="downloadvolumefactor" value="0"/>
+            <torznab:attr name="uploadvolumefactor" value="1"/>
+            <torznab:attr name="minimumseedtime" value="172800"/>
+            <torznab:attr name="tmdbid" value="27205"/>
+        </item>
+        <item>
+            <title>Inception.2010.Custom.MULTi.2160p.UHD.Hybrid.DV.x265-FLOP.mkv</title>
+            <guid isPermaLink="false">ygrasil-1cf530138db7c99cec6de248aa656f9a946b2787</guid>
+            <link>https://draupnirr.xyz/torznab/download/rspHVh7ykt?apikey=REDACTED</link>
+            <comments>https://draupnirr.xyz/torrents/rspHVh7ykt</comments>
+            <pubDate>Thu, 27 Aug 2026 15:27:31 +0000</pubDate>
+            <size>30695029944</size>
+            <files>1</files>
+            <grabs>1</grabs>
+            <enclosure url="https://draupnirr.xyz/torznab/download/rspHVh7ykt?apikey=REDACTED" length="30695029944" type="application/x-bittorrent"/>
+            <torznab:attr name="category" value="2045"/>
+            <torznab:attr name="category" value="2000"/>
+            <torznab:attr name="category" value="100001"/>
+            <torznab:attr name="seeders" value="4"/>
+            <torznab:attr name="leechers" value="0"/>
+            <torznab:attr name="peers" value="4"/>
+            <torznab:attr name="grabs" value="1"/>
+            <torznab:attr name="files" value="1"/>
+            <torznab:attr name="infohash" value="1cf530138db7c99cec6de248aa656f9a946b2787"/>
+            <torznab:attr name="downloadvolumefactor" value="0"/>
+            <torznab:attr name="uploadvolumefactor" value="1"/>
+            <torznab:attr name="minimumseedtime" value="172800"/>
+            <torznab:attr name="imdb" value="1375666"/>
+            <torznab:attr name="tmdbid" value="27205"/>
+        </item>
+        <item>
+            <title>Inception (2010) MULTi VFF 2160p 10bit 4KLight HDR BluRay x265 DTS 5.1 - QTZ.mkv</title>
+            <guid isPermaLink="false">ygrasil-415b0cd8fed6160dfc27ba96719d0e5930e8ea56</guid>
+            <link>https://draupnirr.xyz/torznab/download/02nPc3MACr?apikey=REDACTED</link>
+            <comments>https://draupnirr.xyz/torrents/02nPc3MACr</comments>
+            <pubDate>Mon, 24 Aug 2026 10:25:17 +0000</pubDate>
+            <size>7352098468</size>
+            <files>1</files>
+            <grabs>1</grabs>
+            <enclosure url="https://draupnirr.xyz/torznab/download/02nPc3MACr?apikey=REDACTED" length="7352098468" type="application/x-bittorrent"/>
+            <torznab:attr name="category" value="2045"/>
+            <torznab:attr name="category" value="2000"/>
+            <torznab:attr name="category" value="100001"/>
+            <torznab:attr name="seeders" value="15"/>
+            <torznab:attr name="leechers" value="0"/>
+            <torznab:attr name="peers" value="15"/>
+            <torznab:attr name="grabs" value="1"/>
+            <torznab:attr name="files" value="1"/>
+            <torznab:attr name="infohash" value="415b0cd8fed6160dfc27ba96719d0e5930e8ea56"/>
+            <torznab:attr name="downloadvolumefactor" value="0"/>
+            <torznab:attr name="uploadvolumefactor" value="1"/>
+            <torznab:attr name="minimumseedtime" value="172800"/>
+            <torznab:attr name="imdb" value="1375666"/>
+            <torznab:attr name="tmdbid" value="27205"/>
+        </item>
+    </channel>
+</rss>
