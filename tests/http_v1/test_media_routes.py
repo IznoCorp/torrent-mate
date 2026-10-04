@@ -4,7 +4,8 @@ Each route parses the identity and makes ONE ``LibraryService`` call; these test
 the wire: the bodies' shapes (the film sheet without its show-only block), the statuses
 and ``Problem`` codes the contract declares, the rights each operation asks, and the
 read-only clone refusing the rescrape. The facts themselves are proved in
-``tests/unit/app/library``; here the service answers fixed facts.
+``tests/unit/app/library``; here the service answers fixed facts, save one poster read
+served end to end by the real service over a fixture index.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Callable
 from datetime import date
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -40,6 +42,7 @@ from personalscraper.app.library.service import (
 from personalscraper.conf.models.config import Config
 from personalscraper.core.identity import MediaRef
 from tests.http_v1.test_deprecations import _client as v0_client
+from tests.unit.app.library.world import FixtureIndex
 
 _FILM = MediaSheetFacts(
     title="Heat",
@@ -352,6 +355,27 @@ class TestReadMediaPoster:
         assert response.headers["content-type"] == "image/png"
         assert response.content == b"\x89PNG\r\n\x1a\nposter"
         assert posters == [MediaRef(tvdb_id=79168)]
+
+    def test_the_library_folder_poster_is_served_end_to_end(
+        self, v1_client: Callable[..., TestClient], test_config: Config, tmp_path: Path
+    ) -> None:
+        """The real service over a fixture index: the folder's ``poster.png``, its bytes under ``image/png``."""
+        library_db = Path(test_config.indexer.db_path)
+        library_db.parent.mkdir(parents=True, exist_ok=True)
+        index = FixtureIndex(library_db)
+        index.mount(1, tmp_path / "disk1")
+        movie = index.item("Heat", tmdb="949", poster_url=None, poster_file=True)
+        index.movie_file(movie, "films/Heat (1995)")
+        folder = tmp_path / "disk1" / "films" / "Heat (1995)"
+        folder.mkdir(parents=True)
+        (folder / "poster.png").write_bytes(b"\x89PNG\r\n\x1a\nposter")
+        index.conn.close()
+
+        response = v1_client(rights=_READ).get("/media/tmdb/949/poster")
+
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "image/png"
+        assert response.content == b"\x89PNG\r\n\x1a\nposter"
 
     def test_no_poster_is_not_found(self, v1_client: Callable[..., TestClient], posters: list[MediaRef]) -> None:
         """No medium, no mounted folder or no poster in it: 404 ``media.not_found``."""

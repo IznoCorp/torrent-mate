@@ -206,3 +206,17 @@ def test_a_poster_over_the_size_cap_is_never_read(world: World, tmp_path: Path) 
         poster.truncate(POSTER_MAX_BYTES + 1)
 
     _refused(world, MediaRef(tvdb_id=391101))
+
+
+def test_a_media_folder_linking_out_of_the_disk_is_never_read(world: World, tmp_path: Path) -> None:
+    """A media folder that is a symlink to a folder outside the disk is refused, its poster never served."""
+    world.index.mount(1, tmp_path / "disk1")
+    outside = tmp_path / "outside" / "Heat"
+    outside.mkdir(parents=True)
+    (outside / "poster.jpg").write_bytes(_JPEG)
+    (tmp_path / "disk1" / "films").mkdir(parents=True)
+    (tmp_path / "disk1" / "films" / "Heat").symlink_to(outside, target_is_directory=True)
+    movie = world.index.item("Heat", tmdb="949", poster_file=True)
+    world.index.movie_file(movie, "films/Heat")
+
+    _refused(world, MediaRef(tmdb_id=949))
