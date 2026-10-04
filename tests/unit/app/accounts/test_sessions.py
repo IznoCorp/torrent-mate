@@ -16,6 +16,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from personalscraper.app.accounts.actor import RoleKind
 from personalscraper.app.accounts.ceiling import InstanceCeiling
@@ -272,6 +273,12 @@ class TestIdleLifetime:
     def test_the_default_is_thirty_days(self) -> None:
         """The model's default."""
         assert WebConfig().session_idle_days == 30
+
+    @pytest.mark.parametrize("days", [0, -1])
+    def test_a_lifetime_not_positive_is_refused(self, days: int) -> None:
+        """Zero or negative days would end every session as it opens: the model refuses them."""
+        with pytest.raises(ValidationError, match="session_idle_days"):
+            WebConfig(session_idle_days=days)
 
     def test_the_example_configuration_names_it(self) -> None:
         """``config.example/`` sets it, to the default."""
