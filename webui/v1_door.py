@@ -8,9 +8,9 @@ rather than checking a password of its own.
 
 THE COOKIE REACHES THIS HOST because v1 sets it host-only with `Path=/`
 (`personalscraper/http_v1/session_cookie.py`), and Caddy serves v1 and this host
-under one origin. It is `SameSite=Strict`, so a navigation ARRIVING from another
-site carries none: the sign-in page asks v1 once, by `fetch` — same-site, so the
-cookie goes — and reloads when v1 answers that the session holds.
+under one origin. It is `SameSite=Lax`, so even a navigation ARRIVING from
+another site carries it: the door reads the session on the request itself, and
+the sign-in page never asks v1 about it again.
 
 THE PAGE SAYS WHY THE SESSION ENDED (the operator, 2026-10-04): v1's refusal
 carries a closed code — `auth.required` for a session that is gone, `auth.access_disabled`
@@ -254,26 +254,15 @@ def return_target(request_path: str) -> str:
 # The sign-in page's v1 half: the form posts the e-mail and the password to v1
 # as declared JSON, and lands on the place that was asked once v1 opens the
 # session — or back on the sign-in page, that place kept, when it does not.
-# First, the session already held is asked about once (the SameSite note
-# above), at most once in ten seconds so a page whose reload still carries no
-# cookie cannot loop.
 V1_SIGN_IN = """
 <script>
 (function () {
   var RETURN_TO = __RETURN_TO__;
   var REASONS = __REASONS__;
   var form = document.querySelector('#loginform');
-  var asked = 0;
   function refused(code) {
     var why = REASONS.indexOf(code) < 0 ? '' : '&why=' + code;
     return '/?refus=1' + why + '&next=' + encodeURIComponent(RETURN_TO);
-  }
-  try { asked = Number(sessionStorage.getItem('tm-design-v1-asked') || 0); } catch (e) {}
-  if (Date.now() - asked > 10000) {
-    try { sessionStorage.setItem('tm-design-v1-asked', String(Date.now())); } catch (e) {}
-    fetch('/api/v1/auth/me', { credentials: 'same-origin' })
-      .then(function (answer) { if (answer.ok) location.replace(RETURN_TO); })
-      .catch(function () {});
   }
   form.addEventListener('submit', function (event) {
     event.preventDefault();

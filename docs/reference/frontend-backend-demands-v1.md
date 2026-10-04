@@ -26,8 +26,8 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | | |
 | --- | ---: |
 | operations the interface requires | 103 |
-| operations v1 serves | 15 |
-| required and not served | 88 |
+| operations v1 serves | 18 |
+| required and not served | 85 |
 | served, different response shape | 0 |
 | served, path parameter spelled differently | 0 |
 | served, answered with a different status | 0 |
@@ -74,9 +74,7 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `GET /api/v1/maintenance/index-health` | `readIndexHealth` | The indexer's own figures |
 | `GET /api/v1/maintenance/locks` | `readLocks` | What holds the pipeline, whether it is paused, whether the automatic trigger is paused, and what temporary entries a crash left behind |
 | `GET /api/v1/maintenance/schedulers` | `readSchedulers` | The schedulers, their cadence and their last pass |
-| `GET /api/v1/media/{provider}/{providerId}` | `readMediaSheet` | One media sheet, by its provider identity |
 | `GET /api/v1/media/{provider}/{providerId}/cross-seed` | `readMediaCrossSeed` | The medium's cross-seed, tracker by tracker |
-| `GET /api/v1/media/{provider}/{providerId}/seasons` | `readMediaSeasons` | The seasons of a show, and what the library holds of each |
 | `GET /api/v1/notifications/preferences` | `readNotificationPreferences` | The signed-in account's notification switches, one per type it may receive |
 | `GET /api/v1/pipeline/history` | `readPipelineHistory` | The recent runs, a page at a time, and whether the list can be trusted |
 | `GET /api/v1/pipeline/history/{runUid}` | `readRun` | One passage: what triggered it, how it ended, its steps with their counts and their reasons, and its raw output |
@@ -107,7 +105,6 @@ the contract field by field — enums, required sets, request bodies, refusals a
 | `POST /api/v1/decisions/{decisionId}/resolve` | `resolveDecision` | Choose a candidate and re-scrape |
 | `POST /api/v1/decisions/{decisionId}/search` | `searchForDecision` | Search the providers by hand for one decision |
 | `POST /api/v1/maintenance/actions/{actionId}/run` | `runMaintenanceAction` | Run one maintenance action |
-| `POST /api/v1/media/{provider}/{providerId}/rescrape` | `rescrapeMedia` | Ask the providers for one medium's metadata again |
 | `POST /api/v1/notifications/devices` | `registerPushDevice` | Register this device's push token for the signed-in account (K5) |
 | `POST /api/v1/pipeline/kill` | `killPipeline` | Stop the run |
 | `POST /api/v1/pipeline/pause` | `pausePipeline` | Pause the run |

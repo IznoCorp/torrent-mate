@@ -18,7 +18,7 @@ import threading
 import time
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import closing
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime
 from pathlib import Path
 from typing import Final, Literal
@@ -26,7 +26,7 @@ from typing import Final, Literal
 from personalscraper.acquire.catalogue import CatalogueEpisode, CatalogueStore, ProviderClients
 from personalscraper.api.metadata._base import MediaDetails
 from personalscraper.app.accounts.actor import Actor
-from personalscraper.app.errors import AppBadRequest, AppConflict, RefusalCode
+from personalscraper.app.errors import AppBadRequest, AppConflict, AppInternalError, RefusalCode
 from personalscraper.app.library.catalogue import (
     Completeness,
     aired_of_season,
@@ -64,8 +64,8 @@ from personalscraper.app.library.listing import (
     read_holders,
     read_live_rows,
 )
-from personalscraper.app.maintenance.registry import REGISTRY
-from personalscraper.app.maintenance.service import LaunchedRun, launch_action
+from personalscraper.app.maintenance.registry import REGISTRY, MaintenanceAction
+from personalscraper.app.maintenance.service import LaunchedRun, launch_action, running_run
 from personalscraper.core.identity import MediaRef
 from personalscraper.indexer.ownership import IndexerOwnershipChecker
 from personalscraper.logger import get_logger
@@ -222,13 +222,15 @@ class SeasonsFacts:
 
 @dataclass(frozen=True)
 class RescrapeAccepted:
-    """A medium's rescrape, accepted and launched.
+    """A medium's rescrape, accepted: launched, or already under way.
 
     Attributes:
         provider: The provider the medium was named at.
         provider_id: Its id there, as the wire named it.
         queued: Whether ``pipeline.lock`` was held: the run waits in the visible queue.
-        run_uid: The run of the lowest holding row (one run per row holding live files).
+        run_uid: The run of the lowest holding row launched now (one run per row holding
+            live files), else the lowest holding row's run already under way; ``None``
+            when that run ended before it could be read.
     """
 
     provider: Provider
@@ -735,7 +737,7 @@ class LibraryService:
             local_poster=poster_url is None and held is not None and held.has_local_poster,
             poster_high_definition_url=provider_poster,
             hero_url=hero_of(details),
-            metadata_refreshed_at=datetime.fromtimestamp(refreshed).astimezone() if refreshed is not None else None,
+            metadata_refreshed_at=datetime.fromtimestamp(refreshed).date() if refreshed is not None else None,
         )
 
     # ------------------------------------------------------------------ writes
@@ -745,19 +747,21 @@ class LibraryService:
 
         One ``library-rescrape-item`` run is reserved and spawned per holding row with live
         files (a duplicate with files in both rows rescrapes both), no dry run first. A held
-        ``pipeline.lock`` is no refusal: the runs wait in the visible queue.
+        ``pipeline.lock`` is no refusal: the runs wait in the visible queue. A row whose
+        rescrape already runs is no refusal either: the ask is accepted on that run (the
+        contract's ``rescrapeMedia`` declares no 409).
 
         Args:
             actor: Who asks (not consulted: the v1 perimeter holds ``library.rescrape``).
             ref: The medium, by the one id the wire names.
 
         Returns:
-            The acceptance, naming the lowest holding row's run.
+            The acceptance, naming the lowest holding row's launched run, else the lowest
+            holding row's run already under way; queued when any of them waits on the
+            pipeline.
 
         Raises:
             AppNotFound: ``media.not_found`` when no row holding the id has a live file.
-            AppConflict: When every holding row's rescrape is already running (a row
-                already running is skipped while another one launches).
             AppInternalError: When a runner cannot be spawned; the runs spawned before it
                 stay live.
         """
@@ -769,25 +773,50 @@ class LibraryService:
             raise refuse_not_found(provider.value)
         action = next(a for a in REGISTRY if a.id == _RESCRAPE_ITEM_ACTION)
         launched: list[LaunchedRun] = []
-        conflict: AppConflict | None = None
+        running: list[LaunchedRun] = []
         for item_id in sorted(live):
-            try:
-                launched.append(
-                    launch_action(action, {"item_id": item_id}, db_path=self._index_db, data_dir=self._data_dir)
-                )
-            except AppConflict as exc:
-                # This row's rescrape is already running: the other holders still launch.
-                log.info("app.library.rescrape_already_running", provider=provider.value, item_id=item_id)
-                conflict = exc
-        if not launched and conflict is not None:
-            raise conflict
+            run, joined = self._launch_or_join(action, item_id, provider)
+            (running if joined else launched).append(run)
         log.info("app.library.rescrape_launched", provider=provider.value, item_ids=sorted(live))
+        answered = launched[0] if launched else running[0]
         return RescrapeAccepted(
             provider=provider,
             provider_id=provider_id,
-            queued=any(run.queued for run in launched),
-            run_uid=launched[0].run_uid,
+            queued=any(run.queued for run in (*launched, *running)),
+            run_uid=answered.run_uid,
         )
+
+    def _launch_or_join(self, action: MaintenanceAction, item_id: int, provider: Provider) -> tuple[LaunchedRun, bool]:
+        """Launch one row's rescrape, or join the one already running.
+
+        The duplicate guard refuses while the row's rescrape runs; that run may end
+        between the refusal and the read that names it, and the launch is then retried
+        once.
+
+        Args:
+            action: The per-medium rescrape.
+            item_id: The holding row.
+            provider: The provider the medium is asked by, for the logs.
+
+        Returns:
+            The run, and whether it was joined rather than launched.
+
+        Raises:
+            AppInternalError: When a runner cannot be spawned, or when the row's rescrape is
+                refused as running twice yet never found running.
+        """
+        options = {"item_id": item_id}
+        for _attempt in range(2):
+            try:
+                return launch_action(action, options, db_path=self._index_db, data_dir=self._data_dir), False
+            except AppConflict:
+                run = running_run(action, options, db_path=self._index_db, data_dir=self._data_dir)
+            if run is not None:
+                # This row's rescrape is already running: the ask is accepted on that run.
+                log.info("app.library.rescrape_already_running", provider=provider.value, item_id=item_id)
+                return run, True
+            log.info("app.library.rescrape_ended_before_read", provider=provider.value, item_id=item_id)
+        raise AppInternalError("the rescrape was refused as running but no run was found")
 
     # ------------------------------------------------------------------ the sheet's parts
 
@@ -820,8 +849,10 @@ class LibraryService:
     def _provider_sheet(self, provider: str, provider_id: str, kind: Literal["movie", "show"] | None) -> ProviderSheet:
         """Read a provider's answer, through the five-minute cache.
 
-        A TVDB show naming no creator is crossed with TMDB (operator ruling 2026-08-04),
-        fail-soft: a failed cross leaves the creator unknown.
+        A TVDB show is crossed with TMDB through its TMDB id for what TVDB does not give:
+        the creator when it names none (operator ruling 2026-08-04), the trailer and the
+        rating (TVDB has neither, and the interface opens a show at TVDB first). Fail-soft:
+        a failed cross leaves those facts unknown and the sheet answers from TVDB alone.
 
         Args:
             provider: ``"tvdb"`` or ``"tmdb"``.
@@ -838,12 +869,16 @@ class LibraryService:
         creator = details.creator
         tmdb_id = details.external_ids.get("tmdb", "").strip()
         tmdb = self._providers.tmdb
-        if answered == "show" and not creator and provider == "tvdb" and tmdb_id not in ("", "0"):
+        lacking = not creator or not details.trailer_url or details.rating is None
+        if answered == "show" and lacking and provider == "tvdb" and tmdb_id not in ("", "0"):
             if isinstance(tmdb, SheetClient):
                 try:
-                    creator = tmdb.get_tv(tmdb_id).creator
-                except Exception as exc:  # noqa: BLE001 — fail-soft: the creator stays unknown
+                    crossed = tmdb.get_tv(tmdb_id)
+                except Exception as exc:  # noqa: BLE001 — fail-soft: the crossed facts stay unknown
                     log.debug("app.library.creator_cross_failed", tmdb_id=tmdb_id, error=str(exc))
+                else:
+                    creator = creator or crossed.creator
+                    details = _crossed_trailer_and_rating(details, crossed)
         answer = ProviderSheet(details=details, kind=answered, creator=creator)
         self._sheets.put((provider, provider_id), answer)
         return answer
@@ -890,3 +925,26 @@ class LibraryService:
             )
             for season in sorted(details.seasons, key=lambda s: s.season_number)
         )
+
+
+def _crossed_trailer_and_rating(details: MediaDetails, crossed: MediaDetails) -> MediaDetails:
+    """Fill a TVDB answer's missing trailer and rating from the TMDB answer for the same show.
+
+    The trailer travels whole (URL, name, language) so its parts never mix two providers.
+
+    Args:
+        details: TVDB's answer.
+        crossed: TMDB's answer for the same show.
+
+    Returns:
+        TVDB's answer with TMDB's trailer when TVDB has none, and TMDB's rating when TVDB
+        has none.
+    """
+    trailer = details if details.trailer_url else crossed
+    return replace(
+        details,
+        trailer_url=trailer.trailer_url,
+        trailer_name=trailer.trailer_name,
+        trailer_language=trailer.trailer_language,
+        rating=details.rating if details.rating is not None else crossed.rating,
+    )

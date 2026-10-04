@@ -16,7 +16,7 @@ import threading
 from collections import OrderedDict
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date
 from enum import StrEnum
 from typing import Final, Literal, Protocol, runtime_checkable
 
@@ -251,8 +251,8 @@ class MediaSheetFacts:
         local_poster: Whether the poster to show is the library folder's own file (no URL known).
         poster_high_definition_url: The provider's poster URL at gallery definition, or ``None``.
         hero_url: The provider's wide visual (backdrop) URL, or ``None``.
-        metadata_refreshed_at: When the library last read the provider data (the NFO's
-            write), or ``None`` when the library holds none.
+        metadata_refreshed_at: The local date the library last read the provider data (the
+            NFO's write), or ``None`` when the library holds none.
     """
 
     title: str
@@ -279,7 +279,7 @@ class MediaSheetFacts:
     local_poster: bool
     poster_high_definition_url: str | None
     hero_url: str | None
-    metadata_refreshed_at: datetime | None
+    metadata_refreshed_at: date | None
 
 
 @dataclass(frozen=True)

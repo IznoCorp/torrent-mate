@@ -102,6 +102,26 @@
         "title": "AccountSummaryModel",
         "type": "object"
       },
+      "CastMemberModel": {
+        "additionalProperties": false,
+        "description": "The contract's ``CastMember``.\n\nAttributes:\n    name: The actor's name.\n    role: The character played.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "role"
+        ],
+        "title": "CastMemberModel",
+        "type": "object"
+      },
       "ChangeOwnPasswordBody": {
         "additionalProperties": false,
         "description": "``changeOwnPassword``'s body.\n\nAttributes:\n    current_password: The password the account holds now.\n    new_password: The password that replaces it.",
@@ -180,6 +200,399 @@
         ],
         "title": "CreateRoleBody",
         "type": "object"
+      },
+      "EpisodeModel": {
+        "additionalProperties": false,
+        "description": "The contract's ``Episode``: one catalogued episode.\n\nAttributes:\n    number: The episode number.\n    title: Its title; ``None`` when the catalogue gives none.\n    air_date: Its air date, or ``None``.\n    duration: Minutes, where known; never assigned (the catalogue holds none).",
+        "properties": {
+          "airDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Airdate"
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "number",
+          "title"
+        ],
+        "title": "EpisodeModel",
+        "type": "object"
+      },
+      "GenreId": {
+        "description": "The contract's closed genre tokens; the interface names each one.",
+        "enum": [
+          "action",
+          "action_adventure",
+          "adventure",
+          "animation",
+          "comedy",
+          "crime",
+          "documentary",
+          "drama",
+          "family",
+          "fantasy",
+          "history",
+          "horror",
+          "kids",
+          "music",
+          "mystery",
+          "reality",
+          "romance",
+          "science_fiction",
+          "sci_fi_fantasy",
+          "thriller",
+          "tv_movie",
+          "war",
+          "war_politics",
+          "western"
+        ],
+        "title": "GenreId",
+        "type": "string"
+      },
+      "MediaSeasons": {
+        "additionalProperties": false,
+        "description": "``readMediaSeasons``'s answer: the seasons, the held episodes, the aired counts.\n\nAttributes:\n    seasons: The catalogued and held seasons, by number.\n    owned: The held episode numbers, keyed by season number.\n    aired: How many episodes of each season have aired, keyed by season number.",
+        "properties": {
+          "aired": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Aired",
+            "type": "object"
+          },
+          "owned": {
+            "additionalProperties": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "title": "Owned",
+            "type": "object"
+          },
+          "seasons": {
+            "items": {
+              "$ref": "#/components/schemas/SeasonModel"
+            },
+            "title": "Seasons",
+            "type": "array"
+          }
+        },
+        "required": [
+          "seasons",
+          "owned",
+          "aired"
+        ],
+        "title": "MediaSeasons",
+        "type": "object"
+      },
+      "MediaSheet": {
+        "additionalProperties": false,
+        "description": "The contract's ``MediaSheet``: one medium's sheet, film or show.\n\nAttributes:\n    title: The title the sheet is filed under.\n    kind: ``movie`` or ``show``.\n    year: The year, or ``None``.\n    rating: The provider's average, or ``None``.\n    genres: The genre tokens, in the provider's order.\n    runtime: Minutes, or ``None``.\n    overview: The synopsis, or ``None``.\n    director: The director, or ``None``.\n    creator: A show's creator, or ``None``.\n    cast: The cast, in the provider's order.\n    cast_portraits: The cast's portrait URLs, keyed by name.\n    trailer: The trailer's title (the provider's first trailer), or ``None``.\n    trailer_video: The trailer's key and name, or ``None`` unless all three are known.\n    ids: Every provider id known.\n    status: Where the medium stands at its provider, or ``None``.\n    owned: Whether the library holds it.\n    episodes: A show's catalogue by season number; unassigned on a film.\n    seasons: A show's seasons as the provider knows them; unassigned on a film.\n    tmdb_television_id: A show's TMDB id; unassigned on a film and on a show without one.\n    poster: The poster's provider URL, or ``None``.\n    poster_high_definition: The poster at gallery definition, or ``None``.\n    hero: The wide visual's URL, or ``None``.\n    metadata_refreshed_at: The date the library last read the provider data, or ``None``.",
+        "properties": {
+          "cast": {
+            "items": {
+              "$ref": "#/components/schemas/CastMemberModel"
+            },
+            "title": "Cast",
+            "type": "array"
+          },
+          "castPortraits": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Castportraits",
+            "type": "object"
+          },
+          "creator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Creator"
+          },
+          "director": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Director"
+          },
+          "episodes": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "items": {
+                    "$ref": "#/components/schemas/EpisodeModel"
+                  },
+                  "type": "array"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episodes"
+          },
+          "genres": {
+            "items": {
+              "$ref": "#/components/schemas/GenreId"
+            },
+            "title": "Genres",
+            "type": "array"
+          },
+          "hero": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hero"
+          },
+          "ids": {
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "title": "Ids",
+            "type": "object"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "metadataRefreshedAt": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadatarefreshedat"
+          },
+          "overview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overview"
+          },
+          "owned": {
+            "title": "Owned",
+            "type": "boolean"
+          },
+          "poster": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poster"
+          },
+          "posterHighDefinition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posterhighdefinition"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "runtime": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runtime"
+          },
+          "seasons": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SeasonSummaryModel"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seasons"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MediaStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "tmdbTelevisionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tmdbtelevisionid"
+          },
+          "trailer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trailer"
+          },
+          "trailerVideo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrailerModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          }
+        },
+        "required": [
+          "title",
+          "kind",
+          "year",
+          "rating",
+          "genres",
+          "runtime",
+          "overview",
+          "director",
+          "creator",
+          "cast",
+          "trailer",
+          "ids",
+          "status",
+          "owned"
+        ],
+        "title": "MediaSheet",
+        "type": "object"
+      },
+      "MediaStatus": {
+        "description": "Where a medium stands at its provider, as the contract's closed token.",
+        "enum": [
+          "continuing",
+          "ended",
+          "canceled",
+          "released",
+          "in_production",
+          "planned"
+        ],
+        "title": "MediaStatus",
+        "type": "string"
       },
       "PasswordSet": {
         "additionalProperties": false,
@@ -267,6 +680,16 @@
         "title": "Problem",
         "type": "object"
       },
+      "Provider": {
+        "description": "The providers a medium's id is read at.",
+        "enum": [
+          "tvdb",
+          "tmdb",
+          "imdb"
+        ],
+        "title": "Provider",
+        "type": "string"
+      },
       "RefusalCode": {
         "description": "The closed set of refusal codes v1 answers (X4).\n\nEach lot adds its members; the interface owns every word (``fr.json``, by code).",
         "enum": [
@@ -318,6 +741,43 @@
         ],
         "title": "RefusalCode",
         "type": "string"
+      },
+      "RescrapeQueued": {
+        "additionalProperties": false,
+        "description": "``rescrapeMedia``'s 202: the ask accepted, running or visibly in file.\n\nAttributes:\n    provider: The provider the medium was named at.\n    provider_id: Its id there.\n    queued: Whether the ask waits on the pipeline rather than running now.\n    run_uid: The run to follow, or ``None``.",
+        "properties": {
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "providerId": {
+            "title": "Providerid",
+            "type": "string"
+          },
+          "queued": {
+            "title": "Queued",
+            "type": "boolean"
+          },
+          "runUid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runuid"
+          }
+        },
+        "required": [
+          "provider",
+          "providerId",
+          "queued",
+          "runUid"
+        ],
+        "title": "RescrapeQueued",
+        "type": "object"
       },
       "ResetAccountPasswordBody": {
         "additionalProperties": false,
@@ -467,6 +927,91 @@
         "title": "RosterModel",
         "type": "object"
       },
+      "SeasonModel": {
+        "additionalProperties": false,
+        "description": "The contract's ``Season``: one season, as the catalogue and the library know it.\n\nAttributes:\n    number: The season number.\n    episodes: How many episodes the catalogue lists, or ``None``.\n    air_date: The season's first air date, or ``None``.\n    off_catalogue: The held episode numbers above the catalogue's last, ascending.",
+        "properties": {
+          "airDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Airdate"
+          },
+          "episodes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episodes"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "offCatalogue": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Offcatalogue",
+            "type": "array"
+          }
+        },
+        "required": [
+          "number",
+          "episodes",
+          "offCatalogue"
+        ],
+        "title": "SeasonModel",
+        "type": "object"
+      },
+      "SeasonSummaryModel": {
+        "additionalProperties": false,
+        "description": "The contract's ``SeasonSummary``: a season as the provider knows it.\n\nAttributes:\n    number: The season number.\n    episodes: How many episodes the provider counts, or ``None``.\n    air_date: The season's first air date, or ``None``.",
+        "properties": {
+          "airDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Airdate"
+          },
+          "episodes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episodes"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "number"
+        ],
+        "title": "SeasonSummaryModel",
+        "type": "object"
+      },
       "SetAccountAccessBody": {
         "additionalProperties": false,
         "description": "``setAccountAccess``'s body.\n\nAttributes:\n    sign_in_allowed: True to allow the account's sign-in, False to cut it. Strict: a\n        string or a number is refused ``request.invalid``, never read as a boolean.",
@@ -545,6 +1090,31 @@
           "signInUrl"
         ],
         "title": "StartedPlexSignInModel",
+        "type": "object"
+      },
+      "TrailerModel": {
+        "additionalProperties": false,
+        "description": "The contract's ``Trailer``: a trailer's key beside its name.\n\nAttributes:\n    key: The YouTube key.\n    name: The trailer's title.\n    language: Its language code, as the provider gives it.",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "language"
+        ],
+        "title": "TrailerModel",
         "type": "object"
       },
       "UpdateAccountBody": {
@@ -1647,6 +2217,332 @@
           }
         },
         "summary": "Start Plex Sign In"
+      }
+    },
+    "/media/{provider}/{providerId}": {
+      "get": {
+        "description": "One medium's sheet: the provider's facts crossed with the library's.\n\nArgs:\n    provider: The provider the id belongs to.\n    provider_id: The id at that provider.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The sheet; a film's carries no episodes, seasons or TMDB television id.",
+        "operationId": "readMediaSheet",
+        "parameters": [
+          {
+            "description": "the provider the identifier belongs to",
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Provider",
+              "description": "the provider the identifier belongs to"
+            }
+          },
+          {
+            "description": "the identifier at that provider",
+            "in": "path",
+            "name": "providerId",
+            "required": true,
+            "schema": {
+              "description": "the identifier at that provider",
+              "title": "Providerid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaSheet"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Read Media Sheet"
+      }
+    },
+    "/media/{provider}/{providerId}/rescrape": {
+      "post": {
+        "description": "Ask the providers for one medium's metadata again.\n\nArgs:\n    provider: The provider the id belongs to.\n    provider_id: The id at that provider.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The acceptance: running now, or visibly in file.",
+        "operationId": "rescrapeMedia",
+        "parameters": [
+          {
+            "description": "the provider the identifier belongs to",
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Provider",
+              "description": "the provider the identifier belongs to"
+            }
+          },
+          {
+            "description": "the identifier at that provider",
+            "in": "path",
+            "name": "providerId",
+            "required": true,
+            "schema": {
+              "description": "the identifier at that provider",
+              "title": "Providerid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RescrapeQueued"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Rescrape Media"
+      }
+    },
+    "/media/{provider}/{providerId}/seasons": {
+      "get": {
+        "description": "A show's seasons and what the library holds of each.\n\nArgs:\n    provider: The provider the id belongs to.\n    provider_id: The id at that provider.\n    signed_in: The signed-in actor.\n    app_services: The application services.\n\nReturns:\n    The seasons, the held episodes and the aired counts.",
+        "operationId": "readMediaSeasons",
+        "parameters": [
+          {
+            "description": "the provider the identifier belongs to",
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Provider",
+              "description": "the provider the identifier belongs to"
+            }
+          },
+          {
+            "description": "the identifier at that provider",
+            "in": "path",
+            "name": "providerId",
+            "required": true,
+            "schema": {
+              "description": "the identifier at that provider",
+              "title": "Providerid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaSeasons"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A refusal, answered as a Problem."
+          }
+        },
+        "summary": "Read Media Seasons"
       }
     },
     "/roles": {
