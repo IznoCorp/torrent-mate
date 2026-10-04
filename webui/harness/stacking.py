@@ -58,6 +58,26 @@ AT = """([selector, fraction]) => {
 }"""
 
 
+async def settle(page, condition, arg=None, timeout=5000):
+    """Wait, bounded, until a page condition holds; a timeout is not a pass.
+
+    The read that follows the wait still happens and its check fails with its
+    own figures when the condition is unreachable, so a real absence is
+    reported by the rule and not swallowed by the wait.
+
+    Args:
+        page: The Playwright page.
+        condition: A JS function expression returning truthy once what the
+            next reading measures has been drawn.
+        arg: Optional argument handed to the function.
+        timeout: Upper bound in milliseconds.
+    """
+    try:
+        await page.wait_for_function(condition, arg=arg, timeout=timeout)
+    except PlaywrightTimeout:
+        pass
+
+
 async def main():
     journal = Journal("R101 — one ranked order, and the top layer answers the finger")
     async with async_playwright() as playwright:
@@ -69,7 +89,7 @@ async def main():
         # THE BAR IS REALLY THERE AND REALLY ON TOP OF THE PAGE, so the holds
         # below are not passing over an element that is simply absent.
         await page.evaluate("()=>window.__go('lib-list')")
-        await page.wait_for_timeout(300)
+        await settle(page, "()=>!!document.querySelector('#nav')?.getBoundingClientRect().height")
         bar = await page.evaluate(AT, ['#nav', 0.5])
         journal.check(
             "the tab bar is on screen and answers a finger — the subject exists",
@@ -95,7 +115,11 @@ async def main():
           body: [{type: 'manifest', entries: Array.from({length: 40},
             (_, n) => ({text: 'ligne ' + n, value: String(n)}))}],
           actions: [{text: 'Annuler', dismiss: true}]})""")
-        await page.wait_for_timeout(400)
+        await settle(page, """()=>{
+          const dialog = document.querySelector('#dlg');
+          const bar = document.querySelector('#nav');
+          return !!dialog && !!bar && dialog.getBoundingClientRect().bottom
+            > bar.getBoundingClientRect().top;}""")
         overlapping = await page.evaluate("""()=>{
           const dialog = document.querySelector('#dlg').getBoundingClientRect();
           const bar = document.querySelector('#nav').getBoundingClientRect();
@@ -170,13 +194,18 @@ async def main():
         # so the bar this hold is about is not on screen in it. Measured, after
         # the hold reported « absent » — a premise nobody had checked.
         await page.evaluate("()=>window.__go('lib-selection')")
-        await page.wait_for_timeout(350)
+        await settle(page, """()=>!!document.querySelector(
+          '[data-part="selection/bar"]')?.getBoundingClientRect().height""")
         await page.evaluate("""()=>window.__dialog.open({
           heading: 'probe',
           body: [{type: 'manifest', entries: Array.from({length: 40},
             (_, n) => ({text: 'ligne ' + n, value: String(n)}))}],
           actions: [{text: 'Annuler', dismiss: true}]})""")
-        await page.wait_for_timeout(450)
+        await settle(page, """()=>{
+          const dialog = document.querySelector('#dlg');
+          const bar = document.querySelector('[data-part="selection/bar"]');
+          return !!dialog && !!bar && dialog.getBoundingClientRect().bottom
+            > bar.getBoundingClientRect().top;}""")
         over_selection = await page.evaluate("""()=>{
           const bar = document.querySelector('[data-part="selection/bar"]');
           if (!bar) return {absent: true};
@@ -197,7 +226,11 @@ async def main():
 
         # (c) THE DRAWER, which was already above the bar and must stay there.
         await page.evaluate("()=>window.__go('drawer-navigation')")
-        await page.wait_for_timeout(400)
+        await settle(page, """()=>{
+          const drawer = document.querySelector('#drawer');
+          const frame = document.querySelector('#device');
+          return !!drawer && !!frame && Math.round(drawer.getBoundingClientRect().left)
+            >= Math.round(frame.getBoundingClientRect().left);}""")
         drawer_hit = await page.evaluate(AT, ['#drawer', 0.95])
         journal.check(
             "the drawer answers the finger at its lower edge too",
@@ -212,7 +245,7 @@ async def main():
         # off the bar, and this hold is what says it still does.
         await page.evaluate("()=>window.__go('lib-list')")
         await page.evaluate("()=>window.__toast.show({message: 'probe'})")
-        await page.wait_for_timeout(350)
+        await settle(page, "()=>!!document.querySelector('#toast')?.getBoundingClientRect().height")
         # THE RELATION, NOT THE MESSAGE'S OWN CENTRE. The first version of this
         # hold hit-tested inside the toast and asserted the toast answered —
         # which is true by construction, because nothing paints over it there.
@@ -307,7 +340,8 @@ async def main():
         # frame on a desktop is CENTRED, so a clamp written against the viewport
         # would let the popover leave the device on the left and still pass.
         await page.evaluate("()=>window.__go('followsheet-gaps')")
-        await page.wait_for_timeout(500)
+        await settle(page, """()=>document.querySelectorAll(
+          '[data-part="episode"]').length > 2""")
         cells = await page.evaluate(
             """()=>document.querySelectorAll('[data-part="episode"]').length""")
         journal.check(
@@ -326,7 +360,9 @@ async def main():
                      a.getBoundingClientRect().left - b.getBoundingClientRect().left);
                    (edge === 'left' ? sorted[0] : sorted[sorted.length - 1]).click();}""",
                 edge)
-            await page.wait_for_timeout(300)
+            await settle(page, """()=>{
+              const layer = document.querySelector('[data-part="episode/popover"]');
+              return !!layer && getComputedStyle(layer).visibility === 'visible';}""")
             placements.append(await page.evaluate("""()=>{
               const layer = document.querySelector('[data-part="episode/popover"]');
               if (!layer) return {absent: true};
