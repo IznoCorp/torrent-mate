@@ -232,7 +232,7 @@ async def main():
         await page.click('[data-part="profile/install-action"]')
         await page.wait_for_timeout(ACTED)
         shown = await page.evaluate(INSTALL)
-        journal.check("and pressing it shows the way: Partager, then Sur l'écran d'accueil, then Ajouter",
+        journal.check("and pressing it shows the way, in the interface's three steps",
                       shown["steps"] == [await say(f"screens.accountPage.install.steps.{step}")
                                          for step in ("share", "addToHome", "confirm")], str(shown))
         update = await at("profile-update", INSTALL, SETTLED)

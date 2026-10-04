@@ -521,7 +521,10 @@ const script = process.argv[1];
 const answered = { status: Number(process.argv[2]), code: process.argv[3] };
 const seen = { replaced: [], stored: {} };
 let submit = null;
-globalThis.sessionStorage = { getItem: () => String(Date.now()), setItem: (key, value) => { seen.stored[key] = value; } };
+globalThis.sessionStorage = {
+  getItem: () => String(Date.now()),
+  setItem: (key, value) => { seen.stored[key] = value; },
+};
 globalThis.location = { pathname: '/', search: '', replace: (to) => { seen.replaced.push(to); } };
 const form = {
   username: { value: ' a@b.c ' }, password: { value: 'pw' },
