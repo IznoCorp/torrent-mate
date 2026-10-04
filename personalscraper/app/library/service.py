@@ -1,14 +1,16 @@
 """``LibraryService``: the one service the v1 library and media routes call (K1 § C.3).
 
 Reads over the index (``library.db``), the aired catalogue (``acquire.db``) and the
-metadata providers, and one write: a medium's rescrape, launched through the
-maintenance path. Every read is ``library.read`` and the rescrape ``library.rescrape``,
-doors the v1 perimeter holds: nothing filters by right, so ``actor`` is carried for the
-signature the routes share and is not consulted.
+metadata providers, and two writes: a medium's rescrape, launched through the
+maintenance path, and a medium's deletion (its folder, its index rows, its Plex entry,
+``app/library/deletion.py``). Every read is ``library.read``, the rescrape
+``library.rescrape`` and the deletion ``library.delete``, doors the v1 perimeter holds:
+nothing filters by right, so ``actor`` is carried for the signature the routes share and
+is consulted only to journal who deleted.
 
 Identity is the provider id (Q15): a medium is read by the id the wire names, never by
 its title. An id held by two rows, or by one row in two media folders, is a duplicate;
-the reads never merge one, they count it.
+the reads never merge one, they count it, and the deletion refuses it (O-5 B).
 """
 
 from __future__ import annotations
@@ -22,18 +24,26 @@ from contextlib import closing
 from dataclasses import dataclass, replace
 from datetime import date, datetime
 from pathlib import Path
-from typing import Final, Literal
+from typing import TYPE_CHECKING, Final, Literal
 
 from personalscraper.acquire.catalogue import CatalogueEpisode, CatalogueStore, ProviderClients
 from personalscraper.api.metadata._base import MediaDetails
 from personalscraper.app.accounts.actor import Actor
-from personalscraper.app.errors import AppBadRequest, AppConflict, AppInternalError, RefusalCode
+from personalscraper.app.errors import AppBadRequest, AppConflict, AppInternalError, AppNotFound, RefusalCode
 from personalscraper.app.library.catalogue import (
     Completeness,
     aired_of_season,
     catalogue_key,
     completeness,
     off_catalogue,
+)
+from personalscraper.app.library.deletion import (
+    DeletionReport,
+    MediaDeletion,
+    PlexOutcome,
+    follow_up_plex,
+    remove_empty_parents,
+    remove_item_rows,
 )
 from personalscraper.app.library.facts import (
     EpisodeFact,
@@ -69,10 +79,18 @@ from personalscraper.app.library.listing import (
 )
 from personalscraper.app.maintenance.registry import REGISTRY, MaintenanceAction
 from personalscraper.app.maintenance.service import LaunchedRun, launch_action, running_run
+from personalscraper.conf.preprod_guard import PreprodGuardError
 from personalscraper.core.artwork_naming import artwork_inventory
+from personalscraper.core.delete_permit import AllowAllPermit, DeletePermit
 from personalscraper.core.identity import MediaRef
+from personalscraper.indexer.deletion import DeleteOutcome, delete_media_folder
 from personalscraper.indexer.ownership import IndexerOwnershipChecker
+from personalscraper.lock import acquire_pipeline_lock, release_lock, scrape_locks_dir_for
 from personalscraper.logger import get_logger
+
+if TYPE_CHECKING:
+    from personalscraper.api.plex import PlexClient
+    from personalscraper.conf.models.config import Config
 
 log = get_logger("app.library.service")
 
@@ -299,6 +317,57 @@ def _folder_poster(mount_path: str, folder: str) -> LocalPoster | None:
     return LocalPoster(content=content, media_type=media_type or "application/octet-stream")
 
 
+@dataclass(frozen=True)
+class _DeletionPlan:
+    """What one validated medium's deletion touches.
+
+    Attributes:
+        ref: The medium, as the request named it.
+        item_id: The one index row holding it.
+        targets: Its media folders, resolved inside their disks: ``(mount point, folder)``.
+        unresolved: Its mounted media folders that do not resolve inside their disk (or
+            through a symlink): never deleted, counted failed.
+        unreachable: Its media folders on a disk the index says is not mounted.
+    """
+
+    ref: MediaRef
+    item_id: int
+    targets: tuple[tuple[Path, Path], ...]
+    unresolved: int
+    unreachable: int
+
+
+@dataclass(frozen=True)
+class _Deleted:
+    """One medium's deletion before Plex is told.
+
+    Attributes:
+        deletion: What was done, Plex not yet asked.
+        survivors: The nearest surviving ancestor of each deleted folder.
+    """
+
+    deletion: MediaDeletion
+    survivors: tuple[Path, ...]
+
+
+def _deletable_folder(mounted: tuple[str, str]) -> tuple[Path, Path] | None:
+    """Resolve a media folder for deletion: inside its disk, and reached through no symlink.
+
+    Args:
+        mounted: ``(mount path, "<category>/<media folder>")`` as the index names it.
+
+    Returns:
+        ``(mount point, folder)`` resolved, or ``None`` when the folder does not resolve
+        inside its disk, or its own path or its category's is a symlink (deleting through
+        a link would reach whatever it points to).
+    """
+    mount_path, folder = mounted
+    literal = Path(mount_path) / folder
+    if literal.is_symlink() or literal.parent.is_symlink():
+        return None
+    return resolve_media_folder(mount_path, folder)
+
+
 def _entry(row: IndexRow) -> LibraryEntry:
     """Serve an index row as a library entry.
 
@@ -366,9 +435,9 @@ def _by_season(pairs: set[tuple[int, int]]) -> dict[int, tuple[int, ...]]:
 
 
 class LibraryService:
-    """The library's reads.
+    """The library's reads, its rescrape and its deletion.
 
-    The index is opened read-only for each call (a WAL read takes no lock); the catalogue
+    The index is opened read-only for each read (a WAL read takes no lock); the catalogue
     store and the ownership checker are shared, and serialised by one lock, since a web
     request thread may call while another runs.
     """
@@ -382,6 +451,11 @@ class LibraryService:
         ownership: IndexerOwnershipChecker,
         providers: ProviderClients,
         clock: Callable[[], float] = time.time,
+        plex: PlexClient | None = None,
+        delete_permit: DeletePermit | None = None,
+        config: Config | None = None,
+        sleep: Callable[[float], None] = time.sleep,
+        monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         """Hold the stores and the clients; nothing is opened yet.
 
@@ -392,6 +466,13 @@ class LibraryService:
             ownership: The ownership checker over ``library.db`` (owned: closed by :meth:`close`).
             providers: The metadata provider clients; ``None`` for an unconfigured one.
             clock: Epoch seconds; « today » for the aired counts and the provider cache's clock.
+            plex: The Plex server a deletion tells; ``None`` when none is configured.
+            delete_permit: The deletion authority a deletion consults (fail-open); allow-all
+                when ``None``.
+            config: The loaded configuration, naming preprod's roots: required under
+                ``staging``, where a deletion without it deletes nothing.
+            sleep: Pauses a deletion's wait for a Plex scan.
+            monotonic: Monotonic seconds, bounding that wait.
         """
         self._index_db = index_db
         self._data_dir = data_dir
@@ -401,6 +482,11 @@ class LibraryService:
         self._clock = clock
         self._lock = threading.Lock()
         self._sheets = ProviderSheetCache(clock)
+        self._plex = plex
+        self._delete_permit: DeletePermit = delete_permit if delete_permit is not None else AllowAllPermit()
+        self._config = config
+        self._sleep = sleep
+        self._monotonic = monotonic
 
     def close(self) -> None:
         """Close the catalogue store and the ownership checker (idempotent)."""
@@ -906,6 +992,188 @@ class LibraryService:
                 return run, True
             log.info("app.library.rescrape_ended_before_read", provider=provider.value, item_id=item_id)
         raise AppInternalError("the rescrape was refused as running but no run was found")
+
+    def delete_media(self, actor: Actor, refs: Sequence[MediaRef]) -> DeletionReport:
+        """Delete media everywhere: their folders on the disks, their index rows, their Plex entries.
+
+        All or nothing at the refusal: ``pipeline.lock`` is taken for the whole request, and
+        every reference is validated before any folder is touched. Then, per medium, its
+        one media folder is deleted through the folder-deletion primitive (the deletion
+        authority consulted, the deletion journaled with ``web:<account id>``, the indexer
+        told), the parent folders it left empty are removed up to the library root, and
+        its index rows are removed with their tombstones — only when no folder of it was
+        kept. Plex is told last, per section touched (:func:`follow_up_plex`). Nothing is
+        rolled back: a kept folder, a failed removal or a Plex failure is reported.
+
+        Args:
+            actor: Who deletes (an Admin: the v1 perimeter holds ``library.delete``).
+            refs: The media, each by the one id the wire names; a medium named twice is
+                deleted once.
+
+        Returns:
+            The report: how many media went entirely, and what each deletion did.
+
+        Raises:
+            AppConflict: ``library.locked`` while a run holds ``pipeline.lock``;
+                ``media.ambiguous`` (``params.provider`` / ``params.providerId``) when two
+                or more rows, or one row's live files in two or more media folders, hold an
+                id (operator ruling O-5 B). Nothing is deleted.
+            AppNotFound: ``media.not_found`` (``params.provider`` / ``params.providerId``)
+                when no index row holds an id. Nothing is deleted.
+        """
+        lock_file = self._data_dir / "pipeline.lock"
+        if not acquire_pipeline_lock(lock_file, scrape_locks_dir_for(self._data_dir)):
+            raise AppConflict("The pipeline holds the library.", code=RefusalCode.LIBRARY_LOCKED)
+        try:
+            plans = self._deletion_plans(refs)
+            done = [self._delete_one(actor, plan) for plan in plans]
+            return self._told_plex(done)
+        finally:
+            release_lock(lock_file)
+
+    def _deletion_plans(self, refs: Sequence[MediaRef]) -> list[_DeletionPlan]:
+        """Validate every reference and name what each deletion touches; refuse before anything goes.
+
+        Args:
+            refs: The media asked.
+
+        Returns:
+            One plan per distinct medium, in request order.
+
+        Raises:
+            AppNotFound: ``media.not_found`` when no row holds an id.
+            AppConflict: ``media.ambiguous`` when an id is held more than once.
+        """
+        plans: list[_DeletionPlan] = []
+        seen: set[tuple[Provider, str]] = set()
+        with closing(self._connect()) as conn:
+            for ref in refs:
+                key = ref_key(ref)
+                if key in seen:
+                    continue
+                seen.add(key)
+                provider, provider_id = key
+                params = {"provider": provider.value, "providerId": provider_id}
+                holders, folders = self._held(conn, ref)
+                if not holders:
+                    raise AppNotFound("No library row holds this id.", code=RefusalCode.MEDIA_NOT_FOUND, params=params)
+                holdings = sum(max(1, len(folders.get(row.item_id, ()))) for row in holders)
+                if holdings > 1:
+                    raise AppConflict(
+                        "Several library rows or folders hold this id.", code=RefusalCode.MEDIA_AMBIGUOUS, params=params
+                    )
+                [row] = holders
+                mounted = mounted_media_folders(conn, row.item_id)
+                targets = {
+                    resolved[1]: resolved for resolved in map(_deletable_folder, mounted) if resolved is not None
+                }
+                unresolved = sum(1 for resolved in map(_deletable_folder, mounted) if resolved is None)
+                plans.append(
+                    _DeletionPlan(
+                        ref=ref,
+                        item_id=row.item_id,
+                        targets=tuple(targets.values()),
+                        unresolved=unresolved,
+                        unreachable=max(0, len(folders.get(row.item_id, ())) - len(mounted)),
+                    )
+                )
+        return plans
+
+    def _delete_one(self, actor: Actor, plan: _DeletionPlan) -> _Deleted:
+        """Delete one validated medium's folder, its emptied parents and, when nothing was kept, its rows.
+
+        Args:
+            actor: Who deletes.
+            plan: What the medium's deletion touches.
+
+        Returns:
+            What was done, and the surviving parent of each deleted folder (for Plex).
+        """
+        who = f"web:{actor.account_id}"
+        provider, provider_id = ref_key(plan.ref)
+        deleted = vetoed = parents_removed = 0
+        failed = plan.unresolved
+        if plan.unresolved:
+            log.warning("app.library.delete_folder_unresolved", provider=provider.value, item_id=plan.item_id)
+        survivors: list[Path] = []
+        for root, directory in plan.targets:
+            try:
+                result = delete_media_folder(
+                    directory,
+                    db_path=self._index_db,
+                    actor=who,
+                    label=f"media {provider.value}/{provider_id}",
+                    permit=self._delete_permit,
+                    config=self._config,
+                )
+            except PreprodGuardError as exc:
+                log.warning("app.library.delete_preprod_refused", item_id=plan.item_id, error=str(exc))
+                failed += 1
+                continue
+            if result.outcome is DeleteOutcome.VETOED:
+                vetoed += 1
+            elif result.outcome is DeleteOutcome.FAILED:
+                failed += 1
+            else:
+                deleted += 1
+                removed, survivor = remove_empty_parents(directory, root)
+                parents_removed += removed
+                survivors.append(survivor)
+        unreachable = plan.unreachable
+        rows = 0
+        if vetoed + failed + unreachable == 0:
+            rows = remove_item_rows(self._index_db, [plan.item_id], actor=who)
+        log.info(
+            "app.library.media_deleted",
+            provider=provider.value,
+            item_id=plan.item_id,
+            folders_deleted=deleted,
+            folders_vetoed=vetoed,
+            folders_failed=failed,
+            folders_unreachable=unreachable,
+            rows_removed=rows,
+        )
+        return _Deleted(
+            MediaDeletion(
+                ref=plan.ref,
+                folders_deleted=deleted,
+                folders_vetoed=vetoed,
+                folders_failed=failed,
+                folders_unreachable=unreachable,
+                parents_removed=parents_removed,
+                rows_removed=rows,
+                plex=PlexOutcome.NOT_NEEDED,
+            ),
+            tuple(survivors),
+        )
+
+    def _told_plex(self, done: Sequence[_Deleted]) -> DeletionReport:
+        """Tell Plex of every deleted folder at once, and fold its steps into each medium's report.
+
+        Args:
+            done: Each medium's deletion and the surviving parents of its deleted folders.
+
+        Returns:
+            The request's report.
+        """
+        parents = [parent for one in done for parent in one.survivors]
+        steps = (
+            follow_up_plex(self._plex, parents, sleep=self._sleep, clock=self._monotonic)
+            if self._plex is not None and parents
+            else {}
+        )
+        media: list[MediaDeletion] = []
+        for one in done:
+            report = one.deletion
+            if one.survivors and self._plex is None:
+                report = replace(report, plex=PlexOutcome.NOT_CONFIGURED)
+            elif one.survivors:
+                mine = [steps[parent] for parent in one.survivors]
+                failed = next((step for step in mine if step.outcome is PlexOutcome.FAILED), None)
+                chosen = failed if failed is not None else mine[0]
+                report = replace(report, plex=chosen.outcome, plex_steps=chosen)
+            media.append(report)
+        return DeletionReport(deleted=sum(1 for one in media if one.deleted), media=tuple(media))
 
     # ------------------------------------------------------------------ the sheet's parts
 
